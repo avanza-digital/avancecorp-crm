@@ -174,13 +174,13 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     expect(RECARGAR).toHaveBeenCalled()
   })
 
-  it('permite cambiar o quitar el asesor antes de guardar', () => {
+  it('permite cambiar o quitar el analista antes de guardar', () => {
     render(<Derivaciones />)
     const selector = screen.getByRole('combobox', {
       name: /Derivar Lead por repartir/i,
     })
     const tarjetas = screen.getByRole('list', {
-      name: 'Derivaciones por asesor de mi equipo',
+      name: 'Derivaciones por analista de mi equipo',
     })
 
     fireEvent.change(selector, { target: { value: ANA } })
@@ -215,7 +215,7 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     expect(within(lista).queryByText('Lead por derivar 6')).not.toBeInTheDocument()
 
     fireEvent.change(
-      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un asesor' }),
+      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un analista' }),
       { target: { value: ANA } },
     )
     const paginacion = screen.getByRole('navigation', {
@@ -229,7 +229,7 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Anterior' }))
     expect(
-      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un asesor' }),
+      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un analista' }),
     ).toHaveValue(ANA)
   })
 

@@ -216,7 +216,7 @@ const EPISODIOS_CONVERSION_INTEL: readonly EpisodioConversionDemo[] = [
   { leadId: 'ic-f2', analistaId: 'demo-v6', asignadoHaceMeses: 1, origen: 'web' },
 ]
 
-/** Mismo mapa vendedor→supervisor que `metasConversionEquipoDemo`. */
+/** Mismo mapa analista→supervisor que `metasConversionEquipoDemo`. */
 const ROSTER_CONVERSION_INTEL: readonly RosterConversionDemo[] = [
   { analistaId: 'demo-v1', supervisorId: 'demo-s1' },
   { analistaId: 'demo-v2', supervisorId: 'demo-s1' },

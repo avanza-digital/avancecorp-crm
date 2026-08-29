@@ -105,6 +105,12 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
   ) {
     throw new TypeError('Fallback global inválido')
   }
+  if (
+    valor.estado === 'miembro'
+    && ((valor.rol_crm === 'directorio') !== (valor.rol_portal === 'directorio'))
+  ) {
+    throw new TypeError('Directorio Portal/CRM desalineado')
+  }
   if (valor.estado === 'miembro' && !ROLES_MIEMBRO.has(valor.rol_crm)) {
     throw new TypeError('Rol de membresía CRM inválido')
   }

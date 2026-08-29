@@ -1,5 +1,5 @@
 // E2E de la pantalla EQUIPO en modo DEMO (sin backend) — la red de seguridad
-// del refactor de presentación: supervisor ve cards de SUS vendedores + su
+// del refactor de presentación: supervisor ve cards de SUS analistas + su
 // cola, mientras el reparto vive en un módulo aparte; gerencia ve un bloque
 // por supervisor con la TABLA
 // comparativa y la bandeja global; directorio ve la misma radiografía SIN
@@ -15,12 +15,12 @@ test('demo supervisor: Gestión de equipo conserva seguimiento y separa el repar
   await entrarDemo(page, 'Supervisor')
   await page.getByRole('button', { name: 'Gestión de equipo' }).click()
 
-  // Cards SOLO de sus vendedores directos (d-sup1 → d-v1 y d-v2); el equipo
+  // Cards SOLO de sus analistas directos (d-sup1 → d-v1 y d-v2); el equipo
   // de d-sup2 queda fuera del ámbito (anti-fuga, espejo de store-ambito).
-  const cards = page.getByRole('list', { name: 'Vendedores de mi equipo' })
-  await expect(cards.getByText('VENDEDOR UNO')).toBeVisible()
-  await expect(cards.getByText('VENDEDOR DOS')).toBeVisible()
-  await expect(cards.getByText('VENDEDOR TRES')).toHaveCount(0)
+  const cards = page.getByRole('list', { name: 'Analistas de mi equipo' })
+  await expect(cards.getByText('ANALISTA UNO')).toBeVisible()
+  await expect(cards.getByText('ANALISTA DOS')).toBeVisible()
+  await expect(cards.getByText('ANALISTA TRES')).toHaveCount(0)
 
   // No duplica controles: el botón del módulo existe en el menú, pero esta
   // pantalla conserva solo la cola y el desempeño del equipo.
@@ -32,7 +32,7 @@ test('demo supervisor: Gestión de equipo conserva seguimiento y separa el repar
   expect(requestsSupabase()).toBe(0)
 })
 
-test('demo gerencia: un bloque por supervisor con la TABLA comparativa de vendedores', async ({ page }) => {
+test('demo gerencia: un bloque por supervisor con la TABLA comparativa de analistas', async ({ page }) => {
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Gerencia')
@@ -50,20 +50,21 @@ test('demo gerencia: un bloque por supervisor con la TABLA comparativa de vended
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toHaveCount(0)
 
-  // Abrir el equipo de SUPERVISOR DOS: aparece SU tabla de vendedores (solo una).
+  // Abrir el equipo de SUPERVISOR DOS: aparece SU tabla de analistas (solo una).
   await filaSup2.getByRole('button', { name: 'Ver equipo' }).click()
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toHaveCount(0)
-  for (const col of ['Vendedor', 'Sin tocar']) {
+  for (const col of ['Analista', 'Sin tocar']) {
     await expect(page.getByRole('columnheader', { name: col })).toHaveCount(1)
   }
 
-  // La fila de VENDEDOR TRES pinta sus números del ámbito global: S/ 113k en
-  // proceso (l4+l13+l20), 25% de conversión (1 de 4) y el semáforo ROJO de
-  // última actividad (l20 lleva 8 días sin movimiento — umbral >5 d).
-  const filaV3 = page.getByRole('row', { name: /VENDEDOR TRES/ })
+  // La fila de ANALISTA TRES pinta sus números del ámbito global: S/ 113k en
+  // proceso (l4+l13+l20), sin fabricar una conversión cuando no existe divisor
+  // mensual canónico, y el semáforo ROJO de última actividad (l20 lleva 8 días
+  // sin movimiento — umbral >5 d).
+  const filaV3 = page.getByRole('row', { name: /ANALISTA TRES/ })
   await expect(filaV3.getByText('S/ 113k')).toBeVisible()
-  await expect(filaV3.getByText('25%')).toBeVisible()
+  await expect(filaV3.getByText('Sin divisor mensual')).toBeVisible()
   await expect(filaV3.getByText('8 d sin act.')).toBeVisible()
 
   expect(requestsSupabase()).toBe(0)
@@ -80,10 +81,10 @@ test('demo gerencia: reparte desde la bandeja global (optgroup por equipo) con t
   await expect(page.getByRole('heading', { name: 'Por repartir (toda la empresa)' })).toBeVisible()
   await expect(page.getByText('Bandeja: SUPERVISOR DOS')).toBeVisible()
 
-  // Asignar cruzando de bandeja: SOFÍA (bandeja d-sup2) → VENDEDOR TRES.
-  await page.getByLabel('Asignar vendedor a SOFÍA HERRERA LUNA').selectOption({ label: 'VENDEDOR TRES' })
+  // Asignar cruzando de bandeja: SOFÍA (bandeja d-sup2) → ANALISTA TRES.
+  await page.getByLabel('Asignar analista a SOFÍA HERRERA LUNA').selectOption({ label: 'ANALISTA TRES' })
   await page.getByRole('button', { name: 'Asignar', disabled: false }).click()
-  await expect(page.getByText('SOFÍA HERRERA LUNA asignado a VENDEDOR TRES (demo)')).toBeVisible()
+  await expect(page.getByText('SOFÍA HERRERA LUNA asignado a ANALISTA TRES (demo)')).toBeVisible()
 
   expect(requestsSupabase()).toBe(0)
 })
@@ -102,7 +103,7 @@ test('demo directorio: la misma radiografía en tabla pero SIN botones de acció
     .getByRole('button', { name: 'Ver equipo' })
     .click()
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toBeVisible()
-  await expect(page.getByRole('row', { name: /VENDEDOR UNO/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /ANALISTA UNO/ })).toBeVisible()
 
   // Solo lectura total: ni bandeja global ni un solo botón "Asignar"
   // (espejo del write-gating ya probado para el pipeline en demo-roles).

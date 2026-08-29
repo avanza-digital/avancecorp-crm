@@ -83,13 +83,14 @@ export function demoMetricasPagosMes(): FilaPagosMes[] {
   return [...buckets.values()]
 }
 
-// ── (c) Altas de clientes por analista/mes (asesor de la cartera demo) ─────────
+// ── (c) Altas de clientes por analista/mes (responsable de la cartera demo) ───
 export function demoMetricasAltasAnalista(): FilaAltasAnalista[] {
   const nombrePorId = new Map(EQUIPO_DEMO.map((m) => [m.perfil_id, m.nombre_completo]))
   const buckets = new Map<string, FilaAltasAnalista>()
   for (const cliente of CLIENTES_DEMO) {
-    // Espejo de crm.metricas_altas_analista_fn: coalesce(asesor, creado_por) —
-    // un alta sin asesor se acredita a quien la registró, igual que la RPC real
+    // Espejo de crm.metricas_altas_analista_fn:
+    // coalesce(asesor_perfil_id, creado_por). Un alta con `asesor_perfil_id`
+    // nulo se acredita a quien la registró, igual que la RPC real
     // (sin esto, el demo se contradecía: Clientes acreditaba el alta y la
     // gráfica la perdía — hallazgo de revisión).
     const analistaId = cliente.asesor_perfil_id ?? cliente.creado_por

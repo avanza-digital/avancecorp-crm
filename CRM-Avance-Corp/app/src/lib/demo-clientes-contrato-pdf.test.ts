@@ -20,7 +20,7 @@ describe('datos demo para el contrato PDF', () => {
       const identidad = IDENTIDADES_PDF_DEMO[cliente.id]
       expect(identidad?.titular.nombreCompleto).toBe(cliente.nombre_completo)
       expect(identidad?.titular.domicilio).toContain('Lima')
-      expect(identidad?.analista.nombreCompleto).toBe('VENDEDOR UNO')
+      expect(identidad?.analista.nombreCompleto).toBe('ANALISTA UNO')
     }
   })
 

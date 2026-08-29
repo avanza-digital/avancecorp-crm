@@ -28,7 +28,7 @@ const LEAD: Lead = {
   moneda: 'PEN',
   categoria_interes: null,
   vendedor_id: 'vendedor-1',
-  vendedor_nombre: 'VENDEDOR PRUEBA',
+  vendedor_nombre: 'ANALISTA PRUEBA',
   asignado_supervisor_id: null,
   creado_en: '2026-07-17T12:00:00.000Z',
   activo: true,
@@ -42,7 +42,7 @@ const SESION: AuthContextValue = {
   fase: 'listo',
   yo: {
     id: 'vendedor-1',
-    nombre_completo: 'VENDEDOR PRUEBA',
+    nombre_completo: 'ANALISTA PRUEBA',
     rol: 'vendedor',
     demo: true,
     puede_contratar: true,
@@ -180,7 +180,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
   })
 
   it('sin segundo número lo DICE, en vez de dejar un hueco', () => {
-    // El hueco dejaba al vendedor sin saber si el CRM se comió un dato o si el
+    // El hueco dejaba al analista sin saber si el CRM se comió un dato o si el
     // origen nunca lo dio. El 84,2 % de las filas del origen no trae segundo
     // número: este es el caso mayoritario, no la excepción.
     montar({ lead: { telefono_alternativo: null, telefono_alternativo_crudo: null } })
@@ -189,7 +189,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     expect(screen.getByText('— el origen no dio un segundo número')).toBeInTheDocument()
   })
 
-  it('el vendedor puede CORREGIR el segundo número desde la ficha', async () => {
+  it('el analista puede CORREGIR el segundo número desde la ficha', async () => {
     // Es la única vía que tiene hoy: el alta manual todavía no lo admite porque
     // la RPC de creación no tiene el parámetro. Aquí es donde llega el texto que
     // el origen escribió mal y que la fila muestra como «sin validar».
@@ -262,7 +262,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
 })
 
 // El aviso "Faltan DNI, distrito y categoría → Completar" mandaba a un
-// formulario que no tenía ninguno de los tres: el asesor no podía resolver lo
+// formulario que no tenía ninguno de los tres: el analista no podía resolver lo
 // que se le pedía y el aviso volvía a salir después de guardar. Con 64/64 leads
 // de producción sin DNI, era un callejón sin salida en el 100% de las fichas.
 describe('LeadDrawer — «Completar» resuelve de verdad los datos que faltan', () => {
@@ -417,7 +417,7 @@ describe('LeadDrawer — el composer canta el avance automático de etapa', () =
 
 // Agendar una reunión con quien ya se trabajó sube el lead por trigger. El
 // store lo calculaba, movía la etapa… y no lo decía: era el único de los tres
-// escritores que cambiaba el embudo a espaldas del asesor.
+// escritores que cambiaba el embudo a espaldas del analista.
 describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () => {
   it('lo dice cuando agendar la tarea sube la etapa del lead', async () => {
     const user = userEvent.setup()

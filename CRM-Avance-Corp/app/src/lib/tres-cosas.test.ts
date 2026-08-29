@@ -107,7 +107,7 @@ describe('tresCosasDeHoy', () => {
     }))).toEqual([])
   })
 
-  it('con varios vendedores en el mismo aprieto agrupa y no señala a uno solo', () => {
+  it('con varios analistas en el mismo aprieto agrupa y no señala a uno solo', () => {
     const cosas = tresCosasDeHoy(entrada({
       vendedoresAgenda: [
         ven('v1', 'Ana', { leads_sin_accion: 3, no_asistio: 2 }),
@@ -115,8 +115,8 @@ describe('tresCosasDeHoy', () => {
       ],
     }))
     expect(cosas.map((c) => c.texto)).toEqual([
-      '2 vendedores con citas sin asistir',
-      '2 vendedores con leads sin próxima acción',
+      '2 analistas con citas sin asistir',
+      '2 analistas con leads sin próxima acción',
     ])
   })
 
@@ -160,7 +160,7 @@ describe('tresCosasDeHoy', () => {
     expect(tresCosasDeHoy(entrada({
       vendedoresAgenda: [
         ven('s1', 'SUPERVISOR UNO', { rol: 'supervisor', no_asistio: 2, leads_sin_accion: 6 }),
-        ven('v9', 'Ex Vendedor', { activo: false, no_asistio: 3 }),
+        ven('v9', 'Ex Analista', { activo: false, no_asistio: 3 }),
       ],
     }))).toEqual([])
   })
@@ -189,7 +189,7 @@ describe('tresCosasDeHoy', () => {
   // agrupa, y con conteos distintos manda el conteo). Se conserva como
   // defensa estructural y se DICE aquí, según la regla de la casa para los
   // fallos que ningún test puede cazar.
-  it('es determinista: el mismo día en otro orden de vendedores da las mismas cosas', () => {
+  it('es determinista: el mismo día en otro orden de analistas da las mismas cosas', () => {
     const a = ven('v1', 'Ana', { no_asistio: 2 })
     const b = ven('v2', 'Bea', { no_asistio: 2 })
     expect(tresCosasDeHoy(entrada({ vendedoresAgenda: [a, b] })))

@@ -56,7 +56,7 @@ function lead(over: Partial<Lead> = {}): Lead {
     moneda: 'PEN',
     categoria_interes: null,
     vendedor_id: 'u-v1',
-    vendedor_nombre: 'Vendedor Real',
+    vendedor_nombre: 'Analista Real',
     asignado_supervisor_id: null,
     creado_en: '2026-07-01T00:00:00.000Z',
     activo: true,
@@ -80,7 +80,7 @@ function montar({
   // `demo: false` es el mundo REAL de producción, y es donde vivía el bug de la
   // campana: TODAS las pruebas de aquí corrían en demo, así que ninguna podía
   // verlo.
-  YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo }
+  YO = { id: 'u-v1', nombre_completo: 'Analista Real', rol, demo }
   LEADS = leads
   ALERTAS = alertas
   CARGANDO_ALERTAS = false
@@ -97,7 +97,7 @@ function alerta(over: Partial<AlertaCRM> = {}): AlertaCRM {
     titulo: 'Tarea vencida',
     detalle: 'La llamada venció hace 1 día.',
     responsableId: 'u-v1',
-    responsable: 'Vendedor Real',
+    responsable: 'Analista Real',
     valor: 24,
     destino: { vista: 'agenda', leadId: 'lead-1', etiqueta: 'Abrir en Agenda' },
     ...over,
@@ -130,7 +130,7 @@ describe('Topbar — buscador', () => {
     await user.type(campoBusqueda(), 'zzz')
     // "Sin resultados" a secas se leía como "esa persona no existe".
     expect(screen.getByText(/Sin resultados en tus leads para «zzz»/)).toBeInTheDocument()
-    // Al vendedor su menú le rotula la cartera "Mi cartera": así se le nombra.
+    // Al analista su menú le rotula la cartera "Mi cartera": así se le nombra.
     expect(screen.getByText(/Búscalo en «Mi cartera», en el menú lateral/)).toBeInTheDocument()
   })
 
@@ -183,7 +183,7 @@ describe('Topbar — pendientes por responsabilidad', () => {
   )
 
   // ── El bug de la campana muerta (2026-08-09) ──────────────────────────────
-  // La campana se PINTABA con `can(rol,'verAlertas')` —que vendedor y supervisor
+  // La campana se PINTABA con `can(rol,'verAlertas')` —que analista y supervisor
   // tienen— mientras el router exige ADEMÁS el gate de leads. En producción, con
   // la llave cerrada, el clic intentaba ir a #/alertas, `sanearVista` devolvía al
   // usuario a su landing con `replaceState` (que no redispara hashchange) y no

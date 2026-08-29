@@ -15,6 +15,7 @@ import type { ClienteDetalle, CuentaBancariaSeleccionable } from '@/lib/clientes
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import type { Rol } from '@/lib/roles'
 import * as crmApi from '@/data/crm-api'
+import { crmQueryKeys } from '@/data/crm-queries'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -77,6 +78,8 @@ function detalleBase(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: new Date().toISOString(), // recién creado → ventana viva
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     banco: 'BCP',
     tipo_cuenta: 'ahorros',
     numero_cuenta: '19112345678901',
@@ -99,6 +102,7 @@ interface PropsParciales {
   modo?: 'crear' | 'corregir'
   clienteId?: string
   rol?: Rol
+  queryClient?: QueryClient
 }
 
 function montar(props: PropsParciales = {}) {
@@ -106,7 +110,7 @@ function montar(props: PropsParciales = {}) {
   const onCerrar = vi.fn()
   // QueryClient NUEVO por montaje: caché aislada entre tests (la precarga de
   // corregir usa la clave clienteDetalle(id) y no debe sobrevivir de un test a otro).
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = props.queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const rol = props.rol ?? 'vendedor'
   const auth: AuthContextValue = {
     fase: 'listo',
@@ -142,7 +146,7 @@ function montar(props: PropsParciales = {}) {
       </QueryClientProvider>
     </AuthContext.Provider>,
   )
-  return { onListo, onCerrar }
+  return { onListo, onCerrar, queryClient }
 }
 
 /** Llena identidad + cuenta PEN completa (el mínimo del alta feliz). */
@@ -228,7 +232,7 @@ describe('ClienteForm — modo crear (alta atómica)', () => {
   it('si el servidor rechaza los bancarios NO queda cliente a medias: error y re-submit posible', async () => {
     // Sustituye a los dos casos viejos de "paso 2 fallido". Ese estado ya no
     // puede existir: la edge valida las cuentas ANTES de crear nada, así que el
-    // rechazo llega como error normal y el asesor puede corregir y reintentar.
+    // rechazo llega como error normal y el analista puede corregir y reintentar.
     const user = userEvent.setup()
     crearCliente.mockRejectedValue(
       new CrmApiError(
@@ -312,6 +316,65 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
       banco_usd: null,
     })
     expect(toast.success).toHaveBeenCalledWith('Datos del cliente corregidos.')
+  })
+
+  it('una capacidad bancaria cacheada antes del mount no dispara el ledger si el detalle fresco la revoca', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(
+      crmQueryKeys.clienteDetalle('cli-1'),
+      detalleBase({ cuentas_bancarias_visibles: true }),
+    )
+    queryClient.setQueryData(
+      crmQueryKeys.cuentasBancarias('cli-1', 'USD'),
+      [cuentaLedger({ numero_cuenta: 'CACHE-NO-AUTORIZADA' })],
+    )
+    obtenerDetalle.mockResolvedValue(detalleBase({
+      banca_visible: false,
+      cuentas_bancarias_visibles: false,
+      // Respuesta deliberadamente incoherente: aun si un backend defectuoso
+      // olvidara nullear estos valores, el flag cerrado manda en la UI.
+      numero_cuenta: 'SERVIDOR-NO-DEBE-PINTARSE',
+    }))
+
+    montar({ modo: 'corregir', clienteId: 'cli-1', queryClient })
+
+    expect(await screen.findByLabelText('Correo electrónico *')).toHaveValue('cliente1@correo.pe')
+    expect(listarCuentas).not.toHaveBeenCalled()
+    expect(screen.queryByText(/CACHE-NO-AUTORIZADA/)).not.toBeInTheDocument()
+    expect(screen.queryByDisplayValue('SERVIDOR-NO-DEBE-PINTARSE')).not.toBeInTheDocument()
+    const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
+    expect(within(pen).getByLabelText('Banco')).toHaveValue('')
+    expect(screen.queryByText('Cuentas registradas en contratos')).not.toBeInTheDocument()
+  })
+
+  it('una cuenta cacheada antes del mount no se pinta ni desbloquea la validación mientras el refresh está pendiente', async () => {
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(
+      crmQueryKeys.cuentasBancarias('cli-1', 'USD'),
+      [cuentaLedger({ numero_cuenta: 'CACHE-NO-CONFIRMADA' })],
+    )
+    obtenerDetalle.mockResolvedValue(detalleBase({
+      banco: null,
+      tipo_cuenta: null,
+      numero_cuenta: null,
+      cci: null,
+      banco_usd: null,
+      tipo_cuenta_usd: null,
+      numero_cuenta_usd: null,
+      cci_usd: null,
+    }))
+    listarCuentas.mockImplementation(() => new Promise<CuentaBancariaSeleccionable[]>(() => undefined))
+
+    montar({ modo: 'corregir', clienteId: 'cli-1', queryClient })
+
+    await screen.findByLabelText('Correo electrónico *')
+    expect(screen.queryByText(/CACHE-NO-CONFIRMADA/)).not.toBeInTheDocument()
+    expect(screen.getByText('Validando las cuentas registradas antes de guardar…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Guardar corrección/ })).toBeDisabled()
+    // Ni siquiera userEvent puede saltar el disabled nativo.
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+    expect(actualizarCliente).not.toHaveBeenCalled()
   })
 
   it('ESTADO DE PRODUCCIÓN: la cuenta USD que vive solo en el ledger se MUESTRA (solo lectura) sin sembrar las casillas', async () => {
@@ -407,7 +470,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     const pen = await screen.findByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
     expect(within(pen).getByLabelText('Banco')).toHaveValue('BCP')
     expect(screen.getByRole('button', { name: /Guardar corrección/ })).toBeEnabled()
-    // La degradación NO es muda: sin esto el asesor no distingue «no tiene
+    // La degradación NO es muda: sin esto el analista no distingue «no tiene
     // cuentas en contratos» de «no se pudo leer el ledger».
     const aviso = await screen.findByRole('status')
     expect(aviso).toHaveTextContent(/No se pudieron consultar las cuentas registradas en contratos/)
@@ -428,24 +491,25 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(screen.queryByText('Cuentas registradas en contratos')).not.toBeInTheDocument()
   })
 
-  it('Reintentar del ERROR DE CARGA recarga también las cuentas del ledger, no solo el detalle', async () => {
+  it('Reintentar del ERROR DE CARGA obtiene primero la autorización y recién entonces consulta el ledger', async () => {
     const user = userEvent.setup()
     const sinRed = new CrmApiError('Sin conexión.', 'SIN_RED')
     obtenerDetalle
       .mockRejectedValueOnce(sinRed)
       .mockResolvedValue(detalleBase()) // banco_usd null: la USD vive en el ledger
-    listarCuentas
-      .mockRejectedValueOnce(sinRed) // PEN del montaje
-      .mockRejectedValueOnce(sinRed) // USD del montaje
-      .mockImplementation(async (_id, moneda) => (moneda === 'USD' ? [cuentaLedger()] : []))
+    listarCuentas.mockImplementation(async (_id, moneda) => (moneda === 'USD' ? [cuentaLedger()] : []))
     montar({ modo: 'corregir', clienteId: 'cli-1' })
 
-    await user.click(await screen.findByRole('button', { name: /Reintentar/ }))
+    const reintentar = await screen.findByRole('button', { name: /Reintentar/ })
+    // El detalle falló antes de autorizar banca: no se sondean sus RPC.
+    expect(listarCuentas).not.toHaveBeenCalled()
+    await user.click(reintentar)
 
-    // Con la red sana el reintento repara las TRES consultas: el bloque
-    // informativo trae la cuenta del contrato y no queda aviso de degradación.
+    // Con la red sana el detalle confirma banca_visible y habilita PEN/USD: el
+    // bloque informativo trae la cuenta sin una llamada bancaria prematura.
     expect(await screen.findByText('Cuentas registradas en contratos')).toBeInTheDocument()
     expect(screen.getByText(/BBVA · corriente/)).toBeInTheDocument()
+    expect(listarCuentas).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 

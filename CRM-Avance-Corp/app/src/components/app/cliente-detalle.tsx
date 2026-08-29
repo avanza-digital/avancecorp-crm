@@ -1,7 +1,7 @@
-// Detalle SOLO LECTURA del cliente desde Mi cartera. Reusa la misma consulta
-// completa que "Corregir", pero NO queda atada a la ventana de 5 horas: esa
-// ventana solo limita escrituras. La RLS de public.perfiles sigue siendo la
-// autoridad y devuelve cero filas fuera de la cartera del analista.
+// Detalle SOLO LECTURA del cliente desde Mi cartera. La frontera autorizada es
+// `crm.cliente_detalle_fn`: devuelve cero filas fuera del ámbito y separa banca
+// embebida del permiso para consultar el ledger. La ventana de 5 h solo limita
+// escrituras y no participa en esta lectura.
 import { useEffect, useState, type ReactNode } from 'react'
 import { History, Landmark, RotateCcw, UserRound, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -161,9 +161,9 @@ const ACTIVIDAD_LABEL = {
 } as const
 
 /**
- * Ficha completa del perfil del cliente: identidad, contacto y TODAS sus
- * cuentas de depósito vigentes (ledger crm.cuentas_bancarias + casilla del
- * perfil). Está hecha para consulta comercial; nunca ofrece edición.
+ * Ficha comercial del cliente. Identidad y contacto siguen el ámbito CRM; las
+ * cuentas solo se solicitan cuando `cliente_detalle_fn` confirma la capacidad
+ * bancaria. Está hecha para consulta; nunca ofrece edición.
  */
 export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetalleProps) {
   const precargado = datos !== undefined
@@ -176,8 +176,16 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   // crm.cuentas_bancarias + casilla vigente del perfil, deduplicados por el
   // servidor): es la única fuente que incluye las cuentas registradas AL CREAR
   // un contrato — leer solo las columnas embebidas de perfiles las escondía.
-  const qPen = useCuentasBancariasCliente(clienteId, 'PEN', !precargado)
-  const qUsd = useCuentasBancariasCliente(clienteId, 'USD', !precargado)
+  // La confirmación debe ser posterior al mount: una copia cacheada de una
+  // sesión/capacidad anterior no puede disparar una consulta bancaria.
+  const ledgerRemotoHabilitado =
+    !precargado &&
+    qDetalle.isSuccess &&
+    !qDetalle.isFetching &&
+    qDetalle.isFetchedAfterMount &&
+    qDetalle.data.cuentas_bancarias_visibles
+  const qPen = useCuentasBancariasCliente(clienteId, 'PEN', ledgerRemotoHabilitado)
+  const qUsd = useCuentasBancariasCliente(clienteId, 'USD', ledgerRemotoHabilitado)
   const qActividades = useActividadesCliente(clienteId, !precargado)
 
   // El detalle contiene cuentas bancarias: en una sesión REAL nunca se pinta la
@@ -214,7 +222,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   } | null>(null)
 
   useEffect(() => {
-    if (precargado) return
+    if (precargado || !ledgerRemotoHabilitado) return
     if (!qPen.isSuccess || qPen.isFetching || !qPen.isFetchedAfterMount) return
     if (!qUsd.isSuccess || qUsd.isFetching || !qUsd.isFetchedAfterMount) return
     setCuentasConfirmadas({
@@ -225,6 +233,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   }, [
     clienteId,
     precargado,
+    ledgerRemotoHabilitado,
     qPen.isSuccess,
     qPen.isFetching,
     qPen.isFetchedAfterMount,
@@ -251,29 +260,36 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   }
 
   const cuentasPen =
-    datos !== undefined
-      ? cuentasEmbebidas(datos, 'PEN')
-      : cuentasConfirmadas?.clienteId === clienteId
-        ? cuentasConfirmadas.pen
-        : null
+    detalle?.banca_visible !== true
+      ? null
+      : datos !== undefined || detalle.cuentas_bancarias_visibles !== true
+        ? cuentasEmbebidas(detalle, 'PEN')
+        : cuentasConfirmadas?.clienteId === clienteId
+          ? cuentasConfirmadas.pen
+          : null
   const cuentasUsd =
-    datos !== undefined
-      ? cuentasEmbebidas(datos, 'USD')
-      : cuentasConfirmadas?.clienteId === clienteId
-        ? cuentasConfirmadas.usd
-        : null
+    detalle?.banca_visible !== true
+      ? null
+      : datos !== undefined || detalle.cuentas_bancarias_visibles !== true
+        ? cuentasEmbebidas(detalle, 'USD')
+        : cuentasConfirmadas?.clienteId === clienteId
+          ? cuentasConfirmadas.usd
+          : null
   // El fallo de las cuentas degrada SOLO su sección (identidad y contacto
   // siguen visibles): vienen de consultas distintas y un fallo operativo del
   // lado bancario (red, RPC, permisos si el gating de fila cambiara) no debe
   // secuestrar una ficha cuya identidad ya está confirmada.
   const cuentasError =
-    !precargado && (qPen.isError || qUsd.isError)
+    ledgerRemotoHabilitado && (qPen.isError || qUsd.isError)
       ? mensajeDeError(qPen.error ?? qUsd.error, 'No se pudieron cargar las cuentas bancarias.')
       : null
   // Con el reintento EN VUELO se muestra la carga, no el alert: así el usuario
   // ve que algo pasa y, si vuelve a fallar, el alert se re-monta y el lector de
   // pantalla lo re-anuncia (un role="alert" que no cambia no se vuelve a leer).
-  const cuentasReintentando = !precargado && (qPen.isError || qUsd.isError) && (qPen.isFetching || qUsd.isFetching)
+  const cuentasReintentando =
+    ledgerRemotoHabilitado &&
+    (qPen.isError || qUsd.isError) &&
+    (qPen.isFetching || qUsd.isFetching)
   const reintentarCuentas = () => {
     setCuentasConfirmadas(null)
     void qPen.refetch()
@@ -352,7 +368,14 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
 
             <section>
               <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Datos bancarios</h3>
-              {cuentasError && !cuentasReintentando ? (
+              {!detalle.banca_visible ? (
+                <div className="mt-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs font-semibold text-foreground">Información bancaria restringida</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Tu acceso permite consultar la ficha comercial, pero no números de cuenta, CCI ni beneficiarios.
+                  </p>
+                </div>
+              ) : cuentasError && !cuentasReintentando ? (
                 <div
                   className="mt-2 flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-muted/30 p-4 text-center"
                   role="alert"

@@ -19,7 +19,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, moneyCompacta, numero } from '@/lib/format'
+import { money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   capitalObjetivo,
@@ -37,17 +37,19 @@ import {
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { etiquetaOrigen } from '@/lib/tipos'
 import { presentarCitas } from '@/lib/terminologia'
+import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`): alimenta el
-   * héroe, el KPI de conversión y «Mejores vendedores». Tri-estado: `undefined`
+   * héroe, el KPI de conversión y «Mejores analistas». Tri-estado: `undefined`
    * consultando · `null` no disponible (todo degrada a «—», jamás a la fórmula
-   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO.
+   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO;
+   * los porcentajes por origen solo se publican con núcleo y sondas verificados.
    */
   conversionMensual: ConversionMensual | null | undefined
   reuniones: MetricasReuniones | null | undefined
@@ -67,7 +69,7 @@ interface ResumenGerenciaPanelProps {
 }
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 function numeroDisponible(valor: number | null): string {
@@ -144,9 +146,7 @@ export function ResumenGerenciaPanel({
   // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
   // 2026-08-14). La regla es compartida: cuatro pantallas pintan esta cifra.
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const totalMes = conversionMensual != null && lecturaConversion.mostrar
-    ? conversionMensual.total
-    : null
+  const totalMes = totalConversionPublicable(conversionMensual)
   const conversionMes = totalMes?.conversion_pct ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
   const reunionesRealizadas = reuniones?.resumen.realizadas ?? null
@@ -285,6 +285,8 @@ export function ResumenGerenciaPanel({
     .sort((a, b) => (b.conversion_contratos_pct ?? -1) - (a.conversion_contratos_pct ?? -1))
     .slice(0, 5)
   const maxOrigen = Math.max(1, ...origenes.map((fila) => fila.conversion_contratos_pct ?? 0))
+  const origenesVerificados = conversiones?.nucleo != null
+    && sondasNucleoVerificadas(conversiones.sondas)
   const hayActividadConversiones = [
     conversiones?.cohorte.leads,
     conversiones?.cohorte.asignados,
@@ -420,10 +422,10 @@ export function ResumenGerenciaPanel({
           className="gi-card group relative cursor-pointer p-5 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--gi-blue)]/30 hover:shadow-[0_16px_38px_rgba(17,30,61,.10)] focus-within:ring-[3px] focus-within:ring-ring/35 motion-reduce:transform-none motion-reduce:transition-none"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="gi-title">Mejores vendedores</h2>
+            <h2 className="gi-title">Mejores analistas</h2>
             <a
               href="#/ranking-vendedores"
-              aria-label="Ver ranking general de vendedores"
+              aria-label="Ver ranking general de analistas"
               className="after:absolute after:inset-0 after:content-[''] flex items-center gap-1 text-[11px] font-bold text-[var(--gi-blue)] outline-none"
             >
               Ver ranking
@@ -438,7 +440,7 @@ export function ResumenGerenciaPanel({
                     <div className="gi-track"><div className="gi-fill motion-reduce:transition-none" style={{ width: `${((fila.detalle.conversion_pct ?? 0) / maxMejor) * 100}%`, background: indice < 3 ? C.green : indice === 3 ? C.amber : C.red }} /></div>
                   </div>
                 ))
-              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay vendedores medibles este mes' : 'Detalle por vendedor no disponible'}</p>}
+              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay analistas medibles este mes' : 'Detalle por analista no disponible'}</p>}
           </div>
         </section>
       </div>
@@ -446,17 +448,19 @@ export function ResumenGerenciaPanel({
       <div className="grid gap-4 lg:grid-cols-3">
         <section data-gi-panel className="gi-card p-5 lg:col-span-2">
           <h2 className="gi-title">Conversión por origen</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {origenes.length > 0
-              ? origenes.map((fila) => (
-                  <div key={fila.origen}>
-                    <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(fila.conversion_contratos_pct)}</strong></div>
-                    <div className="gi-track"><div className="gi-fill" style={{ width: `${((fila.conversion_contratos_pct ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
-                  </div>
-                ))
-              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
-          </div>
-          {origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+          {!origenesVerificados
+            ? <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: la conversión por origen permanece oculta.</p>
+            : <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {origenes.length > 0
+                  ? origenes.map((fila) => (
+                      <div key={fila.origen}>
+                        <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(fila.conversion_contratos_pct)}</strong></div>
+                        <div className="gi-track"><div className="gi-fill" style={{ width: `${((fila.conversion_contratos_pct ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
+                      </div>
+                    ))
+                  : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
+              </div>}
+          {origenesVerificados && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
             // D6: el origen Referido queda fuera de la base de la conversión
             // del mes — su barra mide cierres sobre SUS recibidos, no lo mismo.
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">

@@ -28,7 +28,7 @@ describe('sincronía DEMO_YO ↔ EQUIPO_DEMO', () => {
   it('coordinador también queda FUERA del organigrama (C1: off-roster)', () => {
     // Reparte la cola global sin cartera ni jerarquía: no es fila del roster.
     // Si alguien lo añadiera a EQUIPO_DEMO, el ámbito del store lo trataría
-    // como vendedor y contradiría Miembro.rol_crm (Exclude<...>).
+    // como analista y contradiría Miembro.rol_crm (Exclude<...>).
     const idsEquipo = new Set(EQUIPO_DEMO.map((m) => m.perfil_id))
     expect(idsEquipo.has(DEMO_YO.coordinador.id)).toBe(false)
   })

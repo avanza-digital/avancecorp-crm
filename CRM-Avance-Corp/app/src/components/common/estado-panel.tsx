@@ -73,7 +73,7 @@ export function PanelSinConexion({
  * Skeletons de carga — aria-busy SIEMPRE en el contenedor (convención única).
  *
  * Sin red NO pinta skeletons: "cargando" sería mentira (nadie está trayendo
- * nada) y el asesor se quedaba mirando un esqueleto eterno en «Mi cartera» y en
+ * nada) y el analista se quedaba mirando un esqueleto eterno en «Mi cartera» y en
  * los diálogos. En ese caso se dice la verdad y se ofrece salida.
  */
 export function PanelCargando({

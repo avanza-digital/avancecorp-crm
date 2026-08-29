@@ -51,7 +51,7 @@ const LEAD: Lead = {
   moneda: 'PEN',
   categoria_interes: null,
   vendedor_id: 'vendedor-1',
-  vendedor_nombre: 'VENDEDOR PRUEBA',
+  vendedor_nombre: 'ANALISTA PRUEBA',
   asignado_supervisor_id: null,
   creado_en: '2026-07-17T12:00:00.000Z',
   activo: true,
@@ -208,12 +208,12 @@ describe('el diálogo de confirmación', () => {
     await usuario.click(boton()!)
     await usuario.type(
       screen.getByLabelText(/Motivo de la anulación/i),
-      'Mala práctica del asesor',
+      'Mala práctica del analista',
     )
     await usuario.click(screen.getByRole('button', { name: 'Anular cierre' }))
 
     expect(mutarAnular).toHaveBeenCalledWith({
-      leadId: LEAD.id, motivo: 'Mala práctica del asesor',
+      leadId: LEAD.id, motivo: 'Mala práctica del analista',
     })
     // El cumplimiento de metas NO vive en TanStack: sin este `recargar` la
     // pantalla restaría cifras frescas de un cumplimiento viejo.

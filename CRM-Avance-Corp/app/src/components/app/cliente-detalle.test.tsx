@@ -19,6 +19,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     ...actual,
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
+    listarActividadesCliente: vi.fn(),
     obtenerSegundoNumeroDelCliente: vi.fn(),
   }
 })
@@ -26,6 +27,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
 const { ClienteDetalle } = await import('./cliente-detalle')
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
+const listarActividades = vi.mocked(crmApi.listarActividadesCliente)
 const obtenerSegundo = vi.mocked(crmApi.obtenerSegundoNumeroDelCliente)
 
 function detalleBase(over: Partial<ClienteDetalleDatos> = {}): ClienteDetalleDatos {
@@ -42,6 +44,8 @@ function detalleBase(over: Partial<ClienteDetalleDatos> = {}): ClienteDetalleDat
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-15T12:00:00.000Z',
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     banco: 'BCP',
     tipo_cuenta: 'ahorros',
     numero_cuenta: '19112345678901',
@@ -114,8 +118,10 @@ function montar({
 beforeEach(() => {
   obtenerDetalle.mockReset()
   listarCuentas.mockReset()
-  listarCuentas.mockResolvedValue([])
+  listarActividades.mockReset()
   obtenerSegundo.mockReset()
+  listarCuentas.mockResolvedValue([])
+  listarActividades.mockResolvedValue([])
   obtenerSegundo.mockResolvedValue(null)
 })
 
@@ -162,6 +168,71 @@ describe('ClienteDetalle — frescura y presentación', () => {
 
     expect(screen.queryByText('EMBEBIDA-PEN-NO-VERSE')).not.toBeInTheDocument()
     expect(screen.queryByText('EMBEBIDA-USD-NO-VERSE')).not.toBeInTheDocument()
+  })
+
+  it('Directorio ve identidad, no dispara RPC bancarias y recibe una explicación de acceso', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase({
+      domicilio: null,
+      banca_visible: false,
+      cuentas_bancarias_visibles: false,
+      banco: null,
+      tipo_cuenta: null,
+      numero_cuenta: null,
+      cci: null,
+      titular_distinto: false,
+      beneficiario_nombre: null,
+      beneficiario_dni: null,
+      banco_usd: null,
+      tipo_cuenta_usd: null,
+      numero_cuenta_usd: null,
+      cci_usd: null,
+      titular_distinto_usd: false,
+      beneficiario_nombre_usd: null,
+      beneficiario_dni_usd: null,
+    }))
+
+    montar()
+
+    expect(await screen.findByText('CLIENTE PORTAL UNO')).toBeInTheDocument()
+    expect(screen.getByText('cliente1@correo.pe')).toBeInTheDocument()
+    expect(screen.getByText('Domicilio legal')).toBeInTheDocument()
+    expect(screen.queryByText('Av. Javier Prado Este 123, San Isidro, Lima')).not.toBeInTheDocument()
+    expect(screen.getByText('Información bancaria restringida')).toBeInTheDocument()
+    expect(screen.queryByText('19112345678901')).not.toBeInTheDocument()
+    expect(screen.queryByText('00320030012345678901')).not.toBeInTheDocument()
+    await waitFor(() => expect(listarCuentas).not.toHaveBeenCalled())
+  })
+
+  it('conserva el indicador cuando a un actor autorizado le falta domicilio', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase({ domicilio: null }))
+
+    montar()
+
+    const etiqueta = await screen.findByText('Domicilio legal')
+    expect(etiqueta.parentElement).toHaveTextContent('—')
+  })
+
+  it('acceso crudo histórico muestra solo la banca embebida sin sondear el ledger de un cliente inactivo', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase({
+      banca_visible: true,
+      cuentas_bancarias_visibles: false,
+      numero_cuenta: 'PERFIL-HISTORICO-123',
+      cci: 'PERFIL-HISTORICO-CCI',
+      banco_usd: null,
+      tipo_cuenta_usd: null,
+      numero_cuenta_usd: null,
+      cci_usd: null,
+      titular_distinto_usd: false,
+      beneficiario_nombre_usd: null,
+      beneficiario_dni_usd: null,
+    }))
+
+    montar()
+
+    const pen = await screen.findByRole('region', { name: 'Cuenta para depósitos en soles' })
+    expect(within(pen).getByText('PERFIL-HISTORICO-123')).toBeInTheDocument()
+    expect(within(pen).getByText('PERFIL-HISTORICO-CCI')).toBeInTheDocument()
+    expect(listarCuentas).not.toHaveBeenCalled()
   })
 
   it('ESTADO DE PRODUCCIÓN: cliente legacy sin nombres separados y cuenta USD registrada al crear un contrato', async () => {

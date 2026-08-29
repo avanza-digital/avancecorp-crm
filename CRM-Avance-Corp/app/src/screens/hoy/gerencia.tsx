@@ -13,9 +13,9 @@ import {
   type PeriodoGerencia,
 } from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, numero } from '@/lib/format'
+import { money, moneyK, porcentajeConversionCanonica } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   agregarObjetivos,
@@ -223,7 +223,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // criterio que ya usa el aviso del panel de metas.
   const periodoConversionMes = `${periodoMetricas.hasta.slice(0, 7)}-01`
   const qConversionMensual = useConversionMensual(sesionReal && necesitaConversiones, periodoConversionMes)
-  // Cosecha por vendedor del ranking (F2.2/D2): mismo MES que la mensual del
+  // Cosecha por analista del ranking (F2.2/D2): mismo MES que la mensual del
   // tab — del 01 al final del rango elegido — para que las dos lecturas de una
   // fila hablen del mismo período. Solo se consulta en la sección que la pinta.
   const qCosechaRanking = useMetricasConversionesEquipo(
@@ -307,7 +307,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   // PEN y USD no se suman a ciegas: se convierte a tasa real y se rotula cuál
-  // se aplicó. Mismo criterio que el panel del asesor (decisión #10).
+  // se aplicó. Mismo criterio que el panel del analista (decisión #10).
   const tcPromedio = tipoCambio.tc?.promedio ?? null
   const capitalTotal = totalEnSoles(capitalActualPen, capitalActualUsd, tcPromedio)
   const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
@@ -316,9 +316,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
   const tcCaido = tipoCambio.tc === null && hayDolares
-  const conversionActual = conversionMensualMedible
-    ? (conversionMensual?.total.conversion_pct ?? null)
-    : null
+  const totalConversion = totalConversionPublicable(conversionMensual)
+  const conversionActual = totalConversion?.conversion_pct ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarConversionMensual = () => { if (sesionReal) void qConversionMensual.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
@@ -337,7 +336,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} origenFiltrado={modoDemo ? null : origenActivo} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); reintentarReuniones() }} />}
 
-      {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por vendedor.
+      {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
       {esResumen && (
         <DesglosePorEmpresa demo={modoDemo} porVendedor={cumplimientoMetas?.porVendedor ?? null} />
@@ -423,7 +422,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                 />
                 <MetaItem
                   label="Conversión de la empresa"
-                  actual={conversionActual == null ? '—' : `${numero(conversionActual, 1)}%`}
+                  actual={porcentajeConversionCanonica(conversionActual)}
                   objetivo={metaMensual.errorCarga
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}

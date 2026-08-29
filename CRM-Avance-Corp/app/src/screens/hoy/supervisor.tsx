@@ -1,5 +1,5 @@
 // Hoy · SUPERVISOR — puesto de mando de SU equipo (F1c). El ámbito del store
-// ya trae: sus leads + los de sus vendedores + parkeados de SU bandeja.
+// ya trae: sus leads + los de sus analistas + parkeados de SU bandeja.
 // Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
 // Semáforos sin verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626.
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
@@ -58,18 +58,19 @@ import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
-import { moneyK, numero } from '@/lib/format'
+import { moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { hashDe } from '@/lib/router'
 import { tresCosasDeHoy } from '@/lib/tres-cosas'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
+import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
@@ -307,17 +308,16 @@ export function HoySupervisor(): JSX.Element {
   // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
   // tres pantallas que pintan esta misma cifra.
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const conversionConfirmada = lecturaConversion.mostrar
-    ? (conversionMensual?.total.conversion_pct ?? null)
-    : null
-  const recibidosEquipo = conversionMensual?.total.divisor ?? null
+  const totalConversion = totalConversionPublicable(conversionMensual)
+  const conversionConfirmada = totalConversion?.conversion_pct ?? null
+  const recibidosEquipo = totalConversion?.divisor ?? null
   // ── Cumplimiento del mes ──────────────────────────────────────────────────
   // PEN y USD ya NO van por separado: la meta se pacta en soles (el editor
   // escribe todo en `nuevo/PEN`), así que la fila de dólares vivía en «Sin meta
   // fijada» para siempre mientras el capital real en USD no movía ninguna
   // barra. Se consolida con el MISMO tipo de cambio en numerador y denominador
   // —comparar a tasas distintas es comparar peras con manzanas— igual que en el
-  // panel del asesor y en el de gerencia.
+  // panel del analista y en el de gerencia.
   const capitalConfirmado = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tc?.promedio)
   const metaCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
   const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
@@ -359,8 +359,8 @@ export function HoySupervisor(): JSX.Element {
         conversionConfirmada == null
           ? '—'
           : metaConversion != null
-            ? `${numero(conversionConfirmada, 1)}% de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
-            : `${numero(conversionConfirmada, 1)}% · ${numero(recibidosEquipo)} recibidos`,
+            ? `${porcentajeConversionCanonica(conversionConfirmada)} de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
+            : `${porcentajeConversionCanonica(conversionConfirmada)} · ${numero(recibidosEquipo)} recibidos`,
       // El porqué de que la cifra no sea definitiva viaja PEGADO a ella. Antes
       // esto la sustituía, y un mes con recibidos y cierres decía «sin datos».
       nota: lecturaConversion.aviso,
@@ -451,7 +451,7 @@ export function HoySupervisor(): JSX.Element {
                 ? 'Pipeline (USD)'
                 : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.asignados > 0
                   ? 'Sin montos estimados — complétalos en cada ficha'
-                  : 'Pipeline (PEN) · abiertos con vendedor'
+                  : 'Pipeline (PEN) · abiertos con analista'
           }
           delay={0}
         />
@@ -460,7 +460,7 @@ export function HoySupervisor(): JSX.Element {
           value={resumen ? String(resumen.totales.asignados) : '—'}
           icon={Users}
           color={SEMAFORO.neutro}
-          sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
+          sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} a cargo`}
           delay={60}
         />
         {/* Sin payload, los subs NO afirman estados positivos («todos
@@ -619,7 +619,7 @@ export function HoySupervisor(): JSX.Element {
                             onClick={() => abrirLead(a.leadId)}
                             // El label DICTA todo lo visible: el aria-label
                             // pisa el contenido para un SR, así que lleva al
-                            // vendedor (a11y M1: de quién es el lead es parte
+                            // analista (a11y M1: de quién es el lead es parte
                             // de la decisión), los días (la criticidad no
                             // puede vivir solo en la tira de color) y el
                             // literal del chip («nuevo aquí») para que el
@@ -761,7 +761,7 @@ export function HoySupervisor(): JSX.Element {
           />
         </div>
         <div className="space-y-4 lg:col-span-2">
-          {/* ── Tu equipo hoy (semáforo por vendedor) ── */}
+          {/* ── Tu equipo hoy (semáforo por analista) ── */}
           <Card className="overflow-hidden">
             <SectionHead
               icon={UsersRound}
@@ -776,13 +776,13 @@ export function HoySupervisor(): JSX.Element {
               <CardContent className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">
                   {vendedoresOp.error
-                    ? 'El resumen por vendedor no está disponible en este momento.'
-                    : 'Cargando el resumen por vendedor…'}
+                    ? 'El resumen por analista no está disponible en este momento.'
+                    : 'Cargando el resumen por analista…'}
                 </p>
               </CardContent>
             ) : rank.length === 0 ? (
               <CardContent className="pb-5 pt-0">
-                <p className="text-sm text-muted-foreground">Sin vendedores a cargo.</p>
+                <p className="text-sm text-muted-foreground">Sin analistas a cargo.</p>
               </CardContent>
             ) : (
               <div className="divide-y divide-border/60 border-t border-border/60">
@@ -808,7 +808,14 @@ export function HoySupervisor(): JSX.Element {
                         <div className="min-w-0 flex-1 leading-tight">
                           <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
                           <p className="text-[11px] tabular-nums text-muted-foreground">
-                            {r.activos} activos · {r.conversion}% conversión
+                            {r.activos} activos · {r.conversion == null
+                              ? r.conversionDisponible && r.divisorConversion === 0
+                                ? 'sin divisor mensual'
+                                : 'dato de conversión no disponible'
+                              : `${textoConversionOperativa(r.conversion)} conversión`}
+                            {r.operacionesCartera != null && r.operacionesCartera > 0
+                              ? ` · ${numero(r.operacionesCartera)} de cartera`
+                              : ''}
                             {r.sinTocar > 0 ? ` · ${r.sinTocar} sin tocar` : ''}
                           </p>
                         </div>

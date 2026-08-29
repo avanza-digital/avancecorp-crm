@@ -10,7 +10,7 @@ const sesionDemo: AuthContextValue = {
   fase: 'listo',
   yo: {
     id: 'd-v1',
-    nombre_completo: 'VENDEDOR UNO',
+    nombre_completo: 'ANALISTA UNO',
     rol: 'vendedor',
     demo: true,
     puede_contratar: true,

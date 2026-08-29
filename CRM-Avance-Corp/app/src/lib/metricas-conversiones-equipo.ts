@@ -24,7 +24,7 @@
 // OJO con la convención AS-BUILT, que es engañosa y se conserva por PARIDAD con
 // gerencia: `clientes` NO son los leads convertidos a cliente, son los leads de la
 // cohorte CON CONTRATO, y `conversion_pct = 100 * contratos / leads`. Cambiarla
-// aquí haría que el mismo vendedor tuviera dos porcentajes distintos según quién
+// aquí haría que el mismo analista tuviera dos porcentajes distintos según quién
 // mire, que es justo el bug que la decisión #10 quiere cerrar.
 import * as v from 'valibot'
 import type { ConversionEquipoVendedor } from './conversion-equipo'
@@ -60,7 +60,7 @@ const NucleoEquipoSchema = v.object({
 
 /**
  * Sondas del ranking (F2.2): paridad contra el núcleo mensual, lo que queda
- * fuera del roster de vendedores y las dos acreditaciones del mismo hecho
+ * fuera del roster de analistas y las dos acreditaciones del mismo hecho
  * (`clientes` = dueño actual vs `nucleo_*` = quien cerró). `cuadra: false` es
  * la señal de F3.4: cifras en revisión, no un número inventado.
  */
@@ -93,7 +93,7 @@ export type ResponsableEquipo = v.InferOutput<typeof ResponsableEquipoSchema>
  *
  * Hermano de `adaptarConversionVendedores`, con dos diferencias deliberadas:
  *  - no calcula tendencia semanal (el payload no la trae, y el ranking no la usa);
- *  - un payload ausente NO es «todos a cero»: deja a cada vendedor `indisponible`,
+ *  - un payload ausente NO es «todos a cero»: deja a cada analista `indisponible`,
  *    que es lo que el clasificador traduce a «fuera del ranking» en vez de a un
  *    0 % que se leería como un hecho.
  */
@@ -118,7 +118,7 @@ export function adaptarConversionEquipo(
   for (const r of responsables ?? []) {
     if (identidadPorId.has(r.vendedor_id)) continue
     identidadPorId.set(r.vendedor_id, {
-      nombre: 'Vendedor no identificado',
+      nombre: 'Analista no identificado',
       supervisorNombre: 'Equipo no disponible',
     })
   }

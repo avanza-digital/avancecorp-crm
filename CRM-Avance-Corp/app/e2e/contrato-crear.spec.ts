@@ -141,7 +141,7 @@ test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
   await form.locator('#ct-numero').fill('000780')
-  // `llenarBase` eligió BCP (perfil); el asesor cambia deliberadamente a la
+  // `llenarBase` eligió BCP (perfil); el analista cambia deliberadamente a la
   // versión Interbank ya guardada. El id nunca se deriva del texto visible.
   await form.getByRole('radio', { name: /Interbank.*1234/i }).check()
   await form.getByRole('button', { name: /Crear contrato/ }).click()
@@ -312,7 +312,7 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
 // ── El domicilio legal faltante (2026-08-19) ────────────────────────────────
 // El caso REAL de producción: 313 de 319 clientes con contrato no tienen
 // domicilio, y sin él la RPC revierte el alta ENTERA (el PDF se reserva en la
-// misma transacción). Este recorrido es el que de verdad hacen los vendedores
+// misma transacción). Este recorrido es el que de verdad hacen los analistas
 // con un cliente antiguo, y hasta hoy la suite no lo pisaba: el arnés ni
 // siquiera simulaba el pre-vuelo, así que el camino nuevo pasaba en verde sin
 // ejercitarse (gate de REALIDAD).
@@ -328,7 +328,7 @@ test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonc
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
-  // Con la llave de leads abierta, el vendedor ya NO aterriza en Mi cartera
+  // Con la llave de leads abierta, el analista ya NO aterriza en Mi cartera
   // sino en Hoy: se navega explícitamente en vez de dar por buena la portada.
   await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
 
@@ -346,7 +346,7 @@ test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonc
 
   await expect(form.getByText(/Falta el domicilio legal/)).toBeHidden()
   await expect.poll(() => estado.llamadas.rpcCompletarDomicilio).toBe(1)
-  // Lo escrito antes del muro sigue ahí: el vendedor no vuelve a empezar.
+  // Lo escrito antes del muro sigue ahí: el analista no vuelve a empezar.
   await expect(form.locator('#ct-numero')).toHaveValue('000778')
 
   // 3. Y el alta queda desbloqueada: el botón se habilita y el servidor recibe

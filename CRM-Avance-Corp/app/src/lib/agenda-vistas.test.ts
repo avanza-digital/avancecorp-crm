@@ -206,7 +206,7 @@ describe('colaHigiene', () => {
       lead({ id: 'l3' }),
       lead({ id: 'l5', nombre_completo: 'Rosa Quispe', monto_estimado: 80_000 }), // sin tarea → amarillo
       lead({ id: 'l6', nombre_completo: 'Juan Díaz', monto_estimado: 20_000 }), // sin tarea → amarillo
-      lead({ id: 'l7', nombre_completo: 'Parkeado', vendedor_id: null }), // sin vendedor: NO es amarillo
+      lead({ id: 'l7', nombre_completo: 'Parkeado', vendedor_id: null }), // sin analista: NO es amarillo
     ]
     const conTarea = new Set(['l1', 'l2', 'l3'])
     const items = colaHigiene(tareas, leads, conTarea, AHORA)
@@ -245,14 +245,14 @@ describe('colaHigiene', () => {
 describe('agruparPorPersona', () => {
   const miembro = (extra: Partial<Miembro>): Miembro => ({
     perfil_id: 'v1',
-    nombre_completo: 'Vera Vendedora',
+    nombre_completo: 'Vera Analista',
     rol_crm: 'vendedor',
     activo: true,
     ...extra,
   })
   const equipo: Miembro[] = [
     miembro({ perfil_id: 'sup1', nombre_completo: 'Sofía Supervisora', rol_crm: 'supervisor' }),
-    miembro({ perfil_id: 'v1', nombre_completo: 'Vera Vendedora', supervisor_id: 'sup1' }),
+    miembro({ perfil_id: 'v1', nombre_completo: 'Vera Analista', supervisor_id: 'sup1' }),
     miembro({ perfil_id: 'v2', nombre_completo: 'Aldo Analista', supervisor_id: 'sup1' }),
   ]
   const leadDeMapa = (leads: Lead[]) => {
@@ -260,7 +260,7 @@ describe('agruparPorPersona', () => {
     return (id: string | null) => (id ? porId.get(id) : undefined)
   }
 
-  it('agrupa por el vendedor del lead, con supervisor de contexto y vencidas derivadas', () => {
+  it('agrupa por el analista del lead, con supervisor de contexto y vencidas derivadas', () => {
     const leads = [
       lead({ id: 'l1', vendedor_id: 'v1' }),
       lead({ id: 'l2', vendedor_id: 'v2', nombre_completo: 'Beto Ruiz' }),
@@ -273,7 +273,7 @@ describe('agruparPorPersona', () => {
     const grupos = agruparPorPersona(tareas, leadDeMapa(leads), equipo, AHORA)
     expect(grupos.map((g) => g.id)).toEqual(['v1', 'v2']) // v1 primero: tiene la vencida
     expect(grupos[0]).toMatchObject({
-      nombre: 'Vera Vendedora',
+      nombre: 'Vera Analista',
       supervisor: 'Sofía Supervisora',
       nVencidas: 1,
     })

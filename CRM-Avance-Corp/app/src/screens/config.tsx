@@ -35,7 +35,7 @@ interface Seccion {
 const SECCIONES: Seccion[] = [
   { icon: Users, t: 'Usuarios y jerarquía', d: 'Altas, membresía CRM, roles y estructura comercial', vista: 'config-usuarios', color: 'var(--chart-2)' },
   { icon: Package, t: 'Productos de inversión', d: 'Catálogo versionado, condiciones, montos y tasas', vista: 'config-productos', color: 'var(--chart-1)' },
-  { icon: Target, t: 'Metas', d: 'Objetivos por vendedor, categoría, moneda y mes', vista: 'config-metas', color: 'var(--chart-4)' },
+  { icon: Target, t: 'Metas', d: 'Objetivos por analista, categoría, moneda y mes', vista: 'config-metas', color: 'var(--chart-4)' },
   { icon: Clock, t: 'Tiempos de atención', d: 'Primera gestión, contacto y máximos por etapa', vista: 'config-sla', color: 'var(--chart-3)' },
 ]
 
@@ -177,7 +177,9 @@ export function Config() {
       vista: 'config-metas',
       icono: Target,
       etiqueta: 'Metas del mes',
-      detalle: metas.data ? `${metas.data.vendedores.length} vendedores · revisión ${metas.data.revision}` : 'Sin información',
+      detalle: metas.data
+        ? `${metas.data.vendedores.length} ${metas.data.vendedores.length === 1 ? 'analista' : 'analistas'} · revisión ${metas.data.revision}`
+        : 'Sin información',
       cargando: metas.isPending,
       error: metas.isError,
       recargar: () => { void metas.refetch() },
@@ -215,9 +217,9 @@ export function Config() {
       </Card>
 
       {/* Banner de modo auditoría — SOLO para quien de verdad viene a auditar.
-          Desde que el vendedor entra aquí a conectar su calendario (2026-07-25),
+          Desde que el analista entra aquí a conectar su calendario (2026-07-25),
           `!edita` ya no significa "auditor": significa "no es gerencia". Al
-          asesor le salía un cartel diciéndole que está en modo auditoría cuando
+          analista le salía un cartel diciéndole que está en modo auditoría cuando
           lo único que vino a hacer es exportar SU agenda. */}
       {yo?.demo ? (
         <div className="flex items-center gap-2.5 rounded-xl bg-accent/[0.08] px-4 py-3 text-primary ring-1 ring-accent/20">

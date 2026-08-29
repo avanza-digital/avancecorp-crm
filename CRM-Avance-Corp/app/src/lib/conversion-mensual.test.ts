@@ -6,7 +6,25 @@ import {
   lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
+  totalConversionPublicable,
 } from './conversion-mensual'
+
+const CARTERA_RESPONSABLE = {
+  conversiones_clientes: 4,
+  conversiones_renovacion: 3,
+  conversiones_upgrade: 1,
+  capital_renovado_pen: 125_000.75,
+  capital_renovado_usd: 2_500.5,
+  capital_adicional_pen: 15_000.25,
+  capital_adicional_usd: 300.75,
+  renovaciones_sin_desglose: 0,
+}
+
+const CARTERA_TOTAL = {
+  ...CARTERA_RESPONSABLE,
+  operaciones_renovacion: 3,
+  operaciones_upgrade: 1,
+}
 
 /** Payload realista completo — el caso canónico de Ana (19,78 % ÷ 90). */
 function payloadCanonico() {
@@ -47,7 +65,9 @@ function payloadCanonico() {
       numerador: 17.8,
       conversion_pct: 19.78,
       referidos_aporta_pct: 2,
+      cartera: { ...CARTERA_TOTAL },
     },
+    cartera: { ...CARTERA_TOTAL },
     responsables: [
       {
         vendedor_id: '40000000-0000-4000-8000-000000000007',
@@ -65,6 +85,7 @@ function payloadCanonico() {
           { mes: '2026-06', mes_nombre: 'junio', anio: 2026, cierres: 1, cierres_referidos: 0 },
         ],
         referidos: { recibidos: 20, cerrados: 12, dados_de_alta: 20, aporta_pct: 2 },
+        cartera: { ...CARTERA_RESPONSABLE },
       },
     ],
   }
@@ -128,6 +149,51 @@ describe('ConversionMensualSchema — el contrato', () => {
     expect(r.success).toBe(true)
     if (!r.success) return
     expect(r.output.total.conversion_pct).toBe(200)
+  })
+
+  it('preserva el desglose de cartera y la precisión numeric en raíz, total y responsable', () => {
+    const p = payloadCanonico()
+    ;(p.cartera as { capital_renovado_pen: unknown }).capital_renovado_pen = '125000.7501'
+    ;(p.total.cartera as { capital_adicional_usd: unknown }).capital_adicional_usd = '300.755'
+    ;(p.responsables[0]!.cartera as { capital_renovado_usd: unknown }).capital_renovado_usd = '2500.505'
+
+    const r = v.safeParse(ConversionMensualSchema, p)
+    expect(r.success).toBe(true)
+    if (!r.success) return
+    expect(r.output.cartera.capital_renovado_pen).toBe(125000.7501)
+    expect(r.output.total.cartera.capital_adicional_usd).toBe(300.755)
+    expect(r.output.responsables[0]!.cartera).toMatchObject({
+      conversiones_clientes: 4,
+      conversiones_renovacion: 3,
+      conversiones_upgrade: 1,
+      capital_renovado_usd: 2500.505,
+    })
+  })
+
+  it.each([
+    ['cartera raíz', (p: ReturnType<typeof payloadCanonico>) => { delete (p as { cartera?: unknown }).cartera }],
+    ['cartera del total', (p: ReturnType<typeof payloadCanonico>) => { delete (p.total as { cartera?: unknown }).cartera }],
+    ['cartera del responsable', (p: ReturnType<typeof payloadCanonico>) => { delete (p.responsables[0] as { cartera?: unknown }).cartera }],
+  ])('RECHAZA la ausencia de %s: nunca la degrada a cero', (_caso, quitar) => {
+    const p = payloadCanonico()
+    quitar(p)
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
+  })
+
+  it.each([
+    ['conversiones_upgrade del responsable', (p: ReturnType<typeof payloadCanonico>) => {
+      delete (p.responsables[0]!.cartera as { conversiones_upgrade?: unknown }).conversiones_upgrade
+    }],
+    ['operaciones_upgrade del total', (p: ReturnType<typeof payloadCanonico>) => {
+      delete (p.total.cartera as { operaciones_upgrade?: unknown }).operaciones_upgrade
+    }],
+    ['capital_renovado_pen de la raíz', (p: ReturnType<typeof payloadCanonico>) => {
+      delete (p.cartera as { capital_renovado_pen?: unknown }).capital_renovado_pen
+    }],
+  ])('RECHAZA la ausencia del campo %s: una cartera parcial tampoco equivale a cero', (_caso, quitar) => {
+    const p = payloadCanonico()
+    quitar(p)
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
   })
 
   it('RECHAZA un divisor con otra definición (fail-closed del contrato)', () => {
@@ -265,6 +331,27 @@ describe('lecturaCobertura — un mes incompleto SE VE', () => {
     const r = lecturaCobertura(cob({ motivo_no_medible: 'sin_supervisor' }))
     expect(r.mostrar).toBe(false)
     expect(r.aviso).toBe('Sin datos de asignación para este mes')
+  })
+
+  it('un cierre sin episodio oculta todo incluso si el mes era medible', () => {
+    const r = lecturaCobertura(cob({
+      medible: true,
+      motivo_no_medible: null,
+      cierres_sin_episodio: 1,
+    }))
+    expect(r).toEqual({
+      mostrar: false,
+      aviso: 'Cifras en revisión: 1 cierre no tiene episodio verificable.',
+    })
+  })
+
+  it('el selector de total aplica la misma sonda y nunca entrega el total crudo', () => {
+    const mensual = v.parse(ConversionMensualSchema, payloadCanonico())
+    expect(totalConversionPublicable(mensual)).toBe(mensual.total)
+    expect(totalConversionPublicable({
+      ...mensual,
+      cobertura: { ...mensual.cobertura, cierres_sin_episodio: 1 },
+    })).toBeNull()
   })
 
   it('sin cobertura no se muestra nada', () => {

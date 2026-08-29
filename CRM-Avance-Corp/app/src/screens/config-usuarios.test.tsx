@@ -65,13 +65,13 @@ function identidad(
 function usuario(overrides: Partial<UsuarioAdministrable> = {}): UsuarioAdministrable {
   return {
     perfil_id: ID_VENDEDOR,
-    nombre_completo: 'ANA VENDEDORA',
+    nombre_completo: 'ANA ANALISTA',
     tipo_documento: 'DNI',
     documento: '45781234',
     correo: 'ana@example.com',
     telefono: '999111222',
     whatsapp: '999111222',
-    cargo: 'Asesora',
+    cargo: 'Analista',
     tipo_cuenta: 'solo_crm',
     estado: 'activo',
     rol_crm: 'vendedor',
@@ -96,7 +96,7 @@ const SUPERVISOR = usuario({
 
 const REEMPLAZO = usuario({
   perfil_id: ID_REEMPLAZO,
-  nombre_completo: 'BEA VENDEDORA',
+  nombre_completo: 'BEA ANALISTA',
   correo: 'bea@example.com',
   documento: '45781236',
 })
@@ -206,7 +206,7 @@ describe('ConfigUsuarios', () => {
     expect(screen.getByText('Redactada')).toBeInTheDocument()
     expect(screen.getByText('Solo lectura')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Buscar por identificador, rol o estado')).toBeInTheDocument()
-    expect(screen.queryByText('ANA VENDEDORA')).not.toBeInTheDocument()
+    expect(screen.queryByText('ANA ANALISTA')).not.toBeInTheDocument()
     expect(screen.queryByText('ana@example.com')).not.toBeInTheDocument()
     expect(screen.queryByText('45781234')).not.toBeInTheDocument()
     expect(screen.queryByText(/Actualizado/)).not.toBeInTheDocument()
@@ -233,12 +233,12 @@ describe('ConfigUsuarios', () => {
     expect(dobles.membresia).not.toHaveBeenCalled()
   })
 
-  it('crea y activa un vendedor con Supervisor y datos normalizados', async () => {
+  it('crea y activa un analista con supervisor y datos normalizados', async () => {
     const user = userEvent.setup()
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Nuevo vendedor CRM' })
+    const dialogo = screen.getByRole('dialog', { name: 'Nuevo analista CRM' })
     await user.type(within(dialogo).getByLabelText('Nombre completo'), '  Juana Pérez  ')
     await user.type(within(dialogo).getByLabelText('Correo'), '  JUANA@EXAMPLE.COM  ')
     await user.type(within(dialogo).getByLabelText('Documento'), '45781237')
@@ -259,9 +259,9 @@ describe('ConfigUsuarios', () => {
       cargo: 'Ejecutiva comercial',
     })
     expect(dobles.toastSuccess).toHaveBeenCalledWith(
-      'Vendedor CRM creado y activado. Ya puede ingresar con su documento.',
+      'Analista CRM creado y activado. Ya puede ingresar con su documento.',
     )
-    expect(screen.queryByRole('dialog', { name: 'Nuevo vendedor CRM' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Nuevo analista CRM' })).not.toBeInTheDocument()
   })
 
   it('conserva correo y documento como identidad inmutable al editar datos', async () => {
@@ -276,7 +276,7 @@ describe('ConfigUsuarios', () => {
     expect(within(dialogo).getByLabelText('Nombre completo')).toBeEnabled()
   })
 
-  it('explica y permite reintentar cuando falla el catálogo de Supervisores', async () => {
+  it('explica y permite reintentar cuando falla el catálogo de supervisores', async () => {
     const refetch = vi.fn()
     dobles.catalogo = consultaCon(undefined, {
       isError: true,
@@ -287,9 +287,9 @@ describe('ConfigUsuarios', () => {
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Nuevo vendedor CRM' })
-    expect(within(dialogo).getByRole('alert')).toHaveTextContent('No se pudieron cargar los Supervisores.')
-    expect(within(dialogo).queryByText('No hay Supervisores activos disponibles.')).not.toBeInTheDocument()
+    const dialogo = screen.getByRole('dialog', { name: 'Nuevo analista CRM' })
+    expect(within(dialogo).getByRole('alert')).toHaveTextContent('No se pudieron cargar los supervisores.')
+    expect(within(dialogo).queryByText('No hay supervisores activos disponibles.')).not.toBeInTheDocument()
     expect(within(dialogo).getByRole('button', { name: 'Crear y activar' })).toBeDisabled()
     await user.click(within(dialogo).getByRole('button', { name: 'Reintentar supervisores' }))
     expect(refetch).toHaveBeenCalledOnce()
@@ -304,7 +304,7 @@ describe('ConfigUsuarios', () => {
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Nuevo vendedor CRM' })
+    const dialogo = screen.getByRole('dialog', { name: 'Nuevo analista CRM' })
     await user.type(within(dialogo).getByLabelText('Nombre completo'), 'Analista Portal')
     await user.type(within(dialogo).getByLabelText('Correo'), 'analista@example.com')
     await user.type(within(dialogo).getByLabelText('Documento'), '45781238')
@@ -329,23 +329,23 @@ describe('ConfigUsuarios', () => {
     render(<ConfigUsuarios />)
 
     expect(screen.queryByRole('button', { name: 'Rol' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Completar alta de ANA VENDEDORA' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Completar alta de ANA VENDEDORA' })
+    await user.click(screen.getByRole('button', { name: 'Completar alta de ANA ANALISTA' }))
+    const dialogo = screen.getByRole('dialog', { name: 'Completar alta de ANA ANALISTA' })
     await user.selectOptions(within(dialogo).getByLabelText('Supervisor'), ID_SUPERVISOR)
-    await user.click(within(dialogo).getByRole('button', { name: 'Activar vendedor' }))
+    await user.click(within(dialogo).getByRole('button', { name: 'Activar analista' }))
 
     await waitFor(() => expect(dobles.crear).toHaveBeenCalledWith({
       correo: 'ana@example.com',
-      nombre_completo: 'ANA VENDEDORA',
+      nombre_completo: 'ANA ANALISTA',
       tipo_documento: 'DNI',
       documento: '45781234',
       supervisor_id: ID_SUPERVISOR,
       telefono: '999111222',
       whatsapp: '999111222',
-      cargo: 'Asesora',
+      cargo: 'Analista',
     }))
     expect(dobles.toastSuccess).toHaveBeenCalledWith(
-      'Alta completada. El vendedor ya puede ingresar al CRM.',
+      'Alta completada. El analista ya puede ingresar al CRM.',
     )
   })
 
@@ -368,7 +368,7 @@ describe('ConfigUsuarios', () => {
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Nuevo vendedor CRM' })
+    const dialogo = screen.getByRole('dialog', { name: 'Nuevo analista CRM' })
     await user.type(within(dialogo).getByLabelText('Nombre completo'), 'A')
     await user.selectOptions(within(dialogo).getByLabelText('Supervisor'), ID_SUPERVISOR)
     await user.click(within(dialogo).getByRole('button', { name: 'Crear y activar' }))
@@ -377,7 +377,7 @@ describe('ConfigUsuarios', () => {
       'El nombre completo debe tener entre 2 y 160 caracteres.',
     )
     expect(dobles.crear).not.toHaveBeenCalled()
-    expect(screen.getByRole('dialog', { name: 'Nuevo vendedor CRM' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Nuevo analista CRM' })).toBeInTheDocument()
   })
 
   it('permite que solo Superadmin confirme el cambio de rol', async () => {
@@ -386,7 +386,7 @@ describe('ConfigUsuarios', () => {
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Rol' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Rol CRM de ANA VENDEDORA' })
+    const dialogo = screen.getByRole('dialog', { name: 'Rol CRM de ANA ANALISTA' })
     await user.selectOptions(within(dialogo).getByLabelText('Rol CRM'), 'gerencia')
     expect(dobles.asignarRol).not.toHaveBeenCalled()
     await user.click(within(dialogo).getByRole('button', { name: 'Confirmar rol' }))
@@ -399,19 +399,19 @@ describe('ConfigUsuarios', () => {
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Rol CRM actualizado.')
   })
 
-  it('ofrece a un vendedor únicamente supervisores compatibles, nunca Gerencia', async () => {
+  it('ofrece a un analista únicamente supervisores compatibles, nunca Gerencia', async () => {
     const user = userEvent.setup()
     render(<ConfigUsuarios />)
 
     await user.click(screen.getByRole('button', { name: 'Jerarquía' }))
-    const dialogo = screen.getByRole('dialog', { name: 'Jerarquía de ANA VENDEDORA' })
+    const dialogo = screen.getByRole('dialog', { name: 'Jerarquía de ANA ANALISTA' })
     const selector = within(dialogo).getByLabelText('Supervisor')
 
     expect(within(selector).getByRole('option', { name: 'SUPERVISOR UNO · Supervisor' })).toBeInTheDocument()
     expect(within(selector).queryByRole('option', { name: /GERENTE GENERAL/ })).not.toBeInTheDocument()
   })
 
-  it('bloquea activar a un vendedor hasta que tenga Supervisor', async () => {
+  it('bloquea activar a un analista hasta que tenga supervisor', async () => {
     dobles.consulta = consultaCon([usuario({
       estado: 'inactivo_crm',
       activo_crm: false,
@@ -422,7 +422,7 @@ describe('ConfigUsuarios', () => {
 
     await user.click(screen.getByRole('button', { name: 'Activar' }))
     const dialogo = screen.getByRole('dialog', { name: 'Activar membresía CRM' })
-    expect(within(dialogo).getByText('Asigna un Supervisor activo antes de habilitar a este vendedor.')).toBeInTheDocument()
+    expect(within(dialogo).getByText('Asigna un supervisor activo antes de habilitar a este analista.')).toBeInTheDocument()
     expect(within(dialogo).getByRole('button', { name: 'Activar membresía' })).toBeDisabled()
     expect(dobles.membresia).not.toHaveBeenCalled()
   })

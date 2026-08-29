@@ -51,7 +51,7 @@ export interface AlertaCRM {
     recordatorioId: string
   }
   /** SOLO grupos del supervisor (F4): la FOTO de ids —de leads, o de
-   *  vendedores en el grupo por vendedor— que el libro de reconocimientos
+   *  analistas en el grupo por analista— que el libro de reconocimientos
    *  guarda y compara para el «reaparece si empeora». Nunca nombres (sin
    *  PII, contrato del servidor). Sin miembros no hay botón de reconocer. */
   miembros?: readonly string[]
@@ -88,7 +88,7 @@ const PESO_SEVERIDAD: Record<SeveridadAlerta, number> = {
 
 const PESO_TIPO: Record<TipoAlerta, number> = {
   // El recordatorio vencido va PRIMERO: es la acción más barata y con
-  // ventana (otro vendedor puede tomar el contacto mientras tanto).
+  // ventana (otro analista puede tomar el contacto mientras tanto).
   revisar_contacto: 0,
   por_repartir: 1,
   tarea_vencida: 2,
@@ -291,7 +291,7 @@ export function derivarAlertasVendedor({
   if (!vendedorId || !Number.isFinite(ahora)) return []
 
   // Defensa adicional al ámbito del store: jamás confiar en que el caller
-  // eliminó los leads de otros vendedores.
+  // eliminó los leads de otros analistas.
   const propios = leads.filter(
     (lead) => lead.vendedor_id === vendedorId && esAbierto(lead),
   )
@@ -355,7 +355,7 @@ export function derivarAlertasSupervisor({
   if (!supervisorId || !Number.isFinite(ahora)) return []
 
   // `vendedores` ya es el roster visible del supervisor. Aun así se toman
-  // únicamente vendedores activos y se admite su cartera propia, que forma
+  // únicamente analistas activos y se admite su cartera propia, que forma
   // parte del ámbito real del supervisor.
   const vendedoresVisibles = vendedores.filter(
     (miembro) => miembro.activo && miembro.rol_crm === 'vendedor',
@@ -446,7 +446,7 @@ export function derivarAlertasSupervisor({
   }
 
   // Plazos vencidos desde ayer: la tarea que ya lleva un día completo vencida
-  // (antes sigue siendo una corrección personal del vendedor) y la cola
+  // (antes sigue siendo una corrección personal del analista) y la cola
   // crítica que ya cumplió un día. Un solo grupo: la decisión es la misma —
   // sentarse con el equipo sobre lo que venció — aunque el reloj sea distinto.
   const conTareaVencida = confiables
@@ -541,15 +541,15 @@ export function derivarAlertasSupervisor({
     else sinAccionPorVendedor.set(vendedorId, [lead])
   }
 
-  // Vendedores con 3+ leads sin próxima acción: un solo grupo ordenado por
+  // Analistas con 3+ leads sin próxima acción: un solo grupo ordenado por
   // carga (la conversación es con cada uno, pero la decisión —revisar cómo
-  // planifica el equipo— es una). Con un solo vendedor conserva su nombre
+  // planifica el equipo— es una). Con un solo analista conserva su nombre
   // como responsable, igual que antes.
   const vendedoresSinAccion = [...sinAccionPorVendedor]
     .filter(([, leadsSinAccion]) => leadsSinAccion.length >= 3)
     .map(([vendedorId, leadsSinAccion]) => ({
       vendedorId,
-      nombre: nombrePorId.get(vendedorId) ?? 'El vendedor',
+      nombre: nombrePorId.get(vendedorId) ?? 'El analista',
       cantidad: leadsSinAccion.length,
     }))
     // El id remata el desempate: dos nombres canónicamente equivalentes en
@@ -570,16 +570,16 @@ export function derivarAlertasSupervisor({
       alcance: 'equipo',
       titulo: unico
         ? `${unico.nombre} tiene ${unico.cantidad} leads sin próxima acción`
-        : `${vendedoresSinAccion.length} vendedores con leads sin próxima acción`,
+        : `${vendedoresSinAccion.length} analistas con leads sin próxima acción`,
       detalle: unico
         ? `${unico.cantidad} leads sin una próxima acción registrada.`
         : vendedoresSinAccion.map((v) => `${v.nombre} ${v.cantidad}`).join(' · '),
       responsableId: unico?.vendedorId ?? null,
       responsable: unico?.nombre ?? null,
       valor: totalLeads,
-      // La foto es de VENDEDORES, no de leads: la decisión del grupo es la
-      // conversación con cada vendedor. Un vendedor NUEVO en aprietos revive
-      // la alerta; el mismo vendedor pasando de 3 a 4 leads no (la
+      // La foto es de ANALISTAS, no de leads: la decisión del grupo es la
+      // conversación con cada analista. Un analista NUEVO en aprietos revive
+      // la alerta; el mismo analista pasando de 3 a 4 leads no (la
       // conversación pendiente es la misma) — hasta que cruce a crítica (≥5),
       // donde revive por severidad.
       miembros: vendedoresSinAccion.map((vendedor) => vendedor.vendedorId),

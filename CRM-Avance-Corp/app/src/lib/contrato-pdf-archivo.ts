@@ -158,7 +158,7 @@ export class ContratoPdfNoSelladoError extends Error {
   constructor(estado: EstadoContratoPdf, reintentable: boolean) {
     // `sin_reserva` + no reintentable es la respuesta del servidor para un
     // contrato del régimen anterior. Decir «sigue pendiente de sellado» ahí sería
-    // mentir: no está pendiente, es que no se emite. El vendedor lo leería como
+    // mentir: no está pendiente, es que no se emite. El analista lo leería como
     // una avería y volvería a intentarlo.
     const mensaje = estado === 'integridad_bloqueada'
       ? 'El PDF contractual quedó bloqueado por una discrepancia de integridad. Requiere revisión administrativa.'

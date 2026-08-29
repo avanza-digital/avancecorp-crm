@@ -9,7 +9,7 @@
 // Desde 2026-08-23 este panel es SOLO producción (toques y cierres): el
 // rezago de cada miembro —vencidas, sin próxima acción— vive en «Tu equipo
 // hoy», pegado a la persona. Antes salía en las dos tarjetas, una al lado de
-// la otra, y el supervisor juzgaba al mismo vendedor dos veces.
+// la otra, y el supervisor juzgaba al mismo analista dos veces.
 import type { JSX } from 'react'
 import { CalendarClock, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -56,7 +56,7 @@ function subLineaDe(ven: MetricaAgendaVendedor): string | null {
  * Desglose crudo de cierres para la sub-línea (omite las partes en cero).
  *
  * Las canceladas van SEPARADAS desde 2026-07-26 y con nombres distintos a
- * propósito: «anuladas» es una decisión del asesor sobre su agenda (y pesa en
+ * propósito: «anuladas» es una decisión del analista sobre su agenda (y pesa en
  * su %), «cerradas por el lead» es bookkeeping del sistema al convertirse o
  * descartarse el prospecto (y no pesa). Llamarlas igual era exactamente el
  * problema que Miguel señaló — un supervisor no puede juzgar un número que
@@ -126,7 +126,7 @@ function CifraResumen({
   )
 }
 
-/** Franja compacta de totales del ámbito (estilo "En juego hoy" del vendedor). */
+/** Franja compacta de totales del ámbito (estilo "En juego hoy" del analista). */
 function FranjaResumen({ resumen }: { resumen: ResumenAgenda }): JSX.Element {
   return (
     <div className="mx-5 mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg bg-muted/50 px-3 py-2.5">
@@ -238,7 +238,7 @@ function TablaMiembros({
               ? Math.round(ven.pct_completadas ?? (ven.completadas / cierres) * 100)
               : null
           // Se calcula UNA vez porque ahora decide también qué pintar cuando no
-          // hay porcentaje: un vendedor al que su jefe le anuló los dos únicos
+          // hay porcentaje: un analista al que su jefe le anuló los dos únicos
           // cierres se queda sin denominador, y un «—» a secas es exactamente
           // igual al de quien no registró nada en toda la semana. El desglose
           // es lo único que distingue «no trabajó» de «se lo anularon».
@@ -402,7 +402,7 @@ export function AgendaEquipoPanel({
         <PanelVacio
           icono={CalendarClock}
           titulo="Sin miembros en tu ámbito"
-          detalle="Cuando tu equipo tenga vendedores activos, verás aquí su actividad de agenda."
+          detalle="Cuando tu equipo tenga analistas activos, verás aquí su actividad de agenda."
         />
       ) : conActividad.length === 0 ? (
         // Vacío TOTAL: nadie registra nada. Copy accionable + la lista de

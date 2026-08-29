@@ -4,7 +4,7 @@
  *
  * Regla de Miguel (2026-08-13): «si gerencia anula un cierre tiene que afectar en
  * la conversión sí o sí», con el alcance que él mismo puso: lo que baja «no
- * significa dinero real, solo baja para el vendedor». Por eso el texto no dice
+ * significa dinero real, solo baja para el analista». Por eso el texto no dice
  * que se devuelva nada ni que el cliente desaparezca — no pasa: el contrato y el
  * cliente siguen intactos, lo único que cambia es a quién se le acredita.
  *

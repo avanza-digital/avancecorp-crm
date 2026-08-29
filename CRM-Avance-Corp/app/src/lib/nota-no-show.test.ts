@@ -17,7 +17,7 @@ describe('notaNoShow — el plantón queda escrito en el historial', () => {
     expect(notaNoShow('2026-12-31T03:00:00.000Z')).toContain('2026')
   })
 
-  it('la nota libre del vendedor se conserva detrás del hecho', () => {
+  it('la nota libre del analista se conserva detrás del hecho', () => {
     expect(notaNoShow('2026-07-24T20:00:00.000Z', 'llamó a las 4 pidiendo reprogramar')).toBe(
       'No asistió a la reunión del Vie 24 Jul 2026, 15:00 — llamó a las 4 pidiendo reprogramar',
     )

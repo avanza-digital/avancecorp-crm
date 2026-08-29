@@ -121,7 +121,7 @@ describe('resumenCarteraDesdeAmbito — capital por moneda', () => {
 })
 
 describe('resumenCarteraDesdeAmbito — conversión y descartes', () => {
-  it('la base de conversión son los vivos CON vendedor; los parkeados no cuentan', () => {
+  it('la base de conversión son los vivos CON analista; los parkeados no cuentan', () => {
     const resumen = resumenCarteraDesdeAmbito(
       [
         lead(),

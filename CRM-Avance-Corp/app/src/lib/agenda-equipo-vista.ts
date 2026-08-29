@@ -10,13 +10,13 @@ import type { Miembro } from './tipos'
  * Las dos mitades de `canceladas`, con degradación honesta.
  *
  * FUENTE ÚNICA de la separación pedida por Miguel (2026-07-26): "separa lo que
- * cancela el sistema y lo que cancela el asesor". Nadie debe volver a leer
+ * cancela el sistema y lo que cancela el analista". Nadie debe volver a leer
  * `ven.canceladas` a pelo para juzgar a una persona — ese número mezcla las
- * anulaciones del asesor con las que dispara el trigger cuando un lead se
+ * anulaciones del analista con las que dispara el trigger cuando un lead se
  * convierte o se descarta.
  *
  * Si la BD todavía no tiene el desglose (migración sin aplicar), TODO cae del
- * lado del asesor: es exactamente el comportamiento de antes, así que el panel
+ * lado del analista: es exactamente el comportamiento de antes, así que el panel
  * no cambia de números por sorpresa a mitad de un despliegue. Nunca al revés —
  * mandarlas a «sistema» inflaría los % de todo el equipo con datos inventados.
  */
@@ -45,7 +45,7 @@ export function canceladasAjenas(ven: MetricaAgendaVendedor): number {
  * que pesan en su %.
  *
  * Decisión de Miguel (2026-07-26): «si el supervisor anula una tarea el
- * vendedor no debería poder hacer nada sobre esa tarea», o sea que tampoco
+ * analista no debería poder hacer nada sobre esa tarea», o sea que tampoco
  * puede cargar con ella. Las propias SÍ cuentan: anular lo tuyo es una decisión
  * sobre tu agenda, y sacarlas convertiría el botón de anular en una salida
  * gratis para no hacer nada.
@@ -132,7 +132,7 @@ export function resumenAgenda(vendedores: readonly MetricaAgendaVendedor[]): Res
  *
  * 2026-08-23: `vencidas` y `leads_sin_accion` salieron de aquí a propósito —
  * son REZAGO, y el rezago vive solo en «Tu equipo hoy». Con ellas dentro, un
- * vendedor sin producción pero con 2 sin acción salía del colapso como una
+ * analista sin producción pero con 2 sin acción salía del colapso como una
  * fila entera de guiones (lo cazó la auditoría de Codex).
  */
 export function tieneActividad(ven: MetricaAgendaVendedor): boolean {
@@ -189,7 +189,7 @@ function grupoDe(
 /**
  * Agrupa el payload por SUPERVISOR (caso gerencia): una sección por supervisor
  * del payload (ordenadas por nombre), con el propio supervisor contado dentro
- * de su sección. Los vendedores cuyo supervisor no está en el payload — o que
+ * de su sección. Los analistas cuyo supervisor no está en el payload — o que
  * no aparecen en `equipo` — van a una sección final «Sin equipo asignado».
  *
  * Devuelve null (modo plano) cuando no llega `equipo` o el payload trae 0-1

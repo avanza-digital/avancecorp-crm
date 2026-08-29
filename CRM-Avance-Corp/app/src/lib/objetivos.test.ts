@@ -97,7 +97,7 @@ describe('metas versionadas y jerarquía', () => {
     expect(metaConversionAplicable(27, true)).toBeNull()
   })
 
-  it('deriva vendedor, supervisor y empresa desde metas individuales', () => {
+  it('deriva analista, supervisor y empresa desde metas individuales', () => {
     const objetivosVendedor = objetivosDesdeConfiguracion(CONFIGURACION, V1)
     expect(capitalObjetivo(objetivosVendedor.vendedor, 'PEN')).toBe(175_000)
     expect(capitalObjetivo(objetivosVendedor.vendedor, 'USD')).toBe(17_500)

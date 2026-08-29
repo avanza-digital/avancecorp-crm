@@ -83,9 +83,9 @@ describe('CompromisosSupervisoresPanel', () => {
     expect(screen.getByText('2 compromisos · 1 supervisor')).toBeInTheDocument()
     const filas = screen.getAllByRole('listitem')
     expect(filas).toHaveLength(2)
-    // Más reciente primero: la posposición, con su UNIDAD real (vendedores).
+    // Más reciente primero: la posposición, con su UNIDAD real (analistas).
     expect(filas[0]).toHaveTextContent('SUPERVISOR REAL UNO')
-    expect(filas[0]).toHaveTextContent('pospuso «Leads sin próxima acción» (1 vendedor)')
+    expect(filas[0]).toHaveTextContent('pospuso «Leads sin próxima acción» (1 analista)')
     expect(filas[0]).toHaveTextContent('severidad de atención · hace 1 h · se reactiva el 16 de julio a las 10:00')
     expect(filas[1]).toHaveTextContent('reconoció «Leads nuevos sin responder» (3 leads)')
     expect(filas[1]).toHaveTextContent('severidad crítica · hace 2 h · rige como máximo hasta el 22 de julio a las 08:00')

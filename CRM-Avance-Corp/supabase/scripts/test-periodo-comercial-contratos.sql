@@ -1,6 +1,7 @@
 -- Gate transaccional del periodo comercial de contratos.
--- Requiere la migracion crm_periodo_comercial_contratos aplicada. Toda fila de
--- prueba, snapshot de producto y auditoria se revierte al terminar.
+-- Requiere 20260824170630_crm_periodo_comercial_contratos y
+-- 20260828003205_crm_filtro_origen_metricas_conversiones. Toda fila de prueba,
+-- snapshot de producto y auditoria se revierte al terminar.
 
 begin;
 
@@ -89,8 +90,32 @@ begin
     raise exception 'PCOM-07: capital mensual no consume la fecha comercial';
   end if;
 
+  if pg_catalog.to_regprocedure(
+       'private.metricas_conversiones_implementacion(date,date,text)'
+     ) is null
+     or pg_catalog.to_regprocedure(
+       'private.metricas_conversiones_implementacion(date,date)'
+     ) is not null
+     or (
+       select p.pronargdefaults
+       from pg_catalog.pg_proc p
+       where p.oid = pg_catalog.to_regprocedure(
+         'private.metricas_conversiones_implementacion(date,date,text)'
+       )
+     ) is distinct from 1
+     or (
+       select pg_catalog.pg_get_expr(p.proargdefaults, 0)
+       from pg_catalog.pg_proc p
+       where p.oid = pg_catalog.to_regprocedure(
+         'private.metricas_conversiones_implementacion(date,date,text)'
+       )
+     ) is distinct from 'NULL::text' then
+    raise exception
+      'PCOM-08A: firma o default de metricas_conversiones inesperados';
+  end if;
+
   v_def := pg_catalog.pg_get_functiondef(
-    'private.metricas_conversiones_implementacion(date,date)'::regprocedure
+    'private.metricas_conversiones_implementacion(date,date,text)'::regprocedure
   );
   if v_def not ilike '%fecha_cierre_comercial%'
      or position('c.creado_en >= v_ini and c.creado_en < v_fin' in v_def) > 0
@@ -422,7 +447,7 @@ begin
   perform pg_catalog.set_config('request.jwt.claim.sub', v_gerencia::text, true);
   perform crm.metricas_capital_mes_fn(12);
   perform private.metricas_conversiones_implementacion(
-    date '2026-01-01', date '2026-08-24'
+    date '2026-01-01', date '2026-08-24', null
   );
   perform count(*)
   from private.produccion_mes_por_vendedor(

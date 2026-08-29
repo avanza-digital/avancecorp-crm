@@ -48,12 +48,12 @@ select set_config(
 );
 select set_config(
   'test.derivaciones.asesor',
-  (select p.id::text from public.perfiles p where p.nombre_completo = 'VENDEDOR DOS'),
+  (select p.id::text from public.perfiles p where p.nombre_completo = 'ANALISTA DOS'),
   true
 );
 select set_config(
   'test.derivaciones.asesor_ajeno',
-  (select p.id::text from public.perfiles p where p.nombre_completo = 'VENDEDOR TRES'),
+  (select p.id::text from public.perfiles p where p.nombre_completo = 'ANALISTA TRES'),
   true
 );
 select set_config(
@@ -112,13 +112,13 @@ begin
   where elemento->>'asesor_id' = v_asesor::text;
 
   if v_asesor_antes is null then
-    raise exception 'D06 el reporte no incluye al asesor directo activo';
+    raise exception 'D06 el reporte no incluye al analista directo activo';
   end if;
   if exists (
     select 1 from jsonb_array_elements(v_antes->'asesores') elemento
     where elemento->>'asesor_id' = v_asesor_ajeno::text
   ) then
-    raise exception 'D07 el reporte incluyó a un asesor de otro supervisor';
+    raise exception 'D07 el reporte incluyó a un analista de otro supervisor';
   end if;
 
   select count(*) into v_actividades_antes from crm.actividades where lead_id = v_lead;
@@ -141,7 +141,7 @@ begin
 
   begin
     perform crm.derivar_leads_equipo_fn(array[v_lead], array[v_asesor_ajeno]);
-    raise exception 'D09 el asesor de otro equipo fue aceptado';
+    raise exception 'D09 el analista de otro equipo fue aceptado';
   exception
     when sqlstate '42501' then null;
   end;
@@ -165,7 +165,7 @@ begin
 
   if (select vendedor_id = v_asesor and asignado_supervisor_id is null
       from crm.leads where id = v_lead) is distinct from true then
-    raise exception 'D12 la derivación válida no entregó el lead al asesor';
+    raise exception 'D12 la derivación válida no entregó el lead al analista';
   end if;
   if (select count(*) from crm.actividades where lead_id = v_lead) <> v_actividades_antes + 1 then
     raise exception 'D13 la derivación no dejó exactamente una actividad de reasignación';
@@ -222,7 +222,7 @@ begin
     raise exception 'D17c el PATCH directo rechazado cambió la tenencia';
   end if;
 
-  -- Cualquier gestión del asesor, incluida una nota, bloquea la devolución.
+  -- Cualquier gestión del analista, incluida una nota, bloquea la devolución.
   -- El payload intenta retrofecharla: la guarda debe reemplazar ese timestamp
   -- controlable por un sello del servidor. La subtransacción se
   -- revierte al capturar el rechazo, por lo que luego aún podemos probar el OK.
@@ -232,7 +232,7 @@ begin
     values (v_lead, 'nota', 'SONDA TRANSACCIONAL', v_asesor, timestamptz '2000-01-01 00:00Z');
     perform set_config('request.jwt.claim.sub', v_supervisor::text, true);
     perform crm.revertir_derivacion_equipo_fn(v_lead);
-    raise exception 'D18 se devolvió un lead después de que el asesor lo gestionó'
+    raise exception 'D18 se devolvió un lead después de que el analista lo gestionó'
       using errcode = 'P0099';
   exception
     when sqlstate 'P0001' then null;
@@ -244,7 +244,7 @@ begin
     values (v_lead, 'tarea', 'SONDA TRANSACCIONAL', now() + interval '1 day', v_asesor);
     perform set_config('request.jwt.claim.sub', v_supervisor::text, true);
     perform crm.revertir_derivacion_equipo_fn(v_lead);
-    raise exception 'D19 se devolvió un lead después de que el asesor creó una tarea'
+    raise exception 'D19 se devolvió un lead después de que el analista creó una tarea'
       using errcode = 'P0099';
   exception
     when sqlstate 'P0001' then null;
@@ -277,7 +277,7 @@ begin
 end;
 $comportamiento$;
 
--- Un vendedor autenticado no puede usar ninguna de las tres superficies.
+-- Un analista autenticado no puede usar ninguna de las tres superficies.
 select set_config(
   'request.jwt.claim.sub',
   current_setting('test.derivaciones.asesor'),
@@ -291,17 +291,17 @@ declare
 begin
   begin
     perform crm.reporte_derivaciones_equipo_fn(v_hoy, v_hoy);
-    raise exception 'D23 un vendedor consultó el reporte de supervisión';
+    raise exception 'D23 un analista consultó el reporte de supervisión';
   exception when sqlstate '42501' then null;
   end;
   begin
     perform crm.derivar_leads_equipo_fn(array[v_lead], array[v_asesor]);
-    raise exception 'D24 un vendedor usó la RPC de derivación';
+    raise exception 'D24 un analista usó la RPC de derivación';
   exception when sqlstate '42501' then null;
   end;
   begin
     perform crm.revertir_derivacion_equipo_fn(v_lead);
-    raise exception 'D25 un vendedor usó la RPC de devolución';
+    raise exception 'D25 un analista usó la RPC de devolución';
   exception when sqlstate '42501' then null;
   end;
 end;

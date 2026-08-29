@@ -58,7 +58,7 @@ function filaBasica(sobre: Record<string, unknown> = {}): Record<string, unknown
   }
 }
 
-/** Fila completa de public.perfiles con las 14 bancarias. */
+/** Fila del contrato de crm.cliente_detalle_fn con las 14 columnas bancarias. */
 function filaDetalle(sobre: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'cli-1',
@@ -73,6 +73,8 @@ function filaDetalle(sobre: Record<string, unknown> = {}): Record<string, unknow
     asesor_perfil_id: 'analista-1',
     creado_por: 'analista-1',
     creado_en: '2026-07-15T12:00:00.000Z',
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     banco: 'BCP',
     tipo_cuenta: 'ahorros',
     numero_cuenta: '19112345678901',
@@ -191,12 +193,16 @@ describe('listarClientes (vista crm.clientes_basicos)', () => {
   })
 })
 
-describe('obtenerClienteDetalle (public.perfiles)', () => {
-  it('trae las 14 bancarias + tipo_documento + creado_en/por', async () => {
+describe('obtenerClienteDetalle (crm.cliente_detalle_fn)', () => {
+  it('usa la RPC scopeada y trae las 14 bancarias cuando el servidor las habilita', async () => {
+    let lecturasCrudas = 0
     server.use(
-      http.get(`${BASE}/rest/v1/perfiles`, ({ request }) => {
-        const url = new URL(request.url)
-        expect(url.searchParams.get('id')).toBe('eq.cli-1')
+      http.get(`${BASE}/rest/v1/perfiles`, () => {
+        lecturasCrudas += 1
+        return HttpResponse.json([])
+      }),
+      http.post(`${BASE}/rest/v1/rpc/cliente_detalle_fn`, async ({ request }) => {
+        expect(await request.json()).toEqual({ p_cliente_id: 'cli-1' })
         return HttpResponse.json([filaDetalle()])
       }),
     )
@@ -208,6 +214,8 @@ describe('obtenerClienteDetalle (public.perfiles)', () => {
       tipo_documento: 'DNI',
       creado_en: '2026-07-15T12:00:00.000Z',
       creado_por: 'analista-1',
+      banca_visible: true,
+      cuentas_bancarias_visibles: true,
       domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       banco: 'BCP',
       cci: '00219112345678901234',
@@ -216,10 +224,44 @@ describe('obtenerClienteDetalle (public.perfiles)', () => {
       titular_distinto_usd: true,
       beneficiario_nombre_usd: 'JUANA PEREZ',
     })
+    expect(lecturasCrudas).toBe(0)
+  })
+
+  it('acepta la proyección redactada de Directorio sin inventar datos bancarios', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cliente_detalle_fn`, () =>
+        HttpResponse.json([
+          filaDetalle({
+            banca_visible: false,
+            cuentas_bancarias_visibles: false,
+            banco: null,
+            tipo_cuenta: null,
+            numero_cuenta: null,
+            cci: null,
+            titular_distinto: false,
+            beneficiario_nombre: null,
+            beneficiario_dni: null,
+            banco_usd: null,
+            tipo_cuenta_usd: null,
+            numero_cuenta_usd: null,
+            cci_usd: null,
+            titular_distinto_usd: false,
+            beneficiario_nombre_usd: null,
+            beneficiario_dni_usd: null,
+          }),
+        ]),
+      ),
+    )
+
+    const detalle = await obtenerClienteDetalle('cli-1')
+
+    expect(detalle.banca_visible).toBe(false)
+    expect(detalle.banco).toBeNull()
+    expect(detalle.cci_usd).toBeNull()
   })
 
   it('0 filas (fuera de cartera o inexistente) → NO_ENCONTRADO sin revelar existencia', async () => {
-    server.use(http.get(`${BASE}/rest/v1/perfiles`, () => HttpResponse.json([])))
+    server.use(http.post(`${BASE}/rest/v1/rpc/cliente_detalle_fn`, () => HttpResponse.json([])))
 
     const promesa = obtenerClienteDetalle('ajeno')
 
@@ -676,7 +718,7 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
   // El front exigía `template_version: 'contrato-aep-17-v3'` mientras producción
   // ya emitía v5. Resultado: TODA creación de contrato moría con «El servidor no
   // confirmó completamente el contrato y su cuenta de pago» aunque el contrato SÍ
-  // se había creado — y el vendedor, creyendo que había fallado, lo creaba dos
+  // se había creado — y el analista, creyendo que había fallado, lo creaba dos
   // veces. Pasó porque la tolerancia v3-v5 vivía SOLO en el bundle publicado, sin
   // commitear, y al reconstruir desde el commit se perdió.
   //

@@ -28,7 +28,7 @@ export interface CapitalUnificado {
    *
    * Es `null` —y no 0— a propósito: `money(null)` y `moneyK(null)` imprimen «S/ 0»,
    * así que un total ausente convertido en cero se leería como un hecho («este
-   * vendedor no tiene capital») cuando lo cierto es que no lo sabemos.
+   * analista no tiene capital») cuando lo cierto es que no lo sabemos.
    */
   total: number | null
   /** TC realmente APLICADO. null = el USD quedó fuera del total. */

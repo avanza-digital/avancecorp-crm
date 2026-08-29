@@ -82,7 +82,7 @@ function configuracion(overrides: Partial<ConfiguracionMetas> = {}): Configuraci
     sin_supervisor: [],
     vendedores: [{
       vendedor_id: ID_VENDEDOR,
-      nombre: 'ANA VENDEDORA',
+      nombre: 'ANA ANALISTA',
       supervisor_id: ID_SUPERVISOR,
       supervisor_nombre: 'SUPERVISOR UNO',
       conversion_objetivo: 15,
@@ -130,7 +130,7 @@ beforeEach(() => {
     revision: 2,
     vendedores: [{
       vendedor_id: ID_VENDEDOR,
-      nombre: 'ANA VENDEDORA',
+      nombre: 'ANA ANALISTA',
       supervisor_id: ID_SUPERVISOR,
       supervisor_nombre: 'SUPERVISOR UNO',
       conversion_objetivo: 22,
@@ -161,7 +161,7 @@ describe('ConfigMetas', () => {
 
     dobles.consulta = consultaCon(configuracion({ vendedores: [], revision: 0, publicada_en: null }))
     render(<ConfigMetas />)
-    expect(await screen.findByText('No hay vendedores activos en el roster de este período.')).toBeInTheDocument()
+    expect(await screen.findByText('No hay analistas activos en el roster de este período.')).toBeInTheDocument()
     expect(screen.getByText('Sin publicar')).toBeInTheDocument()
   })
 
@@ -173,7 +173,7 @@ describe('ConfigMetas', () => {
     // `readOnly`, no `disabled`: al rol que solo audita hay que dejarle LEER el
     // importe con contraste y poder enfocarlo, no atenuarlo como si fuera
     // adorno. Lo que no puede es cambiarlo.
-    const campo = screen.getByLabelText('Meta mensual total de ANA VENDEDORA')
+    const campo = screen.getByLabelText('Meta mensual total de ANA ANALISTA')
     expect(campo).toHaveAttribute('readonly')
     expect(campo).toHaveAttribute('aria-readonly', 'true')
     fireEvent.change(campo, { target: { value: '999999' } })
@@ -186,7 +186,7 @@ describe('ConfigMetas', () => {
     const user = userEvent.setup()
     render(<ConfigMetas />)
 
-    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'), {
+    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA ANALISTA'), {
       target: { value: '500000' },
     })
 
@@ -221,13 +221,13 @@ describe('ConfigMetas', () => {
     const user = userEvent.setup()
     render(<ConfigMetas />)
 
-    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'), {
+    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA ANALISTA'), {
       target: { value: '100000001' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
 
     expect(dobles.toastError).toHaveBeenCalledWith(
-      'La meta mensual de ANA VENDEDORA debe estar entre S/ 0 y S/ 100,000,000.',
+      'La meta mensual de ANA ANALISTA debe estar entre S/ 0 y S/ 100,000,000.',
     )
     expect(dobles.publicar).not.toHaveBeenCalled()
   })
@@ -273,7 +273,7 @@ describe('ConfigMetas', () => {
     expect(screen.getByRole('link', { name: /Revisar jerarquía/ }))
       .toHaveAttribute('href', '#/config-usuarios')
 
-    fireEvent.change(screen.getByLabelText('Meta mensual total de ANA VENDEDORA'), {
+    fireEvent.change(screen.getByLabelText('Meta mensual total de ANA ANALISTA'), {
       target: { value: '80000' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
@@ -286,7 +286,7 @@ describe('ConfigMetas', () => {
 
   it('no menciona a nadie cuando el roster está completo', async () => {
     render(<ConfigMetas />)
-    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Meta mensual total de ANA ANALISTA')).toBeInTheDocument()
     expect(screen.queryByText(/sin meta este mes/)).not.toBeInTheDocument()
   })
 
@@ -295,7 +295,7 @@ describe('ConfigMetas', () => {
   // salían del mismo sitio: un `type="number"` con `value` numérico.
   it('separa los miles mientras se escribe la meta', async () => {
     render(<ConfigMetas />)
-    const campo = await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')
+    const campo = await screen.findByLabelText('Meta mensual total de ANA ANALISTA')
 
     fireEvent.change(campo, { target: { value: '50000' } })
     expect(campo).toHaveValue('50,000')
@@ -317,7 +317,7 @@ describe('ConfigMetas', () => {
       vendedores: [
         {
           vendedor_id: ID_VENDEDOR,
-          nombre: 'ANA VENDEDORA',
+          nombre: 'ANA ANALISTA',
           supervisor_id: ID_SUPERVISOR,
           supervisor_nombre: 'SUPERVISOR UNO',
           conversion_objetivo: 0,
@@ -325,7 +325,7 @@ describe('ConfigMetas', () => {
         },
         {
           vendedor_id: '10000000-0000-4000-8000-000000000002',
-          nombre: 'BEA VENDEDORA',
+          nombre: 'BEA ANALISTA',
           supervisor_id: ID_SUPERVISOR,
           supervisor_nombre: 'SUPERVISOR UNO',
           conversion_objetivo: 0,
@@ -333,7 +333,7 @@ describe('ConfigMetas', () => {
         },
         {
           vendedor_id: '10000000-0000-4000-8000-000000000003',
-          nombre: 'CARLA VENDEDORA',
+          nombre: 'CARLA ANALISTA',
           supervisor_id: '20000000-0000-4000-8000-000000000002',
           supervisor_nombre: 'SUPERVISOR DOS',
           conversion_objetivo: 0,
@@ -354,13 +354,13 @@ describe('ConfigMetas', () => {
     expect(screen.getByText('S/ 15,000')).toBeInTheDocument() // 7.000 + 8.000
 
     // Y los campos siguen siendo uno por analista.
-    expect(screen.getByLabelText('Meta mensual total de ANA VENDEDORA')).toBeInTheDocument()
-    expect(screen.getByLabelText('Meta mensual total de CARLA VENDEDORA')).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta mensual total de ANA ANALISTA')).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta mensual total de CARLA ANALISTA')).toBeInTheDocument()
   })
 
   it('deja borrar el campo sin que reaparezca un 0', async () => {
     render(<ConfigMetas />)
-    const campo = await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')
+    const campo = await screen.findByLabelText('Meta mensual total de ANA ANALISTA')
 
     fireEvent.change(campo, { target: { value: '80000' } })
     expect(campo).toHaveValue('80,000')
@@ -379,7 +379,7 @@ describe('ConfigMetas', () => {
       vendedores: [
         {
           vendedor_id: ID_VENDEDOR,
-          nombre: 'ANA VENDEDORA',
+          nombre: 'ANA ANALISTA',
           supervisor_id: '20000000-0000-4000-8000-00000000000a',
           supervisor_nombre: 'JORGE PEREZ',
           conversion_objetivo: 0,
@@ -387,7 +387,7 @@ describe('ConfigMetas', () => {
         },
         {
           vendedor_id: '10000000-0000-4000-8000-000000000002',
-          nombre: 'BEA VENDEDORA',
+          nombre: 'BEA ANALISTA',
           supervisor_id: '20000000-0000-4000-8000-00000000000b',
           supervisor_nombre: 'JORGE PEREZ',
           conversion_objetivo: 0,
@@ -409,7 +409,7 @@ describe('ConfigMetas', () => {
 
   // La conversión se pacta para la EMPRESA (decisión de Miguel, 2026-08-10):
   // un solo número aquí, y el detalle por analista en la pantalla de
-  // Conversiones. El modelo la guarda por vendedor, así que el valor único se
+  // Conversiones. El modelo la guarda por analista, así que el valor único se
   // replica en todos.
   it('pacta una sola conversión de empresa y la replica a cada analista', async () => {
     const user = userEvent.setup()
@@ -417,7 +417,7 @@ describe('ConfigMetas', () => {
       vendedores: [
         {
           vendedor_id: ID_VENDEDOR,
-          nombre: 'ANA VENDEDORA',
+          nombre: 'ANA ANALISTA',
           supervisor_id: ID_SUPERVISOR,
           supervisor_nombre: 'SUPERVISOR UNO',
           conversion_objetivo: 0,
@@ -425,7 +425,7 @@ describe('ConfigMetas', () => {
         },
         {
           vendedor_id: '10000000-0000-4000-8000-000000000002',
-          nombre: 'BEA VENDEDORA',
+          nombre: 'BEA ANALISTA',
           supervisor_id: ID_SUPERVISOR,
           supervisor_nombre: 'SUPERVISOR UNO',
           conversion_objetivo: 0,
@@ -479,7 +479,7 @@ describe('ConfigMetas', () => {
       '2026-07-01',
     ))
     // Con separadores: lo copiado se lee igual que lo tecleado.
-    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'))
+    expect(await screen.findByLabelText('Meta mensual total de ANA ANALISTA'))
       .toHaveValue('17,000')
     expect(dobles.publicar).not.toHaveBeenCalled()
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Se copiaron las metas de julio de 2026.')

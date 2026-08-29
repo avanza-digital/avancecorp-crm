@@ -69,21 +69,43 @@ begin
   v_def := pg_catalog.pg_get_functiondef(
     'private.metricas_cartera_por_vendedor(date)'::regprocedure
   );
-  if v_def not ilike '%partition by o.cliente_id, o.periodo%'
-     or v_def not ilike '%orden_conversion = 1%'
-     or v_def not ilike '%capital_adicional_pen%'
-     or v_def not ilike '%capital_adicional_usd%' then
-    raise exception 'GCAR-07: la deduplicación o el desglose económico cambió';
+  -- C0.1 reemplaza este helper atómicamente: la llamada a episodios es la
+  -- señal de corte. Un cuerpo híbrido entra a la rama C0.1 y debe fallar.
+  if v_def ilike '%private.conversion_episodios(%' then
+    if v_def not ilike '%where e.tipo = ''operacion''%'
+       or v_def ilike '%row_number()%'
+       or v_def ilike '%orden_conversion%'
+       or v_def ilike '%elegible_conversion%'
+       or v_def not ilike '%capital_adicional_pen%'
+       or v_def not ilike '%capital_adicional_usd%' then
+      raise exception 'GCAR-07: cartera C0.1 no deriva limpiamente de episodios operación';
+    end if;
+  else
+    if v_def not ilike '%partition by o.cliente_id, o.periodo%'
+       or v_def not ilike '%orden_conversion = 1%'
+       or v_def not ilike '%capital_adicional_pen%'
+       or v_def not ilike '%capital_adicional_usd%' then
+      raise exception 'GCAR-07: la deduplicación o el desglose económico legacy cambió';
+    end if;
   end if;
 
   v_def := pg_catalog.pg_get_functiondef(
     'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)'::regprocedure
   );
-  if v_def not ilike '%from crm.lead_asignaciones la%'
-     or v_def not ilike '%coalesce(o.conversiones_clientes, 0)%'
-     or v_def not ilike '%coalesce(d.divisor, 0)%'
-     or v_def ilike '%count(*) filter (where%operaciones_cartera%as divisor%' then
-    raise exception 'GCAR-08: operaciones no están separadas del divisor';
+  if v_def ilike '%private.conversion_episodios(%' then
+    if v_def not ilike '%from ep e where e.tipo = ''recibido''%'
+       or v_def not ilike '%from ep e where e.tipo = ''operacion''%'
+       or v_def not ilike '%coalesce(o.conversiones_clientes, 0)%'
+       or v_def not ilike '%coalesce(d.divisor, 0)%'
+       or v_def not ilike '%/ d.divisor%'
+       or v_def ilike '%conversiones_clientes%as divisor%' then
+      raise exception 'GCAR-08: episodios operación entraron al divisor del núcleo F1';
+    end if;
+  elsif v_def not ilike '%from crm.lead_asignaciones la%'
+        or v_def not ilike '%coalesce(o.conversiones_clientes, 0)%'
+        or v_def not ilike '%coalesce(d.divisor, 0)%'
+        or v_def ilike '%count(*) filter (where%operaciones_cartera%as divisor%' then
+    raise exception 'GCAR-08: operaciones no están separadas del divisor legacy';
   end if;
 
   -- El bundle desplegado valida cumplimiento con strictObject. La migración de
@@ -109,6 +131,193 @@ begin
 end;
 $estructura$;
 
+-- Fixture hermético: la antigua versión esperaba que el backfill productivo
+-- hubiera dejado al menos una operación. Eso hacía que una base limpia fallara
+-- antes de probar el ledger. Este upgrade vive en la transacción del gate y se
+-- revierte al final junto con todo lo demás.
+do $fixture_upgrade$
+declare
+  v_periodo constant date := date '2026-08-01';
+  v_contrato_id constant uuid := '7f300000-0000-4000-8000-000000000001';
+  v_cronograma_id constant uuid := '7f500000-0000-4000-8000-000000000001';
+  v_operacion_id constant uuid := '7f400000-0000-4000-8000-000000000001';
+  v_plantilla record;
+  v_actor uuid;
+  v_filas integer;
+begin
+  select c.*, p.asesor_perfil_id
+    into v_plantilla
+  from public.contratos c
+  join public.perfiles p on p.id = c.cliente_id
+  join crm.equipo a on a.perfil_id = p.asesor_perfil_id
+  where c.estado = 'activo'
+    and p.rol = 'cliente'
+    and p.activo
+    and p.asesor_perfil_id is not null
+    and a.activo
+    and a.rol_crm in ('vendedor', 'supervisor')
+    and date_trunc('month', c.fecha_cierre_comercial)::date < v_periodo
+    and not exists (
+      select 1
+      from crm.operaciones_cartera o
+      where o.cliente_id = c.cliente_id
+        and o.periodo = v_periodo
+        and o.elegible_conversion
+    )
+  order by c.numero_contrato, c.id
+  limit 1;
+
+  if not found then
+    raise exception
+      'GCAR-F01: falta contrato activo anterior sin conversión elegible en agosto';
+  end if;
+
+  select e.perfil_id into v_actor
+  from crm.equipo e
+  join public.perfiles p on p.id = e.perfil_id
+  where e.rol_crm = 'gerencia' and e.activo and p.activo
+  order by e.perfil_id
+  limit 1;
+  if not found then
+    raise exception 'GCAR-F01B: falta Gerencia activa para el fixture';
+  end if;
+
+  -- La RPC vigente puede usar el puente legacy mientras siga abierto. Vaciar
+  -- la selección fuerza el mismo snapshot exacto que recibe un alta sin
+  -- producto explícito y evita heredar estado de sesión de otro gate.
+  perform pg_catalog.set_config('crm.producto_condicion_id', '', true);
+
+  insert into public.contratos (
+    id,
+    numero_contrato,
+    cliente_id,
+    capital,
+    moneda,
+    tasa_anual,
+    modalidad,
+    tipo_interes,
+    fecha_inicio,
+    fecha_vencimiento,
+    estado,
+    notas_internas,
+    creado_por,
+    categoria
+  ) values (
+    v_contrato_id,
+    '2090-08-990099',
+    v_plantilla.cliente_id,
+    v_plantilla.capital,
+    v_plantilla.moneda,
+    v_plantilla.tasa_anual,
+    v_plantilla.modalidad,
+    v_plantilla.tipo_interes,
+    date '2026-08-15',
+    date '2027-08-15',
+    'activo',
+    'Fixture transaccional de upgrade para el gate GCAR',
+    v_actor,
+    'upgrade'
+  );
+  get diagnostics v_filas = row_count;
+  if v_filas <> 1 then
+    raise exception 'GCAR-F02: se insertaron % contratos de fixture', v_filas;
+  end if;
+
+  -- `crear_contrato` rechaza cronogramas vacíos. Esta cuota deja al fixture
+  -- con la misma forma mínima alcanzable por la RPC, no solo por SQL directo.
+  insert into public.cronograma_pagos (
+    id, contrato_id, numero_cuota, fecha_programada,
+    monto_programado, estado, tipo
+  ) values (
+    v_cronograma_id, v_contrato_id, 1, date '2026-09-15',
+    v_plantilla.capital, 'pendiente', 'cuota'
+  );
+  get diagnostics v_filas = row_count;
+  if v_filas <> 1 then
+    raise exception 'GCAR-F03: se insertaron % cuotas de fixture', v_filas;
+  end if;
+
+  insert into crm.operaciones_cartera (
+    id,
+    cliente_id,
+    vendedor_id,
+    tipo,
+    contrato_origen_id,
+    contrato_nuevo_id,
+    fecha_operacion,
+    periodo,
+    moneda,
+    capital_renovado,
+    capital_adicional,
+    elegible_conversion,
+    desglose_completo,
+    fuente,
+    creado_por
+  ) values (
+    v_operacion_id,
+    v_plantilla.cliente_id,
+    v_plantilla.asesor_perfil_id,
+    'upgrade',
+    null,
+    v_contrato_id,
+    date '2026-08-15',
+    v_periodo,
+    v_plantilla.moneda,
+    null,
+    null,
+    true,
+    true,
+    'flujo_cartera',
+    v_actor
+  );
+  get diagnostics v_filas = row_count;
+  if v_filas <> 1 then
+    raise exception 'GCAR-F04: se insertaron % operaciones de fixture', v_filas;
+  end if;
+
+  if not exists (
+    select 1
+    from public.contratos c
+    join crm.producto_condiciones pc on pc.id = c.producto_condicion_id
+    where c.id = v_contrato_id
+      and c.cliente_id = v_plantilla.cliente_id
+      and c.categoria = 'upgrade'
+      and c.creado_por = v_actor
+      and c.fecha_cierre_comercial = date '2026-08-15'
+      and pc.es_legacy
+      and pc.legacy_contrato_id = c.id
+  ) then
+    raise exception 'GCAR-F05: contrato o snapshot de producto de fixture inesperado';
+  end if;
+
+  if (select count(*) from public.cronograma_pagos cp
+      where cp.id = v_cronograma_id
+        and cp.contrato_id = v_contrato_id
+        and cp.numero_cuota = 1
+        and cp.fecha_programada = date '2026-09-15'
+        and cp.monto_programado = v_plantilla.capital
+        and cp.estado = 'pendiente'
+        and cp.tipo = 'cuota') <> 1 then
+    raise exception 'GCAR-F06: cronograma mínimo de fixture inesperado';
+  end if;
+
+  if (select count(*) from crm.operaciones_cartera o
+      where o.id = v_operacion_id
+        and o.cliente_id = v_plantilla.cliente_id
+        and o.vendedor_id = v_plantilla.asesor_perfil_id
+        and o.tipo = 'upgrade'
+        and o.contrato_nuevo_id = v_contrato_id
+        and o.periodo = v_periodo
+        and o.creado_por = v_actor
+        and o.elegible_conversion
+        and o.desglose_completo) <> 1 then
+    raise exception 'GCAR-F07: operación de fixture inesperada';
+  end if;
+end;
+$fixture_upgrade$;
+
+set constraints trg_contratos_operacion_cartera_commit immediate;
+
 do $invariantes$
 declare
   v_periodo constant date := date '2026-08-01';
@@ -120,6 +329,10 @@ declare
   v_adicional_usd numeric;
   v_metricas_adicional_pen numeric;
   v_metricas_adicional_usd numeric;
+  v_conversiones_upgrade_esperadas integer;
+  v_conversiones_upgrade_metricas integer;
+  v_operaciones_upgrade_esperadas integer;
+  v_operaciones_upgrade_metricas integer;
   v_op_id uuid;
 begin
   if exists (
@@ -193,6 +406,36 @@ begin
   if v_conversiones_metricas is distinct from v_conversiones_esperadas then
     raise exception 'GCAR-14: % conversiones métricas vs % clientes elegibles',
       v_conversiones_metricas, v_conversiones_esperadas;
+  end if;
+
+  select count(*) filter (where x.tipo = 'upgrade')::integer
+    into v_conversiones_upgrade_esperadas
+  from (
+    select distinct on (o.cliente_id) o.tipo
+    from crm.operaciones_cartera o
+    where o.periodo = v_periodo and o.elegible_conversion
+    order by o.cliente_id, o.fecha_operacion, o.creado_en, o.id
+  ) x;
+
+  select count(*)::integer
+    into v_operaciones_upgrade_esperadas
+  from crm.operaciones_cartera o
+  where o.periodo = v_periodo and o.tipo = 'upgrade';
+
+  select
+    coalesce(sum(m.conversiones_upgrade), 0)::integer,
+    coalesce(sum(m.operaciones_upgrade), 0)::integer
+    into v_conversiones_upgrade_metricas, v_operaciones_upgrade_metricas
+  from private.metricas_cartera_por_vendedor(v_periodo) m;
+
+  if v_conversiones_upgrade_metricas
+       is distinct from v_conversiones_upgrade_esperadas
+     or v_operaciones_upgrade_metricas
+       is distinct from v_operaciones_upgrade_esperadas then
+    raise exception
+      'GCAR-14B: buckets upgrade inesperados: conversiones %/% operaciones %/%',
+      v_conversiones_upgrade_metricas, v_conversiones_upgrade_esperadas,
+      v_operaciones_upgrade_metricas, v_operaciones_upgrade_esperadas;
   end if;
 
   select
@@ -282,7 +525,7 @@ begin
   order by p.id limit 1;
 
   if v_actor is null or v_cliente is null or v_asesor is null then
-    raise exception 'GCAR-19: el gate necesita Gerencia y un cliente con asesor';
+    raise exception 'GCAR-19: el gate necesita Gerencia y un cliente con analista';
   end if;
 
   -- Segundo responsable autocontenido para demostrar la reasignación real de
@@ -361,7 +604,7 @@ begin
       and t.lead_id is null and t.perfil_id = v_cliente
       and t.vendedor_id = v_asesor
   ) then
-    raise exception 'GCAR-23: la siguiente gestión perdió cliente o asesor';
+    raise exception 'GCAR-23: la siguiente gestión perdió cliente o analista';
   end if;
 
   -- Reunión completada: clasificación exacta + timeline de cliente se

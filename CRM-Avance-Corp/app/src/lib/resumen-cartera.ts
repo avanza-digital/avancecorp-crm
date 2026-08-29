@@ -4,7 +4,7 @@
 // store (crear un lead en demo debe mover los tiles — bloqueante del plan F1).
 // La semántica es espejo de la migración 20260809043802 (y su reescritura
 // 20260809144920): ventana de convertidos de 45 días, USD estricto (cualquier
-// otra moneda cae a PEN), parkeado = abierto sin vendedor, y PEN y USD JAMÁS
+// otra moneda cae a PEN), parkeado = abierto sin analista, y PEN y USD JAMÁS
 // se suman.
 import * as v from 'valibot'
 import {
@@ -149,7 +149,7 @@ export function resumenCarteraDesdeAmbito(
     }
   }
 
-  // Espejo de conversionGlobal: base = vivos CON vendedor (terminales incluidos;
+  // Espejo de conversionGlobal: base = vivos CON analista (terminales incluidos;
   // los parkeados no cuentan porque nadie los trabaja).
   const baseConversion = ambito.filter((l) => l.vendedor_id != null)
   const convertidosConVendedor = convertidos.filter((l) => l.vendedor_id != null)

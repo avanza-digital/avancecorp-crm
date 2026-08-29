@@ -100,7 +100,7 @@ describe('tomarLeadLibre — la mutación de la toma directa', () => {
   it('un error del servidor se lanza tal cual — la toma no tiene cortesía fail-open', async () => {
     server.use(
       http.post(RUTA_TOMA, () => HttpResponse.json(
-        { code: '42501', message: 'La toma directa es solo para vendedores; supervisión asigna por el reparto' },
+        { code: '42501', message: 'La toma directa es solo para analistas; supervisión asigna por el reparto' },
         { status: 403 },
       )),
     )

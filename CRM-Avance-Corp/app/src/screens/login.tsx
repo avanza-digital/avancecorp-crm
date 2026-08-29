@@ -11,7 +11,7 @@ import { ROL_LABEL, type Rol } from '@/lib/roles'
 
 // Identidad demo que asume cada botón (espejo de DEMO_YO en lib/auth.tsx).
 const DEMO_SUB: Record<Rol, string> = {
-  vendedor: 'como VENDEDOR UNO',
+  vendedor: 'como ANALISTA UNO',
   supervisor: 'como SUPERVISOR UNO — equipo de 2',
   gerencia: 'visión total',
   directorio: 'auditoría · solo lectura',

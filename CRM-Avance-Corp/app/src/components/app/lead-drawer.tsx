@@ -153,7 +153,7 @@ function haceRelativo(iso: string, ahora: number): string {
 /**
  * Rótulo del capital según el desenlace del lead. Un lead CERRADO no tiene
  * capital "en juego": el convertido ya lo ganó y el descartado no lo concretó.
- * Rotular ambos como "en juego" infla lo que el asesor cree tener vivo —
+ * Rotular ambos como "en juego" infla lo que el analista cree tener vivo —
  * justo la cifra con la que decide a quién llamar hoy.
  */
 function rotuloCapital(etapa: Etapa): string {
@@ -184,9 +184,9 @@ function Ficha({ l }: { l: Lead }) {
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
   const puedeReasignar = escribe && can(rol, 'reasignar')
-  // Vendedor/supervisor conservan la regla de cartera propia. Gerencia puede
+  // Analista/supervisor conservan la regla de cartera propia. Gerencia puede
   // cerrar cualquier lead que ya tenga analista: el cliente conserva a ese
-  // analista como asesor y las edges/RPC revalidan la membresía global.
+  // analista como responsable del cliente y las edges/RPC revalidan la membresía global.
   const tieneAnalista = l.vendedor_id != null
   const seraMiCliente = l.vendedor_id === yo?.id
   const operaGlobal = escribe && can(rol, 'verTodo')
@@ -285,8 +285,8 @@ function Ficha({ l }: { l: Lead }) {
               {!tieneAnalista
                 ? 'Asigna primero el lead a un analista; una conversión necesita responsable comercial.'
                 : yo?.puede_contratar && !operaGlobal
-                ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
-                : 'El alta del cliente la registra el vendedor.'}
+                ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el analista del lead'}. Para hacerla tú, reasígnate el lead.`
+                : 'El alta del cliente la registra el analista.'}
             </p>
           )}
         </SheetFooter>
@@ -421,7 +421,7 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
         </p>
         {/* La anulación se ve AQUÍ, junto al «Convertido a cliente» que
             contradice, y con la razón escrita: quien mire esta ficha tiene que
-            poder explicarse por qué el número del asesor bajó. */}
+            poder explicarse por qué el número del analista bajó. */}
         {convertido && anulado && (
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-destructive-text">
             <ChipAnulado etiqueta="CIERRE ANULADO" />
@@ -525,7 +525,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const cambiarTipo = (v: string) => {
     if (!esTipoTarea(v)) return
     setTipo(v)
-    // El título sugerido sigue al tipo mientras el vendedor no lo haya tocado.
+    // El título sugerido sigue al tipo mientras el analista no lo haya tocado.
     if (!tituloEditado) setTitulo(tituloSugerido(v, l.nombre_completo))
   }
 
@@ -560,7 +560,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     requestAnimationFrame(() => refSeccion.current?.focus())
     const sufijo = yo?.demo ? ' (demo)' : ''
     // Mismo orden de prioridad que en cerrar-tarea.tsx: el retroceso de etapa
-    // gana al "sin próxima acción" porque es el cambio que el asesor no pidió.
+    // gana al "sin próxima acción" porque es el cambio que el analista no pidió.
     if (res.retroceso) {
       toast.warning(
         `Tarea anulada — ${primerNombre(l.nombre_completo)} vuelve a «${ETAPA_INFO[res.retroceso].label}»${sufijo}`,
@@ -601,7 +601,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     }
     // NADA EN SILENCIO: agendar una reunión con quien ya se trabajó sube el lead
     // a "Reunión agendada" por trigger (lib/avance-automatico). El store ya lo
-    // devolvía en los otros dos escritores y aquí se tiraba: el asesor veía
+    // devolvía en los otros dos escritores y aquí se tiraba: el analista veía
     // moverse el stepper sin saber por qué. Mismo formato "hecho · hecho" que
     // `avisoDe` en contacto.tsx, y el mismo orden en que ocurren las cosas.
     const partes = ['Tarea agendada']
@@ -961,7 +961,7 @@ function Datos({
     nota: '',
   })
 
-  // SOLO vendedores del ámbito del rol (espejo del WITH CHECK de leads_update):
+  // SOLO analistas del ámbito del rol (espejo del WITH CHECK de leads_update):
   // supervisor ve/asigna únicamente a los suyos; gerencia sigue viendo a todos.
   const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)
 
@@ -996,7 +996,7 @@ function Datos({
       nombre_completo: form.nombre,
       telefono: form.telefono,
       // Corregir el segundo número desde la ficha es la ÚNICA vía que tiene hoy
-      // el vendedor: aquí es donde llega el texto que el origen escribió mal y
+      // el analista: aquí es donde llega el texto que el origen escribió mal y
       // que la fila muestra como «sin validar». Vaciarlo también es legítimo.
       telefono_alternativo: form.telefonoAlternativo.trim() || null,
       correo: form.correo.trim() || null,
@@ -1026,7 +1026,7 @@ function Datos({
       if (res.error && !res.error.startsWith('Sin permiso')) toast.error(res.error)
       return
     }
-    toast.success(v ? `Lead reasignado${sufijoDemo}` : `Lead parkeado sin vendedor${sufijoDemo}`)
+    toast.success(v ? `Lead reasignado${sufijoDemo}` : `Lead parkeado sin analista${sufijoDemo}`)
   }
 
   const campo = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1204,7 +1204,7 @@ function Datos({
         </div>
       ) : (
         <>
-          {/* Orden comercial: capital → categoría → vendedor → contacto → resto.
+          {/* Orden comercial: capital → categoría → analista → contacto → resto.
               Las filas sin dato NO se listan con '—': se colapsan abajo en una
               sola línea accionable ("Faltan …" + Completar). */}
           <dl className="mt-1.5">
@@ -1216,10 +1216,10 @@ function Datos({
             {l.categoria_interes && (
               <Fila label="Categoría">Inversión · {CAT_LABEL[l.categoria_interes]}</Fila>
             )}
-            <Fila label="Vendedor">
+            <Fila label="Analista">
               {puedeReasignar ? (
                 <Select
-                  aria-label="Reasignar vendedor"
+                  aria-label="Reasignar analista"
                   value={l.vendedor_id ?? ''}
                   onChange={(e) => onReasignar(e.target.value)}
                   className="h-8 text-xs"
@@ -1245,7 +1245,7 @@ function Datos({
             </Fila>
             {/*
               La fila del segundo número se dibuja SIEMPRE, tenga o no dato.
-              Antes solo aparecía cuando había número, y eso dejaba al vendedor
+              Antes solo aparecía cuando había número, y eso dejaba al analista
               sin saber si el CRM se había comido algo o si el origen nunca lo
               dio — la duda exacta que Miguel quería quitar (2026-08-26). Tres
               estados, y ninguno es un hueco:
@@ -1397,7 +1397,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
     setComponiendo(false)
     // NADA EN SILENCIO: un contacto de conversación sube la etapa por su cuenta
     // (lib/avance-automatico). El resto del CRM ya lo canta (`avisoDe` de
-    // contacto.tsx) y aquí se tiraba el dato: el asesor veía moverse el stepper
+    // contacto.tsx) y aquí se tiraba el dato: el analista veía moverse el stepper
     // sin saber por qué. Mismo formato "hecho · hecho" y mismo orden.
     const partes = ['Actividad registrada']
     if (res.avance) partes.push(`pasó a ${ETAPA_INFO[res.avance].label}`)
@@ -1523,7 +1523,7 @@ interface IdentidadSugerida {
 /**
  * El lead todavía conserva un único nombre libre. La conversión propone una
  * separación útil para no obligar a reescribirlo, pero NO la toma como verdad:
- * el vendedor confirma los tres campos antes de crear el cliente de pagos.
+ * el analista confirma los tres campos antes de crear el cliente de pagos.
  */
 function sugerirIdentidadDelLead(nombreCompleto: string): IdentidadSugerida {
   const partes = normNombrePersona(nombreCompleto).split(' ').filter(Boolean)
@@ -1559,9 +1559,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   )
   const esDemo = yo?.demo === true
   // Cómo se llama HOY la pantalla donde se corrigen los datos del cliente: la
-  // 'mi-cartera' unificada, rotulada "Mi cartera" para el vendedor y "Cartera"
+  // 'mi-cartera' unificada, rotulada "Mi cartera" para el analista y "Cartera"
   // para quien supervisa (mismo criterio que el sidebar). Los avisos de abajo
-  // la nombran así para que el asesor encuentre el ítem tal cual en su menú.
+  // la nombran así para que el analista encuentre el ítem tal cual en su menú.
   const rotuloCartera = can(yo?.rol, 'verEquipo') ? 'Cartera' : 'Mi cartera'
 
   const confirmarDemo = () => {
@@ -1598,7 +1598,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   // corto del cierre externo (sin portal, sin correo, sin contrato).
   const [paso, setPaso] = useState<'destino' | 'convertir' | 'coop' | 'contrato'>('destino')
   const [coop, setCoop] = useState<Cooperativa>('qorilazo')
-  // ── Cierre en cooperativa: lo que llena el vendedor ──
+  // ── Cierre en cooperativa: lo que llena el analista ──
   // Monto REAL invertido (no el estimado del lead: ése era una promesa, éste es
   // el cierre). Nombre precargado del lead, editable.
   // NO se pregunta la moneda: en cooperativas solo se invierte en SOLES (regla
@@ -1623,14 +1623,14 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const cierreExternoMut = useConvertirLeadExterno()
   const [perfilId, setPerfilId] = useState<string | null>(null)
   /** El documento YA era cliente: se enlazó y sus bancarios NO se tocaron → hay
-   *  que decírselo al asesor ANTES de seguir (acaba de llenar unos que no van). */
+   *  que decírselo al analista ANTES de seguir (acaba de llenar unos que no van). */
   const [avisoYaExistia, setAvisoYaExistia] = useState(false)
   const [domicilioAccion, setDomicilioAccion] = useState<'completado' | 'conservado'>('conservado')
   /**
    * ¿El cliente enlazado quedó en MI cartera? (`null` = no se pudo comprobar).
    *
    * La edge NO cambia el `asesor_perfil_id` de un cliente que ya existía: el
-   * lead se enlaza, pero el cliente sigue siendo del asesor que lo tenía. Sin
+   * lead se enlaza, pero el cliente sigue siendo del analista que lo tenía. Sin
    * esto la ficha prometía a ciegas un contrato que `public.crear_contrato`
    * rechaza («Solo puedes crear contratos para clientes de tu cartera») después
    * de hacerle llenar el formulario entero.
@@ -1732,12 +1732,12 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       }
       setPerfilId(r.perfil_id)
       setDomicilioAccion(r.domicilio_accion)
-      // El asesor acaba de llenar datos legales y bancarios que, por el dedup,
+      // El analista acaba de llenar datos legales y bancarios que, por el dedup,
       // pueden no reemplazar lo que el cliente ya tenía. Un toast de éxito ahí
       // le haría creer que modificó esas fuentes: se para el flujo y se explica.
       if (r.ya_existia) {
         // Antes de hablar, PREGUNTAR: el aviso cambia por completo según si el
-        // cliente enlazado es de este asesor o de otro, y eso solo lo sabe el
+        // cliente enlazado es de este analista o de otro, y eso solo lo sabe el
         // servidor. `null` = no se pudo comprobar y se dice tal cual.
         setClienteEnMiCartera(await esClienteDeMiCartera(r.perfil_id))
         setAvisoYaExistia(true)
@@ -1861,16 +1861,17 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   }
 
   // ── Cliente ya existente: ni los bancarios ni la ATRIBUCIÓN se movieron ─────
-  // El enlace salió bien, pero no es el éxito que el asesor cree, y dos de las
+  // El enlace salió bien, pero no es el éxito que el analista cree, y dos de las
   // promesas que este diálogo hacía antes eran falsas:
   //
   //  1. «actualízalas en Cartera → Corregir»: la policy `perfiles_analista_update`
   //     exige `creado_en > now() - 5h`. Un cliente que YA existía es más viejo
-  //     que eso por definición → esa corrección no la puede hacer el asesor.
+  //     que eso por definición → esa corrección no la puede hacer el analista.
   //  2. «Continuar al contrato»: `public.crear_contrato` exige que el cliente
-  //     sea de tu cartera (`asesor_perfil_id = auth.uid()`, o sin asesor y
-  //     registrado por ti). La edge NO reasigna al cliente existente, así que si
-  //     era de otro asesor la RPC lo rechaza — después de llenar el formulario.
+  //     sea de tu cartera (`asesor_perfil_id = auth.uid()`, o con
+  //     `asesor_perfil_id` nulo y registrado por ti). La edge NO reasigna al
+  //     cliente existente, así que si era de otro analista la RPC lo rechaza —
+  //     después de llenar el formulario.
   //
   // Ahora se PREGUNTA al servidor (esClienteDeMiCartera, misma regla exacta que
   // el gate de la RPC) y se dice la verdad de cada caso, con el camino real.
@@ -1884,7 +1885,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         </DialogHeader>
         <DialogBody className="space-y-3">
           {/* Foco AL AVISO, no al botón que lo despacha: este diálogo existe
-              para frenar al asesor, y autoenfocar "Continuar" lo dejaría a un
+              para frenar al analista, y autoenfocar "Continuar" lo dejaría a un
               Enter de saltárselo sin leerlo. tabIndex=-1 = destino de foco
               programático, nunca parada del tabulador. */}
           <div
@@ -1910,7 +1911,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           </p>
           {noEsMio && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              El cliente sigue a nombre del asesor que lo tenía, así que no lo verás en
+              El cliente sigue a nombre del analista que lo tenía, así que no lo verás en
               “{rotuloCartera}” ni podrás crearle el contrato desde aquí: el servidor lo
               rechazaría. Pídele a Gerencia que te lo reasigne en el portal y créale el contrato
               después.
@@ -1919,7 +1920,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           {clienteEnMiCartera === null && (
             <p className="text-xs leading-relaxed text-muted-foreground">
               No pudimos comprobar si el cliente quedó en tu cartera. Puedes intentar el
-              contrato: si el servidor lo rechaza es porque sigue a nombre de otro asesor, y
+              contrato: si el servidor lo rechaza es porque sigue a nombre de otro analista, y
               entonces hay que pedirle a Gerencia que te lo reasigne.
             </p>
           )}
@@ -1968,7 +1969,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   // ── Paso 0: ¿DÓNDE invirtió? ────────────────────────────────────────────────
   // Avance sigue intacto su camino de siempre; una cooperativa NO crea usuario
   // de portal ni manda correo — solo registra el cierre, que igual cuenta en la
-  // cuota y en la conversión del asesor.
+  // cuota y en la conversión del analista.
   if (paso === 'destino') {
     return (
       <Dialog open onClose={onClose} ariaLabel="Convertir lead">
@@ -2400,7 +2401,7 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
           >
             {MOTIVOS_DESCARTE.map((m) => {
               // Deshabilitado y CON LA RAZÓN A LA VISTA, no escondido: si
-              // desapareciera, el asesor elegiría "Otro" y perderíamos el dato.
+              // desapareciera, el analista elegiría "Otro" y perderíamos el dato.
               const vetado = veto != null && MOTIVOS_CON_EVIDENCIA.has(m.k)
               return (
                 <option key={m.k} value={m.k} disabled={vetado}>
@@ -2412,7 +2413,7 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
           {/* Se pinta SIEMPRE que haya veto, no solo cuando el motivo vetado
               está seleccionado: el `aria-describedby` del select ya lo promete,
               y si el <p> no existe la razón no llega ni al lector de pantalla
-              ni a la vista — el asesor solo veía una opción deshabilitada. */}
+              ni a la vista — el analista solo veía una opción deshabilitada. */}
           {veto && (
             <p id="ld-motivo-veto" className="text-[11px] font-medium text-[#b45309]">
               {veto}

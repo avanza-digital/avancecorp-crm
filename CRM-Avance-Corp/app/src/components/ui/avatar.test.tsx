@@ -7,7 +7,7 @@ import { Avatar } from './avatar'
 const svgHTML = (c: HTMLElement): string | null => c.querySelector('svg')?.innerHTML ?? null
 
 describe('Avatar', () => {
-  it('sin prop género → iniciales, sin silueta (equipo/vendedor)', () => {
+  it('sin prop género → iniciales, sin silueta (equipo/analista)', () => {
     const { container } = render(<Avatar nombre="Juan Pérez" />)
     expect(container.querySelector('svg')).toBeNull()
     expect((container.textContent ?? '').length).toBeGreaterThan(0)

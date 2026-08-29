@@ -38,7 +38,7 @@ describe('capacidades por rol', () => {
     expect(can('directorio', 'verReportes')).toBe(true)
   })
 
-  it('dirige la bandeja de alertas solo a vendedor, supervisor y Gerencia', () => {
+  it('dirige la bandeja de alertas solo a analista, supervisor y Gerencia', () => {
     expect(can('vendedor', 'verAlertas')).toBe(true)
     expect(can('supervisor', 'verAlertas')).toBe(true)
     expect(can('gerencia', 'verAlertas')).toBe(true)
@@ -48,7 +48,7 @@ describe('capacidades por rol', () => {
 
   it('acota al coordinador al reparto de la cola (C1): sin ámbito, sin cartera', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
-    // la segunda es bajar de la bandeja al vendedor (supervisor).
+    // la segunda es bajar de la bandeja al analista (supervisor).
     expect(can('coordinador', 'repartirCola')).toBe(true)
     expect(can('gerencia', 'repartirCola')).toBe(true)
     expect(can('supervisor', 'repartirCola')).toBe(false)
@@ -66,10 +66,10 @@ describe('capacidades por rol', () => {
     }
   })
 
-  it('deja al vendedor VER configuración (su calendario ICS) sin poder editarla', () => {
+  it('deja al analista VER configuración (su calendario ICS) sin poder editarla', () => {
     // Regresión: "Mi calendario de Google" (suscripción ICS de la agenda propia)
     // vive en la pantalla de configuración. Con verConfiguracion:false el
-    // vendedor —el único rol que trabaja desde el celular— no llegaba a ella.
+    // analista —el único rol que trabaja desde el celular— no llegaba a ella.
     expect(can('vendedor', 'verConfiguracion')).toBe(true)
     // Y NADA más: ver ≠ editar (metas del mes y demás escrituras son de gerencia).
     expect(can('vendedor', 'editarConfiguracion')).toBe(false)
@@ -111,12 +111,12 @@ describe('capacidades por rol', () => {
       verLeads: true,
       verAgenda: true,
       verGestionEquipo: true,
-      // El reparto diario por asesor es un espacio operativo propio de
+      // El reparto diario por analista es un espacio operativo propio de
       // Supervisión, aunque Gerencia conserve otras puertas de reparto.
       verDerivacionesEquipo: false,
       verAlertas: true,
       // La ÚNICA excepción del operador total, y es deliberada (F2 lead
-      // libre): la toma directa es del VENDEDOR para sí mismo — espejo del
+      // libre): la toma directa es del ANALISTA para sí mismo — espejo del
       // guard de crm.tomar_lead_libre, que rechaza a gerencia con 42501.
       // Su puerta para asignar sigue siendo el reparto.
       tomarLeadDirecto: false,
@@ -130,7 +130,7 @@ describe('capacidades por rol', () => {
     })
   })
 
-  it('la toma directa es SOLO del vendedor (espejo del guard del servidor)', () => {
+  it('la toma directa es SOLO del analista (espejo del guard del servidor)', () => {
     expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 })

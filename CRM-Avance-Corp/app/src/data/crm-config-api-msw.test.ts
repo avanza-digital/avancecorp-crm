@@ -365,7 +365,7 @@ describe('mutaciones de usuario: parámetros e idempotencia exactos', () => {
       documento: '70000001',
       telefono: '+51999999999',
       whatsapp: null,
-      cargo: 'ASESOR',
+      cargo: 'ANALISTA',
       version_perfil: '2026-08-07T17:00:00.000Z',
     })
 
@@ -376,7 +376,7 @@ describe('mutaciones de usuario: parámetros e idempotencia exactos', () => {
       p_documento: '70000001',
       p_telefono: '+51999999999',
       p_whatsapp: null,
-      p_cargo: 'ASESOR',
+      p_cargo: 'ANALISTA',
       p_version_perfil: '2026-08-07T17:00:00.000Z',
       p_idempotencia: IDEMPOTENCIA,
     })

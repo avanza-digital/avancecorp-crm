@@ -48,7 +48,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       />,
     )
 
-    // Tarjetas por vendedor: recibidos/cierres del MES (identidad en cero no pisa nada).
+    // Tarjetas por analista: recibidos/cierres del MES (identidad en cero no pisa nada).
     expect(screen.getByText('12 recibidos · 5 cierres')).toBeInTheDocument()
     expect(screen.getByText('10 recibidos · 2 cierres')).toBeInTheDocument()
     // KPIs servidos: divisor y cierres de la empresa, sin divisiones en cliente.
@@ -56,7 +56,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     expect(screen.getByText('39')).toBeInTheDocument()
     expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
     // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
-    const grafico = screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })
+    const grafico = screen.getByRole('img', { name: 'Conversión a clientes por analista' })
     expect(JSON.parse(grafico.getAttribute('data-series') ?? '[]')).toEqual([
       34.58,
       20,
@@ -87,10 +87,38 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       />,
     )
 
-    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por analista' })).not.toBeInTheDocument()
     expect(screen.getAllByText('No disponible')).toHaveLength(conversionEquipoDemo().length)
     expect(screen.getAllByText('Datos no disponibles').length).toBeGreaterThan(0)
     // Los KPIs del mes degradan a «—», nunca a cero.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('una sonda rota oculta también los KPIs globales, no solo las filas', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    render(
+      <EquipoGerenciaPanel
+        conversionMensual={{
+          ...mensual,
+          cobertura: { ...mensual.cobertura, cierres_sin_episodio: 1 },
+        }}
+        conversiones={identidadSinMetricas()}
+        miembros={MIEMBROS}
+      />,
+    )
+
+    for (const etiqueta of [
+      'Recibidos del mes',
+      'Cierres del mes',
+      'Conversión del mes',
+    ]) {
+      const tarjeta = screen.getByText(etiqueta).closest('[data-gi-kpi]')
+      expect(tarjeta).not.toBeNull()
+      expect(within(tarjeta as HTMLElement).getByText('—')).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por analista' }))
+      .not.toBeInTheDocument()
+    expect(screen.getAllByText('No disponible'))
+      .toHaveLength(conversionEquipoDemo().length)
   })
 })

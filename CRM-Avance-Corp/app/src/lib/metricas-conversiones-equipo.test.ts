@@ -107,7 +107,7 @@ describe('adaptarConversionEquipo', () => {
     )
     const fantasma = vendedores.find((x) => x.vendedorId === 'v-fantasma')
 
-    expect(fantasma?.nombre).toBe('Vendedor no identificado')
+    expect(fantasma?.nombre).toBe('Analista no identificado')
     expect(fantasma?.nombre).not.toContain('v-fantasma')
   })
 
@@ -185,7 +185,7 @@ describe('claves F2.2 (núcleo y sondas) — escritas desde el payload REAL de p
     const vacio = v.parse(MetricasConversionesEquipoSchema, payload({ responsables: [] }))
     const adaptada = adaptarConversionEquipo(vacio, EQUIPO)
     // Cero filas ≠ equipo en 0 %: el ranking no es representable y cada
-    // vendedor queda fuera con estado explícito, jamás con un cero fabricado.
+    // analista queda fuera con estado explícito, jamás con un cero fabricado.
     expect(adaptada.responsablesDisponibles).toBe(false)
     expect(adaptada.vendedores.length).toBeGreaterThan(0)
     for (const fila of adaptada.vendedores) {

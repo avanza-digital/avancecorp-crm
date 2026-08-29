@@ -6,7 +6,7 @@
 // encima ensucia la métrica con la que se decide de dónde traer leads (un
 // origen bueno aparece como "no responde" cuando en realidad nadie lo trabajó).
 //
-// ⚠️ ALCANCE: SUPERFICIE DEL VENDEDOR (el diálogo de la ficha y el gate del
+// ⚠️ ALCANCE: SUPERFICIE DEL ANALISTA (el diálogo de la ficha y el gate del
 // store que lo respalda). NO es un invariante del dato y NO debe convertirse en
 // CHECK ni trigger de `crm.leads`. Rosa (coordinador) cierra leads de la COLA
 // GLOBAL con `crm.descartar_lead` — leads sin dueño y SIN NINGUNA actividad,
@@ -30,7 +30,7 @@ export const MOTIVOS_CON_EVIDENCIA: ReadonlySet<MotivoDescarte> =
   new Set<MotivoDescarte>(['no_responde'])
 
 export interface EvidenciaNoResponde {
-  /** Contactos del asesor sin respuesta POSTERIORES a la última conversación. */
+  /** Contactos del analista sin respuesta POSTERIORES a la última conversación. */
   intentos: number
   /** ¿El cliente respondió alguna vez? Marca desde dónde se cuenta. */
   huboConversacion: boolean
@@ -47,7 +47,7 @@ export interface EvidenciaNoResponde {
  *    fuera de TIPOS_CONTACTO: escribir "llamé y no contestó" en una nota NO es
  *    haber llamado. `reasignacion` y `cambio_etapa` quedan fuera por lo mismo
  *    que documenta `indexarUltimoContacto`: las emite el SISTEMA, y contarlas
- *    dejaría pasar a TODO lead del circuito Rosa → supervisor → vendedor, que
+ *    dejaría pasar a TODO lead del circuito Rosa → supervisor → analista, que
  *    llega con su `reasignacion` puesta. La guarda quedaría de adorno.
  *  · POSTERIORES a la última conversación. Sin esto se podría descartar por «no
  *    responde» a quien contestó ayer: dos intentos viejos más un

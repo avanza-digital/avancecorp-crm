@@ -120,7 +120,7 @@ function MiniFicha({ fila, onClose }: { fila: FilaCoop; onClose: () => void }) {
         )}
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           Este inversionista no tiene cuenta en el portal: su inversión la administra la
-          cooperativa. El cierre cuenta en la cuota y la conversión del asesor.
+          cooperativa. El cierre cuenta en la cuota y la conversión del analista.
         </p>
       </DialogBody>
       <DialogFooter>
@@ -132,7 +132,7 @@ function MiniFicha({ fila, onClose }: { fila: FilaCoop; onClose: () => void }) {
 
 /**
  * Sección «En cooperativas» — se OCULTA si el ámbito no tiene ni un cierre
- * (la mayoría de asesores nunca la verá). Si la carga real falla, avisa con su
+ * (la mayoría de analistas nunca la verá). Si la carga real falla, avisa con su
  * Reintentar: la degradación nunca es muda.
  */
 export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
@@ -212,7 +212,7 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
     )
   }
 
-  // Sin cierres (o aún cargando): la sección no existe para este asesor.
+  // Sin cierres (o aún cargando): la sección no existe para este analista.
   if (totalCierres === 0) return null
 
   const resumen = (['PEN', 'USD'] as const)
@@ -290,7 +290,7 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
  * La lista de cierres en coops DEL MES con su N.° de operación a la vista.
  *
  * Por qué existe: la cooperativa no le manda nada al CRM, así que el número que
- * escribe el vendedor vale exactamente lo que valga la revisión que hay detrás.
+ * escribe el analista vale exactamente lo que valga la revisión que hay detrás.
  * Esta pantalla es esa revisión: pone los datos donde se pueden contrastar en un
  * minuto en vez de obligar a una excavación.
  *
@@ -544,7 +544,7 @@ function RevisionDelMes({
 
 // ─── Desglose «Por empresa» (supervisor y gerencia) ──────────────────────────
 
-/** Un vendedor del desglose: capital por empresa y moneda. */
+/** Un analista del desglose: capital por empresa y moneda. */
 interface FilaPorEmpresa {
   vendedorId: string
   nombre: string
@@ -554,7 +554,7 @@ interface FilaPorEmpresa {
 }
 
 /**
- * El bloque «Por empresa» de los reportes: por cada vendedor CON cierres en
+ * El bloque «Por empresa» de los reportes: por cada analista CON cierres en
  * cooperativas este mes, cuánto vino de Avance y cuánto de cada COOPAC (capital
  * por moneda, PEN/USD jamás sumados, y n.º de cierres). El total contra la
  * cuota sigue siendo UNO — esto solo enseña de dónde vino cada sol.

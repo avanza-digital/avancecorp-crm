@@ -10,8 +10,8 @@
 //   cobrar el interés. La regla "al menos una cuenta" ahora la exige el servidor.
 // Flujo de CORREGIR: obtenerClienteDetalle precarga TODO. El analista usa UPDATE
 //   por RLS con ventana de 5 h; Gerencia usa una RPC con allowlist que preserva
-//   identidad/rol/asesor. Un rechazo devuelve false o error y JAMÁS se dice
-//   "guardado".
+//   la identidad técnica, el rol y el analista responsable. Un rechazo devuelve
+//   false o error y JAMÁS se dice "guardado".
 //
 // La lógica pura (validaciones, catálogo de bancos, patch de 14 bancarias) vive
 // en lib/cliente-form-logica; aquí solo el estado y el pintado.
@@ -32,7 +32,7 @@ import {
 import { useClienteDetalle, useCuentasBancariasCliente } from '@/data/crm-queries'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import { BotonGuardar } from '@/components/app/boton-guardar'
-import type { ClienteDetalle } from '@/lib/clientes-tipos'
+import type { ClienteDetalle, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { useVentana } from '@/lib/ventana'
 import { useAuth } from '@/lib/auth-context'
@@ -100,17 +100,73 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   // prerequisito del guardado y revalida SIEMPRE al abrir — jamás se siembra
   // el formulario con una copia cacheada que podría estar vieja.
   const qDetalle = useClienteDetalle(clienteId ?? '', esCorregir && !!clienteId)
+  const ledgerRemotoHabilitado =
+    esCorregir &&
+    !!clienteId &&
+    qDetalle.isSuccess &&
+    !qDetalle.isFetching &&
+    qDetalle.isFetchedAfterMount &&
+    qDetalle.data.cuentas_bancarias_visibles
   // Las cuentas del LEDGER completan la precarga bancaria: una cuenta
   // registrada al crear un contrato vive SOLO en crm.cuentas_bancarias y las
   // casillas de perfiles no la conocen (regla en precargarSeccionBancaria).
   // Solo alimentan la siembra; el guardado sigue escribiendo las casillas.
-  const qCuentasPen = useCuentasBancariasCliente(clienteId ?? '', 'PEN', esCorregir && !!clienteId)
-  const qCuentasUsd = useCuentasBancariasCliente(clienteId ?? '', 'USD', esCorregir && !!clienteId)
+  const qCuentasPen = useCuentasBancariasCliente(clienteId ?? '', 'PEN', ledgerRemotoHabilitado)
+  const qCuentasUsd = useCuentasBancariasCliente(clienteId ?? '', 'USD', ledgerRemotoHabilitado)
+  // Nunca derivar validaciones ni pintar números desde el `data` vivo de React
+  // Query: puede contener una copia sembrada antes de montar el diálogo. Solo
+  // promovemos el par PEN/USD cuando AMBAS respuestas terminaron después del
+  // mount y para el cliente que sigue abierto.
+  const [cuentasConfirmadas, setCuentasConfirmadas] = useState<{
+    clienteId: string
+    pen: CuentaBancariaSeleccionable[]
+    usd: CuentaBancariaSeleccionable[]
+  } | null>(null)
+
+  useEffect(() => {
+    setCuentasConfirmadas(null)
+  }, [clienteId])
+
+  useEffect(() => {
+    if (!clienteId || !ledgerRemotoHabilitado) return
+    if (!qCuentasPen.isSuccess || qCuentasPen.isFetching || !qCuentasPen.isFetchedAfterMount) return
+    if (!qCuentasUsd.isSuccess || qCuentasUsd.isFetching || !qCuentasUsd.isFetchedAfterMount) return
+    setCuentasConfirmadas({ clienteId, pen: qCuentasPen.data, usd: qCuentasUsd.data })
+  }, [
+    clienteId,
+    ledgerRemotoHabilitado,
+    qCuentasPen.isSuccess,
+    qCuentasPen.isFetching,
+    qCuentasPen.isFetchedAfterMount,
+    qCuentasPen.data,
+    qCuentasUsd.isSuccess,
+    qCuentasUsd.isFetching,
+    qCuentasUsd.isFetchedAfterMount,
+    qCuentasUsd.data,
+  ])
+
+  useEffect(() => {
+    const capacidadRevocada =
+      qDetalle.isSuccess &&
+      !qDetalle.isFetching &&
+      qDetalle.isFetchedAfterMount &&
+      !qDetalle.data.cuentas_bancarias_visibles
+    if (capacidadRevocada || qCuentasPen.isError || qCuentasUsd.isError) {
+      setCuentasConfirmadas(null)
+    }
+  }, [
+    qDetalle.isSuccess,
+    qDetalle.isFetching,
+    qDetalle.isFetchedAfterMount,
+    qDetalle.data,
+    qCuentasPen.isError,
+    qCuentasUsd.isError,
+  ])
   // Siembra ÚNICA y solo con datos RECIÉN traídos: isFetchedAfterMount exige un
   // fetch COMPLETADO tras el mount — sin red el refetch queda 'paused' (isFetching
   // false + isSuccess true con la copia cacheada) y sembrar esa copia vieja haría
   // que el UPDATE de set completo pise bancarios corregidos por otra sesión. Un
-  // refetch posterior (foco de ventana) no debe pisar lo que el asesor edita.
+  // refetch posterior (foco de ventana) no debe pisar lo que el analista edita.
   // Las cuentas del ledger esperan lo mismo, pero su FALLO no bloquea el
   // formulario: degrada a la precarga de siempre (solo casillas del perfil).
   const sembrado = useRef(false)
@@ -131,24 +187,45 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     setTelefono(d.telefono ?? '')
     setCorreo(d.correo ?? '')
     setDomicilio(d.domicilio ?? '')
-    setPen(seccionPenDesdeDetalle(d))
-    setUsd(seccionUsdDesdeDetalle(d))
+    // Defensa en profundidad: el servidor redacta las 14 columnas cuando el
+    // flag es false, pero el formulario tampoco confía en una combinación
+    // incoherente de flag cerrado + valores no nulos.
+    setPen(d.banca_visible ? seccionPenDesdeDetalle(d) : SECCION_BANCARIA_VACIA)
+    setUsd(d.banca_visible ? seccionUsdDesdeDetalle(d) : SECCION_BANCARIA_VACIA)
     setDetalle(d)
   }, [esCorregir, qDetalle.isSuccess, qDetalle.isFetching, qDetalle.isFetchedAfterMount, qDetalle.data])
 
   // Derivados del ledger (crm.cuentas_bancarias) — la fuente que la ficha ya
-  // usa. NO alimentan las casillas: informan al asesor y perdonan la regla
+  // usa. NO alimentan las casillas: informan al analista y perdonan la regla
   // «al menos una cuenta» cuando los contratos ya tienen dónde depositar.
-  const cuentasLedger = esCorregir
-    ? [...(qCuentasPen.data ?? []), ...(qCuentasUsd.data ?? [])]
+  const cuentasConfirmadasVigentes =
+    cuentasConfirmadas?.clienteId === clienteId ? cuentasConfirmadas : null
+  const cuentasLedger =
+    esCorregir && ledgerRemotoHabilitado && cuentasConfirmadasVigentes != null
+    ? [...cuentasConfirmadasVigentes.pen, ...cuentasConfirmadasVigentes.usd]
     : []
   const cuentasDeContrato = cuentasLedger.filter((c) => c.origen === 'contrato')
   const ledgerCubre = hayCuentaEnLedger(cuentasLedger)
-  // La degradación NO es muda: si el ledger no se pudo leer, el asesor lo ve —
+  // La degradación NO es muda: si el ledger no se pudo leer, el analista lo ve —
   // sin el aviso escribiría a mano una cuenta «que no existía» o chocaría con
   // «Registra al menos una cuenta» sin pista del porqué. Derivado en vivo: un
   // reintento exitoso lo limpia solo.
-  const avisoLedger = esCorregir && detalle != null && (qCuentasPen.isError || qCuentasUsd.isError)
+  const avisoLedger =
+    esCorregir &&
+    detalle != null &&
+    ledgerRemotoHabilitado &&
+    (qCuentasPen.isError || qCuentasUsd.isError)
+  // No validar contra «cero cuentas» mientras las dos monedas aún se están
+  // revalidando: sería un falso negativo y tentaría a usar la caché para evitarlo.
+  // Si la RPC falla, el aviso explícito toma el relevo y se permite degradar a
+  // las casillas embebidas que ya llegaron autorizadas en el detalle.
+  const ledgerPendiente =
+    esCorregir &&
+    detalle != null &&
+    ledgerRemotoHabilitado &&
+    cuentasConfirmadasVigentes == null &&
+    !qCuentasPen.isError &&
+    !qCuentasUsd.isError
   const reintentarCuentasLedger = () => {
     if (qCuentasPen.isError) void qCuentasPen.refetch()
     if (qCuentasUsd.isError) void qCuentasUsd.refetch()
@@ -166,7 +243,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const cargando = esCorregir && detalle == null && errorCarga == null
 
   const guardar = async () => {
-    if (enviando) return // guard anti doble-submit (además del disabled del botón)
+    if (enviando || ledgerPendiente) return // guards anti doble-submit y contra una validación incompleta
     setError(null)
     const r = validarClienteForm(
       { apellidos, nombres, tipo_documento: tipoDoc, documento, telefono, correo, domicilio, pen, usd },
@@ -188,7 +265,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     try {
       if (esCorregir) {
         // Analista: UPDATE directo y ventana RLS de 5 h. Gerencia: RPC acotada
-        // sin esa ventana, pero sin capacidad de tocar rol, estado ni asesor.
+        // sin esa ventana, pero sin capacidad de tocar rol, estado ni analista
+        // responsable.
         const guardo = await actualizarClientePortal(
           clienteId as string,
           {
@@ -283,10 +361,9 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     )
   }
 
-  // Reintentar repara las TRES consultas, no solo el detalle: si la red
-  // parpadeó al abrir, las cuentas del ledger quedaron en un isError que la
-  // siembra aceptaría como «listo» y el formulario degradaría en silencio con
-  // la red ya sana (hallazgo medio de la verificación multi-lente 2026-08-11).
+  // El detalle se revalida primero. Solo la capacidad específica del ledger
+  // habilita PEN/USD; si esas consultas ya fallaron en este montaje, también se
+  // reintentan para no conservar una degradación muda.
   const reintentarCarga = () => {
     void qDetalle.refetch()
     if (qCuentasPen.isError) void qCuentasPen.refetch()
@@ -450,6 +527,15 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           </p>
         )}
 
+        {ledgerPendiente && (
+          <p
+            aria-live="polite"
+            className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-semibold text-muted-foreground"
+          >
+            Validando las cuentas registradas antes de guardar…
+          </p>
+        )}
+
         {avisoLedger && (
           <div
             role="status"
@@ -505,6 +591,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           size="sm"
           onGuardar={guardar}
           etiqueta={esCorregir ? 'Guardar corrección' : 'Crear cliente'}
+          disabled={ledgerPendiente}
         />
       </DialogFooter>
     </>

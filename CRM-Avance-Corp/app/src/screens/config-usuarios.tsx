@@ -214,7 +214,7 @@ function motivoBloqueoActivacion(usuario: UsuarioAdministrable): string | null {
     return 'Superadmin debe asignar primero un rol CRM.'
   }
   if (usuario.rol_crm === 'vendedor' && usuario.supervisor_id == null) {
-    return 'Asigna un Supervisor activo antes de habilitar a este vendedor.'
+    return 'Asigna un supervisor activo antes de habilitar a este analista.'
   }
   return null
 }
@@ -329,7 +329,7 @@ export function ConfigUsuarios() {
     const documento = validarDocumento(persona.tipoDocumento, persona.documento)
     if (!documento.ok) return
     if (esAlta && !supervisoresActivos.some((usuario) => usuario.perfil_id === supervisorId)) {
-      toast.error('Selecciona el Supervisor activo del nuevo vendedor.')
+      toast.error('Selecciona al supervisor activo del nuevo analista.')
       return
     }
     try {
@@ -347,7 +347,7 @@ export function ConfigUsuarios() {
         if (resultado.estado === 'candidato_existente') {
           toast.warning('Identidad del Portal detectada: no se cambió su acceso. Superadmin debe asignarle el rol CRM.')
         } else {
-          toast.success('Vendedor CRM creado y activado. Ya puede ingresar con su documento.')
+          toast.success('Analista CRM creado y activado. Ya puede ingresar con su documento.')
         }
       } else {
         if (!modal.usuario.version_perfil) {
@@ -375,7 +375,7 @@ export function ConfigUsuarios() {
   const guardarAltaPendiente = async () => {
     if (modal?.tipo !== 'completar') return
     if (!supervisoresActivos.some((usuario) => usuario.perfil_id === supervisorId)) {
-      toast.error('Selecciona el Supervisor activo del vendedor.')
+      toast.error('Selecciona al supervisor activo del analista.')
       return
     }
     const usuario = modal.usuario
@@ -396,13 +396,13 @@ export function ConfigUsuarios() {
         cargo: usuario.cargo ?? undefined,
       })
       if (resultado.estado === 'activo') {
-        toast.success('Alta completada. El vendedor ya puede ingresar al CRM.')
+        toast.success('Alta completada. El analista ya puede ingresar al CRM.')
       } else {
         toast.warning('No se cambió el acceso: la identidad pertenece a otro flujo. Recarga el directorio.')
       }
       setModal(null)
     } catch (error) {
-      toast.error(mensajeDeError(error, 'No se pudo completar el alta del vendedor.'))
+      toast.error(mensajeDeError(error, 'No se pudo completar el alta del analista.'))
     }
   }
 
@@ -481,7 +481,7 @@ export function ConfigUsuarios() {
     <ConfiguracionShell
       icono={Users}
       titulo="Usuarios y jerarquía"
-      descripcion="Gerencia crea Vendedores con Supervisor y acceso activo, y administra personas, membresías y estructura. Superadmin gobierna promociones y los demás roles; Directorio audita una vista redactada."
+      descripcion="Gerencia crea analistas, les asigna un supervisor y activa su acceso; además administra personas, membresías y estructura. Superadmin gobierna promociones y los demás roles; Directorio audita una vista redactada."
       soloLectura={!administraPersonas && !administraRoles}
       estado={{
         etiqueta: `${total} usuarios`,
@@ -568,19 +568,19 @@ export function ConfigUsuarios() {
         </Card>
       )}
 
-      <Dialog open={modal?.tipo === 'crear' || modal?.tipo === 'editar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'crear' ? 'Nuevo vendedor CRM' : 'Editar usuario CRM'} className="w-[680px]">
-        <DialogHeader><DialogTitle>{modal?.tipo === 'crear' ? 'Nuevo vendedor CRM' : 'Editar datos del usuario'}</DialogTitle><DialogDescription>{modal?.tipo === 'crear' ? 'Selecciona su Supervisor. El vendedor quedará activo y podrá ingresar con su documento; no se enviará ningún correo.' : 'Solo se modifican nombre y datos operativos. Correo, documento, rol y acceso conservan sus flujos propios.'}</DialogDescription></DialogHeader>
+      <Dialog open={modal?.tipo === 'crear' || modal?.tipo === 'editar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'crear' ? 'Nuevo analista CRM' : 'Editar usuario CRM'} className="w-[680px]">
+        <DialogHeader><DialogTitle>{modal?.tipo === 'crear' ? 'Nuevo analista CRM' : 'Editar datos del usuario'}</DialogTitle><DialogDescription>{modal?.tipo === 'crear' ? 'Selecciona a su supervisor. El analista quedará activo y podrá ingresar con su documento; no se enviará ningún correo.' : 'Solo se modifican nombre y datos operativos. Correo, documento, rol y acceso conservan sus flujos propios.'}</DialogDescription></DialogHeader>
         <DialogBody className="space-y-4">
           <CamposPersona valor={persona} onChange={setPersona} correoEditable={modal?.tipo === 'crear'} disabled={ocupada} />
-          {modal?.tipo === 'crear' && <div><Label htmlFor="supervisor-alta">Supervisor</Label><Select id="supervisor-alta" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un Supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los Supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay Supervisores activos disponibles.</p> : null}</div>}
+          {modal?.tipo === 'crear' && <div><Label htmlFor="supervisor-alta">Supervisor</Label><Select id="supervisor-alta" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay supervisores activos disponibles.</p> : null}</div>}
         </DialogBody>
         <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarPersona()} disabled={ocupada || (modal?.tipo === 'crear' && (catalogo.isPending || catalogo.isError || !supervisorId))}>{ocupada ? 'Guardando…' : modal?.tipo === 'crear' ? 'Crear y activar' : 'Guardar'}</Button></DialogFooter>
       </Dialog>
 
-      <Dialog open={modal?.tipo === 'completar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'completar' ? `Completar alta de ${modal.usuario.nombre_completo}` : 'Completar alta de vendedor'}>
-        <DialogHeader><DialogTitle>Completar alta de {modal?.tipo === 'completar' ? modal.usuario.nombre_completo : ''}</DialogTitle><DialogDescription>Se asignará el rol fijo Vendedor, el Supervisor elegido y la membresía activa en una sola operación. La contraseña no cambia.</DialogDescription></DialogHeader>
-        <DialogBody><Label htmlFor="supervisor-completar">Supervisor</Label><Select id="supervisor-completar" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un Supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los Supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay Supervisores activos disponibles.</p> : null}</DialogBody>
-        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarAltaPendiente()} disabled={ocupada || catalogo.isPending || catalogo.isError || !supervisorId}>{ocupada ? 'Completando…' : 'Activar vendedor'}</Button></DialogFooter>
+      <Dialog open={modal?.tipo === 'completar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'completar' ? `Completar alta de ${modal.usuario.nombre_completo}` : 'Completar alta de analista'}>
+        <DialogHeader><DialogTitle>Completar alta de {modal?.tipo === 'completar' ? modal.usuario.nombre_completo : ''}</DialogTitle><DialogDescription>Se asignarán en una sola operación el rol fijo «Analista», el supervisor elegido y la membresía activa. La contraseña no cambia.</DialogDescription></DialogHeader>
+        <DialogBody><Label htmlFor="supervisor-completar">Supervisor</Label><Select id="supervisor-completar" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay supervisores activos disponibles.</p> : null}</DialogBody>
+        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarAltaPendiente()} disabled={ocupada || catalogo.isPending || catalogo.isError || !supervisorId}>{ocupada ? 'Completando…' : 'Activar analista'}</Button></DialogFooter>
       </Dialog>
 
       <Dialog open={modal?.tipo === 'rol'} onClose={() => !ocupada && setModal(null)} ariaLabel="Asignar rol CRM">
@@ -597,7 +597,7 @@ export function ConfigUsuarios() {
             <option value="">Sin supervisor</option>
             {opcionesJerarquia.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo} · {item.rol_crm ? ROL_LABEL[item.rol_crm] : ''}</option>)}
           </Select>
-          {modal?.tipo === 'jerarquia' && modal.usuario.rol_crm === 'vendedor' && !supervisorId && <p className="mt-2 text-xs font-semibold text-warning">Un vendedor debe tener supervisor antes de activarse.</p>}
+          {modal?.tipo === 'jerarquia' && modal.usuario.rol_crm === 'vendedor' && !supervisorId && <p className="mt-2 text-xs font-semibold text-warning">Un analista debe tener supervisor antes de activarse.</p>}
           {modal?.tipo === 'jerarquia' && modal.usuario.rol_crm != null && !['vendedor', 'supervisor'].includes(modal.usuario.rol_crm) && <p className="mt-2 text-xs text-muted-foreground">Este rol pertenece a la raíz operativa y no admite supervisor.</p>}
         </DialogBody>
         <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarJerarquia()} disabled={ocupada || catalogo.isError}>Guardar jerarquía</Button></DialogFooter>

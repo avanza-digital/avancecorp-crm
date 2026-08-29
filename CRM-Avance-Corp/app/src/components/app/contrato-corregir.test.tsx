@@ -258,10 +258,10 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 
 describe('ContratoCorregir — producto versionado', () => {
   // ESTADO DE PRODUCCIÓN (2026-08-11): gerencia no publicó el catálogo, así que
-  // los 349 contratos llevan condiciones propias. Explicárselo al vendedor en
+  // los 349 contratos llevan condiciones propias. Explicárselo al analista en
   // CADA corrección era ruido —y jerga de base de datos— sobre una elección que
   // no existe: sin catálogo no hay nada que elegir.
-  it('sin catálogo publicado no explica nada del origen y la opción está en idioma de vendedor', async () => {
+  it('sin catálogo publicado no explica nada del origen y la opción está en idioma de analista', async () => {
     await montar() // beforeEach deja productosEstado.data = []
 
     expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó',

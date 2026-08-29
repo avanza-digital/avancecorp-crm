@@ -44,7 +44,7 @@ export interface TresCosasInput {
   totalPorRepartir: number | null
   /** Espera observable del parkeado más rezagado, en días (null = sin detalle). */
   esperaMasLargaReparto: number | null
-  /** Métricas de agenda por vendedor (vacío = sin dato o sin rezago). */
+  /** Métricas de agenda por analista (vacío = sin dato o sin rezago). */
   vendedoresAgenda: readonly MetricaAgendaVendedor[]
 }
 
@@ -92,10 +92,10 @@ export function tresCosasDeHoy({
   }
 
   // 2 · No-show repetido — el otro rojo del presupuesto (≥2, umbral de la
-  //     campana y de «Tu equipo hoy»). Con varios vendedores se agrupa.
-  // Solo VENDEDORES activos: el RPC también trae la fila del propio
+  //     campana y de «Tu equipo hoy»). Con varios analistas se agrupa.
+  // Solo ANALISTAS activos: el RPC también trae la fila del propio
   // supervisor, y sin este filtro su agenda ocupaba un cupo disfrazada de
-  // problema de vendedor (Codex F3 #3) — mismo corte que la campana.
+  // problema de analista (Codex F3 #3) — mismo corte que la campana.
   const vendedores = vendedoresAgenda.filter((v) => v.rol === 'vendedor' && v.activo)
   const conNoShow = vendedores
     .filter((v) => v.no_asistio >= 2)
@@ -107,7 +107,7 @@ export function tresCosasDeHoy({
       severidad: 'critica',
       texto: conNoShow.length === 1
         ? `${peorNoShow.nombre}: ${peorNoShow.no_asistio} citas sin asistir`
-        : `${conNoShow.length} vendedores con citas sin asistir`,
+        : `${conNoShow.length} analistas con citas sin asistir`,
       accion: 'Ver equipo',
       destino: { tipo: 'vista', vista: 'equipo' },
     })
@@ -126,7 +126,7 @@ export function tresCosasDeHoy({
     })
   }
 
-  // 4 · Vendedor con más leads sin próxima acción (≥3, umbral de la campana).
+  // 4 · Analista con más leads sin próxima acción (≥3, umbral de la campana).
   const conSinAccion = vendedores
     .filter((v) => v.leads_sin_accion >= 3)
     .sort((a, b) => b.leads_sin_accion - a.leads_sin_accion || a.vendedor_id.localeCompare(b.vendedor_id))
@@ -138,7 +138,7 @@ export function tresCosasDeHoy({
       severidad: peorSinAccion.leads_sin_accion >= 5 ? 'critica' : 'atencion',
       texto: conSinAccion.length === 1
         ? `${peorSinAccion.nombre}: ${peorSinAccion.leads_sin_accion} leads sin próxima acción`
-        : `${conSinAccion.length} vendedores con leads sin próxima acción`,
+        : `${conSinAccion.length} analistas con leads sin próxima acción`,
       accion: 'Ver equipo',
       destino: { tipo: 'vista', vista: 'equipo' },
     })

@@ -65,7 +65,7 @@ function metaTotal(vendedor: ConfiguracionMetas['vendedores'][number]): number {
  *
  * NO toca `conversion_objetivo`: hasta 2026-08-10 lo forzaba a 0 en cada
  * edición, de modo que la meta de conversión era imposible de fijar y los
- * paneles de gerencia y del asesor enseñaban «meta por definir» para siempre.
+ * paneles de gerencia y del analista enseñaban «meta por definir» para siempre.
  */
 function fijarMetaTotal(
   vendedor: ConfiguracionMetas['vendedores'][number],
@@ -81,7 +81,7 @@ function fijarMetaTotal(
 /**
  * La conversión se pacta para la EMPRESA, no analista por analista: el detalle
  * individual vive en la pantalla de Conversiones. El modelo la guarda por
- * vendedor, así que el único valor se replica en todos — y `agregarObjetivos`,
+ * analista, así que el único valor se replica en todos — y `agregarObjetivos`,
  * que promedia los mayores que cero, devuelve exactamente ese número.
  */
 function conversionEmpresa(config: ConfiguracionMetas): number {
@@ -556,7 +556,7 @@ export function ConfigMetas() {
       )}
 
       {borrador && borrador.vendedores.length === 0 && (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No hay vendedores activos en el roster de este período.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No hay analistas activos en el roster de este período.</CardContent></Card>
       )}
 
       {/* Una sola tarjeta con la lista entera: antes cada analista traía su

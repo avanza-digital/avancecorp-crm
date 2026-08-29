@@ -28,7 +28,7 @@ describe('camposDeSugerencia — la sugerencia llega ENTERA al formulario', () =
 
   it('un instante de madrugada UTC no se va al día siguiente en Lima', () => {
     // 2026-07-29T02:00Z son las 21:00 del 28 en Lima: si se usara el reloj UTC
-    // el vendedor vería la cita un día después de cuando es.
+    // el analista vería la cita un día después de cuando es.
     expect(camposDeSugerencia(sug({ vence_en: '2026-07-29T02:00:00.000Z' }))).toMatchObject({
       fecha: '2026-07-28',
       hora: '21:00',

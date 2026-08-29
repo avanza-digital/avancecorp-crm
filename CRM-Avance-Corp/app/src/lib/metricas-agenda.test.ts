@@ -24,7 +24,7 @@ describe('MetricasAgendaSchema', () => {
     expect(resultado.success).toBe(true)
   })
 
-  it('rechaza un payload cuyo vendedores no es un array', () => {
+  it('rechaza un payload cuyo analistas no es un array', () => {
     const demo = metricasAgendaDemo('2026-07-12', '2026-07-18')
     const payload = { ...demo, vendedores: { esto: 'no es un array' } }
     const resultado = v.safeParse(MetricasAgendaSchema, payload)

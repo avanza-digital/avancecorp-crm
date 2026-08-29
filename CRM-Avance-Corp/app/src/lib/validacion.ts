@@ -205,7 +205,7 @@ export function validarCamposLead(
   if (campos.telefono_alternativo !== undefined) {
     const bruto = (campos.telefono_alternativo ?? '').trim()
     if (!bruto) {
-      // Vaciarlo es una acción legítima: el vendedor descubre que el segundo
+      // Vaciarlo es una acción legítima: el analista descubre que el segundo
       // número era del vecino y lo borra. NULL, nunca '' — «no hay dato» se
       // escribe de UNA sola forma o la ficha acaba comprobando las dos.
       valores.telefono_alternativo = null

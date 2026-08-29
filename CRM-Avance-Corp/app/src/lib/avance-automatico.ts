@@ -1,6 +1,6 @@
 // lib/avance-automatico.ts — la etapa avanza sola cuando el hecho YA ocurrió.
 //
-// Pedido de Miguel (2026-07-25): "cuando el vendedor registre una acción de que
+// Pedido de Miguel (2026-07-25): "cuando el analista registre una acción de que
 // SÍ contactó a la persona, y el lead está en la primera fase del pipeline, el
 // prospecto se mueva solo de etapa" — y de ahí, el principio general: una acción
 // debe ayudar a las otras en vez de obligar a repetirlas.
@@ -63,7 +63,7 @@ export function avancePorContacto(lead: Pick<Lead, 'etapa' | 'activo'>, tipo: st
  *  · `tipo === 'reunion'` — una llamada o un recordatorio no son una reunión.
  *  · `reagendada_de == null` — mata la mentira principal: el motor reagenda
  *    solo tras un no-show (motor-siguiente.ts), y ese rebote NO es progreso
- *    comercial. Sin esta guarda, plantar al asesor ASCENDERÍA el lead.
+ *    comercial. Sin esta guarda, plantar al analista ASCENDERÍA el lead.
  *  · `estado === 'pendiente'` y `vence_en` futuro — seeds, backfills e imports
  *    de tareas ya cerradas no mueven embudos.
  *  · `tieneContactoReal` — nunca se afirma "reunión agendada" sobre un lead que

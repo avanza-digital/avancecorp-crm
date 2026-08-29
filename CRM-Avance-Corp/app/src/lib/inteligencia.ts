@@ -56,7 +56,7 @@ export interface CapitalPrincipal {
  * EL DEFECTO QUE CIERRA (pedido de Miguel, 2026-07-26). Tres pantallas pintan el
  * mismo capital y las tres fijaban PEN a mano: una cartera íntegramente en
  * dólares anunciaba "S/ 0.00" con su capital real escondido en la letra chica —
- * el chip decía justo lo contrario de lo que el asesor tiene en juego. Cartera y
+ * el chip decía justo lo contrario de lo que el analista tiene en juego. Cartera y
  * Pipeline ya lo corrigieron por su cuenta y Hoy se quedó atrás, así que las
  * pantallas llegaron a contradecirse sobre el MISMO lead. El criterio vive aquí
  * una sola vez para que eso no pueda volver a pasar.
@@ -140,7 +140,7 @@ export interface ItemCola {
 /** Orden de severidad para la cola (crítica primero). */
 const PESO_SEV: Record<ItemCola['sev'], number> = { critica: 0, media: 1, baja: 2 }
 
-/** Labels es-PE de los buckets de la cola (antes copiado en vendedor y supervisor). */
+/** Labels es-PE de los buckets de la cola (antes copiado en analista y supervisor). */
 export const BUCKET_LABEL: Record<BucketCola, string> = {
   sin_responder: 'Sin responder',
   insistir: 'Insistir',
@@ -228,7 +228,7 @@ export function haceCortoTexto(dias: number): string {
  * vacío. En el cliente los produce `colaDe`; en sesión real los manda el RPC.
  */
 export interface DatosMotivoCola {
-  /** sin_responder: espera del CLIENTE (desde creado_en), puede diferir de la del asesor. */
+  /** sin_responder: espera del CLIENTE (desde creado_en), puede diferir de la del analista. */
   espera_cliente_dias?: number
   gestion_vencida?: boolean
   contacto_vencido?: boolean
@@ -261,7 +261,7 @@ export function redactarMotivoCola(
 ): string {
   switch (bucket) {
     case 'por_repartir':
-      return `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo`
+      return `Sin analista asignado ${haceTexto(dias)} — hay que repartirlo`
     case 'sin_responder': {
       const esperaCliente = datos.espera_cliente_dias ?? dias
       const vencimiento = datos.gestion_vencida
@@ -270,7 +270,7 @@ export function redactarMotivoCola(
           ? 'Venció el primer contacto'
           : null
       // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
-      // del asesor —que es el que lo juzga— y el del cliente, que no puede
+      // del analista —que es el que lo juzga— y el del cliente, que no puede
       // desaparecer. Redacción neutra: también la leen supervisor y gerencia,
       // y con la escala en minutos «nadie lo ha contactado» acusaba a quien
       // recibió el lead hace un momento (decisión de Miguel, 2026-08-16).
@@ -338,9 +338,9 @@ export function indexarUltimaActividad(acts: Actividad[]): IndiceUltimaActividad
  * `private.trg_leads_reasignacion` en el servidor + copia optimista del store),
  * y cada cambio de etapa un `cambio_etapa`. Como `colaDe` preguntaba "¿tiene
  * ALGUNA actividad?" para decidir si nadie lo ha contactado, **todo lead que
- * pasaba por el circuito Rosa → supervisor → vendedor salía de la cola el
+ * pasaba por el circuito Rosa → supervisor → analista salía de la cola el
  * instante en que se asignaba**: llegaba con su `reasignacion` puesta. El
- * vendedor veía "Al día ✦ sin pendientes" sobre un lead que nadie había
+ * analista veía "Al día ✦ sin pendientes" sobre un lead que nadie había
  * llamado. En prod el 100% de las actividades eran `reasignacion`/`cambio_etapa`.
  *
  * `indexarUltimaActividad` se deja INTACTA: el timeline de la ficha sí quiere
@@ -373,12 +373,12 @@ function diasSinActividadIndexado(
 
 /**
  * Instante desde el que se mide la espera de un lead ANTE SU DUEÑO ACTUAL: el
- * MÁS RECIENTE entre su última actividad y el momento en que su asesor lo
+ * MÁS RECIENTE entre su última actividad y el momento en que su analista lo
  * recibió (`tenencia_desde`).
  *
  * Por qué existe (pedido de Miguel, 2026-07-24): con el circuito de leads vivo
- * — origen → hoja → cola de Rosa → bandeja del supervisor → vendedor — un lead
- * puede pasar DÍAS antes de llegar a un asesor. Midiendo desde `creado_en`, su
+ * — origen → hoja → cola de Rosa → bandeja del supervisor → analista — un lead
+ * puede pasar DÍAS antes de llegar a un analista. Midiendo desde `creado_en`, su
  * cola lo pintaba en ROJO CRÍTICO el primer segundo que lo veía, culpándolo de
  * una espera que no fue suya. Tomar el MÁXIMO resuelve de una vez los tres
  * casos: el lead recién asignado arranca en cero; el TRANSFERIDO no le hereda
@@ -433,7 +433,7 @@ export function diasSinActividad(lead: Lead, acts: Actividad[], ahora: number = 
  * (el más urgente gana). Orden: severidad desc, luego días desc.
  * Reglas (contrato F1c):
  *  - vendedor_id null → por_repartir (crítica) — solo la ven supervisor/gerencia
- *    porque el ámbito del vendedor nunca incluye parkeados.
+ *    porque el ámbito del analista nunca incluye parkeados.
  *  - nuevo SIN NINGÚN CONTACTO → sin_responder (crítica si ≥1 día; media antes).
  *  - nuevo YA INTENTADO ≥1 día → insistir (media).
  *  - propuesta_enviada sin contacto ≥5 días → propuesta_sin_respuesta (media).
@@ -597,7 +597,7 @@ export function colaDe(
       // RELOJ DE ETAPA: el lead que SÍ recibe toques pero lleva el doble de su
       // plazo clavado en la misma etapa. No lo ve ninguna otra señal —
       // `estancados` y los buckets de arriba miden INACTIVIDAD, y este está
-      // muy activo. Es justo el que consume tiempo del asesor sin avanzar:
+      // muy activo. Es justo el que consume tiempo del analista sin avanzar:
       // hay que rescatarlo o cerrarlo, no seguir tocándolo.
       const muerta = plan?.vencido.get(lead.id)
       if (muerta) {
@@ -622,7 +622,7 @@ export function colaDe(
 }
 
 /**
- * Leads abiertos CON vendedor y SIN tarea pendiente — el bucket AMARILLO del
+ * Leads abiertos CON analista y SIN tarea pendiente — el bucket AMARILLO del
  * semáforo (plan v2): el mecanismo real de la industria no es el candado, es
  * esta lista inocultable. Orden: capital PEN desc (lo que más plata arriesga
  * primero); USD después, también desc — JAMÁS mezclados en un mismo número.
@@ -636,7 +636,7 @@ export function sinProximaAccion(leads: Lead[], conTareaPendiente: ReadonlySet<s
     })
 }
 
-// ── Métricas por vendedor (ranking) ──────────────────────────────────────────
+// ── Métricas por analista (ranking) ──────────────────────────────────────────
 
 export interface MetricasVendedor {
   m: Miembro
@@ -653,7 +653,7 @@ export interface MetricasVendedor {
 }
 
 /**
- * Métricas de captación por vendedor sobre el ámbito recibido.
+ * Métricas de captación por analista sobre el ámbito recibido.
  * Orden: capitalPEN desc (el ranking por capital captado en proceso).
  *
  * Ojo a los DOS índices: `sinTocar` afirma que nadie habló con el cliente y por
@@ -719,7 +719,7 @@ export function estancados(
   indicePrevio?: IndiceUltimaActividad,
   // Fase B: un lead con tarea pendiente NO está estancado aunque lleve días
   // sin actividad — tiene un plan con fecha (antes el supervisor veía riesgo
-  // donde el vendedor tenía una reunión agendada la próxima semana).
+  // donde el analista tenía una reunión agendada la próxima semana).
   conTareaPendiente?: ReadonlySet<string>,
 ): Array<{ lead: Lead; dias: number }> {
   const indice = indicePrevio ?? indexarUltimaActividad(acts)
@@ -736,7 +736,7 @@ export function estancados(
 /**
  * Una fila por SUPERVISOR activo del equipo. El universo de cada fila es el
  * mismo que el ámbito de ese supervisor: sus leads propios + los de sus
- * vendedores (métricas de activos/capital/conversión) MÁS sus parkeados
+ * analistas (métricas de activos/capital/conversión) MÁS sus parkeados
  * (vendedor_id null asignados a su bandeja), que se cuentan aparte en
  * `parkeados` y NO suman al capital (aún no tienen dueño trabajándolos).
  */

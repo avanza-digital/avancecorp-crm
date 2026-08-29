@@ -106,7 +106,7 @@ function leadBase(over: Partial<Lead> = {}): Lead {
     moneda: 'PEN',
     categoria_interes: null,
     vendedor_id: 'u-v1',
-    vendedor_nombre: 'Vendedor Real',
+    vendedor_nombre: 'Analista Real',
     asignado_supervisor_id: null,
     creado_en: '2026-07-01T00:00:00.000Z',
     activo: true,
@@ -121,7 +121,7 @@ function leadBase(over: Partial<Lead> = {}): Lead {
 function sesion(demo: boolean, rol: 'vendedor' | 'supervisor' = 'vendedor'): AuthContextValue {
   return {
     fase: 'listo',
-    yo: { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo, puede_contratar: true },
+    yo: { id: 'u-v1', nombre_completo: 'Analista Real', rol, demo, puede_contratar: true },
     error: null,
     entrar: async () => ({ ok: true }),
     entrarDemo: () => undefined,
@@ -325,7 +325,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 
     // Encadena el paso contrato sin salir del CRM.
     expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
-    // La edge recibe la identidad YA separada y confirmada por el vendedor,
+    // La edge recibe la identidad YA separada y confirmada por el analista,
     // junto con las cuentas de depósito, en el MISMO envío: el cliente nace
     // listo para pagos o no nace.
     expect(convertirEdge).toHaveBeenCalledWith({
@@ -431,14 +431,14 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     await montarEnAvance()
 
     await llenarIdentidad(user)
-    await llenarPenCompleta(user) // el vendedor no puede saber que ya existía
+    await llenarPenCompleta(user) // el analista no puede saber que ya existía
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
     // Un PATCH ciego sobreescribiría las cuentas con las que YA cobra: no viaja.
     expect(actualizarCliente).not.toHaveBeenCalled()
     // La atribución se PREGUNTA al servidor, no se adivina.
     expect(enMiCartera).toHaveBeenCalledWith('perfil-7')
-    // …y el asesor se entera de que manda la cuenta YA registrada, en vez de
+    // …y el analista se entera de que manda la cuenta YA registrada, en vez de
     // creer que acaba de registrar dónde se le depositan los intereses.
     const aviso = await screen.findByRole('alert')
     expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
@@ -450,7 +450,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
     // La ruta de corrección se enuncia CONDICIONADA a la ventana de 5 h, no como
     // una promesa ni como una negación absoluta: tras un 409 de la RPC el
-    // reintento cae aquí con un cliente que el propio asesor acaba de crear, y
+    // reintento cae aquí con un cliente que el propio analista acaba de crear, y
     // decirle "ya no se pueden cambiar, pídeselo a Gerencia" sería falso.
     expect(screen.getByText(/menos de 5 horas/)).toBeInTheDocument()
     expect(screen.getByText(/pídeselo a\s+Gerencia/)).toBeInTheDocument()
@@ -465,7 +465,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
   })
 
-  it('dedup ya_existia con el cliente de OTRO asesor: no se ofrece un contrato que la RPC rechazaría', async () => {
+  it('dedup ya_existia con el cliente de OTRO analista: no se ofrece un contrato que la RPC rechazaría', async () => {
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({
       perfil_id: 'perfil-8',
@@ -613,7 +613,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
   it('un monto de 2 decimales como 10000.03 SÍ se acepta (coma flotante)', async () => {
     // `10000.03 * 100` da 1000003.0000000001 en JavaScript, así que la
     // comparación exacta acusaba tres decimales a un monto perfectamente
-    // válido y el vendedor no podía registrar su cierre.
+    // válido y el analista no podía registrar su cierre.
     const user = userEvent.setup()
     mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-1', cooperativa: 'qorilazo' })
     await montarEnCoop()

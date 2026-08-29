@@ -83,6 +83,22 @@ function nucleoServido(conversion_pct: number | null, divisor: number) {
   }
 }
 
+function sondasVerificadas() {
+  return {
+    cuadra: true,
+    paridad_nucleo: 0,
+    paridad_filas: 0,
+    divisor_fuera_del_roster: 0,
+    numerador_fuera_del_roster: 0,
+    cierres_sin_ficha_convertida: 0,
+    cohorte_convertidos_sin_cierre_elegible: 0,
+    cartera_fuera_del_rango: 0,
+    cierres_anulados: 0,
+    episodios_sin_origen: 0,
+    origen_ficha_distinto_del_ledger: 0,
+  }
+}
+
 describe('periodoAnteriorComparable', () => {
   it('conserva el ordinal del corte y cruza correctamente el cambio de año', () => {
     expect(periodoAnteriorComparable('2026-08-06')).toEqual({
@@ -185,7 +201,7 @@ describe('derivarAlertasGerencia', () => {
     })
   })
 
-  it('alerta al vendedor solo desde el primer corte, con muestra suficiente y brecha mínima de 5 pp', () => {
+  it('alerta al analista solo desde el primer corte, con muestra suficiente y brecha mínima de 5 pp', () => {
     const fuentes = fuentesIndividuales(15, 10, 10)
 
     expect(derivarAlertasGerencia(entradaSinFuentes({
@@ -280,6 +296,8 @@ describe('derivarAlertasGerencia', () => {
     conversionesAnteriores.responsables = undefined
     conversiones.nucleo = nucleoServido(12, 30)
     conversionesAnteriores.nucleo = nucleoServido(15, 30)
+    conversiones.sondas = sondasVerificadas()
+    conversionesAnteriores.sondas = sondasVerificadas()
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
@@ -336,11 +354,51 @@ describe('derivarAlertasGerencia', () => {
     }))).toEqual([])
   })
 
+  it.each([
+    ['sondas ausentes', undefined],
+    ['cuadra=false', { ...sondasVerificadas(), cuadra: false }],
+    ['cuadra=null', { ...sondasVerificadas(), cuadra: null }],
+    ['paridad_nucleo=null', { ...sondasVerificadas(), paridad_nucleo: null }],
+    ['paridad_nucleo distinta de cero', { ...sondasVerificadas(), paridad_nucleo: 0.01 }],
+  ])('F3.4: %s impide una alerta global aunque exista el núcleo', (_caso, sondasActuales) => {
+    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
+    const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-06')
+    conversiones.nucleo = nucleoServido(10, 30)
+    conversionesAnteriores.nucleo = nucleoServido(15, 30)
+    conversiones.sondas = sondasActuales
+    conversionesAnteriores.sondas = sondasVerificadas()
+
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      conversionesAnteriores,
+    }))).toEqual([])
+  })
+
+  it('F3.4: una foto anterior MTD sin sonda comparable mantiene inactiva la alerta global', () => {
+    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
+    const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-06')
+    conversiones.nucleo = nucleoServido(10, 30)
+    conversionesAnteriores.nucleo = nucleoServido(15, 30)
+    conversiones.sondas = sondasVerificadas()
+    conversionesAnteriores.sondas = {
+      ...sondasVerificadas(),
+      cuadra: null,
+      paridad_nucleo: null,
+    }
+
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      conversionesAnteriores,
+    }))).toEqual([])
+  })
+
   it('eleva a crítica una caída global de 5 pp y la ordena antes de una brecha individual menor', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
     const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-10')
     conversiones.nucleo = nucleoServido(10, 30)
     conversionesAnteriores.nucleo = nucleoServido(15, 30)
+    conversiones.sondas = sondasVerificadas()
+    conversionesAnteriores.sondas = sondasVerificadas()
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,

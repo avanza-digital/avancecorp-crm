@@ -1,9 +1,9 @@
 // screens/equipo.tsx — Inteligencia de EQUIPO por rango (F1c).
 // Solo la ven supervisor/gerencia/directorio (App.tsx guarda la ruta):
-//  - Supervisor: cards densas de SUS vendedores (métricas + semáforo de
+//  - Supervisor: cards densas de SUS analistas (métricas + semáforo de
 //    actividad), bandeja "Por repartir" con acción de asignar y mini-cola.
 //  - Gerencia: PRIMERO una tabla comparativa de supervisores (comparativaEquipos)
-//    y el detalle por vendedor de UN equipo bajo demanda (fila/botón "Ver
+//    y el detalle por analista de UN equipo bajo demanda (fila/botón "Ver
 //    equipo" — patrón aprobado de EquiposBajoSupervision en Hoy·Distribución:
 //    "el detalle se abre solo cuando hace falta"); también puede repartir.
 //  - Directorio: la misma radiografía que gerencia, pero Directorio es SOLO LECTURA (cero
@@ -20,18 +20,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { AvisoCoberturaConversion } from '@/components/common/aviso-cobertura-conversion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { moneyK } from '@/lib/format'
+import { moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
@@ -46,13 +46,16 @@ import {
   esAbierto,
   haceCortoTexto,
   type ItemCola,
-  type MetricasVendedor,
 } from '@/lib/inteligencia'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
-import { ventanaConversionEnPalabras } from '@/lib/metricas-vendedores'
+import {
+  textoConversionOperativa,
+  ventanaConversionEnPalabras,
+  type MetricaVendedorOperativa,
+} from '@/lib/metricas-vendedores'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -113,7 +116,7 @@ function chipCapitalEnProceso(pen: number, usd: number, tc: TipoCambio | null | 
  * Celda de capital dentro de una TABLA (vista de empresa).
  *
  * Arregla de paso un defecto vivo: cuando el capital en soles era 0 la celda decía
- * «—», de modo que un vendedor con cartera 100 % en dólares aparecía como si no
+ * «—», de modo que un analista con cartera 100 % en dólares aparecía como si no
  * tuviera capital, con su cifra real escondida en la letra chica. Con el total
  * unificado aparece lo que de verdad gestiona (Miguel lo confirmó al cerrar la #10).
  */
@@ -173,14 +176,27 @@ function CapitalDeFila({
 }
 
 /**
- * «—» de conversión sin muestra: el porqué viaja en TEXTO para el lector
- * (sr-only), no solo en un title que teclado y táctil jamás ven.
+ * Estado visible de una conversión NULL. Una fila presente con divisor cero y
+ * una fila mensual ausente son situaciones distintas y nunca dicen 0 %.
  */
-function SinMuestraOperativa({ className }: { className: string }): JSX.Element {
+function motivoConversionNula(disponible: boolean, divisor: number | null): string {
+  return disponible && divisor === 0 ? 'Sin divisor mensual' : 'Dato no disponible'
+}
+
+function EstadoConversionNula({
+  className,
+  disponible,
+  divisor,
+}: {
+  className: string
+  disponible: boolean
+  divisor: number | null
+}): JSX.Element {
+  const motivo = motivoConversionNula(disponible, divisor)
   return (
-    <span className={className}>
-      <span aria-hidden="true" title="Sin leads en la ventana operativa">—</span>
-      <span className="sr-only">Sin leads en la ventana operativa</span>
+    <span className={className} title={motivo}>
+      <span aria-hidden="true">— · </span>
+      <span className="text-[10px] font-normal">{motivo}</span>
     </span>
   )
 }
@@ -198,7 +214,7 @@ function chipPorRepartir(n: number, sub: string): StatChipData {
 
 /**
  * Label uppercase + número extrabold — el patrón repetido en las cards de
- * vendedor y en la cabecera comparativa de cada bloque. `denso` es la variante
+ * analista y en la cabecera comparativa de cada bloque. `denso` es la variante
  * de la card compacta (número text-sm); el `sub` (p. ej. el USD) va inline
  * para que el dato ocupe UN renglón; `children` admite la barra de conversión.
  */
@@ -239,7 +255,7 @@ function MiniDato({
   )
 }
 
-// ── Card de vendedor (vista del supervisor: ≤6 vendedores, card densa) ────────
+// ── Card de analista (vista del supervisor: ≤6 analistas, card densa) ────────
 
 function VendedorCard({
   r,
@@ -247,7 +263,7 @@ function VendedorCard({
   ventanaConversion,
   delay = 0,
 }: {
-  r: MetricasVendedor
+  r: MetricaVendedorOperativa
   tc: TipoCambio | null | undefined
   /** «agosto de 2026» con servidor F2.4 (mes del núcleo) · «45 días» en demo. */
   ventanaConversion: string
@@ -262,7 +278,13 @@ function VendedorCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
-            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'} · {ventanaConversion}
+            {r.cierresConversion == null
+              ? 'Cierres no disponibles'
+              : `${numero(r.cierresConversion)} ${r.cierresConversion === 1 ? 'cierre' : 'cierres'}`}
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` + ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+            {' · '}{ventanaConversion}
           </p>
         </div>
         {r.activos === 0 ? (
@@ -287,20 +309,29 @@ function VendedorCard({
         />
       </div>
 
-      {/* Conversión en UN renglón — navy, sin verde. Sin activos NI convertidos
-          no hay evidencia de muestra → «—», no un 0 % fabricado (el mapper
-          rellena 0 para el roster sin fila). F3 (H9/D1): la ventana del rótulo
-          la DECLARA el payload — mes del núcleo con servidor F2.4, 45 días en
-          el espejo demo — en vez de afirmarse fija aquí. */}
+      {/* El porcentaje exacto puede ser NULL o superar 100 por cartera/arrastre.
+          Por eso aquí no se usa Progress (su semántica es 0–100): se conserva
+          la cifra servida sin un tope visual engañoso. */}
       <div className="mt-2 flex items-center gap-2 text-[11px]">
         <span className="font-semibold text-muted-foreground">Conversión · {ventanaConversion}</span>
-        {r.activos === 0 && r.convertidos === 0 ? (
-          <SinMuestraOperativa className="flex-1 text-right font-bold tabular-nums text-muted-foreground" />
+        {r.conversion == null ? (
+          <span className="ml-auto text-right text-muted-foreground">
+            <EstadoConversionNula
+              className="font-bold tabular-nums"
+              disponible={r.conversionDisponible}
+              divisor={r.divisorConversion}
+            />
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` · ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+          </span>
         ) : (
-          <>
-            <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 flex-1" />
-            <span className="font-bold tabular-nums">{r.conversion}%</span>
-          </>
+          <span className="ml-auto font-bold tabular-nums">
+            {textoConversionOperativa(r.conversion)}
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` · ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+          </span>
         )}
       </div>
     </Card>
@@ -322,7 +353,7 @@ function Bandeja({
   ahora,
 }: {
   parkeados: Lead[]
-  vendedores: Miembro[] // opciones planas (supervisor: SUS vendedores)
+  vendedores: Miembro[] // opciones planas (supervisor: SUS analistas)
   grupos?: GrupoVendedores[] // opciones agrupadas por equipo (gerencia)
   mostrarBandeja?: boolean // gerencia: mostrar en qué bandeja está el lead
   ahora: number // reloj vivo del padre (useAhora) — antigüedad de los parkeados
@@ -342,7 +373,7 @@ function Bandeja({
     if (r.ok) {
       // Sufijo "(demo)" unificado con el resto de mutaciones demo (guard yo?.demo).
       toast.success(
-        `${lead.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'}${yo?.demo ? ' (demo)' : ''}`,
+        `${lead.nombre_completo} asignado a ${v?.nombre_completo ?? 'analista'}${yo?.demo ? ' (demo)' : ''}`,
       )
     } else if (r.error && !r.error.startsWith('Sin permiso')) {
       // Los errores de permiso ya los toastea el store (doble defensa).
@@ -382,7 +413,7 @@ function Bandeja({
               <Select
                 value={sel[l.id] ?? ''}
                 onChange={(e) => setSel((s) => ({ ...s, [l.id]: e.target.value }))}
-                aria-label={`Asignar vendedor a ${l.nombre_completo}`}
+                aria-label={`Asignar analista a ${l.nombre_completo}`}
               >
                 <option value="">Asignar a…</option>
                 {grupos
@@ -408,7 +439,7 @@ function Bandeja({
   )
 }
 
-// ── Mini-cola del equipo (top N de colaDe con nombre del vendedor) ────────────
+// ── Mini-cola del equipo (top N de colaDe con nombre del analista) ────────────
 
 function MiniCola({ items, total, max = 5 }: { items: ItemCola[]; total: number; max?: number }): JSX.Element {
   const { abrirLead } = usePanelesActions()
@@ -501,7 +532,7 @@ function EquipoSupervisor(): JSX.Element {
   // como el TC: undefined = consultando, null = no disponible (fail-closed).
   const periodoConversionMes = `${periodoRanking.hasta.slice(0, 7)}-01`
   const qConversionMensual = useConversionMensual(!yo?.demo, periodoConversionMes)
-  // Cosecha por vendedor de MI equipo (F2.2/D2, alcance equipo por rol en el
+  // Cosecha por analista de MI equipo (F2.2/D2, alcance equipo por rol en el
   // servidor): mismo MES que la mensual del tab. Tri-estado; en demo no se
   // consulta ni se pinta (el espejo demo no la produce — fail-closed).
   const qCosechaEquipo = useMetricasConversionesEquipo(
@@ -534,7 +565,7 @@ function EquipoSupervisor(): JSX.Element {
   }
 
   const stats: StatChipData[] = [
-    { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },
+    { icon: Users, label: 'Mis analistas', value: String(ambito.vendedores.length), tone: 'accent' },
     resumen
       ? chipCapitalEnProceso(resumen.capital.asignado.pen, resumen.capital.asignado.usd, tc)
       : { icon: Wallet, label: 'Capital en proceso (PEN)', value: '—', tone: 'primary' },
@@ -561,7 +592,9 @@ function EquipoSupervisor(): JSX.Element {
         No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
 
-      {/* Cards de MIS vendedores (orden: capital captado PEN desc) */}
+      <AvisoCoberturaConversion mensaje={vendedoresOp.metricas?.avisoConversion} />
+
+      {/* Cards de MIS analistas (orden: capital captado PEN desc) */}
       <Card>
         <SectionHead
           icon={Users}
@@ -580,14 +613,14 @@ function EquipoSupervisor(): JSX.Element {
           {filas == null ? (
             <p className="text-sm text-muted-foreground">
               {vendedoresOp.error
-                ? 'El resumen por vendedor no está disponible en este momento.'
-                : 'Cargando el resumen por vendedor…'}
+                ? 'El resumen por analista no está disponible en este momento.'
+                : 'Cargando el resumen por analista…'}
             </p>
           ) : filas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tienes vendedores a cargo todavía.</p>
+            <p className="text-sm text-muted-foreground">No tienes analistas a cargo todavía.</p>
           ) : (
             <ul
-              aria-label="Vendedores de mi equipo"
+              aria-label="Analistas de mi equipo"
               className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {filas.map((r, i) => (
@@ -660,7 +693,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   const { ambito, actividadesDelAmbito, equipo } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
-  // Supervisores PRIMERO, detalle por vendedor bajo demanda (patrón aprobado
+  // Supervisores PRIMERO, detalle por analista bajo demanda (patrón aprobado
   // de EquiposBajoSupervision en Hoy·Distribución): qué equipo está abierto.
   const [supervisorSel, setSupervisorSel] = useState<string | null>(null)
 
@@ -677,7 +710,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   // sus contadores describen las filas que de verdad pinta).
   const d = useMemo(() => {
     const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
-    // Vendedores activos por supervisor en UNA pasada sobre el roster —
+    // Analistas activos por supervisor en UNA pasada sobre el roster —
     // lo comparten los bloques y los optgroups de la bandeja global.
     const vendedoresPorSupervisor = new Map<string, Miembro[]>()
     for (const m of equipo) {
@@ -695,7 +728,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
     return { parkeados, vendedoresPorSupervisor, grupos }
   }, [ambito.leads, equipo])
 
-  // Tablero derivado del payload: bloques por supervisor con sus vendedores.
+  // Tablero derivado del payload: bloques por supervisor con sus analistas.
   const tablero = useMemo(() => {
     if (!metricas) return null
     const filas = metricas.equipos
@@ -704,18 +737,39 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         (d.vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? []).map((m) => m.perfil_id),
       )
       const delEquipo = metricas.filas.filter((r) => rosterSup.has(r.m.perfil_id))
-      // Cartera primero (ya vienen por capital PEN desc): los vendedores en
+      // Cartera primero (ya vienen por capital PEN desc): los analistas en
       // cero absoluto van al final — la mirada cae en el capital en juego.
-      // OJO: activos=0 con convertidos>0 NO es cero (convirtió toda su cartera).
-      const conCartera = delEquipo.filter((r) => r.activos > 0 || r.convertidos > 0)
-      const vendedores = [...conCartera, ...delEquipo.filter((r) => r.activos === 0 && r.convertidos === 0)]
-      // Peor última actividad entre vendedores CON abiertos — alimenta el
-      // semáforo de la fila comparativa; null = ningún vendedor con abiertos.
+      // OJO: activos=0 con cierres u operaciones de cartera NO es cero. Una
+      // renovación/upgrade acreditada debe seguir visible aunque no haya lead.
+      const conActividadORevision = delEquipo.filter((r) => (
+        r.activos > 0
+        || !r.conversionDisponible
+        || (r.cierresConversion ?? 0) > 0
+        || (r.operacionesCartera != null && r.operacionesCartera > 0)
+      ))
+      const vendedores = [
+        ...conActividadORevision,
+        ...delEquipo.filter((r) => !conActividadORevision.includes(r)),
+      ]
+      // Peor última actividad entre analistas CON abiertos — alimenta el
+      // semáforo de la fila comparativa; null = ningún analista con abiertos.
       let peorDias: number | null = null
       for (const r of delEquipo) {
         if (r.activos > 0 && (peorDias == null || r.diasSinActividadMax > peorDias)) peorDias = r.diasSinActividadMax
       }
-      return { f, vendedores, peorDias, todoEnCero: delEquipo.length > 0 && conCartera.length === 0 }
+      return {
+        f,
+        vendedores,
+        peorDias,
+        // Un NULL exacto significa «no sabemos», nunca «todo está en cero».
+        todoEnCero: delEquipo.length > 0
+          && delEquipo.every((r) => (
+            r.conversionDisponible
+            && r.activos === 0
+            && r.cierresConversion === 0
+            && r.operacionesCartera === 0
+          )),
+      }
     })
     return {
       filas,
@@ -723,7 +777,9 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       capPEN: filas.reduce((a, f) => a + f.capitalPEN, 0),
       capUSD: filas.reduce((a, f) => a + f.capitalUSD, 0),
       activos: filas.reduce((a, f) => a + f.activos, 0),
-      convertidos: filas.reduce((a, f) => a + f.convertidos, 0),
+      // El total canónico incluye producción anónima fuera de roster (F2.6);
+      // sumar equipos la perdería silenciosamente porque no puede atribuirse.
+      cierresConversion: metricas.totalConversion.cierresConversion,
     }
   }, [metricas, d.vendedoresPorSupervisor])
 
@@ -733,7 +789,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       label: 'Equipos',
       value: tablero ? String(tablero.filas.length) : '—',
       tone: 'accent',
-      sub: `${ambito.vendedores.length} vendedores en total`,
+      sub: `${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'analista' : 'analistas'} en total`,
     },
     tablero
       ? chipCapitalEnProceso(tablero.capPEN, tablero.capUSD, tc)
@@ -742,7 +798,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       icon: Activity,
       label: 'Leads activos',
       value: tablero ? String(tablero.activos) : '—',
-      ...(tablero ? { sub: `${tablero.convertidos} convertidos · ${ventanaConversion}` } : {}),
+      ...(tablero
+        ? {
+          sub: tablero.cierresConversion == null
+            ? `Cierres no disponibles · ${ventanaConversion}`
+            : `${numero(tablero.cierresConversion)} convertidos · ${ventanaConversion}`,
+        }
+        : {}),
     },
     chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
@@ -772,8 +834,10 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         No se pudieron cargar las métricas por equipo. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
 
+      <AvisoCoberturaConversion mensaje={metricas?.avisoConversion} />
+
       {/* Supervisores PRIMERO: una tabla comparativa (equipo vs equipo en una
-         sola pantalla); el detalle por vendedor se abre bajo demanda. */}
+         sola pantalla); el detalle por analista se abre bajo demanda. */}
       <Card>
         <SectionHead
           icon={ShieldCheck}
@@ -834,7 +898,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                               {f.supervisor.nombre_completo}
                             </p>
                             <p className="text-[11px] text-muted-foreground">
-                              {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
+                              {f.vendedores} {f.vendedores === 1 ? 'analista' : 'analistas'}
                             </p>
                           </div>
                         </div>
@@ -860,15 +924,24 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                         <CeldaCapitalTabla pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
                       </Td>
                       <Td>
-                        {f.conversion > 0 ? (
-                          <div className="flex items-center gap-2">
-                            <Progress value={f.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
-                            <span className="text-xs font-bold tabular-nums">{f.conversion}%</span>
-                          </div>
-                        ) : f.activos === 0 && f.convertidos === 0 ? (
-                          <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
+                        {f.conversion == null ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            <EstadoConversionNula
+                              className="tabular-nums text-muted-foreground"
+                              disponible={f.conversionDisponible}
+                              divisor={f.divisorConversion}
+                            />
+                            {f.operacionesCartera != null && f.operacionesCartera > 0
+                              ? ` · ${numero(f.operacionesCartera)} de cartera`
+                              : ''}
+                          </span>
                         ) : (
-                          <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                          <span className={`text-xs tabular-nums ${f.conversion > 0 ? 'font-bold' : 'text-muted-foreground'}`}>
+                            {textoConversionOperativa(f.conversion)}
+                            {f.operacionesCartera != null && f.operacionesCartera > 0
+                              ? ` · ${numero(f.operacionesCartera)} de cartera`
+                              : ''}
+                          </span>
                         )}
                       </Td>
                       <Td
@@ -897,13 +970,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
           </TablaEnvoltura>
           {bloques.length > 1 && bloqueSel == null && (
             <p className="mt-3 text-xs text-muted-foreground">
-              El detalle por vendedor se abre solo cuando hace falta — elige un equipo en la tabla.
+              El detalle por analista se abre solo cuando hace falta — elige un equipo en la tabla.
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Detalle del equipo SELECCIONADO: cabecera comparativa + TABLA de sus vendedores */}
+      {/* Detalle del equipo SELECCIONADO: cabecera comparativa + TABLA de sus analistas */}
       {bloques.filter((b) => b === bloqueSel).map(({ f, vendedores, todoEnCero }) => (
         <Card key={f.supervisor.perfil_id}>
           <SectionHead
@@ -911,7 +984,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             title={`Equipo de ${f.supervisor.nombre_completo}`}
             right={
               <Badge color={SEMAFORO.violeta}>
-                {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
+                {f.vendedores} {f.vendedores === 1 ? 'analista' : 'analistas'}
               </Badge>
             }
           />
@@ -922,13 +995,26 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               <MiniDato label="Activos" valor={String(f.activos)} />
               <MiniDato
                 label={`Conversión · ${ventanaConversion}`}
-                valor={f.activos === 0 && f.convertidos === 0 ? '—' : `${f.conversion}%`}
-                {...(f.activos === 0 && f.convertidos === 0
-                  ? { title: 'Sin leads en la ventana operativa', srDetalle: 'Sin leads en la ventana operativa' }
+                valor={textoConversionOperativa(f.conversion)}
+                sub={[
+                  f.conversion == null
+                    ? motivoConversionNula(f.conversionDisponible, f.divisorConversion)
+                    : null,
+                  f.operacionesCartera != null && f.operacionesCartera > 0
+                    ? `${numero(f.operacionesCartera)} de cartera`
+                    : null,
+                ].filter((texto): texto is string => texto != null).join(' · ') || undefined}
+                {...(f.conversion == null
+                  ? {
+                    title: f.conversionDisponible && f.divisorConversion === 0
+                      ? 'Sin divisor mensual'
+                      : 'Dato no disponible',
+                    srDetalle: f.conversionDisponible && f.divisorConversion === 0
+                      ? 'Sin divisor mensual'
+                      : 'Dato no disponible',
+                  }
                   : {})}
-              >
-                <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
-              </MiniDato>
+              />
               <MiniDato
                 label="Por repartir"
                 valor={String(f.parkeados)}
@@ -937,7 +1023,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             </div>
 
             {vendedores.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin vendedores asignados a este equipo.</p>
+              <p className="text-sm text-muted-foreground">Sin analistas asignados a este equipo.</p>
             ) : todoEnCero ? (
               /* Equipo entero en cero: la tabla sería un muro de ceros —
                  vacío honesto y accionable (la acción varía por rol). */
@@ -950,7 +1036,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                       ? `Hay ${f.parkeados} ${f.parkeados === 1 ? 'lead' : 'leads'} en la bandeja de este supervisor — repártelos para poner capital en juego.`
                       : d.parkeados.length > 0
                         ? 'Reparte leads desde la bandeja de la empresa para poner capital en juego.'
-                        : 'Cuando entren leads a las bandejas podrás repartirlos entre sus vendedores.'
+                        : 'Cuando entren leads a las bandejas podrás repartirlos entre sus analistas.'
                     : 'Sin capital en juego ni conversiones todavía — nada que auditar en este equipo.'
                 }
               >
@@ -965,10 +1051,10 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               </PanelVacio>
             ) : (
               /* Tabla comparativa (fila ~33 px): lo que gerencia/directorio
-                 necesitan es comparar vendedores columna a columna, no cards. */
-              <TablaEnvoltura ariaLabel={`Vendedores del equipo de ${f.supervisor.nombre_completo}`}>
+                 necesitan es comparar analistas columna a columna, no cards. */
+              <TablaEnvoltura ariaLabel={`Analistas del equipo de ${f.supervisor.nombre_completo}`}>
                 <TheadCrm>
-                  <Th>Vendedor</Th>
+                  <Th>Analista</Th>
                   <Th>Últ. actividad</Th>
                   <Th className="text-right">Activos</Th>
                   <Th className="text-right">Capital PEN</Th>
@@ -1016,15 +1102,24 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                           {r.sinTocar > 0 ? r.sinTocar : '—'}
                         </Td>
                         <Td>
-                          {r.conversion > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
-                              <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
-                            </div>
-                          ) : r.activos === 0 && r.convertidos === 0 ? (
-                            <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
+                          {r.conversion == null ? (
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              <EstadoConversionNula
+                                className="tabular-nums text-muted-foreground"
+                                disponible={r.conversionDisponible}
+                                divisor={r.divisorConversion}
+                              />
+                              {r.operacionesCartera != null && r.operacionesCartera > 0
+                                ? ` · ${numero(r.operacionesCartera)} de cartera`
+                                : ''}
+                            </span>
                           ) : (
-                            <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                            <span className={`text-xs tabular-nums ${r.conversion > 0 ? 'font-bold' : 'text-muted-foreground'}`}>
+                              {textoConversionOperativa(r.conversion)}
+                              {r.operacionesCartera != null && r.operacionesCartera > 0
+                                ? ` · ${numero(r.operacionesCartera)} de cartera`
+                                : ''}
+                            </span>
                           )}
                         </Td>
                       </tr>

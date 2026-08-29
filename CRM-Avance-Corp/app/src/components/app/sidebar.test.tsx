@@ -33,7 +33,7 @@ function montar({
   vi.stubGlobal('matchMedia', () => ({ matches: movil }))
   YO = {
     id: 'u-v1',
-    nombre_completo: 'Vendedor Real',
+    nombre_completo: 'Analista Real',
     rol,
     demo: true,
     puede_contratar: true,

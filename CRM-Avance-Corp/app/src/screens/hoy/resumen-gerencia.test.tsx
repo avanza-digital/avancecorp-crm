@@ -8,7 +8,7 @@ import {
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
-import { money, numero } from '@/lib/format'
+import { money, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionMensual, ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
@@ -33,6 +33,16 @@ function filaMensualSinActividad(vendedorId: string): ResponsableConversionMensu
     estado: 'sin_actividad',
     procedencia: [],
     referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+    cartera: {
+      conversiones_clientes: 0,
+      conversiones_renovacion: 0,
+      conversiones_upgrade: 0,
+      capital_renovado_pen: 0,
+      capital_renovado_usd: 0,
+      capital_adicional_pen: 0,
+      capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    },
   }
 }
 
@@ -77,9 +87,42 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
   ),
 }))
 
+function conOrigenesVerificados(datos: MetricasConversiones): MetricasConversiones {
+  return {
+    ...datos,
+    nucleo: {
+      base: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      divisor: datos.cohorte.asignados,
+      numerador: datos.cohorte.contratos,
+      conversion_pct: datos.cohorte.conversion_contratos_pct,
+      cierres_no_referidos: datos.cohorte.contratos,
+      cierres_referidos: 0,
+      referidos_recibidos: 0,
+      referidos_cierran_pct: null,
+      operaciones_cartera: 0,
+      peso_referido: 0.15,
+      mes_peso: '2026-08-01',
+      incluye_cartera: true,
+    },
+    sondas: {
+      cuadra: true,
+      paridad_nucleo: 0,
+      paridad_filas: 0,
+      divisor_fuera_del_roster: 0,
+      numerador_fuera_del_roster: 0,
+      cierres_sin_ficha_convertida: 0,
+      cohorte_convertidos_sin_cierre_elegible: 0,
+      cartera_fuera_del_rango: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      origen_ficha_distinto_del_ledger: 0,
+    },
+  }
+}
+
 function conversionesSinActividad(): MetricasConversiones {
   const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-  return {
+  return conOrigenesVerificados({
     ...datos,
     cohorte: {
       leads: 0,
@@ -105,7 +148,7 @@ function conversionesSinActividad(): MetricasConversiones {
     origenes: [],
     categorias: [],
     responsables: [],
-  }
+  })
 }
 
 function reunionesSinActividad(): MetricasReuniones {
@@ -142,8 +185,8 @@ function reunionesSinActividad(): MetricasReuniones {
   }
 }
 
-describe('ranking general de vendedores', () => {
-  it('abre la página completa de ranking desde la tarjeta de mejores vendedores', () => {
+describe('ranking general de analistas', () => {
+  it('abre la página completa de ranking desde la tarjeta de mejores analistas', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-31')
     conversiones.responsables = [
       ...(conversiones.responsables ?? []),
@@ -180,7 +223,7 @@ describe('ranking general de vendedores', () => {
       },
       {
         vendedorId: null,
-        nombre: 'Sin vendedor asignado',
+        nombre: 'Sin analista asignado',
         supervisorNombre: 'Sin supervisor',
         leads: 8,
         contactados: 0,
@@ -215,7 +258,7 @@ describe('ranking general de vendedores', () => {
 
     expect(screen.queryByText('Fabio León')).not.toBeInTheDocument()
 
-    const enlace = screen.getByRole('link', { name: 'Ver ranking general de vendedores' })
+    const enlace = screen.getByRole('link', { name: 'Ver ranking general de analistas' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
     const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
@@ -243,9 +286,9 @@ describe('ranking general de vendedores', () => {
       />,
     )
 
-    expect(screen.getByText('Detalle por vendedor no disponible')).toBeInTheDocument()
+    expect(screen.getByText('Detalle por analista no disponible')).toBeInTheDocument()
     expect(screen.getByText('Tendencia no disponible')).toBeInTheDocument()
-    expect(screen.queryByText('Aún no hay vendedores con leads en este período')).not.toBeInTheDocument()
+    expect(screen.queryByText('Aún no hay analistas con leads en este período')).not.toBeInTheDocument()
   })
 })
 
@@ -279,7 +322,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
     expect(screen.getAllByText('Citas realizadas').length).toBeGreaterThan(0)
     expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
-    expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
+    expect(screen.getByText('Aún no hay analistas medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
     // REGRESIÓN del enlace muerto: `produccion.capital_*` viene en 0 (como en
     // producción, donde `crm.leads.contrato_id` jamás se escribió) y aun así
@@ -367,7 +410,9 @@ describe('estados vacíos del resumen de Gerencia', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las citas.')
     // El héroe y el KPI dicen LA conversión del MES — la del rango vive en Conversiones.
-    const pctMes = `${numero(conversionMensualInteligenciaDemo(AHORA).total.conversion_pct!, 1)}%`
+    const pctMes = porcentajeConversionCanonica(
+      conversionMensualInteligenciaDemo(AHORA).total.conversion_pct,
+    )
     expect(screen.getAllByText(pctMes).length).toBeGreaterThan(0)
     // 11 = 9 no referidos + 2 referidos (los referidos cierran, no dividen).
     // UN SOLO contador de leads a la vista (veto de Miguel 27/08 noche): el
@@ -457,6 +502,63 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
     const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
     expect(evolucion).toBeInTheDocument()
+  })
+})
+
+describe('gráfica por origen — publicación fail-closed', () => {
+  function montar(conversiones: MetricasConversiones): void {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={conversiones}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  function panelOrigenes(): HTMLElement {
+    const panel = screen.getByRole('heading', { name: 'Conversión por origen' }).closest('section')
+    if (!(panel instanceof HTMLElement)) throw new Error('no se encontró el panel por origen')
+    return panel
+  }
+
+  it('publica porcentajes del rango cuando núcleo y sondas están verificados', () => {
+    montar(conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31')))
+
+    const panel = panelOrigenes()
+    expect(within(panel).getByText('13.16%')).toBeInTheDocument()
+    expect(within(panel).getByText('11.63%')).toBeInTheDocument()
+    expect(within(panel).queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['núcleo ausente', (datos: MetricasConversiones) => { delete datos.nucleo }],
+    ['sondas ausentes', (datos: MetricasConversiones) => { delete datos.sondas }],
+    ['sondas en descuadre', (datos: MetricasConversiones) => {
+      if (datos.sondas) datos.sondas = { ...datos.sondas, cuadra: false, paridad_nucleo: 1 }
+    }],
+  ])('oculta cada porcentaje cuando %s', (_caso, degradar) => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31'))
+    degradar(datos)
+    montar(datos)
+
+    const panel = panelOrigenes()
+    expect(within(panel).getByRole('status')).toHaveTextContent(
+      'Cifras en revisión: la conversión por origen permanece oculta.',
+    )
+    expect(within(panel).queryByText('13.16%')).not.toBeInTheDocument()
+    expect(within(panel).queryByText('11.63%')).not.toBeInTheDocument()
+    expect(panel.querySelector('.gi-fill')).toBeNull()
   })
 })
 

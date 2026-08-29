@@ -38,7 +38,7 @@ function alerta(over: Partial<AlertaCRM> = {}): AlertaCRM {
     titulo: 'Tarea vencida',
     detalle: '«Llamar al cliente» venció hace 1 día.',
     responsableId: 'v1',
-    responsable: 'Ana Vendedora',
+    responsable: 'Ana Analista',
     valor: 24,
     destino: {
       vista: 'agenda',
@@ -98,7 +98,7 @@ describe('Alertas — responsabilidad por rol', () => {
       'href',
       '#/agenda/lead/lead-1',
     )
-    expect(screen.getByText('Responsable: Ana Vendedora')).toBeVisible()
+    expect(screen.getByText('Responsable: Ana Analista')).toBeVisible()
   })
 
   it('filtra por prioridad, tipo y texto sin perder el total activo', async () => {
@@ -112,7 +112,7 @@ describe('Alertas — responsabilidad por rol', () => {
           tipo: 'sin_proxima_accion',
           severidad: 'atencion',
           alcance: 'equipo',
-          titulo: 'Vendedor con leads sin próxima acción',
+          titulo: 'Analista con leads sin próxima acción',
           detalle: 'Bruno tiene 3 leads sin una próxima acción registrada.',
           responsableId: 'v2',
           responsable: 'Bruno Supervisor',
@@ -124,7 +124,7 @@ describe('Alertas — responsabilidad por rol', () => {
 
     await user.click(screen.getByRole('button', { name: 'Atención: 1' }))
     expect(screen.queryByRole('heading', { name: 'Tarea vencida' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Vendedor con leads sin próxima acción' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Analista con leads sin próxima acción' })).toBeVisible()
     expect(screen.getByRole('status')).toHaveTextContent('1 pendiente activo de 2')
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Filtrar por tipo' }), 'sin_proxima_accion')

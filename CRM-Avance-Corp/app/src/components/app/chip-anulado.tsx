@@ -1,7 +1,7 @@
 /**
  * Distintivo del cierre anulado por gerencia. Vive aparte porque lo usan tres
  * sitios con contextos distintos: la lista de cierres en cooperativas, la ficha
- * del lead y las filas de cartera. El asesor tiene que poder explicarse por qué
+ * del lead y las filas de cartera. El analista tiene que poder explicarse por qué
  * su total bajó, mire donde mire.
  *
  * Es TEXTO y no solo un color o un tachado, y va en `destructive-text` (rojo

@@ -96,7 +96,7 @@ const estadoSlaVencido = (leadId: string): EstadoSlaLead => ({
 })
 
 describe('derivarAlertasVendedor', () => {
-  it('filtra estrictamente por vendedor y una tarea vencida gana por lead', () => {
+  it('filtra estrictamente por analista y una tarea vencida gana por lead', () => {
     const propia = lead({ id: 'propia' })
     const ajena = lead({ id: 'ajena', vendedor_id: 'v2', vendedor_nombre: 'Bea' })
     const alertas = derivarAlertasVendedor({
@@ -244,7 +244,7 @@ describe('derivarAlertasVendedor', () => {
 
 // Una alerta por DECISIÓN, no por registro (2026-08-23): el supervisor recibe
 // a lo sumo cuatro grupos — bandeja, nuevos sin responder, plazos vencidos,
-// vendedores sin acción — y cada lead cuenta en uno solo.
+// analistas sin acción — y cada lead cuenta en uno solo.
 describe('derivarAlertasSupervisor', () => {
   const enBandeja = (id: string, cambios: Partial<Lead> = {}): Lead => lead({
     id,
@@ -285,7 +285,7 @@ describe('derivarAlertasSupervisor', () => {
     expect(alertas[0]?.detalle).toBe('rezagado, reciente. El más rezagado espera hace 4 días.')
   })
 
-  it('F4: cada grupo expone su FOTO de miembros — ids de leads, y de VENDEDORES en el grupo por vendedor', () => {
+  it('F4: cada grupo expone su FOTO de miembros — ids de leads, y de ANALISTAS en el grupo por analista', () => {
     // La foto es lo que el libro de reconocimientos guarda y compara para el
     // «reaparece si empeora»: ids, jamás nombres (contrato del servidor).
     const bandeja = derivarAlertasSupervisor({
@@ -327,8 +327,8 @@ describe('derivarAlertasSupervisor', () => {
       vendedores: [vendedor('v1'), vendedor('v2', { nombre_completo: 'Bea' })],
       ahora: AHORA,
     })
-    // Ids de VENDEDORES y en el orden por carga: la decisión es la
-    // conversación con cada uno — un vendedor nuevo en aprietos revive la
+    // Ids de ANALISTAS y en el orden por carga: la decisión es la
+    // conversación con cada uno — un analista nuevo en aprietos revive la
     // alerta; el mismo con un lead más, no (hasta cruzar a crítica).
     expect(porVendedor[0]?.miembros).toEqual(['v2', 'v1'])
   })
@@ -455,7 +455,7 @@ describe('derivarAlertasSupervisor', () => {
     expect(alerta?.severidad).toBe('atencion')
   })
 
-  it('nombres Unicode equivalentes no vuelven inestable el grupo de vendedores (desempate por id)', () => {
+  it('nombres Unicode equivalentes no vuelven inestable el grupo de analistas (desempate por id)', () => {
     const sinAccion = (vendedorId: string, cantidad: number) => Array.from({ length: cantidad }, (_, i) => lead({
       id: `${vendedorId}-${i}`,
       vendedor_id: vendedorId,
@@ -509,7 +509,7 @@ describe('derivarAlertasSupervisor', () => {
       if (severidad == null) {
         expect(agrupada).toBeUndefined()
       } else {
-        // Un solo vendedor: conserva su nombre como responsable, como antes.
+        // Un solo analista: conserva su nombre como responsable, como antes.
         expect(agrupada).toMatchObject({
           severidad,
           alcance: 'equipo',
@@ -523,7 +523,7 @@ describe('derivarAlertasSupervisor', () => {
     },
   )
 
-  it('varios vendedores sin acción van en un grupo ordenado por carga; la severidad es la más alta', () => {
+  it('varios analistas sin acción van en un grupo ordenado por carga; la severidad es la más alta', () => {
     const sinAccion = (vendedorId: string, cantidad: number) => Array.from({ length: cantidad }, (_, i) => lead({
       id: `${vendedorId}-${i}`,
       vendedor_id: vendedorId,
@@ -542,7 +542,7 @@ describe('derivarAlertasSupervisor', () => {
     expect(alerta).toMatchObject({
       id: 'grupo:sin_proxima_accion:s1',
       severidad: 'critica',
-      titulo: '2 vendedores con leads sin próxima acción',
+      titulo: '2 analistas con leads sin próxima acción',
       detalle: 'Bea 5 · Ana 3',
       responsableId: null,
       responsable: null,

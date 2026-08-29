@@ -89,11 +89,11 @@ describe('registradoPorOtro — el contrato que no cuadra con la cuota', () => {
   const g = (asesor: string | null, creador: string | null) =>
     resumirCliente(cliente({ asesor_perfil_id: asesor }), [contrato({ creado_por: creador })])
 
-  it('lo registró otra persona distinta del asesor', () => {
+  it('lo registró otra persona distinta del analista', () => {
     expect(registradoPorOtro(contrato({ creado_por: 'carlos' }), g('miguel', 'carlos'))).toBe(true)
   })
 
-  it('lo registró el propio asesor', () => {
+  it('lo registró el propio analista', () => {
     expect(registradoPorOtro(contrato({ creado_por: 'miguel' }), g('miguel', 'miguel'))).toBe(false)
   })
 
@@ -101,11 +101,11 @@ describe('registradoPorOtro — el contrato que no cuadra con la cuota', () => {
     expect(registradoPorOtro(contrato({ creado_por: null }), g('miguel', null))).toBe(false)
   })
 
-  it('sin asesor tampoco se afirma nada', () => {
+  it('sin analista tampoco se afirma nada', () => {
     expect(registradoPorOtro(contrato({ creado_por: 'carlos' }), g(null, 'carlos'))).toBe(false)
   })
 
-  it('sin asesor, el dueño hereda de quien registró al CLIENTE (regla de la casa)', () => {
+  it('sin analista, el dueño hereda de quien registró al CLIENTE (regla de la casa)', () => {
     const grupo = resumirCliente(
       cliente({ asesor_perfil_id: null, creado_por: 'miguel' }),
       [contrato({ creado_por: 'carlos' })],
@@ -224,7 +224,7 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
     expect(agruparPorMes([])).toEqual([])
   })
 
-  // ESTADO DE PRODUCCIÓN (gate de realidad): el asesor con más recorrido de la
+  // ESTADO DE PRODUCCIÓN (gate de realidad): el analista con más recorrido de la
   // base tiene 16 contratos repartidos en 4 meses y uno de ellos lo registró
   // gerencia. Es el caso que se va a mirar en la prueba visual.
   it('el caso real: 4 meses, un contrato ajeno y un cliente todavía sin contrato', () => {

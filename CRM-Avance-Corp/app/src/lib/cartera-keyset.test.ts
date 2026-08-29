@@ -102,11 +102,11 @@ describe('filtrarCarteraLocal', () => {
     expect(filtrarCarteraLocal(leads, { etapa: 'convertido' }).map((l) => l.id)).toEqual(['b'])
   })
 
-  it('«sin_asignar» son los parkeados, no los de un vendedor cualquiera', () => {
+  it('«sin_asignar» son los parkeados, no los de un analista cualquiera', () => {
     expect(filtrarCarteraLocal(leads, { vendedorId: 'sin_asignar' }).map((l) => l.id)).toEqual(['c'])
   })
 
-  it('filtra por vendedor concreto', () => {
+  it('filtra por analista concreto', () => {
     expect(filtrarCarteraLocal(leads, { vendedorId: 'v-2' }).map((l) => l.id)).toEqual(['b'])
   })
 

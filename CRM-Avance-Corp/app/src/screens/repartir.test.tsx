@@ -20,7 +20,7 @@ let PANEL: PanelDistribucionReparto = {
   generado_en: '2026-08-19T10:00:00Z',
   total_leads: 3,
   supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: 3 }],
-  analistas: [{ perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
+  analistas: [{ perfil_id: 'vend-1', nombre: 'ANALISTA UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
 }
 const repartirMock = vi.fn<(lead: string, sup: string) => Promise<void>>()
 const colaMock = vi.fn(async () => COLA)
@@ -131,7 +131,7 @@ beforeEach(() => {
     generado_en: '2026-08-19T10:00:00Z',
     total_leads: 3,
     supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: 3 }],
-    analistas: [{ perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
+    analistas: [{ perfil_id: 'vend-1', nombre: 'ANALISTA UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
   }
   RESUMEN_CAIDO = false
   recargarResumenMock.mockClear()
@@ -187,7 +187,7 @@ describe('pantalla Repartir leads', () => {
       actividad_id: 'hist-1', lead_id: 'lead-1', nombre_completo: 'MARÍA PÉREZ', distrito: 'Piura',
       origen: 'referido', monto_estimado: 5000, moneda: 'PEN', etapa_actual: 'contactado',
       movimiento: 'asignado', derivado_en: '2026-08-19T10:00:00Z',
-      responsable_anterior: 'Bandeja de SUPERVISOR UNO', responsable_nuevo: 'VENDEDOR UNO',
+      responsable_anterior: 'Bandeja de SUPERVISOR UNO', responsable_nuevo: 'ANALISTA UNO',
       derivado_por_nombre: 'SUPERVISOR UNO',
     }]
     const usuario = userEvent.setup()
@@ -246,7 +246,7 @@ describe('pantalla Repartir leads', () => {
       movimiento: 'asignado',
       derivado_en: '2026-08-19T10:00:00Z',
       responsable_anterior: 'Bandeja de SUPERVISOR UNO',
-      responsable_nuevo: 'VENDEDOR UNO',
+      responsable_nuevo: 'ANALISTA UNO',
       derivado_por_nombre: 'SUPERVISOR UNO',
     }))
     const usuario = userEvent.setup()

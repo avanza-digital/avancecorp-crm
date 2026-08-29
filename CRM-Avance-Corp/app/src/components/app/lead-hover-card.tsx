@@ -1,5 +1,5 @@
 // Preview de LEAD al pasar el mouse sobre su nombre (Cartera, cola de "Hoy", …).
-// Lógica comercial: el asesor/supervisor dimensiona el lead —etapa, CAPITAL,
+// Lógica comercial: el analista/supervisor dimensiona el lead —etapa, CAPITAL,
 // teléfono— sin abrir el drawer; el click sigue abriendo la ficha completa.
 // Reusa lo de la casa: silueta por género, money, semáforo de etapa, badges.
 // Compacta y anclada DEBAJO del nombre (no lejos, no enorme).

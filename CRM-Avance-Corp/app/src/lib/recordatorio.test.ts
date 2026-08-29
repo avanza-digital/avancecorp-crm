@@ -34,6 +34,8 @@ const cita = (extra: Partial<Tarea>): Tarea => ({
 describe('mensajeRecordatorio', () => {
   it('pide confirmación explícita y ancla el capital del lead (RCT −32%)', () => {
     const msg = mensajeRecordatorio(cita({}), LEAD, AHORA)
+    expect(msg).toContain('te saluda tu analista de Avance Corp')
+    expect(msg).not.toContain('tu asesor')
     expect(msg).toContain('¿Confirmamos nuestra cita de hoy a las 16:00?')
     expect(msg).toContain('tu inversión de S/ 50,000')
     expect(msg).toContain('Hola Ana')

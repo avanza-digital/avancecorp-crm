@@ -2186,6 +2186,39 @@ export type Database = {
           tipo_documento: string
         }[]
       }
+      cliente_detalle_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          apellidos: string
+          asesor_perfil_id: string
+          banca_visible: boolean
+          cuentas_bancarias_visibles: boolean
+          banco: string
+          banco_usd: string
+          beneficiario_dni: string
+          beneficiario_dni_usd: string
+          beneficiario_nombre: string
+          beneficiario_nombre_usd: string
+          cci: string
+          cci_usd: string
+          correo: string
+          creado_en: string
+          creado_por: string
+          dni: string
+          domicilio: string
+          id: string
+          nombre_completo: string
+          nombres: string
+          numero_cuenta: string
+          numero_cuenta_usd: string
+          telefono: string
+          tipo_cuenta: string
+          tipo_cuenta_usd: string
+          tipo_documento: string
+          titular_distinto: boolean
+          titular_distinto_usd: boolean
+        }[]
+      }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
       completar_domicilio_cliente: {
         Args: { p_cliente_id: string; p_domicilio: string }

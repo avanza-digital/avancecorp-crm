@@ -62,7 +62,7 @@ const FILA_HISTORIAL = {
   movimiento: 'asignado',
   derivado_en: '2026-08-19T20:33:33Z',
   responsable_anterior: 'Bandeja de SUPERVISOR UNO',
-  responsable_nuevo: 'VENDEDOR UNO',
+  responsable_nuevo: 'ANALISTA UNO',
   derivado_por_nombre: 'SUPERVISOR UNO',
 }
 
@@ -72,7 +72,7 @@ const PANEL_DISTRIBUCION = {
   total_leads: '7',
   supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: '5' }],
   analistas: [{
-    perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1',
+    perfil_id: 'vend-1', nombre: 'ANALISTA UNO', supervisor_id: 'sup-1',
     supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2,
   }],
 }

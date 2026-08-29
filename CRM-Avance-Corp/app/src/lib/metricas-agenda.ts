@@ -10,7 +10,7 @@ import * as v from 'valibot'
  * semánticas distintas. El ámbito lo recorta el SERVIDOR (un supervisor ve su
  * subárbol incluyéndose a sí mismo).
  *
- * Qué significa cada métrica del vendedor:
+ * Qué significa cada métrica del analista:
  * - toques / toques_por_dia: llamadas, WhatsApp y reuniones registradas en el
  *   periodo (las 'nota' NO cuentan como toque).
  * - reuniones_realizadas: reuniones efectivamente registradas en el periodo.
@@ -18,13 +18,14 @@ import * as v from 'valibot'
  *   DEL PERIODO, atribuidos por `actualizado_en` (cuándo se cerró, no cuándo
  *   se creó); pct_completadas es null cuando no hubo cierres que porcentuar.
  * - canceladas_asesor / canceladas_sistema: el desglose de `canceladas` (que
- *   sigue siendo el TOTAL). asesor = una persona anuló la tarea porque ya no
+ *   sigue siendo el TOTAL). El sentinel legacy `asesor` indica que una persona
+ *   anuló la tarea porque ya no
  *   hacía falta; sistema = se canceló sola al convertirse o descartarse el
  *   lead. Las del sistema pesaban en el denominador de pct_completadas hasta
- *   2026-07-26 y eso castigaba al vendedor justamente por CERRAR la venta
+ *   2026-07-26 y eso castigaba al analista justamente por CERRAR la venta
  *   (convertir cancela sus pendientes).
  * - canceladas_ajenas: la parte de `canceladas_asesor` que firmó OTRO (su
- *   supervisor o gerencia), no el vendedor de la tarea. También queda fuera del
+ *   supervisor o gerencia), no el analista de la tarea. También queda fuera del
  *   denominador — decisión de Miguel del 2026-07-26: si no tuvo control sobre
  *   esa tarea, no puede bajarle la nota. O sea que el denominador del % es
  *   completadas + no_asistio + (canceladas_asesor − canceladas_ajenas).

@@ -30,7 +30,7 @@ export const LIMITE_VERIFICACION_MS = 12_000
  * POR QUÉ existe: "el servidor dice que no hay sesión" y "no pude preguntar" no
  * son lo mismo. Lo primero es un hecho y cierra la sesión; lo segundo es
  * ignorancia y, si se trata como cierre, un parpadeo de red al volver a la
- * pestaña EXPULSA al asesor al Login con la conversión a medio llenar. No
+ * pestaña EXPULSA al analista al Login con la conversión a medio llenar. No
  * abre ningún dato de más: la autoridad sigue siendo la RLS del servidor, así
  * que una sesión de verdad muerta no puede leer nada aunque la UI siga montada.
  */
@@ -275,7 +275,7 @@ export const authMaquina = setup({
     //  · 'sin_sesion' / 'no_enrolado'  → el servidor HABLÓ: se cierra (fail-closed).
     //  · error de red o timeout        → NO pudimos preguntar: se CONSERVA la
     //    sesión y se reintenta sola. Tratar la ignorancia como cierre expulsaba
-    //    al asesor al Login con la conversión a medio llenar (bug 2026-07-25).
+    //    al analista al Login con la conversión a medio llenar (bug 2026-07-25).
     revalidando: {
       invoke: {
         src: 'verificar',
@@ -317,7 +317,7 @@ export const authMaquina = setup({
     },
 
     // Sala de espera del reintento silencioso: identidad INTACTA, fase pública
-    // 'listo' (el asesor sigue trabajando y no se entera de nada). Al vencer la
+    // 'listo' (el analista sigue trabajando y no se entera de nada). Al vencer la
     // espera se vuelve a preguntar; SALIR/SESION_CAMBIO siguen mandando.
     revalidacion_diferida: {
       after: {
@@ -366,13 +366,13 @@ export const authMaquina = setup({
 
     error: {
       on: {
-        // Gesto EXPLÍCITO («Reintentar verificación»): el asesor pidió el
+        // Gesto EXPLÍCITO («Reintentar verificación»): el analista pidió el
         // reintento, así que sí se le enseña el spinner.
         REINTENTAR: { target: 'verificando', actions: assign({ error: null }) },
         // Volver a la pestaña con la app en error también reintenta: si el
-        // servidor ya volvió, el asesor recupera su sesión sin tocar nada.
+        // servidor ya volvió, el analista recupera su sesión sin tocar nada.
         // Pero EN SILENCIO (ver `revalidando_error`): nadie pidió esto, así que
-        // no puede desmontar el Login que el asesor está llenando.
+        // no puede desmontar el Login que el analista está llenando.
         REVALIDAR: { target: 'revalidando_error' },
         SESION_CAMBIO: [
           { guard: 'sinUsuario', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
@@ -473,7 +473,7 @@ export function faseDe(estado: EstadoAuth, contexto: Pick<ContextoAuth, 'arranca
     case 'revalidando_error':
       // También silenciosa, pero desde el otro lado: la pantalla montada es el
       // Login. Mantener la fase en 'error' es lo que impide desmontarlo (y
-      // perder lo que el asesor ya tecleó) mientras se re-pregunta.
+      // perder lo que el analista ya tecleó) mientras se re-pregunta.
       return 'error'
     default:
       return estado

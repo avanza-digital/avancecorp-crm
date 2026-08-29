@@ -76,11 +76,11 @@ const CierreExternoSchema = v.object({
   vence_en: v.nullable(FechaSchema),
   nota: v.nullable(v.string()),
   vendedor_id: UuidSchema,
-  /** null si el perfil del vendedor ya no se puede resolver (left join). */
+  /** null si el perfil del analista ya no se puede resolver (left join). */
   vendedor_nombre: v.nullable(v.string()),
   creado_en: FechaHoraSchema,
   /** Anulado por gerencia (fraude o error). Las filas anuladas SÍ viajan —y se
-   * marcan en pantalla— aunque no cuenten en `totales`: un asesor tiene que
+   * marcan en pantalla— aunque no cuenten en `totales`: un analista tiene que
    * poder entender por qué le bajó el total, no encontrarse un hueco. */
   anulado_en: v.nullable(FechaHoraSchema),
   motivo_anulacion: v.nullable(v.string()),
@@ -106,7 +106,7 @@ export const CierresExternosSchema = v.object({
   version: v.literal(1),
   /** El primer día del mes pedido — el eco que la API verifica. */
   periodo: FechaSchema,
-  /** Lo decide el SERVIDOR (vendedor propio / supervisor equipo / gerencia y
+  /** Lo decide el SERVIDOR (analista propio / supervisor equipo / gerencia y
    * lector global). El lector global recibe `cierres: []` a propósito: los
    * agregados son suyos, la PII de las filas es de los operadores. */
   alcance: v.picklist(['propio', 'equipo', 'global']),
@@ -122,7 +122,7 @@ export const CierresExternosSchema = v.object({
   /** Histórico del ámbito por cooperativa × moneda — la fuente de los
    * mini-totales (PEN/USD jamás sumados). */
   totales: v.array(TotalCooperativaSchema),
-  /** El MES pedido, por vendedor × cooperativa × moneda — el desglose «Por
+  /** El MES pedido, por analista × cooperativa × moneda — el desglose «Por
    * empresa» de supervisor y gerencia. La parte Avance NO viaja aquí: es
    * `capital_real` del cumplimiento menos estos agregados. */
   por_empresa: v.array(EmpresaVendedorSchema),
@@ -134,7 +134,7 @@ export type TotalCooperativa = CierresExternos['totales'][number]
 export type EmpresaVendedor = CierresExternos['por_empresa'][number]
 
 /**
- * Capital Avance de un vendedor = su capital TOTAL del cumplimiento (que ya
+ * Capital Avance de un analista = su capital TOTAL del cumplimiento (que ya
  * incluye los cierres en coops) menos lo cerrado en coops en esa moneda.
  *
  * Clampa en 0 a propósito: entre dos fotografías (cumplimiento y cierres se

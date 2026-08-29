@@ -1,7 +1,7 @@
 // screens/derivaciones.tsx — módulo operativo de reparto para Supervisión.
 //
 // Tiene un solo trabajo: ayudar a decidir el reparto de hoy con la carga
-// histórica de cada asesor visible. Gestión de equipo conserva su radiografía
+// histórica de cada analista visible. Gestión de equipo conserva su radiografía
 // operativa; esta pantalla concentra filtros, borrador, guardado y devolución.
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import { Activity, Inbox, SendHorizontal, Users } from 'lucide-react'
@@ -134,7 +134,7 @@ function TarjetaAsesor({
           label="Sin contacto"
           valor={String(asesor.sin_primer_contacto)}
           {...(asesor.sin_primer_contacto > 0 ? { color: SEMAFORO.atencion } : {})}
-          title="Derivados en el período sin una primera gestión del asesor"
+          title="Derivados en el período sin una primera gestión del analista"
         />
       </div>
 
@@ -294,7 +294,7 @@ function BandejaDerivacion({
   return (
     <div className="space-y-2 px-5 pb-4">
       <p className="text-[11px] text-muted-foreground">
-        Elige el asesor de cada lead. Puedes cambiarlo o quitarlo antes de guardar el lote.
+        Elige el analista de cada lead. Puedes cambiarlo o quitarlo antes de guardar el lote.
       </p>
       {bloqueado && (
         <p role="status" className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
@@ -337,7 +337,7 @@ function BandejaDerivacion({
                   value={asesorId}
                   disabled={guardando || bloqueado}
                   onChange={(event) => onCambiar(lead.id, event.target.value || null)}
-                  aria-label={`Derivar ${lead.nombre_completo} a un asesor`}
+                  aria-label={`Derivar ${lead.nombre_completo} a un analista`}
                 >
                   <option value="">Derivar a…</option>
                   {asesores.map((asesor) => (
@@ -441,7 +441,7 @@ function GuardadasHoy({
   return (
     <div className="px-5 pb-4">
       <p className="text-[11px] text-muted-foreground">
-        Puedes devolver un lead mientras el asesor no haya registrado gestión.
+        Puedes devolver un lead mientras el analista no haya registrado gestión.
       </p>
       <ul
         aria-label="Derivaciones guardadas hoy"
@@ -469,7 +469,7 @@ function GuardadasHoy({
               disabled={!movimiento.reversible || devolviendoId != null}
               title={movimiento.reversible
                 ? 'Devolver a mi bandeja'
-                : 'El asesor ya registró gestión'}
+                : 'El analista ya registró gestión'}
               onClick={() => onDevolver(movimiento)}
             >
               {devolviendoId === movimiento.lead_id
@@ -611,7 +611,7 @@ export function Derivaciones(): JSX.Element {
   const stats: StatChipData[] = [
     {
       icon: Users,
-      label: 'Asesores activos',
+      label: 'Analistas activos',
       value: reporte.data ? String(reporte.data.asesores.length) : '—',
       tone: 'accent',
     },
@@ -651,7 +651,7 @@ export function Derivaciones(): JSX.Element {
       <Card>
         <SectionHead
           icon={Users}
-          title="Carga por asesor"
+          title="Carga por analista"
           right={(
             <span className="text-xs tabular-nums text-muted-foreground">
               {periodo.desde} a {periodo.hasta}
@@ -701,11 +701,11 @@ export function Derivaciones(): JSX.Element {
             </div>
           ) : reporte.data.asesores.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No tienes asesores activos a cargo todavía.
+              No tienes analistas activos a cargo todavía.
             </p>
           ) : (
             <ul
-              aria-label="Derivaciones por asesor de mi equipo"
+              aria-label="Derivaciones por analista de mi equipo"
               className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {reporte.data.asesores.map((asesor, indice) => (

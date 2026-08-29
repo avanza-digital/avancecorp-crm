@@ -222,7 +222,7 @@ const DetallesCumplimientoSchema = v.pipe(
 //
 // 🔴 ESTAS DOS CLAVES APAGARON LA PANTALLA DE METAS EN PRODUCCIÓN (2026-08-15).
 // El servidor se desplegó primero y empezó a mandar `cierre` (arriba) y `ajuste`
-// (por vendedor); `CumplimientoMetasSchema` es fail-closed, así que rechazó el
+// (por analista); `CumplimientoMetasSchema` es fail-closed, así que rechazó el
 // payload ENTERO y los tres roles se quedaron sin cumplimiento a la vez, con un
 // «Reintentar» que no podía funcionar. La regla que lo habría evitado ya estaba
 // escrita: **clave nueva en la RESPUESTA de una RPC → el FRONT va primero**.
@@ -249,7 +249,7 @@ const CierreDelMesSchema = v.strictObject({
 export type CierreDelMes = v.InferOutput<typeof CierreDelMesSchema>
 
 /**
- * Lo que se le descuenta al asesor por anulaciones de meses ya pagados.
+ * Lo que se le descuenta al analista por anulaciones de meses ya pagados.
  *
  * En el mes VIVO solo viaja `pendiente` (lo que se le va a descontar). En la
  * FOTO de un mes sellado, `pendiente` es siempre 0 —lo que cabía se descontó al
@@ -272,7 +272,7 @@ const CumplimientoVendedorSchema = v.strictObject({
   // SIN maxValue(100), a propósito y con historia: la conversión mensual
   // ponderada supera el 100 % POR DISEÑO (cierres de arrastre + referidos que
   // suman arriba y no abajo). Este cap vivía dentro de un strictObject
-  // fail-closed: el primer asesor por encima de 100 tras la migración B habría
+  // fail-closed: el primer analista por encima de 100 tras la migración B habría
   // dejado SIN METAS a los tres roles a la vez. La META (arriba) sí conserva su
   // techo: un objetivo se pacta ≤ 100; un resultado no tiene techo.
   conversion_real: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),

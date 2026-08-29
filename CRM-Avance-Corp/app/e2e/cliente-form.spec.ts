@@ -138,7 +138,7 @@ test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servid
 test('Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada', async ({ page }) => {
   const estado = await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     clientes: [
       clienteReal({
         asesor_perfil_id: 'vend-1',

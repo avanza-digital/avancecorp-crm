@@ -1,6 +1,6 @@
 // La pantalla se prueba contra la capa de datos simulada: importa que el
 // supervisor vea una bandeja compacta, pueda escoger un bloque y que el CRM
-// preserve la regla de no devolverlo al asesor que lo descartó.
+// preserve la regla de no devolverlo al analista que lo descartó.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -53,7 +53,7 @@ function episodio(n: number, sobre: Partial<EpisodioRescateDescarte> = {}): Epis
     motivo_descarte: 'sin_interes',
     descartado_en: `2026-08-20T1${n % 10}:00:00Z`,
     asesor_id: 'asesor-origen',
-    asesor_nombre: 'ASESOR ORIGEN',
+    asesor_nombre: 'ANALISTA ORIGEN',
     puede_rescatar: true,
     estado: 'pendiente',
     ...sobre,
@@ -64,8 +64,8 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/')
   YO = { id: 'supervisor-1', rol: 'supervisor', demo: false }
   EQUIPO = [
-    { perfil_id: 'asesor-origen', nombre_completo: 'ASESOR ORIGEN', rol_crm: 'vendedor', supervisor_id: 'supervisor-1', activo: true },
-    { perfil_id: 'asesor-destino', nombre_completo: 'ASESOR DESTINO', rol_crm: 'vendedor', supervisor_id: 'supervisor-1', activo: true },
+    { perfil_id: 'asesor-origen', nombre_completo: 'ANALISTA ORIGEN', rol_crm: 'vendedor', supervisor_id: 'supervisor-1', activo: true },
+    { perfil_id: 'asesor-destino', nombre_completo: 'ANALISTA DESTINO', rol_crm: 'vendedor', supervisor_id: 'supervisor-1', activo: true },
   ]
   mesesMock.mockReset().mockResolvedValue([{ mes: mesActualLima(), total: 26, pendientes: 26 }])
   episodiosMock.mockReset().mockResolvedValue(Array.from({ length: 26 }, (_, i) => episodio(i + 1)))
@@ -126,7 +126,7 @@ describe('Base para gestión', () => {
     await usuario.click(screen.getByRole('button', { name: 'Seleccionar esta página (2)' }))
     await usuario.click(screen.getByRole('button', { name: 'Reactivar y repartir' }))
 
-    await usuario.selectOptions(screen.getByLabelText('Asesor destino'), 'asesor-destino')
+    await usuario.selectOptions(screen.getByLabelText('Analista de destino'), 'asesor-destino')
     await usuario.click(screen.getByRole('button', { name: 'Reactivar 2 y repartir' }))
 
     await waitFor(() => expect(rescatarMock).toHaveBeenCalledWith(

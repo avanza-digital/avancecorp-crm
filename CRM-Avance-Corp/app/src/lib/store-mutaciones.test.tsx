@@ -137,7 +137,7 @@ describe('mutaciones del store demo', () => {
       expect(api().leads).toHaveLength(20)
     })
 
-    it('crea un lead válido auto-asignado al vendedor y lo expone en su ámbito', async () => {
+    it('crea un lead válido auto-asignado al analista y lo expone en su ámbito', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
       const res = mutar((a) => a.crearLead(inputBase()))
@@ -145,7 +145,7 @@ describe('mutaciones del store demo', () => {
       expect(res).toMatchObject({ ok: true })
       const id = res.id ?? ''
       expect(id).not.toBe('')
-      // Aparece en el ámbito del vendedor (recorte por vendedor_id === yo.id)
+      // Aparece en el ámbito del analista (recorte por vendedor_id === yo.id)
       const enAmbito = api().ambito.leads.find((l) => l.id === id)
       expect(enAmbito).toBeDefined()
       expect(enAmbito).toMatchObject({
@@ -153,7 +153,7 @@ describe('mutaciones del store demo', () => {
         telefono: '+51900000001', // normalizado a formato +51
         etapa: 'nuevo',
         vendedor_id: 'd-v1',
-        vendedor_nombre: 'VENDEDOR UNO',
+        vendedor_nombre: 'ANALISTA UNO',
         activo: true,
       })
       expect(api().leads).toHaveLength(21)
@@ -208,10 +208,10 @@ describe('mutaciones del store demo', () => {
       expect(res).toMatchObject({ ok: false, codigo: 'etapa_terminal_al_nacer' })
     })
 
-    it('el vendedor solo puede crear leads asignados a sí mismo', async () => {
+    it('el analista solo puede crear leads asignados a sí mismo', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
-      // Asignar a OTRO vendedor → bloqueado
+      // Asignar a OTRO analista → bloqueado
       const aOtro = mutar((a) => a.crearLead(inputBase({ vendedor_id: 'd-v2' })))
       expect(aOtro).toMatchObject({ ok: false, codigo: 'solo_autoasignar' })
 
@@ -290,7 +290,7 @@ describe('mutaciones del store demo', () => {
   })
 
   describe('reasignar', () => {
-    it('supervisor NO puede reasignar hacia un vendedor de otro equipo', async () => {
+    it('supervisor NO puede reasignar hacia un analista de otro equipo', async () => {
       const { api, mutar } = await montarStore('supervisor')
 
       // d-v3 reporta a d-sup2 — fuera del ámbito de d-sup1
@@ -308,13 +308,13 @@ describe('mutaciones del store demo', () => {
       expect(res).toMatchObject({ ok: true })
       expect(api().lead('l1')).toMatchObject({
         vendedor_id: 'd-v2',
-        vendedor_nombre: 'VENDEDOR DOS',
+        vendedor_nombre: 'ANALISTA DOS',
         asignado_supervisor_id: null,
       })
       const ultima = api().actividadesDe('l1')[0]
       expect(ultima).toMatchObject({
         tipo: 'reasignacion',
-        detalle: 'VENDEDOR UNO → VENDEDOR DOS',
+        detalle: 'ANALISTA UNO → ANALISTA DOS',
         autor_nombre: 'SUPERVISOR UNO',
       })
     })
@@ -340,13 +340,13 @@ describe('mutaciones del store demo', () => {
       })
     })
 
-    it('vendedor no tiene el permiso de reasignar (ni siquiera hacia sí mismo)', async () => {
+    it('analista no tiene el permiso de reasignar (ni siquiera hacia sí mismo)', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
       const res = mutar((a) => a.reasignar('l5', 'd-v1'))
 
       expect(res).toMatchObject({ ok: false, codigo: 'sin_permiso_reasignar' })
-      // l5 es un parkeado de supervisor: para el vendedor ni siquiera es visible
+      // l5 es un parkeado de supervisor: para el analista ni siquiera es visible
       expect(api().lead('l5')).toBeUndefined()
       expect(api().leads.find((l) => l.id === 'l5')?.vendedor_id).toBeNull()
     })
@@ -406,7 +406,7 @@ describe('mutaciones del store demo', () => {
       expect(api().actividadesDe('l1')[0]).toMatchObject({
         tipo: 'cambio_etapa',
         detalle: 'Nuevo → Contactado',
-        autor_nombre: 'VENDEDOR UNO',
+        autor_nombre: 'ANALISTA UNO',
       })
     })
   })
@@ -501,7 +501,7 @@ describe('mutaciones del store demo', () => {
       expect(api().actividadesDe('l1')[1]).toMatchObject({
         tipo: 'llamada_realizada',
         detalle: 'habló con el titular',
-        autor_nombre: 'VENDEDOR UNO',
+        autor_nombre: 'ANALISTA UNO',
       })
       // También visible en el timeline recortado al ámbito
       expect(
@@ -560,7 +560,7 @@ describe('mutaciones del store demo', () => {
   // El avance de etapa que provoca agendar una reunión NO puede quedarse dentro
   // del store: los otros dos escritores (registrarActividad, completarTarea) ya
   // lo devuelven y la UI lo canta. Sin esto, agendar desde la ficha movía el
-  // lead de etapa en silencio y el asesor veía saltar el stepper solo.
+  // lead de etapa en silencio y el analista veía saltar el stepper solo.
   describe('crearTarea (avance automático de etapa, expuesto al llamador)', () => {
     const manana = (): string => new Date(Date.now() + 86_400_000).toISOString()
 

@@ -221,14 +221,14 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     // Con plazo PERSONALIZADO el vencimiento pactado NO se toca: recalcularlo
     // desde un preset inventado (antes, siempre '12') recortaba el contrato en
     // silencio. Se conserva y el aviso de abajo lo dice explícitamente; si debe
-    // moverse, el asesor lo edita a mano en el campo de vencimiento.
+    // moverse, el analista lo edita a mano en el campo de vencimiento.
     if (v && !esPersonalizado) setVenc(vencimientoDesdePlazo(v, parseInt(plazo, 10)))
   }
   const cambiarPlazo = (v: string) => {
     setPlazo(v)
     // Pasar a 'personalizado' conserva el vencimiento actual (es justamente el
     // valor que no cabe en ningún preset); elegir un preset sí lo recalcula —
-    // pero eso es una decisión EXPLÍCITA del asesor y se ve al instante.
+    // pero eso es una decisión EXPLÍCITA del analista y se ve al instante.
     if (fechaInicio && v !== PLAZO_PERSONALIZADO) setVenc(vencimientoDesdePlazo(fechaInicio, parseInt(v, 10)))
   }
 
@@ -293,7 +293,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const interesProgramado = cuotasInteres.reduce((a, c) => a + c.monto_programado, 0)
 
   // Motivo ÚNICO (null = válido): lo comparten el guard de guardar() y el aviso
-  // de la vista previa, para que el asesor lo vea ANTES de pulsar Guardar.
+  // de la vista previa, para que el analista lo vea ANTES de pulsar Guardar.
   const motivoCronograma: string | null =
     cronograma.length === 0
       ? esCompuesto
@@ -405,7 +405,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
       await actualizarContrato(contrato.id, input, cronograma)
       // Un contrato firmado antes del 19/08 no lleva documento del sistema, así
       // que aquí no hay nada que actualizar. Sin este corte el servidor negaría
-      // la revisión y el vendedor leería «el servidor reintentará el PDF» sobre
+      // la revisión y el analista leería «el servidor reintentará el PDF» sobre
       // un PDF que no existe ni va a existir.
       // Se mira la fecha que ACABA de guardarse, no la que traía el contrato: si
       // la corrección movió la firma al 19/08 o después, el servidor ya la ve en

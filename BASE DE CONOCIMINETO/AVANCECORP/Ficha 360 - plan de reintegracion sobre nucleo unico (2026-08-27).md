@@ -1,14 +1,30 @@
 ---
 tipo: plan-tecnico
-estado: r1-candidata-estatica-captura-fresca-pendiente-f0-local-cerrado
+estado: historico-c0-1-desplegado-r5-candidato-cartera-separado
 fecha: 2026-08-27
+actualizado: 2026-08-29
 serial_origen: AVC-F41-360-20260825-R2
-baseline_revisado: abb824012d0c2c15d80cc94e5edf6164ef86228e
+baseline_revisado: 7c94d77c39f642e27af676dce6178e6b9f64a315
+head_canonico_reconciliado: 1f012829f4dbd4b45d8d1615d6a579b730dbfb05
+sha_c01_local: a1f7b2ec2608fbbedb6107157fdb7a9033d26a00
+sha_c01_reconciliado: 30e95f399c7114c0cad4b725ef07fcd98c081730
 sha_f0_frontend: 41987fea08febac7fb67750bc8269b43582c645d
 sha_r2_ux: e6129674844ecca12b224690f43bedb436b06006
+head_r2_separado: 4f57db1fd0aa0ff886edf1033aed3718f40fdaad
 ---
 
 # Ficha 360 — plan de reintegración sobre el núcleo único
+
+> [!note] Actualización posterior — 2026-08-29
+> C0.1 ya fue desplegado y verificado en
+> [[Checkpoint C0.1 nucleo unico 2026-08-28 R5]]. El candidato
+> `20260828210351_crm_gestion_cartera_autorizacion_integral.sql` pertenece a la
+> auditoría posterior de Gestión de cartera, está separado de C0.1 y **no ha
+> sido desplegado**. El resto de esta nota conserva el plan y la evidencia
+> histórica de R4; no debe leerse como estado operativo actual.
+
+Checkpoint vigente de continuación: [[Checkpoint C0.1 nucleo unico 2026-08-28 R4]]
+(`AVC-F41-360-20260828-R4`).
 
 Este documento adapta [[Ficha comercial 360 de clientes - plan]] después de
 la integración de ramas y de la implantación de
@@ -34,45 +50,51 @@ verificar la paridad viva del frontend ya cerrado.
 La preview R2 sigue siendo válida para aceptar la experiencia comercial. Ya no
 es válida para aceptar integración, migraciones, RLS, tipos ni producción.
 
-## Estado ejecutado al 2026-08-27
+## Estado ejecutado al 2026-08-28
 
-- El árbol canónico quedó fijado en `abb8240`, que incorpora F1.3: capital
-  producido por los caminos vivos, ya documentado como publicado. Esa lógica
-  se preservó; no se mezcló con el capital estimado del pipeline.
+- La divergencia 5/5 quedó reconciliada en el merge local `30e95f3`, con padres
+  `1f01282` (canon) y `d35a284` (R3). Los cinco commits canónicos y C0.1 fueron
+  conservados, conciliados y probados juntos; R4 es el checkpoint vigente.
 - F0 quedó cerrado localmente en
   `41987fea08febac7fb67750bc8269b43582c645d`. El bridge reconoce el contrato
   F2.4b realmente presente, oculta sus exactos legacy y solo publica C0.1
   cuando existen las dos raíces y bundles coherentes de cinco claves. Conserva
   NULL, decimales, cartera y valores mayores a 100 %.
 - La propuesta C0.1 del servidor y su banco adversario existen como artefactos
-  revisables, pero contienen 18 placeholders fail-closed: 16 huellas de
-  cuerpos, un fingerprint agregado de catálogo y el hash del cuerpo nuevo. No
-  se creó migración, no se ejecutó SQL y no se tocó ninguna base.
-- La referencia UX/comercial histórica permanece, pero el `HEAD` vigente de la
-  rama preview es `e6129674844ecca12b224690f43bedb436b06006` y sigue pendiente
-  de captura visual fresca. La reauditoría corrigió copy por rol y bloqueó
-  contacto externo para clientes inactivos.
-- La siguiente frontera no es portar Ficha todavía. Primero se autoriza una
-  captura viva de solo lectura para resolver las 18 huellas; luego se
-  materializa y prueba C0.1 en una base desechable. Solo después de una
-  aprobación separada se aplica servidor, se hace readback y se verifica la
-  paridad PostgREST/JWT antes de decidir la publicación del frontend F0.
+  revisables y contienen 21 placeholders fail-closed: 18 huellas live, un
+  fingerprint agregado de catálogo/ACL y dos hashes candidatos. El runner focal
+  PG17 aprobó el caso real, los mutantes internos y 17/17 mutantes de cuerpos.
+  No se creó migración ni se tocó una base compartida o producción.
+- Esta línea conserva la referencia UX `e612967`, pero la rama preview separada
+  avanzó limpia hasta `4f57db1`: su aceptación fresca aprobó 176 archivos y
+  2.372 pruebas, E2E 18/18 y 17 capturas. Sigue siendo referencia comercial, no
+  candidata técnica; sus cambios de memoria aún deben reconciliarse con esta
+  línea en vez de asumirse absorbidos.
+- La siguiente frontera no es portar Ficha todavía. La reconciliación y sus
+  gates ya cerraron localmente. Ahora se autoriza una captura viva de solo
+  lectura, la réplica completa de
+  migraciones y la prueba de rendimiento. Solo con una aprobación separada se
+  crea/aplica servidor, se hace readback y se verifica la paridad PostgREST/JWT
+  antes de decidir la publicación del frontend F0.
 
 ## Cierre local F0 y plan vigente por fases
 
-- **Fase 0A — cerrada localmente:** bridge F2.4b → C0.1, ocultamiento
+- **Fase 0A — cerrada y reconciliada localmente en `30e95f3`:** bridge F2.4b → C0.1, ocultamiento
   fail-closed, paridad de HOY/Ranking/Metas/Gestión/Directorio, alertas con
-  sondas actual/anterior y excepción del Coordinador. Check integral: 181
-  archivos, 2416 pruebas, typecheck, build, bundle y duplicación verdes.
+  sondas actual/anterior y excepción del Coordinador. Check integral R4: 182
+  archivos, 2.426 pruebas, cobertura, typecheck, lint, build, bundle y
+  duplicación verdes.
 - **Fase 0B — pendiente de autorización:** captura viva de solo lectura de los
-  16 cuerpos, catálogo/ACL y readbacks. No aplicar SQL.
-- **Fase 0C — pendiente de autorización posterior:** fijar los 18 placeholders,
-  convertir la propuesta en migración y ejecutar banco/mutantes en una base
-  desechable. Si queda verde, aplicar servidor con su propio gate y verificar
-  readback más paridad PostgREST/JWT.
-- **Fase 1 — candidata estática, captura fresca pendiente:** R2 en `e612967`,
-  utilizable para portar requisitos, no commits. Antes de declarar aceptado el
-  `HEAD` se debe repetir la pasada visual de móvil, foco, accesibilidad y roles.
+  18 cuerpos, catálogo/ACL y readbacks. No aplicar SQL.
+- **Fase 0C — banco focal cerrado; integración externa pendiente:** el runner
+  PG17 materializó los 21 placeholders locales y cazó 17/17 mutantes. Aún falta
+  repetir todas las migraciones sobre una base compatible, fijar las capturas
+  autorizadas y medir rendimiento. Si esos gates quedan verdes, una aprobación
+  separada permite crear/aplicar la migración y verificar readback más paridad
+  PostgREST/JWT.
+- **Fase 1 — referencia UX aceptada en rama separada:** R2 en `4f57db1` tiene GO
+  local fresco con 18/18 E2E y 17 capturas. Sirve para portar requisitos, no
+  commits; su evidencia de vault todavía debe reconciliarse con esta línea.
 - **Fase 2:** abrir una línea nueva desde el descendiente canónico aprobado.
 - **Fase 3:** reemitir el servidor desde el esquema vigente, sin reutilizar las
   migraciones R2 como ejecutables.
@@ -84,18 +106,20 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
 - **Fase 7:** construir y aceptar una preview candidata nueva por cada rol.
 - **Fase 8:** publicación aditiva solo con autorización expresa y observación.
 
-Dos auditorías adversarias/arquitectónicas independientes dieron GO estático
-al snapshot F0. Ese GO no certifica SQL ni producción.
+El snapshot F0 reconciliado y el banco focal C0.1 tienen GO local ejecutable.
+Ese GO incluye `1f01282`, pero no certifica el esquema completo ni producción.
 
 ## Foto comprobada al adaptar el plan
 
-- Rama canónica revisada: `wip/workspace-20260823-completo`.
-- HEAD canónico revisado: `abb8240`; conserva la cosecha separada e incorpora
-  F1.3 para capital producido por los caminos vivos.
-- El tramo F1.3 hasta `abb8240` está documentado como publicado por la sesión
-  propietaria; esta línea no vuelve a desplegarlo ni lo usa como autorización.
-- R2 permanece aislada. `e01e1fe` es el prototipo base y `bd2bef1` añade solo
-  las correcciones/evidencias de aceptación UX; ninguno es candidato técnico.
+- Base común revisada para C0.1: `7c94d77`.
+- Candidato R3: `a1f7b2e`; canon reconciliado: `1f01282`; merge R4:
+  `30e95f399c7114c0cad4b725ef07fcd98c081730`.
+- La divergencia 5/5 con merge-base `7c94d77` quedó cerrada. R4 preserva la
+  cosecha bruta y el filtro por origen de Conversiones, terminología,
+  compilación histórica, montos compactos y el contador único del Resumen.
+- R2 permanece aislada. `e01e1fe` es el prototipo funcional base; la rama de
+  evidencia avanzó hasta `4f57db1` y está limpia, diez commits por delante de su
+  remoto. Ninguno es candidato técnico ni debe fusionarse en bloque.
 - Ancestro común R2 ↔ árbol actual: `b3f6e98`.
 - La integración histórica `274f866` ya es ancestro del árbol actual; el
   bloqueo viejo de ramas está resuelto.
@@ -154,10 +178,11 @@ Reglas de frontera:
 
 El servidor central ya existe, pero la revisión adversaria encontró cuatro
 degradaciones en consumidores. F0 `41987fe` las cerró localmente; se conserva
-su definición como contrato de regresión. C0.1 continúa pendiente de captura,
-prueba y aplicación autorizadas en servidor.
+su definición como contrato de regresión. El banco focal C0.1 y su
+reconciliación canónica R4 también quedaron cerrados localmente; continúan
+pendientes captura live, réplica integral y aplicación autorizada en servidor.
 
-### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — frontend cerrado, servidor pendiente
+### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — reconciliado localmente, servidor pendiente
 
 `metricas_vendedores_fn` todavía deriva una lectura con ventana/propietario
 distintos y la presenta bajo rótulo de mes calendario. El contrato debe servir
@@ -183,8 +208,10 @@ sondas presentes && cuadra === true && paridad_nucleo === 0
 ```
 
 Cualquier otro estado oculta la cifra. El mensaje puede distinguir descuadre de
-falta de verificación. La misma política debe revisarse en Ranking,
-Distribución e Inteligencia comercial.
+falta de verificación. La política gobierna HOY, Ranking, Metas, Gestión y
+Directorio. La pantalla principal Conversiones conserva deliberadamente la
+cosecha bruta del rango; su detalle mensual sí falla cerrado ante cierres sin
+episodio.
 
 ### C0.3 — conservar el contrato exacto en las filas — cerrada localmente
 
@@ -207,21 +234,22 @@ que el numerador incluye operaciones elegibles de cartera.
 
 ### Salida de C0
 
-- Un SHA canónico limpio, posterior a estos cuatro gates.
-- Suites actuales completas verdes y matriz adversaria de sondas verde.
-- Paridad entre HOY, Ranking, Metas, Gestión y Directorio para el mismo mes.
+- SHA reconciliado local `30e95f3`, posterior a estos cuatro gates.
+- Suites actuales completas y matriz adversaria de sondas verdes.
+- Paridad local entre HOY, Ranking, Metas, Gestión y Directorio para el mismo mes.
 - Release/estado documentado. Hasta verificar C0.1 vivo, no publicar
   `41987fe` ni abrir el portado de Ficha sobre él.
 
 ## Plan adaptado de reintegración
 
-### R1 — aceptación comercial del prototipo R2 — referencia histórica; revalidación pendiente
+### R1 — aceptación comercial del prototipo R2 — GO local en rama separada
 
 Se usó la preview R2 para decidir jerarquía visual, lenguaje, foco, móvil y
 variantes por rol. Los requisitos, pruebas, capturas históricas y exclusiones
-quedaron en [[Ficha 360 R2 - aceptacion UX comercial 2026-08-27]]. El `HEAD`
-actual tiene GO estático, pero no aceptación visual vigente hasta ejecutar una
-captura fresca. Ninguna aceptación UX autoriza backend ni producción.
+quedaron en [[Ficha 360 R2 - aceptacion UX comercial 2026-08-27]]. La rama
+separada `4f57db1` añadió evidencia fresca reproducible: 2.372 pruebas, 18/18
+E2E y 17 capturas. Esa memoria todavía debe reconciliarse aquí; ninguna
+aceptación UX autoriza backend, integración ni producción.
 
 ### R2 — abrir una línea nueva desde la base canónica
 
@@ -317,12 +345,14 @@ La Ficha queda lista solo con dos aprobaciones independientes:
 
 ## Próximo movimiento coordinado
 
-1. Revisar y aprobar/rechazar el SQL propuesto de C0.1.
-2. Con autorización, capturar las 11 huellas vivas y reemplazar también la
-   huella del cuerpo candidato; mientras exista un placeholder, el SQL aborta.
-3. Ensayar el banco C0.1 fuera de producción, aplicar servidor primero y leer
-   de vuelta el contrato exacto por vendedor/equipo.
-4. Verificar paridad HOY/Ranking/Metas/Gestión/Directorio y recién entonces
-   autorizar publicación del frontend `0ac9f34`.
-5. Volver a fijar HEAD y abrir una rama nueva para R2/R3; portar capacidades de
+1. Revisar y aprobar/rechazar el SQL exacto reconciliado de C0.1.
+2. Con autorización, reproducir todas las migraciones, capturar las 18 huellas
+   live y el fingerprint de catálogo/ACL, y recalcular los dos cuerpos
+   candidatos; mientras exista un placeholder, el SQL aborta.
+3. Ejecutar el banco completo y `EXPLAIN (ANALYZE, BUFFERS)` fuera de producción.
+4. Con una autorización separada, aplicar servidor primero y leer de vuelta el
+   contrato exacto por rol mediante PostgREST/JWT.
+5. Verificar paridad HOY/Ranking/Metas/Gestión/Directorio y recién entonces
+   autorizar el frontend resultante de la reconciliación.
+6. Fijar el nuevo HEAD y abrir una rama nueva para R2/R3; portar capacidades de
    Ficha 360, nunca fusionar la rama preview antigua.

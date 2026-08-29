@@ -21,7 +21,7 @@ async function abrirFichaDesdeLeads(page: Page, nombre: RegExp) {
 test('Gerencia abre un lead asignado a otro analista y puede iniciar su conversión', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     leads: [leadReal({ vendedor_id: 'vend-1' })],
   })
   await loginReal(page)
@@ -42,7 +42,7 @@ test('Gerencia abre un lead asignado a otro analista y puede iniciar su conversi
 test('los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     leads: [leadReal({ vendedor_id: 'vend-1', monto_estimado: 10000, moneda: 'PEN' })],
   })
   await loginReal(page)
@@ -56,7 +56,7 @@ test('los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn', 
 test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue operable', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     fallarResumenCartera: true,
     leads: [leadReal({ vendedor_id: 'vend-1' })],
   })
@@ -77,7 +77,7 @@ test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue oper
 test('Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedores_fn', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     leads: [leadReal({ vendedor_id: 'vend-1', monto_estimado: 12000, moneda: 'PEN' })],
   })
   await loginReal(page)
@@ -98,7 +98,7 @@ test('Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedor
 test('métricas de equipo caídas: Equipo degrada a «—» con aviso y reintento', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     fallarMetricasEquipo: true,
     leads: [leadReal({ vendedor_id: 'vend-1' })],
   })
@@ -119,7 +119,7 @@ test('métricas de equipo caídas: Equipo degrada a «—» con aviso y reintent
 test('Gerencia anula el cierre de un lead convertido y la marca queda a la vista', async ({ page }) => {
   const backend = await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     leads: [leadReal({ vendedor_id: 'vend-1', etapa: 'convertido' })],
   })
   await loginReal(page)
@@ -137,14 +137,14 @@ test('Gerencia anula el cierre de un lead convertido y la marca queda a la vista
   expect(backend.anulacionesAvance).toHaveLength(0)
   await expect(dialogo.getByRole('alert')).toContainText(/motivo/i)
 
-  await dialogo.getByLabel(/Motivo de la anulación/i).fill('Mala práctica del asesor')
+  await dialogo.getByLabel(/Motivo de la anulación/i).fill('Mala práctica del analista')
   await dialogo.getByRole('button', { name: 'Anular cierre' }).click()
 
   await expect.poll(() => backend.anulacionesAvance).toEqual([
-    { lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', motivo: 'Mala práctica del asesor' },
+    { lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', motivo: 'Mala práctica del analista' },
   ])
   await expect(drawer.getByText('CIERRE ANULADO')).toBeVisible()
-  await expect(drawer.getByText('Mala práctica del asesor')).toBeVisible()
+  await expect(drawer.getByText('Mala práctica del analista')).toBeVisible()
 })
 
 // El caso que apaga el botón, y el único lead convertido que hay HOY en
@@ -154,7 +154,7 @@ test('Gerencia anula el cierre de un lead convertido y la marca queda a la vista
 test('un cierre en cooperativa NO ofrece el botón de anular de Avance', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'gerencia',
-    rolPortal: 'directorio',
+    rolPortal: 'comercial',
     leads: [leadReal({ vendedor_id: 'vend-1', etapa: 'convertido' })],
     cierresEstado: [{
       lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',

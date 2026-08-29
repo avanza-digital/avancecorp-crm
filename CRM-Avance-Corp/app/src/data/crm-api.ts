@@ -319,7 +319,7 @@ function cliente(): ClienteCrm {
   return sb
 }
 
-// ── Centro de ayuda del vendedor — contenido y decisión solo en servidor ────
+// ── Centro de ayuda del analista — contenido y decisión solo en servidor ────
 
 function falloContratoAyuda(evento: string): CrmApiError {
   const fallo = new CrmApiError('El servidor devolvió una respuesta de ayuda no reconocida.', 'ROW_CONTRACT')
@@ -439,7 +439,7 @@ function aLead(fila: LeadRow): Lead {
     contrato_id: fila.contrato_id ?? null,
     // Se pedía al servidor y se validaba, pero NO se copiaba: en el navegador
     // llegaba siempre `undefined`. De este campo dependen el "mes de cierre" de
-    // la meta del asesor y las series de tendencia de gerencia, que sin él caen
+    // la meta del analista y las series de tendencia de gerencia, que sin él caen
     // al fallback `creado_en` y cuentan leads DADOS DE ALTA en el mes en vez de
     // CERRADOS. Con los 324 leads del puente cargados en julio, agosto habría
     // arrancado en cero para todo el equipo (auditoría 2026-07-25).
@@ -1294,7 +1294,7 @@ export async function descartesRescateDelMes(mes: string, signal?: AbortSignal):
 
 /**
  * Reactiva los descartes vigentes como leads nuevos y los distribuye en ronda
- * entre uno o varios asesores. La base conserva el episodio anterior y abre
+ * entre uno o varios analistas. La base conserva el episodio anterior y abre
  * el nuevo ciclo de gestión; el servidor revalida equipo, estado y No Insista.
  */
 export async function rescatarDescartes(
@@ -1454,7 +1454,7 @@ export async function guardarRecordatorioDisponibilidad(
     .upsert(
       // `dni` viaja SIEMPRE, null incluido (F3.1): omitirlo hacía que un
       // re-guardado sin DNI CONSERVARA el DNI anterior en el servidor — un
-      // vínculo teléfono↔DNI que el vendedor ya no está afirmando. El dato
+      // vínculo teléfono↔DNI que el analista ya no está afirmando. El dato
       // fresco manda: sin DNI = limpiar el anterior.
       { perfil_id: perfilId, telefono, dni, recordar_en: recordarEn },
       { onConflict: 'perfil_id,telefono' },
@@ -1646,7 +1646,7 @@ function aErrorApi(
   } else if (codigoPg === '23514' && texto.includes('datos legales obligatorios')) {
     // El RAISE de private.contrato_pdf_snapshot_v2_base. Caía en el genérico
     // "No se pudo guardar el cambio.", que es lo que de verdad veían los
-    // vendedores cuando un cliente antiguo no tenía domicilio: un mensaje que
+    // analistas cuando un cliente antiguo no tenía domicilio: un mensaje que
     // no nombra ni el dato ni al culpable, imposible de diagnosticar desde la
     // pantalla. El texto del servidor no lleva PII, pero tampoco dice QUÉ falta.
     code = 'DATOS_LEGALES_INCOMPLETOS'
@@ -2227,7 +2227,7 @@ export async function listarCuentasBancariasCliente(
     if (!fila.success) {
       const fallo = new CrmApiError('Las cuentas bancarias no tienen el formato esperado.', 'ROW_CONTRACT')
       registrarError('crm.cuentas_bancarias.fila_invalida', fallo)
-      // Fail-closed: ocultar una sola fila podría hacer que el asesor elija una
+      // Fail-closed: ocultar una sola fila podría hacer que el analista elija una
       // cuenta distinta creyendo que la autorizada ya no existe.
       throw fallo
     }
@@ -2484,36 +2484,7 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
   return items
 }
 
-// ── Cliente: detalle con las 14 bancarias (public.perfiles vía RLS de cartera) ─
-const COLUMNAS_CLIENTE_DETALLE = [
-  'id',
-  'nombre_completo',
-  'nombres',
-  'apellidos',
-  'tipo_documento',
-  'dni',
-  'correo',
-  'telefono',
-  'domicilio',
-  'asesor_perfil_id',
-  'creado_por',
-  'creado_en',
-  'banco',
-  'tipo_cuenta',
-  'numero_cuenta',
-  'cci',
-  'titular_distinto',
-  'beneficiario_nombre',
-  'beneficiario_dni',
-  'banco_usd',
-  'tipo_cuenta_usd',
-  'numero_cuenta_usd',
-  'cci_usd',
-  'titular_distinto_usd',
-  'beneficiario_nombre_usd',
-  'beneficiario_dni_usd',
-].join(',')
-
+// ── Cliente: detalle scopeado y redactado por el servidor ───────────────────
 const ClienteDetalleRowSchema = v.object({
   id: v.string(),
   nombre_completo: v.nullable(v.string()),
@@ -2527,6 +2498,8 @@ const ClienteDetalleRowSchema = v.object({
   asesor_perfil_id: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
+  banca_visible: v.boolean(),
+  cuentas_bancarias_visibles: v.boolean(),
   banco: v.nullable(v.string()),
   tipo_cuenta: v.nullable(v.string()),
   numero_cuenta: v.nullable(v.string()),
@@ -2544,23 +2517,18 @@ const ClienteDetalleRowSchema = v.object({
 })
 
 /**
- * Detalle completo para el modo "corregir". Se usa `.limit(1)` (no `.single()`)
- * a propósito: la frontera HTTP queda SIEMPRE con forma de array — mismos mocks
- * en msw/Playwright y sin el 406 especial de PostgREST.
- */
-/**
  * El segundo número del lead que originó a este cliente.
  *
  * NO se copia a `public.perfiles` a propósito (decisión de Miguel, 2026-08-28):
  * esa tabla la comparte el portal, y duplicar el dato en dos sitios es como
  * acaban divergiendo. Se lee del lead, que sobrevive a la conversión con todos
- * sus datos — así, si el vendedor lo corrige en la ficha del lead, el cliente lo
+ * sus datos — así, si el analista lo corrige en la ficha del lead, el cliente lo
  * ve al instante.
  *
  * Devuelve `null` cuando no hay lead que mirar, que es un caso REAL y no un
  * error: los cierres en cooperativa no crean cliente de Avance y por tanto no
  * tienen `perfil_id`. La RLS de `crm.leads` decide qué se ve; si el lead fue de
- * otro vendedor, aquí no llega nada, y eso es correcto.
+ * otro analista, aquí no llega nada, y eso es correcto.
  */
 export async function obtenerSegundoNumeroDelCliente(
   clienteId: string,
@@ -2592,8 +2560,12 @@ export async function obtenerSegundoNumeroDelCliente(
   }
 }
 
+/**
+ * Detalle comercial para "ver" y "corregir". La RPC conserva una frontera de
+ * array: 0 filas significa inexistente o fuera de ámbito, sin revelar cuál.
+ */
 export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): Promise<ClienteDetalle> {
-  let consulta = cliente().from('perfiles').select(COLUMNAS_CLIENTE_DETALLE).eq('id', id).limit(1)
+  let consulta = cliente().schema('crm').rpc('cliente_detalle_fn', { p_cliente_id: id })
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
@@ -2605,7 +2577,7 @@ export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): P
   }
   const cruda = (data ?? [])[0]
   if (!cruda) {
-    // La RLS ocultó el perfil (fuera de tu cartera) o no existe: mismo mensaje,
+    // La RPC no devolvió la fila (fuera de tu ámbito) o no existe: mismo mensaje,
     // sin revelar existencia (igual que actualizarLead).
     throw new CrmApiError('Cliente no encontrado', 'NO_ENCONTRADO')
   }
@@ -2630,7 +2602,7 @@ export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): P
  *
  * Existe por la rama `ya_existia` de `crm-convertir-lead`: cuando el documento
  * YA era cliente del portal, la edge lo ENLAZA al lead pero no le toca el
- * `asesor_perfil_id`, así que el cliente puede quedar a nombre de otro asesor.
+ * `asesor_perfil_id`, así que el cliente puede quedar a nombre de otro analista.
  * Sin esta comprobación la ficha solo podía adivinar, y adivinar era prometer.
  *
  * `null` = NO SE PUDO COMPROBAR (red, RLS, servidor). El llamador no debe
@@ -2776,7 +2748,7 @@ export async function actualizarClientePortal(
 // El PDF se reserva dentro de la MISMA transacción del alta, así que un dato
 // legal ausente revierte el contrato entero con 'Faltan datos legales
 // obligatorios del titular o del analista' — un mensaje que no dice CUÁL falta.
-// Preguntarlo antes convierte ese muro en un campo que el vendedor rellena.
+// Preguntarlo antes convierte ese muro en un campo que el analista rellena.
 
 /** Campos del titular que el PDF exige (nombres, nunca valores: no es una vía a la PII). */
 export const CAMPOS_LEGALES_CLIENTE = ['nombre_completo', 'tipo_documento', 'documento', 'domicilio', 'correo'] as const
@@ -2788,7 +2760,7 @@ export type CampoLegalAnalista = (typeof CAMPOS_LEGALES_ANALISTA)[number]
 
 export interface DatosLegalesContrato {
   clienteId: string
-  /** El único hueco que el vendedor puede cerrar por su cuenta. */
+  /** El único hueco que el analista puede cerrar por su cuenta. */
   faltaDomicilio: boolean
   faltanCliente: CampoLegalCliente[]
   faltanAnalista: CampoLegalAnalista[]
@@ -2828,7 +2800,7 @@ export async function obtenerDatosLegalesContrato(
 
 /**
  * `conservado` NO es un fallo: significa que el domicilio ya estaba escrito
- * (otra sesión ganó la carrera) y el servidor lo respetó. Lo que el vendedor
+ * (otra sesión ganó la carrera) y el servidor lo respetó. Lo que el analista
  * tecleó NO se guardó, y el front no puede darlo por bueno.
  *
  * El servidor NO devuelve el domicilio vigente, a propósito: el alcance de la
@@ -2921,7 +2893,7 @@ const ContratoRowSchema = v.object({
 
 export async function listarMisContratos(signal?: AbortSignal): Promise<ContratoRow[]> {
   // Vista con ámbito del esquema crm (molde clientes_basicos): gerencia ve
-  // todo, supervisor su subárbol, vendedor su cartera. La RLS directa de
+  // todo, supervisor su subárbol, analista su cartera. La RLS directa de
   // public.contratos dejaba a gerencia en 0 filas y al supervisor sin su equipo.
   let consulta = cliente()
     .schema('crm')
@@ -3332,7 +3304,7 @@ export async function reasignarAnalistaContrato(
 // ═══════════════════════════════════════════════════════════════════════════════
 // MÉTRICAS DE GERENCIA — 4 RPCs crm.metricas_*_fn (SECURITY DEFINER, ya en prod).
 // El ÁMBITO lo resuelve el servidor (gerencia=todo, supervisor=subárbol,
-// vendedor=él): el navegador jamás recorta ni agrega seguridad. Aquí solo se
+// analista=él): el navegador jamás recorta ni agrega seguridad. Aquí solo se
 // valida cada fila con Valibot y se coerciona numeric/bigint (PostgREST puede
 // serializar numeric como string — mismo trato que monto_estimado/capital).
 // El pivoteo para las gráficas vive en lib/metricas (helpers puros).
@@ -3714,12 +3686,12 @@ export async function listarMetricasConversiones(
 const PERIODO_MENSUAL_RE = /^\d{4}-\d{2}-01$/
 
 /**
- * La conversión mensual ponderada del asesor (crm.conversion_mensual_fn) — LA
+ * La conversión mensual ponderada del analista (crm.conversion_mensual_fn) — LA
  * definición acordada, no las cohortes de la pantalla «Conversiones».
  *
  * MENSUAL POR CONTRATO: `periodo` es el PRIMER DÍA del mes ('2026-08-01') y la
  * pregunta «qué devuelve en un rango libre» es inexpresable. El ámbito lo
- * decide el SERVIDOR (vendedor→su fila, supervisor→su subárbol, gerencia y
+ * decide el SERVIDOR (analista→su fila, supervisor→su subárbol, gerencia y
  * lector global→empresa) y viaja en `alcance`; los denegados reciben 42501
  * duro, jamás un payload de ceros.
  *
@@ -3871,7 +3843,7 @@ export async function listarColaAccion(pLimite = LIMITE_COLA_ACCION, signal?: Ab
 }
 
 /**
- * Métricas por vendedor + comparativa de equipos (RPC crm.metricas_vendedores_fn,
+ * Métricas por analista + comparativa de equipos (RPC crm.metricas_vendedores_fn,
  * F1b). El payload viaja SIN nombres (el front une con su roster) y con la
  * ventana de convertidos de 45 días, que se CERTIFICA contra la del front —
  * un ranking y unos tiles con cortes distintos en la misma pantalla serían
@@ -3887,7 +3859,7 @@ export async function listarMetricasVendedores(signal?: AbortSignal): Promise<Me
   const resultado = v.safeParse(MetricasVendedoresSchema, data)
   if (!resultado.success || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS) {
     const fallo = new CrmApiError(
-      'Las métricas por vendedor no tienen el formato esperado.',
+      'Las métricas por analista no tienen el formato esperado.',
       'METRICAS_VENDEDORES_CONTRACT',
     )
     registrarError('crm.metricas.vendedores_fuera_de_contrato', fallo)
@@ -4327,7 +4299,7 @@ export interface AnularCierreExternoDatos {
 
 /**
  * El freno de emergencia de gerencia contra un cierre falso o mal digitado: el
- * cierre deja de contar en la cuota Y en la conversión del vendedor.
+ * cierre deja de contar en la cuota Y en la conversión del analista.
  *
  * NO borra la fila ni reabre el lead —en el CRM un convertido es terminal por
  * diseño— y es de UNA SOLA DIRECCIÓN: no se des-anula. Por eso el motivo es
@@ -4386,7 +4358,7 @@ export interface AnularCierreAvanceDatos {
 
 export interface CierreAvanceAnulado {
   leadId: string
-  /** Los contratos que dejan de acreditarle al vendedor. Puede venir VACÍO y
+  /** Los contratos que dejan de acreditarle al analista. Puede venir VACÍO y
    *  seguir siendo correcto: la conversión baja igual (sale del ledger), pero
    *  no había contrato que descontar. */
   contratosAfectados: string[]
@@ -4395,7 +4367,7 @@ export interface CierreAvanceAnulado {
 
 /**
  * El freno de gerencia contra un cierre de AVANCE por error de gestión o mala
- * práctica: ese cierre deja de acreditarle al vendedor en la cuota Y en la
+ * práctica: ese cierre deja de acreditarle al analista en la cuota Y en la
  * conversión.
  *
  * Va por LEAD y no por cierre porque en Avance no hay fila de cierre — el cierre

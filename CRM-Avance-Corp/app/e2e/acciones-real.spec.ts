@@ -173,10 +173,10 @@ test('convertir en real: pide los datos de la cuenta y valida antes de tocar el 
   await expect(page.getByText(/ahora es cliente/i)).toHaveCount(0)
 })
 
-// Decisión 2026-08-07: Gerencia puede cerrar la conversión aunque su rol del
-// portal sea directorio. El cliente conserva al vendedor del lead como asesor.
-test('gerencia (rol de portal directorio) puede convertir un lead asignado', async ({ page }) => {
-  await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'directorio' })
+// Gerencia puede cerrar la conversión con una identidad Portal operativa. El
+// cliente conserva al analista del lead como responsable comercial.
+test('gerencia puede convertir un lead asignado', async ({ page }) => {
+  await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'comercial' })
   await loginReal(page)
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
@@ -189,31 +189,31 @@ test('gerencia (rol de portal directorio) puede convertir un lead asignado', asy
 
 // El supervisor ES analista en el portal, así que pasa el chequeo de ROL de
 // crear_contrato — pero NO el de cartera: la edge deja al cliente a nombre del
-// vendedor dueño del lead, y la RPC solo deja contratar al dueño. Si se le
+// analista dueño del lead, y la RPC solo deja contratar al dueño. Si se le
 // ofreciera, crearía el cliente + le mandaría el correo de bienvenida a una
 // persona real y RECIÉN ahí reventaría, con el lead ya cerrado.
-test('supervisor sobre el lead de SU vendedor: no se le ofrece convertir (evita el cliente a medias)', async ({ page }) => {
+test('supervisor sobre el lead de SU analista: no se le ofrece convertir (evita el cliente a medias)', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'supervisor',
     rolPortal: 'analista',
-    leads: [leadReal({ vendedor_id: 'vend-1' })], // lead de su vendedor, no suyo
+    leads: [leadReal({ vendedor_id: 'vend-1' })], // lead de su analista, no suyo
   })
   await loginReal(page)
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
   await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toHaveCount(0)
-  await expect(drawer.getByText(/La conversión la cierra Vendedor/i)).toBeVisible()
+  await expect(drawer.getByText(/La conversión la cierra Analista/i)).toBeVisible()
   await expect(drawer.getByText(/reasígnate el lead/i)).toBeVisible()
 })
 
-// 0C elimina el fallback "asesor = quien convierte": la atribución debe existir
+// 0C elimina el fallback que hacía responsable al conversor: la atribución debe existir
 // ANTES del resultado. La UI y la Edge bloquean antes de crear Auth/perfil/correo.
 test('supervisor sobre un lead de su bandeja: debe asignarlo antes de convertir', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'supervisor',
     rolPortal: 'analista',
-    // "Parkeado": sin vendedor y en la bandeja del supervisor (espejo de F0).
+    // "Parkeado": sin analista y en la bandeja del supervisor (espejo de F0).
     leads: [leadReal({ vendedor_id: null, asignado_supervisor_id: UID })],
   })
   await loginReal(page)

@@ -3,9 +3,12 @@ import type { EChartsOption } from 'echarts'
 import { Inbox, Target, UserRoundCheck, UsersRound } from 'lucide-react'
 import { GerenciaEChart } from '@/components/gerencia/echart-lazy'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
-import { numero } from '@/lib/format'
+import { numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
-import type { ConversionMensual } from '@/lib/conversion-mensual'
+import {
+  totalConversionPublicable,
+  type ConversionMensual,
+} from '@/lib/conversion-mensual'
 import {
   adaptarConversionMensual,
   clasificarRankingConversion,
@@ -15,7 +18,7 @@ import {
 import type { Miembro } from '@/lib/tipos'
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 /** Rótulo corto de tarjeta para los estados sin % — jamás un «0 %» inventado. */
@@ -56,14 +59,14 @@ export function EquipoGerenciaPanel({
   // ranking pero no tiene % que barra pueda representar).
   const medibles = ranking.conPuesto.filter((fila) => fila.detalle.conversion_pct != null)
   // Los agregados del equipo los sirve la RPC — aquí no se divide nada global.
-  const total = conversionMensual?.total ?? null
+  const total = totalConversionPublicable(conversionMensual)
   const recibidos = total?.divisor ?? null
   const cierres = total == null ? null : total.cierres_no_referidos + total.cierres_referidos
   const conversion = total?.conversion_pct ?? null
   const vendedores = adaptada.vendedores.length
   const supervisores = miembros.filter((m) => m.activo && m.rol_crm === 'supervisor').length
   const kpis = [
-    { label: 'Vendedores', valor: numero(vendedores), icon: UsersRound, color: C.blue },
+    { label: 'Analistas', valor: numero(vendedores), icon: UsersRound, color: C.blue },
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
     { label: 'Recibidos del mes', valor: recibidos == null ? '—' : numero(recibidos), icon: Inbox, color: C.navy },
     { label: 'Cierres del mes', valor: cierres == null ? '—' : numero(cierres), icon: UserRoundCheck, color: C.green },
@@ -73,7 +76,13 @@ export function EquipoGerenciaPanel({
   const opcion = useMemo<EChartsOption>(() => ({
     animationDuration: 600,
     grid: { left: 132, right: 58, top: 8, bottom: 28 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => porcentajeConversionCanonica(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: {
       type: 'value',
       min: 0,
@@ -93,7 +102,16 @@ export function EquipoGerenciaPanel({
       data: medibles.map((fila) => fila.detalle.conversion_pct),
       barMaxWidth: 16,
       itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] },
-      label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' },
+      label: {
+        show: true,
+        position: 'right',
+        formatter: (parametros) => porcentajeConversionCanonica(
+          typeof parametros.value === 'number' ? parametros.value : null,
+        ),
+        color: C.navy,
+        fontWeight: 600,
+        fontFamily: 'IBM Plex Sans',
+      },
     }],
   }), [medibles])
 
@@ -106,7 +124,7 @@ export function EquipoGerenciaPanel({
   }, [adaptada.vendedores])
 
   if (adaptada.vendedores.length === 0) {
-    return <div className="gi-card py-14 text-center"><UsersRound className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">No hay vendedores para mostrar</p></div>
+    return <div className="gi-card py-14 text-center"><UsersRound className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">No hay analistas para mostrar</p></div>
   }
 
   return (
@@ -119,8 +137,8 @@ export function EquipoGerenciaPanel({
 
       {medibles.length > 0 && (
         <section data-gi-panel className="gi-card p-5">
-          <div className="flex items-center justify-between"><h2 className="gi-title">Conversión por vendedor</h2><span className="gi-caption">{numero(medibles.length)} vendedores medibles este mes</span></div>
-          <GerenciaEChart tipo="barras" option={opcion} ariaLabel="Conversión a clientes por vendedor" className="mt-3 w-full" style={{ height: Math.max(290, medibles.length * 38) }} />
+          <div className="flex items-center justify-between"><h2 className="gi-title">Conversión por analista</h2><span className="gi-caption">{numero(medibles.length)} {medibles.length === 1 ? 'analista medible' : 'analistas medibles'} este mes</span></div>
+          <GerenciaEChart tipo="barras" option={opcion} ariaLabel="Conversión a clientes por analista" className="mt-3 w-full" style={{ height: Math.max(290, medibles.length * 38) }} />
         </section>
       )}
 
@@ -142,7 +160,7 @@ export function EquipoGerenciaPanel({
           return (
             <section key={supervisor} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
-                <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} vendedores</p></div>
+                <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} {vendedoresGrupo.length === 1 ? 'analista' : 'analistas'}</p></div>
                 <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalRecibidos == null ? 'Datos no disponibles' : `cierres del mes · ${numero(totalRecibidos)} recibidos`}</p></div>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">

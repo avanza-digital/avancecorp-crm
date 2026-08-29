@@ -2,8 +2,8 @@
 // Card clicable → drawer; menú "…" y drag & drop HTML5 para mover de etapa;
 // alta por columna. Todo write-gated (rol directorio = solo lectura total).
 // F1c: consciente del rol — trabaja SIEMPRE sobre useCRMData().ambito y, para
-// supervisor/gerencia/directorio, ofrece pills de filtro por vendedor
-// (+ bandeja "Por repartir" de parkeados). El vendedor solo ve lo suyo.
+// supervisor/gerencia/directorio, ofrece pills de filtro por analista
+// (+ bandeja "Por repartir" de parkeados). El analista solo ve lo suyo.
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent, useMemo } from 'react'
 import { Users, TrendingUp, FileText, Target, Plus, MoreHorizontal, ExternalLink, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
@@ -44,12 +44,12 @@ function haceDias(dias: number): string {
 }
 
 // Ventana (ms) durante la que un click se atribuye al arrastre recién soltado y
-// no al asesor. Solo tiene que cubrir el click sintético que el navegador
+// no al analista. Solo tiene que cubrir el click sintético que el navegador
 // dispara pegado al drop; cualquier click humano llega muchísimo después.
 const MS_CLICK_FANTASMA = 60
 
 /**
- * Una columna no crece al ritmo de la cartera. El asesor trabaja una página
+ * Una columna no crece al ritmo de la cartera. El analista trabaja una página
  * corta dentro de la bandeja de esa etapa; los totales del encabezado siguen
  * siendo el panorama completo y los filtros no se pierden al avanzar.
  */
@@ -61,7 +61,7 @@ const PAGINA_INICIAL_POR_ETAPA: Record<EtapaActiva, number> = {
   propuesta_enviada: 0,
 }
 
-// Pills del filtro por vendedor (sin verde: activo = azul primario; bandeja = ámbar)
+// Pills del filtro por analista (sin verde: activo = azul primario; bandeja = ámbar)
 const PILL_BASE =
   'flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors'
 const pillCls = (activo: boolean) =>
@@ -202,17 +202,17 @@ export function Pipeline() {
   // F1c: el tablero SIEMPRE trabaja sobre el ámbito del rol, nunca el global.
   const leads = ambito.leads
 
-  // ── Filtro por vendedor (pills) — solo roles con la capacidad y >1 vendedor ──
+  // ── Filtro por analista (pills) — solo roles con la capacidad y >1 analista ──
   const [fVend, setFVend] = useState<string>('todos') // 'todos' | 'por_repartir' | perfil_id
   const [paginaPorEtapa, setPaginaPorEtapa] = useState<Record<EtapaActiva, number>>(
     PAGINA_INICIAL_POR_ETAPA,
   )
   const mostrarFiltro = can(yo?.rol, 'filtrarPorVendedor') && ambito.vendedores.length > 1
-  // Bandeja "por repartir": sin vendedor asignado y aún en etapa de trabajo.
+  // Bandeja "por repartir": sin analista asignado y aún en etapa de trabajo.
   const porRepartir = leads.filter(
     (l) => l.vendedor_id == null && !['convertido', 'descartado'].includes(l.etapa),
   )
-  // El filtro degrada solo a "Todos" cuando deja de tener sentido (vendedor
+  // El filtro degrada solo a "Todos" cuando deja de tener sentido (analista
   // fuera del ámbito, o bandeja vacía tras repartir el último parkeado).
   const filtro = !mostrarFiltro
     ? 'todos'
@@ -306,7 +306,7 @@ export function Pipeline() {
 
   // ── KPIs del tablero — F1: servidos por resumen_cartera_fn (o espejo demo
   // vivo); la pantalla ya no cuenta filas. Convención (misma que Hoy y Equipo):
-  // solo abiertos CON vendedor — los parkeados van aparte en la pill "Por
+  // solo abiertos CON analista — los parkeados van aparte en la pill "Por
   // repartir". La cifra grande del capital es la moneda que DE VERDAD tiene
   // volumen (capitalPrincipal) — PEN y USD JAMÁS se suman ni se convierten.
   // Sin payload (cargando o RPC caída): «—», jamás una cifra inventada.
@@ -352,9 +352,9 @@ export function Pipeline() {
         No se pudieron cargar los indicadores del tablero. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
 
-      {/* Filtro por vendedor — supervisor: su equipo; gerencia/directorio: todos */}
+      {/* Filtro por analista — supervisor: su equipo; gerencia/directorio: todos */}
       {mostrarFiltro && (
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar tablero por vendedor">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar tablero por analista">
           <button
             type="button"
             aria-pressed={filtro === 'todos'}

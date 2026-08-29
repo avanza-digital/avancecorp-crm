@@ -15,7 +15,7 @@ describe('interpretarMiAcceso', () => {
       perfil_id: 'user-1',
       rol_crm: 'vendedor',
       rol_portal: 'analista',
-      nombre_completo: 'Ana Asesora',
+      nombre_completo: 'Ana Analista',
       ...SIN_ADMIN,
     })).toEqual({
       tipo: 'acceso',
@@ -28,7 +28,7 @@ describe('interpretarMiAcceso', () => {
         puedeOrganizarJerarquia: false,
         puedeAdministrarRoles: false,
       },
-      nombre: 'Ana Asesora',
+      nombre: 'Ana Analista',
       puedeContratar: true,
     })
   })
@@ -38,7 +38,7 @@ describe('interpretarMiAcceso', () => {
       estado: 'miembro',
       perfil_id: 'gerencia-1',
       rol_crm: 'gerencia',
-      rol_portal: 'directorio',
+      rol_portal: 'comercial',
       nombre_completo: 'Gerencia',
       puede_listar_usuarios: true,
       puede_administrar_usuarios: true,
@@ -112,7 +112,8 @@ describe('interpretarMiAcceso', () => {
     {},
     { estado: 'revocado' },
     { estado: 'otro', perfil_id: 'user-1' },
-    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'admin', nombre_completo: 'X' },
+    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'admin', nombre_completo: 'X', ...SIN_ADMIN },
+    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'gerencia', rol_portal: 'directorio', nombre_completo: 'X', ...SIN_ADMIN },
     { estado: 'global', perfil_id: 'user-1', rol_crm: 'gerencia', rol_portal: 'admin', nombre_completo: 'X' },
     { estado: 'global', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN },
     { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'vendedor', rol_portal: null, nombre_completo: 'X' },

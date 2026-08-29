@@ -1,4 +1,4 @@
-// Tests del ARRANQUE (App): las dos pantallas que ve el asesor antes de entrar
+// Tests del ARRANQUE (App): las dos pantallas que ve el analista antes de entrar
 // al CRM — el splash con fecha de caducidad y el Login — y las dos regresiones
 // que introdujo la pasada de arreglos de sesión del 2026-07-25:
 //   1. volver a la pestaña con la app en `error` borraba lo ya tecleado, y
@@ -122,7 +122,7 @@ describe('App — el reloj del splash es POR ETAPA, no del arranque entero', () 
     expect(container.querySelector('.ac-splash')).toBe(splashInicial)
 
     // Etapa 2: casi todo su presupuesto también. Ninguna de las dos agotó el
-    // suyo, así que esto es LENTITUD, no un cuelgue: el asesor sigue viendo el
+    // suyo, así que esto es LENTITUD, no un cuelgue: el analista sigue viendo el
     // splash y nadie aborta un fetch que va camino de responder.
     act(() => vi.advanceTimersByTime(LIMITE_CARGA_REAL_MS - 1))
     expect(screen.queryByText(TEXTO_ATASCADO)).not.toBeInTheDocument()
@@ -340,7 +340,7 @@ function AuthDeMaquina({
 
 // Con la app en `error` la pantalla montada es el LOGIN. El REVALIDAR del
 // focus/visibilitychange llega SOLO (nadie lo pidió), así que no puede tirar el
-// formulario que el asesor está llenando.
+// formulario que el analista está llenando.
 describe('App — volver a la pestaña con la app en error no borra lo tecleado', () => {
   it('el correo y la clave sobreviven a la re-verificación silenciosa', async () => {
     const colgada = diferida<ResultadoVerificacion>()
@@ -368,7 +368,7 @@ describe('App — volver a la pestaña con la app en error no borra lo tecleado'
     fireEvent.change(correo, { target: { value: 'ana@avancecorp.pe' } })
     fireEvent.change(clave, { target: { value: 'clave-a-medio-teclear' } })
 
-    // El asesor vuelve a la pestaña → el wrapper manda REVALIDAR.
+    // El analista vuelve a la pestaña → el wrapper manda REVALIDAR.
     act(() => {
       actor.send({ type: 'REVALIDAR' })
     })

@@ -58,19 +58,19 @@ function fechaLocalMesDia(meses: number, dia: number): string {
   return formatDateLocal(new Date(hoy.getFullYear(), hoy.getMonth() + meses, dia))
 }
 
-// El asesor de los CONTRATOS demo = VENDEDOR UNO (d-v1, la sesión demo de
-// vendedor): así, con yo.id='d-v1', los contratos salen como "míos" y el botón
+// El analista de los CONTRATOS demo = ANALISTA UNO (d-v1, la sesión demo de
+// analista): así, con yo.id='d-v1', los contratos salen como "míos" y el botón
 // Corregir se ve (vivo o bloqueado según la ventana), igual que en la ruta real.
 const ASESOR_DEMO = 'd-v1'
 
 // ── 6 clientes REPARTIDOS entre el equipo demo (asesor_perfil_id/creado_por
 //    coherentes con EQUIPO_DEMO de lib/demo.ts) para que cada rol viva la
 //    pantalla como en producción:
-//    · d-v1 (sesión vendedor): ROSA y JAVIER con ventana VIVA + GLADYS vencida
+//    · d-v1 (sesión analista): ROSA y JAVIER con ventana VIVA + GLADYS vencida
 //      — los 3 dueños de los contratos demo A/B/C, la narrativa no se rompe.
 //    · d-sup1 (sesión supervisor): TERESA propia con ventana VIVA (acciones en
 //      SU fila) y el equipo d-v1/d-v2 visible SIN acciones (regla de cartera).
-//    · gerencia/directorio: los 6 y columna Asesor variada; solo Gerencia opera.
+//    · gerencia/directorio: los 6 y columna Analista variada; solo Gerencia opera.
 //    Los documentos CE (NADIA) y PASAPORTE (BRUNO) viven en carteras ajenas a
 //    d-v1: la sigla se luce en las vistas de supervisión.
 export const CLIENTES_DEMO: ClienteBasico[] = [
@@ -97,7 +97,7 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     dni: '43217985', // DNI
     correo: 'javier.meza@correo.pe',
     telefono: '+51987654109',
-    // Sin asesor asignado A PROPÓSITO: el dueño de cartera se hereda de
+    // Sin analista asignado A PROPÓSITO: el dueño de cartera se hereda de
     // creado_por (la rama OR de la regla del servidor también se luce en demo).
     asesor_perfil_id: null,
     creado_por: ASESOR_DEMO,
@@ -217,6 +217,8 @@ function detalleClienteDemo(id: string, bancarios: Partial<DatosBancariosDemo>):
     asesor_perfil_id: cliente.asesor_perfil_id,
     creado_por: cliente.creado_por,
     creado_en: cliente.creado_en,
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     ...BANCARIOS_DEMO_VACIOS,
     ...bancarios,
   }
@@ -475,10 +477,10 @@ const DOMICILIOS_PDF_DEMO: Record<string, string> = {
 }
 
 const ANALISTA_PDF_DEMO: ContratoPdfDatos['analista'] = {
-  nombreCompleto: 'VENDEDOR UNO',
+  nombreCompleto: 'ANALISTA UNO',
   documento: '10000001',
   celular: '+51 987 654 321',
-  correo: 'vendedor.uno@avancecorp.pe',
+  correo: 'analista.uno@avancecorp.pe',
 }
 
 export type IdentidadPdfDemo = Omit<ContratoPdfDatos, 'contrato'>

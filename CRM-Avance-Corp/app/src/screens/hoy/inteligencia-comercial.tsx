@@ -26,7 +26,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, moneyCompacta, numero } from '@/lib/format'
+import { money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   descuentoArrastre,
@@ -57,7 +57,7 @@ interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — alimenta
-   * el héroe y el bloque «del mes» de la ficha del vendedor. Tri-estado:
+   * el héroe y el bloque «del mes» de la ficha del analista. Tri-estado:
    * `undefined` consultando · `null` no disponible (fail-closed, «—»/rótulo).
    * Los análisis del RANGO (embudo, orígenes, tendencia) siguen en `datos`:
    * miden otra pregunta y conservan su rótulo de periodo.
@@ -202,6 +202,7 @@ function DetalleVendedor({
   fila,
   filaMensual,
   mensual,
+  conversionPublicable,
   meta,
   cumplimiento,
   periodo,
@@ -209,9 +210,11 @@ function DetalleVendedor({
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
-  /** La fila del MISMO vendedor en la conversión mensual (null = no llegó). */
+  /** La fila del MISMO analista en la conversión mensual (null = no llegó). */
   filaMensual: ConversionVendedorAdaptada<DetalleConversionMensual> | null
   mensual: ConversionMensual | null | undefined
+  /** Las sondas autorizaron publicar cualquier cifra de conversión. */
+  conversionPublicable: boolean
   meta: ObjetivoComercial | null
   cumplimiento: CumplimientoVendedor | null
   periodo: MetricasConversiones['periodo'] | null
@@ -248,7 +251,7 @@ function DetalleVendedor({
   const enMeta = metaMensual.comparable && metaConversion > 0
     && conversionMes != null && conversionMes >= metaConversion
   // La cadena arranca por los estados de la conversión MENSUAL (fuente del
-  // número grande) y solo si el vendedor es medible baja a los estados de meta.
+  // número grande) y solo si el analista es medible baja a los estados de meta.
   const estado = mensual != null && !mensual.cobertura.medible
     ? 'Sin datos del mes'
     : filaMensual == null || filaMensual.estadoConversion === 'indisponible'
@@ -336,7 +339,7 @@ function DetalleVendedor({
   }, [metaConversion, metaMensual.comparable, puntosTendencia])
 
   return (
-    <Sheet open={fila != null} onClose={onCerrar} ariaLabel="Detalle comercial del vendedor" className="w-[calc(100vw-8px)] max-w-[560px] sm:w-[560px]">
+    <Sheet open={fila != null} onClose={onCerrar} ariaLabel="Detalle comercial del analista" className="w-[calc(100vw-8px)] max-w-[560px] sm:w-[560px]">
       {fila && (
         <>
           <SheetHeader className="border-b-0 px-4 pb-3 pt-5 sm:px-5">
@@ -353,7 +356,7 @@ function DetalleVendedor({
               <button
                 type="button"
                 onClick={onCerrar}
-                aria-label="Cerrar detalle de vendedor"
+                aria-label="Cerrar detalle de analista"
                 className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-[var(--gi-muted)] transition-colors hover:bg-[#f7f5f1] hover:text-[var(--gi-navy)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               >
                 <X className="size-4" aria-hidden />
@@ -361,9 +364,11 @@ function DetalleVendedor({
             </div>
           </SheetHeader>
           <SheetBody className="space-y-3.5 px-4 pb-5 pt-0 sm:px-5">
+            {conversionPublicable ? (
+              <>
             <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{pct(conversionMes)}</strong>
+                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{porcentajeConversionCanonica(conversionMes)}</strong>
                 <span className="text-xs font-semibold text-[var(--gi-muted)]">conversión del mes</span>
                 {detalleMes != null && (
                   <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
@@ -373,7 +378,7 @@ function DetalleVendedor({
                 {(() => {
                   // El MISMO porqué que el ranking: este % ya llega NETO de
                   // anulaciones de meses cerrados. Sin esto, gerencia veía el
-                  // chip en el ranking, abría al mismo vendedor y la
+                  // chip en el ranking, abría al mismo analista y la
                   // explicación desaparecía (hallazgo #6 de la revisión).
                   const descuento = descuentoArrastre(detalleMes?.ajuste)
                   return descuento
@@ -419,7 +424,9 @@ function DetalleVendedor({
                   <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{lineaReferidos(detalleMes.referidos)}</span>
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-[var(--gi-muted)]">
-                  Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.
+                  {mensual == null
+                    ? 'Fórmula: (cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes.'
+                    : `Fórmula: (cierres no referidos + referidos ×${numero(mensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes.`}
                 </p>
               </section>
             )}
@@ -451,7 +458,7 @@ function DetalleVendedor({
                 <div className="px-4 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="text-xs font-bold">Meta de conversión</span>
-                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaConversion > 0 ? `${pct(conversionMes)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
+                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaConversion > 0 ? `${porcentajeConversionCanonica(conversionMes)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
                   </div>
                   <div
                     className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"
@@ -486,6 +493,24 @@ function DetalleVendedor({
                 <div className="mt-2 grid h-28 place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>
               )}
             </section>
+              </>
+            ) : (
+              <>
+                <section className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
+                  <p className="text-xs font-bold text-amber-900">Conversión del mes en revisión</p>
+                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-amber-800">
+                    Los porcentajes, cierres y tendencias permanecen ocultos hasta que las sondas del núcleo cuadren. El capital producido sigue disponible porque no depende de esa verificación.
+                  </p>
+                </section>
+                <section aria-label="Capital producido por el analista" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
+                  <p className="px-4 pt-3 text-[11px] font-medium text-[var(--gi-muted)]">Capital producido por sus leads · rango aplicado</p>
+                  <dl className="grid grid-cols-2 divide-x divide-[var(--gi-line)]">
+                    <DatoDetalle label="Capital por sus leads (PEN)" valor={capitalDisponible(capitalPen, 'PEN')} capital />
+                    <DatoDetalle label="Capital por sus leads (USD)" valor={capitalDisponible(capitalUsd, 'USD')} capital />
+                  </dl>
+                </section>
+              </>
+            )}
           </SheetBody>
         </>
       )}
@@ -539,10 +564,16 @@ export function InteligenciaComercialPanel({
   const opcionEquipo = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
     grid: { left: 132, right: 60, top: 8, bottom: 30 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => pct(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
     yAxis: { type: 'category', inverse: true, data: vendedores.map((fila) => fila.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11, width: 120, overflow: 'truncate' } },
-    series: [{ type: 'bar', data: vendedores.map((fila) => fila.detalle?.conversion_pct ?? null), barMaxWidth: 17, itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
+    series: [{ type: 'bar', data: vendedores.map((fila) => fila.detalle?.conversion_pct ?? null), barMaxWidth: 17, itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: (parametros) => pct(typeof parametros.value === 'number' ? parametros.value : null), color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
   }), [vendedores])
 
   const pasos = useMemo(() => (datos?.embudo ?? [])
@@ -562,10 +593,16 @@ export function InteligenciaComercialPanel({
   const opcionOrigen = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
     grid: { left: 105, right: 60, top: 8, bottom: 28 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => pct(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
     yAxis: { type: 'category', inverse: true, data: origenes.map((fila) => nombreOrigen(fila.origen)), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
-    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contratos_pct ?? 0), barMaxWidth: 18, itemStyle: { color: C.blue, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
+    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contratos_pct), barMaxWidth: 18, itemStyle: { color: C.blue, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: (parametros) => pct(typeof parametros.value === 'number' ? parametros.value : null), color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
   }), [origenes])
 
   const tendenciaEquipo = adaptada.tendenciaSemanal
@@ -610,6 +647,13 @@ export function InteligenciaComercialPanel({
   const cosechaLeads = datos?.cohorte.leads ?? 0
   const cosechaCierres = datos?.cohorte.contratos ?? 0
   const cosechaPct = datos?.cohorte.conversion_contratos_pct ?? null
+  // La pantalla principal es bruta y no depende de las sondas del núcleo. El
+  // detalle que sí se rotula «conversión del mes» conserva su propia frontera:
+  // solo se publica cuando el contrato mensual completo es publicable.
+  // La ausencia o un mes no medible conservan sus estados informativos
+  // («No disponible» / «Sin datos del mes»). Solo la sonda dura de integridad
+  // cierra la ficha: en ese caso ninguna cifra mensual exacta es publicable.
+  const conversionMensualPublicable = (conversionMensual?.cobertura.cierres_sin_episodio ?? 0) === 0
   // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
   // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
   // no consulta el tipo de cambio y la casa prohíbe sumarlos a ciegas.
@@ -684,13 +728,13 @@ export function InteligenciaComercialPanel({
                     ledger: la lectura por origen puede no cuadrar con la cifra del mes.
                   </p>
                 )}
-                {/* F1.3b: un cliente con leads de dos vendedores cuenta su
+                {/* F1.3b: un cliente con leads de dos analistas cuenta su
                     capital de portal ENTERO para ambos — el desglose puede
                     sumar más que el total y hay que decirlo. */}
                 {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0 && (
                   <p>
-                    {numero(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0)} {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) === 1 ? 'cliente tiene' : 'clientes tienen'} leads de más de un vendedor:
-                    su capital cuenta para cada uno y el desglose por vendedor puede sumar más que el total.
+                    {numero(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0)} {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) === 1 ? 'cliente tiene' : 'clientes tienen'} leads de más de un analista:
+                    su capital cuenta para cada uno y el desglose por analista puede sumar más que el total.
                   </p>
                 )}
               </div>
@@ -705,10 +749,10 @@ export function InteligenciaComercialPanel({
 
           <section data-gi-panel className="gi-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Conversión por vendedor</h3><p className="gi-caption mt-1">Equipo completo</p></div>
-              {vendedor && <div className="flex items-center gap-2"><select aria-label="Vendedor para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
+              <div><h3 className="gi-title">Conversión por analista</h3><p className="gi-caption mt-1">Equipo completo</p></div>
+              {vendedor && <div className="flex items-center gap-2"><select aria-label="Analista para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
             </div>
-            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por vendedor" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
+            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
           </section>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -720,35 +764,35 @@ export function InteligenciaComercialPanel({
                 {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
               </p>
             )}
-            {/* F1.3b: cuánto capital ha producido cada origen (lo cerrado
-                hasta hoy por los leads del rango, portal + coops). Servido
-                por origenes[].capital_* — vivo desde la migración F1.3b;
-                antes leía el enlace muerto y era 0 invisible. PEN y USD por
-                separado: aquí no hay tipo de cambio. Solo orígenes con algo. */}
-            {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
-              <div className="mt-3 border-t border-[var(--gi-line)] pt-3">
-                <p className="gi-caption">Capital producido por origen · leads del rango, cerrado hasta hoy</p>
-                <dl className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                  {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
-                    <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
-                      <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
-                      <dd className="font-bold tabular-nums">
-                        {[
-                          fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
-                          fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
-                        ].filter(Boolean).join(' + ')}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            )}</section>
+            </section>
           </div>
+
+        {/* F1.3b: el capital producido permanece separado del contrato mensual;
+            una foto mensual no publicable no invalida contratos ya atribuidos. */}
+          {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
+            <section data-gi-panel className="gi-card p-5" aria-label="Capital producido por origen">
+              <h3 className="gi-title">Capital producido por origen</h3>
+              <p className="gi-caption mt-1">Leads del rango, cerrados hasta hoy · PEN y USD por separado</p>
+              <dl className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
+                  <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
+                    <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
+                    <dd className="font-bold tabular-nums">
+                      {[
+                        fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
+                        fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
+                      ].filter(Boolean).join(' + ')}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={conversionMensualPublicable} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }
