@@ -8,7 +8,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** FASE 2 (mirar el primer cierre). **La Fase 1 está EN PRODUCCIÓN** desde el 28/08 y **commiteada** el 29/08 (`01dd52f`, rama `wip/workspace-20260823-completo`, sin subir al remoto).
+**Fase actual:** FASE 2 (mirar el primer cierre — el 10/09 solo queda observar). **La Fase 1 (28/08) y la FASE 3 (29/08) están EN PRODUCCIÓN.** La Fase 3 entró completa: 10 migraciones (156→166), front `crm-20260829T182429Z` vivo en crm.miavance.com, obligatoriedad encendida, y la rama paralela del vivo integrada (2439/2439 pruebas). Decisión nueva de Miguel: **solo activos** en el selector del alta.
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
@@ -28,7 +28,7 @@ Si no dices otra cosa, la recomendación es **preparar la Fase 3 sin publicarla*
 | 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
 | 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
 | 2 · Mirar el primer cierre | ⚪ toca en la semana del 10/09 |
-| 3 · Que cada venta tenga dueño | ✅ **lista para tu merge** — 2 auditorías pasadas, marcha atrás probada punta a punta |
+| 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ⚪ sin empezar |
 | 5 · Cerrar puertas | ⚪ sin empezar |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar |
@@ -388,7 +388,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 ---
 
-### FASE 3 · Que cada venta tenga dueño — 🔨 **ESCRITA Y ENSAYADA (29/08), SIN PUBLICAR**
+### FASE 3 · Que cada venta tenga dueño — ✅ **EN PRODUCCIÓN (29/08)**
 - Crear el campo **«analista que cierra»** en el contrato, obligatorio al registrar.
 - Cuando registra un administrativo o un supervisor, tiene que **elegir el analista**; si la venta no es de nadie, va a su nombre.
 - Poder **reasignar** después, dejando rastro de quién reasignó.
