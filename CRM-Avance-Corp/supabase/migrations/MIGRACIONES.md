@@ -5225,8 +5225,30 @@ núcleo+ventana vivos y cerrados a la API · pantalla de agosto = crudo al cént
 preexistentes; ninguno sobre los objetos nuevos). Auditor RLS: 15 hallazgos, TODOS
 aplicados antes de publicar (huellas ancladas a los cuerpos vivos, foto de supervisor y
 carne obligatoria en los oráculos, ventanas 1900/9999, postflight en 2 monedas + coops,
-casos nuevos en el gate, OK de Miguel escrito en la 191500). **Codex F4 corre todavía:
-su veredicto cae sobre obra terminada y lo que traiga se corrige encima.**
+casos nuevos en el gate, OK de Miguel escrito en la 191500). **Codex F4 llegó (NO-GO: 4 P0 + 4 P1 + 2 P2) y su corrección YA ESTÁ EN
+PRODUCCIÓN** — `20260829200000_crm_f4_e_correcciones_codex` (registro → **173**, junto a
+`20260829195528_crm_ficha_360_scope_historial` de la sesión paralela, verificada sin cruce
+con capital):
+
+| Hallazgo | Qué era | Corrección |
+|---|---|---|
+| **P0-1** | El núcleo podía sumarse mezclando familias (contrato 100k + desglose 80k+20k = 200k) | Fila-hecho con **`medida`** (`stock`/`desglose`/`nula`) y **la ventana la EXIGE**: mezclar ya no es un descuido posible. Ningún consumidor actual mezclaba (todos filtran por tipo) |
+| **P0-2** | Las cifras gerenciales/AUM **excluyen cooperativas** — igual que ayer | **NO es bug: es la omisión histórica que la paridad conservó a propósito.** Incluirlas cambia números de pantalla → **DECISIÓN DE MIGUEL** (abajo) |
+| **P0-3** | 1900/9999 no era «todo el tiempo»; vencimientos tenía suelo 2020 | **±infinity** de verdad en todas; postflight prohíbe ventanas mágicas (exceptuando el suelo legítimo de fecha de nacimiento) |
+| **P0-4** | El contrato temporal mezclaba día-local (contratos) e instante (coops) | **Escrito en el núcleo**: llamar con medianoches de Lima o ±infinity; para los llamadores reales es equivalente (Codex lo confirmó) |
+| P1-6 | F4.c dejó caer 3 funciones de STABLE a VOLATILE en silencio | `ALTER FUNCTION … STABLE` ×3, con postflight |
+| P2-9 | `en_roster` miraba cualquier revisión de metas | Solo la revisión **vigente** (la mayor) |
+| P1-5 | Rendimiento del bloque por-lead (hipótesis de plan) | Se mide con EXPLAIN en banco tras el 10/09; panel de gerencia con cohortes chicas hoy |
+| P1-7 | La ventana pierde los 13 sin dueño para no-globales | La ventana no tiene consumidores; su semántica de visibilidad se decide con el primero |
+| P1-8 | `vendedores_fn` cambia por transitividad | La paridad de `cartera_por_vendedor` quedó fotografiada; el oráculo punta a punta llega con su migración post-10/09 |
+| P2-10 | Hipótesis de solape contrato+coop del mismo lead | Consulta de comprobación anotada para el banco post-cierre |
+
+**⏳ DECISIÓN ABIERTA PARA MIGUEL (P0-2):** tu decisión 4 dice «las cooperativas SON parte
+del capital», y el cierre/conversiones ya las cuentan. Pero `metricas_capital_mes_fn`, el
+AUM del Directorio y los resúmenes de cartera **nunca las contaron**, y la paridad byte a
+byte lo conservó. ¿Deben esas pantallas empezar a incluirlas (los números SUBEN: hoy
+S/ 264 800 vigentes), o el AUM/capital-del-mes es solo contratos Avance? Con la `medida` y
+la pierna cooperativa ya en el núcleo, encenderlo es UNA línea por pantalla.
 
 Orden de Miguel (29/08): *«yo quiero ver todo ya, no me interesa la fecha, lo que necesito es crear el sistema»* — la Fase 4 se construye y publica ya, con UNA línea de ingeniería: **el motor del sellado no se toca** con el primer sellado a 11 días (`produccion_mes_por_vendedor`, `cerrar_periodo`, `registrar_ajuste_si_mes_cerrado` migran justo después del 10/09).
 
