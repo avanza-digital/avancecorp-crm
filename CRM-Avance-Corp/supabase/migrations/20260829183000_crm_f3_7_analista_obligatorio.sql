@@ -1,12 +1,10 @@
 -- P-055 Fase 3.7 - El analista pasa a ser OBLIGATORIO.
 --
--- ⛔ VIVE EN snippets/ A PROPOSITO (hallazgo P1-5 de Codex): dentro de
--- migrations/ el tren entero se aplicaria de un tiron y el alta administrativa
--- quedaria caida hasta desplegar la app. El dia que el front este publicado,
--- MOVER este archivo a migrations/ con timestamp fresco y aplicarlo. Mismo
--- patron de la casa que NO-APLICAR-numeracion-automatica.
+-- Movida de snippets/ a migrations/ el 2026-08-29 CON EL FRONT YA VIVO
+-- (release crm-20260829T182429Z-6088501b533d desplegado y verificado): la
+-- condicion del hallazgo P1-5 de Codex quedo satisfecha.
 --
--- ⛔ NO PUBLICAR ESTA MIGRACION ANTES QUE EL FRONT. Es el ultimo paso de la
+-- ⛔ NO PUBLICAR ESTA MIGRACION ANTES QUE EL FRONT (cumplido). Es el ultimo paso de la
 -- Fase 3 a proposito. El orden de este proyecto para una clave nueva que viaja
 -- en la PETICION es: servidor la acepta (20260829181000) -> el front la manda
 -- -> recien entonces se exige. Publicada antes de tiempo, la primera

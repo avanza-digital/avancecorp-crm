@@ -5119,10 +5119,19 @@ aplicada en vivo: contrastar hash vivo ANTES de publicar.
 **Validación final (29/08, todo deshecho):** corrida A (tren + 7/7 comportamiento) y
 corrida B (tren + marcha atrás completa, huellas originales verificadas).
 
-**Pendiente:** merge de Miguel. **Pregunta abierta para Miguel** (P1-2 de Codex, sin
-inventar la regla): ¿el selector del alta debe seguir OFRECIENDO a quien ya no está en el
-equipo (hoy aparece marcado «ya no está»), o solo activos? La decisión 15 dice que sus
-ventas históricas cuentan; no dice nada de ventas NUEVAS.
+**✅ EN PRODUCCIÓN (2026-08-29, «mergea todo»).** Registro: 156 → **166** migraciones (las
+10 registradas CON su cuerpo en `statements`, cerrando la deuda de las versiones mudas).
+Orden ejecutado: 9 migraciones → verificación por conteo y sonda (Adelayda PEN 383 600 en
+el ranking vivo; los dos candados rebotan P0409) → advisors **0 ERROR** → **integración de
+la rama paralela del vivo** (`fb7e53d`, 12 commits; 2 conflictos triviales; 2439/2439
+pruebas post-merge) → release `crm-20260829T182429Z-6088501b533d` desplegado a
+crm.miavance.com y verificado (version.json nuevo, hashes byte a byte, asset 200, ZIP 404)
+→ F3.7 movida de snippets a `20260829183000`, publicada y registrada: la obligatoriedad
+está viva y la rama de transición, muerta.
+
+**Decisión de Miguel (29/08): SOLO ACTIVOS en el alta.** El selector ofrece únicamente a
+quien está trabajando y `crear_contrato` lo exige (`e.activo`); la venta vieja de alguien
+que se fue entra por la reasignación de gerencia (que sí acepta inactivos, con motivo).
 
 ---
 
