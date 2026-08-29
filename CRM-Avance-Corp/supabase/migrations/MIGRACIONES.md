@@ -25,6 +25,9 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260818014534 | `public.perfiles.domicilio` (columna), `perfiles_domicilio_legal_valido` (CHECK), `perfiles_domicilio_legal_no_borrar` (trigger) — **fila añadida a posteriori el 2026-08-19**: la migración alteró `public` y no se registró | pendiente de confirmar |
 | 20260819162752 | sin DDL, pero **cambia quién escribe** `public.perfiles.domicilio` saltándose la RLS del portal: antes solo Gerencia, ahora toda la cartera CRM | sí, 2026-08-19 |
 | 20260824170630 | `public.contratos.fecha_cierre_comercial`, `fuente_cierre_comercial`, índice/trigger de protección y `public.metricas_directorio()` | sí, 2026-08-24 |
+| 20260828190000 | trigger de auditoría NUEVO sobre `public.contrato_titulares` (I/U/D) y NUEVO sobre `public.cronograma_pagos` solo para alta y baja (el de UPDATE, con su `WHEN`, no se toca) | sí, 2026-08-28 (Fase 1 del P-055) |
+| 20260828190500 | 2 CHECK anti-NaN en `public.cronograma_pagos` (`monto_programado`, `monto_pagado`) | sí, 2026-08-28 (Fase 1 del P-055) |
+| 20260828191000 | REVOKE de TRUNCATE/REFERENCES/TRIGGER/MAINTAIN a `anon` y `authenticated` en 10 tablas de `public`; `alter default privileges`; REVOKE EXECUTE a `public`/`anon` de 5 RPC de administración con re-grant explícito a `authenticated` y `service_role` | sí, 2026-08-28 (Fase 1 del P-055) |
 
 ## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
 
@@ -4737,3 +4740,231 @@ y el arreglo no surte efecto aunque la función ya exista.
 Cómo se comprueba que la API ve la firma nueva sin sesión: un POST anónimo al RPC
 debe responder **42501** (muro de permisos, la firma resolvió) y no **PGRST202**
 (no la encuentra en el caché de esquema).
+
+## 20260828190000 / 190500 / 191000 · Fase 1 del PLAN MAESTRO P-055 — «proteger lo que ya tienes»
+
+✅ **APLICADAS EN PRODUCCIÓN** (2026-08-29 ~01:40 UTC, autorizadas por Miguel:
+«mergea por favor»). Registro de producción: **152 → 155 migraciones**.
+Verificado por CONTEO y por COMPORTAMIENTO, no por lo que dijo el comando:
+4 auditores nuevos · 16 guardianes · **0** tablas de `public` con permisos que la
+RLS no gobierna · **0** RPC de administración abiertas a `anon`/PUBLIC y las 5
+vivas para `authenticated` y `service_role` · `crear_contrato` **intacta**
+(md5 `f50b62e1…`) · datos sin tocar (466 contratos, 9 co-titulares, 663 leads,
+4252 cuotas). Sonda de comportamiento en producción, deshecha sola: el NaN
+rebota · el aviso automático **no** ensucia la auditoría · borrar un co-titular
+deja rastro con su `fila_id` y su documento · cambiar la gestión de un lead deja
+rastro. Advisors de producción: **0 ERROR** (135 WARN + 26 INFO, fondo conocido).
+
+🔴 **`merge_branch` VOLVIÓ A MENTIR — y ahora se sabe POR QUÉ.** Se llamó dos
+veces: las dos devolvieron `{"success": true}` y producción **no cambió** (152
+migraciones, cero auditores). La segunda dejó a `main` en `MIGRATIONS_FAILED`
+**sin ejecutar una sola sentencia** (cero errores de Postgres en el log de esa
+ventana). **La causa:** el registro del banco tenía las versiones **sin
+`statements`** — se registran con `insert … (version)` a secas, igual que hacen
+los `aplicar-*-prod.sh`, así que el merge no tenía SQL que llevarse. Cargar el
+cuerpo en `statements` tampoco bastó: el merge siguió fallando en el orquestador.
+**Vía que SÍ funcionó** (la de siempre en este proyecto):
+`supabase db query --linked --file <migración>` una por una + registro de la
+versión. ⚠️ Queda una secuela cosmética: **el branch `main` figura como
+`MIGRATIONS_FAILED` en el panel** aunque la base está sana y completa.
+
+**Qué hace cada una.**
+
+| Versión | Qué | Por qué ahora |
+|---|---|---|
+| `190000` · `crm_f1_1_rastro_titulares_gestion_cuotas` | Auditor NUEVO en `public.contrato_titulares` y en `crm.actividades_cliente`; el de `crm.actividades` pasa de solo INSERT a INSERT/UPDATE/DELETE; y un auditor APARTE en `public.cronograma_pagos` solo para el alta y la baja. | `contrato_titulares` es el **único ROTO real** del inventario P-053: 0 filas de auditoría contra 1083 del contrato. Es el dato con más peso legal. |
+| `190500` · `crm_f1_2_malla_anti_nan_montos` | 16 CHECK que rechazan NaN e infinitos en `cronograma_pagos` (2), `cierre_mes_vendedor` (7), `ajustes_mes_cerrado` (6) y `periodos_cerrados` (1). | Las tres tablas del cierre están **vacías hoy**: blindarlas es gratis. Después del primer cierre real, no. |
+| `191000` · `crm_f1_3_puertas_baratas_anon` | REVOKE de las cuatro letras que RLS **no** gobierna (TRUNCATE, REFERENCES, TRIGGER, MAINTAIN) a `anon` y `authenticated` en las 10 tablas de fábrica, `alter default privileges` para que no reincida, y cierre de las 5 RPC de administración. | Cuesta cinco minutos y no toca nada vivo. |
+
+**🔻 LA CUARTA MIGRACIÓN SALIÓ DE LA FASE (Miguel, 28/08).** El cerrojo de la
+numeración automática estaba escrito y verificado, pero Miguel decidió que **esa
+numeración no se necesita todavía — más adelante sí**. Reemplazar una función
+viva del portal para proteger una rama que hoy no usa nadie (466 contratos,
+TODOS con número manual, cero autogenerados) es riesgo sin beneficio presente.
+Además, Codex encontró que esa rama necesita **cuatro** arreglos, no uno: el
+formato (`AC-2026-NNNN` cuando los 466 vivos son `2026-01-NNNNNN`), el cerrojo,
+el año tomado de la zona de la sesión en vez de Lima, y la falta de validación
+del número manual. Se deciden juntos el día que se encienda.
+El archivo, con todo eso escrito, vive aparcado **fuera de `migrations/`** para
+que ningún replay lo aplique por su cuenta:
+`supabase/snippets/NO-APLICAR-numeracion-automatica-contratos.sql`.
+
+**🔴 SEGUNDO FALLO PROPIO, CAZADO ANTES DE APLICAR — el `WHEN` que casi se
+borra en silencio.** La primera versión hacía `DROP+CREATE` de
+`trg_audit_cronograma_pago` para añadirle INSERT y DELETE. Ese trigger lleva una
+cláusula **`WHEN`** puesta a propósito en la auditoría del portal del 2026-06-13:
+audita solo los UPDATE que tocan el pago (`estado`, `monto_pagado`,
+`fecha_pago_real`, `registrado_por`). Recrearlo la habría borrado sin decir nada,
+y con ella la única defensa contra el ruido: el **cron diario de recordatorios**
+escribe `notif_pago_enviada_en` y `recordatorio_3d_enviado_en` en muchas filas, y
+cada sello habría dejado una fila de auditoría con el JSON entero. Corregido: el
+trigger de UPDATE **no se toca** y el hueco probatorio —el borrado— se cierra con
+`trg_audit_cronograma_pago_alta_baja`, un trigger aparte de INSERT/DELETE (donde
+un `WHEN` sobre `old`/`new` ni siquiera sería válido). Sonda de regresión añadida:
+sellar el recordatorio en todas las cuotas de un contrato produce **0** filas de
+auditoría, un cambio de pago **sí** produce, y borrar una cuota **sí** produce.
+**Regla que queda:** antes de recrear un trigger, leer `pg_get_triggerdef`
+entero — `tgtype` no ve la cláusula `WHEN`.
+
+**🔴 EL HALLAZGO QUE COSTÓ UNA SONDA — revocarle a `anon` no revocaba nada.**
+La primera versión de `191000` hacía `revoke execute … from anon` y, medido
+contra producción, **`anon` seguía pudiendo ejecutar las 5 RPC**. El permiso no
+le venía de su nombre: el ACL de las cinco empieza por `{=X/postgres,…}`, que es
+EXECUTE **para PUBLIC**. Quitárselo a un rol que lo hereda de PUBLIC no quita
+nada. Corregido a `from public, anon` + `grant` explícito a `authenticated` y
+`service_role`, y el postflight ya no usa `has_function_privilege` para esto
+(dice «sí» también cuando el permiso es heredado): mira el ACL con `aclexplode`
+y `grantee = 0`. **Regla que queda:** para comprobar que una puerta se cerró de
+verdad, mirar el ACL, no la función de conveniencia.
+
+**Cómo se verificaron sin gastar un branch ni escribir en producción.** Las
+cuatro se aplicaron **contra producción dentro de bloques `DO` que siempre
+terminan en `RAISE`**, así que todo se deshace (patrón ya usado en este
+proyecto). Además de los preflight/postflight de cada archivo:
+
+- **Sonda A + mutante:** borrar un co-titular real deja una fila de auditoría con
+  su `documento`; **quitando el trigger, no la deja** — la sonda prueba lo que dice.
+- **Sonda de regresión del `WHEN`:** sellar `recordatorio_3d_enviado_en` en todas
+  las cuotas de un contrato → **0** filas de auditoría; un cambio de `monto_pagado`
+  → **1**; borrar una cuota → **1**.
+- **Sonda gestión:** modificar una fila de `crm.actividades` ya deja rastro (antes no).
+- **Sonda B + mutante:** un `NaN` **rebota** en `cronograma_pagos`; **sin el CHECK, entra**.
+- **Sonda C:** una cuota legítima (1234.56) entra y su alta queda registrada.
+- **Postflight de la 2 sobre el predicado VIVO** (copiado del catálogo a una tabla
+  temporal): NaN e infinito rebotan; `0`, `-3.5` y `17.25` pasan — el listón del
+  cierre **no** impone rangos de negocio y por eso no puede romper el sellado del 10.
+- **Sonda de permisos + mutante C:** cerrado TRUNCATE/REFERENCES/TRIGGER/MAINTAIN
+  para `anon` y `authenticated` sin tocar SELECT/INSERT/UPDATE/DELETE; `service_role`
+  intacto; y devolviendo PUBLIC la comprobación vuelve a fallar.
+- **Sonda de la 4:** Postgres construyó el parche sobre su propia fuente viva y el
+  cuerpo resultante coincide **byte a byte** (md5 `5db4ef8c…`) con el que instala el
+  archivo. Compila, conserva SECURITY DEFINER, `search_path` y ACL, y el cerrojo
+  resuelve la sobrecarga `(int,int)`.
+
+**Decisión declarada — la convención de auditoría queda PARTIDA a propósito.**
+`public` sigue con `public.log_audit_change` (columna `tabla` sin esquema) y `crm`
+con `private.log_audit_crm` (con esquema). Unificarlas cambiaría el significado de
+las ~23.000 filas ya escritas. El P-053 pedía decidirlo: decidido.
+
+**Fuera de alcance, con motivo:** `crm.operaciones_cartera` (ledger append-only,
+REFUTADO como roto), `crm.usuario_eventos` (su `id` es BIGINT y `log_audit_crm` lo
+castea a uuid: colgárselo abortaría todo su DML), `public.audit_log` (recursión),
+y las tablas sin valor probatorio. Van a la Fase 7.
+
+**⚠️ Riesgo conocido y aceptado de `191000`:** en la imagen local de Postgres
+17.6.1.105 llamar a una función sin EXECUTE **revienta el backend** en vez de dar
+«permission denied». Cerrar estas 5 no crea esa exposición —ya hay ~300 funciones
+en esquemas expuestos que `anon` no puede ejecutar—, pero queda dicho. Antes de
+aplicar, confirmar que ninguna página pública del portal las llama: verificado por
+lectura el 28/08, solo se invocan desde `/admin`, detrás del login.
+
+**AUDITORÍA RLS (subagente `auditor-rls`, 28/08): 3 ALTO, 4 MEDIO, 6 notas — todas
+resueltas o refutadas con evidencia antes de dar esto por terminado.**
+
+| # | Hallazgo | Qué se hizo |
+|---|---|---|
+| **A1** | El `DROP+CREATE` borraba el `WHEN` del auditor de cuotas, y ni el preflight (`tgtype`) ni el postflight podían verlo | **Ya estaba corregido** cuando llegó la auditoría (trigger aparte de alta/baja). Se añadió además la comprobación de `tgattr` (`UPDATE OF cols`), que `tgtype` tampoco ve |
+| **A2** | La bandeja de actividad del portal se contaminaría con las filas nuevas | **REFUTADO con evidencia:** `public.bandeja_actividad` filtra por lista blanca `al.tabla in ('perfiles','contratos')` (leído de producción). Su canal en vivo sí se suscribe a todo `audit_log`, pero con retardo de 500 ms y solo re-consulta esa RPC filtrada: una recarga más, la misma que ya provoca el alta del contrato. Declarado en la cabecera de F1.1 |
+| **A3** | No había marcha atrás, y el `WHEN` del auditor de cuotas **no existía en ningún archivo del repo**: solo en la base | **Escrita:** `supabase/scripts/rollback-f1-p055.sql`, con el cuerpo vivo de `crear_contrato` (anclado por md5), las definiciones literales de los dos triggers y una comprobación final de que el servidor quedó como antes |
+| **M1** | El postflight exigía conservar grants MUERTOS (escritura de `anon`, escritura de `authenticated` sobre `audit_log`) y así los cementaba | Postflight relajado: solo exige que no se pierda el SELECT que el portal usa ni el `service_role`. Declarado por qué esos grants no se tocan aquí (son Fase 5, tocan superficie viva) |
+| **M2** | F1.2 no declaraba el residuo | Declarado: `crm.lead_asignaciones.monto_estimado` sigue aceptando NaN (`is null or >= 0`, listón de un solo lado) y va a la Fase 7. Anotado también que `crm.leads.monto_estimado` **sí** queda cubierto, por su tope superior |
+| **M3** | Cero cobertura de lo nuevo en el gate | **Escrito** `supabase/scripts/test-f1-puertas.sql`: aceptación completa de las 4, con caso positivo, negativo y **dos mutantes**. Sigue el consejo del auditor de **no** llamar a las RPC como `anon` (eso revienta el backend en la imagen 17.6.1.105): la comprobación de permisos se hace por ACL con `aclexplode`, que es la misma verdad sin el riesgo. Falla en voz alta si el banco no tiene datos, en vez de pasar en verde |
+| **M4** | La auditoría de `crm.actividades_cliente` mueve PII del CRM a un log gobernado por los roles del PORTAL | Declarado en la cabecera de F1.1 y aquí: un admin del portal que no sea gerencia del CRM pasa a poder leer el `detalle` de gestión y el documento de los co-titulares. Es el mismo trato que ya recibe `crm.leads`; la vista de `audit_log` recortada por ámbito queda para la Fase 7 |
+| **N1** | Segundo bloque del preflight de F1.4 inalcanzable, con mensaje engañoso | Invertido el orden: primero «ya estaba puesta», después el md5 |
+| **N2** | El postflight de F1.4 no comprobaba `search_path` ni ACL | Añadidos: `proconfig @> array['search_path=']`, sin PUBLIC, `anon` no y `authenticated` sí |
+| **N3** | El cerrojo se sostiene hasta el commit | Sin ciclo de espera (mismo orden en todos los caminos, verificado). Declarado en la cabecera para el día que se encienda la numeración automática |
+| **N4** | `alter default privileges` lo puede pisar la plataforma | Declarado; propuesto vigilarlo desde `gate-realidad.mjs` |
+| **N5** | El preflight no veía una 11.ª tabla futura en `public` | Añadido: `public` tiene que tener exactamente 10 tablas |
+| **N6** | El `revoke ... from public` afecta a roles que heredaban solo de PUBLIC | Declarado; verificado que los dos que importan (`authenticated`, `service_role`) tienen concesión propia |
+
+**Corrida de aceptación final, con las 4 corregidas y aplicadas juntas contra
+producción (todo deshecho):** 4 auditores + `WHEN` intacto · 16 guardianes · 0
+tablas con permisos fuera de la RLS · 5 RPC cerradas a `anon`/PUBLIC y vivas para
+`authenticated`/`service_role` · cerrojo puesto · NaN y 0 rechazados, cuota
+válida con rastro de alta, borrado con rastro, **el sello del cron sin escribir ni
+una fila** · co-titular borrado con su documento en el rastro · **los dos mutantes
+confirman que las sondas prueban lo que dicen**.
+
+**AUDITORÍA ADVERSARIAL DE CODEX (28/08): veredicto NO-GO — 4 P1 y 6 P2.
+Corregido todo; dos hallazgos suyos quedaron refutados con evidencia.**
+
+| # | Hallazgo de Codex | Resolución |
+|---|---|---|
+| **P1-1** | **El postflight de F1.4 abortaba el 100 % de las ejecuciones.** `SET search_path TO ''` se guarda en `proconfig` como `search_path=""` —con las comillas dentro—, y yo comprobaba `array['search_path=']`: falso siempre | **REAL, y era mío. Corregido.** Es la misma trampa que ya costó una sesión (`search_path=""` con comillas). Verificado contra producción (`proconfig = {"search_path=\"\""}`) y **con mutante**: la comprobación vieja falla, la nueva pasa. Nunca se había ejercitado porque ese bloque se añadió después de la última corrida |
+| **P1-2** | La rama de autonumeración **es alcanzable hoy** y genera un formato que nadie usa | **Confirmado con datos y DECLARADO:** 0 de 466 contratos usan `AC-`; el formato vivo es `2026-01-NNNNNN`. También el año sale de la zona de la sesión, no de Lima, y un número manual `AC-…` no toma el cerrojo. **No se arregla aquí**: el candado es lo que pedía la Fase 1; el formato es una decisión de negocio de Miguel antes de encender la numeración automática |
+| **P1-3** | La auditoría de `crm.actividades_cliente` mueve PII a un log con audiencia más amplia | **Acotado con números y declarado.** Los lectores de `audit_log` son `es_admin()` y superadmin: **3 personas** en producción (2 admins + 1 superadmin), no «cualquier admin». Y el precedente existe: `crm.leads` audita ahí con DNI y teléfono desde los cimientos. Se declara en la cabecera; la vista de `audit_log` recortada por ámbito queda en la Fase 7 |
+| **P1-4** | El `REVOKE EXECUTE` crea **cinco rutas conocidas** hacia el crash ya reproducido (los nombres están en el JS publicado) | **Convertido en un gate obligatorio, no en un riesgo aceptado.** La cabecera de F1.3 exige comprobar en el BANCO —misma imagen que producción— que una llamada anónima real a `/rest/v1/rpc/dashboard_admin_metricas` responde **42501 y el banco sigue vivo**. Si se cae, **no se publica ese bloque** (las 5 se quedan como están, que no filtran nada) y se escala a Supabase. **No es una decisión de Miguel: es un paso del ciclo del banco**, y su resultado por defecto ya está decidido |
+| **P2-5** | «El DELETE queda sin `fila_id` porque `log_audit_change` usa `NEW.id`» | **REFUTADO con evidencia.** La función viva usa `OLD.id` en la rama DELETE. Medido: el borrado de un co-titular deja `fila_id` con su id exacto. Añadido al script de aceptación para que no se pierda. La segunda mitad —que el sync produce DELETE+INSERT también para co-titulares que no cambiaron— **sí es cierta** y queda declarada |
+| **P2-6** | El `DROP+CREATE` podía perder otros metadatos y toma ACCESS EXCLUSIVE | **Eliminado de raíz: la migración es ahora 100 % ADITIVA.** No se borra ni recrea ningún trigger; `crm.actividades` recibe `trg_audit_actividades_cambio_baja` (UPDATE/DELETE) y conserva su auditor de INSERT intacto. Además `set local lock_timeout = '5s'` |
+| **P2-7** | `ADD CHECK` puede formar cola detrás de una transacción larga | `lock_timeout` de 5 s en F1.1 y F1.2: falla y se reintenta en vez de encolar al portal. No se usa `NOT VALID`+`VALIDATE` porque exigiría dos transacciones separadas para servir de algo, y validar 4252 filas es instantáneo |
+| **P2-8** | `conname` no es único en toda la base | **Corregido:** preflight y postflight comprueban por par `(conrelid, conname)` y exigen `convalidated` |
+| **P2-9** | El radio del `revoke ... from public` no estaba probado, ni la persistencia del default ACL | Afirmación suavizada (roles que heredaban solo de PUBLIC sí pierden) y **sonda nueva** de `pg_default_acl` en el postflight |
+| **P2-10** | El md5 cubre el cuerpo, no los atributos | **Corregido:** el preflight exige además que las dos funciones de auditoría sean `SECURITY DEFINER` — una con el mismo texto y sin ese atributo abortaría todo el DML |
+
+**Y lo que Codex confirmó que está bien:** ningún CHECK puede rechazar un valor
+legítimo del cierre del 10/09 (negativos, cero y decimales pasan; los nullable
+aceptan NULL; Postgres no convierte división por cero en NaN, lanza error, y
+`cerrar_periodo` ni siquiera divide cuando el divisor es 0) · el `CASCADE` sí
+dispara los triggers hijos · el advisory lock resuelve la sobrecarga `(int,int)`
+y **no hay ciclo de deadlock** con el de `operaciones_cartera` · el
+`alter default privileges for role postgres` es la forma correcta.
+
+**Corrida de aceptación FINAL, con las 4 ya corregidas y aplicadas juntas contra
+producción (todo deshecho):** 4 auditores nuevos + los 2 viejos intactos · 16
+guardianes · `search_path` OK (el postflight que abortaba ahora pasa) · NaN
+rechazado · el sello del cron sin escribir ni una fila · cuota, gestión y
+co-titular con rastro (con `fila_id` y documento) · permisos exactos, presente y
+futuro.
+
+**ALCANCE FINAL: TRES migraciones.** La corrida de aceptación se repitió con ese
+alcance y quedó en verde, comprobando además que `public.crear_contrato` sigue
+**intacta y con su md5 original** — la Fase 1 no toca ninguna función.
+
+### CICLO DEL BANCO — COMPLETO (2026-08-28, branch `f1-p055` / `dzfmczrdtxgfpkxswquq`)
+
+| Paso | Resultado |
+|---|---|
+| Banco a paridad | **146 → 155 migraciones**; los 3 md5 de las funciones vivas (`log_audit_change`, `log_audit_crm`, `crear_contrato`) **coinciden al byte con producción** |
+| Las 3 migraciones aplicadas | Los 3 postflights **en verde** |
+| `test-f1-puertas.sql` | **En verde**: 8 comprobaciones + los 2 mutantes |
+| **Gate de RLS** | **✅ 1185 aserciones, 0 rojos, `exit 0`** |
+| Advisors (seguridad) | **0 ERROR.** 134 WARN + 26 INFO, todo fondo conocido: 131 `authenticated_security_definer_function_executable` (por diseño, revalidan el rol por dentro), 26 `rls_enabled_no_policy` (deny-by-default) y 2 `anon_security_definer_function_executable` (`es_gestor_cartera`, `es_operaciones` — preexistentes, van a la Fase 5) |
+| Marcha atrás | **Probada en el banco**: `rollback-f1-p055.sql` deja el servidor como estaba y su propia comprobación lo confirma |
+
+**🟢 EL RIESGO P1-4 DE CODEX, RESUELTO EMPÍRICAMENTE.** Se hicieron **20 llamadas
+anónimas reales** por PostgREST a las 5 consultas ya cerradas, sobre la MISMA
+imagen de Postgres que produccción. Las 20 respondieron **HTTP 401 con código
+42501** (`permission denied for function …`) y **el banco siguió vivo** después.
+El fallo de la imagen 17.6.1.105 **no se manifiesta por esta vía**: cerrar esas
+cinco es seguro. La sospecha quedó medida en vez de aceptada.
+
+**Tres hallazgos del ciclo que NO son de la Fase 1 y quedan anotados:**
+
+1. **🔴 El seed determinista no puede correr contra un banco nuevo.**
+   `private.definir_periodo_comercial_contrato()` es un trigger de
+   `public.contratos` **SECURITY INVOKER** que lee `crm.periodos_cerrados`, tabla
+   deny-by-default. Cualquier INSERT de contrato que NO pase por
+   `public.crear_contrato` (que sí es DEFINER) muere con
+   `permission denied for table periodos_cerrados`, y eso es justo lo que hace el
+   seed. **Producción no está afectada**: se comprobó que `crear_contrato` es la
+   ÚNICA función que inserta en `public.contratos`. **Demostrado que es
+   preexistente**: con la Fase 1 revertida en el banco, el mismo INSERT falla
+   igual. Andamio usado solo en el banco: `grant select on crm.periodos_cerrados
+   to service_role`. Arreglo de verdad (Fase 5 o 7): que el trigger sea DEFINER, o
+   que el seed cree los contratos por la RPC.
+2. **🔴 `test-rls.mjs` tenía un fallo de JavaScript que abortaba el gate.** El
+   bloque del filtro de origen (añadido el 28/08) llamaba a un ayudante `num()`
+   declarado en OTRO ámbito: el gate moría con `num is not defined` tras 650
+   comprobaciones verdes, sin llegar nunca a las de cierre de mes. **Corregido**
+   en este ciclo (misma definición, en el ámbito que la usa).
+3. **⚠️ El registro de migraciones de producción tiene 9 versiones sin cuerpo**
+   (las que aplicaron los `aplicar-*-prod.sh`, que registran solo la versión).
+   Para el banco hubo que rellenarlas desde los archivos locales. Sin eso, dos
+   funciones vivas del CRM (`crm.datos_legales_contrato_fn` y
+   `crm.completar_domicilio_cliente`) faltaban en el banco y el gate las reportaba
+   como PGRST202. **Regla que queda:** al montar un banco, la fuente es el
+   registro remoto **más** los archivos locales de las versiones sin `statements`.
+
+**Banco `f1-p055`: borrado** al terminar (su trabajo estaba hecho).
+
+**Lo que queda de la Fase 1:** nada. Fase cerrada.

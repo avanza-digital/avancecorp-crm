@@ -5748,6 +5748,11 @@ async function testMetricasServidor(sessions, seed) {
 // seguimiento. Tres bloques: (A) permitidos y FORMA, (B) denegaciones duras,
 // (C) NO VACUIDAD — sin el bloque C, todo A puede estar verde y vacio.
 async function testMetricasConversionesGlobal(sessions) {
+  // `num` vivia solo dentro de testCierreDeMes (linea ~7603) y este bloque
+  // -el del filtro de origen, anadido el 28/08- lo llamaba desde otro ambito:
+  // el gate moria con «num is not defined» tras 650 comprobaciones verdes,
+  // sin llegar a las de cierre de mes. Misma definicion, aqui tambien.
+  const num = (valor) => Number(valor ?? 0);
   // metricas_conversiones_fn (el panel Conversiones de gerencia) jamas tuvo
   // casos en esta matriz (objecion 3 del auditor RLS, F1.3 27/08): su gate es
   // SOLO gerencia/lector global — mas estrecho que el de equipo_fn — y desde

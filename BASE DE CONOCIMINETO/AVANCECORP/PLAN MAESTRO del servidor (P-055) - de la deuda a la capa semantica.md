@@ -8,17 +8,17 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** FASE 0 (decidir). **Nada ejecutado todavía.**
+**Fase actual:** FASE 2 (mirar el primer cierre). **La Fase 1 está EN PRODUCCIÓN** desde el 28/08, aplicada con tu autorización y verificada por conteo y por comportamiento.
 
-**Lo que bloquea:** las 7 preguntas de §8 sin responder.
+**Lo que bloquea:** nada. Ninguna pregunta abierta.
 
-**Lo siguiente en cuanto haya respuestas:** Fase 1 (proteger lo que ya tienes), antes del próximo cierre de mes.
+**Lo siguiente:** la Fase 2 es una semana quieta alrededor del **cierre del 10/09**: no se publica nada, se observa que el cierre corra bien y se guarda una copia de ese mes como referencia.
 
 | Fase | Estado |
 |---|---|
-| 0 · Decidir | 🟡 en curso — 14 decisiones tomadas, 7 preguntas abiertas |
-| 1 · Proteger lo que ya tienes | ⚪ sin empezar |
-| 2 · Mirar el primer cierre | ⚪ sin empezar |
+| 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
+| 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
+| 2 · Mirar el primer cierre | ⚪ toca en la semana del 10/09 |
 | 3 · Que cada venta tenga dueño | ⚪ sin empezar |
 | 4 · Una sola calculadora de capital | ⚪ sin empezar |
 | 5 · Cerrar puertas | ⚪ sin empezar |
@@ -26,7 +26,20 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |
 
+**Lo que quedó protegido el 28/08:** el rastro de quién toca los co-titulares, el historial de gestión y las cuotas · 16 casillas de dinero blindadas contra valores imposibles antes del primer cierre · las puertas que la seguridad por filas no gobierna, cerradas.
+
 **Para retomar en una sesión nueva:** decir **`RETOMAR-SERVIDOR`**. Con eso se carga este plan, las decisiones ya tomadas y el punto exacto donde quedó.
+
+### Lo que hay escrito de la Fase 1, archivo por archivo
+
+| Archivo | Qué hace |
+|---|---|
+| `migrations/20260828190000_…rastro_titulares_gestion_cuotas` | Deja rastro de quién toca los **co-titulares** de una cuenta mancomunada, el **historial de gestión** del cliente y del lead, y el **alta y la baja de cuotas** |
+| `migrations/20260828190500_…malla_anti_nan_montos` | **16 guardianes** que impiden que entre un monto inválido al cronograma de pagos y a las tres tablas del cierre de mes |
+| `migrations/20260828191000_…puertas_baratas_anon` | Cierra los cuatro permisos que la seguridad por filas **no** gobierna en las 10 tablas, y las 5 consultas de administración |
+| `scripts/rollback-f1-p055.sql` | La **marcha atrás**, con las definiciones vivas copiadas literalmente |
+| `scripts/test-f1-puertas.sql` | La **aceptación**: caso bueno, caso malo y dos mutantes que rompen el arreglo para comprobar que la prueba lo nota |
+| `snippets/NO-APLICAR-numeracion-automatica-contratos.sql` | El cerrojo de la numeración automática, **aparcado** por decisión tuya hasta que se necesite |
 
 ### Cierre de la sesión del 2026-08-28
 
@@ -39,6 +52,75 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 **Evidencia guardada fuera de esta nota:** `CRM-Avance-Corp/.tmp-verificar-atribucion-capital.mjs` — diagnóstico de solo lectura que compara quién registró contra quién trabajó el lead. Útil para la Fase 3.
 
 **Acceso desde Obsidian:** el vault del proyecto quedó enlazado dentro del vault de `Documents` como carpeta `AVANCECORP`. Es un enlace, no una copia: hay un solo archivo.
+
+### Cierre de la sesión 2 del 2026-08-28
+
+**Qué se hizo:** la Fase 0 quedó cerrada. Las **7 preguntas** del §8 están respondidas y el plan pasa de 14 a **21 decisiones**. Se explicó qué es el AUM y se comprobó que ya vive en el sistema: el tablero de Directorio lo muestra por moneda con su variación y su captación del mes (`public_html/js/admin/directorio.js:91`).
+
+**Qué NO se hizo:** ninguna migración, ningún despliegue, ninguna escritura en producción. El servidor sigue exactamente como estaba.
+
+**Los tres cambios de rumbo respecto de lo que este plan asumía:**
+1. **Se cae el filtro de equipo mensual** — agosto pasa de 115 a 123 unidades y el podio puede mostrar a quien ya no está. Es una decisión de negocio, no un descuido.
+2. **El renombre va completo, por dentro también**, contra la recomendación de dos auditorías independientes. Queda anotado como elección consciente, con el orden seguro del §6 como condición.
+3. **Los 12 contratos históricos se quedan sin dueño** en lugar de repartirse.
+
+**Lo único que falta para arrancar:** tu visto bueno a la Fase 1.
+
+---
+
+### Cierre de la sesión 3 del 2026-08-28 — la Fase 1, escrita y ensayada
+
+**Qué se hizo:** las **cuatro migraciones de la Fase 1**, en
+`CRM-Avance-Corp/supabase/migrations/` (`20260828190000`, `190500`, `191000`,
+`191500`), con su ficha completa en el ledger `MIGRACIONES.md`.
+
+**Qué NO se hizo:** no se aplicaron. Producción sigue byte a byte como estaba
+(comprobado al terminar: 9 co-titulares, 4252 cuotas, `crear_contrato` con su md5
+original, cero auditores en `contrato_titulares`, `anon` con TRUNCATE).
+
+**Cómo se probaron sin gastar un branch y sin escribir una fila:** las cuatro se
+aplicaron **contra producción dentro de bloques que siempre terminan en error**,
+así que todo se deshace solo. Con mutantes: se rompe el arreglo a propósito para
+comprobar que la prueba lo nota. Un ejemplo de lo que eso demuestra: borrar un
+co-titular deja su rastro con el documento; **quitando el trigger, no lo deja**.
+
+**Dos auditorías independientes, las dos con hallazgos reales.** La de seguridad
+por filas: 3 altos, 4 medios, 6 notas. La adversarial de Codex: veredicto
+**NO-GO** con 4 graves. **Todo corregido**, y dos de sus hallazgos quedaron
+refutados con evidencia medida, no con opinión.
+
+**El fallo más caro lo encontró Codex, y era mío:** una comprobación de seguridad
+que habría hecho **fallar siempre** la cuarta migración. La había añadido después
+de la última prueba, así que nunca llegó a ejecutarse. Ya está corregida y, además,
+probada al revés: se comprobó que la versión anterior efectivamente fallaba.
+
+**La numeración automática sale de la Fase 1 (decisión tuya, 28/08):** no se
+necesita todavía. El cerrojo estaba escrito y probado, pero reemplazar una
+función viva del portal para proteger una rama que hoy no usa nadie es riesgo sin
+beneficio. Y Codex encontró que esa rama necesita **cuatro** arreglos, no uno:
+generaría `AC-2026-0001` cuando **ninguno de tus 466 contratos usa ese formato**
+(todos son `2026-01-NNNNNN`), el año lo toma de una zona horaria que no es Lima, y
+el número escrito a mano no se valida. Se deciden juntos el día que se encienda.
+El trabajo queda guardado y anotado, fuera de la carpeta de migraciones para que
+nadie lo aplique sin querer.
+
+**Nada de esto necesita decisión tuya para avanzar:** la comprobación en el banco
+de pruebas la hago yo, y su resultado por defecto ya está decidido (si el banco
+se cayera, ese bloque no se publica y el resto sí).
+
+**Dos fallos míos, cazados por esas pruebas antes de tocar nada:**
+1. **Revocarle el permiso a «los visitantes sin cuenta» no revocaba nada.** Las 5
+   consultas de administración estaban abiertas a *todo el mundo* (`PUBLIC`), no a
+   `anon`; quitárselo a `anon` dejaba la puerta igual de abierta. Medido, no
+   supuesto.
+2. **Estuve a punto de borrar en silencio un filtro puesto a propósito** en el
+   auditor de cuotas (auditoría del portal del 13/06). Sin él, el aviso
+   automático diario de cuotas habría empezado a escribir una línea de auditoría
+   por cada recordatorio enviado. Ahora el filtro se queda y el hueco —el
+   borrado— se cierra con un trigger aparte.
+
+**Lo que falta antes de publicar:** aplicarlas en un banco de pruebas, pasar el
+gate de seguridad por filas y los advisors, y tu merge.
 
 ---
 
@@ -97,6 +179,13 @@ Todo esto es **medible**: el §9 trae el tablero con el número de hoy y la meta
 | 12 | **Tablero por analista** | **Se abre**, verificado contra el cuadro de agosto. |
 | 13 | **Conexión `crm_metricas_bridge`** | No se sabe qué la usa → **investigar antes de retirar nada** que dependa de ella. |
 | 14 | **Arranque** | **Nada se ejecuta hasta aprobar este plan.** |
+| 15 | **Analista que ya no está en el equipo** | **Su venta cuenta igual.** Se elimina el filtro de la foto mensual: «necesitamos ver un historial». Efecto: agosto pasa de 115 a **123** unidades (vuelven los 8 que hoy quedan fuera) y el podio puede mostrar a alguien que ya no trabaja aquí — aceptado a propósito. |
+| 16 | **Pipeline estimado** | **Métrica aparte, nunca sumada** al capital real. Lo firmado y lo esperado jamás comparten un mismo número. |
+| 17 | **AUM** (capital gestionado, el que ya se ve en Directorio) | **Misma calculadora, cifra aparte.** Sale del mismo núcleo para que nunca se contradigan: el mes = lo que entró; el AUM = todo lo vigente. |
+| 18 | **Los 12 contratos de mayo a julio** registrados por gerencia | **Se quedan sin dueño** y fuera del ranking histórico. El podio arranca limpio desde agosto. |
+| 19 | **Alcance del renombre** a «analista» | **Completo, también por dentro** — con la recomendación contraria de dos auditorías a la vista. Se ejecuta por el único orden seguro del §6 (aditivo primero, migrar las 19 filas al final). |
+| 20 | **Tipo de documento** (DNI/CE/Pasaporte) | **Una sola lista** para todo el sistema. Agregar un tipo nuevo se hace en un solo lugar. |
+| 21 | **Borrar un perfil con historia en el equipo** | **Se impide:** hay que darlo de baja, no borrarlo. Acota la decisión 10 — el superadmin sigue pudiendo borrar, pero no a quien tenga historia de equipo, porque esa historia es la que sostiene la decisión 15. |
 
 ---
 
@@ -154,6 +243,11 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 - Estado de anulación
 - Marca de demo/prueba (para excluir 444444 y 888282 y los que vengan)
 
+**Tres reglas más, que salieron de las respuestas del §8:**
+- **Sin filtro de equipo** (decisión 15): la venta entra al mes aunque el analista ya no esté. El hecho guarda si estaba o no en el equipo ese mes, como columna, por si algún día se quiere separar el podio del capital — pero por defecto no descuenta nada.
+- **El pipeline no vive en este hecho** (decisión 16). Es otra métrica, con su propia ficha.
+- **El AUM sale del mismo núcleo** (decisión 17), como una consulta distinta: el mes pregunta «qué entró en este período», el AUM pregunta «qué está vigente hoy». Una sola calculadora, dos preguntas.
+
 ---
 
 ## 6. La campaña de nomenclatura — con el veredicto de Codex
@@ -175,7 +269,7 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 **Recomendación de Codex:** cambiar **solo lo que se lee** a «Analista» y conservar `vendedor` como contrato interno estable. Es la única variante sin indisponibilidad y sin compatibilidad eterna.
 
-**Si el renombre interno se mantiene** (decisión de Miguel), el único orden seguro es: aditivo en la base (aceptar ambos valores) → edges que aceptan ambos → CRM que lee ambos → recién ahí migrar las 19 filas → y la limpieza final **solo** con un gate de versión que fuerce recarga y telemetría que pruebe que no queda nadie en la versión vieja.
+**El renombre interno se mantiene** (decisión 19, confirmada el 28/08): el único orden seguro es: aditivo en la base (aceptar ambos valores) → edges que aceptan ambos → CRM que lee ambos → recién ahí migrar las 19 filas → y la limpieza final **solo** con un gate de versión que fuerce recarga y telemetría que pruebe que no queda nadie en la versión vieja.
 
 ---
 
@@ -183,8 +277,8 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 *El plan no lleva fechas de calendario: lleva **orden** y **esfuerzo**. El único anclaje real es el cierre de mes, que corre el día 10 — dos fases dependen de él y está dicho en cada una. Todo lo demás avanza al ritmo que tú marques.*
 
-### FASE 0 · Decidir — bloquea todo lo demás
-Responder las **7 preguntas** de §8 —4 de capital y 3 estructurales— y aprobar el plan.
+### FASE 0 · Decidir — ✅ CERRADA (2026-08-28)
+Las **7 preguntas** del §8 están respondidas —4 de capital y 3 estructurales— y son 21 decisiones. Falta solo aprobar el arranque de la Fase 1.
 
 **Por qué hoy y no «esta semana»:** la Fase 1 tiene que estar publicada antes del próximo cierre de mes. Si esto se corre, la Fase 1 entra al cierre a medio hacer.
 **Por qué las de capital también van aquí:** decidir no compite con ejecutar. Se pueden contestar mientras corren las fases 1 a 3; si llegan recién cuando arranca la Fase 4, la Fase 4 arranca frenada.
@@ -270,10 +364,12 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 ### FASE 8 · Un solo idioma — al final de todo
 «Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 5 de §8.
 
-⚠️ **Dos auditorías independientes recomiendan recortarla a la capa de presentación** (Codex y el auditor de Miguel, por separado): renombrar por dentro tiene radio de explosión alto —4 roturas de nivel P0, §6— y valor de negocio cero, porque nadie ve esos nombres. Sin recorte y sin fecha, esta fase queda abierta para siempre.
+**Alcance decidido: completo, también por dentro** (decisión 19), con las dos auditorías recomendando lo contrario y esa recomendación a la vista al decidir. Queda anotado para que dentro de seis meses se sepa que fue una elección, no un descuido.
 
-**Al terminar:** el mismo concepto se llama igual en todas partes, y no vuelve a pasar lo que pasó en esta sesión.
-**De ti:** la decisión de alcance. **Duración:** depende del alcance.
+⚠️ **Lo que eso implica, sin adornos:** son 4 roturas de nivel P0 (§6) que hay que desactivar una por una — entre ellas, que el CRM deje de dejar entrar a todo el mundo si se migran las 19 filas de equipo antes de tiempo. Por eso el orden del §6 no es negociable: **aditivo en la base → edges que aceptan ambos → CRM que lee ambos → recién ahí migrar las 19 filas → limpieza final solo con telemetría que pruebe que nadie quedó en la versión vieja.** Cada paso se publica por separado y con su marcha atrás escrita.
+
+**Al terminar:** el mismo concepto se llama igual en todas partes, por fuera y por dentro, y no vuelve a pasar lo que pasó en esta sesión.
+**De ti:** revisión y merge de cada paso (son varios, pequeños, a propósito). **Duración:** 4–5 sesiones.
 
 ---
 
@@ -287,20 +383,20 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-## 8. Preguntas abiertas — TODAS se responden en la Fase 0
+## 8. Las 7 preguntas — RESPONDIDAS (2026-08-28, sesión 2)
 
-**Del capital** *(estaban mal ubicadas como insumo de la Fase 4; se adelantan porque decidir no compite con ejecutar):*
+**Del capital:**
 
-1. **El filtro de roster mensual.** Hoy el sistema deja fuera del mes a quien no estaba en la foto del equipo cuando se cerró: son 8 contratos de agosto. ¿El núcleo nuevo conserva esa regla, o cuenta la venta aunque el analista ya no esté en la foto?
-2. **El pipeline estimado.** ¿Convive con el capital real en la misma cifra, o son dos métricas separadas que nunca se suman?
-3. **El AUM** (el total administrado): ¿entra al núcleo de capital o vive aparte?
-4. **Los 12 contratos históricos** de mayo a julio registrados por gerencia: ¿se revisan uno por uno con el equipo, o se declaran atribución aproximada y se sigue?
+1. **El filtro de equipo mensual** → **se elimina.** La venta cuenta aunque el analista ya no esté en la foto del mes: «necesitamos ver un historial». Agosto pasa de 115 a **123** unidades. Contrapartida aceptada: el podio de un mes puede mostrar a alguien que ya se fue. *(Decisión 15. El hecho guarda igual si la persona estaba o no en el equipo, por si alguna vez quieres separar podio de capital sin rehacer nada.)*
+2. **El pipeline estimado** → **dos métricas, nunca sumadas.** Lo firmado y lo esperado no comparten número. *(Decisión 16.)*
+3. **El AUM** → **misma calculadora, cifra aparte.** El Directorio deja de llevar su cuenta propia: pide al núcleo «qué está vigente hoy», mientras el mes pide «qué entró». *(Decisión 17.)*
+4. **Los 12 contratos históricos de mayo a julio** → **sin dueño**, fuera del ranking histórico. Nadie se lleva una venta que no se puede probar; el podio arranca limpio en agosto. *(Decisión 18.)*
 
 **Estructurales:**
 
-5. **El alcance final del renombre** a «analista», a la luz de las 4 roturas graves que encontró Codex (§6). Dos auditorías independientes recomiendan limitarlo a lo que se lee.
-6. **`tipo_documento`** repetido en 3 tablas: ¿se unifica o se declara tolerable?
-7. **La relación que borra en cascada la membresía del equipo** al borrar un perfil: ¿se cambia para que impida el borrado? *(Hoy contradice la regla del proyecto de que a un colaborador se le da de baja, no se le borra.)*
+5. **Alcance del renombre** → **completo, también por dentro**, con la recomendación contraria de las dos auditorías a la vista. Se ejecuta por el orden aditivo del §6, que es lo que convierte las 4 roturas P0 en pasos aburridos. *(Decisión 19.)*
+6. **`tipo_documento` en 3 tablas** → **se unifica** en una sola lista. Va en la Fase 7. *(Decisión 20.)*
+7. **El borrado en cascada de la membresía del equipo** → **se impide.** Si la persona tiene historia de equipo, hay que darla de baja. Es la condición para que la decisión 15 tenga sentido: no serviría de nada contar la venta del que se fue si borrar su perfil se lleva su historia. *(Decisión 21, que acota la 10.)*
 
 ---
 
