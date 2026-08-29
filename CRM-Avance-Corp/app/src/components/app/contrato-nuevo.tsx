@@ -161,6 +161,15 @@ export interface ContratoNuevoProps {
   cuentasDemo?: Partial<Record<Moneda, CuentaBancariaSeleccionable[]>> | undefined
   /** Validacion sin efectos (el demo la usa para reflejar el UNIQUE del servidor). */
   validarNumero?: (numero: string) => string | null
+  /**
+   * Equipo comercial para elegir DE QUIÉN es la venta (P-055 Fase 3, decisión 2
+   * de Miguel: «cuando registra un administrativo o un supervisor, tiene que
+   * seleccionar el analista»). Si no llega, el selector no se dibuja y el
+   * servidor aplica su regla: la venta queda a nombre de quien la registra.
+   */
+  analistas?: { perfil_id: string; nombre_completo: string }[]
+  /** A quién apunta el selector al abrir: normalmente quien está registrando. */
+  analistaInicial?: string | null
   /** Foto confirmada para que el contenedor pueda tratar Esc/overlay como Finalizar. */
   onConfirmado?: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   /** Bloquea el cierre externo durante create + archivo y durante cada reintento. */
@@ -179,11 +188,19 @@ export function ContratoNuevo({
   pdfDatosDemo,
   cuentasDemo,
   validarNumero,
+  analistas,
+  analistaInicial,
   onConfirmado,
   onEnviandoCambio,
   onCreado,
   onOmitir,
 }: ContratoNuevoProps) {
+  // De quién es la venta. Arranca en quien registra si esa persona está en la
+  // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
+  // elegir — que es exactamente lo que pide la decisión 2.
+  const [analistaCierre, setAnalistaCierre] = useState<string>(() =>
+    analistaInicial && (analistas ?? []).some((a) => a.perfil_id === analistaInicial) ? analistaInicial : '',
+  )
   const categoriaInicial = renovacionOrigen ? 'renovacion' : (categoriaFija ?? '')
   const [categoria, setCategoria] = useState<CategoriaContrato | ''>(categoriaInicial)
   const [tipoInteres, setTipoInteres] = useState<TipoInteres>('simple')
@@ -558,6 +575,7 @@ export function ContratoNuevo({
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
       cuenta_pago: cuentaPago.cuenta,
+      ...(analistaCierre ? { analista_cierre_id: analistaCierre } : {}),
     }
     const pdfDatosConfirmados: ContratoPdfDatos | null = pdfDatosDemo
       ? {
@@ -927,6 +945,29 @@ export function ContratoNuevo({
             </Select>
           </div>
         </div>
+
+        {analistas && analistas.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="ct-analista">Analista de la venta</Label>
+            <Select
+              id="ct-analista"
+              value={analistaCierre}
+              onChange={(e) => setAnalistaCierre(e.target.value)}
+              disabled={enviando}
+              aria-describedby="ct-analista-ayuda"
+            >
+              <option value="">Sin asignar</option>
+              {analistas.map((a) => (
+                <option key={a.perfil_id} value={a.perfil_id}>
+                  {a.nombre_completo}
+                </option>
+              ))}
+            </Select>
+            <p id="ct-analista-ayuda" className="text-xs text-muted-foreground">
+              De quién es la venta. Si no corresponde a nadie más, déjala a tu nombre.
+            </p>
+          </div>
+        ) : null}
 
         {esRenovacion && renovacionOrigen ? (
           <section

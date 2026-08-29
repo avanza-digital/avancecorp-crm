@@ -1542,8 +1542,21 @@ function sugerirIdentidadDelLead(nombreCompleto: string): IdentidadSugerida {
 
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { convertir, convertirExterno, recargar } = useCRMData()
+  const { convertir, convertirExterno, recargar, equipo } = useCRMData()
   const { yo } = useAuth()
+  // De quién es la venta (P-055 Fase 3). El selector arranca en el analista DEL
+  // LEAD —que es quien lo trabajó— y no en quien está tecleando; si el lead no
+  // tiene analista, arranca en quien registra. SOLO ACTIVOS (decisión de
+  // Miguel, 29/08): la venta vieja de alguien que se fue entra por la
+  // reasignación de gerencia, no por el alta.
+  const analistasParaContrato = useMemo(
+    () =>
+      equipo
+        .filter((m) => m.activo)
+        .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'))
+        .map((m) => ({ perfil_id: m.perfil_id, nombre_completo: m.nombre_completo })),
+    [equipo],
+  )
   const esDemo = yo?.demo === true
   // Cómo se llama HOY la pantalla donde se corrigen los datos del cliente: la
   // 'mi-cartera' unificada, rotulada "Mi cartera" para el vendedor y "Cartera"
@@ -1943,6 +1956,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           clienteNombre={l.nombre_completo}
           montoSugerido={l.monto_estimado ?? null}
           monedaSugerida={l.moneda}
+          analistas={analistasParaContrato}
+          analistaInicial={l.vendedor_id ?? yo?.id ?? null}
           onCreado={onClose}
           onOmitir={onClose}
         />

@@ -9111,6 +9111,183 @@ const TABLAS_CIERRE_MES = ['periodos_cerrados', 'cierre_mes_vendedor', 'ajustes_
 const ROLES_CON_AVISO = ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio'];
 const ROLES_SIN_AVISO = ['vendInactive', 'clientBank'];
 
+
+// P-055 FASE 3 (hallazgo A5 del auditor RLS, 29/08): la atribucion de ventas.
+// Cubre la superficie nueva entera: la tabla del rastro (lectura por rol y
+// escritura bloqueada), las dos RPC con su gate, los DOS candados de columna
+// (analista y es_demo) y el recorte del historial con motivos. Si las
+// migraciones 20260829* no estan aplicadas, se dice OMITIDO en voz alta.
+async function testAtribucionVentas(sessions, seed) {
+  console.log('\n— Fase 3: atribucion de ventas (analista, demo, rastro) —');
+  void seed;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-atrib'));
+  const gerencia = sessions.gerencia.client;
+
+  // ¿Estan las migraciones? Sonda por la RPC de lectura.
+  const contratoSonda = await gerencia.schema('crm').from('contratos_cartera').select('id').limit(1);
+  if (contratoSonda.error || !contratoSonda.data?.length) {
+    fail('fase 3: no se pudo leer un contrato de la cartera para sondear');
+    return;
+  }
+  const contratoId = contratoSonda.data[0].id;
+  const sonda = await gerencia.schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId });
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    console.log('  ⚠ OMITIDO: las migraciones de la Fase 3 (20260829*) no estan aplicadas en esta base.');
+    return;
+  }
+
+  // ── (A) El rastro: quien lo lee y quien no ────────────────────────────────
+  const lecturaGerencia = await gerencia.schema('crm')
+    .from('reasignaciones_analista').select('id').limit(1);
+  if (lecturaGerencia.error) {
+    fail(`gerencia lee crm.reasignaciones_analista: ${lecturaGerencia.error.message}`);
+  } else {
+    pass('gerencia lee crm.reasignaciones_analista');
+  }
+  for (const key of ['vend1', 'sup1', 'coordinador']) {
+    if (!sessions[key]) continue;
+    await expectHidden(
+      `${key} no lee crm.reasignaciones_analista`,
+      sessions[key].client.schema('crm').from('reasignaciones_analista').select('id').limit(1),
+    );
+  }
+  await expectHidden(
+    'anon no lee crm.reasignaciones_analista',
+    anon.schema('crm').from('reasignaciones_analista').select('id').limit(1),
+  );
+
+  // Escritura directa: NADIE. Ni gerencia (sin policy de INSERT) ni nadie mas.
+  await expectBlockedMutation(
+    'gerencia no inserta en el rastro por la Data API',
+    gerencia.schema('crm').from('reasignaciones_analista')
+      .insert({ contrato_id: contratoId, analista_a: seed.profileIdByKey.vend1, motivo: 'x', reasignado_por: seed.profileIdByKey.gerencia })
+      .select(),
+    ['42501', 'PGRST301'],
+  );
+  await expectBlockedMutation(
+    'gerencia no edita el rastro (append-only)',
+    gerencia.schema('crm').from('reasignaciones_analista')
+      .update({ motivo: 'cambiado' }).eq('contrato_id', contratoId).select(),
+    ['42501', 'P0409'],
+  );
+
+  // ── (B) Los dos candados de columna sobre public.contratos ────────────────
+  await expectBlockedMutation(
+    'ni gerencia mueve analista_cierre_id con un UPDATE directo',
+    gerencia.from('contratos')
+      .update({ analista_cierre_id: seed.profileIdByKey.vend1 }).eq('id', contratoId).select(),
+    ['P0409', '42501'],
+  );
+  await expectBlockedMutation(
+    'ni gerencia cambia es_demo con un UPDATE directo',
+    gerencia.from('contratos')
+      .update({ es_demo: true }).eq('id', contratoId).select(),
+    ['P0409', '42501'],
+  );
+
+  // ── (C) Las puertas: gate por rol y motivo obligatorio ────────────────────
+  await expectExplicitAuthorizationDenied(
+    'un vendedor no reasigna ventas',
+    sessions.vend1.client.rpc('reasignar_analista_contrato',
+      { p_contrato_id: contratoId, p_analista_id: seed.profileIdByKey.vend2, p_motivo: 'no deberia poder' }),
+    ['42501'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no reasigna ventas',
+    anon.rpc('reasignar_analista_contrato',
+      { p_contrato_id: contratoId, p_analista_id: seed.profileIdByKey.vend2, p_motivo: 'x' }),
+    ['42501', 'PGRST202'],
+  );
+  await expectBlockedMutation(
+    'gerencia no reasigna SIN motivo',
+    gerencia.rpc('reasignar_analista_contrato',
+      { p_contrato_id: contratoId, p_analista_id: seed.profileIdByKey.vend2, p_motivo: '   ' }),
+    ['22023'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'un vendedor no marca contratos como prueba',
+    sessions.vend1.client.rpc('marcar_contrato_demo',
+      { p_contrato_id: contratoId, p_es_demo: true, p_motivo: 'no deberia' }),
+    ['42501'],
+  );
+  await expectBlockedMutation(
+    'gerencia no marca demo SIN motivo',
+    gerencia.rpc('marcar_contrato_demo',
+      { p_contrato_id: contratoId, p_es_demo: true, p_motivo: '' }),
+    ['22023'],
+  );
+
+  // ── (D) El camino bueno, ida y vuelta, con su rastro ──────────────────────
+  const atribAntes = await gerencia.schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId });
+  const analistaOriginal = atribAntes.data?.analista_id ?? null;
+  const destino = analistaOriginal === seed.profileIdByKey.vend2
+    ? seed.profileIdByKey.vend1 : seed.profileIdByKey.vend2;
+
+  const ida = await gerencia.rpc('reasignar_analista_contrato',
+    { p_contrato_id: contratoId, p_analista_id: destino, p_motivo: 'GATE: ida del ensayo de atribucion' });
+  if (ida.error) {
+    fail(`gerencia reasigna con motivo: ${ida.error.message}`);
+  } else {
+    pass('gerencia reasigna con motivo');
+    // El historial se ve CON motivo desde la autoridad.
+    const atribDespues = await gerencia.schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId });
+    const historial = atribDespues.data?.reasignaciones ?? [];
+    if (Array.isArray(historial) && historial.length >= 1 && historial[0].motivo) {
+      pass('el historial (con motivo) es visible para gerencia');
+    } else {
+      fail(`el historial no aparecio para gerencia: ${JSON.stringify(atribDespues.data)}`);
+    }
+    // Y NO desde un vendedor cualquiera que vea el contrato sin ser el analista
+    // (hallazgo A3): si lo ve, el historial tiene que venir vacio.
+    const atribVend = await sessions.vend1.client.schema('crm')
+      .rpc('atribucion_contrato_fn', { p_contrato_id: contratoId });
+    if (atribVend.error) {
+      fail(`vend1 consulta la atribucion: ${atribVend.error.message}`);
+    } else if (atribVend.data == null) {
+      pass('vend1 fuera de ambito: la atribucion no revela nada (NULL)');
+    } else if (atribVend.data.analista_id === seed.profileIdByKey.vend1
+               || (atribVend.data.reasignaciones ?? []).length === 0) {
+      pass('vend1 ve la ficha pero NO el historial con motivos (A3)');
+    } else {
+      fail('vend1 leyo el historial con motivos de otra persona (A3 roto)');
+    }
+    // Vuelta: el contrato queda como estaba y el rastro suma DOS actos.
+    if (analistaOriginal) {
+      const vuelta = await gerencia.rpc('reasignar_analista_contrato',
+        { p_contrato_id: contratoId, p_analista_id: analistaOriginal, p_motivo: 'GATE: vuelta del ensayo de atribucion' });
+      if (vuelta.error) fail(`la vuelta fallo y el contrato quedo movido: ${vuelta.error.message}`);
+      else pass('la vuelta restaura al analista original');
+    }
+  }
+
+  // ── (E) marcar demo: ida y vuelta con motivo, y que la ficha lo declare ───
+  const marca = await gerencia.rpc('marcar_contrato_demo',
+    { p_contrato_id: contratoId, p_es_demo: true, p_motivo: 'GATE: ensayo de la marca' });
+  if (marca.error) {
+    fail(`gerencia marca demo con motivo: ${marca.error.message}`);
+  } else {
+    const ficha = await gerencia.schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId });
+    if (ficha.data?.es_demo === true) pass('la ficha declara es_demo tras la marca');
+    else fail('la marca no se reflejo en la ficha');
+    const desmarca = await gerencia.rpc('marcar_contrato_demo',
+      { p_contrato_id: contratoId, p_es_demo: false, p_motivo: 'GATE: vuelta de la marca' });
+    if (desmarca.error) fail(`la desmarca fallo y el contrato quedo como demo: ${desmarca.error.message}`);
+    else pass('la desmarca restaura el contrato');
+  }
+
+  // ── (F) anon no ejecuta ninguna de las tres funciones nuevas ──────────────
+  await expectExplicitAuthorizationDenied(
+    'anon no consulta la atribucion',
+    anon.schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId }),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no marca demos',
+    anon.rpc('marcar_contrato_demo', { p_contrato_id: contratoId, p_es_demo: true, p_motivo: 'x' }),
+    ['42501', 'PGRST202'],
+  );
+}
+
 async function testCierreDeMes(sessions, seed) {
   console.log('\n— Cierre de mes: tablas selladas, ciclo y aviso —');
   void seed;
@@ -9338,6 +9515,7 @@ async function main() {
       await testConversionMensual(sessions, verifiedSeed);
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
+      await testAtribucionVentas(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

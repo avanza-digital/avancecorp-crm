@@ -2001,6 +2001,10 @@ export type Database = {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
       }
+      atribucion_contrato_fn: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
       actualizar_contrato_con_cuenta: {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: undefined
@@ -3010,6 +3014,7 @@ export type Database = {
       contratos: {
         Row: {
           actualizado_en: string | null
+          analista_cierre_id: string | null
           aviso_venc_30d_enviado_en: string | null
           aviso_venc_7d_enviado_en: string | null
           capital: number
@@ -3019,6 +3024,7 @@ export type Database = {
           cliente_id: string
           creado_en: string | null
           creado_por: string | null
+          es_demo: boolean
           estado: string
           fecha_cierre_comercial: string
           fecha_inicio: string
@@ -3036,6 +3042,7 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string | null
+          analista_cierre_id?: string | null
           aviso_venc_30d_enviado_en?: string | null
           aviso_venc_7d_enviado_en?: string | null
           capital: number
@@ -3045,6 +3052,7 @@ export type Database = {
           cliente_id: string
           creado_en?: string | null
           creado_por?: string | null
+          es_demo?: boolean
           estado?: string
           fecha_cierre_comercial: string
           fecha_inicio: string
@@ -3062,6 +3070,7 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string | null
+          analista_cierre_id?: string | null
           aviso_venc_30d_enviado_en?: string | null
           aviso_venc_7d_enviado_en?: string | null
           capital?: number
@@ -3071,6 +3080,7 @@ export type Database = {
           cliente_id?: string
           creado_en?: string | null
           creado_por?: string | null
+          es_demo?: boolean
           estado?: string
           fecha_cierre_comercial?: string
           fecha_inicio?: string
@@ -3531,6 +3541,17 @@ export type Database = {
       }
       admin_pagos_metricas: { Args: never; Returns: Json }
       admin_pagos_resumen: { Args: never; Returns: Json }
+      // P-055 Fase 3: mover la venta de un analista a otro, con motivo. La
+      // atribución no se puede cambiar por ninguna otra vía (un trigger lo
+      // impide), así que esta es la única firma que existe para ello.
+      reasignar_analista_contrato: {
+        Args: {
+          p_analista_id: string
+          p_contrato_id: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
       bandeja_actividad: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {

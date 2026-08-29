@@ -66,6 +66,9 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useContrato: () => consulta(CONTRATO),
     useCronograma: () => consulta([]),
     useTitulares: () => TITULARES,
+    // P-055 Fase 3: el detalle pregunta de quién es la venta. Sin atribución el
+    // bloque no se pinta, que es justo lo que estas pruebas esperan ver.
+    useAtribucionContrato: () => consulta(null),
   }
 })
 

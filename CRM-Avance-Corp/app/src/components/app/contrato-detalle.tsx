@@ -14,7 +14,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { fmtFecha, money } from '@/lib/format'
 import { mensajeDeError } from '@/data/crm-api'
-import { useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
+import { useAtribucionContrato, useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
+import { reasignarAnalistaContrato } from '@/data/crm-api'
 import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
@@ -84,6 +88,14 @@ export interface ContratoDetalleProps {
   datos?: ContratoDetalleDatos
   puedeEliminar?: boolean
   onEliminar?: () => Promise<void> | void
+  /**
+   * Equipo comercial al que se le puede pasar la venta (P-055 Fase 3). Si no
+   * llega, el bloque de atribución se ve en solo lectura: mostrar de quién es
+   * la venta no requiere permiso para moverla.
+   */
+  analistas?: { perfil_id: string; nombre_completo: string }[]
+  /** Autoridad para reasignar. El servidor vuelve a comprobarlo igual. */
+  puedeReasignar?: boolean
 }
 
 interface EstadoPdfUi {
@@ -97,6 +109,8 @@ interface EstadoPdfUi {
 export function ContratoDetalle({ contratoId, onCerrar, datos,
   puedeEliminar = false,
   onEliminar,
+  analistas,
+  puedeReasignar = false,
 }: ContratoDetalleProps) {
   // DEMO: con datos precargados los hooks quedan DESHABILITADOS — cero red
   // (una sesión demo no tiene Supabase, ver ContratoDetalleDatos).
@@ -108,6 +122,13 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   // el caller tenía pintada — con la lista fresca (< 30 s) no hay fetch.
   // Cronograma y co-titulares cargan aparte: espejo del portal — un fallo de
   // co-titulares NO rompe el detalle; uno del cronograma solo rompe su sección.
+  const qAtribucion = useAtribucionContrato(contratoId, !precargado)
+  const atribucion = qAtribucion.data ?? null
+  const [reasignando, setReasignando] = useState(false)
+  const [nuevoAnalista, setNuevoAnalista] = useState('')
+  const [motivoReasignar, setMotivoReasignar] = useState('')
+  const [enviandoReasignar, setEnviandoReasignar] = useState(false)
+
   const qContrato = useContrato(contratoId, !precargado)
   const qCronograma = useCronograma(contratoId, !precargado)
   const qTitulares = useTitulares(contratoId, !precargado)
@@ -449,6 +470,126 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 </p>
               </div>
             )}
+
+            {/* ── De quién es la venta (P-055 Fase 3) ───────────────────────────
+                Se pinta SIEMPRE que el servidor devuelva atribución, aunque no
+                haya nadie: «sin analista» es un estado real —la decisión 18 dejó
+                12 contratos históricos así a propósito— y esconderlo lo haría
+                parecer un contrato normal. El botón solo aparece con permiso; el
+                servidor lo vuelve a comprobar igual. */}
+            {atribucion ? (
+              <div className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                      Analista de la venta
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                      {atribucion.analista_nombre ?? 'Sin analista'}
+                    </p>
+                    {atribucion.registrado_por && atribucion.registrado_por !== atribucion.analista_nombre ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Lo registró {atribucion.registrado_por}
+                      </p>
+                    ) : null}
+                    {atribucion.es_demo ? (
+                      <Badge variant="soft" className="mt-1.5">
+                        Contrato de prueba — no cuenta en métricas
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {puedeReasignar && analistas && analistas.length > 0 && !atribucion.es_demo && !reasignando ? (
+                    <Button variant="outline" size="sm" onClick={() => setReasignando(true)}>
+                      Reasignar
+                    </Button>
+                  ) : null}
+                </div>
+
+                {reasignando ? (
+                  <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cd-analista">Pasa a</Label>
+                      <Select
+                        id="cd-analista"
+                        value={nuevoAnalista}
+                        onChange={(e) => setNuevoAnalista(e.target.value)}
+                        disabled={enviandoReasignar}
+                      >
+                        <option value="">Elige el analista</option>
+                        {(analistas ?? [])
+                          .filter((a) => a.perfil_id !== atribucion.analista_id)
+                          .map((a) => (
+                            <option key={a.perfil_id} value={a.perfil_id}>
+                              {a.nombre_completo}
+                            </option>
+                          ))}
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cd-motivo">Motivo</Label>
+                      <Input
+                        id="cd-motivo"
+                        value={motivoReasignar}
+                        maxLength={300}
+                        onChange={(e) => setMotivoReasignar(e.target.value)}
+                        disabled={enviandoReasignar}
+                        placeholder="Por qué cambia de analista"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Queda escrito: esto mueve el mérito de la venta de una persona a otra.
+                      </p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={enviandoReasignar}
+                        onClick={() => {
+                          setReasignando(false)
+                          setNuevoAnalista('')
+                          setMotivoReasignar('')
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={enviandoReasignar || !nuevoAnalista || motivoReasignar.trim() === ''}
+                        onClick={async () => {
+                          setEnviandoReasignar(true)
+                          try {
+                            await reasignarAnalistaContrato(contratoId, nuevoAnalista, motivoReasignar.trim())
+                            await qAtribucion.refetch()
+                            setReasignando(false)
+                            setNuevoAnalista('')
+                            setMotivoReasignar('')
+                            toast.success('La venta cambió de analista.')
+                          } catch (e) {
+                            toast.error(mensajeDeError(e, 'No se pudo reasignar la venta.'))
+                          } finally {
+                            setEnviandoReasignar(false)
+                          }
+                        }}
+                      >
+                        {enviandoReasignar ? <LoaderCircle className="animate-spin" /> : null}
+                        Reasignar
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {atribucion.reasignaciones.length > 0 ? (
+                  <ul className="mt-3 space-y-1 border-t border-border/60 pt-2">
+                    {atribucion.reasignaciones.map((r) => (
+                      <li key={`${r.cuando}-${r.motivo}`} className="text-xs text-muted-foreground">
+                        {fmtFecha(r.cuando)} · {r.de ?? 'sin analista'} → {r.a ?? '—'} · {r.motivo}
+                        {r.por ? ` (${r.por})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* ── Co-titulares (cuentas mancomunadas, solo lectura) ─────────────
                 El caso vacío ([]) sigue sin pintar nada: la mayoría de contratos

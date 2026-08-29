@@ -2264,6 +2264,13 @@ export interface CrearContratoInput {
   titulares?: TitularInput[]
   /** Obligatoria en el CRM nuevo; el servidor vuelve a validar dueño y moneda. */
   cuenta_pago: CuentaPagoContratoInput
+  /**
+   * De quién es la venta (P-055 Fase 3, decisión 2 de Miguel). NO es quien la
+   * teclea: eso lo guarda el servidor aparte en `creado_por` y no se pisa.
+   * Si se omite, el servidor la deja a nombre de quien registra — que es la
+   * misma decisión: «si no corresponde a nadie, lo pone a su nombre».
+   */
+  analista_cierre_id?: string | null
 }
 
 export interface CrearContratoResultado {
@@ -2344,6 +2351,10 @@ export async function crearContrato(
   }
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
+  // Solo viaja si de verdad se eligió a alguien. Ausente ≠ null: ausente deja
+  // que el servidor aplique «lo pone a su nombre»; mandar null sería pedirle
+  // explícitamente un contrato sin dueño, que no es lo que hace este formulario.
+  if (input.analista_cierre_id) p_contrato.analista_cierre_id = input.analista_cierre_id
   const p_cronograma = cronograma as unknown as Json[]
   const { data, error } = await cliente()
     .schema('crm')
@@ -3237,6 +3248,85 @@ export async function actualizarContrato(
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
   if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
+}
+
+/**
+ * Pasa la venta a otro analista, con motivo (P-055 Fase 3, decisión 2:
+ * «debe poder reasignarse»).
+ *
+ * El motivo NO es burocracia: esto mueve el mérito —y mañana el pago— de una
+ * persona a otra, así que el servidor lo exige y lo guarda en
+ * `crm.reasignaciones_analista`. La atribución no se puede cambiar por ninguna
+ * otra vía: un UPDATE directo a `public.contratos` lo rechaza un trigger.
+ */
+/** Atribución de una venta: de quién es, si es de prueba, y sus reasignaciones. */
+export interface AtribucionContrato {
+  contrato_id: string
+  analista_id: string | null
+  analista_nombre: string | null
+  es_demo: boolean
+  registrado_por: string | null
+  reasignaciones: {
+    cuando: string
+    de: string | null
+    a: string | null
+    motivo: string
+    por: string | null
+  }[]
+}
+
+const AtribucionContratoSchema = v.object({
+  contrato_id: v.string(),
+  analista_id: v.nullable(v.string()),
+  analista_nombre: v.nullable(v.string()),
+  es_demo: v.boolean(),
+  registrado_por: v.nullable(v.string()),
+  reasignaciones: v.array(
+    v.object({
+      cuando: v.string(),
+      de: v.nullable(v.string()),
+      a: v.nullable(v.string()),
+      motivo: v.string(),
+      por: v.nullable(v.string()),
+    }),
+  ),
+})
+
+/**
+ * La RPC devuelve NULL cuando quien pregunta no puede ver ese contrato — la
+ * regla la pone la vista `crm.contratos_cartera`, no esta capa. Se traduce a
+ * `null` sin inventar un error: no poder verlo no es un fallo.
+ */
+export async function obtenerAtribucionContrato(
+  contratoId: string,
+  signal?: AbortSignal,
+): Promise<AtribucionContrato | null> {
+  let consulta = cliente().schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.contrato.atribucion_fallida')
+  if (data == null) return null
+  const r = v.safeParse(AtribucionContratoSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El servidor devolvió una atribución con formato no reconocido.', 'ROW_CONTRACT')
+    registrarError('crm.contrato.atribucion_formato', fallo)
+    throw fallo
+  }
+  return r.output
+}
+
+export async function reasignarAnalistaContrato(
+  contratoId: string,
+  analistaId: string,
+  motivo: string,
+): Promise<void> {
+  const { error } = await cliente().rpc('reasignar_analista_contrato', {
+    p_contrato_id: contratoId,
+    p_analista_id: analistaId,
+    p_motivo: motivo,
+  })
+  if (error) throw aErrorApi(error, 'crm.contrato.reasignar_fallido')
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

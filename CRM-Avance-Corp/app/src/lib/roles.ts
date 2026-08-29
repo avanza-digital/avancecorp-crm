@@ -168,6 +168,19 @@ export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null
 }
 
 /**
+ * Quién puede pasar una venta de un analista a otro (P-055 Fase 3).
+ *
+ * Es el ESPEJO EXACTO del gate del servidor en
+ * `public.reasignar_analista_contrato`: gestor de cartera del portal (admin o
+ * superadmin) o gerencia del CRM. No decide nada — el servidor vuelve a
+ * comprobarlo y además exige motivo; esto solo evita ofrecer un botón que iba a
+ * terminar en «no autorizado».
+ */
+export function puedeReasignarVenta(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return puedeEliminarContratos(identidad) || identidad?.rol === 'gerencia'
+}
+
+/**
  * Superadmin Portal gobierna roles, no hereda por ello la operación comercial.
  * Gerencia + Superadmin sí suma ambas autoridades de forma explícita.
  */

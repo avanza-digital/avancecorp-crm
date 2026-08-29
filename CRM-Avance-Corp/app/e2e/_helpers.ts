@@ -2022,6 +2022,9 @@ export async function montarBackendReal(
 
     // ── cargarReal ──
     if (p === '/rest/v1/rpc/equipo_visible_fn') return json(route, ROSTER)
+    // P-055 Fase 3: el detalle pregunta de quién es la venta. NULL = «no puedes
+    // ver ese contrato» y el bloque no se pinta — suficiente para estos specs.
+    if (p === '/rest/v1/rpc/atribucion_contrato_fn') return json(route, null)
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
     if (p === '/rest/v1/rpc/verificar_disponibilidad_lead' && method === 'POST') {
       estado.llamadas.rpcDisponibilidadLead += 1

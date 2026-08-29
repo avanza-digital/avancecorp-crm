@@ -51,7 +51,7 @@ import { ContratoCorregir } from '@/components/app/contrato-corregir'
 import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
-import { can, puedeEliminarContratos, puedeEscribir } from '@/lib/roles'
+import { can, puedeEliminarContratos, puedeEscribir, puedeReasignarVenta } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
@@ -1609,7 +1609,20 @@ interface ContratoConfirmadoParaCierre {
 
 export function MiCartera() {
   const { yo } = useAuth()
+  const { equipo } = useCRMData()
   const esDemo = yo?.demo === true
+  // De quién es la venta (P-055 Fase 3). SOLO ACTIVOS (decisión de Miguel,
+  // 29/08): una venta nueva es de alguien que está trabajando. El caso raro
+  // —una venta vieja de alguien que se fue, registrada tarde— tiene su puerta:
+  // la reasignación de gerencia, que exige motivo y deja rastro.
+  const analistasParaContrato = useMemo(
+    () =>
+      equipo
+        .filter((m) => m.activo)
+        .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'))
+        .map((m) => ({ perfil_id: m.perfil_id, nombre_completo: m.nombre_completo })),
+    [equipo],
+  )
   const queryClient = useQueryClient()
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [envioEnCurso, setEnvioEnCurso] = useState(false)
@@ -1831,6 +1844,8 @@ export function MiCartera() {
           <ContratoNuevo
             clienteId={overlay.clienteId}
             clienteNombre={overlay.clienteNombre}
+            analistas={analistasParaContrato}
+            analistaInicial={yo?.id ?? null}
             {...(overlay.upgrade ? { categoriaFija: 'upgrade' as const } : {})}
             onConfirmado={(numero, creadoLocal) =>
               setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
@@ -1846,6 +1861,8 @@ export function MiCartera() {
           <ContratoNuevo
             clienteId={overlay.clienteId}
             clienteNombre={overlay.clienteNombre}
+            analistas={analistasParaContrato}
+            analistaInicial={yo?.id ?? null}
             categoriaFija="renovacion"
             renovacionOrigen={{
               id: overlay.contrato.id,
@@ -1873,6 +1890,8 @@ export function MiCartera() {
           <ContratoDetalle
             contratoId={overlay.contrato.id}
             puedeEliminar={puedeEliminarContratos(yo)}
+            analistas={analistasParaContrato}
+            puedeReasignar={puedeReasignarVenta(yo)}
             onEliminar={async () => {
               const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
               setOverlay(null)
@@ -1918,6 +1937,16 @@ interface ContratoDemoLocal {
 
 function MiCarteraDemo() {
   const { yo } = useAuth()
+  const { equipo } = useCRMData()
+  // Mismo criterio que en el camino real: solo activos (decisión de Miguel).
+  const analistasDemo = useMemo(
+    () =>
+      equipo
+        .filter((m) => m.activo)
+        .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'))
+        .map((m) => ({ perfil_id: m.perfil_id, nombre_completo: m.nombre_completo })),
+    [equipo],
+  )
   const { ambito } = useCRMData()
   const [fixtures, setFixtures] = useState<{
     clientes: ClienteBasico[]
@@ -2118,6 +2147,8 @@ function MiCarteraDemo() {
           <ContratoNuevo
             clienteId={nuevoContrato.id}
             clienteNombre={nuevoContrato.nombre_completo}
+            analistas={analistasDemo}
+            analistaInicial={yo?.id ?? null}
             pdfDatosDemo={fixtures.identidadesPdf[nuevoContrato.id]}
             cuentasDemo={fixtures.cuentasClientes[nuevoContrato.id]}
             validarNumero={validarNumeroContratoDemo}

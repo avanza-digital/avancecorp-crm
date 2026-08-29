@@ -8,18 +8,27 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** FASE 2 (mirar el primer cierre). **La Fase 1 está EN PRODUCCIÓN** desde el 28/08, aplicada con tu autorización y verificada por conteo y por comportamiento.
+**Fase actual:** FASE 2 (mirar el primer cierre). **La Fase 1 está EN PRODUCCIÓN** desde el 28/08 y **commiteada** el 29/08 (`01dd52f`, rama `wip/workspace-20260823-completo`, sin subir al remoto).
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
-**Lo siguiente:** la Fase 2 es una semana quieta alrededor del **cierre del 10/09**: no se publica nada, se observa que el cierre corra bien y se guarda una copia de ese mes como referencia.
+**🔬 EL CIERRE YA SE ENSAYÓ (29/08), sin esperar al 10/09 y sin escribir una fila:** el cierre real de agosto, ejecutado contra producción dentro de un bloque que se deshace solo. **Funciona** — 48 ms, 18 personas, y todos los candados rebotan como deben. El reloj que lo dispara está vivo y sano. **Lo que salió:** agosto se sellará como **mes parcial** porque el registro de leads empieza el 17/08 — la conversión de agosto cubre 15 de 31 días. Eso es una decisión tuya, no un fallo. Detalle en la Fase 2.
+
+**👉 DÓNDE SE RETOMA:** hay **dos puertas**, y las dos están abiertas:
+
+1. **Esperar al cierre del 10/09** — la Fase 2 tal como está escrita: no se publica nada, se mira el cierre correr y se guarda la foto de ese mes. Es lo que el plan recomienda y no cuesta trabajo, cuesta calendario.
+2. **Adelantar trabajo que no toca el cierre** — la Fase 3 («que cada venta tenga dueño») se puede **escribir y ensayar** ahora mismo sin publicar nada, igual que se hizo con la Fase 1: se llega al 10/09 con el trabajo listo y se publica después. También cabe la Fase 7 (ordenar la casa), que no depende de nadie.
+
+Si no dices otra cosa, la recomendación es **preparar la Fase 3 sin publicarla** y publicar cuando el cierre haya pasado.
+
+**Lo que queda para el 10/09** (lo demás ya está comprobado): que el disparo automático de ese día haga lo mismo que hizo el ensayo a mano, y guardar la copia del mes.
 
 | Fase | Estado |
 |---|---|
 | 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
 | 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
 | 2 · Mirar el primer cierre | ⚪ toca en la semana del 10/09 |
-| 3 · Que cada venta tenga dueño | ⚪ sin empezar |
+| 3 · Que cada venta tenga dueño | ✅ **lista para tu merge** — 2 auditorías pasadas, marcha atrás probada punta a punta |
 | 4 · Una sola calculadora de capital | ⚪ sin empezar |
 | 5 · Cerrar puertas | ⚪ sin empezar |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar |
@@ -121,6 +130,41 @@ se cayera, ese bloque no se publica y el resto sí).
 
 **Lo que falta antes de publicar:** aplicarlas en un banco de pruebas, pasar el
 gate de seguridad por filas y los advisors, y tu merge.
+
+
+### Cierre de la sesión 4 (2026-08-28 → 29) — la Fase 1, publicada
+
+**Qué se hizo:** la Fase 1 **está en producción**. El servidor pasa de 152 a 155
+migraciones. Antes de publicar: banco de pruebas idéntico a producción, gate de
+seguridad por filas **1185 de 1185**, advisors sin un solo error, marcha atrás
+probada de verdad y banco borrado al terminar.
+
+**Cómo se comprobó que de verdad se aplicó** — contando objetos y probando
+comportamiento, no creyéndole al comando: 4 rastros nuevos vivos · 16 casillas de
+dinero blindadas · 0 tablas con permisos que la seguridad por filas no gobierna ·
+0 consultas de administración abiertas a visitantes, y las 5 vivas para el portal
+· la función de crear contratos **intacta** (misma huella) · los datos sin tocar
+(466 contratos, 9 co-titulares, 663 leads, 4252 cuotas). Y en vivo, con una sonda
+que se deshace sola: el monto imposible rebota, el aviso automático no ensucia la
+auditoría, borrar un co-titular deja rastro con su documento, cambiar la gestión
+de un lead deja rastro.
+
+**🔴 El botón de merge de Supabase dijo «éxito» y no hizo nada — dos veces.** Lo
+cacé contando objetos. La causa quedó identificada y anotada. Se publicó por la
+vía de siempre en este proyecto, migración por migración. **Secuela cosmética:**
+en el panel de Supabase la rama principal figura como «migraciones fallidas»
+aunque la base está sana y completa; si aparece en rojo, es eso.
+
+**Un arreglo de paso:** el gate de seguridad se moría a mitad por un error de
+programación mío del 28/08 (moría tras 650 comprobaciones verdes, sin llegar a
+las del cierre de mes). Corregido y commiteado con lo demás.
+
+**Commit `01dd52f`** — 9 archivos: las 3 migraciones, la marcha atrás, la
+aceptación, el arreglo del gate, el ledger, este plan y el snippet aparcado.
+Está solo en la máquina de Miguel; **no se subió al remoto**.
+
+**Qué NO se hizo:** no se tocó nada del front, ni de las edges, ni de los datos.
+La numeración automática sigue aparcada fuera de la carpeta de migraciones.
 
 ---
 
@@ -287,7 +331,7 @@ Las **7 preguntas** del §8 están respondidas —4 de capital y 3 estructurales
 
 ---
 
-### FASE 1 · Proteger lo que ya tienes — **antes del primer cierre de mes** ⏰
+### FASE 1 · Proteger lo que ya tienes — ✅ **EN PRODUCCIÓN (28/08)**, commit `01dd52f`
 - Que quede registro de quién agrega o quita un co-titular de una cuenta mancomunada. Hoy no queda ninguno, y es el dato con más peso legal del sistema.
 - Que quede registro de quién borra el historial de gestión de un cliente y quién borra cuotas de pago. Hoy tampoco.
 - Blindar los montos para que no pueda entrar un valor inválido al cronograma de pagos ni al cierre mensual.
@@ -299,18 +343,52 @@ Las **7 preguntas** del §8 están respondidas —4 de capital y 3 estructurales
 **Al terminar:** ningún dato con valor probatorio se puede cambiar sin dejar rastro.
 **De ti:** revisión y merge a producción. **Duración:** 2 sesiones.
 
+> ✅ **HECHO.** Publicado el 28/08 con tu autorización; verificado por conteo y por
+> comportamiento. **La numeración automática salió de esta fase** por decisión tuya:
+> el trabajo queda escrito y guardado en `snippets/`, fuera de migraciones, hasta el
+> día que se necesite. Lo demás entró completo.
+
 ---
 
 ### FASE 2 · Mirar el primer cierre de mes — la semana del cierre
 Semana de quietud: no se publica ni una sola modificación. Se observa que el cierre corra bien y se guarda una copia de ese mes como referencia para verificar todo lo que venga después.
 
+**Qué se mira, en concreto** (añadido el 29/08, ya con la Fase 1 viva):
+1. Que el cierre **selle el mes sin error** y las cifras cuadren con lo que se ve en pantalla.
+2. Que **las 16 casillas nuevas de dinero no rechacen nada legítimo** — están puestas para frenar valores imposibles, no ventas reales.
+3. Que **los cuatro rastros nuevos no hayan llenado la auditoría de ruido** desde el 28/08.
+4. **Guardar la copia del mes** como referencia para verificar todo lo que venga después.
+
 **Por qué:** si algo falla en el cierre, quiero saber que fue el cierre y no un cambio nuestro.
 **Al terminar:** el primer cierre real, ejecutado y observado.
 **De ti:** revisión y merge (ninguno esa semana, por diseño). **Duración:** media sesión de vigilancia.
 
+> ✅ **ENSAYADA POR ADELANTADO el 29/08 — el cierre de agosto YA se probó.** No hizo falta
+> banco: se copió la función viva del cierre, se le movió **solo el calendario** (los dos
+> candados de fecha) y se ejecutó **el cierre real de agosto contra producción** dentro de un
+> bloque que se deshace solo. Resultado: **sella en 48 ms, 18 personas, 17 medibles**;
+> cerrar dos veces rebota; sellar hacia atrás rebota; un monto imposible rebota (la malla de
+> la Fase 1 funciona *dentro* del cierre); y la pantalla de gerencia pasa de «cierra el
+> 10/09» a «último cerrado: agosto». Producción quedó intacta (0 meses sellados, 466
+> contratos, la función del cierre con su huella original).
+>
+> **El reloj está vivo:** `crm-cierre-mes-diario` corre **todos los días a las 09:20 de Lima**,
+> 14 corridas y 14 éxitos, la última hoy. El 10/09 disparará solo.
+>
+> 🔴 **LO QUE ENCONTRÓ EL ENSAYO — decisión tuya:** agosto se va a sellar marcado como
+> **mes parcial**. El registro de reparto de leads **empieza el 17 de agosto**: entre el 1 y el
+> 16 hay **cero** repartos anotados. Así que el porcentaje de conversión de agosto se calcula
+> sobre **15 de los 31 días**. El sistema lo dice solo y con todas las letras
+> (`medible: false, motivo: mes_parcial`), no lo esconde — pero si esa cifra se va a usar para
+> pagar, hay que decidir antes: sellar agosto como está con la marca, o dar agosto por no
+> medible y empezar a contar conversión desde septiembre.
+>
+> Queda por ver el 10/09, y solo eso: que el disparo automático de ese día haga lo mismo que
+> hizo el ensayo a mano.
+
 ---
 
-### FASE 3 · Que cada venta tenga dueño — después del cierre
+### FASE 3 · Que cada venta tenga dueño — 🔨 **ESCRITA Y ENSAYADA (29/08), SIN PUBLICAR**
 - Crear el campo **«analista que cierra»** en el contrato, obligatorio al registrar.
 - Cuando registra un administrativo o un supervisor, tiene que **elegir el analista**; si la venta no es de nadie, va a su nombre.
 - Poder **reasignar** después, dejando rastro de quién reasignó.
@@ -318,6 +396,38 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 **Al terminar:** el ranking de agosto en adelante es exacto, y ya no depende de quién tipeó.
 **De ti:** confirmar los casos dudosos del histórico + revisión y merge. **Duración:** 2 sesiones.
+
+> 🔨 **HECHA Y ENSAYADA (29/08), pendiente de auditorías y de tu merge.**
+> Siete migraciones (`20260829180000`–`183000`) + el front del CRM (selector «Analista de la
+> venta» en el alta, bloque de atribución con reasignar y su historial en el detalle).
+> La cadena entera se probó contra producción dentro de un bloque que se deshace solo:
+> el relleno deja **exactamente 15 sin dueño** (los 12 de tu decisión + 2 demos + 1 caso
+> declarado), los demos **dejan de contar** (las métricas bajan exactamente lo que valían:
+> S/ 100 000 + USD 100 000), la atribución **solo se mueve por la puerta con motivo** (el
+> UPDATE directo rebota, y el mutante demuestra que el candado es real), y las 2353 pruebas
+> del front pasan. Marcha atrás escrita con la versión original anclada por huella.
+>
+> **El único caso sin regla tuya:** el contrato `000180` (S/ 160 000, febrero), registrado
+> por GLORIA (administrativa, nunca del equipo comercial). Quedó **sin dueño y declarado**;
+> si quieres dárselo a alguien, es una reasignación con motivo, no una migración.
+>
+> ⛔ **Orden de publicación:** las 9 migraciones → el front → recién entonces la
+> obligatoriedad (que vive aparcada en `snippets/APLICAR-TRAS-EL-FRONT-…`, imposible de
+> publicar por accidente).
+>
+> ✅ **Las DOS auditorías, pasadas y corregidas (29/08 tarde).** La de seguridad trajo 15
+> hallazgos (1 bloqueante) y la adversarial de Codex un NO-GO con 10 (2 graves); **los 25
+> están corregidos y re-probados contra producción**. Los dos graves de Codex cambiaron el
+> alcance a mejor: **el ranking y el sello YA leen al analista que cierra** (Adelayda queda
+> con la cifra exacta de la tabla de este plan: S/ 383 600), y los demos salieron también
+> del **Directorio y de los paneles de pagos** (no solo del CRM). La marcha atrás quedó
+> probada de punta a punta: tren completo + rollback = producción byte a byte como estaba.
+>
+> ⚠️ Mientras se corregía, una **sesión paralela** publicó una migración que reemplazó
+> `crear_contrato`; se detectó por las huellas, se verificó que las anclas sobreviven y se
+> re-ancló. Queda una **pregunta chica para ti** (sin inventarte la regla): ¿el selector del
+> alta debe seguir ofreciendo a quien ya no está en el equipo (hoy sale marcado «ya no
+> está»), o solo a los activos?
 
 ---
 

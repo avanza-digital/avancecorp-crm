@@ -45,6 +45,7 @@ import {
   obtenerSegundoNumeroDelCliente,
   obtenerCronograma,
   obtenerDatosLegalesContrato,
+  obtenerAtribucionContrato,
   obtenerTitulares,
   revertirDerivacionEquipo,
   type DerivacionEquipoPendiente,
@@ -82,6 +83,7 @@ export const crmQueryKeys = {
   // cachés caducan juntas o el detalle reviviría datos viejos.
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
+  atribucion: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'atribucion'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
   actividadesCliente: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'actividades-comerciales'] as const,
@@ -229,6 +231,19 @@ export function useTitulares(contratoId: string, habilitada = true, opciones: { 
     queryFn: ({ signal }) => obtenerTitulares(contratoId, signal),
     enabled: habilitada,
     ...opciones,
+  })
+}
+
+/**
+ * De quién es la venta (P-055 Fase 3). `staleTime: 0`: tras reasignar hay que
+ * ver el cambio y su motivo al instante, no dentro de 30 s.
+ */
+export function useAtribucionContrato(contratoId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.atribucion(contratoId),
+    queryFn: ({ signal }) => obtenerAtribucionContrato(contratoId, signal),
+    enabled: habilitada,
+    staleTime: 0,
   })
 }
 

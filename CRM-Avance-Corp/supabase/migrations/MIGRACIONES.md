@@ -4968,3 +4968,158 @@ cinco es seguro. La sospecha quedó medida en vez de aceptada.
 **Banco `f1-p055`: borrado** al terminar (su trabajo estaba hecho).
 
 **Lo que queda de la Fase 1:** nada. Fase cerrada.
+
+---
+
+## 20260829182800 · `crm_sancion_cooperativa_mes_sellado` *(renumerada desde 170000 el 29/08, antes de publicarse)*
+
+**Estado: ESCRITA Y PROBADA CONTRA PRODUCCIÓN — SIN PUBLICAR.**
+
+**Qué arregla.** Anular un cierre en cooperativa con el mes **ya sellado** le
+devolvía la conversión al analista y le **regalaba el capital**. Con el mes
+**abierto** sí se lo quitaba. Misma falta, misma sanción, dos resultados según el
+día en que se anulara.
+
+**Regla de negocio (Miguel, 2026-08-29):** *«una anulación no puede eliminar
+capital; sí se lo puede quitar al analista, porque la anulación es para cuando
+pasó algo en la gestión y hay alguna sanción»*. Este cambio **no toca el capital
+de la empresa**: `crm.ajustes_mes_cerrado` solo lo leen
+`registrar_ajuste_si_mes_cerrado`, `saldar_ajustes` y `ajuste_pendiente_por_vendedor`
+— las tres son la hoja del analista. Verificado por catálogo antes de escribir.
+
+**La causa.** `private.registrar_ajuste_si_mes_cerrado` calculaba el capital desde
+`private.contratos_afectados_por_anulacion` → `public.contratos`, y **un cierre en
+cooperativa no tiene contrato** (los 7 vivos dan 0 contratos afectados). En cambio
+`private.produccion_mes_por_vendedor` **sí** lee `crm.cierres_externos` y respeta
+`anulado_en`, que es por lo que el mes abierto sí lo descuenta.
+
+**El arreglo.** Se copia la regla del mes abierto **tal cual**, sin inventar una
+segunda: categoría `'nuevo'`, en su moneda, atribuido al `vendedor_id` del cierre y
+solo si esa persona estaba en el cuadro de metas del mes. Las cuatro condiciones
+del bloque `externos_confirmados` se reproducen una por una y el **preflight las
+ancla**: si el mes abierto cambia de criterio, la migración aborta en vez de
+fabricar una regla divergente en silencio.
+
+**De propina:** los totales (`v_pen`/`v_usd`) y el desglose (`v_detalle`) salían de
+**dos consultas separadas** sobre la misma fuente, sin nada que garantizara que
+cuadraran — y `saldar_ajustes` descuenta casilla a casilla leyendo el desglose.
+Ahora salen de una sola consulta: no pueden divergir.
+
+**Anclas del preflight:** `md5(prosrc)` de `registrar_ajuste_si_mes_cerrado` =
+`e07c89715b96ee2604ce435fea3e2c34`; las 4 condiciones vivas de la regla copiada;
+las 4 casillas de `crm.ajustes_mes_cerrado`.
+**Huella esperada tras publicar:** `d44dc889111ce00bdcff5e3496a49a9d`.
+
+**Prueba contra producción (2026-08-29, todo deshecho).** La prueba se construye
+**extrayendo el cuerpo del propio archivo de migración**, así que lo probado es
+byte a byte lo que se publicaría. Con agosto sellado por un clon de
+`crm.cerrar_periodo` al que solo se le movió el calendario:
+
+| # | Comprobación | Resultado |
+|---|---|---|
+| 1 | Cooperativa de S/ 200 000 anulada tras el sello | deuda **PEN 200 000**, desglose `nuevo/PEN`, numerador 1 |
+| 2 | El mes siguiente la absorbe | PEN 200 000, pendiente 0 |
+| 3 | No se cobra dos veces | segundo intento absorbe 0 |
+| 4 | Contrato normal (sin regresión) | USD 100 000, igual que antes |
+| 5 | **Mutante** (versión vieja, otra cooperativa) | **PEN 0** → la prueba distingue, no es tautología |
+
+**Ventana del defecto:** hoy no puede pasar (cero meses cerrados). Se abre el
+**10/09**, cuando el ciclo automático selle agosto. Cooperativas vivas de agosto:
+7 cierres, S/ 364 800.
+
+**Correcciones de la auditoría RLS (29/08, antes de publicar):** hallazgo **A2** — la
+deuda contaba también contratos DEMO (deuda fantasma: capital que nunca acreditó);
+la rama de contratos lleva ahora `and not c.es_demo`, el preflight exige que
+`es_demo` exista (por eso la renumeración: corre después de `20260829180000`) y el
+postflight lo afirma.
+
+**Pendiente:** veredicto de Codex y merge de Miguel.
+
+---
+
+## 20260829180000–183000 · FASE 3 del P-055 — «que cada venta tenga dueño»
+
+**Estado: ESCRITAS Y PROBADAS CONTRA PRODUCCIÓN (cadena completa, todo deshecho) — SIN PUBLICAR. Auditorías en curso.**
+
+Siete migraciones, en orden de publicación obligatorio:
+
+| # | Versión | Qué hace |
+|---|---|---|
+| 1 | `180000` F3.1 | `public.contratos` gana `analista_cierre_id` (uuid, FK a perfiles, SIN on delete) y `es_demo` (boolean). Índices parciales. Solo estructura; el postflight ABORTA si algo quedó escrito. |
+| 2 | `180500` F3.2 | Relleno del histórico, decisión por decisión: 2 demos (444444/888282, decisión 6) · 001163→Adelayda · 001325→Miguel (decisión 6, verificando el NOMBRE antes de escribir) · los 12 de gerencia se quedan VACÍOS (decisión 18) · el resto = quien lo registró si es del equipo comercial · `000180` (GLORIA, admin) declarado SIN REGLA y vacío. Postflight por FORMA (15 sin dueño exactos), no por conteo absoluto: la base está viva — mientras se escribía, Astrid registró el 001333. |
+| 3 | `181000` F3.3 | `public.crear_contrato` acepta `analista_cierre_id`: parche por replace ANCLADO (md5 `f50b62e1…` + cada punto de inserción exactamente 1 vez; un acento — `inválida` — ya demostró por qué). Sin el campo: a nombre de quien registra si es del equipo; si no, nace sin dueño (transición). Valida contra `crm.equipo` sin exigir activo (decisión 15). |
+| 4 | `181500` F3.4 | La reasignación: `crm.reasignaciones_analista` (append-only, RLS, motivo ≤300 obligatorio) + `public.reasignar_analista_contrato` (gate = gestor de cartera o gerencia, espejo de actualizar_contrato, con P04) + **trigger candado**: la columna SOLO se mueve por la puerta (válvula `crm.reasignando_analista`, mismo idioma que `crm.op_privilegiada`). Un demo no se atribuye. |
+| 5 | `182000` F3.5 | Los demos dejan de contar: 7 funciones parcheadas vía `pg_get_functiondef` + replace del FROM (alias intacto), cada una anclada por md5 y con conteo de sitios esperado (1+1+1+1+1+1+7). `metricas_reuniones_implementacion` NO se toca: enlaza por `leads.contrato_id`, que está muerto (0/466). Las operativas (anulación, cerrar) tampoco: un demo se opera, no suma. |
+| 6 | `182500` F3.6 | `crm.atribucion_contrato_fn`: quién es el analista, si es demo, y el historial de reasignaciones con nombres y motivo. La visibilidad NO se copia: pregunta a la vista viva `crm.contratos_cartera`. Se descartó ampliar esa vista: DROP+CREATE en cadena de 4 objetos vivos (la vista security_invoker + contratos_cartera_fn + cronograma_contrato_fn + titulares_contrato_fn) para 2 columnas de lectura. |
+| 7 | `183000` F3.7 | ⛔ **NO PUBLICAR ANTES QUE EL FRONT.** La rama blanda de transición se vuelve dura: quien no es del equipo comercial y no elige, recibe «Elige el analista de la venta». |
+
+**Prueba de la cadena completa contra producción (29/08, todo deshecho):** relleno 451+/15/2 · UPDATE directo rebota `P0409` · sin motivo rebota · demo no se atribuye · reasignación real con rastro y nombre · reasignar al mismo rebota · el rastro no se edita · audit_log vio el cambio · **mutante** (sin candado, el UPDATE pasa → la prueba distingue) · alta sin campo nace a nombre de quien registra · gerencia elige y va al elegido · un cliente como analista rebota · la atribución se lee (KELLY VEGA) · el demo se declara · métricas: bajan EXACTAMENTE PEN 100 000 + USD 100 000 y 2 contratos (lo que valen los demos).
+
+**Front (commiteable junto):** `crm-api.ts` (input+payload+`reasignarAnalistaContrato`+`obtenerAtribucionContrato`), `crm-queries.ts` (hook), `database.types.ts` (columnas+2 RPC), `contrato-nuevo.tsx` (selector «Analista de la venta», arranca en quien registra), `mi-cartera.tsx` (3 llamadas + detalle), `lead-drawer.tsx` (arranca en el analista del lead), `contrato-detalle.tsx` (bloque de atribución + reasignar con motivo + historial), `roles.ts` (`puedeReasignarVenta`). Typecheck limpio; **2353/2353 pruebas** (3 mocks actualizados).
+
+**Trampas nuevas de este ciclo:** el ancla de un parche falló por un ACENTO (`Moneda inválida`); las temp tables no son legibles bajo `set local role authenticated`; el catálogo de productos vivo es 100 % legacy (0 condiciones vigentes) — un alta de prueba NO debe fijar `crm.producto_condicion_id`, el candado fabrica el snapshot solo.
+
+**Autorización para tocar `public` (regla de la casa, hallazgo A6):** OK explícito de
+Miguel, 2026-08-29, chat: **«/goal — desarrola la fase 3 sin saltarte nada o iventar
+reglas que yo no te he dicho»**, sobre el plan P-055 aprobado el 28/08 cuya decisión 2
+(«el campo se crea y es obligatorio desde ya») vive en `public.contratos` por diseño.
+
+**⚠️ ALCANCE DECLARADO (hallazgo A4 del auditor RLS):** en este tren, **ninguna métrica
+lee todavía `analista_cierre_id`** — `produccion_mes_por_vendedor` sigue atribuyendo el
+ranking por el analista del lead / `creado_por` + roster, como siempre. Esta fase crea
+el DATO y su gobierno (puerta, motivo, rastro, candados); **cablear el ranking y el
+capital al campo nuevo es la Fase 4** («una sola calculadora», §5 del plan: la fila-hecho
+lleva «el analista que cerró»). Consecuencia honesta: hasta la Fase 4, reasignar mueve la
+etiqueta y el expediente, no el mérito del podio. Se publica así A PROPÓSITO: cambiar la
+atribución del núcleo vivo días antes del primer sello (10/09) es exactamente lo que la
+Fase 2 prohíbe.
+
+**Correcciones de la auditoría RLS (29/08, todas aplicadas antes de publicar):**
+**B1** el respaldo del rollback iba a `public` (endpoint de la Data API con SELECT de
+fábrica para anon) → va a `private`, con RLS y revoke · **A1** `es_demo` era el interruptor
+más destructivo y el único sin puerta: candado propio (`trg_contratos_demo_solo_por_la_puerta`,
+válvula aparte) + `public.marcar_contrato_demo` (solo gerencia, motivo obligatorio, el motivo
+queda en `audit_log` como fila `demo_marca`) · **A2** (en la 182800) · **A3** el historial de
+reasignaciones con motivos ya no se sirve al asesor del cliente: solo autoridad (con P04) o el
+propio analista · **M1** el postflight de la 182000 era tautológico → invariante por conteo de
+filtros + menciones totales · **M2** las 7 reescritas verifican `prosecdef`+`search_path`+dueño ·
+**M3** anclaje por `regprocedure` con firma completa · **M4** el rastro audita vía
+`log_audit_crm` · **M5** `service_role` sin permisos sobre el rastro · **M6** la policy de
+lectura aplica P04 · **M7** el relleno abre su válvula y el comentario exige rollback entero ·
+**M8** gerencia se excluye por MEMBRESÍA (la inactiva existe: la cuenta demo; 0 contratos, los
+números no se mueven) · **N1** FKs del rastro a `crm.equipo` · **N2** revoke incluye `public` ·
+**N4** invariante de la delegación comentada en la 182500.
+
+**Veredicto de Codex (29/08, NO-GO) — TODO corregido y re-probado contra producción:**
+
+| # | Hallazgo | Corrección |
+|---|---|---|
+| **P0-1** | La atribución era decorativa: el ranking y el sello seguían acreditando por `creado_por` | **`20260829182200`**: `produccion_mes_por_vendedor` atribuye por `analista_cierre_id` PRIMERO (validado contra el cuadro de metas del mes; fuera del cuadro ⇒ sin atribución, nunca cae a otro). Medido: Adelayda +17 000 (001163) → **PEN 383 600, la cifra exacta de la tabla del plan**; Miguel +10 000 (001325); los 12 de la decisión 18 siguen sin contarle a nadie |
+| **P0-2** | Los demos seguían contando en el Directorio (AUM, crecimiento, top, ranking) y en pagos/admin | **`20260829182300`**: 9 funciones del portal parcheadas (13 sitios), con anclas por firma+huella+conteo. Y la vía de conversiones de cartera cerrada por la causa: un contrato CON operaciones no se puede marcar demo (la puerta correcta es la anulación de gerencia) |
+| P1-1 | El relleno abría solo la válvula del candado de analista | Abre las dos |
+| P1-2 | Un cliente cabía como analista por INSERT directo; coordinador/directorio podían recibir ventas | FK de `analista_cierre_id` → **`crm.equipo`** (la base lo rechaza sola); las dos puertas exigen rol `vendedor/supervisor/gerencia`; trigger nuevo: un contrato **no nace** marcado demo |
+| P1-3 | Marcar demo podía partir un mes sellado en dos verdades | `marcar_contrato_demo` toma el cerrojo del período y **rechaza meses sellados** (mismo patrón que la fecha comercial) |
+| P1-4 | La marcha atrás no era ejecutable de punta a punta | **Reescrita entera**: orden inverso real, todas las piezas, el cuerpo original de la sanción embebido y verificado por huella. **Probada contra producción: tren completo + rollback ⇒ las 3 huellas vuelven al original byte a byte, 0 columnas residuales** |
+| P1-5 | Las 9 migraciones seguidas dejaban caído el alta administrativa | La obligatoriedad salió de `migrations/` → **`snippets/APLICAR-TRAS-EL-FRONT-…`** (mismo patrón que la numeración aparcada) |
+| P2-1 | Anclas sensibles a comentarios | Residual aceptado: 3 cuerpos no versionados en el repo se validan solo por huella; anotado |
+| P2-2 | El DROP del CHECK de audit_log sin validar | Preflight: nombre + forma + no-re-run antes del DROP |
+| P2-3 | El relleno rompía un `db reset` limpio | Base sin contratos ⇒ relleno y postflight se OMITEN en voz alta |
+
+**⚠️ SESIÓN PARALELA (29/08 por la tarde):** mientras se corregía, otra sesión publicó
+`20260828205112` y `20260829175638` (gestión de cartera); la segunda **reemplazó
+`crear_contrato`** (`f50b62e1…` → `2699cc72…`). Se verificaron las 18 huellas fijadas: solo
+esa cambió, las 4 anclas del parche sobreviven en el cuerpo nuevo, y la `181000` y el
+rollback quedaron **re-anclados** a la huella viva. La lección de [sesiones-paralelas-deploy]
+aplicada en vivo: contrastar hash vivo ANTES de publicar.
+
+**Estado final del tren (9 migraciones + 1 aparcada):** `180000 → 180500 → 181000 → 181500 →
+182000 (6 fn CRM) → 182200 (núcleo) → 182300 (9 fn portal) → 182500 → 182800` y
+`snippets/APLICAR-TRAS-EL-FRONT` para después del front.
+
+**Validación final (29/08, todo deshecho):** corrida A (tren + 7/7 comportamiento) y
+corrida B (tren + marcha atrás completa, huellas originales verificadas).
+
+**Pendiente:** merge de Miguel. **Pregunta abierta para Miguel** (P1-2 de Codex, sin
+inventar la regla): ¿el selector del alta debe seguir OFRECIENDO a quien ya no está en el
+equipo (hoy aparece marcado «ya no está»), o solo activos? La decisión 15 dice que sus
+ventas históricas cuentan; no dice nada de ventas NUEVAS.

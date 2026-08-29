@@ -145,6 +145,9 @@ function montar({
     convertir: vi.fn(() => ({ ok: true })),
     convertirExterno,
     recargar,
+    // P-055 Fase 3: DialogConvertir arma con esto la lista de analistas para el
+    // paso de contrato. Vacía basta: el selector solo se dibuja si hay equipo.
+    equipo: [],
   } as unknown as StoreDataApi
   render(
     <AuthContext.Provider value={sesion(demo, rol)}>

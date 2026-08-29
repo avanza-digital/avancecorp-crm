@@ -49,6 +49,9 @@ vi.mock('@/data/crm-queries', () => {
     useContrato: () => q(consultas.contrato),
     useCronograma: () => q([]),
     useTitulares: () => q([]),
+    // P-055 Fase 3: sin atribución, el bloque de "analista de la venta" no se
+    // pinta; estas pruebas son del PDF y no lo necesitan.
+    useAtribucionContrato: () => q(null),
   }
 })
 
