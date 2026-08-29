@@ -62,7 +62,7 @@ const ESTADO_CUOTA_UI: Record<EstadoCuota, { label: string; color: string }> = {
 function Termino({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="text-sm font-bold text-foreground [overflow-wrap:anywhere]">{children}</p>
     </div>
   )
@@ -341,6 +341,10 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     return {
       cuotasInteres: interes.length,
       pagadasInteres: interes.filter((c) => c.estado === 'pagado').length,
+      vencidas: cuotas.filter((c) => c.estado === 'vencido').length,
+      proxima: cuotas
+        .filter((c) => c.estado === 'pendiente')
+        .sort((a, b) => a.fecha_programada.localeCompare(b.fecha_programada))[0] ?? null,
       pagado: cuotas
         .filter((c) => c.estado === 'pagado')
         .reduce((a, c) => a + (c.monto_pagado ?? 0), 0),
@@ -462,7 +466,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
 
             {contrato.notas_internas && (
               <div className="rounded-xl border border-dashed border-border bg-muted/40 p-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   Notas internas
                 </p>
                 <p className="mt-0.5 whitespace-pre-wrap text-xs text-foreground [overflow-wrap:anywhere]">
@@ -481,7 +485,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               <div className="rounded-lg border border-border/60 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
                       Analista de la venta
                     </p>
                     <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
@@ -598,7 +602,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 explícitamente que el dato no se pudo leer, con reintento. */}
             {errorTitulares ? (
               <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   Co-titulares
                 </p>
                 <p className="text-xs font-semibold text-destructive">{errorTitulares}</p>
@@ -613,7 +617,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               <Skeleton className="h-14 w-full" aria-busy />
             ) : titulares.length > 0 ? (
               <div className="rounded-xl border border-border bg-muted/40 p-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
                   Co-titulares
                 </p>
                 <ul className="mt-1 space-y-1">
@@ -648,10 +652,45 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 </p>
               ) : (
                 <>
+                  {totales && (
+                    <div
+                      className="mt-2 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3"
+                      role="region"
+                      aria-label="Resumen del cronograma"
+                    >
+                      <div className="bg-card px-3 py-2.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Cuotas vencidas</p>
+                        <p
+                          className={`mt-1 text-sm font-extrabold tabular-nums ${
+                            totales.vencidas > 0 ? 'text-destructive' : 'text-primary'
+                          }`}
+                        >
+                          {totales.vencidas}
+                        </p>
+                      </div>
+                      <div className="bg-card px-3 py-2.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Próxima cuota</p>
+                        <p className="mt-1 text-xs font-extrabold tabular-nums text-foreground">
+                          {totales.proxima
+                            ? `${fmtFecha(totales.proxima.fecha_programada)} · ${money(
+                                totales.proxima.monto_programado,
+                                contrato.moneda,
+                              )}`
+                            : 'Sin cuota pendiente'}
+                        </p>
+                      </div>
+                      <div className="bg-card px-3 py-2.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Saldo por pagar</p>
+                        <p className="mt-1 text-sm font-extrabold tabular-nums text-primary">
+                          {money(totales.porPagar, contrato.moneda)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-2 overflow-x-auto rounded-xl border border-border">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-border bg-muted/50 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                           <th className="px-3 py-2">Cuota</th>
                           <th className="px-3 py-2">Fecha</th>
                           <th className="px-3 py-2">Monto</th>
@@ -673,11 +712,11 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                             >
                               <td className="px-3 py-2">
                                 {c.tipo === 'retorno' ? (
-                                  <Badge color="var(--warning)" className="text-[10px] tracking-wide">
+                                  <Badge color="var(--warning)" className="text-[11px] tracking-wide">
                                     RETORNO DEL CAPITAL
                                   </Badge>
                                 ) : c.tipo === 'devolucion' ? (
-                                  <Badge color="var(--warning)" className="text-[10px] tracking-wide">
+                                  <Badge color="var(--warning)" className="text-[11px] tracking-wide">
                                     PAGO DE INTERESES
                                   </Badge>
                                 ) : (
@@ -712,7 +751,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         {totales.pagadasInteres} de {totales.cuotasInteres}
                       </b>{' '}
                       cuotas de interés pagadas · Pagado{' '}
-                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b> · Por pagar <b className="tabular-nums text-foreground">{money(totales.porPagar, contrato.moneda)}</b>
+                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b>
                     </p>
                   )}
                 </>

@@ -24,13 +24,18 @@ import { SheetBody, SheetFooter } from '@/components/ui/sheet'
 import {
   CuentasClienteMoneda,
   DatoCliente as Dato,
+  DatoClienteCopiable,
 } from '@/components/app/cliente-cuentas-vista'
 import {
   cuentaClienteDesdeRpc,
   cuentasClienteEmbebidas,
   valorCliente as valor,
 } from '@/lib/cliente-cuentas-modelo'
-import { FichaComercialCabecera, FichaComercialSeccion } from '@/components/app/ficha-comercial'
+import {
+  FichaComercialCabecera,
+  FichaComercialSeccion,
+  FichaComercialSeccionPlegable,
+} from '@/components/app/ficha-comercial'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { useActividadesCliente, useClienteFichaComercial, useCuentasBancariasCliente } from '@/data/crm-queries'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
@@ -214,7 +219,7 @@ function RielContinuidad({
       className="overflow-hidden rounded-2xl border border-primary/10 bg-primary/[0.035] shadow-[inset_3px_0_0_var(--accent)]"
     >
       <div className="border-b border-primary/10 px-4 py-2.5">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-primary">Continuidad comercial</p>
+        <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">Continuidad comercial</p>
       </div>
       <div className="grid sm:grid-cols-3">
         {items.map((item) => (
@@ -222,9 +227,9 @@ function RielContinuidad({
             key={item.etiqueta}
             className="border-t border-primary/10 px-4 py-3 first:border-t-0 sm:border-l sm:border-t-0 sm:first:border-l-0"
           >
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{item.etiqueta}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{item.etiqueta}</p>
             <div className="mt-1">{item.contenido}</div>
-            <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{item.ayuda}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{item.ayuda}</p>
           </div>
         ))}
       </div>
@@ -283,6 +288,7 @@ export function ClienteFicha({
     clienteId: string
     datos: ClienteFichaComercial
   } | null>(null)
+  const [cuentasAbiertas, setCuentasAbiertas] = useState(false)
   const { tareasDeCliente } = useCRMData()
   const vista = construirVistaCliente360(grupo, tareasDeCliente?.(clienteId) ?? [], ahora)
   const tareasPendientes = vista.tareasPendientes
@@ -424,6 +430,11 @@ export function ClienteFicha({
   // pantalla lo re-anuncia (un role="alert" que no cambia no se vuelve a leer).
   const cuentasReintentando =
     !precargado && puedeVerCuentas && (qPen.isError || qUsd.isError) && (qPen.isFetching || qUsd.isFetching)
+
+  useEffect(() => {
+    if (cuentasError) setCuentasAbiertas(true)
+  }, [cuentasError])
+
   const reintentarCuentas = () => {
     focoTrasCuentas.current = true
     void qPen.refetch()
@@ -593,7 +604,7 @@ export function ClienteFicha({
         resumen={
           <div className="hidden shrink-0 text-right leading-tight sm:block">
             <p className="text-sm font-extrabold tabular-nums text-primary">{vista.contratosActivos}</p>
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {vista.contratosActivos === 1 ? 'contrato vigente' : 'contratos vigentes'}
             </p>
           </div>
@@ -665,15 +676,13 @@ export function ClienteFicha({
 
         <FichaComercialSeccion
           icono={CalendarClock}
-          titulo="Siguiente contacto"
-          descripcion="El siguiente paso para mantener activa la relación."
+          titulo="Seguimiento"
+          descripcion="Acciones pendientes para mantener activa la relación."
           sectionRef={siguienteContactoRef}
         >
           {tareasPendientes.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-              {onGestionar && operable
-                ? 'No hay un contacto programado. Agenda el siguiente paso para que este cliente no quede sin seguimiento.'
-                : 'No hay un contacto programado.'}
+              {onGestionar && operable ? 'Sin acciones pendientes. Puedes agendar el próximo seguimiento.' : 'Sin acciones pendientes.'}
             </p>
           ) : (
             <ol className="space-y-2">
@@ -845,9 +854,7 @@ export function ClienteFicha({
                 </>
               )}
               <Dato etiqueta={TIPOS_DOCUMENTO[detalle.tipo_documento].etiqueta}>{valor(detalle.dni)}</Dato>
-              <Dato etiqueta="Correo" className="col-span-2 sm:col-span-1" valueClassName="sm:text-[13px]">
-                {valor(detalle.correo)}
-              </Dato>
+              <DatoClienteCopiable etiqueta="Correo" valor={detalle.correo} className="col-span-2 sm:col-span-2" />
               <Dato etiqueta="Teléfono">{valor(detalle.telefono)}</Dato>
               <Dato etiqueta="Registrado el">{fechaHora(detalle.creado_en)}</Dato>
             </div>
@@ -959,11 +966,20 @@ export function ClienteFicha({
         </FichaComercialSeccion>
 
         {puedeVerCuentas && (
-          <FichaComercialSeccion
+          <FichaComercialSeccionPlegable
             icono={Landmark}
             titulo="Cuentas para recibir pagos"
+            resumen={
+              cuentasError
+                ? 'No se pudieron actualizar. Abre para reintentar.'
+                : cuentasPen == null || cuentasUsd == null || cuentasReintentando
+                  ? 'Cargando cuentas…'
+                  : `Soles: ${cuentasPen.length} · Dólares: ${cuentasUsd.length}`
+            }
             descripcion="Cuentas registradas del cliente. Revisa cada contrato para confirmar la cuenta elegida para sus pagos."
             sectionRef={cuentasRef}
+            abierta={cuentasAbiertas}
+            onAbiertaChange={setCuentasAbiertas}
           >
             {cuentasError && !cuentasReintentando ? (
               <div
@@ -987,7 +1003,7 @@ export function ClienteFicha({
                 <CuentasClienteMoneda moneda="USD" cuentas={cuentasUsd} uso="pagos" />
               </div>
             )}
-          </FichaComercialSeccion>
+          </FichaComercialSeccionPlegable>
         )}
       </SheetBody>
 

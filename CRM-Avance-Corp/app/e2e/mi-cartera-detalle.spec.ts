@@ -41,6 +41,8 @@ test('real: un analista abre la Ficha 360 de su cliente aunque la ventana de 5 h
   const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
   await expect(ficha).toBeVisible()
   await expect(ficha.getByText('cliente1@correo.pe')).toBeVisible()
+  await expect(ficha.getByText('Soles: 1 · Dólares: 1')).toBeVisible()
+  await ficha.getByText('Cuentas para recibir pagos', { exact: true }).click()
   await expect(ficha.getByText('00219112345678901234')).toBeVisible()
   await expect(ficha.getByText('00320030012345678901')).toBeVisible()
   await expect(ficha.getByText('JUANA PÉREZ QA')).toBeVisible()
@@ -85,7 +87,7 @@ test('real: supervisor gestiona y contrata para su equipo, pero no corrige el pe
   const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
   await expect(fila.getByRole('button', { name: 'Gestionar' })).toBeVisible()
   await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
-  await expect(fila.getByRole('button', { name: '+ Primer contrato' })).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Registrar primera inversión' })).toBeVisible()
   await expect(fila.getByRole('button', { name: 'Corregir', exact: true })).toHaveCount(0)
 })
 
@@ -137,7 +139,9 @@ test('demo: directorio ve la ficha comercial sin domicilio ni números bancarios
   const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(fila).toBeVisible()
   await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
-  await expect(fila.getByRole('button', { name: /Corregir|Contrato|Upgrade|Gestionar/ })).toHaveCount(0)
+  await expect(
+    fila.getByRole('button', { name: /Corregir|Registrar (?:primera|nueva) inversión|Aumentar inversión|Gestionar/ }),
+  ).toHaveCount(0)
   await fila.getByRole('button', { name: 'Ver detalle' }).click()
 
   const ficha = page.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })

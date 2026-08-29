@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
-import { Landmark } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, Copy, Landmark } from 'lucide-react'
+import { toast } from 'sonner'
 import { fechaHora, type Moneda } from '@/lib/format'
 import { valorCliente, type CuentaClienteVista } from '@/lib/cliente-cuentas-modelo'
 
@@ -16,8 +17,64 @@ export function DatoCliente({
 }) {
   return (
     <div className={`min-w-0 ${className}`}>
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">{etiqueta}</p>
+      <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{etiqueta}</p>
       <p className={`text-sm font-bold text-foreground [overflow-wrap:anywhere] ${valueClassName}`}>{children}</p>
+    </div>
+  )
+}
+
+/** Identificador de lectura exacta: no lo parte y ofrece copia explícita. */
+export function DatoClienteCopiable({
+  etiqueta,
+  valor,
+  className = '',
+  monoespaciado = false,
+}: {
+  etiqueta: string
+  valor: string | null | undefined
+  className?: string
+  monoespaciado?: boolean
+}) {
+  const [copiado, setCopiado] = useState(false)
+  const texto = valorCliente(valor ?? null)
+  const valorCopiable = valor?.trim() ?? ''
+  const sePuedeCopiar = valorCopiable !== ''
+
+  useEffect(() => setCopiado(false), [valorCopiable])
+
+  const copiar = async () => {
+    if (!sePuedeCopiar) return
+    try {
+      await navigator.clipboard.writeText(valorCopiable)
+      setCopiado(true)
+    } catch {
+      toast.error(`No se pudo copiar ${etiqueta.toLowerCase()}.`)
+    }
+  }
+
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">{etiqueta}</p>
+      <div className="mt-0.5 flex min-h-10 min-w-0 items-center gap-1 rounded-lg border border-border/60 bg-card px-2">
+        <span
+          className={`min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-[13px] font-bold text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            monoespaciado ? 'font-mono tabular-nums tracking-tight' : ''
+          }`}
+          title={texto}
+        >
+          {texto}
+        </span>
+        {sePuedeCopiar && (
+          <button
+            type="button"
+            onClick={() => void copiar()}
+            aria-label={copiado ? `${etiqueta} copiado` : `Copiar ${etiqueta.toLowerCase()}`}
+            className="grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35"
+          >
+            {copiado ? <Check className="size-4 text-primary" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -66,8 +123,13 @@ export function CuentasClienteMoneda({
             >
               <DatoCliente etiqueta="Banco">{valorCliente(cuenta.banco)}</DatoCliente>
               <DatoCliente etiqueta="Tipo de cuenta">{valorCliente(cuenta.tipoCuenta)}</DatoCliente>
-              <DatoCliente etiqueta="N° de cuenta">{valorCliente(cuenta.numeroCuenta)}</DatoCliente>
-              <DatoCliente etiqueta="CCI">{valorCliente(cuenta.cci)}</DatoCliente>
+              <DatoClienteCopiable
+                etiqueta="N° de cuenta"
+                valor={cuenta.numeroCuenta}
+                className="col-span-2"
+                monoespaciado
+              />
+              <DatoClienteCopiable etiqueta="CCI" valor={cuenta.cci} className="col-span-2" monoespaciado />
               <DatoCliente etiqueta={uso === 'pagos' ? 'La cuenta está a nombre de' : 'Titular de la cuenta'}>
                 {uso === 'pagos'
                   ? cuenta.titularDistinto

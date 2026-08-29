@@ -122,6 +122,13 @@ function cuentasPorMoneda(pen: CuentaBancariaSeleccionable[], usd: CuentaBancari
   listarCuentas.mockImplementation(async (_clienteId, moneda) => (moneda === 'USD' ? usd : pen))
 }
 
+async function abrirCuentas(user: ReturnType<typeof userEvent.setup>) {
+  const titulo = await screen.findByText('Cuentas para recibir pagos')
+  const resumen = titulo.closest('summary')
+  if (!resumen) throw new Error('resumen plegable de cuentas no encontrado')
+  await user.click(resumen)
+}
+
 function clienteQuery(): QueryClient {
   return new QueryClient({
     defaultOptions: {
@@ -459,13 +466,13 @@ describe('ClienteFicha — frescura y presentación', () => {
     await waitFor(() => expect(onAsignacionDesactualizada).toHaveBeenCalledWith('cli-1'))
   })
 
-  it('focoInicial lleva el teclado a Siguiente contacto', async () => {
+  it('focoInicial lleva el teclado a Seguimiento', async () => {
     obtenerFichaComercial.mockResolvedValue(fichaComercialBase())
     montar({
       props: { focoInicial: 'siguiente-contacto' },
     })
 
-    const siguienteContacto = await screen.findByRole('region', { name: 'Siguiente contacto' })
+    const siguienteContacto = await screen.findByRole('region', { name: 'Seguimiento' })
     await waitFor(() => expect(siguienteContacto).toHaveFocus())
   })
 
@@ -502,6 +509,8 @@ describe('ClienteFicha — frescura y presentación', () => {
   })
 
   it('muestra identidad sin domicilio y las cuentas que autoriza su consulta específica', async () => {
+    const user = userEvent.setup()
+    const escribirPortapapeles = vi.spyOn(navigator.clipboard, 'writeText')
     obtenerFichaComercial.mockResolvedValue(fichaComercialBase())
     cuentasPorMoneda(
       [cuentaRpc()],
@@ -528,6 +537,12 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(screen.queryByText('Domicilio legal')).not.toBeInTheDocument()
     expect(screen.queryByText('Av. Javier Prado Este 123, San Isidro, Lima')).not.toBeInTheDocument()
 
+    expect(await screen.findByText('Soles: 1 · Dólares: 1')).toBeInTheDocument()
+    const resumenCuentas = screen.getByText('Cuentas para recibir pagos').closest('summary')
+    expect(resumenCuentas?.closest('details')).not.toHaveAttribute('open')
+    await abrirCuentas(user)
+    expect(resumenCuentas?.closest('details')).toHaveAttribute('open')
+
     const pen = await screen.findByRole('region', { name: 'Cuenta para recibir pagos en soles' })
     expect(within(pen).getByText('BCP')).toBeInTheDocument()
     expect(within(pen).getByText('19112345678901')).toBeInTheDocument()
@@ -537,9 +552,16 @@ describe('ClienteFicha — frescura y presentación', () => {
     expect(within(usd).getByText('Interbank')).toBeInTheDocument()
     expect(within(usd).getByText('JUANA PÉREZ DEMO')).toBeInTheDocument()
     expect(within(usd).getByText('87654321')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Copiar correo' }))
+    expect(escribirPortapapeles).toHaveBeenCalledWith('cliente1@correo.pe')
+    await user.click(within(pen).getByRole('button', { name: 'Copiar n° de cuenta' }))
+    expect(escribirPortapapeles).toHaveBeenCalledWith('19112345678901')
+    expect(within(pen).getByText('00219112345678901234')).toHaveClass('whitespace-nowrap')
   })
 
   it('ESTADO DE PRODUCCIÓN: cliente legacy sin nombres separados y cuenta USD registrada al crear un contrato', async () => {
+    const user = userEvent.setup()
     // Réplica exacta del caso ORMESINDA JULCA (2026-08-11): nombres/apellidos
     // NULL, casillas USD del perfil vacías, y la cuenta USD SOLO en el ledger
     // (origen 'contrato'). Antes: «—» en nombres y «No registró una cuenta».
@@ -567,6 +589,8 @@ describe('ClienteFicha — frescura y presentación', () => {
     )
     montar()
 
+    await abrirCuentas(user)
+
     const usd = await screen.findByRole('region', { name: 'Cuenta para recibir pagos en dólares' })
     expect(within(usd).getByText('BBVA')).toBeInTheDocument()
     expect(within(usd).getByText('72728282828282')).toBeInTheDocument()
@@ -581,6 +605,7 @@ describe('ClienteFicha — frescura y presentación', () => {
   })
 
   it('varias cuentas activas de la misma moneda se listan todas', async () => {
+    const user = userEvent.setup()
     obtenerFichaComercial.mockResolvedValue(fichaComercialBase())
     cuentasPorMoneda(
       [],
@@ -590,6 +615,8 @@ describe('ClienteFicha — frescura y presentación', () => {
       ],
     )
     montar()
+
+    await abrirCuentas(user)
 
     const usd = await screen.findByRole('region', { name: 'Cuentas para recibir pagos en dólares' })
     expect(within(usd).getByText('BBVA')).toBeInTheDocument()
@@ -686,11 +713,13 @@ describe('ClienteFicha — frescura y presentación', () => {
   })
 
   it('un fallo de refetch bancario posterior oculta las cuentas ya confirmadas', async () => {
+    const user = userEvent.setup()
     // El requisito espejo del de la ficha, para la sección bancaria: cuentas
     // confirmadas → refetch que falla → nada de CCI viejo a la vista.
     obtenerFichaComercial.mockResolvedValue(fichaComercialBase())
     cuentasPorMoneda([cuentaRpc()], [])
     const { queryClient } = montar()
+    await abrirCuentas(user)
     expect(await screen.findByText('00219112345678901234')).toBeInTheDocument()
 
     listarCuentas.mockRejectedValue(
@@ -966,11 +995,13 @@ describe('ClienteFicha — frescura y presentación', () => {
   })
 
   it('explica por separado cuando no existe una cuenta PEN ni USD', async () => {
+    const user = userEvent.setup()
     obtenerFichaComercial.mockResolvedValue(fichaComercialBase())
     cuentasPorMoneda([], [])
     montar()
 
     await screen.findByText('CLIENTE PORTAL UNO')
+    await abrirCuentas(user)
     const pen = await screen.findByRole('region', { name: 'Cuenta para recibir pagos en soles' })
     const usd = screen.getByRole('region', { name: 'Cuenta para recibir pagos en dólares' })
     expect(within(pen).getByText('No registró una cuenta en esta moneda.')).toBeInTheDocument()
@@ -983,6 +1014,7 @@ describe('ClienteFicha — frescura y presentación', () => {
 
     expect(screen.getByText('CLIENTE FICTICIO DEMO')).toBeInTheDocument()
     // En demo las cuentas salen de las casillas embebidas del fixture.
+    await abrirCuentas(user)
     const pen = screen.getByRole('region', { name: 'Cuenta para recibir pagos en soles' })
     expect(within(pen).getByText('BCP')).toBeInTheDocument()
     const usd = screen.getByRole('region', { name: 'Cuenta para recibir pagos en dólares' })

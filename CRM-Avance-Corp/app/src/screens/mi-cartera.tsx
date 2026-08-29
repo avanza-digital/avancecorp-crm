@@ -568,7 +568,7 @@ function FilaGrupoCliente({
                           onUpgradeCliente()
                         }}
                       >
-                        <TrendingUp aria-hidden /> Upgrade
+                        <TrendingUp aria-hidden /> Aumentar inversión
                       </Button>
                     )}
                     <Button
@@ -579,7 +579,7 @@ function FilaGrupoCliente({
                         onNuevoContrato()
                       }}
                     >
-                      {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                      {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
                     </Button>
                   </>
                 )}
@@ -826,11 +826,11 @@ function TarjetaGrupoCliente({
               )}
               {!sinContratos && (
                 <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
-                  <TrendingUp aria-hidden /> Upgrade
+                  <TrendingUp aria-hidden /> Aumentar inversión
                 </Button>
               )}
               <Button type="button" size="xs" onClick={onNuevoContrato}>
-                {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
               </Button>
             </>
           )}
@@ -2232,7 +2232,6 @@ function MiCarteraDemo() {
     ].filter((k) => idsClientes.has(k.cliente_id))
     return agruparCartera(clientesVis, contratosVis)
   }, [fixtures, yo, ambito, contratosLocales])
-
   const tocaReal = () => toast.info('Disponible solo con tu cuenta real (demo)')
   const abrirDetalleCliente = (cliente: ClienteBasico) => {
     const detalle = fixtures?.detallesClientes[cliente.id]
