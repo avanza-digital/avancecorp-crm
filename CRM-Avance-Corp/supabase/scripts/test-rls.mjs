@@ -9232,6 +9232,67 @@ const ROLES_SIN_AVISO = ['vendInactive', 'clientBank'];
 // escritura bloqueada), las dos RPC con su gate, los DOS candados de columna
 // (analista y es_demo) y el recorte del historial con motivos. Si las
 // migraciones 20260829* no estan aplicadas, se dice OMITIDO en voz alta.
+
+// P-055 FASE 4 (hallazgo M2 del auditor RLS): la calculadora unica de capital.
+// Los casos PERMITIDOS con filas (no solo denegaciones), el gate de la lista
+// del periodo, y que el nucleo/ventana NO sean alcanzables por la API.
+async function testCapitalNucleo(sessions, seed) {
+  console.log('\n— Fase 4: calculadora unica de capital —');
+  void seed;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-capital'));
+  const gerencia = sessions.gerencia.client;
+
+  const sonda = await gerencia.schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 3 });
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    console.log('  ⚠ OMITIDO: las migraciones de la Fase 4 no estan aplicadas en esta base.');
+    return;
+  }
+
+  // PERMITIDO con filas: gerencia ve capital; vendedor tambien (su ambito).
+  if (sonda.error) {
+    fail(`gerencia lee metricas_capital_mes_fn: ${sonda.error.message}`);
+  } else if (!Array.isArray(sonda.data)) {
+    fail('metricas_capital_mes_fn no devolvio filas a gerencia');
+  } else {
+    pass(`gerencia lee metricas_capital_mes_fn (${sonda.data.length} filas)`);
+  }
+  const venc = await gerencia.schema('crm').rpc('metricas_vencimientos_fn', { p_dias: 180 });
+  if (venc.error) fail(`gerencia lee metricas_vencimientos_fn: ${venc.error.message}`);
+  else pass(`gerencia lee metricas_vencimientos_fn (${(venc.data ?? []).length} filas)`);
+
+  const vend = await sessions.vend1.client.schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 3 });
+  if (vend.error) fail(`vend1 lee metricas_capital_mes_fn: ${vend.error.message}`);
+  else pass('vend1 lee metricas_capital_mes_fn (su ambito, sin error)');
+
+  // La lista del periodo: gerencia SI, vendedor NO (gate gerencia/lector).
+  const per = await gerencia.schema('crm').rpc('contratos_por_periodo_comercial_fn',
+    { p_periodo: '2026-08-01' });
+  if (per.error) fail(`gerencia lee contratos_por_periodo_comercial_fn: ${per.error.message}`);
+  else pass('gerencia lee contratos_por_periodo_comercial_fn');
+  await expectExplicitAuthorizationDenied(
+    'un vendedor NO lee la lista del periodo (gate gerencia/lector)',
+    sessions.vend1.client.schema('crm').rpc('contratos_por_periodo_comercial_fn',
+      { p_periodo: '2026-08-01' }),
+    ['42501'],
+  );
+
+  // El nucleo y su ventana NO existen para la API (schema private no expuesto).
+  for (const [quien, cli] of [['anon', anon], ['gerencia', gerencia]]) {
+    await expectExplicitAuthorizationDenied(
+      `${quien} no alcanza capital_autorizada por la API`,
+      cli.rpc('capital_autorizada', { p_desde: '2026-08-01', p_hasta: '2026-08-31' }),
+      ['42501', 'PGRST202'],
+    );
+    await expectExplicitAuthorizationDenied(
+      `${quien} no alcanza capital_episodios por la API`,
+      cli.rpc('capital_episodios', {
+        p_ini: '2026-08-01', p_fin: '2026-09-01', p_global: true, p_visibles: [],
+      }),
+      ['42501', 'PGRST202'],
+    );
+  }
+}
+
 async function testAtribucionVentas(sessions, seed) {
   console.log('\n— Fase 3: atribucion de ventas (analista, demo, rastro) —');
   void seed;
@@ -9631,6 +9692,7 @@ async function main() {
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
+      await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

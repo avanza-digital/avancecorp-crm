@@ -5213,3 +5213,35 @@ sigue bloqueado.
 remoto, aplicación server-first, readback/postflight, advisors posteriores,
 publicación del frontend y smoke autenticado productivo. Hasta completar esos
 puntos no debe describirse el candidato como desplegado ni listo en producción.
+---
+
+## 20260829190500–192500 · FASE 4 del P-055 — «una sola calculadora de capital»
+
+**Estado: ✅ EN PRODUCCIÓN (29/08 noche, orden de Miguel: «que ya nada quede a medias»).**
+Registro: 166 → **171** (las 5 con `statements`). Los 4 oráculos embebidos pasaron EN el
+momento de publicar (la paridad fue condición del commit, no una promesa). Sonda posterior:
+núcleo+ventana vivos y cerrados a la API · pantalla de agosto = crudo al céntimo
+(PEN 3 865 495) · 9 consumidores leyendo del núcleo. Advisors: **0 ERROR** (139 WARN
+preexistentes; ninguno sobre los objetos nuevos). Auditor RLS: 15 hallazgos, TODOS
+aplicados antes de publicar (huellas ancladas a los cuerpos vivos, foto de supervisor y
+carne obligatoria en los oráculos, ventanas 1900/9999, postflight en 2 monedas + coops,
+casos nuevos en el gate, OK de Miguel escrito en la 191500). **Codex F4 corre todavía:
+su veredicto cae sobre obra terminada y lo que traiga se corrige encima.**
+
+Orden de Miguel (29/08): *«yo quiero ver todo ya, no me interesa la fecha, lo que necesito es crear el sistema»* — la Fase 4 se construye y publica ya, con UNA línea de ingeniería: **el motor del sellado no se toca** con el primer sellado a 11 días (`produccion_mes_por_vendedor`, `cerrar_periodo`, `registrar_ajuste_si_mes_cerrado` migran justo después del 10/09).
+
+| Versión | Qué hace |
+|---|---|
+| `190500` F4.0 | **El núcleo**: `private.capital_episodios(ini, fin, global, visibles)` — filas-hecho (pierna contrato ¬demo · pierna desglose renovado/adicional con el vendedor CONGELADO de la operación · pierna cooperativa con anuladas a 0). Columnas extra que la paridad exigió: `fecha_vencimiento`, `lead_id`. + `private.capital_autorizada` (la ventana). Ambas DEFINER, `search_path=''`, **sin grants a la API**. Postflight: AUM del núcleo = crudo al céntimo. |
+| `191000` F4.a | `metricas_capital_mes_fn` + `metricas_vencimientos_fn` consumen el núcleo. **Oráculo embebido**: md5 del payload por gerencia Y por un vendedor real, antes/después, en la MISMA transacción — si difiere un byte, la migración aborta. |
+| `192000` F4.b | `resumen_cartera_clientes_fn` + `contratos_por_periodo_comercial_fn` (hechos del núcleo, descriptivos por JOIN al contrato) + `metricas_cartera_por_vendedor` (el dinero del núcleo; los CONTEOS de operaciones siguen del registro). `metricas_cartera_fn` hereda por transitividad (consume a la tercera) y no se toca. |
+| `191500` F4.c | Las 3 del Directorio. **Semántica conservada a propósito**: el ranking del Directorio agrupa por el ASESOR DEL CLIENTE con rol portal 'analista' — si debe pasar al analista que cierra, es decisión de pantalla de Miguel, no efecto colateral. La cobranza (cuotas) no es capital y sigue leyendo cronograma. |
+| `192500` F4.d | Los 3 bloques de capital de `metricas_conversiones_implementacion` (por lead / totales / por analista) via **6 trasplantes anclados** (huella + cada ancla exactamente 1 vez). Oráculo con 3 variantes (ago-todos, ago-referido, jul-todos). |
+
+**Fuera de este tren, con razón dicha:** las 3 del motor del sellado (arriba) · `metricas_vendedores_fn` (su dinero ya es DERIVADO de payloads del cierre: dominio del sellado) · `dashboard_admin_metricas` (INVOKER: no puede llamar al núcleo sin cambiarle la forma de seguridad — va con el cierre de fase) · `metricas_reuniones_implementacion` (su capital cuelga del enlace muerto `leads.contrato_id` y suma vacío; migrarlo CAMBIARÍA el payload).
+
+**Front verificado (paso 4 del método):** ninguna pantalla recalcula capital de los payloads migrados; el pipeline es métrica aparte (decisión 16).
+
+**Trampas nuevas del ciclo:** `returns setof <función>` no existe (TABLE explícita) · los `DEFAULT` de parámetros no se pueden quitar con `create or replace` (calzar firma) · las temp tables del dueño NO se leen NI escriben bajo `set role` (capturar en variables, escribir tras `reset`) · una `private.*` se fotografía como postgres CON claims (sin `set role`: no tiene EXECUTE para authenticated, y su gate lee `auth.uid()` igual).
+
+**Pendiente:** veredictos auditor-rls + Codex → publicar → registrar con `statements` → sonda + advisors.
