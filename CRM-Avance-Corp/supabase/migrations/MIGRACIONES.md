@@ -5276,3 +5276,25 @@ Orden de Miguel (29/08): *«yo quiero ver todo ya, no me interesa la fecha, lo q
 **Trampas nuevas del ciclo:** `returns setof <función>` no existe (TABLE explícita) · los `DEFAULT` de parámetros no se pueden quitar con `create or replace` (calzar firma) · las temp tables del dueño NO se leen NI escriben bajo `set role` (capturar en variables, escribir tras `reset`) · una `private.*` se fotografía como postgres CON claims (sin `set role`: no tiene EXECUTE para authenticated, y su gate lee `auth.uid()` igual).
 
 **Pendiente:** veredictos auditor-rls + Codex → publicar → registrar con `statements` → sonda + advisors.
+
+
+---
+
+## 20260829210000–211000 · FASE 4 h/i — «terminemos la calculadora»: las 8 piezas finales
+
+**Estado: ✅ EN PRODUCCIÓN (madrugada del 30/08). Registro → 177. LA FASE 4 ESTÁ COMPLETA.**
+
+| # | Pieza | Cómo quedó |
+|---|---|---|
+| 1 | `produccion_mes_por_vendedor` → núcleo | Trasplante anclado de sus DOS fuentes crudas; TODA la lógica de atribución intacta. **El juez: ensayo del cierre completo con motor viejo y nuevo — foto sellada IDÉNTICA (`e59a303b…`, 18 personas)** |
+| 2 | `cerrar_periodo` | Sin cambio de cuerpo: su capital ya es derivado del motor → alimentada por transitividad, y juzgada por el mismo ensayo |
+| 3 | `registrar_ajuste_si_mes_cerrado` | Rama de contratos → núcleo. La rama de coop ANULADA queda cruda POR SEMÁNTICA (el núcleo carga el capital que existe; la deuda necesita el monto original de lo anulado) — escrito en la migración |
+| 4 | `metricas_vendedores_fn` | Oráculo de punta a punta en F4.h: payload íntegro byte a byte |
+| 5 | `dashboard_admin_metricas` | INVOKER→DEFINER con gate explícito `es_gestor_cartera()` (la misma autoridad que la RLS le daba de facto) + núcleo. Payload del admin byte a byte |
+| 6 | `metricas_reuniones_implementacion` | El capital deja el enlace muerto y bebe del núcleo (regla del panel de Conversiones). El payload salvo capital: byte a byte. **El 0 de hoy es verdad del dato** (no existe aún ninguna cadena reunión→conversión, medido); el CABLE quedó probado con un lead real |
+| 7 | **Trinquete = 0** | `scripts/trinquete-capital.sql` con tope CERO que no puede subir; verificado en vivo: 0 calculadoras crudas fuera del núcleo en crm+public+private |
+| 8 | Deudas de Codex | Rendimiento MEDIDO en vivo: panel Conversiones 241–246 ms, vendedores 74 ms (hipótesis P1-5 refutada a escala actual; re-medir a 10k) · solape contrato+coop: **0 casos** (P2-10 refutada) |
+
+**Trampa nueva:** `request.jwt.claims` puesto por un oráculo VIVE hasta el fin de la
+transacción — un ensayo del cierre posterior en la misma tx sella como «manual»
+(`automatico=false`). Limpiar con `set_config('request.jwt.claims','',true)` al salir.
