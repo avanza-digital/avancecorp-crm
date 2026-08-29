@@ -5243,7 +5243,16 @@ con capital):
 | P1-8 | `vendedores_fn` cambia por transitividad | La paridad de `cartera_por_vendedor` quedó fotografiada; el oráculo punta a punta llega con su migración post-10/09 |
 | P2-10 | Hipótesis de solape contrato+coop del mismo lead | Consulta de comprobación anotada para el banco post-cierre |
 
-**⏳ DECISIÓN ABIERTA PARA MIGUEL (P0-2):** tu decisión 4 dice «las cooperativas SON parte
+**✅ DECISIÓN A DE MIGUEL (30/08): «las cooperativas cuentan en todo» — EN PRODUCCIÓN**
+(`20260829201500` + etiqueta `20260829202000`; registro → **175**). Ruptura de paridad
+DELIBERADA con oráculo de DELTA: cada cifra nueva = la vieja + las coops, AL CÉNTIMO.
+Verificado en vivo: AUM PEN **17 947 313,12 → 18 212 113,12** (+264 800 exactos) · agosto
+muestra **S/ 264 800** bajo su propia etiqueta `cooperativa` · el ranking del Directorio
+acredita las coops a SU analista. Fuera, en voz alta: top de clientes (una coop no tiene
+cliente de portal) y el resumen de cartera (gestión operativa de contratos) — si Miguel los
+quiere, es otra decisión de pantalla.
+
+**Decisión original (histórica):** tu decisión 4 dice «las cooperativas SON parte
 del capital», y el cierre/conversiones ya las cuentan. Pero `metricas_capital_mes_fn`, el
 AUM del Directorio y los resúmenes de cartera **nunca las contaron**, y la paridad byte a
 byte lo conservó. ¿Deben esas pantallas empezar a incluirlas (los números SUBEN: hoy
