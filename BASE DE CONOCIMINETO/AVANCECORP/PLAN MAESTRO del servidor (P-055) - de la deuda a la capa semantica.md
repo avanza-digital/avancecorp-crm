@@ -8,7 +8,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** FASE 2 (mirar el primer cierre — el 10/09 solo queda observar). **La Fase 1 (28/08) y la FASE 3 (29/08) están EN PRODUCCIÓN.** La Fase 3 entró completa: 10 migraciones (156→166), front `crm-20260829T182429Z` vivo en crm.miavance.com, obligatoriedad encendida, y la rama paralela del vivo integrada (2439/2439 pruebas). Decisión nueva de Miguel: **solo activos** en el selector del alta.
+**Fase actual:** FASE 2 (mirar el primer cierre — el 10/09 solo queda observar) **+ FASE 4 al 90 % EN PRODUCCIÓN** (registro en 175; núcleo `capital_episodios` con `medida`, 10 pantallas consumiéndolo, decisión A «coops en todo» aplicada: AUM 18 212 113, +264 800 exactos). Codex F4 dio NO-GO y sus 10 hallazgos quedaron corregidos (F4.e) o decididos por Miguel (P0-2→decisión A). Esquema visual del antes/después: artifact «El núcleo de capital». **La Fase 1 (28/08) y la FASE 3 (29/08) están EN PRODUCCIÓN.** La Fase 3 entró completa: 10 migraciones (156→166), front `crm-20260829T182429Z` vivo en crm.miavance.com, obligatoriedad encendida, y la rama paralela del vivo integrada (2439/2439 pruebas). Decisión nueva de Miguel: **solo activos** en el selector del alta.
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
@@ -28,7 +28,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
 | 2 · Mirar el primer cierre | 🟡 **en curso** — semana quieta hasta el 09/09; el 10/09, media sesión de vigilancia (el cierre ya se ensayó) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
-| 4 · Una sola calculadora de capital | ⚪ siguiente — se puede ESCRIBIR en la semana quieta, publicar tras el cierre |
+| 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
 | 5 · Cerrar puertas | ⚪ sin empezar |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar |
 | 7 · Ordenar la casa | ⚪ sin empezar |
