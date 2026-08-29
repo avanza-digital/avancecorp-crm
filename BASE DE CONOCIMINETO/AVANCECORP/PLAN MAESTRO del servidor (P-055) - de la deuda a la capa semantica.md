@@ -14,12 +14,11 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **🔬 EL CIERRE YA SE ENSAYÓ (29/08), sin esperar al 10/09 y sin escribir una fila:** el cierre real de agosto, ejecutado contra producción dentro de un bloque que se deshace solo. **Funciona** — 48 ms, 18 personas, y todos los candados rebotan como deben. El reloj que lo dispara está vivo y sano. **Lo que salió:** agosto se sellará como **mes parcial** porque el registro de leads empieza el 17/08 — la conversión de agosto cubre 15 de 31 días. Eso es una decisión tuya, no un fallo. Detalle en la Fase 2.
 
-**👉 DÓNDE SE RETOMA:** hay **dos puertas**, y las dos están abiertas:
+**👉 DÓNDE SE RETOMA:** la Fase 3 quedó publicada (la «puerta 2» de la sesión anterior se cruzó entera, con las dos auditorías y el merge de Miguel). Lo que sigue, en orden:
 
-1. **Esperar al cierre del 10/09** — la Fase 2 tal como está escrita: no se publica nada, se mira el cierre correr y se guarda la foto de ese mes. Es lo que el plan recomienda y no cuesta trabajo, cuesta calendario.
-2. **Adelantar trabajo que no toca el cierre** — la Fase 3 («que cada venta tenga dueño») se puede **escribir y ensayar** ahora mismo sin publicar nada, igual que se hizo con la Fase 1: se llega al 10/09 con el trabajo listo y se publica después. También cabe la Fase 7 (ordenar la casa), que no depende de nadie.
-
-Si no dices otra cosa, la recomendación es **preparar la Fase 3 sin publicarla** y publicar cuando el cierre haya pasado.
+1. **Del 30/08 al 09/09 — semana quieta de verdad (Fase 2):** no se publica nada al servidor ni al CRM. Si se quiere adelantar trabajo SIN publicar, lo único que no toca el cierre es **escribir la Fase 4** (la calculadora única) o la **Fase 7** (ordenar la casa) en borrador.
+2. **El 10/09 — media sesión de vigilancia:** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo, revisar los 4 puntos de la Fase 2, y **guardar la copia del mes** como referencia.
+3. **Tras el cierre — arranca la FASE 4:** una sola calculadora de capital. El campo que necesita (el analista que cierra) ya existe y ya lo lee el núcleo; la Fase 4 lleva las 16 pantallas a esa única fuente.
 
 **Lo que queda para el 10/09** (lo demás ya está comprobado): que el disparo automático de ese día haga lo mismo que hizo el ensayo a mano, y guardar la copia del mes.
 
@@ -27,15 +26,17 @@ Si no dices otra cosa, la recomendación es **preparar la Fase 3 sin publicarla*
 |---|---|
 | 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
 | 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
-| 2 · Mirar el primer cierre | ⚪ toca en la semana del 10/09 |
+| 2 · Mirar el primer cierre | 🟡 **en curso** — semana quieta hasta el 09/09; el 10/09, media sesión de vigilancia (el cierre ya se ensayó) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
-| 4 · Una sola calculadora de capital | ⚪ sin empezar |
+| 4 · Una sola calculadora de capital | ⚪ siguiente — se puede ESCRIBIR en la semana quieta, publicar tras el cierre |
 | 5 · Cerrar puertas | ⚪ sin empezar |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar |
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |
 
 **Lo que quedó protegido el 28/08:** el rastro de quién toca los co-titulares, el historial de gestión y las cuotas · 16 casillas de dinero blindadas contra valores imposibles antes del primer cierre · las puertas que la seguridad por filas no gobierna, cerradas.
+
+**Git:** todo subido al remoto (`avancecorp/wip/workspace-20260823-completo`, 35 commits el 29/08; incluye la integración de la rama paralela `fb7e53d`).
 
 **Para retomar en una sesión nueva:** decir **`RETOMAR-SERVIDOR`**. Con eso se carga este plan, las decisiones ya tomadas y el punto exacto donde quedó.
 
@@ -131,6 +132,35 @@ se cayera, ese bloque no se publica y el resto sí).
 **Lo que falta antes de publicar:** aplicarlas en un banco de pruebas, pasar el
 gate de seguridad por filas y los advisors, y tu merge.
 
+
+### Cierre de la sesión 5 (2026-08-29) — la Fase 3, de cero a producción en un día
+
+**Qué se hizo:** la Fase 3 entera — escrita, auditada dos veces, corregida, publicada y
+desplegada. El servidor pasó de 156 a **166 migraciones** (las 10 nuevas registradas CON su
+cuerpo); el front nuevo (`crm-20260829T182429Z`) está vivo en crm.miavance.com; la
+obligatoriedad está encendida. También se **ensayó el cierre de mes por adelantado** (sella
+agosto en 48 ms; el camino de la deuda por anulación funciona y no cobra dos veces) y se
+cerró de paso el hueco de la sanción de cooperativa con mes sellado.
+
+**Las dos auditorías, con lo suyo:** el auditor RLS trajo 15 hallazgos (1 bloqueante: el
+respaldo del rollback iba a `public`, legible con la llave anónima) y Codex un **NO-GO** con
+10 (los 2 graves: la atribución era decorativa —el ranking no la leía— y los demos seguían
+contando en el Directorio). **Los 25 corregidos y re-probados.** Gracias a eso el ranking
+vivo ya da la cifra exacta de la tabla de este plan (Adelayda S/ 383 600).
+
+**Decisiones nuevas de Miguel:** solo activos en el selector del alta (la venta vieja de
+alguien que se fue entra por la reasignación de gerencia) · una anulación no elimina capital
+de la empresa: es una sanción al analista, y ahora cae completa esté el mes abierto o sellado.
+
+**Sorpresa del día:** una sesión paralela publicó dos migraciones y reemplazó
+`crear_contrato` mientras se trabajaba. Las huellas lo cazaron (el preflight abortó solo),
+se verificó que las anclas sobrevivían, se re-ancló, y la rama del vivo se integró ANTES de
+construir el release (2439/2439 pruebas tras el merge). Las dos lecciones de la casa
+—huella viva y rama del vivo como ancestro— pagaron su precio en el mismo día.
+
+**Todo subido al remoto.** Commits del tren: `c10f5d6` · `6088501` · `99ad475`.
+
+---
 
 ### Cierre de la sesión 4 (2026-08-28 → 29) — la Fase 1, publicada
 
