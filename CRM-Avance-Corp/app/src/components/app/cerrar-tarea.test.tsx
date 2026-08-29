@@ -66,7 +66,7 @@ function intentosSinRespuesta(): Actividad[] {
     lead_id: 'l1',
     tipo: 'llamada_no_contestada' as const,
     detalle: null,
-    autor_nombre: 'Vendedor',
+    autor_nombre: 'Analista',
     creado_en: new Date(Date.now() - (8 - i) * dia).toISOString(),
   }))
 }
@@ -153,7 +153,7 @@ describe('CerrarTareaDialog', () => {
   })
 
   // El AVANCE de etapa: `completarTarea` ya lo devolvía y este diálogo —la
-  // superficie donde más tareas se cierran— lo tiraba. El asesor veía el
+  // superficie donde más tareas se cierran— lo tiraba. El analista veía el
   // stepper de la ficha moverse solo tras cerrar una llamada.
   it('canta el avance de etapa junto con la siguiente agendada', async () => {
     const user = userEvent.setup()
@@ -497,7 +497,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
       lead_id: 'l1',
       tipo: 'llamada_realizada',
       detalle: null,
-      autor_nombre: 'Vendedor',
+      autor_nombre: 'Analista',
       creado_en: '2026-07-17T15:00:00.000Z',
     },
   ]

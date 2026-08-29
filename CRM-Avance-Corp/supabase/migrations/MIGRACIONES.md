@@ -4737,3 +4737,82 @@ y el arreglo no surte efecto aunque la función ya exista.
 Cómo se comprueba que la API ve la firma nueva sin sesión: un POST anónimo al RPC
 debe responder **42501** (muro de permisos, la firma resolvió) y no **PGRST202**
 (no la encuentra en el caché de esquema).
+
+## 20260828210351 · `crm_gestion_cartera_autorizacion_integral`
+
+🟡 **PREPARADA Y VERIFICADA EN UN CLON DESECHABLE · NO DESPLEGADA.** Al
+cierre de esta entrada, producción continúa intacta sobre el release R5 y la
+versión `20260828210351` no está registrada en su historial remoto. Esta fila
+documenta un candidato; no autoriza ni afirma una aplicación productiva.
+
+La migración corrige integralmente el límite de autorización de Gestión de
+cartera sin cambiar su semántica comercial: Analista conserva únicamente su
+cartera; Supervisor opera la cartera de su árbol; Gerencia conserva alcance
+global; Directorio obtiene lectura comercial global, pero nunca banca ni
+acciones de escritura. La pareja de roles Portal/CRM queda fail-closed:
+`Directorio` solo puede corresponder a
+`crm.equipo.rol_crm = 'directorio'`, y la
+migración aborta si la reasignación de subordinados hacia la Gerencia real no
+es unívoca.
+
+Controles incorporados:
+
+- ámbito de clientes centralizado en `private.cliente_ids_visibles_crm()`,
+  incluida la recuperación de clientes aún no asignados por `creado_por`, solo
+  dentro del árbol autorizado;
+- detalle seguro mediante `crm.cliente_detalle_fn(uuid)`, sin lectura directa
+  de `public.perfiles`, con cero filas fuera de ámbito y domicilio/banca
+  redactados para Directorio;
+- alta de tareas validada por el servidor con responsable canónico y sin
+  depender de la RLS de `public.perfiles`;
+- preflight de `tareas_insert` con las dos huellas históricas conocidas; un
+  drift de autorización aborta antes de reemplazar la policy;
+- invariantes Portal/CRM protegidas también ante escrituras posteriores;
+- numeración automática de contratos serializada con advisory lock, manteniendo
+  la restricción única como defensa final;
+- funciones privilegiadas con `search_path = ''`, helpers privados sin acceso
+  de API y RPC pública sin `EXECUTE` para `PUBLIC`/`anon`.
+
+Evidencia ya obtenida sin tocar producción: preflight contra huellas de las
+funciones vivas; convergencia explícita desde la forma versionada de 10 columnas
+y la captura viva de 12 columnas de `crm.clientes_basicos_fn`; aplicación y
+postflight de la migración exacta en una base temporal de esquema completo; gates
+`GESTION_CARTERA_AUTORIZACION_TX_OK`, `CREAR_CONTRATO_CARTERA_OK`,
+`GESTION_CLIENTES_RENOVACIONES_OK`, `TAREAS_TX_OK`, `CARTERA_KEYSET_TX_OK` y
+`PERIODO_COMERCIAL_CONTRATOS_OK`, más `REPORTE_DERIVACIONES_TX_OK`; matriz Data API/RLS completa con
+1.192/1.192 aserciones; dos altas automáticas concurrentes con números
+consecutivos y espera de mutex observada, una carrera tarea/reasignación con
+destino final canónico y una carrera causal de derivaciones. Los tres runners
+rechazan URL con query/hash, exigen un nombre desechable `gcar_*`, neutralizan
+variables libpq hostiles y solo terminan backends que coinciden por PID,
+aplicación, base, usuario y tipo. Sus sondas son UUID propias, el cleanup es
+exacto y fail-closed; la carrera de tareas exige además que
+`pg_blocking_pids(S2)` contenga el PID exacto de S1. La corrida integrada con
+falla inyectada conservó
+idéntico un vector de 19 conteos globales y dejó cero sesiones rastreadas;
+mutante de drift de `tareas_insert` rechazado por el preflight; `db lint` sin
+errores en los esquemas propios; typecheck, build, 182/182 archivos con
+2.439/2.439 unitarias y
+Playwright completo con 110 aprobadas, 26 omitidas por diseño y 0 fallas. Dos
+pases independientes cerraron los falsos verdes encontrados en los oráculos.
+El escaneo formal `0e12f638-1ff3-4e08-a49d-5606320c3159` reportó un MEDIUM por
+domicilio visible a Directorio; fue corregido y verificado como `fixed` sin
+degradar la lectura legítima de Supervisor/Gerencia ni el ocultamiento a un
+Analista ajeno.
+La huella final de la migración es
+`18df2b2a048b7404a857f743874294dddad589724ae55c9aa5c2e13e585a1af8`.
+Los advisors productivos son una línea base de solo lectura: 0 errores y avisos
+preexistentes; todavía no son evidencia postdeploy.
+
+**Orden obligatorio de publicación: servidor primero.** Aplicar y leer de
+vuelta esta única migración; recargar el esquema de PostgREST; confirmar que la
+RPC nueva resuelve, sus ACL/RLS y postflight permanecen verdes, y repetir
+advisors. Solo después puede publicarse el frontend que consume
+`crm.cliente_detalle_fn`. El cierre requiere smokes autenticados separados de
+Analista, Supervisor, Gerencia y Directorio, además de verificar que `anon`
+sigue bloqueado.
+
+**Pendiente únicamente para una eventual publicación autorizada:** dry-run
+remoto, aplicación server-first, readback/postflight, advisors posteriores,
+publicación del frontend y smoke autenticado productivo. Hasta completar esos
+puntos no debe describirse el candidato como desplegado ni listo en producción.

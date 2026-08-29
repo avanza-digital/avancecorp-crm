@@ -39,7 +39,7 @@ const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
 // Capital confirmado del mes: la fuente que el panel ENSEÑA (ver prop cumplimiento).
 const CUMPLIMIENTO_PANEL = cumplimientoMetasConversionEquipoDemo().gerencia
 
-describe('detalle de conversión por vendedor', () => {
+describe('detalle de conversión por analista', () => {
   it('no mezcla un error inicial con el mensaje de datos vacíos', () => {
     render(
       <InteligenciaComercialPanel
@@ -112,13 +112,13 @@ describe('detalle de conversión por vendedor', () => {
     expect(contenido.getByText('Capital en PEN')).toBeInTheDocument()
     expect(contenido.getByText(/de 25%/)).toBeInTheDocument()
 
-    fireEvent.click(contenido.getByRole('button', { name: 'Cerrar detalle de vendedor' }))
+    fireEvent.click(contenido.getByRole('button', { name: 'Cerrar detalle de analista' }))
     expect(screen.queryByRole('dialog', { name: 'Ana Torres' })).not.toBeInTheDocument()
   })
 
   it('la ficha explica el arrastre igual que el ranking: el porqué no desaparece al abrir el detalle', () => {
     // Hallazgo #6 de la revisión adversaria: gerencia veía el chip en el
-    // ranking, abría al MISMO vendedor y el % neto quedaba sin explicación.
+    // ranking, abría al MISMO analista y el % neto quedaba sin explicación.
     const mensual = conversionMensualInteligenciaDemo(AHORA)
     const ana = mensual.responsables.find((fila) => fila.vendedor_id === 'demo-v1')
     if (ana) {
@@ -224,7 +224,7 @@ describe('detalle de conversión por vendedor', () => {
     expect(detalle.queryByText(/de 15%/)).not.toBeInTheDocument()
   })
 
-  it('grafica las semanas históricas con los enteros servidos; el % por vendedor sigue en su sheet', () => {
+  it('grafica las semanas históricas con los enteros servidos; el % por analista sigue en su sheet', () => {
     const datos = metricasConversionesDemo('2026-06-03', '2026-06-16')
     datos.responsables = [{
       ...datos.responsables![0]!,
@@ -393,7 +393,7 @@ describe('detalle de conversión por vendedor', () => {
       />,
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Vendedor para abrir detalle' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Analista para abrir detalle' }), {
       target: { value: 'demo-v5' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
@@ -522,7 +522,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
@@ -533,7 +533,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Cifras en revisión/)).not.toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
@@ -551,7 +551,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
   it('F1.3b: la sonda de perfiles compartidos avisa que el desglose puede sumar de más', () => {
     montarConNucleo({ ...SONDAS, perfiles_con_leads_de_varios_vendedores: 2 })
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
+    expect(screen.getByText(/2 clientes tienen leads de más de un analista/)).toBeInTheDocument()
     expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
   })
 
@@ -563,9 +563,9 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
       perfiles_con_leads_de_varios_vendedores: 2,
     })
 
-    expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
+    expect(screen.getByText(/2 clientes tienen leads de más de un analista/)).toBeInTheDocument()
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const capitalVendedor = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
@@ -574,12 +574,12 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('F1.3b: con el probe en 0 o realmente ausente (servidor previo) no hay aviso', () => {
     const vistaConCero = montarConNucleo({ ...SONDAS })
-    expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/leads de más de un analista/)).not.toBeInTheDocument()
     vistaConCero.unmount()
 
     const { perfiles_con_leads_de_varios_vendedores: _omitido, ...sondasServidorPrevio } = SONDAS
     montarConNucleo(sondasServidorPrevio)
-    expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/leads de más de un analista/)).not.toBeInTheDocument()
   })
 })
 

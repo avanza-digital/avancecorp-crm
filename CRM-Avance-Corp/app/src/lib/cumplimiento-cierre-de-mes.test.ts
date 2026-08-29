@@ -4,7 +4,7 @@
  *
  * 🔴 POR QUÉ EXISTE ESTE FICHERO. El servidor del cierre de mes se desplegó
  * primero y empezó a mandar dos claves nuevas —`cierre` arriba y `ajuste` en
- * cada vendedor—. `CumplimientoMetasSchema` es `v.strictObject`, o sea que falla
+ * cada analista—. `CumplimientoMetasSchema` es `v.strictObject`, o sea que falla
  * tanto por clave de MÁS como por clave de MENOS: rechazó el payload ENTERO y
  * los tres roles se quedaron sin cumplimiento a la vez, con un «Reintentar» que
  * no podía funcionar nunca. Ni los 1007 controles de RLS ni las 1.648 unitarias
@@ -42,7 +42,7 @@ const PAGO_MES_VIVO = {
       ajuste: {
         pendiente: 0
       },
-      nombre: "VENDEDOR DE PRUEBA",
+      nombre: "ANALISTA DE PRUEBA",
       detalles: [
         {
           moneda: "PEN",
@@ -120,7 +120,7 @@ const PAGO_MES_VIVO = {
       ajuste: {
         pendiente: 0
       },
-      nombre: "VENDEDOR SIN MUESTRA",
+      nombre: "ANALISTA SIN MUESTRA",
       detalles: [
         {
           moneda: "PEN",
@@ -221,7 +221,7 @@ const PAGO_MES_SELLADO = {
         aplicado_pen: 0,
         aplicado_usd: 0
       },
-      nombre: "VENDEDOR DE PRUEBA",
+      nombre: "ANALISTA DE PRUEBA",
       detalles: [
         {
           moneda: "PEN",
@@ -314,7 +314,7 @@ const PAGO_MES_SELLADO = {
         aplicado_pen: 0,
         aplicado_usd: 0
       },
-      nombre: "VENDEDOR SIN MUESTRA",
+      nombre: "ANALISTA SIN MUESTRA",
       detalles: [
         {
           moneda: "PEN",
@@ -416,7 +416,7 @@ describe('payload de cumplimiento tras el cierre de mes', () => {
   it('EL FALLO REAL: el mes vivo parsea con las dos claves nuevas', () => {
     // Este es exactamente el payload que producción devolvió el 2026-08-15 y que
     // el bundle desplegado rechazaba. Si esto se pone rojo, la pantalla de metas
-    // está apagada para gerencia, supervisores y vendedores a la vez.
+    // está apagada para gerencia, supervisores y analistas a la vez.
     const parseado = v.parse(CumplimientoMetasSchema, PAGO_MES_VIVO)
 
     expect(parseado.cierre?.cerrado).toBe(false)

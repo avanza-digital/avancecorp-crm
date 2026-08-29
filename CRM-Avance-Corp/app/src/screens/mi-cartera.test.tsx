@@ -265,6 +265,8 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-15T12:00:00.000Z',
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     banco: 'BCP',
     tipo_cuenta: 'ahorros',
     numero_cuenta: '19112345678901',
@@ -436,6 +438,7 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
 
@@ -604,7 +607,7 @@ describe('MiCartera (pantalla)', () => {
           creado_en: '2020-01-01T00:00:00.000Z',
         }),
       ],
-      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
+      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ANALISTA UNO', activo: true }],
     })
     await verTodosLosMeses(user) // el contrato es de 2020
 
@@ -646,12 +649,13 @@ describe('MiCartera (pantalla)', () => {
         }),
       ],
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'asesor-1' })],
-      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
+      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ANALISTA UNO', activo: true }],
     })
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
 
@@ -659,7 +663,7 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
   })
 
-  it('Directorio sigue sin acciones aunque un dato externo diga que puede contratar', () => {
+  it('Directorio conserva Ver detalle pero ninguna escritura aunque un dato externo diga que puede contratar', () => {
     montar({
       yo: {
         id: 'directorio',
@@ -671,10 +675,15 @@ describe('MiCartera (pantalla)', () => {
     })
 
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    const encabezados = screen.getAllByRole('columnheader')
+    expect(within(encabezados.at(-1)!).getByText('Acciones')).toBeInTheDocument()
+    const fila = screen.getByText('CLIENTE UNO').closest('tr')!
+    expect(within(fila).getAllByRole('cell')).toHaveLength(encabezados.length)
   })
 
   it('muestra todos los datos del cliente propio, aun con la ventana de corrección vencida', async () => {
@@ -794,7 +803,7 @@ describe('MiCartera (pantalla)', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('Corregir del contrato: AUSENTE si es de otro asesor (creado_por ≠ yo)', async () => {
+  it('Corregir del contrato: AUSENTE si es de otro analista (creado_por ≠ yo)', async () => {
     const user = userEvent.setup()
     montar({ contratos: [contrato({ creado_por: 'otro' })] })
     await user.click(
@@ -846,7 +855,7 @@ describe('MiCartera (pantalla)', () => {
 describe('MiCartera — recarga fallida CON datos en pantalla', () => {
   // El defecto que cierran: `hayError` exigía `grupos == null`, así que un refetch
   // caído (TanStack conserva la data anterior) dejaba la cartera EXACTAMENTE igual
-  // que si estuviera al día. El asesor decidía sobre datos viejos sin saberlo.
+  // que si estuviera al día. El analista decidía sobre datos viejos sin saberlo.
   it('avisa de que los datos pueden estar desactualizados y NO borra la cartera', () => {
     montar({ errorClientes: new Error('red caída') })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
@@ -917,6 +926,30 @@ describe('MiCartera (demo aislada)', () => {
     // El hook conserva su orden estable, pero recibe enabled=false: el fixture
     // es la única fuente y obtenerClienteDetalle nunca puede ejecutarse.
     expect(useClienteDetalleMock).toHaveBeenCalledWith('dc-cli-1', false)
+  })
+
+  it('Directorio demo conserva la ficha comercial sin domicilio ni banca', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    montar({
+      // El id coincide con el dueño del fixture para que el harness, cuyo
+      // ámbito demo es local, exponga una fila sin fingir un alcance global.
+      yo: { id: 'd-v1', rol: 'directorio', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+
+    const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
+    const fila = nombre.closest('tr')!
+    await user.click(within(fila).getByRole('button', { name: 'Ver detalle' }))
+
+    const ficha = screen.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })
+    expect(within(ficha).getByText('rosa.aguilar@correo.pe')).toBeInTheDocument()
+    expect(within(ficha).getByText('Domicilio legal')).toBeInTheDocument()
+    expect(within(ficha).queryByText('Av. Javier Prado Este 123, San Isidro, Lima')).not.toBeInTheDocument()
+    expect(within(ficha).getByText('Información bancaria restringida')).toBeInTheDocument()
+    expect(within(ficha).queryByText('19100000001234')).not.toBeInTheDocument()
+    expect(within(ficha).queryByText('00219100000000123456')).not.toBeInTheDocument()
   })
 
   it('crea desde Mi cartera y vuelve a descargar exactamente el archivo demo congelado', async () => {
@@ -1126,7 +1159,7 @@ describe('MiCartera (demo aislada)', () => {
 // —— Clientes DADOS DE BAJA en el portal (perfiles.activo=false). Decisión:
 // se muestran MARCADOS pero salen de todos los totales — esconderlos borraría
 // del CRM contratos que siguen existiendo; contarlos infla una cartera que el
-// asesor ya no gestiona.
+// analista ya no gestiona.
 describe('MiCartera — cliente desactivado en el portal', () => {
   const clienteBaja = (over: Partial<ClienteBasico> = {}) =>
     cliente({
@@ -1216,10 +1249,10 @@ describe('MiCartera — cliente desactivado en el portal', () => {
     expect(screen.getByText('1 cliente · 1 inactivo')).toBeInTheDocument()
   })
 
-  it('"Sin asesor" (supervisión) no cuenta a los dados de baja', () => {
+  it('"Sin analista" (supervisión) no cuenta a los dados de baja', () => {
     montar({
       yo: { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false },
-      equipo: [{ perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true }],
+      equipo: [{ perfil_id: 'ase-1', nombre_completo: 'ANALISTA UNO', activo: true }],
       clientes: [
         cliente({
           id: 'c-a',
@@ -1404,9 +1437,9 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
   })
 })
 
-// —— Supervisión (verEquipo): filtro por asesor + indicador "Sin asesor",
+// —— Supervisión (verEquipo): filtro por analista + indicador "Sin analista",
 // portados de la pantalla Clientes retirada en Fase 6 (parity de supervisión).
-describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
+describe('MiCartera — supervisión (filtro por analista + Sin analista)', () => {
   const YO_SUP = {
     id: 'sup',
     rol: 'supervisor',
@@ -1414,12 +1447,12 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     demo: false,
   }
   const EQUIPO_SUP = [
-    { perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true },
-    { perfil_id: 'ase-2', nombre_completo: 'ASESOR DOS', activo: true },
+    { perfil_id: 'ase-1', nombre_completo: 'ANALISTA UNO', activo: true },
+    { perfil_id: 'ase-2', nombre_completo: 'ANALISTA DOS', activo: true },
   ]
-  // Alfa→ase-1, Beta→ase-2, y DOS variantes de "Sin asesor": dueño null y dueño
+  // Alfa→ase-1, Beta→ase-2, y DOS variantes de "Sin analista": dueño null y dueño
   // FUERA del roster visible ('ase-fantasma', p.ej. alta de un admin del portal).
-  // Ambas cuentan como sin asesor — la columna Asesor pinta '—' para las dos.
+  // Ambas cuentan como sin analista — la columna Analista pinta '—' para las dos.
   const CLIENTES_SUP = [
     cliente({
       id: 'c-a',
@@ -1473,6 +1506,9 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+    // Supervisar el roster habilita gestión y contratos, no el PATCH del
+    // perfil: esa corrección sigue siendo solo del dueño (o de Gerencia).
+    expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', {
@@ -1481,6 +1517,18 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     )
     const filaContrato = screen.getByLabelText('Abrir detalle del contrato 2026-01-000001').closest('tr')!
     expect(within(filaContrato).getByRole('button', { name: 'Renovar' })).toBeInTheDocument()
+    expect(within(filaContrato).queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
+  })
+
+  it('sí permite al supervisor corregir su propio cliente dentro de la ventana', () => {
+    montar({
+      yo: YO_SUP,
+      equipo: EQUIPO_SUP,
+      clientes: [cliente({ asesor_perfil_id: 'sup', creado_por: 'sup' })],
+      contratos: [],
+    })
+
+    expect(screen.getByRole('button', { name: 'Corregir' })).toBeInTheDocument()
   })
 
   it('no amplía acciones a un dueño fuera del roster visible', () => {
@@ -1495,52 +1543,55 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Primer contrato/ })).not.toBeInTheDocument()
+    const encabezados = screen.getAllByRole('columnheader')
+    const fila = screen.getByText('CLIENTE FANTASMA').closest('tr')!
+    expect(within(fila).getAllByRole('cell')).toHaveLength(encabezados.length)
   })
 
-  it('el chip "Sin asesor" cuenta dueño null Y dueño fuera del roster (2)', () => {
+  it('el chip "Sin analista" cuenta dueño null Y dueño fuera del roster (2)', () => {
     montarSup()
-    expect(screen.getByRole('combobox', { name: /Filtrar por asesor/ })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /Filtrar por analista/ })).toBeInTheDocument()
     // El sub-texto "Repártelos…" es único del chip (evita chocar con la opción del Select).
     expect(screen.getByText(/Repártelos/)).toBeInTheDocument()
     // Conteo del chip = mismo criterio que el filtro: null + fuera-de-roster = 2.
     // (AnimatedValue arranca en el useState(value) inicial; su rAF no avanza en jsdom.)
-    // Se ancla por el sub-texto "Repártelos" (único del chip; "Sin asesor" también
-    // es una <option> del Select de asesor).
+    // Se ancla por el sub-texto "Repártelos" (único del chip; "Sin analista" también
+    // es una <option> del Select de analista).
     const chip = screen.getByText(/Repártelos/).closest('.ac-lift') as HTMLElement
     expect(chip).not.toBeNull()
     expect(within(chip).getByText('2')).toBeInTheDocument()
   })
 
-  it('filtrar por un asesor deja solo sus clientes', async () => {
+  it('filtrar por un analista deja solo sus clientes', async () => {
     const user = userEvent.setup()
     montarSup()
-    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'ase-1')
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por analista/ }), 'ase-1')
     expect(screen.getByText('CLIENTE ALFA')).toBeInTheDocument()
     expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
     expect(screen.queryByText('CLIENTE SIN DUENO')).not.toBeInTheDocument()
     expect(screen.queryByText('CLIENTE FANTASMA')).not.toBeInTheDocument()
   })
 
-  it('filtro "Sin asesor" aísla dueño null Y dueño fuera del roster', async () => {
+  it('filtro "Sin analista" aísla dueño null Y dueño fuera del roster', async () => {
     const user = userEvent.setup()
     montarSup()
-    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'sin_asesor')
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por analista/ }), 'sin_asesor')
     expect(screen.getByText('CLIENTE SIN DUENO')).toBeInTheDocument()
     expect(screen.getByText('CLIENTE FANTASMA')).toBeInTheDocument()
     expect(screen.queryByText('CLIENTE ALFA')).not.toBeInTheDocument()
     expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
   })
 
-  it('el vendedor NO ve el filtro por asesor ni el chip "Sin asesor"', () => {
-    montar() // rol vendedor por defecto
-    expect(screen.queryByRole('combobox', { name: /Filtrar por asesor/ })).not.toBeInTheDocument()
+  it('el analista NO ve el filtro por analista ni el chip "Sin analista"', () => {
+    montar() // rol analista por defecto
+    expect(screen.queryByRole('combobox', { name: /Filtrar por analista/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/Repártelos/)).not.toBeInTheDocument()
   })
 
-  it('con capital en PEN Y USD, "Sin asesor" reemplaza una métrica → 4 tarjetas, no 5', async () => {
+  it('con capital en PEN Y USD, "Sin analista" reemplaza una métrica → 4 tarjetas, no 5', async () => {
     const user = userEvent.setup()
     // Dos chips de capital + Por vencer + Clientes con capital = 4; sin el fix,
-    // "Sin asesor" sería el 5º y rompería el grid de 4. El fix descarta la última
+    // "Sin analista" sería el 5º y rompería el grid de 4. El fix descarta la última
     // métrica NO monetaria (Clientes con capital), nunca los chips de capital.
     montar({
       yo: YO_SUP,
@@ -1570,18 +1621,18 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
       ],
     })
     await verTodosLosMeses(user)
-    // Chips de capital intactos + Sin asesor presente; Clientes con capital cede el sitio.
+    // Chips de capital intactos + Sin analista presente; Clientes con capital cede el sitio.
     expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
     expect(screen.getByText('Capital invertido · Dólares')).toBeInTheDocument()
     // 'span' distingue el label del chip de la <option> homónima del Select.
-    expect(screen.getByText('Sin asesor', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('Sin analista', { selector: 'span' })).toBeInTheDocument()
     expect(screen.queryByText('Clientes con capital')).not.toBeInTheDocument()
   })
 
-  it('vacío por asesor + estado combinados usa un mensaje neutral (no afirma "toda la cartera tiene dueño")', async () => {
+  it('vacío por analista + estado combinados usa un mensaje neutral (no afirma "toda la cartera tiene dueño")', async () => {
     const user = userEvent.setup()
-    montarSup() // hay clientes sin asesor, pero sin contratos → cualquier estado los vacía
-    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'sin_asesor')
+    montarSup() // hay clientes sin analista, pero sin contratos → cualquier estado los vacía
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por analista/ }), 'sin_asesor')
     await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por estado de contrato/ }), 'activo')
     expect(screen.getByText('Ningún cliente coincide con los filtros aplicados.')).toBeInTheDocument()
     expect(screen.queryByText(/toda la cartera tiene dueño/)).not.toBeInTheDocument()
@@ -1708,7 +1759,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     expect(screen.getByRole('button', { name: 'Corregir' })).toBeInTheDocument()
   })
 
-  it('Corregir del contrato: AUSENTE si es de otro asesor (creado_por ≠ yo)', async () => {
+  it('Corregir del contrato: AUSENTE si es de otro analista (creado_por ≠ yo)', async () => {
     const user = userEvent.setup()
     activarMovil()
     montar({ contratos: [contrato({ creado_por: 'otro' })] })
@@ -1829,7 +1880,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
   })
 
-  it('Corregir cliente: AUSENTE si el cliente es de otro asesor', () => {
+  it('Corregir cliente: AUSENTE si el cliente es de otro analista', () => {
     activarMovil()
     montar({
       clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })],
@@ -1839,7 +1890,7 @@ describe('MiCartera (móvil, card-stack)', () => {
 })
 
 // ————————————————————————————————————————————————————————————————————————
-// FILTRO DE MES DE CIERRE (pedido de Miguel, 2026-08-14): el asesor abre y ve
+// FILTRO DE MES DE CIERRE (pedido de Miguel, 2026-08-14): el analista abre y ve
 // lo que lleva cerrado ESTE mes, sin listas de meses que recorrer. La
 // agrupación pura se prueba en lib/cartera-meses.test.ts; aquí se prueba lo que
 // la PANTALLA hace con ella.
@@ -1958,7 +2009,7 @@ describe('MiCartera — filtro por mes de cierre', () => {
 
   // El total cuenta TODO contrato de sus clientes (decisión de Miguel), pero la
   // cuota le paga por los que registró ÉL. Cuando el mes mezcla ambos se dice, o
-  // el asesor vería un capital aquí y otro en Hoy sin explicación.
+  // el analista vería un capital aquí y otro en Hoy sin explicación.
   it('avisa cuando el mes incluye un contrato registrado por otra persona', () => {
     montar({
       clientes: [cliente({ id: 'c-1', asesor_perfil_id: 'yo', creado_por: 'yo' })],
@@ -1970,12 +2021,12 @@ describe('MiCartera — filtro por mes de cierre', () => {
     expect(screen.getByText('incluye 1 registrado por otra persona')).toBeInTheDocument()
   })
 
-  it('no avisa de nada cuando todo el mes lo registró el propio asesor', () => {
+  it('no avisa de nada cuando todo el mes lo registró el propio analista', () => {
     montar({ contratos: [contrato({ creado_en: esteMes() })] })
     expect(screen.queryByText(/registrado.? por otra persona/)).not.toBeInTheDocument()
   })
 
-  // ESTADO DE PRODUCCIÓN (gate de realidad): un asesor que aún no ha cerrado
+  // ESTADO DE PRODUCCIÓN (gate de realidad): un analista que aún no ha cerrado
   // nada este mes es lo PRIMERO que ve al abrir. No puede quedarse mirando un
   // vacío sin salida.
   it('sin cierres este mes lo dice y ofrece ver toda la cartera', async () => {
@@ -2102,7 +2153,7 @@ describe('MiCartera — filtro por mes de cierre', () => {
     // total del mes.
   })
 
-  // ESTADO DE PRODUCCIÓN: un asesor sin cierres este mes. La tarjeta lo dice sin
+  // ESTADO DE PRODUCCIÓN: un analista sin cierres este mes. La tarjeta lo dice sin
   // rodeos, y «Contratos activos» sigue de testigo de que la cartera está viva.
   it('sin cierres este mes, la tarjeta lo dice y queda un testigo global', () => {
     montar({

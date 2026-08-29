@@ -121,7 +121,7 @@ function hoyLocal(): string {
 }
 
 /**
- * Nombres de campo del servidor en idioma del vendedor. El pre-vuelo legal
+ * Nombres de campo del servidor en idioma del analista. El pre-vuelo legal
  * devuelve claves (nunca valores), y un mensaje que dijera "falta dni" obligaría
  * a traducir mentalmente justo cuando el alta ya se frenó.
  */
@@ -253,7 +253,7 @@ export function ContratoNuevo({
   // registro lo cumple por definicion y solo decide la fecha de firma.
   const regimenDocumentalAnterior = esContratoRegimenAnterior(fechaInicio)
   const faltaDomicilio = !regimenDocumentalAnterior && legales?.faltaDomicilio === true && !domicilioConfirmado
-  // Huecos que el vendedor NO puede cerrar desde aquí: el alta fallaría seguro,
+  // Huecos que el analista NO puede cerrar desde aquí: el alta fallaría seguro,
   // así que se frena con el nombre del dato en vez de dejarle llenar el formulario.
   const otrosFaltantesCliente = (legales?.faltanCliente ?? []).filter((campo) => campo !== 'domicilio')
   const faltantesAnalista = legales?.faltanAnalista ?? []
@@ -287,7 +287,7 @@ export function ContratoNuevo({
       return
     }
     // A partir de aquí el servidor YA confirmó: nada de lo que siga puede
-    // decirle al vendedor que no se guardó. Antes vivía dentro del mismo try, y
+    // decirle al analista que no se guardó. Antes vivía dentro del mismo try, y
     // una deriva del contrato de respuesta (subir a version 2, una clave nueva)
     // habría pintado toda escritura correcta como un fallo.
     try {
@@ -307,7 +307,7 @@ export function ContratoNuevo({
       // El servidor YA confirmó la escritura, así que el hueco está cerrado
       // pase lo que pase con la relectura. Se recuerda aquí porque
       // `refetch()` de TanStack RESUELVE aunque falle y deja `data` con el
-      // valor viejo: sin esta marca, un fallo de red dejaría al vendedor
+      // valor viejo: sin esta marca, un fallo de red dejaría al analista
       // bloqueado por un muro que ya no existe, justo después de haberlo
       // derribado. Hallazgo de la auditoría adversaria del 2026-08-19.
       setDomicilioConfirmado(true)
@@ -402,7 +402,7 @@ export function ContratoNuevo({
   const interesProgramado = cuotasInteres.reduce((a, c) => a + c.monto_programado, 0)
 
   // Motivo ÚNICO de un cronograma que no se puede guardar: lo comparten el guard
-  // de guardar() y el aviso de la vista previa (el asesor lo ve ANTES de pulsar).
+  // de guardar() y el aviso de la vista previa (el analista lo ve ANTES de pulsar).
   // null = cronograma válido.
   const motivoCronograma: string | null =
     cronograma.length === 0
@@ -866,7 +866,7 @@ export function ContratoNuevo({
         )}
         {/* FUERA del bloque de arriba a propósito: cuando el servidor responde
             "conservado" el hueco queda cerrado y la sección se desmonta — si el
-            aviso viviera dentro, el vendedor nunca llegaría a leer QUÉ domicilio
+            aviso viviera dentro, el analista nunca llegaría a leer QUÉ domicilio
             ganó, que es justo el que va a salir impreso en el contrato. */}
         {avisoDomicilio && (
           <p

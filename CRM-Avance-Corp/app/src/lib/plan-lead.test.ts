@@ -28,7 +28,7 @@ const tarea = (parche: Partial<Tarea> = {}): Tarea => ({
 describe('planPorLead — plan vivo vs plan muerto', () => {
   it('una tarea que venció MÁS TEMPRANO HOY sigue siendo plan vivo', () => {
     // El plan muere por DÍA, no por hora: la agenda del día se trabaja en el
-    // orden que el asesor quiera. Matarlo a las 10:01 volvería la cola un eco
+    // orden que el analista quiera. Matarlo a las 10:01 volvería la cola un eco
     // minuto a minuto de la agenda de al lado.
     const p = planPorLead([tarea({ vence_en: '2026-07-22T08:00:00-05:00' })], AHORA)
     expect(p.vigente.has('l1')).toBe(true)

@@ -12,7 +12,7 @@ const respuestaValida = {
     duracion: '1 min',
     pasos: [{ titulo: 'Ubica la acción', detalle: 'Encuéntrala en Agenda.' }],
     accion: { tipo: 'navegar', vista: 'agenda', etiqueta: 'Ir a Agenda' },
-    fuente: 'Manual del vendedor · versión aprobada',
+    fuente: 'Manual del analista · versión aprobada',
   },
 } as const
 

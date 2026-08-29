@@ -3,7 +3,7 @@
 // El hueco que cubre: `estancados()` y la cola miden INACTIVIDAD ("hace N días
 // que nadie lo toca"). Un lead muy trabajado —cuatro llamadas esta semana— pero
 // clavado tres semanas en la misma etapa no sale en ninguna señal, y es
-// exactamente el que hay que rescatar o cerrar: consume tiempo del asesor y no
+// exactamente el que hay que rescatar o cerrar: consume tiempo del analista y no
 // avanza. Son medidas casi OPUESTAS; NO fusionarlas con `estancados`.
 //
 // ⚠️ POR QUÉ SE PARSEA `detalle` Y NO `metadata`. La columna

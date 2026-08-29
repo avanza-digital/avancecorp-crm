@@ -4,7 +4,7 @@
 // TECLADO y el focus-trap del drawer, arreglos de esta misma auditoría).
 import { expect, test, type Page } from '@playwright/test'
 
-const ROLES = ['Vendedor', 'Supervisor', 'Gerencia', 'Directorio'] as const
+const ROLES = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
 
 async function entrarDemo(page: Page, rol: (typeof ROLES)[number]): Promise<void> {
   await page.goto('/')
@@ -49,8 +49,8 @@ test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', 
   await expect(page.getByRole('heading', { name: 'Derivar hoy' })).toBeVisible()
 })
 
-test('Vendedor: Hoy prioriza tres movimientos y abre la ficha sin cambiar de superficie', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+test('Analista: Hoy prioriza tres movimientos y abre la ficha sin cambiar de superficie', async ({ page }) => {
+  await entrarDemo(page, 'Analista')
 
   const ahora = page.getByRole('region', { name: 'Tu siguiente movimiento' })
   await expect(ahora).toBeVisible()
@@ -58,7 +58,7 @@ test('Vendedor: Hoy prioriza tres movimientos y abre la ficha sin cambiar de sup
   await expect(ahora.getByText(/^Prioridad 01$/)).toBeVisible()
   await expect(ahora.getByText(/^Prioridad 02$/)).toBeVisible()
   await expect(ahora.getByText(/^Prioridad 03$/)).toBeVisible()
-  // ANA pertenece a VENDEDOR TRES: ni la nueva franja ni el resto de Hoy
+  // ANA pertenece a ANALISTA TRES: ni la nueva franja ni el resto de Hoy
   // pueden ampliar el ámbito personal que ya recortan store + RLS.
   await expect(page.getByText('ANA TORRES QUISPE', { exact: true })).toHaveCount(0)
 
@@ -79,9 +79,9 @@ test('Vendedor: Hoy prioriza tres movimientos y abre la ficha sin cambiar de sup
   await expect(cumplimiento).toHaveJSProperty('open', false)
 })
 
-test('Vendedor móvil: la primera acción cabe a 390 px, conserva targets táctiles y no desborda', async ({ page }) => {
+test('Analista móvil: la primera acción cabe a 390 px, conserva targets táctiles y no desborda', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
 
   const ahora = page.getByRole('region', { name: 'Tu siguiente movimiento' })
   const primera = ahora.locator('article').first()
@@ -106,8 +106,8 @@ test('Vendedor móvil: la primera acción cabe a 390 px, conserva targets tácti
   expect(desborda).toBe(false)
 })
 
-test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+test('Analista: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco', async ({ page }) => {
+  await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Pipeline' }).click()
 
   // Deliberadamente no esperamos un heading de Pipeline: esta secuencia fija la

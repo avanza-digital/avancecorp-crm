@@ -1,8 +1,8 @@
 ---
 tipo: plan-tecnico
-estado: c0-1-reconciliado-local-certificado-servidor-pendiente
+estado: historico-c0-1-desplegado-r5-candidato-cartera-separado
 fecha: 2026-08-27
-actualizado: 2026-08-28
+actualizado: 2026-08-29
 serial_origen: AVC-F41-360-20260825-R2
 baseline_revisado: 7c94d77c39f642e27af676dce6178e6b9f64a315
 head_canonico_reconciliado: 1f012829f4dbd4b45d8d1615d6a579b730dbfb05
@@ -14,6 +14,14 @@ head_r2_separado: 4f57db1fd0aa0ff886edf1033aed3718f40fdaad
 ---
 
 # Ficha 360 — plan de reintegración sobre el núcleo único
+
+> [!note] Actualización posterior — 2026-08-29
+> C0.1 ya fue desplegado y verificado en
+> [[Checkpoint C0.1 nucleo unico 2026-08-28 R5]]. El candidato
+> `20260828210351_crm_gestion_cartera_autorizacion_integral.sql` pertenece a la
+> auditoría posterior de Gestión de cartera, está separado de C0.1 y **no ha
+> sido desplegado**. El resto de esta nota conserva el plan y la evidencia
+> histórica de R4; no debe leerse como estado operativo actual.
 
 Checkpoint vigente de continuación: [[Checkpoint C0.1 nucleo unico 2026-08-28 R4]]
 (`AVC-F41-360-20260828-R4`).

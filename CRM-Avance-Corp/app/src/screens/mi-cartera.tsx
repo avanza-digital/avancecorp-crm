@@ -1,8 +1,8 @@
 // screens/mi-cartera.tsx — la pantalla ÚNICA que fusiona Clientes + Contratos
-// del vendedor (decisión de Miguel 2026-07-20). Cada CLIENTE es un grupo que se
+// del analista (decisión de Miguel 2026-07-20). Cada CLIENTE es un grupo que se
 // expande y sus CONTRATOS cuelgan como sub-filas; la columna protagonista es el
 // CAPITAL EN JUEGO por cliente (suma de sus contratos activos, PEN y USD por
-// separado — jamás mezclados). Rótulo por rol: "Mi cartera" para el vendedor,
+// separado — jamás mezclados). Rótulo por rol: "Mi cartera" para el analista,
 // "Cartera" para quien supervisa. Cruza CLIENT-SIDE las dos vistas hermanas que
 // el servidor ya scopeó por rol (crm.clientes_basicos + crm.contratos_cartera)
 // vía el helper puro agruparCartera — CERO backend nuevo.
@@ -192,7 +192,7 @@ function CapitalInvertido({
 }
 
 /** Desglose económico y efecto de conversión de una renovación/upgrade. Es el
- * mismo bloque en desktop y móvil, por lo que asesor, supervisor y Gerencia ven
+ * mismo bloque en desktop y móvil, por lo que analista, supervisor y gerencia ven
  * exactamente las mismas cifras. El adicional nunca se presenta como otra
  * conversión. */
 function DetalleOperacionCapital({
@@ -253,7 +253,7 @@ interface PropsFilaGrupo {
   expandido: boolean
   onToggle: () => void
   colAsesor: boolean
-  /** La vista pinta la columna/zona de acciones porque el rol puede escribir. */
+  /** La vista pinta la columna/zona porque existe al menos una acción de lectura. */
   conAcciones: boolean
   /** Puede abrir la ficha/historial dentro de su ámbito, aunque no emita contratos. */
   consultable: boolean
@@ -261,6 +261,8 @@ interface PropsFilaGrupo {
   gestionable: boolean
   /** Cliente activo + puede_contratar + fila dentro del ámbito operativo. */
   accionable: boolean
+  /** Puede corregir el perfil: cliente propio o autorización global de Gerencia. */
+  corregibleCliente: boolean
   /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
   edicionGlobal: boolean
   yoId: string | null
@@ -415,6 +417,7 @@ function FilaGrupoCliente({
   consultable,
   gestionable,
   accionable,
+  corregibleCliente,
   edicionGlobal,
   yoId,
   asesorNombre,
@@ -433,8 +436,8 @@ function FilaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  // El analista conserva su ventana; Gerencia puede corregir cualquier cliente.
-  const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
+  // Solo el dueño conserva su ventana; Gerencia puede corregir cualquier cliente.
+  const ventanaCliente = useVentana(corregibleCliente && !edicionGlobal ? cliente.creado_en : null)
   const ident = <IdentidadCliente cliente={cliente} />
   return (
     <>
@@ -530,7 +533,7 @@ function FilaGrupoCliente({
                 </Button>
                 {accionable && (
                   <>
-                    {(edicionGlobal || ventanaCliente.vigente) && (
+                    {corregibleCliente && (edicionGlobal || ventanaCliente.vigente) && (
                       <Button
                         type="button"
                         size="xs"
@@ -590,8 +593,10 @@ function FilaGrupoCliente({
             key={c.id}
             contrato={c}
             colAsesor={colAsesor}
-            conAcciones={accionable}
-            corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+            conAcciones={conAcciones}
+            corregible={
+              accionable && (edicionGlobal || (c.creado_por != null && c.creado_por === yoId))
+            }
             sinLimiteVentana={edicionGlobal}
             porVencer={porVencer.has(c.id)}
             renovable={
@@ -720,6 +725,7 @@ function TarjetaGrupoCliente({
   consultable,
   gestionable,
   accionable,
+  corregibleCliente,
   edicionGlobal,
   yoId,
   asesorNombre,
@@ -738,7 +744,7 @@ function TarjetaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
+  const ventanaCliente = useVentana(corregibleCliente && !edicionGlobal ? cliente.creado_en : null)
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
       {/* Cabecera: identidad (toggle si tiene contratos) + capital invertido. */}
@@ -766,7 +772,7 @@ function TarjetaGrupoCliente({
         </div>
       </div>
 
-      {/* Meta: contratos activos + asesor (si supervisa). */}
+      {/* Meta: contratos activos + Analista (si supervisa). */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-2 text-[11px] text-muted-foreground">
         {sinContratos ? (
           <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Sin contratos</span>
@@ -798,7 +804,7 @@ function TarjetaGrupoCliente({
           </Button>
           {accionable && (
             <>
-              {(edicionGlobal || ventanaCliente.vigente) && (
+              {corregibleCliente && (edicionGlobal || ventanaCliente.vigente) && (
                 <Button
                   type="button"
                   size="xs"
@@ -835,7 +841,9 @@ function TarjetaGrupoCliente({
               key={c.id}
               contrato={c}
               conAcciones={accionable}
-              corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+              corregible={
+                accionable && (edicionGlobal || (c.creado_por != null && c.creado_por === yoId))
+              }
               sinLimiteVentana={edicionGlobal}
               porVencer={porVencer.has(c.id)}
               renovable={
@@ -897,7 +905,7 @@ function VistaMiCartera({
   /**
    * Recarga fallida CON datos ya en pantalla. Es un estado distinto de `error`
    * (que solo cubre «no hay nada que mostrar»): TanStack conserva la data previa
-   * cuando falla un refetch, así que sin este aviso el asesor seguía viendo su
+   * cuando falla un refetch, así que sin este aviso el analista seguía viendo su
    * cartera como si estuviera al día. Silencioso = peor que vacío.
    */
   recargaFallida: { reintentar: () => void } | null
@@ -916,6 +924,7 @@ function VistaMiCartera({
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const verEquipo = can(yo?.rol, 'verEquipo')
+  const lecturaCarteraHabilitada = can(yo?.rol, 'verCartera')
   const escrituraHabilitada = puedeEscribir(yo?.rol)
   const accionesContractualesHabilitadas = puedeContratar && escrituraHabilitada
   const ambitoGlobal = can(yo?.rol, 'verTodo')
@@ -925,7 +934,7 @@ function VistaMiCartera({
 
   const [q, setQ] = useState('')
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
-  // Filtro por asesor: solo lo usa supervisión (verEquipo). 'todos' | 'sin_asesor' | perfil_id.
+  // Filtro por analista: solo lo usa supervisión (verEquipo). 'todos' | 'sin_asesor' | perfil_id.
   const [fAsesor, setFAsesor] = useState<FiltroAsesor>('todos')
   // Filtro de RENOVACIÓN: deja solo los clientes con un contrato por vencer. Es
   // el aterrizaje del chip «Por vencer ≤30 d» — sin él la alarma no lleva a
@@ -934,15 +943,15 @@ function VistaMiCartera({
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
   const [pagina, setPagina] = useState(0)
   // Filtro de MES DE CIERRE. Arranca en el mes en curso (decisión de Miguel,
-  // 2026-08-14): el asesor abre y ve lo que lleva cerrado ESTE mes, sin tener
+  // 2026-08-14): el analista abre y ve lo que lleva cerrado ESTE mes, sin tener
   // que leer una lista de meses. `ahora` se congela al montar para que el valor
   // inicial no cambie a mitad de sesión si cruza la medianoche.
   const [ahora] = useState(() => new Date().toISOString())
   const [fMes, setFMes] = useState<string>(() => mesLima(new Date().toISOString()) ?? MES_TODOS)
 
   const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
-  // Roster visible para el filtro 'Sin asesor': un dueño fuera de este Set (o null)
-  // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
+  // Roster visible para el filtro «Sin analista»: un dueño fuera de este Set (o null)
+  // cuenta como sin analista — mismo criterio que la columna Analista pinta «—».
   const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
   const bases = useMemo(() => grupos ?? [], [grupos])
   const contratosPorId = useMemo(
@@ -959,9 +968,9 @@ function VistaMiCartera({
   // conservar contratos con capital y cronograma vivos, y esconder la fila
   // haría desaparecer del CRM un documento legal que sigue existiendo — un
   // silencio que nadie puede detectar es peor que el bug que se está
-  // corrigiendo (el asesor no podría ni abrir su detalle). Los KPIs de CAPITAL
+  // corrigiendo (el analista no podría ni abrir su detalle). Los KPIs de CAPITAL
   // describen la cartera QUE SE GESTIONA: contar ahí a quien ya no es cliente
-  // le inflaba al asesor un capital que no puede trabajar.
+  // le inflaba al analista un capital que no puede trabajar.
   // ⚠️ La ALARMA de vencimiento es la EXCEPCIÓN y se calcula sobre `bases`
   // (corrección 2026-07-26): un contrato activo que vence en ≤30 d hay que
   // renovarlo aunque el titular esté dado de baja, y este chip es el único
@@ -993,7 +1002,7 @@ function VistaMiCartera({
     const nq = normalizar(q.trim())
     const dq = nq.replace(/\D/g, '')
     return bases.filter((g) => {
-      // Filtro por asesor (solo supervisión): compara contra el DUEÑO de cartera,
+      // Filtro por analista (solo supervisión): compara contra el DUEÑO de cartera,
       // espejo EXACTO de filtrarClientes. 'sin_asesor' = dueño null O fuera del roster.
       if (verEquipo && fAsesor !== 'todos') {
         const dueno = duenoDeCartera(g.cliente)
@@ -1036,7 +1045,7 @@ function VistaMiCartera({
         const matchContrato =
           (fEstado !== 'todos' && g.contratos.some((c) => c.estado === fEstado)) ||
           // Con el filtro de renovación, el contrato que vence se ve SIN un clic
-          // más: la fecha es el dato que el asesor viene a buscar.
+          // más: la fecha es el dato que el analista viene a buscar.
           (soloPorVencer && g.contratos.some((c) => porVencer.has(c.id))) ||
           (nq !== '' && g.contratos.some((c) => normalizar(c.numero_contrato).includes(nq)))
         if (matchContrato && !sig.has(g.cliente.id)) {
@@ -1092,7 +1101,7 @@ function VistaMiCartera({
   // pendiente, y esta es la pantalla desde la que se les crea el contrato.
   // Dejarlos fuera los volvía inalcanzables salvo por una opción del
   // desplegable que nadie va a buscar — y se llevaba por delante el reparto de
-  // «Sin asesor», donde esos clientes son justo los que hay que repartir.
+  // «Sin analista», donde esos clientes son justo los que hay que repartir.
   const sinContratos =
     fMes === CLAVE_SIN_CONTRATOS ? [] : (meses.find((m) => m.clave === CLAVE_SIN_CONTRATOS)?.grupos ?? [])
   const visiblesDelFiltro = fMes === MES_TODOS ? filtrados : [...(bloque?.grupos ?? []), ...sinContratos]
@@ -1114,21 +1123,25 @@ function VistaMiCartera({
   const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => {
     const dueno = duenoDeCartera(g.cliente)
     // La RLS/RPC de Supervisión trabaja con vendedor_ids_visibles: su cartera
-    // operativa incluye al supervisor y a los asesores de su roster. La UI
+    // operativa incluye al supervisor y a los analistas de su roster. La UI
     // anterior aplicaba esMiCliente a todos los roles y dejaba esas filas de
     // equipo visibles pero sin acciones, contradiciendo al servidor.
     const dentroDelAmbito =
       ambitoGlobal ||
       esMiCliente(g.cliente, yoId) ||
       (yo?.rol === 'supervisor' && dueno != null && rosterIds.has(dueno))
-    const consultable = escrituraHabilitada && dentroDelAmbito
-    const gestionable = consultable && g.cliente.activo
-    // Todos los escritores pueden consultar el historial. Emitir/corregir un
-    // contrato exige además el gate puede_contratar y cliente activo, espejo de
+    const clientePropio = esMiCliente(g.cliente, yoId)
+    // Consultar y mutar son capacidades distintas: Directorio tiene lectura
+    // global de la ficha comercial redactada, pero jamás hereda una escritura.
+    const consultable = lecturaCarteraHabilitada && dentroDelAmbito
+    const gestionable = escrituraHabilitada && consultable && g.cliente.activo
+    // Consultar el historial depende de verCartera; emitir/corregir un contrato
+    // exige además el gate puede_contratar y cliente activo, espejo de
     // private.puede_gestionar_cuentas_cliente. Los dados de baja siguen en la
     // lista y en el radar de vencimiento, pero no reciben botones que el RPC
     // rechazará hasta que Administración los reactive.
     const accionable = accionesContractualesHabilitadas && dentroDelAmbito && g.cliente.activo
+    const corregibleCliente = accionable && (edicionGlobal || clientePropio)
 
     return {
       grupo: g,
@@ -1141,10 +1154,13 @@ function VistaMiCartera({
           return sig
         }),
       colAsesor: verEquipo,
-      conAcciones: escrituraHabilitada,
+      // La estructura de la tabla es global: aun una fila defensivamente fuera
+      // de ámbito conserva la celda y muestra «—» en vez de desalinear columnas.
+      conAcciones: lecturaCarteraHabilitada,
       consultable,
       gestionable,
       accionable,
+      corregibleCliente,
       edicionGlobal,
       yoId,
       asesorNombre: nombres.get(dueno ?? '') ?? null,
@@ -1235,7 +1251,7 @@ function VistaMiCartera({
   }
   // La alarma cuenta TODA la cartera (incl. clientes dados de baja) — es un
   // aviso, no un total. Cuando parte del conteo viene de bajas se DICE en el
-  // sub-texto: mezclarlos en silencio le haría dudar de la cifra al asesor.
+  // sub-texto: mezclarlos en silencio le haría dudar de la cifra al analista.
   //
   // ⚠️ NO se recorta por mes, aunque el resto de la barra sí (decisión de Miguel,
   // 2026-08-14). Es el ÚNICO radar de renovación del CRM, y el propio botón la
@@ -1278,23 +1294,23 @@ function VistaMiCartera({
         },
   ]
   if (verEquipo) {
-    // Supervisión: el conteo de clientes SIN asesor (dueño null O fuera del
+    // Supervisión: el conteo de clientes SIN analista (dueño null O fuera del
     // roster) — espejo EXACTO del filtro 'sin_asesor' — con CTA a repartirlos.
     // Sobre `enGestion`: repartir a un cliente dado de baja no es una tarea real.
     const sinAsesor = enGestion.reduce((n, g) => {
       const dueno = duenoDeCartera(g.cliente)
       return n + (dueno != null && rosterIds.has(dueno) ? 0 : 1)
     }, 0)
-    // "Sin asesor" reemplaza la última métrica NO monetaria (Clientes con
+    // «Sin analista» reemplaza la última métrica NO monetaria (Clientes con
     // capital) cuando ya hay 4 tarjetas — con capital en PEN y USD serían 5 y se
     // rompería el grid de 4. Los chips de capital (que lideran stats) no se tocan.
     if (stats.length >= 4) stats.pop()
     stats.push({
       icon: UserX,
-      label: 'Sin asesor',
+      label: 'Sin analista',
       value: String(sinAsesor),
       tone: sinAsesor > 0 ? 'warn' : 'default',
-      sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin asesor”' : 'Toda la cartera tiene dueño',
+      sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin analista”' : 'Toda la cartera tiene dueño',
     })
   } else if (stats.length < 4) {
     // El hueco que deja una moneda ausente. Sigue siendo un número GLOBAL, y con
@@ -1358,7 +1374,7 @@ function VistaMiCartera({
           {verEquipo
             ? 'Clientes de la empresa con el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
             : 'Tus clientes y el capital que tienen invertido contigo. Cada cliente agrupa sus contratos; expándelo para verlos.'}
-          {/* Se dice que la pantalla ARRANCA filtrada: si no, un asesor que no
+          {/* Se dice que la pantalla ARRANCA filtrada: si no, un analista que no
               haya cerrado nada este mes leería su cartera vacía como un fallo. */}
           {' Empieza mostrando el mes en curso; cambia el mes o elige «Todos los meses» para ver el resto.'}
           {/* La marca «inactivo» se explica en texto, no solo con un tooltip:
@@ -1404,7 +1420,7 @@ function VistaMiCartera({
                   <option value="retirado">Retirados</option>
                 </Select>
               </div>
-              {/* Filtro de MES DE CIERRE. Arranca en el mes en curso: el asesor
+              {/* Filtro de MES DE CIERRE. Arranca en el mes en curso: el analista
                   abre y ve lo que lleva cerrado ESTE mes, sin listas de meses
                   que recorrer (decisión de Miguel, 2026-08-14). */}
               <div className="w-[190px]">
@@ -1417,12 +1433,12 @@ function VistaMiCartera({
                   ))}
                 </Select>
               </div>
-              {/* Filtro por asesor: solo supervisión (para el vendedor sería su propio
-                  nombre). "Sin asesor" aísla los clientes sin dueño para repartirlos. */}
+              {/* Filtro por analista: solo supervisión (para el analista sería su propio
+                  nombre). "Sin analista" aísla los clientes sin dueño para repartirlos. */}
               {verEquipo && (
                 <div className="w-[230px]">
-                  <Select aria-label="Filtrar por asesor" value={fAsesor} onChange={(e) => setFAsesor(e.target.value)}>
-                    <option value="todos">Todos los asesores</option>
+                  <Select aria-label="Filtrar por analista" value={fAsesor} onChange={(e) => setFAsesor(e.target.value)}>
+                    <option value="todos">Todos los analistas</option>
                     {equipo
                       .filter((m) => m.activo)
                       .map((m) => (
@@ -1430,7 +1446,7 @@ function VistaMiCartera({
                           {m.nombre_completo}
                         </option>
                       ))}
-                    <option value="sin_asesor">Sin asesor</option>
+                    <option value="sin_asesor">Sin analista</option>
                   </Select>
                 </div>
               )}
@@ -1439,7 +1455,7 @@ function VistaMiCartera({
                   vencimiento, y la fecha solo se lee en gris dentro del grupo).
                   No se pinta si nunca hubo nada que renovar; a partir de ahí se
                   queda (ver `huboPorVencer`): desmontarlo con el filtro puesto
-                  dejaría al asesor con una lista vacía y sin botón para salir. */}
+                  dejaría al analista con una lista vacía y sin botón para salir. */}
               {(huboPorVencer || soloPorVencer) && (
                 <button
                   type="button"
@@ -1475,7 +1491,7 @@ function VistaMiCartera({
                 y vive pegado a la lista que resume para que no puedan contar
                 cosas distintas.
                 ⚠️ Dice «cerrados» y NO es la cuota: cuenta todo contrato de un
-                cliente del asesor, mientras la cuota le paga por los que
+                cliente del analista, mientras la cuota le paga por los que
                 registró él. Cuando el mes incluye alguno ajeno se DICE — si no,
                 vería un capital aquí y otro en Hoy sin explicación. */}
             {bloque != null && bloque.contratos > 0 && (
@@ -1506,7 +1522,7 @@ function VistaMiCartera({
                   // El mes SOLO: no es un "sin resultados" cualquiera — la
                   // cartera está entera, simplemente no se cerró nada ese mes.
                   // Y como la pantalla arranca en el mes en curso, este es el
-                  // primer estado que ve un asesor que aún no ha cerrado: tiene
+                  // primer estado que ve un analista que aún no ha cerrado: tiene
                   // que llevar la salida puesta, o se queda mirando un vacío.
                   mesEsElUnicoFiltro
                     ? 'Tus clientes siguen ahí; en ese mes no se cerró ningún contrato.'
@@ -1520,9 +1536,9 @@ function VistaMiCartera({
                         : soloPorVencer
                           ? `Ningún contrato vence en los próximos ${DIAS_ALARMA_RENOVACION} días.`
                           : fAsesor === 'sin_asesor'
-                            ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
+                            ? 'No hay clientes sin analista: toda la cartera tiene dueño.'
                             : fAsesor !== 'todos'
-                              ? 'Ese asesor no tiene clientes en la cartera.'
+                              ? 'Ese analista no tiene clientes en la cartera.'
                               : 'Ningún cliente tiene contratos en ese estado.'
                 }
               >
@@ -1546,11 +1562,11 @@ function VistaMiCartera({
                 <TheadCrm>
                   <Th>Cartera / Contrato</Th>
                   <Th className="text-center">Estado</Th>
-                  {verEquipo && <Th className="hidden md:table-cell">Asesor</Th>}
+                  {verEquipo && <Th className="hidden md:table-cell">Analista</Th>}
                   <Th className="text-right" aria-label="Capital invertido">
                     Capital invertido
                   </Th>
-                  {escrituraHabilitada && <Th className="text-right">Acciones</Th>}
+                  {lecturaCarteraHabilitada && <Th className="text-right">Acciones</Th>}
                 </TheadCrm>
                 <tbody>
                   {visibles.map((g) => (
@@ -1634,7 +1650,7 @@ export function MiCartera() {
     if (envioEnCurso) return
     cerrar()
   }
-  // El alta puede cerrarse sin pasar por onListo (el asesor cancela el contrato
+  // El alta puede cerrarse sin pasar por onListo (el analista cancela el contrato
   // encadenado): el refetch va SIEMPRE al cerrar el alta.
   const cerrarAlta = () => {
     if (envioEnCurso) return
@@ -1916,6 +1932,32 @@ interface ContratoDemoLocal {
   pdfDatos: ContratoPdfDatos
 }
 
+/** Espejo local del contrato de `cliente_detalle_fn` para Directorio. Aunque
+ * los datos sean ficticios, la demo no debe enseñar una capacidad que el rol
+ * real no tiene ni normalizar una filtración de PII en capacitaciones. */
+function redactarDetalleDemoDirectorio(detalle: ClienteDetalleDatos): ClienteDetalleDatos {
+  return {
+    ...detalle,
+    domicilio: null,
+    banca_visible: false,
+    cuentas_bancarias_visibles: false,
+    banco: null,
+    tipo_cuenta: null,
+    numero_cuenta: null,
+    cci: null,
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+    banco_usd: null,
+    tipo_cuenta_usd: null,
+    numero_cuenta_usd: null,
+    cci_usd: null,
+    titular_distinto_usd: false,
+    beneficiario_nombre_usd: null,
+    beneficiario_dni_usd: null,
+  }
+}
+
 function MiCarteraDemo() {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
@@ -1979,7 +2021,7 @@ function MiCarteraDemo() {
       toast.error('No se encontró el detalle ficticio de este cliente.')
       return
     }
-    setDetalleCliente(detalle)
+    setDetalleCliente(yo?.rol === 'directorio' ? redactarDetalleDemoDirectorio(detalle) : detalle)
   }
   const abrirNuevoContrato = (cliente: ClienteBasico) => {
     if (!fixtures?.identidadesPdf[cliente.id]) {

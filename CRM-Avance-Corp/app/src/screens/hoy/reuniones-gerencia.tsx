@@ -66,10 +66,10 @@ function Kpi({ label, value, detail, Icon, color }: { label: string; value: stri
 function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Element {
   return (
     <section data-gi-panel className="gi-card min-w-0 overflow-hidden">
-      <div className="border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4"><h3 className="gi-title">Resultados por vendedor</h3></div>
+      <div className="border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4"><h3 className="gi-title">Resultados por analista</h3></div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[680px] text-xs">
-          <thead className="text-left text-[10px] uppercase tracking-wide text-[var(--gi-muted)]"><tr><th className="px-5 py-3">Vendedor</th><th className="px-3 py-3">Supervisor</th><th className="px-3 py-3 text-right">Pactadas</th><th className="px-3 py-3 text-right">Realizadas</th><th className="px-3 py-3 text-right">Sin resultado</th><th className="px-5 py-3 text-right">Efectividad</th></tr></thead>
+          <thead className="text-left text-[10px] uppercase tracking-wide text-[var(--gi-muted)]"><tr><th className="px-5 py-3">Analista</th><th className="px-3 py-3">Supervisor</th><th className="px-3 py-3 text-right">Pactadas</th><th className="px-3 py-3 text-right">Realizadas</th><th className="px-3 py-3 text-right">Sin resultado</th><th className="px-5 py-3 text-right">Efectividad</th></tr></thead>
           <tbody className="divide-y divide-[var(--gi-line)]">{datos.responsables.map((fila) => <tr key={fila.responsable_id ?? fila.nombre}><td className="px-5 py-3 font-semibold">{fila.nombre}</td><td className="px-3 py-3 text-[var(--gi-muted)]">{fila.supervisor_nombre}</td><td className="px-3 py-3 text-right tabular-nums">{numero(fila.pactadas)}</td><td className="px-3 py-3 text-right tabular-nums">{numero(fila.realizadas)}</td><td className="px-3 py-3 text-right font-semibold tabular-nums">{numero(fila.pendientes_cierre)}</td><td className="px-5 py-3 text-right font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</td></tr>)}</tbody>
         </table>
       </div>

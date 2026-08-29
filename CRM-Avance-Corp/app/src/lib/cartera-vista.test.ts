@@ -228,7 +228,7 @@ describe('resumenCartera — números del StatStrip (corte de vencimiento en TZ 
 })
 
 // —— Dinero vs ALARMA. Un cliente dado de baja en el portal (perfiles.activo =
-// false) sale de los TOTALES de capital —el asesor no puede trabajar esa
+// false) sale de los TOTALES de capital —el analista no puede trabajar esa
 // cartera— pero NO de la alarma de vencimiento: su contrato activo sigue
 // venciendo, la renovación es el ingreso más rentable del negocio y este chip
 // es el único radar de renovación del CRM. Estos tests fijan esa separación

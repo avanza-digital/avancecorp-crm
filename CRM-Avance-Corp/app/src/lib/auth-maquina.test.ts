@@ -127,11 +127,11 @@ describe('auth-maquina — carreras (el bug que motivó el rewrite)', () => {
   })
 })
 
-// El asesor volvía a la pestaña, un parpadeo de red hacía fallar la
+// El analista volvía a la pestaña, un parpadeo de red hacía fallar la
 // revalidación silenciosa y la máquina lo trataba como "no hay sesión":
 // Workspace desmontado, Login en pantalla y la conversión a medio llenar
 // perdida. Y para rematar, volver a entrar con la MISMA cuenta no hacía nada.
-describe('auth-maquina — un parpadeo de red NO expulsa al asesor', () => {
+describe('auth-maquina — un parpadeo de red NO expulsa al analista', () => {
   it('revalidación que falla por RED conserva la sesión y reintenta sola', async () => {
     const verificar = vi.fn<Verificar>()
       .mockResolvedValueOnce(ACCESO_ANA)

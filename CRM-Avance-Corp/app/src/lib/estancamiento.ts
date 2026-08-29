@@ -2,7 +2,7 @@
 //
 // Hoy la card pinta los días desde `creado_en` en gris, siempre igual: un lead
 // que lleva 6 días en "Propuesta enviada" (dentro de su plazo) se ve idéntico a
-// uno que lleva 6 días en "Nuevo" (seis veces por encima del suyo). El asesor
+// uno que lleva 6 días en "Nuevo" (seis veces por encima del suyo). El analista
 // tiene que saberse los umbrales de memoria para leer su propio tablero.
 //
 // DOS DECISIONES DE FONDO, las dos obligatorias:
@@ -12,11 +12,11 @@
 //    divergen, y entonces Hoy y Pipeline dan días distintos sobre el mismo lead.
 //
 // 2. EL NÚMERO CAMBIA CON EL COLOR. La card mostraba días desde `creado_en`,
-//    que es el reloj del CLIENTE; el umbral es del ASESOR. Dejar el número viejo
+//    que es el reloj del CLIENTE; el umbral es del ANALISTA. Dejar el número viejo
 //    al lado de un punto rojo calculado con otro reloj hace que la card mienta
 //    por adyacencia (el ojo lee "rojo por ESE número"). Con el circuito vivo
-//    —origen → hoja → cola de Rosa → bandeja → vendedor— un lead pasa días
-//    antes de llegar a un asesor: ese es justo el bug que ya se corrigió en la
+//    —origen → hoja → cola de Rosa → bandeja → analista— un lead pasa días
+//    antes de llegar a un analista: ese es justo el bug que ya se corrigió en la
 //    cola el 2026-07-24.
 import { SEMAFORO } from './semaforo'
 import { referenciaEspera, diasDesdeReferencia, type IndiceUltimaActividad } from './inteligencia'

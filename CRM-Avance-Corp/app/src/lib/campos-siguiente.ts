@@ -9,10 +9,10 @@
 // UNA sola opción ("Hecha") y nace preseleccionada → ese `onClick` no ocurre
 // nunca → el panel salía visible pero EN BLANCO. Dos consecuencias reales:
 //
-//  1. Silenciosa: `conSiguiente` exige título no vacío, así que el asesor
+//  1. Silenciosa: `conSiguiente` exige título no vacío, así que el analista
 //     cerraba "Enviar propuesta a Ana" —justo el eslabón POST-REUNIÓN, donde
 //     más caro sale perder el hilo— y el lead se caía de la cadencia.
-//  2. Dura: si el asesor escribía el título que faltaba y confirmaba,
+//  2. Dura: si el analista escribía el título que faltaba y confirmaba,
 //     `new Date('T10:00:00-05:00').toISOString()` lanzaba `RangeError` DENTRO
 //     del onClick — la tarea NO se cerraba, nadie avisaba, y el diálogo se iba
 //     al error boundary. Reproducible también con dos opciones si se BORRA la
@@ -26,7 +26,7 @@ import { fechaLima, horaLima } from './agenda-derivada'
 import type { SugerenciaSiguiente } from './motor-siguiente'
 import type { TipoTarea } from './tipos'
 
-/** Lo que el vendedor ve y edita. Fecha/hora SIEMPRE en reloj de Lima (-05:00). */
+/** Lo que el analista ve y edita. Fecha/hora SIEMPRE en reloj de Lima (-05:00). */
 export interface CamposSiguiente {
   tipo: TipoTarea
   titulo: string

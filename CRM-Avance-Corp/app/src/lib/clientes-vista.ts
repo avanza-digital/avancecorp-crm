@@ -1,5 +1,5 @@
 // Helpers PUROS de la pantalla Clientes (screens/clientes.tsx): regla de
-// cartera por fila, búsqueda normalizada, filtro por asesor y recorte de
+// cartera por fila, búsqueda normalizada, filtro por analista y recorte de
 // ámbito del demo. Viven aparte de la pantalla para poder probarlos sin
 // montar React (clientes-vista.test.ts).
 
@@ -54,19 +54,20 @@ export type FiltroAsesor = string
 
 /**
  * Búsqueda (nombre/documento/correo/teléfono, insensible a mayúsculas y
- * acentos) + filtro por asesor. El filtro compara contra el DUEÑO de cartera
- * (asesor o, sin asesor, el creador) — lo mismo que muestra la columna Asesor,
- * para que filtrar nunca contradiga lo que se ve. El teléfono también matchea
- * por solo-dígitos ('987 120' encuentra '+51987120345').
+ * acentos) + filtro por analista. El filtro compara contra el DUEÑO de cartera
+ * (analista o, con `asesor_perfil_id` nulo, el creador) — lo mismo que muestra
+ * la columna Analista, para que filtrar nunca contradiga lo que se ve. El
+ * teléfono también matchea por solo-dígitos ('987 120' encuentra
+ * '+51987120345').
  */
 export function filtrarClientes<T extends ClienteBuscable>(
   clientes: T[],
   q: string,
   fAsesor: FiltroAsesor,
   /**
-   * perfil_id del roster visible. La columna Asesor pinta '—' cuando el dueño
+   * perfil_id del roster visible. La columna Analista pinta '—' cuando el dueño
    * NO resuelve contra el roster (p.ej. un cliente dado de alta por un admin
-   * del portal, que no es fuerza comercial): 'Sin asesor' debe atrapar TAMBIÉN
+   * del portal, que no es fuerza comercial): 'Sin analista' debe atrapar TAMBIÉN
    * esas filas, o dos '—' idénticos se comportarían distinto al filtrar
    * (hallazgo de revisión 2026-07-16).
    */
@@ -100,7 +101,7 @@ export function filtrarClientes<T extends ClienteBuscable>(
  * el SERVIDOR (la vista crm.clientes_basicos ya llega scopeada por rol); el
  * demo no tiene servidor y lo espeja aquí: gerencia/directorio (esGlobal) ven
  * todo, el resto ve las filas cuyo dueño de cartera está en su equipo visible
- * (yo + mis vendedores).
+ * (yo + mis analistas).
  */
 export function carteraDelAmbito<T extends FilaCartera>(
   clientes: T[],

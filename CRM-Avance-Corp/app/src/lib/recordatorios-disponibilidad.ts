@@ -107,7 +107,7 @@ export function derivarAlertasRecordatorios(
  * sugerida de revisión» + la regla de F1: fecha SOLO donde hay regla real).
  *  · enfriamiento → el día en que se libera (disponible_desde);
  *  · tomado → NO hay motor de fecha hasta F4: default +7 días, editable —
- *    es la nota personal del vendedor, no una promesa del sistema.
+ *    es la nota personal del analista, no una promesa del sistema.
  * Devuelve YYYY-MM-DD (input date). Nunca en el pasado: si la regla real
  * quedó atrás (borde), cae a mañana.
  */
@@ -132,7 +132,7 @@ export function sugerirFechaRevision(
   const sugerida = fmt.format(objetivo)
   // F3.1: nunca sugerir lo que el formulario y el servidor van a rechazar —
   // un enfriamiento más largo que el tope se acota al último día válido (el
-  // vendedor puede reprogramar cuando llegue). YYYY-MM-DD compara lexicográfico.
+  // analista puede reprogramar cuando llegue). YYYY-MM-DD compara lexicográfico.
   const maxima = fechaMaximaRevision(ahora)
   return sugerida > maxima ? maxima : sugerida
 }

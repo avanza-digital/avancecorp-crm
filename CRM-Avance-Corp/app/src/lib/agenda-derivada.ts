@@ -35,7 +35,7 @@ export const LIMA_OFFSET_MS = 5 * 3600 * 1000 // UTC-5 fijo
 
 export const COLOR_EVENTO: Record<TipoTarea | 'vencimiento', string> = {
   llamada: '#2563eb',
-  whatsapp: '#16a34a', // el verde que el vendedor ya asocia a WhatsApp (Ley de Jakob)
+  whatsapp: '#16a34a', // el verde que el analista ya asocia a WhatsApp (Ley de Jakob)
   reunion: '#7c3aed',
   tarea: '#64748b',
   vencimiento: '#d97706',
@@ -64,7 +64,7 @@ export function horaLima(ms: number): string {
  *
  * Se arma de DIAS/MESES y NO de `toLocaleString('es-PE')`, y las dos razones
  * pesan justamente porque el texto se graba y después nadie puede editarlo:
- *  · ZONA: `toLocaleString` usa la del NAVEGADOR — un asesor de viaje, o con la
+ *  · ZONA: `toLocaleString` usa la del NAVEGADOR — un analista de viaje, o con la
  *    máquina mal configurada, quemaría una hora falsa en el historial. Aquí
  *    Lima es UTC-5 fijo, como en todo este módulo.
  *  · ICU: el formato es-PE de mes y meridiano cambia entre versiones de Node y
@@ -123,7 +123,7 @@ export function esDeHoy(ev: EventoAgenda, ahora: number): boolean {
  * Enlace "Añadir a Google Calendar" (plantilla pública `render?action=TEMPLATE`):
  * abre Google con el evento prellenado — sin conexión de cuenta ni permisos.
  * Fechas en UTC (sufijo Z); `ctz` fija la vista en Lima. Sin fin conocido,
- * el bloque dura 30 min (una llamada típica; el vendedor lo ajusta en Google).
+ * el bloque dura 30 min (una llamada típica; el analista lo ajusta en Google).
  */
 export function enlaceGoogleCalendar(
   t: Pick<Tarea, 'titulo' | 'vence_en'> &
@@ -158,7 +158,7 @@ export function enlaceGoogleCalendar(
 /**
  * Default de vencimiento para el quick-add: mañana a las 10:00 Lima, saltando
  * el domingo (ventana legal L–S 07:00–20:00, Ley 29571 — el motor propone
- * siempre un slot válido; el vendedor puede cambiarlo).
+ * siempre un slot válido; el analista puede cambiarlo).
  */
 export function proximoSlotSugerido(ahora: number): string {
   let ms = ahora + 86_400_000

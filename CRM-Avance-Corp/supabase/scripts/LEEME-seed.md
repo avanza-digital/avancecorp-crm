@@ -33,10 +33,10 @@ begin;
 alter table crm.equipo disable trigger user;
 update crm.equipo set activo = false
  where perfil_id = (select id from public.perfiles
-                     where nombre_completo = 'VENDEDOR INACTIVO');
+                     where nombre_completo = 'ANALISTA INACTIVO');
 alter table crm.equipo enable trigger user;
 update public.perfiles set activo = false
- where nombre_completo = 'VENDEDOR INACTIVO';
+ where nombre_completo = 'ANALISTA INACTIVO';
 commit;
 ```
 
@@ -122,7 +122,7 @@ el banco `banco-gate-rls` (replay manual 147/147 con las guardas md5 en verde):
    `20260824231133` exige el backfill de agosto de PROD (48 ops/29 conv) — en
    banco se neutraliza SOLO ese assert de datos en la copia del replay (el de
    privilegios queda) — y `20260827090000` exige una GERENCIA activa
-   (sembrarla antes, igual que la cadena supervisor→vendedor).
+   (sembrarla antes, igual que la cadena Supervisor→Analista).
 3. **El seed necesita un grant temporal**: `grant select on
    crm.periodos_cerrados to service_role` antes de `seed:demo` y `revoke`
    después — el trigger INVOKER `definir_periodo_comercial_contrato` lo lee al

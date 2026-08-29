@@ -129,7 +129,7 @@ export const crmQueryKeys = {
   // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
   // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
   // hacerlo sobre metricas() refrescaría también las fotografías por periodo
-  // de gerencia en cada llamada del vendedor. Se retira en F3.
+  // de gerencia en cada llamada del analista. Se retira en F3.
   metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
@@ -681,7 +681,7 @@ export function useCorregirCierreExterno() {
 
 /**
  * Anulación de gerencia. A diferencia de corregir, esto SÍ mueve la conversión
- * del vendedor —un cierre anulado deja de contar como ganado—, así que invalida
+ * del analista —un cierre anulado deja de contar como ganado—, así que invalida
  * lo mismo que convertir: cierres, conversión mensual y los tiles del ámbito.
  * La cartera no hace falta (el lead sigue convertido: no se reabre).
  */
@@ -760,7 +760,7 @@ export function useAnularCierreAvance() {
 }
 
 /**
- * F3 «Recordar»: los recordatorios personales del vendedor, para la campana
+ * F3 «Recordar»: los recordatorios personales del analista, para la campana
  * y para saber en el alta si un contacto ya tiene el suyo. Trae SOLO
  * contacto+fecha (jamás veredictos: la re-verificación es BAJO DEMANDA al
  * clic — regla del plan). El servidor caduca los vencidos >7 días solo.

@@ -4,7 +4,7 @@
 // `resultado_tipo: null`, así que `crm.cerrar_tarea` no insertaba NINGUNA
 // actividad. La tarea quedaba en estado `no_show` —dato real— pero eso NADIE lo
 // lee desde la ficha del lead: lo que se lee ahí es el timeline. Historial mudo
-// sobre el plantón: el asesor fue, esperó, y a los tres meses no hay rastro.
+// sobre el plantón: el analista fue, esperó, y a los tres meses no hay rastro.
 //
 // SE ARREGLA SIN MIGRACIÓN: la RPC ya acepta `p_resultado_tipo = 'nota'` y la
 // inserta en la MISMA transacción del cierre, enganchada además a la tarea por
@@ -13,7 +13,7 @@
 // POR QUÉ `nota` Y NO OTRO TIPO — son tres caras de la misma decisión, y
 // ninguna es opcional:
 //  · `nota` está FUERA de TIPOS_CONVERSACION → NO sube la etapa. Plantar al
-//    asesor jamás puede ascender el embudo.
+//    analista jamás puede ascender el embudo.
 //  · `nota` está FUERA de TIPOS_CONTACTO → `indexarUltimoContacto` no la ve, así
 //    que el lead SIGUE gritando en la cola hasta que alguien lo contacte de
 //    verdad. Un plantón no es haber hablado con nadie.

@@ -9,7 +9,7 @@
 //    no su verdad; la vigencia corta hace inservible cualquier foto en falso.
 //  · «El último asiento manda» se lee por `secuencia` (orden total del
 //    libro), nunca por creado_en — clock_timestamp() empata al microsegundo.
-//  · La foto de `miembros` son IDS (leads o vendedores), jamás nombres: la
+//  · La foto de `miembros` son IDS (leads o analistas), jamás nombres: la
 //    comparación de «empeoró» es por conjunto de ids + severidad.
 import * as v from 'valibot'
 import type { AlertaCRM, SeveridadAlerta } from './alertas'

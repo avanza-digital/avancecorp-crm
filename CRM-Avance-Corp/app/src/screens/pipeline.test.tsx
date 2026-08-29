@@ -1,5 +1,5 @@
 // Tests de integración del tablero (Pipeline) — la pantalla de trabajo del
-// asesor. Fijan dos regresiones que se pagan caras:
+// analista. Fijan dos regresiones que se pagan caras:
 //  1) tras arrastrar una card a otra columna el tablero se quedaba MUDO: al
 //     cambiar de etapa React desmonta la card de la columna vieja, su
 //     `onDragEnd` no llega a correr y el guard del click fantasma se quedaba

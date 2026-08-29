@@ -5,7 +5,7 @@
 //  2. Enter/Espacio sobre un botón de la tarjeta ejecuta ESE botón y NO abre la
 //     ficha del lead (el guard `e.target !== e.currentTarget`);
 //  3. en táctil los saltos existen (antes iban `hidden sm:flex` = invisibles
-//     justo en el celular del asesor).
+//     justo en el celular del analista).
 // Se montan los contextos REALES del store (sin red) y se mockean reloj, sesión
 // y media query para que el resultado no dependa de la máquina.
 import { describe, expect, it, vi } from 'vitest'
@@ -30,7 +30,7 @@ vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({
     yo: {
       id: 'v1',
-      nombre_completo: 'ASESOR UNO',
+      nombre_completo: 'ANALISTA UNO',
       rol: 'vendedor',
       demo: false,
       puede_contratar: true,
@@ -121,7 +121,7 @@ describe('Agenda — saltos rápidos de reprogramación', () => {
     await user.click(salto('+1 día'))
 
     // Antes se sumaba sobre `vence_en`: +1d dejaba la tarea vencida hace 4 días
-    // y el asesor volvía a pulsar (cada pulsación suma una "movida ×N").
+    // y el analista volvía a pulsar (cada pulsación suma una "movida ×N").
     expect(reprogramarTarea).toHaveBeenCalledWith('t1', iso('2026-07-23T15:00:00-05:00'))
     expect(Date.parse(reprogramarTarea.mock.calls[0]![1])).toBeGreaterThan(AHORA)
     // Y el toast nombra el día real de destino, no el salto pedido.

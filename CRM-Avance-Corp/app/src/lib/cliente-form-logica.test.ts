@@ -62,6 +62,8 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-16T10:00:00.000Z',
+    banca_visible: true,
+    cuentas_bancarias_visibles: true,
     banco: 'BCP',
     tipo_cuenta: 'ahorros',
     numero_cuenta: '19112345678901',

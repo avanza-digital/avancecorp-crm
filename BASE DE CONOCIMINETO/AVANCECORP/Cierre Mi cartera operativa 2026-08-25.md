@@ -6,6 +6,11 @@ aplicó y verificó en producción el 25/08/2026; el frontend quedó en una prev
 sin promover el build a `crm.miavance.com`.
 
 Continúa [[Mi cartera por meses]] y actualiza el antiguo [[Handoff Cartera 2026-07-21]].
+La revisión posterior de autorización y banca se registra en
+[[Auditoría backend Gestión de cartera 2026-08-28]]; ese candidato permanece
+preparado y **no desplegado**.
+En la evidencia histórica de esta nota, «asesor» en la referencia al análisis de
+base de datos significa **Supabase Database Advisor**, no el rol comercial.
 
 ## Qué quedó resuelto
 

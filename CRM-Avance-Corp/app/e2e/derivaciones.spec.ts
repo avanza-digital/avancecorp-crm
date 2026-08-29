@@ -12,13 +12,13 @@ test('demo supervisor: Derivar leads abre como módulo propio sin tocar Supabase
   await page.getByRole('button', { name: 'Derivar leads' }).click()
 
   await expect(page.getByRole('heading', { name: 'Derivar leads' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Carga por asesor' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Carga por analista' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Derivar hoy' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Guardadas hoy' })).toBeVisible()
   await expect(page.getByText(/no está disponible en el modo demostración/i)).toBeVisible()
 
   await expect(
-    page.getByRole('combobox', { name: /Derivar .* a un asesor/ }).first(),
+    page.getByRole('combobox', { name: /Derivar .* a un analista/ }).first(),
   ).toBeDisabled()
   expect(requestsSupabase()).toBe(0)
 })

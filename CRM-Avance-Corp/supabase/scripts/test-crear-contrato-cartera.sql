@@ -1,5 +1,5 @@
 -- Gate transaccional autocontenido de public.crear_contrato para Mi cartera.
--- Requiere 20260824231133 aplicada y el producto técnico creado por las
+-- Requiere 20260828210351 aplicada y el producto técnico creado por las
 -- migraciones de catálogo. Todos los usuarios, contratos, cuotas y operaciones
 -- de este archivo desaparecen con el ROLLBACK final.
 
@@ -10,16 +10,68 @@ begin;
 set local lock_timeout = '10s';
 
 do $preflight$
+declare
+  v_crear text;
+  v_siguiente text;
+  v_definer boolean;
+  v_config text[];
 begin
   if to_regprocedure('public.crear_contrato(jsonb,jsonb)') is null
      or to_regclass('crm.operaciones_cartera') is null then
     raise exception 'GCAR-C01: falta la RPC o el ledger de operaciones';
+  end if;
+  if to_regprocedure('private.metricas_cartera_por_vendedor(date)') is null then
+    raise exception 'GCAR-C03: falta la migración de métricas de cartera; ejecute el stack completo antes de este gate';
   end if;
   if not exists (
     select 1 from crm.productos_inversion p
     where p.codigo = 'HISTORICO-SIN-CATALOGO' and p.es_legacy
   ) or not exists (select 1 from crm.producto_condiciones) then
     raise exception 'GCAR-C02: falta el catálogo técnico para fotografiar contratos';
+  end if;
+
+  select p.prosrc, p.prosecdef, p.proconfig
+    into v_crear, v_definer, v_config
+  from pg_catalog.pg_proc p
+  where p.oid = 'public.crear_contrato(jsonb,jsonb)'::pg_catalog.regprocedure;
+
+  if v_definer is not true
+     or not coalesce(v_config, '{}'::text[])
+       && array['search_path=', 'search_path=""']::text[]
+     or v_crear not ilike '%private.siguiente_numero_contrato(v_anio)%'
+     or v_crear not ilike '%now() at time zone ''America/Lima''%'
+     or v_crear not ilike '%from public.perfiles p%for share%' then
+    raise exception 'GCAR-C14: crear_contrato perdió definer/search_path, año Lima, helper o lock del cliente';
+  end if;
+
+  select p.prosrc into v_siguiente
+  from pg_catalog.pg_proc p
+  where p.oid = 'private.siguiente_numero_contrato(integer)'::pg_catalog.regprocedure;
+
+  if v_siguiente not ilike '%pg_advisory_xact_lock%'
+     or v_siguiente not ilike '%hashtext(''public.contratos.numero_contrato'')%'
+     or v_siguiente not like '%[0-9]{1,4}%'
+     or v_siguiente not ilike '%if v_seq > 9999%'
+     or v_siguiente not ilike '%errcode = ''22003''%' then
+    raise exception 'GCAR-C15: el helper perdió mutex, namespace o límite 9999';
+  end if;
+
+  if has_function_privilege(
+       'anon', 'private.siguiente_numero_contrato(integer)', 'EXECUTE'
+     )
+     or has_function_privilege(
+       'authenticated', 'private.siguiente_numero_contrato(integer)', 'EXECUTE'
+     )
+     or has_function_privilege(
+       'service_role', 'private.siguiente_numero_contrato(integer)', 'EXECUTE'
+     )
+     or has_function_privilege(
+       'anon', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE'
+     )
+     or not has_function_privilege(
+       'authenticated', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE'
+     ) then
+    raise exception 'GCAR-C16: ACL inesperada en helper privado o RPC pública';
   end if;
 end;
 $preflight$;
@@ -32,7 +84,7 @@ values
   ('7fc10000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
    'gcar-contratos-gerencia@test.invalid', now(), '{}', '{}', now(), now()),
   ('7fc10000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
-   'gcar-contratos-vendedor@test.invalid', now(), '{}', '{}', now(), now()),
+   'gcar-contratos-analista@test.invalid', now(), '{}', '{}', now(), now()),
   ('7fc10000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
    'gcar-contratos-supervisor@test.invalid', now(), '{}', '{}', now(), now()),
   ('7fc20000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
@@ -52,8 +104,8 @@ insert into public.perfiles (
 values
   ('7fc10000-0000-4000-8000-000000000001', 'GCAR GERENCIA CONTRATOS',
    'gcar-contratos-gerencia@test.invalid', 'comercial', true, null, null),
-  ('7fc10000-0000-4000-8000-000000000002', 'GCAR VENDEDOR CONTRATOS',
-   'gcar-contratos-vendedor@test.invalid', 'comercial', true, null,
+  ('7fc10000-0000-4000-8000-000000000002', 'GCAR ANALISTA CONTRATOS',
+   'gcar-contratos-analista@test.invalid', 'comercial', true, null,
    '7fc10000-0000-4000-8000-000000000001'),
   ('7fc10000-0000-4000-8000-000000000003', 'GCAR SUPERVISOR CONTRATOS',
    'gcar-contratos-supervisor@test.invalid', 'comercial', true, null,
@@ -107,7 +159,12 @@ values
     ((now() at time zone 'America/Lima')::date - interval '1 year')::date,
     (now() at time zone 'America/Lima')::date, 'vencido',
     '7fc10000-0000-4000-8000-000000000002', now() - interval '1 year',
-    'nuevo', (select id from crm.producto_condiciones order by id limit 1),
+    'nuevo', private.crear_snapshot_producto_legacy(
+      '7fc30000-0000-4000-8000-000000000001', 'nuevo', 'PEN',
+      'mensual', 'simple', 1000, 15,
+      ((now() at time zone 'America/Lima')::date - interval '1 year')::date,
+      (now() at time zone 'America/Lima')::date
+    ),
     ((date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date),
     'registro'
   ),
@@ -118,7 +175,12 @@ values
     ((now() at time zone 'America/Lima')::date - interval '1 year')::date,
     ((now() at time zone 'America/Lima')::date + 1), 'activo',
     '7fc10000-0000-4000-8000-000000000002', now() - interval '1 year',
-    'nuevo', (select id from crm.producto_condiciones order by id limit 1),
+    'nuevo', private.crear_snapshot_producto_legacy(
+      '7fc30000-0000-4000-8000-000000000002', 'nuevo', 'PEN',
+      'mensual', 'simple', 1000, 15,
+      ((now() at time zone 'America/Lima')::date - interval '1 year')::date,
+      ((now() at time zone 'America/Lima')::date + 1)
+    ),
     ((date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date),
     'registro'
   ),
@@ -130,7 +192,12 @@ values
     ((now() at time zone 'America/Lima')::date + interval '10 months')::date,
     'activo', '7fc10000-0000-4000-8000-000000000002',
     now() - interval '2 months', 'nuevo',
-    (select id from crm.producto_condiciones order by id limit 1),
+    private.crear_snapshot_producto_legacy(
+      '7fc30000-0000-4000-8000-000000000003', 'nuevo', 'PEN',
+      'mensual', 'simple', 1200, 15,
+      ((now() at time zone 'America/Lima')::date - interval '2 months')::date,
+      ((now() at time zone 'America/Lima')::date + interval '10 months')::date
+    ),
     ((date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date),
     'registro'
   );
@@ -169,7 +236,105 @@ declare
   v_contratos_antes integer;
   v_fallo boolean;
   v_metricas record;
+  v_anio integer := extract(year from now() at time zone 'America/Lima')::integer;
+  v_seq_esperada integer;
+  v_numero_esperado text;
+  v_numero_siguiente text;
 begin
+  -- Sin numero_contrato el servidor genera el siguiente correlativo del año
+  -- civil de Lima y devuelve exactamente el valor persistido.
+  select coalesce(max(split_part(c.numero_contrato, '-', 3)::integer), 0) + 1
+    into v_seq_esperada
+  from public.contratos c
+  where c.numero_contrato
+    ~ ('^AC-' || v_anio || '-[0-9]{1,4}$');
+
+  if v_seq_esperada >= 9999 then
+    raise exception 'GCAR-C17: el fixture no deja dos correlativos libres en el año Lima %', v_anio;
+  end if;
+  v_numero_esperado := 'AC-' || v_anio || '-'
+    || lpad(v_seq_esperada::text, 4, '0');
+
+  perform pg_catalog.set_config('crm.producto_condicion_id', '', true);
+  v_respuesta := public.crear_contrato(
+    jsonb_build_object(
+      'cliente_id', '7fc20000-0000-4000-8000-000000000005',
+      'capital', 500, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', v_hoy, 'fecha_vencimiento', v_hoy + 365,
+      'categoria', 'nuevo',
+      'notas_internas', 'GCAR NUMERACIÓN AUTOMÁTICA TX'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', v_hoy + 30,
+      'monto_programado', 100, 'tipo', 'cuota'
+    ))
+  );
+  if v_respuesta->>'numero_contrato' is distinct from v_numero_esperado
+     or not exists (
+       select 1 from public.contratos c
+       where c.id = (v_respuesta->>'id')::uuid
+         and c.numero_contrato = v_numero_esperado
+     ) then
+    raise exception 'GCAR-C18: numeración automática inesperada; esperado %, recibido %',
+      v_numero_esperado, v_respuesta->>'numero_contrato';
+  end if;
+
+  -- Un número explícito con sufijo gigante no pertenece al namespace
+  -- automático. Debe ignorarse sin intentar convertirlo a integer.
+  perform pg_catalog.set_config('crm.producto_condicion_id', '', true);
+  perform public.crear_contrato(
+    jsonb_build_object(
+      'numero_contrato', 'AC-' || v_anio || '-999999999999999999999999999999999999999999',
+      'cliente_id', '7fc20000-0000-4000-8000-000000000005',
+      'capital', 500, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', v_hoy, 'fecha_vencimiento', v_hoy + 365,
+      'categoria', 'nuevo',
+      'notas_internas', 'GCAR SUFIJO EXPLÍCITO FUERA DE NAMESPACE TX'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', v_hoy + 30,
+      'monto_programado', 100, 'tipo', 'cuota'
+    ))
+  );
+  v_numero_siguiente := private.siguiente_numero_contrato(v_anio);
+  if v_numero_siguiente is distinct from (
+    'AC-' || v_anio || '-' || lpad((v_seq_esperada + 1)::text, 4, '0')
+  ) then
+    raise exception 'GCAR-C19: un sufijo explícito gigante contaminó la secuencia: %',
+      v_numero_siguiente;
+  end if;
+
+  -- Un único sentinel basta para llevar otro año al borde sin sembrar 9.999
+  -- filas. El helper debe abortar antes de que lpad pueda truncar 10000→1000.
+  perform pg_catalog.set_config('crm.producto_condicion_id', '', true);
+  perform public.crear_contrato(
+    jsonb_build_object(
+      'numero_contrato', 'AC-9998-9999',
+      'cliente_id', '7fc20000-0000-4000-8000-000000000005',
+      'capital', 500, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', v_hoy, 'fecha_vencimiento', v_hoy + 365,
+      'categoria', 'nuevo',
+      'notas_internas', 'GCAR LÍMITE NUMERACIÓN TX'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', v_hoy + 30,
+      'monto_programado', 100, 'tipo', 'cuota'
+    ))
+  );
+
+  v_fallo := false;
+  begin
+    perform private.siguiente_numero_contrato(9998);
+  exception when sqlstate '22003' then
+    v_fallo := true;
+  end;
+  if not v_fallo then
+    raise exception 'GCAR-C20: el helper aceptó una secuencia superior a 9999';
+  end if;
+
   select count(*) into v_ops_antes from crm.operaciones_cartera;
   select count(*) into v_contratos_antes from public.contratos;
 

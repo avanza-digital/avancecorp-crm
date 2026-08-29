@@ -46,7 +46,7 @@ interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`): alimenta el
-   * héroe, el KPI de conversión y «Mejores vendedores». Tri-estado: `undefined`
+   * héroe, el KPI de conversión y «Mejores analistas». Tri-estado: `undefined`
    * consultando · `null` no disponible (todo degrada a «—», jamás a la fórmula
    * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO;
    * los porcentajes por origen solo se publican con núcleo y sondas verificados.
@@ -422,10 +422,10 @@ export function ResumenGerenciaPanel({
           className="gi-card group relative cursor-pointer p-5 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--gi-blue)]/30 hover:shadow-[0_16px_38px_rgba(17,30,61,.10)] focus-within:ring-[3px] focus-within:ring-ring/35 motion-reduce:transform-none motion-reduce:transition-none"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="gi-title">Mejores vendedores</h2>
+            <h2 className="gi-title">Mejores analistas</h2>
             <a
               href="#/ranking-vendedores"
-              aria-label="Ver ranking general de vendedores"
+              aria-label="Ver ranking general de analistas"
               className="after:absolute after:inset-0 after:content-[''] flex items-center gap-1 text-[11px] font-bold text-[var(--gi-blue)] outline-none"
             >
               Ver ranking
@@ -440,7 +440,7 @@ export function ResumenGerenciaPanel({
                     <div className="gi-track"><div className="gi-fill motion-reduce:transition-none" style={{ width: `${((fila.detalle.conversion_pct ?? 0) / maxMejor) * 100}%`, background: indice < 3 ? C.green : indice === 3 ? C.amber : C.red }} /></div>
                   </div>
                 ))
-              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay vendedores medibles este mes' : 'Detalle por vendedor no disponible'}</p>}
+              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay analistas medibles este mes' : 'Detalle por analista no disponible'}</p>}
           </div>
         </section>
       </div>

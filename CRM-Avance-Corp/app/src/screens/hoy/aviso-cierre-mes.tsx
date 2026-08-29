@@ -18,7 +18,7 @@ import { avisoDelCiclo } from '@/lib/cierre-de-mes'
 export function AvisoCierreMesPanel(): JSX.Element | null {
   // DECISIÓN DE ROLES (fijada antes del release, 2026-08-15): el banner lo ve
   // SOLO GERENCIA — es quien puede actuar sobre el ciclo (anular, ajustar,
-  // sellar a mano). Vendedor y supervisor no operan el cierre; el permiso del
+  // sellar a mano). Analista y supervisor no operan el cierre; el permiso del
   // coordinador en el SERVIDOR existe únicamente para que sus pantallas de
   // metas no fallen al leer `cierre`, no para este aviso. Y apagado en demo
   // DESDE DENTRO: el demo es hermético y esta consulta habla de la maquinaria

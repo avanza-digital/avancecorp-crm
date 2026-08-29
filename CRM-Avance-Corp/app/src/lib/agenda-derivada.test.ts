@@ -55,7 +55,7 @@ describe('tareaAEvento', () => {
     expect(tareaAEvento(tarea({ vence_en: '2026-07-20T14:00:00Z' }), AHORA).cuando).toBe('Lun 20 Jul · 09:00')
   })
 
-  it('whatsapp usa el verde que el vendedor ya asocia al canal', () => {
+  it('whatsapp usa el verde que el analista ya asocia al canal', () => {
     expect(tareaAEvento(tarea({ tipo: 'whatsapp' }), AHORA).color).toBe('#16a34a')
   })
 })

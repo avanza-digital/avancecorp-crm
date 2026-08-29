@@ -74,7 +74,7 @@ const ROSTER = [
   },
   {
     perfil_id: 'u-v1',
-    nombre_completo: 'Vendedor Real',
+    nombre_completo: 'Analista Real',
     rol_crm: 'vendedor' as const,
     supervisor_id: 'u-s1',
     activo: true,
@@ -135,7 +135,7 @@ function configuracionMetas(capitalPen = 0, capitalUsd = 0, conversionObjetivo =
     vendedores: [
       {
         vendedor_id: 'u-v1',
-        nombre: 'Vendedor Real',
+        nombre: 'Analista Real',
         supervisor_id: 'u-s1',
         supervisor_nombre: 'Supervisor Real',
         conversion_objetivo: conversionObjetivo,
@@ -209,7 +209,7 @@ function sesionReal(rol: Rol, overrides: Partial<Yo> = {}): AuthContextValue {
       : rol === 'supervisor'
         ? { id: 'u-s1', nombre_completo: 'Supervisor Real' }
         : rol === 'vendedor'
-          ? { id: 'u-v1', nombre_completo: 'Vendedor Real' }
+          ? { id: 'u-v1', nombre_completo: 'Analista Real' }
           : { id: `u-${rol}`, nombre_completo: `Usuario ${rol}` }
   return {
     fase: 'listo',
@@ -292,7 +292,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   it('carga el ámbito operativo y resuelve vendedor_nombre desde el roster', async () => {
     const { api } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
-    expect(api().leads[0]?.vendedor_nombre).toBe('Vendedor Real')
+    expect(api().leads[0]?.vendedor_nombre).toBe('Analista Real')
   })
 
   it('Gerencia carga el ámbito operativo completo además del roster y las metas', async () => {
@@ -321,7 +321,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(estado().cargando).toBe(false))
     expect(api().objetivos.porVendedor?.['u-v1']).toMatchObject({
       vendedorId: 'u-v1',
-      nombre: 'Vendedor Real',
+      nombre: 'Analista Real',
       supervisorId: 'u-s1',
       conversionObjetivo: 18,
     })
@@ -422,7 +422,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(obtenerCumplimientoMock).not.toHaveBeenCalled()
   })
 
-  it('Gerencia edita un lead de otro asesor y persiste el cambio', async () => {
+  it('Gerencia edita un lead de otro analista y persiste el cambio', async () => {
     const { api, mutar } = montar('gerencia')
     await waitFor(() => expect(api().leads).toHaveLength(1))
 
@@ -1242,7 +1242,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   // Un fetch COLGADO no rechaza nunca: sin el reloj de LIMITE_CARGA_REAL_MS el
-  // asesor se quedaba para siempre en «Preparando tu información…».
+  // analista se quedaba para siempre en «Preparando tu información…».
   it('carga inicial COLGADA → estado accionable de error (no un spinner eterno)', async () => {
     vi.useFakeTimers()
     try {
@@ -1271,7 +1271,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   // Un fallo de LECTURA de metas se pintaba como «Meta mensual por definir»:
-  // el asesor creía que gerencia no le fijó meta cuando sí lo hizo.
+  // el analista creía que gerencia no le fijó meta cuando sí lo hizo.
   it('metas que NO se pudieron leer se marcan como error, no como "sin meta"', async () => {
     obtenerMetasMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
     const { api, estado } = montar('vendedor')

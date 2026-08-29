@@ -200,10 +200,10 @@ export function aplicarFiltros(
 
 /** Un dueño de tareas en la vista de supervisión (Hoy/Todo de supervisor+). */
 export interface GrupoPersona {
-  /** perfil_id del vendedor, `bandeja:<supervisor_id>` para parkeadas o 'sin'. */
+  /** perfil_id del analista, `bandeja:<supervisor_id>` para parkeadas o 'sin'. */
   id: string
   nombre: string
-  /** Nombre del supervisor del vendedor (contexto para gerencia; null si no aplica). */
+  /** Nombre del supervisor del analista (contexto para gerencia; null si no aplica). */
   supervisor: string | null
   /** Cronológicas (heredan el orden de entrada, ya viene por vence_en asc). */
   items: Tarea[]
@@ -212,7 +212,7 @@ export interface GrupoPersona {
 }
 
 /**
- * Tareas agrupadas por DUEÑO — el vendedor del lead; las parkeadas caen en la
+ * Tareas agrupadas por DUEÑO — el analista del lead; las parkeadas caen en la
  * bandeja de su supervisor. Para supervisor/gerencia la agenda deja de ser una
  * lista plana anónima: primero se ve QUIÉN carga qué. Orden de supervisión:
  * más vencidas primero, luego más carga, luego nombre (es-PE) — donde se

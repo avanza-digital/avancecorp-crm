@@ -66,7 +66,7 @@ export function ProductoContratoSelector({
   // Un contrato con condiciones propias (las que se firmaron) solo tiene ALGO
   // que decidir si el catálogo ofrece alternativas. Sin catálogo publicado
   // —hoy, el 100 % de los contratos— explicarlo es ruido en cada corrección:
-  // el vendedor lee jerga de base de datos sobre una elección que no existe.
+  // el analista lee jerga de base de datos sobre una elección que no existe.
   const explicarCondicionesPropias = esHistorico && condiciones.length > 0
 
   return (

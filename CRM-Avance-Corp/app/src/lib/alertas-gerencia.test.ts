@@ -201,7 +201,7 @@ describe('derivarAlertasGerencia', () => {
     })
   })
 
-  it('alerta al vendedor solo desde el primer corte, con muestra suficiente y brecha mínima de 5 pp', () => {
+  it('alerta al analista solo desde el primer corte, con muestra suficiente y brecha mínima de 5 pp', () => {
     const fuentes = fuentesIndividuales(15, 10, 10)
 
     expect(derivarAlertasGerencia(entradaSinFuentes({

@@ -40,8 +40,8 @@ function filaSinActividad(vendedorId: string): ResponsableConversionMensual {
   }
 }
 
-describe('ranking general de vendedores', () => {
-  it('muestra cualquier cantidad de vendedores, incluidos los que aún no tienen leads', () => {
+describe('ranking general de analistas', () => {
+  it('muestra cualquier cantidad de analistas, incluidos los que aún no tienen leads', () => {
     const sinLeads: ConversionEquipoVendedor = {
       vendedorId: 'demo-v7',
       nombre: 'Gabriela Soto',
@@ -57,7 +57,7 @@ describe('ranking general de vendedores', () => {
     const sinAsignar: ConversionEquipoVendedor = {
       ...sinLeads,
       vendedorId: null,
-      nombre: 'Sin vendedor asignado',
+      nombre: 'Sin analista asignado',
       leads: 8,
       conversionPct: 0,
     }
@@ -109,7 +109,7 @@ describe('ranking general de vendedores', () => {
       />,
     )
 
-    expect(screen.getByText('7 vendedores · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('7 analistas · sin límite fijo de participantes')).toBeInTheDocument()
     expect(screen.getByText('(Cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes')).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
@@ -133,8 +133,8 @@ describe('ranking general de vendedores', () => {
     expect(within(filaFabio).getByText('—')).toBeInTheDocument()
     expect(within(filaFabio).getByText('Solo cierres de arrastre')).toBeInTheDocument()
     expect(within(tabla).queryByText('Gabriela Soto')).not.toBeInTheDocument()
-    expect(within(tabla).queryByText('Sin vendedor asignado')).not.toBeInTheDocument()
-    const fueraConversion = screen.getByRole('region', { name: 'Vendedores sin posición en conversión' })
+    expect(within(tabla).queryByText('Sin analista asignado')).not.toBeInTheDocument()
+    const fueraConversion = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })
     expect(within(fueraConversion).getByText('Gabriela Soto')).toBeInTheDocument()
     expect(within(fueraConversion).getByText('Sin muestra')).toBeInTheDocument()
     // Elena trabajó (recibió referidos): rótulo PROPIO, jamás «Sin muestra».
@@ -156,8 +156,8 @@ describe('ranking general de vendedores', () => {
     expect(within(filasCapital[1]!).getByText(/S\/ 290,000 \+ US\$ 16,000/)).toBeInTheDocument()
     expect(within(filasCapital[1]!).getByText(/S\/ 285,000/)).toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Gabriela Soto')).not.toBeInTheDocument()
-    expect(within(tablaCapital).queryByText('Sin vendedor asignado')).not.toBeInTheDocument()
-    const fueraCapital = screen.getByRole('region', { name: 'Vendedores sin posición en capital' })
+    expect(within(tablaCapital).queryByText('Sin analista asignado')).not.toBeInTheDocument()
+    const fueraCapital = screen.getByRole('region', { name: 'Analistas sin posición en capital' })
     expect(within(fueraCapital).getByText('Gabriela Soto')).toBeInTheDocument()
     expect(within(fueraCapital).getAllByText('Sin meta').length).toBeGreaterThan(0)
     expect(within(fueraCapital).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
@@ -260,7 +260,7 @@ describe('ranking general de vendedores', () => {
 
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     expect(within(tabla).getAllByRole('row')).toHaveLength(1)
-    const fuera = screen.getByRole('region', { name: 'Vendedores sin posición en conversión' })
+    const fuera = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })
     expect(within(fuera).getAllByText('No disponible')).toHaveLength(conversionEquipoDemo().length)
     expect(within(fuera).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
   })
@@ -283,7 +283,7 @@ describe('ranking general de vendedores', () => {
 
     expect(screen.queryByText('No disponible')).not.toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Ranking de conversión general' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Vendedores sin posición en conversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Analistas sin posición en conversión' })).not.toBeInTheDocument()
   })
 })
 
@@ -315,7 +315,7 @@ describe('la relación pestaña↔panel sobrevive a error y a vacío (observaci�
     const panel = screen.getByRole('tabpanel')
     expect(panel).toHaveAttribute('id', 'panel-ranking-capital')
     expect(panel).toHaveAttribute('aria-labelledby', 'tab-ranking-capital-total')
-    expect(within(panel).getByText('Aún no hay vendedores para mostrar')).toBeInTheDocument()
+    expect(within(panel).getByText('Aún no hay analistas para mostrar')).toBeInTheDocument()
   })
 })
 

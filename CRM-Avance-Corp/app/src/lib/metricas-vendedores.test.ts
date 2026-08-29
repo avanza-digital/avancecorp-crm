@@ -457,7 +457,7 @@ describe('mapearMetricasVendedores', () => {
   })
 
   it('el puente acepta el servidor previo pero oculta su entero; con raíces C0.1 exige el bundle', () => {
-    // F2.4b vigente: vendedor trae cuatro exactas pero todavía no cierres; los
+    // F2.4b vigente: analista trae cuatro exactas pero todavía no cierres; los
     // equipos no traen ninguna exacta y tampoco existen las dos raíces C0.1.
     const { nucleo_convertidos: _cierres, ...vieja } = fila()
     const { nucleo_convertidos: _cierresEquipo, operaciones_cartera: _operacionesEquipo,
@@ -817,7 +817,7 @@ describe('metricasVendedoresDesdeAmbito — foto operativa + núcleo demo mensua
     })
   })
 
-  it('un supervisor activo sin vendedores canónicos es un conjunto vacío verificado, no una ausencia', () => {
+  it('un supervisor activo sin analistas canónicos es un conjunto vacío verificado, no una ausencia', () => {
     const mensual = derivarConversionMensual(
       AHORA,
       { alcance: 'global' },

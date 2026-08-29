@@ -30,7 +30,7 @@ export const MODALIDAD_LABEL = Object.fromEntries(
   MODALIDADES_UI.map((m) => [m.k, m.label]),
 ) as Record<ModalidadContrato, string>
 
-// Prefijo FIJO del N° de contrato: el asesor solo escribe los 6 dígitos (espejo
+// Prefijo FIJO del N° de contrato: el analista solo escribe los 6 dígitos (espejo
 // de PREFIJO_CONTRATO de analista.js). Si el número no viaja, el servidor
 // inventa la numeración VIEJA 'AC-2026-XXXX' — por eso el campo es obligatorio
 // en ambos formularios y RE_SEIS_DIGITOS es su validación exacta.

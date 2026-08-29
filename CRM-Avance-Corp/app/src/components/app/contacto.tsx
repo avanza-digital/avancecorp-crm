@@ -125,7 +125,7 @@ export function AccionesContacto({
     if (escribe) pendiente.current = { canal, ts: Date.now() }
   }
 
-  // Llamar desde la laptop no marca: el asesor usa su celular corporativo.
+  // Llamar desde la laptop no marca: el analista usa su celular corporativo.
   // Copiamos el número (para que lo marque) y abrimos directo el registro del
   // resultado. Directorio no registra (solo copia).
   const llamar = async () => {
@@ -224,7 +224,7 @@ export function AccionesContacto({
  * hábil— para el lead de la fila. Hasta hoy había que abrir la ficha, bajar
  * hasta la agenda y llenar un formulario para dejar programado el paso obvio.
  *
- * Se agenda de una y se AVISA cuándo quedó; si el asesor quería otra cosa,
+ * Se agenda de una y se AVISA cuándo quedó; si el analista quería otra cosa,
  * cambia la fecha desde la ficha. Pedirle el formulario por adelantado para el
  * 90% de los casos idénticos es justo la fricción que esto quita.
  */
@@ -284,7 +284,7 @@ const OPCIONES: Record<Canal, ReadonlyArray<{ tipo: TipoActividadManual; label: 
 /**
  * Aviso HONESTO de lo que acaba de pasar. Un tap puede desencadenar tres cosas
  * (registrar, mover la etapa, cerrar la tarea y agendar la siguiente); si el
- * toast solo dice "Contacto registrado", el asesor descubre el resto por
+ * toast solo dice "Contacto registrado", el analista descubre el resto por
  * accidente y deja de confiar en el sistema. Se enumera lo que ocurrió DE
  * VERDAD, en el orden en que ocurrió.
  */
@@ -354,7 +354,7 @@ function DialogResultado({
   // ANTI-DUPLICADO: si el lead ya tiene un plan vivo que este contacto no
   // cierra, no se le agenda otro encima — ese lead ya tiene dueño de su
   // siguiente paso (misma regla que la cola con `tienePlan`).
-  // Si el vendedor DESTILDA el cierre de la tarea, esa tarea sigue viva → no se
+  // Si el analista DESTILDA el cierre de la tarea, esa tarea sigue viva → no se
   // le puede encimar un segundo plan. La condición depende del checkbox, no
   // solo de que exista una candidata.
   const cerrara = tarea != null && cierraTarea
@@ -466,9 +466,9 @@ function DialogResultado({
           className="min-h-[56px] text-xs"
         />
         {/* NADA EN SILENCIO. El cierre de una tarea es irreversible y agendar
-            escribe en la agenda del asesor: las dos cosas se nombran, vienen
+            escribe en la agenda del analista: las dos cosas se nombran, vienen
             premarcadas (es lo que quiere el 95% de las veces) y se destildan
-            con un tap. Sin esto, el vendedor no entiende qué le pasó a su día. */}
+            con un tap. Sin esto, el analista no entiende qué le pasó a su día. */}
         {(tarea || puedeAgendar) && (
           <div className="space-y-1.5 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2.5">
             {tarea && (

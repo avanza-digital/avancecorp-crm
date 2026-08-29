@@ -136,13 +136,13 @@ const SALTOS: ReadonlyArray<{ label: string; aria: string; dias: number }> = [
  *
  * La base NO es siempre `vence_en`: sobre una tarea VENCIDA se cuenta desde
  * AHORA. Sumar sobre su fecha dejaba "+1d" de algo vencido hace 5 días todavía
- * vencido (hace 4): la tarjeta no salía de la franja de vencidas, el asesor leía
+ * vencido (hace 4): la tarjeta no salía de la franja de vencidas, el analista leía
  * "Reprogramada" y volvía a pulsar — y cada pulsación inútil suma una
  * `reprogramaciones` (la métrica con la que supervisión lo juzga, visible en la
  * propia tarjeta como "movida ×N") y borra `confirmada_en`, el anti no-show.
  *
  * Sobre una tarea FUTURA la base sigue siendo su propia fecha: posponer "+1d"
- * una cita del viernes es el sábado, que es lo que el asesor espera al aplazar
+ * una cita del viernes es el sábado, que es lo que el analista espera al aplazar
  * algo que aún no vence (y no "mañana", que la ADELANTARÍA).
  *
  * `slotHabil` es el mismo normalizador del motor de la siguiente acción: ningún
@@ -213,7 +213,7 @@ function TarjetaTarea({
     const destino = destinoSalto(t.vence_en, dias, ahora)
     const res = reprogramarTarea(t.id, destino)
     // El toast nombra el DÍA de destino en vez del salto pedido ("+1d"): si la
-    // base fue AHORA (vencida) o la ventana legal corrió el slot, el asesor lo
+    // base fue AHORA (vencida) o la ventana legal corrió el slot, el analista lo
     // ve — nunca vuelve a pulsar creyendo que no pasó nada (patrón de
     // FilaHigiene en hoy/vendedor.tsx, que ya anuncia "Movida al …").
     const cuando = tareaAEvento({ ...t, vence_en: destino }, ahora).cuando
@@ -286,7 +286,7 @@ function TarjetaTarea({
             </span>
           )}
           {/* Dueño de la tarea — solo para quien supervisa (la lista del
-              vendedor no necesita decirle que las tareas son suyas). */}
+              analista no necesita decirle que las tareas son suyas). */}
           {verEquipo && responsableNombre && (
             <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
               <Avatar nombre={responsableNombre} className="size-4 text-[7px]" />
@@ -295,7 +295,7 @@ function TarjetaTarea({
           )}
           {escribe && (
             // Reprogramar rápido, SIEMPRE alcanzable. Antes iba `hidden sm:flex`
-            // y en el celular —donde el asesor de calle trabaja— no quedaba
+            // y en el celular —donde el analista de calle trabaja— no quedaba
             // NINGUNA forma de posponer una tarea: en táctil no hay hover ni
             // ancho ≥ 640 px.
             <span className="flex items-center gap-1">
@@ -880,7 +880,7 @@ export function Agenda() {
   const [offsetSemana, setOffsetSemana] = useState(0)
   const [offsetMes, setOffsetMes] = useState(0)
   const [diaSel, setDiaSel] = useState<string | null>(null)
-  // La página es por tarea para vendedor y por persona para supervisión: ambos
+  // La página es por tarea para analista y por persona para supervisión: ambos
   // conservan el mismo tope visual sin disfrazar una cola enorme como pantalla.
   const [paginaBandeja, setPaginaBandeja] = useState(0)
   const [paginaMes, setPaginaMes] = useState(0)
@@ -939,7 +939,7 @@ export function Agenda() {
   const visibles = vista === 'hoy' ? delDia : filtrados
   const grupos = useMemo(() => agruparPorDiaLabel(visibles, ahora), [visibles, ahora])
   // Supervisión: las mismas tareas visibles, pero por dueño (vencidas y carga
-  // primero — donde se acumula el problema). El vendedor no pasa por aquí.
+  // primero — donde se acumula el problema). El analista no pasa por aquí.
   const gruposPersona = useMemo(
     () => (verEquipo ? agruparPorPersona(visibles, leadPorId, equipo, ahora) : []),
     [verEquipo, visibles, leadPorId, equipo, ahora],
@@ -1477,7 +1477,7 @@ export function Agenda() {
                 )
               })}
 
-            {/* Vendedor: timeline operable agrupado por día. La paginación es
+            {/* Analista: timeline operable agrupado por día. La paginación es
               por tarea, así que la cola conserva su orden sin crear un muro
               de cards iguales al abrir Todo. */}
             {!verEquipo &&

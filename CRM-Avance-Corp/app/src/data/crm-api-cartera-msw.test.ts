@@ -86,7 +86,7 @@ describe('listarCarteraPagina — argumentos que viajan', () => {
     expect(cuerpo.p_antes_id).toBe('lead-050')
   })
 
-  it('traduce «sin_asignar» a p_sin_asignar y un vendedor a p_vendedor_id', async () => {
+  it('traduce «sin_asignar» a p_sin_asignar y un analista a p_vendedor_id', async () => {
     const cuerpos: Record<string, unknown>[] = []
     server.use(http.post(RPC, async ({ request }) => {
       cuerpos.push(await request.json() as Record<string, unknown>)

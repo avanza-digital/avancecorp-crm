@@ -49,7 +49,7 @@ export const USERS = Object.freeze([
   {
     key: 'vend1',
     email: 'vend1.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR UNO',
+    name: 'ANALISTA UNO',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup1',
@@ -59,7 +59,7 @@ export const USERS = Object.freeze([
   {
     key: 'vend2',
     email: 'vend2.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR DOS',
+    name: 'ANALISTA DOS',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup1',
@@ -69,7 +69,7 @@ export const USERS = Object.freeze([
   {
     key: 'vend3',
     email: 'vend3.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR TRES',
+    name: 'ANALISTA TRES',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup2',
@@ -79,7 +79,7 @@ export const USERS = Object.freeze([
   {
     key: 'vend4',
     email: 'vend4.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR CUATRO',
+    name: 'ANALISTA CUATRO',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup2',
@@ -89,7 +89,7 @@ export const USERS = Object.freeze([
   {
     key: 'vendNested',
     email: 'vend-anidado.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR ANIDADO',
+    name: 'ANALISTA ANIDADO',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup1Nested',
@@ -99,7 +99,7 @@ export const USERS = Object.freeze([
   {
     key: 'vendInactive',
     email: 'vend-inactivo.crm@demo.avancecorp.pe',
-    name: 'VENDEDOR INACTIVO',
+    name: 'ANALISTA INACTIVO',
     portalRole: 'comercial',
     crmRole: 'vendedor',
     supervisorKey: 'sup2',
@@ -223,7 +223,7 @@ export const LEADS = Object.freeze([
     key: 'inactiveOwned',
     id: '11000000-0000-4000-8000-000000000007',
     activityId: '22000000-0000-4000-8000-000000000007',
-    name: 'LEAD DE VENDEDOR INACTIVO DEMO',
+    name: 'LEAD DE ANALISTA INACTIVO DEMO',
     phone: '987654327',
     sellerKey: 'vendInactive',
     supervisorKey: null,
@@ -240,7 +240,7 @@ export const LEAD_BY_KEY = Object.freeze(
 const leadNames = (...keys) => keys.map((key) => LEAD_BY_KEY[key].name).sort();
 
 // Esta matriz es consumida directamente por test-rls.mjs. Supervisor 1 ve 4:
-// dos de vend1, uno del vendedor nieto (vendNested) y su lead parkeado.
+// dos de vend1, uno del analista nieto (vendNested) y su lead parkeado.
 export const EXPECTED_LEAD_NAMES = Object.freeze({
   gerencia: leadNames('juan', 'maria', 'carlos', 'ana', 'luis', 'rosa', 'inactiveOwned'),
   sup1: leadNames('juan', 'maria', 'carlos', 'luis'),
@@ -420,7 +420,7 @@ export const TRANSIENT_IDS = Object.freeze({
   descarteLeadCarrera: randomUUID(),
   // C1-ter — la vista de descartados (pestaña del coordinador).
   descarteLeadVista: randomUUID(),
-  // El reloj del vendedor — tenencia_desde (mide al asesor, no al lead).
+  // El reloj del analista — tenencia_desde (mide al analista, no al lead).
   tenenciaLeadViejo: randomUUID(),
   tenenciaLeadPropio: randomUUID(),
   // Avance automatico de etapa: la conversacion sube, el intento no.
@@ -431,6 +431,8 @@ export const TRANSIENT_IDS = Object.freeze({
   avanceLeadColaGlobal: randomUUID(),
   avanceLeadReunion: randomUUID(),
   foreignCreatorTarea: randomUUID(),
+  supervisorClientTarea: randomUUID(),
+  analystClientTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),
   rpcCloseTarea: randomUUID(),
@@ -442,7 +444,7 @@ export const TRANSIENT_IDS = Object.freeze({
   anularTareaLlamada: randomUUID(),
   anularLeadSistema: randomUUID(),
   anularTareaSistema: randomUUID(),
-  // La anulacion AJENA: el supervisor anula la tarea de su vendedor
+  // La anulacion AJENA: el supervisor anula la tarea de su analista
   // (20260727032429). Lead propio para no contaminar los conteos de arriba.
   anularLeadAjena: randomUUID(),
   anularTareaAjena: randomUUID(),
@@ -525,7 +527,7 @@ export function validateFixtureModel() {
       throw new Error(`Fixtures invalidos: moneda invalida para ${lead.key}.`);
     }
     if (lead.sellerKey && USER_BY_KEY[lead.sellerKey]?.crmRole !== 'vendedor') {
-      throw new Error(`Fixtures invalidos: vendedor inexistente para ${lead.key}.`);
+      throw new Error(`Fixtures invalidos: analista inexistente para ${lead.key}.`);
     }
     if (lead.supervisorKey && USER_BY_KEY[lead.supervisorKey]?.crmRole !== 'supervisor') {
       throw new Error(`Fixtures invalidos: supervisor de parkeo invalido para ${lead.key}.`);

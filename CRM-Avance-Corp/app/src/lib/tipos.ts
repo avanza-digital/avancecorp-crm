@@ -86,7 +86,7 @@ export const TIPOS_CONTACTO_K: ReadonlySet<string> = new Set(TIPOS_CONTACTO)
  * TIPOS_CONTACTO, y espejo del `WHEN` de `trg_zz_actividades_avance_etapa`.
  *
  * La diferencia con TIPOS_CONTACTO no es un matiz, son dos preguntas distintas:
- *   · TIPOS_CONTACTO responde «¿el asesor TRABAJÓ el lead?» → mide esfuerzo, y
+ *   · TIPOS_CONTACTO responde «¿el analista TRABAJÓ el lead?» → mide esfuerzo, y
  *     de eso viven el SLA y la cola (un intento fallido SÍ es trabajo).
  *   · TIPOS_CONVERSACION responde «¿el cliente RESPONDIÓ?» → mide el embudo, y
  *     de eso vive la etapa (un intento fallido NO es haber hablado con nadie).
@@ -359,8 +359,8 @@ export interface Lead {
   asignado_supervisor_id?: string | null
   creado_en: string
   /**
-   * Instante en que el VENDEDOR ACTUAL recibió el lead (null si no tiene dueño,
-   * está inactivo o cerrado). Es el reloj que mide AL ASESOR: `creado_en` mide
+   * Instante en que el ANALISTA ACTUAL recibió el lead (null si no tiene dueño,
+   * está inactivo o cerrado). Es el reloj que mide AL ANALISTA: `creado_en` mide
    * cuánto lleva esperando EL CLIENTE, y entre uno y otro puede haber días de
    * cola de Rosa y bandeja del supervisor. La cola de acción usa este para no
    * pintar en rojo a quien acaba de recibir el lead. Lo sella el servidor
@@ -546,7 +546,7 @@ export interface LeadDescartado {
 }
 
 /**
- * Un episodio histórico de descarte de un asesor. A diferencia de
+ * Un episodio histórico de descarte de un analista. A diferencia de
  * `LeadDescartado`, permanece aunque el lead ya haya sido reactivado: su fecha
  * y motivo salen del ledger inmutable de asignaciones, no de la fila viva.
  * La RPC excluye PII de contacto deliberadamente.
@@ -583,7 +583,7 @@ export interface SupervisorReparto {
   perfil_id: string
   nombre: string
   activo: boolean
-  /** Leads que ya esperan en su bandeja (sin vendedor todavía). */
+  /** Leads que ya esperan en su bandeja (sin analista todavía). */
   bandeja_pendiente: number
 }
 

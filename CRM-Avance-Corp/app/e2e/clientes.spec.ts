@@ -1,6 +1,6 @@
 // E2E de la cartera de clientes (#/clientes) — la vista por DEFECTO de una
 // cuenta real con el gate de leads cerrado (FUNCIONES_LEADS_APROBADAS=false).
-// La pantalla se adapta por rol: vendedor ("Mis clientes", acciones en sus
+// La pantalla se adapta por rol: analista ("Mis clientes", acciones en sus
 // filas), supervisor (su cartera + equipo, acciones SOLO en filas propias —
 // regla de cartera POR FILA del servidor), Gerencia (todo y opera todo) y
 // Directorio (todo en lectura). Todo el HTTP de Supabase va interceptado por
@@ -11,11 +11,11 @@ import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal
 // Fase 6.1 (2026-07-21): la pantalla Clientes se RETIRÓ. Esta suite prueba su
 // layout de tabla ("Mis clientes: N", columnas del portal, "Corregir datos",
 // búsqueda "Buscar clientes", filas por rol) — TODO ello reemplazado por la
-// cartera unificada, cuya tabla + búsqueda + filtro-por-asesor + "Sin asesor" +
+// cartera unificada, cuya tabla + búsqueda + filtro-por-analista + "Sin analista" +
 // gating POR FILA ya están cubiertos en `screens/mi-cartera.test.tsx` (vitest,
 // incluida la parity de supervisión portada en Fase 6.1). El alta/corrección de
 // cliente en real-browser vive en `cliente-form.spec.ts` (migrado a #/mi-cartera).
-test.skip(true, 'Fase 6: Clientes retirada — cobertura de tabla/búsqueda/filtro-asesor/gating en mi-cartera.test.tsx; alta/corrección en cliente-form.spec.ts')
+test.skip(true, 'Fase 6: Clientes retirada — cobertura de tabla/búsqueda/filtro-analista/gating en mi-cartera.test.tsx; alta/corrección en cliente-form.spec.ts')
 
 // Cartera de dos clientes: uno RECIÉN creado (ventana de 5 h viva) y uno viejo
 // (ventana vencida) — el par exacto que necesita el reloj y el gate de corregir.
@@ -40,11 +40,11 @@ function carteraDeSupervision() {
       nombre_completo: 'CLIENTE PROPIO SUPERVISOR',
       dni: '40000001',
       correo: 'propio@correo.pe',
-      // asesor = yo (UID): fila de MI cartera personal → acciones.
+      // `asesor_perfil_id = UID`: fila de MI cartera personal → acciones.
     }),
     clienteReal({
       id: 'cli-del-equipo',
-      nombre_completo: 'CLIENTE DEL VENDEDOR UNO',
+      nombre_completo: 'CLIENTE DEL ANALISTA UNO',
       dni: '40000002',
       correo: 'equipo@correo.pe',
       asesor_perfil_id: 'vend-1',
@@ -52,10 +52,10 @@ function carteraDeSupervision() {
     }),
     clienteReal({
       id: 'cli-huerfano-mio',
-      nombre_completo: 'CLIENTE SIN ASESOR CREADO POR MI',
+      nombre_completo: 'CLIENTE SIN ANALISTA CREADO POR MI',
       dni: '40000003',
       correo: 'huerfano@correo.pe',
-      // La rama OR de la regla del servidor: sin asesor, manda creado_por.
+      // Rama OR del servidor: con `asesor_perfil_id` nulo, `creado_por` define el dueño.
       asesor_perfil_id: null,
       creado_por: UID,
     }),
@@ -78,9 +78,9 @@ test('lista: pinta la cartera con columnas del portal y el contador', async ({ p
   // La regla de las 5 h se explica en pantalla (copy del portal).
   await expect(page.getByText(/El reloj de corrección corre 5 h/)).toBeVisible()
 
-  // El vendedor solo ve SU cartera: ni columna Asesor ni filtro por asesor.
-  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toHaveCount(0)
-  await expect(page.getByLabel('Filtrar por asesor')).toHaveCount(0)
+  // El analista solo ve SU cartera: ni columna Analista ni filtro por analista.
+  await expect(page.getByRole('columnheader', { name: 'Analista' })).toHaveCount(0)
+  await expect(page.getByLabel('Filtrar por analista')).toHaveCount(0)
 })
 
 test('reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el vencido', async ({ page }) => {
@@ -160,39 +160,39 @@ test('supervisor: acciones SOLO en filas de su cartera personal (regla de carter
   // Sigue siendo analista del portal: el alta sí se le ofrece.
   await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible()
 
-  // Fila PROPIA (asesor = yo): Corregir y + Contrato presentes.
+  // Fila PROPIA (`asesor_perfil_id = UID`): Corregir y + Contrato presentes.
   const filaMia = page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })
   await expect(filaMia.getByRole('button', { name: 'Corregir datos' })).toBeVisible()
   await expect(filaMia.getByRole('button', { name: '+ Contrato' })).toBeVisible()
 
-  // Fila huérfana creada por mí (asesor NULL + creado_por = yo): también MÍA —
+  // Fila huérfana creada por mí (`asesor_perfil_id` NULL + `creado_por = UID`): también MÍA —
   // es la rama OR exacta de crear_contrato/perfiles_analista_update.
-  const filaHuerfana = page.getByRole('row', { name: /CLIENTE SIN ASESOR CREADO POR MI/ })
+  const filaHuerfana = page.getByRole('row', { name: /CLIENTE SIN ANALISTA CREADO POR MI/ })
   await expect(filaHuerfana.getByRole('button', { name: '+ Contrato' })).toBeVisible()
 
   // Fila del EQUIPO: CERO botones (el servidor los rechazaría: "Solo puedes
-  // crear contratos para clientes de tu cartera") y el asesor a la vista.
-  const filaAjena = page.getByRole('row', { name: /CLIENTE DEL VENDEDOR UNO/ })
+  // crear contratos para clientes de tu cartera") y el analista a la vista.
+  const filaAjena = page.getByRole('row', { name: /CLIENTE DEL ANALISTA UNO/ })
   await expect(filaAjena.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
   await expect(filaAjena.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
-  await expect(filaAjena.getByText('Vendedor Real Uno')).toBeVisible()
+  await expect(filaAjena.getByText('Analista Real Uno')).toBeVisible()
 })
 
-test('supervisor: filtro por asesor con el roster (incluye la herencia por creado_por)', async ({ page }) => {
+test('supervisor: filtro por analista con el roster (incluye la herencia por creado_por)', async ({ page }) => {
   await montarBackendReal(page, { rolCrm: 'supervisor', clientes: carteraDeSupervision() })
   await loginReal(page)
   await expect(page.getByText('Cartera de clientes: 3')).toBeVisible()
 
-  // Solo la cartera del vendedor del equipo.
-  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'Vendedor Real Uno' })
-  await expect(page.getByRole('row', { name: /CLIENTE DEL VENDEDOR UNO/ })).toBeVisible()
+  // Solo la cartera del analista del equipo.
+  await page.getByLabel('Filtrar por analista').selectOption({ label: 'Analista Real Uno' })
+  await expect(page.getByRole('row', { name: /CLIENTE DEL ANALISTA UNO/ })).toBeVisible()
   await expect(page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })).toHaveCount(0)
   await expect(page.getByText('1 de 3')).toBeVisible()
 
   // Mi cartera personal incluye la fila huérfana (dueño por creado_por).
-  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'Gerente Real' })
+  await page.getByLabel('Filtrar por analista').selectOption({ label: 'Gerente Real' })
   await expect(page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })).toBeVisible()
-  await expect(page.getByRole('row', { name: /CLIENTE SIN ASESOR CREADO POR MI/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE SIN ANALISTA CREADO POR MI/ })).toBeVisible()
   await expect(page.getByText('2 de 3')).toBeVisible()
 })
 
@@ -229,10 +229,14 @@ test('paginación: 60 clientes → 2 páginas de 50 con Anterior/Siguiente', asy
   await expect(page.getByRole('row', { name: /CLIENTE PAGINA 001/ })).toBeVisible()
 })
 
-// Gerencia (aunque su rol de portal sea 'directorio') ve y opera toda la cartera
-// por su rol CRM. No hereda la ventana de 5 h del analista.
-test('gerencia: cartera completa con columna Asesor y acciones globales', async ({ page }) => {
-  await montarBackendReal(page, { rolPortal: 'directorio', clientes: carteraConVentanas() })
+// Gerencia ve y opera toda la cartera por su rol CRM y una identidad Portal
+// operativa válida. No hereda la ventana de 5 h del analista.
+test('gerencia: cartera completa con columna Analista y acciones globales', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'comercial',
+    clientes: carteraConVentanas(),
+  })
   await loginReal(page)
   // Gerencia aterriza en su panel Hoy (gate parcial 2026-07-16): navega a Clientes.
   await page.getByRole('button', { name: 'Clientes' }).click()
@@ -242,8 +246,8 @@ test('gerencia: cartera completa con columna Asesor y acciones globales', async 
 
   const filaVieja = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
   await expect(filaVieja).toBeVisible()
-  // Columna Asesor con el nombre resuelto del roster (UID → Gerente Real).
-  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toBeVisible()
+  // Columna Analista con el nombre resuelto del roster (UID → Gerente Real).
+  await expect(page.getByRole('columnheader', { name: 'Analista' })).toBeVisible()
   await expect(filaVieja.getByText('Gerente Real')).toBeVisible()
 
   // Acciones globales, sin reloj: la ventana de 5 h solo limita al analista.
@@ -265,28 +269,28 @@ test('cartera vacía: estado vacío con el copy del portal', async ({ page }) =>
 
 // ── DEMO (fixtures gated + recorte de ámbito local; cero red) ──────────────────
 
-test('demo vendedor: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase', async ({ page }) => {
+test('demo analista: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase', async ({ page }) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase. Si el
   // módulo intentara listar/crear, el route lo abortaría y el contador (== 0 al
   // final) lo delataría.
   const requestsSupabase = await bloquearSupabase(page)
 
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Clientes' }).click()
 
   // El ámbito demo espeja el scoping del servidor: d-v1 ve SOLO sus 3 clientes
   // (ROSA/JAVIER/GLADYS); BRUNO (d-v3) y NADIA (d-v2) quedan fuera.
   await expect(page.getByText('Mis clientes: 3')).toBeVisible()
   await expect(page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ })).toHaveCount(0)
-  // Sin equipo no hay columna Asesor.
-  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toHaveCount(0)
+  // Sin equipo no hay columna Analista.
+  await expect(page.getByRole('columnheader', { name: 'Analista' })).toHaveCount(0)
 
   // El reloj de 5 h: viva para la recién creada (−1 h), Bloqueado para la vieja (−40 d).
   const filaViva = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(filaViva.getByText(/Quedan \d+ h \d{2} m/)).toBeVisible()
   await expect(page.getByRole('row', { name: /GLADYS PILAR YUPANQUI ROJAS/ }).getByText('Bloqueado')).toBeVisible()
 
-  // JAVIER no tiene asesor asignado pero lo creó d-v1: la rama OR de la regla
+  // JAVIER no tiene analista asignado pero lo creó d-v1: la rama OR de la regla
   // de cartera le da acciones igual (espejo del servidor).
   await expect(
     page.getByRole('row', { name: /JAVIER ERNESTO MEZA COLLANTES/ }).getByRole('button', { name: 'Corregir datos' }),
@@ -315,12 +319,12 @@ test('demo supervisor: su cartera + equipo, acciones SOLO en la fila propia', as
   await expect(filaPropia.getByRole('button', { name: 'Corregir datos' })).toBeEnabled()
   await expect(filaPropia.getByRole('button', { name: '+ Contrato' })).toBeVisible()
 
-  // Fila del equipo: sin botones y con el asesor a la vista; la sigla CE
+  // Fila del equipo: sin botones y con el analista a la vista; la sigla CE
   // acompaña al documento (patrón del portal).
   const filaEquipo = page.getByRole('row', { name: /NADIA SOLEDAD CHOQUE MAMANI/ })
   await expect(filaEquipo.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
   await expect(filaEquipo.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
-  await expect(filaEquipo.getByText('VENDEDOR DOS')).toBeVisible()
+  await expect(filaEquipo.getByText('ANALISTA DOS')).toBeVisible()
   await expect(filaEquipo.getByText('CE', { exact: true })).toBeVisible()
 
   expect(requestsSupabase()).toBe(0)
@@ -333,15 +337,15 @@ test('demo gerencia: los 6 clientes, acciones globales, búsqueda y filtro', asy
   await page.getByRole('button', { name: 'Clientes' }).click()
 
   await expect(page.getByText('Cartera de clientes: 6')).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'Analista' })).toBeVisible()
 
-  // El pasaporte luce su sigla y su asesor (BRUNO es de VENDEDOR TRES).
+  // El pasaporte luce su sigla y su analista (BRUNO es de ANALISTA TRES).
   const filaBruno = page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ })
   await expect(filaBruno.getByText('PASAPORTE')).toBeVisible()
   await expect(filaBruno.getByText('PE1548792')).toBeVisible()
-  await expect(filaBruno.getByText('VENDEDOR TRES')).toBeVisible()
+  await expect(filaBruno.getByText('ANALISTA TRES')).toBeVisible()
 
-  // Gerencia opera toda la cartera, incluso si el cliente pertenece a otro asesor.
+  // Gerencia opera toda la cartera, incluso si el cliente pertenece a otro analista.
   await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Corregir datos' }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: '+ Contrato' }).first()).toBeVisible()
@@ -353,9 +357,9 @@ test('demo gerencia: los 6 clientes, acciones globales, búsqueda y filtro', asy
   await expect(page.getByText('1 de 6')).toBeVisible()
   await page.getByLabel('Buscar clientes').fill('')
 
-  // Filtro por asesor: la cartera de VENDEDOR UNO incluye a JAVIER (sin asesor
+  // Filtro por analista: la cartera de ANALISTA UNO incluye a JAVIER (sin analista
   // asignado, dueño por creado_por) — 3 de 6.
-  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'VENDEDOR UNO' })
+  await page.getByLabel('Filtrar por analista').selectOption({ label: 'ANALISTA UNO' })
   await expect(page.getByText('3 de 6')).toBeVisible()
   await expect(page.getByRole('row', { name: /JAVIER ERNESTO MEZA COLLANTES/ })).toBeVisible()
   await expect(page.getByRole('row', { name: /NADIA SOLEDAD CHOQUE MAMANI/ })).toHaveCount(0)

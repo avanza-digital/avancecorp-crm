@@ -258,7 +258,7 @@ beforeEach(() => {
 })
 
 describe('AlertasCRMProvider', () => {
-  it('deriva al vendedor solo desde su ámbito local y no habilita métricas globales', () => {
+  it('deriva al analista solo desde su ámbito local y no habilita métricas globales', () => {
     montar('vendedor')
 
     expect(derivarVendedor).toHaveBeenCalledWith({
@@ -307,7 +307,7 @@ describe('AlertasCRMProvider', () => {
     LEADS_VISIBLES = false
     montar('vendedor')
 
-    // El espejo de vistas.ts: si el vendedor no puede ABRIR la bandeja, el
+    // El espejo de vistas.ts: si el analista no puede ABRIR la bandeja, el
     // provider no debe pedir recordatorios ni derivar alertas invisibles.
     expect(consultaRecordatorios).toHaveBeenCalledWith(false)
     expect(screen.getByRole('status')).not.toHaveTextContent('revisar-contacto')
@@ -330,7 +330,7 @@ describe('AlertasCRMProvider', () => {
     expect(derivarGerencia).not.toHaveBeenCalled()
     expect(consultasConversion.mock.calls.every(([habilitada]) => habilitada === false)).toBe(true)
     expect(screen.getByRole('status')).toHaveTextContent('equipo-1')
-    // Los recordatorios son EXCLUSIVOS del vendedor: supervisión ni consulta.
+    // Los recordatorios son EXCLUSIVOS del analista: supervisión ni consulta.
     expect(consultaRecordatorios).toHaveBeenCalledWith(false)
   })
 
@@ -465,7 +465,7 @@ describe('AlertasCRMProvider', () => {
     expect(estado.errores.join(' ')).toContain('tope local de leads')
   })
 
-  it('F4: el vendedor ni consulta el libro ni puede asentar en él', () => {
+  it('F4: el analista ni consulta el libro ni puede asentar en él', () => {
     montar('vendedor')
 
     expect(consultaReconocimientos).toHaveBeenCalledWith(false)

@@ -1,5 +1,5 @@
 // Helper PURO de la pantalla Cartera (la fusión Clientes + Contratos del
-// vendedor): agrupa cada cliente con SUS contratos (1:N) y calcula el capital
+// analista): agrupa cada cliente con SUS contratos (1:N) y calcula el capital
 // EN JUEGO por cliente — PEN y USD en acumuladores SEPARADOS, jamás sumados.
 // Vive aparte de la pantalla para probarse sin montar React (cartera-vista.test.ts)
 // y SIN importar UI: cruza las dos vistas hermanas que el servidor ya scopeó por
@@ -173,7 +173,7 @@ export interface ResumenCartera {
  *
  *  · DINERO y conteo de clientes → solo la cartera EN GESTIÓN (`cliente.activo`).
  *    Es un TOTAL, y sumar a quien ya fue dado de baja en el portal le inflaría al
- *    asesor un capital que no puede trabajar ni renovar.
+ *    analista un capital que no puede trabajar ni renovar.
  *  · ALARMA de vencimiento → TODOS los clientes. No es un total inflable sino un
  *    aviso: un contrato activo que vence en ≤30 d hay que renovarlo aunque su
  *    titular esté dado de baja, la renovación es el ingreso más rentable del

@@ -187,7 +187,7 @@ function DialogReparto({
         <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 text-xs text-muted-foreground">
           <span className="font-bold text-accent">{n} seleccionados</span>
           {' · '}
-          el historial del mes y el asesor que descartó cada caso no se modifican.
+          el historial del mes y el analista que descartó cada caso no se modifican.
         </div>
         <fieldset className="space-y-2">
           <legend className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Cómo repartir</legend>
@@ -195,28 +195,28 @@ function DialogReparto({
             <input type="radio" name="modo-rescate" checked={modo === 'uno'} onChange={() => setModo('uno')} />
             <span>
               <span className="block text-sm font-semibold">Enviar a una persona</span>
-              <span className="text-xs text-muted-foreground">Todo el bloque llega al asesor seleccionado.</span>
+              <span className="text-xs text-muted-foreground">Todo el bloque llega al analista seleccionado.</span>
             </span>
           </label>
           <label className={cn('flex cursor-pointer gap-3 rounded-lg border p-3', modo === 'equilibrado' ? 'border-accent/40 bg-accent/5' : 'border-border')}>
             <input type="radio" name="modo-rescate" checked={modo === 'equilibrado'} onChange={() => setModo('equilibrado')} />
             <span>
               <span className="block text-sm font-semibold">Repartir equilibradamente</span>
-              <span className="text-xs text-muted-foreground">El CRM alterna los leads entre los asesores elegidos.</span>
+              <span className="text-xs text-muted-foreground">El CRM alterna los leads entre los analistas elegidos.</span>
             </span>
           </label>
         </fieldset>
         {modo === 'uno' ? (
           <div>
-            <label htmlFor="destino-rescate" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Asesor destino</label>
+            <label htmlFor="destino-rescate" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Analista de destino</label>
             <Select id="destino-rescate" value={destinoUnico} onChange={(event) => setDestinoUnico(event.target.value)}>
-              <option value="">Seleccionar asesor…</option>
+              <option value="">Seleccionar analista…</option>
               {asesores.map((asesor) => <option key={asesor.perfil_id} value={asesor.perfil_id}>{asesor.nombre_completo}</option>)}
             </Select>
           </div>
         ) : (
           <fieldset>
-            <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Asesores destino</legend>
+            <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Analistas de destino</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {asesores.map((asesor) => {
                 const activo = destinos.includes(asesor.perfil_id)
@@ -232,7 +232,7 @@ function DialogReparto({
         )}
         <label className="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
           <input type="checkbox" checked={evitarOrigen} onChange={(event) => setEvitarOrigen(event.target.checked)} className="mt-0.5 accent-[var(--accent)]" />
-          <span><span className="font-semibold text-foreground">No devolver al asesor que lo descartó.</span> Si no hay otra persona disponible para un caso, el CRM detendrá todo el reparto.</span>
+          <span><span className="font-semibold text-foreground">No devolver al analista que lo descartó.</span> Si no hay otra persona disponible para un caso, el CRM detendrá todo el reparto.</span>
         </label>
       </DialogBody>
       <DialogFooter>
@@ -542,7 +542,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
                   value={busquedaCarpeta}
                   onChange={(event) => { setBusquedaCarpeta(event.target.value); setPaginaCarpeta(0) }}
                   aria-label="Buscar en la carpeta"
-                  placeholder="Buscar lead, asesor, distrito u origen"
+                  placeholder="Buscar lead, analista, distrito u origen"
                   className="h-9 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-xs outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/15"
                 />
               </div>
@@ -569,7 +569,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
               >
                 <option value="recientes">Más recientes</option>
                 <option value="antiguos">Más antiguos</option>
-                <option value="asesor">Asesor que descartó</option>
+                <option value="asesor">Analista que descartó</option>
                 <option value="origen">Origen del lead</option>
               </Select>
             </div>
@@ -680,7 +680,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Historial de gestión</p>
             <p className="mt-0.5 text-sm font-bold">Mostrando descartes de: {mesActivo ? etiquetaMes(mesActivo) : '—'}</p>
-            <p className="mt-1 text-xs text-muted-foreground">El mes corresponde al día en que el asesor descartó el lead.</p>
+            <p className="mt-1 text-xs text-muted-foreground">El mes corresponde al día en que el analista descartó el lead.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="icon" variant="outline" aria-label="Ver cuatro meses más recientes" disabled={!puedeIrRecientes} onClick={() => {
@@ -824,7 +824,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
               <div>
                 <h2 className="text-sm font-bold">Trazabilidad intacta</h2>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Al reactivar, el descarte conserva su fecha, motivo y asesor origen. El nuevo reparto inicia otro ciclo de gestión.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Al reactivar, el descarte conserva su fecha, motivo y analista de origen. El nuevo reparto inicia otro ciclo de gestión.</p>
               </div>
             </div>
           </Card>

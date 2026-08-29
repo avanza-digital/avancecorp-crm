@@ -1,8 +1,8 @@
-// La conversión mensual ponderada del asesor — el CONTRATO del front con
+// La conversión mensual ponderada del analista — el CONTRATO del front con
 // `crm.conversion_mensual_fn` (migración 20260811154434).
 //
 // La definición (vault: «Conversion mensual - definicion cerrada», 2026-08-10):
-//   divisor   = leads NO referidos que el asesor RECIBIÓ en el mes (asignación,
+//   divisor   = leads NO referidos que el analista RECIBIÓ en el mes (asignación,
 //               hora de Lima); entran abiertos y descartados, nada se cae.
 //   numerador = cierres DEL MES: no referidos al 100 % + referidos × el peso
 //               vigente (hoy 15 %). Un lead de julio cerrado en agosto suma
@@ -116,7 +116,7 @@ const OrigenAjusteSchema = v.object({
 })
 
 /**
- * Lo que se le está descontando al asesor por cierres anulados de meses ya
+ * Lo que se le está descontando al analista por cierres anulados de meses ya
  * pagados (20260815003742). Su `numerador` YA llega neto — esto es el PORQUÉ:
  * «un número que baja sin explicación es una llamada a soporte». `optional`
  * porque un `v.object` laxo también falla por clave AUSENTE, y la vuelta
@@ -138,7 +138,7 @@ const AjusteConversionSchema = v.object({
 export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
 
 /**
- * Operaciones de cartera del mes acreditadas al asesor — el sumando del
+ * Operaciones de cartera del mes acreditadas al analista — el sumando del
  * numerador que NO viene de leads (envoltorio de `20260824231133`; máx. una
  * operación elegible por cliente/mes). Es OBLIGATORIO en el contrato vigente:
  * si falta, no sabemos si hubo cero operaciones o si llegó el núcleo anterior,

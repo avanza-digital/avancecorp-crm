@@ -236,7 +236,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     expect(onCreado).toHaveBeenCalledWith('2026-01-000777')
   })
 
-  it('en demo archiva una sola versión con el número escrito por el vendedor', async () => {
+  it('en demo archiva una sola versión con el número escrito por el analista', async () => {
     const user = userEvent.setup()
     const { onConfirmado, onEnviandoCambio } = montar(DATOS_PDF_DEMO['dc-ct-a'])
     await llenarBase(user)
@@ -483,7 +483,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
 // transacción y private.contrato_pdf_snapshot_v2_base exige el domicilio del
 // titular. Sin él, el raise revertía el contrato ENTERO con un mensaje que no
 // decía cuál era el dato ausente. 313 de los 319 clientes con contrato de
-// producción estaban así, y el vendedor tampoco podía escribirlo: la policy
+// producción estaban así, y el analista tampoco podía escribirlo: la policy
 // perfiles_analista_update solo le abre 5 h desde que él creó al cliente.
 describe('ContratoNuevo — el domicilio legal que falta', () => {
   beforeEach(() => {
@@ -572,7 +572,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
 
     // El bloque solo puede cerrarse porque se volvió a PREGUNTAR al servidor.
     // Sin este refresco, la caché seguiría diciendo "falta domicilio" y el
-    // vendedor quedaría atrapado justo después de haberlo rellenado — un fallo
+    // analista quedaría atrapado justo después de haberlo rellenado — un fallo
     // que el mock no puede reproducir por sí solo (no es una caché de verdad).
     expect(legalesEstado.refetch).toHaveBeenCalledTimes(1)
 
@@ -617,7 +617,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     expect(screen.queryByText(/Av. Los Alamos 123/)).not.toBeInTheDocument()
   })
 
-  it('si la relectura falla tras guardar, NO deja bloqueado al vendedor', async () => {
+  it('si la relectura falla tras guardar, NO deja bloqueado al analista', async () => {
     const user = userEvent.setup()
     legalesEstado.faltaDomicilio = true
     legalesEstado.faltanCliente = ['domicilio']
@@ -651,7 +651,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     expect(crearContrato).toHaveBeenCalledTimes(1)
   })
 
-  it('lo que el vendedor NO puede arreglar se frena nombrando el dato y a quién acudir', async () => {
+  it('lo que el analista NO puede arreglar se frena nombrando el dato y a quién acudir', async () => {
     const user = userEvent.setup()
     legalesEstado.faltanCliente = ['correo']
     legalesEstado.faltanAnalista = ['telefono']

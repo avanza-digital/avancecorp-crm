@@ -86,7 +86,7 @@ describe('presentarDisponibilidadLead', () => {
     })
   })
 
-  it('ya_es_cliente consume el asesor y no conserva la respuesta', () => {
+  it('ya_es_cliente consume el campo legacy `asesor` y no conserva la respuesta', () => {
     const presentacion = presentarDisponibilidadLead({
       estado: 'ya_es_cliente',
       asesor: '  ROSA   DÍAZ  ',
@@ -99,7 +99,7 @@ describe('presentarDisponibilidadLead', () => {
     expect(Object.keys(presentacion).sort()).toEqual(['bloquea', 'mensaje'])
   })
 
-  it('ya_es_cliente no presenta el sentinel de P-047 como nombre de asesor', () => {
+  it('ya_es_cliente no presenta el sentinel de P-047 como nombre de analista', () => {
     expect(presentarDisponibilidadLead({
       estado: 'ya_es_cliente',
       asesor: 'sin asesor asignado',
@@ -227,7 +227,7 @@ describe('contrato tolerante — las claves de las fases siguientes', () => {
 })
 
 describe('tarjetaDisponibilidadLead — la tarjeta §5.2', () => {
-  it('tomado de HOY (sin claves nuevas): asesor limpio y desde cuándo, en fecha de Lima', () => {
+  it('tomado de HOY (sin claves nuevas): analista limpio y desde cuándo, en fecha de Lima', () => {
     expect(tarjetaDisponibilidadLead({
       estado: 'tomado',
       vendedor: '  ANA    PÉREZ  ',
@@ -235,7 +235,7 @@ describe('tarjetaDisponibilidadLead — la tarjeta §5.2', () => {
     })).toEqual({
       titulo: 'Seguimiento activo',
       lineas: [
-        { etiqueta: 'Asesor', valor: 'ANA PÉREZ' },
+        { etiqueta: 'Analista', valor: 'ANA PÉREZ' },
         { etiqueta: 'En seguimiento desde', valor: '3 de agosto de 2026' },
       ],
     })

@@ -17,7 +17,7 @@ import {
 import { tcAplicable, totalEnSoles } from './capital-unificado'
 
 /**
- * Los estados del vendedor en el ranking. Mapa CERRADO servidor→front (la
+ * Los estados del analista en el ranking. Mapa CERRADO servidor→front (la
  * conversión mensual emite cuatro; el quinto lo produce SOLO el cliente):
  *
  *   medible         → 'comparable'      (tiene divisor: compite por puesto)
@@ -43,7 +43,7 @@ export type EstadoConversionVendedor =
   | 'indisponible'
 
 /**
- * Lo ÚNICO que el ranking de conversión necesita de un vendedor.
+ * Lo ÚNICO que el ranking de conversión necesita de un analista.
  *
  * Se nombra aparte porque hay dos payloads que lo satisfacen: el de gerencia
  * (`metricas_conversiones_fn`, que trae mucho más) y el del equipo del supervisor
@@ -97,7 +97,7 @@ export interface PuntoTendenciaEquipo {
 
 export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = DetalleConversionVendedor> {
   /**
-   * `true` solo cuando la RPC entregó una fila única para cada vendedor visible.
+   * `true` solo cuando la RPC entregó una fila única para cada analista visible.
    * Una colección ausente, vacía o parcial nunca equivale a métricas en cero ni
    * permite construir un ranking representativo del equipo completo.
    */
@@ -203,7 +203,7 @@ export function adaptarConversionVendedores(
   for (const detalle of responsables ?? []) {
     if (identidadPorId.has(detalle.vendedor_id)) continue
     identidadPorId.set(detalle.vendedor_id, {
-      nombre: 'Vendedor no identificado',
+      nombre: 'Analista no identificado',
       supervisorNombre: 'Equipo no disponible',
     })
   }
@@ -284,7 +284,7 @@ export function adaptarConversionMensual(
   for (const fila of responsables ?? []) {
     if (identidadPorId.has(fila.vendedor_id)) continue
     identidadPorId.set(fila.vendedor_id, {
-      nombre: 'Vendedor no identificado',
+      nombre: 'Analista no identificado',
       supervisorNombre: 'Equipo no disponible',
     })
   }
@@ -417,7 +417,7 @@ export interface RankingCapitalTotalVendedores<D extends DetalleRankeable = Deta
  * resuelve el servidor (edge crm-tipo-cambio). Es la única conversión admitida
  * por la regla PEN≠USD (decisión 2026-07-17: la meta se mide en soles y el USD
  * cuenta convertido, no sumado a ciegas). Sin TC el total degrada a solo-PEN y
- * el USD se muestra aparte — mismo fail-closed que la meta del vendedor.
+ * el USD se muestra aparte — mismo fail-closed que la meta del analista.
  * La meta también unifica (objetivo USD legado convertido; hoy las metas están
  * normalizadas a PEN, así que suele ser solo el objetivo en soles).
  */

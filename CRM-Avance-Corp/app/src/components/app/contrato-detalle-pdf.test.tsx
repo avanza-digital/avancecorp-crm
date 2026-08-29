@@ -98,10 +98,10 @@ const pdfDatos: ContratoPdfDatos = {
     correo: 'rosa.aguilar@correo.pe',
   },
   analista: {
-    nombreCompleto: 'VENDEDOR UNO',
+    nombreCompleto: 'ANALISTA UNO',
     documento: '10000001',
     celular: '+51 987 654 321',
-    correo: 'vendedor.uno@avancecorp.pe',
+    correo: 'analista.uno@avancecorp.pe',
   },
 }
 

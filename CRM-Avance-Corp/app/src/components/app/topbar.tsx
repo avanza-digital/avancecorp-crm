@@ -1,5 +1,5 @@
 // Topbar — título de vista (+ chip DEMO si la sesión es demo), búsqueda global
-// real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un vendedor
+// real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un analista
 // no encuentra leads ajenos), bandeja de pendientes con conteo real por rol y
 // alta de lead. La búsqueda
 // abre el drawer vía usePanelesActions().abrirLead.
@@ -45,7 +45,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
   alertas: { t: 'Pendientes', s: 'Acciones y señales que requieren tu atención' },
   conversiones: { t: 'Conversiones', s: 'Conversión de leads a clientes' },
-  'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los vendedores' },
+  'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los analistas' },
   reuniones: { t: 'Citas', s: 'Pactadas, concretadas, no realizadas y modalidad' },
   metas: { t: 'Metas', s: 'Objetivos individuales y suma automática de la organización' },
   rendimiento: { t: 'Equipo', s: 'Desempeño comercial por responsable' },
@@ -56,7 +56,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   repartir: { t: 'Repartir leads', s: 'Reparte la cola de leads nuevos a los supervisores' },
   rescate: { t: 'Base para gestión', s: 'Descartes del equipo para revisar y redistribuir' },
   'rescate-carpeta': { t: 'Carpeta de rescate', s: 'Revisa, selecciona y redistribuye este bloque de leads' },
-  derivaciones: { t: 'Derivar leads', s: 'Reparte hoy con la carga de cada asesor a la vista' },
+  derivaciones: { t: 'Derivar leads', s: 'Reparte hoy con la carga de cada analista a la vista' },
   equipo: { t: 'Equipo', s: 'Jerarquía y desempeño comercial' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
   'config-usuarios': { t: 'Usuarios y jerarquía', s: 'Personas, acceso y estructura comercial' },
@@ -67,7 +67,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
 
 /**
  * Rótulo de la pantalla de cartera SEGÚN EL ROL — mismo criterio que el sidebar
- * (una sola regla en el archivo): el vendedor ve "Mi cartera" en el menú y quien
+ * (una sola regla en el archivo): el analista ve "Mi cartera" en el menú y quien
  * supervisa ve "Cartera". Cualquier texto que mande al usuario allí debe llamarla
  * EXACTAMENTE como la ve en su menú, o lo manda a buscar un ítem que no existe.
  */
@@ -116,7 +116,7 @@ export function Topbar({
   // visible — una alerta reconocida sigue en la lista, atenuada, sin sumar.
   const { pendientes, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
-  // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
+  // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el analista, "Cartera" para quien supervisa.
   const info =
     vista === 'hoy' && yo?.rol === 'gerencia'
       ? { t: 'Resumen', s: 'Estado comercial del equipo' }
@@ -261,7 +261,7 @@ export function Topbar({
                   {/* Puerta de la verificación por contacto (plan «lead libre»,
                       F1): si lo tecleado parece un teléfono, se ofrece verificar
                       contra TODO el CRM — este buscador solo mira tus leads y el
-                      que atiende otro asesor jamás va a aparecer aquí. Solo
+                      que atiende otro analista jamás va a aparecer aquí. Solo
                       roles de escritura: directorio mira, no verifica. Y solo
                       con un CELULAR normalizable: para otros dígitos (un DNI)
                       el atajo prometía una verificación que el alta no puede
@@ -337,7 +337,7 @@ export function Topbar({
           <button
             type="button"
             onClick={onAlternarAyuda}
-            aria-label={ayudaAbierta ? 'Minimizar ayuda del vendedor' : 'Abrir ayuda del vendedor'}
+            aria-label={ayudaAbierta ? 'Minimizar ayuda del analista' : 'Abrir ayuda del analista'}
             aria-pressed={ayudaAbierta}
             className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >

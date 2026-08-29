@@ -388,6 +388,8 @@ async function cleanupTransientRows() {
     'cancelar tareas transitorias pendientes',
     admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).in('id', [
       TRANSIENT_IDS.foreignCreatorTarea,
+      TRANSIENT_IDS.supervisorClientTarea,
+      TRANSIENT_IDS.analystClientTarea,
       TRANSIENT_IDS.directoryTarea,
       TRANSIENT_IDS.portalClientTarea,
       TRANSIENT_IDS.rpcCloseTarea,
@@ -544,7 +546,7 @@ async function verifySeed() {
   const bankProfile = profileByEmail.get(USER_BY_KEY[BANK_CLIENT.key].email);
   assertSeed(bankProfile.dni === BANK_CLIENT.dni, 'DNI del cliente bancario no coincide');
   assertSeed(bankProfile.asesor_perfil_id === profileIdByKey[BANK_CLIENT.adviserKey],
-    'asesor del cliente bancario no coincide');
+    'analista del cliente bancario no coincide');
   assertSeed(bankProfile.banco === BANK_CLIENT.bank, 'banco PEN fixture no coincide');
   assertSeed(bankProfile.numero_cuenta === BANK_CLIENT.accountNumber, 'cuenta PEN fixture no coincide');
   assertSeed(bankProfile.cci === BANK_CLIENT.cci, 'CCI PEN fixture no coincide');
@@ -872,7 +874,7 @@ async function readVisibilityMatrix(sessions, seed) {
       inactive.client.schema('crm').from('equipo').select('perfil_id, rol_crm, supervisor_id')
         .eq('perfil_id', inactive.user.id),
     );
-    const ownedLead = seed.leadByName.get('LEAD DE VENDEDOR INACTIVO DEMO');
+    const ownedLead = seed.leadByName.get(LEAD_BY_KEY.inactiveOwned.name);
     await expectHidden(
       'usuario inactivo no lee ni su lead previamente asignado',
       inactive.client.schema('crm').from('leads').select('id').eq('id', ownedLead.id),
@@ -934,7 +936,7 @@ async function testRecursiveHierarchy(sessions, seed) {
   );
   if (sup1Team) {
     check(sup1Team.count === 2 && sup1Team.data.length === 2,
-      'sup1 ve supervisor hijo y vendedor nieto por recursion');
+      'sup1 ve supervisor hijo y analista nieto por recursion');
   }
 
   const nestedTeam = await positive(
@@ -945,11 +947,11 @@ async function testRecursiveHierarchy(sessions, seed) {
   );
   if (nestedTeam) {
     check(nestedTeam.count === 2 && nestedTeam.data.length === 2,
-      'supervisor anidado ve su propia fila y su vendedor');
+      'supervisor anidado ve su propia fila y su analista');
   }
 
   const recursiveLead = await positive(
-    'sup1 consulta el lead de su vendedor nieto',
+    'sup1 consulta el lead de su analista nieto',
     sessions.sup1.client.schema('crm').from('leads')
       .select('id, vendedor_id')
       .eq('id', carlos.id)
@@ -957,11 +959,11 @@ async function testRecursiveHierarchy(sessions, seed) {
   );
   if (recursiveLead) {
     check(recursiveLead.data.vendedor_id === nestedSellerId,
-      'lead recursivo pertenece al vendedor anidado');
+      'lead recursivo pertenece al analista anidado');
   }
 
   await expectHidden(
-    'vend1 no ve al vendedor de la rama anidada hermana',
+    'vend1 no ve al analista de la rama anidada hermana',
     sessions.vend1.client.schema('crm').from('equipo')
       .select('perfil_id')
       .eq('perfil_id', nestedSellerId),
@@ -1001,7 +1003,7 @@ async function testCrossReads(sessions, seed) {
     sessions.sup2.client.schema('crm').from('leads').select('id').eq('id', juan.id),
   );
   await expectHidden(
-    'vend3 no lee el lead de otro vendedor',
+    'vend3 no lee el lead de otro analista',
     sessions.vend3.client.schema('crm').from('leads').select('id').eq('id', carlos.id),
   );
 
@@ -1025,7 +1027,7 @@ async function testWrites(sessions, seed) {
   const vend3Id = seed.profileIdByKey.vend3;
 
   await expectBlockedMutation(
-    'vend1 no reasigna su lead a otro vendedor',
+    'vend1 no reasigna su lead a otro analista',
     sessions.vend1.client.schema('crm').from('leads')
       .update({ vendedor_id: vend3Id }, { count: 'exact' })
       .eq('id', juan.id)
@@ -1093,7 +1095,7 @@ async function testWrites(sessions, seed) {
   await expectBlockedMutation(
     'sup1 no inserta un lead en el equipo de sup2',
     sessions.sup1.client.schema('crm').from('leads').insert({
-      // Tenencia valida: debe fallar por vendedor ajeno, no por enviar ambos
+      // Tenencia valida: debe fallar por analista ajeno, no por enviar ambos
       // propietarios a la vez (invariante 0C).
       asignado_supervisor_id: null,
       creado_por: sessions.sup1.user.id,
@@ -1214,7 +1216,7 @@ async function testReassignmentTrigger(sessions, seed) {
   // Desde la creación atómica (20260804165440, en prod 2026-08-04) el INSERT
   // directo sobre crm.leads está revocado para authenticated: los leads nacen
   // SOLO por crm.crear_lead_si_disponible. La sonda usa la vía legal — mismo
-  // lead transitorio, mismo vendedor destino — y el trigger de reasignación
+  // lead transitorio, mismo analista destino — y el trigger de reasignación
   // debe emitir su actividad igual que antes.
   const assignedInsert = await positive(
     'sup1 crea un lead que nace asignado',
@@ -1239,11 +1241,11 @@ async function testReassignmentTrigger(sessions, seed) {
   }
 
   await requireAdmin(
-    'crear fixture transitorio para cambio de vendedor',
+    'crear fixture transitorio para cambio de analista',
     admin.schema('crm').from('leads').insert({
       ...common,
       id: TRANSIENT_IDS.triggerSellerChangeLead,
-      nombre_completo: 'TRIGGER CAMBIO VENDEDOR TRANSIENT',
+      nombre_completo: 'TRIGGER CAMBIO ANALISTA TRANSIENT',
       telefono: '999000007',
       vendedor_id: vend1Id,
     }),
@@ -1259,18 +1261,18 @@ async function testReassignmentTrigger(sessions, seed) {
   if (sellerChange) {
     const activities = await readReassignmentActivities(
       TRANSIENT_IDS.triggerSellerChangeLead,
-      'leer actividad del cambio de vendedor',
+      'leer actividad del cambio de analista',
     );
     const [activity] = activities.rows;
     check(activities.count === 1,
-      'cambio de vendedor emite exactamente una reasignacion',
+      'cambio de analista emite exactamente una reasignacion',
       `emitio ${activities.count}`);
     check(activity?.detalle === `${USER_BY_KEY.vend1.name} → ${USER_BY_KEY.vend2.name}`,
       'reasignacion conserva el detalle humano exacto',
       `detalle=${activity?.detalle ?? 'ausente'}`);
     check(activity?.metadata?.vendedor_anterior === vend1Id
         && activity?.metadata?.vendedor_nuevo === vend2Id,
-    'reasignacion conserva vendedor anterior y nuevo en metadata');
+    'reasignacion conserva analista anterior y nuevo en metadata');
     check(activity?.creado_por === sup1Id,
       'reasignacion acredita como actor al supervisor autenticado');
   }
@@ -1344,17 +1346,17 @@ async function testReassignmentTrigger(sessions, seed) {
 }
 
 /**
- * El reloj del vendedor — crm.leads.tenencia_desde (pedido de Miguel 2026-07-24).
+ * El reloj del analista — crm.leads.tenencia_desde (pedido de Miguel 2026-07-24).
  *
  * Complementa al oraculo SQL (test-tenencia.sql) por la via PostgREST REAL, que
  * es la unica que recorre grants por columna + RLS + trigger juntos. Prueba lo
- * que de verdad importa en produccion: que el asesor LEA su reloj, que NO pueda
+ * que de verdad importa en produccion: que el analista LEA su reloj, que NO pueda
  * falsificarlo (el ACL de crm.leads es de TABLA, asi que PostgREST acepta la
  * columna en el body: la defensa es el trigger, no un 403) y que una asignacion
  * de hoy sobre un lead viejo arranque el reloj HOY.
  */
 async function testTenencia(sessions, seed) {
-  console.log('\n— El reloj del vendedor: tenencia_desde —');
+  console.log('\n— El reloj del analista: tenencia_desde —');
   const sup1 = sessions.sup1;
   const vend1 = sessions.vend1;
   const vend3 = sessions.vend3;
@@ -1370,7 +1372,7 @@ async function testTenencia(sessions, seed) {
   };
 
   // ── Un lead VIEJO parkeado en la bandeja de sup1 (el caso de produccion:
-  // paso dias en la cola de Rosa antes de que alguien lo bajara a un asesor).
+  // paso dias en la cola de Rosa antes de que alguien lo bajara a un analista).
   await requireAdmin(
     'crear lead viejo parkeado para el reloj de tenencia',
     admin.schema('crm').from('leads').insert({
@@ -1391,7 +1393,7 @@ async function testTenencia(sessions, seed) {
       .single(),
   );
   check(sinDuenio?.data?.tenencia_desde == null,
-    'un lead parkeado en bandeja NO tiene reloj de asesor',
+    'un lead parkeado en bandeja NO tiene reloj de analista',
     `tenencia_desde=${sinDuenio?.data?.tenencia_desde ?? 'null'}`);
 
   // Envejecer creado_en exige saltarse leads_before_update (lo restaura desde
@@ -1408,14 +1410,14 @@ async function testTenencia(sessions, seed) {
   );
   const relojAsignacion = asignado?.data?.tenencia_desde;
   check(relojAsignacion != null,
-    'asignar a un vendedor enciende el reloj de tenencia',
+    'asignar a un analista enciende el reloj de tenencia',
     `tenencia_desde=${relojAsignacion ?? 'null'}`);
   check(relojAsignacion != null
     && Date.parse(relojAsignacion) >= antesDeAsignar - 60_000,
     'el reloj arranca en la ASIGNACION, no cuando entro el lead',
     `tenencia_desde=${relojAsignacion} creado_en=${asignado?.data?.creado_en}`);
 
-  // ── El asesor LEE su propio reloj (grant por columna + RLS).
+  // ── El analista LEE su propio reloj (grant por columna + RLS).
   const leidoPorDuenio = await positive(
     'vend1 lee el reloj de su propio lead',
     vend1.client.schema('crm').from('leads')
@@ -1424,7 +1426,7 @@ async function testTenencia(sessions, seed) {
       .maybeSingle(),
   );
   check(leidoPorDuenio?.data?.tenencia_desde != null,
-    'el vendedor recibe tenencia_desde de su lead (sin grant, PostgREST la omitiria en silencio)',
+    'el analista recibe tenencia_desde de su lead (sin grant, PostgREST la omitiria en silencio)',
     `fila=${JSON.stringify(leidoPorDuenio?.data ?? null)}`);
 
   // ── INFALSIFICABLE. No esperamos un 403: el ACL de crm.leads es de TABLA, de
@@ -1460,7 +1462,7 @@ async function testTenencia(sessions, seed) {
       .single(),
   );
   check(trasIntento?.data?.tenencia_desde === original?.data?.tenencia_desde,
-    'un vendedor NO puede falsificar su propio reloj (lo reimpone el trigger)',
+    'un analista NO puede falsificar su propio reloj (lo reimpone el trigger)',
     `antes=${original?.data?.tenencia_desde} despues=${trasIntento?.data?.tenencia_desde}`);
 
   // ── El ruido no lo mueve: editar la nota no reinicia el reloj.
@@ -1489,7 +1491,7 @@ async function testTenencia(sessions, seed) {
       .eq('id', TRANSIENT_IDS.tenenciaLeadPropio),
   );
   check((ajeno?.data?.length ?? 0) === 0,
-    'un vendedor de otro equipo no ve el lead ajeno ni su reloj',
+    'un analista de otro equipo no ve el lead ajeno ni su reloj',
     `filas=${ajeno?.data?.length ?? 'n/a'}`);
 }
 
@@ -1520,8 +1522,8 @@ async function testAvanceEtapa(sessions, seed) {
     );
   }
 
-  // ── El caso de Miguel, END TO END y con una sesion REAL de vendedor: el
-  // asesor registra que SI hablo con la persona y la etapa sube sola.
+  // ── El caso de Miguel, END TO END y con una sesion REAL de analista: el
+  // analista registra que SI hablo con la persona y la etapa sube sola.
   await positive(
     'vend1 registra una conversacion (llamada_realizada) en su lead nuevo',
     vend1.client.schema('crm').from('actividades').insert({
@@ -1566,7 +1568,7 @@ async function testAvanceEtapa(sessions, seed) {
     `etapa=${trasIntento?.data?.etapa}`);
 
   // ── El rastro: el avance queda marcado como automatico, para que el
-  // historial no le atribuya al vendedor un movimiento que el no pidio.
+  // historial no le atribuya al analista un movimiento que el no pidio.
   const rastro = await positive(
     'leer el cambio_etapa que escribio el trigger',
     admin.schema('crm').from('actividades')
@@ -1861,6 +1863,48 @@ async function testTareaIsolation(sessions, seed) {
     }).select('id'),
   );
 
+  const tareaClienteEquipo = await positive(
+    'sup1 agenda una gestión sobre el cliente de vend1 sin depender de RLS de perfiles',
+    sessions.sup1.client.schema('crm').from('tareas').insert({
+      creado_por: seed.profileIdByKey.sup1,
+      id: TRANSIENT_IDS.supervisorClientTarea,
+      perfil_id: seed.profileIdByKey.clientBank,
+      tipo: 'tarea',
+      titulo: 'RLS SUPERVISOR CLIENTE TRANSIENT',
+      vence_en: '2026-08-02T14:00:00Z',
+    }).select('id, perfil_id, vendedor_id, asignado_supervisor_id').single(),
+  );
+  if (tareaClienteEquipo) {
+    check(
+      tareaClienteEquipo.data.perfil_id === seed.profileIdByKey.clientBank
+        && tareaClienteEquipo.data.vendedor_id === seed.profileIdByKey.vend1
+        && tareaClienteEquipo.data.asignado_supervisor_id === seed.profileIdByKey.sup1,
+      'la tarea del cliente queda anclada al analista y supervisor canónicos',
+      JSON.stringify(tareaClienteEquipo.data),
+    );
+  }
+
+  const tareaClienteAnalista = await positive(
+    'el Analista agenda una gestión sobre su propio cliente con destinos canónicos',
+    sessions.vend1.client.schema('crm').from('tareas').insert({
+      creado_por: seed.profileIdByKey.vend1,
+      id: TRANSIENT_IDS.analystClientTarea,
+      perfil_id: seed.profileIdByKey.clientBank,
+      tipo: 'tarea',
+      titulo: 'RLS ANALISTA CLIENTE TRANSIENT',
+      vence_en: '2026-08-02T14:30:00Z',
+    }).select('id, perfil_id, vendedor_id, asignado_supervisor_id').single(),
+  );
+  if (tareaClienteAnalista) {
+    check(
+      tareaClienteAnalista.data.perfil_id === seed.profileIdByKey.clientBank
+        && tareaClienteAnalista.data.vendedor_id === seed.profileIdByKey.vend1
+        && tareaClienteAnalista.data.asignado_supervisor_id === seed.profileIdByKey.sup1,
+      'la tarea del Analista queda anclada al analista y supervisor canónicos',
+      JSON.stringify(tareaClienteAnalista.data),
+    );
+  }
+
   // Completar va SOLO por la RPC: el trigger corta el UPDATE directo. Emitía
   // P0001; desde 2026-08-08 (configuración operativa) el guard reescrito emite
   // 22023. Ambos códigos prueban lo mismo: el cierre directo no pasa.
@@ -2004,7 +2048,7 @@ async function testTareaCloseRpc(sessions, seed) {
 
 // ── Anular con AUTORIA + retroceso de etapa (migracion 20260726151751) ────────
 // Pedidos de Miguel (2026-07-26): "separa lo que cancela el sistema y lo que
-// cancela el asesor" y "si se anula la reu y no se reagenda una en ese mismo
+// cancela el analista" y "si se anula la reu y no se reagenda una en ese mismo
 // momento, deberia bajar de etapa".
 //
 // Lo que se asevera aqui es la parte que NO se puede probar en el front: que la
@@ -2072,7 +2116,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
 
   // 1) EL PORTAZO NUEVO: cancelar por PATCH directo deja de estar permitido.
   //    Antes de esta migracion, `cancelada` era el unico cierre que no exigia la
-  //    RPC: un vendedor podia vaciar su agenda por /rest/v1/tareas SIN quedar
+  //    RPC: un analista podia vaciar su agenda por /rest/v1/tareas SIN quedar
   //    etiquetado y saltandose el retroceso de etapa.
   await expectBlockedMutation(
     'vend1 NO puede anular por UPDATE directo (tiene que pasar por la RPC)',
@@ -2103,7 +2147,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   // 2b) LA FIRMA TAMPOCO (20260727032429). Mismo contrato que la etiqueta: un
   //     no-op SILENCIOSO, no un 400 de constraint — el CHECK tambien la
   //     atraparia, pero el cliente debe ver "campo ignorado" como en el resto de
-  //     columnas selladas. Se intenta firmar como sup1: si colara, un vendedor
+  //     columnas selladas. Se intenta firmar como sup1: si colara, un analista
   //     podria marcar sus propias anulaciones como si se las hubiera ordenado su
   //     jefe y sacarlas del denominador de su %.
   const firmaForjada = await positive(
@@ -2120,7 +2164,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       `cancelada_por_id=${firmaForjada.data.cancelada_por_id}`);
   }
 
-  // 3) Por la RPC si, y queda firmada como ASESOR.
+  // 3) Por la RPC sí, y queda firmada con el sentinel legacy `asesor`.
   const anulada = await positive(
     'vend1 anula SU reunion por crm.cerrar_tarea',
     vend1.client.schema('crm').rpc('cerrar_tarea', {
@@ -2133,12 +2177,12 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   if (!anulada) return;
   const filaAnulada = await leerTarea(TRANSIENT_IDS.anularTareaReunion, 'releer la reunion anulada');
   check(filaAnulada.data.estado === 'cancelada' && filaAnulada.data.cancelada_por === 'asesor',
-    'la anulacion quedo firmada por el ASESOR',
+    'la anulacion quedo firmada con el sentinel legacy `asesor`',
     `cancelada_por=${filaAnulada.data.cancelada_por}`);
-  // 20260727032429: y la firma es EL PROPIO vendedor, o sea PROPIA — la unica
+  // 20260727032429: y la firma es EL PROPIO analista, o sea PROPIA — la unica
   // clase de anulacion que sigue pesando en su % de cumplimiento.
   check(filaAnulada.data.cancelada_por_id === vend1Id,
-    'la firma es el vendedor que la ordeno (anulacion PROPIA: cuenta en su %)',
+    'la firma es el analista que la ordeno (anulacion PROPIA: cuenta en su %)',
     `cancelada_por_id=${filaAnulada.data.cancelada_por_id}`);
   check(filaAnulada.data.cancelada_por_id === filaAnulada.data.vendedor_id,
     'firma == dueño de la tarea, que es como la metrica la clasifica como propia');
@@ -2182,7 +2226,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   // 6) LA OTRA MITAD DE LA SEPARACION: lo que cancela el SISTEMA. Descartar el
   //    lead cancela sus pendientes por trigger, y esas NO son gestion de nadie:
   //    contarlas en el denominador de pct_completadas era lo que hacia que
-  //    cerrar bien un lead le bajara la nota al vendedor.
+  //    cerrar bien un lead le bajara la nota al analista.
   await requireAdmin(
     'crear lead transitorio para la cancelacion del SISTEMA',
     admin.schema('crm').from('leads').insert({
@@ -2222,7 +2266,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       'releer la tarea cancelada por el trigger',
     );
     check(filaSistema.data.estado === 'cancelada' && filaSistema.data.cancelada_por === 'sistema',
-      'la cancelacion automatica quedo firmada por el SISTEMA, no por el asesor',
+      'la cancelacion automatica quedo firmada por el SISTEMA, no por el analista',
       `cancelada_por=${filaSistema.data.cancelada_por}`);
     // 20260727032429: sin persona no hay firma. Si aqui quedara un uuid, el
     // CHECK tareas_cancelada_por_id_valida ni siquiera habria dejado escribir.
@@ -2232,7 +2276,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   }
 
   // 7) EL CASO QUE MOTIVA 20260727032429: el SUPERVISOR anula la tarea de su
-  //    vendedor. La fila se sigue agrupando por vendedor_id (como el resto de
+  //    analista. La fila se sigue agrupando por vendedor_id (como el resto de
   //    metricas de agenda), asi que sin una firma distinta no habria forma de
   //    saber que esa anulacion no fue suya — y le bajaba el % por una decision
   //    que no tomo y sobre la que no podia hacer nada.
@@ -2263,7 +2307,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   );
   if (tareaAjena) {
     await positive(
-      'sup1 anula por la RPC una tarea de SU vendedor',
+      'sup1 anula por la RPC una tarea de SU analista',
       sessions.sup1.client.schema('crm').rpc('cerrar_tarea', {
         p_estado: 'cancelada',
         p_resultado_detalle: null,
@@ -2273,13 +2317,13 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
     );
     const filaAjena = await leerTarea(TRANSIENT_IDS.anularTareaAjena, 'releer la tarea anulada por el jefe');
     check(filaAjena.data.estado === 'cancelada' && filaAjena.data.cancelada_por === 'asesor',
-      'anular siendo supervisor tambien es una PERSONA: etiqueta asesor',
+      'anular siendo supervisor tambien es una PERSONA: sentinel legacy `asesor`',
       `cancelada_por=${filaAjena.data.cancelada_por}`);
     check(filaAjena.data.cancelada_por_id === sup1Id,
-      'la firma es el SUPERVISOR que la ordeno, no el vendedor',
+      'la firma es el SUPERVISOR que la ordeno, no el analista',
       `cancelada_por_id=${filaAjena.data.cancelada_por_id}`);
     check(filaAjena.data.cancelada_por_id !== filaAjena.data.vendedor_id,
-      'firma != dueño de la tarea: la metrica la clasifica como AJENA y la saca del % del vendedor',
+      'firma != dueño de la tarea: la metrica la clasifica como AJENA y la saca del % del analista',
       `firma=${filaAjena.data.cancelada_por_id} dueño=${filaAjena.data.vendedor_id}`);
   }
 
@@ -2289,7 +2333,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   //    El CHECK la permite a proposito (historia inatribuible del backfill), asi
   //    que la garantia para las filas NUEVAS tiene que vivir aqui, en el gate.
   const huerfanas = await requireAdmin(
-    'buscar anulaciones de asesor sin firma',
+    'buscar anulaciones con sentinel legacy `asesor` sin firma',
     admin.schema('crm').from('tareas')
       .select('id')
       .eq('cancelada_por', 'asesor')
@@ -2297,7 +2341,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   );
   if (huerfanas) {
     check(huerfanas.data.length === 0,
-      'ninguna anulacion de asesor quedo sin firma (si no, saldria del % de todos en silencio)',
+      'ninguna anulacion con sentinel legacy `asesor` quedo sin firma (si no, saldria del % de todos en silencio)',
       `huerfanas=${huerfanas.data.length}`);
   }
 }
@@ -2357,7 +2401,7 @@ async function testTareaFollowsLead(sessions, seed) {
       .single(),
   );
   check(tareaRow.data.vendedor_id === vend2Id && tareaRow.data.asignado_supervisor_id === null,
-    'la tarea pendiente siguio al nuevo vendedor',
+    'la tarea pendiente siguio al nuevo analista',
     `vendedor_id=${tareaRow.data.vendedor_id}`);
   check(tareaRow.data.estado === 'pendiente', 'el seguimiento no altero el estado de la tarea');
 
@@ -2427,7 +2471,7 @@ async function testAgendaIcs(sessions, seed) {
   // ni el lector global lo ven (a diferencia de leads/tareas, aqui no hay
   // visibilidad jerarquica — el feed ICS es un secreto personal).
   await expectHidden(
-    'sup1 no ve el token de su vendedor',
+    'sup1 no ve el token de su analista',
     sup1.schema('crm').from('agenda_ics').select('token').eq('perfil_id', vend1Id),
   );
   await expectHidden(
@@ -2519,7 +2563,7 @@ async function testDomicilioLegal(sessions, seed) {
   // (private.vendedor_ids_visibles) basta por sí solo. Es distinto de la sonda
   // bancaria, que sí necesita `analista` porque public.crear_contrato lo exige.
   const lectura = await positive(
-    'el vendedor de la cartera ve que falta el domicilio',
+    'el analista de la cartera ve que falta el domicilio',
     leer(sessions.vend1.client),
   );
   if (lectura) {
@@ -2534,7 +2578,7 @@ async function testDomicilioLegal(sessions, seed) {
   }
 
   await positive(
-    'el supervisor del árbol del vendedor también alcanza al cliente',
+    'el supervisor del árbol del analista también alcanza al cliente',
     leer(sessions.sup1.client),
   );
   await positive(
@@ -2544,13 +2588,13 @@ async function testDomicilioLegal(sessions, seed) {
 
   // ── Quién NO alcanza ──────────────────────────────────────────────────────
   const ajeno = await expectExpectedFailure(
-    'un vendedor de OTRO subárbol no lee los datos legales',
+    'un analista de OTRO subárbol no lee los datos legales',
     leer(sessions.vend3.client),
     ['42501', 'P0001'],
     /fuera de tu cartera/i,
   );
   await expectExpectedFailure(
-    'un vendedor de OTRO subárbol tampoco escribe el domicilio',
+    'un analista de OTRO subárbol tampoco escribe el domicilio',
     escribir(sessions.vend3.client, DOMICILIO_OK),
     ['42501', 'P0001'],
     /fuera de tu cartera/i,
@@ -2630,7 +2674,7 @@ async function testDomicilioLegal(sessions, seed) {
   check(lectura !== false,
     'las RPC del domicilio responden: el «no existe» de la sonda siguiente es real, no la migración ausente');
   await expectExplicitAuthorizationDenied(
-    'el normalizador NO es superficie pública ni para un vendedor autorizado',
+    'el normalizador NO es superficie pública ni para un analista autorizado',
     sessions.vend1.client.schema('crm').rpc('normalizar_domicilio_legal', {
       p_domicilio: DOMICILIO_OK,
     }),
@@ -2661,7 +2705,7 @@ async function testDomicilioLegal(sessions, seed) {
   // disfrazada de OK». El gate ya cubre P04 sobre la superficie bancaria.
   // ── Escritura: lo único irreversible, y por eso va al final ───────────────
   const escrito = await positive(
-    'el vendedor rellena el domicilio vacío de SU cliente',
+    'el analista rellena el domicilio vacío de SU cliente',
     // Espacios exóticos a propósito: el servidor tiene que normalizarlos igual
     // que el navegador, o el mismo texto valdría dos cosas distintas.
     escribir(sessions.vend1.client, '  Av.  Grau   456,　Lima  '),
@@ -2705,7 +2749,7 @@ async function testOffboardingMatrix(sessions, seed) {
   const memberId = seed.profileIdByKey[key];
   const originalProfile = seed.profiles.find((row) => row.id === memberId);
   const originalTeam = seed.team.find((row) => row.perfil_id === memberId);
-  const ownedLead = seed.leadByName.get('LEAD DE VENDEDOR INACTIVO DEMO');
+  const ownedLead = seed.leadByName.get(LEAD_BY_KEY.inactiveOwned.name);
   const ownedActivityId = LEAD_BY_KEY.inactiveOwned.activityId;
   const freePhone = '900000009';
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
@@ -2736,7 +2780,7 @@ async function testOffboardingMatrix(sessions, seed) {
   // jerarquia` cierra las dos vías normales. La matriz luego lo REACTIVA
   // (true/true) y al RE-revocar moría contra el mismo guard («La membresía
   // conserva dependencias activas») — rota desde el 8-ago. Trasladarle los
-  // leads a otro vendedor arreglaría el síntoma TRAICIONANDO la semántica
+  // leads a otro analista arreglaría el síntoma TRAICIONANDO la semántica
   // (dejaría de medirse al inactivo-que-aún-posee). El arreglo fiel: revocar
   // por la MISMA vía fuera de banda del seed (psql, trigger apagado en UNA
   // sentencia dentro de la transacción), canalizada por CRM_BANCO_PSQL_URL —
@@ -3033,7 +3077,7 @@ async function testOffboardingMatrix(sessions, seed) {
         `filas=${JSON.stringify(perillas.data)}`);
     }
     await expectBlockedMutation(
-      'F1 lead libre: el vendedor NO edita las perillas',
+      'F1 lead libre: el analista NO edita las perillas',
       member.client.schema('crm').from('politica_abandono')
         .update({ dias_abandono: 99 })
         .eq('singleton', true)
@@ -3047,7 +3091,7 @@ async function testOffboardingMatrix(sessions, seed) {
     );
     // RLS de SELECT no da error: se asevera el CONTEO, no la ausencia de fallo.
     await expectHidden(
-      'F1 lead libre: el log anti-pesca es invisible para el vendedor (aunque él generó filas)',
+      'F1 lead libre: el log anti-pesca es invisible para el analista (aunque él generó filas)',
       member.client.schema('crm').from('verificaciones_lead')
         .select('id')
         .limit(1),
@@ -3060,7 +3104,7 @@ async function testOffboardingMatrix(sessions, seed) {
     );
     if (pescaGerencia) {
       check((pescaGerencia.count ?? 0) >= 1,
-        'F1 lead libre: la RPC del vendedor dejó su rastro (quién y veredicto)',
+        'F1 lead libre: la RPC del analista dejó su rastro (quién y veredicto)',
         `filas=${pescaGerencia.count}`);
     }
     await expectBlockedMutation(
@@ -3095,7 +3139,7 @@ async function testOffboardingMatrix(sessions, seed) {
     }
 
     // ── F2 lead libre (20260817164745): la toma directa ──────────────────────
-    // Solo vendedores toman, y para sí mismos; supervisión asigna por reparto.
+    // Solo analistas toman, y para sí mismos; supervisión asigna por reparto.
     await expectExplicitAuthorizationDenied(
       'F2 lead libre: gerencia NO toma (su puerta es el reparto)',
       sessions.gerencia.client.schema('crm').rpc('tomar_lead_libre', {
@@ -3168,17 +3212,17 @@ async function testOffboardingMatrix(sessions, seed) {
       }).select('id'),
     );
     // Auditor M2: la MISMA bolsa prueba las dos puertas — el PATCH directo del
-    // vendedor rebota (RLS + veto sin flag: la válvula solo vive dentro de la
+    // analista rebota (RLS + veto sin flag: la válvula solo vive dentro de la
     // RPC) y acto seguido la RPC sí la toma.
     await expectBlockedMutation(
-      'F2 lead libre: el vendedor NO se auto-asigna la bolsa por PATCH directo',
+      'F2 lead libre: el analista NO se auto-asigna la bolsa por PATCH directo',
       member.client.schema('crm').from('leads')
         .update({ vendedor_id: memberId })
         .eq('id', bolsaTransientId)
         .select('id'),
     );
     const tomaBolsa = await positive(
-      'F2 lead libre: el vendedor TOMA la bolsa',
+      'F2 lead libre: el analista TOMA la bolsa',
       member.client.schema('crm').rpc('tomar_lead_libre', {
         p_telefono: bolsaTransientPhone,
         p_dni: null,
@@ -3191,7 +3235,7 @@ async function testOffboardingMatrix(sessions, seed) {
         'F2 lead libre: tomado_ok de bolsa con el lead esperado',
         `respuesta=${JSON.stringify(tomaBolsa.data)}`);
       const filaTomada = await requireAdmin(
-        'F2 lead libre: la fila tomada quedó del vendedor',
+        'F2 lead libre: la fila tomada quedó del analista',
         admin.schema('crm').from('leads')
           .select('vendedor_id, tenencia_desde')
           .eq('id', bolsaTransientId)
@@ -3245,7 +3289,7 @@ async function testOffboardingMatrix(sessions, seed) {
     const recordatorioTelTecleado = '996 600 322';
     const recordatorioTelNormal = '+51996600322';
     const recordatorioCreado = await positive(
-      'F3 lead libre: el vendedor crea su recordatorio (teléfono tecleado a lo humano)',
+      'F3 lead libre: el analista crea su recordatorio (teléfono tecleado a lo humano)',
       member.client.schema('crm').from('recordatorios_disponibilidad')
         .insert({
           // Autoría AJENA a propósito: el trigger debe re-firmar con el actor.
@@ -3318,7 +3362,7 @@ async function testOffboardingMatrix(sessions, seed) {
         .limit(1),
     );
     await expectBlockedMutation(
-      'F3 lead libre: el supervisor no crea recordatorios (la antesala de tomar es del vendedor)',
+      'F3 lead libre: el supervisor no crea recordatorios (la antesala de tomar es del analista)',
       sessions.sup1.client.schema('crm').from('recordatorios_disponibilidad')
         .insert({
           telefono: '+51996600324',
@@ -3327,25 +3371,25 @@ async function testOffboardingMatrix(sessions, seed) {
         .select('id'),
     );
     if (recordatorioCreado?.data?.id) {
-      // El ARQUETIPO del owner-only (auditor M1): otro VENDEDOR — mismo rol,
+      // El ARQUETIPO del owner-only (auditor M1): otro ANALISTA — mismo rol,
       // pasa el gate de rol y debe morir por el predicado perfil_id. Gerencia
       // y supervisor caen por rol; sin este par, mutar el predicado owner
       // dejando el gate de rol pasaría la matriz en verde.
       await expectHidden(
-        'F3 lead libre: OTRO vendedor no ve el recordatorio ajeno (predicado owner)',
+        'F3 lead libre: OTRO analista no ve el recordatorio ajeno (predicado owner)',
         sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
           .select('id')
           .eq('id', recordatorioCreado.data.id),
       );
       await expectBlockedMutation(
-        'F3 lead libre: otro vendedor no reprograma el ajeno',
+        'F3 lead libre: otro analista no reprograma el ajeno',
         sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
           .update({ recordar_en: new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString() })
           .eq('id', recordatorioCreado.data.id)
           .select('id'),
       );
       await expectBlockedMutation(
-        'F3 lead libre: otro vendedor no borra el ajeno',
+        'F3 lead libre: otro analista no borra el ajeno',
         sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
           .delete()
           .eq('id', recordatorioCreado.data.id)
@@ -3707,7 +3751,7 @@ async function testOffboardingMatrix(sessions, seed) {
           .select('id'),
       );
       await expectBlockedMutation(
-        'F4 sin ruido: el VENDEDOR no escribe en el libro (gate de rol)',
+        'F4 sin ruido: el ANALISTA no escribe en el libro (gate de rol)',
         member.client.schema('crm').from('alertas_reconocimientos')
           .insert({
             alerta_id: `grupo:por_repartir:${memberId}`,
@@ -3766,7 +3810,7 @@ async function testOffboardingMatrix(sessions, seed) {
             .eq('id', f4Reconocido.data.id),
         );
         await expectHidden(
-          'F4 sin ruido: el vendedor no lee el libro (gate de rol)',
+          'F4 sin ruido: el analista no lee el libro (gate de rol)',
           member.client.schema('crm').from('alertas_reconocimientos')
             .select('id')
             .eq('id', f4Reconocido.data.id),
@@ -3825,7 +3869,7 @@ async function testOffboardingMatrix(sessions, seed) {
             .eq('id', f4Reconocido.data.id),
         );
         await expectHidden(
-          'F4.2 vigentes: el vendedor tampoco ve nada por la vista',
+          'F4.2 vigentes: el analista tampoco ve nada por la vista',
           member.client.schema('crm').from('alertas_reconocimientos_vigentes')
             .select('id')
             .eq('id', f4Reconocido.data.id),
@@ -3975,24 +4019,32 @@ async function testOffboardingMatrix(sessions, seed) {
     const tokenBeforePortalOff = await agendaToken();
     await assertFeed(tokenBeforePortalOff, true, 'P04 true/true: feed ICS autorizado');
 
-    // Un rol global del portal no se SUMA a una membresía CRM activa: el rol
-    // CRM manda y conserva su ámbito. El fallback solo existe sin fila equipo.
-    await setState({ portalActive: true, crmActive: true, portalRole: 'directorio' });
+    // Un rol global del portal no puede coexistir con una membresía CRM
+    // operativa. El trigger canónico rechaza la combinación antes de que pueda
+    // elevar o volver ambiguo el ámbito del Analista.
+    await expectBlockedMutation(
+      'P04 miembro activo: no se puede reclasificar como Directorio en el Portal',
+      admin.from('perfiles')
+        .update({ rol: 'directorio' })
+        .eq('id', memberId)
+        .select('id'),
+      ['P0001'],
+    );
     await assertAccess(
       member.client,
       'miembro',
-      'P04 miembro + rol global: auth conserva la membresía CRM',
+      'P04 miembro activo: auth conserva la membresía CRM tras el rechazo',
       memberId,
       originalTeam.rol_crm,
     );
     const scopedMember = await positive(
-      'P04 miembro + rol global: consulta leads sin elevar ámbito',
+      'P04 miembro activo: consulta leads sin elevar ámbito',
       member.client.schema('crm').from('leads').select('nombre_completo'),
     );
     if (scopedMember) {
       const actualNames = scopedMember.data.map((row) => row.nombre_completo);
       check(sameStrings(actualNames, [ownedLead.nombre_completo]),
-        'P04 miembro + rol global: ve exactamente su cartera CRM',
+        'P04 miembro activo: ve exactamente su cartera CRM',
         `real=[${sorted(actualNames).join(', ')}]`);
     }
 
@@ -4132,6 +4184,65 @@ async function testBankingBoundary(sessions, seed) {
     'rol CRM no lee columnas bancarias del cliente crudo',
     vend1.from('perfiles').select(bankProjection).eq('id', bankProfileId),
   );
+  await expectHidden(
+    'Directorio tampoco lee el perfil crudo del cliente',
+    sessions.directorio.client.from('perfiles').select(bankProjection).eq('id', bankProfileId),
+  );
+
+  const detalleSupervisor = await positive(
+    'Supervisor consulta el detalle seguro de un cliente de su equipo',
+    sessions.sup1.client.schema('crm').rpc('cliente_detalle_fn', {
+      p_cliente_id: bankProfileId,
+    }),
+  );
+  if (detalleSupervisor) {
+    const fila = detalleSupervisor.data?.[0];
+    check(
+      detalleSupervisor.data?.length === 1
+        && typeof fila?.domicilio === 'string'
+        && fila.domicilio.trim().length > 0
+        && fila?.banca_visible === true
+        && fila?.banco === BANK_CLIENT.bank
+        && fila?.numero_cuenta === BANK_CLIENT.accountNumber
+        && fila?.cci === BANK_CLIENT.cci,
+      'Supervisor recibe una fila bancaria completa dentro de su árbol',
+      JSON.stringify(fila),
+    );
+  }
+
+  await expectHidden(
+    'analista de otro árbol no descubre el cliente por cliente_detalle_fn',
+    sessions.vend3.client.schema('crm').rpc('cliente_detalle_fn', {
+      p_cliente_id: bankProfileId,
+    }),
+  );
+
+  const detalleDirectorio = await positive(
+    'Directorio consulta identidad global por cliente_detalle_fn',
+    sessions.directorio.client.schema('crm').rpc('cliente_detalle_fn', {
+      p_cliente_id: bankProfileId,
+    }),
+  );
+  if (detalleDirectorio) {
+    const fila = detalleDirectorio.data?.[0];
+    const columnasBancarias = [
+      'banco', 'tipo_cuenta', 'numero_cuenta', 'cci',
+      'beneficiario_nombre', 'beneficiario_dni',
+      'banco_usd', 'tipo_cuenta_usd', 'numero_cuenta_usd', 'cci_usd',
+      'beneficiario_nombre_usd', 'beneficiario_dni_usd',
+    ];
+    check(
+      detalleDirectorio.data?.length === 1
+        && fila?.nombre_completo
+        && fila?.domicilio === null
+        && fila?.banca_visible === false
+        && columnasBancarias.every((columna) => fila?.[columna] === null)
+        && fila?.titular_distinto === false
+        && fila?.titular_distinto_usd === false,
+      'Directorio recibe identidad mínima con domicilio y banca redactados',
+      JSON.stringify(fila),
+    );
+  }
   await expectHidden(
     'rol CRM no lee el contrato sensible desde public.contratos',
     vend1.from('contratos')
@@ -4466,7 +4577,8 @@ async function testContractBankAccounts(sessions, seed) {
 
   // El fixture principal usa el rol portal neutro `comercial` para probar que el
   // CRM no hereda las policies bancarias del portal. Esta sección cambia solo
-  // durante la sonda a los dos vendedores a `analista`: reproduce la identidad
+  // Durante la sonda cambia a los dos perfiles con rol CRM legacy `vendedor`
+  // al rol Portal `analista`: reproduce la identidad
   // real que autoriza crear contratos y restaura ambos roles en `finally`.
   try {
     await requireAdmin(
@@ -4968,7 +5080,7 @@ async function testContractBankAccounts(sessions, seed) {
 // producción sin que nada lo señalara. Ahora se publica de verdad, leyendo la
 // revisión vigente para que el caso siga siendo re-ejecutable sobre la misma
 // base. Las dimensiones, la auditoría y los casos que exigen fabricar un roster
-// degradado (vendedor sin supervisor, supervisor de baja) siguen en PostgreSQL
+// degradado (analista sin supervisor, supervisor de baja) siguen en PostgreSQL
 // desechable vía `test-metas-versionadas.sql`.
 const PERIODO_METAS_GATE = '2099-11-01';
 
@@ -5079,15 +5191,15 @@ async function testMetasVersionadas(sessions, seed) {
     check(configGerencia?.puede_editar === true,
       'solo Gerencia recibe capacidad de edicion');
     check(dimensionesMetasValidas(configGerencia),
-      'cada vendedor visible conserva las seis dimensiones categoria x moneda');
+      'cada analista visible conserva las seis dimensiones categoria x moneda');
 
     const ids = new Set(idsMetas(configGerencia));
     for (const key of ['vend1', 'vend2', 'vend3', 'vend4', 'vendNested']) {
       check(ids.has(seed.profileIdByKey[key]),
-        `gerencia ve al vendedor activo ${key}`);
+        `gerencia ve al analista activo ${key}`);
     }
     check(!ids.has(seed.profileIdByKey.vendInactive),
-      'el roster de metas excluye al vendedor inactivo');
+      'el roster de metas excluye al analista inactivo');
   }
 
   const casos = [
@@ -5124,7 +5236,7 @@ async function testMetasVersionadas(sessions, seed) {
   if (coordinador) {
     check(coordinador.data?.puede_editar === false
       && idsMetas(coordinador.data).length === 0,
-    'coordinador no obtiene metas de vendedores');
+    'coordinador no obtiene metas de analistas');
   }
 
   const directorio = await positive(
@@ -5404,21 +5516,21 @@ async function testMetricasServidor(sessions, seed) {
 
   // metricas_vendedores_fn: recorte lateral del roster + comparativa.
   const mvSup2 = await positive(
-    'sup2 lee metricas de vendedores sin cruzar de subarbol',
+    'sup2 lee metricas de analistas sin cruzar de subarbol',
     sessions.sup2.client.schema('crm').rpc('metricas_vendedores_fn'),
   );
   if (mvSup2) {
     const ids = new Set((mvSup2.data?.vendedores ?? []).map((v) => v.vendedor_id));
     check(ids.has(seed.profileIdByKey.vend3), 'sup2 incluye a vend3');
     check(ids.has(seed.profileIdByKey.vendInactive),
-      'sup2 incluye a su vendedor desactivado (gerencia reasigna esa cartera)');
+      'sup2 incluye a su analista desactivado (gerencia reasigna esa cartera)');
     check(!ids.has(seed.profileIdByKey.vend1), 'sup2 excluye a vend1 (subarbol ajeno)');
     const equipos = new Set((mvSup2.data?.equipos ?? []).map((e) => e.supervisor_id));
     check(equipos.has(seed.profileIdByKey.sup2) && !equipos.has(seed.profileIdByKey.sup1),
       'sup2 solo recibe la comparativa de su propio equipo');
   }
   const mvVend1 = await positive(
-    'vend1 lee metricas de vendedores',
+    'vend1 lee metricas de analistas',
     sessions.vend1.client.schema('crm').rpc('metricas_vendedores_fn'),
   );
   if (mvVend1) {
@@ -5427,14 +5539,14 @@ async function testMetricasServidor(sessions, seed) {
       'vend1 recibe solo su propia fila y cero equipos');
   }
   const mvGerencia = await positive(
-    'gerencia lee metricas de vendedores del roster completo',
+    'gerencia lee metricas de analistas del roster completo',
     sessions.gerencia.client.schema('crm').rpc('metricas_vendedores_fn'),
   );
   if (mvGerencia) {
     const filaInactivo = (mvGerencia.data?.vendedores ?? [])
       .find((v) => v.vendedor_id === seed.profileIdByKey.vendInactive);
     check(filaInactivo?.activo === false,
-      'gerencia ve la fila del vendedor desactivado marcada activo=false');
+      'gerencia ve la fila del analista desactivado marcada activo=false');
   }
 
   // series_comerciales_fn: shape de 6 arrays paralelos.
@@ -5748,6 +5860,7 @@ async function testMetricasServidor(sessions, seed) {
 // seguimiento. Tres bloques: (A) permitidos y FORMA, (B) denegaciones duras,
 // (C) NO VACUIDAD — sin el bloque C, todo A puede estar verde y vacio.
 async function testMetricasConversionesGlobal(sessions) {
+  const num = (valor) => Number(valor ?? 0);
   // metricas_conversiones_fn (el panel Conversiones de gerencia) jamas tuvo
   // casos en esta matriz (objecion 3 del auditor RLS, F1.3 27/08): su gate es
   // SOLO gerencia/lector global — mas estrecho que el de equipo_fn — y desde
@@ -5886,7 +5999,7 @@ async function testMetricasConversionesGlobal(sessions) {
   );
   // El gate tambien manda con el parametro nuevo: filtrar no abre puertas.
   await expectExplicitAuthorizationDenied(
-    'un vendedor sigue denegado aunque pida p_origen',
+    'un analista sigue denegado aunque pida p_origen',
     sessions.vend1.client.schema('crm').rpc('metricas_conversiones_fn', { ...P, p_origen: 'referido' }),
   );
   await expectExpectedFailure(
@@ -5981,17 +6094,17 @@ async function testMetricasConversionEquipo(sessions, seed) {
     check(deSup1.data?.alcance === 'equipo', 'el supervisor recibe alcance "equipo"');
     // vendNested cuelga de sup1Nested, que cuelga de sup1: prueba la RECURSION.
     check(suyos.has(ids.vendNested),
-      'el subarbol es RECURSIVO: sup1 ve al vendedor de su supervisor anidado');
+      'el subarbol es RECURSIVO: sup1 ve al analista de su supervisor anidado');
     check(!suyos.has(ids.vend3) && !suyos.has(ids.vend4),
-      'sup1 NO ve a los vendedores de sup2');
+      'sup1 NO ve a los analistas de sup2');
     check(!suyos.has(ids.sup1) && !suyos.has(ids.sup1Nested),
       'los supervisores no aparecen como filas del ranking');
     check(!suyos.has(ids.vendInactive),
-      'el vendedor inactivo NO figura como responsable');
+      'el analista inactivo NO figura como responsable');
   }
   if (deSup2) {
     const suyos = idsDe(deSup2.data);
-    check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos vendedores');
+    check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos analistas');
     check(!suyos.has(ids.vend1) && !suyos.has(ids.vend2) && !suyos.has(ids.vendNested),
       'sup2 NO ve el subarbol de sup1');
   }
@@ -6001,7 +6114,7 @@ async function testMetricasConversionEquipo(sessions, seed) {
       'sup1Nested no ve HACIA ARRIBA: solo su propia rama');
   }
 
-  // Paridad con gerencia: el mismo vendedor y el mismo periodo dan los MISMOS
+  // Paridad con gerencia: el mismo analista y el mismo periodo dan los MISMOS
   // numeros mire quien mire. Es el invariante que justifica la RPC nueva.
   const globalPorId = new Map((global?.data?.responsables ?? []).map((f) => [f.vendedor_id, f]));
   if (deSup1) {
@@ -6017,7 +6130,7 @@ async function testMetricasConversionEquipo(sessions, seed) {
         && String(suyo.nucleo_conversion_pct) === String(fila.nucleo_conversion_pct));
     });
     check(desviados.length === 0,
-      'PARIDAD: sup1 ve los mismos numeros que gerencia para sus vendedores',
+      'PARIDAD: sup1 ve los mismos numeros que gerencia para sus analistas',
       desviados.map((f) => f.vendedor_id).join(','));
   }
 
@@ -6083,12 +6196,12 @@ async function testReporteDerivacionesEquipo(sessions, seed) {
     const directos = [seed.profileIdByKey.vend1, seed.profileIdByKey.vend2].sort();
     check(
       JSON.stringify(ids) === JSON.stringify(directos),
-      'SUPERVISOR UNO recibe solo sus asesores directos activos',
+      'SUPERVISOR UNO recibe solo sus analistas directos activos',
       JSON.stringify(ids),
     );
     check(
       !(payload?.asesores ?? []).some((fila) => fila.asesor_id === seed.profileIdByKey.vendNested),
-      'el vendedor del supervisor anidado no se mezcla en las cards directas',
+      'el analista del supervisor anidado no se mezcla en las cards directas',
     );
 
     const prohibidas = new Set(['telefono', 'correo', 'dni', 'notas', 'detalle', 'metadata']);
@@ -6104,7 +6217,7 @@ async function testReporteDerivacionesEquipo(sessions, seed) {
     const directos = [seed.profileIdByKey.vend3, seed.profileIdByKey.vend4].sort();
     check(
       JSON.stringify(ids) === JSON.stringify(directos),
-      'el segundo supervisor no recibe asesores del primero',
+      'el segundo supervisor no recibe analistas del primero',
       JSON.stringify(ids),
     );
   }
@@ -6115,7 +6228,7 @@ async function testReporteDerivacionesEquipo(sessions, seed) {
     check(
       JSON.stringify((reporteAnidado.data?.asesores ?? []).map((fila) => fila.asesor_id))
         === JSON.stringify([seed.profileIdByKey.vendNested]),
-      'el supervisor anidado recibe únicamente a su vendedor directo',
+      'el supervisor anidado recibe únicamente a su analista directo',
     );
   }
 
@@ -6139,7 +6252,7 @@ async function testReporteDerivacionesEquipo(sessions, seed) {
   );
 
   await expectBlockedMutation(
-    'el supervisor no deriva un lead a un asesor de otro equipo',
+    'el supervisor no deriva un lead a un analista de otro equipo',
     sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', {
       p_lead_ids: [seed.leadByName.get(LEAD_BY_KEY.luis.name).id],
       p_asesor_ids: [seed.profileIdByKey.vend3],
@@ -6235,7 +6348,7 @@ async function testReparto(sessions, seed) {
     );
   }
   // F2.3b: la puerta v3 tiene grant a `authenticated`, asi que el gate del
-  // despachador es LO UNICO que separa a un vendedor de las metricas de toda
+  // despachador es LO UNICO que separa a un analista de las metricas de toda
   // la casa. Se prueba con los cuatro roles: dos fuera, dos dentro.
   for (const [rol, cliente] of [
     ['vendedor', sessions.vend1.client],
@@ -6324,7 +6437,7 @@ async function testReparto(sessions, seed) {
   // leads_insert no niega al coordinador por policy: lo corta el guard de
   // tenencia. Se asevera para detectar una regresion futura del trigger.
   await expectBlockedMutation(
-    'coordinador no se auto-inserta un lead (vendedor = el mismo)',
+    'coordinador no se auto-inserta un lead (analista = él mismo)',
     coordinador.schema('crm').from('leads').insert({
       etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'otro',
       nombre_completo: 'REPARTO AUTOINSERT TRANSIENT', telefono: '999000101',
@@ -6625,7 +6738,7 @@ async function testReparto(sessions, seed) {
   );
   check([sup1Id, sup2Id].includes(trasCarrera.data?.asignado_supervisor_id)
     && trasCarrera.data?.vendedor_id === null,
-    'carrera: quedo UN solo supervisor asignado y ningun vendedor');
+    'carrera: quedo UN solo supervisor asignado y ningun analista');
 
   // RE-ENCOLADO CON TAREA PENDIENTE — resuelto el 2026-08-09 (opcion B de
   // Miguel, migracion 20260809024942). Historia de esta sonda, porque cambio de
@@ -6751,7 +6864,7 @@ async function testReparto(sessions, seed) {
     're-encolado: con la reunion YA realizada la etapa NO retrocede (el hecho es verdadero)',
     JSON.stringify(reunionHecha.data));
 
-  // NO-REGRESION DEL ALCANCE: bajar de la bandeja a un vendedor NO es un
+  // NO-REGRESION DEL ALCANCE: bajar de la bandeja a un analista NO es un
   // re-encolado. La tarea debe SEGUIR viva y espejar al nuevo dueno, y la etapa
   // no se toca. Sin esto, un futuro "simplifiquemos la condicion" mataria citas
   // vivas en cada reasignacion.
@@ -6764,19 +6877,19 @@ async function testReparto(sessions, seed) {
     'la semilla de la no-regresion llego de verdad a reunion_agendada',
     JSON.stringify(bandejaAntes.data));
   await positive(
-    'bajar el lead de la bandeja a un vendedor (NO es re-encolado)',
+    'bajar el lead de la bandeja a un analista (NO es re-encolado)',
     admin.schema('crm').from('leads')
       .update({ vendedor_id: seed.profileIdByKey.vend3, asignado_supervisor_id: null })
       .eq('id', TRANSIENT_IDS.repartoLeadBandeja)
       .select('id'),
   );
   const bandeja = await requireAdmin(
-    'releer el lead bajado a vendedor',
+    'releer el lead bajado a analista',
     admin.schema('crm').from('leads').select('etapa, vendedor_id')
       .eq('id', TRANSIENT_IDS.repartoLeadBandeja).single(),
   );
   const tareaBandeja = await requireAdmin(
-    'releer la reunion del lead bajado a vendedor',
+    'releer la reunion del lead bajado a analista',
     admin.schema('crm').from('tareas')
       .select('estado, vendedor_id, asignado_supervisor_id')
       .eq('id', TRANSIENT_IDS.repartoTareaBandeja).single(),
@@ -6803,7 +6916,8 @@ async function testDescarte(sessions, seed) {
   const sup1Id = seed.profileIdByKey.sup1;
   const coordId = sessions.coordinador.user.id;
 
-  // (A) Gate de rol de las 2 RPC nuevas: fuera vendedor, supervisor y directorio.
+  // (A) Gate de rol de las 2 RPC nuevas: fuera el rol CRM legacy `vendedor`,
+  // supervisor y directorio.
   for (const key of ['vend1', 'sup1', 'directorio']) {
     await expectBlockedMutation(
       `${key} no puede descartar un lead de la cola`,
@@ -7257,7 +7371,7 @@ async function testCarteraKeyset(sessions, seed) {
   }
 
   const porVendedor = await positive(
-    'gerencia filtra la cartera por vendedor',
+    'gerencia filtra la cartera por analista',
     gerencia.schema('crm').rpc('cartera_pagina_fn', {
       p_limite: 200, p_vendedor_id: seed.profileIdByKey.vend1,
     }),
@@ -7265,20 +7379,20 @@ async function testCarteraKeyset(sessions, seed) {
   if (porVendedor) {
     const filas = porVendedor.data ?? [];
     check(filas.length > 0 && filas.every((f) => f.vendedor_id === seed.profileIdByKey.vend1),
-      `el filtro por vendedor solo devuelve su cartera (${filas.length})`);
+      `el filtro por analista solo devuelve su cartera (${filas.length})`);
   }
 
-  // El filtro NO es una puerta: pedir la cartera de un vendedor ajeno devuelve
+  // El filtro NO es una puerta: pedir la cartera de un analista ajeno devuelve
   // vacio porque la RLS ya recorto ANTES — no porque el filtro sea amable.
   const ajena = await positive(
-    'vend1 pide la cartera de un vendedor de otro subarbol',
+    'vend1 pide la cartera de un analista de otro subarbol',
     sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
       p_limite: 200, p_vendedor_id: seed.profileIdByKey.vend3,
     }),
   );
   if (ajena) {
     check((ajena.data ?? []).length === 0,
-      'vend1 no obtiene ni una fila filtrando por un vendedor ajeno');
+      'vend1 no obtiene ni una fila filtrando por un analista ajeno');
   }
 
   // Busqueda: por nombre dentro del ambito, y NADA fuera de el.
@@ -7391,7 +7505,7 @@ async function testCarteraKeyset(sessions, seed) {
     ['22023'], /p_texto invalido/i,
   );
   await expectExpectedFailure(
-    'cartera_pagina_fn rechaza sin_asignar junto a un vendedor',
+    'cartera_pagina_fn rechaza sin_asignar junto a un analista',
     gerencia.schema('crm').rpc('cartera_pagina_fn', {
       p_limite: 50, p_sin_asignar: true, p_vendedor_id: seed.profileIdByKey.vend1,
     }),
@@ -7449,7 +7563,7 @@ async function testCarteraKeyset(sessions, seed) {
   // ── ultimo_contacto_en: mismo valor para todos los que ven el lead ─────────
   // La cabecera de la migracion AFIRMA que el lateral no diverge porque
   // actividades_select es co-extensiva con leads_select. Esto lo comprueba: un
-  // contacto real registrado por el vendedor debe verse identico desde su
+  // contacto real registrado por el analista debe verse identico desde su
   // supervisor y desde gerencia.
   const maria = seed.leadByName.get('MARIA LOPEZ DEMO');
   const contacto = await positive(
@@ -7478,13 +7592,13 @@ async function testCarteraKeyset(sessions, seed) {
       'el contacto real llena ultimo_contacto_en (ya no es null)',
       JSON.stringify([...sellos]));
     check(new Set(valores.map((v) => (v === null ? 'null' : Date.parse(v)))).size === 1,
-      'vendedor, supervisor y gerencia ven EXACTAMENTE el mismo ultimo contacto',
+      'analista, supervisor y gerencia ven EXACTAMENTE el mismo ultimo contacto',
       JSON.stringify([...sellos]));
   }
 }
 
 // ── Migracion A: conversion mensual ponderada (crm.conversion_mensual_fn) ────
-// La RPC nueva abre al VENDEDOR un informe (cobertura del ledger, total del
+// La RPC nueva abre al ANALISTA un informe (cobertura del ledger, total del
 // ambito, ranking) y al SUPERVISOR su subarbol entero, asi que el gate es parte
 // del entregable y no un seguimiento. Nueve tramos:
 //   (0) LINEA BASE + NO VACUIDAD — se fotografia el payload ANTES de sembrar y
@@ -7546,7 +7660,7 @@ const ESTADOS_CONVERSION = new Set(['medible', 'solo_referidos', 'solo_arrastre'
 const MOTIVOS_NO_MEDIBLE = new Set([null, 'sin_ledger', 'anterior_al_ledger', 'mes_parcial',
   'sin_supervisor', 'supervisor_inactivo', 'supervisor_no_es_supervisor']);
 // Los TRES motivos del paso 5b: la RPC los sobreescribe SOLO para alcance
-// 'propio' cuando el vendedor no esta en el roster. No son metadato del ledger
+// 'propio' cuando el analista no esta en el roster. No son metadato del ledger
 // y por eso no pueden exigirse identicos entre roles (ver tramo G).
 const MOTIVOS_EXCLUSION_ROSTER = new Set(['sin_supervisor', 'supervisor_inactivo',
   'supervisor_no_es_supervisor']);
@@ -7655,7 +7769,7 @@ async function testConversionMensual(sessions, seed) {
 
   try {
     // ── 0b · la semilla, por la VIA REAL ────────────────────────────────────
-    // Los cierres se producen con `crm.convertir_lead` y la sesion del vendedor:
+    // Los cierres se producen con `crm.convertir_lead` y la sesion del analista:
     // el ledger solo registra un cierre cuando el trigger lo ve pasar, y un
     // UPDATE directo a etapa='convertido' es imposible incluso con service_role
     // (exige crm.op_privilegiada, que solo pone esa RPC). El cliente destino es
@@ -7796,7 +7910,7 @@ async function testConversionMensual(sessions, seed) {
       check(deSup1.data?.alcance === 'equipo', 'el supervisor recibe alcance "equipo"');
       // vendNested cuelga de sup1Nested, que cuelga de sup1: prueba la RECURSION.
       check(suyos.has(ids.vendNested),
-        'el subarbol es RECURSIVO: sup1 ve al vendedor de su supervisor anidado');
+        'el subarbol es RECURSIVO: sup1 ve al analista de su supervisor anidado');
       check(!suyos.has(ids.vend3) && !suyos.has(ids.vend4),
         'sup1 NO ve la rama de sup2');
       // Ahora sup1 SI produce (lead fuera de roster) y sigue sin ser fila: la
@@ -7808,7 +7922,7 @@ async function testConversionMensual(sessions, seed) {
     }
     if (deSup2) {
       const suyos = idsDe(deSup2.data);
-      check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos vendedores');
+      check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos analistas');
       check(!suyos.has(ids.vend1) && !suyos.has(ids.vend2) && !suyos.has(ids.vendNested),
         'sup2 NO ve el subarbol de sup1');
       // AQUI la revocacion es una decision y no un accidente de topologia: el
@@ -7817,7 +7931,7 @@ async function testConversionMensual(sessions, seed) {
       // sup2 (el propio gate lo constata en testMetasVersionadas). Lo unico que
       // lo saca es el roster, que exige rol_crm activo en los dos extremos. Es
       // la invariante de [[crm-p04-revocado-vs-ajeno]]: offboarding =
-      // activo=false, y un asesor dado de baja no reaparece con nombre propio
+      // activo=false, y un analista dado de baja no reaparece con nombre propio
       // en el informe que decide sueldos.
       check(!suyos.has(ids.vendInactive),
         'sup2 NO ve a vendInactive aunque SI esta en su subarbol: lo excluye el ROSTER',
@@ -7837,9 +7951,9 @@ async function testConversionMensual(sessions, seed) {
     const propio = await positive('vend1 obtiene SU propia conversion', pedir('vend1'));
     if (propio) {
       const filas = filasDe(propio.data);
-      check(propio.data?.alcance === 'propio', 'el vendedor recibe alcance "propio"');
+      check(propio.data?.alcance === 'propio', 'el analista recibe alcance "propio"');
       check(filas.length === 1 && filas[0]?.vendedor_id === ids.vend1,
-        'el vendedor recibe EXACTAMENTE una fila y es la suya',
+        'el analista recibe EXACTAMENTE una fila y es la suya',
         JSON.stringify(filas.map((f) => f.vendedor_id)));
     }
 
@@ -7886,7 +8000,7 @@ async function testConversionMensual(sessions, seed) {
       /periodo invalido: el mes no puede ser futuro/i,
     );
     await expectExpectedFailure(
-      'el vendedor entra en la MISMA rama de validacion que gerencia',
+      'el analista entra en la MISMA rama de validacion que gerencia',
       pedir('vend1', MES_FUTURO),
       ['22023'],
       /periodo invalido: el mes no puede ser futuro/i,
@@ -7980,7 +8094,7 @@ async function testConversionMensual(sessions, seed) {
       - num(coberturaAntes?.fuera_de_roster?.analistas) === 1
       && num(coberturaDespues?.fuera_de_roster?.divisor)
       - num(coberturaAntes?.fuera_de_roster?.divisor) === 1,
-      'el productor SIN rol de vendedor se cuenta entero en fuera_de_roster, y solo alli',
+      'el productor SIN rol CRM legacy `vendedor` se cuenta entero en fuera_de_roster, y solo alli',
       JSON.stringify({ antes: coberturaAntes?.fuera_de_roster, despues: coberturaDespues?.fuera_de_roster }));
     // La sonda no puede inventarse un hueco: los dos cierres que acaban de
     // nacer TIENEN su episodio cerrado dentro del mismo mes. Si la ventana del
@@ -8207,7 +8321,7 @@ async function testConversionMensual(sessions, seed) {
 
     // ── G · lo que NO se recorta por ambito, y lo que SI ─────────────────────
     // `suelo_historico` es min(asignado_en) de TODO el ledger, sin predicado de
-    // ambito, y viaja tambien al vendedor: la cobertura es una propiedad del
+    // ambito, y viaja tambien al analista: la cobertura es una propiedad del
     // LEDGER —cuando empieza a existir el registro—, no de una persona. Si se
     // recortara, el supervisor de un equipo nuevo veria «mes_parcial» sobre un
     // mes que la empresa mide perfectamente, y dos roles dirian cosas distintas
@@ -8215,10 +8329,10 @@ async function testConversionMensual(sessions, seed) {
     //
     // ⚠️ `medible` y `motivo_no_medible` NO entran en esta cabecera comun. La
     // RPC los SOBREESCRIBE a proposito (paso 5b) para alcance 'propio' cuando el
-    // vendedor no esta en el roster — la correccion #7, que existe para que ese
-    // vendedor no reciba una pantalla en blanco sin explicacion. Exigirlos
+    // analista no esta en el roster — la correccion #7, que existe para que ese
+    // analista no reciba una pantalla en blanco sin explicacion. Exigirlos
     // identicos entre roles cementaria como invariante justo lo que la migracion
-    // rompe, y pondria el gate en rojo el dia que el fixture tenga un vendedor
+    // rompe, y pondria el gate en rojo el dia que el fixture tenga un analista
     // fuera del roster (en produccion HOY hay 1 de 17). Se aseveran abajo, cada
     // uno donde su contrato los garantiza.
     const respuestasPorAlcance = [
@@ -8254,10 +8368,10 @@ async function testConversionMensual(sessions, seed) {
           JSON.stringify(respuesta.data?.cobertura?.motivo_no_medible));
       }
       // Y para 'propio' se asevera la regla EXACTA del paso 5b, no la igualdad:
-      // si el vendedor esta en el roster (lo esta si tiene fila en el payload
+      // si el analista esta en el roster (lo esta si tiene fila en el payload
       // global), 5b no se ejecuta y la cobertura debe coincidir; si no lo
       // estuviera, debe venir medible=false con uno de los TRES motivos de
-      // exclusion. Escrito asi, el dia que el fixture crezca con un vendedor
+      // exclusion. Escrito asi, el dia que el fixture crezca con un analista
       // sin supervisor esta asercion PRUEBA la correccion #7 en vez de romperse.
       if (propio) {
         const motivoPropio = propio.data?.cobertura?.motivo_no_medible ?? null;
@@ -8296,13 +8410,13 @@ async function testConversionMensual(sessions, seed) {
         excesos.join(','));
       // Y el recorte de `fuera_de_roster` se asevera con CONTENIDO, no contra 0:
       // hay un productor ajeno al roster de verdad (el lead de sup1), global lo
-      // cuenta y el vendedor —cuyo ambito es el suyo— NO puede verlo.
+      // cuenta y el analista —cuyo ambito es el suyo— NO puede verlo.
       check(num(payload?.cobertura?.fuera_de_roster?.analistas) >= 1,
         'fuera_de_roster tiene CONTENIDO en global: las monotonias de arriba no son 0 > 0',
         JSON.stringify(payload?.cobertura?.fuera_de_roster));
       if (propio) {
         check(num(propio.data?.cobertura?.fuera_de_roster?.analistas) === 0,
-          'el vendedor no ve NADA del agregado de fuera de roster: su ambito es el suyo',
+          'el analista no ve NADA del agregado de fuera de roster: su ambito es el suyo',
           JSON.stringify(propio.data?.cobertura?.fuera_de_roster));
       }
       check(num(payload?.total?.analistas) > num(deSup1?.data?.total?.analistas)
@@ -8442,7 +8556,7 @@ async function testCumplimientoMetas(sessions, seed) {
     const fila = filas(payGer)[0];
     check(['numerador', 'cierres_no_referidos', 'cierres_referidos']
       .every((k) => fila?.[k] !== undefined),
-      'post-B cada vendedor trae numerador y sus dos sumandos', JSON.stringify(fila));
+      'post-B cada analista trae numerador y sus dos sumandos', JSON.stringify(fila));
     check(payGer?.ponderacion_referido !== undefined,
       'post-B el payload declara la ponderacion aplicada');
     check(filas(payGer).every((f) => Number(f.resueltos) >= 0),
@@ -8452,13 +8566,13 @@ async function testCumplimientoMetas(sessions, seed) {
   // ── C · SUPERVISOR: su subarbol y NADIE mas ─────────────────────────────
   const sup = await positive('sup1 lee el cumplimiento de su equipo', pedir('sup1'));
   const idsSup = idsDe(sup?.data);
-  check(idsSup.size > 0, 'sup1 recibe al menos un vendedor de su equipo');
+  check(idsSup.size > 0, 'sup1 recibe al menos un analista de su equipo');
   check(!idsSup.has(ids.vend3),
     'sup1 NO ve a vend3, que cuelga de sup2', JSON.stringify([...idsSup]));
   check([...idsSup].every((id) => idsDe(payGer).has(id)),
     'todo lo que ve sup1 esta dentro de lo que ve gerencia');
 
-  // ── D · VENDEDOR: solo su propia fila ───────────────────────────────────
+  // ── D · ANALISTA: solo su propia fila ────────────────────────────────────
   const vend = await positive('vend1 lee su cumplimiento', pedir('vend1'));
   const idsVend = idsDe(vend?.data);
   check([...idsVend].every((id) => id === ids.vend1),
@@ -8470,7 +8584,7 @@ async function testCumplimientoMetas(sessions, seed) {
   // (`rol_crm is not null`) y quien acota es `vendedor_ids_visibles`.
   const coord = await positive('coordinador pasa el gate de cumplimiento', pedir('coordinador'));
   check(filas(coord?.data).length === 0,
-    'el coordinador recibe la lista de vendedores VACIA',
+    'el coordinador recibe la lista de analistas VACIA',
     JSON.stringify(filas(coord?.data).length));
 
   // ── F · LECTOR GLOBAL: la rama que `p_global => true` existe para servir ─

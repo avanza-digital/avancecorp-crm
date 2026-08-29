@@ -10,7 +10,7 @@
 //
 // REGLA: el plan muere cuando su DÍA (calendario Lima) ya pasó, no a la hora en
 // punto. Mismo criterio que `tareaQueCierra` (lib/contacto-tarea.ts) y por la
-// misma razón: la agenda del día se trabaja en el orden que el asesor quiera.
+// misma razón: la agenda del día se trabaja en el orden que el analista quiera.
 // Matarlo a las 10:01 convertiría la cola en un eco minuto a minuto de la
 // agenda de al lado — justo el doble aviso que hay que evitar.
 //

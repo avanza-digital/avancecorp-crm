@@ -28,13 +28,13 @@ import {
  *  tipos que el servidor acepta en alerta_id). Estático a propósito: la traza
  *  describe la CLASE de compromiso, no el conteo vivo de aquel momento.
  *  La unidad importa (Codex F4.4): la foto de `sin_proxima_accion` cuenta
- *  VENDEDORES (la decisión del grupo es la conversación con cada uno), las
+ *  ANALISTAS (la decisión del grupo es la conversación con cada uno), las
  *  demás cuentan leads — aplanar todo a «ítems» dejaba a gerencia adivinando. */
 export const CATALOGO_TIPO_ALERTA: Record<string, { etiqueta: string; unidad: readonly [string, string] }> = {
   por_repartir: { etiqueta: 'Leads esperando reparto', unidad: ['lead', 'leads'] },
   lead_sin_responder: { etiqueta: 'Leads nuevos sin responder', unidad: ['lead', 'leads'] },
   tarea_vencida: { etiqueta: 'Leads con plazo vencido', unidad: ['lead', 'leads'] },
-  sin_proxima_accion: { etiqueta: 'Leads sin próxima acción', unidad: ['vendedor', 'vendedores'] },
+  sin_proxima_accion: { etiqueta: 'Leads sin próxima acción', unidad: ['analista', 'analistas'] },
 }
 
 /** Fallback visible para un alerta_id fuera del catálogo: jamás se oculta. */
@@ -52,7 +52,7 @@ export interface CompromisoSupervisor {
   id: string
   supervisorId: string
   etiqueta: string
-  /** Qué cuenta la foto de este tipo: «3 leads», «2 vendedores». */
+  /** Qué cuenta la foto de este tipo: «3 leads», «2 analistas». */
   cuanto: string
   accion: 'reconocer' | 'posponer'
   severidad: 'critica' | 'atencion'

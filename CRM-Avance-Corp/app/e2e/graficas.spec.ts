@@ -19,7 +19,7 @@ test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase',
 
   await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Ritmo semanal del equipo' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Mejores vendedores' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mejores analistas' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Conversión por origen' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Avance de metas' })).toBeVisible()
   await expect(

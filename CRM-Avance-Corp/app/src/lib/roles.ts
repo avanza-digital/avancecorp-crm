@@ -21,7 +21,7 @@ export const ACCIONES = [
   'verEquipo',          // ver a otros miembros del equipo
   'filtrarPorVendedor',
   'reasignar',
-  'repartirLeads',      // supervisor: baja leads de su bandeja a sus vendedores
+  'repartirLeads',      // supervisor: baja leads de su bandeja a sus analistas
   'repartirCola',       // coordinador: reparte la COLA GLOBAL a las bandejas (C1)
   'verPipeline',
   'verLeads',
@@ -30,7 +30,7 @@ export const ACCIONES = [
   'verDerivacionesEquipo', // módulo de reparto propio del supervisor
   'verAlertas',         // bandeja por destinatario (propia, equipo o ejecutiva)
   'tomarLeadDirecto',   // F2 lead libre: tomar para SÍ un contacto en bolsa o
-                        // reutilizable tras verificar — SOLO vendedor (espejo
+                        // reutilizable tras verificar — SOLO analista (espejo
                         // del guard de crm.tomar_lead_libre: supervisión
                         // asigna por el reparto, jamás por esta puerta)
   'verCartera',         // pantalla unificada Clientes+Contratos ('mi-cartera')
@@ -47,7 +47,7 @@ export type Accion = (typeof ACCIONES)[number]
 export type Caps = Record<Accion, boolean>
 
 export const CAPS: Record<Rol, Caps> = {
-  // El vendedor VE Configuración (no la edita): ahí vive "Mi calendario de
+  // El analista VE Configuración (no la edita): ahí vive "Mi calendario de
   // Google", la suscripción ICS que lleva SU agenda al celular, y con
   // verConfiguracion:false esa pantalla no existía para él — ni en el nav ni por
   // URL (sanearVista lo expulsaba) — justo para el único rol que trabaja en la
@@ -107,7 +107,7 @@ export const CAPS: Record<Rol, Caps> = {
 }
 
 export const ROL_LABEL: Record<Rol, string> = {
-  vendedor: 'Vendedor',
+  vendedor: 'Analista',
   supervisor: 'Supervisor',
   gerencia: 'Gerencia',
   directorio: 'Directorio',

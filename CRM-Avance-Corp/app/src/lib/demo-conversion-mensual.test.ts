@@ -35,7 +35,7 @@ describe('conversionMensualDemo — la demo cuenta igual que producción', () =>
     expect(r.success).toBe(true)
   })
 
-  it('VENDEDOR UNO: divisor 8 (los 2 referidos FUERA), numerador 2.15, 26.88 %', () => {
+  it('ANALISTA UNO: divisor 8 (los 2 referidos FUERA), numerador 2.15, 26.88 %', () => {
     // A mano, con la regla: recibió 8 no referidos (l2 l8 l9 l12 l15 l16 l17
     // l20) + 2 referidos que NO ocupan sitio (l1, l21). Cierra en el mes: l16
     // (no-ref del mes) + la1 (no-ref de ARRASTRE) + l21 (referido al 15 %).
@@ -68,7 +68,7 @@ describe('conversionMensualDemo — la demo cuenta igual que producción', () =>
     expect(dos?.conversion_pct).toBe(16.67)
   })
 
-  it('VENDEDOR TRES vive de arrastre: divisor 0, % NULL, estado solo_arrastre', () => {
+  it('ANALISTA TRES vive de arrastre: divisor 0, % NULL, estado solo_arrastre', () => {
     const fila = conversionMensualDemo(AHORA, { alcance: 'global' })
       .responsables.find((f) => f.vendedor_id === 'd-v3')
     expect(fila).toMatchObject({

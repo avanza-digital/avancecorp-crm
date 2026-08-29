@@ -1,5 +1,5 @@
 // Cierres del mes vigente — la definición única contra la que se miden las
-// metas mensuales de vendedor, supervisor y gerencia.
+// metas mensuales de analista, supervisor y gerencia.
 import { describe, expect, it } from 'vitest'
 import { cerradoEnPeriodo, cierresDelMes } from './cierres-del-mes'
 import type { Lead } from './tipos'
@@ -81,7 +81,7 @@ describe('cierresDelMes con el sello propio de conversión', () => {
       id: 'a',
       etapa: 'convertido',
       convertido_en: '2026-07-09T15:00:00Z',
-      actualizado_en: '2026-08-03T15:00:00Z', // el asesor le completó el DNI
+      actualizado_en: '2026-08-03T15:00:00Z', // el analista le completó el DNI
     })
     expect(cierresDelMes([ganadoEnJulio], AHORA).convertidos).toBe(1)
     // Y en agosto (AHORA + 1 mes) ya no vuelve a contar: un cierre, un mes.
@@ -134,7 +134,7 @@ describe('cierresDelMes', () => {
     expect(r).toEqual({ convertidos: 0, resueltos: 0, conversion: null, convertidosVida: 0 })
   })
 
-  it('un descartado sin dueño también consume embudo (no se filtra por vendedor)', () => {
+  it('un descartado sin dueño también consume embudo (no se filtra por analista)', () => {
     const r = cierresDelMes(
       [
         lead({ id: 'a', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),

@@ -5,12 +5,12 @@ import { expect, test } from '@playwright/test'
 import { abrirLead, entrarDemo, irAPipeline } from './_helpers'
 
 test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: /nuevo lead/i }).click()
 
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await expect(modal).toBeVisible()
-  // Regla D8 (Miguel, 2026-08-11): el alta manual del vendedor ofrece SOLO
+  // Regla D8 (Miguel, 2026-08-11): el alta manual del analista ofrece SOLO
   // Referido/Oficina/Otro — Landing y Formulario se cargan solos (puente) y
   // jamás a mano. El servidor lo exige (migración F); el form lo espeja.
   for (const origen of ['referido', 'oficina', 'otro']) {
@@ -31,7 +31,7 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
 })
 
 test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
@@ -46,7 +46,7 @@ test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page
 })
 
 test('mover etapa: el stepper avanza a Contactado (aria-current)', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
@@ -55,7 +55,7 @@ test('mover etapa: el stepper avanza a Contactado (aria-current)', async ({ page
 })
 
 test('descartar con nota: toast "(demo)" y banner de lead descartado', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
 
@@ -72,7 +72,7 @@ test('descartar con nota: toast "(demo)" y banner de lead descartado', async ({ 
 })
 
 test('reabrir: un lead descartado vuelve a Nuevo con toast "(demo)"', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
@@ -88,7 +88,7 @@ test('reabrir: un lead descartado vuelve a Nuevo con toast "(demo)"', async ({ p
 })
 
 test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
@@ -107,19 +107,19 @@ test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page 
   await expect(drawer.getByRole('button', { name: 'Contactado' })).toHaveAttribute('aria-current', 'step')
 })
 
-test('reasignar (gerencia): cambia el vendedor con toast "(demo)"', async ({ page }) => {
+test('reasignar (gerencia): cambia el analista con toast "(demo)"', async ({ page }) => {
   await entrarDemo(page, 'Gerencia')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
-  await drawer.getByLabel('Reasignar vendedor').selectOption({ label: 'VENDEDOR DOS' })
+  await drawer.getByLabel('Reasignar analista').selectOption({ label: 'ANALISTA DOS' })
   await expect(page.getByText(/Lead reasignado \(demo\)/i)).toBeVisible()
 })
 
-// El caso del vendedor sobre SU lead; Gerencia tiene otro camino global, pero el
+// El caso del analista sobre SU lead; Gerencia tiene otro camino global, pero el
 // analista responsable conserva la atribución del cliente y del contrato.
 test('convertir (demo): abre el diálogo y marca el lead como convertido', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
@@ -143,7 +143,7 @@ test('convertir (demo): abre el diálogo y marca el lead como convertido', async
 // cerrarla con un resultado FALSO —«Contestó»/«No contestó»— que entra al log
 // inmutable del lead y puede subirle la etapa.
 test('anular la tarea que sobra tras agendar la reunión (demo)', async ({ page }) => {
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
 
@@ -179,7 +179,7 @@ test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ 
   // Pedido de Miguel (2026-07-26): «si se anula la reu y no se reagenda una en
   // ese mismo momento, debería bajar de etapa». El circuito completo: agendar
   // sube, anular baja, y las dos veces la pantalla lo DICE.
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
   const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
 
@@ -209,7 +209,7 @@ test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ 
 test('crear lead mueve el tile "Leads activos" al instante (espejo demo VIVO, F1)', async ({ page }) => {
   // El bloqueante del plan F1: los tiles demo se calculan del estado vivo del
   // store, no de la semilla estática — crear un lead debe moverlos sin reload.
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await irAPipeline(page)
 
   const chip = page.locator('[data-slot="card"]').filter({ hasText: 'Leads activos' }).first()

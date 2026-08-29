@@ -28,7 +28,7 @@ import { useAuth } from '@/lib/auth-context'
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
 type FiltroEtapa = 'todas' | Etapa
-/** 'todos' | 'sin_asignar' | perfil_id de un vendedor del ámbito. */
+/** 'todos' | 'sin_asignar' | perfil_id de un analista del ámbito. */
 type FiltroVendedor = string
 
 export function Cartera() {
@@ -44,7 +44,7 @@ export function Cartera() {
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fVend, setFVend] = useState<FiltroVendedor>('todos')
-  // Columna "Vendedor" = ver al equipo; filtro por vendedor = capacidad aparte.
+  // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
   const filtrarVendedor = can(yo?.rol, 'filtrarPorVendedor')
 
@@ -106,7 +106,7 @@ export function Cartera() {
 
   const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fVend !== 'todos'
 
-  // El nombre del vendedor lo resuelve el roster: `crm.leads` guarda el id y la
+  // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
   const nombrePorId = useMemo(
     () => new Map(ambito.vendedores.map((m) => [m.perfil_id, m.nombre_completo])),
@@ -167,7 +167,7 @@ export function Cartera() {
         </CardContent>
       </Card>
 
-      {/* Buscador + filtro por etapa (+ vendedor si el rol puede) */}
+      {/* Buscador + filtro por etapa (+ analista si el rol puede) */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -189,8 +189,8 @@ export function Cartera() {
         </div>
         {filtrarVendedor && (
           <div className="w-[210px]">
-            <Select aria-label="Filtrar por vendedor" value={fVend} onChange={(e) => { setFVend(e.target.value) }}>
-              <option value="todos">Todos los vendedores</option>
+            <Select aria-label="Filtrar por analista" value={fVend} onChange={(e) => { setFVend(e.target.value) }}>
+              <option value="todos">Todos los analistas</option>
               {ambito.vendedores.map((m) => (
                 <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>
               ))}
@@ -243,7 +243,7 @@ export function Cartera() {
                 : q.trim()
                   ? `Ningún lead coincide con “${q.trim()}”. Prueba con otro nombre o número.`
                   : hayFiltro
-                    ? `Ningún lead coincide con los filtros. Prueba con otra etapa${filtrarVendedor ? ' u otro vendedor' : ''}.`
+                    ? `Ningún lead coincide con los filtros. Prueba con otra etapa${filtrarVendedor ? ' u otro analista' : ''}.`
                     : 'Tu cartera todavía no tiene leads.'
             }
           />
@@ -252,13 +252,13 @@ export function Cartera() {
             {/* Responsive por PRIORIDAD (mismo patrón de parejas th/td de
                 Clientes y Contratos): en angosto cae primero Creado (xl) y
                 luego Categoría (lg) — ambos siguen completos en el hover-card
-                del lead. Lead, Etapa, Monto y Vendedor NUNCA se ocultan: son
+                del lead. Lead, Etapa, Monto y Analista NUNCA se ocultan: son
                 la operación y el capital en juego. */}
             <TheadCrm>
               <Th>Lead</Th>
               <Th>Etapa</Th>
               <Th className="text-right">Monto estimado</Th>
-              {verVendedor && <Th>Vendedor</Th>}
+              {verVendedor && <Th>Analista</Th>}
               <Th className="hidden lg:table-cell">Categoría</Th>
               <Th className="hidden xl:table-cell">Creado</Th>
               <Th className="w-8" aria-hidden />

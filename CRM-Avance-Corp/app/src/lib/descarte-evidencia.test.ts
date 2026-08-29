@@ -1,5 +1,5 @@
 // Contrato de «No responde»: es una AFIRMACIÓN DE HECHO sobre el cliente, no
-// una opinión del asesor. Sin intentos registrados es falsa — y contamina la
+// una opinión del analista. Sin intentos registrados es falsa — y contamina la
 // métrica con la que se decide de dónde traer leads (un origen bueno aparece
 // como "no responde" cuando en realidad nadie lo trabajó).
 //
@@ -13,7 +13,7 @@ const act = (tipo: TipoActividad, iso: string): Actividad => ({
   lead_id: 'l1',
   tipo,
   detalle: null,
-  autor_nombre: 'VENDEDOR UNO',
+  autor_nombre: 'ANALISTA UNO',
   creado_en: iso,
 })
 
@@ -76,7 +76,7 @@ describe('evidenciaNoResponde — qué cuenta como intento', () => {
   })
 })
 
-describe('vetoNoResponde — la razón que ve el vendedor', () => {
+describe('vetoNoResponde — la razón que ve el analista', () => {
   it('con los intentos suficientes, no hay veto', () => {
     const acts = Array.from({ length: INTENTOS_MIN_NO_RESPONDE }, (_, i) =>
       act('llamada_no_contestada', D(i + 1)),

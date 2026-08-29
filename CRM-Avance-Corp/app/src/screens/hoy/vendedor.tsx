@@ -1,6 +1,6 @@
-// Hoy · VENDEDOR (F1c) — la pantalla diaria del asesor: SU cartera, SU cola de
+// Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
-// suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
+// suyos), así que aquí no hay ni ranking ni datos de otros analistas — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
 import {
   useEffect,
@@ -125,7 +125,7 @@ const SIN_META = 'Sin meta fijada para este mes'
  * nada resuelto en el mes). En los dos el semáforo se cortocircuitaba solo:
  * `pctMeta(x, 0)` —y `pctMeta(0, y)`— devuelven 0, y `colorMeta(0)` es ROJO
  * CRÍTICO, así que una meta que nadie fijó, o un mes recién estrenado, se leían
- * como un incumplimiento grave del asesor. Sin dato ≠ incumplido. */
+ * como un incumplimiento grave del analista. Sin dato ≠ incumplido. */
 function MetaFila({
   icon: Icon,
   label,
@@ -182,7 +182,7 @@ function MetaFila({
 
 /**
  * Sub-línea del capital consolidado: cuánto entró en cada moneda y a qué tasa se
- * unificó. Va DEBAJO del total y no al lado a propósito — el asesor mira una
+ * unificó. Va DEBAJO del total y no al lado a propósito — el analista mira una
  * cifra, y el desglose está para responder «¿de dónde sale?», no para competir
  * con ella.
  *
@@ -191,7 +191,7 @@ function MetaFila({
  *     entró en el número, leída del resultado y no del TC que se creía tener.
  *   · `solo_pen`   → el USD existe pero no hubo tasa: se muestra aparte y con la
  *     advertencia, porque el total de arriba NO lo incluye. Callarlo haría que
- *     el asesor leyera su avance como completo cuando le falta media moneda.
+ *     el analista leyera su avance como completo cuando le falta media moneda.
  *   · `indisponible` → no hay nada que desglosar todavía.
  */
 function DesgloseCapital({
@@ -218,8 +218,8 @@ function DesgloseCapital({
   )
 }
 
-// ── Agenda de hoy (HÉROE del vendedor) ────────────────────────────────────────
-// Lógica comercial: el día del asesor lo manda su agenda — dónde estar y qué
+// ── Agenda de hoy (HÉROE del analista) ────────────────────────────────────────
+// Lógica comercial: el día del analista lo manda su agenda — dónde estar y qué
 // vence hoy es lo que gana (o pierde) ingreso HOY; por eso es el protagonista.
 // Cada evento muestra el CAPITAL en juego de su lead y los vencimientos se
 // marcan (una propuesta que vence = dinero a punto de enfriarse).
@@ -261,7 +261,7 @@ function vencidasListadas(eventos: EventoAgenda[]): EventoAgenda[] {
  * agenda marca «vencida» por HORA (`tareaAEvento`, lib/agenda-derivada) y el
  * plan de un lead muere por DÍA (`planPorLead`, lib/plan-lead): una tarea que
  * venció hoy a las 09:00 ya es vencida arriba y sigue siendo plan VIGENTE
- * abajo, así que `colaDe` salta a ese lead y su fila NO existe. El asesor leía
+ * abajo, así que `colaDe` salta a ese lead y su fila NO existe. El analista leía
  * "+2 más vencidas — las tienes en la cola" sobre una cola que, encima, se
  * declaraba sin pendientes.
  *
@@ -269,7 +269,7 @@ function vencidasListadas(eventos: EventoAgenda[]): EventoAgenda[] {
  * respuestas a preguntas DISTINTAS: la agenda responde "¿ya pasó la hora?" (una
  * llamada de las 09:00 a las 15:00 llegó tarde, y esconderlo sería peor) y el
  * plan responde "¿este lead tiene dueño de su siguiente paso?" — que se contesta
- * por día a propósito, para que el asesor ordene su jornada como quiera y la
+ * por día a propósito, para que el analista ordene su jornada como quiera y la
  * cola no sea un eco minuto a minuto de la agenda (ver la REGLA en
  * lib/plan-lead.ts, compartida con `tareaQueCierra` y consumida por cuatro
  * pantallas más el botón Agendar). Lo único que mentía era la frase, y es la
@@ -597,7 +597,7 @@ function AgendaClientesHoy({
 }
 
 // ── Franja «Ahora» ───────────────────────────────────────────────────────────
-// La firma visual del vendedor: una hoja de llamada compacta, ordenada y con
+// La firma visual del analista: una hoja de llamada compacta, ordenada y con
 // máximo tres decisiones. No es otro resumen de alertas: las filas elevadas se
 // retiran de Agenda/Cola para que una persona no aparezca dos veces en la vista.
 
@@ -864,7 +864,7 @@ export function HoyVendedor(): JSX.Element {
   // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
   const ahora = useAhora()
 
-  // Universo del asesor — ambito.leads ya es SOLO su cartera. Memoizado porque
+  // Universo del analista — ambito.leads ya es SOLO su cartera. Memoizado porque
   // de él cuelgan `idsMios` y la agenda derivada: un array nuevo en cada render
   // reventaría esos memos sin que haya cambiado un solo dato.
   const mios = useMemo(() => ambito.leads.filter((l) => l.activo), [ambito.leads])
@@ -885,7 +885,7 @@ export function HoyVendedor(): JSX.Element {
 
   // La meta viene de la revisión publicada; el numerador viene únicamente del
   // RPC de cumplimiento confirmado. El pipeline abierto no entra aquí.
-  // Meta y producción del MISMO snapshot: ver `metaVigente`. Para el asesor
+  // Meta y producción del MISMO snapshot: ver `metaVigente`. Para el analista
   // importa igual, porque un cambio de equipo a mitad de mes no debe borrarle
   // la meta con la que se le está midiendo.
   const meta = metaVigente(objetivos.vendedor, cumplimientoMetas?.vendedor ?? null)
@@ -917,7 +917,7 @@ export function HoyVendedor(): JSX.Element {
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
   const conversion = lecturaConversion.mostrar ? (miConversion?.conversion_pct ?? null) : null
   // CAPITAL CONSOLIDADO (decisión de Miguel 2026-08-10, extendiendo la #10 al
-  // asesor): lo que manda es UN solo número —cuánto ha metido en total, en
+  // analista): lo que manda es UN solo número —cuánto ha metido en total, en
   // soles— y el desglose por moneda vive debajo como sub-línea. Si cierra en
   // dólares, su avance sube igual, convertido al TC real.
   //
@@ -933,7 +933,7 @@ export function HoyVendedor(): JSX.Element {
   const capitalTotal = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tcPromedio)
   const metaTotal = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
 
-  // Cola de acción personal (el ámbito del vendedor no trae parkeados).
+  // Cola de acción personal (el ámbito del analista no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
   // agenda; aquí solo quedan speed-to-lead y los que se quedaron sin plan.
   // ⚠️ `plan.vigente` y NO "tiene alguna tarea": una pendiente que venció hace
@@ -1092,7 +1092,7 @@ export function HoyVendedor(): JSX.Element {
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-accent">Mi jornada</p>
           <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-primary">
-            Hola, {primerNombre(yo?.nombre_completo) || 'asesor'}.
+            Hola, {primerNombre(yo?.nombre_completo) || 'analista'}.
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {fechaLarga(ahora)} · primero resolvemos; después revisamos el contexto.
@@ -1204,7 +1204,7 @@ export function HoyVendedor(): JSX.Element {
                 // Cola vacía NO es "al día": lo vencido está en la agenda de al
                 // lado (donde vive su botón de cerrar). Decir "sin pendientes"
                 // mientras el badge vecino canta N vencidas es la pantalla
-                // contradiciéndose, y el asesor se va a casa creyendo que
+                // contradiciéndose, y el analista se va a casa creyendo que
                 // terminó. El vacío REMITE a la agenda en vez de negarla.
                 <div className="flex flex-col items-center gap-2 py-10 text-center">
                   <AlertTriangle className="size-8 text-warning" />
@@ -1362,7 +1362,7 @@ export function HoyVendedor(): JSX.Element {
       )}
 
       {/* Progressive disclosure: el avance mensual está disponible, pero no
-          compite con el trabajo del día hasta que el vendedor decide abrirlo. */}
+          compite con el trabajo del día hasta que el analista decide abrirlo. */}
       <Card className="min-w-0">
         <details className="group">
           <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-5 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 [&::-webkit-details-marker]:hidden">
@@ -1420,7 +1420,7 @@ export function HoyVendedor(): JSX.Element {
                         pantalla no está en él — el color salía de la herencia
                         por accidente (revisor a11y, F2.3). Mismo hex.
                         El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
-                        lo llena el reparto, no el asesor, y el número solo
+                        lo llena el reparto, no el analista, y el número solo
                         miente por omisión. */}
                       Recibidos {numero(miConversion.divisor)} · cierres{' '}
                       {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
@@ -1439,7 +1439,7 @@ export function HoyVendedor(): JSX.Element {
                           </>
                         ) : null
                       })()}
-                      {/* ⚠️ El aviso de «provisional» NO se le pone al vendedor
+                      {/* ⚠️ El aviso de «provisional» NO se le pone al analista
                         (decisión de Miguel, 2026-08-14): él necesita ver su
                         número, no la contabilidad de por qué el mes va corto.
                         Ese matiz sí viaja a supervisor y gerencia, que son
@@ -1489,7 +1489,7 @@ export function HoyVendedor(): JSX.Element {
       </Card>
 
       <p className="text-[11px] text-muted-foreground">
-        {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
+        {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada analista trabaja solo con sus leads.
       </p>
 
       {/* Motor Fase B: cierre 1-tap + siguiente sugerida desde la agenda héroe. */}

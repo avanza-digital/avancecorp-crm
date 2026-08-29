@@ -1,12 +1,19 @@
 ---
 tipo: decision-ux
-estado: candidata-estatica-captura-fresca-pendiente
+estado: referencia-ux-historica-no-candidata-tecnica
 fecha: 2026-08-27
+actualizado: 2026-08-29
 serial: AVC-F41-360-20260825-R2
 sha_evidencia: e6129674844ecca12b224690f43bedb436b06006
 ---
 
 # Ficha 360 R2 — aceptación UX/comercial 2026-08-27
+
+> [!note] Actualización posterior — 2026-08-29
+> Esta nota conserva literalmente el lenguaje de la captura histórica R2. Para
+> toda interfaz, requisito y prueba nueva, la denominación canónica es
+> **Analista**, según [[Terminología comercial del CRM]]. R2 continúa siendo
+> referencia UX/comercial; no es la rama técnica canónica ni autoriza deploy.
 
 Relacionado: [[Ficha comercial 360 de clientes - plan]],
 [[Ficha 360 - plan de reintegracion sobre nucleo unico (2026-08-27)]],

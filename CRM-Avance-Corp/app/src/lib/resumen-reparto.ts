@@ -2,7 +2,7 @@
 // El payload jsonb (version:1) es la fuente de los 4 tiles de "Repartir" en sesión
 // real: la cola GLOBAL la cuenta el servidor y el navegador solo pinta.
 // La semántica es espejo de la migración 20260809144912: MISMO predicado que
-// private.leads_por_repartir_implementacion (activo, sin vendedor NI supervisor,
+// private.leads_por_repartir_implementacion (activo, sin analista NI supervisor,
 // las 4 etapas abiertas y no_contactar = false — Ley 29571), USD estricto
 // (cualquier otra moneda cae a PEN) y PEN y USD JAMÁS se suman.
 //

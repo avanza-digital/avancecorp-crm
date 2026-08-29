@@ -173,7 +173,7 @@ function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: ()
 
 /**
  * Línea «por cosecha» de una fila (D2 aplicado al ranking): de los leads que
- * el vendedor RECIBIÓ en el mes, cuántos ya son clientes. Reescrita en idioma
+ * el analista RECIBIÓ en el mes, cuántos ya son clientes. Reescrita en idioma
  * de negocio a pedido de Miguel (27/08): la primera versión («Cosecha: 0 de
  * 41 recibidos (0%) · madura hasta hoy») no la entendía nadie. El matiz de la
  * maduración viaja en el title, no en la línea. Sin fila del payload no se
@@ -197,7 +197,7 @@ function lineaCosecha(fila: ResponsableEquipo | undefined): string | null {
  * relojes: esta línea sigue al LOTE (cierre cuando cierre); el % del mes
  * acredita cada cierre al mes en que ocurrió.
  */
-const TITLE_COSECHA = 'Sigue a los leads que el vendedor recibió este mes: cuántos ya son clientes, cierren cuando cierren. Si uno cierra el mes que viene, esta línea sube — pero ese cierre le contará a la conversión DEL MES QUE VIENE, no a la de este.'
+const TITLE_COSECHA = 'Sigue a los leads que el analista recibió este mes: cuántos ya son clientes, cierren cuando cierren. Si uno cierra el mes que viene, esta línea sube — pero ese cierre le contará a la conversión DEL MES QUE VIENE, no a la de este.'
 
 /**
  * Pestaña «Cosecha del lote» (pedido de Miguel, 27/08): la lectura vivía como
@@ -240,13 +240,13 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
       <p className="border-b border-[var(--gi-line)] bg-[#faf9f6] px-4 py-2.5 text-[11px] font-medium text-[var(--gi-muted)] sm:px-5" title={TITLE_COSECHA}>
         Un cierre tardío sube esta lista, pero a la conversión le cuenta en el mes en que cerró — el mes sellado no se mueve.
       </p>
-      <ol aria-label="Cosecha del lote por vendedor" className="divide-y divide-[var(--gi-line)]">
+      <ol aria-label="Cosecha del lote por analista" className="divide-y divide-[var(--gi-line)]">
         {filas.map((fila) => {
           const identidad = nombrePorId.get(fila.vendedor_id)
           return (
             <li key={fila.vendedor_id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
               <span className="min-w-0">
-                <strong className="block truncate text-sm text-[var(--gi-navy)]">{identidad?.nombre ?? 'Vendedor no identificado'}</strong>
+                <strong className="block truncate text-sm text-[var(--gi-navy)]">{identidad?.nombre ?? 'Analista no identificado'}</strong>
                 <span className="block truncate text-[11px] font-medium text-[var(--gi-muted)]">{identidad?.supervisorNombre ?? 'Equipo no disponible'}</span>
               </span>
               <span title={TITLE_COSECHA} className="text-xs font-semibold tabular-nums text-[var(--gi-navy)]">{lineaCosecha(fila)}</span>
@@ -270,7 +270,7 @@ function RankingConversion({ ranking }: {
           <thead className="bg-[#f7f5f1] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">
             <tr>
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
-              <th className="px-3 py-3" scope="col">Vendedor</th>
+              <th className="px-3 py-3" scope="col">Analista</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
               <th className="px-3 py-3 text-right" scope="col">Recibidos</th>
               <th className="px-3 py-3 text-right" scope="col">Cierres</th>
@@ -353,7 +353,7 @@ function RankingConversion({ ranking }: {
       </ol>
 
       {(ranking.sinMuestra.length > 0 || ranking.indisponibles.length > 0) && (
-        <section aria-label="Vendedores sin posición en conversión" className="border-t border-[var(--gi-line)] bg-[#faf9f6] px-4 py-4 sm:px-5">
+        <section aria-label="Analistas sin posición en conversión" className="border-t border-[var(--gi-line)] bg-[#faf9f6] px-4 py-4 sm:px-5">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">Fuera del ranking</h3>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {ranking.sinMuestra.map((fila) => (
@@ -398,7 +398,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
           <thead className="bg-[#f7f5f1] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">
             <tr>
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
-              <th className="px-3 py-3" scope="col">Vendedor</th>
+              <th className="px-3 py-3" scope="col">Analista</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
               <th className="px-3 py-3 text-right" scope="col">Capital confirmado (S/)</th>
               <th className="px-3 py-3 text-right" scope="col">Meta (S/)</th>
@@ -448,7 +448,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
       </ol>
 
       {(ranking.sinMeta.length > 0 || ranking.indisponibles.length > 0) && (
-        <section aria-label="Vendedores sin posición en capital" className="border-t border-[var(--gi-line)] bg-[#faf9f6] px-4 py-4 sm:px-5">
+        <section aria-label="Analistas sin posición en capital" className="border-t border-[var(--gi-line)] bg-[#faf9f6] px-4 py-4 sm:px-5">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">Fuera del ranking</h3>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {ranking.sinMeta.map((fila) => (
@@ -483,7 +483,7 @@ export function RankingVendedoresPanel({
   cargando,
   error,
   onReintentar,
-  titulo = 'Ranking general de vendedores',
+  titulo = 'Ranking general de analistas',
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
 }: RankingVendedoresPanelProps): JSX.Element {
@@ -522,7 +522,7 @@ export function RankingVendedoresPanel({
         <div>
           <p className="gi-label text-[var(--gi-blue)]">Desempeño comercial</p>
           <h2 className="mt-1 text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">{titulo}</h2>
-          <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">{numero(totalVendedores)} vendedores · sin límite fijo de participantes</p>
+          <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">{numero(totalVendedores)} {totalVendedores === 1 ? 'analista' : 'analistas'} · sin límite fijo de participantes</p>
         </div>
         <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
       </header>
@@ -552,7 +552,7 @@ export function RankingVendedoresPanel({
         <TabpanelMarco tab={tipo}><ErrorRanking error={error} onReintentar={onReintentar} /></TabpanelMarco>
       ) : totalVendedores === 0 ? (
         <TabpanelMarco tab={tipo}>
-          <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay vendedores para mostrar</p></div></div>
+          <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay analistas para mostrar</p></div></div>
         </TabpanelMarco>
       ) : tipo === 'conversion' ? (
         conversionMensual === undefined

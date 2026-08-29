@@ -10,7 +10,7 @@
 // El mes de CIERRE sale de `convertido_en`: el sello que pone el trigger
 // `trg_leads_cambio_etapa` en la MISMA transacción del paso a `convertido`, y
 // que `leads_before_update` restaura desde OLD ante cualquier escritura del
-// cliente API. Es inmutable por construcción: nada de lo que haga el asesor
+// cliente API. Es inmutable por construcción: nada de lo que haga el analista
 // después puede moverlo.
 //
 // ANTES salía de `actualizado_en`, apoyado en la premisa de que "un lead
@@ -75,7 +75,7 @@ export interface CierresDelMes {
  * servidor recorta el universo; cada rol mide el suyo).
  *
  * Deliberadamente NO filtra por `vendedor_id`: es el mismo universo que
- * `lib/series-comerciales` y que la meta del vendedor. Un lead descartado antes
+ * `lib/series-comerciales` y que la meta del analista. Un lead descartado antes
  * de tener dueño también consumió un lead del embudo, y excluirlo inflaría la
  * conversión del periodo justo por el lado que conviene.
  */

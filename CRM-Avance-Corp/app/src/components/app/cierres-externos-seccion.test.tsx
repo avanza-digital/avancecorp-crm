@@ -79,7 +79,7 @@ function cierreDemo(extra: Partial<CierreExternoDemo> = {}): CierreExternoDemo {
     numeroTransaccion: 'OP-DEMO-1',
     creadoEn: `${MES_ACTUAL}-12T00:00:00.000Z`,
     vendedorId: 'v-demo',
-    vendedorNombre: 'Vendedor Demo',
+    vendedorNombre: 'Analista Demo',
     anuladoEn: null,
     motivoAnulacion: null,
     ...extra,
@@ -101,7 +101,7 @@ const CIERRE_REAL = {
   vence_en: '2027-09-01',
   nota: 'primera inversion',
   vendedor_id: 'v-a',
-  vendedor_nombre: 'Ana Asesora',
+  vendedor_nombre: 'Ana Analista',
   creado_en: '2026-08-12T00:00:00.000Z',
   anulado_en: null,
   motivo_anulacion: null,
@@ -119,7 +119,7 @@ const PAYLOAD_REAL = {
   // del servidor (la lista de arriba está truncada: 1 fila de 3).
   totales: [{ cooperativa: 'qorilazo' as const, moneda: 'PEN' as const, capital: 21500, cierres: 3 }],
   por_empresa: [
-    { vendedor_id: 'v-a', vendedor_nombre: 'Ana Asesora', cooperativa: 'qorilazo' as const, moneda: 'PEN' as const, capital: 3500, cierres: 2 },
+    { vendedor_id: 'v-a', vendedor_nombre: 'Ana Analista', cooperativa: 'qorilazo' as const, moneda: 'PEN' as const, capital: 3500, cierres: 2 },
   ],
 }
 
@@ -177,7 +177,7 @@ describe('SeccionEnCooperativas', () => {
   })
 
   it('un cierre ANULADO se sigue viendo, marcado, y NO suma al total', () => {
-    // Que la fila desaparezca sería peor que verla: el asesor vería bajar su
+    // Que la fila desaparezca sería peor que verla: el analista vería bajar su
     // total sin ninguna explicación. Se ve, se marca, y no cuenta.
     montar(<SeccionEnCooperativas demo />, [
       cierreDemo({ cierreId: 'demo-cx-vivo', leadId: 'l-vivo', nombre: 'Cierre Vivo', monto: 5000 }),
@@ -220,7 +220,7 @@ describe('SeccionEnCooperativas', () => {
 describe('DesglosePorEmpresa', () => {
   const CUMPLIMIENTO_A: CumplimientoVendedor = {
     vendedorId: 'v-a',
-    nombre: 'Ana Asesora',
+    nombre: 'Ana Analista',
     supervisorId: 's-1',
     supervisorNombre: 'Súper Uno',
     conversionObjetivo: 50,
@@ -258,7 +258,7 @@ describe('DesglosePorEmpresa', () => {
     montar(<DesglosePorEmpresa demo={false} porVendedor={{ 'v-a': CUMPLIMIENTO_A }} />)
 
     expect(screen.getByText('Por empresa')).toBeInTheDocument()
-    expect(screen.getByText('Ana Asesora')).toBeInTheDocument()
+    expect(screen.getByText('Ana Analista')).toBeInTheDocument()
     // 13.500 del cumplimiento − 3.500 en qorilazo = 10.000 de Avance.
     expect(screen.getByText(/10,000/)).toBeInTheDocument()
     expect(screen.getByText('QORILAZO')).toBeInTheDocument()
@@ -277,7 +277,7 @@ describe('DesglosePorEmpresa', () => {
 })
 
 // La revisión existe porque la cooperativa no le manda nada al CRM: el número
-// que escribe el vendedor vale lo que valga el control humano de atrás. Estas
+// que escribe el analista vale lo que valga el control humano de atrás. Estas
 // pruebas defienden que ese control tenga los datos a mano y que anular —que no
 // se deshace— nunca sea un clic suelto.
 describe('RevisionDelMes (dentro de «Por empresa»)', () => {
@@ -298,8 +298,8 @@ describe('RevisionDelMes (dentro de «Por empresa»)', () => {
     const { dialogo } = await abrirRevision()
     expect(within(dialogo).getByText('Cliente Qorilazo Uno')).toBeInTheDocument()
     expect(within(dialogo).getByText('OP-77-2026')).toBeInTheDocument()
-    // El nombre del asesor comparte párrafo con la fecha del cierre.
-    expect(within(dialogo).getByText(/Ana Asesora/)).toBeInTheDocument()
+    // El nombre del analista comparte párrafo con la fecha del cierre.
+    expect(within(dialogo).getByText(/Ana Analista/)).toBeInTheDocument()
   })
 
   it('un supervisor NO ve el botón de anular: la anulación es de gerencia', async () => {

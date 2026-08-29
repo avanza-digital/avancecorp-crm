@@ -88,7 +88,7 @@ const PANTALLA_POR_VISTA = {
  * carga real del store (LIMITE_CARGA_REAL_MS) y que el de la verificación de
  * acceso: esos dos son la defensa primaria (abortan y caen en un estado de
  * error). Esto es la red de seguridad de último recurso — cubre el cuelgue que
- * ninguno de los dos vea (p. ej. un efecto que nunca llega a correr). El asesor
+ * ninguno de los dos vea (p. ej. un efecto que nunca llega a correr). El analista
  * NUNCA debe quedarse mirando un spinner sin salida.
  */
 export const LIMITE_SPLASH_MS = 25_000
@@ -333,7 +333,7 @@ function Workspace() {
 
   // Al abrir una ficha o el alta, la guía se aparta una vez para no competir
   // con el formulario. Su contenido sigue montado y queda en “Continuar guía”.
-  // Si el vendedor decide reabrirla mientras trabaja, se respeta esa intención.
+  // Si el analista decide reabrirla mientras trabaja, se respeta esa intención.
   useEffect(() => {
     if (panelTrabajoAbierto && !panelTrabajoAnteriorRef.current) {
       setAyudaAbierta(false)

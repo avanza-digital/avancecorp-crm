@@ -182,7 +182,7 @@ function filaDe(
 
 export interface AmbitoConversionDemo {
   alcance: ConversionMensual['alcance']
-  /** propio → el vendedor; equipo → el supervisor. Global lo ignora. */
+  /** propio → el analista; equipo → el supervisor. Global lo ignora. */
   actorId?: string
 }
 

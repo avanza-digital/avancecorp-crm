@@ -1,11 +1,21 @@
 ---
 tags: [crm, cartera, postventa, ficha-360, ux, plan]
-actualizado: 2026-08-25
-estado: implementado-pendiente-preview-y-aceptacion
+actualizado: 2026-08-29
+estado: referencia-ux-candidata-integrada-no-desplegada
 fase: F4.1
 ---
 
 # Ficha comercial 360 de clientes — plan
+
+> [!note] Estado posterior — 2026-08-29
+> La rama R2 se conserva únicamente como referencia UX/comercial. La candidata
+> integrada actual usa `crm.cliente_detalle_fn(uuid)` para el detalle seguro y
+> permanece **sin desplegar**; `crm.cliente_ficha_fn` es el nombre propuesto por
+> este plan para una frontera futura, no una RPC vigente. Véase
+> [[Auditoría backend Gestión de cartera 2026-08-28]].
+> En la candidata actual, `creado_por` solo completa el ámbito cuando
+> `asesor_perfil_id` es nulo y el creador pertenece al árbol autorizado; jamás
+> prevalece sobre una asignación vigente.
 
 Decisión aprobada por Miguel el **2026-08-25** e implementada en una rama
 aislada: desde **Mi cartera**, el vendedor puede abrir a un cliente en una ficha

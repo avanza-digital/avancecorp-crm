@@ -45,7 +45,7 @@ export function useEsMovil(): boolean {
  * abiertas o en split-screen sigue siendo `hover: hover` + `pointer: fine`, así
  * que el escritorio conserva intacto su copiar-al-portapapeles. Por eso NO se
  * reutiliza CONSULTA_MOVIL: con un max-width a secas, media laptop del equipo
- * se volvería "celular" y el asesor perdería el número copiado.
+ * se volvería "celular" y el analista perdería el número copiado.
  *
  * El segundo filtro mira el LADO CORTO del viewport, no el ancho: el ancho
  * cambia al ROTAR y con `max-width` a secas el mismo celular perdía el marcador

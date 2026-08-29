@@ -600,7 +600,7 @@ describe('DistribucionLeadsGerencia con equipos grandes (2 supervisores × 9 ana
     return {
       ...ANA,
       analista_id: `analista-${String(indice).padStart(2, '0')}`,
-      nombre: `Vendedor ${String(indice).padStart(2, '0')}`,
+      nombre: `Analista ${String(indice).padStart(2, '0')}`,
       supervisor_id: supervisor.id,
       supervisor_nombre: supervisor.nombre,
       capacidad: {

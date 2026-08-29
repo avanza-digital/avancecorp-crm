@@ -236,7 +236,7 @@ export function HoyDirectorio(): JSX.Element {
           sub={
             resumen
               ? resumen.totales.parkeados > 0
-                ? `Con vendedor · +${resumen.totales.parkeados} por repartir · ${resumen.totales.vivos} en el ámbito`
+                ? `Con analista · +${resumen.totales.parkeados} por repartir · ${resumen.totales.vivos} en el ámbito`
                 : `De ${resumen.totales.vivos} leads del ámbito operativo`
               : 'Ámbito operativo'
           }
@@ -360,7 +360,7 @@ export function HoyDirectorio(): JSX.Element {
             <thead>
               <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 <th className="pb-2 pr-3 font-bold">Equipo</th>
-                <th className="pb-2 pr-3 text-right font-bold">Vendedores</th>
+                <th className="pb-2 pr-3 text-right font-bold">Analistas</th>
                 <th className="pb-2 pr-3 text-right font-bold">Activos</th>
                 <th className="pb-2 pr-3 text-right font-bold">{tc ? 'Capital (S/)' : 'Capital (PEN)'}</th>
                 <th className="pb-2 pr-3 text-right font-bold">
@@ -432,7 +432,7 @@ export function HoyDirectorio(): JSX.Element {
           </table>
           <p className="pt-3 text-[11px] text-muted-foreground">
             Los leads por repartir (parkeados en bandeja del supervisor) no suman al capital
-            hasta tener vendedor asignado.
+            hasta tener analista asignado.
           </p>
         </CardContent>
       </Card>

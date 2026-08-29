@@ -39,9 +39,50 @@ test('real: un analista abre todos los datos de su cliente aunque la ventana de 
   expect(backend.llamadas.patchPerfil).toBe(0)
 })
 
+test('real: directorio ve la ficha comercial sin domicilio, banca ni llamadas a sus RPC', async ({ page }) => {
+  const cliente = clienteReal()
+  const backend = await montarBackendReal(page, {
+    rolCrm: 'directorio',
+    rolPortal: 'directorio',
+    clientes: [cliente],
+    contratos: [],
+  })
+  await loginReal(page)
+  await irAMiCartera(page)
+
+  const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
+  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+
+  const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
+  await expect(ficha.getByText('cliente1@correo.pe')).toBeVisible()
+  await expect(ficha.getByText('Domicilio legal')).toBeVisible()
+  await expect(ficha.getByText(cliente.domicilio!)).toHaveCount(0)
+  await expect(ficha.getByText('Información bancaria restringida')).toBeVisible()
+  await expect(ficha.getByText('00219112345678901234')).toHaveCount(0)
+  await expect(ficha.getByText('19112345678901')).toHaveCount(0)
+  expect(backend.llamadas.rpcListarCuentasBancarias).toBe(0)
+})
+
+test('real: supervisor gestiona y contrata para su equipo, pero no corrige el perfil ajeno', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'supervisor',
+    rolPortal: 'analista',
+    clientes: [clienteReal({ asesor_perfil_id: 'vend-1', creado_por: 'vend-1' })],
+    contratos: [],
+  })
+  await loginReal(page)
+  await irAMiCartera(page)
+
+  const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
+  await expect(fila.getByRole('button', { name: 'Gestionar' })).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
+  await expect(fila.getByRole('button', { name: '+ Primer contrato' })).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Corregir', exact: true })).toHaveCount(0)
+})
+
 test('demo: abre la ficha ficticia completa sin ningún request a Supabase', async ({ page }) => {
   const requestsSupabase = await bloquearSupabase(page)
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Mi cartera' }).click()
 
   const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
@@ -53,5 +94,26 @@ test('demo: abre la ficha ficticia completa sin ningún request a Supabase', asy
   await expect(ficha.getByText('rosa.aguilar@correo.pe')).toBeVisible()
   await expect(ficha.getByText('19100000001234')).toBeVisible()
   await expect(ficha.getByText('00219100000000123456')).toBeVisible()
+  expect(requestsSupabase()).toBe(0)
+})
+
+test('demo: directorio ve la ficha comercial sin domicilio ni números bancarios ficticios', async ({ page }) => {
+  const requestsSupabase = await bloquearSupabase(page)
+  await entrarDemo(page, 'Directorio')
+  await page.getByRole('button', { name: 'Cartera', exact: true }).click()
+
+  const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
+  await expect(fila).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
+  await expect(fila.getByRole('button', { name: /Corregir|Contrato|Upgrade|Gestionar/ })).toHaveCount(0)
+  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+
+  const ficha = page.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })
+  await expect(ficha.getByText('rosa.aguilar@correo.pe')).toBeVisible()
+  await expect(ficha.getByText('Domicilio legal')).toBeVisible()
+  await expect(ficha.getByText('Av. Javier Prado Este 123, San Isidro, Lima')).toHaveCount(0)
+  await expect(ficha.getByText('Información bancaria restringida')).toBeVisible()
+  await expect(ficha.getByText('19100000001234')).toHaveCount(0)
+  await expect(ficha.getByText('00219100000000123456')).toHaveCount(0)
   expect(requestsSupabase()).toBe(0)
 })

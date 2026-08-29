@@ -69,7 +69,7 @@ test('el resumen avisa cuando el mes incluye un contrato que registró otra pers
         id: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1',
         numero_contrato: '2026-08-000111',
         capital: 20000,
-        creado_por: UID, // lo registró el propio asesor
+        creado_por: UID, // lo registró el propio analista
         creado_en: esteMes(),
       }),
       contratoReal({

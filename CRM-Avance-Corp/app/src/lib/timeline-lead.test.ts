@@ -8,7 +8,7 @@ import type { Actividad, TipoActividad } from './tipos'
 let seq = 0
 function act(tipo: TipoActividad, detalle: string | null = null): Actividad {
   seq += 1
-  return { id: `a${seq}`, lead_id: 'l1', tipo, detalle, autor_nombre: 'VENDEDOR UNO', creado_en: `2026-07-17T10:00:0${seq}Z` }
+  return { id: `a${seq}`, lead_id: 'l1', tipo, detalle, autor_nombre: 'ANALISTA UNO', creado_en: `2026-07-17T10:00:0${seq}Z` }
 }
 
 describe('agruparTimeline', () => {

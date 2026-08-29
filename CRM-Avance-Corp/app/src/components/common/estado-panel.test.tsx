@@ -1,5 +1,5 @@
 // Estados de panel: el foco es la HONESTIDAD sin red. Un skeleton perpetuo
-// ("cargando" cuando nadie está cargando nada) dejaba al asesor esperando para
+// ("cargando" cuando nadie está cargando nada) dejaba al analista esperando para
 // siempre en «Mi cartera» y en los diálogos de cliente/contrato.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'

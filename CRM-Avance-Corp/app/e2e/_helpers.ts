@@ -4,7 +4,7 @@
 //    interceptado (fail-closed) → prueba la ruta real sin tocar prod.
 import { expect, type Locator, type Page, type Route } from '@playwright/test'
 
-export const ROLES_DEMO = ['Vendedor', 'Supervisor', 'Gerencia', 'Directorio'] as const
+export const ROLES_DEMO = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
 export type RolDemo = (typeof ROLES_DEMO)[number]
 
 /** Entra a la demo con el rol dado y espera el workspace (nav lateral visible). */
@@ -29,7 +29,7 @@ export async function irAPipeline(page: Page): Promise<void> {
 }
 
 /** Navega a «Mi cartera» (clientes + contratos). Su botón se llama «Mi cartera»
- * para el vendedor y «Cartera» para quien supervisa. Desde que la llave de leads
+ * para el analista y «Cartera» para quien supervisa. Desde que la llave de leads
  * se abrió (2026-08-18) dejó de ser la pantalla de aterrizaje de la fuerza de
  * ventas —ahora aterrizan en «Hoy»—, así que hay que ir a propósito. Es
  * idempotente: si ya estamos ahí, no hace nada. */
@@ -217,7 +217,7 @@ export function clienteReal(over: Partial<PerfilReal> = {}): PerfilReal {
     telefono: '+51999888777',
     domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     activo: true,
-    asesor_perfil_id: UID, // el creador queda como asesor → cae en su cartera
+    asesor_perfil_id: UID, // el creador queda como analista responsable → cae en su cartera
     creado_por: UID,
     creado_en: '2026-07-01T00:00:00.000Z',
     banco: 'BCP',
@@ -425,8 +425,8 @@ export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
 
 const ROSTER = [
   { perfil_id: UID, nombre_completo: 'Gerente Real', rol_crm: 'gerencia', supervisor_id: null, activo: true },
-  { perfil_id: 'vend-1', nombre_completo: 'Vendedor Real Uno', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
-  { perfil_id: 'vend-2', nombre_completo: 'Vendedor Real Dos', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
+  { perfil_id: 'vend-1', nombre_completo: 'Analista Real Uno', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
+  { perfil_id: 'vend-2', nombre_completo: 'Analista Real Dos', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
 ]
 
 export const ANALISTA_ANA_ID = '11111111-1111-4111-8111-111111111111'
@@ -891,7 +891,7 @@ export function resumenCarteraReal(leads: LeadReal[]): Record<string, unknown> {
 
 /**
  * Payload de crm.metricas_vendedores_fn desde el estado vivo del mock: una
- * fila por vendedor con leads (sin nombres — el front une con ROSTER), con la
+ * fila por analista con leads (sin nombres — el front une con ROSTER), con la
  * ventana de 45 días. `equipos` va vacío: el ROSTER del mock no tiene
  * supervisores, y una comparativa sin miembro con quien unirse se descarta.
  */
@@ -1451,8 +1451,9 @@ export interface BackendReal {
    * Rol del PORTAL del usuario (`perfiles.rol`). Define las capacidades nativas
    * del portal. Gerencia obtiene su permiso operativo por el rol CRM activo, sin
    * convertirse en admin/superadmin; Directorio sin rol CRM sigue en lectura.
-   * Por defecto 'analista' = el equipo real (los 17 vendedores y los 2
-   * supervisores lo son); Carlos (gerencia) es 'directorio' en el portal.
+   * Por defecto 'analista' representa las identidades de fuerza de ventas; los
+   * casos de Gerencia usan explícitamente 'comercial' para probar que la
+   * autoridad viene del rol CRM. Directorio Portal/CRM siempre coincide.
    */
   rolPortal: string
   /** El próximo GET de leads (carga/resync) responde 500 una vez. */
@@ -1483,7 +1484,7 @@ export interface BackendReal {
    *  `colaReparto`: sirve para DIVERGIR agregado y filas y probar que el
    *  navegador ya no cuenta (tile en 57 con 2 filas en la lista). */
   resumenRepartoOverride: Record<string, unknown> | null
-  /** Clientes del portal (alimentan clientes_basicos + el detalle de perfiles). */
+  /** Clientes del portal (alimentan clientes_basicos + cliente_detalle_fn). */
   clientes: PerfilReal[]
   /** El pre-vuelo legal declara el domicilio ausente, sin tocar la fila del cliente. */
   domicilioLegalAusente: boolean
@@ -1518,7 +1519,7 @@ export interface BackendReal {
     altas: unknown[]
     vencimientos: unknown[]
     distribucion: unknown
-    /** Vendedores de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
+    /** Analistas de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
     agenda: unknown[]
     /** Total y filas de crm.conversion_mensual_fn (el periodo lo eco-a el handler). */
     conversionMensual: ConversionMensualRealFixture
@@ -1618,12 +1619,17 @@ export async function montarBackendReal(
   page: Page,
   init: BackendRealInit = {},
 ): Promise<BackendReal> {
+  const rolCrm = init.rolCrm ?? 'gerencia'
+  const rolPortal = init.rolPortal ?? 'analista'
+  if ((rolCrm === 'directorio') !== (rolPortal === 'directorio')) {
+    throw new Error('Fixture inválido: Directorio Portal y Directorio CRM deben coincidir')
+  }
   const estado: BackendReal = {
     leads: init.leads ?? [leadReal()],
     cierresEstado: init.cierresEstado ?? [],
     anulacionesAvance: init.anulacionesAvance ?? [],
-    rolCrm: init.rolCrm ?? 'gerencia',
-    rolPortal: init.rolPortal ?? 'analista',
+    rolCrm,
+    rolPortal,
     fallarProximaCargaLeads: init.fallarProximaCargaLeads ?? false,
     fallarProximoPatch: init.fallarProximoPatch ?? false,
     fallarProximoPatchTelefono: init.fallarProximoPatchTelefono ?? false,
@@ -1778,12 +1784,41 @@ export async function montarBackendReal(
       )
       return json(route, true)
     }
+    if (p === '/rest/v1/rpc/cliente_detalle_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string }
+      const clienteId = String(body.p_cliente_id ?? '')
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      if (!cliente) return json(route, [])
+
+      const bancaVisible = estado.rolPortal !== 'directorio' && estado.rolCrm !== 'directorio'
+      return json(route, [{
+        ...cliente,
+        banca_visible: bancaVisible,
+        cuentas_bancarias_visibles: bancaVisible && cliente.activo,
+        ...(bancaVisible ? {} : {
+          domicilio: null,
+          banco: null,
+          tipo_cuenta: null,
+          numero_cuenta: null,
+          cci: null,
+          titular_distinto: false,
+          beneficiario_nombre: null,
+          beneficiario_dni: null,
+          banco_usd: null,
+          tipo_cuenta_usd: null,
+          numero_cuenta_usd: null,
+          cci_usd: null,
+          titular_distinto_usd: false,
+          beneficiario_nombre_usd: null,
+          beneficiario_dni_usd: null,
+        }),
+      }])
+    }
     if (p === '/rest/v1/perfiles') {
       const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
       if (method === 'GET') {
-        // Detalle de un cliente de la cartera (obtenerClienteDetalle usa eq.id
-        // + limit 1 → frontera SIEMPRE array); si el id no es de un cliente,
-        // es resolverRol pidiendo el perfil del usuario logueado.
+        // El detalle de cliente ya va por cliente_detalle_fn. Esta ruta queda
+        // para resolverRol y comprobaciones puntuales del perfil compartido.
         const cli = estado.clientes.find((c) => c.id === idFiltro)
         if (cli) return json(route, [cli])
         return json(route, [{ nombre_completo: 'Gerente Real', activo: true, rol: estado.rolPortal }])
@@ -1811,7 +1846,7 @@ export async function montarBackendReal(
         correo: c.correo,
         telefono: c.telefono,
         asesor_perfil_id: c.asesor_perfil_id,
-        // Con asesor NULL define el dueño de cartera (regla de Corregir/+Contrato).
+        // Con `asesor_perfil_id` NULL, `creado_por` define el dueño de cartera (regla de Corregir/+Contrato).
         creado_por: c.creado_por,
         activo: c.activo,
         creado_en: c.creado_en,
@@ -1851,10 +1886,17 @@ export async function montarBackendReal(
       }
       const clienteId = String(body.p_cliente_id ?? '')
       const moneda = body.p_moneda === 'USD' ? 'USD' : 'PEN'
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      if (
+        !cliente?.activo
+        || estado.rolPortal === 'directorio'
+        || estado.rolCrm === 'directorio'
+      ) {
+        return json(route, { message: 'Cliente fuera del ámbito bancario activo', code: '42501' }, 403)
+      }
       const guardadas = estado.cuentasBancarias
         .filter((cuenta) => cuenta.cliente_id === clienteId && cuenta.moneda === moneda)
         .map(({ cliente_id: _clienteId, ...fila }) => fila)
-      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
       const perfil = cliente ? cuentaPerfilReal(cliente, moneda) : null
       // La RPC real no duplica el slot del perfil cuando ya existe la misma
       // versión activa. El mock conserva esa semántica para no ofrecer dos radios
@@ -2438,7 +2480,7 @@ export async function montarBackendReal(
       if (method === 'PATCH') return json(route, { token: 'tok-e2e-rotado' })
     }
 
-    // ── edges nuevas: tipo de cambio (meta del vendedor) y conversión de lead ──
+    // ── edges nuevas: tipo de cambio (meta del analista) y conversión de lead ──
     if (p === '/functions/v1/crm-tipo-cambio') {
       return json(route, { promedio: 3.53, fuente: 'SBS · prom. 7d' })
     }

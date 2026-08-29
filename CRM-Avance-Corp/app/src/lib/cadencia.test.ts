@@ -17,7 +17,7 @@ const act = (tipo: TipoActividad, dias: number): Actividad => ({
   lead_id: 'l1',
   tipo,
   detalle: null,
-  autor_nombre: 'VENDEDOR UNO',
+  autor_nombre: 'ANALISTA UNO',
   creado_en: haceDias(dias),
 })
 

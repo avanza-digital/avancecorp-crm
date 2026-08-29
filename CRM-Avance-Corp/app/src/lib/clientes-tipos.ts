@@ -26,11 +26,11 @@ export interface ClienteBasico {
 }
 
 /**
- * Detalle COMPLETO de public.perfiles para corregir a un cliente: identidad +
- * las 14 columnas bancarias (cuenta PEN = columnas base, cuenta USD = sufijo
- * _usd, independientes — regla del portal 2026-06-09) + los metadatos de la
- * ventana de 5 h (creado_en/creado_por). La RLS perfiles_analista_select ya
- * limita la lectura a la cartera del analista.
+ * Detalle comercial scopeado por `crm.cliente_detalle_fn`: identidad, los
+ * metadatos de la ventana de 5 h y, solo cuando `banca_visible` es true, las
+ * 14 columnas bancarias. `cuentas_bancarias_visibles` gobierna por separado
+ * el ledger: un cliente inactivo puede conservar la banca histórica embebida
+ * sin abrir una RPC que exige cartera activa. Directorio recibe ambas cerradas.
  */
 export interface ClienteDetalle {
   id: string
@@ -45,6 +45,10 @@ export interface ClienteDetalle {
   asesor_perfil_id: string | null
   creado_por: string | null
   creado_en: string // ISO — de aquí sale la cuenta regresiva de lib/ventana
+  /** Capacidad calculada por el servidor; nunca se infiere del rol en el front. */
+  banca_visible: boolean
+  /** Capacidad exacta para consultar `crm.cuentas_bancarias_cliente_fn`. */
+  cuentas_bancarias_visibles: boolean
   // Cuenta en SOLES (PEN)
   banco: string | null
   tipo_cuenta: string | null
@@ -126,7 +130,7 @@ export interface ContratoRow {
 }
 
 /** Operación comercial confirmada sobre un cliente existente. La fila congela
- * al asesor que administraba la cartera en ese momento y mantiene PEN/USD
+ * al analista que administraba la cartera en ese momento y mantiene PEN/USD
  * separados. Las renovaciones históricas de agosto pueden venir sin desglose:
  * se muestra como pendiente, nunca como capital adicional 0 inventado. */
 export interface OperacionCartera {

@@ -8,7 +8,7 @@ import { reconocerTelefono } from '@/lib/validacion'
  * canal de contacto usable, un dato que hay que corregir y una ausencia real.
  *
  * El texto crudo NO se ofrece como enlace a propósito. Si no se pudo entender
- * como teléfono, un `tel:` encima marcaría cualquier cosa; el vendedor lo lee,
+ * como teléfono, un `tel:` encima marcaría cualquier cosa; el analista lo lee,
  * deduce el número y lo corrige. Presentarlo como marcable sería mentir sobre
  * la confianza que merece.
  */

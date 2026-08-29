@@ -97,7 +97,7 @@ test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida;
   await expect(filaVencida.getByText('Bloqueado')).toBeVisible()
   await expect(filaVencida.getByRole('button', { name: 'Corregir' })).toHaveCount(0)
 
-  // AJENA: sin reloj (la ventana de 5 h es del asesor dueño, no del lector) y
+  // AJENA: sin reloj (la ventana de 5 h es del analista dueño, no del lector) y
   // sin botón — espejo de la regla POR FILA de la pantalla Clientes.
   const filaAjena = page.getByRole('row', { name: /000333/ })
   await expect(filaAjena.getByText(/Quedan \d+ h \d{2} m/)).toHaveCount(0)
@@ -110,10 +110,14 @@ test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida;
 
 // Caso heredado de la tabla retirada. Directorio conserva lectura; Gerencia
 // ahora opera desde la cartera unificada, cubierta por gerencia-operativa.spec.
-test('gerencia: sin columnas Ventana/Acciones ni relojes; la fila clicable abre el detalle', async ({ page }) => {
-  await montarBackendReal(page, { rolPortal: 'directorio', contratos: [contratoReal()] })
+test('directorio: sin columnas Ventana/Acciones ni relojes; la fila clicable abre el detalle', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'directorio',
+    rolPortal: 'directorio',
+    contratos: [contratoReal()],
+  })
   await loginReal(page)
-  // Gerencia aterriza en su panel Hoy (gate parcial 2026-07-16): navega por el nav.
+  // Directorio navega a Contratos desde su panel Hoy.
   await page.getByRole('button', { name: 'Contratos' }).click()
 
   // Título honesto: NO son "sus" contratos, son los de la empresa.
@@ -326,7 +330,7 @@ test('crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta a
   await expect(page.getByText('Aún no registraste contratos.')).toBeVisible()
 
   // 2) En Clientes, "+ Contrato" sobre la fila del cliente semilla (el flujo
-  //    del asesor: contrato directo desde su cartera, sin pasar por el picker).
+  //    del analista: contrato directo desde su cartera, sin pasar por el picker).
   await page.getByRole('button', { name: 'Clientes' }).click()
   await expect(page.getByText('Mis clientes: 1')).toBeVisible()
   await page
@@ -353,7 +357,7 @@ test('demo: contratos poblados, detalle por fila clicable con cronograma fixture
   // lista ni el detalle — que en demo va PRECARGADO, sin fetch).
   const requestsSupabase = await bloquearSupabase(page)
 
-  await entrarDemo(page, 'Vendedor')
+  await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Contratos' }).click()
   await expect(page.getByRole('heading', { name: 'Mis contratos' })).toBeVisible()
 

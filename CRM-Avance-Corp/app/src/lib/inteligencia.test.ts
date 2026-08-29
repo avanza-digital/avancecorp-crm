@@ -47,7 +47,7 @@ const actividad = (
   lead_id: leadId,
   tipo: 'nota',
   detalle: null,
-  autor_nombre: 'VENDEDOR',
+  autor_nombre: 'ANALISTA',
   creado_en: haceDias(dias),
   ...cambios,
 })
@@ -229,9 +229,9 @@ describe('señales comerciales', () => {
     })
   })
 
-  // El reloj del asesor (pedido de Miguel, 2026-07-24): con el circuito vivo un
+  // El reloj del analista (pedido de Miguel, 2026-07-24): con el circuito vivo un
   // lead pasa días en la cola de Rosa y en la bandeja del supervisor antes de
-  // llegar a un vendedor. Medir desde `creado_en` lo pintaba en rojo el primer
+  // llegar a un analista. Medir desde `creado_en` lo pintaba en rojo el primer
   // segundo que lo veía.
   describe('mide la espera ante el DUEÑO ACTUAL, no desde que entró el lead', () => {
     it('un lead viejo recién asignado NO nace en crítico', () => {
@@ -270,7 +270,7 @@ describe('señales comerciales', () => {
     })
 
     it('el transferido no le hereda al nuevo dueño la mora del anterior', () => {
-      // Actividad vieja del asesor previo + transferencia reciente: manda la
+      // Actividad vieja del analista previo + transferencia reciente: manda la
       // transferencia (el MÁXIMO de las dos referencias).
       const cola = colaDe(
         [lead({ id: 'transferido', etapa: 'contactado', creado_en: haceDias(30), tenencia_desde: haceDias(0.5) })],
@@ -300,7 +300,7 @@ describe('señales comerciales', () => {
   // Auditoría 2026-07-25 (hallazgo crítico verificado en prod): el timeline se
   // llena de actividades que emite el SISTEMA. Como la cola preguntaba "¿tiene
   // ALGUNA actividad?", TODO lead repartido salía de la cola en el instante en
-  // que se asignaba — llegaba con su `reasignacion` puesta. El vendedor veía
+  // que se asignaba — llegaba con su `reasignacion` puesta. El analista veía
   // "Al día ✦ sin pendientes" sobre un lead que nadie había llamado.
   describe('solo el CONTACTO REAL saca un lead de la cola', () => {
     // El caso EXACTO de producción: el trigger del servidor escribe la
@@ -417,7 +417,7 @@ describe('señales comerciales', () => {
 })
 
 describe('agregaciones comerciales', () => {
-  it('separa capital por moneda y calcula conversión y abandono por vendedor', () => {
+  it('separa capital por moneda y calcula conversión y abandono por analista', () => {
     const vendedores = [miembro('v2'), miembro('v1')]
     const leads = [
       lead({ id: 'pen', vendedor_id: 'v1', monto_estimado: 100, creado_en: haceDias(3) }),
@@ -589,7 +589,7 @@ describe('Fase B — la cola y estancados respetan el PLAN (tareas pendientes)',
     expect(ids).toContain('sin-plan')
   })
 
-  it('sinProximaAccion: abiertos CON vendedor y sin plan, capital PEN primero desc', () => {
+  it('sinProximaAccion: abiertos CON analista y sin plan, capital PEN primero desc', () => {
     const leads = [
       lead({ id: 'usd-grande', moneda: 'USD', monto_estimado: 90_000 }),
       lead({ id: 'pen-chico', moneda: 'PEN', monto_estimado: 10_000 }),

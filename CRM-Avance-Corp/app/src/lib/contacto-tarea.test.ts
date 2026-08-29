@@ -3,7 +3,7 @@
 // Cerrar una tarea es IRREVERSIBLE (no hay "deshacer"), y esto lo dispara un
 // diálogo que a veces aparece SOLO —al volver de WhatsApp Web—, así que casi
 // todo lo que se prueba aquí es cuándo NO emparejar. Falso negativo = el
-// vendedor cierra la tarea a mano, como hasta hoy. Falso positivo = el sistema
+// analista cierra la tarea a mano, como hasta hoy. Falso positivo = el sistema
 // da por cumplido un compromiso que quizá no lo estaba.
 import { describe, expect, it } from 'vitest'
 import { tareaQueCierra } from './contacto-tarea'

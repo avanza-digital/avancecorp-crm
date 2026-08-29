@@ -75,7 +75,7 @@ const LIMITE_DISPONIBILIDAD_MS = 5_000
  *  nivel de MÓDULO — la operación sobrevive al desmontaje del modal (R4c),
  *  así que un candado de instancia no impide que cerrar y reabrir dispare un
  *  segundo upsert del mismo contacto (ganaría el que aterrice último, no el
- *  último que el vendedor confirmó). El finally SIEMPRE libera la llave. */
+ *  último que el analista confirmó). El finally SIEMPRE libera la llave. */
 const recordatoriosEnVuelo = new Set<string>()
 
 interface EstadoDisponibilidadFormulario {
@@ -131,7 +131,7 @@ const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
 
 /** Lo tecleado no alcanza para verificar (la RPC exige un celular) y se DICE.
  *  Callar aquí engañaba: con un DNI en el campo el precheck no corría y el
- *  vendedor leía el silencio como «libre» (hallazgo de Miguel, 2026-08-17).
+ *  analista leía el silencio como «libre» (hallazgo de Miguel, 2026-08-17).
  *  `degradado` = mismo ámbar de «no verificado, puedes continuar». */
 const DISPONIBILIDAD_SIN_CELULAR: EstadoDisponibilidadFormulario = {
   comprobando: false,
@@ -238,7 +238,7 @@ function FormularioNuevoLead({
   const ahora = useAhora()
 
   const puedeElegirVendedor = can(yo?.rol, 'reasignar')
-  // SOLO vendedores del ámbito del rol (espejo del WITH CHECK de leads_insert):
+  // SOLO analistas del ámbito del rol (espejo del WITH CHECK de leads_insert):
   // supervisor solo puede crear leads asignados dentro de SU equipo.
   const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)
   const etapa = ETAPA_INFO[etapaInicial]
@@ -274,7 +274,7 @@ function FormularioNuevoLead({
   const [errorToma, setErrorToma] = useState<string | null>(null)
   const tomaEnCursoRef = useRef(false)
   // F3 «Recordar»: la única acción sobre un ocupado sin puerta (§5.3).
-  // fechaRevision null = el vendedor no la tocó (manda la sugerida).
+  // fechaRevision null = el analista no la tocó (manda la sugerida).
   const queryClient = useQueryClient()
   const [fechaRevision, setFechaRevision] = useState<string | null>(null)
   const [recordando, setRecordando] = useState(false)
@@ -449,7 +449,7 @@ function FormularioNuevoLead({
     if (yo?.demo) return
     if (!normalizarTelefono(telefonoConsulta)) {
       // Honestidad del precheck: sin celular válido NO hay verificación posible
-      // (el servidor la exige por teléfono). Si el vendedor ya tecleó algo —
+      // (el servidor la exige por teléfono). Si el analista ya tecleó algo —
       // un número a medias o un DNI en el campo equivocado — callar es mentir.
       if (telefonoConsulta.trim() !== '' || dniConsulta.trim() !== '') {
         setDisponibilidad(DISPONIBILIDAD_SIN_CELULAR)
@@ -479,7 +479,7 @@ function FormularioNuevoLead({
   /**
    * F2 «Tomar lead e iniciar seguimiento» (spec §5.6/§5.7). Mutación real:
    * sin cortesía fail-open. Tres caminos y los tres se DICEN:
-   *  · tomado_ok → resincronizar el ámbito (el lead ya es del vendedor),
+   *  · tomado_ok → resincronizar el ámbito (el lead ya es del analista),
    *    confirmar y abrir la ficha (abrirLead cierra este modal solo);
    *  · veredicto fresco → perdió la carrera o el estado cambió: se re-presenta
    *    con la misma maquinaria del precheck (mensaje+tarjeta+tomable) y el
@@ -566,18 +566,18 @@ function FormularioNuevoLead({
   /**
    * F3 «Recordarme revisar este contacto» (§5.3): guarda (o reprograma — la
    * llave UNIQUE del servidor hace del guardado un upsert) el recordatorio
-   * personal. No toca el lead, no reserva nada: solo la campana del vendedor.
+   * personal. No toca el lead, no reserva nada: solo la campana del analista.
    */
   const manejarRecordar = async () => {
     if (recordandoRef.current) return
-    // `??` a propósito: '' significa que el vendedor VACIÓ la fecha — rellenar
+    // `??` a propósito: '' significa que el analista VACIÓ la fecha — rellenar
     // con la sugerida en silencio sería guardar algo que él no ve. Se le dice.
     const fecha = fechaRevision ?? disponibilidad.fechaSugerida
     if (!fecha) {
       setErrorRecordatorio('Elige la fecha del recordatorio.')
       return
     }
-    // Codex R5: si el vendedor edita el contacto con el guardado en vuelo, la
+    // Codex R5: si el analista edita el contacto con el guardado en vuelo, la
     // respuesta tardía hablaría del contacto ANTERIOR — se ancla la secuencia
     // y el teléfono de ESTA petición y la UI solo se toca si siguen vigentes.
     const secuencia = secuenciaDisponibilidadRef.current
@@ -887,7 +887,7 @@ function FormularioNuevoLead({
           )}
           {disponibilidad.tarjeta && (
             // Tarjeta §5.2 (solo lectura): lo mínimo para decidir — estado,
-            // asesor y fechas. Sin notas ni montos ajenos (privacidad §8).
+            // analista responsable y fechas. Sin notas ni montos ajenos (privacidad §8).
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
               <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 {disponibilidad.tarjeta.titulo}
@@ -906,7 +906,7 @@ function FormularioNuevoLead({
           )}
           {disponibilidad.tomable && can(yo?.rol, 'tomarLeadDirecto') && !yo?.demo && (
             // F2 «Tomar» (spec §5.6): la puerta vive SOLO tras la verificación
-            // por contacto y SOLO para el vendedor (espejo del guard de la
+            // por contacto y SOLO para el analista (espejo del guard de la
             // RPC — supervisión asigna por el reparto). En demo el precheck ni
             // corre, el !demo es cinturón.
             <div className="space-y-1.5">
@@ -933,7 +933,7 @@ function FormularioNuevoLead({
             // puerta. No reserva, no prioriza, no toca el lead — solo la
             // campana personal. Guardar de nuevo = reprogramar (upsert).
             // Misma capacidad que Tomar: es la antesala de esa puerta y la
-            // RLS del servidor ya la restringe a vendedor.
+            // RLS del servidor ya la restringe a analista.
             recordadoPara ? (
               <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                 {/* a11y A1: el botón que tenía el foco desapareció con este
@@ -1101,7 +1101,7 @@ function FormularioNuevoLead({
                     humano declara — Referido, Walking y Otro. LANDING y
                     FORMULARIO se cargan solos por el puente y ofrecerlos aquí
                     sería invitar a suplantar al canal. Y el referido lo
-                    registra SOLO el vendedor, a su propio nombre: con el 15 %
+                    registra SOLO el analista, a su propio nombre: con el 15 %
                     fuera del divisor, esa etiqueta mueve el porcentaje de
                     alguien. */}
                 {ORIGENES
@@ -1150,7 +1150,7 @@ function FormularioNuevoLead({
               </div>
             </Campo>
           </div>
-          <Campo label="Vendedor asignado" htmlFor="nl-vendedor">
+          <Campo label="Analista asignado" htmlFor="nl-vendedor">
             {puedeElegirVendedor ? (
               <Select
                 id="nl-vendedor"
@@ -1217,7 +1217,7 @@ function FormularioNuevoLead({
           <DialogFooter>
             {/* Cancelar muere durante la toma (Codex R3): el servidor puede
                 COMPROMETER la toma y un desmontaje descartaría el tomado_ok en
-                silencio — lead asignado sin que el vendedor se entere. El
+                silencio — lead asignado sin que el analista se entere. El
                 cierre por Escape/overlay ya lo bloquea onEnviandoChange.
                 ⚠️ `|| tomando` aquí es REDUNDANTE a propósito (el fieldset de
                 arriba ya congela el Footer): su mutante sobrevive enmascarado

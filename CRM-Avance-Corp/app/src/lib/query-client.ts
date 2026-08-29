@@ -21,7 +21,7 @@ import { AUTH_CLEARED_EVENT } from './seguridad'
  * recuperando solo en cuanto vuelve la red.
  *
  * Lo mismo en mutaciones: una escritura PAUSADA en silencio le hace creer al
- * asesor que guardó. Preferimos que falle, avise y revierta.
+ * analista que guardó. Preferimos que falle, avise y revierta.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {

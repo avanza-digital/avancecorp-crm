@@ -43,7 +43,7 @@ for (const rol of ['Gerencia', 'Directorio'] as const satisfies readonly RolDemo
     await expect(riel.getByRole('listitem')).toHaveCount(4)
     await expect(riel.getByText('8 de 9 habilitadas')).toBeVisible()
     await expect(riel.getByText('2 productos · revisión 6')).toBeVisible()
-    await expect(riel.getByText('4 vendedores · revisión 5')).toBeVisible()
+    await expect(riel.getByText('4 analistas · revisión 5')).toBeVisible()
     await expect(riel.getByText('v3 · gestión 2 horas')).toBeVisible()
 
     for (const modulo of MODULOS) {

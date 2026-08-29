@@ -1,4 +1,4 @@
-// Tests de integración de la pantalla "Hoy · vendedor" — los cinco arreglos de
+// Tests de integración de la pantalla "Hoy · Analista" — los cinco arreglos de
 // la auditoría 2026-07-25, cada uno con su regresión:
 //   1. la agenda héroe listaba TODA la agenda futura mientras su badge contaba
 //      solo hoy (los números no cuadraban con las filas);
@@ -187,12 +187,12 @@ function contacto(leadId: string, creadoEn: string): Actividad {
     lead_id: leadId,
     tipo: 'llamada_realizada',
     detalle: null,
-    autor_nombre: 'VENDEDOR UNO',
+    autor_nombre: 'ANALISTA UNO',
     creado_en: creadoEn,
   }
 }
 
-// CINCO vencidas del mismo asesor (2026-07-08 … 12) — dos más de las que la
+// CINCO vencidas del mismo analista (2026-07-08 … 12) — dos más de las que la
 // franja ámbar de la agenda alcanza a listar. Cada lead con contacto real hace
 // días para que ninguno caiga en speed-to-lead (la excepción que nunca se
 // esconde) y todos con tarea pendiente (así no salen como "sin próxima acción").
@@ -230,7 +230,7 @@ function montar(
   vi.setSystemTime(over.ahora ?? MIERCOLES_10AM)
   YO = {
     id: 'v-1',
-    nombre_completo: 'VENDEDOR UNO',
+    nombre_completo: 'ANALISTA UNO',
     rol: 'vendedor',
     demo: false,
     puede_contratar: true,
@@ -262,7 +262,7 @@ function cumplimientoVendedor(
   metaConversion?: number,
 ): CumplimientoMetasJerarquico {
   const base = CUMPLIMIENTO_METAS_DEMO.vendedor
-  if (!base) throw new Error('fixture demo sin vendedor')
+  if (!base) throw new Error('fixture demo sin analista')
   return {
     ...CUMPLIMIENTO_METAS_DEMO,
     vendedor: {
@@ -286,7 +286,7 @@ function cumplimientoVendedor(
 }
 
 /**
- * Payload mínimo de `crm.conversion_mensual_fn` con la fila del propio asesor
+ * Payload mínimo de `crm.conversion_mensual_fn` con la fila del propio analista
  * (alcance 'propio'). Es la fuente NUEVA del tile «Conversión del mes» — el
  * cumplimiento ya no manda ahí (decisión E1: rótulo nuevo sobre número nuevo,
  * sin esperar a la migración B).
@@ -378,7 +378,7 @@ function conversionMensualPropia(
   }
 }
 
-/** Meta del asesor con importes exactos por moneda (todo en la categoría
+/** Meta del analista con importes exactos por moneda (todo en la categoría
  *  'nuevo'; el panel agrega por moneda, así que la categoría da igual). */
 function metaPenUsd(pen: number, usd: number): ObjetivosPorRol['vendedor'] {
   const base = objetivosCero('2026-07-01').vendedor
@@ -406,7 +406,7 @@ function cumplimientoPenUsd(
 ): CumplimientoMetasJerarquico {
   const base = cumplimientoVendedor(50, 2)
   const vendedor = base.vendedor
-  if (!vendedor) throw new Error('fixture demo sin vendedor')
+  if (!vendedor) throw new Error('fixture demo sin analista')
   return {
     ...base,
     vendedor: {
@@ -440,7 +440,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('Hoy · vendedor — contrato perceptual de Ahora', () => {
+describe('Hoy · analista — contrato perceptual de Ahora', () => {
   it('muestra como máximo tres decisiones, una por lead, y abre la ficha desde la prioridad', () => {
     montar({
       leads: Array.from({ length: 4 }, (_, i) =>
@@ -487,7 +487,7 @@ describe('Hoy · vendedor — contrato perceptual de Ahora', () => {
     expect(screen.queryByText('Tu agenda y tu cartera están al día')).not.toBeInTheDocument()
   })
 
-  it('mantiene el cumplimiento mensual colapsado hasta que el vendedor lo pide', () => {
+  it('mantiene el cumplimiento mensual colapsado hasta que el analista lo pide', () => {
     montar()
 
     const resumen = screen.getByText('Tu cumplimiento del mes').closest('summary')
@@ -500,7 +500,7 @@ describe('Hoy · vendedor — contrato perceptual de Ahora', () => {
   })
 })
 
-describe('Hoy · vendedor — agenda héroe', () => {
+describe('Hoy · analista — agenda héroe', () => {
   it('lista solo el día operable: las citas de días futuros no se pintan (el badge cuadra con las filas)', () => {
     montar({
       leads: [lead({ id: 'l-1' }), lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ' })],
@@ -681,11 +681,11 @@ describe('Hoy · vendedor — agenda héroe', () => {
   })
 })
 
-// El asesor abre esta pantalla cada mañana y su chip de capital fijaba PEN a
+// El analista abre esta pantalla cada mañana y su chip de capital fijaba PEN a
 // mano: una cartera íntegramente en dólares se anunciaba como "S/ 0.00" con el
 // capital real en la letra chica, contradiciendo a Cartera y a Pipeline sobre
 // el mismo lead. El criterio vive ahora en lib/inteligencia (capitalPrincipal).
-describe('Hoy · vendedor — capital en proceso', () => {
+describe('Hoy · analista — capital en proceso', () => {
   it('una cartera 100 % en dólares se anuncia en dólares, no como "S/ 0.00"', () => {
     montar({
       leads: [lead({ id: 'l-usd', moneda: 'USD', monto_estimado: 40_000 })],
@@ -718,7 +718,7 @@ describe('Hoy · vendedor — capital en proceso', () => {
   })
 })
 
-describe('Hoy · vendedor — meta del mes', () => {
+describe('Hoy · analista — meta del mes', () => {
   it('la conversión proviene de la RPC MENSUAL (la definición), no del cumplimiento ni del pipeline', () => {
     // El cumplimiento dice 80 % (fórmula vieja, viva hasta la migración B) y la
     // RPC mensual dice 50 %: el tile pinta la MENSUAL. Rótulo nuevo sobre
@@ -741,7 +741,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
     expect(screen.getByText('50.00%')).toBeInTheDocument()
     expect(screen.getByText('100% del objetivo')).toBeInTheDocument()
-    // El divisor SIEMPRE al lado del %: se lo llena el reparto, no el asesor.
+    // El divisor SIEMPRE al lado del %: se lo llena el reparto, no el analista.
     expect(screen.getByText(/Recibidos 10/)).toBeInTheDocument()
   })
 
@@ -799,7 +799,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   // agosto —3 recibidos, 1 cierre, 38,33 %— y la pantalla decía «Sin datos de
   // asignación para este mes», que era sencillamente falso: el ledger nace el
   // día 5 y al mes le faltan días, pero los datos existen.
-  it('un mes incompleto SE VE, y al vendedor no se le cuenta por qué', () => {
+  it('un mes incompleto SE VE, y al analista no se le cuenta por qué', () => {
     const base = conversionMensualPropia(38.33, 3, {
       cierres_no_referidos: 1,
       numerador: 1,
@@ -872,7 +872,7 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoVendedor(100, 1, 'sin-metas'),
     })
 
-    // Las DOS dimensiones del asesor —capital consolidado y conversión— sin
+    // Las DOS dimensiones del analista —capital consolidado y conversión— sin
     // juicio: una meta que nadie fijó no es un incumplimiento.
     expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
@@ -888,7 +888,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     })
 
     // Los mismos ceros, dos causas opuestas: afirmar que nadie fijó la meta
-    // cuando lo que se cayó fue la red hace que el asesor deje de buscarla.
+    // cuando lo que se cayó fue la red hace que el analista deje de buscarla.
     expect(screen.queryByText(/Meta mensual por definir/)).not.toBeInTheDocument()
     expect(screen.getByText('No pudimos cargar toda la información mensual.')).toBeInTheDocument()
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
@@ -948,7 +948,7 @@ describe('Hoy · vendedor — meta del mes', () => {
 
     // El total cae a los soles solos (120k) — jamás se inventa una tasa…
     expect(screen.getByText('S/ 120k')).toBeInTheDocument()
-    // …y el asesor tiene que enterarse de que le falta media moneda en el avance.
+    // …y el analista tiene que enterarse de que le falta media moneda en el avance.
     expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/)).toBeInTheDocument()
   })
 
@@ -959,7 +959,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   // qué pintar con un fail-safe de «no se sabe», y como ese es el estado de
   // TODOS los días, el arreglo no arreglaba nada. Ver `npm run gate:realidad`.
   it('ESTADO DE PRODUCCIÓN (sin metas publicadas): capital neutral y conversión sin fila propia', () => {
-    // La base real HOY: la RPC responde (medible) pero el asesor no tiene fila
+    // La base real HOY: la RPC responde (medible) pero el analista no tiene fila
     // — responsables vacío. El tile no inventa un 0 %: dice «sin leads
     // recibidos», que es la verdad.
     CONVERSION_MENSUAL = {
@@ -1001,7 +1001,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 })
 
-describe('Hoy · vendedor — gestiones de clientes', () => {
+describe('Hoy · analista — gestiones de clientes', () => {
   it('muestra en una franja postventa la reunión agendada desde Mi cartera', () => {
     montar({
       tareas: [
@@ -1023,7 +1023,7 @@ describe('Hoy · vendedor — gestiones de clientes', () => {
   })
 })
 
-describe('Hoy · vendedor — viernes de higiene', () => {
+describe('Hoy · analista — viernes de higiene', () => {
   it('las filas "Sin próxima acción" traen el botón Agendar', () => {
     montar({
       ahora: VIERNES_2PM,
@@ -1088,7 +1088,7 @@ describe('Hoy · vendedor — viernes de higiene', () => {
   })
 })
 
-describe('Hoy · vendedor — tile «Convertidos» (F3.1, H9/D1)', () => {
+describe('Hoy · analista — tile «Convertidos» (F3.1, H9/D1)', () => {
   it('el rótulo dice la ventana OPERATIVA leída del payload, no un 45 afirmado por su cuenta', () => {
     // Este número es la VISTA de cartera (ganados aún visibles), no la
     // conversión del mes: el sub lo dice y toma la ventana del payload

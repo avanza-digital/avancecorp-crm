@@ -1,5 +1,5 @@
 // Helper PURO de Mi cartera: parte la cartera ya agrupada por cliente en
-// BLOQUES POR MES, para que el asesor pueda ver qué cerró en cada uno en vez de
+// BLOQUES POR MES, para que el analista pueda ver qué cerró en cada uno en vez de
 // una lista única con todo mezclado (pedido de Miguel, 2026-08-14).
 //
 // Vive aparte de la pantalla para probarse sin montar React (cartera-meses.test.ts)
@@ -39,7 +39,7 @@ export interface MesCartera {
   contratos: number
   capitalPen: number
   capitalUsd: number
-  /** De esos, cuántos los registró alguien distinto del asesor del cliente. */
+  /** De esos, cuántos los registró alguien distinto del analista del cliente. */
   registradosPorOtro: number
 }
 
@@ -64,10 +64,10 @@ export function mesLima(iso: string | null | undefined): string | null {
 }
 
 /**
- * ¿Este contrato lo registró alguien distinto del asesor del cliente? Importa
+ * ¿Este contrato lo registró alguien distinto del analista del cliente? Importa
  * porque Miguel decidió (2026-08-14) que el bloque cuente TODO contrato de sus
  * clientes, mientras que la CUOTA solo le paga por los que registró él. Cuando
- * un mes incluye alguno de estos, la cabecera lo dice: sin eso, el asesor vería
+ * un mes incluye alguno de estos, la cabecera lo dice: sin eso, el analista vería
  * un capital aquí y otro distinto en Hoy sin ninguna explicación.
  *
  * Un `creado_por` nulo (contrato legado) NO cuenta como ajeno: no se sabe.

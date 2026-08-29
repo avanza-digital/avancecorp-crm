@@ -82,7 +82,7 @@ describe('Base para gestión (msw)', () => {
     expect(cuerpo).toEqual({ p_mes: '2026-08-01' })
   })
 
-  it('manda el bloque, los destinos y la regla de no devolver al asesor origen', async () => {
+  it('manda el bloque, los destinos y la regla de no devolver al analista de origen', async () => {
     let cuerpo: unknown = null
     server.use(
       http.post(RPC('rescatar_descartes'), async ({ request }) => {

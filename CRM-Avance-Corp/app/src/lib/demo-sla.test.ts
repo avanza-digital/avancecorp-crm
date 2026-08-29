@@ -27,7 +27,7 @@ const actividad = (
   lead_id: 'demo-lead',
   tipo,
   detalle: null,
-  autor_nombre: 'VENDEDOR DEMO',
+  autor_nombre: 'ANALISTA DEMO',
   creado_en: creadoEn,
 })
 
@@ -89,7 +89,7 @@ describe('crearEstadosSlaDemo', () => {
     ))
   })
 
-  it('un lead sin vendedor conserva ciclo y etapa pero no inventa asignación', () => {
+  it('un lead sin analista conserva ciclo y etapa pero no inventa asignación', () => {
     const [estado] = crearEstadosSlaDemo([lead({ vendedor_id: null })], [])
     expect(estado).toMatchObject({
       asignacion_id: null,

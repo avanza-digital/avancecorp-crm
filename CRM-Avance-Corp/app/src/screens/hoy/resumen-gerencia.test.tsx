@@ -185,8 +185,8 @@ function reunionesSinActividad(): MetricasReuniones {
   }
 }
 
-describe('ranking general de vendedores', () => {
-  it('abre la página completa de ranking desde la tarjeta de mejores vendedores', () => {
+describe('ranking general de analistas', () => {
+  it('abre la página completa de ranking desde la tarjeta de mejores analistas', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-31')
     conversiones.responsables = [
       ...(conversiones.responsables ?? []),
@@ -223,7 +223,7 @@ describe('ranking general de vendedores', () => {
       },
       {
         vendedorId: null,
-        nombre: 'Sin vendedor asignado',
+        nombre: 'Sin analista asignado',
         supervisorNombre: 'Sin supervisor',
         leads: 8,
         contactados: 0,
@@ -258,7 +258,7 @@ describe('ranking general de vendedores', () => {
 
     expect(screen.queryByText('Fabio León')).not.toBeInTheDocument()
 
-    const enlace = screen.getByRole('link', { name: 'Ver ranking general de vendedores' })
+    const enlace = screen.getByRole('link', { name: 'Ver ranking general de analistas' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
     const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
@@ -286,9 +286,9 @@ describe('ranking general de vendedores', () => {
       />,
     )
 
-    expect(screen.getByText('Detalle por vendedor no disponible')).toBeInTheDocument()
+    expect(screen.getByText('Detalle por analista no disponible')).toBeInTheDocument()
     expect(screen.getByText('Tendencia no disponible')).toBeInTheDocument()
-    expect(screen.queryByText('Aún no hay vendedores con leads en este período')).not.toBeInTheDocument()
+    expect(screen.queryByText('Aún no hay analistas con leads en este período')).not.toBeInTheDocument()
   })
 })
 
@@ -322,7 +322,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
     expect(screen.getAllByText('Citas realizadas').length).toBeGreaterThan(0)
     expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
-    expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
+    expect(screen.getByText('Aún no hay analistas medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
     // REGRESIÓN del enlace muerto: `produccion.capital_*` viene en 0 (como en
     // producción, donde `crm.leads.contrato_id` jamás se escribió) y aun así

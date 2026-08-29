@@ -57,7 +57,7 @@ interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — alimenta
-   * el héroe y el bloque «del mes» de la ficha del vendedor. Tri-estado:
+   * el héroe y el bloque «del mes» de la ficha del analista. Tri-estado:
    * `undefined` consultando · `null` no disponible (fail-closed, «—»/rótulo).
    * Los análisis del RANGO (embudo, orígenes, tendencia) siguen en `datos`:
    * miden otra pregunta y conservan su rótulo de periodo.
@@ -210,7 +210,7 @@ function DetalleVendedor({
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
-  /** La fila del MISMO vendedor en la conversión mensual (null = no llegó). */
+  /** La fila del MISMO analista en la conversión mensual (null = no llegó). */
   filaMensual: ConversionVendedorAdaptada<DetalleConversionMensual> | null
   mensual: ConversionMensual | null | undefined
   /** Las sondas autorizaron publicar cualquier cifra de conversión. */
@@ -251,7 +251,7 @@ function DetalleVendedor({
   const enMeta = metaMensual.comparable && metaConversion > 0
     && conversionMes != null && conversionMes >= metaConversion
   // La cadena arranca por los estados de la conversión MENSUAL (fuente del
-  // número grande) y solo si el vendedor es medible baja a los estados de meta.
+  // número grande) y solo si el analista es medible baja a los estados de meta.
   const estado = mensual != null && !mensual.cobertura.medible
     ? 'Sin datos del mes'
     : filaMensual == null || filaMensual.estadoConversion === 'indisponible'
@@ -339,7 +339,7 @@ function DetalleVendedor({
   }, [metaConversion, metaMensual.comparable, puntosTendencia])
 
   return (
-    <Sheet open={fila != null} onClose={onCerrar} ariaLabel="Detalle comercial del vendedor" className="w-[calc(100vw-8px)] max-w-[560px] sm:w-[560px]">
+    <Sheet open={fila != null} onClose={onCerrar} ariaLabel="Detalle comercial del analista" className="w-[calc(100vw-8px)] max-w-[560px] sm:w-[560px]">
       {fila && (
         <>
           <SheetHeader className="border-b-0 px-4 pb-3 pt-5 sm:px-5">
@@ -356,7 +356,7 @@ function DetalleVendedor({
               <button
                 type="button"
                 onClick={onCerrar}
-                aria-label="Cerrar detalle de vendedor"
+                aria-label="Cerrar detalle de analista"
                 className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-[var(--gi-muted)] transition-colors hover:bg-[#f7f5f1] hover:text-[var(--gi-navy)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               >
                 <X className="size-4" aria-hidden />
@@ -378,7 +378,7 @@ function DetalleVendedor({
                 {(() => {
                   // El MISMO porqué que el ranking: este % ya llega NETO de
                   // anulaciones de meses cerrados. Sin esto, gerencia veía el
-                  // chip en el ranking, abría al mismo vendedor y la
+                  // chip en el ranking, abría al mismo analista y la
                   // explicación desaparecía (hallazgo #6 de la revisión).
                   const descuento = descuentoArrastre(detalleMes?.ajuste)
                   return descuento
@@ -502,7 +502,7 @@ function DetalleVendedor({
                     Los porcentajes, cierres y tendencias permanecen ocultos hasta que las sondas del núcleo cuadren. El capital producido sigue disponible porque no depende de esa verificación.
                   </p>
                 </section>
-                <section aria-label="Capital producido por el vendedor" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
+                <section aria-label="Capital producido por el analista" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
                   <p className="px-4 pt-3 text-[11px] font-medium text-[var(--gi-muted)]">Capital producido por sus leads · rango aplicado</p>
                   <dl className="grid grid-cols-2 divide-x divide-[var(--gi-line)]">
                     <DatoDetalle label="Capital por sus leads (PEN)" valor={capitalDisponible(capitalPen, 'PEN')} capital />
@@ -728,13 +728,13 @@ export function InteligenciaComercialPanel({
                     ledger: la lectura por origen puede no cuadrar con la cifra del mes.
                   </p>
                 )}
-                {/* F1.3b: un cliente con leads de dos vendedores cuenta su
+                {/* F1.3b: un cliente con leads de dos analistas cuenta su
                     capital de portal ENTERO para ambos — el desglose puede
                     sumar más que el total y hay que decirlo. */}
                 {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0 && (
                   <p>
-                    {numero(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0)} {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) === 1 ? 'cliente tiene' : 'clientes tienen'} leads de más de un vendedor:
-                    su capital cuenta para cada uno y el desglose por vendedor puede sumar más que el total.
+                    {numero(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0)} {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) === 1 ? 'cliente tiene' : 'clientes tienen'} leads de más de un analista:
+                    su capital cuenta para cada uno y el desglose por analista puede sumar más que el total.
                   </p>
                 )}
               </div>
@@ -749,10 +749,10 @@ export function InteligenciaComercialPanel({
 
           <section data-gi-panel className="gi-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Conversión por vendedor</h3><p className="gi-caption mt-1">Equipo completo</p></div>
-              {vendedor && <div className="flex items-center gap-2"><select aria-label="Vendedor para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
+              <div><h3 className="gi-title">Conversión por analista</h3><p className="gi-caption mt-1">Equipo completo</p></div>
+              {vendedor && <div className="flex items-center gap-2"><select aria-label="Analista para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
             </div>
-            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por vendedor" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
+            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
           </section>
 
           <div className="grid gap-4 xl:grid-cols-2">

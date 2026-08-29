@@ -130,11 +130,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   )
   const periodoAnterior = useMemo(() => periodoAnteriorComparable(diaLima), [diaLima])
   const sesionGerenciaReal = Boolean(yo && !yo.demo && rol === 'gerencia')
-  // F3 «Recordar»: SOLO el vendedor real tiene recordatorios (la RLS es
+  // F3 «Recordar»: SOLO el analista real tiene recordatorios (la RLS es
   // owner-only y el rol es la antesala de la toma). En demo no existen. Y solo
   // con las funciones de leads VISIBLES (Codex F3-R2, espejo de vistas.ts): la
   // campana vive tras ese gate — consultar con el gate cerrado sería trabajo
-  // invisible y una insignia que el vendedor no puede ni abrir.
+  // invisible y una insignia que el analista no puede ni abrir.
   const sesionVendedorReal = Boolean(
     yo && !yo.demo && rol === 'vendedor' && !soloRoles
     && funcionesLeadsVisibles(yo.demo, rol),
@@ -143,7 +143,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   // F4 «sin ruido»: el libro de reconocimientos es del SUPERVISOR real, y
   // solo con la campana pintada (el mismo gate de leads que usa vistas.ts
   // para #/alertas): consultar el libro con la campana apagada sería trabajo
-  // invisible — la misma regla que los recordatorios del vendedor.
+  // invisible — la misma regla que los recordatorios del analista.
   const sesionSupervisorReal = Boolean(
     yo && !yo.demo && rol === 'supervisor' && !soloRoles
     && funcionesLeadsVisibles(yo.demo, rol),
@@ -155,7 +155,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   const [asientosDemo, setAsientosDemo] = useState<AsientoReconocimiento[]>([])
   const queryClient = useQueryClient()
 
-  // Solo Gerencia consulta conversiones globales. Vendedor y supervisor derivan
+  // Solo Gerencia consulta conversiones globales. Analista y supervisor derivan
   // sus pendientes de los datos ya recortados por RLS que carga el store.
   const conversionAnterior = useMetricasConversiones(
     sesionGerenciaReal,
@@ -343,7 +343,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
           )
         : null,
       // F3.1: un fallo al listar recordatorios NO puede ser mudo — la campana
-      // omitiría los «Revisar contacto» y el vendedor leería «sin pendientes»
+      // omitiría los «Revisar contacto» y el analista leería «sin pendientes»
       // como verdad (hallazgo convergente de la auditoría del 18/08).
       sesionVendedorReal && recordatorios.error
         ? mensajeDeError(

@@ -309,7 +309,7 @@ describe('Equipo — el ranking y la conversión mensual', () => {
 
     expect(screen.queryByText('Este equipo aún no tiene leads asignados')).not.toBeInTheDocument()
     const detalle = screen.getByRole('table', {
-      name: 'Vendedores del equipo de SUPERVISORA UNO',
+      name: 'Analistas del equipo de SUPERVISORA UNO',
     })
     expect(screen.getByText(/Cierres no disponibles/)).toBeInTheDocument()
     expect(detalle).toHaveTextContent('Dato no disponible')

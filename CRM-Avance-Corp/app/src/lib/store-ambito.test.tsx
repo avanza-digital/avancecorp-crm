@@ -1,5 +1,5 @@
 // Suite del ÁMBITO por rol — espejo cliente de la RLS jerárquica (contrato F1c).
-// Si esto se rompe, un vendedor vería leads ajenos: por eso las aserciones son
+// Si esto se rompe, un analista vería leads ajenos: por eso las aserciones son
 // contra IDS EXACTOS de los fixtures (lib/demo.ts), no contra conteos sueltos.
 // Reparto de los 20 leads demo (ver comentario en demo.ts):
 //   d-v1 → l1,l2,l8,l9,l12,l15,l16,l17 · d-v2 → l3,l6,l10,l18,l19 ·
@@ -95,17 +95,17 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
   })
   afterAll(() => vi.unstubAllEnvs())
 
-  describe('vendedor (d-v1)', () => {
+  describe('analista (d-v1)', () => {
     it('ve EXACTAMENTE sus 8 leads activos y a nadie más', async () => {
       const { ambito } = await montarStore(yoDemo('vendedor'), 20)
 
       expect(ambito.leads).toHaveLength(8)
       expect(idsDe(ambito.leads)).toEqual(ordenar(LEADS_V1))
       expect(ambito.esGlobal).toBe(false)
-      // Solo él mismo como vendedor visible/filtrable
+      // Solo él mismo como analista visible/filtrable
       expect(vendedoresDe(ambito.vendedores)).toEqual(['d-v1'])
 
-      // Refuerzo explícito anti-fuga: ni parkeados ni leads de otros vendedores
+      // Refuerzo explícito anti-fuga: ni parkeados ni leads de otros analistas
       const visibles = new Set(ambito.leads.map((l) => l.id))
       for (const ajeno of [...PARKEADOS_SUP1, ...PARKEADOS_SUP2, ...LEADS_V2, ...LEADS_V3]) {
         expect(visibles.has(ajeno)).toBe(false)
@@ -134,7 +134,7 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
       expect(ambito.leads).toHaveLength(15)
       expect(idsDe(ambito.leads)).toEqual(ordenar(esperados))
       expect(ambito.esGlobal).toBe(false)
-      // Sus vendedores directos, nada más
+      // Sus analistas directos, nada más
       expect(vendedoresDe(ambito.vendedores)).toEqual(['d-v1', 'd-v2'])
 
       // Anti-fuga: la bandeja de d-sup2 (l14) y el equipo de d-sup2 (d-v3) NO
@@ -146,7 +146,7 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
   })
 
   describe('gerencia (d-ger)', () => {
-    it('ve TODOS los leads activos (20) con ámbito global y los 3 vendedores', async () => {
+    it('ve TODOS los leads activos (20) con ámbito global y los 3 analistas', async () => {
       const { ambito } = await montarStore(yoDemo('gerencia'), 20)
 
       expect(ambito.leads).toHaveLength(20)
@@ -165,7 +165,7 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
   })
 
   describe('directorio (lector global)', () => {
-    it('ve TODO con ámbito global, incluidos los 3 vendedores', async () => {
+    it('ve TODO con ámbito global, incluidos los 3 analistas', async () => {
       const { ambito } = await montarStore(yoDemo('directorio'), 20)
 
       expect(ambito.leads).toHaveLength(20)
@@ -213,7 +213,7 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
       // Los fixtures SÍ cargan (20 en el universo global)…
       const api = await montarStore(yoRaro, 20)
 
-      // …pero el ámbito no le concede ni un lead ni vendedores ni globalidad
+      // …pero el ámbito no le concede ni un lead ni analistas ni globalidad
       expect(api.ambito.leads).toEqual([])
       expect(api.ambito.vendedores).toEqual([])
       expect(api.ambito.esGlobal).toBe(false)

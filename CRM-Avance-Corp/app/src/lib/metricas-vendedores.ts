@@ -76,7 +76,7 @@ function lecturaNucleoAusenteOCompleta(fila: LecturaNucleoExacta): boolean {
 }
 
 /** Shape exacto del servidor F2.4b vigente durante el bridge: cuatro claves en
- * vendedor, todavía sin `nucleo_convertidos`. Se valida para reconocer solo ese
+ * analista, todavía sin `nucleo_convertidos`. Se valida para reconocer solo ese
  * contrato conocido; el mapper lo oculta completo y jamás reutiliza su cifra. */
 function lecturaNucleoLegacyVendedor(fila: LecturaNucleoExacta): boolean {
   if (fila.nucleo_convertidos !== undefined) return false
@@ -150,7 +150,7 @@ const FilaVendedorSchema = v.pipe(
   }),
   v.check(
     (fila) => lecturaNucleoLegacyVendedor(fila) || lecturaNucleoCompleta(fila),
-    'La lectura exacta del vendedor no coincide con divisor y numerador',
+    'La lectura exacta del analista no coincide con divisor y numerador',
   ),
 )
 
@@ -197,7 +197,7 @@ export const MetricasVendedoresSchema = v.pipe(v.object({
     v.array(FilaVendedorSchema),
     v.check(
       (filas) => idsUnicos(filas, (fila) => fila.vendedor_id),
-      'El payload contiene vendedores duplicados',
+      'El payload contiene analistas duplicados',
     ),
   ),
   equipos: v.pipe(
@@ -300,7 +300,7 @@ export interface MetricaVendedorOperativa extends Omit<MetricasVendedor, 'conver
 
 /**
  * Payload del RPC → shape operativo. `roster` decide QUÉ filas se muestran
- * (cada pantalla pasa su subconjunto: los vendedores del supervisor, los de
+ * (cada pantalla pasa su subconjunto: los analistas del supervisor, los de
  * un equipo desplegado…); un miembro sin fila conserva la foto operativa
  * heredada en cero, pero su conversión queda explícitamente indisponible: no
  * se publica 0 % ni se inventa la causa «sin divisor».
@@ -363,7 +363,7 @@ export function mapearMetricasVendedores(
       capitalUSD: e.capital_usd,
       convertidos: e.convertidos,
       cierresConversion: publicacion.publicable ? (e.nucleo_convertidos ?? null) : null,
-      // La comparativa usa el mismo núcleo exacto que las filas de vendedor;
+      // La comparativa usa el mismo núcleo exacto que las filas de analista;
       // `conversion_pct` queda únicamente para compatibilidad del wire.
       conversion: publicacion.publicable ? (e.nucleo_conversion_pct ?? null) : null,
       conversionDisponible: publicacion.publicable && e.nucleo_divisor != null,

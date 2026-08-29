@@ -1,6 +1,6 @@
 // Tests de integración de la pantalla "Cartera" (la tabla de LEADS del ámbito).
 // Fijan las dos mentiras que cantaba su chip de capital:
-//  1) "S/ 0" cuando el capital del asesor está íntegramente en dólares — la
+//  1) "S/ 0" cuando el capital del analista está íntegramente en dólares — la
 //     cifra grande debe ser la moneda que de verdad tiene volumen (mismo
 //     criterio ya aprobado en Pipeline). PEN y USD JAMÁS se suman.
 //  2) el capital sumaba leads DESCARTADOS y CONVERTIDOS, es decir dinero que ya

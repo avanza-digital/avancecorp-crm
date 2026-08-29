@@ -1,7 +1,7 @@
 // lib/contacto-tarea.ts — ¿qué tarea de la agenda CIERRA este contacto?
 //
 // Pedido de Miguel (2026-07-25): "una acción debería ayudar a las otras". Hasta
-// hoy el vendedor que llamaba desde la cola registraba la llamada ahí, y luego
+// hoy el analista que llamaba desde la cola registraba la llamada ahí, y luego
 // volvía a responder "¿qué pasó?" al cerrar la misma tarea desde la Agenda. Dos
 // veces el mismo trabajo, y la agenda quedaba mintiendo hasta que se acordara.
 //
@@ -33,11 +33,11 @@ export const TIPO_TAREA_DE_CANAL: Record<Canal, TipoTarea> = { tel: 'llamada', w
  *    aquí: ahí está la mentira gorda (dar por hecha una reunión que no ocurrió).
  *  · VENCE HOY O ANTES (fin del día Lima). Se diverge a propósito de la versión
  *    más estricta ("solo lo ya vencido"): la agenda del día se trabaja en el
- *    orden que el asesor quiera, y exigir que la hora ya hubiera pasado
+ *    orden que el analista quiera, y exigir que la hora ya hubiera pasado
  *    reintroducía justo el trabajo doble que esto viene a quitar. Lo de mañana
  *    no se toca.
  *  · UNA SOLA CANDIDATA. Con dos tareas del mismo canal para hoy no se adivina:
- *    se registra la actividad y el vendedor cierra la que toque desde la agenda.
+ *    se registra la actividad y el analista cierra la que toque desde la agenda.
  *
  * `tareas` se espera ya filtrada a PENDIENTES del lead (lo que devuelve
  * `tareasDe` del store).

@@ -209,8 +209,9 @@ export function presentarDisponibilidadLead(
 
     case 'ya_es_cliente': {
       const asesorPresentable = textoPresentable(resultado.asesor)
-      // P-047 usa este sentinel histórico cuando el cliente no tiene asesor;
-      // no es un nombre y no debe producir «a cargo de sin asesor asignado».
+      // P-047 usa el campo legacy `asesor` y este sentinel histórico cuando el
+      // cliente no tiene analista; no es un nombre y no debe producir
+      // «a cargo de sin asesor asignado».
       const asesor = asesorPresentable?.toLocaleLowerCase('es-PE') === 'sin asesor asignado'
         ? null
         : asesorPresentable
@@ -227,7 +228,7 @@ export function presentarDisponibilidadLead(
     case 'reutilizable':
       // El alta sigue bloqueada (crear duplicaría, §5.6) — el camino es el
       // botón «Tomar lead e iniciar seguimiento», que el formulario ofrece al
-      // vendedor junto a este aviso (contactoTomable decide cuándo).
+      // analista junto a este aviso (contactoTomable decide cuándo).
       return bloquear('Este contacto tiene un seguimiento anterior que puede retomarse en lugar de crear un duplicado.')
 
     case 'error':
@@ -256,7 +257,7 @@ export function presentarResultadoToma(
 // ── Tarjeta de la spec §5.2 ──────────────────────────────────────────────────
 
 /**
- * Tarjeta informativa de SOLO LECTURA para el vendedor que verifica: los datos
+ * Tarjeta informativa de SOLO LECTURA para el analista que verifica: los datos
  * mínimos del seguimiento, nada más (spec §8: sin notas, sin montos, sin
  * detalle ajeno). Función hermana de presentarDisponibilidadLead — NO amplía
  * su contrato {mensaje, bloquea}, que está fijado por prueba — y consume el
@@ -278,7 +279,7 @@ export function tarjetaDisponibilidadLead(
     case 'tomado': {
       const lineas: Array<{ etiqueta: string; valor: string }> = []
       const asesor = textoPresentable(resultado.vendedor)
-      if (asesor) lineas.push({ etiqueta: 'Asesor', valor: asesor })
+      if (asesor) lineas.push({ etiqueta: 'Analista', valor: asesor })
       const desde = resultado.tenencia_desde != null ? fechaEnLima(resultado.tenencia_desde) : null
       if (desde) lineas.push({ etiqueta: 'En seguimiento desde', valor: desde })
       const conversacion = resultado.ultima_conversacion_en != null

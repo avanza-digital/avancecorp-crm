@@ -224,7 +224,7 @@ export function AyudaVendedorPanel({
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Centro de ayuda</p>
             <h2 id={tituloId} className="mt-0.5 text-lg font-bold tracking-tight">
-              Manual del vendedor
+              Manual del analista
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-white/70">
               Lee la guía y continúa trabajando en la misma pantalla.

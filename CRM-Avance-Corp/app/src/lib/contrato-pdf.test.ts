@@ -18,10 +18,10 @@ const DATOS: ContratoPdfDatos = {
     correo: 'gladys.yupanqui@correo.pe',
   },
   analista: {
-    nombreCompleto: 'VENDEDOR UNO',
+    nombreCompleto: 'ANALISTA UNO',
     documento: '10000001',
     celular: '+51 987 654 321',
-    correo: 'vendedor.uno@avancecorp.pe',
+    correo: 'analista.uno@avancecorp.pe',
   },
   cotitulares: [
     {
@@ -62,7 +62,7 @@ describe('contrato PDF legal', () => {
     expect(texto).toContain('S/ 80,000.00')
     expect(texto).toContain('OCHENTA MIL Y 00/100 SOLES')
     expect(texto).toContain('diez por ciento (10.00 %)')
-    expect(texto).toContain('VENDEDOR UNO')
+    expect(texto).toContain('ANALISTA UNO')
     expect(texto).toContain('DÉCIMA SÉTIMA: DECLARACIÓN FINAL DE LAS PARTES')
     expect(texto).not.toContain('CÉSAR AUGUSTO ROMERO DELGADO')
   })

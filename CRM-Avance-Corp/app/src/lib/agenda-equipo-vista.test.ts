@@ -55,9 +55,9 @@ function miembro(perfilId: string, supervisorId: string | null, rol: Miembro['ro
 }
 
 describe('canceladasAsesor / canceladasSistema — la separación que pidió Miguel', () => {
-  // «separa lo que cancela el sistema y lo que cancela el asesor» (2026-07-26).
+  // «separa lo que cancela el sistema y lo que cancela el analista» (2026-07-26).
   // El total `canceladas` mezclaba dos cosas incomparables: una decisión del
-  // asesor sobre su agenda y el trigger que limpia pendientes cuando el lead se
+  // analista sobre su agenda y el trigger que limpia pendientes cuando el lead se
   // convierte o se descarta.
   it('reparte el total en sus dos mitades', () => {
     const v = ven('v1', 'Ana', { canceladas: 5, canceladas_asesor: 2, canceladas_sistema: 3 })
@@ -66,7 +66,7 @@ describe('canceladasAsesor / canceladasSistema — la separación que pidió Mig
     expect(canceladasAsesor(v) + canceladasSistema(v)).toBe(v.canceladas)
   })
 
-  it('sin desglose (BD sin migrar) TODO cae del lado del asesor, como antes', () => {
+  it('sin desglose (BD sin migrar) TODO cae del lado del analista, como antes', () => {
     // Degradación deliberada: mandarlas a «sistema» inflaría el % de todo el
     // equipo con datos inventados. El panel no puede cambiar de números por
     // sorpresa mientras la migración y el deploy del front no coinciden.
@@ -75,7 +75,7 @@ describe('canceladasAsesor / canceladasSistema — la separación que pidió Mig
     expect(canceladasSistema(v)).toBe(0)
   })
 
-  it('convertir un lead ya NO le baja el % al vendedor', () => {
+  it('convertir un lead ya NO le baja el % al analista', () => {
     // El sesgo que existía desde 20260719013000: convertir cancela las tareas
     // pendientes del lead, y cada una entraba al denominador. El mejor
     // resultado del embudo empeoraba la nota, y más cuanto mejor planificado
@@ -96,9 +96,9 @@ describe('canceladasAsesor / canceladasSistema — la separación que pidió Mig
   })
 })
 
-describe('canceladasPropias / canceladasAjenas — lo que anula el jefe no lo paga el vendedor', () => {
+describe('canceladasPropias / canceladasAjenas — lo que anula el jefe no lo paga el analista', () => {
   // Decisión de Miguel (2026-07-26), cerrando lo que quedó abierto al desplegar
-  // la separación asesor/sistema: «si el supervisor anula una tarea el vendedor
+  // la separación analista/sistema: «si el supervisor anula una tarea el analista
   // no debería poder hacer nada sobre esa tarea» → tampoco cargar con ella.
   it('parte las anulaciones humanas en propias y ajenas, y las dos suman el total', () => {
     const v = ven('v1', 'Ana', {
@@ -161,7 +161,7 @@ describe('canceladasPropias / canceladasAjenas — lo que anula el jefe no lo pa
 })
 
 describe('resumenAgenda', () => {
-  it('suma los totales del ámbito y calcula el % sobre los cierres (completadas + no asistió + canceladas del asesor)', () => {
+  it('suma los totales del ámbito y calcula el % sobre los cierres (completadas + no asistió + canceladas del analista)', () => {
     const resumen = resumenAgenda([
       ven('v1', 'Ana', { toques: 10, completadas: 3, no_asistio: 1, vencidas: 2, leads_sin_accion: 1 }),
       ven('v2', 'Beto', { toques: 4, completadas: 1, canceladas: 1, no_asistio: 1 }),
@@ -245,10 +245,10 @@ describe('agruparPorEquipo', () => {
     // Orden por nombre, como lo entrega la RPC.
     ven('v-h', 'Hugo Huérfano', { toques: 1 }), // su supervisor no está en el payload
     ven('sup-b', 'Marta Supervisora', { toques: 0 }),
-    ven('v-b1', 'Nina Vendedora', { toques: 7, completadas: 2 }),
+    ven('v-b1', 'Nina Analista', { toques: 7, completadas: 2 }),
     ven('sup-a', 'Álvaro Supervisor', { toques: 3, completadas: 1, no_asistio: 1 }),
-    ven('v-a1', 'Rita Vendedora', { toques: 12, leads_sin_accion: 2 }),
-    ven('v-a2', 'Saúl Vendedor', {}),
+    ven('v-a1', 'Rita Analista', { toques: 12, leads_sin_accion: 2 }),
+    ven('v-a2', 'Saúl Analista', {}),
     ven('v-x', 'Xime Sin Supervisor', {}), // no aparece en `equipo`
   ].map((v) => (v.vendedor_id.startsWith('sup') ? { ...v, rol: 'supervisor' as const } : v))
 
@@ -271,10 +271,10 @@ describe('agruparPorEquipo', () => {
     ])
     const [equipoA, equipoB, huerfanos] = grupos!
     // El supervisor con números es una fila más de su sección.
-    expect(equipoA!.miembros.map((v) => v.nombre)).toEqual(['Rita Vendedora', 'Álvaro Supervisor'])
-    expect(equipoA!.sinActividad.map((v) => v.nombre)).toEqual(['Saúl Vendedor'])
+    expect(equipoA!.miembros.map((v) => v.nombre)).toEqual(['Rita Analista', 'Álvaro Supervisor'])
+    expect(equipoA!.sinActividad.map((v) => v.nombre)).toEqual(['Saúl Analista'])
     // La supervisora todo-en-cero cae en la línea de sin actividad de SU sección.
-    expect(equipoB!.miembros.map((v) => v.nombre)).toEqual(['Nina Vendedora'])
+    expect(equipoB!.miembros.map((v) => v.nombre)).toEqual(['Nina Analista'])
     expect(equipoB!.sinActividad.map((v) => v.nombre)).toEqual(['Marta Supervisora'])
     // Huérfanos: supervisor fuera del payload o miembro ausente del equipo.
     expect(huerfanos!.id).toBe(SIN_EQUIPO_ID)

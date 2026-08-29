@@ -20,7 +20,7 @@ export type PrioridadVendedor =
 /**
  * Une agenda y cola en una franja de trabajo corta.
  *
- * Reglas perceptuales del contrato del vendedor:
+ * Reglas perceptuales del contrato del analista:
  * - máximo tres decisiones simultáneas (Hick);
  * - una sola señal dominante por lead (Gestalt);
  * - todo speed-to-lead antes que cualquier recordatorio (su reloj no se entierra);

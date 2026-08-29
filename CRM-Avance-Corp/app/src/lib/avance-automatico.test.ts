@@ -81,7 +81,7 @@ describe('avancePorReunion — agendar una reunión sube el lead', () => {
     expect(avancePorReunion(lead('contactado'), tarea(), false, AHORA)).toBeNull()
   })
 
-  it('el rebote automático tras un no-show NO asciende: plantar al asesor no es progreso', () => {
+  it('el rebote automático tras un no-show NO asciende: plantar al analista no es progreso', () => {
     // La guarda que más importa. `motor-siguiente` reagenda solo tras un
     // no-show; sin esto, el plantón sería la mentira más fácil de fabricar.
     expect(avancePorReunion(lead('contactado'), tarea({ reagendada_de: 't0' }), true, AHORA)).toBeNull()

@@ -19,7 +19,7 @@ export function Hoy(): JSX.Element {
       return <HoyDirectorio />
     case 'vendedor':
     default:
-      // Rol desconocido degrada al panel de vendedor: su ámbito es el más
+      // Rol desconocido degrada al panel de analista: su ámbito es el más
       // restrictivo (solo leads propios — para una sesión rara, ninguno).
       return <HoyVendedor />
   }

@@ -1,5 +1,5 @@
 // Tests de los helpers puros de la pantalla Clientes: la regla de cartera por
-// fila (espejo del servidor), la búsqueda normalizada, el filtro por asesor,
+// fila (espejo del servidor), la búsqueda normalizada, el filtro por analista,
 // el recorte de ámbito del demo y la paginación con clamp.
 import { describe, expect, it } from 'vitest'
 import {
@@ -43,15 +43,15 @@ describe('esMiCliente (regla de cartera del servidor, POR FILA)', () => {
     expect(esMiCliente(fila({ asesor_perfil_id: MI, creado_por: 'otro' }), MI)).toBe(true)
   })
 
-  it('asesor NULL y creado_por = mi uid → mía (herencia del creador)', () => {
+  it('asesor_perfil_id NULL y creado_por = mi uid → mía (herencia del creador)', () => {
     expect(esMiCliente(fila({ asesor_perfil_id: null, creado_por: MI }), MI)).toBe(true)
   })
 
-  it('asesor de OTRO aunque yo la haya creado → ajena (el asesor manda)', () => {
+  it('analista de OTRO aunque yo la haya creado → ajena (el analista manda)', () => {
     expect(esMiCliente(fila({ asesor_perfil_id: 'otro', creado_por: MI }), MI)).toBe(false)
   })
 
-  it('sin asesor ni creador → de nadie', () => {
+  it('sin analista ni creador → de nadie', () => {
     expect(esMiCliente(fila(), MI)).toBe(false)
   })
 
@@ -62,7 +62,7 @@ describe('esMiCliente (regla de cartera del servidor, POR FILA)', () => {
 })
 
 describe('duenoDeCartera', () => {
-  it('prioriza asesor_perfil_id y cae a creado_por solo con asesor NULL', () => {
+  it('prioriza asesor_perfil_id y cae a creado_por solo con asesor_perfil_id NULL', () => {
     expect(duenoDeCartera(fila({ asesor_perfil_id: 'a', creado_por: 'b' }))).toBe('a')
     expect(duenoDeCartera(fila({ asesor_perfil_id: null, creado_por: 'b' }))).toBe('b')
     expect(duenoDeCartera(fila())).toBeNull()
@@ -70,7 +70,7 @@ describe('duenoDeCartera', () => {
 })
 
 describe('filtrarClientes — búsqueda', () => {
-  // La columna Asesor pinta '—' tanto para dueño null como para dueño fuera
+  // La columna Analista pinta '—' tanto para dueño null como para dueño fuera
   // del roster (alta hecha por un admin del portal, que no es fuerza comercial):
   // el filtro debe tratarlos IGUAL o dos filas idénticas a la vista se
   // comportan distinto (hallazgo de revisión 2026-07-16).
@@ -83,7 +83,7 @@ describe('filtrarClientes — búsqueda', () => {
     ]
     expect(filtrarClientes(filas, '', 'sin_asesor', roster).map((f) => f.dni).sort()).toEqual(['00000002', '00000003'])
     expect(filtrarClientes(filas, '', 'v-1', roster).map((f) => f.dni)).toEqual(['00000001'])
-    // Sin roster (llamadas viejas): compat — solo el dueño null es 'sin asesor'.
+    // Sin roster (llamadas viejas): compat — solo el dueño null es 'sin analista'.
     expect(filtrarClientes(filas, '', 'sin_asesor').map((f) => f.dni)).toEqual(['00000002'])
   })
 
@@ -118,9 +118,9 @@ describe('filtrarClientes — búsqueda', () => {
   })
 })
 
-describe('filtrarClientes — filtro por asesor (compara contra el DUEÑO de cartera)', () => {
+describe('filtrarClientes — filtro por analista (compara contra el DUEÑO de cartera)', () => {
   const cartera = [
-    fila({ nombre_completo: 'CON ASESOR', asesor_perfil_id: 'v-1', creado_por: 'otro' }),
+    fila({ nombre_completo: 'CON ANALISTA', asesor_perfil_id: 'v-1', creado_por: 'otro' }),
     fila({ nombre_completo: 'HUERFANA DEL CREADOR', asesor_perfil_id: null, creado_por: 'v-1' }),
     fila({ nombre_completo: 'DE OTRO', asesor_perfil_id: 'v-2', creado_por: 'v-1' }),
     fila({ nombre_completo: 'SIN NADIE', asesor_perfil_id: null, creado_por: null }),
@@ -128,16 +128,16 @@ describe('filtrarClientes — filtro por asesor (compara contra el DUEÑO de car
 
   it('por perfil_id incluye las filas heredadas por creado_por (misma regla que la columna)', () => {
     expect(filtrarClientes(cartera, '', 'v-1').map((c) => c.nombre_completo)).toEqual([
-      'CON ASESOR',
+      'CON ANALISTA',
       'HUERFANA DEL CREADOR',
     ])
   })
 
-  it("'sin_asesor' = sin asesor NI creador", () => {
+  it("'sin_asesor' = sin analista NI creador", () => {
     expect(filtrarClientes(cartera, '', 'sin_asesor').map((c) => c.nombre_completo)).toEqual(['SIN NADIE'])
   })
 
-  it('asesor y búsqueda se componen (AND)', () => {
+  it('analista y búsqueda se componen (AND)', () => {
     expect(filtrarClientes(cartera, 'huerfana', 'v-1')).toHaveLength(1)
     expect(filtrarClientes(cartera, 'de otro', 'v-1')).toHaveLength(0)
   })
@@ -146,8 +146,8 @@ describe('filtrarClientes — filtro por asesor (compara contra el DUEÑO de car
 describe('carteraDelAmbito (recorte DEMO — en real lo hace el servidor)', () => {
   const cartera = [
     fila({ nombre_completo: 'MIA', asesor_perfil_id: 'yo' }),
-    fila({ nombre_completo: 'DE MI VENDEDOR', asesor_perfil_id: 'v-1' }),
-    fila({ nombre_completo: 'HUERFANA DE MI VENDEDOR', asesor_perfil_id: null, creado_por: 'v-1' }),
+    fila({ nombre_completo: 'DE MI ANALISTA', asesor_perfil_id: 'v-1' }),
+    fila({ nombre_completo: 'HUERFANA DE MI ANALISTA', asesor_perfil_id: null, creado_por: 'v-1' }),
     fila({ nombre_completo: 'DEL OTRO EQUIPO', asesor_perfil_id: 'v-9' }),
     fila({ nombre_completo: 'SIN NADIE' }),
   ]
@@ -160,8 +160,8 @@ describe('carteraDelAmbito (recorte DEMO — en real lo hace el servidor)', () =
     const visibles = carteraDelAmbito(cartera, new Set(['yo', 'v-1']), false)
     expect(visibles.map((c) => c.nombre_completo)).toEqual([
       'MIA',
-      'DE MI VENDEDOR',
-      'HUERFANA DE MI VENDEDOR',
+      'DE MI ANALISTA',
+      'HUERFANA DE MI ANALISTA',
     ])
   })
 })

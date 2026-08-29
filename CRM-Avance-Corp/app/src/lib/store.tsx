@@ -88,7 +88,7 @@ export interface StoreEstado {
 
 /**
  * Presupuesto de la carga inicial de la sesión real. Un fetch que se CUELGA no
- * rechaza nunca: sin este límite el asesor se queda para siempre mirando
+ * rechaza nunca: sin este límite el analista se queda para siempre mirando
  * «Preparando tu información…», y un spinner eterno es peor que un error porque
  * no ofrece salida. Al vencer se abortan los fetch y se muestra el estado
  * accionable de error + reintentar. Holgado a propósito: el arranque real
@@ -240,13 +240,13 @@ export type CambiosLead = Partial<
  * TODAS las pantallas (y la búsqueda del topbar) deben leer de aquí en vez
  * del `leads` global:
  *  - vendedor: leads con vendedor_id === yo.id
- *  - supervisor: los suyos + los de sus vendedores + parkeados con
+ *  - supervisor: los suyos + los de sus analistas + parkeados con
  *    asignado_supervisor_id === yo.id (vendedor_id null)
  *  - gerencia y directorio: todos
  */
 export interface Ambito {
   leads: Lead[] // recortado por rol
-  vendedores: Miembro[] // vendedores visibles/filtrables (supervisor: los suyos; gerencia/directorio: todos)
+  vendedores: Miembro[] // analistas visibles/filtrables (supervisor: los suyos; gerencia/directorio: todos)
   esGlobal: boolean // true para gerencia/directorio
 }
 
@@ -292,7 +292,7 @@ export interface StoreDataApi {
    *
    * El consumidor (la franja de meta en Hoy) DEBE mirarlo antes de decir «Meta
    * mensual por definir»: afirmar ausencia cuando lo que hubo fue un error de
-   * red le hace creer al asesor que nadie fijó su meta. Con `true` el copy
+   * red le hace creer al analista que nadie fijó su meta. Con `true` el copy
    * honesto es «No pudimos cargar tu meta del mes» + reintentar (`recargar()`).
    */
   objetivosError: boolean
@@ -325,7 +325,7 @@ export interface StoreDataApi {
    *  (espejo de `trg_zz_tareas_avance_etapa`: una reunión futura con quien ya
    *  se trabajó sube a `reunion_agendada`). Se DEVUELVE, como en
    *  `registrarActividad` y `completarTarea`, porque la UI tiene que cantarlo:
-   *  agendar desde la ficha movía el lead de etapa EN SILENCIO y el asesor veía
+   *  agendar desde la ficha movía el lead de etapa EN SILENCIO y el analista veía
    *  saltar el stepper sin saber quién lo tocó. */
   crearTarea(input: NuevaTareaInput): ResultadoMut & {
     id?: string
@@ -614,7 +614,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. El índice
  * es GLOBAL (espejo del unique index parcial), pero el NOMBRE del lead en
  * conflicto solo se revela si el actor puede verlo (`visibles`) — sin esto, un
- * vendedor podía sondear teléfonos/DNIs ajenos y cosechar nombres de leads
+ * analista podía sondear teléfonos/DNIs ajenos y cosechar nombres de leads
  * fuera de su ámbito (fuga de PII detectada por los tests de auditoría).
  */
 function conflictoDedup(
@@ -985,7 +985,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }) => {
             clearTimeout(relojCarga)
             // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
-            // borrar la pantalla de error que el asesor está viendo.
+            // borrar la pantalla de error que el analista está viendo.
             if (cancelado || agotado) return
             setDatos({ leads, actividades })
             setTareas(tareasServidor)
@@ -1045,7 +1045,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const rol = yo?.rol
     const miId = yo?.id ?? null
     if (can(rol, 'verTodo')) {
-      // gerencia y directorio: todo el universo + todos los vendedores.
+      // gerencia y directorio: todo el universo + todos los analistas.
       // Espejo del filtro `activo = true` de leads_select: solo el lector
       // global (directorio) ve los soft-borrados; gerencia NO los ve.
       return {
@@ -1073,7 +1073,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         esGlobal: false,
       }
     }
-    // vendedor — o rol/sesión desconocidos: privilegio mínimo (solo lo propio)
+    // analista — o rol/sesión desconocidos: privilegio mínimo (solo lo propio)
     return {
       leads: miId ? datos.leads.filter((l) => l.activo && l.vendedor_id === miId) : [],
       vendedores: equipo.filter((m) => m.perfil_id === miId),
@@ -1150,9 +1150,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const idsDelAmbito = new Set(ambito.leads.map((l) => l.id))
 
     // Espejo del WITH CHECK de leads_insert/leads_update (F0): para supervisor
-    // el vendedor destino debe estar dentro de SU subárbol (él mismo o sus
-    // vendedores). Gerencia pasa siempre (vendedor_ids_visibles = todos) y el
-    // vendedor nunca llega aquí con otro destino (gates de can/reasignar).
+    // el analista destino debe estar dentro de SU subárbol (él mismo o sus
+    // analistas). Gerencia pasa siempre (vendedor_ids_visibles = todos) y el
+    // analista nunca llega aquí con otro destino (gates de can/reasignar).
     const vendedorFueraDeAmbito = (vendedorId: string | null): boolean =>
       rol === 'supervisor' &&
       vendedorId != null &&
@@ -1656,12 +1656,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // reunión el sistema no me deja cerrar la otra tarea que era una llamada
       // … voy a tener llamadas agendadas innecesarias»). Una tarea pendiente
       // solo podía CERRARSE con resultado, reprogramarse o confirmarse. Cuando
-      // el asesor agendaba la reunión, la llamada vieja se quedaba clavada, y
+      // el analista agendaba la reunión, la llamada vieja se quedaba clavada, y
       // para sacarla de su agenda el diálogo de cierre solo le ofrecía
       // «Contestó»/«No contestó»: las dos MENTIRA. Y esa mentira no es barata
       // — entra al log INMUTABLE de `crm.actividades`, cuenta como gestión
       // ante supervisión y «Contestó» encima SUBE la etapa del lead
-      // (lib/avance-automatico). El asesor honesto se quedaba con basura en la
+      // (lib/avance-automatico). El analista honesto se quedaba con basura en la
       // agenda; el apurado ensuciaba el embudo. Faltaba poder decir «esto ya
       // no aplica» sin afirmar nada sobre el cliente.
       //
@@ -1825,7 +1825,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
         const choque = conflictoDedup(datos.leads, telefono, dni, undefined, idsDelAmbito)
         if (choque) return choque
-        // Resuelve el vendedor SIN tragar ids inválidos (mismo criterio que reasignar()).
+        // Resuelve el analista SIN tragar ids inválidos (mismo criterio que reasignar()).
         let vendedor_id: string | null = null
         let vendedor_nombre: string | null = null
         if (input.vendedor_id) {
@@ -1841,7 +1841,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             return {
               ok: false,
               codigo: 'vendedor_no_encontrado',
-              error: 'Vendedor no encontrado',
+              error: 'Analista no encontrado',
             }
           }
         }
@@ -1850,7 +1850,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return {
             ok: false,
             codigo: 'vendedor_fuera_ambito',
-            error: 'Ese vendedor no pertenece a tu equipo',
+            error: 'Ese analista no pertenece a tu equipo',
           }
         }
         const id = uid()
@@ -2411,14 +2411,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return {
             ok: false,
             codigo: 'vendedor_no_encontrado',
-            error: 'Vendedor no encontrado',
+            error: 'Analista no encontrado',
           }
         // Espejo del WITH CHECK de leads_update: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedorId)) {
           return {
             ok: false,
             codigo: 'vendedor_fuera_ambito',
-            error: 'Ese vendedor no pertenece a tu equipo',
+            error: 'Ese analista no pertenece a tu equipo',
           }
         }
         const vendedorDestino = nuevo?.perfil_id ?? null
@@ -2451,7 +2451,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           {
             vendedor_id: vendedorDestino,
             vendedor_nombre: nuevo?.nombre_completo ?? null,
-            // Al asignar vendedor sale de la bandeja; al parkear (null) un
+            // Al asignar analista sale de la bandeja; al parkear (null) un
             // supervisor lo retiene en la SUYA (gerencia parkea sin bandeja).
             asignado_supervisor_id: supervisorDestino,
           },

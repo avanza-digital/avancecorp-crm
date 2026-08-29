@@ -41,7 +41,7 @@ const SESION: AuthContextValue = {
   fase: 'listo',
   yo: {
     id: 'vendedor-1',
-    nombre_completo: 'VENDEDOR PRUEBA',
+    nombre_completo: 'ANALISTA PRUEBA',
     rol: 'vendedor',
     demo: true,
     puede_contratar: true,
@@ -60,7 +60,7 @@ function montar({
   telefonoInicial = null,
 }: {
   demo?: boolean
-  /** Rol del actor; por defecto el vendedor de SESION. Para la regla D8. */
+  /** Rol del actor; por defecto el analista de SESION. Para la regla D8. */
   rol?: 'vendedor' | 'supervisor' | 'gerencia'
   crearLeadImpl?: StoreDataApi['crearLead']
   /** El atajo del buscador (plan «lead libre», F1) llega con teléfono. */
@@ -123,7 +123,7 @@ function completarBaseReal() {
     target: { value: '987654321' },
   })
   // D8 (2026-08-11): el alta manual ya no ofrece canales automáticos; el
-  // vendedor de esta sesión declara SU referido — el flujo real de la regla.
+  // analista de esta sesión declara SU referido — el flujo real de la regla.
   fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
   fireEvent.change(screen.getByLabelText('Capital estimado *'), { target: { value: '5000' } })
 }
@@ -331,10 +331,10 @@ describe('LeadNuevo — disponibilidad P-048', () => {
 
     await act(async () => { segunda.resolver({ estado: 'libre' }) })
     await act(async () => {
-      primera.resolver({ estado: 'tomado', vendedor: 'OTRO VENDEDOR', tenencia_desde: null })
+      primera.resolver({ estado: 'tomado', vendedor: 'OTRO ANALISTA', tenencia_desde: null })
     })
 
-    expect(screen.queryByText(/OTRO VENDEDOR/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/OTRO ANALISTA/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Crear lead' })).toBeEnabled()
   })
 
@@ -520,9 +520,9 @@ describe('LeadNuevo — disponibilidad P-048', () => {
 describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
   // Espejo del 42501 del servidor (20260811210049): landing y formulario se
   // cargan solos por el puente; el alta manual no puede suplantarlos, y el
-  // referido lo declara SOLO el vendedor. Si estas opciones reaparecieran en el
+  // referido lo declara SOLO el analista. Si estas opciones reaparecieran en el
   // selector, el usuario elegiría algo que el servidor va a rechazar.
-  it('el vendedor ve exactamente Referido, Walking y Otro', () => {
+  it('el analista ve exactamente Referido, Walking y Otro', () => {
     montar()
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
@@ -530,7 +530,7 @@ describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
     expect(opciones).toEqual(['referido', 'oficina', 'otro'])
   })
 
-  it('un supervisor NO ve Referido (solo los vendedores, a su propio nombre)', () => {
+  it('un supervisor NO ve Referido (solo los analistas, a su propio nombre)', () => {
     montar({ rol: 'supervisor' })
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
@@ -549,7 +549,7 @@ describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
 
 // ── Fase 1 del plan «lead libre» (2026-08-16): la tarjeta §5.2 y el atajo ────
 describe('LeadNuevo — tarjeta de disponibilidad', () => {
-  it('un «tomado» enriquecido pinta la tarjeta: asesor, última conversación y fecha', async () => {
+  it('un «tomado» enriquecido pinta la tarjeta: analista, última conversación y fecha', async () => {
     vi.useFakeTimers()
     verificarDisponibilidad.mockResolvedValue({
       estado: 'tomado',
@@ -588,7 +588,7 @@ describe('LeadNuevo — tarjeta de disponibilidad', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
 
     expect(screen.getByText('Seguimiento activo')).toBeInTheDocument()
-    expect(screen.getByText('Asesor')).toBeInTheDocument()
+    expect(screen.getByText('Analista')).toBeInTheDocument()
     expect(screen.queryByText('Última conversación')).not.toBeInTheDocument()
     expect(screen.queryByText('Revisable desde (estimado)')).not.toBeInTheDocument()
   })
@@ -612,7 +612,7 @@ describe('LeadNuevo — tarjeta de disponibilidad', () => {
 })
 
 // ── Honestidad sin celular (2026-08-17, hallazgo de Miguel en la prueba visual):
-// con un DNI tecleado el precheck no corría y CALLABA — el vendedor leía ese
+// con un DNI tecleado el precheck no corría y CALLABA — el analista leía ese
 // silencio como «libre». Mutante que debe morir aquí: restaurar el return mudo
 // de programarDisponibilidad cuando el teléfono no normaliza. ─────────────────
 describe('LeadNuevo — honestidad sin celular', () => {
@@ -706,14 +706,14 @@ describe('LeadNuevo — Tomar lead (F2)', () => {
     return arnes
   }
 
-  it('vendedor + en_bolsa: el botón existe y el alta sigue bloqueada', async () => {
+  it('analista + en_bolsa: el botón existe y el alta sigue bloqueada', async () => {
     await precheckCon({ estado: 'en_bolsa' })
 
     expect(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
   })
 
-  it('vendedor + reutilizable: el botón existe junto a la tarjeta de la historia', async () => {
+  it('analista + reutilizable: el botón existe junto a la tarjeta de la historia', async () => {
     await precheckCon(REUTILIZABLE)
 
     expect(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ })).toBeEnabled()
@@ -971,7 +971,7 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     expect(screen.queryByRole('button', { name: /Recordarme revisar/ })).not.toBeInTheDocument()
   })
 
-  it('supervisión no ve el recordatorio (es la antesala de la toma, del vendedor)', async () => {
+  it('supervisión no ve el recordatorio (es la antesala de la toma, del analista)', async () => {
     await precheckR(TOMADO, { rol: 'supervisor' })
     expect(screen.queryByRole('button', { name: /Recordarme revisar/ })).not.toBeInTheDocument()
   })
@@ -1056,7 +1056,7 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
     await screen.findByText(/la campana te avisará el/)
 
-    // El vendedor clica el teléfono para compararlo y sale SIN cambiar nada:
+    // El analista clica el teléfono para compararlo y sale SIN cambiar nada:
     // antes esto borraba la confirmación y el mini-form renacía «virgen»,
     // invitando a re-guardar (= reprogramar en silencio).
     vi.useFakeTimers()
@@ -1178,7 +1178,7 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     await precheckR(TOMADO)
 
     fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
-    // El vendedor cambia al contacto B con el guardado del A en vuelo.
+    // El analista cambia al contacto B con el guardado del A en vuelo.
     vi.useFakeTimers()
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.change(telefono, { target: { value: '911111111' } })
@@ -1229,7 +1229,7 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
 
-    // Con el guardado del A en vuelo, el vendedor cambia al contacto B y su
+    // Con el guardado del A en vuelo, el analista cambia al contacto B y su
     // precheck llega a recordable: el mini-form vuelve FRESCO para B.
     vi.useFakeTimers()
     const telefono = screen.getByLabelText('Teléfono *')

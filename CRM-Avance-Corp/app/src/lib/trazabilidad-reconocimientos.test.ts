@@ -37,7 +37,7 @@ describe('derivarCompromisos', () => {
     expect(c!.venceEn).toBe(c!.creadoEn + 7 * 86_400_000)
   })
 
-  it('la foto de sin_proxima_accion cuenta VENDEDORES, no leads — y la de tareas, leads', () => {
+  it('la foto de sin_proxima_accion cuenta ANALISTAS, no leads — y la de tareas, leads', () => {
     const compromisos = derivarCompromisos([
       asiento({ alerta_id: 'grupo:sin_proxima_accion:11111111-1111-4111-8111-111111111111', miembros: ['v1'] }),
       asiento({
@@ -48,7 +48,7 @@ describe('derivarCompromisos', () => {
       }),
     ], AHORA)
     const porEtiqueta = new Map(compromisos.map((c) => [c.etiqueta, c.cuanto]))
-    expect(porEtiqueta.get('Leads sin próxima acción')).toBe('1 vendedor')
+    expect(porEtiqueta.get('Leads sin próxima acción')).toBe('1 analista')
     expect(porEtiqueta.get('Leads con plazo vencido')).toBe('3 leads')
   })
 

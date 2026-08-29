@@ -166,7 +166,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   const [detalleAnulacion, setDetalleAnulacion] = useState('')
   const [camposReunionSiguiente, setCamposReunionSiguiente] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
   const [saltar, setSaltar] = useState(false)
-  // `null` = el vendedor NO ha tocado la siguiente → manda la sugerencia del
+  // `null` = el analista NO ha tocado la siguiente → manda la sugerencia del
   // motor. En cuanto edita un campo, esto pasa a ser la fuente y el motor deja
   // de pisarle lo escrito.
   const [editados, setEditados] = useState<CamposSiguiente | null>(null)
@@ -201,7 +201,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * estado dentro del `onClick` decidía qué DICE. Una tarea genérica tiene UNA
    * sola opción y nace preseleccionada, así que ese `onClick` no ocurría nunca
    * → el panel salía visible y EN BLANCO, el lead se caía de la cadencia en
-   * silencio, y si el asesor escribía el título que faltaba, confirmar lanzaba
+   * silencio, y si el analista escribía el título que faltaba, confirmar lanzaba
    * un `RangeError` que se llevaba el diálogo al error boundary.
    */
   const campos: CamposSiguiente | null = editados ?? (sugerencia ? camposDeSugerencia(sugerencia) : null)
@@ -221,7 +221,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    *  · `editados` conservaba canal y fecha del resultado anterior, y la
    *    alternancia del motor (llamada fallida → WhatsApp) quedaba anulada;
    *  · el instante se congela aquí para que el reloj vivo (useAhora, que
-   *    tickea) no mueva la fecha propuesta bajo el cursor mientras el asesor
+   *    tickea) no mueva la fecha propuesta bajo el cursor mientras el analista
    *    llena el formulario — en el borde de las 20:00 saltaba de día.
    */
   const elegir = (op: OpcionCierre) => {
@@ -341,7 +341,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * ¿Anular ESTA tarea devuelve el lead a una etapa anterior?
    *
    * Se calcula en RENDER (no en el handler) porque el panel de confirmación
-   * tiene que DECIRLO antes de que el asesor pulse: bajar de etapa a espaldas
+   * tiene que DECIRLO antes de que el analista pulse: bajar de etapa a espaldas
    * de quien anula es exactamente el susto que el resto del CRM evita cantando
    * cada avance. El handler vuelve a leer el retroceso REAL que devuelve el
    * store —esta copia es solo para el texto— y por eso las dos no pueden
@@ -392,7 +392,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     }
     onCerrar()
     // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
-    // acción" porque es el cambio más grande y el que el asesor no pidió
+    // acción" porque es el cambio más grande y el que el analista no pidió
     // explícitamente. Los dos son ciertos a la vez a menudo (anular la última
     // reunión suele dejar al lead sin plan), pero dos toasts encima de otro se
     // pisan; gana el que más sorprende.
@@ -662,7 +662,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               )}
             </p>
             {/* El retroceso de etapa va PRIMERO y en negrita: es la única
-                consecuencia de anular que toca el embudo, y la que el asesor no
+                consecuencia de anular que toca el embudo, y la que el analista no
                 pidió. Anunciarla antes del tap es el mismo trato que el resto
                 del CRM le da a los avances automáticos (ahí se cantan DESPUÉS
                 porque suben; este baja, así que se avisa ANTES). */}
@@ -708,7 +708,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
 
         {/* La nota se esconde al anular, y no es cosmético: anular NO escribe
             actividad, así que dejar visible un campo que promete "va al
-            timeline del lead" sería tragarse en silencio lo que el asesor
+            timeline del lead" sería tragarse en silencio lo que el analista
             escribió. Si tiene algo que contar, cierra la tarea con resultado. */}
         {!anulando && (
           <Textarea

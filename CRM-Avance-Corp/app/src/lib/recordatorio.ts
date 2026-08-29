@@ -1,6 +1,6 @@
 // lib/recordatorio.ts — anti no-show v1 (Fase E del plan v2), sin push ni API.
 //
-// El recordatorio viaja por wa.me PRELLENADO y lo dispara el vendedor a un
+// El recordatorio viaja por wa.me PRELLENADO y lo dispara el analista a un
 // toque. La evidencia manda tres cosas (sección "Investigación web" del plan):
 //  * PEDIR RESPUESTA ("¿Confirmamos…?") — el silencio es el clasificador: la
 //    cita sin confirmar es la que está en riesgo y amerita llamada.
@@ -30,7 +30,7 @@ export function mensajeRecordatorio(t: Tarea, lead: Lead, ahora: number): string
     : `el ${dia} a las ${hora}`
   const capital = money(lead.monto_estimado, lead.moneda)
   return (
-    `Hola ${primerNombre(lead.nombre_completo)}, te saluda tu asesor de Avance Corp. ` +
+    `Hola ${primerNombre(lead.nombre_completo)}, te saluda tu analista de Avance Corp. ` +
     `¿Confirmamos nuestra cita de ${cuando}? ` +
     `Te muestro los números de tu inversión de ${capital}. ` +
     `Si te queda mejor otro horario, dime y lo movemos.`

@@ -27,7 +27,7 @@ const cambio = (detalle: string, iso: string, leadId = 'l1'): Actividad => ({
   lead_id: leadId,
   tipo: 'cambio_etapa',
   detalle,
-  autor_nombre: 'VENDEDOR UNO',
+  autor_nombre: 'ANALISTA UNO',
   creado_en: iso,
 })
 

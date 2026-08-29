@@ -28,7 +28,7 @@ const reprogramar: ResultadoConsultaAyudaVendedor = {
     duracion: '1 min',
     pasos: [{ titulo: 'Elige el nuevo plazo', detalle: 'Usa +1d, +3d o +1sem.' }],
     accion: { tipo: 'navegar', vista: 'agenda', etiqueta: 'Ir a Agenda' },
-    fuente: 'Manual del vendedor · Agenda · versión aprobada',
+    fuente: 'Manual del analista · Agenda · versión aprobada',
   },
 }
 
@@ -42,7 +42,7 @@ const registrarLead: ResultadoConsultaAyudaVendedor = {
     duracion: '2 min',
     pasos: [{ titulo: 'Abre Nuevo lead', detalle: 'Usa el botón azul.' }],
     accion: { tipo: 'nuevo_lead', etiqueta: 'Abrir Nuevo lead' },
-    fuente: 'Manual del vendedor · Leads · versión aprobada',
+    fuente: 'Manual del analista · Leads · versión aprobada',
   },
 }
 
@@ -60,7 +60,7 @@ const anularTarea: ResultadoConsultaAyudaVendedor = {
     },
     pasos: [{ titulo: 'Ubica la acción', detalle: 'Encuéntrala en Agenda.' }],
     accion: { tipo: 'navegar', vista: 'agenda', etiqueta: 'Ir a Agenda' },
-    fuente: 'Manual del vendedor · Acciones pendientes · versión aprobada',
+    fuente: 'Manual del analista · Acciones pendientes · versión aprobada',
   },
 }
 
@@ -74,7 +74,7 @@ const corregirActividad: ResultadoConsultaAyudaVendedor = {
     duracion: '1 min',
     pasos: [{ titulo: 'Registra una Nota', detalle: 'Explica el dato correcto.' }],
     accion: { tipo: 'navegar', vista: 'cartera', etiqueta: 'Ir a Leads' },
-    fuente: 'Manual del vendedor · Historial · versión aprobada',
+    fuente: 'Manual del analista · Historial · versión aprobada',
   },
 }
 

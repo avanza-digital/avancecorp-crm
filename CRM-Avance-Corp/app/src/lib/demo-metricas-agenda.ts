@@ -63,7 +63,7 @@ export function metricasAgendaDemo(desde: string, hasta: string): MetricasAgenda
         leads_sin_accion: 0,
       }),
       // Menos volumen y más rezago: 2 no-shows (rojo) y vencidas acumuladas.
-      miembro('d-v2', 'VENDEDOR DOS', 'vendedor', dias, {
+      miembro('d-v2', 'ANALISTA DOS', 'vendedor', dias, {
         toques: 8,
         reuniones_realizadas: 2,
         completadas: 3,
@@ -86,7 +86,7 @@ export function metricasAgendaDemo(desde: string, hasta: string): MetricasAgenda
       // Denominador = 5 completadas + 1 no asistió + 1 propia = 7 → 71 %, el
       // mismo número de antes: el fixture añade el caso nuevo sin reescribir la
       // aritmética que ya validaban los tests.
-      miembro('d-v1', 'VENDEDOR UNO', 'vendedor', dias, {
+      miembro('d-v1', 'ANALISTA UNO', 'vendedor', dias, {
         toques: 14,
         reuniones_realizadas: 4,
         completadas: 5,

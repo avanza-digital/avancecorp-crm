@@ -391,7 +391,7 @@ describe('Hoy · supervisor — cola con pestañas', () => {
 
 // F2 (2026-08-23) — presupuesto de color: la severidad se dice UNA vez (tira
 // de 3 px), el bucket va en texto plano, el monto y el capital dejan el azul,
-// el rezago del vendedor va en texto y solo el no-show repetido conserva un
+// el rezago del analista va en texto y solo el no-show repetido conserva un
 // chip rojo, y el punto de semáforo solo aparece cuando hay señal.
 // F3 (2026-08-23) — «Hoy, tres cosas»: la franja navy con las intervenciones
 // del día (máx. 3, rojo primero), alimentada por las mismas fuentes de la
@@ -524,7 +524,7 @@ describe('Hoy · supervisor — jerarquía visual (F2)', () => {
     expect(fila.style.borderLeftColor).toBe('transparent')
   })
 
-  it('el rezago del vendedor va en texto pegado a la persona; solo el no-show repetido es chip', () => {
+  it('el rezago del analista va en texto pegado a la persona; solo el no-show repetido es chip', () => {
     METRICAS_AGENDA = metricaAgenda({ no_asistio: 2, vencidas: 3, leads_sin_accion: 1 })
     montar({ leads: [viejo], vendedores: [miembro()] })
     const fila = screen.getByText('CARLA DÍAZ').closest('div[class*="px-5"]') as HTMLElement
@@ -587,7 +587,7 @@ describe('Hoy · supervisor — reparto compacto', () => {
     acceso.focus()
     expect(acceso).toHaveFocus()
     expect(screen.queryByRole('heading', { name: 'Por repartir — tu bandeja' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /Vendedor para/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /Analista para/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Asignar/i })).not.toBeInTheDocument()
   })
 

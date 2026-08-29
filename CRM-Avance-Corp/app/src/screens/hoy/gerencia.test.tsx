@@ -64,7 +64,7 @@ vi.mock('./inteligencia-comercial', () => ({
 }))
 vi.mock('./ranking-vendedores', () => ({
   RankingVendedoresPanel: ({ error }: { error: string | null }) => (
-    <h1>Ranking de vendedores{error ? ` · ERROR: ${error}` : ''}</h1>
+    <h1>Ranking de analistas{error ? ` · ERROR: ${error}` : ''}</h1>
   ),
 }))
 // El TC real invocaría la edge crm-tipo-cambio desde el hook; en tests queda

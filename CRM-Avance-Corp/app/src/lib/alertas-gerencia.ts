@@ -97,7 +97,7 @@ export function corteVigente(diaDelMes: number, diasDelMes: number): number | nu
 }
 
 /**
- * Muestra mínima para juzgar la conversión de un vendedor.
+ * Muestra mínima para juzgar la conversión de un analista.
  *
  * ⚠️ La CLAVE del payload se llama `resueltos` y no cambia de nombre, pero lo
  * que cuenta sí cambia con la migración B: hoy son leads TERMINADOS (cerrados o
@@ -188,7 +188,7 @@ function porcentajeMetaValido(valor: number | null | undefined): valor is number
 /**
  * Un RESULTADO de conversión NO tiene techo (la mensual ponderada supera 100
  * por diseño: referidos que suman arriba y no abajo, cierres de arrastre).
- * Antes ambos compartían un [0,100] y un asesor por encima de 100 se saltaba
+ * Antes ambos compartían un [0,100] y un analista por encima de 100 se saltaba
  * con `continue` — un fail-open sin rastro. OJO: eso NO cambiaba el resultado
  * de hoy (a quien supera su meta no le toca alerta de conversión BAJA), pero
  * dejaba una mina para la primera alerta de sobre-rendimiento o de caída
