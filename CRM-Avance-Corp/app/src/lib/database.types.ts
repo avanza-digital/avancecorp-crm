@@ -2219,6 +2219,22 @@ export type Database = {
           titular_distinto_usd: boolean
         }[]
       }
+      cliente_ficha_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          activo: boolean
+          apellidos: string
+          asesor_perfil_id: string
+          correo: string
+          creado_en: string
+          dni: string
+          id: string
+          nombre_completo: string
+          nombres: string
+          telefono: string
+          tipo_documento: string
+        }[]
+      }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
       completar_domicilio_cliente: {
         Args: { p_cliente_id: string; p_domicilio: string }

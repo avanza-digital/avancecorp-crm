@@ -2,9 +2,18 @@
 // el backend Supabase interceptado (fail-closed) y la DEMO bloquea por completo
 // ese host: ambas prueban el flujo de navegador sin tocar producción.
 import { expect, test } from '@playwright/test'
-import { bloquearSupabase, clienteReal, entrarDemo, irAMiCartera, loginReal, montarBackendReal } from './_helpers'
+import {
+  bloquearSupabase,
+  clienteReal,
+  contratoReal,
+  entrarDemo,
+  irAMiCartera,
+  loginReal,
+  montarBackendReal,
+  verTodaLaCartera,
+} from './_helpers'
 
-test('real: un analista abre todos los datos de su cliente aunque la ventana de 5 h venció', async ({ page }) => {
+test('real: un analista abre la Ficha 360 de su cliente aunque la ventana de 5 h venció', async ({ page }) => {
   const cliente = clienteReal({
     creado_en: '2020-01-01T00:00:00.000Z',
     banco_usd: 'Interbank',
@@ -39,7 +48,7 @@ test('real: un analista abre todos los datos de su cliente aunque la ventana de 
   expect(backend.llamadas.patchPerfil).toBe(0)
 })
 
-test('real: directorio ve la ficha comercial sin domicilio, banca ni llamadas a sus RPC', async ({ page }) => {
+test('real: directorio ve la Ficha 360 mínima sin domicilio, banca ni llamadas a sus RPC', async ({ page }) => {
   const cliente = clienteReal()
   const backend = await montarBackendReal(page, {
     rolCrm: 'directorio',
@@ -55,9 +64,9 @@ test('real: directorio ve la ficha comercial sin domicilio, banca ni llamadas a 
 
   const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
   await expect(ficha.getByText('cliente1@correo.pe')).toBeVisible()
-  await expect(ficha.getByText('Domicilio legal')).toBeVisible()
+  await expect(ficha.getByText('Domicilio legal')).toHaveCount(0)
   await expect(ficha.getByText(cliente.domicilio!)).toHaveCount(0)
-  await expect(ficha.getByText('Información bancaria restringida')).toBeVisible()
+  await expect(ficha.getByText('Cuentas para recibir pagos')).toHaveCount(0)
   await expect(ficha.getByText('00219112345678901234')).toHaveCount(0)
   await expect(ficha.getByText('19112345678901')).toHaveCount(0)
   expect(backend.llamadas.rpcListarCuentasBancarias).toBe(0)
@@ -78,6 +87,29 @@ test('real: supervisor gestiona y contrata para su equipo, pero no corrige el pe
   await expect(fila.getByRole('button', { name: 'Ver detalle' })).toBeVisible()
   await expect(fila.getByRole('button', { name: '+ Primer contrato' })).toBeVisible()
   await expect(fila.getByRole('button', { name: 'Corregir', exact: true })).toHaveCount(0)
+})
+
+test('real: al cerrar un contrato vuelve a la Ficha 360 y al contrato de origen', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor',
+    clientes: [clienteReal()],
+    contratos: [contratoReal()],
+  })
+  await loginReal(page)
+  await irAMiCartera(page)
+  await verTodaLaCartera(page)
+
+  const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
+  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+  const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
+  await ficha.getByRole('button', { name: 'Ver contrato 2026-01-000123' }).click()
+
+  const detalle = page.getByRole('dialog', { name: 'Contrato 2026-01-000123' })
+  await detalle.getByRole('button', { name: 'Cerrar' }).click()
+
+  const contratoOrigen = page.getByRole('button', { name: 'Ver contrato 2026-01-000123' })
+  await expect(ficha).toBeVisible()
+  await expect(contratoOrigen).toBeFocused()
 })
 
 test('demo: abre la ficha ficticia completa sin ningún request a Supabase', async ({ page }) => {

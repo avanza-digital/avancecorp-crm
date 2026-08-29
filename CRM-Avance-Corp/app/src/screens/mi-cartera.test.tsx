@@ -4,12 +4,13 @@
 // (MiCartera pide useQueryClient para las invalidaciones). Ruta REAL (demo=false):
 // no hay import() dinámico de fixtures.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type {
   ClienteBasico,
   ClienteDetalle,
+  ClienteFichaComercial,
   ContratoRow,
   CuentaBancariaSeleccionable,
   OperacionCartera,
@@ -35,6 +36,7 @@ let EQUIPO: Array<{
   activo: boolean
 }> = []
 let DETALLE: ClienteDetalle | null = null
+let FICHA_COMERCIAL: ClienteFichaComercial | null = null
 // Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
 // montar(): una por moneda desde las casillas embebidas (como el perfil real).
 let CUENTAS: {
@@ -155,6 +157,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useOperacionesCartera: () => q(OPERACIONES, ERROR_OPERACIONES, REFETCH_OPERACIONES),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
+    useClienteFichaComercial: vi.fn(() => q(FICHA_COMERCIAL)),
     useActividadesCliente: () => q([]),
     useDatosLegalesContrato: (clienteId: string) =>
       q({
@@ -321,6 +324,13 @@ function montar(
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
   DETALLE = over.detalle === undefined ? detalle() : over.detalle
+  FICHA_COMERCIAL =
+    DETALLE == null
+      ? null
+      : {
+          ...DETALLE,
+          activo: CLIENTES?.find((cliente) => cliente.id === DETALLE?.id)?.activo ?? true,
+        }
   CUENTAS = cuentasDesdeDetalle(DETALLE)
   archivoPdf.consultar.mockReset().mockResolvedValue({ estado: 'sellado' })
   archivoPdf.asegurar.mockReset().mockResolvedValue({ estado: 'sellado' })
@@ -693,12 +703,42 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
 
     expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
-    expect(screen.getByText('Datos personales')).toBeInTheDocument()
+    expect(screen.getByText('Información del cliente')).toBeInTheDocument()
     expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
-    expect(screen.getByText('Cuenta para depósitos en soles')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para recibir pagos en soles')).toBeInTheDocument()
     expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
-    expect(screen.getByText('Cuenta para depósitos en dólares')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para recibir pagos en dólares')).toBeInTheDocument()
     expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
+  })
+
+  it('vuelve de Gestionar a la misma Ficha 360 y enfoca Siguiente contacto', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    await user.click(within(ficha).getByRole('button', { name: 'Agendar seguimiento' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    const siguienteContacto = screen.getByRole('heading', { name: 'Siguiente contacto' }).closest('section')
+    expect(siguienteContacto).not.toBeNull()
+    await waitFor(() => expect(siguienteContacto).toHaveFocus())
+  })
+
+  it('vuelve del detalle de contrato a la misma Ficha 360 y al contrato de origen', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    await user.click(within(ficha).getByRole('button', { name: 'Ver contrato 2026-01-000001' }))
+    const detalleContrato = screen.getByRole('dialog', { name: 'Contrato 2026-01-000001' })
+    await user.click(within(detalleContrato).getByRole('button', { name: 'Cerrar' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    const contratoOrigen = screen.getByRole('button', { name: 'Ver contrato 2026-01-000001' })
+    await waitFor(() => expect(contratoOrigen).toHaveFocus())
   })
 
   it('con filtro activo el grupo se auto-expande y AÚN se puede colapsar (botón real)', async () => {

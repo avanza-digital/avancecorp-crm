@@ -49,6 +49,7 @@ import {
   type ActividadCliente,
   type ClienteBasico,
   type ClienteDetalle,
+  type ClienteFichaComercial,
   type ContratoRow,
   type CuentaBancariaSeleccionable,
   type CuentaPagoContratoInput,
@@ -2482,6 +2483,54 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
     )
   }
   return items
+}
+
+// ── Cliente: Ficha 360 comercial mínima y scopeada por el servidor ──────────
+// Esta frontera es distinta del detalle usado por "Corregir": solo acepta
+// identidad y contacto para impedir que domicilio o banca entren por accidente
+// a la caché de la ficha comercial.
+const ClienteFichaComercialRowSchema = v.strictObject({
+  id: v.string(),
+  nombres: v.nullable(v.string()),
+  apellidos: v.nullable(v.string()),
+  nombre_completo: v.nullable(v.string()),
+  tipo_documento: v.picklist(TIPOS_DOCUMENTO_K),
+  dni: v.nullable(v.string()),
+  correo: v.nullable(v.string()),
+  telefono: v.nullable(v.string()),
+  asesor_perfil_id: v.nullable(v.string()),
+  activo: v.boolean(),
+  creado_en: v.string(),
+})
+
+export async function obtenerClienteFichaComercial(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ClienteFichaComercial> {
+  let consulta = cliente().schema('crm').rpc('cliente_ficha_fn', { p_cliente_id: id })
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar la ficha del cliente.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.clientes.ficha_comercial_fallida', fallo)
+    throw fallo
+  }
+
+  const resultado = v.safeParse(v.array(ClienteFichaComercialRowSchema), data)
+  if (
+    !resultado.success
+    || resultado.output.length > 1
+    || (resultado.output.length === 1 && resultado.output[0]?.id !== id)
+  ) {
+    const fallo = new CrmApiError('La ficha del cliente no tiene el formato esperado.', 'ROW_CONTRACT')
+    registrarError('crm.clientes.ficha_comercial_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  const fila = resultado.output[0]
+  if (!fila) throw new CrmApiError('Cliente no encontrado', 'NO_ENCONTRADO')
+  return { ...fila, nombre_completo: fila.nombre_completo ?? '' }
 }
 
 // ── Cliente: detalle scopeado y redactado por el servidor ───────────────────

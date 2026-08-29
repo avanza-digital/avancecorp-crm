@@ -13,6 +13,19 @@ npm ci
 npm run check:scripts
 ```
 
+La Ficha 360 tiene además un gate PostgreSQL autocontenido, conectado a los
+scripts del repositorio (no es un SQL para ejecutar manualmente):
+
+```bash
+npm run test:ficha-360:db:preflight
+npm run test:ficha-360:db
+```
+
+El runner acepta únicamente el Postgres local de Supabase en
+`127.0.0.1:55322`, crea una base desechable con nombre reservado, comprueba su
+identidad antes de eliminarla y rechaza fuentes con conexiones remotas o
+metacomandos de shell.
+
 `@supabase/supabase-js` esta fijado a una version exacta en el `package.json` y
 el lockfile de esta carpeta. Node debe ser `>=22.12.0`.
 

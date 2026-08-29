@@ -28,6 +28,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260828190000 | trigger de auditoría NUEVO sobre `public.contrato_titulares` (I/U/D) y NUEVO sobre `public.cronograma_pagos` solo para alta y baja (el de UPDATE, con su `WHEN`, no se toca) | sí, 2026-08-28 (Fase 1 del P-055) |
 | 20260828190500 | 2 CHECK anti-NaN en `public.cronograma_pagos` (`monto_programado`, `monto_pagado`) | sí, 2026-08-28 (Fase 1 del P-055) |
 | 20260828191000 | REVOKE de TRUNCATE/REFERENCES/TRIGGER/MAINTAIN a `anon` y `authenticated` en 10 tablas de `public`; `alter default privileges`; REVOKE EXECUTE a `public`/`anon` de 5 RPC de administración con re-grant explícito a `authenticated` y `service_role` | sí, 2026-08-28 (Fase 1 del P-055) |
+| 20260829183627 | trigger de historial sobre `public.perfiles.asesor_perfil_id`; no altera columnas ni RLS de `public` | **pendiente para deploy**; desarrollo local solicitado el 2026-08-29, producción intacta |
 
 ## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
 
@@ -5128,10 +5129,11 @@ ventas históricas cuentan; no dice nada de ventas NUEVAS.
 
 ## 20260828210351 · `crm_gestion_cartera_autorizacion_integral`
 
-🟡 **PREPARADA Y VERIFICADA EN UN CLON DESECHABLE · NO DESPLEGADA.** Al
-cierre de esta entrada, producción continúa intacta sobre el release R5 y la
-versión `20260828210351` no está registrada en su historial remoto. Esta fila
-documenta un candidato; no autoriza ni afirma una aplicación productiva.
+✅ **EN PRODUCCIÓN DESDE 2026-08-29.** Supabase registró esta migración como
+`20260829175638 · crm_gestion_cartera_autorizacion_integral`; el frontend
+compatible quedó publicado en el release
+`crm-20260829T175613Z-fb7e53d872f5`. El nombre local conserva su timestamp de
+autoría; el timestamp remoto es el que manda para el historial aplicado.
 
 La migración corrige integralmente el límite de autorización de Gestión de
 cartera sin cambiar su semántica comercial: Analista conserva únicamente su
@@ -5189,8 +5191,9 @@ degradar la lectura legítima de Supervisor/Gerencia ni el ocultamiento a un
 Analista ajeno.
 La huella final de la migración es
 `18df2b2a048b7404a857f743874294dddad589724ae55c9aa5c2e13e585a1af8`.
-Los advisors productivos son una línea base de solo lectura: 0 errores y avisos
-preexistentes; todavía no son evidencia postdeploy.
+Los advisors productivos fueron repetidos después de aplicar y no introdujeron
+errores nuevos. El smoke autenticado de Analista cargó Hoy y Mi cartera con
+datos reales, abrió Gestionar sin escribir y no produjo errores de consola.
 
 **Orden obligatorio de publicación: servidor primero.** Aplicar y leer de
 vuelta esta única migración; recargar el esquema de PostgREST; confirmar que la
@@ -5200,7 +5203,43 @@ advisors. Solo después puede publicarse el frontend que consume
 Analista, Supervisor, Gerencia y Directorio, además de verificar que `anon`
 sigue bloqueado.
 
-**Pendiente únicamente para una eventual publicación autorizada:** dry-run
-remoto, aplicación server-first, readback/postflight, advisors posteriores,
-publicación del frontend y smoke autenticado productivo. Hasta completar esos
-puntos no debe describirse el candidato como desplegado ni listo en producción.
+El ZIP publicado tuvo SHA-256
+`87d709dcfe10952fe5f1092eebf52d964dbfb4a488fbe1114dbfa92ef681512a`; los
+nueve assets vivos coincidieron byte por byte con el build local. El cierre
+operativo completo está en [[Deploy Gestión de cartera 2026-08-29]].
+
+## 20260829183627 · `crm_ficha_360_scope_historial`
+
+🟢 **CANDIDATA LOCAL VERIFICADA · NO DESPLEGADA.** Reintegra la Ficha 360 como
+panel lateral de Mi cartera sobre el núcleo ya desplegado, sin portar en bloque
+la rama preview. Producción no fue modificada durante este desarrollo.
+
+La migración es forward-only y hace cuatro cosas acotadas:
+
+- expone `crm.cliente_ficha_fn(uuid)` con la proyección mínima de identidad y
+  contacto, scopeada por `private.cliente_ids_visibles_crm()`;
+- hace que actividades y operaciones sigan la asignación actual del cliente,
+  de modo que quien pierde la cartera pierde también su historial en la
+  siguiente sentencia;
+- registra cada cambio de asignación como actividad `reasignacion`, con texto
+  visible exclusivamente en terminología **Analista**;
+- no redefine contratos, tareas, numeración, PDF ni writers de cartera.
+
+La única intervención sobre `public` es un trigger `AFTER UPDATE OF
+asesor_perfil_id` en `public.perfiles`; por la regla de este ledger requiere OK
+explícito de Miguel antes de deploy. No cambia columnas, constraints, policies
+ni privilegios de `public`.
+
+El oráculo forma parte del flujo del repositorio mediante
+`npm run test:ficha-360:db` y su preflight de solo lectura
+`npm run test:ficha-360:db:preflight`. El runner fija el único destino permitido
+en `127.0.0.1:55322`, crea una base reservada, verifica OID y marcador antes de
+eliminarla y ejecuta oráculo, `db lint` y advisors. Resultado final:
+`FICHA_360_SCOPE_LOCAL_OK`, `FICHA_360_DB_GATE_OK`, cero errores de esquema y
+cero findings de advisors en el banco autocontenido.
+
+Frontend verificado: 184/184 archivos y 2.484/2.484 unitarias, cobertura,
+typecheck, lint, build, bundle y duplicación verdes; Playwright completo con
+110 aprobadas, 26 omitidas por diseño y 0 fallas. La interfaz nueva usa
+**Analista**; `rol_crm='vendedor'`, `vendedor_id`, `asesor_perfil_id` y
+`sin_asesor` permanecen únicamente como contratos técnicos heredados.
