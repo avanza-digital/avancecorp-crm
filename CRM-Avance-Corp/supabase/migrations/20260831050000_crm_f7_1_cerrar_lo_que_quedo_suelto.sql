@@ -4,9 +4,10 @@
 -- tabla de OK de esta ola en MIGRACIONES.md). Tres grupos:
 --  * SUPERSEDIDAS (a observacion, demolibles 14/09): las puertas v1 y v2 de
 --    distribucion de leads (la pantalla viva usa v3; los CORES private siguen
---    vivos - v3_core llama a v2_core). ⚠️ Su dueño es crm_metricas_bridge:
---    el revoke va con SET LOCAL ROLE (un revoke como postgres seria un no-op
---    EN SILENCIO - warning sin efecto).
+--    vivos - v3_core llama a v2_core). Su dueño es crm_metricas_bridge, pero
+--    postgres HEREDA del dueño (membresia con USAGE): el revoke directo se
+--    ejecuta COMO el dueño y el ACL resultante lleva al bridge como grantor
+--    (MEDIDO contra prod el 30/08, ida y vuelta al byte). Sin cambio de rol.
 --  * SOLO-INTERNAS (cerradas PERMANENTES, jamas se derriban): metricas_cartera_fn
 --    (unico llamador: conversion_mensual_fn), crear/actualizar_contrato_con_cuenta
 --    (organos de pdf_v2/v3) y public.actualizar_numero_contrato (organo de su
@@ -14,14 +15,23 @@
 --    DEFINER sobrevive: el chequeo de EXECUTE interno corre como OWNER.
 --    service_role tambien pierde el EXECUTE que tenia en cartera y numero
 --    (0 edges/front las llaman - censo 30-31/08).
---  * LA SIN PARTIDA DE NACIMIENTO: crm.metricas_altas_analista_fn existe en
---    prod SIN DDL en las 167 migraciones (nacio en una de las 12 versiones
---    MUDAS del registro). Aqui se ADOPTA (create or replace con su cuerpo
---    VIVO al byte; pin md5 antes == despues) y LUEGO se cierra (observacion).
+--  * crm.metricas_altas_analista_fn: su partida de nacimiento SI esta en el
+--    registro de prod (version 20260716203331, crm_metricas_gerencia_fn, CON
+--    cuerpo - verificado contra prod el 30/08); lo que falta es el ARCHIVO
+--    local (el repo tiene 167 de las 189 versiones). No se adopta nada: se
+--    cierra tal cual, con su huella pinneada.
 --
 -- El censo de llamadores/superficies de las 7 lo hace el POSTFLIGHT llamando a
 -- private.assert_f7_piezas_cerradas() (el vigilante de la Ola 0, ya endurecido
--- por dos auditorias) sobre las filas recien sembradas.
+-- por dos auditorias) sobre las filas recien sembradas. Esta ola ademas AMPLIA
+-- ese vigilante: el cierre transversal de herencia ahora vigila TAMBIEN que
+-- service_role no alcance a postgres por membresia (hallazgo Codex 30/08 -
+-- esta misma ola le quita a service_role dos EXECUTE directos).
+--
+-- (Reemplaza a la 20260831040000 preparada y NUNCA publicada: 3 hallazgos de
+-- la refutacion de diseño de Codex del 30/08 - la danza del rol puente sobraba,
+-- la adopcion sobraba, y el cierre transversal quedaba corto. Enmienda
+-- registrada en MIGRACIONES.md.)
 
 begin;
 
@@ -81,13 +91,18 @@ begin
   if (select count(*) from private.vigia_alertas where resuelta_en is null) <> 0 then
     raise exception 'F7.1 preflight: hay alertas abiertas - resolverlas antes de cerrar mas puertas';
   end if;
-  -- postgres puede actuar como el dueño de las v1/v2: tiene la membresia con
-  -- ADMIN OPTION (grantor supabase_admin) aunque SIN la opcion SET — abajo se
-  -- la auto-otorga SOLO durante esta transaccion y la devuelve al salir.
-  if not exists (select 1 from pg_auth_members m
-                  where m.roleid = 'crm_metricas_bridge'::regrole
-                    and m.member = 'postgres'::regrole and m.admin_option) then
-    raise exception 'F7.1 preflight: postgres no tiene ADMIN sobre crm_metricas_bridge (el revoke seria imposible)';
+  -- postgres actua como el dueño de las v1/v2 por HERENCIA de la membresia
+  -- (Codex 30/08 + medicion ida-y-vuelta contra prod): el revoke directo se
+  -- ejecuta como el rol que de verdad posee el privilegio. Sin USAGE, el
+  -- revoke seria un warning SIN efecto - por eso este candado.
+  if not pg_has_role('postgres', 'crm_metricas_bridge', 'USAGE') then
+    raise exception 'F7.1 preflight: postgres no HEREDA de crm_metricas_bridge (el revoke seria un no-op silencioso)';
+  end if;
+  -- El vigilante que esta ola AMPLIA debe ser el publicado en la Ola 0:
+  if (select md5(p.prosrc) from pg_proc p
+      where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure)
+     is distinct from 'e6f0070260e1fff2757201df8134167b' then
+    raise exception 'F7.1 preflight: assert_f7_piezas_cerradas no es el de la Ola 0 (remedir antes de ampliarlo)';
   end if;
 
   -- FOTO DE ANTES (oraculo read-only bajo claims de gerencia):
@@ -111,56 +126,15 @@ begin
 end $$;
 
 -- =====================================================================
--- 1) LA ADOPCION: metricas_altas_analista_fn gana su partida de
---    nacimiento (cuerpo VIVO al byte; el postflight exige el MISMO md5).
+-- 1) LOS 7 CIERRES.
 -- =====================================================================
-CREATE OR REPLACE FUNCTION crm.metricas_altas_analista_fn(p_meses integer DEFAULT 12)
- RETURNS TABLE(mes date, analista_id uuid, analista_nombre text, altas bigint)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'private', 'public', 'crm'
-AS $function$
-  with ambito as (
-    select
-      ((select private.es_lector_global())
-        or (select private.rol_crm((select auth.uid()))) = 'gerencia') as es_global,
-      array(select private.vendedor_ids_visibles((select auth.uid())))  as ids
-  )
-  select
-    (date_trunc('month', cli.creado_en at time zone 'America/Lima'))::date as mes,
-    coalesce(cli.asesor_perfil_id, cli.creado_por) as analista_id,
-    coalesce(asesor.nombre_completo, 'Sin asesor') as analista_nombre,
-    count(*)::bigint as altas
-  from public.perfiles cli
-  left join public.perfiles asesor
-         on asesor.id = coalesce(cli.asesor_perfil_id, cli.creado_por)
-  cross join ambito a
-  where cli.rol = 'cliente'
-    and cli.creado_en >= ((date_trunc('month', now() at time zone 'America/Lima')
-          - make_interval(months => least(greatest(p_meses, 1), 60) - 1))
-          at time zone 'America/Lima')
-    and (
-      a.es_global
-      or cli.asesor_perfil_id = any (a.ids)
-      or (cli.asesor_perfil_id is null and cli.creado_por = any (a.ids))
-    )
-  group by 1, 2, 3
-  order by 1, 4 desc;
-$function$;
-
--- =====================================================================
--- 2) LOS 7 CIERRES.
--- =====================================================================
--- v1/v2: el dueño es crm_metricas_bridge - se actua COMO EL. La membresia de
--- postgres viene SIN opcion SET (medido): con su ADMIN OPTION se auto-otorga
--- el SET solo aqui, y lo devuelve inmediatamente despues (el postflight lo
--- verifica). Un revoke como postgres a secas seria warning SIN efecto.
-grant crm_metricas_bridge to postgres with set true;
-set local role crm_metricas_bridge;
+-- v1/v2: el dueño es crm_metricas_bridge; postgres HEREDA del dueño, asi que
+-- el revoke directo se ejecuta COMO el (medido 30/08 contra prod: el ACL
+-- resultante lleva al bridge como grantor, identico al que dejaria el propio
+-- dueño; la vuelta con grant restaura el literal al byte). El postflight
+-- compara el ACL LITERAL - un no-op silencioso no pasaria.
 revoke execute on function crm.metricas_distribucion_leads_fn(date,date)    from authenticated, anon, public;
 revoke execute on function crm.metricas_distribucion_leads_v2_fn(date,date) from authenticated, anon, public;
-reset role;
-grant crm_metricas_bridge to postgres with set false;
 
 revoke execute on function crm.metricas_cartera_fn(date)                        from authenticated, anon, public, service_role;
 revoke execute on function crm.metricas_altas_analista_fn(integer)              from authenticated, anon, public;
@@ -169,8 +143,26 @@ revoke execute on function crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb) 
 revoke execute on function public.actualizar_numero_contrato(uuid,text,text,text) from authenticated, anon, public, service_role;
 
 -- =====================================================================
--- 3) AL LIBRO: 3 en observacion (14 dias) + 4 permanentes.
+-- 2) AL LIBRO: 3 en observacion (14 dias) + 4 permanentes.
 -- =====================================================================
+-- RE-APLICACION tras un rollback: aquel NO borra (doctrina del libro: jamas
+-- DELETE; la salida es estado='liberada') - deja las filas de esta ola en
+-- 'liberada'. Aqui se RE-DECLARAN bajando el candado NOMBRADO (doctrina
+-- limpieza-leads), con rastro en nota. En el primer viaje esto es un no-op.
+alter table private.f7_piezas_en_observacion disable trigger trg_f7_obs_00_solo_crece;
+update private.f7_piezas_en_observacion
+   set estado = 'observacion',
+       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
+ where ola = 'F7.1' and estado = 'liberada'
+   and firma in ('crm.metricas_distribucion_leads_fn(date,date)',
+                 'crm.metricas_distribucion_leads_v2_fn(date,date)',
+                 'crm.metricas_altas_analista_fn(integer)');
+update private.f7_piezas_en_observacion
+   set estado = 'cerrada_permanente',
+       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
+ where ola = 'F7.1' and estado = 'liberada';
+alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
+
 insert into private.f7_piezas_en_observacion
   (firma, huella_md5, acl_esperada, llamadores_permitidos, patron_censo, ola, estado,
    cerrada_en, drop_no_antes_de, ok_miguel, nota)
@@ -192,7 +184,7 @@ values
    '\mmetricas_altas_analista_fn\s*\(', 'F7.1', 'observacion',
    date '2026-08-31', date '2026-09-14',
    'Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel',
-   'adoptada en esta misma migracion (nacio en una version muda del registro)'),
+   'nacida en la version 20260716203331 (crm_metricas_gerencia_fn) del registro de prod; el archivo local no existe - repo incompleto, NO version muda (Codex 30/08)'),
   ('crm.metricas_cartera_fn(date)', '0b4ede547cf7079be1e56073311453b3',
    '{postgres=X/postgres}', array['crm.conversion_mensual_fn(date)'],
    '\mmetricas_cartera_fn\s*\(', 'F7.1', 'cerrada_permanente',
@@ -220,6 +212,144 @@ values
 on conflict (firma) do nothing;
 
 -- =====================================================================
+-- 3) EL VIGILANTE SE AMPLIA (hallazgo Codex 30/08): el cierre transversal
+--    de herencia ahora vigila tambien a service_role. Esta ola le quita dos
+--    EXECUTE directos; sin esta ampliacion, un GRANT futuro de MEMBRESIA
+--    se los devolveria todos SIN tocar proacl y el vigia seguiria verde.
+--    Cuerpo identico al de la Ola 0 salvo el trio de lineas del cierre
+--    (preflight arriba pinnea la huella de la Ola 0; postflight verifica
+--    que el nuevo cuerpo menciona a service_role via strpos - LIKE jamas:
+--    el guion bajo es comodin).
+-- =====================================================================
+create or replace function private.assert_f7_piezas_cerradas()
+returns text
+language plpgsql
+stable
+security definer
+set search_path to ''
+as $function$
+declare
+  r record; v_h text; v_acl text; v_n integer; v_p text;
+  v_excluidos oid[]; v_permitidos oid[];
+  v_obs integer := 0; v_perm integer := 0; v_dem integer := 0; v_lib integer := 0;
+begin
+  if not exists (select 1 from private.f7_piezas_en_observacion) then
+    raise exception 'F7: la tabla de observacion esta VACIA (fail-closed)';
+  end if;
+
+  -- El conjunto vigilado entero se excluye de todo censo: las gemelas se
+  -- nombran entre si y todas estan congeladas por huella de todos modos.
+  select coalesce(array_agg((to_regprocedure(o.firma))::oid), '{}'::oid[]) into v_excluidos
+    from private.f7_piezas_en_observacion o
+   where to_regprocedure(o.firma) is not null;
+
+  for r in select * from private.f7_piezas_en_observacion order by firma loop
+    if r.estado = 'liberada' then
+      -- Llegar aqui SOLO es posible por una migracion que bajo el candado
+      -- (la maquina de estados lo prohibe por UPDATE): la pieza volvio al
+      -- servicio deliberadamente y deja de vigilarse.
+      v_lib := v_lib + 1; continue;
+    end if;
+
+    if r.estado = 'demolida' then
+      if to_regprocedure(r.firma) is not null then
+        raise exception 'F7: % RENACIO despues de su demolicion', r.firma;
+      end if;
+      if r.drop_no_antes_de is not null and current_date < r.drop_no_antes_de then
+        raise exception 'F7: % fue demolida ANTES de su ventana (no antes de %)', r.firma, r.drop_no_antes_de;
+      end if;
+      v_dem := v_dem + 1; continue;
+    end if;
+
+    -- observacion / cerrada_permanente: existe, congelada, cerrada.
+    if to_regprocedure(r.firma) is null then
+      raise exception 'F7: % desaparecio SIN pasar por la demolicion', r.firma;
+    end if;
+    select md5(p.prosrc) into v_h from pg_proc p where p.oid = r.firma::regprocedure;
+    if v_h is distinct from r.huella_md5 then
+      raise exception 'F7: el cuerpo de % cambio estando cerrada (huella %)', r.firma, v_h;
+    end if;
+    select p.proacl::text into v_acl from pg_proc p where p.oid = r.firma::regprocedure;
+    if v_acl is distinct from r.acl_esperada then
+      raise exception 'F7: % SE REABRIO (ACL %, se esperaba %)', r.firma, v_acl, r.acl_esperada;
+    end if;
+
+    v_permitidos := '{}'::oid[];
+    foreach v_p in array r.llamadores_permitidos loop
+      if to_regprocedure(v_p) is null then
+        raise exception 'F7: el llamador permitido % de % ya no resuelve', v_p, r.firma;
+      end if;
+      v_permitidos := v_permitidos || (to_regprocedure(v_p))::oid;
+    end loop;
+
+    -- Codex P0-1: el cuerpo de una funcion SQL-standard vive en prosqlbody
+    -- (prosrc queda vacio) — se censan AMBOS textos.
+    select count(*) into v_n
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and p.oid <> all (v_excluidos || v_permitidos)
+       and lower(replace(
+             regexp_replace(regexp_replace(
+               coalesce(p.prosrc, '') || ' ' || coalesce(pg_get_function_sqlbody(p.oid), ''),
+               '--[^\n]*', ' ', 'g'),
+               '/\*.*?\*/', ' ', 'g'), '"', '')) ~ r.patron_censo;
+    if v_n <> 0 then
+      raise exception 'F7: % funciones NUEVAS nombran a % — alguien empezo a usarla', v_n, r.firma;
+    end if;
+
+    -- Codex P0-1: las VISTAS y REGLAS tambien pueden llamarla — se censan.
+    select count(*) into v_n
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname not in ('pg_catalog', 'information_schema')
+       and c.relkind in ('v', 'm')
+       and lower(replace(pg_get_viewdef(c.oid), '"', '')) ~ r.patron_censo;
+    if v_n <> 0 then
+      raise exception 'F7: % VISTAS nombran a % — alguien la cableo por una vista', v_n, r.firma;
+    end if;
+
+    -- Auditoria F7.0 (P1): el parser resuelve MAYUSCULAS y comillas — el censo
+    -- tambien: todo texto se normaliza con lower() y sin comillas dobles.
+    select (select count(*) from pg_policy pol
+             where lower(replace(coalesce(pg_get_expr(pol.polqual, pol.polrelid), ''), '"', '')) ~ r.patron_censo
+                or lower(replace(coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), ''), '"', '')) ~ r.patron_censo)
+         + (select count(*) from pg_attrdef ad
+             where lower(replace(pg_get_expr(ad.adbin, ad.adrelid), '"', '')) ~ r.patron_censo)
+         + (select count(*) from pg_constraint c
+             where c.contype = 'c' and lower(replace(pg_get_constraintdef(c.oid), '"', '')) ~ r.patron_censo)
+         + (select count(*) from cron.job j where lower(replace(j.command, '"', '')) ~ r.patron_censo)
+      into v_n;
+    if v_n <> 0 then
+      raise exception 'F7: % aparece en % superficies (policies/defaults/checks/cron)', r.firma, v_n;
+    end if;
+
+    if r.estado = 'observacion' then v_obs := v_obs + 1; else v_perm := v_perm + 1; end if;
+  end loop;
+
+  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia postgres) transmite
+  -- los privilegios del owner SIN tocar proacl. Cierre transversal: ni
+  -- authenticated, ni anon, NI service_role (ampliado en F7.1 - hallazgo Codex
+  -- 30/08: esta ola le quita a service_role dos EXECUTE directos; sin esto, un
+  -- GRANT futuro de membresia se los devolveria todos SIN tocar proacl y el
+  -- vigia seguiria verde) pueden alcanzar a postgres por la cadena de roles.
+  if exists (
+    with recursive alcance as (
+      select pr.oid from pg_roles pr where pr.rolname in ('authenticated', 'anon', 'service_role')
+      union
+      select m.roleid from pg_auth_members m join alcance al on al.oid = m.member
+    )
+    select 1 from alcance al2 join pg_roles pr2 on pr2.oid = al2.oid where pr2.rolname = 'postgres'
+  ) then
+    raise exception 'F7: authenticated/anon/service_role ALCANZAN a postgres por membresia de roles — puerta trasera de herencia';
+  end if;
+
+  return format('OK: %s piezas vigiladas (observacion %s, permanentes %s, demolidas %s, liberadas %s)',
+                v_obs + v_perm + v_dem + v_lib, v_obs, v_perm, v_dem, v_lib);
+end;
+$function$;
+
+-- =====================================================================
 -- 4) ORACULO read-only bajo los MISMOS claims + POSTFLIGHT.
 -- =====================================================================
 do $$
@@ -243,11 +373,21 @@ begin
     end if;
   end loop;
 
-  -- 4b) La adopcion fue un NO-OP al byte.
+  -- 4b) Los CUERPOS de las 7 no se movieron: esta ola solo toca ACLs (la
+  --     huella de cada pieza queda ademas sellada en el libro, que el
+  --     vigilante re-mide a diario).
   select md5(p.prosrc) into v_h from pg_proc p
    where p.oid = 'crm.metricas_altas_analista_fn(integer)'::regprocedure;
   if v_h is distinct from 'df8a99e0dfc4e1d94794073787aa84d7' then
-    raise exception 'F7.1 postflight: la adopcion CAMBIO el cuerpo de altas (huella %)', v_h;
+    raise exception 'F7.1 postflight: el cuerpo de altas cambio dentro de la transaccion (huella %)', v_h;
+  end if;
+  -- 4b2) El vigilante ampliado quedo en su sitio: menciona a service_role en
+  --      el cierre transversal (strpos, jamas LIKE: el guion bajo es comodin)
+  --      y su veredicto YA corre con la lista ampliada mas abajo (4e).
+  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
+        from pg_proc p
+       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
+    raise exception 'F7.1 postflight: el vigilante NO quedo ampliado con service_role';
   end if;
 
   -- 4c) La delegacion DEFINER sigue viva: conversion_mensual_fn (que llama a
@@ -288,11 +428,12 @@ begin
     raise exception 'F7.1 postflight: el veredicto no da OK (%)', v_txt;
   end if;
 
-  -- La danza del SET quedo deshecha: postgres NO conserva la opcion.
+  -- Sin danza no hay nada que deshacer, pero se deja MEDIDO que la membresia
+  -- del puente no gano opciones dentro de esta transaccion (defensa barata).
   if exists (select 1 from pg_auth_members m
               where m.roleid = 'crm_metricas_bridge'::regrole
                 and m.member = 'postgres'::regrole and m.set_option) then
-    raise exception 'F7.1 postflight: postgres se quedo con la opcion SET del rol puente';
+    raise exception 'F7.1 postflight: la membresia del rol puente gano la opcion SET (nadie debio tocarla)';
   end if;
 
   perform private.assert_analitica_leads_citas();

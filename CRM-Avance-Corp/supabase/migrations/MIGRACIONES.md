@@ -6174,10 +6174,37 @@ Archivos: `migrations/20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql
 
 ## P-055 · F7.1 — CERRAR LO QUE QUEDÓ SUELTO (2026-08-31)
 
-**Estado: 🟡 PREPARADA — ensayo y ciclo EN VERDE (deshechos); en auditoría (Codex refutó el DISEÑO
-en paralelo mientras se escribía). ⏰ Publicar antes del 05/09 (freeze 08–10/09).** Migración
-`20260831040000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql`. Ola 1 de la Fase 7: **7 cierres, 0
-derribos**, todos al libro de la Ola 0.
+**Estado: 🟡 PREPARADA (v2, enmendada) — la refutación de DISEÑO de Codex (30/08 noche) tumbó 3 de
+6 afirmaciones y el paquete se REHÍZO. ⏰ Publicar antes del 05/09 (freeze 08–10/09).** Migración
+`20260831050000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` — **reemplaza a la `20260831040000`
+preparada y NUNCA publicada** (regla del repo: las migraciones commiteadas no se editan; la
+reemplazada se retiró del árbol en este mismo commit y jamás llegó a prod ni al registro). Ola 1
+de la Fase 7: **7 cierres, 0 derribos**, todos al libro de la Ola 0.
+
+**LA ENMIENDA (veredicto Codex 30/08, verificado contra prod antes de aplicar):**
+
+1. **La danza del rol puente SOBRABA.** postgres HEREDA del dueño `crm_metricas_bridge`
+   (membresía con USAGE): el revoke/grant directo se ejecuta COMO el dueño — **medido ida y
+   vuelta contra prod el 30/08**, el ACL va y vuelve al byte con el bridge como grantor. Fuera el
+   `grant … with set true` → `set local role` → `reset` (menos maquinaria tocando prod); el
+   preflight ahora pinnea la HERENCIA (`pg_has_role USAGE`) porque sin ella el revoke sí sería un
+   no-op silencioso — y el postflight compara el ACL LITERAL, que cazaría cualquier no-op.
+2. **La adopción de `metricas_altas_analista_fn` SOBRABA.** Su partida de nacimiento SÍ está en el
+   registro de prod: versión `20260716203331` (`crm_metricas_gerencia_fn`), CON cuerpo — lo
+   incompleto es el ARCHIVO local (el repo tiene 167 de las 189 versiones de prod). No se adopta
+   nada: se cierra tal cual con su huella pinneada.
+3. **El vigilante de la Ola 0 se AMPLÍA aquí:** su cierre transversal de herencia solo vigilaba
+   `authenticated`/`anon`; ahora vigila TAMBIÉN que `service_role` no alcance a `postgres` por
+   membresía (esta ola le quita a service_role dos EXECUTE directos; sin la ampliación, un GRANT
+   futuro de membresía se los devolvería todos SIN tocar proacl y el vigía seguiría verde).
+   Preflight pinnea la huella Ola 0 (`e6f0070260e1fff2757201df8134167b`); postflight verifica la
+   mención por `strpos` (jamás LIKE: el guion bajo es comodín).
+4. **El rollback ya NO borra filas del libro** (contradecía la doctrina de la propia tabla: «jamás
+   DELETE; la salida es estado=liberada»): marca las 7 filas de la ola como `liberada` con rastro
+   en nota (candado bajado NOMBRADO) y RESTAURA el vigilante de la Ola 0 al byte. La migración, a
+   su vez, RE-DECLARA filas `liberada` de su propia ola al re-aplicarse (ciclo ida-vuelta honesto).
+5. **Honestidad temporal del registrador en hora de LIMA** (`now() at time zone 'America/Lima'`),
+   no UTC — la ventana real de registro es 31/08–02/09 del reloj comercial.
 
 **TABLA DE OK DE MIGUEL (su `!` al publicar es la firma):**
 
@@ -6189,35 +6216,33 @@ derribos**, todos al libro de la Ola 0.
 | `crear_contrato_con_cuenta` | REVOKE **permanente** | Órgano interno del alta pdf_v2 |
 | `actualizar_contrato_con_cuenta` | REVOKE **permanente** | Órgano interno de la corrección pdf_v3 |
 | `public.actualizar_numero_contrato` ⚠️`public` | REVOKE **permanente** (incl. service_role) | Órgano interno de numero_pdf_v3; el `!` es el OK explícito de tocar public |
-| `metricas_altas_analista_fn` | **ADOPTAR** (partida de nacimiento) + REVOKE → observación (14/09) | Nació en una versión MUDA del registro; primero se versiona (no-op al byte), luego se cierra |
+| `metricas_altas_analista_fn` | REVOKE → observación (14/09) | Partida de nacimiento verificada en el registro (20260716203331); se cierra tal cual |
+| `assert_f7_piezas_cerradas` | AMPLIAR (cierre transversal + service_role) | El vigía diario caza también la puerta trasera de membresía hacia service_role |
 | Front | Retirar 2 wrappers + 2 hooks muertos + sus tests | Cero pantallas los usaban |
 
-**Lo medido que moldeó la migración:** las puertas v1/v2 tienen **dueño `crm_metricas_bridge`** —
-un revoke como postgres sería un **no-op EN SILENCIO** (warning sin efecto); postgres tiene la
-membresía con **ADMIN pero sin SET** (PG16+): la migración se auto-otorga el SET solo dentro de la
-transacción (`grant … with set true` → `set local role` → revoke → `reset` → `with set false`) y el
-postflight verifica que la opción quedó devuelta. `service_role` tenía EXECUTE en cartera y numero
-(0 edges las llaman) — también fuera. **Las versiones MUDAS del registro son 12, no 9** (medido:
-lista completa en el preflight de la futura Ola R).
+**Las versiones MUDAS del registro son 12, no 9** (medido; lista completa en el preflight de la
+futura Ola R — `metricas_altas_analista_fn` NO es una de ellas).
 
 **Oráculo (read-only, bajo claims de gerencia, dentro de la migración):** `conversion_mensual_fn`
 byte-igual tras cerrar su órgano interno (prueba VIVA de que la delegación DEFINER sobrevive) ·
-distribución v3 byte-igual · la adopción de altas con pin md5-antes==después (no-op demostrado) ·
-el censo fino de llamadores/superficies lo corre el **vigilante de la Ola 0** sobre las 7 filas
-recién sembradas (14 en el libro) + veredicto + guardianes.
+distribución v3 byte-igual · los cuerpos de las 7 sin moverse (esta ola solo toca ACLs) · el censo
+fino de llamadores/superficies lo corre el **vigilante recién AMPLIADO** sobre las 7 filas recién
+sembradas (14 en el libro) + veredicto + guardianes.
 
-**test-rls:** las sondas de negocio de las puertas internas (4507–5036) pasan a sondas de PERMISO
-(42501 pelado) — ⚠️ deuda declarada: la validación de negocio de cuenta-obsoleta/UUID-forjado/
-atomicidad quedaba probada por la puerta interna; sigue viva en el servidor tras pdf_v2 pero la
-suite ya no la ejercita por API — candidata a re-apuntarse a pdf_v2 en el ciclo de banco ·
-`expectHidden` de altas → denegación explícita · bloque nuevo `testF7Ola1` (canaria + 4 puertas ×
-2 roles; `public.actualizar_numero_contrato` cubierta por ACL, sin sonda directa — exigiría
-adivinar nombres de argumentos).
+**test-rls (la deuda declarada de la v1 quedó SALDADA — Codex la refutó como insuficiente):** las
+sondas de negocio de las puertas internas se RE-APUNTAN a las puertas VIVAS del PDF (mismos
+argumentos, delegan en las mismas validaciones): cuenta-obsoleta/UUID-forjado/atomicidad → pdf_v2
+con sus expectativas ORIGINALES restauradas (P0001/22023/23505+regex de mensaje) · scope y P04 y
+número-vacío → pdf_v3 · `expectHidden` de altas → denegación explícita · bloque `testF7Ola1`
+ampliado: canaria + 6 puertas crm × 2 roles + **sonda directa de `public.actualizar_numero_contrato`**
+(los argumentos sí se conocen: son los de las sondas P04) + **revocación efectiva bajo
+`service_role`** (cliente admin → 42501 en cartera y numero).
 
-**Ensayos `F71-ENSAYO-VERDE` y `F71-CICLO-VERDE`** (deshechos; el ciclo incluye la danza del SET,
-el candado bajado NOMBRADO para retirar las filas de la ola y su re-armado verificado). Si se
-revierte en prod: retirar a mano la fila `20260831040000` del registro.
+**Ensayo y ciclo: PENDIENTES de re-correr sobre la v2** (la v1 dio `F71-ENSAYO-VERDE` y
+`F71-CICLO-VERDE`, pero la enmienda cambió la migración: se re-miden antes de publicar). Si se
+revierte en prod: `scripts/rollback-f7-1-p055.sql` + retirar a mano la fila `20260831050000` del
+registro.
 
-Archivos: `migrations/20260831040000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
+Archivos: `migrations/20260831050000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 `scripts/rollback-f7-1-p055.sql` · `scripts/registrar-f7-1-version.sql` (candado de honestidad
-temporal: la fecha del seed debe coincidir ±2 días con la publicación real).
+temporal en hora de Lima: la fecha del seed debe coincidir ±2 días con la publicación real).

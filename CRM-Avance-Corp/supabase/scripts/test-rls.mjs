@@ -4502,9 +4502,12 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /cliente no encontrado o fuera de tu cartera/i,
     );
+    // F7.1: las puertas internas quedaron cerradas; estas sondas entran por las
+    // puertas VIVAS (pdf_v2/v3), que delegan en las mismas validaciones — la
+    // cobertura de negocio NO se pierde (hallazgo Codex 30/08).
     await expectExpectedFailure(
-      `${label}: no crea contrato con cuenta (puerta interna cerrada F7.1)`,
-      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+      `${label}: no crea contrato con cuenta (via pdf_v2)`,
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
         p_contrato: minimalContract,
         p_cronograma: [],
         p_cuenta: {
@@ -4513,24 +4516,27 @@ async function testContractBankAccounts(sessions, seed) {
         },
       }),
       ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      `${label}: no corrige contrato ya enlazado (puerta interna cerrada F7.1)`,
-      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+      `${label}: no corrige contrato ya enlazado (via pdf_v3)`,
+      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta_pdf_v3', {
         p_id: seed.contract.id,
         p_contrato: { moneda: BANK_CONTRACT.currency },
         p_cronograma: [],
       }),
       ['42501'],
+      /contrato no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      `${label}: no corrige contrato legacy sin enlace (puerta interna cerrada F7.1)`,
-      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+      `${label}: no corrige contrato legacy sin enlace (via pdf_v3)`,
+      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta_pdf_v3', {
         p_id: seed.legacyContract.id,
         p_contrato: { moneda: BANK_LEGACY_CONTRACT.currency },
         p_cronograma: { invalido: true },
       }),
       ['42501'],
+      /contrato no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
       `${label}: no resuelve cuentas contractuales para Pagos`,
@@ -4785,7 +4791,9 @@ async function testContractBankAccounts(sessions, seed) {
     );
     await expectExpectedFailure(
       'admin con membresia CRM revocada: no corrige N/notas aunque haya cuotas pagadas',
-      sessions.directorio.client.rpc('actualizar_numero_contrato', {
+      // F7.1: public.actualizar_numero_contrato quedo cerrada; se entra por su
+      // puerta viva pdf_v3, que delega en la misma autorizacion.
+      sessions.directorio.client.schema('crm').rpc('actualizar_numero_contrato_pdf_v3', {
         p_id: seed.contract.id,
         p_numero: 'SONDA-P04-REVOCADO',
         p_notas: null,
@@ -4851,7 +4859,9 @@ async function testContractBankAccounts(sessions, seed) {
     );
     await expectExpectedFailure(
       'admin sin membresia CRM: la correccion de N/notas NO se le cierra',
-      sessions.directorio.client.rpc('actualizar_numero_contrato', {
+      // F7.1: por la puerta viva pdf_v3 — atraviesa la autorizacion y muere en
+      // la MISMA validacion de siempre (numero vacio), sin escribir nada.
+      sessions.directorio.client.schema('crm').rpc('actualizar_numero_contrato_pdf_v3', {
         p_id: seed.contract.id,
         p_numero: '   ',
         p_notas: null,
@@ -4915,9 +4925,12 @@ async function testContractBankAccounts(sessions, seed) {
       sessions.vend1.client.schema('crm').from('contrato_cuentas_pago').select('id').limit(1),
     );
 
+    // F7.1: la puerta interna quedo cerrada; las validaciones de negocio se
+    // siguen ejercitando por la puerta VIVA pdf_v2 (mismos argumentos, delega
+    // en la misma funcion) — la cobertura semantica NO se pierde (Codex 30/08).
     await expectExpectedFailure(
-      'el alta rechaza una instantanea obsoleta de la cuenta del perfil',
-      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+      'el alta rechaza una instantanea obsoleta de la cuenta del perfil (via pdf_v2)',
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
         p_contrato: minimalContract,
         p_cronograma: [],
         p_cuenta: {
@@ -4925,16 +4938,18 @@ async function testContractBankAccounts(sessions, seed) {
           cuenta_esperada: { ...expectedProfileAccount, banco: 'BANCO OBSOLETO' },
         },
       }),
-      ['42501'],  // F7.1: puerta interna cerrada — la validacion vive tras pdf_v2
+      ['P0001'],
+      /cuenta actual del cliente cambio/i,
     );
     await expectExpectedFailure(
-      'el alta rechaza un UUID de cuenta existente forjado',
-      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+      'el alta rechaza un UUID de cuenta existente forjado (via pdf_v2)',
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
         p_contrato: minimalContract,
         p_cronograma: [],
         p_cuenta: { tipo: 'existente', cuenta_id: randomUUID() },
       }),
-      ['42501'],  // F7.1: puerta interna cerrada
+      ['22023'],
+      /cuenta bancaria no esta disponible/i,
     );
 
     // Oraculo de atomicidad sin DELETE: la cuenta se inserta antes de delegar en
@@ -4986,8 +5001,10 @@ async function testContractBankAccounts(sessions, seed) {
       },
     ];
     await expectExpectedFailure(
-      'una falla del contrato revierte tambien la cuenta nueva de la misma RPC',
-      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+      'una falla del contrato revierte tambien la cuenta nueva de la misma RPC (via pdf_v2)',
+      // F7.1: la atomicidad se prueba por la puerta VIVA — la transaccion de
+      // pdf_v2 envuelve delegada + PDF; el UNIQUE revienta y TODO se revierte.
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
         p_contrato: duplicateContract,
         p_cronograma: validSchedule,
         p_cuenta: {
@@ -5001,7 +5018,8 @@ async function testContractBankAccounts(sessions, seed) {
           beneficiario_dni: null,
         },
       }),
-      ['42501'],  // F7.1: puerta interna cerrada — la atomicidad viva se prueba via pdf_v2
+      ['23505', 'P0001'],
+      /contrato.*(?:ya existe|duplicad)|duplicate key/i,
     );
 
     const accountAfter = await requireAdmin(
@@ -5026,8 +5044,9 @@ async function testContractBankAccounts(sessions, seed) {
     // una regresion de autorizacion; la asercion solo acepta un error de scope.
     for (const key of ['vend3', 'directorio']) {
       await expectExplicitAuthorizationDenied(
-        `${key} no corrige el contrato bancario por el wrapper`,
-        sessions[key].client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+        `${key} no corrige el contrato bancario por el wrapper (via pdf_v3)`,
+        // F7.1: la puerta interna quedo cerrada; el scope vivo se prueba en pdf_v3.
+        sessions[key].client.schema('crm').rpc('actualizar_contrato_con_cuenta_pdf_v3', {
           p_id: seed.contract.id,
           p_contrato: duplicateContract,
           p_cronograma: { invalido: true },
@@ -6250,9 +6269,10 @@ async function testLentesAtribucion(sessions, seed) {
   }
 }
 
-// P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS.
-// (public.actualizar_numero_contrato queda cubierta por el postflight de ACL:
-// su sonda directa exigiria adivinar nombres de argumentos.)
+// P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
+// incluida public.actualizar_numero_contrato (sus argumentos son los mismos
+// p_id/p_numero/p_notas/p_categoria de las sondas P04 — Codex 30/08) y el
+// propio service_role (perdio dos EXECUTE directos en esta ola).
 async function testF7Ola1(sessions) {
   console.log('\n— Puertas cerradas de la Ola 1 (P-055 F7.1) —');
   const puertas = [
@@ -6260,6 +6280,12 @@ async function testF7Ola1(sessions) {
     ['metricas_distribucion_leads_v2_fn', { p_desde: '2026-08-01', p_hasta: '2026-08-31' }],
     ['metricas_cartera_fn', { p_periodo: '2026-08-01' }],
     ['metricas_altas_analista_fn', { p_meses: 3 }],
+    ['crear_contrato_con_cuenta', { p_contrato: {}, p_cronograma: [], p_cuenta: {} }],
+    ['actualizar_contrato_con_cuenta', {
+      p_id: '00000000-0000-4000-8000-000000000000',
+      p_contrato: {},
+      p_cronograma: [],
+    }],
   ];
   // CANARIA (patron F5.d): la primera llamada va sola; sin codigo = backend caido.
   {
@@ -6278,6 +6304,36 @@ async function testF7Ola1(sessions) {
       check(error?.code === '42501',
         `F7.1 ${key} NO alcanza ${fn} (${error?.code ?? 'sin error'})`);
     }
+  }
+  // La puerta de public, directa (el 42501 del ACL corre ANTES del cuerpo:
+  // ni el id inventado ni el numero llegan a evaluarse).
+  for (const key of ['gerencia', 'vend1']) {
+    const { error } = await sessions[key].client.rpc('actualizar_numero_contrato', {
+      p_id: '00000000-0000-4000-8000-000000000000',
+      p_numero: 'SONDA-F7-1',
+      p_notas: null,
+      p_categoria: null,
+    });
+    check(error?.code === '42501',
+      `F7.1 ${key} NO alcanza public.actualizar_numero_contrato (${error?.code ?? 'sin error'})`);
+  }
+  // service_role perdio sus DOS EXECUTE directos en esta ola: el cliente admin
+  // (llave de servicio) tambien debe recibir 42501 (Codex 30/08).
+  {
+    const { error } = await admin.schema('crm')
+      .rpc('metricas_cartera_fn', { p_periodo: '2026-08-01' });
+    check(error?.code === '42501',
+      `F7.1 service_role NO alcanza metricas_cartera_fn (${error?.code ?? 'sin error'})`);
+  }
+  {
+    const { error } = await admin.rpc('actualizar_numero_contrato', {
+      p_id: '00000000-0000-4000-8000-000000000000',
+      p_numero: 'SONDA-F7-1-SRV',
+      p_notas: null,
+      p_categoria: null,
+    });
+    check(error?.code === '42501',
+      `F7.1 service_role NO alcanza public.actualizar_numero_contrato (${error?.code ?? 'sin error'})`);
   }
 }
 
