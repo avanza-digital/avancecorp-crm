@@ -7,7 +7,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes",
+    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/reconciliar-claves-crm-core.mjs && node --check supabase/scripts/reconciliar-claves-crm.mjs && node --check supabase/scripts/reconciliar-claves-crm.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs && node --check supabase/scripts/gate-auditoria.mjs && npm run test:reconcile:crm-passwords && npm run test:importar-leads-edge && npm run gate:apps-script && npm run test:puente && npm run test:puente:e2e && npm run test:mutantes",
     "gate:apps-script": "node scripts/gate-apps-script.mjs",
     "seed:demo": "node supabase/scripts/seed-demo.mjs",
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
@@ -25,6 +25,8 @@
     "gate:config": "node supabase/scripts/gate-config-operativa.mjs",
     "gate:config:preflight": "node supabase/scripts/gate-config-operativa.mjs --preflight",
     "gate:realidad": "node supabase/scripts/gate-realidad.mjs",
+    "gate:auditoria": "node supabase/scripts/gate-auditoria.mjs",
+    "gate:auditoria:mutante": "node supabase/scripts/gate-auditoria.mjs --mutante",
     "release:crm": "npm --prefix app run build && node scripts/crear-artefacto-release.mjs create",
     "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify"
   },

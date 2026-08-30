@@ -8,29 +8,33 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** FASE 2 (mirar el primer cierre — el 10/09 solo queda observar) **+ FASE 4 al 90 % EN PRODUCCIÓN** (registro en 175; núcleo `capital_episodios` con `medida`, 10 pantallas consumiéndolo, decisión A «coops en todo» aplicada: AUM 18 212 113, +264 800 exactos). Codex F4 dio NO-GO y sus 10 hallazgos quedaron corregidos (F4.e) o decididos por Miguel (P0-2→decisión A). Esquema visual del antes/después: artifact «El núcleo de capital». **La Fase 1 (28/08) y la FASE 3 (29/08) están EN PRODUCCIÓN.** La Fase 3 entró completa: 10 migraciones (156→166), front `crm-20260829T182429Z` vivo en crm.miavance.com, obligatoriedad encendida, y la rama paralela del vivo integrada (2439/2439 pruebas). Decisión nueva de Miguel: **solo activos** en el selector del alta.
+**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1, 3 y 4 EN PRODUCCIÓN.** La Fase 4 cerró COMPLETA: registro **177**, núcleo `capital_episodios` + 16 consumidores + el **motor del sello** bebiendo del núcleo (juez: ensayo viejo-vs-nuevo con **foto sellada idéntica** `e59a303b…`), decisión A «coops en todo» aplicada (AUM 18 212 113) y el **trinquete en CERO** — ninguna calculadora cruda de capital fuera del núcleo en crm+public+private, y el tope solo puede quedarse en cero. Rendimiento: 241 ms la pantalla más pesada, 74 ms vendedores. Esquema visual: artifact «El núcleo de capital»; el plan en imagen: artifact «Plan maestro del servidor» (reescrito el 29/08 con problema/meta/falta por fase).
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
 **🔬 EL CIERRE YA SE ENSAYÓ (29/08), sin esperar al 10/09 y sin escribir una fila:** el cierre real de agosto, ejecutado contra producción dentro de un bloque que se deshace solo. **Funciona** — 48 ms, 18 personas, y todos los candados rebotan como deben. El reloj que lo dispara está vivo y sano. **Lo que salió:** agosto se sellará como **mes parcial** porque el registro de leads empieza el 17/08 — la conversión de agosto cubre 15 de 31 días. Eso es una decisión tuya, no un fallo. Detalle en la Fase 2.
 
-**👉 DÓNDE SE RETOMA:** la Fase 3 quedó publicada (la «puerta 2» de la sesión anterior se cruzó entera, con las dos auditorías y el merge de Miguel). Lo que sigue, en orden:
+**👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
-1. **Del 30/08 al 09/09 — semana quieta de verdad (Fase 2):** no se publica nada al servidor ni al CRM. Si se quiere adelantar trabajo SIN publicar, lo único que no toca el cierre es **escribir la Fase 4** (la calculadora única) o la **Fase 7** (ordenar la casa) en borrador.
-2. **El 10/09 — media sesión de vigilancia:** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo, revisar los 4 puntos de la Fase 2, y **guardar la copia del mes** como referencia.
-3. **Tras el cierre — arranca la FASE 4:** una sola calculadora de capital. El campo que necesita (el analista que cierra) ya existe y ya lo lee el núcleo; la Fase 4 lleva las 16 pantallas a esa única fuente.
+1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
+2. **Fase 6 — las otras dos calculadoras:** citas primero (6 consumidores, calentamiento) y luego leads (~21, con la regla de UN contador). Es el grueso de lo que queda; el molde de capital ya está probado.
+3. **Fase 5 — cerrar puertas** (permisos muertos, ~1 sesión, mecánica).
+4. **Fase 7 — ordenar la casa** (retiros REVOKE→observar→DROP, con OK de Miguel por pieza).
+5. **Fase 8 — un solo idioma** (renombre «analista», al final, por el orden seguro).
 
-**Lo que queda para el 10/09** (lo demás ya está comprobado): que el disparo automático de ese día haga lo mismo que hizo el ensayo a mano, y guardar la copia del mes.
+**Menor, de la Fase 4:** re-medir Conversiones a escala de 10 000 leads y pasar trinquete+gate en el próximo ciclo de banco.
+
+**Nota operativa del 29/08 (fuera del plan):** **CARLOS VALLES pasó de Directorio a Gerencia.** El candado de la Fase 1 amarra el par de identidades (Directorio en el Portal ⇒ Directorio en el CRM), así que el cambio exigió el orden: bajar la membresía → mover el rol de Portal (`directorio`→`admin`, que NO tiene UI) → poner `gerencia` → volver a subirla, todo en una transacción con los candados activos. Se eligió `admin` y no `comercial` porque `es_admin()` es lo que gatean cerrar/actualizar contrato, los productos de inversión y `es_gestor_cartera`; además conserva el tablero de Directorio del Portal (`es_directorio() OR es_admin()`) y **no** recibe superadmin: la llave que asigna roles CRM sigue siendo de una sola persona. Guion reutilizable en `supabase/scripts/carlos-valles-directorio-a-gerencia.sql` (+ `…-verificar.sql`). Efecto colateral: bajar la membresía rota el token de agenda ICS.
 
 | Fase | Estado |
 |---|---|
 | 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
 | 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
-| 2 · Mirar el primer cierre | 🟡 **en curso** — semana quieta hasta el 09/09; el 10/09, media sesión de vigilancia (el cierre ya se ensayó) |
+| 2 · Mirar el primer cierre | 🟡 **lo único vivo** — el 10/09, media sesión: mirar el sello automático y guardar la copia (ensayado 3 veces) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
 | 5 · Cerrar puertas | ⚪ sin empezar |
-| 6 · Las otras dos calculadoras | ⚪ sin empezar |
+| 6 · Las otras dos calculadoras | ⚪ sin empezar — **la pieza grande de lo que queda**: leads (21) + citas (6) con el molde de capital |
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |
 

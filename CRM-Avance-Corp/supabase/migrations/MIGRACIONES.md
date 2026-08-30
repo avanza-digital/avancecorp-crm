@@ -5298,3 +5298,64 @@ Orden de Miguel (29/08): *«yo quiero ver todo ya, no me interesa la fecha, lo q
 **Trampa nueva:** `request.jwt.claims` puesto por un oráculo VIVE hasta el fin de la
 transacción — un ensayo del cierre posterior en la misma tx sella como «manual»
 (`automatico=false`). Limpiar con `set_config('request.jwt.claims','',true)` al salir.
+
+---
+
+## 20260829230000 · FASE 1.4 — «la regla que obliga a las que vengan»
+
+**Estado: escrita; pendiente de aplicar. Registro → 178.**
+
+**Por qué existe.** El arquitecto de servidor de Miguel señaló que la Fase 1 dejó
+su propia meta a medias. Medido contra producción, de sus tres ejemplos **dos no
+se sostienen** y el cuarto punto —el estructural— es correcto y es el que vale:
+
+| Afirmación | Veredicto medido |
+|---|---|
+| «`crm.operaciones_cartera` puede cambiar sin dejar rastro» | **REFUTADA.** No puede cambiar en absoluto: `trg_operaciones_cartera_00_append_only` (BEFORE UPDATE OR DELETE) lanza excepción siempre, y por la API solo existe `SELECT:authenticated`. La única puerta es el arrastre al borrar un contrato, que además rebota si el mes está cerrado. **Hueco real, pequeño:** ese borrado no dejaba copia del contenido |
+| «`usuario_eventos` y `novedades_leidas` nacieron después del 28» | **FALSA.** 07/08 (`20260807203740`) y 21/08 (`20260821222348`) |
+| «`agenda_ics` y `suscripciones_push` sin auditoría» | **CIERTA** (él mismo dice que pesan poco) |
+| «F1 arregló las tablas que existían, no instaló la regla para las que vengan» | **CIERTA, y es el hallazgo bueno.** Los 6 event triggers vivos son de Supabase; ninguno nuestro |
+
+Dato que le da la razón por otro lado: la única tabla nacida después del 28
+(`crm.reasignaciones_analista`, F3.4) nació **con** rastro — pero por memoria del
+que la escribió, no porque el servidor lo exija.
+
+**Lo que instala, en tres filos:**
+
+| Filo | Pieza | Qué hace |
+|---|---|---|
+| 1 | `private.tablas_sin_rastro()` | La regla DENTRO del servidor: tablas de crm/public sin auditor y sin exención. Debe dar CERO. Cubre `relkind in ('r','p')` (particionadas incluidas; hijas fuera: heredan el trigger del padre) |
+| 1 | `private.auditoria_exenciones` | La lista blanca deja de vivir en la memoria de nadie. CHECK de razón ≥ 40 caracteres: sin razón de verdad, no entra. Dos filas: `crm.usuario_eventos` (es la bitácora, y su id BIGINT rompería `log_audit_crm`) y `public.novedades_leidas` (marca de «leído») |
+| 2 | `private.vigia_auditoria()` + cron `crm-auditoria-vigia` (06:29 UTC) | Mira el ESTADO a diario y abre/cierra alertas en `private.auditoria_alertas`. **Sustituye al event trigger que NO se puede crear:** `postgres` no es superusuario en este proyecto (solo bypassrls; los 6 event triggers vivos son de `supabase_admin`) |
+| 3 | `scripts/trinquete-auditoria.sql` + `npm run gate:auditoria` | No deja publicar con la regla rota **y** compara la lista blanca VIVA con la escrita en el repo: una exención metida a mano en la base también pone el gate en rojo |
+
+**Los tres huecos cerrados:** `crm.operaciones_cartera` (con `log_audit_crm`: es
+dinero, se quiere ver entero) · `crm.agenda_ics` y `public.suscripciones_push`
+con un auditor nuevo.
+
+**🔴 Por qué esas dos no usan el auditor normal:** `public.audit_log` lo lee
+CUALQUIER `es_admin()` (política `audit_log_admin_select`) y lo expone
+`bandeja_actividad`. El token ICS hoy solo lo ve su dueño por RLS y las claves
+push nunca salen del portal: copiarlos en claro AMPLIARÍA el círculo que ve un
+secreto. `private.log_audit_sin_secretos` guarda `***:` + 8 de md5 — se ve QUE el
+secreto cambió, nunca CUÁL es. Verificado en lectura: oculta el valor, respeta lo
+no secreto y deja los NULL como NULL.
+
+**Dos defensas que no estaban en el plan y salieron de medir:**
+- El `UPDATE` de `suscripciones_push` se acota a las columnas con significado:
+  `actualizado_en` se toca en cada visita y habría enterrado la auditoría en ruido.
+- `audit_log.usuario_id` es FK a `perfiles`: un actor de Auth todavía sin perfil
+  habría hecho fallar el INSERT **y con él la operación de negocio**. El auditor
+  guarda sin actor antes que tumbar lo que audita.
+
+**El mutante** (`scripts/trinquete-auditoria-mutante.sql`, `npm run gate:auditoria:mutante`)
+rompe la regla de tres formas y exige que cada filo la cace: tabla nueva sin
+rastro (la regla), su alerta (el vigía) y una exención colada a mano (el espejo
+del repo). Todo dentro de un bloque que se deshace solo.
+
+**Gate probado en ROJO antes de aplicar:** con la base tal cual, cazó exactamente
+`crm.agenda_ics, crm.operaciones_cartera, public.suscripciones_push`.
+
+**Trampa nueva:** con `search_path=''`, `coalesce` y `current_user` NO llevan
+prefijo `pg_catalog` — no son funciones de catálogo sino construcciones del
+parser, y `pg_catalog.coalesce(...)` aborta la migración entera.
