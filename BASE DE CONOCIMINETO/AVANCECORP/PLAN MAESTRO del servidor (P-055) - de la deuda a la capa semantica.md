@@ -14,6 +14,8 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **🔬 EL CIERRE YA SE ENSAYÓ (29/08), sin esperar al 10/09 y sin escribir una fila:** el cierre real de agosto, ejecutado contra producción dentro de un bloque que se deshace solo. **Funciona** — 48 ms, 18 personas, y todos los candados rebotan como deben. El reloj que lo dispara está vivo y sano. **Lo que salió:** agosto se sellará como **mes parcial** porque el registro de leads empieza el 17/08 — la conversión de agosto cubre 15 de 31 días. Eso es una decisión tuya, no un fallo. Detalle en la Fase 2.
 
+**🆕 FASE 1.4 — «la regla que obliga a las que vengan» (29/08).** El arquitecto de servidor de Miguel señaló que la Fase 1 dejó su meta a medias. Medido: de sus tres ejemplos, **dos se refutan** (`operaciones_cartera` NO puede cambiar —candado append-only + solo `SELECT` por API—; `usuario_eventos` y `novedades_leidas` son del 7 y el 21 de agosto, no posteriores al 28) y **el punto estructural es correcto y es el bueno**: no existía regla que obligara a las tablas futuras. Escrita en `20260829230000_crm_f1_4_regla_de_auditoria.sql` con TRES FILOS — `private.tablas_sin_rastro()` (la regla en el servidor, con lista blanca en `private.auditoria_exenciones` y CHECK de razón ≥ 40 caracteres) · vigía diario por pg_cron (**sustituye al event trigger: `postgres` NO es superusuario aquí**) · `npm run gate:auditoria`, que además compara la lista blanca VIVA con la del repo. Cierra los 3 huecos reales (`operaciones_cartera`, `agenda_ics`, `suscripciones_push`), las dos últimas con un auditor que **enmascara secretos** porque `audit_log` lo lee cualquier `es_admin()`. **Probada entera en un espejo local desechable** (aplica · trinquete · mutante de 3 filos · 0 fugas de secretos · marcha atrás que conserva el rastro · reaplicación limpia). ⏳ **Falta UN comando contra producción** (el permiso de la sesión bloquea la escritura): `npx supabase db query --linked --file supabase/migrations/20260829230000_crm_f1_4_regla_de_auditoria.sql` y luego el registro con `scripts/registrar-f1-4-version.sql`. Commits `9c31fdd` + `90b4590`.
+
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
@@ -29,7 +31,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | Fase | Estado |
 |---|---|
 | 0 · Decidir | ✅ **cerrada** — 21 decisiones, cero preguntas abiertas |
-| 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas; advisors sin errores |
+| 1 · Proteger lo que ya tienes | ✅ **EN PRODUCCIÓN** — 3 migraciones aplicadas y verificadas · **F1.4 escrita y probada en espejo, a un comando de publicar** |
 | 2 · Mirar el primer cierre | 🟡 **lo único vivo** — el 10/09, media sesión: mirar el sello automático y guardar la copia (ensayado 3 veces) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
