@@ -5740,7 +5740,7 @@ membresía del CRM). Va con auditoría propia por ser el camino del dinero.
 
 ## P-055 · FASE 5.c — LA REGLA DE VENTAS, EN EL NÚCLEO DEL DINERO (2026-08-30)
 
-**Estado: 🟡 PREPARADA — auditorías atendidas y ensayo en verde; pendiente de publicar y pasar `test:rls`.**
+**Estado: ✅ EN PRODUCCIÓN (2026-08-30, registro 185).**
 Migración `20260830190000_crm_f5_c_ventas_al_nucleo_del_dinero.sql`. Es el CAMINO DEL DINERO
 (creación/edición de contratos) → auditoría propia (auditor RLS + Codex).
 
@@ -5781,3 +5781,19 @@ guardián vigencia 6/6 y analítica 30/30 verdes tras aplicar · analista para c
 denegado, anon/service_role/cliente/coordinador/directorio/lector denegados); la atribución queda en quien
 cierra (no hereda al asesor del cliente); ventana de 5 h y "solo lo que tú creaste" intactas; P04 viva para
 banca/PDF/domicilio; rollback byte-exact e idempotente.
+
+**PUBLICADA (2026-08-30, vía `db query --linked --file`, lanzada por Miguel con `!` por el clasificador):**
+la migración aplicó limpia (su preflight por huella, postflight y los DOS trinquetes corrieron dentro de la
+misma transacción) y `registrar-f5c-version.sql` dejó el registro en **185** (`20260830190000`). Verificado
+por CONTEO tras aplicar: 4/4 núcleos unificados a `puede_registrar_ventas` (0 menciones a
+`puede_gestionar_cuentas_cliente`), pregunta ampliada con `es_analista_vigente` + no-revocado, candado
+`rol='cliente' and p.activo` en pie, 2 huellas re-fijadas en `analista_vigencia_exenciones`.
+
+**Batería post-publish:** `gate:vigencia` 6/6 ✅ · `gate:analitica` 30/30 ✅ · advisors **0 ERROR** (140 WARN,
+los de siempre) ✅ · **ítem REVISAR wrapper 5028 CERRADO con código medido**: sonda en prod (DO que termina
+en raise, nada escrito) — un analista vigente editando un contrato AJENO por
+`crm.actualizar_contrato_con_cuenta` pasa la autoridad nueva y muere en `[42501] «Solo puedes corregir
+contratos que tú creaste»` → la aserción `expectExplicitAuthorizationDenied` de test-rls sigue verde, la
+hipótesis del agente era correcta. ⚠️ La suite `test:rls` COMPLETA no corre contra prod (0 cuentas
+`*.crm@demo.avancecorp.pe` en producción; los fixtures viven en un banco): queda para el **próximo ciclo de
+banco**, junto al gate pendiente de F4.
