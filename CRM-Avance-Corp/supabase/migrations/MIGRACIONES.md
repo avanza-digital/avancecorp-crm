@@ -5449,7 +5449,7 @@ versión **confirmaba** en vez de deshacerse.
 
 ## 20260829235000 · FASE 1.6 — la regla a prueba de señuelos (auditoría adversarial de Codex)
 
-**Estado: escrita y probada en espejo; pendiente de aplicar. Registro → 180.**
+**Estado: ✅ EN PRODUCCIÓN (29/08). Registro → 180.**
 
 Codex atacó la F1.4 y devolvió **NO-GO con 9 hallazgos**. Dos avisos sobre su
 veredicto: auditó la versión **anterior a la enmienda F1.5**, y **no pudo leer
@@ -5491,3 +5491,17 @@ exenciones · 1 condicionada), `MUTANTE_CAZADO` por los cinco filos sin dejar
 nada, y la marcha atrás —ya ampliada a F1.6— devuelve el servidor a su foto
 original. De paso, la regla nueva **cazó un auditor no-DEFINER en el propio
 espejo** antes de dar verde.
+
+### Verificación en producción de la F1.6
+
+| Comprobación | Resultado |
+|---|---|
+| Registro | **180**, con cuerpo |
+| La regla, ya endurecida | **0 tablas sin rastro** · 3 exenciones · **1 condicionada** (`public.cronograma_pagos`) · sello cuadra · 0 alertas |
+| Trigger de push | uno solo, `AFTER INSERT OR DELETE OR UPDATE`, sin `WHEN` ni `UPDATE OF`, enmascarando 5 columnas (incluidas `user_agent` y `dispositivo`) |
+| Enmascarado | `***` plano: se acabó la huella derivada |
+| **El vigía sobrevivió al mutante** | 1 job, activo, 06:29, comando y dueño correctos — el quinto filo lo apaga y la transacción deshecha lo devuelve |
+| Basura del mutante | **ninguna** tabla `zzz*` en `crm` |
+| Gate + mutante contra producción | ✅ «0 tablas sin rastro completo · 3 exenciones» y «mutante cazado por los cinco filos» |
+| Advisors | **0 ERROR** (170 avisos; los 4 INFO `rls_enabled_no_policy` de las tablas de `private` son el deny-by-default buscado) |
+| Humo del flujo vivo del portal | ✅ repetido con el trigger unificado: el guardado repetido no ensucia (ahora por el filtro DENTRO del auditor), el cambio real sí queda, 0 fugas |
