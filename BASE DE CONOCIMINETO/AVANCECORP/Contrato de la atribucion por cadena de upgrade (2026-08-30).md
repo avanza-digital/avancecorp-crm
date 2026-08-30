@@ -85,13 +85,14 @@ Entre la Fase 1 (conversión/cartera) y la Fase 2 (capital/metas), una renovaci�
 conversión al analista de la cadena pero capital a quien la procese. Riesgo real ≈ 0: los upgrades
 nacieron en agosto y ninguno vence antes de octubre; la F2 sale el 11–12/09. Se acepta y queda escrito.
 
-## Dos lentes que recortan por cartera (decisión de pantalla PENDIENTE)
+## Dos lentes que recortan por cartera → SE ALINEAN (decisión de Miguel, 31/08)
 
-`crm.metricas_capital_mes_fn` y `crm.metricas_vencimientos_fn` enseñan el capital recortando la
-visibilidad por la CARTERA del que mira (`cli.asesor_perfil_id`), no por el analista del episodio —
-la misma familia que la lente del Directorio. Con una cadena adoptada, el capital CUENTA al analista
-de la cadena pero esas dos lentes lo ENSEÑAN en la vista del dueño. Si Miguel quiere alinearlas al
-analista resuelto, es una decisión de pantalla (candidata a ATR-3), no un efecto colateral.
+`crm.metricas_capital_mes_fn` y `crm.metricas_vencimientos_fn` enseñaban el capital recortando por
+la CARTERA del que mira (`cli.asesor_perfil_id`). **Decisión firmada: se ALINEAN al analista
+resuelto de la cadena** — el contrato de un upgrade aparece bajo quien se lleva la producción, no
+bajo el archivador del dueño. **Va en ATR-3** (con su propio oráculo de paridad: solo cambian filas
+de cadenas adoptadas). El **Directorio del Portal sigue con la regla vieja** (esa decisión no
+cambió): queda como la ÚNICA lente por cartera, declarada.
 
 ## Deuda de rendimiento, anotada
 

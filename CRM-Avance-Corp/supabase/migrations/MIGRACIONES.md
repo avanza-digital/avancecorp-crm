@@ -6016,11 +6016,10 @@ NO migrado → ahora exige la huella ATR-2 VIVA antes de insertar («un ledger j
 una migración que no lo está») · P1-2 el emparejamiento de desglose comparaba menos columnas que el
 de contrato → igualado (12 columnas null-safe) · P1-4 el anti-pisado del rollback solo miraba prosrc
 (un ALTER de atributos sobrevivía) → pinnea también definer/volatility/search_path en pre y post ·
-P2-1 la cabecera dice la verdad (6 parches + 1 comentario) · **P1-1 DECLARADO, decisión de pantalla
-PENDIENTE de Miguel:** `metricas_capital_mes_fn` y `metricas_vencimientos_fn` recortan la
-VISIBILIDAD por cartera (`cli.asesor_perfil_id`) — con una cadena adoptada, el capital CUENTA al
-analista de la cadena pero esas dos lentes lo ENSEÑAN en la vista del dueño (misma familia que la
-lente del Directorio; alinearlas sería ATR-3, no efecto colateral).
+P2-1 la cabecera dice la verdad (6 parches + 1 comentario) · **P1-1 → DECISIÓN DE MIGUEL (31/08):
+las dos lentes SE ALINEAN** — `metricas_capital_mes_fn` y `metricas_vencimientos_fn` pasarán a
+enseñar por el analista resuelto de la cadena, **en ATR-3** (con oráculo de paridad propio). El
+Directorio del Portal queda como la única lente por cartera, a propósito.
 
 **Auditoría del auditor RLS → GO (1 P1 + 5 P2), atendidos:** P1-1 los caminos del oráculo con delta
 no vacío jamás habían corrido con filas → **SEGUNDO PASE del oráculo en el ensayo**: se repone el
