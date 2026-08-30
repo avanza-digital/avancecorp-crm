@@ -5797,3 +5797,81 @@ contratos que tú creaste»` → la aserción `expectExplicitAuthorizationDenied
 hipótesis del agente era correcta. ⚠️ La suite `test:rls` COMPLETA no corre contra prod (0 cuentas
 `*.crm@demo.avancecorp.pe` en producción; los fixtures viven en un banco): queda para el **próximo ciclo de
 banco**, junto al gate pendiente de F4.
+
+---
+
+## P-055 · FASE 5.d — CERRAR LA PUERTA GEMELA MUERTA (2026-08-30)
+
+**Estado: 🟡 PREPARADA — dos auditorías atendidas ENTERAS, ensayo v2 EN VERDE (deshecho); pendiente de publicar.**
+Migración `20260830210000_crm_f5_d_cerrar_gemelas_catalogo_versionado.sql`. Residual del **paso 2** de la
+Fase 5 («la puerta gemela que sobre se retira por el camino seguro: cerrar → observar → borrar»). Aquí SOLO
+se CIERRA (revoke); el DROP va a la F7 con OK de Miguel por pieza.
+
+**Lo medido (30/08, contra producción y contra TODAS las superficies del repo):** las **7 funciones CRUD del
+catálogo de productos versionados** (que Miguel decidió eliminar en la F0) son **rama muerta total** —
+`public.crear_contrato_producto` + `actualizar_contrato_producto` + `actualizar_contrato_con_cuenta_producto`
+y `crm.crear_contrato_producto` + `crear_contrato_con_cuenta_producto` + `actualizar_contrato_producto` +
+`actualizar_contrato_con_cuenta_producto`: **0 llamadas** en portal (`public_html`), CRM (`app/src`), edges
+propias y compartidas (`_supabase_functions`), Apps Script (`.gs`), cron de pg y servidor (lo único que las
+nombra es `crm.cerrar_altas_legacy_productos`, y solo como comprobación de EXISTENCIA por `to_regprocedure`
+— un REVOKE no la rompe; un DROP sí, por eso el drop espera). Las **2 de SELECCIÓN quedan VIVAS y no se
+tocan**: `public.productos_inversion_seleccion_fn(uuid)` (la usa el portal) y
+`crm.productos_inversion_seleccion_fn()` (la usa el CRM); ambas preguntan ya `puede_ver_catalogo_productos`
+(D2 de la F5.b).
+
+**Qué hace:** `REVOKE EXECUTE ... FROM authenticated, anon, public` sobre las 7 (postgres conserva).
+Preflight: huella md5 de las 7 + ACL exactamente `{authenticated,postgres}` + selección viva + censo de
+llamadores = 1 (solo la comprobación de existencia). Postflight en la MISMA transacción: juez = **ACL crudo
+por `aclexplode` con `grantee=0`** (la memoria dice que `has_function_privilege` MIENTE si PUBLIC tiene el
+permiso; queda de segundo testigo), las 7 con EXECUTE solo de `postgres`, selección intacta,
+`to_regprocedure` de las comprobadas not null, y los DOS guardianes (`assert_analista_vigencia` +
+`assert_analitica_leads_citas`) corren dentro (higiene F1.6).
+
+**⚠️ Cuidado heredado que MOLDEÓ el ensayo:** NO se llama a una función revocada dentro del ensayo
+(`select fn()` sin EXECUTE segfaulteó el backend en la imagen 17.6.1.105) — la prueba es de ACL, no de
+conducta; la conducta 42501 vía PostgREST la probará `test-rls` en el próximo ciclo de banco.
+
+**Ensayo contra prod (transacción deshecha):** `CIERRE: 7/7 cerradas, 2 vivas intactas, guardianes verdes ·
+ROLLBACK: 7/7 ACL al byte, guardianes verdes`. El ensayo cazó un error real del guion (con `DISTINCT`,
+`string_agg ... order by 1` es ilegal 42P10 → subconsulta) antes de que llegara a producción. **Ensayo v2**
+(tras las auditorías) re-corrido EN VERDE con los literales de ACL en ambas direcciones.
+
+**Dos auditorías, ambas atendidas ENTERAS:**
+- **Auditor RLS → GO condicionado** (condición 1 = el OK de `public`, lo da el `!` de Miguel). Aplicado: P1
+  (el D1 del banco reintroducía el patrón del segfault de imagen → **canaria**: la primera llamada a una
+  gemela cerrada va sola y, si la respuesta llega SIN código —backend caído—, el bloque aborta nombrando la
+  causa real en vez de cascada espuria; la vía PostgREST se midió segura en F1: 20× 401/42501) · P2 censo
+  por OID · P2 superficies `pg_policy`/`pg_attrdef`/`pg_constraint`/`cron.job` re-medidas en el preflight
+  (sonda contra prod: 0) · P2 registrador con candado «existe SIN cuerpo = excepción» · P2 consts muertas
+  del D1 borradas.
+- **Codex → NO-GO (2 P1 + 3 P2), refutación parcial, todo corregido:** P1 el registrador podía ceder ante
+  un INSERT concurrente bajo Read Committed (`on conflict do nothing` sin relectura) → **relectura
+  fail-closed tras el insert**: la fila final debe tener ESTE nombre y ESTE cuerpo o aborta (el cuerpo va
+  embebido 3 veces: comparar + insertar + releer) · P1 el rollback probaba grantees, no el ACL entero →
+  postflight compara el **literal completo `proacl::text`** contra el original medido
+  (`{postgres=X/postgres,authenticated=X/postgres}`; el post-revoke exige `{postgres=X/postgres}`) · P2
+  cobertura de conducta 2/7 → **7/7**: el D1 prueba las SIETE firmas por PostgREST en sus dos superficies ·
+  P2 identidad del censo atada por OID (no por cuenta) · P2 «rama muerta TOTAL» matizada: los **e2e** montan
+  las gemelas en su backend SIMULADO (`app/e2e/_helpers.ts`, no tocan prod) y el **oráculo local**
+  `test-productos-inversion.sql` (corre en `gate-config-operativa.mjs` sobre un Postgres local que reproduce
+  las migraciones PRE-F5.d) las llama como authenticated — ninguno pisa producción, pero cuando la **F7
+  quiera el DROP**, ese oráculo y esos mocks deben retirarse CON las funciones. Codex también confirmó:
+  PostgREST devuelve **42501** (no PGRST202) para una función viva sin EXECUTE — la expectativa del D1 es
+  correcta.
+
+**`test-rls.mjs`:** el bloque D1 de `testCapacidadUnificada` probaba autoridad por la gemela
+`crm.crear_contrato_producto` (vend1/sup1 «pasan el gate») — invertido a la semántica F5.d: la gemela está
+**cerrada para TODOS** (42501 para gerencia/vend1/sup1/coordinador/directorio/vendInactive); la semántica de
+autoridad de ventas vive en `testVentasNucleoF5c` sobre el núcleo real.
+
+**⚠️ OK de `public` PENDIENTE:** la F5.d revoca sobre 3 funciones de `public` — igual que F5.b/F5.c
+necesita el OK explícito de Miguel (el acto de publicar con `!` lo es).
+
+**Paso 3 de la Fase 5 (el par de cada persona): MEDIDO CERRADO** — las 7 combinaciones Portal↔CRM reales de
+las 24 personas activas están TODAS declaradas en `private.pares_autoridad` (GABRIEL y GLORIA con su par
+`admin+∅` deliberado); no existe gerencia CRM que no sea admin del Portal; quedan 2 pares declarados sin
+persona viva (`directorio+directorio`, `comercial+supervisor`) que son combinaciones permitidas, no un hueco.
+
+Archivos: `migrations/20260830210000_crm_f5_d_cerrar_gemelas_catalogo_versionado.sql` ·
+`scripts/rollback-f5d-p055.sql` · `scripts/registrar-f5d-version.sql` (generado a máquina, cuerpo embebido
+fail-closed) · bloque D1 reescrito en `scripts/test-rls.mjs`.

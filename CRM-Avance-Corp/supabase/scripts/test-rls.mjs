@@ -6108,37 +6108,73 @@ async function testCitasNucleo(sessions, seed) {
 async function testCapacidadUnificada(sessions, seed) {
   console.log('\n— Una pregunta por capacidad (P-055 F5.b) —');
 
-  const invalido = { p_id: crypto.randomUUID(), p_producto: {}, p_cronograma: [] };
-  const invalidoProd = { p_contrato: {}, p_producto_condicion_id: null, p_cliente: {}, p_cronograma: [] };
-
-  // D1 · registrar ventas: la puerta gemela del PORTAL ahora abre para el equipo
-  //     comercial vigente (antes solo admin+analista). Payload invalido a
-  //     proposito: pasar la puerta y morir en la validacion PRUEBA el gate sin
-  //     escribir una fila (42501 = denegado; cualquier otro sqlstate = paso).
+  // D1 · F5.d: la gemela del catalogo versionado esta CERRADA PARA TODOS
+  //     (revoke a authenticated; rama muerta medida el 30/08 — 0 llamadas en
+  //     portal, CRM, edges y servidor). La semantica de autoridad de ventas que
+  //     este bloque probaba antes por la gemela vive ahora en testVentasNucleoF5c,
+  //     sobre el nucleo REAL del alta (public.crear_contrato).
+  //     42501 para CUALQUIERA = puerta cerrada; cualquier otro codigo = se abrio.
   const pasaElGate = async (label, promise, deberiaPasar) => {
     const { error } = await promise;
     const denegada = error?.code === '42501' || /no autorizado/i.test(error?.message ?? '');
     check(deberiaPasar ? !denegada : denegada, label);
   };
 
-  // vendedor y supervisor: la puerta del Portal les abre (D1)
-  await pasaElGate('D1 vend1 pasa el gate de crm.crear_contrato_producto',
-    sessions.vend1.client.schema('crm').rpc('crear_contrato_producto',
-      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), true);
-  await pasaElGate('D1 sup1 pasa el gate de crm.crear_contrato_producto',
-    sessions.sup1.client.schema('crm').rpc('crear_contrato_producto',
-      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), true);
-  // coordinador y directorio: DENEGADOS en ventas
-  await pasaElGate('D1 coordinador NO registra ventas',
-    sessions.coordinador.client.schema('crm').rpc('crear_contrato_producto',
-      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
-  await pasaElGate('D1 directorio NO registra ventas',
-    sessions.directorio.client.schema('crm').rpc('crear_contrato_producto',
-      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
-  // inactivo: DENEGADO
-  await pasaElGate('D1 vendInactive NO registra ventas',
-    sessions.vendInactive.client.schema('crm').rpc('crear_contrato_producto',
-      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+  // CANARIA del bug de imagen (auditoria F5.d, P1): en la imagen 17.6.1.105
+  // llamar una funcion sin EXECUTE por SQL directo SEGFAULTEO el backend
+  // (memoria 2026-08-20); la via PostgREST se midio SEGURA en la F1 (20x
+  // HTTP 401/42501, banco vivo). Aun asi, la PRIMERA llamada a una gemela
+  // cerrada va SOLA y con diagnostico propio: si la respuesta llega sin codigo
+  // (fallo de conexion = backend caido), este bloque se aborta nombrando la
+  // causa REAL en vez de dejar que la suite muera en cascada espuria.
+  {
+    const { error } = await sessions.gerencia.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] });
+    if (error && !error.code) {
+      check(false,
+        'D1/F5.d CANARIA: la gemela cerrada respondio SIN codigo — posible backend caido '
+        + '(bug de EXECUTE de la imagen, memoria 2026-08-20); D1 abortado, revisar la imagen del banco',
+        error.message ?? 'sin mensaje');
+      return;
+    }
+    const denegada = error?.code === '42501' || /no autorizado/i.test(error?.message ?? '');
+    check(denegada, 'D1/F5.d gerencia NO alcanza crm.crear_contrato_producto (gemela cerrada)');
+  }
+
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive']) {
+    if (!sessions[key]) continue;
+    await pasaElGate(`D1/F5.d ${key} NO alcanza crm.crear_contrato_producto (gemela cerrada)`,
+      sessions[key].client.schema('crm').rpc('crear_contrato_producto',
+        { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+  }
+
+  // Las SIETE firmas cerradas, probadas por conducta (auditoria Codex, P2:
+  // 2/7 dejaba 5 sin sonda PostgREST). crm.crear_contrato_producto ya quedo
+  // cubierta arriba con 6 sesiones; aqui vend1 (la sesion antes mas fuerte
+  // sobre estas puertas) contra las otras 6 firmas, en sus DOS superficies
+  // PostgREST (public sin .schema, crm con ella). Nombres de argumento
+  // medidos en prod el 30/08.
+  const cerradasF5d = [
+    ['public', 'crear_contrato_producto',
+      { p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [] }],
+    ['public', 'actualizar_contrato_producto',
+      { p_id: crypto.randomUUID(), p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [] }],
+    ['public', 'actualizar_contrato_con_cuenta_producto',
+      { p_id: crypto.randomUUID(), p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [] }],
+    ['crm', 'crear_contrato_con_cuenta_producto',
+      { p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [], p_cuenta: {} }],
+    ['crm', 'actualizar_contrato_producto',
+      { p_id: crypto.randomUUID(), p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [] }],
+    ['crm', 'actualizar_contrato_con_cuenta_producto',
+      { p_id: crypto.randomUUID(), p_producto_condicion_id: null, p_contrato: {}, p_cronograma: [] }],
+  ];
+  for (const [esquema, fn, payload] of cerradasF5d) {
+    const cliente = esquema === 'crm'
+      ? sessions.vend1.client.schema('crm')
+      : sessions.vend1.client;
+    await pasaElGate(`D1/F5.d vend1 NO alcanza ${esquema}.${fn} (gemela cerrada)`,
+      cliente.rpc(fn, payload), false);
+  }
 
   // D2 · catalogo: coordinador SI (miembro CRM), sin-membresia NO
   await pasaElGate('D2 coordinador VE el catalogo de productos',
