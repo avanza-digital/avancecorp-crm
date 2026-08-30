@@ -5737,3 +5737,47 @@ la pregunta sea UNA sola de verdad, la F5.c lleva `puede_registrar_ventas()` a l
 cartera** (Opción B firmada: cualquier analista, cualquier cliente; la venta cuenta a quien la cierra por el
 campo `analista_cierre` de la F3). ALAN queda como analista normal SIN código especial (la puerta mira la
 membresía del CRM). Va con auditoría propia por ser el camino del dinero.
+
+## P-055 · FASE 5.c — LA REGLA DE VENTAS, EN EL NÚCLEO DEL DINERO (2026-08-30)
+
+**Estado: 🟡 PREPARADA — auditorías atendidas y ensayo en verde; pendiente de publicar y pasar `test:rls`.**
+Migración `20260830190000_crm_f5_c_ventas_al_nucleo_del_dinero.sql`. Es el CAMINO DEL DINERO
+(creación/edición de contratos) → auditoría propia (auditor RLS + Codex).
+
+**Qué hace (Opción B firmada por Miguel):** los 4 núcleos del dinero —`public.crear_contrato`,
+`public.actualizar_contrato`, `crm.crear_contrato_con_cuenta`, `crm.actualizar_contrato_con_cuenta`— dejan de
+gatear la AUTORIDAD por P04 (`puede_gestionar_cuentas_cliente`, scope de cartera por cliente) y pasan a
+`private.puede_registrar_ventas()`. Se **suelta el scope de cartera**: cualquier analista puede registrar/editar
+a nombre de cualquier cliente; la venta cuenta a quien la cierra (`analista_cierre`, F3). **P04 sigue viva** para
+banca / PDF / domicilio.
+
+**La pregunta, ampliada:** `puede_registrar_ventas()` = `auth.uid presente AND not membresia_crm_revocada()
+AND (es_admin() OR private.es_analista_vigente() OR puede_gestionar_contratos_crm())`. Se pregunta
+`es_analista_VIGENTE` (no `es_analista` a secas) para NO nacer como puerta sin vigencia en el censo de la F5.a
+— semántica idéntica porque el `not revocada` de arriba ya cubre las tres ramas. Operaciones-a-secas queda
+fuera (0 usuarios). ALAN = analista normal, sin código especial.
+
+**OK EXPLÍCITO de tocar `public`:** la F5.c modifica `public.crear_contrato` y `public.actualizar_contrato`
+(igual que la F5.b tocó `public`), autorizado por Miguel como parte de la Opción B.
+
+**Lo que cambió por las auditorías (dos NO-GO atendidos):**
+- 🔴 **P0-1 (trinquete de vigencia F5.a):** cambiar el cuerpo de los núcleos cambia su huella → el guardián de
+  la F5.a se pondría rojo y el commit seguía verde (lección F1.6). Arreglo: la migración **re-fija las huellas**
+  de `crear_contrato`/`actualizar_contrato` en `analista_vigencia_exenciones` (siguen nombrando `es_analista`
+  en su DECLARE muerto) y **corre `assert_analista_vigencia()` + `assert_analitica_leads_citas()` en su propio
+  postflight**. El rollback revierte esas huellas y vuelve a correr el guardián.
+- 🔴 **P0-2 (test-rls):** la Opción B invierte aserciones vivas (un analista sin ficha creando para cliente
+  ajeno pasaba a estar permitido). Reescritas a semántica B + bloque nuevo F5.c.
+- 🟠 **P1-1 (cliente activo):** P04 exigía `cli.activo=true`; el for-share del alta solo miraba el rol. Se
+  **endurece a `and p.activo`** para que un cliente dado de baja no reciba contratos nuevos (en la EDICIÓN no
+  se exige activo: corregir el histórico de un cliente de baja es coherente). Default firmable por Miguel.
+
+**Ensayado contra prod (transacción deshecha, nada tocó producción) — códigos MEDIDOS:**
+guardián vigencia 6/6 y analítica 30/30 verdes tras aplicar · analista para cliente ajeno **pasa autoridad**
+(muere en términos, `23514`) igual que para su propio cliente · un cliente / anon / cliente **inactivo** →
+`42501` denegados. Rollback restaura las 4 huellas al byte y repone el guardián.
+
+**Verificado OK por el auditor:** la pregunta ampliada no abre a ningún rol indebido (operaciones sigue
+denegado, anon/service_role/cliente/coordinador/directorio/lector denegados); la atribución queda en quien
+cierra (no hereda al asesor del cliente); ventana de 5 h y "solo lo que tú creaste" intactas; P04 viva para
+banca/PDF/domicilio; rollback byte-exact e idempotente.

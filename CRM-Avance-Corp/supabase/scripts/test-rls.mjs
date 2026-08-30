@@ -4685,12 +4685,20 @@ async function testContractBankAccounts(sessions, seed) {
       'admin global sin membresia CRM (fallback P04)',
     );
     // Rama analista del guard SIN membresía CRM. Con el fallback restaurado el
-    // gate de P04 ya no la frena, así que lo que queda expuesto —y es lo que
-    // debe seguir cerrado— es el SCOPING POR CARTERA: el cliente bancario tiene
-    // asesor_perfil_id = vend1, de modo que un analista ajeno sigue sin
-    // alcanzarlo ni por la banca del CRM ni por el ALTA LEGACY del portal
-    // (`public.crear_contrato`, llamador del guard desde el catálogo). Mismo
-    // 42501 que antes, pero ahora por la razón correcta.
+    // gate de P04 ya no la frena. Aquí se separan las dos superficies porque
+    // desde P-055 F5.c divergen:
+    //   · la BANCA del CRM (`cuentas_bancarias_cliente_fn`) SIGUE cerrada por
+    //     cartera —P04 vive intacta para banca/PDF/domicilio—: el cliente
+    //     bancario tiene asesor_perfil_id = vend1, así que un analista ajeno no
+    //     lo alcanza (mismo 42501 de siempre).
+    //   · el ALTA LEGACY del portal (`public.crear_contrato`) YA NO cierra por
+    //     cartera (decisión B de Miguel): un analista VIGENTE (rol analista del
+    //     Portal, sin fila en crm.equipo = no revocado) pasa la autoridad para
+    //     CUALQUIER cliente activo, incluido el ajeno. Con cronograma vacío el
+    //     alta atraviesa la autorización y muere en la validación de términos
+    //     (23514) — eso PRUEBA que la cartera ya no es la barrera, sin escribir
+    //     una fila. Esta pareja clava que las dos superficies divergieron a
+    //     propósito y no por un predicado suelto.
     await requireAdmin(
       'banca P04: convertir directorio temporalmente en analista sin membresia',
       admin.from('perfiles').update({ rol: 'analista' }).eq('id', directorProfileId),
@@ -4705,7 +4713,7 @@ async function testContractBankAccounts(sessions, seed) {
       /cliente no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      'analista sin membresia CRM: la cartera sigue cerrando el alta legacy ajena',
+      'analista vigente registra para cliente ajeno: la Opcion B ya NO cierra el alta por cartera',
       sessions.directorio.client.rpc('crear_contrato', {
         p_contrato: {
           cliente_id: bankProfileId,
@@ -4716,8 +4724,8 @@ async function testContractBankAccounts(sessions, seed) {
         },
         p_cronograma: [],
       }),
-      ['42501'],
-      /cliente no encontrado o fuera de tu cartera/i,
+      ['23514'],
+      /t[ée]rminos inv[áa]lidos/i,
     );
     // La distinción que introduce 20260809000530, clavada sobre el MISMO actor
     // para que no pueda pasar en falso por diferencias de fixture: directorio
@@ -6154,6 +6162,78 @@ async function testCapacidadUnificada(sessions, seed) {
     ['42501', '42P01', 'PGRST202'],  // 42501 candado, o denegado por autorizacion previa de la RPC
     /./,
   );
+}
+
+// P-055 F5.c — la pregunta unica LLEGA AL NUCLEO DEL DINERO (Opcion B).
+// La F5.b probo las 7 gemelas (crear_contrato_producto, etc.); esto prueba los
+// nucleos REALES del alta (public.crear_contrato, el que usa la pantalla de
+// contratos via los wrappers _con_cuenta_pdf). La autoridad ya no mira cartera:
+// cualquier analista vigente registra para cualquier cliente ACTIVO, y la venta
+// cuenta a quien la cierra (analista_cierre, F3).
+async function testVentasNucleoF5c(sessions, seed) {
+  console.log('\n— Ventas al nucleo del dinero: Opcion B (P-055 F5.c) —');
+  const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key]; // cliente activo, asesor = vend1
+  const altaAjena = {
+    p_contrato: {
+      cliente_id: bankProfileId,
+      moneda: BANK_CONTRACT.currency,
+      capital: 1000,
+      tasa_anual: 10,
+      categoria: 'nuevo',
+    },
+    // Cronograma vacio A PROPOSITO: pasar la autoridad y morir en la validacion
+    // de terminos PRUEBA el gate sin escribir una sola fila.
+    p_cronograma: [],
+  };
+
+  // Denegacion de AUTORIDAD del nucleo = 42501 con el mensaje de cartera (el
+  // raise no cambio en F5.c, solo su condicion). "Paso la autoridad" = NO es ese 42501.
+  const negadoPorAutoridad = (error) =>
+    error?.code === '42501'
+    && /cliente no encontrado o fuera de tu cartera/i.test(error?.message ?? '');
+
+  // POSITIVO (decision B): un analista VIGENTE con ficha CRM (vend3) registra
+  // para el cliente de OTRA analista (bankProfileId, asesor = vend1). La autoridad
+  // ya NO cierra por cartera -> pasa y muere aguas abajo en la validacion de
+  // terminos, sin escribir nada.
+  {
+    const { error } = await sessions.vend3.client.rpc('crear_contrato', altaAjena);
+    check(!negadoPorAutoridad(error),
+      'F5.c B: analista vigente (vend3) REGISTRA para cliente ajeno — la autoridad ya no cierra por cartera',
+      `code=${error?.code ?? 'sin'} msg=${error?.message ?? ''}`);
+  }
+
+  // NEGATIVOS sobre el MISMO nucleo (la pregunta unica sigue cerrando lo que debe):
+  //  · un cliente (rol cliente): sin autoridad de ventas
+  await expectExpectedFailure(
+    'F5.c: un cliente NO registra ventas en el nucleo',
+    sessions.clientBank.client.rpc('crear_contrato', altaAjena),
+    ['42501'],
+    /cliente no encontrado o fuera de tu cartera/i,
+  );
+  //  · un analista INACTIVO (perfil apagado -> es_analista/rol_crm caen a false)
+  if (sessions.vendInactive) {
+    await expectExpectedFailure(
+      'F5.c: un analista INACTIVO NO registra ventas en el nucleo',
+      sessions.vendInactive.client.rpc('crear_contrato', altaAjena),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+  }
+  //  · anon (sin sesion): sin grant de EXECUTE sobre la RPC del portal
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-f5c'));
+  await expectExplicitAuthorizationDenied(
+    'F5.c: anon NO registra ventas en el nucleo',
+    anon.rpc('crear_contrato', altaAjena),
+    ['PGRST202', '42501'],
+  );
+
+  // NOTA: revocado -> 42501 ya queda cubierto por 'banca P04 * con membresia
+  // revocada' (crear_contrato_con_cuenta con vend1 revocado). Cliente INACTIVO ->
+  // 42501 se prueba en el postflight/ensayo de la migracion (flip de activo es
+  // destructivo para el fixture del gate). La atribucion (analista_cierre =
+  // registrador) la verifican la F3 y la auditoria estatica: aqui el alta muere
+  // antes de escribir.
 }
 
 async function testMetricasConversionEquipo(sessions, seed) {
@@ -9834,6 +9914,7 @@ async function main() {
       await testCierreDeMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
       await testCapacidadUnificada(sessions, verifiedSeed);
+      await testVentasNucleoF5c(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {
