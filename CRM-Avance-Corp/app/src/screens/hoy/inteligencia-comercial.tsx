@@ -670,7 +670,10 @@ export function InteligenciaComercialPanel({
   const kpis = [
     { label: 'Cosecha del período', valor: pct(cosechaPct), detalle: `${numero(cosechaCierres)} cierres de ${numero(cosechaLeads)}`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
-    { label: 'Citas realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
+    // F6.b: esta cifra cuenta LEADS de la cohorte que llegaron a cita, no citas
+    // (la pantalla de Citas cuenta citas por vencimiento y daba otro numero
+    // bajo el mismo rotulo). El apellido va en el rotulo, no en letra chica.
+    { label: 'Leads que llegaron a cita', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} con cita pactada`, icon: CalendarCheck, color: C.teal },
     kpiCapital,
   ]
 
@@ -749,10 +752,10 @@ export function InteligenciaComercialPanel({
 
           <section data-gi-panel className="gi-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Conversión por analista</h3><p className="gi-caption mt-1">Equipo completo</p></div>
+              <div><h3 className="gi-title">Cosecha por analista</h3><p className="gi-caption mt-1">Leads del período que cerraron · equipo completo</p></div>
               {vendedor && <div className="flex items-center gap-2"><select aria-label="Analista para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
             </div>
-            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
+            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Cosecha del período por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
           </section>
 
           <div className="grid gap-4 xl:grid-cols-2">

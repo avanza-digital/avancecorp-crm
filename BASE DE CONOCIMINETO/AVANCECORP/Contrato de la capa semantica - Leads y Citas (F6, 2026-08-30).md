@@ -105,8 +105,11 @@ transitividad, verificado); lo que quedaba era gobernanza (el censo) y el núcle
   referido: 2,8 % vs 7,0 % del núcleo en agosto) → convertir o renombrar a `conversion_cohorte`.
 - `registrar_ajuste_si_mes_cerrado` recalcula su numerador localmente y replica la rama de
   coops a mano → que beba del puente del sello.
-- **F6.b (front):** el rótulo «citas pactadas/realizadas» nombra DOS preguntas distintas
-  (83/7 leads-con-cita en inteligencia comercial vs 40/6 citas en reuniones): cada una
-  necesita su apellido en pantalla.
+- **F6.b (front): ✅ HECHA EN EL CÓDIGO (30/08), pendiente de `/release-crm`.** El KPI de
+  inteligencia comercial pasa de «Citas realizadas» a **«Leads que llegaron a cita»** (con
+  «N con cita pactada» de detalle) y «Conversión por analista» pasa a **«Cosecha por
+  analista»** — el idioma propio de esa pantalla. «Citas» queda reservado a la pantalla que
+  cuenta citas de verdad. 2439/2439 tests, typecheck limpio. Las claves del payload NO se
+  renombran (la app publicada seguiría llamándolas).
 - **Firma pendiente de Miguel:** la relectura de la decisión 5 (los 45 días eran de la
   VISTA; la métrica ya era mensual y rotulada).

@@ -522,7 +522,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
@@ -533,7 +533,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Cifras en revisión/)).not.toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
@@ -565,7 +565,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
     expect(screen.getByText(/2 clientes tienen leads de más de un analista/)).toBeInTheDocument()
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por analista' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const capitalVendedor = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
