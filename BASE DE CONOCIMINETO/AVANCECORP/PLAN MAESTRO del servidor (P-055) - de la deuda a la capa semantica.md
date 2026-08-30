@@ -8,7 +8,20 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1 (con sus F1.4/F1.5/F1.6), 3 y 4 EN PRODUCCIÓN.** La Fase 4 cerró COMPLETA: registro **177**, núcleo `capital_episodios` + 16 consumidores + el **motor del sello** bebiendo del núcleo (juez: ensayo viejo-vs-nuevo con **foto sellada idéntica** `e59a303b…`), decisión A «coops en todo» aplicada (AUM 18 212 113) y el **trinquete en CERO** — ninguna calculadora cruda de capital fuera del núcleo en crm+public+private, y el tope solo puede quedarse en cero. Rendimiento: 241 ms la pantalla más pesada, 74 ms vendedores. Esquema visual: artifact «El núcleo de capital»; el plan en imagen: artifact «Plan maestro del servidor» (reescrito el 29/08 con problema/meta/falta por fase).
+**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1 (con F1.4/F1.5/F1.6), 3, 4 y ahora la 5.a EN PRODUCCIÓN.**
+
+**🆕 FASE 5.a EN PRODUCCIÓN (2026-08-30) — «una sola pregunta: ¿es analista vigente?».** Registro **181**. Cierra la *revocación a medias* que se midió el 29/08, y la cierra por el molde de la Fase 4: **un solo sitio decide y un trinquete impide que nazca el siguiente**. Verificado en vivo: la persona revocada pasó de **3 contratos / 39 cuotas / 3 fichas / 1 co-titular / ficha 360 con banca / selector de productos** a **cero en todo** (y 42501 en el selector); una analista **activa** sigue con sus 58 contratos, 549 cuotas, 44 fichas y su ficha 360 intactos. Advisors **0 ERROR**. Gate `npm run gate:vigencia` en verde contra producción y su **mutante cazado por los siete filos**.
+
+**Qué se cerró, y por qué era más ancho de lo que parecía:** no eran 4 políticas sino **SIETE puertas**. Además de contratos, cuotas, fichas y su edición, seguían abiertas la **ficha 360 completa** (`crm.cliente_detalle_fn`: DNI, correo, teléfono, domicilio y **banca en PEN y USD**), los **co-titulares** (`public.puede_ver_contrato` → `contrato_titulares` y `contrato_tiene_pagos`) y el **selector de productos**. Cerrar solo las políticas cerraba la *enumeración*, no el *acceso dirigido*: con los identificadores que su propia pantalla le mostró el día anterior, seguía sacando las fichas.
+
+**Tres cosas que salieron por el camino y no eran de esta fase:**
+1. 🔴 **`private.membresia_crm_revocada()` no tenía permiso para `authenticated`.** La única política que ya la usaba —la del historial de reasignaciones, de la **F3.4**— **nació muerta**: reventaba con 42501 **incluso para gerencia**. Ya está reparada; ahora esa tabla se lee como la F3 escribió.
+2. 🔴 **Borrar la fila de `crm.equipo` convertía a un REVOCADO en AJENO** y le devolvía los accesos del Portal. Decisión de Miguel (30/08): **«vamos con la 1, mantén el candado»** → `crm.equipo` tiene candado `BEFORE DELETE`, y la baja deliberada sale por una **puerta declarada** (`crm.purgar_membresia_crm(perfil_id, motivo)`): **solo llave de servidor**, motivo escrito y **lápida** en `private.membresias_purgadas`. **Consecuencia asumida:** el borrado duro de un colaborador desde el panel deja de funcionar; la baja es desactivar. Se adaptaron los dos programas que borraban: `test-rls.mjs` y `clean-crm-data.mjs`.
+3. 🔴 **`perfiles.creado_en` es INMUTABLE** — un trigger lo restaura en silencio. Rejuvenecer una ficha para probar la ventana de 5 h **no ocurre** y el caso positivo medía 0 filas por un defecto del oráculo.
+
+**El trinquete, y por qué el primero no valía:** medía **texto**, así que bastaba un comentario (`-- ya migrado`) para desaparecer del radar, una puerta **mixta** no salía y **tres exenciones casaban por accidente** con el nombre de la tabla `crm.reasignaciones_analista`. Ahora mide **llamadas** (sin comentarios, con inicio de palabra y paréntesis), vigila también el **rol comprobado a mano**, mira **vistas y procedimientos**, y cada exención va **sellada con la huella de su cuerpo**: si esa función cambia, su razón caduca y el gate se pone rojo. Quedan **9 puertas declaradas, tope 9, 0 sin declarar**, con vigía diario (`crm-vigencia-analista-vigia`, 06:39).
+
+**Lo que la Fase 5.a NO cierra, dicho en voz alta:** las 4 personas revocadas **siguen con la sesión sin bloquear** (`perfiles.activo = true`, sin ban); una de las tres cuentas llamadas «DEMO» **inició sesión el 28/08**. Y un enlace de PDF firmado ANTES de la revocación sigue valiendo 300 s. Cerrar puertas de datos no cierra sesiones.
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
@@ -22,6 +35,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
+0. **Antes que nada, y es corto: cerrar la SESIÓN de las 4 personas revocadas** (perfil del Portal apagado o cuenta bloqueada). La F5.a les quitó los datos, no la sesión — y una de esas cuentas entró el 28/08.
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
 2. **Fase 6 — las otras dos calculadoras:** citas primero (6 consumidores, calentamiento) y luego leads (~21, con la regla de UN contador). Es el grueso de lo que queda; el molde de capital ya está probado.
 3. **Fase 5 — cerrar puertas** (permisos muertos + el conflicto de las tres autoridades; ~2 sesiones. **La revocación a medias se puede adelantar sola**: es el único punto con efecto sobre datos reales hoy).
@@ -39,7 +53,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | 2 · Mirar el primer cierre | 🟡 **lo único vivo** — el 10/09, media sesión: mirar el sello automático y guardar la copia (ensayado 3 veces) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
-| 5 · Cerrar puertas | ⚪ sin empezar — **ampliada**: además de los permisos muertos, resolver el **conflicto de las tres autoridades** ([[Las tres definiciones de autoridad (2026-08-29)]]), empezando por la **revocación a medias** que deja leer por tabla a quien las funciones ya bloquean |
+| 5 · Cerrar puertas | 🟡 **5.a EN PRODUCCIÓN (30/08)**: la revocación a medias, cerrada por «una sola pregunta» + trinquete + candado de borrado (7 puertas, registro 181). **Quedan los pasos 2 y 3**: una sola pregunta por capacidad (retirar la puerta gemela que sobre) y decidir el par de cada persona ([[Las tres definiciones de autoridad (2026-08-29)]]). Y, fuera de la fase: **cerrar la sesión de los revocados**, que las puertas de datos no cierran |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar — **la pieza grande de lo que queda**: leads (21) + citas (6) con el molde de capital |
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |

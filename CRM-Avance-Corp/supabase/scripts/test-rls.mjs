@@ -4808,9 +4808,16 @@ async function testContractBankAccounts(sessions, seed) {
       'admin revocado: el contrato quedo intacto (el rechazo no escribio nada)',
       JSON.stringify(filaTrasRechazo?.data),
     );
+    // P-055 F5.a: `crm.equipo` tiene candado BEFORE DELETE -borrar una fila
+    // convierte a un REVOCADO en AJENO y le devuelve los accesos del Portal-.
+    // La fila fabricada se retira por la PUERTA DECLARADA, que exige llave de
+    // servidor, motivo escrito y deja lapida en private.membresias_purgadas.
     await requireAdmin(
-      'banca P04: retirar la membresia revocada fabricada',
-      admin.schema('crm').from('equipo').delete().eq('perfil_id', directorProfileId),
+      'banca P04: retirar la membresia revocada fabricada (puerta declarada)',
+      admin.schema('crm').rpc('purgar_membresia_crm', {
+        p_perfil_id: directorProfileId,
+        p_motivo: 'Gate test-rls: retirar la membresia CRM fabricada para las sondas de banca P04',
+      }),
     );
     directorMembershipFabricated = false;
 
@@ -5038,7 +5045,10 @@ async function testContractBankAccounts(sessions, seed) {
     if (directorMembershipFabricated) {
       await requireAdmin(
         'retirar la membresia CRM fabricada para directorio tras sondas bancarias',
-        admin.schema('crm').from('equipo').delete().eq('perfil_id', directorProfileId),
+        admin.schema('crm').rpc('purgar_membresia_crm', {
+          p_perfil_id: directorProfileId,
+          p_motivo: 'Gate test-rls (finally): retirar la membresia CRM fabricada para las sondas de banca P04',
+        }),
       );
     }
     if (directorDeactivated) {

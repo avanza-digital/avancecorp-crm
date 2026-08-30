@@ -5505,3 +5505,114 @@ espejo** antes de dar verde.
 | Gate + mutante contra producción | ✅ «0 tablas sin rastro completo · 3 exenciones» y «mutante cazado por los cinco filos» |
 | Advisors | **0 ERROR** (170 avisos; los 4 INFO `rls_enabled_no_policy` de las tablas de `private` son el deny-by-default buscado) |
 | Humo del flujo vivo del portal | ✅ repetido con el trigger unificado: el guardado repetido no ensucia (ahora por el filtro DENTRO del auditor), el cambio real sí queda, 0 fugas |
+
+---
+
+## P-055 · FASE 5.a — UNA SOLA PREGUNTA: «¿es analista VIGENTE?» (2026-08-30)
+
+**Estado: escrita, ensayada tres veces contra producción y DESHECHA. Sin publicar** (registro sigue en **180**).
+Dos auditorías completas (auditor RLS + Codex) y **dos NO-GO atendidos enteros**.
+
+**Autorización de Miguel (chat del 2026-08-30):** «*esa parte se puede adelantar sola, es lo único con efecto
+sobre datos reales hoy*» · «*pásalo por Codex y el auditor antes de publicar*» · «*dale, hazlo así, y audita
+que quede bien*» (sobre la forma de una sola pregunta + trinquete + las siete puertas).
+**Alcance sobre `public` con ese OK:** 3 tablas (`contratos`, `cronograma_pagos`, `perfiles`) y 2 funciones
+(`puede_ver_contrato`, `productos_inversion_seleccion_fn`), más un `grant` sobre una función de `private`.
+
+| Archivo | Qué hace |
+|---|---|
+| `migrations/20260830090000_crm_f5_a_una_sola_pregunta_analista.sql` | `private.es_analista_vigente()` + **7 puertas** preguntando eso; candado de borrado en `crm.equipo`; trinquete con exenciones selladas por huella; vigía diario |
+| `scripts/rollback-f5a-p055.sql` | Marcha atrás en **dos bloques**: el operativo y, comentado, el histórico exacto que revoca el permiso y reabre el fallo de la F3 |
+| `scripts/test-f5a-una-sola-pregunta.sh` + `test-f5a-antes.sql` + `test-f5a-despues.sql` | Aceptación que ejecuta **la migración real** dentro de una transacción que siempre se deshace |
+| `scripts/trinquete-analista-vigencia.sql` + `…-mutante.sql` + `gate-analista-vigencia.mjs` | El gate y sus **7 filos**; `npm run gate:vigencia [-- --mutante]` |
+| `scripts/registrar-f5a-version.sql` | Registro de la versión **con `statements`** |
+
+### Las siete puertas
+
+`contratos_analista_select` · `cronograma_analista_select` · `perfiles_analista_select` ·
+`perfiles_analista_update` · `crm.cliente_detalle_fn` (ficha 360: DNI, correo, teléfono, domicilio y banca
+PEN/USD) · `public.puede_ver_contrato` (co-titulares y `contrato_tiene_pagos`) ·
+`public.productos_inversion_seleccion_fn` (dos ramas).
+
+### Medido contra producción el 2026-08-30 (todo deshecho)
+
+| | contratos/cuotas/fichas | co-titulares | ficha 360 | productos | ¿ve el contrato? | ¿tiene pagos? | edición |
+|---|---|---|---|---|---|---|---|
+| Revocada, **antes** | 3 / 39 / 3 | 1 | 1 | 0 filas | **sí** | **sí** | — |
+| Revocada, **después** | **0 / 0 / 0** | **0** | **0** | **42501** | **no** | **no** | **0 filas** |
+| Analista viva, antes y después | 58 / 549 / 45 (idéntico) | igual | 1 → 1 | 0 → 0 | — | — | **1 fila** |
+| `anon`, antes y después | 0 → 0 **sin error** | | | | | | |
+
+**Mutantes de comportamiento:** `m2` (deshacer las dos políticas de lectura) devuelve 3 · `m4` (deshacer la de
+edición) devuelve 1 · `m5`/`m6`/`m7` (puerta nueva sin declarar, subir el tope, borrar del equipo) revientan.
+**Mutante del trinquete: los SIETE filos ponen rojo el gate** — puerta nueva, **comentario señuelo**, **puerta
+mixta**, **vista**, política, **el rol comprobado a mano** y **exención caducada**.
+**Corrida B:** tren + marcha atrás → las 4 políticas y las 3 funciones vuelven a su **huella original**, 0
+funciones nuevas, vigía retirado y las 9 exenciones conservadas.
+**Trinquete de partida:** 9 puertas declaradas y selladas, tope 9, **0 sin declarar**.
+
+### Lo que las dos auditorías cambiaron del diseño
+
+1. **El trinquete medía TEXTO y ahora mide LLAMADAS.** Con `strpos` bastaba un comentario
+   (`-- ya migrado a es_analista_vigente`) para desaparecer del radar, y una puerta **mixta** tampoco salía.
+   Ahora se quitan comentarios antes de mirar y el ancla es `\mes_analista\s*\(` (inicio de palabra +
+   paréntesis). Eso además elimina **tres falsos positivos** que casaban por el nombre de la tabla
+   `crm.reasignaciones_analista` y por un comentario: el tope real no era 10, es **9**.
+2. **Se vigila también el rol comprobado a mano** (`rol = 'analista'`), que era la forma obvia de esquivar la
+   función, y se miran **procedimientos, vistas y todos los esquemas**, no solo funciones de tres.
+3. **Cada exención va sellada con la huella de su cuerpo**: si la función cambia, su razón caduca y el gate se
+   pone rojo. Y se identifican por `regprocedure`, no por nombre: una sobrecarga nueva no hereda la exención.
+4. **Orden de la transacción**: primero todo lo que no bloquea tablas de negocio; los 4 `alter policy` y el
+   trigger, al final. `lock_timeout` limita lo que se **espera**, no lo que se **retiene**.
+5. **El ensayo ya no apaga ningún trigger de producción** (apagarlo tomaba ACCESS EXCLUSIVE sobre `perfiles`
+   durante todo el ensayo y habría congelado el portal): da de alta dos fichas nuevas y un co-titular temporal.
+6. Preflight con el **comando exacto** de cada política, `polpermissive` y roles; postflight que exige que la
+   pregunta **cruda haya desaparecido**; ACL por `aclexplode(coalesce(proacl, acldefault(...)))`.
+7. **RLS en las dos tablas nuevas** y `revoke all from public` en las funciones nuevas.
+8. **El vigía existe de verdad**: `crm-vigencia-analista-vigia` a las 06:39, además del gate del repo.
+
+### Trampas nuevas pagadas aquí
+
+1. 🔴 **`perfiles.creado_en` es INMUTABLE** — `trg_proteger_perfiles` hace `NEW.creado_en := OLD.creado_en` en
+   silencio. Rejuvenecer una ficha para probar la ventana de 5 h **no ocurre**, y el caso positivo medía 0 filas
+   por un defecto del oráculo, no del arreglo.
+2. 🔴 **El `search_path` vacío lleva comillas** (`search_path=""`): comprobar `array['search_path=']` falla
+   siempre. Tercera vez que este proyecto tropieza con lo mismo.
+3. 🔴 **`regprocedure::text` imprime el esquema o no según el `search_path`**: dentro de una función con
+   `search_path=''` sale cualquificado, y las identidades declaradas tienen que coincidir letra por letra.
+4. 🔴 **Una función SQL valida su cuerpo al crearse**: el helper tiene que existir ANTES de los reemplazos.
+5. 🔴 **El censo no puede resolver por `regprocedure` una función que aún no existe** — las piezas del propio
+   trinquete se excluyen por nombre dentro de `private`.
+
+### Lo que NO toca, y no es olvido
+
+- `public.es_analista()` sigue igual · las políticas de `es_admin()`/`es_gestor_cartera()` van en el paso 2 de
+  la Fase 5 (los 2 admin del Portal no tienen fila en `crm.equipo`) · `proteger_campos_inmutables` queda
+  **declarado**: ahí la pregunta sirve para PROHIBIR y añadirle la vigencia relajaría el candado.
+
+### La decisión de Miguel sobre el candado (2026-08-30): **«vamos con la 1, mantén el candado»**
+
+`crm.equipo` queda con candado `BEFORE DELETE` fail-closed, y la baja deliberada sale por una **puerta
+declarada**: `crm.purgar_membresia_crm(perfil_id, motivo)` — **solo `service_role`** (revocada a `anon` y a
+`authenticated`, comprobado en el postflight), **motivo escrito de 20 caracteres mínimo** y **lápida** en
+`private.membresias_purgadas`. La válvula (`crm.purgando_membresia`) se cierra sola dentro de la propia
+función: medido, un `delete` suelto inmediatamente después sigue rebotando.
+
+🔴 **Dicho en voz alta:** purgar **sí** devuelve los accesos del Portal a quien estaba revocado. Lo que el
+candado impide es el borrado **accidental y silencioso** —la cascada del panel, el script de limpieza, un
+`delete` suelto—, que era el camino real. Y hay una segunda red no buscada: purgar a alguien **con historia**
+es imposible de todos modos, porque las claves foráneas de los ledgers que le nombran lo rechazan (23503,
+medido).
+
+**Dos consumidores adaptados:** `scripts/test-rls.mjs` (las dos retiradas de la membresía fabricada, la de la
+prueba y la del `finally`) y `scripts/clean-crm-data.mjs` (purga fila a fila con su motivo). Ambos pasan
+`node --check`.
+
+**Y el panel:** el borrado duro de un colaborador con ficha en `crm.equipo` deja de funcionar. La baja es
+desactivar, que es la norma que ya estaba escrita.
+
+### Declarado y no cerrado aquí
+
+- **La sesión no se cierra con las puertas:** las 4 personas revocadas siguen con `perfiles.activo = true` y
+  `auth.users.banned_until` NULL. Una de las tres cuentas llamadas «DEMO» **inició sesión el 28/08**.
+- **Ventana del PDF firmado:** una URL emitida ANTES de la revocación sigue siendo válida 300 s.

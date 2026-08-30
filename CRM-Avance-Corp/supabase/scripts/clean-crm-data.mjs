@@ -194,6 +194,23 @@ function getTargets() {
   return [...baseTargets, ...team];
 }
 
+// Purga fila a fila por la puerta declarada de la F5.a. Son pocas filas (el
+// equipo entero) y cada una queda anotada con su motivo.
+async function purgarEquipo(client) {
+  const { data, error } = await client.schema('crm').from('equipo').select('perfil_id');
+  if (error) fail(`No se pudo listar crm.equipo para purgar: ${error.message}`);
+  let purgadas = 0;
+  for (const fila of data ?? []) {
+    const { error: errorPurga } = await client.schema('crm').rpc('purgar_membresia_crm', {
+      p_perfil_id: fila.perfil_id,
+      p_motivo: 'Limpieza de base de pruebas con clean-crm-data: se vacia crm.equipo antes de re-sembrar',
+    });
+    if (errorPurga) fail(`No se pudo purgar la membresia ${fila.perfil_id}: ${errorPurga.message}`);
+    purgadas += 1;
+  }
+  return purgadas;
+}
+
 async function requireResponse(label, promise) {
   let response;
   try {
@@ -264,6 +281,17 @@ async function clean() {
 
   console.log('\nIniciando limpieza...');
   for (const { target, before } of totalBefore) {
+    // P-055 F5.a: `crm.equipo` tiene candado BEFORE DELETE. Borrar una fila
+    // convierte a una persona REVOCADA en AJENA al CRM y le devuelve los
+    // accesos del Portal, asi que el borrado directo esta prohibido incluso con
+    // llave de servidor. Se pasa por la PUERTA DECLARADA, que exige motivo y
+    // deja lapida en private.membresias_purgadas.
+    if (target.schema === 'crm' && target.table === 'equipo') {
+      const deleted = await purgarEquipo(client);
+      const status = deleted === before ? 'OK' : 'ATIPICO';
+      console.log(`${status} ${formatTableLabel(target)} => ${deleted}/${before} purgadas`);
+      continue;
+    }
     const deleted = await deleteRows(client, target);
     const status = deleted === before ? 'OK' : 'ATIPICO';
     console.log(`${status} ${formatTableLabel(target)} => ${deleted}/${before} borradas`);
