@@ -5802,7 +5802,11 @@ banco**, junto al gate pendiente de F4.
 
 ## P-055 · FASE 5.d — CERRAR LA PUERTA GEMELA MUERTA (2026-08-30)
 
-**Estado: 🟡 PREPARADA — dos auditorías atendidas ENTERAS, ensayo v2 EN VERDE (deshecho); pendiente de publicar.**
+**Estado: ✅ EN PRODUCCIÓN (2026-08-30 noche, registro 186).** Publicada por Miguel con `!` (su OK explícito
+de `public`). Verificado por CONTEO tras aplicar: **7/7 con el ACL literal `{postgres=X/postgres}`**, las 2
+de selección vivas para authenticated, registro **186** (`20260830210000`). Batería: `gate:vigencia` 6/6 ·
+`gate:analitica` 30/30 · advisors **0 ERROR** (133 WARN — 7 menos que antes de cerrar). Con esto la
+**Fase 5 queda ENTERA**: 5.a (181) + 5.b (184) + 5.c (185) + 5.d (186) y el paso 3 medido cerrado.
 Migración `20260830210000_crm_f5_d_cerrar_gemelas_catalogo_versionado.sql`. Residual del **paso 2** de la
 Fase 5 («la puerta gemela que sobre se retira por el camino seguro: cerrar → observar → borrar»). Aquí SOLO
 se CIERRA (revoke); el DROP va a la F7 con OK de Miguel por pieza.
