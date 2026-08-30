@@ -3238,6 +3238,13 @@ export interface AtribucionContrato {
   analista_nombre: string | null
   es_demo: boolean
   registrado_por: string | null
+  /** ATR-3: quién cobra de verdad; `cadena` = pertenece a una cadena de upgrade. */
+  atribucion_efectiva?: {
+    cadena: boolean
+    adoptada: boolean
+    analista_id: string | null
+    analista_nombre: string | null
+  } | null | undefined
   reasignaciones: {
     cuando: string
     de: string | null
@@ -3253,6 +3260,13 @@ const AtribucionContratoSchema = v.object({
   analista_nombre: v.nullable(v.string()),
   es_demo: v.boolean(),
   registrado_por: v.nullable(v.string()),
+  // Opcional a propósito: el front no exige la clave hasta que ATR-3a esté publicada.
+  atribucion_efectiva: v.optional(v.nullable(v.object({
+    cadena: v.boolean(),
+    adoptada: v.boolean(),
+    analista_id: v.nullable(v.string()),
+    analista_nombre: v.nullable(v.string()),
+  }))),
   reasignaciones: v.array(
     v.object({
       cuando: v.string(),

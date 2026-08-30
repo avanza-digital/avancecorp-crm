@@ -6038,3 +6038,37 @@ Archivos: `migrations/20260830233000_crm_atr_2_capital_por_cadena_de_upgrade.sql
 `scripts/rollback-atr2-p055.sql` (preflight anti-pisado + literal original) ·
 `scripts/registrar-atr2-version.sql` (triple embebido fail-closed) ·
 `scripts/ensayo-atr2-cadena-sintetica.sql`.
+
+---
+
+## P-055 · ATR-3a — LAS LENTES Y LA FICHA DICEN QUIÉN SE LLEVA LA PRODUCCIÓN (2026-08-31)
+
+**Estado: 🟡 PREPARADA — ensayo y ciclo EN VERDE (deshechos); en auditoría. Publicable en cualquier
+momento (no toca el camino del sello).** Migración `20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql`.
+Decisión de Miguel (31/08): las dos gráficas se ALINEAN + SIN funciones nuevas.
+
+**Tres cambios:** `metricas_capital_mes_fn` y `metricas_vencimientos_fn` — el corte de visibilidad
+no-global pasa de cartera (`cli.asesor_perfil_id`) al **analista del episodio** (con ATR-2 será el de
+la cadena); el join muerto a perfiles se retira; cooperativas intactas. `atribucion_contrato_fn` gana
+la clave **`atribucion_efectiva`** `{cadena, adoptada, analista_id, analista_nombre}` preguntando al
+resolutor; el resto del payload AL BYTE. **Efecto visible hoy: CERO** (solo gerencia/global mira esas
+gráficas y el corte no le aplica). Sin analista (15 históricos) → fuera de la vista no-global
+(invariante F3.5b); gerencia lo ve todo.
+
+**Oráculo bajo CLAIMS reales (dentro de la migración):** gerencia (global) byte a byte en ambas
+lentes · supervisor: la foto nueva = agregación PREDICHA a mano desde el núcleo (subárbol replicado
+con la MISMA CTE de `vendedor_ids_visibles` — que se niega sin claims por defensa en profundidad — y
+las cooperativas con su regla intacta) y todo mes movido queda explicado · fichas: payload viejo al
+byte + clave nueva contra la verdad pre-calculada como postgres. **Pines:** las 3 tocadas + resolutor
++ `capital_episodios` (viejo — ATR-3a va ANTES de ATR-2) + producción + `cerrar_periodo` +
+**`directorio_ranking_analistas` (la ÚNICA lente por cartera que queda, pinneada)** + `crear_contrato`.
+
+**Ensayos:** `ATR3A-ENSAYO-VERDE` y `ATR3A-CICLO-VERDE` (marcha atrás con anti-pisado de cuerpo Y
+atributos, ACL literal por función, guardianes). 🔴 Aprendido: `vendedor_ids_visibles` devuelve VACÍO
+sin claims (defensa en profundidad) — toda foto/predicción de lentes se captura bajo claims o se
+replica el subárbol a mano; las temporales que se releen bajo claims llevan GRANT explícito.
+Registrador con candado «mundo vivo YA migrado». Si se revierte en prod: retirar a mano la fila
+`20260831010000` del registro.
+
+Archivos: `migrations/20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql` ·
+`scripts/rollback-atr3a-p055.sql` · `scripts/registrar-atr3a-version.sql`.

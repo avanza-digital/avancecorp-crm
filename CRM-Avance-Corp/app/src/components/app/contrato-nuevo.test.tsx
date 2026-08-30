@@ -60,6 +60,8 @@ const legalesEstado = vi.hoisted(() => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  // ATR-3: el aviso de cadena de upgrade no aplica en estos escenarios — sin dato.
+  useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
   useDatosLegalesContrato: vi.fn((clienteId: string) => ({
     data: legalesEstado.error
       ? undefined
@@ -99,6 +101,7 @@ vi.mock('@/data/crm-queries', () => ({
 }))
 
 const { ContratoNuevo } = await import('./contrato-nuevo')
+const crmQueries = await import('@/data/crm-queries')
 const crearContrato = vi.mocked(crmApi.crearContrato)
 const completarDomicilio = vi.mocked(crmApi.completarDomicilioCliente)
 
@@ -667,5 +670,76 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
 
     await user.click(boton())
     expect(crearContrato).not.toHaveBeenCalled()
+  })
+})
+
+describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
+  it('POSITIVO: renovando un contrato de una cadena, avisa a quién cuenta', async () => {
+    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValueOnce({
+      data: {
+        contrato_id: 'origen-1',
+        analista_id: 'x-1',
+        analista_nombre: 'MARIA UPGRADE',
+        es_demo: false,
+        registrado_por: null,
+        atribucion_efectiva: {
+          cadena: true,
+          adoptada: false,
+          analista_id: 'x-1',
+          analista_nombre: 'MARIA UPGRADE',
+        },
+        reasignaciones: [],
+      },
+      isPending: false,
+      isError: false,
+    } as never)
+    render(
+      <Dialog open onClose={() => undefined}>
+        <ContratoNuevo
+          clienteId="cli-1"
+          clienteNombre="CLIENTE PORTAL UNO"
+          categoriaFija="renovacion"
+          renovacionOrigen={{
+            id: 'origen-1',
+            numeroContrato: '000123',
+            capital: 10000,
+            moneda: 'PEN',
+            fechaVencimiento: '2026-12-01',
+          }}
+          analistas={[{ perfil_id: 'x-1', nombre_completo: 'MARIA UPGRADE' }]}
+          onConfirmado={vi.fn()}
+          onEnviandoCambio={vi.fn()}
+          onCreado={vi.fn()}
+          onOmitir={vi.fn()}
+        />
+      </Dialog>,
+    )
+    expect(
+      screen.getByText(/Esta renovación cuenta al analista del upgrade: MARIA UPGRADE/),
+    ).toBeInTheDocument()
+  })
+
+  it('NEGATIVO: sin cadena en el origen, el aviso no existe', () => {
+    render(
+      <Dialog open onClose={() => undefined}>
+        <ContratoNuevo
+          clienteId="cli-1"
+          clienteNombre="CLIENTE PORTAL UNO"
+          categoriaFija="renovacion"
+          renovacionOrigen={{
+            id: 'origen-2',
+            numeroContrato: '000124',
+            capital: 10000,
+            moneda: 'PEN',
+            fechaVencimiento: '2026-12-01',
+          }}
+          onConfirmado={vi.fn()}
+          onEnviandoCambio={vi.fn()}
+          onCreado={vi.fn()}
+          onOmitir={vi.fn()}
+        />
+      </Dialog>,
+    )
+    expect(screen.queryByText(/cuenta al analista del upgrade/)).not.toBeInTheDocument()
   })
 })

@@ -492,6 +492,11 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         Lo registró {atribucion.registrado_por}
                       </p>
                     ) : null}
+                    {atribucion.atribucion_efectiva?.adoptada ? (
+                      <p className="mt-0.5 text-xs font-medium text-primary">
+                        Cuenta a {atribucion.atribucion_efectiva.analista_nombre ?? 'sin nombre'} — adoptada de la cadena del upgrade
+                      </p>
+                    ) : null}
                     {atribucion.es_demo ? (
                       <Badge variant="soft" className="mt-1.5">
                         Contrato de prueba — no cuenta en métricas

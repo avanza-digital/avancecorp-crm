@@ -35,7 +35,7 @@ import {
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
 import { CuentaPagoContrato } from '@/components/app/cuenta-pago-contrato'
-import { useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
+import { useAtribucionContrato, useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
 import {
   SECCION_BANCARIA_VACIA,
   validarDomicilioLegal,
@@ -210,6 +210,10 @@ export function ContratoNuevo({
   )
   const [capitalRenovado, setCapitalRenovado] = useState(renovacionOrigen ? String(renovacionOrigen.capital) : '')
   const [capitalAdicional, setCapitalAdicional] = useState(renovacionOrigen ? '0' : '')
+  // ATR-3: si el contrato que se renueva pertenece a una cadena de upgrade, la
+  // renovación contará al analista de esa cadena — se avisa junto al selector.
+  const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
+  const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
   const [moneda, setMoneda] = useState<Moneda>(renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
   const [tasa, setTasa] = useState('15') // default del negocio (espejo del portal)
   const [fechaInicio, setFechaInicio] = useState(hoyLocal())
@@ -966,6 +970,12 @@ export function ContratoNuevo({
             <p id="ct-analista-ayuda" className="text-xs text-muted-foreground">
               De quién es la venta. Si no corresponde a nadie más, déjala a tu nombre.
             </p>
+            {esRenovacion && cadenaOrigen?.cadena ? (
+              <p className="text-xs font-medium text-primary">
+                Esta renovación cuenta al analista del upgrade: {cadenaOrigen.analista_nombre ?? 'sin nombre'}. Este
+                selector registra quién la procesa.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
