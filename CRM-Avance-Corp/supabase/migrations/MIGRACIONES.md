@@ -5303,7 +5303,7 @@ transacción — un ensayo del cierre posterior en la misma tx sella como «manu
 
 ## 20260829230000 · FASE 1.4 — «la regla que obliga a las que vengan»
 
-**Estado: escrita; pendiente de aplicar. Registro → 178.**
+**Estado: ✅ EN PRODUCCIÓN (29/08, junto con la F1.5). Registro → 178.**
 
 **Por qué existe.** El arquitecto de servidor de Miguel señaló que la Fase 1 dejó
 su propia meta a medias. Medido contra producción, de sus tres ejemplos **dos no
@@ -5382,7 +5382,7 @@ nombrar la expresión: `order by n.nspname || '.' || c.relname`.
 
 ## 20260829233000 · FASE 1.5 — enmienda de la F1.4 tras la auditoría
 
-**Estado: escrita y probada en espejo; pendiente de aplicar (va junto con la F1.4). Registro → 179.**
+**Estado: ✅ EN PRODUCCIÓN (29/08). Registro → 179.**
 
 La F1.4 se auditó **antes** de aplicarse y volvió con tres bloqueantes. Como no
 se edita una migración ya versionada, la corrección viaja en su propia migración
@@ -5430,3 +5430,17 @@ exactamente las 3 tablas» era cierta de una versión anterior del trinquete (qu
 llevaba la consulta en línea); con el trinquete actual, sin la regla aplicada, lo
 que devuelve es «la regla no está en el servidor». Y el mutante de aquella
 versión **confirmaba** en vez de deshacerse.
+
+### Verificación en producción (29/08, tras publicar F1.4 + F1.5)
+
+| Comprobación | Resultado |
+|---|---|
+| Registro | **179** versiones, las dos nuevas **con cuerpo** |
+| La regla | **0 tablas sin rastro completo** en crm+public |
+| Lista blanca | 3 exenciones (`crm.usuario_eventos`, `public.audit_log`, `public.novedades_leidas`), **sello cuadra**, 0 alertas abiertas |
+| Coberturas completadas | **las 9 exactas** (`trg_audit_*_completa` en metas ×3, políticas SLA ×2, ledgers de leads ×4) |
+| Tablas auditadas | 42 → **45** |
+| Vigía | `crm-auditoria-vigia` activo, 06:29 UTC |
+| Gate + mutante contra producción | ✅ verde: «0 tablas sin rastro completo · 3 exenciones» y «mutante cazado por los cuatro filos» |
+| Advisors de seguridad | **0 ERROR** (169 avisos, ninguno nuevo salvo los 3 INFO `rls_enabled_no_policy` de las tablas nuevas — que es justo el deny-by-default buscado) |
+| **Humo del flujo VIVO del portal** (`scripts/humo-portal-auditoria-f1-5.sql`, en transacción deshecha) | ✅ el alta deja rastro · **el guardado repetido de cada carga del panel NO ensucia** (la corrección del `WHEN` funciona con el `upsert` real) · un cambio de verdad sí queda · **0 fugas** de la clave push |
