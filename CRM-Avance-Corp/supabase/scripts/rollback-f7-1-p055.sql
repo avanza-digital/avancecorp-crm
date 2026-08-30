@@ -31,14 +31,36 @@ begin
         (select p.proacl::text from pg_proc p where p.oid = v_fila[1]::regprocedure);
     end if;
   end loop;
+  -- las 7 firmas EXACTAS deben estar vigentes (Codex 30/08: contar no basta;
+  -- la declaracion interna la congela el candado solo-crece, aqui se verifica
+  -- la identidad y el estado de cada una):
+  declare v_firma text;
+  begin
+    foreach v_firma in array array[
+      'crm.metricas_distribucion_leads_fn(date,date)',
+      'crm.metricas_distribucion_leads_v2_fn(date,date)',
+      'crm.metricas_altas_analista_fn(integer)',
+      'crm.metricas_cartera_fn(date)',
+      'crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)',
+      'crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)',
+      'public.actualizar_numero_contrato(uuid,text,text,text)'
+    ] loop
+      if not exists (select 1 from private.f7_piezas_en_observacion o
+                      where o.firma = v_firma and o.ola = 'F7.1'
+                        and o.estado in ('observacion', 'cerrada_permanente')) then
+        raise exception 'rollback F7.1: falta la fila VIGENTE de % (¿doble rollback?)', v_firma;
+      end if;
+    end loop;
+  end;
   if (select count(*) from private.f7_piezas_en_observacion
        where ola = 'F7.1' and estado in ('observacion', 'cerrada_permanente')) <> 7 then
-    raise exception 'rollback F7.1: el libro no tiene las 7 filas VIGENTES de la ola (¿doble rollback?)';
+    raise exception 'rollback F7.1: hay filas vigentes de la ola DE MAS en el libro';
   end if;
-  -- el vigilante debe ser el AMPLIADO de F7.1 (strpos, jamas LIKE):
-  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
-        from pg_proc p
-       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
+  -- el vigilante debe ser el AMPLIADO de F7.1, sellado por huella (Codex
+  -- 30/08: la subcadena no bastaba):
+  if (select md5(p.prosrc) from pg_proc p
+       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure)
+     is distinct from '2e28ebb43a9606b40813b2e44099d992' then
     raise exception 'rollback F7.1: el vigilante NO es el ampliado de F7.1 - regenerar el rollback';
   end if;
   -- postgres debe seguir HEREDANDO del dueño de v1/v2 para poder devolverlas:
@@ -231,15 +253,11 @@ begin
   if v_txt not like 'OK:%' then
     raise exception 'rollback F7.1: el vigilante restaurado no da OK (%)', v_txt;
   end if;
-  if not exists (select 1 from pg_trigger t
-    where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
-      and t.tgname = 'trg_f7_obs_00_solo_crece' and t.tgenabled in ('O','A')) then
-    raise exception 'rollback F7.1: el candado solo-crece quedo APAGADO';
-  end if;
-  if not exists (select 1 from pg_trigger t
-    where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
-      and t.tgname = 'trg_f7_obs_01_no_borrar' and t.tgenabled in ('O','A')) then
-    raise exception 'rollback F7.1: el candado anti-borrar quedo APAGADO';
+  if (select count(*) from pg_trigger t
+       where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
+         and t.tgname in ('trg_f7_obs_00_solo_crece', 'trg_f7_obs_01_no_borrar', 'trg_f7_obs_02_no_truncar')
+         and t.tgenabled in ('O', 'A')) <> 3 then
+    raise exception 'rollback F7.1: algun candado del libro quedo APAGADO';
   end if;
   if exists (select 1 from pg_auth_members m
               where m.roleid = 'crm_metricas_bridge'::regrole

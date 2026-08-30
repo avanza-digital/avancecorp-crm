@@ -1,33 +1,55 @@
--- Registra 20260831050000 CON su cuerpo - fail-closed, etiqueta propia.
--- Candados: mundo-vivo (las 7 cerradas + vigilante AMPLIADO + filas VIGENTES
--- en el libro + HONESTIDAD TEMPORAL en hora de LIMA, no UTC - hallazgo Codex
--- 30/08), NULL-statements revienta, relectura post-insert.
+-- Registra 20260831060000 CON su cuerpo - fail-closed, etiqueta propia.
+-- Candados (Codex 30/08: el mundo-vivo debe probar el mundo ENTERO): las 7
+-- ACL cerradas al literal + vigilante ampliado sellado por huella + veredicto
+-- vivo OK + exactamente 7 filas vigentes de la ola + HONESTIDAD TEMPORAL en
+-- hora de LIMA. NULL-statements revienta, relectura post-insert.
 do $reg_f71$
-declare v_a text[]; v_nombre text; v_n integer;
+declare v_a text[]; v_nombre text; v_n integer; v_fila text[]; v_txt text;
+  v_acl constant text[][] := array[
+    array['crm.metricas_distribucion_leads_fn(date,date)',    '{crm_metricas_bridge=X/crm_metricas_bridge}'],
+    array['crm.metricas_distribucion_leads_v2_fn(date,date)', '{crm_metricas_bridge=X/crm_metricas_bridge}'],
+    array['crm.metricas_cartera_fn(date)',                    '{postgres=X/postgres}'],
+    array['crm.metricas_altas_analista_fn(integer)',          '{postgres=X/postgres}'],
+    array['crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)', '{postgres=X/postgres}'],
+    array['crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)', '{postgres=X/postgres}'],
+    array['public.actualizar_numero_contrato(uuid,text,text,text)', '{postgres=X/postgres}']
+  ];
 begin
-  if (select p.proacl::text from pg_proc p
-      where p.oid = 'crm.metricas_cartera_fn(date)'::regprocedure)
-     is distinct from '{postgres=X/postgres}' then
-    raise exception 'Registro F7.1: el mundo vivo NO esta migrado — aplicar antes de registrar';
-  end if;
-  -- el vigilante debe ser el AMPLIADO (strpos, jamas LIKE):
-  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
-        from pg_proc p
-       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
+  foreach v_fila slice 1 in array v_acl loop
+    if (select p.proacl::text from pg_proc p where p.oid = v_fila[1]::regprocedure)
+       is distinct from v_fila[2] then
+      raise exception 'Registro F7.1: % NO esta cerrada (%) — aplicar antes de registrar', v_fila[1],
+        (select p.proacl::text from pg_proc p where p.oid = v_fila[1]::regprocedure);
+    end if;
+  end loop;
+  -- el vigilante debe ser el AMPLIADO, sellado por huella:
+  if (select md5(p.prosrc) from pg_proc p
+       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure)
+     is distinct from '2e28ebb43a9606b40813b2e44099d992' then
     raise exception 'Registro F7.1: el vigilante NO es el ampliado de F7.1 — aplicar antes de registrar';
   end if;
-  -- honestidad temporal en el reloj COMERCIAL (America/Lima): las fechas del
-  -- seed deben corresponder a la publicacion real.
+  -- y su veredicto VIVO debe dar OK sobre el mundo recien migrado:
+  v_txt := private.veredicto_f7();
+  if v_txt not like 'OK:%' then
+    raise exception 'Registro F7.1: el veredicto vivo no da OK (%)', v_txt;
+  end if;
+  -- exactamente 7 filas VIGENTES de la ola, todas dentro de la ventana de
+  -- honestidad temporal en el reloj COMERCIAL (America/Lima):
+  select count(*) into v_n from private.f7_piezas_en_observacion
+   where ola = 'F7.1' and estado in ('observacion', 'cerrada_permanente');
+  if v_n <> 7 then
+    raise exception 'Registro F7.1: hay % filas vigentes de la ola (deben ser 7 exactas)', v_n;
+  end if;
   select count(*) into v_n from private.f7_piezas_en_observacion
    where ola = 'F7.1' and estado in ('observacion', 'cerrada_permanente')
      and (now() at time zone 'America/Lima')::date between cerrada_en and cerrada_en + 2;
   if v_n <> 7 then
-    raise exception 'Registro F7.1: las filas VIGENTES de la ola no estan o su fecha de cierre no coincide con la publicacion real en hora de Lima (regenerar fechas del seed)';
+    raise exception 'Registro F7.1: la fecha de cierre de las filas no coincide con la publicacion real en hora de Lima (regenerar fechas del seed)';
   end if;
 
-  select statements into v_a from supabase_migrations.schema_migrations where version='20260831050000';
+  select statements into v_a from supabase_migrations.schema_migrations where version='20260831060000';
   if found and v_a is null then
-    raise exception 'La version 20260831050000 existe SIN cuerpo (statements NULL): repararla con UPDATE, no re-insertar'; end if;
+    raise exception 'La version 20260831060000 existe SIN cuerpo (statements NULL): repararla con UPDATE, no re-insertar'; end if;
   if found and v_a <> array[$mig_f71$-- P-055 F7.1 - CERRAR LO QUE QUEDO SUELTO (Fase 7, Ola 1).
 --
 -- Siete cierres, CERO derribos (plan por olas aprobado por Miguel el 31/08;
@@ -54,16 +76,24 @@ begin
 -- El censo de llamadores/superficies de las 7 lo hace el POSTFLIGHT llamando a
 -- private.assert_f7_piezas_cerradas() (el vigilante de la Ola 0, ya endurecido
 -- por dos auditorias) sobre las filas recien sembradas. Esta ola ademas AMPLIA
--- ese vigilante: el cierre transversal de herencia ahora vigila TAMBIEN que
--- service_role no alcance a postgres por membresia (hallazgo Codex 30/08 -
--- esta misma ola le quita a service_role dos EXECUTE directos).
+-- ese vigilante en DOS ejes (hallazgos Codex 30/08): el cierre transversal de
+-- herencia vigila tambien a service_role (esta ola le quita dos EXECUTE
+-- directos) y el alcance prohibido cubre no solo a postgres sino a CUALQUIER
+-- rol dueño de una pieza vigilada (crm_metricas_bridge posee v1/v2).
 --
--- (Reemplaza a la 20260831040000 preparada y NUNCA publicada: 3 hallazgos de
--- la refutacion de diseño de Codex del 30/08 - la danza del rol puente sobraba,
--- la adopcion sobraba, y el cierre transversal quedaba corto. Enmienda
--- registrada en MIGRACIONES.md.)
+-- (v3. Reemplaza a la 20260831050000 - jamas publicada -, que a su vez
+-- reemplazo a la 20260831040000: la refutacion de DISEÑO de Codex (30/08)
+-- tumbo la danza del rol puente, la adopcion y el cierre corto; la refutacion
+-- de IMPLEMENTACION (30/08 noche) tumbo la re-declaracion parcial tras
+-- rollback, el cierre transversal sin el dueño de v1/v2 y el sello por
+-- subcadena del vigilante. Enmiendas registradas en MIGRACIONES.md.)
 
 begin;
+
+-- El oraculo foto-antes/compara-despues lee datos vivos: REPEATABLE READ evita
+-- el falso rojo por trafico entre la foto y la comparacion (auditor 30/08;
+-- fail-safe igual - un serialization error solo obliga a re-intentar).
+set transaction isolation level repeatable read;
 
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -175,25 +205,17 @@ revoke execute on function public.actualizar_numero_contrato(uuid,text,text,text
 -- =====================================================================
 -- 2) AL LIBRO: 3 en observacion (14 dias) + 4 permanentes.
 -- =====================================================================
--- RE-APLICACION tras un rollback: aquel NO borra (doctrina del libro: jamas
--- DELETE; la salida es estado='liberada') - deja las filas de esta ola en
--- 'liberada'. Aqui se RE-DECLARAN bajando el candado NOMBRADO (doctrina
--- limpieza-leads), con rastro en nota. En el primer viaje esto es un no-op.
+-- RE-APLICACION tras un rollback (Codex 30/08, refutacion de la v2): aquel NO
+-- borra (doctrina del libro: jamas DELETE; la salida es estado='liberada') -
+-- deja las filas de esta ola en 'liberada'. El upsert de abajo las RE-DECLARA
+-- ENTERAS (huella/ACL/patron/llamadores/ok - cualquier drift previo se repone)
+-- y RE-ARRANCA la ventana con fechas del dia real en hora de Lima: los 14 dias
+-- de observacion se re-cumplen desde cero. En el primer viaje no hay conflicto
+-- y mandan las fechas LITERALES del seed (las que exige el candado de
+-- honestidad del registrador). Candado NOMBRADO bajado solo para el upsert y
+-- re-armado (el postflight cuenta los 3 candados vivos).
 alter table private.f7_piezas_en_observacion disable trigger trg_f7_obs_00_solo_crece;
-update private.f7_piezas_en_observacion
-   set estado = 'observacion',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada'
-   and firma in ('crm.metricas_distribucion_leads_fn(date,date)',
-                 'crm.metricas_distribucion_leads_v2_fn(date,date)',
-                 'crm.metricas_altas_analista_fn(integer)');
-update private.f7_piezas_en_observacion
-   set estado = 'cerrada_permanente',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada';
-alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
-
-insert into private.f7_piezas_en_observacion
+insert into private.f7_piezas_en_observacion as libro
   (firma, huella_md5, acl_esperada, llamadores_permitidos, patron_censo, ola, estado,
    cerrada_en, drop_no_antes_de, ok_miguel, nota)
 values
@@ -239,17 +261,32 @@ values
    date '2026-08-31', null,
    'Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel (toca public: su ! es el OK explicito)',
    'organo interno de numero_pdf_v3 - JAMAS se derriba')
-on conflict (firma) do nothing;
+on conflict (firma) do update set
+  huella_md5            = excluded.huella_md5,
+  acl_esperada          = excluded.acl_esperada,
+  llamadores_permitidos = excluded.llamadores_permitidos,
+  patron_censo          = excluded.patron_censo,
+  ola                   = excluded.ola,
+  estado                = excluded.estado,
+  cerrada_en            = (now() at time zone 'America/Lima')::date,
+  drop_no_antes_de      = case when excluded.estado = 'observacion'
+                               then (now() at time zone 'America/Lima')::date + 14
+                               else null end,
+  ok_miguel             = excluded.ok_miguel,
+  nota                  = excluded.nota || ' | re-declarada en re-aplicacion de F7.1 (ventana re-arrancada)'
+where libro.estado = 'liberada';
+alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
 
 -- =====================================================================
--- 3) EL VIGILANTE SE AMPLIA (hallazgo Codex 30/08): el cierre transversal
---    de herencia ahora vigila tambien a service_role. Esta ola le quita dos
---    EXECUTE directos; sin esta ampliacion, un GRANT futuro de MEMBRESIA
---    se los devolveria todos SIN tocar proacl y el vigia seguiria verde.
---    Cuerpo identico al de la Ola 0 salvo el trio de lineas del cierre
---    (preflight arriba pinnea la huella de la Ola 0; postflight verifica
---    que el nuevo cuerpo menciona a service_role via strpos - LIKE jamas:
---    el guion bajo es comodin).
+-- 3) EL VIGILANTE SE AMPLIA (2 hallazgos Codex 30/08): el cierre transversal
+--    de herencia ahora vigila (a) tambien a service_role - esta ola le quita
+--    dos EXECUTE directos; sin la ampliacion, un GRANT futuro de MEMBRESIA se
+--    los devolveria todos SIN tocar proacl - y (b) NO solo el alcance a
+--    postgres sino a CUALQUIER rol dueño de una pieza vigilada
+--    (crm_metricas_bridge posee v1/v2: una membresia heredable hacia el las
+--    reabriria con el proacl intacto). Cuerpo identico al de la Ola 0 salvo
+--    el bloque del cierre; el preflight pinnea la huella de la Ola 0 y el
+--    postflight SELLA la nueva por md5 (la subcadena no bastaba - Codex).
 -- =====================================================================
 create or replace function private.assert_f7_piezas_cerradas()
 returns text
@@ -357,21 +394,31 @@ begin
     if r.estado = 'observacion' then v_obs := v_obs + 1; else v_perm := v_perm + 1; end if;
   end loop;
 
-  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia postgres) transmite
-  -- los privilegios del owner SIN tocar proacl. Cierre transversal: ni
-  -- authenticated, ni anon, NI service_role (ampliado en F7.1 - hallazgo Codex
-  -- 30/08: esta ola le quita a service_role dos EXECUTE directos; sin esto, un
-  -- GRANT futuro de membresia se los devolveria todos SIN tocar proacl y el
-  -- vigia seguiria verde) pueden alcanzar a postgres por la cadena de roles.
+  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia el dueño) transmite
+  -- los privilegios del owner SIN tocar proacl. Cierre transversal AMPLIADO
+  -- en F7.1 (2 hallazgos Codex 30/08): ni authenticated, ni anon, NI
+  -- service_role (esta ola le quita dos EXECUTE directos) pueden alcanzar por
+  -- la cadena de roles a postgres NI a NINGUN rol dueño de una pieza vigilada
+  -- (crm_metricas_bridge posee las puertas v1/v2: una membresia heredable
+  -- hacia el las reabriria con el proacl intacto y el vigia verde).
   if exists (
     with recursive alcance as (
       select pr.oid from pg_roles pr where pr.rolname in ('authenticated', 'anon', 'service_role')
       union
       select m.roleid from pg_auth_members m join alcance al on al.oid = m.member
     )
-    select 1 from alcance al2 join pg_roles pr2 on pr2.oid = al2.oid where pr2.rolname = 'postgres'
+    select 1 from alcance al2
+     where al2.oid = 'postgres'::regrole
+        or al2.oid in (
+          select p.proowner from pg_proc p
+           where p.oid in (
+             select to_regprocedure(o.firma) from private.f7_piezas_en_observacion o
+              where o.estado in ('observacion', 'cerrada_permanente')
+                and to_regprocedure(o.firma) is not null
+           )
+        )
   ) then
-    raise exception 'F7: authenticated/anon/service_role ALCANZAN a postgres por membresia de roles — puerta trasera de herencia';
+    raise exception 'F7: un rol de API ALCANZA a postgres o a un dueño de pieza vigilada por membresia de roles — puerta trasera de herencia';
   end if;
 
   return format('OK: %s piezas vigiladas (observacion %s, permanentes %s, demolidas %s, liberadas %s)',
@@ -411,13 +458,21 @@ begin
   if v_h is distinct from 'df8a99e0dfc4e1d94794073787aa84d7' then
     raise exception 'F7.1 postflight: el cuerpo de altas cambio dentro de la transaccion (huella %)', v_h;
   end if;
-  -- 4b2) El vigilante ampliado quedo en su sitio: menciona a service_role en
-  --      el cierre transversal (strpos, jamas LIKE: el guion bajo es comodin)
-  --      y su veredicto YA corre con la lista ampliada mas abajo (4e).
-  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
-        from pg_proc p
-       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
-    raise exception 'F7.1 postflight: el vigilante NO quedo ampliado con service_role';
+  -- 4b2) El vigilante ampliado quedo SELLADO por huella (Codex 30/08: la
+  --      subcadena no bastaba) y su veredicto corre con el cierre ampliado
+  --      mas abajo (4e).
+  select md5(p.prosrc) into v_h from pg_proc p
+   where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure;
+  if v_h is distinct from '2e28ebb43a9606b40813b2e44099d992' then
+    raise exception 'F7.1 postflight: el vigilante ampliado no es el esperado (huella %)', v_h;
+  end if;
+  -- 4b3) Los 3 candados del libro siguen VIVOS tras el upsert con candado
+  --      bajado (auditor 30/08: la Ola 0 los re-contaba, esta ola tambien).
+  if (select count(*) from pg_trigger t
+       where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
+         and t.tgname in ('trg_f7_obs_00_solo_crece', 'trg_f7_obs_01_no_borrar', 'trg_f7_obs_02_no_truncar')
+         and t.tgenabled in ('O', 'A')) <> 3 then
+    raise exception 'F7.1 postflight: algun candado del libro quedo APAGADO';
   end if;
 
   -- 4c) La delegacion DEFINER sigue viva: conversion_mensual_fn (que llama a
@@ -472,9 +527,9 @@ end $$;
 
 commit;
 $mig_f71$] then
-    raise exception 'La version 20260831050000 ya existe con OTRO cuerpo'; end if;
+    raise exception 'La version 20260831060000 ya existe con OTRO cuerpo'; end if;
   insert into supabase_migrations.schema_migrations (version, name, statements)
-  values ('20260831050000','crm_f7_1_cerrar_lo_que_quedo_suelto', array[$mig_f71$-- P-055 F7.1 - CERRAR LO QUE QUEDO SUELTO (Fase 7, Ola 1).
+  values ('20260831060000','crm_f7_1_cerrar_lo_que_quedo_suelto', array[$mig_f71$-- P-055 F7.1 - CERRAR LO QUE QUEDO SUELTO (Fase 7, Ola 1).
 --
 -- Siete cierres, CERO derribos (plan por olas aprobado por Miguel el 31/08;
 -- tabla de OK de esta ola en MIGRACIONES.md). Tres grupos:
@@ -500,16 +555,24 @@ $mig_f71$] then
 -- El censo de llamadores/superficies de las 7 lo hace el POSTFLIGHT llamando a
 -- private.assert_f7_piezas_cerradas() (el vigilante de la Ola 0, ya endurecido
 -- por dos auditorias) sobre las filas recien sembradas. Esta ola ademas AMPLIA
--- ese vigilante: el cierre transversal de herencia ahora vigila TAMBIEN que
--- service_role no alcance a postgres por membresia (hallazgo Codex 30/08 -
--- esta misma ola le quita a service_role dos EXECUTE directos).
+-- ese vigilante en DOS ejes (hallazgos Codex 30/08): el cierre transversal de
+-- herencia vigila tambien a service_role (esta ola le quita dos EXECUTE
+-- directos) y el alcance prohibido cubre no solo a postgres sino a CUALQUIER
+-- rol dueño de una pieza vigilada (crm_metricas_bridge posee v1/v2).
 --
--- (Reemplaza a la 20260831040000 preparada y NUNCA publicada: 3 hallazgos de
--- la refutacion de diseño de Codex del 30/08 - la danza del rol puente sobraba,
--- la adopcion sobraba, y el cierre transversal quedaba corto. Enmienda
--- registrada en MIGRACIONES.md.)
+-- (v3. Reemplaza a la 20260831050000 - jamas publicada -, que a su vez
+-- reemplazo a la 20260831040000: la refutacion de DISEÑO de Codex (30/08)
+-- tumbo la danza del rol puente, la adopcion y el cierre corto; la refutacion
+-- de IMPLEMENTACION (30/08 noche) tumbo la re-declaracion parcial tras
+-- rollback, el cierre transversal sin el dueño de v1/v2 y el sello por
+-- subcadena del vigilante. Enmiendas registradas en MIGRACIONES.md.)
 
 begin;
+
+-- El oraculo foto-antes/compara-despues lee datos vivos: REPEATABLE READ evita
+-- el falso rojo por trafico entre la foto y la comparacion (auditor 30/08;
+-- fail-safe igual - un serialization error solo obliga a re-intentar).
+set transaction isolation level repeatable read;
 
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -621,25 +684,17 @@ revoke execute on function public.actualizar_numero_contrato(uuid,text,text,text
 -- =====================================================================
 -- 2) AL LIBRO: 3 en observacion (14 dias) + 4 permanentes.
 -- =====================================================================
--- RE-APLICACION tras un rollback: aquel NO borra (doctrina del libro: jamas
--- DELETE; la salida es estado='liberada') - deja las filas de esta ola en
--- 'liberada'. Aqui se RE-DECLARAN bajando el candado NOMBRADO (doctrina
--- limpieza-leads), con rastro en nota. En el primer viaje esto es un no-op.
+-- RE-APLICACION tras un rollback (Codex 30/08, refutacion de la v2): aquel NO
+-- borra (doctrina del libro: jamas DELETE; la salida es estado='liberada') -
+-- deja las filas de esta ola en 'liberada'. El upsert de abajo las RE-DECLARA
+-- ENTERAS (huella/ACL/patron/llamadores/ok - cualquier drift previo se repone)
+-- y RE-ARRANCA la ventana con fechas del dia real en hora de Lima: los 14 dias
+-- de observacion se re-cumplen desde cero. En el primer viaje no hay conflicto
+-- y mandan las fechas LITERALES del seed (las que exige el candado de
+-- honestidad del registrador). Candado NOMBRADO bajado solo para el upsert y
+-- re-armado (el postflight cuenta los 3 candados vivos).
 alter table private.f7_piezas_en_observacion disable trigger trg_f7_obs_00_solo_crece;
-update private.f7_piezas_en_observacion
-   set estado = 'observacion',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada'
-   and firma in ('crm.metricas_distribucion_leads_fn(date,date)',
-                 'crm.metricas_distribucion_leads_v2_fn(date,date)',
-                 'crm.metricas_altas_analista_fn(integer)');
-update private.f7_piezas_en_observacion
-   set estado = 'cerrada_permanente',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada';
-alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
-
-insert into private.f7_piezas_en_observacion
+insert into private.f7_piezas_en_observacion as libro
   (firma, huella_md5, acl_esperada, llamadores_permitidos, patron_censo, ola, estado,
    cerrada_en, drop_no_antes_de, ok_miguel, nota)
 values
@@ -685,17 +740,32 @@ values
    date '2026-08-31', null,
    'Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel (toca public: su ! es el OK explicito)',
    'organo interno de numero_pdf_v3 - JAMAS se derriba')
-on conflict (firma) do nothing;
+on conflict (firma) do update set
+  huella_md5            = excluded.huella_md5,
+  acl_esperada          = excluded.acl_esperada,
+  llamadores_permitidos = excluded.llamadores_permitidos,
+  patron_censo          = excluded.patron_censo,
+  ola                   = excluded.ola,
+  estado                = excluded.estado,
+  cerrada_en            = (now() at time zone 'America/Lima')::date,
+  drop_no_antes_de      = case when excluded.estado = 'observacion'
+                               then (now() at time zone 'America/Lima')::date + 14
+                               else null end,
+  ok_miguel             = excluded.ok_miguel,
+  nota                  = excluded.nota || ' | re-declarada en re-aplicacion de F7.1 (ventana re-arrancada)'
+where libro.estado = 'liberada';
+alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
 
 -- =====================================================================
--- 3) EL VIGILANTE SE AMPLIA (hallazgo Codex 30/08): el cierre transversal
---    de herencia ahora vigila tambien a service_role. Esta ola le quita dos
---    EXECUTE directos; sin esta ampliacion, un GRANT futuro de MEMBRESIA
---    se los devolveria todos SIN tocar proacl y el vigia seguiria verde.
---    Cuerpo identico al de la Ola 0 salvo el trio de lineas del cierre
---    (preflight arriba pinnea la huella de la Ola 0; postflight verifica
---    que el nuevo cuerpo menciona a service_role via strpos - LIKE jamas:
---    el guion bajo es comodin).
+-- 3) EL VIGILANTE SE AMPLIA (2 hallazgos Codex 30/08): el cierre transversal
+--    de herencia ahora vigila (a) tambien a service_role - esta ola le quita
+--    dos EXECUTE directos; sin la ampliacion, un GRANT futuro de MEMBRESIA se
+--    los devolveria todos SIN tocar proacl - y (b) NO solo el alcance a
+--    postgres sino a CUALQUIER rol dueño de una pieza vigilada
+--    (crm_metricas_bridge posee v1/v2: una membresia heredable hacia el las
+--    reabriria con el proacl intacto). Cuerpo identico al de la Ola 0 salvo
+--    el bloque del cierre; el preflight pinnea la huella de la Ola 0 y el
+--    postflight SELLA la nueva por md5 (la subcadena no bastaba - Codex).
 -- =====================================================================
 create or replace function private.assert_f7_piezas_cerradas()
 returns text
@@ -803,21 +873,31 @@ begin
     if r.estado = 'observacion' then v_obs := v_obs + 1; else v_perm := v_perm + 1; end if;
   end loop;
 
-  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia postgres) transmite
-  -- los privilegios del owner SIN tocar proacl. Cierre transversal: ni
-  -- authenticated, ni anon, NI service_role (ampliado en F7.1 - hallazgo Codex
-  -- 30/08: esta ola le quita a service_role dos EXECUTE directos; sin esto, un
-  -- GRANT futuro de membresia se los devolveria todos SIN tocar proacl y el
-  -- vigia seguiria verde) pueden alcanzar a postgres por la cadena de roles.
+  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia el dueño) transmite
+  -- los privilegios del owner SIN tocar proacl. Cierre transversal AMPLIADO
+  -- en F7.1 (2 hallazgos Codex 30/08): ni authenticated, ni anon, NI
+  -- service_role (esta ola le quita dos EXECUTE directos) pueden alcanzar por
+  -- la cadena de roles a postgres NI a NINGUN rol dueño de una pieza vigilada
+  -- (crm_metricas_bridge posee las puertas v1/v2: una membresia heredable
+  -- hacia el las reabriria con el proacl intacto y el vigia verde).
   if exists (
     with recursive alcance as (
       select pr.oid from pg_roles pr where pr.rolname in ('authenticated', 'anon', 'service_role')
       union
       select m.roleid from pg_auth_members m join alcance al on al.oid = m.member
     )
-    select 1 from alcance al2 join pg_roles pr2 on pr2.oid = al2.oid where pr2.rolname = 'postgres'
+    select 1 from alcance al2
+     where al2.oid = 'postgres'::regrole
+        or al2.oid in (
+          select p.proowner from pg_proc p
+           where p.oid in (
+             select to_regprocedure(o.firma) from private.f7_piezas_en_observacion o
+              where o.estado in ('observacion', 'cerrada_permanente')
+                and to_regprocedure(o.firma) is not null
+           )
+        )
   ) then
-    raise exception 'F7: authenticated/anon/service_role ALCANZAN a postgres por membresia de roles — puerta trasera de herencia';
+    raise exception 'F7: un rol de API ALCANZA a postgres o a un dueño de pieza vigilada por membresia de roles — puerta trasera de herencia';
   end if;
 
   return format('OK: %s piezas vigiladas (observacion %s, permanentes %s, demolidas %s, liberadas %s)',
@@ -857,13 +937,21 @@ begin
   if v_h is distinct from 'df8a99e0dfc4e1d94794073787aa84d7' then
     raise exception 'F7.1 postflight: el cuerpo de altas cambio dentro de la transaccion (huella %)', v_h;
   end if;
-  -- 4b2) El vigilante ampliado quedo en su sitio: menciona a service_role en
-  --      el cierre transversal (strpos, jamas LIKE: el guion bajo es comodin)
-  --      y su veredicto YA corre con la lista ampliada mas abajo (4e).
-  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
-        from pg_proc p
-       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
-    raise exception 'F7.1 postflight: el vigilante NO quedo ampliado con service_role';
+  -- 4b2) El vigilante ampliado quedo SELLADO por huella (Codex 30/08: la
+  --      subcadena no bastaba) y su veredicto corre con el cierre ampliado
+  --      mas abajo (4e).
+  select md5(p.prosrc) into v_h from pg_proc p
+   where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure;
+  if v_h is distinct from '2e28ebb43a9606b40813b2e44099d992' then
+    raise exception 'F7.1 postflight: el vigilante ampliado no es el esperado (huella %)', v_h;
+  end if;
+  -- 4b3) Los 3 candados del libro siguen VIVOS tras el upsert con candado
+  --      bajado (auditor 30/08: la Ola 0 los re-contaba, esta ola tambien).
+  if (select count(*) from pg_trigger t
+       where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
+         and t.tgname in ('trg_f7_obs_00_solo_crece', 'trg_f7_obs_01_no_borrar', 'trg_f7_obs_02_no_truncar')
+         and t.tgenabled in ('O', 'A')) <> 3 then
+    raise exception 'F7.1 postflight: algun candado del libro quedo APAGADO';
   end if;
 
   -- 4c) La delegacion DEFINER sigue viva: conversion_mensual_fn (que llama a
@@ -921,7 +1009,7 @@ $mig_f71$])
   on conflict (version) do nothing;
 
   select name, statements into v_nombre, v_a
-    from supabase_migrations.schema_migrations where version='20260831050000';
+    from supabase_migrations.schema_migrations where version='20260831060000';
   if not found then
     raise exception 'Registro F7.1: la fila no existe tras el insert'; end if;
   if v_nombre is distinct from 'crm_f7_1_cerrar_lo_que_quedo_suelto' then
@@ -952,16 +1040,24 @@ $mig_f71$])
 -- El censo de llamadores/superficies de las 7 lo hace el POSTFLIGHT llamando a
 -- private.assert_f7_piezas_cerradas() (el vigilante de la Ola 0, ya endurecido
 -- por dos auditorias) sobre las filas recien sembradas. Esta ola ademas AMPLIA
--- ese vigilante: el cierre transversal de herencia ahora vigila TAMBIEN que
--- service_role no alcance a postgres por membresia (hallazgo Codex 30/08 -
--- esta misma ola le quita a service_role dos EXECUTE directos).
+-- ese vigilante en DOS ejes (hallazgos Codex 30/08): el cierre transversal de
+-- herencia vigila tambien a service_role (esta ola le quita dos EXECUTE
+-- directos) y el alcance prohibido cubre no solo a postgres sino a CUALQUIER
+-- rol dueño de una pieza vigilada (crm_metricas_bridge posee v1/v2).
 --
--- (Reemplaza a la 20260831040000 preparada y NUNCA publicada: 3 hallazgos de
--- la refutacion de diseño de Codex del 30/08 - la danza del rol puente sobraba,
--- la adopcion sobraba, y el cierre transversal quedaba corto. Enmienda
--- registrada en MIGRACIONES.md.)
+-- (v3. Reemplaza a la 20260831050000 - jamas publicada -, que a su vez
+-- reemplazo a la 20260831040000: la refutacion de DISEÑO de Codex (30/08)
+-- tumbo la danza del rol puente, la adopcion y el cierre corto; la refutacion
+-- de IMPLEMENTACION (30/08 noche) tumbo la re-declaracion parcial tras
+-- rollback, el cierre transversal sin el dueño de v1/v2 y el sello por
+-- subcadena del vigilante. Enmiendas registradas en MIGRACIONES.md.)
 
 begin;
+
+-- El oraculo foto-antes/compara-despues lee datos vivos: REPEATABLE READ evita
+-- el falso rojo por trafico entre la foto y la comparacion (auditor 30/08;
+-- fail-safe igual - un serialization error solo obliga a re-intentar).
+set transaction isolation level repeatable read;
 
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
@@ -1073,25 +1169,17 @@ revoke execute on function public.actualizar_numero_contrato(uuid,text,text,text
 -- =====================================================================
 -- 2) AL LIBRO: 3 en observacion (14 dias) + 4 permanentes.
 -- =====================================================================
--- RE-APLICACION tras un rollback: aquel NO borra (doctrina del libro: jamas
--- DELETE; la salida es estado='liberada') - deja las filas de esta ola en
--- 'liberada'. Aqui se RE-DECLARAN bajando el candado NOMBRADO (doctrina
--- limpieza-leads), con rastro en nota. En el primer viaje esto es un no-op.
+-- RE-APLICACION tras un rollback (Codex 30/08, refutacion de la v2): aquel NO
+-- borra (doctrina del libro: jamas DELETE; la salida es estado='liberada') -
+-- deja las filas de esta ola en 'liberada'. El upsert de abajo las RE-DECLARA
+-- ENTERAS (huella/ACL/patron/llamadores/ok - cualquier drift previo se repone)
+-- y RE-ARRANCA la ventana con fechas del dia real en hora de Lima: los 14 dias
+-- de observacion se re-cumplen desde cero. En el primer viaje no hay conflicto
+-- y mandan las fechas LITERALES del seed (las que exige el candado de
+-- honestidad del registrador). Candado NOMBRADO bajado solo para el upsert y
+-- re-armado (el postflight cuenta los 3 candados vivos).
 alter table private.f7_piezas_en_observacion disable trigger trg_f7_obs_00_solo_crece;
-update private.f7_piezas_en_observacion
-   set estado = 'observacion',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada'
-   and firma in ('crm.metricas_distribucion_leads_fn(date,date)',
-                 'crm.metricas_distribucion_leads_v2_fn(date,date)',
-                 'crm.metricas_altas_analista_fn(integer)');
-update private.f7_piezas_en_observacion
-   set estado = 'cerrada_permanente',
-       nota = coalesce(nota, '') || ' | re-declarada en re-aplicacion de F7.1'
- where ola = 'F7.1' and estado = 'liberada';
-alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
-
-insert into private.f7_piezas_en_observacion
+insert into private.f7_piezas_en_observacion as libro
   (firma, huella_md5, acl_esperada, llamadores_permitidos, patron_censo, ola, estado,
    cerrada_en, drop_no_antes_de, ok_miguel, nota)
 values
@@ -1137,17 +1225,32 @@ values
    date '2026-08-31', null,
    'Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel (toca public: su ! es el OK explicito)',
    'organo interno de numero_pdf_v3 - JAMAS se derriba')
-on conflict (firma) do nothing;
+on conflict (firma) do update set
+  huella_md5            = excluded.huella_md5,
+  acl_esperada          = excluded.acl_esperada,
+  llamadores_permitidos = excluded.llamadores_permitidos,
+  patron_censo          = excluded.patron_censo,
+  ola                   = excluded.ola,
+  estado                = excluded.estado,
+  cerrada_en            = (now() at time zone 'America/Lima')::date,
+  drop_no_antes_de      = case when excluded.estado = 'observacion'
+                               then (now() at time zone 'America/Lima')::date + 14
+                               else null end,
+  ok_miguel             = excluded.ok_miguel,
+  nota                  = excluded.nota || ' | re-declarada en re-aplicacion de F7.1 (ventana re-arrancada)'
+where libro.estado = 'liberada';
+alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
 
 -- =====================================================================
--- 3) EL VIGILANTE SE AMPLIA (hallazgo Codex 30/08): el cierre transversal
---    de herencia ahora vigila tambien a service_role. Esta ola le quita dos
---    EXECUTE directos; sin esta ampliacion, un GRANT futuro de MEMBRESIA
---    se los devolveria todos SIN tocar proacl y el vigia seguiria verde.
---    Cuerpo identico al de la Ola 0 salvo el trio de lineas del cierre
---    (preflight arriba pinnea la huella de la Ola 0; postflight verifica
---    que el nuevo cuerpo menciona a service_role via strpos - LIKE jamas:
---    el guion bajo es comodin).
+-- 3) EL VIGILANTE SE AMPLIA (2 hallazgos Codex 30/08): el cierre transversal
+--    de herencia ahora vigila (a) tambien a service_role - esta ola le quita
+--    dos EXECUTE directos; sin la ampliacion, un GRANT futuro de MEMBRESIA se
+--    los devolveria todos SIN tocar proacl - y (b) NO solo el alcance a
+--    postgres sino a CUALQUIER rol dueño de una pieza vigilada
+--    (crm_metricas_bridge posee v1/v2: una membresia heredable hacia el las
+--    reabriria con el proacl intacto). Cuerpo identico al de la Ola 0 salvo
+--    el bloque del cierre; el preflight pinnea la huella de la Ola 0 y el
+--    postflight SELLA la nueva por md5 (la subcadena no bastaba - Codex).
 -- =====================================================================
 create or replace function private.assert_f7_piezas_cerradas()
 returns text
@@ -1255,21 +1358,31 @@ begin
     if r.estado = 'observacion' then v_obs := v_obs + 1; else v_perm := v_perm + 1; end if;
   end loop;
 
-  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia postgres) transmite
-  -- los privilegios del owner SIN tocar proacl. Cierre transversal: ni
-  -- authenticated, ni anon, NI service_role (ampliado en F7.1 - hallazgo Codex
-  -- 30/08: esta ola le quita a service_role dos EXECUTE directos; sin esto, un
-  -- GRANT futuro de membresia se los devolveria todos SIN tocar proacl y el
-  -- vigia seguiria verde) pueden alcanzar a postgres por la cadena de roles.
+  -- Codex P0-4: un GRANT de MEMBRESIA (rol puente hacia el dueño) transmite
+  -- los privilegios del owner SIN tocar proacl. Cierre transversal AMPLIADO
+  -- en F7.1 (2 hallazgos Codex 30/08): ni authenticated, ni anon, NI
+  -- service_role (esta ola le quita dos EXECUTE directos) pueden alcanzar por
+  -- la cadena de roles a postgres NI a NINGUN rol dueño de una pieza vigilada
+  -- (crm_metricas_bridge posee las puertas v1/v2: una membresia heredable
+  -- hacia el las reabriria con el proacl intacto y el vigia verde).
   if exists (
     with recursive alcance as (
       select pr.oid from pg_roles pr where pr.rolname in ('authenticated', 'anon', 'service_role')
       union
       select m.roleid from pg_auth_members m join alcance al on al.oid = m.member
     )
-    select 1 from alcance al2 join pg_roles pr2 on pr2.oid = al2.oid where pr2.rolname = 'postgres'
+    select 1 from alcance al2
+     where al2.oid = 'postgres'::regrole
+        or al2.oid in (
+          select p.proowner from pg_proc p
+           where p.oid in (
+             select to_regprocedure(o.firma) from private.f7_piezas_en_observacion o
+              where o.estado in ('observacion', 'cerrada_permanente')
+                and to_regprocedure(o.firma) is not null
+           )
+        )
   ) then
-    raise exception 'F7: authenticated/anon/service_role ALCANZAN a postgres por membresia de roles — puerta trasera de herencia';
+    raise exception 'F7: un rol de API ALCANZA a postgres o a un dueño de pieza vigilada por membresia de roles — puerta trasera de herencia';
   end if;
 
   return format('OK: %s piezas vigiladas (observacion %s, permanentes %s, demolidas %s, liberadas %s)',
@@ -1309,13 +1422,21 @@ begin
   if v_h is distinct from 'df8a99e0dfc4e1d94794073787aa84d7' then
     raise exception 'F7.1 postflight: el cuerpo de altas cambio dentro de la transaccion (huella %)', v_h;
   end if;
-  -- 4b2) El vigilante ampliado quedo en su sitio: menciona a service_role en
-  --      el cierre transversal (strpos, jamas LIKE: el guion bajo es comodin)
-  --      y su veredicto YA corre con la lista ampliada mas abajo (4e).
-  if (select strpos(p.prosrc, $srv$'authenticated', 'anon', 'service_role'$srv$)
-        from pg_proc p
-       where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure) = 0 then
-    raise exception 'F7.1 postflight: el vigilante NO quedo ampliado con service_role';
+  -- 4b2) El vigilante ampliado quedo SELLADO por huella (Codex 30/08: la
+  --      subcadena no bastaba) y su veredicto corre con el cierre ampliado
+  --      mas abajo (4e).
+  select md5(p.prosrc) into v_h from pg_proc p
+   where p.oid = 'private.assert_f7_piezas_cerradas()'::regprocedure;
+  if v_h is distinct from '2e28ebb43a9606b40813b2e44099d992' then
+    raise exception 'F7.1 postflight: el vigilante ampliado no es el esperado (huella %)', v_h;
+  end if;
+  -- 4b3) Los 3 candados del libro siguen VIVOS tras el upsert con candado
+  --      bajado (auditor 30/08: la Ola 0 los re-contaba, esta ola tambien).
+  if (select count(*) from pg_trigger t
+       where t.tgrelid = 'private.f7_piezas_en_observacion'::regclass
+         and t.tgname in ('trg_f7_obs_00_solo_crece', 'trg_f7_obs_01_no_borrar', 'trg_f7_obs_02_no_truncar')
+         and t.tgenabled in ('O', 'A')) <> 3 then
+    raise exception 'F7.1 postflight: algun candado del libro quedo APAGADO';
   end if;
 
   -- 4c) La delegacion DEFINER sigue viva: conversion_mensual_fn (que llama a

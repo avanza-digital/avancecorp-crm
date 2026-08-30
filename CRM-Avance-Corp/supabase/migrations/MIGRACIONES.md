@@ -6176,10 +6176,11 @@ Archivos: `migrations/20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql
 
 **Estado: 🟡 PREPARADA (v2, enmendada) — la refutación de DISEÑO de Codex (30/08 noche) tumbó 3 de
 6 afirmaciones y el paquete se REHÍZO. ⏰ Publicar antes del 05/09 (freeze 08–10/09).** Migración
-`20260831050000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` — **reemplaza a la `20260831040000`
-preparada y NUNCA publicada** (regla del repo: las migraciones commiteadas no se editan; la
-reemplazada se retiró del árbol en este mismo commit y jamás llegó a prod ni al registro). Ola 1
-de la Fase 7: **7 cierres, 0 derribos**, todos al libro de la Ola 0.
+`20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` — **v3: reemplaza a la `20260831050000`
+(v2), que reemplazó a la `20260831040000` (v1); NINGUNA publicada jamás** (regla del repo: las
+migraciones commiteadas no se editan; cada reemplazada se retiró del árbol en su commit y ninguna
+llegó a prod ni al registro). Ola 1 de la Fase 7: **7 cierres, 0 derribos**, todos al libro de la
+Ola 0.
 
 **LA ENMIENDA (veredicto Codex 30/08, verificado contra prod antes de aplicar):**
 
@@ -6238,11 +6239,32 @@ ampliado: canaria + 6 puertas crm × 2 roles + **sonda directa de `public.actual
 (los argumentos sí se conocen: son los de las sondas P04) + **revocación efectiva bajo
 `service_role`** (cliente admin → 42501 en cartera y numero).
 
-**Ensayo y ciclo: PENDIENTES de re-correr sobre la v2** (la v1 dio `F71-ENSAYO-VERDE` y
-`F71-CICLO-VERDE`, pero la enmienda cambió la migración: se re-miden antes de publicar). Si se
-revierte en prod: `scripts/rollback-f7-1-p055.sql` + retirar a mano la fila `20260831050000` del
-registro.
+**Ensayo y ciclo RE-MEDIDOS sobre la v2, VERDES (30/08 noche, deshechos):** `F71-ENSAYO-VERDE` +
+`F71-CICLO-VERDE` — el ciclo aplica→libera→re-declara→libera y prueba viva la ruta nueva del
+rollback; el registrador falla-cerrado verificado contra prod («el mundo vivo NO esta migrado»).
+Si se revierte en prod: `scripts/rollback-f7-1-p055.sql` + retirar a mano la fila `20260831050000`
+del registro.
 
-Archivos: `migrations/20260831050000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
+**Auditoría 1/2 (auditor-rls, 30/08 noche): GO — 0 P0, 2 P1 operativos, 6 P2.** Refutó en verde
+los 10 puntos delicados (vigilante restaurado BYTE-IDÉNTICO a la Ola 0, huella ampliada
+`3376972d9e9d45a75de7508dc02dc045`; 3 embebidos del registrador idénticos entre sí y al archivo;
+ningún objeto persistente de prod-visible llama a las 7; argumentos de todas las sondas correctos;
+ninguna sonda residual incompatible). Atendido: P1-1 ya estaba hecho (ensayo/ciclo v2 verdes —
+esta sección lo decía mal), P2-6 comentario de test-rls corregido. **Declarado sin cambio:** P2-1
+la re-declaración tras rollback NO reinicia la ventana de 14d (mitigado: demoler exige migración
+propia + OK de Miguel; la nota deja rastro) · P2-2 el oráculo corre en READ COMMITTED — un dato
+que se mueva en prod entre foto y comparación aborta con falso rojo (fail-safe: rollback limpio,
+re-intentar; publicar en hora valle) · P2-3 la rama service_role del cierre transversal queda SIN
+mutante hasta el ciclo de banco (en prod no se puede `grant postgres to service_role` ni en
+ensayo; el mutante va al banco: grant + assert esperando el raise, deshecho) · P2-4/P2-5 notas
+cosméticas.
+
+**⚠️ OPERATIVO (P1-2): la ventana del registrador es [31/08 – 02/09] en hora de LIMA** (el seed
+declara `cerrada_en = 2026-08-31`; el candado es `between cerrada_en and cerrada_en + 2` — no
+admite publicar ANTES del 31/08 00:00 Lima). Publicar la migración y el registrador JUNTOS a
+partir de esa hora; si se publica la migración antes, el registrador aborta y prod queda migrado
+sin fila (el escenario «el ledger mintió»).
+
+Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 `scripts/rollback-f7-1-p055.sql` · `scripts/registrar-f7-1-version.sql` (candado de honestidad
-temporal en hora de Lima: la fecha del seed debe coincidir ±2 días con la publicación real).
+temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).

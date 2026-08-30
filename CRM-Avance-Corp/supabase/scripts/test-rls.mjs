@@ -6318,12 +6318,15 @@ async function testF7Ola1(sessions) {
       `F7.1 ${key} NO alcanza public.actualizar_numero_contrato (${error?.code ?? 'sin error'})`);
   }
   // service_role perdio sus DOS EXECUTE directos en esta ola: el cliente admin
-  // (llave de servicio) tambien debe recibir 42501 (Codex 30/08).
+  // (llave de servicio) tambien debe recibir 42501 (Codex 30/08). El MENSAJE
+  // debe ser el del ACL («permission denied for function»): sin esa distincion
+  // la sonda daria falso verde — el CUERPO de cartera tambien lanza 42501
+  // cuando auth.uid() es NULL, y eso significaria que la puerta SI abrio.
   {
     const { error } = await admin.schema('crm')
       .rpc('metricas_cartera_fn', { p_periodo: '2026-08-01' });
-    check(error?.code === '42501',
-      `F7.1 service_role NO alcanza metricas_cartera_fn (${error?.code ?? 'sin error'})`);
+    check(error?.code === '42501' && /permission denied/i.test(error?.message ?? ''),
+      `F7.1 service_role NO alcanza metricas_cartera_fn por ACL (${error?.code ?? 'sin error'}: ${error?.message ?? ''})`);
   }
   {
     const { error } = await admin.rpc('actualizar_numero_contrato', {
@@ -6332,8 +6335,8 @@ async function testF7Ola1(sessions) {
       p_notas: null,
       p_categoria: null,
     });
-    check(error?.code === '42501',
-      `F7.1 service_role NO alcanza public.actualizar_numero_contrato (${error?.code ?? 'sin error'})`);
+    check(error?.code === '42501' && /permission denied/i.test(error?.message ?? ''),
+      `F7.1 service_role NO alcanza public.actualizar_numero_contrato por ACL (${error?.code ?? 'sin error'}: ${error?.message ?? ''})`);
   }
 }
 
@@ -6412,7 +6415,8 @@ async function testVentasNucleoF5c(sessions, seed) {
   );
 
   // NOTA: revocado -> 42501 ya queda cubierto por 'banca P04 * con membresia
-  // revocada' (crear_contrato_con_cuenta con vend1 revocado). Cliente INACTIVO ->
+  // revocada' (crear_contrato_con_cuenta_pdf_v2 con vend1 revocado — la puerta
+  // interna quedo cerrada en F7.1). Cliente INACTIVO ->
   // 42501 se prueba en el postflight/ensayo de la migracion (flip de activo es
   // destructivo para el fixture del gate). La atribucion (analista_cierre =
   // registrador) la verifican la F3 y la auditoria estatica: aqui el alta muere
