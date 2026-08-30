@@ -6206,6 +6206,22 @@ async function testCapacidadUnificada(sessions, seed) {
 // contratos via los wrappers _con_cuenta_pdf). La autoridad ya no mira cartera:
 // cualquier analista vigente registra para cualquier cliente ACTIVO, y la venta
 // cuenta a quien la cierra (analista_cierre, F3).
+// P-055 ATR-1 — la atribucion por cadena de upgrade vive en la LECTURA.
+// El resolutor es private y sin grant: NADIE lo alcanza por PostgREST. Los
+// casos de CONDUCTA (upgrade de vend2 sobre cliente de vend1 -> las metricas
+// se lo acreditan a vend2; el dueno no lo ve como suyo; el directorio del
+// Portal NO cambia) necesitan un fixture de upgrade en seed-demo: van en el
+// proximo ciclo de banco, junto al resto de la suite.
+async function testAtribucionCadena(sessions) {
+  console.log('\n— Atribucion por cadena de upgrade (P-055 ATR-1) —');
+  for (const key of ['gerencia', 'vend1']) {
+    const { error } = await sessions[key].client
+      .schema('private').rpc('analista_atribuido_cadena', { p_contrato_id: crypto.randomUUID() });
+    check(Boolean(error),
+      `${key} NO alcanza private.analista_atribuido_cadena por la API (${error?.code ?? 'sin error'})`);
+  }
+}
+
 async function testVentasNucleoF5c(sessions, seed) {
   console.log('\n— Ventas al nucleo del dinero: Opcion B (P-055 F5.c) —');
   const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key]; // cliente activo, asesor = vend1
@@ -9951,6 +9967,7 @@ async function main() {
       await testAtribucionVentas(sessions, verifiedSeed);
       await testCapacidadUnificada(sessions, verifiedSeed);
       await testVentasNucleoF5c(sessions, verifiedSeed);
+      await testAtribucionCadena(sessions);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {

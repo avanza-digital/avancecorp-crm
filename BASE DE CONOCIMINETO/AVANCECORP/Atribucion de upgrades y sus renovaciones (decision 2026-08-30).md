@@ -24,13 +24,16 @@ capa de métricas/cierre:
 - `crm.metricas_cartera_fn` / `private.metricas_cartera_por_vendedor` (ops de cartera)
 - `crm.cerrar_periodo` · `crm.cumplimiento_metas_sin_cartera_fn`
 
-## Lo que falta ANTES de implementar
+## ✅ Las preguntas quedaron respondidas (30/08 noche, 4 respuestas de Miguel)
 
-- Confirmar la CADENA con Miguel (¿el upgrade cambia `asesor_perfil_id` del cliente, o solo la
-  atribución de esa línea y sus descendientes? ¿cómo se identifica «la renovación DE ese upgrade»
-  — por `origen_id`/cadena de contratos?).
-- Escribir el contrato técnico (como el de capital F4 / el de leads-y-citas F6).
-- Implementar con oráculo de paridad (nadie más cambia de dueño) + auditor RLS + Codex.
+1. Adopción por **LÍNEA** (el `asesor_perfil_id` del cliente NO cambia).
+2. «Quien lo hace» = **el del selector** «Analista de la venta» (`analista_cierre_id`).
+3. **Incluye agosto** (se re-atribuye por lectura antes del sello del 10/09).
+4. El **Directorio del Portal se queda** con la regla vieja (dos podios, a propósito).
+
+El contrato técnico está escrito: [[Contrato de la atribucion por cadena de upgrade (2026-08-30)]].
+El plan de implementación va en 4 fases (F1 conversión/cartera + agosto · F2 capital por cadena,
+tras el sello · F3 el formulario dice la verdad · F4 diferida: la sanción de anulación).
 
 Relacionado: [[fase-3-analista-que-cierra]] · [[El núcleo de capital]] ·
 [[PLAN MAESTRO del servidor (P-055) - de la deuda a la capa semantica]]

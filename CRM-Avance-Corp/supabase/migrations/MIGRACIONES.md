@@ -5879,3 +5879,93 @@ persona viva (`directorio+directorio`, `comercial+supervisor`) que son combinaci
 Archivos: `migrations/20260830210000_crm_f5_d_cerrar_gemelas_catalogo_versionado.sql` ·
 `scripts/rollback-f5d-p055.sql` · `scripts/registrar-f5d-version.sql` (generado a máquina, cuerpo embebido
 fail-closed) · bloque D1 reescrito en `scripts/test-rls.mjs`.
+
+---
+
+## P-055 · ATR-1 — EL UPGRADE CUENTA A QUIEN LO HACE (2026-08-30)
+
+**Estado: 🟡 PREPARADA — DOS auditorías atendidas ENTERAS; ensayo y ciclo v3 EN VERDE contra prod (deshechos); lista para publicar (ventana 31/08–05/09).**
+Migración `20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql`. Primera fase del plan de
+**atribución por cadena de upgrade** (decisión de Miguel 30/08 + sus 4 respuestas; contrato técnico
+en el vault: «Contrato de la atribucion por cadena de upgrade (2026-08-30)»).
+
+**La regla:** upgrade → cuenta al analista del selector (`analista_cierre_id`), no al dueño del
+cliente; la renovación de ese upgrade → al mismo analista (adopción por LÍNEA — la cadena sigue al
+CONTRATO y relee el analista VIVO de la cabeza); `asesor_perfil_id` jamás cambia; el Directorio del
+Portal SE QUEDA con la regla vieja (dos podios, a propósito).
+
+**Dónde vive:** en la LECTURA. Pieza nueva `private.analista_atribuido_cadena(uuid)` (CTE recursiva
+sobre `operaciones_cartera.contrato_origen_id`; cabeza upgrade → su `analista_cierre_id` vivo; si no
+→ NULL y regla vieja por `coalesce`; sin conteos → fuera del censo F6.a). La preguntan:
+`private.conversion_episodios` (pierna 'operacion': columna + filtro de visibles — **firma idéntica**,
+su exclusión del censo F6.a es por firma) y `private.metricas_cartera_por_vendedor` (bloque
+economía: select + group by). El ledger `operaciones_cartera` NO cambia ni una fila: `vendedor_id`
+pasa a significar «quién ERA el dueño» (HECHO); «a quién cuenta» es POLÍTICA del resolutor.
+
+**Medido el 30/08 contra prod:** 46 upgrades en agosto, **TODOS con analista = dueño (delta VACÍO)**
+→ la re-atribución de agosto mueve CERO filas HOY y el oráculo exige **paridad byte a byte**; la
+lista delta se re-mide en el preflight por si nace un upgrade de un no-dueño antes del publish.
+0 renovaciones de cadena (aborta si no), 0 upgrades sin analista (aborta si no), 19 de los 46 no
+elegibles a conversión (regla del primer mes, intacta).
+
+**Oráculo (misma transacción):** episodios antes/después por cada mes NO sellado — mismo número de
+filas; las que difieren, EXACTAMENTE las del delta (dueño→analista, resto de columnas al byte);
+economía de RENOVACIONES intacta SIEMPRE (contadores + 4 columnas de capital); total de upgrades de
+la EMPRESA idéntico; con delta vacío, paridad EXACTA también en cartera; el resolutor probado contra
+datos reales (todo upgrade → su analista; todo contrato 'nuevo' → NULL). **Pines de lo intocado**
+(md5 en pre y postflight): `produccion_mes_por_vendedor` · `capital_episodios` ·
+`registrar_ajuste_si_mes_cerrado` · `directorio_ranking_analistas` · `cerrar_periodo` ·
+`cumplimiento_metas_sin_cartera_fn` — el capital de upgrades YA iba al analista (F3.5b): esta fase
+mueve SOLO conversión y economía de cartera; el capital por cadena es la **ATR-2 (11–12/09, tras el
+sello)**.
+
+**Postflight:** huellas nuevas exactas (CE `71213ac0…`, MC `f968879a…`) · firma de
+`conversion_episodios` pinneada · ni un `count(` nuevo en los cuerpos (números pinneados) · ACL
+literal `{postgres=X/postgres}` en las 3 privates · los DOS guardianes dentro.
+
+**Ensayos (30/08, deshechos): `ATR1-ENSAYO-VERDE-v3`** (migración entera + oráculos) y
+**`ATR1-CICLO-VERDE-v3`** (migración + marcha atrás en UNA transacción: huellas originales al byte,
+resolutor fuera, guardianes verdes dos veces).
+
+**Auditoría Codex → NO-GO (3 P1 + 2 P2), atendidos ENTEROS:** P1-1 (el resolutor asumía invariantes
+que el esquema no garantiza: la puerta de edición PUEDE corregir `categoria`, y dos filas cruzadas
+A↔B satisfacen los UNIQUE) → resolutor v2: **la adopción más RECIENTE manda** (`nivel asc`: primer
+ancestro upgrade — corregir la categoría corrige la adopción, declarado en el contrato) + anti-ciclo
+por lista de visitados + invariante nueva en el preflight (`tipo = categoria`, 0 divergencias
+medidas; también 0 ciclos y 0 cadenas hoy) · P1-2 (la pantalla de Conversiones en BRUTO relee
+atribución viva para meses sellados) → **declarado en el contrato: lente ≠ foto** — la FOTO
+(`cierre_mes_vendedor`) manda para pagos y jamás cambia; la lente en bruto es decisión previa de
+Miguel · P1-3 (el rollback pisaba hotfixes posteriores) → preflight del rollback: los cuerpos vivos
+deben ser EXACTAMENTE los de ATR-1 o aborta («regenerar, no pisar») · P2-1 (oráculo) → 3c compara
+TODAS las columnas restantes null-safe + 3e-bis (reparto de upgrades por analista cuadra con el
+delta persona a persona) + 3e-tris (nadie entra/sale de la foto fuera del delta) · P2-2 (conducta
+solo-ACL en test-rls) → ya declarado: fixtures de upgrade en el próximo ciclo de banco.
+
+**Auditoría del auditor RLS → NO-GO por el MISMO P1 que Codex** (`desc`→`asc`: con upgrades
+encadenados atribuía al más ANTIGUO, contradiciendo la regla 3 y el propio oráculo 3g — reproducido
+por él en un Postgres 17 local) — **ya corregido en la ronda Codex** (resolutor v2, `nivel asc` =
+la adopción más reciente). Sus P2, aplicados: P2-3 la cabecera prometía el pin de
+`public.crear_contrato` y no existía → **7.º pin** añadido (md5 `4c25cee5…`, pre y post) · P2-4
+candado temporal: si agosto YA está sellado y contiene upgrades de no-dueños, el preflight ABORTA
+(«el publish llegó tarde») en vez de fingir · P2-5a el rollback comprueba que NADIE nombra al
+resolutor antes del drop (strpos, no LIKE) · P2-5b **la marcha atrás NO borra la fila
+`20260830223000` del registro** — si se revierte en prod, retirar esa fila a mano es paso documentado
+· P2-1 el comentario «ciclos imposibles» ya se había reescrito (anti-ciclo por visitados en v2).
+Verificado en verde por él: byte-exactitud 2+2 parches, registrador triple fail-closed, seguridad
+del resolutor (INVOKER dentro de DEFINER = postgres, sin FORCE RLS en esas tablas, sin PII), censo
+F6.a intacto (exclusión por OID sobrevive al CREATE OR REPLACE), dedupe correcta, consumidores con
+el fallback pactado.
+
+**Caso (e) para el banco** (del auditor): el mutante del filtro — sin el parche de visibles, el
+dueño seguiría viendo la operación que ya no le cuenta.
+
+**`test-rls.mjs`:** bloque `testAtribucionCadena` (resolutor inalcanzable por PostgREST). ⏳ Los
+casos de CONDUCTA (upgrade de vend2 sobre cliente de vend1 → métricas a vend2; dueño no lo ve como
+suyo; Directorio sin cambio) necesitan un fixture de upgrade en `seed-demo` → **próximo ciclo de
+banco**, con la suite entera.
+
+**⏰ Ventana de publicación: 31/08–05/09** (nunca la mañana de un cierre; el 10/09 sella agosto).
+
+Archivos: `migrations/20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql` ·
+`scripts/rollback-atr1-p055.sql` · `scripts/registrar-atr1-version.sql` (triple embebido fail-closed)
+· bloque nuevo en `scripts/test-rls.mjs`.
