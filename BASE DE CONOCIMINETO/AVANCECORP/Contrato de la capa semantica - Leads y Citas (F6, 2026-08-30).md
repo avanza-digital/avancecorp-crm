@@ -105,7 +105,7 @@ transitividad, verificado); lo que quedaba era gobernanza (el censo) y el núcle
   referido: 2,8 % vs 7,0 % del núcleo en agosto) → convertir o renombrar a `conversion_cohorte`.
 - `registrar_ajuste_si_mes_cerrado` recalcula su numerador localmente y replica la rama de
   coops a mano → que beba del puente del sello.
-- **F6.b (front): ✅ HECHA EN EL CÓDIGO (30/08), pendiente de `/release-crm`.** El KPI de
+- **F6.b (front): ✅ HECHA EN EL CÓDIGO (30/08), publicada: release `crm-20260830T052011Z-66839fb5a047` VIVO en crm.miavance.com.** El KPI de
   inteligencia comercial pasa de «Citas realizadas» a **«Leads que llegaron a cita»** (con
   «N con cita pactada» de detalle) y «Conversión por analista» pasa a **«Cosecha por
   analista»** — el idioma propio de esa pantalla. «Citas» queda reservado a la pantalla que
