@@ -5701,3 +5701,39 @@ Orden de Miguel: «cerremos las 2 deudas declaradas».
 Archivos: `migrations/20260830140000_crm_f6_c_deudas_declaradas.sql` · `scripts/rollback-f6c-p055.sql` · bloque de series v2 en `test-rls.mjs` (paridad serie-vs-oficial incluida).
 
 **P2 aceptados con nombre:** para meses SELLADOS la serie mensual recalcula del ledger (hoy converge; si tras el 10/09 Miguel quiere espejo del sellado, es decisión suya) · `EXPLAIN` con p_meses=24 en el próximo banco.
+
+---
+
+## P-055 · FASE 5.b — UNA PREGUNTA POR CAPACIDAD y LOS PARES DECLARADOS (2026-08-30)
+
+**Estado: ✅ EN PRODUCCIÓN (registro 184).** Dos auditorías (auditor RLS + Codex), **dos NO-GO atendidos**.
+
+**4 decisiones de Miguel (firmadas):** D1 registrar/editar ventas = `private.puede_registrar_ventas()`
+(admin O miembro comercial vigente del CRM) · D2 catálogo = `private.puede_ver_catalogo_productos()`
+(admin O miembro CRM O lector) · D3 cerrar_contrato añade `es_gerencia_crm_activa()` · D4 `private.pares_autoridad`
+(9 pares, NULL = sin ficha; GABRIEL/GLORIA declarados) con candados en las dos mitades y válvula `crm.cambiando_par`.
+
+**Lo que cambió por las auditorías:**
+- 🔴 **El candado exime `auth.uid() IS NULL`** (service_role, seed, consola postgres) — como
+  `proteger_campos_inmutables`: el guardián vive donde hay una PERSONA (el panel, RPC DEFINER con
+  auth.uid). Esto arregla el seed del banco, la sonda P04 de `test-rls` y el guion Carlos-Valles de una vez.
+- El candado del equipo vigila `rol_crm` **y `perfil_id`** (re-apuntar la ficha).
+- Higiene del trinquete F5.a: las 3 gemelas del Portal dejan de nombrar `es_analista` → fuera del censo;
+  **tope 9→6**. El rollback las re-declara con la normalización EXACTA del censo (sin `lower`) y **repone
+  el tope a 9** saltando el guard solo-baja.
+- Candado anti-DELETE/TRUNCATE en `pares_autoridad` (DELETE por fila, TRUNCATE por sentencia — no se pueden
+  juntar en un `for each row`).
+- Bloque `testCapacidadUnificada` en `test-rls.mjs`.
+
+**Ensayado (deshecho):** GLORIA con las 2 puertas · ALAN simétrico · ROSA catálogo-sí/ventas-no ·
+cerrar vendedor-no/gerencia-sí · candado vía panel (auth.uid presente) rebota, consola exenta · corrida B v4:
+10 huellas al byte, 9 pares, vigencia 9/9 y analítica 30/30 tras revertir. Advisors 0 ERROR; ambos gates verdes.
+
+**🔴 D1 QUEDA A MEDIAS — F5.c (decisión de Miguel, Opción B «cualquier cliente»):** la pantalla REAL de
+contratos usa `crear/actualizar_contrato_con_cuenta_pdf_v2/v3` → núcleo del dinero gateado por **P04**
+(`puede_gestionar_cuentas_cliente`, con scope de cartera), no por las 7 gemelas que unificó la F5.b. Para que
+la pregunta sea UNA sola de verdad, la F5.c lleva `puede_registrar_ventas()` a los 4 núcleos del dinero
+(`crm.crear/actualizar_contrato_con_cuenta`, `public.crear/actualizar_contrato`) **quitando el scope de
+cartera** (Opción B firmada: cualquier analista, cualquier cliente; la venta cuenta a quien la cierra por el
+campo `analista_cierre` de la F3). ALAN queda como analista normal SIN código especial (la puerta mira la
+membresía del CRM). Va con auditoría propia por ser el camino del dinero.

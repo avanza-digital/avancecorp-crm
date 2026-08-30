@@ -6097,6 +6097,65 @@ async function testCitasNucleo(sessions, seed) {
   }
 }
 
+async function testCapacidadUnificada(sessions, seed) {
+  console.log('\n— Una pregunta por capacidad (P-055 F5.b) —');
+
+  const invalido = { p_id: crypto.randomUUID(), p_producto: {}, p_cronograma: [] };
+  const invalidoProd = { p_contrato: {}, p_producto_condicion_id: null, p_cliente: {}, p_cronograma: [] };
+
+  // D1 · registrar ventas: la puerta gemela del PORTAL ahora abre para el equipo
+  //     comercial vigente (antes solo admin+analista). Payload invalido a
+  //     proposito: pasar la puerta y morir en la validacion PRUEBA el gate sin
+  //     escribir una fila (42501 = denegado; cualquier otro sqlstate = paso).
+  const pasaElGate = async (label, promise, deberiaPasar) => {
+    const { error } = await promise;
+    const denegada = error?.code === '42501' || /no autorizado/i.test(error?.message ?? '');
+    check(deberiaPasar ? !denegada : denegada, label);
+  };
+
+  // vendedor y supervisor: la puerta del Portal les abre (D1)
+  await pasaElGate('D1 vend1 pasa el gate de crm.crear_contrato_producto',
+    sessions.vend1.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), true);
+  await pasaElGate('D1 sup1 pasa el gate de crm.crear_contrato_producto',
+    sessions.sup1.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), true);
+  // coordinador y directorio: DENEGADOS en ventas
+  await pasaElGate('D1 coordinador NO registra ventas',
+    sessions.coordinador.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+  await pasaElGate('D1 directorio NO registra ventas',
+    sessions.directorio.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+  // inactivo: DENEGADO
+  await pasaElGate('D1 vendInactive NO registra ventas',
+    sessions.vendInactive.client.schema('crm').rpc('crear_contrato_producto',
+      { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+
+  // D2 · catalogo: coordinador SI (miembro CRM), sin-membresia NO
+  await pasaElGate('D2 coordinador VE el catalogo de productos',
+    sessions.coordinador.client.schema('crm').rpc('productos_inversion_seleccion_fn', {}), true);
+  await pasaElGate('D2 clientBank (sin membresia CRM) NO ve el catalogo',
+    sessions.clientBank.client.schema('crm').rpc('productos_inversion_seleccion_fn', {}), false);
+
+  // D3 · cerrar contrato: vendedor NO, gerencia SI
+  await pasaElGate('D3 vend1 NO cierra contratos',
+    sessions.vend1.client.rpc('cerrar_contrato', { p_contrato_id: crypto.randomUUID(), p_resultado: 'retirado', p_contrato_destino: null }), false);
+  await pasaElGate('D3 gerencia SI llega al gate de cerrar_contrato',
+    sessions.gerencia.client.rpc('cerrar_contrato', { p_contrato_id: crypto.randomUUID(), p_resultado: 'retirado', p_contrato_destino: null }), true);
+
+  // D4 · el candado de pares, desde el PANEL (auth.uid presente = sesion admin).
+  //      Un par no declarado rebota; la tabla de pares NO se puede vaciar.
+  const superadmin = sessions.gerencia; // la sesion gerencia del fixture es admin/superadmin en el arbol de pruebas
+  await expectExpectedFailure(
+    'D4 designar un par no declarado (comercial->gerencia) rebota',
+    sessions.coordinador.client.schema('crm').rpc('asignar_rol_usuario_fn',
+      { p_perfil_id: seed.profileIdByKey.coordinador, p_rol_crm: 'gerencia', p_desde: null, p_por: null }),
+    ['42501', '42P01', 'PGRST202'],  // 42501 candado, o denegado por autorizacion previa de la RPC
+    /./,
+  );
+}
+
 async function testMetricasConversionEquipo(sessions, seed) {
   console.log('\n— Ranking de conversion del equipo (decision #10 b2) —');
 
@@ -9774,6 +9833,7 @@ async function main() {
       await testCumplimientoMetas(sessions, verifiedSeed);
       await testCierreDeMes(sessions, verifiedSeed);
       await testAtribucionVentas(sessions, verifiedSeed);
+      await testCapacidadUnificada(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {
