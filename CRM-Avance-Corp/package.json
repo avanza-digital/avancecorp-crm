@@ -32,7 +32,8 @@
     "gate:vigencia:mutante": "node supabase/scripts/gate-analista-vigencia.mjs --mutante",
     "gate:auditoria:mutante": "node supabase/scripts/gate-auditoria.mjs --mutante",
     "release:crm": "npm --prefix app run build && node scripts/crear-artefacto-release.mjs create",
-    "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify"
+    "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify",
+    "gate:f7": "node supabase/scripts/gate-f7-observacion.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"

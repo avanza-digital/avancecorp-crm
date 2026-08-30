@@ -6091,3 +6091,77 @@ Si se revierte en prod: retirar a mano la fila `20260831010000` del registro.
 
 Archivos: `migrations/20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql` ·
 `scripts/rollback-atr3a-p055.sql` · `scripts/registrar-atr3a-version.sql`.
+
+---
+
+## P-055 · F7.0 — EL GATE QUE VIGILA LAS PUERTAS CERRADAS (2026-08-31)
+
+**Estado: 🟡 PREPARADA — DOS auditorías atendidas ENTERAS; ensayo triple v4 EN VERDE, deshecho.
+Publicable YA (no toca nada existente).** Migración
+`20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql`. Primera ola de la Fase 7 «ordenar la
+casa» (plan por olas aprobado por Miguel el 31/08: ventana de observación **14 días**, alcance
+servidor+registro+repo, catálogo entero con pantallas).
+
+**Qué instala (nada se cierra ni se derriba aquí):**
+- **`private.f7_piezas_en_observacion`** — la lista que el vigía lee, el CANDADO temporal del DROP
+  (`drop_no_antes_de` vive en el servidor) y el registro histórico. Trinquete propio (fechas solo
+  crecen, huella/cierre inmutables, ni DELETE ni TRUNCATE; ⚠️ limitación declarada, como F6.a: el
+  assert no vigila esos triggers). RLS ON, 0 policies, 0 grants. **Seed: las 7 gemelas de F5.d**
+  (cerradas 30/08 → demolibles 13/09; fechas LITERALES para el replay del banco; llamador permitido:
+  `cerrar_altas_legacy_productos`, que solo comprueba existencia).
+- **`private.assert_f7_piezas_cerradas()`** — por pieza: existe · huella intacta · ACL = literal
+  esperado · 0 llamadores nuevos (censo por OID normalizado sin comentarios, excluyendo el conjunto
+  vigilado + permitidos resueltos) · 4 superficies en 0 (policies/defaults/CHECKs/cron). Las
+  `demolida` NO renacen; tabla vacía = rojo (fail-closed).
+- **Vigía `crm-f7-piezas-vigia` a las 06:59** (completa la serie 06:29/39/49), molde F6.a (jamás
+  revienta el cron; escribe en `vigia_alertas` fase `f7_piezas_cerradas`), programado con
+  verificación exacta estilo F1.6.
+- **`npm run gate:f7`** (`gate-f7-observacion.mjs` + trinquete de FILA-veredicto): 0 alertas
+  abiertas en `vigia_alertas` **de TODAS las fases** (⭐ cierra la deuda medida: esa tabla no la
+  leía NADIE) + vigía exacto + assert OK. `-- --mutante`: alerta sintética en transacción deshecha
+  que DEBE cazarse y no quedar escrita.
+
+**La observación, honesta (medida):** un intento rechazado (42501) NO es detectable desde dentro —
+el chequeo de EXECUTE corre antes del cuerpo y no hay event triggers (postgres no es superusuario).
+Este vigía vigila la SUPERFICIE (nadie re-cableó la pieza); los intentos reales se revisan en los
+logs del panel a D+7 y D+14, con fecha y responsable.
+
+**Ensayo `F70-CICLO-VERDE` (31/08, deshecho):** aplicar → marcha atrás (la TABLA y sus filas se
+conservan, doctrina F6.a) → **RE-aplicar** (creación condicional + seed idempotente `on conflict do
+nothing`) → marcha atrás final. Guardianes verdes en cada tramo.
+
+**Séquito:** sonda nueva en `test-rls.mjs` (`testF7Observacion`: la tabla es inalcanzable por la
+API) · `package.json` gana `gate:f7`. Censo F1.4 NO aplica (solo `crm`+`public`; la tabla es
+`private`, como `vigia_alertas`); censo F6.a NO aplica (el assert no nombra leads/citas).
+
+**Auditoría del auditor RLS → GO (2 P1 + 5 P2), atendidos:** P1 el censo era EVADIBLE con
+MAYÚSCULAS o comillas (lo probó contra el motor: `~` es case-sensitive y la comilla rompía el
+patrón) → normalización `lower(replace(…,'"',''))` en el censo y las 4 superficies · P1 el
+trinquete congelaba 2 de 11 columnas → congela la declaración ENTERA (huella, ACL esperada, patrón,
+permitidos, ok_miguel, ola, firma) y toda transición exige rastro en nota · P2 la demolida
+prematura ahora delata · P2 el CHECK codifica los 14 días (`cerrada_en + 14`) · P2 sonda con
+códigos esperados · P2 `%s`→`%` · P2 revoke + postflight de las funciones de trigger. Verificó
+contra prod: 0 alertas abiertas (el gate no nace en rojo, y el preflight lo exige), huellas 7/7,
+ACL 7/7, censo 0, 06:59 libre, triple embebido 3/3 al byte.
+
+**Auditoría Codex → NO-GO (4 P0 + 4 P1 + 2 P2), atendidos ENTEROS:** P0-1 el censo omitía VISTAS
+(`pg_get_viewdef` de v/m) y funciones SQL-standard (`prosqlbody`) → ambos censados · P0-2 `liberada`
+era una ESCOTILLA (update de consola + grant = assert verde) → **máquina de estados cerrada**: solo
+observación→demolida y observación→cerrada_permanente por UPDATE; liberar o salir de
+demolida/permanente EXIGE migración con el candado bajado · P0-3 la ventana se reseteaba vía NULL →
+una fila sin ventana no re-adquiere fecha por UPDATE · P0-4 la herencia de roles no toca `proacl`
+→ cierre transversal: authenticated/anon NO alcanzan a postgres por la cadena de `pg_auth_members`
+(CTE recursiva) · P1-1 la RE-aplicación revalida la tabla superviviente (seed íntegro + el CHECK
+de 14 días vivo) · P1-2 **el veredicto es ahora una FUNCIÓN** (`private.veredicto_f7`): el
+trinquete Y el mutante ejercitan EL MISMO código; mutante con DOS filos (alerta sintética + cron
+desprogramado, ambos deshechos y con limpieza verificada) · P1-3 el cron pinnea `username` y la
+última corrida no-fallida · P1-4 `firma` congelada · P2-1 el falso-rojo por homónimas queda
+declarado (fail-noisy; salida = `llamadores_permitidos`) · P2-2 la sonda de test-rls se RETIRÓ
+(probaba la config global de PostgREST, no esta migración — deuda honesta: la garantía vive en el
+postflight y el vigía). 🔴 Trampa nueva: la variable `r` de un loop plpgsql PISA el alias SQL `r`
+dentro de un EXISTS — alias distintos o revienta con «record has no field».
+
+Archivos: `migrations/20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql` ·
+`scripts/rollback-f7-0-p055.sql` (conserva la tabla) · `scripts/registrar-f7-0-version.sql`
+(candado mundo-vivo: el assert vivo debe dar OK antes de registrar) ·
+`scripts/trinquete-f7-observacion{,-mutante}.sql` · `scripts/gate-f7-observacion.mjs`.
