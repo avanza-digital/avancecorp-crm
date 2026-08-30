@@ -6169,3 +6169,55 @@ Archivos: `migrations/20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql
 `scripts/rollback-f7-0-p055.sql` (conserva la tabla) · `scripts/registrar-f7-0-version.sql`
 (candado mundo-vivo: el assert vivo debe dar OK antes de registrar) ·
 `scripts/trinquete-f7-observacion{,-mutante}.sql` · `scripts/gate-f7-observacion.mjs`.
+
+---
+
+## P-055 · F7.1 — CERRAR LO QUE QUEDÓ SUELTO (2026-08-31)
+
+**Estado: 🟡 PREPARADA — ensayo y ciclo EN VERDE (deshechos); en auditoría (Codex refutó el DISEÑO
+en paralelo mientras se escribía). ⏰ Publicar antes del 05/09 (freeze 08–10/09).** Migración
+`20260831040000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql`. Ola 1 de la Fase 7: **7 cierres, 0
+derribos**, todos al libro de la Ola 0.
+
+**TABLA DE OK DE MIGUEL (su `!` al publicar es la firma):**
+
+| Pieza | Acción | Consecuencia |
+|---|---|---|
+| `metricas_distribucion_leads_fn` (v1) | REVOKE → observación (demolible 14/09) | Puerta supersedida por v3; su core private sigue vivo |
+| `metricas_distribucion_leads_v2_fn` | REVOKE → observación (14/09) | Muere también en el registro el «v2 aún llamada» de RETOMAR-57 |
+| `metricas_cartera_fn` | REVOKE **permanente** (incl. service_role) | Órgano interno de conversion_mensual_fn — JAMÁS se derriba |
+| `crear_contrato_con_cuenta` | REVOKE **permanente** | Órgano interno del alta pdf_v2 |
+| `actualizar_contrato_con_cuenta` | REVOKE **permanente** | Órgano interno de la corrección pdf_v3 |
+| `public.actualizar_numero_contrato` ⚠️`public` | REVOKE **permanente** (incl. service_role) | Órgano interno de numero_pdf_v3; el `!` es el OK explícito de tocar public |
+| `metricas_altas_analista_fn` | **ADOPTAR** (partida de nacimiento) + REVOKE → observación (14/09) | Nació en una versión MUDA del registro; primero se versiona (no-op al byte), luego se cierra |
+| Front | Retirar 2 wrappers + 2 hooks muertos + sus tests | Cero pantallas los usaban |
+
+**Lo medido que moldeó la migración:** las puertas v1/v2 tienen **dueño `crm_metricas_bridge`** —
+un revoke como postgres sería un **no-op EN SILENCIO** (warning sin efecto); postgres tiene la
+membresía con **ADMIN pero sin SET** (PG16+): la migración se auto-otorga el SET solo dentro de la
+transacción (`grant … with set true` → `set local role` → revoke → `reset` → `with set false`) y el
+postflight verifica que la opción quedó devuelta. `service_role` tenía EXECUTE en cartera y numero
+(0 edges las llaman) — también fuera. **Las versiones MUDAS del registro son 12, no 9** (medido:
+lista completa en el preflight de la futura Ola R).
+
+**Oráculo (read-only, bajo claims de gerencia, dentro de la migración):** `conversion_mensual_fn`
+byte-igual tras cerrar su órgano interno (prueba VIVA de que la delegación DEFINER sobrevive) ·
+distribución v3 byte-igual · la adopción de altas con pin md5-antes==después (no-op demostrado) ·
+el censo fino de llamadores/superficies lo corre el **vigilante de la Ola 0** sobre las 7 filas
+recién sembradas (14 en el libro) + veredicto + guardianes.
+
+**test-rls:** las sondas de negocio de las puertas internas (4507–5036) pasan a sondas de PERMISO
+(42501 pelado) — ⚠️ deuda declarada: la validación de negocio de cuenta-obsoleta/UUID-forjado/
+atomicidad quedaba probada por la puerta interna; sigue viva en el servidor tras pdf_v2 pero la
+suite ya no la ejercita por API — candidata a re-apuntarse a pdf_v2 en el ciclo de banco ·
+`expectHidden` de altas → denegación explícita · bloque nuevo `testF7Ola1` (canaria + 4 puertas ×
+2 roles; `public.actualizar_numero_contrato` cubierta por ACL, sin sonda directa — exigiría
+adivinar nombres de argumentos).
+
+**Ensayos `F71-ENSAYO-VERDE` y `F71-CICLO-VERDE`** (deshechos; el ciclo incluye la danza del SET,
+el candado bajado NOMBRADO para retirar las filas de la ola y su re-armado verificado). Si se
+revierte en prod: retirar a mano la fila `20260831040000` del registro.
+
+Archivos: `migrations/20260831040000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
+`scripts/rollback-f7-1-p055.sql` · `scripts/registrar-f7-1-version.sql` (candado de honestidad
+temporal: la fecha del seed debe coincidir ±2 días con la publicación real).

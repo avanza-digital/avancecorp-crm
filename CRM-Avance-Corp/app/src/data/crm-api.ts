@@ -62,11 +62,9 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
-import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
+import type { FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
 import {
-  MetricasDistribucionLeadsSchema,
   MetricasDistribucionLeadsV3Schema,
-  type MetricasDistribucionLeads,
   type MetricasDistribucionLeadsV3,
 } from '@/lib/metricas-distribucion'
 import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda'
@@ -3347,13 +3345,6 @@ const MetricaPagosRowSchema = v.object({
   monto_pagado: NumericoRpc,
 })
 
-const MetricaAltasRowSchema = v.object({
-  mes: v.string(),
-  analista_id: v.string(),
-  analista_nombre: v.string(),
-  altas: NumericoRpc,
-})
-
 const MetricaVencimientosRowSchema = v.object({
   mes: v.string(),
   moneda: v.picklist(['PEN', 'USD']),
@@ -3434,32 +3425,6 @@ export async function listarMetricasPagosMes(pMeses = 12, signal?: AbortSignal):
   return items
 }
 
-/** Altas de clientes por analista y mes (default: últimos 12 meses). */
-export async function listarMetricasAltasAnalista(pMeses = 12, signal?: AbortSignal): Promise<FilaAltasAnalista[]> {
-  let consulta = cliente().schema('crm').rpc('metricas_altas_analista_fn', { p_meses: pMeses })
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) throw falloMetricas(error, 'crm.metricas.altas_fallido')
-  const items: FilaAltasAnalista[] = []
-  let descartadas = 0
-  for (const cruda of data ?? []) {
-    const r = v.safeParse(MetricaAltasRowSchema, cruda)
-    if (!r.success) {
-      descartadas += 1
-      continue
-    }
-    items.push({
-      mes: r.output.mes,
-      analista_id: r.output.analista_id,
-      analista_nombre: r.output.analista_nombre,
-      altas: aNumero(r.output.altas) ?? 0,
-    })
-  }
-  registrarFilasMetricasInvalidas('altas_analista', descartadas)
-  return items
-}
-
 /** Contratos/capital por vencer por mes/moneda dentro de p_dias (default 90). */
 export async function listarMetricasVencimientos(pDias = 90, signal?: AbortSignal): Promise<FilaVencimientos[]> {
   let consulta = cliente().schema('crm').rpc('metricas_vencimientos_fn', { p_dias: pDias })
@@ -3531,51 +3496,6 @@ function periodoMetricasValido(desde: string, hasta: string): boolean {
 function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
   if (!signal?.aborted) return
   throw signal.reason instanceof Error ? signal.reason : new DOMException('La solicitud fue cancelada.', 'AbortError')
-}
-
-/**
- * Fotografía atómica V2 de distribución, capacidad y resultados comerciales.
- * El SLA versionado tiene contratos propios y no se mezcla en este payload.
- * A diferencia de las RPC tabulares antiguas, aquí no se descartan ramas
- * inválidas: una sola falla invalida el payload completo para no mezclar
- * denominadores o periodos incompatibles en Gerencia.
- */
-export async function listarMetricasDistribucionLeads(
-  desde: string,
-  hasta: string,
-  signal?: AbortSignal,
-): Promise<MetricasDistribucionLeads> {
-  if (!periodoMetricasValido(desde, hasta)) {
-    const fallo = new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
-    registrarError('crm.metricas.distribucion_periodo_invalido', fallo)
-    throw fallo
-  }
-
-  lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_v2_fn', {
-    p_desde: desde,
-    p_hasta: hasta,
-  })
-  if (signal) consulta = consulta.abortSignal(signal)
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) throw falloMetricas(error, 'crm.metricas.distribucion_fallido')
-
-  const resultado = v.safeParse(MetricasDistribucionLeadsSchema, data)
-  if (
-    !resultado.success ||
-    resultado.output.cohorte.desde_inclusivo !== desde ||
-    resultado.output.cohorte.hasta_inclusivo !== hasta
-  ) {
-    const fallo = new CrmApiError(
-      'Las métricas de distribución no tienen el formato esperado.',
-      'METRICAS_DISTRIBUCION_CONTRACT',
-    )
-    registrarError('crm.metricas.distribucion_fuera_de_contrato', fallo)
-    throw fallo
-  }
-
-  return resultado.output
 }
 
 /**

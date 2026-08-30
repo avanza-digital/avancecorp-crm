@@ -13,7 +13,6 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   CrmApiError,
-  listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
   listarMetricasPagosMes,
   listarMetricasVencimientos,
@@ -99,24 +98,6 @@ describe('listarMetricasPagosMes (msw)', () => {
         mes: '2026-04-01', moneda: 'PEN', tipo: 'cuota', estado: 'vencido',
         cuotas: 1, monto_programado: 500, monto_pagado: 0,
       },
-    ])
-  })
-})
-
-describe('listarMetricasAltasAnalista (msw)', () => {
-  it('mapea filas con bigint serializado como string', async () => {
-    server.use(
-      http.post(RPC('metricas_altas_analista_fn'), () =>
-        HttpResponse.json([
-          { mes: '2026-06-01', analista_id: 'a1', analista_nombre: 'LINDA QA', altas: '4' },
-        ]),
-      ),
-    )
-
-    const filas = await listarMetricasAltasAnalista()
-
-    expect(filas).toEqual([
-      { mes: '2026-06-01', analista_id: 'a1', analista_nombre: 'LINDA QA', altas: 4 },
     ])
   })
 })

@@ -4503,7 +4503,7 @@ async function testContractBankAccounts(sessions, seed) {
       /cliente no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      `${label}: no crea contrato con cuenta`,
+      `${label}: no crea contrato con cuenta (puerta interna cerrada F7.1)`,
       sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
         p_contrato: minimalContract,
         p_cronograma: [],
@@ -4513,27 +4513,24 @@ async function testContractBankAccounts(sessions, seed) {
         },
       }),
       ['42501'],
-      /cliente no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      `${label}: no corrige contrato ya enlazado`,
+      `${label}: no corrige contrato ya enlazado (puerta interna cerrada F7.1)`,
       sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
         p_id: seed.contract.id,
         p_contrato: { moneda: BANK_CONTRACT.currency },
         p_cronograma: [],
       }),
       ['42501'],
-      /contrato no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      `${label}: no corrige contrato legacy sin enlace`,
+      `${label}: no corrige contrato legacy sin enlace (puerta interna cerrada F7.1)`,
       sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
         p_id: seed.legacyContract.id,
         p_contrato: { moneda: BANK_LEGACY_CONTRACT.currency },
         p_cronograma: { invalido: true },
       }),
       ['42501'],
-      /contrato no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
       `${label}: no resuelve cuentas contractuales para Pagos`,
@@ -4928,8 +4925,7 @@ async function testContractBankAccounts(sessions, seed) {
           cuenta_esperada: { ...expectedProfileAccount, banco: 'BANCO OBSOLETO' },
         },
       }),
-      ['P0001'],
-      /cuenta actual del cliente cambio/i,
+      ['42501'],  // F7.1: puerta interna cerrada — la validacion vive tras pdf_v2
     );
     await expectExpectedFailure(
       'el alta rechaza un UUID de cuenta existente forjado',
@@ -4938,8 +4934,7 @@ async function testContractBankAccounts(sessions, seed) {
         p_cronograma: [],
         p_cuenta: { tipo: 'existente', cuenta_id: randomUUID() },
       }),
-      ['22023'],
-      /cuenta bancaria no esta disponible/i,
+      ['42501'],  // F7.1: puerta interna cerrada
     );
 
     // Oraculo de atomicidad sin DELETE: la cuenta se inserta antes de delegar en
@@ -5006,8 +5001,7 @@ async function testContractBankAccounts(sessions, seed) {
           beneficiario_dni: null,
         },
       }),
-      ['23505', 'P0001'],
-      /contrato.*(?:ya existe|duplicad)|duplicate key/i,
+      ['42501'],  // F7.1: puerta interna cerrada — la atomicidad viva se prueba via pdf_v2
     );
 
     const accountAfter = await requireAdmin(
@@ -6256,6 +6250,37 @@ async function testLentesAtribucion(sessions, seed) {
   }
 }
 
+// P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS.
+// (public.actualizar_numero_contrato queda cubierta por el postflight de ACL:
+// su sonda directa exigiria adivinar nombres de argumentos.)
+async function testF7Ola1(sessions) {
+  console.log('\n— Puertas cerradas de la Ola 1 (P-055 F7.1) —');
+  const puertas = [
+    ['metricas_distribucion_leads_fn', { p_desde: '2026-08-01', p_hasta: '2026-08-31' }],
+    ['metricas_distribucion_leads_v2_fn', { p_desde: '2026-08-01', p_hasta: '2026-08-31' }],
+    ['metricas_cartera_fn', { p_periodo: '2026-08-01' }],
+    ['metricas_altas_analista_fn', { p_meses: 3 }],
+  ];
+  // CANARIA (patron F5.d): la primera llamada va sola; sin codigo = backend caido.
+  {
+    const { error } = await sessions.gerencia.client
+      .schema('crm').rpc('metricas_cartera_fn', { p_periodo: '2026-08-01' });
+    if (error && !error.code) {
+      check(false, 'F7.1 CANARIA: respuesta sin codigo — posible backend caido', error.message ?? '');
+      return;
+    }
+    check(error?.code === '42501',
+      `F7.1 gerencia NO alcanza metricas_cartera_fn (${error?.code ?? 'sin error'})`);
+  }
+  for (const [fn, args] of puertas) {
+    for (const key of ['gerencia', 'vend1']) {
+      const { error } = await sessions[key].client.schema('crm').rpc(fn, args);
+      check(error?.code === '42501',
+        `F7.1 ${key} NO alcanza ${fn} (${error?.code ?? 'sin error'})`);
+    }
+  }
+}
+
 // P-055 ATR-1 — la atribucion por cadena de upgrade vive en la LECTURA.
 // El resolutor es private y sin grant: NADIE lo alcanza por PostgREST. Los
 // casos de CONDUCTA (upgrade de vend2 sobre cliente de vend1 -> las metricas
@@ -6722,7 +6747,6 @@ async function testReparto(sessions, seed) {
   for (const [fn, args] of [
     ['metricas_capital_mes_fn', { p_meses: 12 }],
     ['metricas_pagos_mes_fn', { p_meses: 12 }],
-    ['metricas_altas_analista_fn', { p_meses: 12 }],
     ['metricas_vencimientos_fn', { p_dias: 90 }],
   ]) {
     await expectHidden(
@@ -6730,6 +6754,13 @@ async function testReparto(sessions, seed) {
       coordinador.schema('crm').rpc(fn, args),
     );
   }
+
+  // F7.1: metricas_altas_analista_fn quedo CERRADA (observacion, demolible
+  // 14/09) — para TODO rol la respuesta es denegacion, ya no filas vacias.
+  await expectExplicitAuthorizationDenied(
+    'coordinador no alcanza metricas_altas_analista_fn (cerrada F7.1)',
+    coordinador.schema('crm').rpc('metricas_altas_analista_fn', { p_meses: 12 }),
+  );
 
   // convertir_lead tiene allowlist propia ('vendedor','supervisor'): el rol
   // nuevo NO puede dar de alta clientes. Se asevera para blindar ese candado.
@@ -10019,6 +10050,7 @@ async function main() {
       await testVentasNucleoF5c(sessions, verifiedSeed);
       await testAtribucionCadena(sessions);
       await testLentesAtribucion(sessions, verifiedSeed);
+      await testF7Ola1(sessions);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {

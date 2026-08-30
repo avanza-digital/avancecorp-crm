@@ -31,9 +31,7 @@ import {
   listarMetricasConversionesEquipo,
   obtenerConversionMensual,
   listarMetricasReuniones,
-  listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
-  listarMetricasDistribucionLeads,
   listarMetricasDistribucionLeadsV3,
   listarMetricasPagosMes,
   listarMetricasVencimientos,
@@ -403,13 +401,6 @@ export function useMetricasPagosMes(habilitada: boolean, meses = 12) {
   })
 }
 
-export function useMetricasAltasAnalista(habilitada: boolean, meses = 12) {
-  return useQuery({
-    queryKey: crmQueryKeys.metricasAltas(meses),
-    queryFn: ({ signal }) => listarMetricasAltasAnalista(meses, signal),
-    enabled: habilitada,
-  })
-}
 
 export function useMetricasVencimientos(habilitada: boolean, dias = 90) {
   return useQuery({
@@ -451,20 +442,6 @@ export function useReporteDerivacionesEquipo(habilitada: boolean, desde: string,
   })
 }
 
-/**
- * Fotografía V1 de distribución/capacidad/SLA para un periodo inclusivo en
- * America/Lima. Las fechas forman parte de la clave: cambiar el periodo nunca
- * reutiliza silenciosamente la fotografía anterior.
- */
-export function useMetricasDistribucionLeads(habilitada: boolean, desde: string, hasta: string) {
-  return useMetricaPorPeriodo({
-    queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
-    cargar: (signal) => listarMetricasDistribucionLeads(desde, hasta, signal),
-    habilitada,
-    desde,
-    hasta,
-  })
-}
 
 /**
  * Fotografía V3 (F2.3b): la V2 más puntería servida, núcleo y sondas. Mudada

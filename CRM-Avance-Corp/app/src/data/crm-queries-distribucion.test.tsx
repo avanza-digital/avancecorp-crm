@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from 'react'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,7 +12,6 @@ vi.mock('./crm-api', () => ({
   actualizarCapacidadLeadsObjetivo: mocks.actualizarCapacidad,
   listarMetricasDistribucionLeads: mocks.listarDistribucion,
   listarClientes: vi.fn(),
-  listarMetricasAltasAnalista: vi.fn(),
   listarMetricasCapitalMes: vi.fn(),
   listarMetricasPagosMes: vi.fn(),
   listarMetricasVencimientos: vi.fn(),
@@ -25,7 +24,6 @@ vi.mock('./crm-api', () => ({
 import {
   crmQueryKeys,
   useActualizarCapacidadLeadsObjetivo,
-  useMetricasDistribucionLeads,
 } from './crm-queries'
 
 const ANALISTA_ID = '11111111-1111-4111-8111-111111111111'
@@ -58,33 +56,6 @@ describe('query de distribución por capital', () => {
     ])
   })
 
-  it('habilitada=false registra la clave sin disparar red', async () => {
-    const { cliente, wrapper } = arnes()
-    renderHook(
-      () => useMetricasDistribucionLeads(false, '2026-04-01', '2026-06-30'),
-      { wrapper },
-    )
-
-    expect(cliente.getQueryCache().getAll().map((q) => q.queryKey)).toEqual([
-      crmQueryKeys.metricasDistribucionLeads('2026-04-01', '2026-06-30'),
-    ])
-    expect(mocks.listarDistribucion).not.toHaveBeenCalled()
-  })
-
-  it('habilitada=true llama la API con fechas y AbortSignal', async () => {
-    const { wrapper } = arnes()
-    renderHook(
-      () => useMetricasDistribucionLeads(true, '2026-04-01', '2026-06-30'),
-      { wrapper },
-    )
-
-    await waitFor(() => expect(mocks.listarDistribucion).toHaveBeenCalledOnce())
-    expect(mocks.listarDistribucion).toHaveBeenCalledWith(
-      '2026-04-01',
-      '2026-06-30',
-      expect.any(AbortSignal),
-    )
-  })
 })
 
 describe('mutación de capacidad', () => {

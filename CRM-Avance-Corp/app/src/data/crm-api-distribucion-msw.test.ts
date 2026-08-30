@@ -2,7 +2,7 @@
 // Contrato HTTP real de las RPC de distribución/capacidad contra Supabase
 // simulado: parámetros, abort, payload JSON V2 fail-closed y errores seguros.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { delay, http, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 
 vi.mock('@/lib/supabase', async () => {
@@ -12,14 +12,10 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   actualizarCapacidadLeadsObjetivo,
-  listarMetricasDistribucionLeads,
 } from './crm-api'
-import { RANGOS_CAPITAL_PEN } from '@/lib/metricas-distribucion'
 
 const RPC = (fn: string) => `http://supabase.test/rest/v1/rpc/${fn}`
 const ANALISTA_ID = '11111111-1111-4111-8111-111111111111'
-const SUPERVISOR_ID = '22222222-2222-4222-8222-222222222222'
-
 const server = setupServer()
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
@@ -28,220 +24,6 @@ afterAll(() => server.close())
 
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
-})
-
-function rangosCatalogo() {
-  const limites: Array<[number | null, number | null]> = [
-    [0, 1000],
-    [1000, 5000],
-    [5000, 10000],
-    [10000, 20000],
-    [20000, 50000],
-    [50000, 100000],
-    [100000, null],
-    [null, null],
-  ]
-  return RANGOS_CAPITAL_PEN.map((id, indice) => {
-    const [desde_exclusivo, hasta_inclusivo] = limites[indice]!
-    return {
-      id,
-      orden: indice + 1,
-      etiqueta: `Rango ${indice + 1}`,
-      desde_exclusivo,
-      hasta_inclusivo,
-    }
-  })
-}
-
-function rangosAnalista() {
-  return RANGOS_CAPITAL_PEN.map((rango_id, indice) => ({
-    rango_id,
-    cartera_actual: { episodios: indice === 1 ? '2' : 0, capital: indice === 1 ? '7000.50' : 0 },
-    cohorte: {
-      episodios_recibidos: indice === 1 ? '3' : 0,
-      leads_unicos_recibidos: indice === 1 ? 3 : 0,
-      convertidos: indice === 1 ? 1 : 0,
-      descartados: indice === 1 ? 1 : 0,
-      leads_unicos_resueltos: indice === 1 ? 2 : 0,
-    },
-  }))
-}
-
-function rangosCola() {
-  return RANGOS_CAPITAL_PEN.map((rango_id, indice) => ({
-    rango_id,
-    cantidad: indice === 0 ? 1 : 0,
-    capital: indice === 0 ? 1000 : 0,
-  }))
-}
-
-function payloadValido() {
-  const penCola = { cantidad: 1, capital: '1000.00', rangos: rangosCola() }
-  const usdCola = { cantidad: 0, capital: 0 }
-  return {
-    version: 2,
-    generado_en: '2026-07-17T22:30:00-05:00',
-    cohorte: {
-      desde_inclusivo: '2026-04-01',
-      hasta_inclusivo: '2026-06-30',
-      hasta_exclusivo: '2026-07-01',
-      criterio: 'episodio_asignado_en',
-      zona_horaria: 'America/Lima',
-    },
-    alcances: {
-      matriz: 'PEN',
-      capacidad: 'TODAS_LAS_MONEDAS',
-      montos: 'SEPARADOS_SIN_CONVERSION',
-    },
-    rangos: rangosCatalogo(),
-    resumen: {
-      leads_operativos_actuales: 3,
-      asignados_actuales: 2,
-      por_repartir_actuales: 1,
-      capital_pen_asignado_actual: '7000.50',
-      capital_usd_asignado_actual: 0,
-      cohorte_episodios: 3,
-      cohorte_leads_unicos: 3,
-      convertidos_pen: 1,
-      descartados_pen: 1,
-      reasignaciones_cohorte: 1,
-    },
-    analistas: [{
-      analista_id: ANALISTA_ID,
-      nombre: 'ANA ANALISTA',
-      rol: 'vendedor',
-      supervisor_id: SUPERVISOR_ID,
-      supervisor_nombre: 'SUSANA SUPERVISORA',
-      activo: true,
-      disponible_para_recibir: true,
-      capacidad: { objetivo: 20, carga_activa: 2, carga_pen: 2, carga_usd: 0 },
-      pen: {
-        cartera_actual: { episodios: 2, capital: '7000.50' },
-        cohorte: {
-          episodios_recibidos: 3,
-          leads_unicos_recibidos: 3,
-          convertidos: 1,
-          descartados: 1,
-          ciclos_resueltos: 2,
-          leads_unicos_resueltos: 2,
-        },
-        rangos: rangosAnalista(),
-      },
-      usd_no_segmentado: {
-        cartera_actual_episodios: 0,
-        cartera_actual_capital: 0,
-        cohorte_episodios_recibidos: 0,
-        cohorte_leads_unicos: 0,
-        convertidos: 0,
-        descartados: 0,
-      },
-      operacion: {
-        cohorte_episodios: 3,
-        transferidos: 1,
-        parqueados: 0,
-        desactivados: 0,
-        sin_tocar_actual: 1,
-      },
-    }],
-    por_repartir: {
-      total: { carga_total: 1, pen: penCola, usd: usdCola },
-      global: {
-        responsabilidad: 'gerencia',
-        carga_total: 1,
-        pen: penCola,
-        usd: usdCola,
-      },
-      bandejas: [{
-        supervisor_id: SUPERVISOR_ID,
-        supervisor_nombre: 'SUSANA SUPERVISORA',
-        supervisor_activo: true,
-        carga_total: 0,
-        pen: { cantidad: 0, capital: 0, rangos: rangosCola().map((r) => ({ ...r, cantidad: 0, capital: 0 })) },
-        usd: usdCola,
-      }],
-    },
-    calidad: {
-      episodios_aproximados_actuales: 0,
-      episodios_aproximados_cohorte: 0,
-      episodios_sin_monto_actuales: 0,
-      episodios_sin_monto_cohorte: 0,
-    },
-  }
-}
-
-describe('listarMetricasDistribucionLeads (msw)', () => {
-  it('manda ambas fechas, valida todo el JSON V2 y coerciona sus numeric', async () => {
-    let cuerpo: unknown = null
-    server.use(
-      http.post(RPC('metricas_distribucion_leads_v2_fn'), async ({ request }) => {
-        cuerpo = await request.json()
-        return HttpResponse.json(payloadValido())
-      }),
-    )
-
-    const metricas = await listarMetricasDistribucionLeads('2026-04-01', '2026-06-30')
-
-    expect(cuerpo).toEqual({ p_desde: '2026-04-01', p_hasta: '2026-06-30' })
-    expect(metricas.version).toBe(2)
-    expect(metricas.rangos).toHaveLength(8)
-    expect(metricas.analistas[0]!.pen.cartera_actual.capital).toBe(7000.5)
-    expect(metricas.analistas[0]!.operacion.transferidos).toBe(1)
-    expect(metricas.resumen.reasignaciones_cohorte).toBe(1)
-    expect(metricas.por_repartir.total.pen.capital).toBe(1000)
-  })
-
-  it('rechaza el payload completo si falta una métrica anidada', async () => {
-    const payload = payloadValido()
-    const operacion = payload.analistas[0]!.operacion as Record<string, unknown>
-    delete operacion.transferidos
-    server.use(
-      http.post(RPC('metricas_distribucion_leads_v2_fn'), () => HttpResponse.json(payload)),
-    )
-
-    await expect(
-      listarMetricasDistribucionLeads('2026-04-01', '2026-06-30'),
-    ).rejects.toMatchObject({
-      code: 'METRICAS_DISTRIBUCION_CONTRACT',
-      message: 'Las métricas de distribución no tienen el formato esperado.',
-    })
-  })
-
-  it('rechaza campos del SLA fijo retirado aunque el resto del payload sea válido', async () => {
-    const payload = payloadValido()
-    Object.assign(payload.resumen, { sla_global_en_24h: 1 })
-    Object.assign(payload.analistas[0]!.operacion, { sla_asignacion_en_24h: 1 })
-    server.use(
-      http.post(RPC('metricas_distribucion_leads_v2_fn'), () => HttpResponse.json(payload)),
-    )
-
-    await expect(
-      listarMetricasDistribucionLeads('2026-04-01', '2026-06-30'),
-    ).rejects.toMatchObject({ code: 'METRICAS_DISTRIBUCION_CONTRACT' })
-  })
-
-  it('rechaza fechas inválidas antes de tocar la red', async () => {
-    await expect(
-      listarMetricasDistribucionLeads('2026-07-10', '2026-07-01'),
-    ).rejects.toMatchObject({ code: 'PERIODO_METRICAS_INVALIDO' })
-  })
-
-  it('propaga la cancelación como AbortError', async () => {
-    server.use(
-      http.post(RPC('metricas_distribucion_leads_v2_fn'), async () => {
-        await delay(200)
-        return HttpResponse.json(payloadValido())
-      }),
-    )
-    const controlador = new AbortController()
-    const promesa = listarMetricasDistribucionLeads(
-      '2026-04-01',
-      '2026-06-30',
-      controlador.signal,
-    )
-    controlador.abort()
-
-    await expect(promesa).rejects.toMatchObject({ name: 'AbortError' })
-  })
 })
 
 describe('actualizarCapacidadLeadsObjetivo (msw)', () => {
