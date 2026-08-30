@@ -20,17 +20,33 @@ create table public.audit_log (
   constraint audit_log_operacion_check check (operacion in ('INSERT','UPDATE','DELETE','demo_marca')));
 create table supabase_migrations.schema_migrations (version text primary key, name text, statements text[]);
 
-create function private.log_audit_crm() returns trigger language plpgsql security definer set search_path='' as $$
-declare v_fila uuid;
+create function private.log_audit_crm()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'crm'
+AS $function$
+declare
+  v_fila uuid;
 begin
-  v_fila := coalesce((pg_catalog.to_jsonb(coalesce(new,old))->>'id')::uuid,
-                     (pg_catalog.to_jsonb(coalesce(new,old))->>'perfil_id')::uuid);
+  v_fila := coalesce(
+    (to_jsonb(coalesce(new, old)) ->> 'id')::uuid,
+    (to_jsonb(coalesce(new, old)) ->> 'perfil_id')::uuid
+  );
   insert into public.audit_log (tabla, operacion, fila_id, usuario_id, data_antes, data_despues)
-  values (tg_table_schema||'.'||tg_table_name, tg_op, v_fila, (select auth.uid()),
-          case when tg_op in ('UPDATE','DELETE') then pg_catalog.to_jsonb(old) end,
-          case when tg_op in ('INSERT','UPDATE') then pg_catalog.to_jsonb(new) end);
+  values (
+    tg_table_schema || '.' || tg_table_name,
+    tg_op,
+    v_fila,
+    (select auth.uid()),
+    case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) end,
+    case when tg_op in ('INSERT','UPDATE') then to_jsonb(new) end
+  );
   return coalesce(new, old);
-end $$;
+end;
+$function$
+;
+
 create function public.log_audit_change() returns trigger language plpgsql as $$ begin return coalesce(new,old); end $$;
 
 -- Las tres que reciben rastro
@@ -61,3 +77,11 @@ create function cron.unschedule(p_nombre text) returns boolean language sql as $
 -- perfiles ya tiene su auditor en producción; el espejo lo replica
 create trigger trg_audit_perfiles after insert or update or delete on public.perfiles
   for each row execute function public.log_audit_change();
+
+-- Réplica del fallo real que la auditoría encontró: tablas «auditadas» a medias
+create table crm.metas_vendedor (id uuid primary key default gen_random_uuid(), meta numeric);
+create trigger trg_audit_metas_vendedor after insert on crm.metas_vendedor
+  for each row execute function private.log_audit_crm();
+create table crm.lead_asignaciones (id uuid primary key default gen_random_uuid(), lead_id uuid);
+create trigger trg_audit_lead_asignaciones after insert or update on crm.lead_asignaciones
+  for each row execute function private.log_audit_crm();

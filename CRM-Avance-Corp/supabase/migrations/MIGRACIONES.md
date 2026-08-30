@@ -5377,3 +5377,56 @@ parser, y `pg_catalog.coalesce(...)` aborta la migración entera.
 `string_agg(x, ', ' order by 1)` ordena por la CONSTANTE 1, no por la columna —
 la lista sale desordenada y una comparación exacta falla sin motivo real. Hay que
 nombrar la expresión: `order by n.nspname || '.' || c.relname`.
+
+---
+
+## 20260829233000 · FASE 1.5 — enmienda de la F1.4 tras la auditoría
+
+**Estado: escrita y probada en espejo; pendiente de aplicar (va junto con la F1.4). Registro → 179.**
+
+La F1.4 se auditó **antes** de aplicarse y volvió con tres bloqueantes. Como no
+se edita una migración ya versionada, la corrección viaja en su propia migración
+y las dos se publican juntas y en orden.
+
+| # | Lo que la auditoría rompió | Cómo queda |
+|---|---|---|
+| 1 | 🔴 **La regla solo preguntaba «¿hay algún trigger?»**, no «¿audita de verdad?». Medido: **9 tablas** que el gate habría dado por buenas tienen la auditoría a medias — metas y políticas de SLA sin UPDATE ni DELETE; los ledgers de asignación de leads sin DELETE | La regla exige trigger **activo**, **por fila**, auditor **por OID** (una función señuelo con el mismo nombre pasaba) y **los tres verbos**. La migración completa las nueve añadiendo solo el verbo que falta, sin tocar ningún trigger vivo |
+| 2 | 🔴 **El ruido que la F1.4 decía evitar no se evitaba.** El portal guarda la suscripción con un `upsert` que lista TODAS las columnas en el SET, y lo hace en CADA carga del panel: un `UPDATE OF` dispara por estar la columna en el SET, cambie o no. Con 216 dispositivos activos eran cientos de filas idénticas al día | Dos triggers: alta/baja sin condición, y cambios con un `WHEN` que compara valores de verdad. El postflight exige el WHEN **y** que no mencione la columna de reloj |
+| 3 | 🔴 **La lista de secretos era global y fija** → fail-open el día que alguien colgara el auditor de otra tabla | Las columnas van como **argumentos del trigger**; sin argumentos, el auditor se niega a correr. El postflight lo verifica |
+| 4 | La defensa anti-FK estaba solo en el auditor nuevo, y la tabla del **dinero** cuelga del de siempre | El mismo rescate en `log_audit_crm`, **anclando su md5 vivo** (`461846328…`) antes de tocarlo. Cambia también su `search_path` a `''` (postura del resto del servidor): declarado, y el rollback restaura la definición original al byte |
+| 5 | `public.audit_log` estaba excluida **dentro** de la función: una segunda lista blanca que nadie vigilaba | Pasa a ser exención declarada con su razón. `public.schema_migrations` se cae: no existe en `public` |
+| 6 | El interruptor que apaga una auditoría no dejaba rastro | La tabla de exenciones **se audita a sí misma**, y un **sello** de la lista permite al vigía abrir alerta si alguien la toca fuera del repo |
+| 7 | Un `id` no-uuid abortaba la operación auditada | El cast va protegido en los dos auditores |
+
+**🔴 LA TRAMPA MÁS CARA, y la que invalidaba el gate entero:** el canal
+`supabase db query` **NO transporta los `raise notice`** (medido: un bloque que
+solo hace notice devuelve `{"rows": []}` y código 0). El gate buscaba
+«MUTANTE CAZADO» en un aviso → **nunca habría podido ponerse verde**, y el verde
+del trinquete era «ausencia de error», no una afirmación. Ahora **el veredicto
+viaja como FILA** (`TRINQUETE_AUDITORIA_OK`, `F1_5_APLICADA`,
+`MARCHA_ATRAS_F1_4_F1_5_OK`) y el mutante **termina en `raise exception`**, que
+además arregla el segundo bloqueante: así su DDL de prueba **se deshace entero**
+en vez de quedar confirmado en producción (con su recarga del esquema de
+PostgREST en cada corrida).
+
+**El mutante ahora tiene CUATRO filos** (antes tres): tabla sin rastro · **tabla
+con rastro a medias** (el fallo real que la auditoría encontró) · el vigía · y
+una exención colada a mano contra el sello.
+
+**Ciclo completo probado en el espejo local**, con el auditor real de producción
+replicado al byte (md5 `461846328…`, incluido su `search_path 'public','crm'`):
+
+| Paso | Resultado |
+|---|---|
+| F1.4 → F1.5 | ✅ ambas aplican; el ancla de md5 se prueba de verdad |
+| Trinquete | ✅ `TRINQUETE_AUDITORIA_OK` · 0 sin rastro · 3 exenciones |
+| Mutante | ✅ `MUTANTE_CAZADO` por los cuatro filos, sin dejar nada escrito |
+| Secretos | ✅ 6 movimientos auditados, **0 fugas**, el toque de reloj no cuenta |
+| Puertas (`scripts/prueba-permisos-f1-5.sql`) | ✅ ni anon, ni authenticated, ni service_role, ni **PUBLIC** alcanzan la maquinaria nueva; las 3 tablas con RLS y sin políticas |
+| Marcha atrás | ✅ vuelve a la foto original, restaura el auditor a su md5 y **conserva las 7 filas de rastro ya escritas** |
+
+**Corrección al ledger de la F1.4:** la frase «gate probado en ROJO… cazó
+exactamente las 3 tablas» era cierta de una versión anterior del trinquete (que
+llevaba la consulta en línea); con el trinquete actual, sin la regla aplicada, lo
+que devuelve es «la regla no está en el servidor». Y el mutante de aquella
+versión **confirmaba** en vez de deshacerse.

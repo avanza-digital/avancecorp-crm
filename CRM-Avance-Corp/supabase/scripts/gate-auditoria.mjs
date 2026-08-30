@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 
-// GATE DE AUDITORÍA (P-055 F1.4)
+// GATE DE AUDITORÍA (P-055 F1.4/F1.5)
 //
 // Corre el trinquete `supabase/scripts/trinquete-auditoria.sql` contra el
-// proyecto enlazado y FALLA si alguna tabla de crm/public quedó sin rastro sin
-// estar declarada en la lista blanca de ese archivo.
+// proyecto enlazado y FALLA si alguna tabla de crm/public quedó sin rastro
+// completo sin estar declarada en la lista blanca.
 //
-// Existe porque `supabase db query` devuelve código 0 aunque la consulta haya
-// reventado: el error viaja dentro del JSON. Este envoltorio lo lee.
+// 🔴 DOS COSAS QUE COSTARON UNA AUDITORÍA:
+//   1. `supabase db query` devuelve código 0 aunque la consulta reviente: el
+//      error viaja dentro del JSON. Este envoltorio lo lee.
+//   2. Ese mismo canal NO transporta los `raise notice` (medido: un bloque que
+//      solo hace `raise notice` devuelve `{"rows": []}`). Por eso el verde no se
+//      da por «no hubo error» sino por VER la fila de veredicto que el SQL
+//      devuelve al final. Un gate que buscara su OK en un aviso estaría siempre
+//      verde por vacío.
 //
 // Uso:
-//   npm run gate:auditoria            → el trinquete
-//   npm run gate:auditoria -- --mutante  → además rompe la regla a propósito
-//                                          (tabla sin rastro dentro de una
-//                                          transacción que se deshace) y exige
-//                                          que el trinquete se ponga rojo.
+//   npm run gate:auditoria               → el trinquete
+//   npm run gate:auditoria:mutante       → además rompe la regla a propósito
+//                                          (cuatro filos) dentro de una
+//                                          transacción que se deshace entera, y
+//                                          exige que el trinquete la cace.
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -38,9 +44,8 @@ function correr(archivo) {
     ['supabase', 'db', 'query', '--linked', '--file', archivo],
     { cwd: CRM_ROOT, encoding: 'utf8', env: process.env },
   );
-  const salida = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   if (r.error) fallar(`No se pudo ejecutar supabase CLI: ${r.error.message}`);
-  return { salida, codigo: r.status };
+  return `${r.stdout ?? ''}${r.stderr ?? ''}`;
 }
 
 function fallar(mensaje, detalle) {
@@ -49,35 +54,45 @@ function fallar(mensaje, detalle) {
   process.exit(1);
 }
 
-// --- 1. El trinquete ---------------------------------------------------------
-const { salida, codigo } = correr(TRINQUETE);
-const reventó = salida.includes('"_tag":"Error"') || salida.includes('ERROR:');
+// --- 1. El trinquete: el verde exige VER la fila de veredicto ---------------
+const salida = correr(TRINQUETE);
 
-if (reventó || codigo !== 0) {
+if (!salida.includes('TRINQUETE_AUDITORIA_OK')) {
   const roto = salida.includes('TRINQUETE DE AUDITORÍA ROTO');
+  const desalineada = salida.includes('LISTA BLANCA DESALINEADA');
+  const sello = salida.includes('SELLO ROTO');
+  const alertas = salida.includes('EL VIGÍA TIENE ALERTAS ABIERTAS');
   fallar(
     roto
-      ? 'TRINQUETE DE AUDITORÍA ROTO: hay tablas sin rastro sin declarar.'
-      : 'El trinquete de auditoría no pudo correr.',
+      ? 'TRINQUETE ROTO: hay tablas sin rastro completo sin declarar.'
+      : desalineada
+        ? 'LISTA BLANCA DESALINEADA: la base y el repo no dicen lo mismo.'
+        : sello
+          ? 'SELLO ROTO: alguien tocó la lista blanca sin re-sellar.'
+          : alertas
+            ? 'EL VIGÍA TIENE ALERTAS ABIERTAS.'
+            : 'El trinquete no devolvió su fila de veredicto (¿falta aplicar F1.4/F1.5?).',
     salida,
   );
 }
-console.log('✅ Trinquete de auditoría: 0 tablas sin rastro fuera de las declaradas.');
 
-// --- 2. El mutante (opcional): probar que el gate SABE ponerse rojo ----------
+const sinRastro = /"sin_rastro":\s*"?(\d+)"?/.exec(salida)?.[1] ?? '?';
+const exenciones = /"exenciones":\s*"?(\d+)"?/.exec(salida)?.[1] ?? '?';
+if (sinRastro !== '0') fallar(`El trinquete dice OK pero reporta ${sinRastro} tablas sin rastro.`, salida);
+console.log(`✅ Trinquete: 0 tablas sin rastro completo · ${exenciones} exenciones declaradas y selladas.`);
+
+// --- 2. El mutante: probar que el gate SABE ponerse rojo --------------------
 if (args.has('--mutante')) {
   const m = correr(MUTANTE);
-  if (m.salida.includes('"_tag":"Error"') || m.salida.includes('ERROR:')) {
-    fallar('El mutante no pudo correr.', m.salida);
+  if (m.includes('EL MUTANTE SOBREVIVIÓ')) {
+    const filo = /EL MUTANTE SOBREVIVIÓ \(filo \d\)[^"\\]*/.exec(m)?.[0] ?? '';
+    fallar(`EL MUTANTE SOBREVIVIÓ: esa defensa no está probada. ${filo}`, m);
   }
-  if (!m.salida.includes('MUTANTE CAZADO')) {
-    fallar(
-      'EL MUTANTE SOBREVIVIÓ: se creó una tabla sin rastro y el trinquete no se inmutó. ' +
-        'Esa regla no está probada.',
-      m.salida,
-    );
+  // El éxito del mutante es su excepción: así deshace la transacción entera.
+  if (!m.includes('MUTANTE_CAZADO')) {
+    fallar('El mutante no llegó a su veredicto (no dijo ni CAZADO ni SOBREVIVIÓ).', m);
   }
-  console.log('✅ Mutante cazado: con una tabla sin rastro, el trinquete se pone rojo.');
+  console.log('✅ Mutante cazado por los cuatro filos: tabla sin rastro, tabla a medias, vigía y sello.');
 }
 
 console.log('\nGate de auditoría en verde.');
