@@ -32,7 +32,10 @@ declare
   v_sin_rastro text;
   v_restos text;
 begin
-  select pg_catalog.string_agg(n.nspname || '.' || c.relname, ', ' order by 1)
+  -- ⚠️ Dentro de un agregado, `order by 1` es la CONSTANTE 1, no la columna:
+  -- hay que nombrar la expresión o la lista sale desordenada.
+  select pg_catalog.string_agg(n.nspname || '.' || c.relname, ', '
+                               order by n.nspname || '.' || c.relname)
     into v_sin_rastro
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where c.relkind in ('r','p') and not c.relispartition and c.relpersistence = 'p'

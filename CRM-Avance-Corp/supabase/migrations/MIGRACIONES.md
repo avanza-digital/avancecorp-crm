@@ -5359,3 +5359,21 @@ del repo). Todo dentro de un bloque que se deshace solo.
 **Trampa nueva:** con `search_path=''`, `coalesce` y `current_user` NO llevan
 prefijo `pg_catalog` — no son funciones de catálogo sino construcciones del
 parser, y `pg_catalog.coalesce(...)` aborta la migración entera.
+
+**Probada ENTERA antes de tocar producción, en un espejo local desechable**
+(misma imagen 17.6.1.105, stubs en `scripts/espejo-f1-4-stubs.sql`):
+
+| Prueba | Resultado |
+|---|---|
+| La migración aplica | ✅ postflight en verde |
+| El postflight sirve | ✅ **cazó un fallo del propio espejo** (`public.perfiles` sin auditor) antes de dar verde |
+| Trinquete | ✅ 0 tablas sin rastro · lista blanca alineada |
+| Mutante (3 filos) | ✅ cazado: la regla lo vio, el vigía lo anotó, el espejo delató la exención colada |
+| Secretos de punta a punta (`scripts/prueba-secretos-f1-4.sql`) | ✅ **0 fugas**: alta+rotación+baja del token ICS y alta+cambio+baja de un dispositivo dejan 6 movimientos auditados con el valor sustituido por `***:` + 8 de md5. El toque de `actualizado_en` NO cuenta (6, no 7). El dinero de cartera sí deja rastro |
+| Marcha atrás (`scripts/rollback-f1-4-p055.sql`) | ✅ deja el servidor como estaba **y conserva las 7 filas de auditoría ya escritas** (un rastro no se borra) |
+| Reaplicación tras la marcha atrás | ✅ idempotente |
+
+**Trampa nueva (la cazó la marcha atrás):** dentro de un agregado,
+`string_agg(x, ', ' order by 1)` ordena por la CONSTANTE 1, no por la columna —
+la lista sale desordenada y una comparación exacta falla sin motivo real. Hay que
+nombrar la expresión: `order by n.nspname || '.' || c.relname`.
