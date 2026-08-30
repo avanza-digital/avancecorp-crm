@@ -100,11 +100,12 @@ declaran) + tope solo-baja + vigía + `npm run gate:analitica` con mutante de 7 
 El Bloque B resultó ya hecho en el servidor por la «conversión única» (directo o por
 transitividad, verificado); lo que quedaba era gobernanza (el censo) y el núcleo de citas.
 
-**Deuda DECLARADA (sellada en las exenciones, visible para siempre):**
-- `series_comerciales_fn.conversion_pct` es una **segunda fórmula** (cohorte sin peso de
-  referido: 2,8 % vs 7,0 % del núcleo en agosto) → convertir o renombrar a `conversion_cohorte`.
-- `registrar_ajuste_si_mes_cerrado` recalcula su numerador localmente y replica la rama de
-  coops a mano → que beba del puente del sello.
+**✅ Las dos deudas, CERRADAS por la F6.c (30/08, registro 183):**
+- Series: `conversion_cohorte_pct` (el espejo del front, con su apellido) + `conversion_mensual_pct`
+  pedida A LA CAPA PUBLICADA (`conversion_mensual_fn` por mes: foto sellada, ajustes, 2 decimales).
+- Registrar_ajuste: **el episodio manda** — el referido, el periodo y el peso salen del episodio
+  canónico del ledger; sin episodio la sanción de conversión vale CERO + alerta. La rama de coops
+  queda por semántica firmada de la F4, con su deriva vigilada por el trinquete.
 - **F6.b (front): ✅ HECHA EN EL CÓDIGO (30/08), publicada: release `crm-20260830T052011Z-66839fb5a047` VIVO en crm.miavance.com.** El KPI de
   inteligencia comercial pasa de «Citas realizadas» a **«Leads que llegaron a cita»** (con
   «N con cita pactada» de detalle) y «Conversión por analista» pasa a **«Cosecha por

@@ -5559,17 +5559,37 @@ async function testMetricasServidor(sessions, seed) {
       'gerencia ve la fila del analista desactivado marcada activo=false');
   }
 
-  // series_comerciales_fn: shape de 6 arrays paralelos.
+  // series_comerciales_fn v2 (F6.c): shape de 7 arrays paralelos. La clave de
+  // cohorte lleva su apellido y la conversion OFICIAL del nucleo viaja aparte
+  // (admite null en los meses sin ledger: un cero mentiria).
   const series = await positive(
     'gerencia obtiene series_comerciales_fn',
     sessions.gerencia.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 6 }),
   );
   if (series) {
     const d = series.data ?? {};
+    check(d.version === 2, 'series declara version 2');
+    check(!('conversion_pct' in d),
+      'la clave sin apellido ya no existe (F6.c)');
     check((d.meses ?? []).length === 6
-      && ['nuevos', 'cierres', 'cohorte_clientes', 'capital_pen', 'capital_usd', 'conversion_pct']
+      && ['nuevos', 'cierres', 'cohorte_clientes', 'capital_pen', 'capital_usd', 'conversion_cohorte_pct']
         .every((k) => (d[k] ?? []).length === 6),
       'gerencia recibe 6 arrays paralelos de 6 meses');
+    check(Array.isArray(d.conversion_mensual_pct) && d.conversion_mensual_pct.length === 6,
+      'la serie mensual del nucleo viaja con 6 posiciones (null permitido)');
+    // Paridad con el OFICIAL: el ultimo mes de la serie == conversion_mensual_fn.
+    const mesActual = (d.meses ?? [])[5];
+    const oficial = await positive(
+      'gerencia lee la conversion oficial del mes para la paridad de series',
+      sessions.gerencia.client.schema('crm').rpc('conversion_mensual_fn', { p_periodo: `${mesActual}-01` }),
+    );
+    if (oficial) {
+      const pctOficial = oficial.data?.total?.conversion_pct;
+      const pctSerie = d.conversion_mensual_pct?.[5];
+      check(pctSerie == null ? pctOficial == null || pctOficial === 0
+        : Math.round(Number(pctSerie) * 10) === Math.round(Number(pctOficial) * 10),
+      `la serie mensual del nucleo cuadra con la oficial (serie=${pctSerie} oficial=${pctOficial})`);
+    }
   }
 
   // Tanda 2 (20260809144920): la rama de reparto da al coordinador los

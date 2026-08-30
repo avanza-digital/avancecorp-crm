@@ -5680,3 +5680,24 @@ necesita **etiqueta propia** en su `do` (el cuerpo lleva `$$` y un `do $$` norma
 (por vencimiento vs leads con cita), renombrar `conversion_pct` de series a `conversion_cohorte` (o
 convertirla), y **la relectura de la decisión 5** (los 45 días eran de la vista; la métrica ya era mensual)
 necesita su firma — el ejecutor no cierra decisiones por reinterpretación.
+
+---
+
+## P-055 · FASE 6.c — LAS DOS DEUDAS DECLARADAS, CERRADAS (2026-08-30)
+
+**Estado: escrita y ensayada contra producción (todo deshecho), en auditoría.**
+
+Orden de Miguel: «cerremos las 2 deudas declaradas».
+
+| Deuda | Cierre |
+|---|---|
+| `series_comerciales_fn.conversion_pct` era una segunda fórmula sin apellido | La clave pasa a **`conversion_cohorte_pct`** (espejo deliberado del front, sin consumidores de la RPC) y el payload gana **`conversion_mensual_pct`**: pedida **A LA CAPA PUBLICADA** (`conversion_mensual_fn` por mes — P0 de Codex: recalcular del núcleo ignoraba la foto del mes sellado, los ajustes pendientes y los dos decimales). Coordinador recibe NULL, no error. `version` 2 |
+| `registrar_ajuste_si_mes_cerrado` recalculaba el referido a mano | **EL EPISODIO MANDA** (P1 de Codex): el cierre puede caer a caballo del mes — se localiza el episodio canónico del lead sin depender de `convertido_en`, y de él salen el PERIODO real (re-tomando el cerrojo), el referido y el peso. **0 episodios ⇒ la sanción de conversión vale CERO** (nunca 1 en silencio) + alerta `f6c_ajuste_sin_episodio`; >1 ⇒ excepción de integridad. La rama de coops queda **por semántica de la F4**; su deriva la vigila el trinquete |
+
+**Ensayos (30/08, deshechos):** cohorte agosto **2,8 idéntica** · mensual **VERBATIM de la oficial** (null, null, **7,02** — dos decimales) · referido por episodio canónico en TODOS los convertidos: **0 discrepancias** (y mes del episodio = mes de `convertido_en` hoy) · corrida B v5: las dos huellas crudas **de vuelta al byte** con rollback de LITERALES DE MÁQUINA y trinquete OK 30/30 · smoke ejecutado como gerencia dentro del postflight.
+
+**Dos NO-GO atendidos enteros** (auditor RLS: 4 P1 + P2 de la alerta · Codex: P0 de la «oficial que no era oficial» + P1 del cierre a caballo del mes). 🔴 Trampa nueva: extraer anclas de un archivo con `find(desde=...)` tras un `raise` rebana el ancla EQUIVOCADA — los literales del rollback se generan por máquina desde la propia migración.
+
+Archivos: `migrations/20260830140000_crm_f6_c_deudas_declaradas.sql` · `scripts/rollback-f6c-p055.sql` · bloque de series v2 en `test-rls.mjs` (paridad serie-vs-oficial incluida).
+
+**P2 aceptados con nombre:** para meses SELLADOS la serie mensual recalcula del ledger (hoy converge; si tras el 10/09 Miguel quiere espejo del sellado, es decisión suya) · `EXPLAIN` con p_meses=24 en el próximo banco.
