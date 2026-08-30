@@ -5884,7 +5884,13 @@ fail-closed) · bloque D1 reescrito en `scripts/test-rls.mjs`.
 
 ## P-055 · ATR-1 — EL UPGRADE CUENTA A QUIEN LO HACE (2026-08-30)
 
-**Estado: 🟡 PREPARADA — DOS auditorías atendidas ENTERAS; ensayo y ciclo v3 EN VERDE contra prod (deshechos); lista para publicar (ventana 31/08–05/09).**
+**Estado: ✅ EN PRODUCCIÓN (2026-08-30 noche, registro 187).** Publicada por Miguel con `!` la misma
+noche (dentro del margen; el preflight re-midió agosto en el instante y pasó con delta VACÍO).
+Verificado por conteo: huellas nuevas exactas en los dos núcleos (CE `71213ac0…`, MC `f968879a…`),
+resolutor con ACL `{postgres=X/postgres}`, registro **187** (`20260830223000`). Batería:
+`gate:vigencia` 6/6 · `gate:analitica` 30/30 · advisors **0 ERROR** (133 WARN, sin cambio).
+**Desde esta noche, el primer upgrade que registre un no-dueño contará a quien lo haga** — y el
+sellado del 10/09 capturará la política nueva.
 Migración `20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql`. Primera fase del plan de
 **atribución por cadena de upgrade** (decisión de Miguel 30/08 + sus 4 respuestas; contrato técnico
 en el vault: «Contrato de la atribucion por cadena de upgrade (2026-08-30)»).
