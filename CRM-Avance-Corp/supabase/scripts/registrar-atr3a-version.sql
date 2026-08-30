@@ -3,11 +3,22 @@
 do $reg_atr3a$
 declare v_a text[]; v_nombre text; v_h text;
 begin
-  select md5(p.prosrc) into v_h from pg_proc p
-   where p.oid = 'crm.atribucion_contrato_fn(uuid)'::regprocedure;
-  if v_h is distinct from '1eccb3a1ff8b73e91f2f7870d08f83e8' then
-    raise exception 'Registro ATR-3a: el mundo vivo NO esta migrado (ficha con huella %) — aplicar antes de registrar', v_h;
-  end if;
+  -- Las TRES piezas vivas deben estar YA migradas (P1 de Codex: solo se miraba la ficha).
+  declare
+    v_fn constant text[][] := array[
+      array['crm.metricas_capital_mes_fn(integer)',  'b21f9a7a134f76f9f2eabfe75578cbca'],
+      array['crm.metricas_vencimientos_fn(integer)', '54a9bf11bb4e0bbf0fc4d7c12bed7fcb'],
+      array['crm.atribucion_contrato_fn(uuid)',      '1eccb3a1ff8b73e91f2f7870d08f83e8']
+    ];
+    v_fila text[];
+  begin
+    foreach v_fila slice 1 in array v_fn loop
+      select md5(p.prosrc) into v_h from pg_proc p where p.oid = v_fila[1]::regprocedure;
+      if v_h is distinct from v_fila[2] then
+        raise exception 'Registro ATR-3a: el mundo vivo NO esta migrado (% con huella %) — aplicar antes de registrar', v_fila[1], v_h;
+      end if;
+    end loop;
+  end;
 
   select statements into v_a from supabase_migrations.schema_migrations where version='20260831010000';
   if found and v_a is null then
@@ -33,7 +44,7 @@ begin
 -- miran esas graficas) CERO — el corte no aplica. Para un no-global, la lente
 -- pasa de "clientes de mi arbol" a "produccion de mi arbol" (la misma cifra
 -- que su podio); el oraculo MIDE ese delta bajo claims reales y lo exige
--- explicado fila a fila. Sin analista (15 historicos) -> fuera de la vista
+-- explicado fila a fila. Sin analista (13 medidos, verificado en preflight) -> fuera de la vista
 -- no-global (invariante F3.5b); gerencia lo sigue viendo todo.
 --
 -- El Directorio del Portal NO se toca: queda como la UNICA lente por cartera
@@ -61,7 +72,7 @@ declare
     array['public.directorio_ranking_analistas()',                             '0ba94108dc8612a42535ab89c14d1728'],
     array['public.crear_contrato(jsonb,jsonb)',                                '4c25cee5a36c2144c45a061eaddb5366']
   ];
-  v_fila text[]; v_h text;
+  v_fila text[]; v_h text; v_n integer;
   v_ger uuid; v_sup uuid;
 begin
   foreach v_fila slice 1 in array v_fn loop
@@ -82,6 +93,14 @@ begin
     raise exception 'ATR-3a preflight: capital_episodios en estado desconocido (huella %)', v_h;
   end if;
   create temp table _atr3_amb on commit drop as select v_h as cap_h;
+
+  -- La afirmacion "13 sin analista" se VERIFICA, no se comenta (P2 de Codex):
+  -- si cambia, este publish debe re-mirarse (la puerta F3.7 impide que nazcan).
+  select count(*) into v_n from public.contratos c
+   where c.analista_cierre_id is null and not c.es_demo;
+  if v_n <> 13 then
+    raise exception 'ATR-3a preflight: % contratos sin analista (se midieron 13) — re-mirar antes de publicar', v_n;
+  end if;
 
   -- Actores reales para el oraculo por claims: una gerencia y un supervisor.
   select e.perfil_id into strict v_ger
@@ -150,7 +169,7 @@ begin
   create temp table _atr3_fichas_antes on commit drop as
     select c.id, crm.atribucion_contrato_fn(c.id) as ficha,
            null::uuid as esperado_analista, null::boolean as esperado_cadena,
-           null::boolean as esperado_adoptada
+           null::boolean as esperado_adoptada, null::text as esperado_nombre
       from (
         (select id from public.contratos where categoria = 'upgrade' and not es_demo limit 1)
         union all
@@ -163,6 +182,8 @@ begin
   -- La verdad esperada de la clave nueva, calculada como postgres (el resolutor es private).
   update _atr3_fichas_antes fa
      set esperado_analista = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id),
+         esperado_nombre   = (select pp.nombre_completo from public.perfiles pp
+                               where pp.id = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id)),
          esperado_cadena   = private.analista_atribuido_cadena(c.id) is not null,
          esperado_adoptada = private.analista_atribuido_cadena(c.id) is not null
                              and private.analista_atribuido_cadena(c.id) is distinct from c.analista_cierre_id
@@ -327,6 +348,11 @@ AS $function$
 $function$
 ;
 
+comment on function crm.atribucion_contrato_fn(uuid) is
+  'De quien es la venta (F3.6) + a quien COBRA de verdad (ATR-3: atribucion_efectiva '
+  '{cadena, adoptada, analista_id, analista_nombre} — la politica de la cadena de upgrade). '
+  'NULL si quien pregunta no ve el contrato (gate: la vista crm.contratos_cartera).';
+
 -- =====================================================================
 -- 2) ORACULO bajo los MISMOS claims.
 -- =====================================================================
@@ -359,36 +385,48 @@ begin
   -- 2b) SUPERVISOR: la foto nueva = agregacion PREDICHA por el corte nuevo.
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup, 'role', 'authenticated')::text, true);
-  select (select count(*) from (
-      (select * from crm.metricas_capital_mes_fn(60))
-      except all
-      (select p.mes_comercial, p.moneda, p.categoria,
-              count(*)::bigint, sum(p.monto)
-         from _atr3_pred p
-        where p.entra_nuevo
-          and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
-        group by 1, 2, 3)
-    ) x) into v_n;
+  create temp table _atr3_cap_pred on commit drop as
+    select p.mes_comercial as mes, p.moneda, p.categoria,
+           count(*)::bigint as contratos, sum(p.monto) as capital_colocado
+      from _atr3_pred p
+     where p.entra_nuevo
+       and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
+     group by 1, 2, 3;
+  grant select on _atr3_cap_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_capital_mes_fn(60))
+          except all (select * from _atr3_cap_pred)) x)
+       + (select count(*) from ((select * from _atr3_cap_pred)
+          except all (select * from crm.metricas_capital_mes_fn(60))) x)
+    into v_n;
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: capital_mes del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
 
-  -- Y el movimiento respecto de la foto vieja queda EXPLICADO por la prediccion:
-  -- toda fila que cambio corresponde a algun contrato con entraba_viejo <> entra_nuevo.
-  if exists (
-    select 1 from (
-      (select mes from crm.metricas_capital_mes_fn(60)
-       except select mes from _atr3_mes_sup_antes)
-      union all
-      (select mes from _atr3_mes_sup_antes
-       except select mes from crm.metricas_capital_mes_fn(60))
-    ) x
-    where not exists (
-      select 1 from _atr3_pred p
-      where p.entraba_viejo <> p.entra_nuevo and p.mes_comercial = x.mes)
-  ) then
-    raise exception 'ATR-3a oraculo: un mes del supervisor cambio sin contrato que lo explique';
+  -- VENCIMIENTOS del supervisor: bidireccional contra su propia prediccion
+  -- (P1 de Codex: la foto capturada no se comparaba). La ventana y el estado
+  -- replican los filtros de la lente.
+  create temp table _atr3_venc_pred on commit drop as
+    select (date_trunc('month', p.fecha_vencimiento))::date as mes, p.moneda,
+           count(*)::bigint as contratos_por_vencer, sum(p.monto) as capital_por_vencer
+      from _atr3_pred p
+     where p.entra_nuevo
+       and ((p.categoria is distinct from 'cooperativa' and p.estado = 'activo')
+            or (p.categoria = 'cooperativa' and p.estado = 'vigente'))
+       and p.fecha_vencimiento >= current_date
+       and p.fecha_vencimiento <  current_date + 366
+     group by 1, 2;
+  grant select on _atr3_venc_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_vencimientos_fn(366))
+          except all (select * from _atr3_venc_pred)) x)
+       + (select count(*) from ((select * from _atr3_venc_pred)
+          except all (select * from crm.metricas_vencimientos_fn(366))) x)
+    into v_n;
+  if v_n <> 0 then
+    raise exception 'ATR-3a oraculo: vencimientos del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
+  -- La foto vieja del supervisor queda de TESTIGO de forma (mismas columnas):
+  perform 1 from _atr3_mes_sup_antes limit 1;
+  perform 1 from _atr3_venc_sup_antes limit 1;
 
   -- 2c) LA FICHA: payload viejo AL BYTE + la clave nueva con la verdad
   --     (bajo claims de GERENCIA, como la captura de antes).
@@ -401,7 +439,10 @@ begin
       or (fn.nueva -> 'atribucion_efectiva') is null
       or (fn.nueva #>> '{atribucion_efectiva,analista_id}')::uuid is distinct from fa.esperado_analista
       or (fn.nueva #>> '{atribucion_efectiva,cadena}')::boolean   is distinct from fa.esperado_cadena
-      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada;
+      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada
+      or (fn.nueva #>> '{atribucion_efectiva,analista_nombre}') is distinct from fa.esperado_nombre
+      or (select array_agg(k order by k) from jsonb_object_keys(fn.nueva -> 'atribucion_efectiva') k)
+         is distinct from array['adoptada','analista_id','analista_nombre','cadena'];
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: la ficha no conserva el payload o la clave nueva miente (% fichas)', v_n;
   end if;
@@ -492,7 +533,7 @@ $mig_atr3a$] then
 -- miran esas graficas) CERO — el corte no aplica. Para un no-global, la lente
 -- pasa de "clientes de mi arbol" a "produccion de mi arbol" (la misma cifra
 -- que su podio); el oraculo MIDE ese delta bajo claims reales y lo exige
--- explicado fila a fila. Sin analista (15 historicos) -> fuera de la vista
+-- explicado fila a fila. Sin analista (13 medidos, verificado en preflight) -> fuera de la vista
 -- no-global (invariante F3.5b); gerencia lo sigue viendo todo.
 --
 -- El Directorio del Portal NO se toca: queda como la UNICA lente por cartera
@@ -520,7 +561,7 @@ declare
     array['public.directorio_ranking_analistas()',                             '0ba94108dc8612a42535ab89c14d1728'],
     array['public.crear_contrato(jsonb,jsonb)',                                '4c25cee5a36c2144c45a061eaddb5366']
   ];
-  v_fila text[]; v_h text;
+  v_fila text[]; v_h text; v_n integer;
   v_ger uuid; v_sup uuid;
 begin
   foreach v_fila slice 1 in array v_fn loop
@@ -541,6 +582,14 @@ begin
     raise exception 'ATR-3a preflight: capital_episodios en estado desconocido (huella %)', v_h;
   end if;
   create temp table _atr3_amb on commit drop as select v_h as cap_h;
+
+  -- La afirmacion "13 sin analista" se VERIFICA, no se comenta (P2 de Codex):
+  -- si cambia, este publish debe re-mirarse (la puerta F3.7 impide que nazcan).
+  select count(*) into v_n from public.contratos c
+   where c.analista_cierre_id is null and not c.es_demo;
+  if v_n <> 13 then
+    raise exception 'ATR-3a preflight: % contratos sin analista (se midieron 13) — re-mirar antes de publicar', v_n;
+  end if;
 
   -- Actores reales para el oraculo por claims: una gerencia y un supervisor.
   select e.perfil_id into strict v_ger
@@ -609,7 +658,7 @@ begin
   create temp table _atr3_fichas_antes on commit drop as
     select c.id, crm.atribucion_contrato_fn(c.id) as ficha,
            null::uuid as esperado_analista, null::boolean as esperado_cadena,
-           null::boolean as esperado_adoptada
+           null::boolean as esperado_adoptada, null::text as esperado_nombre
       from (
         (select id from public.contratos where categoria = 'upgrade' and not es_demo limit 1)
         union all
@@ -622,6 +671,8 @@ begin
   -- La verdad esperada de la clave nueva, calculada como postgres (el resolutor es private).
   update _atr3_fichas_antes fa
      set esperado_analista = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id),
+         esperado_nombre   = (select pp.nombre_completo from public.perfiles pp
+                               where pp.id = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id)),
          esperado_cadena   = private.analista_atribuido_cadena(c.id) is not null,
          esperado_adoptada = private.analista_atribuido_cadena(c.id) is not null
                              and private.analista_atribuido_cadena(c.id) is distinct from c.analista_cierre_id
@@ -786,6 +837,11 @@ AS $function$
 $function$
 ;
 
+comment on function crm.atribucion_contrato_fn(uuid) is
+  'De quien es la venta (F3.6) + a quien COBRA de verdad (ATR-3: atribucion_efectiva '
+  '{cadena, adoptada, analista_id, analista_nombre} — la politica de la cadena de upgrade). '
+  'NULL si quien pregunta no ve el contrato (gate: la vista crm.contratos_cartera).';
+
 -- =====================================================================
 -- 2) ORACULO bajo los MISMOS claims.
 -- =====================================================================
@@ -818,36 +874,48 @@ begin
   -- 2b) SUPERVISOR: la foto nueva = agregacion PREDICHA por el corte nuevo.
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup, 'role', 'authenticated')::text, true);
-  select (select count(*) from (
-      (select * from crm.metricas_capital_mes_fn(60))
-      except all
-      (select p.mes_comercial, p.moneda, p.categoria,
-              count(*)::bigint, sum(p.monto)
-         from _atr3_pred p
-        where p.entra_nuevo
-          and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
-        group by 1, 2, 3)
-    ) x) into v_n;
+  create temp table _atr3_cap_pred on commit drop as
+    select p.mes_comercial as mes, p.moneda, p.categoria,
+           count(*)::bigint as contratos, sum(p.monto) as capital_colocado
+      from _atr3_pred p
+     where p.entra_nuevo
+       and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
+     group by 1, 2, 3;
+  grant select on _atr3_cap_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_capital_mes_fn(60))
+          except all (select * from _atr3_cap_pred)) x)
+       + (select count(*) from ((select * from _atr3_cap_pred)
+          except all (select * from crm.metricas_capital_mes_fn(60))) x)
+    into v_n;
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: capital_mes del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
 
-  -- Y el movimiento respecto de la foto vieja queda EXPLICADO por la prediccion:
-  -- toda fila que cambio corresponde a algun contrato con entraba_viejo <> entra_nuevo.
-  if exists (
-    select 1 from (
-      (select mes from crm.metricas_capital_mes_fn(60)
-       except select mes from _atr3_mes_sup_antes)
-      union all
-      (select mes from _atr3_mes_sup_antes
-       except select mes from crm.metricas_capital_mes_fn(60))
-    ) x
-    where not exists (
-      select 1 from _atr3_pred p
-      where p.entraba_viejo <> p.entra_nuevo and p.mes_comercial = x.mes)
-  ) then
-    raise exception 'ATR-3a oraculo: un mes del supervisor cambio sin contrato que lo explique';
+  -- VENCIMIENTOS del supervisor: bidireccional contra su propia prediccion
+  -- (P1 de Codex: la foto capturada no se comparaba). La ventana y el estado
+  -- replican los filtros de la lente.
+  create temp table _atr3_venc_pred on commit drop as
+    select (date_trunc('month', p.fecha_vencimiento))::date as mes, p.moneda,
+           count(*)::bigint as contratos_por_vencer, sum(p.monto) as capital_por_vencer
+      from _atr3_pred p
+     where p.entra_nuevo
+       and ((p.categoria is distinct from 'cooperativa' and p.estado = 'activo')
+            or (p.categoria = 'cooperativa' and p.estado = 'vigente'))
+       and p.fecha_vencimiento >= current_date
+       and p.fecha_vencimiento <  current_date + 366
+     group by 1, 2;
+  grant select on _atr3_venc_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_vencimientos_fn(366))
+          except all (select * from _atr3_venc_pred)) x)
+       + (select count(*) from ((select * from _atr3_venc_pred)
+          except all (select * from crm.metricas_vencimientos_fn(366))) x)
+    into v_n;
+  if v_n <> 0 then
+    raise exception 'ATR-3a oraculo: vencimientos del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
+  -- La foto vieja del supervisor queda de TESTIGO de forma (mismas columnas):
+  perform 1 from _atr3_mes_sup_antes limit 1;
+  perform 1 from _atr3_venc_sup_antes limit 1;
 
   -- 2c) LA FICHA: payload viejo AL BYTE + la clave nueva con la verdad
   --     (bajo claims de GERENCIA, como la captura de antes).
@@ -860,7 +928,10 @@ begin
       or (fn.nueva -> 'atribucion_efectiva') is null
       or (fn.nueva #>> '{atribucion_efectiva,analista_id}')::uuid is distinct from fa.esperado_analista
       or (fn.nueva #>> '{atribucion_efectiva,cadena}')::boolean   is distinct from fa.esperado_cadena
-      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada;
+      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada
+      or (fn.nueva #>> '{atribucion_efectiva,analista_nombre}') is distinct from fa.esperado_nombre
+      or (select array_agg(k order by k) from jsonb_object_keys(fn.nueva -> 'atribucion_efectiva') k)
+         is distinct from array['adoptada','analista_id','analista_nombre','cadena'];
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: la ficha no conserva el payload o la clave nueva miente (% fichas)', v_n;
   end if;
@@ -957,7 +1028,7 @@ $mig_atr3a$])
 -- miran esas graficas) CERO — el corte no aplica. Para un no-global, la lente
 -- pasa de "clientes de mi arbol" a "produccion de mi arbol" (la misma cifra
 -- que su podio); el oraculo MIDE ese delta bajo claims reales y lo exige
--- explicado fila a fila. Sin analista (15 historicos) -> fuera de la vista
+-- explicado fila a fila. Sin analista (13 medidos, verificado en preflight) -> fuera de la vista
 -- no-global (invariante F3.5b); gerencia lo sigue viendo todo.
 --
 -- El Directorio del Portal NO se toca: queda como la UNICA lente por cartera
@@ -985,7 +1056,7 @@ declare
     array['public.directorio_ranking_analistas()',                             '0ba94108dc8612a42535ab89c14d1728'],
     array['public.crear_contrato(jsonb,jsonb)',                                '4c25cee5a36c2144c45a061eaddb5366']
   ];
-  v_fila text[]; v_h text;
+  v_fila text[]; v_h text; v_n integer;
   v_ger uuid; v_sup uuid;
 begin
   foreach v_fila slice 1 in array v_fn loop
@@ -1006,6 +1077,14 @@ begin
     raise exception 'ATR-3a preflight: capital_episodios en estado desconocido (huella %)', v_h;
   end if;
   create temp table _atr3_amb on commit drop as select v_h as cap_h;
+
+  -- La afirmacion "13 sin analista" se VERIFICA, no se comenta (P2 de Codex):
+  -- si cambia, este publish debe re-mirarse (la puerta F3.7 impide que nazcan).
+  select count(*) into v_n from public.contratos c
+   where c.analista_cierre_id is null and not c.es_demo;
+  if v_n <> 13 then
+    raise exception 'ATR-3a preflight: % contratos sin analista (se midieron 13) — re-mirar antes de publicar', v_n;
+  end if;
 
   -- Actores reales para el oraculo por claims: una gerencia y un supervisor.
   select e.perfil_id into strict v_ger
@@ -1074,7 +1153,7 @@ begin
   create temp table _atr3_fichas_antes on commit drop as
     select c.id, crm.atribucion_contrato_fn(c.id) as ficha,
            null::uuid as esperado_analista, null::boolean as esperado_cadena,
-           null::boolean as esperado_adoptada
+           null::boolean as esperado_adoptada, null::text as esperado_nombre
       from (
         (select id from public.contratos where categoria = 'upgrade' and not es_demo limit 1)
         union all
@@ -1087,6 +1166,8 @@ begin
   -- La verdad esperada de la clave nueva, calculada como postgres (el resolutor es private).
   update _atr3_fichas_antes fa
      set esperado_analista = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id),
+         esperado_nombre   = (select pp.nombre_completo from public.perfiles pp
+                               where pp.id = coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id)),
          esperado_cadena   = private.analista_atribuido_cadena(c.id) is not null,
          esperado_adoptada = private.analista_atribuido_cadena(c.id) is not null
                              and private.analista_atribuido_cadena(c.id) is distinct from c.analista_cierre_id
@@ -1251,6 +1332,11 @@ AS $function$
 $function$
 ;
 
+comment on function crm.atribucion_contrato_fn(uuid) is
+  'De quien es la venta (F3.6) + a quien COBRA de verdad (ATR-3: atribucion_efectiva '
+  '{cadena, adoptada, analista_id, analista_nombre} — la politica de la cadena de upgrade). '
+  'NULL si quien pregunta no ve el contrato (gate: la vista crm.contratos_cartera).';
+
 -- =====================================================================
 -- 2) ORACULO bajo los MISMOS claims.
 -- =====================================================================
@@ -1283,36 +1369,48 @@ begin
   -- 2b) SUPERVISOR: la foto nueva = agregacion PREDICHA por el corte nuevo.
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sup, 'role', 'authenticated')::text, true);
-  select (select count(*) from (
-      (select * from crm.metricas_capital_mes_fn(60))
-      except all
-      (select p.mes_comercial, p.moneda, p.categoria,
-              count(*)::bigint, sum(p.monto)
-         from _atr3_pred p
-        where p.entra_nuevo
-          and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
-        group by 1, 2, 3)
-    ) x) into v_n;
+  create temp table _atr3_cap_pred on commit drop as
+    select p.mes_comercial as mes, p.moneda, p.categoria,
+           count(*)::bigint as contratos, sum(p.monto) as capital_colocado
+      from _atr3_pred p
+     where p.entra_nuevo
+       and p.mes_comercial >= (date_trunc('month', current_date) - make_interval(months => 59))::date
+     group by 1, 2, 3;
+  grant select on _atr3_cap_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_capital_mes_fn(60))
+          except all (select * from _atr3_cap_pred)) x)
+       + (select count(*) from ((select * from _atr3_cap_pred)
+          except all (select * from crm.metricas_capital_mes_fn(60))) x)
+    into v_n;
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: capital_mes del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
 
-  -- Y el movimiento respecto de la foto vieja queda EXPLICADO por la prediccion:
-  -- toda fila que cambio corresponde a algun contrato con entraba_viejo <> entra_nuevo.
-  if exists (
-    select 1 from (
-      (select mes from crm.metricas_capital_mes_fn(60)
-       except select mes from _atr3_mes_sup_antes)
-      union all
-      (select mes from _atr3_mes_sup_antes
-       except select mes from crm.metricas_capital_mes_fn(60))
-    ) x
-    where not exists (
-      select 1 from _atr3_pred p
-      where p.entraba_viejo <> p.entra_nuevo and p.mes_comercial = x.mes)
-  ) then
-    raise exception 'ATR-3a oraculo: un mes del supervisor cambio sin contrato que lo explique';
+  -- VENCIMIENTOS del supervisor: bidireccional contra su propia prediccion
+  -- (P1 de Codex: la foto capturada no se comparaba). La ventana y el estado
+  -- replican los filtros de la lente.
+  create temp table _atr3_venc_pred on commit drop as
+    select (date_trunc('month', p.fecha_vencimiento))::date as mes, p.moneda,
+           count(*)::bigint as contratos_por_vencer, sum(p.monto) as capital_por_vencer
+      from _atr3_pred p
+     where p.entra_nuevo
+       and ((p.categoria is distinct from 'cooperativa' and p.estado = 'activo')
+            or (p.categoria = 'cooperativa' and p.estado = 'vigente'))
+       and p.fecha_vencimiento >= current_date
+       and p.fecha_vencimiento <  current_date + 366
+     group by 1, 2;
+  grant select on _atr3_venc_pred to authenticated;
+  select (select count(*) from ((select * from crm.metricas_vencimientos_fn(366))
+          except all (select * from _atr3_venc_pred)) x)
+       + (select count(*) from ((select * from _atr3_venc_pred)
+          except all (select * from crm.metricas_vencimientos_fn(366))) x)
+    into v_n;
+  if v_n <> 0 then
+    raise exception 'ATR-3a oraculo: vencimientos del SUPERVISOR no cuadra con el corte predicho (% filas)', v_n;
   end if;
+  -- La foto vieja del supervisor queda de TESTIGO de forma (mismas columnas):
+  perform 1 from _atr3_mes_sup_antes limit 1;
+  perform 1 from _atr3_venc_sup_antes limit 1;
 
   -- 2c) LA FICHA: payload viejo AL BYTE + la clave nueva con la verdad
   --     (bajo claims de GERENCIA, como la captura de antes).
@@ -1325,7 +1423,10 @@ begin
       or (fn.nueva -> 'atribucion_efectiva') is null
       or (fn.nueva #>> '{atribucion_efectiva,analista_id}')::uuid is distinct from fa.esperado_analista
       or (fn.nueva #>> '{atribucion_efectiva,cadena}')::boolean   is distinct from fa.esperado_cadena
-      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada;
+      or (fn.nueva #>> '{atribucion_efectiva,adoptada}')::boolean is distinct from fa.esperado_adoptada
+      or (fn.nueva #>> '{atribucion_efectiva,analista_nombre}') is distinct from fa.esperado_nombre
+      or (select array_agg(k order by k) from jsonb_object_keys(fn.nueva -> 'atribucion_efectiva') k)
+         is distinct from array['adoptada','analista_id','analista_nombre','cadena'];
   if v_n <> 0 then
     raise exception 'ATR-3a oraculo: la ficha no conserva el payload o la clave nueva miente (% fichas)', v_n;
   end if;

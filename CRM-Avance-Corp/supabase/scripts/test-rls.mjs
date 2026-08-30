@@ -6206,6 +6206,56 @@ async function testCapacidadUnificada(sessions, seed) {
 // contratos via los wrappers _con_cuenta_pdf). La autoridad ya no mira cartera:
 // cualquier analista vigente registra para cualquier cliente ACTIVO, y la venta
 // cuenta a quien la cierra (analista_cierre, F3).
+// P-055 ATR-3a — las lentes y la ficha dicen quien se lleva la produccion.
+// Casos runnables HOY: formas por rol + la clave nueva en un contrato normal +
+// el no-miembro ve vacio. Los casos de CADENA REAL (permitido cruzado /
+// denegado del dueño / sin-analista invisible) esperan el fixture de upgrade
+// de seed-demo — la MISMA deuda nombrada de ATR-1/ATR-2 (proximo ciclo de banco).
+async function testLentesAtribucion(sessions, seed) {
+  console.log('\n— Lentes y ficha de atribucion (P-055 ATR-3a) —');
+
+  // A. Gerencia: las dos lentes responden con la FORMA correcta.
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 12 });
+    check(!error && Array.isArray(data),
+      `gerencia lee metricas_capital_mes_fn (${error?.code ?? data?.length + ' filas'})`);
+  }
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc('metricas_vencimientos_fn', { p_dias: 90 });
+    check(!error && Array.isArray(data),
+      `gerencia lee metricas_vencimientos_fn (${error?.code ?? data?.length + ' filas'})`);
+  }
+
+  // B. Un analista lee SIN error (su corte ahora es su produccion, no su cartera).
+  {
+    const { error } = await sessions.vend1.client
+      .schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 3 });
+    check(!error, `vend1 lee la lente de capital sin error (${error?.code ?? 'ok'})`);
+  }
+
+  // C. Un cliente (sin membresia CRM): la lente responde VACIA, no con datos.
+  {
+    const { data, error } = await sessions.clientBank.client
+      .schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 12 });
+    check(!error && Array.isArray(data) && data.length === 0,
+      `clientBank (sin membresia) recibe la lente VACIA (${error?.code ?? data?.length + ' filas'})`);
+  }
+
+  // D. La ficha de un contrato NORMAL trae atribucion_efectiva con la verdad:
+  //    cadena=false, adoptada=false, analista = el de la ficha.
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: seed.contract.id });
+    const ef = data?.atribucion_efectiva;
+    check(!error && ef
+      && ef.cadena === false && ef.adoptada === false
+      && ef.analista_id === (data?.analista_id ?? null),
+      `atribucion_efectiva presente y veraz en contrato normal (${error?.code ?? JSON.stringify(ef ?? null)})`);
+  }
+}
+
 // P-055 ATR-1 — la atribucion por cadena de upgrade vive en la LECTURA.
 // El resolutor es private y sin grant: NADIE lo alcanza por PostgREST. Los
 // casos de CONDUCTA (upgrade de vend2 sobre cliente de vend1 -> las metricas
@@ -9968,6 +10018,7 @@ async function main() {
       await testCapacidadUnificada(sessions, verifiedSeed);
       await testVentasNucleoF5c(sessions, verifiedSeed);
       await testAtribucionCadena(sessions);
+      await testLentesAtribucion(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {

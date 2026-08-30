@@ -6060,7 +6060,10 @@ lentes · supervisor: la foto nueva = agregación PREDICHA a mano desde el núcl
 con la MISMA CTE de `vendedor_ids_visibles` — que se niega sin claims por defensa en profundidad — y
 las cooperativas con su regla intacta) y todo mes movido queda explicado · fichas: payload viejo al
 byte + clave nueva contra la verdad pre-calculada como postgres. **Pines:** las 3 tocadas + resolutor
-+ `capital_episodios` (viejo — ATR-3a va ANTES de ATR-2) + producción + `cerrar_periodo` +
++ `capital_episodios` con **pin BIVALENTE** (P0 de ordenación, confirmado por ambas auditorías: en
+prod ATR-3a corre ANTES que ATR-2, pero en el replay del banco el orden es por timestamp y ATR-2 va
+primero — se acepta cualquiera de las dos huellas y el postflight exige la MISMA capturada; sin
+renumerar nada) + producción + `cerrar_periodo` +
 **`directorio_ranking_analistas` (la ÚNICA lente por cartera que queda, pinneada)** + `crear_contrato`.
 
 **Ensayos:** `ATR3A-ENSAYO-VERDE` y `ATR3A-CICLO-VERDE` (marcha atrás con anti-pisado de cuerpo Y
@@ -6069,6 +6072,20 @@ sin claims (defensa en profundidad) — toda foto/predicción de lentes se captu
 replica el subárbol a mano; las temporales que se releen bajo claims llevan GRANT explícito.
 Registrador con candado «mundo vivo YA migrado». Si se revierte en prod: retirar a mano la fila
 `20260831010000` del registro.
+
+**Dos auditorías, atendidas:** Codex NO-GO (2 P1 + 3 P2) → oráculo del supervisor BIDIRECCIONAL en
+las DOS lentes (vencimientos incluida, contra su propia predicción con estado+ventana replicados) ·
+registrador exige las TRES huellas vivas · ficha verifica también `analista_nombre` y EXACTAMENTE 4
+claves · el «15 sin analista» del comentario pasó a MEDIDO Y VERIFICADO en preflight (13 sin demos)
+· rollback pinnea owner/lang/strict/parallel/leakproof/cost. Auditor RLS GO-condicionado → su P0 de
+ordenación quedó cerrado por el pin bivalente (verificó ambos sentidos con md5 del árbol entero) y
+sus P2 de oráculo cayeron con los mismos arreglos; COMMENT de la ficha actualizado. **⏳ Deuda con
+nombre para el próximo ciclo de banco (P1-1 del auditor):** casos del gate de las lentes — permitido
+(analista ve el agregado de un episodio SUYO de cliente ajeno), denegado (el dueño de cartera deja
+de verlo; sin-analista invisible para no-global), y la verdad de `atribucion_efectiva` con cadenas
+reales — necesitan el fixture de upgrade de seed-demo, el MISMO que ya esperan ATR-1/ATR-2. El
+bloque runnable (formas + clave en contrato normal + no-miembro vacío) va en `testLentesAtribucion`.
+Si se revierte en prod: retirar a mano la fila `20260831010000` del registro.
 
 Archivos: `migrations/20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql` ·
 `scripts/rollback-atr3a-p055.sql` · `scripts/registrar-atr3a-version.sql`.

@@ -24,7 +24,11 @@ begin
     if not exists (select 1 from pg_proc p
       where p.oid = v_fila[1]::regprocedure
         and p.prosecdef and p.provolatile = 's'
-        and p.proconfig::text = '{"search_path=\"\""}') then
+        and p.proconfig::text = '{"search_path=\"\""}'
+        and p.proowner = 'postgres'::regrole
+        and p.prolang = (select oid from pg_language where lanname = 'sql')
+        and not p.proisstrict and p.proparallel = 'u'
+        and not p.proleakproof and p.procost = 100) then
       raise exception 'rollback ATR-3a: los ATRIBUTOS de % no son los del estado ATR-3a', v_fila[1];
     end if;
   end loop;
