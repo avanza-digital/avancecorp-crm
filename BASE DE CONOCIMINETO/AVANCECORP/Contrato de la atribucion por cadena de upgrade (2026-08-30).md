@@ -103,9 +103,15 @@ El resolutor corre ~2 veces por fila del núcleo en lecturas globales (hoy ~475 
 ## La deuda con nombre (Fase 4, diferida)
 
 `private.contratos_afectados_por_anulacion` busca el contrato por `creado_por`, no por atribución →
-si el analista ≠ autor, la sanción por anulación no encuentra el contrato que sí puntuaba. Ligada a
-la decisión pendiente de la sanción de anulación (ventana desde el 10/09); su arreglo re-sellará la
-huella F6.a de esa función y llevará oráculo propio sobre `afecta_cuota`.
+si el analista ≠ autor, la sanción por anulación no encuentra el contrato que sí puntuaba.
+
+**✅ La regla de la sanción quedó DECIDIDA (Miguel, 31/08): «solo la conversión, siempre».** La
+anulación baja la conversión del analista por igual con mes abierto o sellado; **el capital no se
+toca jamás** (corrige la asimetría medida el 29/08: mes abierto quitaba también S/ 200 000 de
+capital). La ATR-4 implementa AMBAS cosas en un solo viaje (la regla + el arreglo del `creado_por`),
+re-sella la huella F6.a de esa función y lleva oráculo propio sobre `afecta_cuota` y sobre el
+capital-que-no-se-mueve. **Se prepara DESPUÉS de publicar ATR-2 (12/09+)**: las dos re-modelan
+`capital_episodios` y apilar variantes sin publicar del mismo núcleo repite la trampa de ordenación.
 
 Relacionado: [[fase-3-analista-que-cierra]] · [[El núcleo de capital]] ·
 [[PLAN MAESTRO del servidor (P-055) - de la deuda a la capa semantica]]
