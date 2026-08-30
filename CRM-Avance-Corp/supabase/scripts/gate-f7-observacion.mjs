@@ -24,7 +24,11 @@ import { fileURLToPath } from 'node:url';
 
 const CRM_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const TRINQUETE = 'supabase/scripts/trinquete-f7-observacion.sql';
-const MUTANTE = 'supabase/scripts/trinquete-f7-observacion-mutante.sql';
+// Tres archivos: db query solo devuelve el ULTIMO resultado de cada archivo
+// (trampa medida) — cada filo entrega su veredicto en su propio SELECT final.
+const MUTANTE_A = 'supabase/scripts/trinquete-f7-observacion-mutante-a.sql';
+const MUTANTE_B = 'supabase/scripts/trinquete-f7-observacion-mutante-b.sql';
+const MUTANTE_LIMPIEZA = 'supabase/scripts/trinquete-f7-observacion-mutante-limpieza.sql';
 
 const args = new Set(process.argv.slice(2));
 const permitidos = new Set(['--mutante', '--help', '-h']);
@@ -63,10 +67,13 @@ console.log(`\n✅ ${veredicto}`);
 console.log('Gate de la observacion F7 en verde.');
 
 if (args.has('--mutante')) {
-  const s2 = correr(MUTANTE);
-  const filoA = /"veredicto_mutante_a":\s*"(MUTANTE-A-[^"]*)"/.exec(s2)?.[1];
-  const filoB = /"veredicto_mutante_b":\s*"(MUTANTE-B-[^"]*)"/.exec(s2)?.[1];
-  const limpio = /"veredicto_limpieza":\s*"([^"]*)"/.exec(s2)?.[1];
+  const sA = correr(MUTANTE_A);
+  const sB = correr(MUTANTE_B);
+  const sL = correr(MUTANTE_LIMPIEZA);
+  const filoA = /"veredicto_mutante_a":\s*"(MUTANTE-A-[^"]*)"/.exec(sA)?.[1];
+  const filoB = /"veredicto_mutante_b":\s*"(MUTANTE-B-[^"]*)"/.exec(sB)?.[1];
+  const limpio = /"veredicto_limpieza":\s*"([^"]*)"/.exec(sL)?.[1];
+  const s2 = sA + sB + sL;
   if (!filoA || !filoA.startsWith('MUTANTE-A-CAZADO')) {
     fallar(`El filo A (alertas) SOBREVIVIO o no respondio: ${filoA ?? 'sin fila'}`, s2);
   }

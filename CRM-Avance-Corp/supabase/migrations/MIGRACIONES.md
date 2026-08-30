@@ -6096,8 +6096,12 @@ Archivos: `migrations/20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql` 
 
 ## P-055 · F7.0 — EL GATE QUE VIGILA LAS PUERTAS CERRADAS (2026-08-31)
 
-**Estado: 🟡 PREPARADA — DOS auditorías atendidas ENTERAS; ensayo triple v4 EN VERDE, deshecho.
-Publicable YA (no toca nada existente).** Migración
+**Estado: ✅ EN PRODUCCIÓN (2026-08-31, registro 189).** Publicada por Miguel con `!`. Verificado:
+7 piezas vigiladas, veredicto OK, vigía 06:59 activo. Batería: **`gate:f7` verde con su mutante de
+DOS filos cazados y limpieza verificada** (🔴 trampa pagada en vivo: `db query` devuelve solo el
+ÚLTIMO resultado de un archivo multi-sentencia — el mutante se partió en 3 archivos, un SELECT
+final cada uno) · gates 6/6 y 30/30 · advisors 0 ERROR. Desde mañana, el rondín de las 06:59 pasa
+lista a las 7 gemelas; demolibles desde el 13/09. Migración
 `20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql`. Primera ola de la Fase 7 «ordenar la
 casa» (plan por olas aprobado por Miguel el 31/08: ventana de observación **14 días**, alcance
 servidor+registro+repo, catálogo entero con pantallas).
