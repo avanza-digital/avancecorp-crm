@@ -5616,3 +5616,67 @@ desactivar, que es la norma que ya estaba escrita.
 - **La sesión no se cierra con las puertas:** las 4 personas revocadas siguen con `perfiles.activo = true` y
   `auth.users.banned_until` NULL. Una de las tres cuentas llamadas «DEMO» **inició sesión el 28/08**.
 - **Ventana del PDF firmado:** una URL emitida ANTES de la revocación sigue siendo válida 300 s.
+
+---
+
+## P-055 · FASE 6.a — EL NÚCLEO DE CITAS y EL CENSO SELLADO (2026-08-30)
+
+**Estado: ✅ EN PRODUCCIÓN 2026-08-30 (registro 182).** Dos auditorías (auditor RLS + Codex), **dos NO-GO
+atendidos enteros** (1 P0 + 9 P1 + 11 P2). Gate y **mutante 10/10 contra producción**; advisors 0 ERROR;
+vigía `crm-analitica-lc-vigia` activo 06:49 con su tabla de alertas propia.
+
+**Objetivo de Miguel (fijado por `/goal`):** que cada pregunta sobre leads y citas tenga UNA sola
+respuesta en todo el sistema. Contrato con las **5 decisiones firmadas** en el vault.
+
+**Lo que la medición cambió del plan (verificado en vivo):**
+- El núcleo de LEADS **ya existía** (`private.conversion_episodios`, de la «conversión única») y las
+  pantallas de métricas beben de él directa o **transitivamente**: el SELLO vía
+  `conversion_mensual_por_vendedor` → núcleo; `metricas_vendedores_fn` lee `crm.conversion_mensual_fn`.
+- La **ventana de 45 días es de la VISTA** (qué convertidos siguen visibles), no de la métrica: la métrica
+  ya es mensual y rotulada. La decisión 5 queda cumplida EN LA MÉTRICA; la vista no se toca.
+- Para CITAS no había núcleo: la definición canónica vivía incrustada en la pantalla de reuniones.
+
+| Archivo | Qué hace |
+|---|---|
+| `migrations/20260830120000_crm_f6_a_nucleo_de_citas_y_censo.sql` | `private.citas_episodios` + la pantalla de reuniones bebiendo de él (4 anclas) + censo por LLAMADA + **30 exenciones selladas por huella** + tope solo-baja + vigía 06:49 |
+| `scripts/rollback-f6a-p055.sql` | Marcha atrás: reemplazo INVERSO anclado (whitespace exacto) + retirada del trinquete; las tablas de exenciones/tope se conservan |
+| `scripts/trinquete-analitica-lc.sql` + `…-mutante.sql` + `gate-analitica-lc.mjs` | `npm run gate:analitica [-- --mutante]`, **7 filos** |
+| `scripts/registrar-f6a-version.sql` | Registro de la versión con `statements` |
+
+**Ensayos (30/08, todo deshecho):** paridad del núcleo 11/11 campos · **consumidor 1 con payload
+ENTERO idéntico byte a byte (6 011 bytes)** · tren completo: 30 declarados, tope 30, 0 sin declarar ·
+corrida B: la pantalla vuelve a su **huella md5 original exacta** · mutante **7/7 filos**.
+
+**Lo que las auditorías cambiaron (NO-GO → arreglado):**
+1. 🔴 **P0: el vigía escribía en una tabla que NO EXISTE** (`crm.audit_log`) — y el de la **F5.a tenía el
+   defecto idéntico VIVO en producción**. Ahora los dos escriben en `private.vigia_alertas` (RLS on) y el
+   **camino de alerta se probó de verdad** en el ensayo (rojo forzado → la alerta aparece → restaurado).
+2. **Dos pantallas vivas bajo el mismo rótulo «citas»** (Codex): inteligencia comercial cuenta **leads con
+   cita** (83/7) y reuniones cuenta **citas** (40/6). Son preguntas distintas: quedaron **declaradas con la
+   verdad** y el rótulo se corrige en la **F6.b del front**.
+3. **Dos razones eran FALSAS** y se reescribieron con la verdad: `series_comerciales_fn` guarda una **segunda
+   fórmula de conversión** (cohorte sin peso de referido: 2,8 % vs 7,0 %) y `registrar_ajuste_si_mes_cerrado`
+   **recalcula el numerador localmente** y replica la rama de coops a mano — ambas ahora **deuda declarada del
+   Bloque B**, visibles para siempre en la exención.
+4. Detector endurecido: minúsculas, `crm.\s*leads` (comentario borrado deja hueco), `sum(1)`, `prosqlbody`
+   vía coalesce, **todos los esquemas de usuario** (fail-closed), exclusión de los núcleos **por OID**
+   (`::oid`, no `::text` — un oid numérico jamás igualaba un nombre), SQL dinámico que nombre tareas.
+5. **Sello de la lista de exenciones** (F1.6): md5 del agregado, verificado en cada assert + candado
+   anti-DELETE. Assert con anti-vacuidad, ACL exacta del núcleo (solo postgres), candados del tope vigilados,
+   y **cada consumidor de `citas_episodios` debe estar declarado** (el núcleo sirve filas de toda la empresa).
+6. Mutante de **7 → 10 filos** (pantalla que deja de beber DE VERDAD, núcleos renombrados, candado apagado),
+   con aislamiento entre filos y mensajes esperados. Rollback que **conserva los candados** y no suelta el
+   núcleo si alguien más lo llama. Registrar **fail-closed** (no re-escribe la historia).
+7. `test-rls.mjs`: bloque `testCitasNucleo` nuevo (gerencia/lector 200 con forma y anti-vacuidad; comercial,
+   supervisor y coordinador 42501; `private.citas_episodios` inalcanzable por PostgREST). Corre en el próximo
+   ciclo de banco.
+
+**🔴 Trampas nuevas pagadas:** un reemplazo anclado que borra una cláusula debe llevarse TAMBIÉN el salto y la
+sangría previos (línea huérfana = la marcha atrás no vuelve al byte) · el registrador con cuerpo embebido
+necesita **etiqueta propia** en su `do` (el cuerpo lleva `$$` y un `do $$` normal se corta en el primero) ·
+`oid::text` es un número: comparar contra `regprocedure::text` no iguala jamás.
+
+**⏳ Para la F6.b (front) y la firma de Miguel:** rotular las dos preguntas de «citas» con su apellido
+(por vencimiento vs leads con cita), renombrar `conversion_pct` de series a `conversion_cohorte` (o
+convertirla), y **la relectura de la decisión 5** (los 45 días eran de la vista; la métrica ya era mensual)
+necesita su firma — el ejecutor no cierra decisiones por reinterpretación.

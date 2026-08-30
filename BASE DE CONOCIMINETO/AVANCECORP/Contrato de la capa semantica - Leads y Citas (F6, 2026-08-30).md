@@ -84,8 +84,29 @@ agosto son TODA la base. Cualquier % de agosto hereda esa asimetría.
 4. **La cita anulada QUEDA**, en su propia columna: pactadas la incluye, y hay columna de canceladas.
 5. **La ventana de 45 días MUERE**: `metricas_vendedores_fn` pasa al mes calendario; el rótulo dirá el mes.
 
+## Corrección a la decisión 5 (medida el mismo día)
+
+La ventana de 45 días de `metricas_vendedores_fn`/`resumen_cartera_fn` resultó ser **de la
+VISTA** (qué convertidos siguen visibles en cartera), no de la métrica: la métrica ya es
+mensual del núcleo y está rotulada (`ventana_metrica: mes_calendario`). **La intención de la
+decisión —que todas las pantallas midan igual— ya estaba cumplida.** La vista no se toca.
+
 ## Estado
 
-🔨 **Bloque A (citas) EN CURSO** — núcleo `private.citas_episodios`-estilo sobre `crm.tareas`
-tipo reunión, con las 5 decisiones firmadas. Luego: Bloque B (leads, 3–4 sesiones) → trinquete
-→ auditorías → publicación por tandas con oráculo de paridad en cada consumidor.
+✅ **F6.a EN PRODUCCIÓN (30/08, registro 182)** — dos NO-GO de auditoría atendidos enteros. `private.citas_episodios` +
+pantalla de reuniones convertida (payload idéntico byte a byte) + censo por LLAMADA con
+**30 exenciones selladas por huella** (sin pases automáticos: las mixtas también se
+declaran) + tope solo-baja + vigía + `npm run gate:analitica` con mutante de 7 filos.
+El Bloque B resultó ya hecho en el servidor por la «conversión única» (directo o por
+transitividad, verificado); lo que quedaba era gobernanza (el censo) y el núcleo de citas.
+
+**Deuda DECLARADA (sellada en las exenciones, visible para siempre):**
+- `series_comerciales_fn.conversion_pct` es una **segunda fórmula** (cohorte sin peso de
+  referido: 2,8 % vs 7,0 % del núcleo en agosto) → convertir o renombrar a `conversion_cohorte`.
+- `registrar_ajuste_si_mes_cerrado` recalcula su numerador localmente y replica la rama de
+  coops a mano → que beba del puente del sello.
+- **F6.b (front):** el rótulo «citas pactadas/realizadas» nombra DOS preguntas distintas
+  (83/7 leads-con-cita en inteligencia comercial vs 40/6 citas en reuniones): cada una
+  necesita su apellido en pantalla.
+- **Firma pendiente de Miguel:** la relectura de la decisión 5 (los 45 días eran de la
+  VISTA; la métrica ya era mensual y rotulada).

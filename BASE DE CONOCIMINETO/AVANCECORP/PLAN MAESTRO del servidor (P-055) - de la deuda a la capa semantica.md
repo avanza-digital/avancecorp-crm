@@ -8,7 +8,9 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1 (con F1.4/F1.5/F1.6), 3, 4 y ahora la 5.a EN PRODUCCIÓN.**
+**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1, 3, 4, 5.a y ahora la 6.a EN PRODUCCIÓN.**
+
+**🆕 FASE 6.a EN PRODUCCIÓN (30/08 tarde) — «el núcleo de citas y el censo sellado».** Registro **182**. La medición cambió el plan a mejor: **el núcleo de leads ya existía** (`conversion_episodios`, de la «conversión única») y las pantallas beben de él directa o transitivamente (el SELLO incluido, verificado); lo que faltaba era el **núcleo de CITAS** (nació hoy: `private.citas_episodios`, la pantalla de reuniones lo consume con el payload idéntico byte a byte) y la **gobernanza**: censo por LLAMADA con **30 contadores declarados y sellados por huella** (las mixtas también, sin pases automáticos), tope 30 que solo baja, sello de lista, vigía 06:49 con tabla de alertas propia y `npm run gate:analitica` con **mutante de 10 filos en verde contra producción**. Dos auditorías, dos NO-GO atendidos enteros — el P0: **el vigía escribía en una tabla inexistente, y el de la F5.a tenía el mismo defecto vivo** (reparado aquí). Quedan con nombre: **F6.b del front** (rotular las dos preguntas de «citas»; renombrar la conversión de cohorte de series) y **dos deudas declaradas** en las exenciones. ⏳ **Firma pendiente de Miguel:** la relectura de la decisión 5 (los 45 días eran de la VISTA, no de la métrica).
 
 **🆕 FASE 5.a EN PRODUCCIÓN (2026-08-30) — «una sola pregunta: ¿es analista vigente?».** Registro **181**. Cierra la *revocación a medias* que se midió el 29/08, y la cierra por el molde de la Fase 4: **un solo sitio decide y un trinquete impide que nazca el siguiente**. Verificado en vivo: la persona revocada pasó de **3 contratos / 39 cuotas / 3 fichas / 1 co-titular / ficha 360 con banca / selector de productos** a **cero en todo** (y 42501 en el selector); una analista **activa** sigue con sus 58 contratos, 549 cuotas, 44 fichas y su ficha 360 intactos. Advisors **0 ERROR**. Gate `npm run gate:vigencia` en verde contra producción y su **mutante cazado por los siete filos**.
 
@@ -36,7 +38,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
-2. **Fase 6 — las otras dos calculadoras:** citas primero (6 consumidores, calentamiento) y luego leads (~21, con la regla de UN contador). Es el grueso de lo que queda; el molde de capital ya está probado.
+2. **Fase 6.b — los rótulos del front:** las dos preguntas de «citas» con su apellido en pantalla, `conversion_cohorte` en series (o convertirla) y las 2 deudas declaradas. El servidor ya quedó gobernado por la 6.a.
 3. **Fase 5 — cerrar puertas** (permisos muertos + el conflicto de las tres autoridades; ~2 sesiones. **La revocación a medias se puede adelantar sola**: es el único punto con efecto sobre datos reales hoy).
 4. **Fase 7 — ordenar la casa** (retiros REVOKE→observar→DROP, con OK de Miguel por pieza).
 5. **Fase 8 — un solo idioma** (renombre «analista», al final, por el orden seguro).
@@ -53,7 +55,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
 | 5 · Cerrar puertas | 🟡 **5.a EN PRODUCCIÓN (30/08)**: la revocación a medias, cerrada por «una sola pregunta» + trinquete + candado de borrado (7 puertas, registro 181). **Quedan los pasos 2 y 3**: una sola pregunta por capacidad (retirar la puerta gemela que sobre) y decidir el par de cada persona ([[Las tres definiciones de autoridad (2026-08-29)]]). Y, fuera de la fase: **cerrar la sesión de los revocados**, que las puertas de datos no cierran |
-| 6 · Las otras dos calculadoras | ⚪ sin empezar — **la pieza grande de lo que queda**: leads (21) + citas (6) con el molde de capital |
+| 6 · Las otras dos calculadoras | 🟡 **6.a EN PRODUCCIÓN (30/08)**: núcleo de citas + censo sellado de 30 contadores + trinquete/vigía/gate (registro 182). El núcleo de leads YA existía y el sello bebe de él por transitividad (verificado). **Queda la 6.b**: rótulos del front (dos preguntas de «citas» con su apellido, `conversion_cohorte` en series) y las 2 deudas declaradas |
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |
 

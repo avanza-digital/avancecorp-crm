@@ -6026,6 +6026,57 @@ async function testMetricasConversionesGlobal(sessions) {
   );
 }
 
+async function testCitasNucleo(sessions, seed) {
+  console.log('\n— Citas: la pantalla de reuniones y el nucleo (P-055 F6.a) —');
+
+  // La ventana en zona LIMA (la RPC valida p_hasta > hoy-Lima con 22023).
+  const enLima = (fecha) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(fecha);
+  const ahora = new Date();
+  const P = {
+    p_desde: enLima(new Date(ahora.getTime() - 29 * 24 * 60 * 60 * 1000)),
+    p_hasta: enLima(ahora),
+  };
+
+  // A. Permitidos: gerencia y lector global, con FORMA (no basta un 200).
+  const ger = await positive(
+    'gerencia obtiene las metricas de reuniones',
+    sessions.gerencia.client.schema('crm').rpc('metricas_reuniones_fn', P),
+  );
+  if (ger) {
+    check(ger.data?.version === 1, 'reuniones: el payload declara version 1');
+    const r = ger.data?.resumen;
+    check(r && typeof r.pactadas === 'number' && typeof r.realizadas === 'number',
+      'reuniones: el resumen trae pactadas y realizadas numericas');
+    // Guarda anti-vacuidad: un fixture sin UNA cita en la ventana convertiria
+    // cualquier paridad en una prueba de nada. La siembra crea reuniones.
+    check((r?.pactadas ?? 0) > 0,
+      'reuniones: la ventana del fixture contiene al menos una cita pactada');
+  }
+  await positive(
+    'directorio (lector global) obtiene las metricas de reuniones',
+    sessions.directorio.client.schema('crm').rpc('metricas_reuniones_fn', P),
+  );
+
+  // B. Denegados: ni comercial, ni supervisor, ni coordinador.
+  for (const key of ['vend1', 'sup1', 'coordinador']) {
+    if (!sessions[key]) continue;
+    await expectExplicitAuthorizationDenied(
+      `${key} no ejecuta metricas_reuniones_fn`,
+      sessions[key].client.schema('crm').rpc('metricas_reuniones_fn', P),
+    );
+  }
+
+  // C. El NUCLEO no es alcanzable por PostgREST: vive en private y sin grant.
+  for (const key of ['gerencia', 'vend1']) {
+    const { error } = await sessions[key].client
+      .schema('private').rpc('citas_episodios', { p_ini: P.p_desde, p_fin: P.p_hasta });
+    check(Boolean(error),
+      `${key} NO alcanza private.citas_episodios por la API (${error?.code ?? 'sin error'})`);
+  }
+}
+
 async function testMetricasConversionEquipo(sessions, seed) {
   console.log('\n— Ranking de conversion del equipo (decision #10 b2) —');
 
@@ -9684,6 +9735,7 @@ async function main() {
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);
+      await testCitasNucleo(sessions, verifiedSeed);
       await testMetricasConversionesGlobal(sessions);
       await testCarteraKeyset(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
