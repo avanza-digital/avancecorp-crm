@@ -40,6 +40,7 @@ const { mutarCierreExterno } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
   useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
     data: moneda === 'PEN'
       ? [{
