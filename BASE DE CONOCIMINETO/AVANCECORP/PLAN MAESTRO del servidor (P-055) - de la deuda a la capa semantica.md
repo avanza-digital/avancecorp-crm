@@ -40,11 +40,13 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
-2. ✅ HECHO 30/08 noche — los residuales de la Fase 5 quedaron cerrados con la **F5.d** (registro 186: la gemela muerta cerrada por revoke) y el paso 3 medido cerrado (pares completos). En la F7: el DROP de las 7 + retirar con ellas el oráculo local `test-productos-inversion.sql` y los mocks e2e que las simulan.
-3. **Atribución de upgrades y sus renovaciones** — decisión de Miguel del 30/08 SIN implementar (va en la capa de métricas, no en `crear_contrato`); falta cerrar la cadena técnica con él, escribir el contrato y auditarlo. Nota: [[Atribucion de upgrades y sus renovaciones (decision 2026-08-30)]].
-4. **Próximo ciclo de banco** — correr la suite `test:rls` completa (0 cuentas demo en prod; F5.c ya verificada por sonda) + el gate pendiente de F4 (re-medir a 10k).
-5. **Fase 7 — ordenar la casa** (retiros REVOKE→observar→DROP, con OK de Miguel por pieza).
-6. **Fase 8 — un solo idioma** (renombre «analista», al final, por el orden seguro; ⚠️ 4 roturas P0 si se toca el ROL y no solo la etiqueta).
+2. ✅ HECHO 30/08 noche — los residuales de la Fase 5 cerrados con la **F5.d** (registro 186) y el paso 3 medido cerrado.
+3. ✅ **TREN DE ATRIBUCIÓN (30–31/08): casi entero EN PRODUCCIÓN.** ATR-1 (187: el upgrade cuenta a quien lo hace) · ATR-3a (188: las 2 gráficas de gerencia y la ficha dicen quién se lleva la producción) · ATR-3b (front vivo, release `index-D1eoI1dz`). Contratos técnicos en el vault; el Directorio del Portal queda como la ÚNICA vista por cartera, a propósito. Detalle: [[Contrato de la atribucion por cadena de upgrade (2026-08-30)]].
+4. ⏰ **11–12/09 — publicar ATR-2** («la renovación del upgrade hereda el capital»; preparada, auditada 2×, ensayo con cadena sintética + mutantes en verde; su preflight aborta si se intenta antes del sello).
+5. **Escribir la ATR-4 tras publicar ATR-2** — la sanción de anulación con la regla firmada el 31/08 («solo la conversión, siempre»; el capital del analista Y de la empresa no se tocan). Contrato técnico LISTO: [[Contrato de la sancion de anulacion (ATR-4, 2026-08-31)]]. ⏳ Pregunta que esperará a Miguel: las deudas de capital ya registradas ¿se cobran una última vez o se condonan?
+6. **Próximo ciclo de banco** — suite `test:rls` completa + fixture de upgrade (casos de cadena real de ATR-1/2/3) + re-medir a 10k (F4 y el resolutor).
+7. **Fase 7 — ordenar la casa** (retiros REVOKE→observar→DROP con OK por pieza; incluye el DROP de las 7 gemelas cerradas + retirar su oráculo local y mocks).
+8. **Fase 8 — un solo idioma** (renombre «analista»; ⚠️ 4 roturas P0 si se toca el ROL y no solo la etiqueta).
 
 **Menor, de la Fase 4:** re-medir Conversiones a escala de 10 000 leads y pasar trinquete+gate en el próximo ciclo de banco.
 
