@@ -5975,3 +5975,67 @@ banco**, con la suite entera.
 Archivos: `migrations/20260830223000_crm_atr_1_upgrade_cuenta_a_quien_lo_hace.sql` ·
 `scripts/rollback-atr1-p055.sql` · `scripts/registrar-atr1-version.sql` (triple embebido fail-closed)
 · bloque nuevo en `scripts/test-rls.mjs`.
+
+---
+
+## P-055 · ATR-2 — LA RENOVACIÓN DEL UPGRADE HEREDA A SU ANALISTA (2026-08-31)
+
+**Estado: 🟡 PREPARADA — DOS auditorías atendidas ENTERAS; ensayo v2 (cadena sintética + 2 mutantes + SEGUNDO PASE del oráculo con delta real) EN VERDE, deshecho.
+⏰ PUBLICAR 11–12/09, CON AGOSTO YA SELLADO (candado en el propio preflight).** Migración
+`20260830233000_crm_atr_2_capital_por_cadena_de_upgrade.sql`. Segunda fase del tren de atribución
+(ATR-1 = registro 187).
+
+**Qué hace:** el núcleo de capital (`private.capital_episodios`) pregunta la MISMA política que
+ATR-1 en sus piernas **contrato** y **desglose** — analista, `en_roster` y filtro de visibles pasan
+JUNTOS (regla de los 3 puntos) a `coalesce(resolutor(...), regla vieja)`; la pierna cooperativa
+intacta. Por transitividad heredan SIN tocar cuerpo: `produccion_mes_por_vendedor` → metas → el
+SELLO, `metricas_capital/vencimientos`, bloque dinero de cartera. **Efecto en números de HOY: CERO**
+(el propio upgrade ya iba a su analista; solo se movería una renovación-de-cadena, y hay 0 — el
+preflight re-mide y el oráculo exige que SOLO se mueva lo que haya).
+
+**Pines:** el núcleo viejo (`872f5ad4…`→ nuevo `90f1d8c2…`) + el resolutor de ATR-1 (`e39016e2…`,
+DEBE existir) + 8 intocadas (CE/MC de ATR-1, producción, registrar_ajuste, directorio, cerrar_periodo,
+cumplimiento, crear_contrato). **Oráculo:** foto entera del núcleo (rango total) antes/después —
+paridad exacta con deltas vacíos; con delta, emparejamiento viejo→nuevo columna a columna (en_roster
+re-verificado contra el cuadro de metas del NUEVO analista), totales de dinero por tipo/medida/moneda
+al céntimo, y producción de meses abiertos sin moverse fuera del delta.
+
+**Ensayo `ATR2-CICLO-VERDE` (30/08 noche, TODO deshecho):** migración + **cadena sintética fabricada
+contra prod** (upgrade de X sobre cliente de Y → renovación → renovación²; más una rota estilo
+backfill): adopción en 1 y 2 saltos en capital Y desglose · la rota cae a regla vieja · **reasignar
+la CABEZA (válvula F3.4) mueve la cadena entera; un eslabón, no** · **2 mutantes CAZADOS** (resolutor
+anulado; recursión cortada) · el resolutor restaurado vuelve a resolver · marcha atrás al byte con
+guardianes verdes. Ensayo guardado en `scripts/ensayo-atr2-cadena-sintetica.sql` (re-corrible antes
+del publish). 🔴 Tres candados del catálogo aprendidos fabricando: un snapshot histórico NO se
+reutiliza · las condiciones solo cambian en borrador · la fecha de cierre comercial LA PONE el
+servidor (fabricar = `producto_condicion_id` NULL + `fecha_cierre_comercial` NULL y los triggers
+hacen el resto).
+
+**Auditoría Codex → NO-GO (1 P0 + 4 P1), atendidos:** P0-1 el registrador podía registrar un esquema
+NO migrado → ahora exige la huella ATR-2 VIVA antes de insertar («un ledger jamás declara aplicada
+una migración que no lo está») · P1-2 el emparejamiento de desglose comparaba menos columnas que el
+de contrato → igualado (12 columnas null-safe) · P1-4 el anti-pisado del rollback solo miraba prosrc
+(un ALTER de atributos sobrevivía) → pinnea también definer/volatility/search_path en pre y post ·
+P2-1 la cabecera dice la verdad (6 parches + 1 comentario) · **P1-1 DECLARADO, decisión de pantalla
+PENDIENTE de Miguel:** `metricas_capital_mes_fn` y `metricas_vencimientos_fn` recortan la
+VISIBILIDAD por cartera (`cli.asesor_perfil_id`) — con una cadena adoptada, el capital CUENTA al
+analista de la cadena pero esas dos lentes lo ENSEÑAN en la vista del dueño (misma familia que la
+lente del Directorio; alinearlas sería ATR-3, no efecto colateral).
+
+**Auditoría del auditor RLS → GO (1 P1 + 5 P2), atendidos:** P1-1 los caminos del oráculo con delta
+no vacío jamás habían corrido con filas → **SEGUNDO PASE del oráculo en el ensayo**: se repone el
+núcleo viejo, se fotografía el mundo sintético, se re-aplica ATR-2 y el MISMO código empareja las
+cadenas fabricadas (delta ≥2) sin abort espurio · P2-1 candado de calendario para publish TEMPRANO
+en el preflight (espejo del de ATR-1: agosto abierto + delta de agosto → aborta) · P2-3 guardia de
+conteos con el patrón del censo (case-insensitive + `sum(1)`) · NOTA-2 dos pines gratis añadidos
+(`capital_autorizada` `dc499b1f…`, `metricas_conversiones_implementacion` `46421295…`) · P2-2
+**deuda de rendimiento ANOTADA**: el resolutor corre ~2 veces por fila en lecturas globales — a 10k
+contratos re-medir `capital_episodios` con EXPLAIN ANALYZE (va junto a la re-medición F4) · P2-4
+**si se revierte en prod, retirar A MANO la fila `20260830233000` del registro** (el rollback repone
+la función, no borra el registro) · P2-5 deudas de oráculo documentadas (EXCEPT sin ALL colapsa
+duplicados exactos — inalcanzable hoy porque el parche mueve por contrato entero).
+
+Archivos: `migrations/20260830233000_crm_atr_2_capital_por_cadena_de_upgrade.sql` ·
+`scripts/rollback-atr2-p055.sql` (preflight anti-pisado + literal original) ·
+`scripts/registrar-atr2-version.sql` (triple embebido fail-closed) ·
+`scripts/ensayo-atr2-cadena-sintetica.sql`.

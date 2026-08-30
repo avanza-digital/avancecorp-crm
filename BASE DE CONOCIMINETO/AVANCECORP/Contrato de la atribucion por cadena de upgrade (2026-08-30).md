@@ -85,6 +85,20 @@ Entre la Fase 1 (conversión/cartera) y la Fase 2 (capital/metas), una renovaci�
 conversión al analista de la cadena pero capital a quien la procese. Riesgo real ≈ 0: los upgrades
 nacieron en agosto y ninguno vence antes de octubre; la F2 sale el 11–12/09. Se acepta y queda escrito.
 
+## Dos lentes que recortan por cartera (decisión de pantalla PENDIENTE)
+
+`crm.metricas_capital_mes_fn` y `crm.metricas_vencimientos_fn` enseñan el capital recortando la
+visibilidad por la CARTERA del que mira (`cli.asesor_perfil_id`), no por el analista del episodio —
+la misma familia que la lente del Directorio. Con una cadena adoptada, el capital CUENTA al analista
+de la cadena pero esas dos lentes lo ENSEÑAN en la vista del dueño. Si Miguel quiere alinearlas al
+analista resuelto, es una decisión de pantalla (candidata a ATR-3), no un efecto colateral.
+
+## Deuda de rendimiento, anotada
+
+El resolutor corre ~2 veces por fila del núcleo en lecturas globales (hoy ~475 contratos, cadenas de
+0–2 saltos: trivial, medido en verde contra prod). Al crecer hacia 10k contratos: re-medir
+`capital_episodios` con EXPLAIN ANALYZE — va junto a la re-medición pendiente de F4.
+
 ## La deuda con nombre (Fase 4, diferida)
 
 `private.contratos_afectados_por_anulacion` busca el contrato por `creado_por`, no por atribución →
