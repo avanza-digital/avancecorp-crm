@@ -6043,8 +6043,10 @@ Archivos: `migrations/20260830233000_crm_atr_2_capital_por_cadena_de_upgrade.sql
 
 ## P-055 · ATR-3a — LAS LENTES Y LA FICHA DICEN QUIÉN SE LLEVA LA PRODUCCIÓN (2026-08-31)
 
-**Estado: 🟡 PREPARADA — ensayo y ciclo EN VERDE (deshechos); en auditoría. Publicable en cualquier
-momento (no toca el camino del sello).** Migración `20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql`.
+**Estado: ✅ EN PRODUCCIÓN (2026-08-31, registro 188).** Publicada por Miguel con `!`; el oráculo
+bajo claims corrió dentro de la transacción. Verificado por conteo: las TRES huellas nuevas exactas
+(`b21f9a7a…`/`54a9bf11…`/`1eccb3a1…`), registro **188** (`20260831010000`). Batería: gates 6/6 y
+30/30 · advisors **0 ERROR**. El front (ATR-3b) sale con `/release-crm`. Migración `20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql`.
 Decisión de Miguel (31/08): las dos gráficas se ALINEAN + SIN funciones nuevas.
 
 **Tres cambios:** `metricas_capital_mes_fn` y `metricas_vencimientos_fn` — el corte de visibilidad
