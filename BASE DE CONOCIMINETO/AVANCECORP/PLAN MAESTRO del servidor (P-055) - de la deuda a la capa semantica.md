@@ -21,7 +21,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **El trinquete, y por qué el primero no valía:** medía **texto**, así que bastaba un comentario (`-- ya migrado`) para desaparecer del radar, una puerta **mixta** no salía y **tres exenciones casaban por accidente** con el nombre de la tabla `crm.reasignaciones_analista`. Ahora mide **llamadas** (sin comentarios, con inicio de palabra y paréntesis), vigila también el **rol comprobado a mano**, mira **vistas y procedimientos**, y cada exención va **sellada con la huella de su cuerpo**: si esa función cambia, su razón caduca y el gate se pone rojo. Quedan **9 puertas declaradas, tope 9, 0 sin declarar**, con vigía diario (`crm-vigencia-analista-vigia`, 06:39).
 
-**Lo que la Fase 5.a NO cierra, dicho en voz alta:** las 4 personas revocadas **siguen con la sesión sin bloquear** (`perfiles.activo = true`, sin ban); una de las tres cuentas llamadas «DEMO» **inició sesión el 28/08**. Y un enlace de PDF firmado ANTES de la revocación sigue valiendo 300 s. Cerrar puertas de datos no cierra sesiones.
+**✅ Y la sesión, cerrada el mismo día (30/08).** La F5.a quitaba los datos, no la sesión. Se cerraron **las cuatro**: perfil del Portal apagado, **sesiones cerradas** (14 abiertas entre todas), llaves de renovación anuladas —sin eso una pestaña abierta se renueva sola— y **entrada bloqueada** (`banned_until`). Detalle: **IVETT TEEVIN** es la única persona real; las otras tres (`avancecorp26+crm-gerente/analista/supervisor`) son **cuentas de prueba del propio Miguel**, y él decidió cerrarlas también. Guiones: `scripts/cerrar-sesion-revocada-ivett.sql` · `scripts/cerrar-sesion-demos-crm.sql` · **reapertura** de las de prueba en `scripts/reabrir-cuentas-demo-crm.sql` (no toca a Ivett a propósito). Sigue abierto, y no lo cierra ninguna fase todavía: un enlace de PDF firmado ANTES de la revocación vale 300 s más.
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
@@ -35,7 +35,6 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
-0. **Antes que nada, y es corto: cerrar la SESIÓN de las 4 personas revocadas** (perfil del Portal apagado o cuenta bloqueada). La F5.a les quitó los datos, no la sesión — y una de esas cuentas entró el 28/08.
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
 2. **Fase 6 — las otras dos calculadoras:** citas primero (6 consumidores, calentamiento) y luego leads (~21, con la regla de UN contador). Es el grueso de lo que queda; el molde de capital ya está probado.
 3. **Fase 5 — cerrar puertas** (permisos muertos + el conflicto de las tres autoridades; ~2 sesiones. **La revocación a medias se puede adelantar sola**: es el único punto con efecto sobre datos reales hoy).
