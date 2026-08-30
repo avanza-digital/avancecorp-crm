@@ -111,5 +111,8 @@ transitividad, verificado); lo que quedaba era gobernanza (el censo) y el núcle
   analista»** — el idioma propio de esa pantalla. «Citas» queda reservado a la pantalla que
   cuenta citas de verdad. 2439/2439 tests, typecheck limpio. Las claves del payload NO se
   renombran (la app publicada seguiría llamándolas).
-- **Firma pendiente de Miguel:** la relectura de la decisión 5 (los 45 días eran de la
-  VISTA; la métrica ya era mensual y rotulada).
+- **Decisión 5, relectura FIRMADA por Miguel (30/08: «firmada, deja los 45 días como
+  están»):** los 45 días eran de la VISTA (cuánto tiempo un convertido sigue visible en la
+  mesa de cartera antes de pasar al archivo — nada se borra); la métrica ya era mensual y
+  rotulada. La intención de la decisión —que todas las pantallas midan igual— estaba
+  cumplida. La ventana de la vista se queda en 45 días.
