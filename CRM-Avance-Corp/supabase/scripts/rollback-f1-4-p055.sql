@@ -1,5 +1,5 @@
--- MARCHA ATRÁS de las FASES 1.4 y 1.5 (P-055) — deja el servidor como estaba
--- antes de `20260829230000` y `20260829233000`.
+-- MARCHA ATRÁS de las FASES 1.4, 1.5 y 1.6 (P-055) — deja el servidor como estaba
+-- antes de `20260829230000`, `20260829233000` y `20260829235000`.
 --
 -- Qué NO deshace, a propósito: las filas ya escritas en public.audit_log por los
 -- auditores nuevos. Un rastro no se borra; solo se deja de escribir.
@@ -8,7 +8,7 @@
 --   npx supabase db query --linked --file supabase/scripts/rollback-f1-4-p055.sql
 --   y luego borrar las versiones del registro:
 --   delete from supabase_migrations.schema_migrations
---    where version in ('20260829230000','20260829233000');
+--    where version in ('20260829230000','20260829233000','20260829235000');
 
 -- 1. El vigía deja de correr
 select cron.unschedule('crm-auditoria-vigia')
@@ -20,6 +20,7 @@ drop trigger if exists trg_audit_agenda_ics on crm.agenda_ics;
 drop trigger if exists trg_audit_suscripciones_push on public.suscripciones_push;
 drop trigger if exists trg_audit_suscripciones_push_upd on public.suscripciones_push;
 drop trigger if exists trg_audit_auditoria_exenciones on private.auditoria_exenciones;
+drop trigger if exists trg_audit_auditoria_condicionada on private.auditoria_condicionada;
 
 do $completadas$
 declare
@@ -39,12 +40,14 @@ end;
 $completadas$;
 
 -- 3. La regla y su maquinaria
+drop function if exists private.assert_auditoria();
 drop function if exists private.vigia_auditoria();
 drop function if exists private.tablas_sin_rastro();
 drop function if exists private.huella_exenciones();
 drop table if exists private.auditoria_alertas;
 drop table if exists private.auditoria_sello;
 drop table if exists private.auditoria_exenciones;
+drop table if exists private.auditoria_condicionada;
 drop function if exists private.log_audit_sin_secretos();
 drop function if exists private.enmascarar_claves(jsonb, text[]);
 
@@ -114,12 +117,12 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'private'
       and p.proname in ('enmascarar_claves','log_audit_sin_secretos','tablas_sin_rastro',
-                        'vigia_auditoria','huella_exenciones')
+                        'vigia_auditoria','huella_exenciones','assert_auditoria')
     union all
     select 'tabla ' || c.relname
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'private'
-      and c.relname in ('auditoria_exenciones','auditoria_alertas','auditoria_sello')
+      and c.relname in ('auditoria_exenciones','auditoria_alertas','auditoria_sello','auditoria_condicionada')
     union all
     select 'cron ' || jobname from cron.job where jobname = 'crm-auditoria-vigia'
     union all
@@ -133,7 +136,7 @@ end;
 $vuelta$;
 
 -- El veredicto viaja como FILA: este canal no transporta los avisos.
-select 'MARCHA_ATRAS_F1_4_F1_5_OK' as veredicto,
+select 'MARCHA_ATRAS_F1_4_F1_5_F1_6_OK' as veredicto,
        (select pg_catalog.count(*) from public.audit_log
         where tabla in ('crm.agenda_ics','public.suscripciones_push','crm.operaciones_cartera')
        ) as rastro_conservado;

@@ -18,9 +18,10 @@
 // Uso:
 //   npm run gate:auditoria               → el trinquete
 //   npm run gate:auditoria:mutante       → además rompe la regla a propósito
-//                                          (cuatro filos) dentro de una
+//                                          (cinco filos) dentro de una
 //                                          transacción que se deshace entera, y
-//                                          exige que el trinquete la cace.
+//                                          exige que el gate REAL la cace: cada
+//                                          filo ejecuta private.assert_auditoria().
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -85,14 +86,14 @@ console.log(`✅ Trinquete: 0 tablas sin rastro completo · ${exenciones} exenci
 if (args.has('--mutante')) {
   const m = correr(MUTANTE);
   if (m.includes('EL MUTANTE SOBREVIVIÓ')) {
-    const filo = /EL MUTANTE SOBREVIVIÓ \(filo \d\)[^"\\]*/.exec(m)?.[0] ?? '';
-    fallar(`EL MUTANTE SOBREVIVIÓ: esa defensa no está probada. ${filo}`, m);
+    const filos = /EL MUTANTE SOBREVIVIÓ en el\/los filo\(s\):[^"\\]*/.exec(m)?.[0] ?? '';
+    fallar(`EL MUTANTE SOBREVIVIÓ: esa defensa no está probada. ${filos}`, m);
   }
   // El éxito del mutante es su excepción: así deshace la transacción entera.
   if (!m.includes('MUTANTE_CAZADO')) {
     fallar('El mutante no llegó a su veredicto (no dijo ni CAZADO ni SOBREVIVIÓ).', m);
   }
-  console.log('✅ Mutante cazado por los cuatro filos: tabla sin rastro, tabla a medias, vigía y sello.');
+  console.log('✅ Mutante cazado por los cinco filos: cada uno ejecuta el gate REAL y lo hace reventar.');
 }
 
 console.log('\nGate de auditoría en verde.');

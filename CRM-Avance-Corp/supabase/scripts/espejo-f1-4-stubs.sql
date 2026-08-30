@@ -47,7 +47,16 @@ end;
 $function$
 ;
 
-create function public.log_audit_change() returns trigger language plpgsql as $$ begin return coalesce(new,old); end $$;
+-- Como en producción: SECURITY DEFINER con search_path fijo (no vacío)
+create function public.log_audit_change() returns trigger
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $$
+begin
+  insert into public.audit_log (tabla, operacion, fila_id, usuario_id, data_antes, data_despues)
+  values (tg_table_name, tg_op, coalesce(new,old)::text, null,
+          case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) end,
+          case when tg_op in ('INSERT','UPDATE') then to_jsonb(new) end);
+  return coalesce(new, old);
+end $$;
 
 -- Las tres que reciben rastro
 create table crm.operaciones_cartera (id uuid primary key default gen_random_uuid(), capital_renovado numeric, periodo date);
@@ -61,7 +70,8 @@ create table public.novedades_leidas (id uuid primary key default gen_random_uui
 
 -- pg_cron de mentira, con la misma superficie que usa la migración
 create table cron.job (jobid bigint generated always as identity primary key, jobname text unique,
-  schedule text, command text, active boolean default true, username text default current_user);
+  schedule text, command text, active boolean default true, username text default current_user,
+  database text default current_database());
 create function cron.schedule(p_nombre text, p_horario text, p_cmd text) returns bigint
 language plpgsql as $$
 declare v_id bigint;
@@ -85,3 +95,21 @@ create trigger trg_audit_metas_vendedor after insert on crm.metas_vendedor
 create table crm.lead_asignaciones (id uuid primary key default gen_random_uuid(), lead_id uuid);
 create trigger trg_audit_lead_asignaciones after insert or update on crm.lead_asignaciones
   for each row execute function private.log_audit_crm();
+
+-- Precedente real de producción: una tabla auditada CON condición (cronograma
+-- de pagos) — la F1.6 exige que ese compromiso esté declarado.
+create table public.cronograma_pagos (id uuid primary key default gen_random_uuid(), estado text, contrato_id uuid, fecha_programada date);
+create trigger trg_audit_cronograma_pago after insert or delete or update on public.cronograma_pagos
+  for each row when (pg_catalog.pg_trigger_depth() < 2) execute function private.log_audit_crm();
+
+-- pg_cron 1.6 también trae alter_job (el espejo lo necesita para la F1.6)
+create function cron.alter_job(job_id bigint, schedule text default null, command text default null,
+                               database text default null, username text default null, active boolean default null)
+returns void language plpgsql as $$
+begin
+  update cron.job j set
+    schedule = coalesce(alter_job.schedule, j.schedule),
+    command  = coalesce(alter_job.command, j.command),
+    active   = coalesce(alter_job.active, j.active)
+  where j.jobid = alter_job.job_id;
+end $$;

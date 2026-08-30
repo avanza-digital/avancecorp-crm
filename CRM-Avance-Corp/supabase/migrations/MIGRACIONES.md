@@ -5444,3 +5444,50 @@ versión **confirmaba** en vez de deshacerse.
 | Gate + mutante contra producción | ✅ verde: «0 tablas sin rastro completo · 3 exenciones» y «mutante cazado por los cuatro filos» |
 | Advisors de seguridad | **0 ERROR** (169 avisos, ninguno nuevo salvo los 3 INFO `rls_enabled_no_policy` de las tablas nuevas — que es justo el deny-by-default buscado) |
 | **Humo del flujo VIVO del portal** (`scripts/humo-portal-auditoria-f1-5.sql`, en transacción deshecha) | ✅ el alta deja rastro · **el guardado repetido de cada carga del panel NO ensucia** (la corrección del `WHEN` funciona con el `upsert` real) · un cambio de verdad sí queda · **0 fugas** de la clave push |
+
+---
+
+## 20260829235000 · FASE 1.6 — la regla a prueba de señuelos (auditoría adversarial de Codex)
+
+**Estado: escrita y probada en espejo; pendiente de aplicar. Registro → 180.**
+
+Codex atacó la F1.4 y devolvió **NO-GO con 9 hallazgos**. Dos avisos sobre su
+veredicto: auditó la versión **anterior a la enmienda F1.5**, y **no pudo leer
+producción** (su CLI se quedó sin token: `LegacyPlatformAuthRequiredError`), así
+que sus afirmaciones son sobre el código, no medidas. Al medirlas, dos de sus
+correcciones había que cambiarlas.
+
+| Su hallazgo | Veredicto | Qué se hizo |
+|---|---|---|
+| #1 F1.4 y los gates no forman unidad desplegable | **Ya resuelto** | Se publicaron juntas y el gate quedó verde contra producción. Su «squash» no aplica: este repo no edita migraciones publicadas |
+| #2 La regla acepta triggers decorativos, en modo réplica o señuelos | ✅ **CIERTO, arreglado** | Se exige `tgenabled in ('O','A')`, AFTER, `FOR EACH ROW`, sin `UPDATE OF` parcial, auditor **por OID** y **SECURITY DEFINER con search_path fijo** |
+| #3 Universo con huecos (particiones hoja, UNLOGGED, foráneas, materializadas) | ✅ **CIERTO, arreglado** | `relkind in ('r','p','f','m')` y `relpersistence in ('p','u')`, hijas incluidas. Preventivo: hoy no existe ninguna (48 tablas, todas normales) |
+| #4 El mutante no prueba el gate, prueba sus piezas | ✅ **CIERTO, y era grave** | El gate entero vive en `private.assert_auditoria()`; cada filo del mutante **ejecuta esa misma función** y exige que reviente con P0001 |
+| #5 El upsert del portal ensucia la auditoría | **Ya resuelto en F1.5** y MEDIDO contra el flujo vivo | Se mantiene, pero el filtro se muda DENTRO del auditor para poder exigir triggers sin `WHEN` |
+| #6 El cron no se verifica de verdad | ✅ **CIERTO, arreglado** | Se comprueba nombre, usuario, base, horario y comando exactos, sin duplicados de otro usuario — en la migración **y** en el gate |
+| #7 El enmascarado es un oráculo | ✅ **CIERTO, arreglado** | `***` plano, sin huella derivada. Y se enmascaran también `user_agent` y `dispositivo`: la huella del aparato de un cliente no tiene por qué verla cualquier admin |
+| #8 Las razones de la lista blanca no se gobiernan | ✅ **CIERTO, arreglado** | `on conflict do update` de la razón, y la huella del sello incluye el **texto** de cada razón |
+| #9 Falta prueba de comportamiento | **Parcial** | Hecha en F1.5 contra producción en transacción deshecha; queda la matriz por roles, que se cubre en el espejo |
+
+**⚖️ DOS CORRECCIONES SUYAS QUE LA MEDICIÓN OBLIGÓ A CAMBIAR:**
+
+1. Pedía exigir `proconfig @> ['search_path=""']`. **Medido: `public.log_audit_change`
+   vive con `search_path = 'public, pg_temp'`** desde siempre — aplicar su regla
+   habría marcado como rota media base sin ganar seguridad. Se exige search_path
+   **fijo**, no vacío.
+2. Pedía **prohibir el `WHEN`** en los triggers de auditoría. **Medido:
+   `public.cronograma_pagos` lo usa desde antes de esta fase, a propósito.**
+   Prohibirlo habría marcado como rota una tabla que audita bien. Solución
+   intermedia: se permite, pero **declarado** en `private.auditoria_condicionada`
+   con su razón — un compromiso que nadie escribió no vale.
+
+**El mutante pasa de 4 filos a CINCO**, y cada uno ejecuta el gate real:
+tabla sin rastro · rastro a medias · **trigger anulado con `WHEN (false)`** (su
+señuelo) · exención colada a mano · **vigía apagado**.
+
+**Probado en el espejo** (con `public.cronograma_pagos` y su `WHEN` replicados):
+las tres migraciones aplican en cadena, trinquete verde (0 sin rastro · 3
+exenciones · 1 condicionada), `MUTANTE_CAZADO` por los cinco filos sin dejar
+nada, y la marcha atrás —ya ampliada a F1.6— devuelve el servidor a su foto
+original. De paso, la regla nueva **cazó un auditor no-DEFINER en el propio
+espejo** antes de dar verde.
