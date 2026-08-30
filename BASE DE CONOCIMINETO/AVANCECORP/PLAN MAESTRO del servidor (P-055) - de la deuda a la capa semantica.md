@@ -8,7 +8,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ## 📍 ESTADO — se actualiza al final de cada sesión
 
-**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1, 3 y 4 EN PRODUCCIÓN.** La Fase 4 cerró COMPLETA: registro **177**, núcleo `capital_episodios` + 16 consumidores + el **motor del sello** bebiendo del núcleo (juez: ensayo viejo-vs-nuevo con **foto sellada idéntica** `e59a303b…`), decisión A «coops en todo» aplicada (AUM 18 212 113) y el **trinquete en CERO** — ninguna calculadora cruda de capital fuera del núcleo en crm+public+private, y el tope solo puede quedarse en cero. Rendimiento: 241 ms la pantalla más pesada, 74 ms vendedores. Esquema visual: artifact «El núcleo de capital»; el plan en imagen: artifact «Plan maestro del servidor» (reescrito el 29/08 con problema/meta/falta por fase).
+**Fase actual:** **FASE 2** — el 10/09 solo queda mirar el primer sellado. **FASES 0, 1 (con sus F1.4/F1.5/F1.6), 3 y 4 EN PRODUCCIÓN.** La Fase 4 cerró COMPLETA: registro **177**, núcleo `capital_episodios` + 16 consumidores + el **motor del sello** bebiendo del núcleo (juez: ensayo viejo-vs-nuevo con **foto sellada idéntica** `e59a303b…`), decisión A «coops en todo» aplicada (AUM 18 212 113) y el **trinquete en CERO** — ninguna calculadora cruda de capital fuera del núcleo en crm+public+private, y el tope solo puede quedarse en cero. Rendimiento: 241 ms la pantalla más pesada, 74 ms vendedores. Esquema visual: artifact «El núcleo de capital»; el plan en imagen: artifact «Plan maestro del servidor» (reescrito el 29/08 con problema/meta/falta por fase).
 
 **Lo que bloquea:** nada. Ninguna pregunta abierta.
 
@@ -18,11 +18,13 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **Y la F1.6 (registro 180), tras el NO-GO de Codex:** de sus 9 hallazgos, 6 ciertos y arreglados, 2 ya resueltos y 1 parcial. Lo gordo: **la regla aceptaba vigilantes decorativos** (en modo réplica, BEFORE, con `UPDATE OF` parcial o anulados por un `WHEN (false)`) y **el mutante probaba las piezas, no el gate** — se podía romper el gate y seguir verde. Ahora el gate entero vive en `private.assert_auditoria()` y los **cinco** filos del mutante ejecutan esa misma función. ⚖️ Dos correcciones suyas hubo que cambiarlas AL MEDIR (él no pudo leer producción): exigir `search_path` vacío habría puesto en rojo media base (`log_audit_change` vive con `'public, pg_temp'`), y prohibir el `WHEN` habría marcado como rota a `cronograma_pagos`, que lo usa a propósito → se permite pero **declarado** en `private.auditoria_condicionada`. Además el enmascarado deja de ser un oráculo (`***` plano) y tapa `user_agent`/`dispositivo`. Commit `68b3f2e`.
 
+**🆕 HALLAZGO DEL 29/08 — EL CONFLICTO DE ADMIN (lo intuyó Miguel, se midió).** Conviven **TRES** definiciones de autoridad: el rol del Portal (24 funciones), la membresía del CRM (**114**) y 6 híbridas que las mezclan. Hay **funciones gemelas** con el mismo nombre en los dos esquemas y criterios distintos, así que el poder depende de por dónde se entre. 🔴 **Lo urgente: una revocación a medias** — una analista con la membresía del CRM apagada sigue activa en el Portal y las políticas de tabla solo miran eso, de modo que **sigue leyendo contratos, cronogramas y fichas de sus clientes** aunque las funciones se lo nieguen. Informe: [[Las tres definiciones de autoridad (2026-08-29)]]. **Encaja en la Fase 5**, en 3 pasos.
+
 **👉 DÓNDE SE RETOMA:** lo que falta, en orden:
 
 1. **10/09 — media sesión de vigilancia (Fase 2):** ver que el disparo automático de las 09:20 selle agosto igual que el ensayo y **guardar la copia del mes**. Agosto sella como **mes parcial** (el ledger de leads empieza el 17/08): es consecuencia del dato, no un fallo.
 2. **Fase 6 — las otras dos calculadoras:** citas primero (6 consumidores, calentamiento) y luego leads (~21, con la regla de UN contador). Es el grueso de lo que queda; el molde de capital ya está probado.
-3. **Fase 5 — cerrar puertas** (permisos muertos, ~1 sesión, mecánica).
+3. **Fase 5 — cerrar puertas** (permisos muertos + el conflicto de las tres autoridades; ~2 sesiones. **La revocación a medias se puede adelantar sola**: es el único punto con efecto sobre datos reales hoy).
 4. **Fase 7 — ordenar la casa** (retiros REVOKE→observar→DROP, con OK de Miguel por pieza).
 5. **Fase 8 — un solo idioma** (renombre «analista», al final, por el orden seguro).
 
@@ -37,7 +39,7 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 | 2 · Mirar el primer cierre | 🟡 **lo único vivo** — el 10/09, media sesión: mirar el sello automático y guardar la copia (ensayado 3 veces) |
 | 3 · Que cada venta tenga dueño | ✅ **EN PRODUCCIÓN** (29/08) — migraciones 156→166, front desplegado, obligatoriedad viva |
 | 4 · Una sola calculadora de capital | ✅ **COMPLETA EN PRODUCCIÓN** (30/08) — núcleo + 16 consumidores + motor del sello + **trinquete en CERO**; el ensayo del cierre viejo-vs-nuevo dio foto sellada idéntica |
-| 5 · Cerrar puertas | ⚪ sin empezar |
+| 5 · Cerrar puertas | ⚪ sin empezar — **ampliada**: además de los permisos muertos, resolver el **conflicto de las tres autoridades** ([[Las tres definiciones de autoridad (2026-08-29)]]), empezando por la **revocación a medias** que deja leer por tabla a quien las funciones ya bloquean |
 | 6 · Las otras dos calculadoras | ⚪ sin empezar — **la pieza grande de lo que queda**: leads (21) + citas (6) con el molde de capital |
 | 7 · Ordenar la casa | ⚪ sin empezar |
 | 8 · Un solo idioma | ⚪ sin empezar |
