@@ -5,11 +5,28 @@ conversión, siempre»** — una anulación baja la conversión del analista por
 sellado, y **el capital no se toca jamás: ni el del analista, ni el de la empresa**. (Eligió esta
 opción frente a «como está hoy, por calendario» y «conversión y capital siempre».)
 
-## La foto REAL de hoy (medida 31/08 — corrige la del 29/08)
+## ⚠️ Fe de erratas (2026-08-30 noche, medido contra producción)
+
+La tabla de abajo describe la **CONDUCTA de las reglas** — medida con ENSAYOS contra producción
+(29/08 y re-medición 31/08), **todos deshechos**. El caso de «−S/ 200 000» fue el ensayo con el
+mayor cierre de cooperativa vivo (qorilazo); **jamás fue un caso real en pie**. El estado REAL del
+mundo, medido el 30/08 por la noche:
+
+- **`crm.ajustes_mes_cerrado` tiene CERO filas** → hoy NO existe deuda heredada que cobrar,
+  condonar ni devolver. La «pregunta pendiente» del final de esta nota tiene hoy respuesta vacía.
+- La única fila anulada de cooperativa es la de **S/ 100 000** (creada 19/08, anulada 20/08),
+  pero Miguel aclaró que es **prueba/demo, no una operación real**. Ver
+  [[Cierre Qorilazo S 100000 es dato demo]]. El estado de negocio correcto es **cero anulaciones
+  reales**; ATR-4 no puede usar esa fila como evidencia ni hacerla reaparecer como capital real.
+- La pregunta de las «deudas ya registradas» **solo se materializa** si alguien anula un cierre
+  entre el primer sello real (10/09) y la publicación de ATR-4. Si eso no ocurre, ATR-4 se escribe
+  sin decisión transitoria alguna.
+
+## La conducta de las reglas (medida por ENSAYO 31/08 — corrige la del 29/08; no son casos reales)
 
 | Escenario | Conversión | Capital analista | Capital empresa |
 |---|---|---|---|
-| Coop anulada, mes ABIERTO | baja | **baja** (−S/ 200 000 medido) | **baja** |
+| Coop anulada, mes ABIERTO | baja | **baja** (−S/ 200 000 medido EN ENSAYO, deshecho) | **baja** |
 | Coop anulada, mes SELLADO | baja (ajuste al vivo) | **baja en el sello siguiente** (deuda) | **baja** (lente) |
 | Avance anulado, mes ABIERTO | baja | **baja** (neutralización) | intacto |
 | Avance anulado, mes SELLADO | baja (ajuste al vivo) | **baja en el sello siguiente** (deuda) | intacto |
@@ -56,18 +73,19 @@ cierres_avance_anulados, retroceso de etapa).
   ATR-2), producción `af6794…`, registrar_ajuste `aae02e…`, cerrar_periodo `cefe29…`,
   cumplimiento `5c12bc…`, conversion_episodios `71213a…`, lentes/ficha las de ATR-3a.
 - Oráculos: conversión ANTES=DESPUÉS en todo (la sanción de conversión no cambia) · capital del
-  analista y AUM: nueva = vieja + LO ANULADO re-aparecido (delta declarado y medido: hoy 1 coop
-  anulada de S/ 200 000 — re-medir al escribir) · ensayo de anulación sintética deshecha (avance y
-  coop, abierto y sellado) · foto del sello estable.
+  analista y AUM: nueva = vieja + LO ANULADO REAL re-aparecido; hoy el delta real esperado es
+  **cero** porque la fila de S/ 100 000 es demo y debe permanecer fuera del capital real · ensayo
+  de anulación sintética deshecha (avance y coop, abierto y sellado) · foto del sello estable.
 
 ## Orden y calendario
 
 **Se ESCRIBE tras publicar ATR-2 (12/09+)**: ATR-4 re-modela `produccion` y la pierna coop del
 MISMO núcleo que ATR-2 re-modela — apilar variantes sin publicar del mismo cuerpo repite la trampa
 de ordenación (P0 del pin bivalente). El primer sellado real (10/09) pasa con las reglas de hoy;
-las deudas de capital ya registradas en `ajustes_mes_cerrado` ANTES de ATR-4: decidir en la fase si
-se saldan (regla vieja, última vez) o se condonan (regla nueva retroactiva) — pregunta para Miguel
-al escribirla.
+las deudas de capital ya registradas en `ajustes_mes_cerrado` ANTES de ATR-4 (**hoy: CERO filas —
+ver fe de erratas; medido 30/08**): SOLO si al escribir ATR-4 existe alguna (nacida entre el sello
+del 10/09 y su publicación), decidir si se salda (regla vieja, última vez) o se condona (regla
+nueva retroactiva) — pregunta para Miguel únicamente en ese caso.
 
 Relacionado: [[Contrato de la atribucion por cadena de upgrade (2026-08-30)]] ·
 [[Atribucion de upgrades y sus renovaciones (decision 2026-08-30)]]

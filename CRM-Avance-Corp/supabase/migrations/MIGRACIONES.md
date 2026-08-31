@@ -6268,3 +6268,64 @@ sin fila (el escenario «el ledger mintió»).
 Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 `scripts/rollback-f7-1-p055.sql` · `scripts/registrar-f7-1-version.sql` (candado de honestidad
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
+
+
+## P-055 · OLA R — LAS DOCE ACTAS MUDAS DEL REGISTRO (2026-08-30/31)
+
+**Estado: 🟡 PREPARADA (v2) — publicar ANTES que la F7.1 (su preflight exige exactamente 189
+versiones). Ventana: cualquier momento; sin candado de fecha.** Migración
+`20260831055000_crm_ola_r_las_doce_actas_mudas.sql` (055000 < 060000 a propósito: orden de
+publicación = orden de replay).
+
+**Qué repara:** las 12 versiones del registro con `statements` NULL (20260819162752, 20260819211815,
+20260820190500, 20260826151907, 20260826154500, 20260826173523, 20260826174500, 20260826182000,
+20260826182500, 20260828190000, 20260828190500, 20260828191000) ganan su cuerpo exacto — **136
+sentencias** (17/13/17/10/9/11/10/7/10/7/19/6) divididas con separador que respeta
+dollar-quoting/comillas/comentarios (verificado ADEMÁS por un separador independiente de Codex:
+mismos conteos). Las 9 sin nombre ganan además su `name` con la convención del CLI (mejora
+deliberada; el rollback lo revierte).
+
+**La FIDELIDAD es contra el catálogo VIVO, no contra git (Codex refutó la narrativa de fechas y
+se corrigió):** 39 objetos persistentes comparados contra prod — 15 cuerpos de función por md5 +
+firma/retorno/volatilidad/definer/config/owner/ACL, 4 triggers por DEFINICIÓN COMPLETA
+(pg_get_triggerdef: tgtype 29/29/25/13, sin WHEN, como los archivos), 19 constraints VALIDADAS por
+constraintdef, la columna cruda con tipo/nullabilidad/comment, y los efectos ACL de la 191000
+(10 tablas sin letras caras para anon/auth; 5 funciones anon=0/auth=5). **2 reemplazos INTERNOS
+reconciliados** (normalizar_domicilio_legal 162752→211815; cartera_pagina_fn 151907→174500 — el
+vivo coincide con la posterior). Sobre git, la verdad exacta: 182000/182500 se commitearon el
+26/08 y el ledger las da por aplicadas el 28/08; el instante real de aplicación NO es recuperable
+(`track_commit_timestamp=off`); 211815 fue editada 10m41s tras su primer commit y el delta es SOLO
+su sonda DO (cero DDL — se registra el texto final del repo con esta nota).
+
+**Contrato PRE/POST (refutación 4b de Codex atendida):** el preflight acepta DOS estados globales
+y ninguno más — PRE (189 versiones, 12 mudas, las 12 exactas) → repara; POST (0 mudas y las 12 con
+el cuerpo objetivo EXACTO por md5+conteo; la fila propia puede no existir aún — el runner del
+banco la inserta después) → no-op total. **Un híbrido (p. ej. 11 mudas) ABORTA a propósito.**
+
+**Diff-cero ampliado (refutación 4c atendida):** la foto antes/después cubre funciones con huella
+completa, rels, policies, triggers, checks, crons, **pg_description (comments), pg_default_acl y
+metadatos de columnas (pg_attribute+defaults)**, y conteos comerciales. NULL-guard por versión +
+relectura md5 + cero sentencias vacías + suma 136 congelada.
+
+**Medido contra prod (todo deshecho): `OLAR-V2-ENSAYO-VERDE` · `OLAR-V2-CICLO-VERDE`**
+(reparar → RE-aplicar no-op por el camino POST → deshacer con el rollback → mundo original EXACTO
+con los 9 names a NULL → re-reparar). Registrador propio verificado falla-cerrado (jamás la muda
+13). Rollback `scripts/rollback-ola-r-p055.sql` con anti-pisado por md5.
+
+**Replay en banco (condición 4 de Miguel): POST-PUBLISH inmediato y declarado.** Un banco creado
+HOY muere por la enfermedad que esto cura (las 12 mudas). Tras publicar: crear branch y replay-ar
+la historia completa; **2 versiones con hambre de datos declarada** que pueden exigir la receta
+manual: `20260819211815` (su sonda exige domicilios existentes, líneas 263–289) y
+`20260820190500` (exige contratos previos, línea 544). Cualquier fallo del replay se documenta
+aquí por nombre — el cuerpo registrado NO se maquilla (historia primero).
+
+**Repo (la otra mitad de la ola):** 8 `aplicar-*.sh` + 2 fixtures huérfanos (medidos: los otros 3
+tienen consumidores y SE QUEDAN) + `.tmp-verificar-atribucion-capital.mjs` → `scripts/archivo/`;
+retirado el directorio vacío `functions/crm-contrato-pdf`. Cero referencias rotas; `gate:vigencia`
+y `gate:f7` verdes tras el movimiento.
+
+**Publicación (Miguel, con `!`, EN ESTE ORDEN):**
+1. `npx supabase db query --linked --file supabase/migrations/20260831055000_crm_ola_r_las_doce_actas_mudas.sql`
+2. `npx supabase db query --linked --file supabase/scripts/registrar-ola-r-version.sql`
+Después la F7.1 (060000 + su registrador). Si se revierte: rollback + retirar a mano la fila
+20260831055000.
