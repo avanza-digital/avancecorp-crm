@@ -6174,8 +6174,11 @@ Archivos: `migrations/20260831020000_crm_f7_0_el_gate_que_vigila_las_puertas.sql
 
 ## P-055 · F7.1 — CERRAR LO QUE QUEDÓ SUELTO (2026-08-31)
 
-**Estado: 🟡 PREPARADA (v2, enmendada) — la refutación de DISEÑO de Codex (30/08 noche) tumbó 3 de
-6 afirmaciones y el paquete se REHÍZO. ⏰ Publicar antes del 05/09 (freeze 08–10/09).** Migración
+**Estado: ✅ EN PRODUCCIÓN — publicada por Miguel el 31/08 a las 00:0x Lima (registro 191).
+Verificado post-publish: 191 versiones, las 7 puertas cerradas AL LITERAL, libro con 14 piezas
+(«OK: 14 vigiladas — 10 observación, 4 permanentes»), vigilante ampliado sellado (2e28ebb4…),
+gates vigencia+analítica+f7 verdes + mutante de 2 filos cazado, advisors 0 ERROR. La suite
+test:rls completa queda para el ciclo de banco (prod tiene 0 demos a propósito — deuda declarada).** Migración
 `20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` — **v3: reemplaza a la `20260831050000`
 (v2), que reemplazó a la `20260831040000` (v1); NINGUNA publicada jamás** (regla del repo: las
 migraciones commiteadas no se editan; cada reemplazada se retiró del árbol en su commit y ninguna
