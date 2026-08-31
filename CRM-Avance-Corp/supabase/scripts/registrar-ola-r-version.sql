@@ -1,6 +1,7 @@
 -- Registra 20260831055000 CON su cuerpo - fail-closed (jamas la muda 13).
--- Candados: mundo-vivo (0 mudas + las 12 con su cuerpo EXACTO por md5 y
--- conteo), NULL-statements revienta, relectura post-insert.
+-- Candados ANTES del insert (Codex v2): 0 mudas + las 12 con huella POR
+-- ELEMENTO y conteo exactos + si la fila propia existe, cuerpo Y NOMBRE se
+-- verifican ANTES de tocar nada. Relectura post-insert.
 do $reg_olar$
 declare v_a text[]; v_nombre text; v_n integer;
 begin
@@ -9,60 +10,58 @@ begin
   end if;
   select count(*) into v_n from supabase_migrations.schema_migrations m
     join (values
-  ('20260819162752', '3756aa8ff82fa1ec63f283f8ee62c08d', 17),
-  ('20260819211815', '8ab82c082e7884d611a11087e6b3241e', 13),
-  ('20260820190500', '0a9202c300cba5655d21ec197c8b0744', 17),
-  ('20260826151907', '64260c58878bd114c8cf0feb27810f80', 10),
-  ('20260826154500', '7e0c2ffa4d41d5ca7fd045777732fe4c', 9),
-  ('20260826173523', 'e0d4c7e255412e5bce4072311f39b387', 11),
-  ('20260826174500', '5ce2631bffcc2120e5e2a3d091b14ac2', 10),
-  ('20260826182000', '8735ab49a697468b9a80124466f568de', 7),
-  ('20260826182500', '538438b7dcf1033a96e3fbc46cc60162', 10),
-  ('20260828190000', '3121d69c9f99b3a214982eb8b3a670dc', 7),
-  ('20260828190500', 'aab6762606cf487376f0ea77058dd524', 19),
-  ('20260828191000', '2b48a5eee28654b3f93c7781c663a88c', 6)
-    ) as e(version, md5_cuerpo, n_sentencias) on e.version = m.version
-   where md5(array_to_string(m.statements, E'\n')) = e.md5_cuerpo
+  ('20260819162752', '399f72b907f4bab63ad4fb124c4d4755', 17),
+  ('20260819211815', '14e8587e631e35d318b580d23f0342f5', 13),
+  ('20260820190500', '6e4ae5f02480d3a0fc913b38cdcfa578', 17),
+  ('20260826151907', 'f6b4b452868510ad433d3fd4418b4874', 10),
+  ('20260826154500', '066eaf9312823cdc860545ca3764c5f7', 9),
+  ('20260826173523', '8a3bb03f7da1d3a6f9181fd61bedd8c9', 11),
+  ('20260826174500', 'b4444752f25e85f5d54a830b9f24fe9e', 10),
+  ('20260826182000', 'e1d79c85d595e72f61ddfaacb081c87b', 7),
+  ('20260826182500', '1f71c71f2b2db9dae6d23a6080be838f', 10),
+  ('20260828190000', '018116c2ff04537be42e034abba7de2a', 7),
+  ('20260828190500', 'a109153ca42c6de632c8ea23b19bde1f', 19),
+  ('20260828191000', '3390c367bf9b573b525c508ad21bd576', 6)
+    ) as e(version, huella_elems, n_sentencias) on e.version = m.version
+   where (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)) = e.huella_elems
      and array_length(m.statements, 1) = e.n_sentencias;
   if v_n <> 12 then
     raise exception 'Registro OLA R: solo % de las 12 tienen el cuerpo esperado', v_n;
   end if;
 
-  select statements into v_a from supabase_migrations.schema_migrations where version='20260831055000';
-  if found and v_a is null then
-    raise exception 'La version 20260831055000 existe SIN cuerpo: repararla con UPDATE, no re-insertar'; end if;
-  if found and v_a <> array[$mig_olar$-- P-055 OLA R (v2) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
+  select name, statements into v_nombre, v_a
+    from supabase_migrations.schema_migrations where version='20260831055000';
+  if found then
+    if v_a is null then
+      raise exception 'La version 20260831055000 existe SIN cuerpo: repararla con UPDATE, no re-insertar'; end if;
+    if v_a <> array[$mig_olar$-- P-055 OLA R (v3) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
 --
 -- 12 versiones de prod tienen fila SIN statements (aplicadas en su dia por
 -- guion directo): sin cuerpo, ningun banco puede replay-ar la historia. Este
 -- reparador les da su cuerpo EXACTO desde los archivos del repo, cuya
--- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto ANTES de
--- escribir esto (Codex la sostuvo: 15 cuerpos + 4 triggers por definicion
--- completa + 19 constraints validadas + columna + ACL de la 191000, y los 2
--- reemplazos internos reconciliados). La evidencia de fidelidad es la
--- comparacion contra el CATALOGO VIVO — la historia git es solo color: dos
+-- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto y
+-- auditada (Codex la sostuvo). La evidencia es el CATALOGO VIVO, no git: dos
 -- archivos (182000/182500) se commitearon el 26/08 y el ledger los da por
--- aplicados el 28/08, y el instante real de aplicacion no es recuperable
+-- aplicados el 28/08; el instante real no es recuperable
 -- (track_commit_timestamp=off). Por eso NO se afirma fecha de aplicacion.
 --
--- Contrato (condiciones de Miguel + refutacion de Codex, 30/08):
---  * DOS estados globales aceptados y NINGUN hibrido:
---    PRE  = exactamente 189 versiones, 12 mudas, LAS 12 conocidas -> repara;
---    POST = 0 mudas y las 12 con su cuerpo EXACTO (replay de banco o
---           re-corrida; la fila propia puede existir o no: el runner del
---           banco la inserta DESPUES de ejecutar) -> todo no-op.
---    Un estado parcial (p. ej. 11 mudas) ABORTA a proposito: ese mundo lo
---    toco una mano ajena y se reconcilia a mano, jamas por encima.
---  * statements[] = las 136 sentencias INDIVIDUALES de los archivos
---    historicos (17/13/17/10/9/11/10/7/10/7/19/6), divididas respetando
---    dollar-quoting/comillas/comentarios; CERO elementos vacios (verificado).
---  * DIFF CERO fuera del registro: foto ampliada del catalogo (funciones con
---    firma+retorno+volatilidad+definer+config+owner+ACL; comentarios
---    pg_description; ACL por defecto pg_default_acl; metadatos de columnas).
---  * Jamas pisa un cuerpo existente distinto + relectura md5 por version.
---  * Se registra con su propio registrador: jamas la muda 13. Orden de
---    publicacion = orden de replay: esta version (055000) va ANTES que la
---    F7.1 (060000).
+-- Contrato (Miguel + DOS refutaciones de Codex + auditor-rls, 30/08):
+--  * DOS estados globales y NINGUN hibrido: PRE (189 versiones, 12 mudas, LAS
+--    12) -> repara; POST (0 mudas y las 12 con cuerpo objetivo EXACTO) ->
+--    no-op; 11 mudas u otro mundo ABORTA (mano ajena: reconciliar a mano).
+--  * La identidad del cuerpo es POR ELEMENTO (Codex v2: md5 del texto unido
+--    NO ve fronteras desplazadas): md5(string_agg(md5(elemento) order by
+--    ordinality)) + conteo + cero elementos NULL o vacios.
+--  * Tags con VERSION COMPLETA $olar_<version>_<i>$ (Codex v2: los sufijos
+--    de 6 digitos colisionaban entre 0820190500 y 0828190500).
+--  * DIFF CERO por CONTENIDO, no conteos: funciones con firma completa,
+--    policies con qual/withcheck, triggers por triggerdef, checks por def,
+--    cron por comando, comments con classoid, default-ACL con namespace,
+--    columnas con identidad/generacion/collation/ACL/stats.
+--  * Se registra con su propio registrador: jamas la muda 13. Orden:
+--    esta version (055000) ANTES que la F7.1 (060000); el registrador de la
+--    F7.1 queda ENCADENADO a que esta exista.
 
 begin;
 
@@ -70,22 +69,22 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 
 -- =====================================================================
--- 0) PREFLIGHT: PRE o POST, nada mas + FOTO ampliada del catalogo.
+-- 0) PREFLIGHT: PRE o POST, nada mas + FOTO por contenido.
 -- =====================================================================
-create temp table _olar_esperado (version text primary key, md5_cuerpo text, n_sentencias int) on commit drop;
+create temp table _olar_esperado (version text primary key, huella_elems text, n_sentencias int) on commit drop;
 insert into _olar_esperado values
-  ('20260819162752', '3756aa8ff82fa1ec63f283f8ee62c08d', 17),
-  ('20260819211815', '8ab82c082e7884d611a11087e6b3241e', 13),
-  ('20260820190500', '0a9202c300cba5655d21ec197c8b0744', 17),
-  ('20260826151907', '64260c58878bd114c8cf0feb27810f80', 10),
-  ('20260826154500', '7e0c2ffa4d41d5ca7fd045777732fe4c', 9),
-  ('20260826173523', 'e0d4c7e255412e5bce4072311f39b387', 11),
-  ('20260826174500', '5ce2631bffcc2120e5e2a3d091b14ac2', 10),
-  ('20260826182000', '8735ab49a697468b9a80124466f568de', 7),
-  ('20260826182500', '538438b7dcf1033a96e3fbc46cc60162', 10),
-  ('20260828190000', '3121d69c9f99b3a214982eb8b3a670dc', 7),
-  ('20260828190500', 'aab6762606cf487376f0ea77058dd524', 19),
-  ('20260828191000', '2b48a5eee28654b3f93c7781c663a88c', 6);
+  ('20260819162752', '399f72b907f4bab63ad4fb124c4d4755', 17),
+  ('20260819211815', '14e8587e631e35d318b580d23f0342f5', 13),
+  ('20260820190500', '6e4ae5f02480d3a0fc913b38cdcfa578', 17),
+  ('20260826151907', 'f6b4b452868510ad433d3fd4418b4874', 10),
+  ('20260826154500', '066eaf9312823cdc860545ca3764c5f7', 9),
+  ('20260826173523', '8a3bb03f7da1d3a6f9181fd61bedd8c9', 11),
+  ('20260826174500', 'b4444752f25e85f5d54a830b9f24fe9e', 10),
+  ('20260826182000', 'e1d79c85d595e72f61ddfaacb081c87b', 7),
+  ('20260826182500', '1f71c71f2b2db9dae6d23a6080be838f', 10),
+  ('20260828190000', '018116c2ff04537be42e034abba7de2a', 7),
+  ('20260828190500', 'a109153ca42c6de632c8ea23b19bde1f', 19),
+  ('20260828191000', '3390c367bf9b573b525c508ad21bd576', 6);
 
 do $$
 declare v_total int; v_mudas int; v_lista text[]; v_mal text; v_sent int;
@@ -96,18 +95,18 @@ begin
     from supabase_migrations.schema_migrations where statements is null;
 
   if v_mudas = 0 then
-    -- POST: las 12 con el cuerpo objetivo EXACTO; todo lo demas sera no-op.
     select e.version into v_mal from _olar_esperado e
       left join supabase_migrations.schema_migrations m on m.version = e.version
      where m.version is null
-        or md5(array_to_string(m.statements, E'\n')) is distinct from e.md5_cuerpo
+        or (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)) is distinct from e.huella_elems
         or coalesce(array_length(m.statements, 1), 0) <> e.n_sentencias
+        or exists (select 1 from unnest(m.statements) s where s is null or btrim(s) = '')
      limit 1;
     if v_mal is not null then
       raise exception 'OLA R: mundo POST pero la version % NO tiene el cuerpo objetivo - reconciliar a mano, jamas pisar', v_mal;
     end if;
   elsif v_mudas = 12 then
-    -- PRE: inventario cerrado EXACTO.
     if v_total <> 189 then
       raise exception 'OLA R preflight: hay % versiones (deben ser exactamente 189 antes de reparar)', v_total;
     end if;
@@ -115,14 +114,13 @@ begin
       raise exception 'OLA R preflight: las mudas NO son las 12 conocidas (%)', v_lista;
     end if;
   else
-    raise exception 'OLA R preflight: % mudas - ni el mundo PRE (12) ni el POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
+    raise exception 'OLA R preflight: % mudas - ni PRE (12) ni POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
   end if;
 
   if exists (select 1 from supabase_migrations.schema_migrations
               where statements is not null and array_length(statements, 1) is null) then
     raise exception 'OLA R preflight: hay versiones con statements VACIO (reparadas a medias)';
   end if;
-  -- las 136 congeladas: la suma de sentencias esperadas es exactamente 136
   select sum(n_sentencias) into v_sent from _olar_esperado;
   if v_sent <> 136 then
     raise exception 'OLA R preflight: el objetivo no suma 136 sentencias (%)', v_sent;
@@ -132,8 +130,6 @@ begin
   select
     (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname in ('public','crm','private')) as fns,
-    -- huella COMPLETA de funciones (Codex 30/08): cuerpo + firma + retorno +
-    -- volatilidad + definer + config + owner + ACL
     (select md5(string_agg(n.nspname || '.' || p.proname
         || '(' || pg_get_function_identity_arguments(p.oid) || ')'
         || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
@@ -145,19 +141,27 @@ begin
       where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
     (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-    (select count(*) from pg_policy) as policies,
-    (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-    (select count(*) from pg_constraint where contype = 'c') as checks,
-    (select count(*) from cron.job) as crons,
-    -- las 3 superficies que la v1 no miraba (Codex 30/08):
-    (select count(*) from pg_description) as comments_n,
-    (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-        order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
         order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-    (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-        order by c.relname, a.attnum))
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
       from pg_attribute a
       join pg_class c on c.oid = a.attrelid
       join pg_namespace n on n.oid = c.relnamespace
@@ -176,7 +180,7 @@ end $$;
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
+$olar_20260819162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
 --
 -- EL SINTOMA (Miguel, 2026-08-19): «los vendedores no pueden registrar otro
 -- contrato a clientes antiguos».
@@ -248,10 +252,10 @@ $olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cli
 -- excepciones de MIGRACIONES.md aunque no haya DDL, porque ese registro es el
 -- indice donde se busca «quien le escribe a mis tablas».
 
-begin;$olar_162752_0$,
-$olar_162752_1$set local lock_timeout = '10s';$olar_162752_1$,
-$olar_162752_2$set local statement_timeout = '120s';$olar_162752_2$,
-$olar_162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
+begin;$olar_20260819162752_0$,
+$olar_20260819162752_1$set local lock_timeout = '10s';$olar_20260819162752_1$,
+$olar_20260819162752_2$set local statement_timeout = '120s';$olar_20260819162752_2$,
+$olar_20260819162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
 -- Sin esto, un renombrado de las dependencias crearia ambas funciones y solo
 -- fallaria en runtime, con el vendedor delante.
 do $preflight$
@@ -270,8 +274,8 @@ begin
     raise exception 'PREFLIGHT: falta public.perfiles.domicilio';
   end if;
 end;
-$preflight$;$olar_162752_3$,
-$olar_162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
+$preflight$;$olar_20260819162752_3$,
+$olar_20260819162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
 -- Fuente UNICA del servidor, espejo de `validarDomicilioLegal` del navegador.
 -- Devuelve el texto normalizado o levanta el error es-PE correspondiente.
 --
@@ -317,12 +321,12 @@ begin
   end if;
   return v_out;
 end;
-$function$;$olar_162752_4$,
-$olar_162752_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_162752_5$,
-$olar_162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_162752_6$,
-$olar_162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
+$function$;$olar_20260819162752_4$,
+$olar_20260819162752_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_20260819162752_5$,
+$olar_20260819162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_6$,
+$olar_20260819162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
 -- Devuelve NOMBRES de campo, nunca valores: no es una via para leer PII.
 --
 -- El «analista» que valida el snapshot es `contratos.creado_por`, y
@@ -413,13 +417,13 @@ begin
     'faltan_analista', to_jsonb(v_faltan_analista)
   );
 end;
-$function$;$olar_162752_7$,
-$olar_162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
-  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_162752_8$,
-$olar_162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
-  from public, anon, authenticated, service_role;$olar_162752_9$,
-$olar_162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_162752_10$,
-$olar_162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
+$function$;$olar_20260819162752_7$,
+$olar_20260819162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
+  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_20260819162752_8$,
+$olar_20260819162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
+  from public, anon, authenticated, service_role;$olar_20260819162752_9$,
+$olar_20260819162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_20260819162752_10$,
+$olar_20260819162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
 create or replace function crm.completar_domicilio_cliente(
   p_cliente_id uuid,
   p_domicilio text
@@ -502,13 +506,13 @@ begin
   -- lectura disfrazada.
   return jsonb_build_object('version', 1, 'accion', 'completado');
 end;
-$function$;$olar_162752_11$,
-$olar_162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
-  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_162752_12$,
-$olar_162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
-  from public, anon, authenticated, service_role;$olar_162752_13$,
-$olar_162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_162752_14$,
-$olar_162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
+$function$;$olar_20260819162752_11$,
+$olar_20260819162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
+  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_20260819162752_12$,
+$olar_20260819162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_13$,
+$olar_20260819162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_20260819162752_14$,
+$olar_20260819162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
 -- Las sondas de comportamiento —las que EJECUTAN las funciones contra datos—
 -- viven en supabase/scripts/test-domicilio-legal.sql, no aqui: una sonda que
 -- exija «que el defecto siga existiendo» convierte la migracion en irrepetible
@@ -643,8 +647,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK: la escritura del domicilio queda auditada con su autor.';
 end;
-$postflight$;$olar_162752_15$,
-$olar_162752_16$commit;$olar_162752_16$
+$postflight$;$olar_20260819162752_15$,
+$olar_20260819162752_16$commit;$olar_20260819162752_16$
 ], name = coalesce(name, '20260819162752_crm_domicilio_legal_faltante')
  where version = '20260819162752' and statements is null;
 
@@ -652,7 +656,7 @@ $olar_162752_16$commit;$olar_162752_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
+$olar_20260819211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
 --
 -- POR QUE. El 2026-08-19 se cerro el agujero de los caracteres INVISIBLES en la
 -- ventana nueva de «+ Contrato», pero el mismo campo tiene otras TRES puertas, y
@@ -690,10 +694,10 @@ $olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altu
 -- No altera ningun objeto de `public`; reemplaza funciones de `crm` que ya
 -- escriben `public.perfiles.domicilio`, como las que ya estaban vivas.
 
-begin;$olar_211815_0$,
-$olar_211815_1$set local lock_timeout = '10s';$olar_211815_1$,
-$olar_211815_2$set local statement_timeout = '120s';$olar_211815_2$,
-$olar_211815_3$do $preflight$
+begin;$olar_20260819211815_0$,
+$olar_20260819211815_1$set local lock_timeout = '10s';$olar_20260819211815_1$,
+$olar_20260819211815_2$set local statement_timeout = '120s';$olar_20260819211815_2$,
+$olar_20260819211815_3$do $preflight$
 begin
   if to_regprocedure('crm.normalizar_domicilio_legal(text)') is null then
     raise exception 'PREFLIGHT: falta crm.normalizar_domicilio_legal(text)';
@@ -705,8 +709,8 @@ begin
     raise exception 'PREFLIGHT: falta crm.actualizar_cliente_gerencia(uuid, jsonb)';
   end if;
 end;
-$preflight$;$olar_211815_3$,
-$olar_211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
+$preflight$;$olar_20260819211815_3$,
+$olar_20260819211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
 create or replace function crm.normalizar_domicilio_legal(p_domicilio text)
 returns text
 language plpgsql
@@ -778,12 +782,12 @@ begin
 
   return v_out;
 end;
-$function$;$olar_211815_4$,
-$olar_211815_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_211815_5$,
-$olar_211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_211815_6$,
-$olar_211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
+$function$;$olar_20260819211815_4$,
+$olar_20260819211815_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_20260819211815_5$,
+$olar_20260819211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819211815_6$,
+$olar_20260819211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
 -- Tenia su propia copia de la regla (5..240 + cntrl). Ahora presta la fuente
 -- unica, y de paso ESCRIBE el texto normalizado en vez del `btrim` a secas.
 create or replace function crm.convertir_lead_con_domicilio(
@@ -815,10 +819,10 @@ begin
 
   return v_resultado || jsonb_build_object('domicilio_accion', v_accion);
 end;
-$function$;$olar_211815_7$,
-$olar_211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
-  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_211815_8$,
-$olar_211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
+$function$;$olar_20260819211815_7$,
+$olar_20260819211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
+  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_20260819211815_8$,
+$olar_20260819211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
 -- Tercera copia de la misma regla, y la unica que puede SOBRESCRIBIR un
 -- domicilio existente. Es justamente la que repara los errores de las otras dos:
 -- con mas razon tiene que aplicar el mismo liston.
@@ -863,10 +867,10 @@ begin
   end if;
   return true;
 end;
-$function$;$olar_211815_9$,
-$olar_211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
-  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_211815_10$,
-$olar_211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
+$function$;$olar_20260819211815_9$,
+$olar_20260819211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
+  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_20260819211815_10$,
+$olar_20260819211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
 do $postflight$
 declare
   v_puertas text[] := array[
@@ -964,8 +968,8 @@ begin
     raise notice 'POSTFLIGHT 3 OK: los 6 rellenos se rechazan y la direccion real pasa intacta.';
   end;
 end;
-$postflight$;$olar_211815_11$,
-$olar_211815_12$commit;$olar_211815_12$
+$postflight$;$olar_20260819211815_11$,
+$olar_20260819211815_12$commit;$olar_20260819211815_12$
 ], name = coalesce(name, '20260819211815_crm_domicilio_una_sola_puerta')
  where version = '20260819211815' and statements is null;
 
@@ -973,7 +977,7 @@ $olar_211815_12$commit;$olar_211815_12$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
+$olar_20260820190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
 --
 -- POR QUE. Miguel lo fijo el 2026-08-20: «el sistema me da un PDF que se usa como
 -- unico contrato, pero los clientes anteriores a esto (19-08) ya tienen otro tipo
@@ -1023,10 +1027,10 @@ $olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-
 --
 -- No crea, altera ni borra ningun objeto de `public`.
 
-begin;$olar_190500_0$,
-$olar_190500_1$set local lock_timeout = '10s';$olar_190500_1$,
-$olar_190500_2$set local statement_timeout = '120s';$olar_190500_2$,
-$olar_190500_3$do $preflight$
+begin;$olar_20260820190500_0$,
+$olar_20260820190500_1$set local lock_timeout = '10s';$olar_20260820190500_1$,
+$olar_20260820190500_2$set local statement_timeout = '120s';$olar_20260820190500_2$,
+$olar_20260820190500_3$do $preflight$
 begin
   if to_regprocedure('private.crear_job_contrato_pdf_base(uuid, uuid)') is null then
     raise exception 'PREFLIGHT: falta private.crear_job_contrato_pdf_base(uuid, uuid)';
@@ -1051,8 +1055,8 @@ begin
     raise exception 'PREFLIGHT: public.contratos.fecha_inicio dejo de ser NOT NULL';
   end if;
 end;
-$preflight$;$olar_190500_3$,
-$olar_190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
+$preflight$;$olar_20260820190500_3$,
+$olar_20260820190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
 -- Devuelve 'nuevo', 'anterior' o NULL (contrato inexistente). El NULL importa:
 -- quien la llama NO debe tratarlo como 'anterior', sino dejar que su propio
 -- camino de «contrato no encontrado» levante el error de siempre.
@@ -1082,15 +1086,15 @@ as $$
   end
   from public.contratos c
   where c.id = p_contrato_id
-$$;$olar_190500_4$,
-$olar_190500_5$comment on function private.contrato_documental_regimen(uuid) is
+$$;$olar_20260820190500_4$,
+$olar_20260820190500_5$comment on function private.contrato_documental_regimen(uuid) is
   'Regimen documental de un contrato por FECHA DE FIRMA: firmado el 2026-08-19 o '
   'despues => ''nuevo'' (el sistema emite el PDF, que es el unico contrato); antes '
   '=> ''anterior'' (el cliente ya tiene su contrato en el formato previo y el '
   'sistema no le emite ninguno). NULL si el contrato no existe. Fuente unica: '
-  'ninguna otra funcion repite esta fecha.';$olar_190500_5$,
-$olar_190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_190500_6$,
-$olar_190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
+  'ninguna otra funcion repite esta fecha.';$olar_20260820190500_5$,
+$olar_20260820190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_20260820190500_6$,
+$olar_20260820190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
 create or replace function private.crear_job_contrato_pdf_base(
   p_contrato_id uuid,
   p_actor_id uuid
@@ -1165,13 +1169,13 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_7$,
-$olar_190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
+$function$;$olar_20260820190500_7$,
+$olar_20260820190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
 -- replace` los conserva; se repiten porque un ACL que solo vive en la memoria
 -- de otra migración es un ACL que nadie puede auditar aquí.
 revoke all on function private.crear_job_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_8$,
-$olar_190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
+  from public, anon, authenticated, service_role;$olar_20260820190500_8$,
+$olar_20260820190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
 -- Incluye a los 21 ya emitidos: corregir uno de ellos NO genera una revision
 -- nueva. Es coherente con «se quedan como estan» — y con que ese papel no es el
 -- contrato de esa operacion, asi que refrescarlo no arregla nada y si acuñaria
@@ -1234,10 +1238,10 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_9$,
-$olar_190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_10$,
-$olar_190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
+$function$;$olar_20260820190500_9$,
+$olar_20260820190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
+  from public, anon, authenticated, service_role;$olar_20260820190500_10$,
+$olar_20260820190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
 -- La guarda va DESPUES del bloque de integridad y del corte por
 -- 'sellado'/'integridad_bloqueada': para los 21 ya emitidos todo sigue igual
 -- (incluido el autodiagnostico de ledger incoherente). Solo muerde en
@@ -1355,8 +1359,8 @@ begin
       'renderizado_en', v_job.creado_en
     );
 end;
-$function$;$olar_190500_11$,
-$olar_190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
+$function$;$olar_20260820190500_11$,
+$olar_20260820190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
 -- Un contrato del regimen anterior SIN archivo responde `sin_reserva` con
 -- `reintentable=false`, tenga o no un trabajo a medias. Los 21 que si tienen
 -- archivo siguen respondiendo `sellado` con su documento descargable.
@@ -1503,8 +1507,8 @@ begin
     else '{}'::jsonb
   end;
 end;
-$function$;$olar_190500_12$,
-$olar_190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
+$function$;$olar_20260820190500_12$,
+$olar_20260820190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
 -- Sobre una base VACIA (el oraculo local, un banco recien creado) no hay nada
 -- que medir: entonces GRITA en vez de aprobar, y no aborta. Contra produccion
 -- tiene que decir OK; si dice SIN DATOS, algo va mal y hay que parar. El bloque
@@ -1540,8 +1544,8 @@ begin
     raise notice 'POSTFLIGHT 1 OK · regimen nuevo=% · anterior=%', v_nuevos, v_anteriores;
   end if;
 end;
-$postflight$;$olar_190500_13$,
-$olar_190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
+$postflight$;$olar_20260820190500_13$,
+$olar_20260820190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
 do $postflight$
 declare
   v_antiguos int;
@@ -1591,8 +1595,8 @@ begin
       v_antiguos, v_ya_emitidos;
   end if;
 end;
-$postflight$;$olar_190500_14$,
-$olar_190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
+$postflight$;$olar_20260820190500_14$,
+$olar_20260820190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
 do $postflight$
 declare
   v_falta text[] := '{}';
@@ -1634,8 +1638,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK · las cuatro puertas consultan la fuente unica';
 end;
-$postflight$;$olar_190500_15$,
-$olar_190500_16$commit;$olar_190500_16$
+$postflight$;$olar_20260820190500_15$,
+$olar_20260820190500_16$commit;$olar_20260820190500_16$
 ], name = coalesce(name, '20260820190500_crm_documento_regimen_por_fecha_de_firma')
  where version = '20260820190500' and statements is null;
 
@@ -1643,7 +1647,7 @@ $olar_190500_16$commit;$olar_190500_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_151907_0$-- ---------------------------------------------------------------------------
+$olar_20260826151907_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve el SEGUNDO numero del lead
 -- ---------------------------------------------------------------------------
 -- QUE ARREGLA. El 24/08 entro `crm.leads.telefono_alternativo` (migracion
@@ -1673,9 +1677,9 @@ $olar_151907_0$-- --------------------------------------------------------------
 -- funcion: por eso el grant se vuelve a poner explicitamente abajo.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_151907_0$,
-$olar_151907_1$set local lock_timeout = '10s';$olar_151907_1$,
-$olar_151907_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826151907_0$,
+$olar_20260826151907_1$set local lock_timeout = '10s';$olar_20260826151907_1$,
+$olar_20260826151907_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight — que se este reemplazando lo que se leyo
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -1702,14 +1706,14 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_151907_2$,
-$olar_151907_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826151907_2$,
+$olar_20260826151907_3$-- ---------------------------------------------------------------------------
 -- 1. La funcion
 -- ---------------------------------------------------------------------------
 drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_151907_3$,
-$olar_151907_4$create function crm.cartera_pagina_fn(
+);$olar_20260826151907_3$,
+$olar_20260826151907_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -1892,14 +1896,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_151907_4$,
-$olar_151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_151907_5$,
-$olar_151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_151907_6$,
-$olar_151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_151907_7$,
-$olar_151907_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826151907_4$,
+$olar_20260826151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826151907_5$,
+$olar_20260826151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826151907_6$,
+$olar_20260826151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826151907_7$,
+$olar_20260826151907_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -1953,8 +1957,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_151907_8$,
-$olar_151907_9$commit;$olar_151907_9$
+$postflight$;$olar_20260826151907_8$,
+$olar_20260826151907_9$commit;$olar_20260826151907_9$
 ], name = coalesce(name, '20260826151907_crm_cartera_pagina_telefono_alternativo')
  where version = '20260826151907' and statements is null;
 
@@ -1962,7 +1966,7 @@ $olar_151907_9$commit;$olar_151907_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_154500_0$-- ---------------------------------------------------------------------------
+$olar_20260826154500_0$-- ---------------------------------------------------------------------------
 -- El segundo numero del lead: fijos peruanos y numeros del mundo
 -- ---------------------------------------------------------------------------
 -- DECISIONES DE MIGUEL (2026-08-26):
@@ -2001,9 +2005,9 @@ $olar_154500_0$-- --------------------------------------------------------------
 -- del viejo: toda fila que pasaba sigue pasando.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_154500_0$,
-$olar_154500_1$set local lock_timeout = '5s';$olar_154500_1$,
-$olar_154500_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826154500_0$,
+$olar_20260826154500_1$set local lock_timeout = '5s';$olar_20260826154500_1$,
+$olar_20260826154500_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -2023,23 +2027,23 @@ begin
     raise exception 'El CHECK leads_telefono_alternativo_formato ya no es el que esta migracion viene a relajar: %', v_def;
   end if;
 end;
-$preflight$;$olar_154500_2$,
-$olar_154500_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826154500_2$,
+$olar_20260826154500_3$-- ---------------------------------------------------------------------------
 -- 1. El formato nuevo
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  drop constraint leads_telefono_alternativo_formato;$olar_154500_3$,
-$olar_154500_4$alter table crm.leads
+  drop constraint leads_telefono_alternativo_formato;$olar_20260826154500_3$,
+$olar_20260826154500_4$alter table crm.leads
   add constraint leads_telefono_alternativo_formato
   check (
     telefono_alternativo is null
     or telefono_alternativo ~ '^\+(51(9[0-9]{8}|[1-8][0-9]{7})|(?!51)[1-9][0-9]{7,14})$'
-  ) not valid;$olar_154500_4$,
-$olar_154500_5$alter table crm.leads
-  validate constraint leads_telefono_alternativo_formato;$olar_154500_5$,
-$olar_154500_6$comment on column crm.leads.telefono_alternativo is
-  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_154500_6$,
-$olar_154500_7$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826154500_4$,
+$olar_20260826154500_5$alter table crm.leads
+  validate constraint leads_telefono_alternativo_formato;$olar_20260826154500_5$,
+$olar_20260826154500_6$comment on column crm.leads.telefono_alternativo is
+  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_20260826154500_6$,
+$olar_20260826154500_7$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO el CHECK, no leyendolo
 -- ---------------------------------------------------------------------------
 -- Un CHECK se lee bien y rechaza mal: la unica prueba honesta es meterle filas.
@@ -2117,8 +2121,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo el CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_154500_7$,
-$olar_154500_8$commit;$olar_154500_8$
+$postflight$;$olar_20260826154500_7$,
+$olar_20260826154500_8$commit;$olar_20260826154500_8$
 ], name = coalesce(name, '20260826154500_crm_leads_telefono_alternativo_fijos_e_internacional')
  where version = '20260826154500' and statements is null;
 
@@ -2126,7 +2130,7 @@ $olar_154500_8$commit;$olar_154500_8$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_173523_0$-- ---------------------------------------------------------------------------
+$olar_20260826173523_0$-- ---------------------------------------------------------------------------
 -- El segundo numero que NO se pudo leer tampoco se tira
 -- ---------------------------------------------------------------------------
 -- DECISION DE MIGUEL (2026-08-26): «que siempre todos los leads tengan ese
@@ -2158,9 +2162,9 @@ $olar_173523_0$-- --------------------------------------------------------------
 -- parrafo entero entre por aqui.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_173523_0$,
-$olar_173523_1$set local lock_timeout = '5s';$olar_173523_1$,
-$olar_173523_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826173523_0$,
+$olar_20260826173523_1$set local lock_timeout = '5s';$olar_20260826173523_1$,
+$olar_20260826173523_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -2182,13 +2186,13 @@ begin
     raise exception 'crm.leads.telefono_alternativo_crudo ya existe: esta migracion ya se aplico.';
   end if;
 end;
-$preflight$;$olar_173523_2$,
-$olar_173523_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826173523_2$,
+$olar_20260826173523_3$-- ---------------------------------------------------------------------------
 -- 1. La columna
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  add column telefono_alternativo_crudo text;$olar_173523_3$,
-$olar_173523_4$alter table crm.leads
+  add column telefono_alternativo_crudo text;$olar_20260826173523_3$,
+$olar_20260826173523_4$alter table crm.leads
   add constraint leads_telefono_alternativo_crudo_cordura
   check (
     telefono_alternativo_crudo is null
@@ -2199,17 +2203,17 @@ $olar_173523_4$alter table crm.leads
       btrim(telefono_alternativo_crudo) <> ''
       and length(telefono_alternativo_crudo) <= 40
     )
-  ) not valid;$olar_173523_4$,
-$olar_173523_5$alter table crm.leads
+  ) not valid;$olar_20260826173523_4$,
+$olar_20260826173523_5$alter table crm.leads
   add constraint leads_telefono_alternativo_excluyentes
   check (
     telefono_alternativo is null or telefono_alternativo_crudo is null
-  ) not valid;$olar_173523_5$,
-$olar_173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_173523_6$,
-$olar_173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_173523_7$,
-$olar_173523_8$comment on column crm.leads.telefono_alternativo_crudo is
-  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_173523_8$,
-$olar_173523_9$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826173523_5$,
+$olar_20260826173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_20260826173523_6$,
+$olar_20260826173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_20260826173523_7$,
+$olar_20260826173523_8$comment on column crm.leads.telefono_alternativo_crudo is
+  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_20260826173523_8$,
+$olar_20260826173523_9$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO los CHECK sobre una copia temporal
 -- ---------------------------------------------------------------------------
 -- Misma tecnica que 20260826154500: tabla TEMPORAL con `including constraints`,
@@ -2266,8 +2270,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo los CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_173523_9$,
-$olar_173523_10$commit;$olar_173523_10$
+$postflight$;$olar_20260826173523_9$,
+$olar_20260826173523_10$commit;$olar_20260826173523_10$
 ], name = coalesce(name, '20260826173523_crm_leads_telefono_alternativo_crudo')
  where version = '20260826173523' and statements is null;
 
@@ -2275,7 +2279,7 @@ $olar_173523_10$commit;$olar_173523_10$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_174500_0$-- ---------------------------------------------------------------------------
+$olar_20260826174500_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve tambien el segundo numero SIN VALIDAR
 -- ---------------------------------------------------------------------------
 -- Continuacion de 20260826151907 y de 20260826173523: la columna
@@ -2291,9 +2295,9 @@ $olar_174500_0$-- --------------------------------------------------------------
 -- El cuerpo es el de esa migracion con dos lineas mas.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_174500_0$,
-$olar_174500_1$set local lock_timeout = '10s';$olar_174500_1$,
-$olar_174500_2$do $preflight$
+begin;$olar_20260826174500_0$,
+$olar_20260826174500_1$set local lock_timeout = '10s';$olar_20260826174500_1$,
+$olar_20260826174500_2$do $preflight$
 begin
   if not exists (
     select 1 from pg_catalog.pg_attribute
@@ -2312,11 +2316,11 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_174500_2$,
-$olar_174500_3$drop function crm.cartera_pagina_fn(
+$preflight$;$olar_20260826174500_2$,
+$olar_20260826174500_3$drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_174500_3$,
-$olar_174500_4$create function crm.cartera_pagina_fn(
+);$olar_20260826174500_3$,
+$olar_20260826174500_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -2505,14 +2509,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_174500_4$,
-$olar_174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_174500_5$,
-$olar_174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_174500_6$,
-$olar_174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_174500_7$,
-$olar_174500_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826174500_4$,
+$olar_20260826174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826174500_5$,
+$olar_20260826174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826174500_6$,
+$olar_20260826174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826174500_7$,
+$olar_20260826174500_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -2574,8 +2578,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_174500_8$,
-$olar_174500_9$commit;$olar_174500_9$
+$postflight$;$olar_20260826174500_8$,
+$olar_20260826174500_9$commit;$olar_20260826174500_9$
 ], name = coalesce(name, '20260826174500_crm_cartera_pagina_telefono_alternativo_crudo')
  where version = '20260826174500' and statements is null;
 
@@ -2583,7 +2587,7 @@ $olar_174500_9$commit;$olar_174500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182000_0$-- ---------------------------------------------------------------------------
+$olar_20260826182000_0$-- ---------------------------------------------------------------------------
 -- `private.canonizar_contacto` — la regla del telefono, en SQL
 -- ---------------------------------------------------------------------------
 -- Es el SEXTO espejo de la misma regla, y el primero que vive en la base como
@@ -2608,9 +2612,9 @@ $olar_182000_0$-- --------------------------------------------------------------
 --   internacional   +CC…           (E.164: 8 a 15 digitos, el primero 1-9)
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182000_0$,
-$olar_182000_1$set local lock_timeout = '5s';$olar_182000_1$,
-$olar_182000_2$create or replace function private.canonizar_contacto(p text)
+begin;$olar_20260826182000_0$,
+$olar_20260826182000_1$set local lock_timeout = '5s';$olar_20260826182000_1$,
+$olar_20260826182000_2$create or replace function private.canonizar_contacto(p text)
 returns table (e164 text, clase text, movil boolean)
 language plpgsql
 immutable
@@ -2682,11 +2686,11 @@ begin
   end if;
   return;
 end;
-$function$;$olar_182000_2$,
-$olar_182000_3$comment on function private.canonizar_contacto(text) is
-  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_182000_3$,
-$olar_182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_182000_4$,
-$olar_182000_5$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826182000_2$,
+$olar_20260826182000_3$comment on function private.canonizar_contacto(text) is
+  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_20260826182000_3$,
+$olar_20260826182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_20260826182000_4$,
+$olar_20260826182000_5$-- ---------------------------------------------------------------------------
 -- Postflight — EJECUTANDO la funcion, no leyendola
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -2768,8 +2772,8 @@ begin
     end if;
   end loop;
 end;
-$postflight$;$olar_182000_5$,
-$olar_182000_6$commit;$olar_182000_6$
+$postflight$;$olar_20260826182000_5$,
+$olar_20260826182000_6$commit;$olar_20260826182000_6$
 ], name = coalesce(name, '20260826182000_crm_canonizar_contacto')
  where version = '20260826182000' and statements is null;
 
@@ -2777,7 +2781,7 @@ $olar_182000_6$commit;$olar_182000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182500_0$-- ---------------------------------------------------------------------------
+$olar_20260826182500_0$-- ---------------------------------------------------------------------------
 -- El alta manual de un lead admite su SEGUNDO numero
 -- ---------------------------------------------------------------------------
 -- OPCION A, elegida por Miguel (2026-08-26): el primer numero IDENTIFICA al
@@ -2808,9 +2812,9 @@ $olar_182500_0$-- --------------------------------------------------------------
 -- podra registrar; se decidio asumirlo (Miguel, 2026-08-26).
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182500_0$,
-$olar_182500_1$set local lock_timeout = '10s';$olar_182500_1$,
-$olar_182500_2$do $preflight$
+begin;$olar_20260826182500_0$,
+$olar_20260826182500_1$set local lock_timeout = '10s';$olar_20260826182500_1$,
+$olar_20260826182500_2$do $preflight$
 begin
   if to_regprocedure('private.canonizar_contacto(text)') is null then
     raise exception 'Falta private.canonizar_contacto: aplicar antes 20260826182000.';
@@ -2831,11 +2835,11 @@ begin
     raise exception 'crm.crear_lead_si_disponible cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_182500_2$,
-$olar_182500_3$drop function crm.crear_lead_si_disponible(
+$preflight$;$olar_20260826182500_2$,
+$olar_20260826182500_3$drop function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text
-);$olar_182500_3$,
-$olar_182500_4$create function crm.crear_lead_si_disponible(
+);$olar_20260826182500_3$,
+$olar_20260826182500_4$create function crm.crear_lead_si_disponible(
   p_nombre_completo text,
   p_telefono text,
   p_origen text,
@@ -3115,18 +3119,18 @@ begin
 
   return pg_catalog.jsonb_build_object('estado', 'creado', 'lead_id', v_id);
 end;
-$function$;$olar_182500_4$,
-$olar_182500_5$comment on function crm.crear_lead_si_disponible(
+$function$;$olar_20260826182500_4$,
+$olar_20260826182500_5$comment on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
 ) is
-  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_182500_5$,
-$olar_182500_6$revoke all on function crm.crear_lead_si_disponible(
+  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_20260826182500_5$,
+$olar_20260826182500_6$revoke all on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) from public, anon, service_role;$olar_182500_6$,
-$olar_182500_7$grant execute on function crm.crear_lead_si_disponible(
+) from public, anon, service_role;$olar_20260826182500_6$,
+$olar_20260826182500_7$grant execute on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) to authenticated;$olar_182500_7$,
-$olar_182500_8$do $postflight$
+) to authenticated;$olar_20260826182500_7$,
+$olar_20260826182500_8$do $postflight$
 declare
   v_oid oid := 'crm.crear_lead_si_disponible(text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text)'::regprocedure;
   v_def text := pg_get_functiondef(v_oid);
@@ -3174,8 +3178,8 @@ begin
     raise exception 'postflight: el drop+create abrio el alta a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_182500_8$,
-$olar_182500_9$commit;$olar_182500_9$
+$postflight$;$olar_20260826182500_8$,
+$olar_20260826182500_9$commit;$olar_20260826182500_9$
 ], name = coalesce(name, '20260826182500_crm_crear_lead_telefono_alternativo')
  where version = '20260826182500' and statements is null;
 
@@ -3183,7 +3187,7 @@ $olar_182500_9$commit;$olar_182500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
+$olar_20260828190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
 --
 -- QUE: cuatro tablas dejan de poder cambiar sin dejar rastro.
 --   1. public.contrato_titulares -> auditor NUEVO (INSERT/UPDATE/DELETE).
@@ -3272,8 +3276,8 @@ $olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Migu
 -- Que esto no se quede esperando detras de una transaccion larga: si no consigue
 -- el candado en 5 segundos, falla y se reintenta, en vez de formar cola delante
 -- de las escrituras del portal.
-set local lock_timeout = '5s';$olar_190000_0$,
-$olar_190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
+set local lock_timeout = '5s';$olar_20260828190000_0$,
+$olar_20260828190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
 do $preflight$
 declare
   v_md5_public text;
@@ -3384,16 +3388,16 @@ begin
     raise exception 'trg_audit_cronograma_pago_alta_baja ya existe: re-basar antes de aplicar';
   end if;
 end
-$preflight$;$olar_190000_1$,
-$olar_190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
+$preflight$;$olar_20260828190000_1$,
+$olar_20260828190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
 create trigger trg_audit_contrato_titulares
   after insert or update or delete on public.contrato_titulares
-  for each row execute function public.log_audit_change();$olar_190000_2$,
-$olar_190000_3$-- == 2. Historial de gestion del cliente =====================================
+  for each row execute function public.log_audit_change();$olar_20260828190000_2$,
+$olar_20260828190000_3$-- == 2. Historial de gestion del cliente =====================================
 create trigger trg_audit_actividades_cliente
   after insert or update or delete on crm.actividades_cliente
-  for each row execute function private.log_audit_crm();$olar_190000_3$,
-$olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
+  for each row execute function private.log_audit_crm();$olar_20260828190000_3$,
+$olar_20260828190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
 -- Trigger APARTE, no un reemplazo del que ya audita el alta: asi no se toca un
 -- objeto vivo de una tabla con 3.952 filas ni se arriesga a perder nada suyo.
 -- Para UPDATE y DELETE es el unico trigger de la tabla, asi que el orden de
@@ -3401,8 +3405,8 @@ $olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hue
 -- `trg_zz_...`) queda exactamente como estaba.
 create trigger trg_audit_actividades_cambio_baja
   after update or delete on crm.actividades
-  for each row execute function private.log_audit_crm();$olar_190000_4$,
-$olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
+  for each row execute function private.log_audit_crm();$olar_20260828190000_4$,
+$olar_20260828190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
 -- Trigger APARTE, para no tocar el de UPDATE y su WHEN (ver la cabecera). Se
 -- audita tambien el alta y no solo el borrado -que es el hueco probatorio- para
 -- que una cuota que aparece de la nada tenga la misma explicacion que una que
@@ -3411,8 +3415,8 @@ $olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco ====
 -- creada o borrada: un contrato escribe una decena, no miles.
 create trigger trg_audit_cronograma_pago_alta_baja
   after insert or delete on public.cronograma_pagos
-  for each row execute function public.log_audit_change();$olar_190000_5$,
-$olar_190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
+  for each row execute function public.log_audit_change();$olar_20260828190000_5$,
+$olar_20260828190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
 do $postflight$
 declare
   v_faltan text[] := '{}';
@@ -3477,7 +3481,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 auditores nuevos, ninguno recreado, y el WHEN del UPDATE de cuotas intacto';
 end
-$postflight$;$olar_190000_6$
+$postflight$;$olar_20260828190000_6$
 ], name = coalesce(name, '20260828190000_crm_f1_1_rastro_titulares_gestion_cuotas')
  where version = '20260828190000' and statements is null;
 
@@ -3485,7 +3489,7 @@ $postflight$;$olar_190000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
+$olar_20260828190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
 --
 -- EL AGUJERO, en una linea: en Postgres `NaN > 0` es VERDADERO. Un monto
 -- invalido atraviesa cualquier validacion escrita como "tiene que ser mayor
@@ -3545,8 +3549,8 @@ $olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/0
 -- Que esto no forme cola delante del portal: `add constraint` toma ACCESS
 -- EXCLUSIVE, y aunque validar 4252 filas es instantaneo, esperar detras de una
 -- transaccion larga no lo es. Con el liston de 5 segundos, falla y se reintenta.
-set local lock_timeout = '5s';$olar_190500_0$,
-$olar_190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
+set local lock_timeout = '5s';$olar_20260828190500_0$,
+$olar_20260828190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
 do $preflight$
 declare
   v_malas bigint;
@@ -3582,70 +3586,70 @@ begin
     raise exception 'PREFLIGHT: el cierre ya tiene datos; medir el liston contra ellos antes de aplicar';
   end if;
 end
-$preflight$;$olar_190500_1$,
-$olar_190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
+$preflight$;$olar_20260828190500_1$,
+$olar_20260828190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
 alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_programado_valido
   check (monto_programado > 0::numeric
          and monto_programado <> 'NaN'::numeric
          and monto_programado <> 'Infinity'::numeric
-         and monto_programado <> '-Infinity'::numeric);$olar_190500_2$,
-$olar_190500_3$alter table public.cronograma_pagos
+         and monto_programado <> '-Infinity'::numeric);$olar_20260828190500_2$,
+$olar_20260828190500_3$alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_pagado_valido
   check (monto_pagado is null
          or (monto_pagado >= 0::numeric
              and monto_pagado <> 'NaN'::numeric
              and monto_pagado <> 'Infinity'::numeric
-             and monto_pagado <> '-Infinity'::numeric));$olar_190500_3$,
-$olar_190500_4$-- == 2. La foto que se sella cada mes ========================================
+             and monto_pagado <> '-Infinity'::numeric));$olar_20260828190500_3$,
+$olar_20260828190500_4$-- == 2. La foto que se sella cada mes ========================================
 alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_4$,
-$olar_190500_5$alter table crm.cierre_mes_vendedor
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_4$,
+$olar_20260828190500_5$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_pct_finito
-  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_190500_5$,
-$olar_190500_6$alter table crm.cierre_mes_vendedor
+  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_20260828190500_5$,
+$olar_20260828190500_6$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_referidos_aporta_pct_finito
-  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_190500_6$,
-$olar_190500_7$alter table crm.cierre_mes_vendedor
+  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_20260828190500_6$,
+$olar_20260828190500_7$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_numerador_finito
-  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_190500_7$,
-$olar_190500_8$alter table crm.cierre_mes_vendedor
+  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_20260828190500_7$,
+$olar_20260828190500_8$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_pen_finito
-  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_190500_8$,
-$olar_190500_9$alter table crm.cierre_mes_vendedor
+  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_20260828190500_8$,
+$olar_20260828190500_9$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_usd_finito
-  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_190500_9$,
-$olar_190500_10$alter table crm.cierre_mes_vendedor
+  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_20260828190500_9$,
+$olar_20260828190500_10$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_objetivo_finito
-  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_190500_10$,
-$olar_190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
+  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_20260828190500_10$,
+$olar_20260828190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
 alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_pen_finito
-  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_190500_11$,
-$olar_190500_12$alter table crm.ajustes_mes_cerrado
+  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_20260828190500_11$,
+$olar_20260828190500_12$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_usd_finito
-  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_190500_12$,
-$olar_190500_13$alter table crm.ajustes_mes_cerrado
+  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_20260828190500_12$,
+$olar_20260828190500_13$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_13$,
-$olar_190500_14$alter table crm.ajustes_mes_cerrado
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_13$,
+$olar_20260828190500_14$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_numerador_finito
-  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_190500_14$,
-$olar_190500_15$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_20260828190500_14$,
+$olar_20260828190500_15$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_pen_finito
-  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_190500_15$,
-$olar_190500_16$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_20260828190500_15$,
+$olar_20260828190500_16$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_usd_finito
-  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_190500_16$,
-$olar_190500_17$-- == 4. La ponderacion del referido del periodo ==============================
+  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_20260828190500_16$,
+$olar_20260828190500_17$-- == 4. La ponderacion del referido del periodo ==============================
 alter table crm.periodos_cerrados
   add constraint periodos_cerrados_ponderacion_referido_finito
   check (ponderacion_referido is null
          or (ponderacion_referido <> 'NaN'::numeric
              and ponderacion_referido <> 'Infinity'::numeric
-             and ponderacion_referido <> '-Infinity'::numeric));$olar_190500_17$,
-$olar_190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
+             and ponderacion_referido <> '-Infinity'::numeric));$olar_20260828190500_17$,
+$olar_20260828190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
 -- La sonda NO escribe en ninguna tabla de produccion: copia el predicado VIVO
 -- de cada constraint -leido del catalogo, no reescrito aqui- a una tabla
 -- temporal y le tira los valores malos. Asi prueba el liston que quedo puesto,
@@ -3767,7 +3771,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 16 guardianes puestos; NaN e infinito rebotan y los numeros legitimos pasan';
 end
-$postflight$;$olar_190500_18$
+$postflight$;$olar_20260828190500_18$
 ], name = coalesce(name, '20260828190500_crm_f1_2_malla_anti_nan_montos')
  where version = '20260828190500' and statements is null;
 
@@ -3775,7 +3779,7 @@ $postflight$;$olar_190500_18$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
+$olar_20260828191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
 --
 -- QUE, en una linea: se le quita a los visitantes sin cuenta -y a cualquier
 -- sesion iniciada- los cuatro permisos de fabrica que la seguridad por filas no
@@ -3925,8 +3929,8 @@ begin
     raise exception 'PREFLIGHT: se esperaban 5 RPC de administracion abiertas a PUBLIC y hay %', v_rpcs;
   end if;
 end
-$preflight$;$olar_191000_0$,
-$olar_191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
+$preflight$;$olar_20260828191000_0$,
+$olar_20260828191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
 revoke truncate, references, trigger, maintain on table
   public.asesores,
   public.audit_log,
@@ -3938,19 +3942,19 @@ revoke truncate, references, trigger, maintain on table
   public.novedades_leidas,
   public.perfiles,
   public.suscripciones_push
-from anon, authenticated;$olar_191000_1$,
-$olar_191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
+from anon, authenticated;$olar_20260828191000_1$,
+$olar_20260828191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
 alter default privileges for role postgres in schema public
-  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_191000_2$,
-$olar_191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
+  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_20260828191000_2$,
+$olar_20260828191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
 revoke execute on function
   public.admin_pagos_metricas(),
   public.admin_pagos_resumen(),
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-from public, anon;$olar_191000_3$,
-$olar_191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
+from public, anon;$olar_20260828191000_3$,
+$olar_20260828191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
 -- una capacidad que estuviera usando.
 grant execute on function
   public.admin_pagos_metricas(),
@@ -3958,8 +3962,8 @@ grant execute on function
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-to authenticated, service_role;$olar_191000_4$,
-$olar_191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
+to authenticated, service_role;$olar_20260828191000_4$,
+$olar_20260828191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
 do $postflight$
 declare
   v_malas text[] := '{}';
@@ -4042,13 +4046,13 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 letras cerradas en 10 tablas y en el default de public; 5 RPC cerradas a anon/PUBLIC y vivas para authenticated y service_role';
 end
-$postflight$;$olar_191000_5$
+$postflight$;$olar_20260828191000_5$
 ], name = coalesce(name, '20260828191000_crm_f1_3_puertas_baratas_anon')
  where version = '20260828191000' and statements is null;
 
 
 -- =====================================================================
--- 2) POSTFLIGHT: relectura por version + cero vacias + diff-cero + guardianes.
+-- 2) POSTFLIGHT: relectura POR ELEMENTO + diff-cero por contenido + guardianes.
 -- =====================================================================
 do $$
 declare r record; v_h text; v_n int; v_txt text;
@@ -4057,52 +4061,62 @@ begin
     raise exception 'OLA R postflight: quedaron versiones mudas';
   end if;
   for r in select * from _olar_esperado loop
-    select md5(array_to_string(m.statements, E'\n')), array_length(m.statements, 1)
+    select (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)), array_length(m.statements, 1)
       into v_h, v_n from supabase_migrations.schema_migrations m where m.version = r.version;
-    if v_h is distinct from r.md5_cuerpo or v_n is distinct from r.n_sentencias then
-      raise exception 'OLA R postflight: la relectura de % no coincide (md5 %, % sentencias)', r.version, v_h, v_n;
+    if v_h is distinct from r.huella_elems or v_n is distinct from r.n_sentencias then
+      raise exception 'OLA R postflight: la relectura de % no coincide (huella %, % sentencias)', r.version, v_h, v_n;
     end if;
     if exists (select 1 from supabase_migrations.schema_migrations m, unnest(m.statements) s
-                where m.version = r.version and btrim(s) = '') then
-      raise exception 'OLA R postflight: % tiene una sentencia VACIA', r.version;
+                where m.version = r.version and (s is null or btrim(s) = '')) then
+      raise exception 'OLA R postflight: % tiene una sentencia NULL o vacia', r.version;
     end if;
   end loop;
 
   if exists (select 1 from _olar_foto f, lateral (
     select
-      (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private')) as fns,
-      (select md5(string_agg(n.nspname || '.' || p.proname
-          || '(' || pg_get_function_identity_arguments(p.oid) || ')'
-          || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
-          || ':' || p.provolatile::text || ':' || p.prosecdef::text
-          || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
-          || ':' || coalesce(p.proacl::text,'-'), '|'
-          order by n.nspname, p.proname, p.oid))
-        from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
-      (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
-        where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-      (select count(*) from pg_policy) as policies,
-      (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-      (select count(*) from pg_constraint where contype = 'c') as checks,
-      (select count(*) from cron.job) as crons,
-      (select count(*) from pg_description) as comments_n,
-      (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-          order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-      (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
-          order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-      (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-          || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-          order by c.relname, a.attnum))
-        from pg_attribute a
-        join pg_class c on c.oid = a.attrelid
-        join pg_namespace n on n.oid = c.relnamespace
-        left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
-        where n.nspname in ('public','crm','private') and c.relkind = 'r'
-          and a.attnum > 0 and not a.attisdropped) as columnas_h,
-      (select count(*) from public.contratos) as contratos,
-      (select count(*) from crm.leads) as leads
+    (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private')) as fns,
+    (select md5(string_agg(n.nspname || '.' || p.proname
+        || '(' || pg_get_function_identity_arguments(p.oid) || ')'
+        || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
+        || ':' || p.provolatile::text || ':' || p.prosecdef::text
+        || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
+        || ':' || coalesce(p.proacl::text,'-'), '|'
+        order by n.nspname, p.proname, p.oid))
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
+    (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+        order by d.oid), '-')) from pg_default_acl d) as defacl_h,
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
+      where n.nspname in ('public','crm','private') and c.relkind = 'r'
+        and a.attnum > 0 and not a.attisdropped) as columnas_h,
+    (select count(*) from public.contratos) as contratos,
+    (select count(*) from crm.leads) as leads
   ) d where f is distinct from d) then
     raise exception 'OLA R postflight: el catalogo CAMBIO fuera del registro - un reparador de actas no toca el mundo';
   end if;
@@ -4117,40 +4131,38 @@ end $$;
 
 commit;
 $mig_olar$] then
-    raise exception 'La version 20260831055000 ya existe con OTRO cuerpo'; end if;
+      raise exception 'La version 20260831055000 ya existe con OTRO cuerpo'; end if;
+    if v_nombre is distinct from 'crm_ola_r_las_doce_actas_mudas' then
+      raise exception 'La version 20260831055000 existe con OTRO nombre (%): reconciliar antes de registrar', v_nombre; end if;
+  end if;
   insert into supabase_migrations.schema_migrations (version, name, statements)
-  values ('20260831055000', 'crm_ola_r_las_doce_actas_mudas', array[$mig_olar$-- P-055 OLA R (v2) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
+  values ('20260831055000', 'crm_ola_r_las_doce_actas_mudas', array[$mig_olar$-- P-055 OLA R (v3) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
 --
 -- 12 versiones de prod tienen fila SIN statements (aplicadas en su dia por
 -- guion directo): sin cuerpo, ningun banco puede replay-ar la historia. Este
 -- reparador les da su cuerpo EXACTO desde los archivos del repo, cuya
--- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto ANTES de
--- escribir esto (Codex la sostuvo: 15 cuerpos + 4 triggers por definicion
--- completa + 19 constraints validadas + columna + ACL de la 191000, y los 2
--- reemplazos internos reconciliados). La evidencia de fidelidad es la
--- comparacion contra el CATALOGO VIVO — la historia git es solo color: dos
+-- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto y
+-- auditada (Codex la sostuvo). La evidencia es el CATALOGO VIVO, no git: dos
 -- archivos (182000/182500) se commitearon el 26/08 y el ledger los da por
--- aplicados el 28/08, y el instante real de aplicacion no es recuperable
+-- aplicados el 28/08; el instante real no es recuperable
 -- (track_commit_timestamp=off). Por eso NO se afirma fecha de aplicacion.
 --
--- Contrato (condiciones de Miguel + refutacion de Codex, 30/08):
---  * DOS estados globales aceptados y NINGUN hibrido:
---    PRE  = exactamente 189 versiones, 12 mudas, LAS 12 conocidas -> repara;
---    POST = 0 mudas y las 12 con su cuerpo EXACTO (replay de banco o
---           re-corrida; la fila propia puede existir o no: el runner del
---           banco la inserta DESPUES de ejecutar) -> todo no-op.
---    Un estado parcial (p. ej. 11 mudas) ABORTA a proposito: ese mundo lo
---    toco una mano ajena y se reconcilia a mano, jamas por encima.
---  * statements[] = las 136 sentencias INDIVIDUALES de los archivos
---    historicos (17/13/17/10/9/11/10/7/10/7/19/6), divididas respetando
---    dollar-quoting/comillas/comentarios; CERO elementos vacios (verificado).
---  * DIFF CERO fuera del registro: foto ampliada del catalogo (funciones con
---    firma+retorno+volatilidad+definer+config+owner+ACL; comentarios
---    pg_description; ACL por defecto pg_default_acl; metadatos de columnas).
---  * Jamas pisa un cuerpo existente distinto + relectura md5 por version.
---  * Se registra con su propio registrador: jamas la muda 13. Orden de
---    publicacion = orden de replay: esta version (055000) va ANTES que la
---    F7.1 (060000).
+-- Contrato (Miguel + DOS refutaciones de Codex + auditor-rls, 30/08):
+--  * DOS estados globales y NINGUN hibrido: PRE (189 versiones, 12 mudas, LAS
+--    12) -> repara; POST (0 mudas y las 12 con cuerpo objetivo EXACTO) ->
+--    no-op; 11 mudas u otro mundo ABORTA (mano ajena: reconciliar a mano).
+--  * La identidad del cuerpo es POR ELEMENTO (Codex v2: md5 del texto unido
+--    NO ve fronteras desplazadas): md5(string_agg(md5(elemento) order by
+--    ordinality)) + conteo + cero elementos NULL o vacios.
+--  * Tags con VERSION COMPLETA $olar_<version>_<i>$ (Codex v2: los sufijos
+--    de 6 digitos colisionaban entre 0820190500 y 0828190500).
+--  * DIFF CERO por CONTENIDO, no conteos: funciones con firma completa,
+--    policies con qual/withcheck, triggers por triggerdef, checks por def,
+--    cron por comando, comments con classoid, default-ACL con namespace,
+--    columnas con identidad/generacion/collation/ACL/stats.
+--  * Se registra con su propio registrador: jamas la muda 13. Orden:
+--    esta version (055000) ANTES que la F7.1 (060000); el registrador de la
+--    F7.1 queda ENCADENADO a que esta exista.
 
 begin;
 
@@ -4158,22 +4170,22 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 
 -- =====================================================================
--- 0) PREFLIGHT: PRE o POST, nada mas + FOTO ampliada del catalogo.
+-- 0) PREFLIGHT: PRE o POST, nada mas + FOTO por contenido.
 -- =====================================================================
-create temp table _olar_esperado (version text primary key, md5_cuerpo text, n_sentencias int) on commit drop;
+create temp table _olar_esperado (version text primary key, huella_elems text, n_sentencias int) on commit drop;
 insert into _olar_esperado values
-  ('20260819162752', '3756aa8ff82fa1ec63f283f8ee62c08d', 17),
-  ('20260819211815', '8ab82c082e7884d611a11087e6b3241e', 13),
-  ('20260820190500', '0a9202c300cba5655d21ec197c8b0744', 17),
-  ('20260826151907', '64260c58878bd114c8cf0feb27810f80', 10),
-  ('20260826154500', '7e0c2ffa4d41d5ca7fd045777732fe4c', 9),
-  ('20260826173523', 'e0d4c7e255412e5bce4072311f39b387', 11),
-  ('20260826174500', '5ce2631bffcc2120e5e2a3d091b14ac2', 10),
-  ('20260826182000', '8735ab49a697468b9a80124466f568de', 7),
-  ('20260826182500', '538438b7dcf1033a96e3fbc46cc60162', 10),
-  ('20260828190000', '3121d69c9f99b3a214982eb8b3a670dc', 7),
-  ('20260828190500', 'aab6762606cf487376f0ea77058dd524', 19),
-  ('20260828191000', '2b48a5eee28654b3f93c7781c663a88c', 6);
+  ('20260819162752', '399f72b907f4bab63ad4fb124c4d4755', 17),
+  ('20260819211815', '14e8587e631e35d318b580d23f0342f5', 13),
+  ('20260820190500', '6e4ae5f02480d3a0fc913b38cdcfa578', 17),
+  ('20260826151907', 'f6b4b452868510ad433d3fd4418b4874', 10),
+  ('20260826154500', '066eaf9312823cdc860545ca3764c5f7', 9),
+  ('20260826173523', '8a3bb03f7da1d3a6f9181fd61bedd8c9', 11),
+  ('20260826174500', 'b4444752f25e85f5d54a830b9f24fe9e', 10),
+  ('20260826182000', 'e1d79c85d595e72f61ddfaacb081c87b', 7),
+  ('20260826182500', '1f71c71f2b2db9dae6d23a6080be838f', 10),
+  ('20260828190000', '018116c2ff04537be42e034abba7de2a', 7),
+  ('20260828190500', 'a109153ca42c6de632c8ea23b19bde1f', 19),
+  ('20260828191000', '3390c367bf9b573b525c508ad21bd576', 6);
 
 do $$
 declare v_total int; v_mudas int; v_lista text[]; v_mal text; v_sent int;
@@ -4184,18 +4196,18 @@ begin
     from supabase_migrations.schema_migrations where statements is null;
 
   if v_mudas = 0 then
-    -- POST: las 12 con el cuerpo objetivo EXACTO; todo lo demas sera no-op.
     select e.version into v_mal from _olar_esperado e
       left join supabase_migrations.schema_migrations m on m.version = e.version
      where m.version is null
-        or md5(array_to_string(m.statements, E'\n')) is distinct from e.md5_cuerpo
+        or (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)) is distinct from e.huella_elems
         or coalesce(array_length(m.statements, 1), 0) <> e.n_sentencias
+        or exists (select 1 from unnest(m.statements) s where s is null or btrim(s) = '')
      limit 1;
     if v_mal is not null then
       raise exception 'OLA R: mundo POST pero la version % NO tiene el cuerpo objetivo - reconciliar a mano, jamas pisar', v_mal;
     end if;
   elsif v_mudas = 12 then
-    -- PRE: inventario cerrado EXACTO.
     if v_total <> 189 then
       raise exception 'OLA R preflight: hay % versiones (deben ser exactamente 189 antes de reparar)', v_total;
     end if;
@@ -4203,14 +4215,13 @@ begin
       raise exception 'OLA R preflight: las mudas NO son las 12 conocidas (%)', v_lista;
     end if;
   else
-    raise exception 'OLA R preflight: % mudas - ni el mundo PRE (12) ni el POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
+    raise exception 'OLA R preflight: % mudas - ni PRE (12) ni POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
   end if;
 
   if exists (select 1 from supabase_migrations.schema_migrations
               where statements is not null and array_length(statements, 1) is null) then
     raise exception 'OLA R preflight: hay versiones con statements VACIO (reparadas a medias)';
   end if;
-  -- las 136 congeladas: la suma de sentencias esperadas es exactamente 136
   select sum(n_sentencias) into v_sent from _olar_esperado;
   if v_sent <> 136 then
     raise exception 'OLA R preflight: el objetivo no suma 136 sentencias (%)', v_sent;
@@ -4220,8 +4231,6 @@ begin
   select
     (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname in ('public','crm','private')) as fns,
-    -- huella COMPLETA de funciones (Codex 30/08): cuerpo + firma + retorno +
-    -- volatilidad + definer + config + owner + ACL
     (select md5(string_agg(n.nspname || '.' || p.proname
         || '(' || pg_get_function_identity_arguments(p.oid) || ')'
         || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
@@ -4233,19 +4242,27 @@ begin
       where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
     (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-    (select count(*) from pg_policy) as policies,
-    (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-    (select count(*) from pg_constraint where contype = 'c') as checks,
-    (select count(*) from cron.job) as crons,
-    -- las 3 superficies que la v1 no miraba (Codex 30/08):
-    (select count(*) from pg_description) as comments_n,
-    (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-        order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
         order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-    (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-        order by c.relname, a.attnum))
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
       from pg_attribute a
       join pg_class c on c.oid = a.attrelid
       join pg_namespace n on n.oid = c.relnamespace
@@ -4264,7 +4281,7 @@ end $$;
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
+$olar_20260819162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
 --
 -- EL SINTOMA (Miguel, 2026-08-19): «los vendedores no pueden registrar otro
 -- contrato a clientes antiguos».
@@ -4336,10 +4353,10 @@ $olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cli
 -- excepciones de MIGRACIONES.md aunque no haya DDL, porque ese registro es el
 -- indice donde se busca «quien le escribe a mis tablas».
 
-begin;$olar_162752_0$,
-$olar_162752_1$set local lock_timeout = '10s';$olar_162752_1$,
-$olar_162752_2$set local statement_timeout = '120s';$olar_162752_2$,
-$olar_162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
+begin;$olar_20260819162752_0$,
+$olar_20260819162752_1$set local lock_timeout = '10s';$olar_20260819162752_1$,
+$olar_20260819162752_2$set local statement_timeout = '120s';$olar_20260819162752_2$,
+$olar_20260819162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
 -- Sin esto, un renombrado de las dependencias crearia ambas funciones y solo
 -- fallaria en runtime, con el vendedor delante.
 do $preflight$
@@ -4358,8 +4375,8 @@ begin
     raise exception 'PREFLIGHT: falta public.perfiles.domicilio';
   end if;
 end;
-$preflight$;$olar_162752_3$,
-$olar_162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
+$preflight$;$olar_20260819162752_3$,
+$olar_20260819162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
 -- Fuente UNICA del servidor, espejo de `validarDomicilioLegal` del navegador.
 -- Devuelve el texto normalizado o levanta el error es-PE correspondiente.
 --
@@ -4405,12 +4422,12 @@ begin
   end if;
   return v_out;
 end;
-$function$;$olar_162752_4$,
-$olar_162752_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_162752_5$,
-$olar_162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_162752_6$,
-$olar_162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
+$function$;$olar_20260819162752_4$,
+$olar_20260819162752_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_20260819162752_5$,
+$olar_20260819162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_6$,
+$olar_20260819162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
 -- Devuelve NOMBRES de campo, nunca valores: no es una via para leer PII.
 --
 -- El «analista» que valida el snapshot es `contratos.creado_por`, y
@@ -4501,13 +4518,13 @@ begin
     'faltan_analista', to_jsonb(v_faltan_analista)
   );
 end;
-$function$;$olar_162752_7$,
-$olar_162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
-  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_162752_8$,
-$olar_162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
-  from public, anon, authenticated, service_role;$olar_162752_9$,
-$olar_162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_162752_10$,
-$olar_162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
+$function$;$olar_20260819162752_7$,
+$olar_20260819162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
+  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_20260819162752_8$,
+$olar_20260819162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
+  from public, anon, authenticated, service_role;$olar_20260819162752_9$,
+$olar_20260819162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_20260819162752_10$,
+$olar_20260819162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
 create or replace function crm.completar_domicilio_cliente(
   p_cliente_id uuid,
   p_domicilio text
@@ -4590,13 +4607,13 @@ begin
   -- lectura disfrazada.
   return jsonb_build_object('version', 1, 'accion', 'completado');
 end;
-$function$;$olar_162752_11$,
-$olar_162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
-  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_162752_12$,
-$olar_162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
-  from public, anon, authenticated, service_role;$olar_162752_13$,
-$olar_162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_162752_14$,
-$olar_162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
+$function$;$olar_20260819162752_11$,
+$olar_20260819162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
+  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_20260819162752_12$,
+$olar_20260819162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_13$,
+$olar_20260819162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_20260819162752_14$,
+$olar_20260819162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
 -- Las sondas de comportamiento —las que EJECUTAN las funciones contra datos—
 -- viven en supabase/scripts/test-domicilio-legal.sql, no aqui: una sonda que
 -- exija «que el defecto siga existiendo» convierte la migracion en irrepetible
@@ -4731,8 +4748,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK: la escritura del domicilio queda auditada con su autor.';
 end;
-$postflight$;$olar_162752_15$,
-$olar_162752_16$commit;$olar_162752_16$
+$postflight$;$olar_20260819162752_15$,
+$olar_20260819162752_16$commit;$olar_20260819162752_16$
 ], name = coalesce(name, '20260819162752_crm_domicilio_legal_faltante')
  where version = '20260819162752' and statements is null;
 
@@ -4740,7 +4757,7 @@ $olar_162752_16$commit;$olar_162752_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
+$olar_20260819211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
 --
 -- POR QUE. El 2026-08-19 se cerro el agujero de los caracteres INVISIBLES en la
 -- ventana nueva de «+ Contrato», pero el mismo campo tiene otras TRES puertas, y
@@ -4778,10 +4795,10 @@ $olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altu
 -- No altera ningun objeto de `public`; reemplaza funciones de `crm` que ya
 -- escriben `public.perfiles.domicilio`, como las que ya estaban vivas.
 
-begin;$olar_211815_0$,
-$olar_211815_1$set local lock_timeout = '10s';$olar_211815_1$,
-$olar_211815_2$set local statement_timeout = '120s';$olar_211815_2$,
-$olar_211815_3$do $preflight$
+begin;$olar_20260819211815_0$,
+$olar_20260819211815_1$set local lock_timeout = '10s';$olar_20260819211815_1$,
+$olar_20260819211815_2$set local statement_timeout = '120s';$olar_20260819211815_2$,
+$olar_20260819211815_3$do $preflight$
 begin
   if to_regprocedure('crm.normalizar_domicilio_legal(text)') is null then
     raise exception 'PREFLIGHT: falta crm.normalizar_domicilio_legal(text)';
@@ -4793,8 +4810,8 @@ begin
     raise exception 'PREFLIGHT: falta crm.actualizar_cliente_gerencia(uuid, jsonb)';
   end if;
 end;
-$preflight$;$olar_211815_3$,
-$olar_211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
+$preflight$;$olar_20260819211815_3$,
+$olar_20260819211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
 create or replace function crm.normalizar_domicilio_legal(p_domicilio text)
 returns text
 language plpgsql
@@ -4866,12 +4883,12 @@ begin
 
   return v_out;
 end;
-$function$;$olar_211815_4$,
-$olar_211815_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_211815_5$,
-$olar_211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_211815_6$,
-$olar_211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
+$function$;$olar_20260819211815_4$,
+$olar_20260819211815_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_20260819211815_5$,
+$olar_20260819211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819211815_6$,
+$olar_20260819211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
 -- Tenia su propia copia de la regla (5..240 + cntrl). Ahora presta la fuente
 -- unica, y de paso ESCRIBE el texto normalizado en vez del `btrim` a secas.
 create or replace function crm.convertir_lead_con_domicilio(
@@ -4903,10 +4920,10 @@ begin
 
   return v_resultado || jsonb_build_object('domicilio_accion', v_accion);
 end;
-$function$;$olar_211815_7$,
-$olar_211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
-  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_211815_8$,
-$olar_211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
+$function$;$olar_20260819211815_7$,
+$olar_20260819211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
+  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_20260819211815_8$,
+$olar_20260819211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
 -- Tercera copia de la misma regla, y la unica que puede SOBRESCRIBIR un
 -- domicilio existente. Es justamente la que repara los errores de las otras dos:
 -- con mas razon tiene que aplicar el mismo liston.
@@ -4951,10 +4968,10 @@ begin
   end if;
   return true;
 end;
-$function$;$olar_211815_9$,
-$olar_211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
-  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_211815_10$,
-$olar_211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
+$function$;$olar_20260819211815_9$,
+$olar_20260819211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
+  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_20260819211815_10$,
+$olar_20260819211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
 do $postflight$
 declare
   v_puertas text[] := array[
@@ -5052,8 +5069,8 @@ begin
     raise notice 'POSTFLIGHT 3 OK: los 6 rellenos se rechazan y la direccion real pasa intacta.';
   end;
 end;
-$postflight$;$olar_211815_11$,
-$olar_211815_12$commit;$olar_211815_12$
+$postflight$;$olar_20260819211815_11$,
+$olar_20260819211815_12$commit;$olar_20260819211815_12$
 ], name = coalesce(name, '20260819211815_crm_domicilio_una_sola_puerta')
  where version = '20260819211815' and statements is null;
 
@@ -5061,7 +5078,7 @@ $olar_211815_12$commit;$olar_211815_12$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
+$olar_20260820190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
 --
 -- POR QUE. Miguel lo fijo el 2026-08-20: «el sistema me da un PDF que se usa como
 -- unico contrato, pero los clientes anteriores a esto (19-08) ya tienen otro tipo
@@ -5111,10 +5128,10 @@ $olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-
 --
 -- No crea, altera ni borra ningun objeto de `public`.
 
-begin;$olar_190500_0$,
-$olar_190500_1$set local lock_timeout = '10s';$olar_190500_1$,
-$olar_190500_2$set local statement_timeout = '120s';$olar_190500_2$,
-$olar_190500_3$do $preflight$
+begin;$olar_20260820190500_0$,
+$olar_20260820190500_1$set local lock_timeout = '10s';$olar_20260820190500_1$,
+$olar_20260820190500_2$set local statement_timeout = '120s';$olar_20260820190500_2$,
+$olar_20260820190500_3$do $preflight$
 begin
   if to_regprocedure('private.crear_job_contrato_pdf_base(uuid, uuid)') is null then
     raise exception 'PREFLIGHT: falta private.crear_job_contrato_pdf_base(uuid, uuid)';
@@ -5139,8 +5156,8 @@ begin
     raise exception 'PREFLIGHT: public.contratos.fecha_inicio dejo de ser NOT NULL';
   end if;
 end;
-$preflight$;$olar_190500_3$,
-$olar_190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
+$preflight$;$olar_20260820190500_3$,
+$olar_20260820190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
 -- Devuelve 'nuevo', 'anterior' o NULL (contrato inexistente). El NULL importa:
 -- quien la llama NO debe tratarlo como 'anterior', sino dejar que su propio
 -- camino de «contrato no encontrado» levante el error de siempre.
@@ -5170,15 +5187,15 @@ as $$
   end
   from public.contratos c
   where c.id = p_contrato_id
-$$;$olar_190500_4$,
-$olar_190500_5$comment on function private.contrato_documental_regimen(uuid) is
+$$;$olar_20260820190500_4$,
+$olar_20260820190500_5$comment on function private.contrato_documental_regimen(uuid) is
   'Regimen documental de un contrato por FECHA DE FIRMA: firmado el 2026-08-19 o '
   'despues => ''nuevo'' (el sistema emite el PDF, que es el unico contrato); antes '
   '=> ''anterior'' (el cliente ya tiene su contrato en el formato previo y el '
   'sistema no le emite ninguno). NULL si el contrato no existe. Fuente unica: '
-  'ninguna otra funcion repite esta fecha.';$olar_190500_5$,
-$olar_190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_190500_6$,
-$olar_190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
+  'ninguna otra funcion repite esta fecha.';$olar_20260820190500_5$,
+$olar_20260820190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_20260820190500_6$,
+$olar_20260820190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
 create or replace function private.crear_job_contrato_pdf_base(
   p_contrato_id uuid,
   p_actor_id uuid
@@ -5253,13 +5270,13 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_7$,
-$olar_190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
+$function$;$olar_20260820190500_7$,
+$olar_20260820190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
 -- replace` los conserva; se repiten porque un ACL que solo vive en la memoria
 -- de otra migración es un ACL que nadie puede auditar aquí.
 revoke all on function private.crear_job_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_8$,
-$olar_190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
+  from public, anon, authenticated, service_role;$olar_20260820190500_8$,
+$olar_20260820190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
 -- Incluye a los 21 ya emitidos: corregir uno de ellos NO genera una revision
 -- nueva. Es coherente con «se quedan como estan» — y con que ese papel no es el
 -- contrato de esa operacion, asi que refrescarlo no arregla nada y si acuñaria
@@ -5322,10 +5339,10 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_9$,
-$olar_190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_10$,
-$olar_190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
+$function$;$olar_20260820190500_9$,
+$olar_20260820190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
+  from public, anon, authenticated, service_role;$olar_20260820190500_10$,
+$olar_20260820190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
 -- La guarda va DESPUES del bloque de integridad y del corte por
 -- 'sellado'/'integridad_bloqueada': para los 21 ya emitidos todo sigue igual
 -- (incluido el autodiagnostico de ledger incoherente). Solo muerde en
@@ -5443,8 +5460,8 @@ begin
       'renderizado_en', v_job.creado_en
     );
 end;
-$function$;$olar_190500_11$,
-$olar_190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
+$function$;$olar_20260820190500_11$,
+$olar_20260820190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
 -- Un contrato del regimen anterior SIN archivo responde `sin_reserva` con
 -- `reintentable=false`, tenga o no un trabajo a medias. Los 21 que si tienen
 -- archivo siguen respondiendo `sellado` con su documento descargable.
@@ -5591,8 +5608,8 @@ begin
     else '{}'::jsonb
   end;
 end;
-$function$;$olar_190500_12$,
-$olar_190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
+$function$;$olar_20260820190500_12$,
+$olar_20260820190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
 -- Sobre una base VACIA (el oraculo local, un banco recien creado) no hay nada
 -- que medir: entonces GRITA en vez de aprobar, y no aborta. Contra produccion
 -- tiene que decir OK; si dice SIN DATOS, algo va mal y hay que parar. El bloque
@@ -5628,8 +5645,8 @@ begin
     raise notice 'POSTFLIGHT 1 OK · regimen nuevo=% · anterior=%', v_nuevos, v_anteriores;
   end if;
 end;
-$postflight$;$olar_190500_13$,
-$olar_190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
+$postflight$;$olar_20260820190500_13$,
+$olar_20260820190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
 do $postflight$
 declare
   v_antiguos int;
@@ -5679,8 +5696,8 @@ begin
       v_antiguos, v_ya_emitidos;
   end if;
 end;
-$postflight$;$olar_190500_14$,
-$olar_190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
+$postflight$;$olar_20260820190500_14$,
+$olar_20260820190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
 do $postflight$
 declare
   v_falta text[] := '{}';
@@ -5722,8 +5739,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK · las cuatro puertas consultan la fuente unica';
 end;
-$postflight$;$olar_190500_15$,
-$olar_190500_16$commit;$olar_190500_16$
+$postflight$;$olar_20260820190500_15$,
+$olar_20260820190500_16$commit;$olar_20260820190500_16$
 ], name = coalesce(name, '20260820190500_crm_documento_regimen_por_fecha_de_firma')
  where version = '20260820190500' and statements is null;
 
@@ -5731,7 +5748,7 @@ $olar_190500_16$commit;$olar_190500_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_151907_0$-- ---------------------------------------------------------------------------
+$olar_20260826151907_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve el SEGUNDO numero del lead
 -- ---------------------------------------------------------------------------
 -- QUE ARREGLA. El 24/08 entro `crm.leads.telefono_alternativo` (migracion
@@ -5761,9 +5778,9 @@ $olar_151907_0$-- --------------------------------------------------------------
 -- funcion: por eso el grant se vuelve a poner explicitamente abajo.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_151907_0$,
-$olar_151907_1$set local lock_timeout = '10s';$olar_151907_1$,
-$olar_151907_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826151907_0$,
+$olar_20260826151907_1$set local lock_timeout = '10s';$olar_20260826151907_1$,
+$olar_20260826151907_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight — que se este reemplazando lo que se leyo
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -5790,14 +5807,14 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_151907_2$,
-$olar_151907_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826151907_2$,
+$olar_20260826151907_3$-- ---------------------------------------------------------------------------
 -- 1. La funcion
 -- ---------------------------------------------------------------------------
 drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_151907_3$,
-$olar_151907_4$create function crm.cartera_pagina_fn(
+);$olar_20260826151907_3$,
+$olar_20260826151907_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -5980,14 +5997,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_151907_4$,
-$olar_151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_151907_5$,
-$olar_151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_151907_6$,
-$olar_151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_151907_7$,
-$olar_151907_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826151907_4$,
+$olar_20260826151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826151907_5$,
+$olar_20260826151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826151907_6$,
+$olar_20260826151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826151907_7$,
+$olar_20260826151907_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -6041,8 +6058,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_151907_8$,
-$olar_151907_9$commit;$olar_151907_9$
+$postflight$;$olar_20260826151907_8$,
+$olar_20260826151907_9$commit;$olar_20260826151907_9$
 ], name = coalesce(name, '20260826151907_crm_cartera_pagina_telefono_alternativo')
  where version = '20260826151907' and statements is null;
 
@@ -6050,7 +6067,7 @@ $olar_151907_9$commit;$olar_151907_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_154500_0$-- ---------------------------------------------------------------------------
+$olar_20260826154500_0$-- ---------------------------------------------------------------------------
 -- El segundo numero del lead: fijos peruanos y numeros del mundo
 -- ---------------------------------------------------------------------------
 -- DECISIONES DE MIGUEL (2026-08-26):
@@ -6089,9 +6106,9 @@ $olar_154500_0$-- --------------------------------------------------------------
 -- del viejo: toda fila que pasaba sigue pasando.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_154500_0$,
-$olar_154500_1$set local lock_timeout = '5s';$olar_154500_1$,
-$olar_154500_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826154500_0$,
+$olar_20260826154500_1$set local lock_timeout = '5s';$olar_20260826154500_1$,
+$olar_20260826154500_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -6111,23 +6128,23 @@ begin
     raise exception 'El CHECK leads_telefono_alternativo_formato ya no es el que esta migracion viene a relajar: %', v_def;
   end if;
 end;
-$preflight$;$olar_154500_2$,
-$olar_154500_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826154500_2$,
+$olar_20260826154500_3$-- ---------------------------------------------------------------------------
 -- 1. El formato nuevo
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  drop constraint leads_telefono_alternativo_formato;$olar_154500_3$,
-$olar_154500_4$alter table crm.leads
+  drop constraint leads_telefono_alternativo_formato;$olar_20260826154500_3$,
+$olar_20260826154500_4$alter table crm.leads
   add constraint leads_telefono_alternativo_formato
   check (
     telefono_alternativo is null
     or telefono_alternativo ~ '^\+(51(9[0-9]{8}|[1-8][0-9]{7})|(?!51)[1-9][0-9]{7,14})$'
-  ) not valid;$olar_154500_4$,
-$olar_154500_5$alter table crm.leads
-  validate constraint leads_telefono_alternativo_formato;$olar_154500_5$,
-$olar_154500_6$comment on column crm.leads.telefono_alternativo is
-  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_154500_6$,
-$olar_154500_7$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826154500_4$,
+$olar_20260826154500_5$alter table crm.leads
+  validate constraint leads_telefono_alternativo_formato;$olar_20260826154500_5$,
+$olar_20260826154500_6$comment on column crm.leads.telefono_alternativo is
+  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_20260826154500_6$,
+$olar_20260826154500_7$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO el CHECK, no leyendolo
 -- ---------------------------------------------------------------------------
 -- Un CHECK se lee bien y rechaza mal: la unica prueba honesta es meterle filas.
@@ -6205,8 +6222,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo el CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_154500_7$,
-$olar_154500_8$commit;$olar_154500_8$
+$postflight$;$olar_20260826154500_7$,
+$olar_20260826154500_8$commit;$olar_20260826154500_8$
 ], name = coalesce(name, '20260826154500_crm_leads_telefono_alternativo_fijos_e_internacional')
  where version = '20260826154500' and statements is null;
 
@@ -6214,7 +6231,7 @@ $olar_154500_8$commit;$olar_154500_8$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_173523_0$-- ---------------------------------------------------------------------------
+$olar_20260826173523_0$-- ---------------------------------------------------------------------------
 -- El segundo numero que NO se pudo leer tampoco se tira
 -- ---------------------------------------------------------------------------
 -- DECISION DE MIGUEL (2026-08-26): «que siempre todos los leads tengan ese
@@ -6246,9 +6263,9 @@ $olar_173523_0$-- --------------------------------------------------------------
 -- parrafo entero entre por aqui.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_173523_0$,
-$olar_173523_1$set local lock_timeout = '5s';$olar_173523_1$,
-$olar_173523_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826173523_0$,
+$olar_20260826173523_1$set local lock_timeout = '5s';$olar_20260826173523_1$,
+$olar_20260826173523_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -6270,13 +6287,13 @@ begin
     raise exception 'crm.leads.telefono_alternativo_crudo ya existe: esta migracion ya se aplico.';
   end if;
 end;
-$preflight$;$olar_173523_2$,
-$olar_173523_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826173523_2$,
+$olar_20260826173523_3$-- ---------------------------------------------------------------------------
 -- 1. La columna
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  add column telefono_alternativo_crudo text;$olar_173523_3$,
-$olar_173523_4$alter table crm.leads
+  add column telefono_alternativo_crudo text;$olar_20260826173523_3$,
+$olar_20260826173523_4$alter table crm.leads
   add constraint leads_telefono_alternativo_crudo_cordura
   check (
     telefono_alternativo_crudo is null
@@ -6287,17 +6304,17 @@ $olar_173523_4$alter table crm.leads
       btrim(telefono_alternativo_crudo) <> ''
       and length(telefono_alternativo_crudo) <= 40
     )
-  ) not valid;$olar_173523_4$,
-$olar_173523_5$alter table crm.leads
+  ) not valid;$olar_20260826173523_4$,
+$olar_20260826173523_5$alter table crm.leads
   add constraint leads_telefono_alternativo_excluyentes
   check (
     telefono_alternativo is null or telefono_alternativo_crudo is null
-  ) not valid;$olar_173523_5$,
-$olar_173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_173523_6$,
-$olar_173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_173523_7$,
-$olar_173523_8$comment on column crm.leads.telefono_alternativo_crudo is
-  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_173523_8$,
-$olar_173523_9$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826173523_5$,
+$olar_20260826173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_20260826173523_6$,
+$olar_20260826173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_20260826173523_7$,
+$olar_20260826173523_8$comment on column crm.leads.telefono_alternativo_crudo is
+  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_20260826173523_8$,
+$olar_20260826173523_9$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO los CHECK sobre una copia temporal
 -- ---------------------------------------------------------------------------
 -- Misma tecnica que 20260826154500: tabla TEMPORAL con `including constraints`,
@@ -6354,8 +6371,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo los CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_173523_9$,
-$olar_173523_10$commit;$olar_173523_10$
+$postflight$;$olar_20260826173523_9$,
+$olar_20260826173523_10$commit;$olar_20260826173523_10$
 ], name = coalesce(name, '20260826173523_crm_leads_telefono_alternativo_crudo')
  where version = '20260826173523' and statements is null;
 
@@ -6363,7 +6380,7 @@ $olar_173523_10$commit;$olar_173523_10$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_174500_0$-- ---------------------------------------------------------------------------
+$olar_20260826174500_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve tambien el segundo numero SIN VALIDAR
 -- ---------------------------------------------------------------------------
 -- Continuacion de 20260826151907 y de 20260826173523: la columna
@@ -6379,9 +6396,9 @@ $olar_174500_0$-- --------------------------------------------------------------
 -- El cuerpo es el de esa migracion con dos lineas mas.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_174500_0$,
-$olar_174500_1$set local lock_timeout = '10s';$olar_174500_1$,
-$olar_174500_2$do $preflight$
+begin;$olar_20260826174500_0$,
+$olar_20260826174500_1$set local lock_timeout = '10s';$olar_20260826174500_1$,
+$olar_20260826174500_2$do $preflight$
 begin
   if not exists (
     select 1 from pg_catalog.pg_attribute
@@ -6400,11 +6417,11 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_174500_2$,
-$olar_174500_3$drop function crm.cartera_pagina_fn(
+$preflight$;$olar_20260826174500_2$,
+$olar_20260826174500_3$drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_174500_3$,
-$olar_174500_4$create function crm.cartera_pagina_fn(
+);$olar_20260826174500_3$,
+$olar_20260826174500_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -6593,14 +6610,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_174500_4$,
-$olar_174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_174500_5$,
-$olar_174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_174500_6$,
-$olar_174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_174500_7$,
-$olar_174500_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826174500_4$,
+$olar_20260826174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826174500_5$,
+$olar_20260826174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826174500_6$,
+$olar_20260826174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826174500_7$,
+$olar_20260826174500_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -6662,8 +6679,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_174500_8$,
-$olar_174500_9$commit;$olar_174500_9$
+$postflight$;$olar_20260826174500_8$,
+$olar_20260826174500_9$commit;$olar_20260826174500_9$
 ], name = coalesce(name, '20260826174500_crm_cartera_pagina_telefono_alternativo_crudo')
  where version = '20260826174500' and statements is null;
 
@@ -6671,7 +6688,7 @@ $olar_174500_9$commit;$olar_174500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182000_0$-- ---------------------------------------------------------------------------
+$olar_20260826182000_0$-- ---------------------------------------------------------------------------
 -- `private.canonizar_contacto` — la regla del telefono, en SQL
 -- ---------------------------------------------------------------------------
 -- Es el SEXTO espejo de la misma regla, y el primero que vive en la base como
@@ -6696,9 +6713,9 @@ $olar_182000_0$-- --------------------------------------------------------------
 --   internacional   +CC…           (E.164: 8 a 15 digitos, el primero 1-9)
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182000_0$,
-$olar_182000_1$set local lock_timeout = '5s';$olar_182000_1$,
-$olar_182000_2$create or replace function private.canonizar_contacto(p text)
+begin;$olar_20260826182000_0$,
+$olar_20260826182000_1$set local lock_timeout = '5s';$olar_20260826182000_1$,
+$olar_20260826182000_2$create or replace function private.canonizar_contacto(p text)
 returns table (e164 text, clase text, movil boolean)
 language plpgsql
 immutable
@@ -6770,11 +6787,11 @@ begin
   end if;
   return;
 end;
-$function$;$olar_182000_2$,
-$olar_182000_3$comment on function private.canonizar_contacto(text) is
-  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_182000_3$,
-$olar_182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_182000_4$,
-$olar_182000_5$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826182000_2$,
+$olar_20260826182000_3$comment on function private.canonizar_contacto(text) is
+  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_20260826182000_3$,
+$olar_20260826182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_20260826182000_4$,
+$olar_20260826182000_5$-- ---------------------------------------------------------------------------
 -- Postflight — EJECUTANDO la funcion, no leyendola
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -6856,8 +6873,8 @@ begin
     end if;
   end loop;
 end;
-$postflight$;$olar_182000_5$,
-$olar_182000_6$commit;$olar_182000_6$
+$postflight$;$olar_20260826182000_5$,
+$olar_20260826182000_6$commit;$olar_20260826182000_6$
 ], name = coalesce(name, '20260826182000_crm_canonizar_contacto')
  where version = '20260826182000' and statements is null;
 
@@ -6865,7 +6882,7 @@ $olar_182000_6$commit;$olar_182000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182500_0$-- ---------------------------------------------------------------------------
+$olar_20260826182500_0$-- ---------------------------------------------------------------------------
 -- El alta manual de un lead admite su SEGUNDO numero
 -- ---------------------------------------------------------------------------
 -- OPCION A, elegida por Miguel (2026-08-26): el primer numero IDENTIFICA al
@@ -6896,9 +6913,9 @@ $olar_182500_0$-- --------------------------------------------------------------
 -- podra registrar; se decidio asumirlo (Miguel, 2026-08-26).
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182500_0$,
-$olar_182500_1$set local lock_timeout = '10s';$olar_182500_1$,
-$olar_182500_2$do $preflight$
+begin;$olar_20260826182500_0$,
+$olar_20260826182500_1$set local lock_timeout = '10s';$olar_20260826182500_1$,
+$olar_20260826182500_2$do $preflight$
 begin
   if to_regprocedure('private.canonizar_contacto(text)') is null then
     raise exception 'Falta private.canonizar_contacto: aplicar antes 20260826182000.';
@@ -6919,11 +6936,11 @@ begin
     raise exception 'crm.crear_lead_si_disponible cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_182500_2$,
-$olar_182500_3$drop function crm.crear_lead_si_disponible(
+$preflight$;$olar_20260826182500_2$,
+$olar_20260826182500_3$drop function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text
-);$olar_182500_3$,
-$olar_182500_4$create function crm.crear_lead_si_disponible(
+);$olar_20260826182500_3$,
+$olar_20260826182500_4$create function crm.crear_lead_si_disponible(
   p_nombre_completo text,
   p_telefono text,
   p_origen text,
@@ -7203,18 +7220,18 @@ begin
 
   return pg_catalog.jsonb_build_object('estado', 'creado', 'lead_id', v_id);
 end;
-$function$;$olar_182500_4$,
-$olar_182500_5$comment on function crm.crear_lead_si_disponible(
+$function$;$olar_20260826182500_4$,
+$olar_20260826182500_5$comment on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
 ) is
-  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_182500_5$,
-$olar_182500_6$revoke all on function crm.crear_lead_si_disponible(
+  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_20260826182500_5$,
+$olar_20260826182500_6$revoke all on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) from public, anon, service_role;$olar_182500_6$,
-$olar_182500_7$grant execute on function crm.crear_lead_si_disponible(
+) from public, anon, service_role;$olar_20260826182500_6$,
+$olar_20260826182500_7$grant execute on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) to authenticated;$olar_182500_7$,
-$olar_182500_8$do $postflight$
+) to authenticated;$olar_20260826182500_7$,
+$olar_20260826182500_8$do $postflight$
 declare
   v_oid oid := 'crm.crear_lead_si_disponible(text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text)'::regprocedure;
   v_def text := pg_get_functiondef(v_oid);
@@ -7262,8 +7279,8 @@ begin
     raise exception 'postflight: el drop+create abrio el alta a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_182500_8$,
-$olar_182500_9$commit;$olar_182500_9$
+$postflight$;$olar_20260826182500_8$,
+$olar_20260826182500_9$commit;$olar_20260826182500_9$
 ], name = coalesce(name, '20260826182500_crm_crear_lead_telefono_alternativo')
  where version = '20260826182500' and statements is null;
 
@@ -7271,7 +7288,7 @@ $olar_182500_9$commit;$olar_182500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
+$olar_20260828190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
 --
 -- QUE: cuatro tablas dejan de poder cambiar sin dejar rastro.
 --   1. public.contrato_titulares -> auditor NUEVO (INSERT/UPDATE/DELETE).
@@ -7360,8 +7377,8 @@ $olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Migu
 -- Que esto no se quede esperando detras de una transaccion larga: si no consigue
 -- el candado en 5 segundos, falla y se reintenta, en vez de formar cola delante
 -- de las escrituras del portal.
-set local lock_timeout = '5s';$olar_190000_0$,
-$olar_190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
+set local lock_timeout = '5s';$olar_20260828190000_0$,
+$olar_20260828190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
 do $preflight$
 declare
   v_md5_public text;
@@ -7472,16 +7489,16 @@ begin
     raise exception 'trg_audit_cronograma_pago_alta_baja ya existe: re-basar antes de aplicar';
   end if;
 end
-$preflight$;$olar_190000_1$,
-$olar_190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
+$preflight$;$olar_20260828190000_1$,
+$olar_20260828190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
 create trigger trg_audit_contrato_titulares
   after insert or update or delete on public.contrato_titulares
-  for each row execute function public.log_audit_change();$olar_190000_2$,
-$olar_190000_3$-- == 2. Historial de gestion del cliente =====================================
+  for each row execute function public.log_audit_change();$olar_20260828190000_2$,
+$olar_20260828190000_3$-- == 2. Historial de gestion del cliente =====================================
 create trigger trg_audit_actividades_cliente
   after insert or update or delete on crm.actividades_cliente
-  for each row execute function private.log_audit_crm();$olar_190000_3$,
-$olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
+  for each row execute function private.log_audit_crm();$olar_20260828190000_3$,
+$olar_20260828190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
 -- Trigger APARTE, no un reemplazo del que ya audita el alta: asi no se toca un
 -- objeto vivo de una tabla con 3.952 filas ni se arriesga a perder nada suyo.
 -- Para UPDATE y DELETE es el unico trigger de la tabla, asi que el orden de
@@ -7489,8 +7506,8 @@ $olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hue
 -- `trg_zz_...`) queda exactamente como estaba.
 create trigger trg_audit_actividades_cambio_baja
   after update or delete on crm.actividades
-  for each row execute function private.log_audit_crm();$olar_190000_4$,
-$olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
+  for each row execute function private.log_audit_crm();$olar_20260828190000_4$,
+$olar_20260828190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
 -- Trigger APARTE, para no tocar el de UPDATE y su WHEN (ver la cabecera). Se
 -- audita tambien el alta y no solo el borrado -que es el hueco probatorio- para
 -- que una cuota que aparece de la nada tenga la misma explicacion que una que
@@ -7499,8 +7516,8 @@ $olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco ====
 -- creada o borrada: un contrato escribe una decena, no miles.
 create trigger trg_audit_cronograma_pago_alta_baja
   after insert or delete on public.cronograma_pagos
-  for each row execute function public.log_audit_change();$olar_190000_5$,
-$olar_190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
+  for each row execute function public.log_audit_change();$olar_20260828190000_5$,
+$olar_20260828190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
 do $postflight$
 declare
   v_faltan text[] := '{}';
@@ -7565,7 +7582,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 auditores nuevos, ninguno recreado, y el WHEN del UPDATE de cuotas intacto';
 end
-$postflight$;$olar_190000_6$
+$postflight$;$olar_20260828190000_6$
 ], name = coalesce(name, '20260828190000_crm_f1_1_rastro_titulares_gestion_cuotas')
  where version = '20260828190000' and statements is null;
 
@@ -7573,7 +7590,7 @@ $postflight$;$olar_190000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
+$olar_20260828190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
 --
 -- EL AGUJERO, en una linea: en Postgres `NaN > 0` es VERDADERO. Un monto
 -- invalido atraviesa cualquier validacion escrita como "tiene que ser mayor
@@ -7633,8 +7650,8 @@ $olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/0
 -- Que esto no forme cola delante del portal: `add constraint` toma ACCESS
 -- EXCLUSIVE, y aunque validar 4252 filas es instantaneo, esperar detras de una
 -- transaccion larga no lo es. Con el liston de 5 segundos, falla y se reintenta.
-set local lock_timeout = '5s';$olar_190500_0$,
-$olar_190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
+set local lock_timeout = '5s';$olar_20260828190500_0$,
+$olar_20260828190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
 do $preflight$
 declare
   v_malas bigint;
@@ -7670,70 +7687,70 @@ begin
     raise exception 'PREFLIGHT: el cierre ya tiene datos; medir el liston contra ellos antes de aplicar';
   end if;
 end
-$preflight$;$olar_190500_1$,
-$olar_190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
+$preflight$;$olar_20260828190500_1$,
+$olar_20260828190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
 alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_programado_valido
   check (monto_programado > 0::numeric
          and monto_programado <> 'NaN'::numeric
          and monto_programado <> 'Infinity'::numeric
-         and monto_programado <> '-Infinity'::numeric);$olar_190500_2$,
-$olar_190500_3$alter table public.cronograma_pagos
+         and monto_programado <> '-Infinity'::numeric);$olar_20260828190500_2$,
+$olar_20260828190500_3$alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_pagado_valido
   check (monto_pagado is null
          or (monto_pagado >= 0::numeric
              and monto_pagado <> 'NaN'::numeric
              and monto_pagado <> 'Infinity'::numeric
-             and monto_pagado <> '-Infinity'::numeric));$olar_190500_3$,
-$olar_190500_4$-- == 2. La foto que se sella cada mes ========================================
+             and monto_pagado <> '-Infinity'::numeric));$olar_20260828190500_3$,
+$olar_20260828190500_4$-- == 2. La foto que se sella cada mes ========================================
 alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_4$,
-$olar_190500_5$alter table crm.cierre_mes_vendedor
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_4$,
+$olar_20260828190500_5$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_pct_finito
-  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_190500_5$,
-$olar_190500_6$alter table crm.cierre_mes_vendedor
+  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_20260828190500_5$,
+$olar_20260828190500_6$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_referidos_aporta_pct_finito
-  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_190500_6$,
-$olar_190500_7$alter table crm.cierre_mes_vendedor
+  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_20260828190500_6$,
+$olar_20260828190500_7$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_numerador_finito
-  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_190500_7$,
-$olar_190500_8$alter table crm.cierre_mes_vendedor
+  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_20260828190500_7$,
+$olar_20260828190500_8$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_pen_finito
-  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_190500_8$,
-$olar_190500_9$alter table crm.cierre_mes_vendedor
+  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_20260828190500_8$,
+$olar_20260828190500_9$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_usd_finito
-  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_190500_9$,
-$olar_190500_10$alter table crm.cierre_mes_vendedor
+  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_20260828190500_9$,
+$olar_20260828190500_10$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_objetivo_finito
-  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_190500_10$,
-$olar_190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
+  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_20260828190500_10$,
+$olar_20260828190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
 alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_pen_finito
-  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_190500_11$,
-$olar_190500_12$alter table crm.ajustes_mes_cerrado
+  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_20260828190500_11$,
+$olar_20260828190500_12$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_usd_finito
-  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_190500_12$,
-$olar_190500_13$alter table crm.ajustes_mes_cerrado
+  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_20260828190500_12$,
+$olar_20260828190500_13$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_13$,
-$olar_190500_14$alter table crm.ajustes_mes_cerrado
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_13$,
+$olar_20260828190500_14$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_numerador_finito
-  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_190500_14$,
-$olar_190500_15$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_20260828190500_14$,
+$olar_20260828190500_15$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_pen_finito
-  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_190500_15$,
-$olar_190500_16$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_20260828190500_15$,
+$olar_20260828190500_16$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_usd_finito
-  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_190500_16$,
-$olar_190500_17$-- == 4. La ponderacion del referido del periodo ==============================
+  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_20260828190500_16$,
+$olar_20260828190500_17$-- == 4. La ponderacion del referido del periodo ==============================
 alter table crm.periodos_cerrados
   add constraint periodos_cerrados_ponderacion_referido_finito
   check (ponderacion_referido is null
          or (ponderacion_referido <> 'NaN'::numeric
              and ponderacion_referido <> 'Infinity'::numeric
-             and ponderacion_referido <> '-Infinity'::numeric));$olar_190500_17$,
-$olar_190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
+             and ponderacion_referido <> '-Infinity'::numeric));$olar_20260828190500_17$,
+$olar_20260828190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
 -- La sonda NO escribe en ninguna tabla de produccion: copia el predicado VIVO
 -- de cada constraint -leido del catalogo, no reescrito aqui- a una tabla
 -- temporal y le tira los valores malos. Asi prueba el liston que quedo puesto,
@@ -7855,7 +7872,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 16 guardianes puestos; NaN e infinito rebotan y los numeros legitimos pasan';
 end
-$postflight$;$olar_190500_18$
+$postflight$;$olar_20260828190500_18$
 ], name = coalesce(name, '20260828190500_crm_f1_2_malla_anti_nan_montos')
  where version = '20260828190500' and statements is null;
 
@@ -7863,7 +7880,7 @@ $postflight$;$olar_190500_18$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
+$olar_20260828191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
 --
 -- QUE, en una linea: se le quita a los visitantes sin cuenta -y a cualquier
 -- sesion iniciada- los cuatro permisos de fabrica que la seguridad por filas no
@@ -8013,8 +8030,8 @@ begin
     raise exception 'PREFLIGHT: se esperaban 5 RPC de administracion abiertas a PUBLIC y hay %', v_rpcs;
   end if;
 end
-$preflight$;$olar_191000_0$,
-$olar_191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
+$preflight$;$olar_20260828191000_0$,
+$olar_20260828191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
 revoke truncate, references, trigger, maintain on table
   public.asesores,
   public.audit_log,
@@ -8026,19 +8043,19 @@ revoke truncate, references, trigger, maintain on table
   public.novedades_leidas,
   public.perfiles,
   public.suscripciones_push
-from anon, authenticated;$olar_191000_1$,
-$olar_191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
+from anon, authenticated;$olar_20260828191000_1$,
+$olar_20260828191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
 alter default privileges for role postgres in schema public
-  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_191000_2$,
-$olar_191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
+  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_20260828191000_2$,
+$olar_20260828191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
 revoke execute on function
   public.admin_pagos_metricas(),
   public.admin_pagos_resumen(),
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-from public, anon;$olar_191000_3$,
-$olar_191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
+from public, anon;$olar_20260828191000_3$,
+$olar_20260828191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
 -- una capacidad que estuviera usando.
 grant execute on function
   public.admin_pagos_metricas(),
@@ -8046,8 +8063,8 @@ grant execute on function
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-to authenticated, service_role;$olar_191000_4$,
-$olar_191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
+to authenticated, service_role;$olar_20260828191000_4$,
+$olar_20260828191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
 do $postflight$
 declare
   v_malas text[] := '{}';
@@ -8130,13 +8147,13 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 letras cerradas en 10 tablas y en el default de public; 5 RPC cerradas a anon/PUBLIC y vivas para authenticated y service_role';
 end
-$postflight$;$olar_191000_5$
+$postflight$;$olar_20260828191000_5$
 ], name = coalesce(name, '20260828191000_crm_f1_3_puertas_baratas_anon')
  where version = '20260828191000' and statements is null;
 
 
 -- =====================================================================
--- 2) POSTFLIGHT: relectura por version + cero vacias + diff-cero + guardianes.
+-- 2) POSTFLIGHT: relectura POR ELEMENTO + diff-cero por contenido + guardianes.
 -- =====================================================================
 do $$
 declare r record; v_h text; v_n int; v_txt text;
@@ -8145,52 +8162,62 @@ begin
     raise exception 'OLA R postflight: quedaron versiones mudas';
   end if;
   for r in select * from _olar_esperado loop
-    select md5(array_to_string(m.statements, E'\n')), array_length(m.statements, 1)
+    select (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)), array_length(m.statements, 1)
       into v_h, v_n from supabase_migrations.schema_migrations m where m.version = r.version;
-    if v_h is distinct from r.md5_cuerpo or v_n is distinct from r.n_sentencias then
-      raise exception 'OLA R postflight: la relectura de % no coincide (md5 %, % sentencias)', r.version, v_h, v_n;
+    if v_h is distinct from r.huella_elems or v_n is distinct from r.n_sentencias then
+      raise exception 'OLA R postflight: la relectura de % no coincide (huella %, % sentencias)', r.version, v_h, v_n;
     end if;
     if exists (select 1 from supabase_migrations.schema_migrations m, unnest(m.statements) s
-                where m.version = r.version and btrim(s) = '') then
-      raise exception 'OLA R postflight: % tiene una sentencia VACIA', r.version;
+                where m.version = r.version and (s is null or btrim(s) = '')) then
+      raise exception 'OLA R postflight: % tiene una sentencia NULL o vacia', r.version;
     end if;
   end loop;
 
   if exists (select 1 from _olar_foto f, lateral (
     select
-      (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private')) as fns,
-      (select md5(string_agg(n.nspname || '.' || p.proname
-          || '(' || pg_get_function_identity_arguments(p.oid) || ')'
-          || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
-          || ':' || p.provolatile::text || ':' || p.prosecdef::text
-          || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
-          || ':' || coalesce(p.proacl::text,'-'), '|'
-          order by n.nspname, p.proname, p.oid))
-        from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
-      (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
-        where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-      (select count(*) from pg_policy) as policies,
-      (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-      (select count(*) from pg_constraint where contype = 'c') as checks,
-      (select count(*) from cron.job) as crons,
-      (select count(*) from pg_description) as comments_n,
-      (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-          order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-      (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
-          order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-      (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-          || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-          order by c.relname, a.attnum))
-        from pg_attribute a
-        join pg_class c on c.oid = a.attrelid
-        join pg_namespace n on n.oid = c.relnamespace
-        left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
-        where n.nspname in ('public','crm','private') and c.relkind = 'r'
-          and a.attnum > 0 and not a.attisdropped) as columnas_h,
-      (select count(*) from public.contratos) as contratos,
-      (select count(*) from crm.leads) as leads
+    (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private')) as fns,
+    (select md5(string_agg(n.nspname || '.' || p.proname
+        || '(' || pg_get_function_identity_arguments(p.oid) || ')'
+        || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
+        || ':' || p.provolatile::text || ':' || p.prosecdef::text
+        || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
+        || ':' || coalesce(p.proacl::text,'-'), '|'
+        order by n.nspname, p.proname, p.oid))
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
+    (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+        order by d.oid), '-')) from pg_default_acl d) as defacl_h,
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
+      where n.nspname in ('public','crm','private') and c.relkind = 'r'
+        and a.attnum > 0 and not a.attisdropped) as columnas_h,
+    (select count(*) from public.contratos) as contratos,
+    (select count(*) from crm.leads) as leads
   ) d where f is distinct from d) then
     raise exception 'OLA R postflight: el catalogo CAMBIO fuera del registro - un reparador de actas no toca el mundo';
   end if;
@@ -8213,38 +8240,33 @@ $mig_olar$])
     raise exception 'Registro OLA R: la fila no existe tras el insert'; end if;
   if v_nombre is distinct from 'crm_ola_r_las_doce_actas_mudas' then
     raise exception 'Registro OLA R: la fila quedo con OTRO nombre (%)', v_nombre; end if;
-  if v_a is distinct from array[$mig_olar$-- P-055 OLA R (v2) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
+  if v_a is distinct from array[$mig_olar$-- P-055 OLA R (v3) - LAS DOCE ACTAS MUDAS DEL REGISTRO GANAN SU CUERPO.
 --
 -- 12 versiones de prod tienen fila SIN statements (aplicadas en su dia por
 -- guion directo): sin cuerpo, ningun banco puede replay-ar la historia. Este
 -- reparador les da su cuerpo EXACTO desde los archivos del repo, cuya
--- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto ANTES de
--- escribir esto (Codex la sostuvo: 15 cuerpos + 4 triggers por definicion
--- completa + 19 constraints validadas + columna + ACL de la 191000, y los 2
--- reemplazos internos reconciliados). La evidencia de fidelidad es la
--- comparacion contra el CATALOGO VIVO — la historia git es solo color: dos
+-- FIDELIDAD contra el catalogo vivo quedo demostrada objeto a objeto y
+-- auditada (Codex la sostuvo). La evidencia es el CATALOGO VIVO, no git: dos
 -- archivos (182000/182500) se commitearon el 26/08 y el ledger los da por
--- aplicados el 28/08, y el instante real de aplicacion no es recuperable
+-- aplicados el 28/08; el instante real no es recuperable
 -- (track_commit_timestamp=off). Por eso NO se afirma fecha de aplicacion.
 --
--- Contrato (condiciones de Miguel + refutacion de Codex, 30/08):
---  * DOS estados globales aceptados y NINGUN hibrido:
---    PRE  = exactamente 189 versiones, 12 mudas, LAS 12 conocidas -> repara;
---    POST = 0 mudas y las 12 con su cuerpo EXACTO (replay de banco o
---           re-corrida; la fila propia puede existir o no: el runner del
---           banco la inserta DESPUES de ejecutar) -> todo no-op.
---    Un estado parcial (p. ej. 11 mudas) ABORTA a proposito: ese mundo lo
---    toco una mano ajena y se reconcilia a mano, jamas por encima.
---  * statements[] = las 136 sentencias INDIVIDUALES de los archivos
---    historicos (17/13/17/10/9/11/10/7/10/7/19/6), divididas respetando
---    dollar-quoting/comillas/comentarios; CERO elementos vacios (verificado).
---  * DIFF CERO fuera del registro: foto ampliada del catalogo (funciones con
---    firma+retorno+volatilidad+definer+config+owner+ACL; comentarios
---    pg_description; ACL por defecto pg_default_acl; metadatos de columnas).
---  * Jamas pisa un cuerpo existente distinto + relectura md5 por version.
---  * Se registra con su propio registrador: jamas la muda 13. Orden de
---    publicacion = orden de replay: esta version (055000) va ANTES que la
---    F7.1 (060000).
+-- Contrato (Miguel + DOS refutaciones de Codex + auditor-rls, 30/08):
+--  * DOS estados globales y NINGUN hibrido: PRE (189 versiones, 12 mudas, LAS
+--    12) -> repara; POST (0 mudas y las 12 con cuerpo objetivo EXACTO) ->
+--    no-op; 11 mudas u otro mundo ABORTA (mano ajena: reconciliar a mano).
+--  * La identidad del cuerpo es POR ELEMENTO (Codex v2: md5 del texto unido
+--    NO ve fronteras desplazadas): md5(string_agg(md5(elemento) order by
+--    ordinality)) + conteo + cero elementos NULL o vacios.
+--  * Tags con VERSION COMPLETA $olar_<version>_<i>$ (Codex v2: los sufijos
+--    de 6 digitos colisionaban entre 0820190500 y 0828190500).
+--  * DIFF CERO por CONTENIDO, no conteos: funciones con firma completa,
+--    policies con qual/withcheck, triggers por triggerdef, checks por def,
+--    cron por comando, comments con classoid, default-ACL con namespace,
+--    columnas con identidad/generacion/collation/ACL/stats.
+--  * Se registra con su propio registrador: jamas la muda 13. Orden:
+--    esta version (055000) ANTES que la F7.1 (060000); el registrador de la
+--    F7.1 queda ENCADENADO a que esta exista.
 
 begin;
 
@@ -8252,22 +8274,22 @@ set local lock_timeout = '5s';
 set local statement_timeout = '120s';
 
 -- =====================================================================
--- 0) PREFLIGHT: PRE o POST, nada mas + FOTO ampliada del catalogo.
+-- 0) PREFLIGHT: PRE o POST, nada mas + FOTO por contenido.
 -- =====================================================================
-create temp table _olar_esperado (version text primary key, md5_cuerpo text, n_sentencias int) on commit drop;
+create temp table _olar_esperado (version text primary key, huella_elems text, n_sentencias int) on commit drop;
 insert into _olar_esperado values
-  ('20260819162752', '3756aa8ff82fa1ec63f283f8ee62c08d', 17),
-  ('20260819211815', '8ab82c082e7884d611a11087e6b3241e', 13),
-  ('20260820190500', '0a9202c300cba5655d21ec197c8b0744', 17),
-  ('20260826151907', '64260c58878bd114c8cf0feb27810f80', 10),
-  ('20260826154500', '7e0c2ffa4d41d5ca7fd045777732fe4c', 9),
-  ('20260826173523', 'e0d4c7e255412e5bce4072311f39b387', 11),
-  ('20260826174500', '5ce2631bffcc2120e5e2a3d091b14ac2', 10),
-  ('20260826182000', '8735ab49a697468b9a80124466f568de', 7),
-  ('20260826182500', '538438b7dcf1033a96e3fbc46cc60162', 10),
-  ('20260828190000', '3121d69c9f99b3a214982eb8b3a670dc', 7),
-  ('20260828190500', 'aab6762606cf487376f0ea77058dd524', 19),
-  ('20260828191000', '2b48a5eee28654b3f93c7781c663a88c', 6);
+  ('20260819162752', '399f72b907f4bab63ad4fb124c4d4755', 17),
+  ('20260819211815', '14e8587e631e35d318b580d23f0342f5', 13),
+  ('20260820190500', '6e4ae5f02480d3a0fc913b38cdcfa578', 17),
+  ('20260826151907', 'f6b4b452868510ad433d3fd4418b4874', 10),
+  ('20260826154500', '066eaf9312823cdc860545ca3764c5f7', 9),
+  ('20260826173523', '8a3bb03f7da1d3a6f9181fd61bedd8c9', 11),
+  ('20260826174500', 'b4444752f25e85f5d54a830b9f24fe9e', 10),
+  ('20260826182000', 'e1d79c85d595e72f61ddfaacb081c87b', 7),
+  ('20260826182500', '1f71c71f2b2db9dae6d23a6080be838f', 10),
+  ('20260828190000', '018116c2ff04537be42e034abba7de2a', 7),
+  ('20260828190500', 'a109153ca42c6de632c8ea23b19bde1f', 19),
+  ('20260828191000', '3390c367bf9b573b525c508ad21bd576', 6);
 
 do $$
 declare v_total int; v_mudas int; v_lista text[]; v_mal text; v_sent int;
@@ -8278,18 +8300,18 @@ begin
     from supabase_migrations.schema_migrations where statements is null;
 
   if v_mudas = 0 then
-    -- POST: las 12 con el cuerpo objetivo EXACTO; todo lo demas sera no-op.
     select e.version into v_mal from _olar_esperado e
       left join supabase_migrations.schema_migrations m on m.version = e.version
      where m.version is null
-        or md5(array_to_string(m.statements, E'\n')) is distinct from e.md5_cuerpo
+        or (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)) is distinct from e.huella_elems
         or coalesce(array_length(m.statements, 1), 0) <> e.n_sentencias
+        or exists (select 1 from unnest(m.statements) s where s is null or btrim(s) = '')
      limit 1;
     if v_mal is not null then
       raise exception 'OLA R: mundo POST pero la version % NO tiene el cuerpo objetivo - reconciliar a mano, jamas pisar', v_mal;
     end if;
   elsif v_mudas = 12 then
-    -- PRE: inventario cerrado EXACTO.
     if v_total <> 189 then
       raise exception 'OLA R preflight: hay % versiones (deben ser exactamente 189 antes de reparar)', v_total;
     end if;
@@ -8297,14 +8319,13 @@ begin
       raise exception 'OLA R preflight: las mudas NO son las 12 conocidas (%)', v_lista;
     end if;
   else
-    raise exception 'OLA R preflight: % mudas - ni el mundo PRE (12) ni el POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
+    raise exception 'OLA R preflight: % mudas - ni PRE (12) ni POST (0); una mano ajena toco el registro: reconciliar a mano', v_mudas;
   end if;
 
   if exists (select 1 from supabase_migrations.schema_migrations
               where statements is not null and array_length(statements, 1) is null) then
     raise exception 'OLA R preflight: hay versiones con statements VACIO (reparadas a medias)';
   end if;
-  -- las 136 congeladas: la suma de sentencias esperadas es exactamente 136
   select sum(n_sentencias) into v_sent from _olar_esperado;
   if v_sent <> 136 then
     raise exception 'OLA R preflight: el objetivo no suma 136 sentencias (%)', v_sent;
@@ -8314,8 +8335,6 @@ begin
   select
     (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname in ('public','crm','private')) as fns,
-    -- huella COMPLETA de funciones (Codex 30/08): cuerpo + firma + retorno +
-    -- volatilidad + definer + config + owner + ACL
     (select md5(string_agg(n.nspname || '.' || p.proname
         || '(' || pg_get_function_identity_arguments(p.oid) || ')'
         || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
@@ -8327,19 +8346,27 @@ begin
       where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
     (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-    (select count(*) from pg_policy) as policies,
-    (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-    (select count(*) from pg_constraint where contype = 'c') as checks,
-    (select count(*) from cron.job) as crons,
-    -- las 3 superficies que la v1 no miraba (Codex 30/08):
-    (select count(*) from pg_description) as comments_n,
-    (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-        order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
         order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-    (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-        order by c.relname, a.attnum))
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
       from pg_attribute a
       join pg_class c on c.oid = a.attrelid
       join pg_namespace n on n.oid = c.relnamespace
@@ -8358,7 +8385,7 @@ end $$;
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
+$olar_20260819162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cliente antiguo.
 --
 -- EL SINTOMA (Miguel, 2026-08-19): «los vendedores no pueden registrar otro
 -- contrato a clientes antiguos».
@@ -8430,10 +8457,10 @@ $olar_162752_0$-- Domicilio legal faltante: desbloquea el 2.o contrato de un cli
 -- excepciones de MIGRACIONES.md aunque no haya DDL, porque ese registro es el
 -- indice donde se busca «quien le escribe a mis tablas».
 
-begin;$olar_162752_0$,
-$olar_162752_1$set local lock_timeout = '10s';$olar_162752_1$,
-$olar_162752_2$set local statement_timeout = '120s';$olar_162752_2$,
-$olar_162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
+begin;$olar_20260819162752_0$,
+$olar_20260819162752_1$set local lock_timeout = '10s';$olar_20260819162752_1$,
+$olar_20260819162752_2$set local statement_timeout = '120s';$olar_20260819162752_2$,
+$olar_20260819162752_3$-- ── Preflight: plpgsql NO resuelve referencias al crear ──────────────────────
 -- Sin esto, un renombrado de las dependencias crearia ambas funciones y solo
 -- fallaria en runtime, con el vendedor delante.
 do $preflight$
@@ -8452,8 +8479,8 @@ begin
     raise exception 'PREFLIGHT: falta public.perfiles.domicilio';
   end if;
 end;
-$preflight$;$olar_162752_3$,
-$olar_162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
+$preflight$;$olar_20260819162752_3$,
+$olar_20260819162752_4$-- ── Normalizador compartido del domicilio legal ──────────────────────────────
 -- Fuente UNICA del servidor, espejo de `validarDomicilioLegal` del navegador.
 -- Devuelve el texto normalizado o levanta el error es-PE correspondiente.
 --
@@ -8499,12 +8526,12 @@ begin
   end if;
   return v_out;
 end;
-$function$;$olar_162752_4$,
-$olar_162752_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_162752_5$,
-$olar_162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_162752_6$,
-$olar_162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
+$function$;$olar_20260819162752_4$,
+$olar_20260819162752_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'Normaliza (espacios Unicode a espacio simple, colapsa, recorta) y valida el domicilio legal: 5..240 caracteres, sin controles y sin invisibles de ancho cero. Fuente unica del servidor; espejo de validarDomicilioLegal del navegador.';$olar_20260819162752_5$,
+$olar_20260819162752_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_6$,
+$olar_20260819162752_7$-- ── Lectura: que dato legal falta para poder emitir ──────────────────────────
 -- Devuelve NOMBRES de campo, nunca valores: no es una via para leer PII.
 --
 -- El «analista» que valida el snapshot es `contratos.creado_por`, y
@@ -8595,13 +8622,13 @@ begin
     'faltan_analista', to_jsonb(v_faltan_analista)
   );
 end;
-$function$;$olar_162752_7$,
-$olar_162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
-  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_162752_8$,
-$olar_162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
-  from public, anon, authenticated, service_role;$olar_162752_9$,
-$olar_162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_162752_10$,
-$olar_162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
+$function$;$olar_20260819162752_7$,
+$olar_20260819162752_8$comment on function crm.datos_legales_contrato_fn(uuid) is
+  'Que dato legal falta para poder EMITIR el contrato de este cliente: nombres de campo del cliente y del propio analista que llama, nunca valores. Espejo de private.contrato_pdf_snapshot_v2_base. Alcance: private.puede_gestionar_cuentas_cliente.';$olar_20260819162752_8$,
+$olar_20260819162752_9$revoke all on function crm.datos_legales_contrato_fn(uuid)
+  from public, anon, authenticated, service_role;$olar_20260819162752_9$,
+$olar_20260819162752_10$grant execute on function crm.datos_legales_contrato_fn(uuid) to authenticated;$olar_20260819162752_10$,
+$olar_20260819162752_11$-- ── Escritura: rellenar el domicilio VACIO ───────────────────────────────────
 create or replace function crm.completar_domicilio_cliente(
   p_cliente_id uuid,
   p_domicilio text
@@ -8684,13 +8711,13 @@ begin
   -- lectura disfrazada.
   return jsonb_build_object('version', 1, 'accion', 'completado');
 end;
-$function$;$olar_162752_11$,
-$olar_162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
-  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_162752_12$,
-$olar_162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
-  from public, anon, authenticated, service_role;$olar_162752_13$,
-$olar_162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_162752_14$,
-$olar_162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
+$function$;$olar_20260819162752_11$,
+$olar_20260819162752_12$comment on function crm.completar_domicilio_cliente(uuid, text) is
+  'Rellena public.perfiles.domicilio SOLO si esta vacio (nunca lo pisa; devuelve completado|conservado, sin el valor). Normaliza y valida via crm.normalizar_domicilio_legal. Alcance: private.puede_gestionar_cuentas_cliente, reevaluado tras el lock.';$olar_20260819162752_12$,
+$olar_20260819162752_13$revoke all on function crm.completar_domicilio_cliente(uuid, text)
+  from public, anon, authenticated, service_role;$olar_20260819162752_13$,
+$olar_20260819162752_14$grant execute on function crm.completar_domicilio_cliente(uuid, text) to authenticated;$olar_20260819162752_14$,
+$olar_20260819162752_15$-- ── Postflight ESTRUCTURAL (re-ejecutable) ───────────────────────────────────
 -- Las sondas de comportamiento —las que EJECUTAN las funciones contra datos—
 -- viven en supabase/scripts/test-domicilio-legal.sql, no aqui: una sonda que
 -- exija «que el defecto siga existiendo» convierte la migracion en irrepetible
@@ -8825,8 +8852,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK: la escritura del domicilio queda auditada con su autor.';
 end;
-$postflight$;$olar_162752_15$,
-$olar_162752_16$commit;$olar_162752_16$
+$postflight$;$olar_20260819162752_15$,
+$olar_20260819162752_16$commit;$olar_20260819162752_16$
 ], name = coalesce(name, '20260819162752_crm_domicilio_legal_faltante')
  where version = '20260819162752' and statements is null;
 
@@ -8834,7 +8861,7 @@ $olar_162752_16$commit;$olar_162752_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
+$olar_20260819211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altura del dato.
 --
 -- POR QUE. El 2026-08-19 se cerro el agujero de los caracteres INVISIBLES en la
 -- ventana nueva de «+ Contrato», pero el mismo campo tiene otras TRES puertas, y
@@ -8872,10 +8899,10 @@ $olar_211815_0$-- El domicilio legal: UNA sola puerta, y con el liston a la altu
 -- No altera ningun objeto de `public`; reemplaza funciones de `crm` que ya
 -- escriben `public.perfiles.domicilio`, como las que ya estaban vivas.
 
-begin;$olar_211815_0$,
-$olar_211815_1$set local lock_timeout = '10s';$olar_211815_1$,
-$olar_211815_2$set local statement_timeout = '120s';$olar_211815_2$,
-$olar_211815_3$do $preflight$
+begin;$olar_20260819211815_0$,
+$olar_20260819211815_1$set local lock_timeout = '10s';$olar_20260819211815_1$,
+$olar_20260819211815_2$set local statement_timeout = '120s';$olar_20260819211815_2$,
+$olar_20260819211815_3$do $preflight$
 begin
   if to_regprocedure('crm.normalizar_domicilio_legal(text)') is null then
     raise exception 'PREFLIGHT: falta crm.normalizar_domicilio_legal(text)';
@@ -8887,8 +8914,8 @@ begin
     raise exception 'PREFLIGHT: falta crm.actualizar_cliente_gerencia(uuid, jsonb)';
   end if;
 end;
-$preflight$;$olar_211815_3$,
-$olar_211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
+$preflight$;$olar_20260819211815_3$,
+$olar_20260819211815_4$-- ── La fuente unica, con el liston nuevo ─────────────────────────────────────
 create or replace function crm.normalizar_domicilio_legal(p_domicilio text)
 returns text
 language plpgsql
@@ -8960,12 +8987,12 @@ begin
 
   return v_out;
 end;
-$function$;$olar_211815_4$,
-$olar_211815_5$comment on function crm.normalizar_domicilio_legal(text) is
-  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_211815_5$,
-$olar_211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
-  from public, anon, authenticated, service_role;$olar_211815_6$,
-$olar_211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
+$function$;$olar_20260819211815_4$,
+$olar_20260819211815_5$comment on function crm.normalizar_domicilio_legal(text) is
+  'FUENTE UNICA de validacion del domicilio legal: normaliza espacios Unicode, rechaza invisibles de ancho cero, exige 15..240 caracteres y al menos un digito, y rechaza un solo caracter repetido y la direccion de la propia Avance Corp. La usan las TRES puertas SQL; el navegador y la edge la espejan.';$olar_20260819211815_5$,
+$olar_20260819211815_6$revoke all on function crm.normalizar_domicilio_legal(text)
+  from public, anon, authenticated, service_role;$olar_20260819211815_6$,
+$olar_20260819211815_7$-- ── Puerta 1: convertir un lead en cliente ───────────────────────────────────
 -- Tenia su propia copia de la regla (5..240 + cntrl). Ahora presta la fuente
 -- unica, y de paso ESCRIBE el texto normalizado en vez del `btrim` a secas.
 create or replace function crm.convertir_lead_con_domicilio(
@@ -8997,10 +9024,10 @@ begin
 
   return v_resultado || jsonb_build_object('domicilio_accion', v_accion);
 end;
-$function$;$olar_211815_7$,
-$olar_211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
-  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_211815_8$,
-$olar_211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
+$function$;$olar_20260819211815_7$,
+$olar_20260819211815_8$comment on function crm.convertir_lead_con_domicilio(uuid, uuid, text) is
+  'Convierte el lead y completa el domicilio SOLO si estaba vacio. Valida con crm.normalizar_domicilio_legal (fuente unica) ANTES de convertir: un domicilio invalido no deja el lead a medias.';$olar_20260819211815_8$,
+$olar_20260819211815_9$-- ── Puerta 3: la correccion de Gerencia ──────────────────────────────────────
 -- Tercera copia de la misma regla, y la unica que puede SOBRESCRIBIR un
 -- domicilio existente. Es justamente la que repara los errores de las otras dos:
 -- con mas razon tiene que aplicar el mismo liston.
@@ -9045,10 +9072,10 @@ begin
   end if;
   return true;
 end;
-$function$;$olar_211815_9$,
-$olar_211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
-  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_211815_10$,
-$olar_211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
+$function$;$olar_20260819211815_9$,
+$olar_20260819211815_10$comment on function crm.actualizar_cliente_gerencia_con_domicilio(uuid, jsonb) is
+  'Correccion de Gerencia: unica via que puede SOBRESCRIBIR un domicilio ya registrado. Valida con crm.normalizar_domicilio_legal (fuente unica).';$olar_20260819211815_10$,
+$olar_20260819211815_11$-- ── Postflight ───────────────────────────────────────────────────────────────
 do $postflight$
 declare
   v_puertas text[] := array[
@@ -9146,8 +9173,8 @@ begin
     raise notice 'POSTFLIGHT 3 OK: los 6 rellenos se rechazan y la direccion real pasa intacta.';
   end;
 end;
-$postflight$;$olar_211815_11$,
-$olar_211815_12$commit;$olar_211815_12$
+$postflight$;$olar_20260819211815_11$,
+$olar_20260819211815_12$commit;$olar_20260819211815_12$
 ], name = coalesce(name, '20260819211815_crm_domicilio_una_sola_puerta')
  where version = '20260819211815' and statements is null;
 
@@ -9155,7 +9182,7 @@ $olar_211815_12$commit;$olar_211815_12$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
+$olar_20260820190500_0$-- El documento contractual solo existe para lo firmado del 2026-08-19 en adelante.
 --
 -- POR QUE. Miguel lo fijo el 2026-08-20: «el sistema me da un PDF que se usa como
 -- unico contrato, pero los clientes anteriores a esto (19-08) ya tienen otro tipo
@@ -9205,10 +9232,10 @@ $olar_190500_0$-- El documento contractual solo existe para lo firmado del 2026-
 --
 -- No crea, altera ni borra ningun objeto de `public`.
 
-begin;$olar_190500_0$,
-$olar_190500_1$set local lock_timeout = '10s';$olar_190500_1$,
-$olar_190500_2$set local statement_timeout = '120s';$olar_190500_2$,
-$olar_190500_3$do $preflight$
+begin;$olar_20260820190500_0$,
+$olar_20260820190500_1$set local lock_timeout = '10s';$olar_20260820190500_1$,
+$olar_20260820190500_2$set local statement_timeout = '120s';$olar_20260820190500_2$,
+$olar_20260820190500_3$do $preflight$
 begin
   if to_regprocedure('private.crear_job_contrato_pdf_base(uuid, uuid)') is null then
     raise exception 'PREFLIGHT: falta private.crear_job_contrato_pdf_base(uuid, uuid)';
@@ -9233,8 +9260,8 @@ begin
     raise exception 'PREFLIGHT: public.contratos.fecha_inicio dejo de ser NOT NULL';
   end if;
 end;
-$preflight$;$olar_190500_3$,
-$olar_190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
+$preflight$;$olar_20260820190500_3$,
+$olar_20260820190500_4$-- ── La fuente unica de la frontera ───────────────────────────────────────────
 -- Devuelve 'nuevo', 'anterior' o NULL (contrato inexistente). El NULL importa:
 -- quien la llama NO debe tratarlo como 'anterior', sino dejar que su propio
 -- camino de «contrato no encontrado» levante el error de siempre.
@@ -9264,15 +9291,15 @@ as $$
   end
   from public.contratos c
   where c.id = p_contrato_id
-$$;$olar_190500_4$,
-$olar_190500_5$comment on function private.contrato_documental_regimen(uuid) is
+$$;$olar_20260820190500_4$,
+$olar_20260820190500_5$comment on function private.contrato_documental_regimen(uuid) is
   'Regimen documental de un contrato por FECHA DE FIRMA: firmado el 2026-08-19 o '
   'despues => ''nuevo'' (el sistema emite el PDF, que es el unico contrato); antes '
   '=> ''anterior'' (el cliente ya tiene su contrato en el formato previo y el '
   'sistema no le emite ninguno). NULL si el contrato no existe. Fuente unica: '
-  'ninguna otra funcion repite esta fecha.';$olar_190500_5$,
-$olar_190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_190500_6$,
-$olar_190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
+  'ninguna otra funcion repite esta fecha.';$olar_20260820190500_5$,
+$olar_20260820190500_6$revoke all on function private.contrato_documental_regimen(uuid) from public;$olar_20260820190500_6$,
+$olar_20260820190500_7$-- ── 1. El alta y el boton «Ver PDF»: no acuñan documento para lo antiguo ─────
 create or replace function private.crear_job_contrato_pdf_base(
   p_contrato_id uuid,
   p_actor_id uuid
@@ -9347,13 +9374,13 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_7$,
-$olar_190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
+$function$;$olar_20260820190500_7$,
+$olar_20260820190500_8$-- Mismos privilegios que ya tenía viva (`postgres=X/postgres`). `create or
 -- replace` los conserva; se repiten porque un ACL que solo vive en la memoria
 -- de otra migración es un ACL que nadie puede auditar aquí.
 revoke all on function private.crear_job_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_8$,
-$olar_190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
+  from public, anon, authenticated, service_role;$olar_20260820190500_8$,
+$olar_20260820190500_9$-- ── 2. Las correcciones: tampoco acuñan documento para lo antiguo ────────────
 -- Incluye a los 21 ya emitidos: corregir uno de ellos NO genera una revision
 -- nueva. Es coherente con «se quedan como estan» — y con que ese papel no es el
 -- contrato de esa operacion, asi que refrescarlo no arregla nada y si acuñaria
@@ -9416,10 +9443,10 @@ begin
 
   return private.contrato_pdf_estado_base(p_contrato_id);
 end;
-$function$;$olar_190500_9$,
-$olar_190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
-  from public, anon, authenticated, service_role;$olar_190500_10$,
-$olar_190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
+$function$;$olar_20260820190500_9$,
+$olar_20260820190500_10$revoke all on function private.crear_revision_contrato_pdf_base(uuid, uuid)
+  from public, anon, authenticated, service_role;$olar_20260820190500_10$,
+$olar_20260820190500_11$-- ── 3. La entrega del turno: nadie trabaja un documento del regimen anterior ─
 -- La guarda va DESPUES del bloque de integridad y del corte por
 -- 'sellado'/'integridad_bloqueada': para los 21 ya emitidos todo sigue igual
 -- (incluido el autodiagnostico de ledger incoherente). Solo muerde en
@@ -9537,8 +9564,8 @@ begin
       'renderizado_en', v_job.creado_en
     );
 end;
-$function$;$olar_190500_11$,
-$olar_190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
+$function$;$olar_20260820190500_11$,
+$olar_20260820190500_12$-- ── 4. Lo que ve la pantalla: la verdad, no una promesa ──────────────────────
 -- Un contrato del regimen anterior SIN archivo responde `sin_reserva` con
 -- `reintentable=false`, tenga o no un trabajo a medias. Los 21 que si tienen
 -- archivo siguen respondiendo `sellado` con su documento descargable.
@@ -9685,8 +9712,8 @@ begin
     else '{}'::jsonb
   end;
 end;
-$function$;$olar_190500_12$,
-$olar_190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
+$function$;$olar_20260820190500_12$,
+$olar_20260820190500_13$-- ── POSTFLIGHT 1 · la frontera existe y clasifica con datos REALES ───────────
 -- Sobre una base VACIA (el oraculo local, un banco recien creado) no hay nada
 -- que medir: entonces GRITA en vez de aprobar, y no aborta. Contra produccion
 -- tiene que decir OK; si dice SIN DATOS, algo va mal y hay que parar. El bloque
@@ -9722,8 +9749,8 @@ begin
     raise notice 'POSTFLIGHT 1 OK · regimen nuevo=% · anterior=%', v_nuevos, v_anteriores;
   end if;
 end;
-$postflight$;$olar_190500_13$,
-$olar_190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
+$postflight$;$olar_20260820190500_13$,
+$olar_20260820190500_14$-- ── POSTFLIGHT 2 · el estado dice la verdad y lo ya emitido sigue intacto ────
 do $postflight$
 declare
   v_antiguos int;
@@ -9773,8 +9800,8 @@ begin
       v_antiguos, v_ya_emitidos;
   end if;
 end;
-$postflight$;$olar_190500_14$,
-$olar_190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
+$postflight$;$olar_20260820190500_14$,
+$olar_20260820190500_15$-- ── POSTFLIGHT 3 · las cuatro puertas consultan la fuente unica ──────────────
 do $postflight$
 declare
   v_falta text[] := '{}';
@@ -9816,8 +9843,8 @@ begin
   end if;
   raise notice 'POSTFLIGHT 3 OK · las cuatro puertas consultan la fuente unica';
 end;
-$postflight$;$olar_190500_15$,
-$olar_190500_16$commit;$olar_190500_16$
+$postflight$;$olar_20260820190500_15$,
+$olar_20260820190500_16$commit;$olar_20260820190500_16$
 ], name = coalesce(name, '20260820190500_crm_documento_regimen_por_fecha_de_firma')
  where version = '20260820190500' and statements is null;
 
@@ -9825,7 +9852,7 @@ $olar_190500_16$commit;$olar_190500_16$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_151907_0$-- ---------------------------------------------------------------------------
+$olar_20260826151907_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve el SEGUNDO numero del lead
 -- ---------------------------------------------------------------------------
 -- QUE ARREGLA. El 24/08 entro `crm.leads.telefono_alternativo` (migracion
@@ -9855,9 +9882,9 @@ $olar_151907_0$-- --------------------------------------------------------------
 -- funcion: por eso el grant se vuelve a poner explicitamente abajo.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_151907_0$,
-$olar_151907_1$set local lock_timeout = '10s';$olar_151907_1$,
-$olar_151907_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826151907_0$,
+$olar_20260826151907_1$set local lock_timeout = '10s';$olar_20260826151907_1$,
+$olar_20260826151907_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight — que se este reemplazando lo que se leyo
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -9884,14 +9911,14 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_151907_2$,
-$olar_151907_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826151907_2$,
+$olar_20260826151907_3$-- ---------------------------------------------------------------------------
 -- 1. La funcion
 -- ---------------------------------------------------------------------------
 drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_151907_3$,
-$olar_151907_4$create function crm.cartera_pagina_fn(
+);$olar_20260826151907_3$,
+$olar_20260826151907_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -10074,14 +10101,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_151907_4$,
-$olar_151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_151907_5$,
-$olar_151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_151907_6$,
-$olar_151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_151907_7$,
-$olar_151907_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826151907_4$,
+$olar_20260826151907_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826151907_5$,
+$olar_20260826151907_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826151907_6$,
+$olar_20260826151907_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826151907_7$,
+$olar_20260826151907_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -10135,8 +10162,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_151907_8$,
-$olar_151907_9$commit;$olar_151907_9$
+$postflight$;$olar_20260826151907_8$,
+$olar_20260826151907_9$commit;$olar_20260826151907_9$
 ], name = coalesce(name, '20260826151907_crm_cartera_pagina_telefono_alternativo')
  where version = '20260826151907' and statements is null;
 
@@ -10144,7 +10171,7 @@ $olar_151907_9$commit;$olar_151907_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_154500_0$-- ---------------------------------------------------------------------------
+$olar_20260826154500_0$-- ---------------------------------------------------------------------------
 -- El segundo numero del lead: fijos peruanos y numeros del mundo
 -- ---------------------------------------------------------------------------
 -- DECISIONES DE MIGUEL (2026-08-26):
@@ -10183,9 +10210,9 @@ $olar_154500_0$-- --------------------------------------------------------------
 -- del viejo: toda fila que pasaba sigue pasando.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_154500_0$,
-$olar_154500_1$set local lock_timeout = '5s';$olar_154500_1$,
-$olar_154500_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826154500_0$,
+$olar_20260826154500_1$set local lock_timeout = '5s';$olar_20260826154500_1$,
+$olar_20260826154500_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -10205,23 +10232,23 @@ begin
     raise exception 'El CHECK leads_telefono_alternativo_formato ya no es el que esta migracion viene a relajar: %', v_def;
   end if;
 end;
-$preflight$;$olar_154500_2$,
-$olar_154500_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826154500_2$,
+$olar_20260826154500_3$-- ---------------------------------------------------------------------------
 -- 1. El formato nuevo
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  drop constraint leads_telefono_alternativo_formato;$olar_154500_3$,
-$olar_154500_4$alter table crm.leads
+  drop constraint leads_telefono_alternativo_formato;$olar_20260826154500_3$,
+$olar_20260826154500_4$alter table crm.leads
   add constraint leads_telefono_alternativo_formato
   check (
     telefono_alternativo is null
     or telefono_alternativo ~ '^\+(51(9[0-9]{8}|[1-8][0-9]{7})|(?!51)[1-9][0-9]{7,14})$'
-  ) not valid;$olar_154500_4$,
-$olar_154500_5$alter table crm.leads
-  validate constraint leads_telefono_alternativo_formato;$olar_154500_5$,
-$olar_154500_6$comment on column crm.leads.telefono_alternativo is
-  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_154500_6$,
-$olar_154500_7$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826154500_4$,
+$olar_20260826154500_5$alter table crm.leads
+  validate constraint leads_telefono_alternativo_formato;$olar_20260826154500_5$,
+$olar_20260826154500_6$comment on column crm.leads.telefono_alternativo is
+  'Segundo canal de contacto del lead, si es distinto del principal: celular peruano (+519########), fijo peruano (+51 + ocho digitos nacionales) o numero internacional en E.164. Es informativo: telefono sigue siendo la identidad usada por el dedup, el reparto y la conversion.';$olar_20260826154500_6$,
+$olar_20260826154500_7$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO el CHECK, no leyendolo
 -- ---------------------------------------------------------------------------
 -- Un CHECK se lee bien y rechaza mal: la unica prueba honesta es meterle filas.
@@ -10299,8 +10326,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo el CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_154500_7$,
-$olar_154500_8$commit;$olar_154500_8$
+$postflight$;$olar_20260826154500_7$,
+$olar_20260826154500_8$commit;$olar_20260826154500_8$
 ], name = coalesce(name, '20260826154500_crm_leads_telefono_alternativo_fijos_e_internacional')
  where version = '20260826154500' and statements is null;
 
@@ -10308,7 +10335,7 @@ $olar_154500_8$commit;$olar_154500_8$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_173523_0$-- ---------------------------------------------------------------------------
+$olar_20260826173523_0$-- ---------------------------------------------------------------------------
 -- El segundo numero que NO se pudo leer tampoco se tira
 -- ---------------------------------------------------------------------------
 -- DECISION DE MIGUEL (2026-08-26): «que siempre todos los leads tengan ese
@@ -10340,9 +10367,9 @@ $olar_173523_0$-- --------------------------------------------------------------
 -- parrafo entero entre por aqui.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_173523_0$,
-$olar_173523_1$set local lock_timeout = '5s';$olar_173523_1$,
-$olar_173523_2$-- ---------------------------------------------------------------------------
+begin;$olar_20260826173523_0$,
+$olar_20260826173523_1$set local lock_timeout = '5s';$olar_20260826173523_1$,
+$olar_20260826173523_2$-- ---------------------------------------------------------------------------
 -- 0. Preflight
 -- ---------------------------------------------------------------------------
 do $preflight$
@@ -10364,13 +10391,13 @@ begin
     raise exception 'crm.leads.telefono_alternativo_crudo ya existe: esta migracion ya se aplico.';
   end if;
 end;
-$preflight$;$olar_173523_2$,
-$olar_173523_3$-- ---------------------------------------------------------------------------
+$preflight$;$olar_20260826173523_2$,
+$olar_20260826173523_3$-- ---------------------------------------------------------------------------
 -- 1. La columna
 -- ---------------------------------------------------------------------------
 alter table crm.leads
-  add column telefono_alternativo_crudo text;$olar_173523_3$,
-$olar_173523_4$alter table crm.leads
+  add column telefono_alternativo_crudo text;$olar_20260826173523_3$,
+$olar_20260826173523_4$alter table crm.leads
   add constraint leads_telefono_alternativo_crudo_cordura
   check (
     telefono_alternativo_crudo is null
@@ -10381,17 +10408,17 @@ $olar_173523_4$alter table crm.leads
       btrim(telefono_alternativo_crudo) <> ''
       and length(telefono_alternativo_crudo) <= 40
     )
-  ) not valid;$olar_173523_4$,
-$olar_173523_5$alter table crm.leads
+  ) not valid;$olar_20260826173523_4$,
+$olar_20260826173523_5$alter table crm.leads
   add constraint leads_telefono_alternativo_excluyentes
   check (
     telefono_alternativo is null or telefono_alternativo_crudo is null
-  ) not valid;$olar_173523_5$,
-$olar_173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_173523_6$,
-$olar_173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_173523_7$,
-$olar_173523_8$comment on column crm.leads.telefono_alternativo_crudo is
-  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_173523_8$,
-$olar_173523_9$-- ---------------------------------------------------------------------------
+  ) not valid;$olar_20260826173523_5$,
+$olar_20260826173523_6$alter table crm.leads validate constraint leads_telefono_alternativo_crudo_cordura;$olar_20260826173523_6$,
+$olar_20260826173523_7$alter table crm.leads validate constraint leads_telefono_alternativo_excluyentes;$olar_20260826173523_7$,
+$olar_20260826173523_8$comment on column crm.leads.telefono_alternativo_crudo is
+  'El segundo numero TAL COMO LO ESCRIBIO la persona, cuando no se pudo entender como telefono. Existe para que nada se pierda en silencio (decision de Miguel 2026-08-26). Excluyente con telefono_alternativo: si el numero se pudo canonizar vive alli y este queda null. No es marcable — la ficha lo muestra como «sin validar» para que un humano lo lea y lo corrija.';$olar_20260826173523_8$,
+$olar_20260826173523_9$-- ---------------------------------------------------------------------------
 -- 2. Postflight — EJECUTANDO los CHECK sobre una copia temporal
 -- ---------------------------------------------------------------------------
 -- Misma tecnica que 20260826154500: tabla TEMPORAL con `including constraints`,
@@ -10448,8 +10475,8 @@ begin
     raise exception 'postflight: la tabla de prueba no heredo los CHECK — la prueba no probo nada';
   end if;
 end;
-$postflight$;$olar_173523_9$,
-$olar_173523_10$commit;$olar_173523_10$
+$postflight$;$olar_20260826173523_9$,
+$olar_20260826173523_10$commit;$olar_20260826173523_10$
 ], name = coalesce(name, '20260826173523_crm_leads_telefono_alternativo_crudo')
  where version = '20260826173523' and statements is null;
 
@@ -10457,7 +10484,7 @@ $olar_173523_10$commit;$olar_173523_10$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_174500_0$-- ---------------------------------------------------------------------------
+$olar_20260826174500_0$-- ---------------------------------------------------------------------------
 -- La pagina de la cartera devuelve tambien el segundo numero SIN VALIDAR
 -- ---------------------------------------------------------------------------
 -- Continuacion de 20260826151907 y de 20260826173523: la columna
@@ -10473,9 +10500,9 @@ $olar_174500_0$-- --------------------------------------------------------------
 -- El cuerpo es el de esa migracion con dos lineas mas.
 -- ---------------------------------------------------------------------------
 
-begin;$olar_174500_0$,
-$olar_174500_1$set local lock_timeout = '10s';$olar_174500_1$,
-$olar_174500_2$do $preflight$
+begin;$olar_20260826174500_0$,
+$olar_20260826174500_1$set local lock_timeout = '10s';$olar_20260826174500_1$,
+$olar_20260826174500_2$do $preflight$
 begin
   if not exists (
     select 1 from pg_catalog.pg_attribute
@@ -10494,11 +10521,11 @@ begin
     raise exception 'crm.cartera_pagina_fn cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_174500_2$,
-$olar_174500_3$drop function crm.cartera_pagina_fn(
+$preflight$;$olar_20260826174500_2$,
+$olar_20260826174500_3$drop function crm.cartera_pagina_fn(
   integer, timestamptz, uuid, text, uuid, boolean, text
-);$olar_174500_3$,
-$olar_174500_4$create function crm.cartera_pagina_fn(
+);$olar_20260826174500_3$,
+$olar_20260826174500_4$create function crm.cartera_pagina_fn(
   p_limite       integer     default 50,
   p_antes_de     timestamptz default null,
   p_antes_id     uuid        default null,
@@ -10687,14 +10714,14 @@ begin
   order by l.actualizado_en desc, l.id asc
   limit p_limite;
 end;
-$function$;$olar_174500_4$,
-$olar_174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
-  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_174500_5$,
-$olar_174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  from public, anon, service_role;$olar_174500_6$,
-$olar_174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
-  to authenticated;$olar_174500_7$,
-$olar_174500_8$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826174500_4$,
+$olar_20260826174500_5$comment on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text) is
+  'Pagina keyset de la cartera (cursor actualizado_en desc, id asc). SECURITY INVOKER: el alcance lo pone la policy leads_select; la funcion solo pone la guardia de admision al CRM. Desde 20260826 devuelve telefono_alternativo y el buscador por digitos tambien lo mira.';$olar_20260826174500_5$,
+$olar_20260826174500_6$revoke all on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  from public, anon, service_role;$olar_20260826174500_6$,
+$olar_20260826174500_7$grant execute on function crm.cartera_pagina_fn(integer, timestamptz, uuid, text, uuid, boolean, text)
+  to authenticated;$olar_20260826174500_7$,
+$olar_20260826174500_8$-- ---------------------------------------------------------------------------
 -- 2. Postflight — estructural
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -10756,8 +10783,8 @@ begin
     raise exception 'postflight: el drop+create abrio la funcion a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_174500_8$,
-$olar_174500_9$commit;$olar_174500_9$
+$postflight$;$olar_20260826174500_8$,
+$olar_20260826174500_9$commit;$olar_20260826174500_9$
 ], name = coalesce(name, '20260826174500_crm_cartera_pagina_telefono_alternativo_crudo')
  where version = '20260826174500' and statements is null;
 
@@ -10765,7 +10792,7 @@ $olar_174500_9$commit;$olar_174500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182000_0$-- ---------------------------------------------------------------------------
+$olar_20260826182000_0$-- ---------------------------------------------------------------------------
 -- `private.canonizar_contacto` — la regla del telefono, en SQL
 -- ---------------------------------------------------------------------------
 -- Es el SEXTO espejo de la misma regla, y el primero que vive en la base como
@@ -10790,9 +10817,9 @@ $olar_182000_0$-- --------------------------------------------------------------
 --   internacional   +CC…           (E.164: 8 a 15 digitos, el primero 1-9)
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182000_0$,
-$olar_182000_1$set local lock_timeout = '5s';$olar_182000_1$,
-$olar_182000_2$create or replace function private.canonizar_contacto(p text)
+begin;$olar_20260826182000_0$,
+$olar_20260826182000_1$set local lock_timeout = '5s';$olar_20260826182000_1$,
+$olar_20260826182000_2$create or replace function private.canonizar_contacto(p text)
 returns table (e164 text, clase text, movil boolean)
 language plpgsql
 immutable
@@ -10864,11 +10891,11 @@ begin
   end if;
   return;
 end;
-$function$;$olar_182000_2$,
-$olar_182000_3$comment on function private.canonizar_contacto(text) is
-  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_182000_3$,
-$olar_182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_182000_4$,
-$olar_182000_5$-- ---------------------------------------------------------------------------
+$function$;$olar_20260826182000_2$,
+$olar_20260826182000_3$comment on function private.canonizar_contacto(text) is
+  'La regla del telefono del CRM, en SQL: devuelve (e164, clase, movil) o ninguna fila. Espejo de telefonos.ts del conector, validacion.ts del front y reconocerTelefono() del puente. NO sustituye a private.normalizar_telefono, que sigue decidiendo como se GUARDA el telefono principal y con la que el CRM deduplica.';$olar_20260826182000_3$,
+$olar_20260826182000_4$revoke all on function private.canonizar_contacto(text) from public, anon, authenticated, service_role;$olar_20260826182000_4$,
+$olar_20260826182000_5$-- ---------------------------------------------------------------------------
 -- Postflight — EJECUTANDO la funcion, no leyendola
 -- ---------------------------------------------------------------------------
 do $postflight$
@@ -10950,8 +10977,8 @@ begin
     end if;
   end loop;
 end;
-$postflight$;$olar_182000_5$,
-$olar_182000_6$commit;$olar_182000_6$
+$postflight$;$olar_20260826182000_5$,
+$olar_20260826182000_6$commit;$olar_20260826182000_6$
 ], name = coalesce(name, '20260826182000_crm_canonizar_contacto')
  where version = '20260826182000' and statements is null;
 
@@ -10959,7 +10986,7 @@ $olar_182000_6$commit;$olar_182000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_182500_0$-- ---------------------------------------------------------------------------
+$olar_20260826182500_0$-- ---------------------------------------------------------------------------
 -- El alta manual de un lead admite su SEGUNDO numero
 -- ---------------------------------------------------------------------------
 -- OPCION A, elegida por Miguel (2026-08-26): el primer numero IDENTIFICA al
@@ -10990,9 +11017,9 @@ $olar_182500_0$-- --------------------------------------------------------------
 -- podra registrar; se decidio asumirlo (Miguel, 2026-08-26).
 -- ---------------------------------------------------------------------------
 
-begin;$olar_182500_0$,
-$olar_182500_1$set local lock_timeout = '10s';$olar_182500_1$,
-$olar_182500_2$do $preflight$
+begin;$olar_20260826182500_0$,
+$olar_20260826182500_1$set local lock_timeout = '10s';$olar_20260826182500_1$,
+$olar_20260826182500_2$do $preflight$
 begin
   if to_regprocedure('private.canonizar_contacto(text)') is null then
     raise exception 'Falta private.canonizar_contacto: aplicar antes 20260826182000.';
@@ -11013,11 +11040,11 @@ begin
     raise exception 'crm.crear_lead_si_disponible cambio desde que se escribio esta migracion: contrastar el cuerpo vivo antes de reemplazarlo.';
   end if;
 end;
-$preflight$;$olar_182500_2$,
-$olar_182500_3$drop function crm.crear_lead_si_disponible(
+$preflight$;$olar_20260826182500_2$,
+$olar_20260826182500_3$drop function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text
-);$olar_182500_3$,
-$olar_182500_4$create function crm.crear_lead_si_disponible(
+);$olar_20260826182500_3$,
+$olar_20260826182500_4$create function crm.crear_lead_si_disponible(
   p_nombre_completo text,
   p_telefono text,
   p_origen text,
@@ -11297,18 +11324,18 @@ begin
 
   return pg_catalog.jsonb_build_object('estado', 'creado', 'lead_id', v_id);
 end;
-$function$;$olar_182500_4$,
-$olar_182500_5$comment on function crm.crear_lead_si_disponible(
+$function$;$olar_20260826182500_4$,
+$olar_20260826182500_5$comment on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
 ) is
-  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_182500_5$,
-$olar_182500_6$revoke all on function crm.crear_lead_si_disponible(
+  'Alta atomica de lead: verifica disponibilidad y crea en la misma transaccion, con llave idempotente por p_id. El telefono PRINCIPAL sigue siendo celular peruano (es la identidad: dedup, reparto y conversion cuelgan de el). Desde 20260826182500 admite p_telefono_alternativo, que acepta celular, fijo peruano o internacional via private.canonizar_contacto y no participa del dedup.';$olar_20260826182500_5$,
+$olar_20260826182500_6$revoke all on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) from public, anon, service_role;$olar_182500_6$,
-$olar_182500_7$grant execute on function crm.crear_lead_si_disponible(
+) from public, anon, service_role;$olar_20260826182500_6$,
+$olar_20260826182500_7$grant execute on function crm.crear_lead_si_disponible(
   text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text
-) to authenticated;$olar_182500_7$,
-$olar_182500_8$do $postflight$
+) to authenticated;$olar_20260826182500_7$,
+$olar_20260826182500_8$do $postflight$
 declare
   v_oid oid := 'crm.crear_lead_si_disponible(text, text, text, numeric, text, uuid, text, text, text, date, text, text, text, uuid, text, text)'::regprocedure;
   v_def text := pg_get_functiondef(v_oid);
@@ -11356,8 +11383,8 @@ begin
     raise exception 'postflight: el drop+create abrio el alta a un rol que no la tenia';
   end if;
 end;
-$postflight$;$olar_182500_8$,
-$olar_182500_9$commit;$olar_182500_9$
+$postflight$;$olar_20260826182500_8$,
+$olar_20260826182500_9$commit;$olar_20260826182500_9$
 ], name = coalesce(name, '20260826182500_crm_crear_lead_telefono_alternativo')
  where version = '20260826182500' and statements is null;
 
@@ -11365,7 +11392,7 @@ $olar_182500_9$commit;$olar_182500_9$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
+$olar_20260828190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Miguel, 28/08).
 --
 -- QUE: cuatro tablas dejan de poder cambiar sin dejar rastro.
 --   1. public.contrato_titulares -> auditor NUEVO (INSERT/UPDATE/DELETE).
@@ -11454,8 +11481,8 @@ $olar_190000_0$-- P-055 Fase 1.1 - Rastro de lo que tiene valor probatorio (Migu
 -- Que esto no se quede esperando detras de una transaccion larga: si no consigue
 -- el candado en 5 segundos, falla y se reintenta, en vez de formar cola delante
 -- de las escrituras del portal.
-set local lock_timeout = '5s';$olar_190000_0$,
-$olar_190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
+set local lock_timeout = '5s';$olar_20260828190000_0$,
+$olar_20260828190000_1$-- == Preflight: el mundo vivo tiene que ser el que este cambio describe =======
 do $preflight$
 declare
   v_md5_public text;
@@ -11566,16 +11593,16 @@ begin
     raise exception 'trg_audit_cronograma_pago_alta_baja ya existe: re-basar antes de aplicar';
   end if;
 end
-$preflight$;$olar_190000_1$,
-$olar_190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
+$preflight$;$olar_20260828190000_1$,
+$olar_20260828190000_2$-- == 1. Co-titulares: el rastro que faltaba ==================================
 create trigger trg_audit_contrato_titulares
   after insert or update or delete on public.contrato_titulares
-  for each row execute function public.log_audit_change();$olar_190000_2$,
-$olar_190000_3$-- == 2. Historial de gestion del cliente =====================================
+  for each row execute function public.log_audit_change();$olar_20260828190000_2$,
+$olar_20260828190000_3$-- == 2. Historial de gestion del cliente =====================================
 create trigger trg_audit_actividades_cliente
   after insert or update or delete on crm.actividades_cliente
-  for each row execute function private.log_audit_crm();$olar_190000_3$,
-$olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
+  for each row execute function private.log_audit_crm();$olar_20260828190000_3$,
+$olar_20260828190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hueco ===========
 -- Trigger APARTE, no un reemplazo del que ya audita el alta: asi no se toca un
 -- objeto vivo de una tabla con 3.952 filas ni se arriesga a perder nada suyo.
 -- Para UPDATE y DELETE es el unico trigger de la tabla, asi que el orden de
@@ -11583,8 +11610,8 @@ $olar_190000_4$-- == 3. Gestion del lead: el cambio y el borrado, que era el hue
 -- `trg_zz_...`) queda exactamente como estaba.
 create trigger trg_audit_actividades_cambio_baja
   after update or delete on crm.actividades
-  for each row execute function private.log_audit_crm();$olar_190000_4$,
-$olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
+  for each row execute function private.log_audit_crm();$olar_20260828190000_4$,
+$olar_20260828190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco =================
 -- Trigger APARTE, para no tocar el de UPDATE y su WHEN (ver la cabecera). Se
 -- audita tambien el alta y no solo el borrado -que es el hueco probatorio- para
 -- que una cuota que aparece de la nada tenga la misma explicacion que una que
@@ -11593,8 +11620,8 @@ $olar_190000_5$-- == 4. Cuotas de pago: el alta y la baja, que era el hueco ====
 -- creada o borrada: un contrato escribe una decena, no miles.
 create trigger trg_audit_cronograma_pago_alta_baja
   after insert or delete on public.cronograma_pagos
-  for each row execute function public.log_audit_change();$olar_190000_5$,
-$olar_190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
+  for each row execute function public.log_audit_change();$olar_20260828190000_5$,
+$olar_20260828190000_6$-- == Postflight: los cuatro auditores existen y miran los tres eventos =======
 do $postflight$
 declare
   v_faltan text[] := '{}';
@@ -11659,7 +11686,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 auditores nuevos, ninguno recreado, y el WHEN del UPDATE de cuotas intacto';
 end
-$postflight$;$olar_190000_6$
+$postflight$;$olar_20260828190000_6$
 ], name = coalesce(name, '20260828190000_crm_f1_1_rastro_titulares_gestion_cuotas')
  where version = '20260828190000' and statements is null;
 
@@ -11667,7 +11694,7 @@ $postflight$;$olar_190000_6$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
+$olar_20260828190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/08).
 --
 -- EL AGUJERO, en una linea: en Postgres `NaN > 0` es VERDADERO. Un monto
 -- invalido atraviesa cualquier validacion escrita como "tiene que ser mayor
@@ -11727,8 +11754,8 @@ $olar_190500_0$-- P-055 Fase 1.2 - La malla anti-NaN de los montos (Miguel, 28/0
 -- Que esto no forme cola delante del portal: `add constraint` toma ACCESS
 -- EXCLUSIVE, y aunque validar 4252 filas es instantaneo, esperar detras de una
 -- transaccion larga no lo es. Con el liston de 5 segundos, falla y se reintenta.
-set local lock_timeout = '5s';$olar_190500_0$,
-$olar_190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
+set local lock_timeout = '5s';$olar_20260828190500_0$,
+$olar_20260828190500_1$-- == Preflight: nada de esto existe ya, y los datos aguantan el liston ========
 do $preflight$
 declare
   v_malas bigint;
@@ -11764,70 +11791,70 @@ begin
     raise exception 'PREFLIGHT: el cierre ya tiene datos; medir el liston contra ellos antes de aplicar';
   end if;
 end
-$preflight$;$olar_190500_1$,
-$olar_190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
+$preflight$;$olar_20260828190500_1$,
+$olar_20260828190500_2$-- == 1. Cronograma de pagos: las dos casillas de dinero ======================
 alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_programado_valido
   check (monto_programado > 0::numeric
          and monto_programado <> 'NaN'::numeric
          and monto_programado <> 'Infinity'::numeric
-         and monto_programado <> '-Infinity'::numeric);$olar_190500_2$,
-$olar_190500_3$alter table public.cronograma_pagos
+         and monto_programado <> '-Infinity'::numeric);$olar_20260828190500_2$,
+$olar_20260828190500_3$alter table public.cronograma_pagos
   add constraint cronograma_pagos_monto_pagado_valido
   check (monto_pagado is null
          or (monto_pagado >= 0::numeric
              and monto_pagado <> 'NaN'::numeric
              and monto_pagado <> 'Infinity'::numeric
-             and monto_pagado <> '-Infinity'::numeric));$olar_190500_3$,
-$olar_190500_4$-- == 2. La foto que se sella cada mes ========================================
+             and monto_pagado <> '-Infinity'::numeric));$olar_20260828190500_3$,
+$olar_20260828190500_4$-- == 2. La foto que se sella cada mes ========================================
 alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_4$,
-$olar_190500_5$alter table crm.cierre_mes_vendedor
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_4$,
+$olar_20260828190500_5$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_pct_finito
-  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_190500_5$,
-$olar_190500_6$alter table crm.cierre_mes_vendedor
+  check (conversion_pct is null or (conversion_pct <> 'NaN'::numeric and conversion_pct <> 'Infinity'::numeric and conversion_pct <> '-Infinity'::numeric));$olar_20260828190500_5$,
+$olar_20260828190500_6$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_referidos_aporta_pct_finito
-  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_190500_6$,
-$olar_190500_7$alter table crm.cierre_mes_vendedor
+  check (referidos_aporta_pct is null or (referidos_aporta_pct <> 'NaN'::numeric and referidos_aporta_pct <> 'Infinity'::numeric and referidos_aporta_pct <> '-Infinity'::numeric));$olar_20260828190500_6$,
+$olar_20260828190500_7$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_numerador_finito
-  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_190500_7$,
-$olar_190500_8$alter table crm.cierre_mes_vendedor
+  check ((ajuste_numerador <> 'NaN'::numeric and ajuste_numerador <> 'Infinity'::numeric and ajuste_numerador <> '-Infinity'::numeric));$olar_20260828190500_7$,
+$olar_20260828190500_8$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_pen_finito
-  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_190500_8$,
-$olar_190500_9$alter table crm.cierre_mes_vendedor
+  check ((ajuste_pen <> 'NaN'::numeric and ajuste_pen <> 'Infinity'::numeric and ajuste_pen <> '-Infinity'::numeric));$olar_20260828190500_8$,
+$olar_20260828190500_9$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_ajuste_usd_finito
-  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_190500_9$,
-$olar_190500_10$alter table crm.cierre_mes_vendedor
+  check ((ajuste_usd <> 'NaN'::numeric and ajuste_usd <> 'Infinity'::numeric and ajuste_usd <> '-Infinity'::numeric));$olar_20260828190500_9$,
+$olar_20260828190500_10$alter table crm.cierre_mes_vendedor
   add constraint cierre_mes_vendedor_conversion_objetivo_finito
-  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_190500_10$,
-$olar_190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
+  check (conversion_objetivo is null or (conversion_objetivo <> 'NaN'::numeric and conversion_objetivo <> 'Infinity'::numeric and conversion_objetivo <> '-Infinity'::numeric));$olar_20260828190500_10$,
+$olar_20260828190500_11$-- == 3. La deuda que arrastra de un mes a otro ===============================
 alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_pen_finito
-  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_190500_11$,
-$olar_190500_12$alter table crm.ajustes_mes_cerrado
+  check ((capital_pen <> 'NaN'::numeric and capital_pen <> 'Infinity'::numeric and capital_pen <> '-Infinity'::numeric));$olar_20260828190500_11$,
+$olar_20260828190500_12$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_capital_usd_finito
-  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_190500_12$,
-$olar_190500_13$alter table crm.ajustes_mes_cerrado
+  check ((capital_usd <> 'NaN'::numeric and capital_usd <> 'Infinity'::numeric and capital_usd <> '-Infinity'::numeric));$olar_20260828190500_12$,
+$olar_20260828190500_13$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_numerador_finito
-  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_190500_13$,
-$olar_190500_14$alter table crm.ajustes_mes_cerrado
+  check ((numerador <> 'NaN'::numeric and numerador <> 'Infinity'::numeric and numerador <> '-Infinity'::numeric));$olar_20260828190500_13$,
+$olar_20260828190500_14$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_numerador_finito
-  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_190500_14$,
-$olar_190500_15$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_numerador <> 'NaN'::numeric and pendiente_numerador <> 'Infinity'::numeric and pendiente_numerador <> '-Infinity'::numeric));$olar_20260828190500_14$,
+$olar_20260828190500_15$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_pen_finito
-  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_190500_15$,
-$olar_190500_16$alter table crm.ajustes_mes_cerrado
+  check ((pendiente_pen <> 'NaN'::numeric and pendiente_pen <> 'Infinity'::numeric and pendiente_pen <> '-Infinity'::numeric));$olar_20260828190500_15$,
+$olar_20260828190500_16$alter table crm.ajustes_mes_cerrado
   add constraint ajustes_mes_cerrado_pendiente_usd_finito
-  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_190500_16$,
-$olar_190500_17$-- == 4. La ponderacion del referido del periodo ==============================
+  check ((pendiente_usd <> 'NaN'::numeric and pendiente_usd <> 'Infinity'::numeric and pendiente_usd <> '-Infinity'::numeric));$olar_20260828190500_16$,
+$olar_20260828190500_17$-- == 4. La ponderacion del referido del periodo ==============================
 alter table crm.periodos_cerrados
   add constraint periodos_cerrados_ponderacion_referido_finito
   check (ponderacion_referido is null
          or (ponderacion_referido <> 'NaN'::numeric
              and ponderacion_referido <> 'Infinity'::numeric
-             and ponderacion_referido <> '-Infinity'::numeric));$olar_190500_17$,
-$olar_190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
+             and ponderacion_referido <> '-Infinity'::numeric));$olar_20260828190500_17$,
+$olar_20260828190500_18$-- == Postflight: los 16 guardianes estan, y el liston MUERDE de verdad =======
 -- La sonda NO escribe en ninguna tabla de produccion: copia el predicado VIVO
 -- de cada constraint -leido del catalogo, no reescrito aqui- a una tabla
 -- temporal y le tira los valores malos. Asi prueba el liston que quedo puesto,
@@ -11949,7 +11976,7 @@ begin
 
   raise notice 'POSTFLIGHT OK: 16 guardianes puestos; NaN e infinito rebotan y los numeros legitimos pasan';
 end
-$postflight$;$olar_190500_18$
+$postflight$;$olar_20260828190500_18$
 ], name = coalesce(name, '20260828190500_crm_f1_2_malla_anti_nan_montos')
  where version = '20260828190500' and statements is null;
 
@@ -11957,7 +11984,7 @@ $postflight$;$olar_190500_18$
 update supabase_migrations.schema_migrations
    set statements = array[
 
-$olar_191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
+$olar_20260828191000_0$-- P-055 Fase 1.3 - Las puertas baratas: lo que la seguridad por filas NO mira.
 --
 -- QUE, en una linea: se le quita a los visitantes sin cuenta -y a cualquier
 -- sesion iniciada- los cuatro permisos de fabrica que la seguridad por filas no
@@ -12107,8 +12134,8 @@ begin
     raise exception 'PREFLIGHT: se esperaban 5 RPC de administracion abiertas a PUBLIC y hay %', v_rpcs;
   end if;
 end
-$preflight$;$olar_191000_0$,
-$olar_191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
+$preflight$;$olar_20260828191000_0$,
+$olar_20260828191000_1$-- == 1. Las cuatro letras que RLS no gobierna ================================
 revoke truncate, references, trigger, maintain on table
   public.asesores,
   public.audit_log,
@@ -12120,19 +12147,19 @@ revoke truncate, references, trigger, maintain on table
   public.novedades_leidas,
   public.perfiles,
   public.suscripciones_push
-from anon, authenticated;$olar_191000_1$,
-$olar_191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
+from anon, authenticated;$olar_20260828191000_1$,
+$olar_20260828191000_2$-- Y que no vuelva a pasar con las tablas que nazcan de aqui en adelante.
 alter default privileges for role postgres in schema public
-  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_191000_2$,
-$olar_191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
+  revoke truncate, references, trigger, maintain on tables from anon, authenticated;$olar_20260828191000_2$,
+$olar_20260828191000_3$-- == 2. Las 5 consultas de administracion, cerradas al visitante sin cuenta ==
 revoke execute on function
   public.admin_pagos_metricas(),
   public.admin_pagos_resumen(),
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-from public, anon;$olar_191000_3$,
-$olar_191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
+from public, anon;$olar_20260828191000_3$,
+$olar_20260828191000_4$-- Y se devuelve, explicito, exactamente el acceso que existia hoy: nadie pierde
 -- una capacidad que estuviera usando.
 grant execute on function
   public.admin_pagos_metricas(),
@@ -12140,8 +12167,8 @@ grant execute on function
   public.dashboard_admin_metricas(),
   public.pagos_admin_metricas_globales(),
   public.pagos_admin_resumen_contratos(text,text,text,integer,integer)
-to authenticated, service_role;$olar_191000_4$,
-$olar_191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
+to authenticated, service_role;$olar_20260828191000_4$,
+$olar_20260828191000_5$-- == Postflight: cerrado lo que tocaba y NADA de lo que el portal usa ========
 do $postflight$
 declare
   v_malas text[] := '{}';
@@ -12224,13 +12251,13 @@ begin
 
   raise notice 'POSTFLIGHT OK: 4 letras cerradas en 10 tablas y en el default de public; 5 RPC cerradas a anon/PUBLIC y vivas para authenticated y service_role';
 end
-$postflight$;$olar_191000_5$
+$postflight$;$olar_20260828191000_5$
 ], name = coalesce(name, '20260828191000_crm_f1_3_puertas_baratas_anon')
  where version = '20260828191000' and statements is null;
 
 
 -- =====================================================================
--- 2) POSTFLIGHT: relectura por version + cero vacias + diff-cero + guardianes.
+-- 2) POSTFLIGHT: relectura POR ELEMENTO + diff-cero por contenido + guardianes.
 -- =====================================================================
 do $$
 declare r record; v_h text; v_n int; v_txt text;
@@ -12239,52 +12266,62 @@ begin
     raise exception 'OLA R postflight: quedaron versiones mudas';
   end if;
   for r in select * from _olar_esperado loop
-    select md5(array_to_string(m.statements, E'\n')), array_length(m.statements, 1)
+    select (select md5(string_agg(md5(u.s), '|' order by u.ord))
+           from unnest(m.statements) with ordinality as u(s, ord)), array_length(m.statements, 1)
       into v_h, v_n from supabase_migrations.schema_migrations m where m.version = r.version;
-    if v_h is distinct from r.md5_cuerpo or v_n is distinct from r.n_sentencias then
-      raise exception 'OLA R postflight: la relectura de % no coincide (md5 %, % sentencias)', r.version, v_h, v_n;
+    if v_h is distinct from r.huella_elems or v_n is distinct from r.n_sentencias then
+      raise exception 'OLA R postflight: la relectura de % no coincide (huella %, % sentencias)', r.version, v_h, v_n;
     end if;
     if exists (select 1 from supabase_migrations.schema_migrations m, unnest(m.statements) s
-                where m.version = r.version and btrim(s) = '') then
-      raise exception 'OLA R postflight: % tiene una sentencia VACIA', r.version;
+                where m.version = r.version and (s is null or btrim(s) = '')) then
+      raise exception 'OLA R postflight: % tiene una sentencia NULL o vacia', r.version;
     end if;
   end loop;
 
   if exists (select 1 from _olar_foto f, lateral (
     select
-      (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private')) as fns,
-      (select md5(string_agg(n.nspname || '.' || p.proname
-          || '(' || pg_get_function_identity_arguments(p.oid) || ')'
-          || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
-          || ':' || p.provolatile::text || ':' || p.prosecdef::text
-          || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
-          || ':' || coalesce(p.proacl::text,'-'), '|'
-          order by n.nspname, p.proname, p.oid))
-        from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
-      (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
-        where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
-      (select count(*) from pg_policy) as policies,
-      (select count(*) from pg_trigger t where not t.tgisinternal) as triggers,
-      (select count(*) from pg_constraint where contype = 'c') as checks,
-      (select count(*) from cron.job) as crons,
-      (select count(*) from pg_description) as comments_n,
-      (select md5(string_agg(d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
-          order by d.objoid, d.objsubid)) from pg_description d) as comments_h,
-      (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
-          order by d.oid), '-')) from pg_default_acl d) as defacl_h,
-      (select md5(string_agg(c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
-          || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-'), '|'
-          order by c.relname, a.attnum))
-        from pg_attribute a
-        join pg_class c on c.oid = a.attrelid
-        join pg_namespace n on n.oid = c.relnamespace
-        left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
-        where n.nspname in ('public','crm','private') and c.relkind = 'r'
-          and a.attnum > 0 and not a.attisdropped) as columnas_h,
-      (select count(*) from public.contratos) as contratos,
-      (select count(*) from crm.leads) as leads
+    (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private')) as fns,
+    (select md5(string_agg(n.nspname || '.' || p.proname
+        || '(' || pg_get_function_identity_arguments(p.oid) || ')'
+        || ':' || md5(p.prosrc) || ':' || p.prorettype::regtype::text
+        || ':' || p.provolatile::text || ':' || p.prosecdef::text
+        || ':' || coalesce(p.proconfig::text,'-') || ':' || p.proowner::regrole::text
+        || ':' || coalesce(p.proacl::text,'-'), '|'
+        order by n.nspname, p.proname, p.oid))
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','crm','private') and p.prokind = 'f') as huella_fns,
+    (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname in ('public','crm','private') and c.relkind in ('r','v','m','i')) as rels,
+    -- Codex v2: CONTENIDO, no conteos
+    (select md5(coalesce(string_agg(pol.polname || ':' || pol.polrelid::regclass::text
+        || ':' || coalesce(pg_get_expr(pol.polqual, pol.polrelid), '-')
+        || ':' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '-'), '|'
+        order by pol.polrelid, pol.polname), '-')) from pg_policy pol) as policies_h,
+    (select md5(coalesce(string_agg(pg_get_triggerdef(t.oid), '|' order by t.oid), '-'))
+      from pg_trigger t where not t.tgisinternal) as triggers_h,
+    (select md5(coalesce(string_agg(c.conname || ':' || pg_get_constraintdef(c.oid), '|'
+        order by c.conrelid, c.conname), '-')) from pg_constraint c where c.contype = 'c') as checks_h,
+    (select md5(coalesce(string_agg(j.jobname || ':' || j.schedule || ':' || j.username || ':' || md5(j.command), '|'
+        order by j.jobid), '-')) from cron.job j) as crons_h,
+    (select md5(coalesce(string_agg(d.classoid::text || ':' || d.objoid::text || ':' || d.objsubid || ':' || md5(d.description), '|'
+        order by d.classoid, d.objoid, d.objsubid), '-')) from pg_description d) as comments_h,
+    (select md5(coalesce(string_agg(d.defaclrole::regrole::text || ':' || coalesce(d.defaclnamespace::regnamespace::text, '-')
+        || ':' || d.defaclobjtype::text || ':' || d.defaclacl::text, '|'
+        order by d.oid), '-')) from pg_default_acl d) as defacl_h,
+    (select md5(string_agg(n.nspname || '.' || c.relname || '.' || a.attname || ':' || a.atttypid::regtype::text
+        || ':' || a.attnotnull::text || ':' || coalesce(pg_get_expr(ad.adbin, ad.adrelid), '-')
+        || ':' || a.attidentity::text || ':' || a.attgenerated::text
+        || ':' || a.attcollation::text || ':' || coalesce(a.attacl::text, '-') || ':' || a.attstattarget::text, '|'
+        order by n.nspname, c.relname, a.attnum))
+      from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      left join pg_attrdef ad on ad.adrelid = a.attrelid and ad.adnum = a.attnum
+      where n.nspname in ('public','crm','private') and c.relkind = 'r'
+        and a.attnum > 0 and not a.attisdropped) as columnas_h,
+    (select count(*) from public.contratos) as contratos,
+    (select count(*) from crm.leads) as leads
   ) d where f is distinct from d) then
     raise exception 'OLA R postflight: el catalogo CAMBIO fuera del registro - un reparador de actas no toca el mundo';
   end if;

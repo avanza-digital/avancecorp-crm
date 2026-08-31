@@ -6272,7 +6272,7 @@ temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arr
 
 ## P-055 · OLA R — LAS DOCE ACTAS MUDAS DEL REGISTRO (2026-08-30/31)
 
-**Estado: 🟡 PREPARADA (v2) — publicar ANTES que la F7.1 (su preflight exige exactamente 189
+**Estado: 🟡 PREPARADA (v3) — publicar ANTES que la F7.1 (su preflight exige exactamente 189
 versiones). Ventana: cualquier momento; sin candado de fecha.** Migración
 `20260831055000_crm_ola_r_las_doce_actas_mudas.sql` (055000 < 060000 a propósito: orden de
 publicación = orden de replay).
@@ -6299,8 +6299,24 @@ su sonda DO (cero DDL — se registra el texto final del repo con esta nota).
 
 **Contrato PRE/POST (refutación 4b de Codex atendida):** el preflight acepta DOS estados globales
 y ninguno más — PRE (189 versiones, 12 mudas, las 12 exactas) → repara; POST (0 mudas y las 12 con
-el cuerpo objetivo EXACTO por md5+conteo; la fila propia puede no existir aún — el runner del
-banco la inserta después) → no-op total. **Un híbrido (p. ej. 11 mudas) ABORTA a propósito.**
+el cuerpo objetivo EXACTO; la fila propia puede no existir aún) → no-op total. **Un híbrido (p. ej.
+11 mudas) ABORTA a propósito.**
+
+**v3 — la SEGUNDA refutación de Codex (NO-GO sobre archivos), atendida entera:** ① la identidad
+del cuerpo es **POR ELEMENTO** — `md5(string_agg(md5(elemento) order by ordinality))` + conteo +
+cero NULL/vacíos — porque el md5 del texto UNIDO no ve fronteras desplazadas (Codex lo demostró
+contra prod con dos arrays distintos de igual join); rige en preflight POST, relectura, rollback y
+registrador · ② tags con **versión completa** `$olar_<version>_<i>$` (los sufijos de 6 dígitos
+colisionaban entre 0820190500 y 0828190500 — benigno para PG, falso para el verificador) · ③ la
+foto del diff-cero compara **CONTENIDO, no conteos**: policies con qual/withcheck, triggers por
+triggerdef, checks por definición, cron por comando, comments con classoid, default-ACL con
+namespace, columnas con identidad/generación/collation/ACL/stats · ④ el rollback **BLOQUEA las 12
+filas (FOR UPDATE)** antes de chequear — el TOCTOU entre chequear y anular quedó cerrado · ⑤ el
+registrador verifica cuerpo **y nombre** de la fila propia ANTES del insert · ⑥ **el registrador
+de la F7.1 quedó ENCADENADO**: aborta si la Ola R no está registrada o quedan mudas — el orden de
+la noche ya no depende del operador. Medido: `OLAR-V3-ENSAYO-VERDE` + `OLAR-V4-CICLO-VERDE`
+(reparar → no-op POST → rollback endurecido → mundo original → re-reparar) + ambos registradores
+falla-cerrado en cadena.
 
 **Diff-cero ampliado (refutación 4c atendida):** la foto antes/después cubre funciones con huella
 completa, rels, policies, triggers, checks, crons, **pg_description (comments), pg_default_acl y
@@ -6322,7 +6338,8 @@ aquí por nombre — el cuerpo registrado NO se maquilla (historia primero). **�
 divide con OTRA convención (RETOMAR-54: «merge re-registra statements sin `;`» — los nuestros SÍ
 llevan su `;`), la 055000 abortará en el replay — **fail-closed, jamás corrupción**. Sonda barata
 ANTES del replay completo: dejar que el runner registre UNA versión (la 191000, 6 sentencias) y
-comparar su md5 contra `2b48a5eee28654b3f93c7781c663a88c`; si difiere, reconciliar documentado.
+comparar su huella POR ELEMENTO contra `3390c367bf9b573b525c508ad21bd576`; si difiere (p. ej. el
+runner divide sin `;` — RETOMAR-54), reconciliar documentado.
 **P2-3 (para la próxima ola que copie el patrón de foto):** añadir `classoid` y `nspname` a las
 claves de orden de comments_h/columnas_h — hoy cero empates medidos y el fallo sería solo falso
 ROJO.

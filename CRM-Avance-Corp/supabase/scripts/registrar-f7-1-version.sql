@@ -15,6 +15,15 @@ declare v_a text[]; v_nombre text; v_n integer; v_fila text[]; v_txt text;
     array['public.actualizar_numero_contrato(uuid,text,text,text)', '{postgres=X/postgres}']
   ];
 begin
+  -- ENCADENADO (Codex 30/08): la Ola R (20260831055000) debe estar publicada
+  -- Y registrada antes - el orden de la noche no se deja al operador.
+  if not exists (select 1 from supabase_migrations.schema_migrations
+                  where version = '20260831055000' and statements is not null) then
+    raise exception 'Registro F7.1: la OLA R (20260831055000) no esta registrada - publicar y registrar la Ola R PRIMERO';
+  end if;
+  if (select count(*) from supabase_migrations.schema_migrations where statements is null) <> 0 then
+    raise exception 'Registro F7.1: aun hay versiones mudas - la Ola R debio repararlas';
+  end if;
   foreach v_fila slice 1 in array v_acl loop
     if (select p.proacl::text from pg_proc p where p.oid = v_fila[1]::regprocedure)
        is distinct from v_fila[2] then
