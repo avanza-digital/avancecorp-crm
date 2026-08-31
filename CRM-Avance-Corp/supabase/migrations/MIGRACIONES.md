@@ -6345,6 +6345,43 @@ llevan su `;`), la 055000 abortará en el replay — **fail-closed, jamás corru
 ANTES del replay completo: dejar que el runner registre UNA versión (la 191000, 6 sentencias) y
 comparar su huella POR ELEMENTO contra `3390c367bf9b573b525c508ad21bd576`; si difiere (p. ej. el
 runner divide sin `;` — RETOMAR-54), reconciliar documentado.
+
+**🔬 SONDA DEL RUNNER — INTENTO 31/08 (~15:00–16:15 UTC): 3 de 3 bancos muertos ANTES de
+nuestras migraciones; el diagnóstico pasó por refutación de Codex y quedó AJUSTADO (v2).**
+Prod verificada sana antes de tocar nada (191 versiones · 0 mudas · la 191000 clava
+`3390c367…` con 6 elementos — ojo: la fórmula lleva separador `'|'`, `md5(string_agg(md5(s),'|'
+order by ord))`; sin el `'|'` sale `e6768388…` y es un falso rojo). Los tres bancos
+(`sonda-runner`/`-2`/`-3`):
+- `sonda-runner`: 37 min clavado en CREATING_PROJECT sin que el runner conectara jamás; el
+  `reset_branch` lo marcó MIGRATIONS_FAILED sin dejar UNA conexión en postgres_logs.
+- `sonda-runner-2` y `-3` (mismo patrón): el runner SÍ corre y muere en
+  `relation "storage.buckets" does not exist`; en toda la ventana los servicios del branch
+  nunca inicializaron (`TenantNotFound` ×62 en realtime_logs, health 400 en storage_logs,
+  `storage.buckets` ausente ~30 min). Registro del banco creado con **0 versiones**;
+  `crm`/`private` nunca nacen. status.supabase.com sin incidente de branching.
+**Lo MEDIDO que reencuadra la P1-1:** la primera versión del registro es
+`20260708000000_baseline_squash_portal` con **UN solo elemento** en `statements` — un dump
+entero (contiene `-- Name: crear_contrato(jsonb, jsonb)` y referencias a `storage.buckets`).
+Lo que los logs del banco 2 muestran ejecutándose con cabecera pg_dump es EXACTAMENTE contenido
+de esa baseline, no un «dump de plataforma» (la lectura inicial de esta sesión decía eso y SE
+RETRACTA). El fallo cae DENTRO de la baseline, en su dependencia de `storage.buckets`.
+**Refutación de Codex (2 pases, 31/08) — lo que TUMBÓ del diagnóstico inicial:** ① la
+causalidad «storage roto → runner muere» NO está probada, solo hay simultaneidad — podría ser
+orden normal de arranque donde el restore corre antes del bootstrap de storage (P0); ② «el
+runner divide la baseline con su propia convención» NO está demostrado — ver un CREATE FUNCTION
+suelto es compatible con que el emisor ya lo entregue por tramos (P1); ③ «nada cambió salvo la
+Ola R» es falso — entre el banco sano del 16/08 y hoy entraron ~90 archivos de migración (P1);
+lo que SÍ se sostiene: el fallo ocurre ANTES de alcanzar cualquiera de las 12 versiones de la
+Ola R, así que la Ola R no es la causa del stack observado; y la baseline n=1 ya pasó limpia en
+bancos reales (16/08), no es defecto intrínseco (P2).
+**Protocolo del PRÓXIMO intento (diseño de Codex, mejor que repetir a ciegas):** capturar
+timestamps de (a) primer SQL del restore, (b) primer error `storage.buckets`, (c) primera salud
+válida de storage y realtime — si storage inicializa ANTES del replay y el replay muere igual,
+el sospechoso pasa a ser el registro; si storage nunca inicializa, plataforma. (El control
+«padre pre-Ola R» que Codex propone no es viable: el padre es prod y ya está reparada.)
+Los 3 branches borrados (facturación cerrada). Si el patrón reincide con storage sano, ticket a
+Supabase con los refs `ltyihtgfzllskhbgrycy`/`qwzasniwivfahqajnoxq`/`mqyfkiwjfjjdalqiqbbu` y
+las horas de este bloque.
 **P2-3 (para la próxima ola que copie el patrón de foto):** añadir `classoid` y `nspname` a las
 claves de orden de comments_h/columnas_h — hoy cero empates medidos y el fallo sería solo falso
 ROJO.
