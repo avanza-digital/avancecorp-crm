@@ -6272,8 +6272,10 @@ temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arr
 
 ## P-055 · OLA R — LAS DOCE ACTAS MUDAS DEL REGISTRO (2026-08-30/31)
 
-**Estado: 🟡 PREPARADA (v3) — publicar ANTES que la F7.1 (su preflight exige exactamente 189
-versiones). Ventana: cualquier momento; sin candado de fecha.** Migración
+**Estado: ✅ EN PRODUCCIÓN — publicada por Miguel el 30/08 noche (registro 190). Verificado
+post-publish: 190 versiones, 0 mudas, las 12 reparadas EXACTAS por huella-por-elemento, 0 sin
+nombre, fila propia con cuerpo y nombre; gates vigencia+analítica+f7 verdes. Pendiente declarado:
+la sonda del runner del banco (P1-1) antes del replay completo.** Migración
 `20260831055000_crm_ola_r_las_doce_actas_mudas.sql` (055000 < 060000 a propósito: orden de
 publicación = orden de replay).
 
