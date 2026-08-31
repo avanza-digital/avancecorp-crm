@@ -6091,3 +6091,30 @@ Si se revierte en prod: retirar a mano la fila `20260831010000` del registro.
 
 Archivos: `migrations/20260831010000_crm_atr_3a_lentes_y_ficha_al_analista.sql` ·
 `scripts/rollback-atr3a-p055.sql` · `scripts/registrar-atr3a-version.sql`.
+
+---
+
+## 20260829183627 · `crm_ficha_360_scope_historial`
+
+🟢 **DESPLEGADA Y VERIFICADA EN PRODUCCIÓN EL 2026-08-29.** Reintegra la Ficha
+360 como panel lateral de Mi cartera sobre el núcleo ya desplegado, sin portar
+en bloque la rama preview. El registro remoto es
+`20260829195528_crm_ficha_360_scope_historial`.
+
+La migración es forward-only y expone `crm.cliente_ficha_fn(uuid)` con la
+proyección mínima de identidad y contacto, scopeada por
+`private.cliente_ids_visibles_crm()`; alinea el historial y las operaciones con
+la asignación actual del cliente y registra las reasignaciones como actividad.
+No redefine contratos, tareas, numeración, PDF ni writers de cartera.
+
+La única intervención sobre `public` es un trigger `AFTER UPDATE OF
+asesor_perfil_id` en `public.perfiles`; no cambia columnas, constraints,
+policies ni privilegios de `public`. Su oráculo versionado se ejecuta mediante
+`npm run test:ficha-360:db` y el preflight de solo lectura mediante
+`npm run test:ficha-360:db:preflight`.
+
+El frontend completo se publicó primero como
+`crm-20260829T195236Z-7cfc31bb8ea8` y luego con las mejoras UX como
+`crm-20260829T220216Z-e8ac4262b75d` (`build-20260829T220216363Z`). El detalle
+operativo está en [[Deploy Ficha 360 2026-08-29]] y
+[[Mejoras UX Ficha 360 2026-08-29]].

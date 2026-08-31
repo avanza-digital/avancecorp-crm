@@ -22,6 +22,7 @@ import {
   listarCuentasBancariasCliente,
   listarMisContratos,
   obtenerClienteDetalle,
+  obtenerClienteFichaComercial,
   obtenerCronograma,
   obtenerTitulares,
 } from './crm-api'
@@ -89,6 +90,25 @@ function filaDetalle(sobre: Record<string, unknown> = {}): Record<string, unknow
     titular_distinto_usd: true,
     beneficiario_nombre_usd: 'JUANA PEREZ',
     beneficiario_dni_usd: '87654321',
+    ...sobre,
+  }
+}
+
+/** Proyección mínima de crm.cliente_ficha_fn: identidad y contacto, sin PII bancaria. */
+function filaFichaComercial(sobre: Record<string, unknown> = {}): Record<string, unknown> {
+  const basica = filaBasica()
+  return {
+    id: basica.id,
+    nombres: basica.nombres,
+    apellidos: basica.apellidos,
+    nombre_completo: basica.nombre_completo,
+    tipo_documento: basica.tipo_documento,
+    dni: basica.dni,
+    correo: basica.correo,
+    telefono: basica.telefono,
+    asesor_perfil_id: basica.asesor_perfil_id,
+    activo: basica.activo,
+    creado_en: basica.creado_en,
     ...sobre,
   }
 }
@@ -267,6 +287,46 @@ describe('obtenerClienteDetalle (crm.cliente_detalle_fn)', () => {
 
     await expect(promesa).rejects.toBeInstanceOf(CrmApiError)
     await expect(promesa).rejects.toMatchObject({ code: 'NO_ENCONTRADO' })
+  })
+})
+
+describe('obtenerClienteFichaComercial (crm.cliente_ficha_fn)', () => {
+  it('usa la RPC scopeada y acepta exclusivamente identidad y contacto', async () => {
+    let lecturasCrudas = 0
+    server.use(
+      http.get(`${BASE}/rest/v1/perfiles`, () => {
+        lecturasCrudas += 1
+        return HttpResponse.json([])
+      }),
+      http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, async ({ request }) => {
+        expect(await request.json()).toEqual({ p_cliente_id: 'cli-1' })
+        return HttpResponse.json([filaFichaComercial()])
+      }),
+    )
+
+    const ficha = await obtenerClienteFichaComercial('cli-1')
+
+    expect(ficha).toEqual(filaFichaComercial())
+    expect(ficha).not.toHaveProperty('domicilio')
+    expect(ficha).not.toHaveProperty('banco')
+    expect(ficha).not.toHaveProperty('creado_por')
+    expect(lecturasCrudas).toBe(0)
+  })
+
+  it('rechaza una respuesta que amplíe accidentalmente la frontera mínima', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, () =>
+        HttpResponse.json([filaFichaComercial({ domicilio: 'NO DEBE VIAJAR' })]),
+      ),
+    )
+
+    await expect(obtenerClienteFichaComercial('cli-1')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('0 filas se traduce a NO_ENCONTRADO sin distinguir ajeno de inexistente', async () => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, () => HttpResponse.json([])))
+
+    await expect(obtenerClienteFichaComercial('ajeno')).rejects.toMatchObject({ code: 'NO_ENCONTRADO' })
   })
 })
 

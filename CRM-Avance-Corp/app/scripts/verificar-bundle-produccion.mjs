@@ -15,6 +15,15 @@ const prohibidos = [
   '2026-01-000901',
 ]
 
+// Contrato de producto del release: «Ver detalle» en Mi cartera debe abrir la
+// Ficha 360 completa. Este gate vive en el build para que una rama posterior no
+// pueda volver a publicar silenciosamente el detalle básico anterior.
+const obligatoriosFicha360 = [
+  'Inversiones y contratos',
+  'Historial de gestiones',
+  'Capital vigente',
+]
+
 async function archivos(directorio) {
   const entradas = await readdir(directorio, { withFileTypes: true })
   const resultado = []
@@ -27,6 +36,7 @@ async function archivos(directorio) {
 }
 
 const coincidencias = []
+const encontradosFicha360 = new Set()
 for (const ruta of await archivos(raiz)) {
   const contenido = (await readFile(ruta)).toString('utf8')
   const contenidoNormalizado = contenido.toLowerCase()
@@ -36,10 +46,22 @@ for (const ruta of await archivos(raiz)) {
       coincidencias.push(`${ruta}: ${prohibido}`)
     }
   }
+  for (const obligatorio of obligatoriosFicha360) {
+    if (contenido.includes(obligatorio)) encontradosFicha360.add(obligatorio)
+  }
 }
 
 if (coincidencias.length > 0) {
   throw new Error(`El bundle productivo contiene codigo o fixtures exclusivos de demo:\n${coincidencias.join('\n')}`)
 }
 
-console.log('BUNDLE_PRODUCCION_SIN_PDFMAKE_NI_FIXTURES_DEMO')
+const faltantesFicha360 = obligatoriosFicha360.filter(
+  (obligatorio) => !encontradosFicha360.has(obligatorio),
+)
+if (faltantesFicha360.length > 0) {
+  throw new Error(
+    `El bundle productivo no contiene la Ficha 360 completa: faltan ${faltantesFicha360.join(', ')}`,
+  )
+}
+
+console.log('BUNDLE_PRODUCCION_SIN_PDFMAKE_NI_FIXTURES_DEMO_Y_CON_FICHA_360')

@@ -5,11 +5,11 @@
 // afirmación FALSA sobre quién es titular legal del capital. Se mockea
 // @/data/crm-queries (sin red) y se monta dentro de <Dialog> porque DialogTitle
 // (Radix) exige el contexto del diálogo, igual que en la pantalla.
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Dialog } from '@/components/ui/dialog'
 import { CrmApiError } from '@/data/crm-api'
-import type { ContratoRow, Titular } from '@/lib/clientes-tipos'
+import type { ContratoRow, Cuota, Titular } from '@/lib/clientes-tipos'
 
 type Consulta<T> = {
   data: T
@@ -21,6 +21,7 @@ type Consulta<T> = {
 }
 
 let TITULARES: Consulta<Titular[] | null> = consulta([])
+let CRONOGRAMA: Consulta<Cuota[] | null> = consulta([])
 
 function consulta<T>(data: T, error: unknown = null): Consulta<T> {
   return {
@@ -64,7 +65,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   return {
     ...actual,
     useContrato: () => consulta(CONTRATO),
-    useCronograma: () => consulta([]),
+    useCronograma: () => CRONOGRAMA,
     useTitulares: () => TITULARES,
     // P-055 Fase 3: el detalle pregunta de quién es la venta. Sin atribución el
     // bloque no se pinta, que es justo lo que estas pruebas esperan ver.
@@ -73,6 +74,11 @@ vi.mock('@/data/crm-queries', async (importActual) => {
 })
 
 const { ContratoDetalle } = await import('./contrato-detalle')
+
+beforeEach(() => {
+  TITULARES = consulta([])
+  CRONOGRAMA = consulta([])
+})
 
 function montar(
   opciones: {
@@ -115,6 +121,58 @@ describe('ContratoDetalle · co-titulares', () => {
 
     expect(screen.getByText('RENTA-BASE · Plan Base 2026')).toBeInTheDocument()
     expect(screen.getByText('v2 · publicada')).toBeInTheDocument()
+  })
+
+  it('resume vencimientos, próxima cuota y saldo antes del cronograma', () => {
+    CRONOGRAMA = consulta([
+      {
+        id: 'cuota-pagada',
+        numero_cuota: 1,
+        fecha_programada: '2026-08-08',
+        monto_programado: 300,
+        estado: 'pagado',
+        tipo: 'cuota',
+        fecha_pago_real: '2026-08-08',
+        monto_pagado: 300,
+      },
+      {
+        id: 'cuota-vencida',
+        numero_cuota: 2,
+        fecha_programada: '2026-09-08',
+        monto_programado: 400,
+        estado: 'vencido',
+        tipo: 'cuota',
+        fecha_pago_real: null,
+        monto_pagado: null,
+      },
+      {
+        id: 'cuota-pendiente',
+        numero_cuota: 3,
+        fecha_programada: '2026-10-08',
+        monto_programado: 500,
+        estado: 'pendiente',
+        tipo: 'cuota',
+        fecha_pago_real: null,
+        monto_pagado: null,
+      },
+      {
+        id: 'retorno-pendiente',
+        numero_cuota: 4,
+        fecha_programada: '2027-07-08',
+        monto_programado: 10000,
+        estado: 'trasladado',
+        tipo: 'retorno',
+        fecha_pago_real: null,
+        monto_pagado: null,
+      },
+    ])
+
+    montar()
+
+    const resumen = screen.getByRole('region', { name: 'Resumen del cronograma' })
+    expect(resumen).toHaveTextContent(/Cuotas vencidas\s*1/)
+    expect(resumen).toHaveTextContent(/Próxima cuota.*S\/ 500/)
+    expect(resumen).toHaveTextContent(/Saldo por pagar\s*S\/ 900/)
   })
 
   it('con co-titulares los lista', () => {

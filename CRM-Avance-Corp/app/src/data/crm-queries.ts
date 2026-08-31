@@ -42,6 +42,7 @@ import {
   listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
+  obtenerClienteFichaComercial,
   obtenerSegundoNumeroDelCliente,
   obtenerCronograma,
   obtenerDatosLegalesContrato,
@@ -84,6 +85,8 @@ export const crmQueryKeys = {
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
   atribucion: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'atribucion'] as const,
+  clienteFichaComercial: (clienteId: string) =>
+    [...crmQueryKeys.clientes(), clienteId, 'ficha-comercial'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
   actividadesCliente: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'actividades-comerciales'] as const,
@@ -242,6 +245,19 @@ export function useAtribucionContrato(contratoId: string, habilitada = true) {
   return useQuery({
     queryKey: crmQueryKeys.atribucion(contratoId),
     queryFn: ({ signal }) => obtenerAtribucionContrato(contratoId, signal),
+    enabled: habilitada,
+    staleTime: 0,
+  })
+}
+
+/**
+  * Identidad y contacto de la Ficha 360. Usa una frontera/caché propia para no
+  * mezclarla con el detalle sensible que precarga el formulario Corregir.
+  */
+export function useClienteFichaComercial(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.clienteFichaComercial(clienteId),
+    queryFn: ({ signal }) => obtenerClienteFichaComercial(clienteId, signal),
     enabled: habilitada,
     staleTime: 0,
   })

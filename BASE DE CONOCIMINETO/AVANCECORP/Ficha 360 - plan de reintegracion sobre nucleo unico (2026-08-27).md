@@ -23,6 +23,11 @@ head_r2_separado: 4f57db1fd0aa0ff886edf1033aed3718f40fdaad
 > sido desplegado**. El resto de esta nota conserva el plan y la evidencia
 > histórica de R4; no debe leerse como estado operativo actual.
 
+> [!success] Candidata integrada — 2026-08-29
+> La reintegración aditiva ya está desarrollada y verificada localmente. Su
+> estado, evidencia y condición de deploy están en
+> [[Ficha 360 - candidata integrada 2026-08-29]]. Producción sigue intacta.
+
 Checkpoint vigente de continuación: [[Checkpoint C0.1 nucleo unico 2026-08-28 R4]]
 (`AVC-F41-360-20260828-R4`).
 
@@ -186,7 +191,7 @@ pendientes captura live, réplica integral y aplicación autorizada en servidor.
 
 `metricas_vendedores_fn` todavía deriva una lectura con ventana/propietario
 distintos y la presenta bajo rótulo de mes calendario. El contrato debe servir
-por total, vendedor y equipo el bundle exacto `operaciones_cartera`,
+por total, Analista y equipo el bundle exacto `operaciones_cartera`,
 `nucleo_convertidos`, `nucleo_divisor`, `nucleo_numerador` y
 `nucleo_conversion_pct`, agregado desde el wrapper canónico — jamás promediando
 porcentajes. Las claves viejas pueden permanecer solo por compatibilidad
@@ -277,7 +282,7 @@ No tocar ni reescribir las migraciones F0–F2.6 ya desplegadas.
 Entregables:
 
 - frontera mínima de `crm.cliente_ficha_fn`;
-- historial por alcance actual y `revision_contrato` aditiva;
+- historial por alcance actual, sin redefinir los writers contractuales;
 - writers de renovación, upgrade y nueva inversión conectados a
   `crm.operaciones_cartera` sin lógica paralela;
 - hardening adaptado a los cuerpos actuales.
@@ -310,8 +315,8 @@ explícitamente «movimientos recientes». Probar clientes que superen el límit
 - Replay desde cero de migraciones actuales más las nuevas.
 - Diff de esquema con allowlist y regeneración de tipos.
 - Paridad del núcleo antes/después; suites F1–F3 completas.
-- RLS por Vendedor, Supervisor, Gerencia y Directorio; reasignación abierta,
-  asesor inactivo, revocación y purga de caché.
+- RLS por Analista, Supervisor, Gerencia y Directorio; reasignación abierta,
+  Analista inactivo, revocación y purga de caché.
 - Adaptar y ejecutar las 43 carreras R2 y el caso misma transacción; el runner
   viejo referencia migraciones antiguas y no se reutiliza sin modificación.
 - PDF read/materialize, actor híbrido Portal/CRM y exclusión bancaria.
