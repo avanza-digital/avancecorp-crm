@@ -41,3 +41,4 @@ tmp/
 
 # --- Artefactos de sesiones de browser-automation (capturas/dumps efímeros) ---
 .playwright-mcp/
+.hermes/
