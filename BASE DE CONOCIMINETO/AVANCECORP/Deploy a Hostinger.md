@@ -49,6 +49,21 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-08-31 (~16:49 hora de Lima) — CRM: restauración de la Ficha
+  360 sobre el release vivo:** el build del 30/08 provenía de una rama paralela
+  y sustituyó la ficha completa por el detalle básico. Se integraron ambos
+  historiales en el merge `f6dd76f` (padres `c9d875b` + `e8ac426`) y se publicó
+  **`crm-20260831T214847Z-f6dd76fa5b7b`**, build
+  **`build-20260831T214847197Z`**, ZIP SHA-256
+  **`38b916999bef740f8d5b811ebed58865276234dd57311e5b0b06fc407e4f9661`**.
+  Gate: 184 archivos y 2.492/2.492 pruebas, 145 focalizadas y E2E de Ficha 360
+  6/6; lint, tipos, cobertura, build, bundle y duplicación en verde. En vivo,
+  HTML, versión, JS/CSS principal, Mi cartera y cliente API coinciden byte por
+  byte; ZIP 404 en CRM y portal. El empaquetado exige ahora las tres secciones
+  distintivas de la ficha y la herramienta de deploy rechaza ramas que no
+  desciendan del release vivo. Detalle en
+  [[Incidente y restauracion Ficha 360 2026-08-31]].
+
 - **Deploy 2026-08-27 (~16:17 hora de Lima) — CRM: terminología visual de citas:**
   cambio exclusivamente de frontend: toda la interfaz presenta **cita / citas**,
   mientras conserva internamente `reunion`, `reunion_agendada`, rutas, métricas,
