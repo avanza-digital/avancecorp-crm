@@ -6310,14 +6310,22 @@ relectura md5 + cero sentencias vacías + suma 136 congelada.
 **Medido contra prod (todo deshecho): `OLAR-V2-ENSAYO-VERDE` · `OLAR-V2-CICLO-VERDE`**
 (reparar → RE-aplicar no-op por el camino POST → deshacer con el rollback → mundo original EXACTO
 con los 9 names a NULL → re-reparar). Registrador propio verificado falla-cerrado (jamás la muda
-13). Rollback `scripts/rollback-ola-r-p055.sql` con anti-pisado por md5.
+13). Rollback `scripts/rollback-ola-r-p055.sql` con anti-pisado por md5+conteo, name-guard por valor exacto y assert_f7 en su postflight (P2-1/P2-2 del auditor atendidos).
 
 **Replay en banco (condición 4 de Miguel): POST-PUBLISH inmediato y declarado.** Un banco creado
 HOY muere por la enfermedad que esto cura (las 12 mudas). Tras publicar: crear branch y replay-ar
 la historia completa; **2 versiones con hambre de datos declarada** que pueden exigir la receta
 manual: `20260819211815` (su sonda exige domicilios existentes, líneas 263–289) y
 `20260820190500` (exige contratos previos, línea 544). Cualquier fallo del replay se documenta
-aquí por nombre — el cuerpo registrado NO se maquilla (historia primero).
+aquí por nombre — el cuerpo registrado NO se maquilla (historia primero). **⚠️ P1-1 del auditor
+(30/08), declarado:** el camino POST exige md5+conteo EXACTOS, y si el runner del CLI del banco
+divide con OTRA convención (RETOMAR-54: «merge re-registra statements sin `;`» — los nuestros SÍ
+llevan su `;`), la 055000 abortará en el replay — **fail-closed, jamás corrupción**. Sonda barata
+ANTES del replay completo: dejar que el runner registre UNA versión (la 191000, 6 sentencias) y
+comparar su md5 contra `2b48a5eee28654b3f93c7781c663a88c`; si difiere, reconciliar documentado.
+**P2-3 (para la próxima ola que copie el patrón de foto):** añadir `classoid` y `nspname` a las
+claves de orden de comments_h/columnas_h — hoy cero empates medidos y el fallo sería solo falso
+ROJO.
 
 **Repo (la otra mitad de la ola):** 8 `aplicar-*.sh` + 2 fixtures huérfanos (medidos: los otros 3
 tienen consumidores y SE QUEDAN) + `.tmp-verificar-atribucion-capital.mjs` → `scripts/archivo/`;

@@ -32,6 +32,7 @@ begin
     left join supabase_migrations.schema_migrations m on m.version = r.version
    where m.statements is null
       or md5(array_to_string(m.statements, E'\n')) is distinct from r.md5_cuerpo
+      or coalesce(array_length(m.statements, 1), 0) is distinct from r.n_sentencias
    limit 1;
   if v_mal is not null then
     raise exception 'rollback OLA R: la version % NO tiene el cuerpo que esta ola escribio - NO se pisa nada', v_mal;
@@ -42,9 +43,22 @@ update supabase_migrations.schema_migrations
    set statements = null
  where version in ('20260819162752', '20260819211815', '20260820190500', '20260826151907', '20260826154500', '20260826173523', '20260826174500', '20260826182000', '20260826182500', '20260828190000', '20260828190500', '20260828191000');
 
-update supabase_migrations.schema_migrations
+-- (auditor 30/08 P2-2): el name vuelve a NULL SOLO si es exactamente el que
+-- esta ola escribio - un name ajeno pre-existente se conserva.
+update supabase_migrations.schema_migrations m
    set name = null
- where version in ('20260819162752', '20260819211815', '20260820190500', '20260826151907', '20260826154500', '20260826173523', '20260826174500', '20260826182000', '20260826182500');
+  from (values
+  ('20260819162752', '20260819162752_crm_domicilio_legal_faltante'),
+  ('20260819211815', '20260819211815_crm_domicilio_una_sola_puerta'),
+  ('20260820190500', '20260820190500_crm_documento_regimen_por_fecha_de_firma'),
+  ('20260826151907', '20260826151907_crm_cartera_pagina_telefono_alternativo'),
+  ('20260826154500', '20260826154500_crm_leads_telefono_alternativo_fijos_e_internacional'),
+  ('20260826173523', '20260826173523_crm_leads_telefono_alternativo_crudo'),
+  ('20260826174500', '20260826174500_crm_cartera_pagina_telefono_alternativo_crudo'),
+  ('20260826182000', '20260826182000_crm_canonizar_contacto'),
+  ('20260826182500', '20260826182500_crm_crear_lead_telefono_alternativo')
+  ) as e(version, nombre)
+ where m.version = e.version and m.name = e.nombre;
 
 do $$
 begin
@@ -57,6 +71,9 @@ begin
   end if;
   perform private.assert_analitica_leads_citas();
   perform private.assert_analista_vigencia();
+  if private.assert_f7_piezas_cerradas() not like 'OK:%' then
+    raise exception 'rollback OLA R: el vigilante F7 no da OK';
+  end if;
 end $$;
 
 commit;
