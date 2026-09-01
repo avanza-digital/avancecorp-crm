@@ -6285,8 +6285,13 @@ advisors por SQL: **0 en todas las clases de ERROR** · la demo qorilazo sigue f
 mundo intacto: 0 anulaciones reales, 0 deudas.
 **Con ATR-4 dentro ANTES del primer sello, la pregunta transitoria del contrato («las deudas de
 capital ya registradas, ¿se saldan o se condonan?») MUERE SIN NACER: nunca existirá una deuda
-con la regla vieja.** Pendiente aparte: publicar el front con `/release-crm` (textos nuevos de
-anular; los viejos solo mentirían si alguien anula, y hoy no hay anulaciones reales).
+con la regla vieja.** ✅ **Y el FRONT publicado el mismo día** (Miguel invocó `/release-crm`): release
+`crm-20260901T173750Z-3d89d2787123` (commit `3d89d27`), gates 2433/2433, manifiesto
+`ARTEFACTO_OK`, smoke 200 y **bundle vivo `index-Bogte3tJ.js` idéntico al local por SHA-256**,
+con los textos nuevos medidos DENTRO del bundle de producción. Rollback inmediato:
+`crm-20260901T170814Z-cf3812973845.zip`. 🔴 Trampa repetida (RETOMAR-55): `release:crm` aborta
+por archivos untracked — los 5 eran guiones SQL de otra sesión, ninguno toca `app/`, así que se
+usó `--allow-dirty` explícito y el manifiesto quedó anclado al commit correcto.
 
 **Estado previo (el paquete que autorizó publicar):** Migración `20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql` ·
 `scripts/ensayo-atr4-conducta-sintetica.sql` (**ATR4-ENSAYO-CONDUCTA-VERDE** contra prod,
