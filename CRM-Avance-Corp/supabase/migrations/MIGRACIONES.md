@@ -6635,3 +6635,10 @@ la RESPUESTA → front primero, lección del 33.º release).
    (re-estampa pendientes y estampa v6 en adelante; cierra la ventana).
 Rollback: redeploy del commit v9 + `create or replace` con literal v5 + re-estampar pendientes
 v6→v5 (los CHECK ampliados pueden quedarse: son aditivos).
+
+**✅ PUBLICADO 2026-09-01 (~17:15 UTC), en el orden previsto:** front release
+`crm-20260901T170814Z-cf3812973845` (index-CALV-OvO.js verificado en disco del servidor,
+caché purgada) → edge **v11** (contrastada byte a byte contra el árbol tras el deploy, 8/8)
+→ migración por `db query --linked --file` (Miguel con `!`). Verificado contra prod después:
+default v6, ambos CHECK con v6, `crear_job` estampa v6, 14 pendientes re-estampados (0 en v5),
+sellados intactos (69 v5 + 3 v2, ledger 72).
