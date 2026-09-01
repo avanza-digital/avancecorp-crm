@@ -185,8 +185,9 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
       })
     }
     if (demo) {
-      // Los anulados NO suman, igual que en el servidor: `totales` los excluye.
-      for (const f of filas) if (!f.anuladoEn) sumar(f.moneda, f.monto, 1)
+      // ATR-4 (regla 31/08): anular sanciona la CONVERSION, no el dinero — el
+      // capital de un cierre anulado SE CONSERVA, igual que en el servidor.
+      for (const f of filas) sumar(f.moneda, f.monto, 1)
     } else {
       for (const t of consulta.data?.totales ?? []) sumar(t.moneda, t.capital, t.cierres)
     }

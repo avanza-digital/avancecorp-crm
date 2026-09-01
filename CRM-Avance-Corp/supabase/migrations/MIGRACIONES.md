@@ -6329,6 +6329,20 @@ razones INVENTADAS (→ las vivas leídas de prod, en dollar-quote) y le faltaba
 textos del front prometían descuento de cuota (→ «baja la conversión; el capital no se toca», con
 sus tests) · faltaba esta entrada del ledger.
 
+**🔎 SEGUNDA VUELTA DE CODEX (01/09 tarde): NO-GO ATENDIDO ENTERO.** Sus 7 arreglos: ① el
+registrador embebía una migración VIEJA (se editó después de generarlo) → re-embebido del archivo
+FINAL, literal verificado byte-idéntico (md5 `b46efb62dce76bc3793f64cb2e85da82`, 55 113 bytes) ·
+② `afecta_cuota` de la RPC `anular_cierre_avance` queda como DEUDA DECLARADA (el front ya no lo
+lee; renombrar el payload exige migrar la RPC pública + api + mocks — va con la limpieza
+semántica de F8, no se apila aquí) · ③ el modo DEMO del front excluía anulados del total →
+alineado a la regla (suman; test espera 14 000) · ④ los actos B/D asertan también
+`pendiente_numerador/pen/usd/detalle` exactos · ⑤ rótulos del rollback a «8 cuerpos» · ⑥ esta
+actualización · ⑦ los SELECTs que su sandbox no pudo correr, corridos contra el catálogo VIVO:
+**0 consumidores de dinero adicionales** con `cierres_externos+anulado` o `'vigente'`+dinero
+(los 2 hallazgos usan «anulado» para CONVERSIÓN o para bloquear ediciones — correctos bajo la
+regla; la prosa vieja de `corregir_cierre_externo` va a la limpieza de F8), 0 vistas. Ensayo
+re-corrido tras todo: **ATR4-ENSAYO-CONDUCTA-VERDE** · front **2433/2433**.
+
 **⚠️ Operativo del publish:** mismo patrón de la noche — `db query --linked --file` migración →
 `registrar-atr4-version.sql` → gates → advisors. El ensayo retiene el candado global de cierre:
 no publicar metas ni anular en ese minuto. 🔴 Si se revierte: `rollback-atr4-p055.sql` (solo con

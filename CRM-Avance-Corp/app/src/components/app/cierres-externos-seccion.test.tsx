@@ -176,9 +176,9 @@ describe('SeccionEnCooperativas', () => {
     expect(within(seccion).getAllByText(/8,000/).length).toBeGreaterThan(0)
   })
 
-  it('un cierre ANULADO se sigue viendo, marcado, y NO suma al total', () => {
-    // Que la fila desaparezca sería peor que verla: el analista vería bajar su
-    // total sin ninguna explicación. Se ve, se marca, y no cuenta.
+  it('un cierre ANULADO se sigue viendo, marcado, y SIGUE sumando al total', () => {
+    // ATR-4: anular sanciona la conversión, no el dinero. La fila se ve,
+    // marcada con su chip y su motivo, y su capital SE CONSERVA en el total.
     montar(<SeccionEnCooperativas demo />, [
       cierreDemo({ cierreId: 'demo-cx-vivo', leadId: 'l-vivo', nombre: 'Cierre Vivo', monto: 5000 }),
       cierreDemo({
@@ -193,10 +193,9 @@ describe('SeccionEnCooperativas', () => {
     const seccion = screen.getByRole('region', { name: 'En cooperativas' })
     expect(within(seccion).getByText('Cierre Falso')).toBeInTheDocument()
     expect(within(seccion).getByText('ANULADO')).toBeInTheDocument()
-    // El total es 5.000 (solo el vivo), NO 14.000 — que es lo que daría si el
-    // anulado siguiera sumando.
-    expect(within(seccion).getAllByText(/5,000/).length).toBeGreaterThan(0)
-    expect(within(seccion).queryByText(/14,000/)).not.toBeInTheDocument()
+    // El total es 14.000 (vivo + anulado): el capital del anulado SE CONSERVA
+    // (ATR-4). Si volviera a excluirse, daría 5.000 y este assert lo cazaría.
+    expect(within(seccion).getAllByText(/14,000/).length).toBeGreaterThan(0)
   })
 
   it('la mini-ficha muestra el N.° de operación y, si está anulado, su motivo', async () => {

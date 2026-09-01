@@ -1031,9 +1031,28 @@ update private.analitica_leads_citas_exenciones
        razon = 'SOLO informativa tras ATR-4 (payload/afecta_cuota — que significa «afecta la conversion» — y retroceso de etapa); compara por la atribucion efectiva de la cadena. Produccion y la deuda de mes sellado ya no le preguntan.'
  where objeto = 'private.contratos_afectados_por_anulacion(uuid)';
 
+update private.analitica_leads_citas_exenciones
+   set huella = (select md5(regexp_replace(regexp_replace(
+                   lower(coalesce(p.prosrc, pg_get_functiondef(p.oid))),
+                   '--[^\n]*',' ','g'),'/\*.*?\*/',' ','g'))
+                 from pg_proc p
+                 where p.oid = 'crm.cierres_externos_fn(date)'::regprocedure),
+       razon = 'Lista las cooperativas del mes para gerencia: listado operativo con su conteo de apoyo, no una calculadora comercial. Tras ATR-4 sus totales excluyen SOLO la demo declarada (misma exclusion por id que el nucleo): los anulados reales SIGUEN siendo dinero (regla 31/08).'
+ where objeto = 'crm.cierres_externos_fn(date)';
+
 update private.analitica_lc_sello
    set sello = private.huella_exenciones_analitica_lc(), sellado_en = now()
  where id;
+
+-- Y el censo de VIGENCIA (F5.a): el ranking del Directorio es puerta exenta
+-- alli, sellada por md5 CRUDO del cuerpo — su bisturi 5 la caduco.
+update private.analista_vigencia_exenciones
+   set huella = (select md5(regexp_replace(regexp_replace(p.prosrc,
+                   '--[^\n]*',' ','g'),'/\*.*?\*/',' ','g'))
+                 from pg_proc p
+                 where p.oid = 'public.directorio_ranking_analistas()'::regprocedure),
+       razon = $razon_v$No es una puerta de analista: usa rol = analista para SELECCIONAR a quien se rankea, y el acceso esta gateado por es_directorio() o es_admin(). Tras ATR-4 su pierna coop corta por la MEDIDA del nucleo (la anulada real sigue siendo dinero, regla 31/08).$razon_v$
+ where objeto = 'public.directorio_ranking_analistas()';
 
 -- =====================================================================
 -- 7) POSTFLIGHT: paridad al byte con el mundo de hoy + trinquetes.

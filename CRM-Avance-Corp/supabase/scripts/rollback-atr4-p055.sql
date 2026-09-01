@@ -1,4 +1,4 @@
--- ROLLBACK de ATR-4 (20260901180000) — restaura los 4 cuerpos PRE-ATR-4 AL BYTE.
+-- ROLLBACK de ATR-4 (20260901180000) — restaura los 8 cuerpos PRE-ATR-4 AL BYTE.
 -- ⚠️ La fila 20260901180000 del registro NO se borra aqui: retirarla A MANO.
 begin;
 set local lock_timeout = '5s';
@@ -1028,7 +1028,7 @@ update private.analista_vigencia_exenciones
        razon = $razon_v$No es una puerta de analista: usa rol = analista para SELECCIONAR a quien se rankea, y el acceso esta gateado por es_directorio() o es_admin().$razon_v$
  where objeto = 'public.directorio_ranking_analistas()';
 
--- Verificacion: los 4 volvieron AL BYTE y los guardianes quedan verdes.
+-- Verificacion: los 8 volvieron AL BYTE y los guardianes quedan verdes.
 do $$
 declare v_fn constant text[][] := array[
     array['private.capital_episodios(timestamptz,timestamptz,boolean,uuid[])', '90f1d8c2342becb94cc3d3e023227078'],
@@ -1059,5 +1059,5 @@ begin
   if v_verd not like 'OK%' then raise exception 'rollback ATR-4: vigencia en rojo: %', v_verd; end if;
 end $$;
 
-select 'ROLLBACK-ATR4-OK: los 4 cuerpos pre-ATR-4 restaurados al byte' as resultado;
+select 'ROLLBACK-ATR4-OK: los 8 cuerpos pre-ATR-4 restaurados al byte' as resultado;
 commit;

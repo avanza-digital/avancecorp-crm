@@ -1465,7 +1465,8 @@ begin
     raise exception 'ACTO B: no nacio la deuda del mes sellado';
   end if;
   if v_aj.capital_pen <> 0 or v_aj.capital_usd <> 0 or v_aj.detalle <> '[]'::jsonb
-     or v_aj.pendiente_pen <> 0 or v_aj.pendiente_usd <> 0 then
+     or v_aj.pendiente_pen <> 0 or v_aj.pendiente_usd <> 0
+     or v_aj.pendiente_detalle <> '[]'::jsonb then
     raise exception 'ROJO ACTO B: la deuda cargo CAPITAL (pen %, usd %, detalle %) y la regla es solo conversion', v_aj.capital_pen, v_aj.capital_usd, v_aj.detalle;
   end if;
   if v_aj.numerador <= 0 then
@@ -1474,8 +1475,9 @@ begin
   select case when bool_or(e.fue_referido) then v_peso else 1 end into v_delta
   from private.conversion_episodios(v_ini, v_fin, null::date, true, '{}'::uuid[], v_peso) e
   where e.lead_id = v_coop.lead_id and e.tipo = 'cierre';
-  if round(v_aj.numerador,3) is distinct from round(v_delta,3) then
-    raise exception 'ROJO ACTO B: numerador % distinto del episodio %', v_aj.numerador, v_delta;
+  if round(v_aj.numerador,3) is distinct from round(v_delta,3)
+     or round(v_aj.pendiente_numerador,3) is distinct from round(v_delta,3) then
+    raise exception 'ROJO ACTO B: numerador %/pendiente % distinto del episodio %', v_aj.numerador, v_aj.pendiente_numerador, v_delta;
   end if;
   raise notice 'ACTO B OK: deuda solo-conversion (numerador exacto %, capital 0/0)', v_aj.numerador;
 
@@ -1496,14 +1498,17 @@ begin
   end if;
   select a.* into v_aj from crm.ajustes_mes_cerrado a where a.lead_id = v_lead.id;
   if v_aj.id is null then raise exception 'ACTO D: no nacio la deuda'; end if;
-  if v_aj.capital_pen <> 0 or v_aj.capital_usd <> 0 or v_aj.detalle <> '[]'::jsonb then
+  if v_aj.capital_pen <> 0 or v_aj.capital_usd <> 0 or v_aj.detalle <> '[]'::jsonb
+     or v_aj.pendiente_pen <> 0 or v_aj.pendiente_usd <> 0
+     or v_aj.pendiente_detalle <> '[]'::jsonb then
     raise exception 'ROJO ACTO D: la deuda cargo CAPITAL y la regla es solo conversion';
   end if;
   select case when bool_or(e.fue_referido) then v_peso else 1 end into v_delta
   from private.conversion_episodios(v_ini, v_fin, null::date, true, '{}'::uuid[], v_peso) e
   where e.lead_id = v_lead.id and e.tipo = 'cierre';
-  if v_aj.numerador <= 0 or round(v_aj.numerador,3) is distinct from round(v_delta,3) then
-    raise exception 'ROJO ACTO D: numerador % distinto del episodio %', v_aj.numerador, v_delta;
+  if v_aj.numerador <= 0 or round(v_aj.numerador,3) is distinct from round(v_delta,3)
+     or round(v_aj.pendiente_numerador,3) is distinct from round(v_delta,3) then
+    raise exception 'ROJO ACTO D: numerador %/pendiente % distinto del episodio %', v_aj.numerador, v_aj.pendiente_numerador, v_delta;
   end if;
 
   -- 4) La foto sellada sigue INTACTA tras las dos anulaciones (es foto).
