@@ -1,3 +1,40 @@
+## 🔴 Ramas y despliegue: se sale de `main` y se vuelve a `main`
+
+**La regla, en una línea: toda sesión sale de `main`, y vuelve a `main` el mismo día que publica.**
+
+**Por qué existe esta regla.** El despliegue no añade: **REEMPLAZA el sitio entero** con la foto
+de UNA rama. Si publicas desde una rama que no contiene lo que otra sesión publicó ayer, lo de
+ayer desaparece — nadie lo borra, es que no estaba en tu foto. Entre agosto y el 01/09/2026 el
+tronco estuvo parado 29 días mientras cada sesión abría su rama y la abandonaba tras publicar:
+se acumularon 33 ramas, la Ficha 360 tuvo que rescatarse a mano cinco veces, y el 01/09 el
+preflight rechazó un despliegue que habría borrado ~3 767 líneas de trabajo ajeno.
+
+**El invariante:** `main` SIEMPRE contiene lo que está en producción (CRM, portal y las
+migraciones ya aplicadas). Puede contener además trabajo aún sin publicar; lo que nunca puede
+es quedarse atrás.
+
+**Al empezar una sesión:**
+1. `git checkout main && git pull avancecorp main` — y trabaja desde ahí, o desde una rama
+   corta que salga de `main`.
+2. Si te encuentras en una rama vieja (`wip/…`, `release/…` de otro día), NO trabajes encima:
+   comprueba antes con `git merge-base --is-ancestor main <tu-rama>` que contiene el tronco.
+
+**Antes de publicar (obligatorio, sin excepciones):**
+- **CRM** → `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
+  Compara el candidato con el commit VIVO (`crm.miavance.com/version.json` → `buildId` →
+  manifiesto en `CRM-Avance-Corp/releases/`) y **se niega** si tu build no contiene lo vivo.
+  Nunca lo trates como un trámite: es la única defensa contra publicar la rama equivocada.
+- **Portal** → `node _DEV_NO_SUBIR/preflight-portal.mjs <zip>`. Comprueba que el ZIP no borre
+  archivos que hoy están vivos y que contenga lo publicado.
+
+**Después de publicar, el mismo día:** fusiona a `main` lo que acabas de publicar y súbelo
+(`git push avancecorp main`). Una rama que se publica y no vuelve al tronco es la semilla del
+próximo borrado accidental.
+
+**Si el preflight te rechaza:** NO fuerces. Averigua qué rama está viva, crea una rama nueva
+desde ese tip y asienta tu cambio encima (`git checkout <tu-commit> -- <archivos>` tras
+comprobar que el parche aplica limpio); luego vuelve a construir y a pasar el preflight.
+
 ## CODEgraph (MCP)
 
 Este proyecto usa el MCP **CODEgraph** (`mcp__codegraph__*`) para buscar y ubicarse en el código.
