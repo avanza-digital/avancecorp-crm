@@ -6273,11 +6273,54 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
-## P-055 · ATR-2 — TRIPLE ENSAYO DEL 01/09: PUBLICABLE YA, SIN ESPERAR AL SELLO
+## P-055 · ATR-2 — ✅ EN PRODUCCIÓN EL 01/09 (REGISTRO 192), NUEVE DÍAS ANTES DEL CALENDARIO
 
-**Estado: 🟢 LISTA PARA PUBLICAR HOY con el `!` de Miguel** (sigue SIN publicar; decisión suya).
-Producción verificada intacta tras los tres ensayos: 191 versiones, 0 meses sellados, núcleo
-`capital_episodios` con su huella original `872f5ad4…`, 0 clones residuales, ATR-2 no registrada.
+**Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01, con agosto ABIERTO y ningún mes sellado.**
+Batería post-publish EN VERDE:
+- **Registro 192**, ATR-2 registrada CON cuerpo, **0 actas mudas** (la Ola R sigue en pie).
+- **Núcleo `capital_episodios`**: huella `90f1d8c2342becb94cc3d3e023227078` (la que exigía el
+  registrador), **6 llamadas al resolutor de cadena**, definer + stable + `search_path` vacío,
+  ACL `{postgres=X/postgres}`.
+- **Las otras 11 funciones ancladas: 11/11 con su huella original** — el mundo alrededor intacto.
+- **Delta real: 0** contratos cuya atribución resuelta difiera de la vieja ⇒ efecto en números de
+  hoy CERO, como prometía el contrato.
+- **Los 4 guardianes en OK**: vigencia (6 puertas), analítica (30 contadores), F7 (14 piezas
+  vigiladas), auditoría (0 tablas sin rastro, 3 exenciones). **Los 4 gates del repo en verde**
+  (`gate:vigencia`, `gate:analitica`, `gate:f7`, `gate:auditoria`). `vigia_alertas`: 0 filas.
+- **Advisors**: el MCP de Supabase estaba desconectado, así que se midieron **por SQL las clases
+  que producen ERROR** — vistas definer expuestas 0 · tablas expuestas sin RLS 0 · policies con
+  RLS apagada 0 · funciones del área sin `search_path` 0 · índices inválidos 0 · triggers
+  deshabilitados 0. Queda pendiente el pase del MCP cuando reconecte, por completitud.
+
+**🔎 AUDITORÍA DE CODEX SOBRE LA PUBLICACIÓN (01/09, 23 min): GO-CONDICIONADO — y sus condiciones
+quedaron CERRADAS o DECLARADAS el mismo día.** Su sandbox no tenía token, así que sus consultas
+pendientes las corrió esta sesión contra prod:
+- ✅ **El cuerpo REGISTRADO es byte a byte el archivo del repo** (md5 `ac63b470c366fc573e0e2491982ed8fd`,
+  22 829 bytes, 1 statement) — Codex además verificó que las 3 copias dentro del registrador son
+  idénticas al archivo.
+- ✅ **Delta re-medido en LAS DOS piernas: contrato 0 y DESGLOSE 0** (el desglose no se había medido
+  post-publish; también vacío). Re-medir otra vez el 09/09 con el ensayo de la víspera.
+- ✅ **0 residuos de los ensayos** (0 clones, 0 tablas `_atr2%`/`_sello%`, 0 contratos marcador,
+  0 sellos).
+- ✅ Advisors por MCP (los corrió Codex): seguridad 0 ERROR (39 INFO/126 WARN de las clases de
+  siempre) · rendimiento 0 ERROR. Coincide con la medición por SQL de esta sesión.
+- 🔴 **Fe de erratas (ángulo 9 de Codex, CONFIRMADO en vivo):** la cabecera de ATR-2 — que quedó
+  registrada dentro de `statements` — afirma que `metricas_capital_mes_fn` y
+  `metricas_vencimientos_fn` «recortan por cartera»; **eso quedó OBSOLETO antes de publicarla**:
+  la ATR-3a (registro 188, 31/08) ya las alineó por `e.analista_id`, y así están vivas (medido:
+  cortan por analista, no por `asesor_perfil_id`; el Directorio conserva ambos criterios a
+  propósito). El cuerpo registrado NO se maquilla (regla de la Ola R: historia primero); esta nota
+  es la corrección.
+- 🟡 **Lo que los gates verdes NO prueban (ángulo 6, tiene razón):** los 4 gates/guardianes miden
+  sus dominios (vigencia/analítica/F7/auditoría), no la CONDUCTA de ATR-2 — de los 4, solo el de
+  analítica menciona `capital_episodios` (por sus exenciones) y ninguno vigila la cadena. La
+  conducta con una cadena REAL y `p_global=false` es la **deuda ya declarada del ciclo de banco**
+  (fixture de upgrade), bloqueado por el aprovisionamiento de Supabase; se salda allí.
+- 🟡 Protocolo (ángulo 7): `test:rls` no corre contra prod (0 cuentas demo — deuda declarada del
+  banco) y los advisors corrieron DESPUÉS del publish, no antes; queda dicho.
+
+**Estado previo (el triple ensayo que autorizó publicar hoy):** producción intacta tras los tres,
+191 versiones, 0 meses sellados, núcleo con su huella vieja `872f5ad4…`, 0 clones residuales.
 
 **🔑 EL CANDADO NO ES UNA FECHA — es CONDICIONAL, y hoy NO salta.** El preflight (línea 99) dice:
 aborta si `agosto NO sellado` **Y** `hay renovaciones-de-cadena con mes agosto en el delta`. Con el
