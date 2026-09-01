@@ -966,6 +966,7 @@ export type Database = {
       leads: {
         Row: {
           activo: boolean
+          alta_manual: boolean
           actualizado_en: string
           asignado_supervisor_id: string | null
           categoria_interes: string | null
@@ -1004,6 +1005,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          alta_manual?: boolean
           actualizado_en?: string
           asignado_supervisor_id?: string | null
           categoria_interes?: string | null
@@ -1042,6 +1044,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          alta_manual?: boolean
           actualizado_en?: string
           asignado_supervisor_id?: string | null
           categoria_interes?: string | null

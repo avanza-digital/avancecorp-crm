@@ -177,10 +177,27 @@ function fechaPartes(iso: string): { dia: number; mes: string; anio: number } {
   return { dia, mes: meses[mes - 1] ?? "", anio };
 }
 
-function plazoVisible(inicioIso: string, finIso: string): string {
+function ultimoDiaDelMes(anio: number, mes: number): number {
+  return new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+}
+
+function mesesCompletosContrato(inicioIso: string, finIso: string): number {
   const [ai = 0, mi = 1, di = 1] = inicioIso.split("-").map(Number);
   const [af = 0, mf = 1, df = 1] = finIso.split("-").map(Number);
-  const meses = Math.max(0, (af - ai) * 12 + mf - mi - (df < di ? 1 : 0));
+  const mesesCalendario = (af - ai) * 12 + mf - mi;
+  if (mesesCalendario <= 0) return 0;
+
+  // Al sumar meses, el formulario ajusta fechas como 31/08 al último día de
+  // febrero. Ese día ajustado sí completa el mes contractual correspondiente.
+  const diaAniversarioAjustado = Math.min(di, ultimoDiaDelMes(af, mf));
+  return Math.max(
+    0,
+    mesesCalendario - (df < diaAniversarioAjustado ? 1 : 0),
+  );
+}
+
+function plazoVisible(inicioIso: string, finIso: string): string {
+  const meses = mesesCompletosContrato(inicioIso, finIso);
   if (meses > 0 && meses % 12 === 0) {
     const anios = meses / 12;
     return `${
@@ -597,7 +614,9 @@ export function construirContratoPdf(
     ...clausulaEstatica(4),
     tituloClausula("QUINTA: PLAZO DE DURACIÓN DEL CONTRATO"),
     parrafoNumerado(5, 1, [
-      { text: "El plazo de duración obligatoria del presente contrato será de " },
+      {
+        text: "El plazo de duración obligatoria del presente contrato será de ",
+      },
       {
         text: plazoVisible(contrato.fechaInicio, contrato.fechaVencimiento)
           .toUpperCase(),

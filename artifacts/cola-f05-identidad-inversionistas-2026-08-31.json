@@ -1,0 +1,521 @@
+{
+  "fuente": "produccion linked, transaccion READ ONLY",
+  "query": "CRM-Avance-Corp/supabase/scripts/cola-f05-identidad-inversionistas.sql",
+  "clasificacion": "INTERNO - pseudonimizado - no publicar",
+  "rows": [
+    {
+      "accion_propuesta": "Confirmar si es el caso legítimo colaborador-inversionista (decisión ya soportada por el modelo) o un dato mal cargado; solo entonces decidir una identidad única",
+      "caso_codigo": "F05-1D11FA4A9165",
+      "categoria": "clave_compartida_con_otro_rol",
+      "detalle": {
+        "cierres_externos": 0,
+        "perfiles_cliente": 1,
+        "perfiles_otro_rol": 1,
+        "roles_no_cliente": [
+          "superadmin"
+        ],
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "public.perfiles (ambos roles)",
+      "grupo_persona_hash": "00ed799aefffc98698c7a6e93d20f00a",
+      "impacto_comercial": "La misma clave documental vive en un perfil cliente y en un perfil de otro rol: riesgo de mezclar dos usos de una persona",
+      "referencia_hash": "2295fe8b71b004e0952f3ee18b66dc20"
+    },
+    {
+      "accion_propuesta": "Confirmar si es el caso legítimo colaborador-inversionista (decisión ya soportada por el modelo) o un dato mal cargado; solo entonces decidir una identidad única",
+      "caso_codigo": "F05-9B5643F93782",
+      "categoria": "clave_compartida_con_otro_rol",
+      "detalle": {
+        "cierres_externos": 0,
+        "perfiles_cliente": 1,
+        "perfiles_otro_rol": 1,
+        "roles_no_cliente": [
+          "analista"
+        ],
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "public.perfiles (ambos roles)",
+      "grupo_persona_hash": "260a9f0bfce8b46a9ac6e545a6768e17",
+      "impacto_comercial": "La misma clave documental vive en un perfil cliente y en un perfil de otro rol: riesgo de mezclar dos usos de una persona",
+      "referencia_hash": "b2990b1145a9d7f7cd1fd7e91b70baf4"
+    },
+    {
+      "accion_propuesta": "Verificar transaccion_read_only = on y la zona horaria antes de leer la cola",
+      "caso_codigo": "F05-CONTEXTO",
+      "categoria": "contexto",
+      "detalle": {
+        "nota": "cola F0.5 pseudonimizada; el caso se relocaliza re-ejecutando esta misma consulta (hashes deterministas de tipo+PK); datos vivos: los conteos pueden variar entre corridas",
+        "observado_en_lima": "2026-08-31 17:36:31",
+        "rol_de_sesion": "postgres",
+        "transaccion_read_only": "on",
+        "zona": "America/Lima"
+      },
+      "estado_recomendado": "control",
+      "fuente": "sesion",
+      "grupo_persona_hash": null,
+      "impacto_comercial": null,
+      "referencia_hash": null
+    },
+    {
+      "accion_propuesta": "Miguel confirma si este cierre es el dato DEMO conocido; si lo es, decidir marca o exclusión ANTES del backfill; esta cola no lo asume ni lo modifica",
+      "caso_codigo": "F05-9788102555C4",
+      "categoria": "demo_por_confirmar",
+      "detalle": {
+        "cooperativa": "qorilazo",
+        "moneda": "PEN",
+        "monto": 100000,
+        "tipo_documento": "DNI",
+        "vigente": false
+      },
+      "estado_recomendado": "requiere_confirmacion_demo",
+      "fuente": "crm.cierres_externos",
+      "grupo_persona_hash": "6282978e570a6a73f3e1240faeae355f",
+      "impacto_comercial": "Si es demo, infla el capital vigente de Qorilazo (lente con demo vs sin demo del censo F0); crm.cierres_externos no distingue demo",
+      "referencia_hash": "331251d4ca68aa4083f2b58b18f3382b"
+    },
+    {
+      "accion_propuesta": "Auditoría documental humana: decidir cuál documento es el verdadero y corregir el equivocado por su puerta de dominio; el backfill C no debe asumir la sustitución",
+      "caso_codigo": "F05-2D71D7E467D7",
+      "categoria": "discrepancia_documental_convertido",
+      "detalle": {
+        "difiere_por": "valor",
+        "lead_dni_valido": true,
+        "tipo_documento_fuente": "DNI",
+        "via_herencia": "perfil"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "crm.leads + public.perfiles",
+      "grupo_persona_hash": "c008e6974b3d7a3377110cff958b4a9d",
+      "impacto_comercial": "El vínculo C sigue siendo inequívoco por su fuente, pero el DNI declarado en el lead no coincide: auditar antes del backfill definitivo",
+      "referencia_hash": "ec660a2f1747be89a7692198dd71334c"
+    },
+    {
+      "accion_propuesta": "Mapear al caso documental pendiente de la persona (ver grupo) y revalidar; el monto no se toca, solo se resuelve la identidad",
+      "caso_codigo": "F05-3A123A0B1727",
+      "categoria": "episodio_capital_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "empresa": "avance",
+        "estado": "activo",
+        "medida": "stock",
+        "moneda": "USD",
+        "monto_agregado_del_caso": 7500
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.capital_episodios",
+      "grupo_persona_hash": "260a9f0bfce8b46a9ac6e545a6768e17",
+      "impacto_comercial": "Capital que no puede vincularse a una persona: bloquea hacer obligatorio el vínculo de identidad en F1+",
+      "referencia_hash": "1960d0cab7e54638349d9deb744c3533"
+    },
+    {
+      "accion_propuesta": "Mapear al caso documental pendiente de la persona (ver grupo) y revalidar; el monto no se toca, solo se resuelve la identidad",
+      "caso_codigo": "F05-3FAF76D171D2",
+      "categoria": "episodio_capital_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "empresa": "avance",
+        "estado": "activo",
+        "medida": "stock",
+        "moneda": "USD",
+        "monto_agregado_del_caso": 10000
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.capital_episodios",
+      "grupo_persona_hash": "4eaee8ca9253abd480de609f536c618c",
+      "impacto_comercial": "Capital que no puede vincularse a una persona: bloquea hacer obligatorio el vínculo de identidad en F1+",
+      "referencia_hash": "89ea9482a42d6bfc5e7a9159c128dd90"
+    },
+    {
+      "accion_propuesta": "Mapear al caso documental pendiente de la persona (ver grupo) y revalidar; el monto no se toca, solo se resuelve la identidad",
+      "caso_codigo": "F05-7B91ABBB44B5",
+      "categoria": "episodio_capital_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "empresa": "avance",
+        "estado": "activo",
+        "medida": "stock",
+        "moneda": "USD",
+        "monto_agregado_del_caso": 4000
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.capital_episodios",
+      "grupo_persona_hash": "260a9f0bfce8b46a9ac6e545a6768e17",
+      "impacto_comercial": "Capital que no puede vincularse a una persona: bloquea hacer obligatorio el vínculo de identidad en F1+",
+      "referencia_hash": "2ee53b98e709beb55346a4ebfb8f9496"
+    },
+    {
+      "accion_propuesta": "Mapear al caso documental pendiente de la persona (ver grupo) y revalidar; el monto no se toca, solo se resuelve la identidad",
+      "caso_codigo": "F05-9AE006929BE8",
+      "categoria": "episodio_capital_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "empresa": "avance",
+        "estado": "activo",
+        "medida": "stock",
+        "moneda": "PEN",
+        "monto_agregado_del_caso": 100000
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.capital_episodios",
+      "grupo_persona_hash": "4eaee8ca9253abd480de609f536c618c",
+      "impacto_comercial": "Capital que no puede vincularse a una persona: bloquea hacer obligatorio el vínculo de identidad en F1+",
+      "referencia_hash": "bd2c975f99ad142ccc449a2c1fa4ab86"
+    },
+    {
+      "accion_propuesta": "Resolver primero la excepción documental de la persona (ver grupo); repetir el censo y recién entonces incluirlo en la deduplicación identidad/mes",
+      "caso_codigo": "F05-1B68DA67CCCD",
+      "categoria": "episodio_conversion_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "aporte_numerador_ponderado": 1,
+        "canal": "avance",
+        "fue_referido": false,
+        "mes": "2026-08",
+        "mes_sellado": false,
+        "tipo_episodio": "cierre"
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.conversion_episodios",
+      "grupo_persona_hash": "1511fcf7b3107b870e95eeb85e74b702",
+      "impacto_comercial": "Este episodio no puede deduplicarse por persona: aporta como la regla viva hasta revisión humana y queda fuera del delta proyectado",
+      "referencia_hash": "429e6fb82023d087c934a613014317aa"
+    },
+    {
+      "accion_propuesta": "Resolver primero la excepción documental de la persona (ver grupo); repetir el censo y recién entonces incluirlo en la deduplicación identidad/mes",
+      "caso_codigo": "F05-69FBD3F9B020",
+      "categoria": "episodio_conversion_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "aporte_numerador_ponderado": 1,
+        "canal": "avance",
+        "fue_referido": false,
+        "mes": "2026-08",
+        "mes_sellado": false,
+        "tipo_episodio": "cierre"
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.conversion_episodios",
+      "grupo_persona_hash": "7fe5677d920b79386fcce3c361b678ae",
+      "impacto_comercial": "Este episodio no puede deduplicarse por persona: aporta como la regla viva hasta revisión humana y queda fuera del delta proyectado",
+      "referencia_hash": "a360044af6fc3a94aee2e75503156fca"
+    },
+    {
+      "accion_propuesta": "Resolver primero la excepción documental de la persona (ver grupo); repetir el censo y recién entonces incluirlo en la deduplicación identidad/mes",
+      "caso_codigo": "F05-87C9C8F55DF9",
+      "categoria": "episodio_conversion_sin_identidad",
+      "detalle": {
+        "anulado": false,
+        "aporte_numerador_ponderado": 1,
+        "canal": "operacion_cartera",
+        "fue_referido": false,
+        "mes": "2026-08",
+        "mes_sellado": false,
+        "tipo_episodio": "operacion"
+      },
+      "estado_recomendado": "revision_humana",
+      "fuente": "private.conversion_episodios",
+      "grupo_persona_hash": "260a9f0bfce8b46a9ac6e545a6768e17",
+      "impacto_comercial": "Este episodio no puede deduplicarse por persona: aporta como la regla viva hasta revisión humana y queda fuera del delta proyectado",
+      "referencia_hash": "9193edf73b4eb82600d858788a2b15e7"
+    },
+    {
+      "accion_propuesta": "Gerencia asigna responsable de relación en el backfill (regla F0: perfil sin asesor o cierre sin vigencia); sin responsable no se habilitan acciones",
+      "caso_codigo": "F05-6F6AD4033283",
+      "categoria": "identidad_sin_responsable",
+      "detalle": {
+        "clase": "A",
+        "n_cierres": 0,
+        "n_perfiles": 1,
+        "perfil_sin_asesor": true,
+        "sin_cierre_vigente": false,
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "e6d32ece109c933fa7a4328f0bdf5812",
+      "impacto_comercial": "Identidad migrable pero sin responsable de relación que la opere comercialmente",
+      "referencia_hash": "c076e8f63ba03c2e02ed44aca917fdc6"
+    },
+    {
+      "accion_propuesta": "Gerencia asigna responsable de relación en el backfill (regla F0: perfil sin asesor o cierre sin vigencia); sin responsable no se habilitan acciones",
+      "caso_codigo": "F05-865CA4878C3E",
+      "categoria": "identidad_sin_responsable",
+      "detalle": {
+        "clase": "A",
+        "n_cierres": 0,
+        "n_perfiles": 1,
+        "perfil_sin_asesor": true,
+        "sin_cierre_vigente": false,
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "65b5be0b761fff115e817f872d4dcb37",
+      "impacto_comercial": "Identidad migrable pero sin responsable de relación que la opere comercialmente",
+      "referencia_hash": "f5c5c204ea68aa969e9ba3d68e41e2bb"
+    },
+    {
+      "accion_propuesta": "Gerencia asigna responsable de relación en el backfill (regla F0: perfil sin asesor o cierre sin vigencia); sin responsable no se habilitan acciones",
+      "caso_codigo": "F05-8FCAB057B73B",
+      "categoria": "identidad_sin_responsable",
+      "detalle": {
+        "clase": "A",
+        "n_cierres": 0,
+        "n_perfiles": 1,
+        "perfil_sin_asesor": true,
+        "sin_cierre_vigente": false,
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "0a61c4276d8c2854856036679f22ce60",
+      "impacto_comercial": "Identidad migrable pero sin responsable de relación que la opere comercialmente",
+      "referencia_hash": "af89cd6278ab984e2f99b1a136b10783"
+    },
+    {
+      "accion_propuesta": "Gerencia asigna responsable de relación en el backfill (regla F0: perfil sin asesor o cierre sin vigencia); sin responsable no se habilitan acciones",
+      "caso_codigo": "F05-B6FB9BD1DB41",
+      "categoria": "identidad_sin_responsable",
+      "detalle": {
+        "clase": "B",
+        "n_cierres": 1,
+        "n_perfiles": 0,
+        "perfil_sin_asesor": false,
+        "sin_cierre_vigente": true,
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "crm.cierres_externos",
+      "grupo_persona_hash": "6282978e570a6a73f3e1240faeae355f",
+      "impacto_comercial": "Identidad migrable pero sin responsable de relación que la opere comercialmente",
+      "referencia_hash": "53b0892cfdb5313ca3f2a66e5f5e1ad2"
+    },
+    {
+      "accion_propuesta": "Gerencia asigna responsable de relación en el backfill (regla F0: perfil sin asesor o cierre sin vigencia); sin responsable no se habilitan acciones",
+      "caso_codigo": "F05-C55BAD0400E4",
+      "categoria": "identidad_sin_responsable",
+      "detalle": {
+        "clase": "A",
+        "n_cierres": 0,
+        "n_perfiles": 1,
+        "perfil_sin_asesor": true,
+        "sin_cierre_vigente": false,
+        "tipo_documento": "DNI"
+      },
+      "estado_recomendado": "requiere_confirmacion",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "96e4d7094d6cfe728e75fc11b05ea150",
+      "impacto_comercial": "Identidad migrable pero sin responsable de relación que la opere comercialmente",
+      "referencia_hash": "1ce482bca9e7da5a94a2ad3d0ae0b2a1"
+    },
+    {
+      "accion_propuesta": "Corregir tipo o valor del documento por la puerta vigente del Portal; no crear identidad hasta que valide",
+      "caso_codigo": "F05-C39D7CB61D04",
+      "categoria": "perfil_documento_invalido",
+      "detalle": {
+        "activo": true,
+        "longitud_documento": 4,
+        "patron_esperado": "8 dígitos",
+        "solo_digitos": true,
+        "tipo_documento_declarado": "DNI"
+      },
+      "estado_recomendado": "requiere_correccion",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "4eaee8ca9253abd480de609f536c618c",
+      "impacto_comercial": "El formato del documento no pasa el contrato documental: bloquea la identidad automática de esta persona",
+      "referencia_hash": "a1bbef3a8b2248c6d4bc72be9f0308eb"
+    },
+    {
+      "accion_propuesta": "Capturar el documento por la puerta vigente del Portal, revalidar formato y repetir el censo antes del backfill",
+      "caso_codigo": "F05-EA358E69CA05",
+      "categoria": "perfil_sin_documento",
+      "detalle": {
+        "activo": true,
+        "nota": "clase E del censo F0; el contrato F0 no crea identidad operativa sin documento verificado",
+        "tiene_asesor": true
+      },
+      "estado_recomendado": "cuarentena",
+      "fuente": "public.perfiles",
+      "grupo_persona_hash": "7cd045e087735a327b85fa70552cbd6c",
+      "impacto_comercial": "Sin documento no puede nacer identidad automática ni hacerse obligatorio el vínculo de su capital",
+      "referencia_hash": "018a55432dbddb9607ba52c25aefe996"
+    },
+    {
+      "accion_propuesta": "Si algún conteo no coincide con lo esperado del F0 canónico (16:10:26 Lima), explicar la deriva por actividad viva antes de usar la cola",
+      "caso_codigo": "F05-RECONCILIACION",
+      "categoria": "reconciliacion_f0",
+      "detalle": {
+        "categorias": {
+          "clave_compartida_con_otro_rol": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 2,
+            "observado": 2
+          },
+          "demo_por_confirmar": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 1,
+            "observado": 1
+          },
+          "discrepancia_documental_convertido": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 1,
+            "observado": 1
+          },
+          "episodio_capital_sin_identidad": {
+            "cuadra": false,
+            "delta": 2,
+            "esperado_historico": 2,
+            "observado": 4
+          },
+          "episodio_conversion_sin_identidad": {
+            "cuadra": false,
+            "delta": 1,
+            "esperado_historico": 2,
+            "observado": 3
+          },
+          "identidad_sin_responsable": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 5,
+            "observado": 5
+          },
+          "perfil_documento_invalido": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 1,
+            "observado": 1
+          },
+          "perfil_sin_documento": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 1,
+            "observado": 1
+          },
+          "veto_sin_identidad_fuerte": {
+            "cuadra": true,
+            "delta": 0,
+            "esperado_historico": 4,
+            "observado": 4
+          }
+        },
+        "cuadra_con_f0_canonico": false,
+        "gate": "DETENER_Y_EXPLICAR_DERIVA",
+        "identidades_automaticas": {
+          "clase_A_esperado": 392,
+          "clase_A_observado": 393,
+          "clase_B_esperado": 10,
+          "clase_B_observado": 10
+        },
+        "nota": "El gate compara con la foto histórica 16:10:26. Si falla, la cola sigue siendo evidencia read-only, pero NO se usa para F1 hasta explicar la deriva. senial_debil_agregada no entra al gate."
+      },
+      "estado_recomendado": "control",
+      "fuente": "esta consulta",
+      "grupo_persona_hash": null,
+      "impacto_comercial": null,
+      "referencia_hash": null
+    },
+    {
+      "accion_propuesta": "Revisión manual opcional al preparar el backfill; ninguna acción automática",
+      "caso_codigo": "F05-76015CD39AA0",
+      "categoria": "senial_debil_agregada",
+      "detalle": {
+        "leads_afectados": 1,
+        "nota": "solo conteo agregado; sin casos individuales para no exponer coincidencias de PII",
+        "senial": "por_nombre"
+      },
+      "estado_recomendado": "solo_informativo",
+      "fuente": "crm.leads vs public.perfiles/crm.cierres_externos",
+      "grupo_persona_hash": null,
+      "impacto_comercial": "Coincidencia solo por señal débil: puede avisar, jamás une identidades (regla 4.2 del contrato)",
+      "referencia_hash": "faf0c589aa71408f7e507807a1c1c519"
+    },
+    {
+      "accion_propuesta": "Revisión manual opcional al preparar el backfill; ninguna acción automática",
+      "caso_codigo": "F05-93B75EC70E49",
+      "categoria": "senial_debil_agregada",
+      "detalle": {
+        "leads_afectados": 1,
+        "nota": "solo conteo agregado; sin casos individuales para no exponer coincidencias de PII",
+        "senial": "por_telefono"
+      },
+      "estado_recomendado": "solo_informativo",
+      "fuente": "crm.leads vs public.perfiles/crm.cierres_externos",
+      "grupo_persona_hash": null,
+      "impacto_comercial": "Coincidencia solo por señal débil: puede avisar, jamás une identidades (regla 4.2 del contrato)",
+      "referencia_hash": "2394868086f5d72282b2cc554a59f4c0"
+    },
+    {
+      "accion_propuesta": "Mantener el veto a nivel de lead; centralizarlo recién cuando la persona obtenga identidad documental (p. ej. al convertir); jamás vincular por teléfono/correo/nombre",
+      "caso_codigo": "F05-225BAD82D6D0",
+      "categoria": "veto_sin_identidad_fuerte",
+      "detalle": {
+        "dni_valido": false,
+        "etapa": "nuevo",
+        "motivo": "sin documento en el lead ni fuente heredada",
+        "tiene_dni": false,
+        "vivo": true
+      },
+      "estado_recomendado": "cuarentena",
+      "fuente": "crm.leads",
+      "grupo_persona_hash": "d92a945cf24ee6ec402d325fbbf25a6d",
+      "impacto_comercial": "El veto no contactar debe centralizarse por persona (invariante 7 del contrato) y hoy no hay clave A/B a la que subirlo",
+      "referencia_hash": "2c7397511be7862a2d9b57cb1b82a3d4"
+    },
+    {
+      "accion_propuesta": "Mantener el veto a nivel de lead; centralizarlo recién cuando la persona obtenga identidad documental (p. ej. al convertir); jamás vincular por teléfono/correo/nombre",
+      "caso_codigo": "F05-5E40B84D279F",
+      "categoria": "veto_sin_identidad_fuerte",
+      "detalle": {
+        "dni_valido": false,
+        "etapa": "nuevo",
+        "motivo": "sin documento en el lead ni fuente heredada",
+        "tiene_dni": false,
+        "vivo": true
+      },
+      "estado_recomendado": "cuarentena",
+      "fuente": "crm.leads",
+      "grupo_persona_hash": "bfd8d4093b7d65f3c790dcfe98f74f0b",
+      "impacto_comercial": "El veto no contactar debe centralizarse por persona (invariante 7 del contrato) y hoy no hay clave A/B a la que subirlo",
+      "referencia_hash": "8cfafb42e5d49a701b8a503a7fcd3ac4"
+    },
+    {
+      "accion_propuesta": "Mantener el veto a nivel de lead; centralizarlo recién cuando la persona obtenga identidad documental (p. ej. al convertir); jamás vincular por teléfono/correo/nombre",
+      "caso_codigo": "F05-D4B50C18AD9C",
+      "categoria": "veto_sin_identidad_fuerte",
+      "detalle": {
+        "dni_valido": false,
+        "etapa": "nuevo",
+        "motivo": "sin documento en el lead ni fuente heredada",
+        "tiene_dni": false,
+        "vivo": true
+      },
+      "estado_recomendado": "cuarentena",
+      "fuente": "crm.leads",
+      "grupo_persona_hash": "55f1655ac6048ea780135564ec48b0e7",
+      "impacto_comercial": "El veto no contactar debe centralizarse por persona (invariante 7 del contrato) y hoy no hay clave A/B a la que subirlo",
+      "referencia_hash": "9d78c901b803a341373bf2a59f403e4c"
+    },
+    {
+      "accion_propuesta": "Mantener el veto a nivel de lead; centralizarlo recién cuando la persona obtenga identidad documental (p. ej. al convertir); jamás vincular por teléfono/correo/nombre",
+      "caso_codigo": "F05-E5E5AEE1D8D6",
+      "categoria": "veto_sin_identidad_fuerte",
+      "detalle": {
+        "dni_valido": false,
+        "etapa": "nuevo",
+        "motivo": "sin documento en el lead ni fuente heredada",
+        "tiene_dni": false,
+        "vivo": true
+      },
+      "estado_recomendado": "cuarentena",
+      "fuente": "crm.leads",
+      "grupo_persona_hash": "102fa4ac90dd697a06080993ee8a4fe6",
+      "impacto_comercial": "El veto no contactar debe centralizarse por persona (invariante 7 del contrato) y hoy no hay clave A/B a la que subirlo",
+      "referencia_hash": "c01f5cb73d7ed6fafee0e2a1902b49d1"
+    }
+  ]
+}

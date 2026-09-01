@@ -1096,16 +1096,11 @@ function FormularioNuevoLead({
                 <option value="" disabled>
                   Selecciona…
                 </option>
-                {/* Regla D8 (Miguel, 2026-08-11), espejo del 42501 del servidor
-                    (20260811210049): el alta MANUAL solo admite lo que un
-                    humano declara — Referido, Walking y Otro. LANDING y
-                    FORMULARIO se cargan solos por el puente y ofrecerlos aquí
-                    sería invitar a suplantar al canal. Y el referido lo
-                    registra SOLO el analista, a su propio nombre: con el 15 %
-                    fuera del divisor, esa etiqueta mueve el porcentaje de
-                    alguien. */}
+                {/* Decisión de Miguel (2026-09-01): LANDING y FORMULARIO
+                    también pueden declararse en el alta manual. Referido
+                    conserva su regla especial: solo lo registra el analista,
+                    a su propio nombre, porque esa etiqueta mueve su conversión. */}
                 {ORIGENES
-                  .filter((o) => o.k === 'referido' || o.k === 'oficina' || o.k === 'otro')
                   .filter((o) => o.k !== 'referido' || yo?.rol === 'vendedor')
                   .map((o) => (
                     <option key={o.k} value={o.k}>

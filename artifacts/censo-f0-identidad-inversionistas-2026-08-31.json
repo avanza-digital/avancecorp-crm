@@ -1,0 +1,617 @@
+{
+  "fuente": "produccion linked, transaccion READ ONLY",
+  "query": "CRM-Avance-Corp/supabase/scripts/censo-f0-identidad-inversionistas.sql",
+  "rows": [
+    {
+      "detalle": {
+        "nota": "Datos observados en vivo; solo agregados, PII cero. cierres_externos no distingue demo (sin es_demo).",
+        "observado_en_lima": "2026-08-31 16:10:26",
+        "rol_de_sesion": "postgres",
+        "transaccion_read_only": "on",
+        "zona": "America/Lima"
+      },
+      "metrica": "censo_f0_identidad",
+      "seccion": "0_contexto",
+      "valor": null
+    },
+    {
+      "detalle": {
+        "esperadas_sin_registros": [],
+        "inesperadas": 0,
+        "nota": "catálogo F0 explícito: solo Avance, Qorilazo y Prodelco",
+        "prodelco": 2,
+        "qorilazo": 8
+      },
+      "metrica": "catalogo_cooperativas",
+      "seccion": "1_inventario",
+      "valor": "10"
+    },
+    {
+      "detalle": {
+        "anulados": 0,
+        "monto_pen_vigente": 10000,
+        "por_tipo_documento": {
+          "DNI": 2
+        },
+        "vigentes": 2
+      },
+      "metrica": "cierres_prodelco",
+      "seccion": "1_inventario",
+      "valor": "2"
+    },
+    {
+      "detalle": {
+        "anulados": 1,
+        "monto_pen_vigente": 305800,
+        "por_tipo_documento": {
+          "DNI": 8
+        },
+        "vigentes": 7
+      },
+      "metrica": "cierres_qorilazo",
+      "seccion": "1_inventario",
+      "valor": "8"
+    },
+    {
+      "detalle": {
+        "convergentes_perfil_y_cierre": 0,
+        "solo_cierre": 10,
+        "solo_perfil": 394
+      },
+      "metrica": "claves_documento_total",
+      "seccion": "1_inventario",
+      "valor": "404"
+    },
+    {
+      "detalle": {
+        "demo": 2,
+        "por_estado": {
+          "activo": 476,
+          "vencido": 1
+        }
+      },
+      "metrica": "contratos_total",
+      "seccion": "1_inventario",
+      "valor": "477"
+    },
+    {
+      "detalle": {
+        "nota": "la misma clave documental existe en public.perfiles y en crm.cierres_externos"
+      },
+      "metrica": "convergencias_perfil_cierre",
+      "seccion": "1_inventario",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "perfiles_involucrados": 0
+      },
+      "metrica": "duplicados_multiples_perfiles_misma_clave",
+      "seccion": "1_inventario",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "con_cierre_externo": 10,
+        "con_perfil": 15,
+        "contradictorios_dni": 1,
+        "doble_via": 0,
+        "huerfanos": 0,
+        "sin_perfil": 10
+      },
+      "metrica": "leads_convertidos",
+      "seccion": "1_inventario",
+      "valor": "25"
+    },
+    {
+      "detalle": {
+        "ausente": 806,
+        "invalido": 0,
+        "valido": 25
+      },
+      "metrica": "leads_dni",
+      "seccion": "1_inventario",
+      "valor": "831"
+    },
+    {
+      "detalle": {
+        "con_perfil": 15,
+        "convertidos": 25,
+        "descartados": 170,
+        "inactivos": 0,
+        "sin_perfil": 816,
+        "vivos": 636
+      },
+      "metrica": "leads_total",
+      "seccion": "1_inventario",
+      "valor": "831"
+    },
+    {
+      "detalle": {
+        "claves_involucradas": 0
+      },
+      "metrica": "mismo_documento_en_tipos_distintos",
+      "seccion": "1_inventario",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "elegibles_conversion": 47,
+        "renovacion": 9,
+        "upgrade": 62
+      },
+      "metrica": "operaciones_cartera_total",
+      "seccion": "1_inventario",
+      "valor": "71"
+    },
+    {
+      "detalle": {
+        "ausente": 1,
+        "invalido": 1,
+        "valido": 394,
+        "valido_por_tipo": {
+          "CE": 8,
+          "DNI": 385,
+          "PASAPORTE": 1
+        }
+      },
+      "metrica": "perfiles_cliente_documento",
+      "seccion": "1_inventario",
+      "valor": "396"
+    },
+    {
+      "detalle": {
+        "activos": 396,
+        "inactivos": 0
+      },
+      "metrica": "perfiles_cliente_total",
+      "seccion": "1_inventario",
+      "valor": "396"
+    },
+    {
+      "detalle": {
+        "colisionan_con_clave_censada": 2,
+        "nota": "colaborador-inversionista: si colisiona, es revisión E en el backfill"
+      },
+      "metrica": "perfiles_no_cliente_con_documento_valido",
+      "seccion": "1_inventario",
+      "valor": "27"
+    },
+    {
+      "detalle": {
+        "con_cierres_convergentes": 0
+      },
+      "metrica": "clase_A_claves",
+      "seccion": "2_clases",
+      "valor": "392"
+    },
+    {
+      "detalle": {
+        "universo": "public.perfiles con rol cliente"
+      },
+      "metrica": "clase_A_perfiles",
+      "seccion": "2_clases",
+      "valor": "392"
+    },
+    {
+      "detalle": {
+        "convergentes_con_perfil": 0,
+        "en_revision": 0,
+        "nuevos": 10
+      },
+      "metrica": "clase_B_cierres",
+      "seccion": "2_clases",
+      "valor": "10"
+    },
+    {
+      "detalle": {
+        "nota": "identidad nueva solo por cierre externo (sin perfil Portal)"
+      },
+      "metrica": "clase_B_claves",
+      "seccion": "2_clases",
+      "valor": "10"
+    },
+    {
+      "detalle": {
+        "via_cierre": 10,
+        "via_perfil": 15
+      },
+      "metrica": "clase_C_leads_convertidos",
+      "seccion": "2_clases",
+      "valor": "25"
+    },
+    {
+      "detalle": {
+        "no_vivos": 0,
+        "vivos": 0
+      },
+      "metrica": "clase_D_leads",
+      "seccion": "2_clases",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "multiples_perfiles": 0,
+        "perfil_otro_rol_misma_clave": 2,
+        "tipo_contradictorio": 0
+      },
+      "metrica": "clase_E_claves",
+      "seccion": "2_clases",
+      "valor": "2"
+    },
+    {
+      "detalle": {},
+      "metrica": "clase_E_leads_convertidos",
+      "seccion": "2_clases",
+      "valor": "0"
+    },
+    {
+      "detalle": {},
+      "metrica": "clase_E_leads_no_convertidos",
+      "seccion": "2_clases",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "E:documento_ausente": 1,
+        "E:documento_invalido": 1,
+        "E:perfil_otro_rol_misma_clave": 2
+      },
+      "metrica": "clase_E_perfiles",
+      "seccion": "2_clases",
+      "valor": "4"
+    },
+    {
+      "detalle": {
+        "nota": "solo conteos; teléfono/correo/nombre JAMÁS unen identidades",
+        "por_correo": 0,
+        "por_nombre": 1,
+        "por_telefono": 1,
+        "universo": 806
+      },
+      "metrica": "clase_F_candidatos",
+      "seccion": "2_clases",
+      "valor": "2"
+    },
+    {
+      "detalle": {
+        "nota": "con DNI pero sin identidad censada; la identidad nacería al convertir"
+      },
+      "metrica": "leads_sin_coincidencia_documental",
+      "seccion": "2_clases",
+      "valor": "5"
+    },
+    {
+      "detalle": {
+        "claves": "E (conflicto) > A (perfil) > B (cierre); una clave, una clase",
+        "doble_conteo": "ninguna entidad aparece en dos clases",
+        "leads": "C (convertido hereda) > D (DNI = 1 identidad) > E (revisión) > F (débil, solo conteo)"
+      },
+      "metrica": "precedencia",
+      "seccion": "2_clases",
+      "valor": null
+    },
+    {
+      "detalle": {
+        "clase_A": 392,
+        "clase_B": 10
+      },
+      "metrica": "identidades_automaticas",
+      "seccion": "3_responsable",
+      "valor": "402"
+    },
+    {
+      "detalle": {
+        "ausente": 5,
+        "conflictivo_perfil_vs_cierre": 0,
+        "desde_cierre": 9,
+        "desde_perfil": 388,
+        "inactivo": 0,
+        "regla": "perfil → asesor_perfil_id; si no, vendedor snapshot del cierre vigente más reciente"
+      },
+      "metrica": "responsable_potencial",
+      "seccion": "3_responsable",
+      "valor": "397"
+    },
+    {
+      "detalle": {
+        "claves_con_conflicto_de_veto": 0,
+        "no_vinculables": 4,
+        "nota": "conflicto = la clave documental porta un veto y a la vez tiene leads vivos sin veto",
+        "sobre_clave_en_revision": 0,
+        "vinculables_a_identidad": 0
+      },
+      "metrica": "vetos_no_contactar",
+      "seccion": "3_responsable",
+      "valor": "4"
+    },
+    {
+      "detalle": {
+        "aporte_ponderado": 2,
+        "cierres": 2,
+        "meses_con_episodios_no_resolubles": 1,
+        "nota": "clave documental E, ausente o inválida: NO se deduplican entre sí; aportan igual que la regla viva hasta revisión humana; el delta proyectado sale SOLO de identidades A/B",
+        "operaciones": 0
+      },
+      "metrica": "episodios_sin_identidad_resoluble",
+      "seccion": "4_conversion",
+      "valor": "2"
+    },
+    {
+      "detalle": {
+        "combinaciones": {
+          "avance_y_cooperativa": 0,
+          "cooperativa_y_cooperativa": 0,
+          "operacion_y_operacion": 0,
+          "operacion_y_otro": 0
+        },
+        "delta_ponderado": 0,
+        "episodios_sin_identidad_ab": 0,
+        "factor_fuente": "private.peso_referido_conversion(mes) (mes abierto)",
+        "factor_referido_usado": 0.15,
+        "identidades_con_varios_episodios": 0,
+        "mes_sellado": false,
+        "nota": "unidades ponderadas (SUM de aporte_numerador); dedupe solo entre identidades A/B; ganador incluye anulados y un ganador anulado no promociona suplente",
+        "regla_identidad_mes_ponderada": 1,
+        "regla_viva_ponderada": 1
+      },
+      "metrica": "mes_2026-03",
+      "seccion": "4_conversion",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "combinaciones": {
+          "avance_y_cooperativa": 0,
+          "cooperativa_y_cooperativa": 0,
+          "operacion_y_operacion": 0,
+          "operacion_y_otro": 0
+        },
+        "delta_ponderado": 0,
+        "episodios_sin_identidad_ab": 0,
+        "factor_fuente": "private.peso_referido_conversion(mes) (mes abierto)",
+        "factor_referido_usado": 0.15,
+        "identidades_con_varios_episodios": 0,
+        "mes_sellado": false,
+        "nota": "unidades ponderadas (SUM de aporte_numerador); dedupe solo entre identidades A/B; ganador incluye anulados y un ganador anulado no promociona suplente",
+        "regla_identidad_mes_ponderada": 2,
+        "regla_viva_ponderada": 2
+      },
+      "metrica": "mes_2026-04",
+      "seccion": "4_conversion",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "combinaciones": {
+          "avance_y_cooperativa": 0,
+          "cooperativa_y_cooperativa": 0,
+          "operacion_y_operacion": 0,
+          "operacion_y_otro": 0
+        },
+        "delta_ponderado": 0,
+        "episodios_sin_identidad_ab": 0,
+        "factor_fuente": "private.peso_referido_conversion(mes) (mes abierto)",
+        "factor_referido_usado": 0.15,
+        "identidades_con_varios_episodios": 0,
+        "mes_sellado": false,
+        "nota": "unidades ponderadas (SUM de aporte_numerador); dedupe solo entre identidades A/B; ganador incluye anulados y un ganador anulado no promociona suplente",
+        "regla_identidad_mes_ponderada": 1,
+        "regla_viva_ponderada": 1
+      },
+      "metrica": "mes_2026-05",
+      "seccion": "4_conversion",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "combinaciones": {
+          "avance_y_cooperativa": 0,
+          "cooperativa_y_cooperativa": 0,
+          "operacion_y_operacion": 0,
+          "operacion_y_otro": 0
+        },
+        "delta_ponderado": 0,
+        "episodios_sin_identidad_ab": 2,
+        "factor_fuente": "private.peso_referido_conversion(mes) (mes abierto)",
+        "factor_referido_usado": 0.15,
+        "identidades_con_varios_episodios": 0,
+        "mes_sellado": false,
+        "nota": "unidades ponderadas (SUM de aporte_numerador); dedupe solo entre identidades A/B; ganador incluye anulados y un ganador anulado no promociona suplente",
+        "regla_identidad_mes_ponderada": 53.9,
+        "regla_viva_ponderada": 53.9
+      },
+      "metrica": "mes_2026-08",
+      "seccion": "4_conversion",
+      "valor": "0.000"
+    },
+    {
+      "detalle": {
+        "fuente": "private.conversion_episodios vivo (STABLE, solo SELECT) con el factor de referido real por mes: sellado = foto de crm.periodos_cerrados; abierto = private.peso_referido_conversion",
+        "identidad_total_ponderada": 57.9,
+        "meses_afectados": 0,
+        "meses_afectados_abiertos": 0,
+        "meses_afectados_sellados": 0,
+        "meses_medidos": 4,
+        "viva_total_ponderada": 57.9
+      },
+      "metrica": "total",
+      "seccion": "4_conversion",
+      "valor": "0.000"
+    },
+    {
+      "detalle": {
+        "episodios": 415,
+        "monto_sin_identidad": 100000,
+        "sin_identidad_resoluble": 1
+      },
+      "metrica": "capital_avance_PEN_stock_activo",
+      "seccion": "5_capital",
+      "valor": "18260313.12"
+    },
+    {
+      "detalle": {
+        "episodios": 1,
+        "monto_sin_identidad": 0,
+        "sin_identidad_resoluble": 0
+      },
+      "metrica": "capital_avance_PEN_stock_vencido",
+      "seccion": "5_capital",
+      "valor": "10600.00"
+    },
+    {
+      "detalle": {
+        "episodios": 61,
+        "monto_sin_identidad": 10000,
+        "sin_identidad_resoluble": 1
+      },
+      "metrica": "capital_avance_USD_stock_activo",
+      "seccion": "5_capital",
+      "valor": "996443.33"
+    },
+    {
+      "detalle": {
+        "episodios": 2,
+        "monto_sin_identidad": 0,
+        "sin_identidad_resoluble": 0
+      },
+      "metrica": "capital_prodelco_PEN_stock_vigente",
+      "seccion": "5_capital",
+      "valor": "10000.00"
+    },
+    {
+      "detalle": {
+        "episodios": 1,
+        "monto_sin_identidad": 0,
+        "sin_identidad_resoluble": 0
+      },
+      "metrica": "capital_qorilazo_PEN_nula_anulado",
+      "seccion": "5_capital",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "episodios": 7,
+        "monto_sin_identidad": 0,
+        "sin_identidad_resoluble": 0
+      },
+      "metrica": "capital_qorilazo_PEN_stock_vigente",
+      "seccion": "5_capital",
+      "valor": "305800.00"
+    },
+    {
+      "detalle": {
+        "episodios_con_empresa": 487,
+        "episodios_con_identidad": 487,
+        "episodios_nucleo": 487,
+        "esperado": "los tres iguales: LEFT JOIN 1:1 sobre la PK de cierres_externos",
+        "valor_semantica": "0 = cardinalidad 1:1 intacta; 1 = algún join duplicó o perdió filas"
+      },
+      "metrica": "cardinalidad_enriquecimiento",
+      "seccion": "5_capital",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "avance": 2,
+        "cooperativas": 0,
+        "nota": "clientes sin documento válido en el perfil; quedan aparte, sin unión"
+      },
+      "metrica": "episodios_sin_identidad_resoluble",
+      "seccion": "5_capital",
+      "valor": "2"
+    },
+    {
+      "detalle": {
+        "comparacion": "línea base con empresa derivada vs proyección con identidad simulada, por empresa/moneda/medida/estado",
+        "diferencia_conteo": 0,
+        "diferencia_monto": 0,
+        "esperado": 0,
+        "nota": "paridad de ENRIQUECIMIENTO F0: comprueba que derivar empresa e identidad no altera filas ni montos del núcleo; NO prueba ninguna función F3 (no existe todavía)",
+        "valor_semantica": "0 = ambas diferencias son cero; 1 = alguna difiere (ver detalle, conteo y monto separados)"
+      },
+      "metrica": "paridad_enriquecimiento",
+      "seccion": "5_capital",
+      "valor": "0"
+    },
+    {
+      "detalle": {
+        "monto_por_moneda_y_medida": {
+          "PEN_stock": 18270913.12,
+          "USD_stock": 996443.33
+        },
+        "nota": "totales de control por empresa; PEN y USD jamás se suman"
+      },
+      "metrica": "total_empresa_avance",
+      "seccion": "5_capital",
+      "valor": "477"
+    },
+    {
+      "detalle": {
+        "monto_por_moneda_y_medida": {
+          "PEN_stock": 10000
+        },
+        "nota": "totales de control por empresa; PEN y USD jamás se suman"
+      },
+      "metrica": "total_empresa_prodelco",
+      "seccion": "5_capital",
+      "valor": "2"
+    },
+    {
+      "detalle": {
+        "monto_por_moneda_y_medida": {
+          "PEN_nula": 0,
+          "PEN_stock": 305800
+        },
+        "nota": "totales de control por empresa; PEN y USD jamás se suman"
+      },
+      "metrica": "total_empresa_qorilazo",
+      "seccion": "5_capital",
+      "valor": "8"
+    },
+    {
+      "detalle": {
+        "coincide_pin": true,
+        "pg_get_functiondef_md5": "4a603e85a8b3957c620afb3b14377e4c",
+        "pin_alterno_prosrc": "90f1d8c2342becb94cc3d3e023227078",
+        "pin_registrado_prosrc": "872f5ad4362f66a18f4a3806453f78a0",
+        "prosrc_md5": "872f5ad4362f66a18f4a3806453f78a0"
+      },
+      "metrica": "md5_private.capital_episodios",
+      "seccion": "6_evidencia",
+      "valor": null
+    },
+    {
+      "detalle": {
+        "coincide_pin": true,
+        "pg_get_functiondef_md5": "e4c6cbf24021fcd1d5040bbe38615e5b",
+        "pin_alterno_prosrc": null,
+        "pin_registrado_prosrc": "71213ac03eb32e333723399538d35d83",
+        "prosrc_md5": "71213ac03eb32e333723399538d35d83"
+      },
+      "metrica": "md5_private.conversion_episodios",
+      "seccion": "6_evidencia",
+      "valor": null
+    },
+    {
+      "detalle": {
+        "coincide_pin": null,
+        "pg_get_functiondef_md5": "3a80775b21767839e524880d419689f3",
+        "pin_alterno_prosrc": null,
+        "pin_registrado_prosrc": null,
+        "prosrc_md5": "db78c8acbb0b0ea0ac3b0d2f0d25e7de"
+      },
+      "metrica": "md5_private.peso_referido_conversion",
+      "seccion": "6_evidencia",
+      "valor": null
+    },
+    {
+      "detalle": {
+        "transaction_read_only": "on"
+      },
+      "metrica": "transaccion_read_only",
+      "seccion": "6_evidencia",
+      "valor": "1"
+    }
+  ]
+}

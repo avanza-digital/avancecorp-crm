@@ -1,21 +1,19 @@
 ---
 tags: [crm, cartera, postventa, ficha-360, ux, plan]
-actualizado: 2026-08-29
-estado: referencia-ux-candidata-integrada-no-desplegada
+actualizado: 2026-08-31
+estado: desplegada-restaurada
 fase: F4.1
 ---
 
 # Ficha comercial 360 de clientes — plan
 
-> [!note] Estado posterior — 2026-08-29
-> La rama R2 se conserva únicamente como referencia UX/comercial. La candidata
-> integrada actual usa `crm.cliente_detalle_fn(uuid)` para el detalle seguro y
-> permanece **sin desplegar**; `crm.cliente_ficha_fn` es el nombre propuesto por
-> este plan para una frontera futura, no una RPC vigente. Véase
-> [[Auditoría backend Gestión de cartera 2026-08-28]].
-> En la candidata actual, `creado_por` solo completa el ámbito cuando
-> `asesor_perfil_id` es nulo y el creador pertenece al árbol autorizado; jamás
-> prevalece sobre una asignación vigente.
+> [!success] Estado vivo — 2026-08-31
+> La Ficha 360 completa está nuevamente publicada en `crm.miavance.com`.
+> «Ver detalle» abre la ficha con capital vigente, inversiones y contratos,
+> información del cliente, historial de gestiones, continuidad y cuentas según
+> permisos. Release `crm-20260831T214847Z-f6dd76fa5b7b`, build
+> `build-20260831T214847197Z`. Véase
+> [[Incidente y restauracion Ficha 360 2026-08-31]].
 
 Decisión aprobada por Miguel el **2026-08-25** e implementada en una rama
 aislada: desde **Mi cartera**, el vendedor puede abrir a un cliente en una ficha
@@ -23,9 +21,9 @@ con la misma claridad y facilidad de uso que la ficha de Leads, adaptada a la
 relación después de la primera venta. Continúa [[Gestión comercial de clientes - renovaciones y upgrades]]
 y parte del cierre documentado en [[Cierre Mi cartera operativa 2026-08-25]].
 
-La implementación y sus pruebas técnicas están terminadas. Solo faltan publicar
-la preview aislada y recibir la aceptación comercial; producción no cambia sin
-una autorización posterior.
+La implementación, las pruebas y la publicación están terminadas. La rama
+histórica R2 queda solo como referencia; la versión viva es la reintegración
+aditiva sobre el release del 30/08.
 
 ## Objetivo de producto
 

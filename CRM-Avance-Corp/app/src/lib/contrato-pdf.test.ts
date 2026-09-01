@@ -85,6 +85,53 @@ describe('contrato PDF legal', () => {
     )
   })
 
+  it('cuenta seis meses cuando el vencimiento se ajusta al fin de febrero', () => {
+    const definicion = construirContratoPdf({
+      ...DATOS,
+      contrato: {
+        ...DATOS.contrato,
+        fechaInicio: '2026-08-31',
+        fechaVencimiento: '2027-02-28',
+      },
+    }, {
+      fondo: 'data:image/png;base64,FONDO',
+      firmaAsociante: 'data:image/png;base64,FIRMA',
+    })
+
+    const texto = todosLosTextos(definicion)
+    expect(texto).toContain('seis (6) meses')
+    expect(texto).not.toContain('cinco (5) meses')
+
+    const febreroBisiesto = construirContratoPdf({
+      ...DATOS,
+      contrato: {
+        ...DATOS.contrato,
+        fechaInicio: '2027-08-31',
+        fechaVencimiento: '2028-02-29',
+      },
+    }, {
+      fondo: 'data:image/png;base64,FONDO',
+      firmaAsociante: 'data:image/png;base64,FIRMA',
+    })
+    expect(todosLosTextos(febreroBisiesto)).toContain('seis (6) meses')
+  })
+
+  it('no redondea a seis meses si falta un día para el vencimiento ajustado', () => {
+    const definicion = construirContratoPdf({
+      ...DATOS,
+      contrato: {
+        ...DATOS.contrato,
+        fechaInicio: '2026-08-31',
+        fechaVencimiento: '2027-02-27',
+      },
+    }, {
+      fondo: 'data:image/png;base64,FONDO',
+      firmaAsociante: 'data:image/png;base64,FIRMA',
+    })
+
+    expect(todosLosTextos(definicion)).toContain('cinco (5) meses')
+  })
+
   it('no añade títulos ni referencias que no existen en la zona de firmas original', () => {
     const definicion = construirContratoPdf(DATOS, {
       fondo: 'data:image/png;base64,FONDO',

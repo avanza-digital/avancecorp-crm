@@ -33,6 +33,8 @@ Hay **tres capas**, complementarias:
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
 - [[Gestión comercial de clientes - renovaciones y upgrades]]
+- [[Identidad unificada de inversionistas - plan pendiente]]
+- [[Incidente y restauracion Ficha 360 2026-08-31]]
 - [[Nombres en mayúscula]]
 - [[Interés compuesto]]
 - [[Realtime de novedades]]

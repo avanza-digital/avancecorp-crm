@@ -121,7 +121,7 @@ Deno.test("assets legales v2 conservan los SHA versionados", async () => {
   igual(resultado.firmaBytes, 26588, "tamaño firma del ASOCIANTE");
 });
 
-Deno.test("template v6 reproduce la firma y numeración del modelo", () => {
+Deno.test("template v7 reproduce la firma y numeración del modelo", () => {
   const definicion = construirContratoPdf({
     contrato: {
       numero: SNAPSHOT.contrato.numero,
@@ -255,6 +255,55 @@ Deno.test("template v6 reproduce la firma y numeración del modelo", () => {
   );
 });
 
+Deno.test("template v7 respeta vencimientos ajustados al fin de mes", () => {
+  const construirConFechas = (
+    fechaInicio: string,
+    fechaVencimiento: string,
+  ) => {
+    const definicion = construirContratoPdf({
+      contrato: {
+        numero: SNAPSHOT.contrato.numero,
+        capital: SNAPSHOT.contrato.capital,
+        moneda: "PEN",
+        porcentaje: SNAPSHOT.contrato.porcentaje,
+        fechaInicio,
+        fechaVencimiento,
+      },
+      titular: {
+        nombreCompleto: SNAPSHOT.titular.nombreCompleto,
+        tipoDocumento: "DNI",
+        documento: SNAPSHOT.titular.documento,
+        domicilio: SNAPSHOT.titular.domicilio,
+        correo: SNAPSHOT.titular.correo,
+      },
+      analista: SNAPSHOT.analista,
+    }, {
+      fondo: "data:image/png;base64,fondo",
+      firmaAsociante: "data:image/png;base64,firma-kirk",
+    });
+    return JSON.stringify(definicion.content);
+  };
+
+  const finDeMes = construirConFechas("2026-08-31", "2027-02-28");
+  assert(finDeMes.includes("SEIS (6) MESES"), "31/08 + 6 meses es 28/02");
+  assert(!finDeMes.includes("CINCO (5) MESES"), "no descuenta el mes ajustado");
+
+  const febreroBisiesto = construirConFechas("2027-08-31", "2028-02-29");
+  assert(
+    febreroBisiesto.includes("SEIS (6) MESES"),
+    "31/08 + 6 meses es 29/02 en año bisiesto",
+  );
+
+  const incompleto = construirConFechas("2026-08-31", "2027-02-27");
+  assert(
+    incompleto.includes("CINCO (5) MESES"),
+    "no redondea un plazo incompleto",
+  );
+
+  const bisiesto = construirConFechas("2024-02-29", "2025-02-28");
+  assert(bisiesto.includes("UN (1) AÑO"), "ajusta el aniversario bisiesto");
+});
+
 Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => {
   const pdfmake = await Deno.readFile(
     new URL("./pdfmake-0.2.20-pdfprinter.js", import.meta.url),
@@ -266,7 +315,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs v6 byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v7 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -282,10 +331,10 @@ Deno.test("PdfPrinter produce dos PDFs v6 byte-idénticos con fecha fija", async
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "1b2e3d26e556b55cda0d0adba07106f4aec4d71eea57ba8dae738241f45697d6",
-    "golden byte a byte del template v6",
+    "88665f229db49280603d4d0ed7c0e260360e605dfc3d9acc4b0f4a0e092a58b2",
+    "golden byte a byte del template v7",
   );
-  igual(primero.bytes, 871757, "tamaño golden del template v6");
+  igual(primero.bytes, 871757, "tamaño golden del template v7");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,

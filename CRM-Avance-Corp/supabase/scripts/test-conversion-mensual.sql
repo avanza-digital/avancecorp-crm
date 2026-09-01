@@ -4,8 +4,10 @@
 -- Migración C: 20260811190310_crm_ledger_cierres_integros.sql      (CONV-19/20)
 -- Migración D: 20260811190324_crm_origen_inmutable.sql             (CONV-22)
 -- Migración F: 20260811210049_crm_alta_manual_origen_restringido.sql (CONV-23)
+-- Migración G: 20260901185600_habilitar_landing_formulario_alta_manual.sql
+--              (CONV-23: manual fuera del divisor, cierre dentro del numerador)
 -- ============================================================================
--- Cómo se corre (sobre el branch de Supabase, DESPUÉS de aplicar las CUATRO
+-- Cómo se corre (sobre el branch de Supabase, DESPUÉS de aplicar las CINCO
 -- migraciones y de `npm run seed:demo` — el seed va ANTES que las migraciones
 -- en el ciclo del branch; este oráculo va después de todo):
 --
@@ -2515,18 +2517,18 @@ end;
 $test$;
 
 -- ---------------------------------------------------------------------------
--- 8bis. CONV-23 · la regla del ALTA (migración F: 20260811210049)
+-- 8bis. CONV-23 · reglas de origen del ALTA manual
 -- ---------------------------------------------------------------------------
--- D8 de Miguel (2026-08-11, literal): «referido, Wallking y OTRO esto puede
--- registrar el vendedor; landing y formulario se carga solo» + «[los referidos]
--- solo los vendedores a su propio nombre».
+-- D8 de Miguel (2026-08-11) conserva la regla «[los referidos] solo los
+-- vendedores a su propio nombre». La decisión del 2026-09-01 reemplaza la otra
+-- mitad: LANDING y FORMULARIO también pueden declararse en el alta manual.
 --
--- La F cierra la mitad del camino que la D no toca: la ELECCIÓN del origen al
--- nacer. Cuatro casos, dos denegaciones y dos positivos — y los positivos van
+-- La RPC gobierna la ELECCIÓN del origen al nacer. Cuatro casos, una denegación
+-- y tres positivos — y los positivos van
 -- DIRECTO (sin `conv_intento`, que deshace): necesitan que el lead exista para
 -- poder aseverar a quién quedó asignado y qué fotografió el ledger.
--- Van DESPUÉS de todas las lecturas del payload (secciones 5-6): los dos leads
--- nuevos no tocan ninguna cifra ya aseverada, y el `rollback` final los borra.
+-- Van DESPUÉS de todas las lecturas del payload (secciones 5-6): los leads de
+-- prueba no tocan ninguna cifra ya aseverada, y el `rollback` final los borra.
 do $test$
 declare
   v_resultado jsonb;
@@ -2537,23 +2539,90 @@ declare
   v_origen text;
   v_snap text;
   v_episodios int;
+  v_alta_manual boolean;
+  v_aporte_divisor integer;
+  v_aporte_numerador numeric;
 begin
-  -- 23a · ANA (vendedor) intenta declarar un canal AUTOMÁTICO a mano.
-  -- El monto va NULL a propósito: si la regla dejara pasar el origen por error,
-  -- el 22023 de «Capital estimado invalido» delataría el hueco aquí mismo, sin
-  -- riesgo de que la sonda inserte nada.
+  -- 23a · POSITIVO: ANA (vendedor) declara LANDING manualmente. El lead queda
+  -- autoasignado y conserva todo su valor comercial: la ÚNICA resta es el
+  -- divisor. Si luego convierte, el cierre sigue aportando 1 al numerador.
   perform set_config('request.jwt.claim.sub', pg_temp.conv_lead(7)::text, true);
-  begin
-    perform crm.crear_lead_si_disponible(
-      'CONV23A CANAL AUTOMATICO', pg_temp.conv_tel(1501), 'landing', null, 'PEN');
-    v_estado := 'ACEPTADO'; v_msg := '';
-  exception when others then
-    v_estado := sqlstate; v_msg := sqlerrm;
-  end;
-  perform pg_temp.conv_txt('CONV-23a',
-    'sqlstate del alta manual de un vendedor con origen landing', '42501', v_estado);
-  perform pg_temp.conv_txt('CONV-23a', 'el rechazo nombra al puente', 'si',
-    case when position('puente' in v_msg) > 0 then 'si' else 'no: ' || v_msg end);
+  v_resultado := crm.crear_lead_si_disponible(
+    'CONV23A LANDING MANUAL', pg_temp.conv_tel(1500), 'landing', 1000, 'PEN',
+    p_id => pg_temp.conv_lead(1500));
+  perform pg_temp.conv_txt('CONV-23a', 'estado del alta LANDING manual',
+    'creado', v_resultado ->> 'estado');
+
+  select l.vendedor_id, l.creado_por, l.origen, l.alta_manual
+    into v_vendedor_id, v_creado_por, v_origen, v_alta_manual
+  from crm.leads l where l.id = pg_temp.conv_lead(1500);
+  perform pg_temp.conv_txt('CONV-23a', 'LANDING queda asignado a ANA',
+    pg_temp.conv_lead(7)::text, v_vendedor_id::text);
+  perform pg_temp.conv_txt('CONV-23a', 'creado_por del LANDING es ANA',
+    pg_temp.conv_lead(7)::text, v_creado_por::text);
+  perform pg_temp.conv_txt('CONV-23a', 'origen de la ficha', 'landing', v_origen);
+  perform pg_temp.conv_txt('CONV-23a', 'sello durable de alta manual',
+    'true', v_alta_manual::text);
+
+  select la.origen into v_snap
+  from crm.lead_asignaciones la
+  where la.lead_id = pg_temp.conv_lead(1500) and la.finalizado_en is null;
+  perform pg_temp.conv_txt('CONV-23a', 'el episodio abierto fotografio landing',
+    'landing', v_snap);
+
+  select e.aporte_divisor into v_aporte_divisor
+  from private.conversion_episodios(
+    pg_temp.conv_ini(), pg_temp.conv_fin(), pg_temp.conv_mes(),
+    true, '{}'::uuid[], 0.15::numeric
+  ) e
+  where e.tipo = 'recibido' and e.lead_id = pg_temp.conv_lead(1500);
+  perform pg_temp.conv_num('CONV-23a',
+    'LANDING manual es la unica excepcion: aporte al divisor',
+    0, v_aporte_divisor);
+
+  perform set_config('crm.op_privilegiada', 'on', true);
+  update crm.leads
+  set etapa = 'convertido',
+      perfil_id = pg_temp.conv_lead(19),
+      convertido_en = statement_timestamp()
+  where id = pg_temp.conv_lead(1500);
+  perform set_config('crm.op_privilegiada', 'off', true);
+
+  select e.aporte_numerador into v_aporte_numerador
+  from private.conversion_episodios(
+    pg_temp.conv_ini(), pg_temp.conv_fin(), pg_temp.conv_mes(),
+    true, '{}'::uuid[], 0.15::numeric
+  ) e
+  where e.tipo = 'cierre' and e.lead_id = pg_temp.conv_lead(1500);
+  perform pg_temp.conv_num('CONV-23a',
+    'si el LANDING manual convierte mantiene el aporte al numerador',
+    1, v_aporte_numerador);
+
+  -- Control del puente: la misma familia de origen, insertada con la forma del
+  -- importador (sin sello manual), conserva su divisor normal.
+  insert into crm.leads (
+    id, nombre_completo, telefono, origen, etapa, monto_estimado, moneda,
+    categoria_interes, vendedor_id, creado_por
+  ) values (
+    pg_temp.conv_lead(1503), 'CONV23A FORMULARIO AUTOMATICO',
+    pg_temp.conv_tel(1503), 'formulario', 'nuevo', 1000, 'PEN', 'nuevo',
+    pg_temp.conv_lead(7), null
+  );
+
+  select l.alta_manual into v_alta_manual
+  from crm.leads l where l.id = pg_temp.conv_lead(1503);
+  perform pg_temp.conv_txt('CONV-23a', 'el puente conserva alta_manual=false',
+    'false', v_alta_manual::text);
+
+  select e.aporte_divisor into v_aporte_divisor
+  from private.conversion_episodios(
+    pg_temp.conv_ini(), pg_temp.conv_fin(), pg_temp.conv_mes(),
+    true, '{}'::uuid[], 0.15::numeric
+  ) e
+  where e.tipo = 'recibido' and e.lead_id = pg_temp.conv_lead(1503);
+  perform pg_temp.conv_num('CONV-23a',
+    'FORMULARIO automatico conserva el aporte al divisor',
+    1, v_aporte_divisor);
 
   -- 23b · el SUPERVISOR intenta declarar un referido. «Solo los vendedores a su
   -- propio nombre»: el rol se corta en la F; el nombre ya lo cortaba el bloque
@@ -2598,7 +2667,7 @@ begin
     'referido', v_snap);
 
   -- 23d · POSITIVO: GERENCIA sigue pudiendo registrar un Wallking (oficina),
-  -- sin destino → cola global, sin episodio. El trío manual no es solo del
+  -- sin destino → cola global, sin episodio. El catálogo manual no es solo del
   -- vendedor; lo exclusivo del vendedor es el REFERIDO.
   perform set_config('request.jwt.claim.sub', pg_temp.conv_lead(20)::text, true);
   v_resultado := crm.crear_lead_si_disponible(

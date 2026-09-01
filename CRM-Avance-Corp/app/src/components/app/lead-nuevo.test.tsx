@@ -60,7 +60,7 @@ function montar({
   telefonoInicial = null,
 }: {
   demo?: boolean
-  /** Rol del actor; por defecto el analista de SESION. Para la regla D8. */
+  /** Rol del actor; por defecto el analista de SESION. Para las reglas de origen. */
   rol?: 'vendedor' | 'supervisor' | 'gerencia'
   crearLeadImpl?: StoreDataApi['crearLead']
   /** El atajo del buscador (plan «lead libre», F1) llega con teléfono. */
@@ -122,8 +122,8 @@ function completarBaseReal() {
   fireEvent.change(screen.getByLabelText('Teléfono *'), {
     target: { value: '987654321' },
   })
-  // D8 (2026-08-11): el alta manual ya no ofrece canales automáticos; el
-  // analista de esta sesión declara SU referido — el flujo real de la regla.
+  // El analista de esta sesión declara SU referido — la regla especial de ese
+  // origen se conserva aunque LANDING y FORMULARIO ya estén habilitados.
   fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
   fireEvent.change(screen.getByLabelText('Capital estimado *'), { target: { value: '5000' } })
 }
@@ -517,34 +517,48 @@ describe('LeadNuevo — disponibilidad P-048', () => {
   })
 })
 
-describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
-  // Espejo del 42501 del servidor (20260811210049): landing y formulario se
-  // cargan solos por el puente; el alta manual no puede suplantarlos, y el
-  // referido lo declara SOLO el analista. Si estas opciones reaparecieran en el
-  // selector, el usuario elegiría algo que el servidor va a rechazar.
-  it('el analista ve exactamente Referido, Walking y Otro', () => {
+describe('LeadNuevo — orígenes del alta manual (2026-09-01)', () => {
+  // LANDING y FORMULARIO también pueden declararse a mano. Referido conserva
+  // su regla propia: solo lo declara el analista, a su nombre.
+  it('el analista ve todos los orígenes activos', () => {
     montar()
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['referido', 'oficina', 'otro'])
+    expect(opciones).toEqual(['referido', 'landing', 'formulario', 'oficina', 'otro'])
   })
 
-  it('un supervisor NO ve Referido (solo los analistas, a su propio nombre)', () => {
+  it('un supervisor ve LANDING y FORMULARIO, pero no Referido', () => {
     montar({ rol: 'supervisor' })
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['oficina', 'otro'])
+    expect(opciones).toEqual(['landing', 'formulario', 'oficina', 'otro'])
   })
 
-  it('gerencia tampoco ve Referido', () => {
+  it('gerencia ve LANDING y FORMULARIO, pero tampoco Referido', () => {
     montar({ rol: 'gerencia' })
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
-    expect(opciones).toEqual(['oficina', 'otro'])
+    expect(opciones).toEqual(['landing', 'formulario', 'oficina', 'otro'])
   })
+
+  it.each(['landing', 'formulario'] as const)(
+    'envía el origen manual %s al crear el lead',
+    async (origen) => {
+      const user = userEvent.setup()
+      const { crearLead } = montar()
+      await user.type(screen.getByLabelText('Nombre completo *'), 'ANA NUEVO LEAD')
+      await user.type(screen.getByLabelText('Teléfono *'), '987654321')
+      await user.selectOptions(screen.getByLabelText('Origen *'), origen)
+      await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+
+      await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+      expect(crearLead).toHaveBeenCalledWith(expect.objectContaining({ origen }))
+    },
+  )
 })
 
 // ── Fase 1 del plan «lead libre» (2026-08-16): la tarjeta §5.2 y el atajo ────

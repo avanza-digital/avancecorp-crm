@@ -6673,3 +6673,66 @@ caché purgada) → edge **v11** (contrastada byte a byte contra el árbol tras 
 → migración por `db query --linked --file` (Miguel con `!`). Verificado contra prod después:
 default v6, ambos CHECK con v6, `crear_job` estampa v6, 14 pendientes re-estampados (0 en v5),
 sellados intactos (69 v5 + 3 v2, ledger 72).
+
+## CONTRATO PDF · PLANTILLA v7 — PLAZO AJUSTADO A FIN DE MES (2026-09-01)
+
+**Estado: preparado y validado localmente; pendiente de autorización y publicación.**
+Migración `20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql`.
+
+**Causa corregida:** la plantilla restaba un mes cuando el día de vencimiento era menor que el
+día de inicio. Esa regla interpretaba `2026-08-31`→`2027-02-28` como 5 meses, aunque el formulario
+había sumado correctamente 6 meses y ajustado el aniversario al último día de febrero. La v7
+compara contra el aniversario ajustado al último día del mes de destino: 28/02 completa el plazo;
+27/02 sigue siendo un mes incompleto. La misma corrección quedó en la Edge y en la copia local del
+frontend.
+
+**Frontera de datos:** los PDFs sellados permanecen inmutables. La migración amplía ambos CHECK,
+fija default/creación/revisión en `contrato-aep-17-v7`, re-estampa únicamente reservas v5/v6 sin
+bytes ni lease y crea revisión 2 pendiente para los 7 contratos sellados afectados:
+`2026-01-001324`, `001332`, `001337`, `001342`, `001343`, `001344` y `001348`. Cada revisión nueva
+copia el snapshot exacto de su v5; no vuelve a fotografiar datos actuales ni sobrescribe Storage.
+El bloque falla cerrado si producción no presenta exactamente las siete revisiones 1 esperadas;
+en un banco vacío es no-op.
+
+**Estado productivo previo medido:** 3 sellados v2, 69 sellados v5, 2 sellados v6 y 14 pendientes
+v6. Los siete afectados son v5/revisión 1. La migración v6 está viva en default, CHECK y funciones,
+pero `20260901115030` no aparece en el registro remoto; por eso la v7 es autosuficiente y no depende
+de que el runner aplique esa fila omitida.
+
+**Pruebas:** 29/29 Deno (incluye fin de mes, día incompleto, año bisiesto y lectura histórica v6),
+44/44 Vitest focalizadas, typecheck del frontend y ensayo transaccional en PostgreSQL 16 con siete
+fixtures + una reserva v6: `CONTRATO_PDF_V7_MIGRATION_OK`. Golden v7
+`88665f229db4…` (871.757 bytes).
+
+**Orden de publicación previsto:** front tolerante a v7 → Edge v7 (sigue leyendo sellados
+v2/v5/v6) → migración v7 → generación/verificación de las siete revisiones nuevas. La ventana entre
+Edge y BD solo afecta temporalmente a reservas v6 pendientes; la migración las convierte a v7.
+
+## CRM · LANDING/FORMULARIO EN ALTA MANUAL, FUERA DEL DIVISOR (2026-09-01)
+
+**Estado: implementado y validado localmente; no publicado en producción.** Migración
+`20260901185600_habilitar_landing_formulario_alta_manual.sql`.
+
+**Regla confirmada por Miguel:** `landing` y `formulario` vuelven a estar disponibles en el
+formulario manual. Ese lead cuenta en cartera, trazabilidad, cierres, numerador y cualquier otra
+métrica aplicable; la única excepción es el divisor mensual del analista. El mismo origen llegado
+por el puente automático conserva el divisor normal. Como consecuencia válida, un analista puede
+superar 100 % de conversión.
+
+**Implementación sin funciones nuevas:** se añadió el sello inmutable
+`crm.leads.alta_manual boolean not null default false`. La RPC existente
+`crm.crear_lead_si_disponible` lo fija en `true`; el importador automático omite la columna y toma
+`false`. El sello no se deduce de `creado_por`, cuya FK es `ON DELETE SET NULL`. La función
+existente `private.conversion_episodios` solo cambia la pierna `recibido`: manual +
+landing/formulario produce `aporte_divisor=0`. La pierna `cierre` queda intacta y conserva
+`aporte_numerador=1`. No cambió ninguna firma ni apareció una sobrecarga.
+
+**Front y pruebas:** el selector ofrece LANDING/FORMULARIO a vendedor, supervisor y gerencia;
+Referido sigue reservado al vendedor. Vitest focalizado 69/69 y typecheck verdes. En PostgreSQL
+del stack Docker se aplicó la migración sobre una base desechable y se ejercitaron cuatro leads:
+LANDING/FORMULARIO manuales dieron divisor total 0, un cierre manual dio numerador 1, y los dos
+controles automáticos dieron divisor total 2 (`MIGRATION_OK`). La base y los archivos temporales se
+eliminaron al terminar; el Supabase local principal no se modificó.
+
+**Orden de publicación previsto:** migración de BD primero (compatible con el front anterior) y
+después el frontend. Hasta publicar ambos, la funcionalidad no está completa para usuarios.
