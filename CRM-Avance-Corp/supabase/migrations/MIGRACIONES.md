@@ -6273,6 +6273,63 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · FASE 2 — ENSAYO DEFINITIVO DEL PRIMER SELLO (2026-09-01)
+
+**Estado: ✅ ENSAYADO CONTRA PRODUCCION Y DESHECHO ENTERO. Produccion verificada intacta despues
+(0 meses sellados, 0 filas de foto, 0 clones residuales, `cerrar_periodo` y `ciclo_cierre_mes`
+con la misma huella que antes: `cefe29a1…` / `aa816313…`).** No es una migracion.
+Guiones versionados: `scripts/ensayo-cierre-agosto-definitivo.sql` (v2) y su comparador
+`scripts/verificar-sello-contra-control.sql`. **El ensayo del 29/08 nunca se commiteo y se
+perdio; este si queda.**
+
+**Por que se hizo hoy:** el 29/08 se ensayo con agosto ABIERTO. Desde el 01/09 el mes ya termino,
+asi que el candado «el mes tiene que haber terminado» **lo pasa agosto por si mismo** y solo hay
+que neutralizar UNO de los dos (la ventana de ajuste) — ensayo mas fiel que el anterior.
+
+**RESULTADO (todo por el camino REAL, el ciclo automatico del cron):**
+`ok=true` · **18 personas** · `cerrados=1` · **52,7 ms** · sello `automatico=true`,
+`cerrado_por=null`, `meta_revision=14`, `ponderacion_referido=0.150`,
+cobertura `medible=false / motivo=mes_parcial / suelo 2026-08-17` (agosto sella parcial: ya
+decidido, no es pregunta). La llamada DIRECTA da la **huella identica** (el ciclo no altera lo
+que sella). Rebotes: segundo cierre → `P0409 «Ese mes ya estaba cerrado»`; sellar julio por
+detras → `22023` **del candado 2quater** (comprobado por MENSAJE, no solo por sqlstate: cuatro
+candados comparten ese codigo).
+
+**LINEA BASE (no «foto del 10/09» — ver abajo):** foto `656c6b6e00f2d2a6867eb184b9f5c02b`;
+entradas conversion `b0151ec6…`, produccion `0a74291d…`, metas `278a52ed…`, metas_detalle
+`b31a363a…`, nombres `d0e143e3…`, deudas `18f854b2…`, referidos de agosto 7.
+
+**🔴 LA REFUTACION QUE CAMBIO EL ENCUADRE (4 lentes en paralelo; la v1 afirmaba lo contrario y
+era FALSO): AGOSTO NO ESTA CONGELADO EL 01/09.** La ventana del 1 al 10 existe justamente porque
+el mes admite correcciones. Cuatro caminos vivos medidos por los que la foto puede moverse antes
+del sello: (1) **anulaciones** — `conversion_episodios` evalua `cierre_externo_anulado(lead_id)`
+EN VIVO, con 25 asignaciones convertidas de agosto expuestas; (2) **republicacion de metas** —
+agosto ya va por la **revision 14** y `cerrar_periodo` toma `order by revision desc limit 1`;
+(3) **operaciones de cartera** — la pierna filtra por la COLUMNA `periodo`, no por fechas: en
+septiembre se puede registrar una operacion con periodo de agosto (aporta 1.0 frente a 0.15 de
+un referido); (4) **atribucion** — `analista_atribuido_cadena(...)` es politica de lectura VIVA.
+⇒ **Una huella distinta el 10/09 es lo NORMAL.** Por eso el comparador separa
+`DIFIERE-POR-DATO` (legitimo) de `DIFIERE-SIN-DATO` (rojo de verdad), con una huella por cada
+entrada. **Recomendado: repetir el ensayo la VISPERA (09/09)** — ese si es control proximo.
+
+**Otras 11 correcciones de la refutacion, aplicadas en la v2:** rastro consciente declarado (el
+payload NO lleva nombres — `log_min_error_statement=error`, asi que el mensaje del raise queda en
+los Postgres Logs y eso no lo borra el rollback) · asercion dura tras el acto A (el ciclo se
+TRAGA cualquier error de `cerrar_periodo` y devuelve `{ok:false,cerrados:0}` sin excepcion: sin
+la asercion se habria podido publicar un `md5('vacio')` como control) · precondicion de clones
+residuales · `revoke execute … from public` en los dos clones (nacen SECURITY DEFINER) ·
+`TimeZone`/`DateStyle` clavados y hashes de metas sin columnas de tiempo (si no, la huella
+dependia de la sesion) · acto E ampliado a metas_detalle + nombres + deudas por FILA + referidos ·
+forma del ciclo verificada (secdef+proconfig), no asumida · candado del mes MEDIDO en vez de
+literal `true` · acto D por mensaje · titular fuera del json (jsonb ordena claves por longitud:
+si el canal truncara, se perdia la huella) · acto B renombrado — **no** es «el camino de
+gerencia»: sin uid recorre igual la rama automatica, y la rama con uid no se puede probar en prod
+(inyectar claims contamina la transaccion entera, trampa ya documentada) → va a banco.
+
+**⚠️ Operativo:** mientras corre retiene el candado global de cierre
+(`pg_advisory_xact_lock` sobre `crm.periodos_cerrados`): no publicar metas ni anular contratos en
+ese minuto, y no correrlo cerca de las 09:20 de Lima.
+
 ## P-055 · OLA R — LAS DOCE ACTAS MUDAS DEL REGISTRO (2026-08-30/31)
 
 **Estado: ✅ EN PRODUCCIÓN — publicada por Miguel el 30/08 noche (registro 190). Verificado
