@@ -55,6 +55,27 @@ function fallar(mensaje, detalle) {
   process.exit(1);
 }
 
+// ---------------------------------------------------------------------------
+// 0) LOS ARTEFACTOS GENERADOS DE LA F7, AL DIA. Va ANTES de tocar el servidor:
+//    es local y barato, y lo que protege es caro. Si alguien edita una
+//    migracion de demolicion y no regenera su registrador, el registro guardaria
+//    un texto que NO es el que se aplico (el fallo que casi se cuela en ATR-4);
+//    y un ensayo viejo acredita un paquete que ya no existe.
+// ---------------------------------------------------------------------------
+for (const [generador, que] of [
+  ['supabase/scripts/generar-registrador-f7.mjs', 'Los registradores'],
+  ['supabase/scripts/generar-ensayo-f7-olas.mjs', 'El ensayo'],
+]) {
+  const r = spawnSync('node', [generador, '--verificar'],
+    { cwd: CRM_ROOT, encoding: 'utf8', env: process.env });
+  if (r.error) fallar(`No se pudo correr ${generador}: ${r.error.message}`);
+  const texto = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+  if (r.status !== 0) {
+    fallar(`${que} de la F7 estan DESFASADOS respecto de sus archivos fuente`, texto);
+  }
+  process.stdout.write(texto);
+}
+
 const salida = correr(TRINQUETE);
 const veredicto = /"veredicto":\s*"((?:[^"\\]|\\.)*)"/.exec(salida)?.[1];
 if (!veredicto) {

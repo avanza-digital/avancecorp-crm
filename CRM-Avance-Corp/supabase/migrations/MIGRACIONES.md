@@ -6330,18 +6330,113 @@ decidió el 01/09 que **no se toca**. Ver «El catálogo de productos NO es un c
 NOMBRADO `trg_f7_obs_01_no_borrar`) · `scripts/ensayo-f7-2-ciclo.sql` → **F7.2-CICLO-VERDE**
 contra prod, deshecho. 🔴 Si se revierte: retirar A MANO la fila `20260901200000`.
 
-## P-055 · F7 · LAS DEMOLICIONES, LISTAS PARA CORRER (13 y 14/09)
+## P-055 · F7 · LAS DEMOLICIONES — v2 TRAS EL NO-GO DE CODEX (13 y 14/09)
 
-**Estado: 🟢 ESCRITAS, ENSAYADAS Y COMMITEADAS — esperan solo el `!` en su fecha.**
-`F7-ENSAYO-COMPLETO-VERDE` (`scripts/ensayo-f7-cadena-completa.sql`): cierre + las dos
-demoliciones + las dos marchas atrás, todo contra prod y deshecho; producción verificada intacta.
+**Estado: 🟡 v2 ESCRITA Y ENSAYADA ENTERA contra producción; falta la evidencia D+7/D+14 y el `!`
+de Miguel en su fecha.** La v1 se declaró aquí «lista para correr» el 01/09 y **una segunda
+auditoría de Codex la devolvió NO-GO con 12 puntos**; esta sección la corrige. Ver abajo «lo que
+la v1 daba por bueno y no lo era».
 
-- **Ola 2 (13/09)** `20260913120000` — demuele las 7 gemelas. Preflight: ventana POR FILA ·
-  stop-the-line si el vigía tiene alertas · huellas contra la captura viva del 01/09 · «nadie
-  VIVO las nombra» (una pieza ya cerrada es referencia INERTE y no bloquea).
+**✏️ LAS v1 SE RETIRAN DEL ÁRBOL.** `20260913120000` y `20260914120000` (commit 9695d67) **nunca
+se aplicaron en ningún sitio** — el registro remoto va por 196 y estaban fechadas el 13 y el
+14/09. Como las migraciones commiteadas **no se editan** (regla del CRM, con guardián que la hace
+cumplir), se retiran del árbol y entran en su lugar las v2. **No podían quedarse**: un replay de
+banco aplica por orden de versión y habría demolido con los preflights débiles. Copia de las v1
+en la sesión; ninguna versión del registro las nombra.
+
+- **Ola 2 (13/09)** `20260913130000_crm_f7_ola2_demoler_las_siete_gemelas_v2` — demuele las 7
+  gemelas. Preflight: ventana **por FIRMA exacta** (no por conteo de la ola) · **vigía VIVO**
+  (cron activo, comando exacto, última corrida reciente y `succeeded`) + cero alertas ·
+  `assert_f7_piezas_cerradas()` **antes** del DROP · huella del **cuerpo Y de
+  `pg_get_functiondef` entera** + dueño + comentario · **ACL efectivo** (`acldefault` para el
+  caso `proacl IS NULL`) + `has_function_privilege` a los tres roles de la API · **censo de nueve
+  superficies** (`pg_depend`, `prosrc`, `prosqlbody`, vistas, policies, defaults, constraints,
+  índices de expresión, `cron.job`) en **todos** los esquemas · acta por firma con `ROW_COUNT` ·
+  postflight por firma exacta, con las puertas VIVAS `crear_contrato_con_cuenta_pdf_v2` y
+  `actualizar_contrato_con_cuenta_pdf_v3(uuid,jsonb,jsonb)` y el trigger de snapshot.
+  Registrador: `scripts/registrar-f7-ola2-version.sql`.
   Marcha atrás: `scripts/rollback-f7-ola2-gemelas.sql`.
-- **Ola 2b (14/09)** `20260914120000` — demuele **solo** `metricas_altas_analista_fn`.
+- **Ola 2b (14/09)** `20260914130000_crm_f7_ola2b_demoler_el_tablero_de_altas_v2` — demuele
+  **solo** `metricas_altas_analista_fn`, con las mismas defensas.
+  Registrador: `scripts/registrar-f7-ola2b-version.sql`.
   Marcha atrás: `scripts/rollback-f7-ola2b-tableros.sql`.
+
+**🤖 Los registradores y el ensayo se GENERAN, no se copian.**
+`scripts/generar-registrador-f7.mjs` y `scripts/generar-ensayo-f7-olas.mjs` leen los archivos
+reales. Es la lección de ATR-4 (registrador con una migración vieja incrustada dentro) convertida
+en herramienta, y **`npm run gate:f7` corre el `--verificar` de los dos ANTES de tocar el
+servidor**: si alguien edita una migración de demolición y no regenera, el gate se pone rojo.
+Probado con mutante: toqué una migración → rojo; la restauré → verde. El generador del ensayo
+además exige que los registradores estén al día antes de embeberlos.
+
+### Segunda vuelta de la auditoría (el mismo 01/09): cinco arreglos más
+
+Codex re-auditó la v2 con el encargo de refutar la propia corrección. Nueve de sus doce puntos
+quedaron CERRADOS y tres siguen abiertos **a propósito** (evidencia D+7/D+14, paquete del 15/09 y
+ruta del bridge). Los cinco huecos nuevos, ya cerrados:
+
+1. **El generador solo protegía el delimitador INTERIOR.** El exterior (`$reg_*$`) envuelve el
+   cuerpo embebido: una migración que lo contuviera habría cerrado el literal antes de tiempo y
+   producido SQL corrupto. Ahora **los dos se calculan** buscando uno libre (determinista, así que
+   `--verificar` no se pone rojo por regenerar). Probado: con `$reg_ola2b$` dentro de la migración,
+   el generador pasa solo a `$reg_ola2b_1$`.
+2. **`--verificar` era una promesa en un comentario**: decía que lo corría `gate:config`, donde no
+   estaba cableado. Ahora lo corre `gate:f7`, de verdad.
+3. **El ensayo no tenía `--verificar`** y podía quedarse viejo acreditando un paquete que ya no
+   existe. Ya lo tiene, y valida los registradores antes de embeberlos.
+4. **El mutante de la Ola 2 no identificaba unívocamente la guarda temporal**: su mensaje
+   («no estan listas») sale de una guarda COMPUESTA. Ahora exige además que el detalle **nombre la
+   fecha futura** que puso el viaje en el tiempo, que solo puede salir de la rama de la ventana.
+5. **El rollback de la Ola 2 validaba el libro por conteo**, no por conjunto exacto de firmas —
+   justo en una marcha atrás de emergencia, el peor momento para enterarse. Ya exige las siete.
+
+**🧪 `F7-OLAS-2y2b-ENSAYO-VERDE` (01/09, `scripts/ensayo-f7-olas-2-y-2b.sql`)** contra producción,
+deshecho entero: mutante de ventana **cazado en las dos olas por el preflight REAL** (con el CHECK
+`f7_obs_ventana` PUESTO todo el rato), migraciones y registradores aplicados (el registro habría
+quedado en **198** versiones), las marchas atrás recrearon las **8** con definición **y comentario**
+al byte, libro con 15 piezas y guardianes en verde.
+
+### Lo que la v1 daba por bueno y no lo era (auditoría de Codex, 01/09)
+
+Codex confirmó primero lo importante: **demoler no rompe nada vivo**. Censo exhaustivo con
+lecturas — cero dependencias en `pg_depend`, cero referencias en cuerpos, vistas, policies,
+defaults, índices y `cron.job`, cero en las **16 edge functions desplegadas**, cero en los dos
+`.gs`, cero en los **68 archivos del portal vivo** y los **49 del CRM vivo**. El NO-GO era del
+**paquete**, no de la decisión:
+
+1. **Los dos registradores NO EXISTÍAN** — y esta misma sección declaraba el paquete «listo».
+2. **La marcha atrás de la Ola 2b perdía el COMENTARIO** de `metricas_altas_analista_fn`, y el
+   ensayo salía verde igual porque solo comparaba `md5(prosrc)`. Prueba concreta de que una
+   huella de cuerpo **no acredita** una recreación fiel. Los dos rollbacks fijan ahora definición
+   completa + comentario + dueño + ACL efectivo.
+3. **Cinco falsos verdes en los preflights**: libro validado por conteo y no por conjunto exacto ·
+   stop-the-line ciego al vigía (un cron apagado también devuelve cero alertas) · huella solo del
+   cuerpo · `aclexplode(NULL)` no devuelve filas mientras el ACL por defecto **sí** concede EXECUTE
+   a PUBLIC · censo demasiado estrecho.
+4. **El ensayo no ejercitaba el preflight real** (repetía su consulta) y **desmontaba el CHECK** de
+   14 días para viajar en el tiempo: la migración nunca se probaba con su guarda instalada.
+5. **`test-rls` exigía 42501 exacto**: tras el DROP, PostgREST responde `PGRST202` y la suite se
+   ponía roja. Ahora las siete gemelas y el tablero aceptan **42501 (cerrada) o PGRST202
+   (demolida)** — y **solo ellas**: en una puerta viva un PGRST202 seguiría siendo rojo, porque
+   significaría que alguien se llevó por delante algo que debía seguir en pie.
+
+**📌 Donde Codex se pasó de frenada — y él mismo lo refutó en la segunda vuelta.** Dijo que tras el
+DROP `gate:config` quedaría rojo por `test-productos-inversion.sql`. **No es así**: ese oráculo es
+autocontenido — el gate le crea un clon de `template0` y el propio archivo hace `\ir` de las dos
+migraciones del catálogo, o sea que **se recrea las gemelas antes de probarlas**. Su mundo no
+depende de producción. Llegué a meterle guardas de existencia por esa premisa falsa; **se
+revirtieron enteras**, porque nunca se ejecutarían y, si lo hicieran, saltaban también pruebas de
+superficies VIVAS y la preparación (`CAT-001`) que bloques posteriores consumen. Una guarda
+inerte-pero-mal es peor que ninguna guarda.
+
+**⏳ Lo que todavía falta antes del `!` (no es código):** la **evidencia D+7 (06/09) y D+14
+(13/09)** por firma —rebotes `42501`/`PGRST202` en los registros, con **intervalo y cobertura
+declarados**—. La ausencia de logs no se convierte en «cero uso probado»: se reporta como «sin
+evidencia de uso en la ventana X, con cobertura Y».
+
+**🔜 El paquete del 15/09 queda APLAZADO, no olvidado:** demoler
+`crm.cerrar_altas_legacy_productos(bigint)` (cerrada el 01/09, ventana hasta el 15/09) necesita su
+propia captura, migración, registrador y ensayo. Se escribe cuando se escriba, con el mismo patrón.
 
 **🔴 CUATRO TRAMPAS QUE EL ENSAYO CAZÓ (ninguna era visible leyendo el código):**
 1. **Recrear una función en `public` la REABRE**: los default privileges de Supabase le devuelven
@@ -6353,10 +6448,14 @@ demoliciones + las dos marchas atrás, todo contra prod y deshecho; producción 
    limpieza-leads), nunca un `disable trigger user` a ciegas.
 4. **🔴 DEUDA DECLARADA — dos tableros salen del plan:** `metricas_distribucion_leads_fn` y su
    `v2` pertenecen al rol `crm_metricas_bridge`, y por el canal de publicación **no se puede
-   asumir ese rol** (`42501 permission denied to set role`): ni `alter owner` ni `set role`. Su
-   marcha atrás las recrearía con dueño `postgres` y el vigilante las vería REABIERTAS. **No se
-   derriba lo que no se sabe reconstruir**: quedan cerradas y vigiladas hasta tener una vía con
-   superusuario (panel de Supabase o conexión directa).
+   asumir ese rol tal y como está hoy** (`42501 permission denied to set role`): ni `alter owner`
+   ni `set role`. Su marcha atrás las recrearía con dueño `postgres` y el vigilante las vería
+   REABIERTAS. **No se derriba lo que no se sabe reconstruir**: quedan cerradas y vigiladas.
+   ⚠️ **Corrección de la 2.ª auditoría:** decir «hace falta superusuario» es **demasiado fuerte**.
+   Codex midió que existe una vía transaccional plausible — conceder temporalmente `SET OPTION` a
+   la membresía de `postgres` usando el `ADMIN OPTION` que YA existe, más `CREATE` en `crm` al
+   bridge, restaurando ambos exactamente. **No está ensayada y no entra aquí**: va en su propio
+   paquete, con ensayo adversarial y fotos exactas de `pg_auth_members` y `nspacl`.
 
 **Los 14 días NO se tocaron.** El ensayo viaja en el tiempo solo dentro de su transacción
 abortada, y su ACTO 2 es el **mutante del candado**: comprueba que hoy las 7 gemelas están dentro

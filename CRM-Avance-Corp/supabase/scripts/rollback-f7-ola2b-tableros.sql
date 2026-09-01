@@ -9,6 +9,15 @@
 -- ⚠️ Se revoca EXPLICITAMENTE a los tres roles de la API: recrear una funcion
 --    hace que los default privileges le devuelvan EXECUTE (lo cazo el
 --    vigilante F7 durante el ensayo del 01/09).
+--
+-- ✏️ CORRECCION del 01/09 (auditoria de Codex): la version anterior NO
+--    restituia el COMENTARIO de la funcion, asi que la marcha atras era
+--    materialmente INFIEL — y el ensayo salia verde igual, porque solo
+--    comparaba `md5(prosrc)`. Es la prueba concreta de que una huella de
+--    cuerpo no acredita una recreacion fiel. Ahora se restituye el comentario
+--    y el postflight fija la DEFINICION COMPLETA (`pg_get_functiondef`, que
+--    arrastra args, retorno, volatilidad, SECURITY DEFINER, search_path, coste
+--    y filas), el dueño, el comentario y el ACL efectivo.
 
 begin;
 set local lock_timeout = '5s';
@@ -62,6 +71,9 @@ AS $function$
 $function$;
 alter function crm.metricas_altas_analista_fn(integer) owner to postgres;
 revoke all on function crm.metricas_altas_analista_fn(integer) from public, anon, authenticated, service_role;
+-- El comentario VIVO, al pie de la letra (capturado de produccion el 01/09).
+comment on function crm.metricas_altas_analista_fn(integer) is
+  'Agregado para gráfica de gerencia: altas de clientes por mes y por analista (nombra SOLO al asesor interno, nunca al cliente). Mismo ámbito por rol.';
 
 -- El libro vuelve a `observacion`. La maquina de estados PROHIBE salir de
 -- `demolida` salvo «por migracion con el candado bajado»: se baja el trigger
@@ -76,13 +88,48 @@ update private.f7_piezas_en_observacion
 alter table private.f7_piezas_en_observacion enable trigger trg_f7_obs_00_solo_crece;
 
 do $rb_post$
-declare v_h text; v_verd text;
+declare v_h text; v_hd text; v_com text; v_own text; v_verd text; v_n int; v_oid oid;
 begin
-  select md5(p.prosrc) into v_h from pg_proc p
-   where p.oid = 'crm.metricas_altas_analista_fn(integer)'::regprocedure;
+  v_oid := 'crm.metricas_altas_analista_fn(integer)'::regprocedure;
+  select md5(p.prosrc), md5(pg_get_functiondef(p.oid)),
+         obj_description(p.oid,'pg_proc'), pg_get_userbyid(p.proowner)
+    into v_h, v_hd, v_com, v_own
+  from pg_proc p where p.oid = v_oid;
+
+  -- (1) El CUERPO, al byte.
   if v_h is distinct from 'df8a99e0dfc4e1d94794073787aa84d7' then
-    raise exception 'rollback OLA 2b: no volvio al byte (huella %)', v_h;
+    raise exception 'rollback OLA 2b: el cuerpo no volvio al byte (huella %)', v_h;
   end if;
+  -- (2) La DEFINICION COMPLETA: args, retorno, volatilidad, SECURITY DEFINER,
+  --     search_path, coste y filas. Aqui es donde se caza la deriva que la
+  --     huella del cuerpo no ve.
+  if v_hd is distinct from 'f439e788e16a49fa23d8b52c0047f929' then
+    raise exception 'rollback OLA 2b: la DEFINICION no volvio al byte (huella %) — algun atributo derivo', v_hd;
+  end if;
+  -- (3) El COMENTARIO (el fallo que la auditoria del 01/09 destapo).
+  if v_com is distinct from 'Agregado para gráfica de gerencia: altas de clientes por mes y por analista (nombra SOLO al asesor interno, nunca al cliente). Mismo ámbito por rol.' then
+    raise exception 'rollback OLA 2b: el comentario no quedo restituido: %', coalesce(v_com,'<null>');
+  end if;
+  -- (4) El DUEÑO.
+  if v_own is distinct from 'postgres' then
+    raise exception 'rollback OLA 2b: quedo con dueño «%»', v_own;
+  end if;
+  -- (5) Y CERRADA de verdad: ACL efectivo sin concesiones ajenas al dueño, y
+  --     privilegio efectivo nulo para los tres roles de la API (recrear una
+  --     funcion hace que los default privileges le devuelvan EXECUTE).
+  select count(*) into v_n
+  from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+  where p.oid = v_oid and a.privilege_type = 'EXECUTE'
+    and a.grantee is distinct from p.proowner;
+  if v_n > 0 then
+    raise exception 'rollback OLA 2b: quedo con % concesion(es) EXECUTE fuera del dueño', v_n;
+  end if;
+  select count(*) into v_n from unnest(array['anon','authenticated','service_role']) as r(rol)
+   where has_function_privilege(r.rol, v_oid, 'EXECUTE');
+  if v_n > 0 then
+    raise exception 'rollback OLA 2b: % rol(es) de la API conservan privilegio EFECTIVO de ejecucion', v_n;
+  end if;
+
   select private.assert_f7_piezas_cerradas() into v_verd;
   if v_verd not like 'OK%' then raise exception 'rollback OLA 2b: vigilante F7 en rojo: %', v_verd; end if;
 end $rb_post$;

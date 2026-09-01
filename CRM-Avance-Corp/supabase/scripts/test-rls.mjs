@@ -6140,6 +6140,20 @@ async function testCapacidadUnificada(sessions, seed) {
   // cerrada va SOLA y con diagnostico propio: si la respuesta llega sin codigo
   // (fallo de conexion = backend caido), este bloque se aborta nombrando la
   // causa REAL en vez de dejar que la suite muera en cascada espuria.
+  // 🪦 F7 Ola 2 (13/09): mientras las siete gemelas EXISTAN cerradas, PostgREST
+  //    responde 42501; cuando se demuelan responde PGRST202 «no existe». Las dos
+  //    significan «este rol no la alcanza», y por eso aqui valen las dos.
+  //    ⚠️ Solo para ESTAS SIETE firmas: `pasaElGate` sigue exigiendo 42501 para
+  //    todo lo demas, porque en una puerta VIVA un PGRST202 no seria un candado
+  //    sino la prueba de que alguien se llevo por delante algo que debia estar.
+  const gemelaFueraDeAlcance = (error) => error?.code === '42501'
+    || error?.code === 'PGRST202'
+    || /no autorizado/i.test(error?.message ?? '');
+  const gemelaNoAlcanzable = async (label, promise) => {
+    const { error } = await promise;
+    check(gemelaFueraDeAlcance(error), `${label} [${error?.code ?? 'sin codigo'}]`);
+  };
+
   {
     const { error } = await sessions.gerencia.client.schema('crm').rpc('crear_contrato_producto',
       { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] });
@@ -6150,15 +6164,15 @@ async function testCapacidadUnificada(sessions, seed) {
         error.message ?? 'sin mensaje');
       return;
     }
-    const denegada = error?.code === '42501' || /no autorizado/i.test(error?.message ?? '');
-    check(denegada, 'D1/F5.d gerencia NO alcanza crm.crear_contrato_producto (gemela cerrada)');
+    check(gemelaFueraDeAlcance(error),
+      `D1/F5.d gerencia NO alcanza crm.crear_contrato_producto (gemela cerrada o demolida) [${error?.code ?? 'sin codigo'}]`);
   }
 
   for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive']) {
     if (!sessions[key]) continue;
-    await pasaElGate(`D1/F5.d ${key} NO alcanza crm.crear_contrato_producto (gemela cerrada)`,
+    await gemelaNoAlcanzable(`D1/F5.d ${key} NO alcanza crm.crear_contrato_producto (gemela cerrada o demolida)`,
       sessions[key].client.schema('crm').rpc('crear_contrato_producto',
-        { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }), false);
+        { p_contrato: {}, p_producto_condicion_id: null, p_cronograma: [] }));
   }
 
   // Las SIETE firmas cerradas, probadas por conducta (auditoria Codex, P2:
@@ -6185,8 +6199,8 @@ async function testCapacidadUnificada(sessions, seed) {
     const cliente = esquema === 'crm'
       ? sessions.vend1.client.schema('crm')
       : sessions.vend1.client;
-    await pasaElGate(`D1/F5.d vend1 NO alcanza ${esquema}.${fn} (gemela cerrada)`,
-      cliente.rpc(fn, payload), false);
+    await gemelaNoAlcanzable(`D1/F5.d vend1 NO alcanza ${esquema}.${fn} (gemela cerrada o demolida)`,
+      cliente.rpc(fn, payload));
   }
 
   // D2 · catalogo: coordinador SI (miembro CRM), sin-membresia NO
@@ -6298,11 +6312,19 @@ async function testF7Ola1(sessions) {
     check(error?.code === '42501',
       `F7.1 gerencia NO alcanza metricas_cartera_fn (${error?.code ?? 'sin error'})`);
   }
+  // 🪦 De estas puertas, SOLO `metricas_altas_analista_fn` se demuele (Ola 2b,
+  //    14/09): cuando desaparezca, PostgREST pasa de 42501 a PGRST202. Las
+  //    otras CINCO se quedan (dos del bridge, DEUDA declarada; `metricas_cartera_fn`
+  //    y las dos de contrato, `cerrada_permanente`), asi que para ellas un
+  //    PGRST202 significaria que
+  //    alguien borro algo que debia seguir en pie: ahi se exige 42501 a secas.
+  const DEMOLIBLE_EN_OLA_2B = new Set(['metricas_altas_analista_fn']);
   for (const [fn, args] of puertas) {
     for (const key of ['gerencia', 'vend1']) {
       const { error } = await sessions[key].client.schema('crm').rpc(fn, args);
-      check(error?.code === '42501',
-        `F7.1 ${key} NO alcanza ${fn} (${error?.code ?? 'sin error'})`);
+      const fuera = error?.code === '42501'
+        || (DEMOLIBLE_EN_OLA_2B.has(fn) && error?.code === 'PGRST202');
+      check(fuera, `F7.1 ${key} NO alcanza ${fn} (${error?.code ?? 'sin error'})`);
     }
   }
   // La puerta de public, directa (el 42501 del ACL corre ANTES del cuerpo:
@@ -6817,9 +6839,12 @@ async function testReparto(sessions, seed) {
 
   // F7.1: metricas_altas_analista_fn quedo CERRADA (observacion, demolible
   // 14/09) — para TODO rol la respuesta es denegacion, ya no filas vacias.
+  // 🪦 F7 Ola 2b (14/09): cuando se demuela, PostgREST pasa de 42501 a PGRST202
+  //    «no existe la funcion». Las dos son «el coordinador no la alcanza».
   await expectExplicitAuthorizationDenied(
-    'coordinador no alcanza metricas_altas_analista_fn (cerrada F7.1)',
+    'coordinador no alcanza metricas_altas_analista_fn (cerrada F7.1 o demolida en la Ola 2b)',
     coordinador.schema('crm').rpc('metricas_altas_analista_fn', { p_meses: 12 }),
+    ['PGRST202'],
   );
 
   // convertir_lead tiene allowlist propia ('vendedor','supervisor'): el rol

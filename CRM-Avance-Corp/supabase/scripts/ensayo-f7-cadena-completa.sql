@@ -1,3 +1,10 @@
+-- ⚠️ SUPERADO PARA LAS OLAS 2 y 2b — NO usar como acreditacion.
+--    Este ensayo lleva COPIAS INCRUSTADAS de las migraciones v1 (retiradas del
+--    arbol el 01/09 tras el NO-GO de Codex), y su ACTO 2 no ejecuta el
+--    preflight real: repite su consulta. Se conserva porque es la evidencia
+--    del ciclo de la F7.2, que SI se publico (registro 196).
+--    El ensayo vivo de las olas 2 y 2b es `ensayo-f7-olas-2-y-2b.sql`, que se
+--    GENERA de los archivos reales con `generar-ensayo-f7-olas.mjs`.
 begin;
 -- =====================================================================
 -- ENSAYO DE LA FASE 7 COMPLETA — contra PRODUCCION, deshecho al final.
