@@ -213,7 +213,7 @@ describe('SeccionEnCooperativas', () => {
     const ficha = await screen.findByRole('dialog')
     expect(within(ficha).getByText('OP-INVENTADA')).toBeInTheDocument()
     expect(within(ficha).getByText(/El depósito no existe en el estado de cuenta/)).toBeInTheDocument()
-    expect(within(ficha).getByText(/ya no cuenta en la cuota ni en la conversión/)).toBeInTheDocument()
+    expect(within(ficha).getByText(/ya no cuenta en la conversión\. El capital se conserva/)).toBeInTheDocument()
   })
 })
 

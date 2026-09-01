@@ -101,7 +101,7 @@ function MiniFicha({ fila, onClose }: { fila: FilaCoop; onClose: () => void }) {
       <DialogBody className="space-y-2">
         {anulado && (
           <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs font-semibold leading-relaxed text-destructive-text">
-            Gerencia anuló este cierre: ya no cuenta en la cuota ni en la conversión.
+            Gerencia anuló este cierre: ya no cuenta en la conversión. El capital se conserva.
             {fila.motivoAnulacion ? ` Motivo: ${fila.motivoAnulacion}` : ''}
           </p>
         )}
@@ -359,7 +359,7 @@ function RevisionDelMes({
       }
       setAnulando(null)
       setMotivo('')
-      toast.success('Cierre anulado (demo): ya no cuenta en cuota ni conversión')
+      toast.success('Cierre anulado (demo): baja la conversión; el capital no se toca')
       return
     }
     setEnviando(true)
@@ -372,7 +372,7 @@ function RevisionDelMes({
       await recargar()
       setAnulando(null)
       setMotivo('')
-      toast.success('Cierre anulado: ya no cuenta en cuota ni conversión')
+      toast.success('Cierre anulado: baja la conversión de su analista. El capital no se toca')
     } catch (e) {
       setError(e instanceof CrmApiError ? e.message : 'No se pudo anular el cierre')
     } finally {
@@ -394,8 +394,10 @@ function RevisionDelMes({
         </DialogHeader>
         <DialogBody className="space-y-3">
           <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold leading-relaxed text-warning-text">
-            Este cierre dejará de contar en la cuota y en la conversión de{' '}
-            {anulando.vendedor_nombre ?? 'su analista'}. No se puede deshacer.
+            Este cierre dejará de contar en la conversión de{' '}
+            {anulando.vendedor_nombre ?? 'su analista'}. Su capital y el AUM de
+            la empresa NO bajan (la anulación sanciona la conversión, no el
+            dinero). No se puede deshacer.
           </p>
           <div className="space-y-1.5">
             <Label htmlFor="cx-motivo">Motivo de la anulación</Label>

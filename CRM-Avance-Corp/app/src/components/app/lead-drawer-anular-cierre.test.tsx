@@ -218,12 +218,15 @@ describe('el diálogo de confirmación', () => {
     // El cumplimiento de metas NO vive en TanStack: sin este `recargar` la
     // pantalla restaría cifras frescas de un cumplimiento viejo.
     expect(recargar).toHaveBeenCalled()
-    expect(vi.mocked(toast.success).mock.calls[0]?.[0]).toMatch(/1 contrato deja de contar/i)
+    // ATR-4: anular sanciona la CONVERSION; el capital no se toca. El contrato
+    // asociado se informa como trazabilidad, no como descuento.
+    expect(vi.mocked(toast.success).mock.calls[0]?.[0]).toMatch(/baja la conversión de su analista \(1 contrato asociado\)/i)
+    expect(vi.mocked(toast.success).mock.calls[0]?.[0]).toMatch(/El capital no se toca/i)
   })
 
-  // Cero contratos afectados es un resultado CORRECTO (la conversión sale del
-  // ledger, el dinero de los contratos) y sin explicarlo parecería un fallo.
-  it('si no había contrato que descontar, lo explica en vez de callar', async () => {
+  // Cero contratos asociados es un resultado CORRECTO (la conversión sale del
+  // ledger) y el mensaje lo dice sin inventar un descuento que ya no existe.
+  it('sin contratos asociados, dice que baja la conversión y nada más', async () => {
     const usuario = userEvent.setup()
     mutarAnular.mockResolvedValue({
       leadId: LEAD.id, contratosAfectados: [], afectaCuota: false,
@@ -233,7 +236,7 @@ describe('el diálogo de confirmación', () => {
     await usuario.type(screen.getByLabelText(/Motivo de la anulación/i), 'Sin contrato')
     await usuario.click(screen.getByRole('button', { name: 'Anular cierre' }))
     expect(vi.mocked(toast.success).mock.calls[0]?.[0])
-      .toMatch(/No había contrato que descontar/i)
+      .toMatch(/baja la conversión de su analista\. El capital no se toca/i)
   })
 
   it('al volver, el foco regresa al botón que lo abrió', async () => {

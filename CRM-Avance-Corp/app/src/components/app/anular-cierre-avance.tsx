@@ -79,7 +79,7 @@ export function AnularCierreAvanceDialog({
         setError(res.error ?? 'No se pudo anular el cierre')
         return
       }
-      toast.success('Cierre anulado (demo): ya no cuenta en cuota ni conversión')
+      toast.success('Cierre anulado (demo): baja la conversión; el capital no se toca')
       onCerrar()
       return
     }
@@ -92,16 +92,16 @@ export function AnularCierreAvanceDialog({
       // pantalla restaría cifras frescas de un cumplimiento viejo — es el bug que
       // ya se midió al anular en cooperativas.
       await recargar()
-      // Se dice lo que DE VERDAD se movió en vez de un «listo» genérico: la RPC
-      // devuelve los contratos que dejan de acreditar, y cero contratos con la
-      // conversión bajando igual es un resultado correcto (el mérito sale del
-      // ledger, el dinero de los contratos) que sin explicar parecería un fallo.
+      // ATR-4 (regla firmada 31/08): anular es una sanción de CONVERSIÓN — el
+      // capital del analista y el AUM de la empresa no se tocan jamás. La lista
+      // de contratos de la RPC queda como trazabilidad (a qué línea pertenecía
+      // el cierre), no como descuento de cuota.
       toast.success(
-        res.afectaCuota
-          ? `Cierre anulado: ${res.contratosAfectados.length} ${
-              res.contratosAfectados.length === 1 ? 'contrato deja' : 'contratos dejan'
-            } de contar en la cuota, y baja la conversión`
-          : 'Cierre anulado: baja la conversión. No había contrato que descontar de la cuota',
+        res.contratosAfectados.length > 0
+          ? `Cierre anulado: baja la conversión de su analista (${res.contratosAfectados.length} ${
+              res.contratosAfectados.length === 1 ? 'contrato asociado' : 'contratos asociados'
+            }). El capital no se toca`
+          : 'Cierre anulado: baja la conversión de su analista. El capital no se toca',
       )
       onCerrar()
     } catch (e) {
@@ -120,9 +120,10 @@ export function AnularCierreAvanceDialog({
       </DialogHeader>
       <DialogBody className="space-y-3">
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold leading-relaxed text-warning-text">
-          Este cierre dejará de contar en la cuota y en la conversión de{' '}
-          {lead.vendedor_nombre ?? 'su analista'}. El cliente y su contrato NO se
-          tocan: solo deja de acreditarse. No se puede deshacer.
+          Este cierre dejará de contar en la conversión de{' '}
+          {lead.vendedor_nombre ?? 'su analista'}. Su capital y su producción NO
+          bajan (la anulación sanciona la conversión, no el dinero), y el cliente
+          y su contrato no se tocan. No se puede deshacer.
         </p>
         <div className="space-y-1.5">
           <Label htmlFor="anular-avance-motivo">Motivo de la anulación</Label>
