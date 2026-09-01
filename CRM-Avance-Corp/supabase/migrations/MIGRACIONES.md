@@ -6273,6 +6273,36 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · EL BANCO: 4.º INTENTO — EL PROTOCOLO FUNCIONÓ Y EL DIAGNÓSTICO CAMBIA (01/09)
+
+**El banco NO está roto: llegó a la migración que muere POR DISEÑO.** El protocolo que dejó
+escrito el intento del 31/08 (medir la salud de storage ANTES de culpar al replay) hizo su
+trabajo a la primera:
+
+| Medición | Intentos 1-3 (31/08) | Intento 4 (`banco-f7`, 01/09) |
+|---|---|---|
+| storage / realtime | **nunca levantaron** (`TenantNotFound`) | ✅ **ambos levantaron** |
+| esquemas `crm` y `private` | no nacieron | ✅ existen (24 tablas, 174 funciones) |
+| versiones replayadas | **0** | ✅ **86** |
+| Veredicto | plataforma | **nuestro registro, y es lo esperado** |
+
+⇒ Los tres fallos del 31/08 **sí eran de Supabase**; este es otra cosa. El replay se detuvo en
+**`20260812000259_crm_cierres_externos`**, que es exactamente la que
+[[banco-branch-replay-manual]] documenta desde el 16/08: *«su postflight exige un perfil real
+activo en `crm.equipo` — en branch el seed corre antes — y el branch nace virgen»*. **Todo branch
+nuevo muere ahí por diseño**, y la receta manual (replay desde el REGISTRO remoto por el pooler,
+con siembra intercalada) es la vía conocida.
+
+🔴 **Y el CLI también tenía su trampa, ya documentada:** el host directo
+`db.<ref>.supabase.co` NO resuelve (ECONNREFUSED); hay que ir por el **pooler en modo SESIÓN**
+(`aws-0-us-east-2.pooler.supabase.com:5432`, usuario `postgres.<branch_ref>`). El
+`POSTGRES_URL` que devuelve `branches get` viene en 6543 (modo transacción) y hay que cambiarlo
+a 5432.
+
+**Estado:** `banco-f7` (`cwkiejoaqadcnaieghnf`) vivo, con 86 de 196 versiones. Para completarlo
+falta la siembra intercalada + el replay manual de las 110 restantes desde el registro remoto —
+trabajo del próximo ciclo, ya sin misterio de plataforma.
+
 ## P-055 · F7.2 — ✅ EN PRODUCCIÓN EL 01/09: EL INTERRUPTOR LEGACY, CERRADO CON LLAVE
 
 **Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01 (`20260901200000`).** Batería verde:
