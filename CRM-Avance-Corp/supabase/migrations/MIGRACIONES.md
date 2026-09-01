@@ -6273,6 +6273,95 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · EL BANCO: 4.º INTENTO — EL PROTOCOLO FUNCIONÓ Y EL DIAGNÓSTICO CAMBIA (01/09)
+
+**El banco NO está roto: llegó a la migración que muere POR DISEÑO.** El protocolo que dejó
+escrito el intento del 31/08 (medir la salud de storage ANTES de culpar al replay) hizo su
+trabajo a la primera:
+
+| Medición | Intentos 1-3 (31/08) | Intento 4 (`banco-f7`, 01/09) |
+|---|---|---|
+| storage / realtime | **nunca levantaron** (`TenantNotFound`) | ✅ **ambos levantaron** |
+| esquemas `crm` y `private` | no nacieron | ✅ existen (24 tablas, 174 funciones) |
+| versiones replayadas | **0** | ✅ **86** |
+| Veredicto | plataforma | **nuestro registro, y es lo esperado** |
+
+⇒ Los tres fallos del 31/08 **sí eran de Supabase**; este es otra cosa. El replay se detuvo en
+**`20260812000259_crm_cierres_externos`**, que es exactamente la que
+[[banco-branch-replay-manual]] documenta desde el 16/08: *«su postflight exige un perfil real
+activo en `crm.equipo` — en branch el seed corre antes — y el branch nace virgen»*. **Todo branch
+nuevo muere ahí por diseño**, y la receta manual (replay desde el REGISTRO remoto por el pooler,
+con siembra intercalada) es la vía conocida.
+
+🔴 **Y el CLI también tenía su trampa, ya documentada:** el host directo
+`db.<ref>.supabase.co` NO resuelve (ECONNREFUSED); hay que ir por el **pooler en modo SESIÓN**
+(`aws-0-us-east-2.pooler.supabase.com:5432`, usuario `postgres.<branch_ref>`). El
+`POSTGRES_URL` que devuelve `branches get` viene en 6543 (modo transacción) y hay que cambiarlo
+a 5432.
+
+**Estado:** `banco-f7` (`cwkiejoaqadcnaieghnf`) vivo, con 86 de 196 versiones. Para completarlo
+falta la siembra intercalada + el replay manual de las 110 restantes desde el registro remoto —
+trabajo del próximo ciclo, ya sin misterio de plataforma.
+
+## P-055 · F7.2 — ✅ EN PRODUCCIÓN EL 01/09: EL INTERRUPTOR LEGACY, CERRADO CON LLAVE
+
+**Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01 (`20260901200000`).** Batería verde:
+interruptor con ACL `{postgres=X/postgres}` · su acta en el libro (observación, cerrada 01/09,
+**demolible el 15/09**) · **15 piezas vigiladas** (11 en observación + 4 permanentes) · los 4
+gates del repo verdes · advisors 0 en las clases de ERROR · vigía 0 · **negocio intacto** (496
+contratos, 572 condiciones — el equipo siguió cerrando ventas mientras se publicaba).
+⚠️ El registro llegó a **196 versiones**: dos son de otra sesión que publicó en paralelo.
+
+**Qué se cerró y por qué — medido el 01/09.** `crm.cerrar_altas_legacy_productos(bigint)` es el
+interruptor que apagaría el «modo compatibilidad» del catálogo. Estado real medido: el único
+producto es `HISTORICO-SIN-CATALOGO` (archivado, legacy), **las 568 condiciones son TODAS legacy
+y cero normales**, y los contratos cuelgan de ahí ⇒ **si alguien lograra ejecutarlo, el equipo
+dejaría de poder crear contratos**. Hoy es inejecutable (su propio cuerpo exige una condición
+no-legacy publicada y no hay ninguna), nunca se usó, y ninguna pantalla lo dispara: el envoltorio
+`cerrarCompatibilidadLegacyProductos` existe en el front pero **ningún componente lo importa**.
+🔑 Y además **desbloquea la Ola 2**: nombraba tres de las siete gemelas por `to_regprocedure`.
+
+**⚠️ NO se tocó el catálogo de condiciones** (tablas, datos, FK, columna, trigger de snapshot):
+eso es infraestructura VIVA del cierre de ventas — 18 personas la mueven a diario — y Miguel
+decidió el 01/09 que **no se toca**. Ver «El catálogo de productos NO es un catálogo».
+
+**Paquete:** migración · `scripts/registrar-f7-2-version.sql` (relectura fail-closed) ·
+`scripts/rollback-f7-2-p055.sql` (reabre el interruptor y retira el acta bajando el candado
+NOMBRADO `trg_f7_obs_01_no_borrar`) · `scripts/ensayo-f7-2-ciclo.sql` → **F7.2-CICLO-VERDE**
+contra prod, deshecho. 🔴 Si se revierte: retirar A MANO la fila `20260901200000`.
+
+## P-055 · F7 · LAS DEMOLICIONES, LISTAS PARA CORRER (13 y 14/09)
+
+**Estado: 🟢 ESCRITAS, ENSAYADAS Y COMMITEADAS — esperan solo el `!` en su fecha.**
+`F7-ENSAYO-COMPLETO-VERDE` (`scripts/ensayo-f7-cadena-completa.sql`): cierre + las dos
+demoliciones + las dos marchas atrás, todo contra prod y deshecho; producción verificada intacta.
+
+- **Ola 2 (13/09)** `20260913120000` — demuele las 7 gemelas. Preflight: ventana POR FILA ·
+  stop-the-line si el vigía tiene alertas · huellas contra la captura viva del 01/09 · «nadie
+  VIVO las nombra» (una pieza ya cerrada es referencia INERTE y no bloquea).
+  Marcha atrás: `scripts/rollback-f7-ola2-gemelas.sql`.
+- **Ola 2b (14/09)** `20260914120000` — demuele **solo** `metricas_altas_analista_fn`.
+  Marcha atrás: `scripts/rollback-f7-ola2b-tableros.sql`.
+
+**🔴 CUATRO TRAMPAS QUE EL ENSAYO CAZÓ (ninguna era visible leyendo el código):**
+1. **Recrear una función en `public` la REABRE**: los default privileges de Supabase le devuelven
+   EXECUTE a anon/authenticated/service_role y `revoke ... from public` (el ROL) NO los quita. Lo
+   cazó el propio vigilante F7 a mitad del ensayo. Los rollbacks revocan a los tres explícitamente.
+2. El trigger `solo_crece` **exige rastro escrito en `nota`** al cambiar de estado — y
+   `nota || texto` es NULL si `nota` es NULL (va con `coalesce`).
+3. Volver de `demolida` a `observacion` **exige bajar el candado NOMBRADO** (doctrina
+   limpieza-leads), nunca un `disable trigger user` a ciegas.
+4. **🔴 DEUDA DECLARADA — dos tableros salen del plan:** `metricas_distribucion_leads_fn` y su
+   `v2` pertenecen al rol `crm_metricas_bridge`, y por el canal de publicación **no se puede
+   asumir ese rol** (`42501 permission denied to set role`): ni `alter owner` ni `set role`. Su
+   marcha atrás las recrearía con dueño `postgres` y el vigilante las vería REABIERTAS. **No se
+   derriba lo que no se sabe reconstruir**: quedan cerradas y vigiladas hasta tener una vía con
+   superusuario (panel de Supabase o conexión directa).
+
+**Los 14 días NO se tocaron.** El ensayo viaja en el tiempo solo dentro de su transacción
+abortada, y su ACTO 2 es el **mutante del candado**: comprueba que hoy las 7 gemelas están dentro
+de su ventana, o sea que el trinquete de verdad frena. En producción el CHECK sigue intacto.
+
 ## P-055 · ATR-4 — ✅ EN PRODUCCIÓN EL 01/09 (REGISTRO 193): LA SANCIÓN DE ANULAR ES SOLO DE CONVERSIÓN
 
 **Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01, ONCE días antes de su calendario
@@ -6676,8 +6765,10 @@ sellados intactos (69 v5 + 3 v2, ledger 72).
 
 ## CONTRATO PDF · PLANTILLA v7 — PLAZO AJUSTADO A FIN DE MES (2026-09-01)
 
-**Estado: preparado y validado localmente; pendiente de autorización y publicación.**
-Migración `20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql`.
+**Estado: ✅ frontend, Edge y migración EN PRODUCCIÓN; generación de las siete revisiones
+pendiente de una sesión humana autorizada.** Migración local
+`20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql`, registrada por Supabase como
+`20260901191947`.
 
 **Causa corregida:** la plantilla restaba un mes cuando el día de vencimiento era menor que el
 día de inicio. Esa regla interpretaba `2026-08-31`→`2027-02-28` como 5 meses, aunque el formulario
@@ -6699,7 +6790,8 @@ v6. Los siete afectados son v5/revisión 1. La migración v6 está viva en defau
 pero `20260901115030` no aparece en el registro remoto; por eso la v7 es autosuficiente y no depende
 de que el runner aplique esa fila omitida.
 
-**Pruebas:** 29/29 Deno (incluye fin de mes, día incompleto, año bisiesto y lectura histórica v6),
+**Pruebas:** 29/29 Deno (incluye 31/08→28/02, 31/08→29/02 bisiesto, día incompleto,
+año bisiesto y lectura histórica v6),
 44/44 Vitest focalizadas, typecheck del frontend y ensayo transaccional en PostgreSQL 16 con siete
 fixtures + una reserva v6: `CONTRATO_PDF_V7_MIGRATION_OK`. Golden v7
 `88665f229db4…` (871.757 bytes).
@@ -6707,6 +6799,17 @@ fixtures + una reserva v6: `CONTRATO_PDF_V7_MIGRATION_OK`. Golden v7
 **Orden de publicación previsto:** front tolerante a v7 → Edge v7 (sigue leyendo sellados
 v2/v5/v6) → migración v7 → generación/verificación de las siete revisiones nuevas. La ventana entre
 Edge y BD solo afecta temporalmente a reservas v6 pendientes; la migración las convierte a v7.
+
+**Publicación 2026-09-01:** frontend aislado sobre el commit vivo `3d89d2787123`, con solo
+`crm-api.ts`, `contrato-pdf.ts` y su test modificados (los cambios paralelos del worktree principal
+quedaron fuera). Release `crm-20260901T191336Z-3d89d2787123`, build
+`build-20260901T191336554Z`, ZIP SHA-256 `ea1be181b247…`; versión estable en tres lecturas, JS y
+CSS principales idénticos local↔producción, ZIP 404 en ambos dominios. Edge
+`crm-contrato-pdf-v2` v12 activa, `verify_jwt=true`, fuente remota con v7 y
+`diaAniversarioAjustado`; smoke sin JWT 401. Migración aplicada tras preflight 7/7: default v7,
+trigger de inmutabilidad activo, 14 reservas v6→v7, 7 revisiones 2 v7 pendientes, revisiones 1 v5
+preservadas y advisors sin ERROR. No se acuñaron los siete bytes todavía: Browser no expuso una
+sesión y se rechazó usar impersonación o llaves administrativas como usuario.
 
 ## CRM · LANDING/FORMULARIO EN ALTA MANUAL, FUERA DEL DIVISOR (2026-09-01)
 
