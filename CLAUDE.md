@@ -27,6 +27,18 @@ es quedarse atrás.
 2. Si te encuentras en una rama vieja (`wip/…`, `release/…` de otro día), NO trabajes encima:
    comprueba antes con `git merge-base --is-ancestor main <tu-rama>` que contiene el tronco.
 
+**¿Hace falta abrir una rama? Casi nunca.** El problema nunca fueron las ramas, sino que se
+abandonaban. Y aquí hay un motivo extra para usar pocas: **todas las sesiones comparten la
+MISMA carpeta**, así que una rama NO aísla nada — cambiar de rama le mueve el suelo a las
+otras sesiones (pasó el 01/09). Por defecto: **trabaja directo sobre `main`**, commit
+pequeño, publica, listo.
+
+Abre rama solo si: (a) es trabajo de varios días que dejaría el sitio a medio construir,
+(b) es un experimento que podrías tirar, o (c) el preflight te obliga a asentar el cambio
+sobre otra línea. Y si lo que necesitas es aislamiento de verdad, no uses una rama: usa un
+**worktree en otra carpeta** (`git worktree add --detach <ruta> <commit>`, con symlink de
+`node_modules` y copia de `.env`) — eso sí aísla.
+
 **Antes de publicar (obligatorio, sin excepciones):**
 - **CRM** → `node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs preflight crm.miavance.com <zip>`.
   Compara el candidato con el commit VIVO (`crm.miavance.com/version.json` → `buildId` →
