@@ -83,7 +83,31 @@ posterior)`.
 - **Ojo:** `metricas_altas_analista_fn` no tiene archivo local; su partida de nacimiento está en el
   registro remoto (versión `20260716203331`). Capturar la definición viva antes del DROP.
 
-### E · El catálogo de productos — 🔴 ALCANCE MAL PLANTEADO EN LA v1
+### E · El catálogo de productos — ⏸️ EN PAUSA POR DECISIÓN DE MIGUEL (01/09)
+
+> **«No lo borres, déjalo, después vemos eso»** — Miguel, 01/09, tras la medición de abajo.
+> **El tramo E sale de la Fase 7 hasta nueva orden.** Nadie retira el catálogo ni su pantalla
+> por inercia ni por la decisión de agosto: esa decisión se tomó sin saber lo que sigue.
+
+**🔴 LO QUE LA MEDICIÓN DEL 01/09 DESTAPÓ — el nombre engaña.** «Catálogo de productos
+versionados» suena a lista que alguien administra; **en la práctica es el registro de las
+CONDICIONES DE CADA CONTRATO**:
+- **1 solo producto** creado a mano, el 08/08 — la pantalla de administración sí parece muerta.
+- Pero **568 versiones y 568 condiciones**, y **492 de ellas en uso por los 492 contratos**.
+- **729 movimientos en 30 días**, hechos por **18 personas del equipo** (Grecia 120, Adelayda 96,
+  Merlys 75, Miguel 54, Linda 60…), **el último HOY**.
+- La causa: `trg_contratos_producto_snapshot` en `public.contratos` — **cerrar o corregir un
+  contrato escribe ahí**. Y `public.contratos.producto_condicion_id` es NOT NULL con FK RESTRICT.
+
+⇒ **Borrar el catálogo dejaría al equipo sin poder cerrar contratos.** La decisión de agosto
+(«el catálogo de productos versionados se elimina») se tomó sobre una idea equivocada de qué era
+esta pieza; queda **anulada de hecho** hasta que se revise con este dato encima.
+
+Cuando se retome, lo único candidato es la **pantalla de administración** (crear/versionar/
+publicar/archivar), y antes hay que resolver qué hace el selector de producto que usa
+**«Corregir contrato»** (`contrato-corregir.tsx`), que no es la pantalla de Configuración.
+
+<details><summary>El análisis original del alcance (v2, previo a la pausa)</summary>
 - **Lo medido:** el catálogo **no es retirable entero**. `public.contratos.producto_condicion_id` es
   **NOT NULL con FK RESTRICT** y **los 492 contratos la tienen llena**; el trigger
   `trg_contratos_producto_snapshot` está vivo en la tabla de contratos y participa en las altas
@@ -98,6 +122,8 @@ posterior)`.
   dependen de él.
 - **Si se retira:** front primero (release + verificar bundle vivo + drenar pestañas viejas) →
   observar los endpoints → REVOKE → 14 días → DROP.
+
+</details>
 
 ### F · La segunda pasada
 - **Corrección:** el «203» es un conteo crudo inútil como prueba de muerte. El criterio real es
@@ -121,6 +147,6 @@ posterior)`.
 
 ## Las tres cosas que necesito de Miguel
 
-1. **La decisión del catálogo** (tramo E), sabiendo ya que retirarlo no lo elimina por debajo.
+1. ~~La decisión del catálogo~~ → **RESUELTA el 01/09: se deja como está, se verá después.**
 2. **El destino de `cerrar_altas_legacy_productos`** (tramo B), que bloquea el tramo C.
 3. **Sus `!` y su OK por pieza** cuando cada tanda esté ensayada y refutada.
