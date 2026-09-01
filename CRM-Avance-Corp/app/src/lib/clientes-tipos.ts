@@ -26,6 +26,26 @@ export interface ClienteBasico {
 }
 
 /**
+ * Identidad y contacto autorizados para la Ficha 360. Esta frontera no
+ * contiene domicilio ni banca; esos datos siguen gobernados por las
+ * capacidades específicas que devuelve el servidor.
+ */
+export type ClienteFichaComercial = Pick<
+  ClienteBasico,
+  | 'id'
+  | 'nombres'
+  | 'apellidos'
+  | 'nombre_completo'
+  | 'tipo_documento'
+  | 'dni'
+  | 'correo'
+  | 'telefono'
+  | 'asesor_perfil_id'
+  | 'activo'
+  | 'creado_en'
+>
+
+/**
  * Detalle comercial scopeado por `crm.cliente_detalle_fn`: identidad, los
  * metadatos de la ventana de 5 h y, solo cuando `banca_visible` es true, las
  * 14 columnas bancarias. `cuentas_bancarias_visibles` gobierna por separado
@@ -157,7 +177,8 @@ export interface OperacionCartera {
 export interface ActividadCliente {
   id: string
   cliente_id: string
-  vendedor_id: string
+  /** Responsable del hecho; puede ser null en una reasignación de sistema. */
+  vendedor_id: string | null
   tarea_id: string | null
   tipo:
     | 'llamada_realizada'
@@ -166,6 +187,7 @@ export interface ActividadCliente {
     | 'whatsapp_recibido'
     | 'reunion_realizada'
     | 'nota'
+    | 'reasignacion'
   detalle: string | null
   creado_por: string | null
   creado_en: string

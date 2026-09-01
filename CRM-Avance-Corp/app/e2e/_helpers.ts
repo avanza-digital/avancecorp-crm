@@ -1484,7 +1484,7 @@ export interface BackendReal {
    *  `colaReparto`: sirve para DIVERGIR agregado y filas y probar que el
    *  navegador ya no cuenta (tile en 57 con 2 filas en la lista). */
   resumenRepartoOverride: Record<string, unknown> | null
-  /** Clientes del portal (alimentan clientes_basicos + cliente_detalle_fn). */
+  /** Clientes del portal (alimentan clientes_basicos y las RPC de ficha/detalle). */
   clientes: PerfilReal[]
   /** El pre-vuelo legal declara el domicilio ausente, sin tocar la fila del cliente. */
   domicilioLegalAusente: boolean
@@ -1784,6 +1784,25 @@ export async function montarBackendReal(
       )
       return json(route, true)
     }
+    if (p === '/rest/v1/rpc/cliente_ficha_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string }
+      const clienteId = String(body.p_cliente_id ?? '')
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      if (!cliente) return json(route, [])
+      return json(route, [{
+        id: cliente.id,
+        nombres: cliente.nombres,
+        apellidos: cliente.apellidos,
+        nombre_completo: cliente.nombre_completo,
+        tipo_documento: cliente.tipo_documento,
+        dni: cliente.dni,
+        correo: cliente.correo,
+        telefono: cliente.telefono,
+        asesor_perfil_id: cliente.asesor_perfil_id,
+        activo: cliente.activo,
+        creado_en: cliente.creado_en,
+      }])
+    }
     if (p === '/rest/v1/rpc/cliente_detalle_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string }
       const clienteId = String(body.p_cliente_id ?? '')
@@ -1851,6 +1870,16 @@ export async function montarBackendReal(
         activo: c.activo,
         creado_en: c.creado_en,
       })))
+    }
+
+    // ── Historial comercial de la Ficha 360 ──
+    // Vacío explícito: la prueba del detalle valida navegación y alcance, no
+    // inventa actividades ni movimientos económicos que el escenario no pidió.
+    if (p === '/rest/v1/actividades_cliente' && method === 'GET') {
+      return json(route, [])
+    }
+    if (p === '/rest/v1/operaciones_cartera' && method === 'GET') {
+      return json(route, [])
     }
 
     // ── contratos: vista con ámbito + RPCs de detalle (esquema crm) ──

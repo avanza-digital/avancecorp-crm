@@ -1,4 +1,4 @@
-// E2E — CREACIÓN de contrato vía el "+ Contrato" POR-CLIENTE de la cartera
+// E2E — CREACIÓN de contrato vía "Registrar inversión" POR-CLIENTE de la cartera
 // unificada (#/mi-cartera). Migra los casos que vivían skipeados en
 // contratos.spec.ts (pantalla Contratos retirada en Fase 6, que entraba por un
 // picker de cliente que ya no existe): numeración 2026-01-XXXXXX, gate de los
@@ -38,11 +38,11 @@ async function traducirRpcContratoLibre(page: Page): Promise<void> {
 }
 
 /** Abre el ContratoNuevo desde la fila de CLIENTE PORTAL UNO (cartera vacía →
- *  el CTA dice "+ Primer contrato"; con contratos previos, "+ Contrato"). */
+ *  el CTA distingue la primera inversión de una inversión adicional). */
 async function abrirFormContrato(page: Page): Promise<Locator> {
   await page
     .getByRole('row', { name: /CLIENTE PORTAL UNO/ })
-    .getByRole('button', { name: /\+ (Primer contrato|Contrato)/ })
+    .getByRole('button', { name: /Registrar (primera|nueva) inversión/ })
     .click()
   // El nombre accesible del dialog es su DialogTitle (aria-labelledby de Radix
   // gana sobre el aria-label del contenedor): "Crear contrato de {cliente}" —
@@ -66,7 +66,7 @@ async function llenarBase(form: Locator): Promise<void> {
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
 }
 
-test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
+test('Registrar inversión por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page) // cuenta real → aterriza en #/hoy desde que hay leads

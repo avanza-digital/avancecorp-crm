@@ -5,13 +5,14 @@
 // separado — jamás mezclados). Rótulo por rol: "Mi cartera" para el analista,
 // "Cartera" para quien supervisa. Cruza CLIENT-SIDE las dos vistas hermanas que
 // el servidor ya scopeó por rol (crm.clientes_basicos + crm.contratos_cartera)
-// vía el helper puro agruparCartera — CERO backend nuevo.
+// vía el helper puro agruparCartera. La Ficha 360 confirma además identidad y
+// contacto contra su RPC mínima antes de enseñar historial o cuentas.
 //
 // Las ACCIONES reusan íntegramente los diálogos que ya usan Clientes y Contratos
 // (ClienteForm, ContratoNuevo, ContratoDetalle, ContratoCorregir): alta de
 // cliente + contrato encadenado, corregir cliente/contrato dentro de la ventana
 // de 5 h (la RLS del servidor es la autoridad; aquí el reloj es cortesía) y ver
-// el detalle con cronograma. Fuerza de ventas conserva el gate por fila y la
+// el detalle con cronograma. El equipo comercial conserva el gate por fila y la
 // ventana de 5 h; Gerencia opera el ámbito completo, como revalida el servidor.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -35,6 +36,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog } from '@/components/ui/dialog'
+import { Sheet } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
@@ -43,6 +45,7 @@ import { Paginacion } from '@/components/common/paginacion'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ClienteForm } from '@/components/app/cliente-form'
+import { ClienteFicha, type FocoInicialClienteFicha } from '@/components/app/cliente-ficha'
 import { ClienteDetalle } from '@/components/app/cliente-detalle'
 import { ClienteGestion } from '@/components/app/cliente-gestion'
 import { ContratoNuevo, type ContratoCreadoLocal } from '@/components/app/contrato-nuevo'
@@ -79,6 +82,7 @@ import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
 import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera } from '@/data/crm-queries'
 import { fechaLima } from '@/lib/agenda-derivada'
+import { resolverContextoFichaCliente } from '@/lib/cliente-ficha-modelo'
 import type {
   ClienteBasico,
   ClienteDetalle as ClienteDetalleDatos,
@@ -564,7 +568,7 @@ function FilaGrupoCliente({
                           onUpgradeCliente()
                         }}
                       >
-                        <TrendingUp aria-hidden /> Upgrade
+                        <TrendingUp aria-hidden /> Aumentar inversión
                       </Button>
                     )}
                     <Button
@@ -575,7 +579,7 @@ function FilaGrupoCliente({
                         onNuevoContrato()
                       }}
                     >
-                      {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                      {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
                     </Button>
                   </>
                 )}
@@ -822,11 +826,11 @@ function TarjetaGrupoCliente({
               )}
               {!sinContratos && (
                 <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
-                  <TrendingUp aria-hidden /> Upgrade
+                  <TrendingUp aria-hidden /> Aumentar inversión
                 </Button>
               )}
               <Button type="button" size="xs" onClick={onNuevoContrato}>
-                {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
               </Button>
             </>
           )}
@@ -1597,26 +1601,67 @@ function VistaMiCartera({
 }
 
 /** Overlay de acciones — uno solo abierto a la vez (como el portal). */
+interface RetornoFichaCliente {
+  clienteId: string
+  clienteNombre: string
+  focoInicial: FocoInicialClienteFicha
+}
+
 type Overlay =
   | { tipo: 'cliente-crear' }
-  | { tipo: 'cliente-detalle'; clienteId: string; clienteNombre: string }
-  | { tipo: 'cliente-gestionar'; clienteId: string; clienteNombre: string }
-  | { tipo: 'cliente-corregir'; clienteId: string }
+  | {
+      tipo: 'cliente-detalle'
+      clienteId: string
+      clienteNombre: string
+      focoInicial?: FocoInicialClienteFicha
+    }
+  | {
+      tipo: 'cliente-gestionar'
+      clienteId: string
+      clienteNombre: string
+      volverACliente?: RetornoFichaCliente
+    }
+  | { tipo: 'cliente-corregir'; clienteId: string; volverACliente?: RetornoFichaCliente }
   | {
       tipo: 'contrato-crear'
       clienteId: string
       clienteNombre: string
       upgrade: boolean
+      volverACliente?: RetornoFichaCliente
     }
   | {
       tipo: 'contrato-renovar'
       clienteId: string
       clienteNombre: string
       contrato: ContratoRow
+      volverACliente?: RetornoFichaCliente
     }
-  | { tipo: 'contrato-detalle'; contrato: ContratoRow }
-  | { tipo: 'contrato-corregir'; contrato: ContratoRow }
+  | { tipo: 'contrato-detalle'; contrato: ContratoRow; volverACliente?: RetornoFichaCliente }
+  | { tipo: 'contrato-corregir'; contrato: ContratoRow; volverACliente?: RetornoFichaCliente }
   | null
+
+function retornoFichaDeOverlay(overlay: Overlay): RetornoFichaCliente | undefined {
+  if (overlay == null || !('volverACliente' in overlay)) return undefined
+  return overlay.volverACliente
+}
+
+function overlayFichaDesdeRetorno(retorno: RetornoFichaCliente | undefined): Overlay {
+  if (!retorno) return null
+  return {
+    tipo: 'cliente-detalle',
+    clienteId: retorno.clienteId,
+    clienteNombre: retorno.clienteNombre,
+    focoInicial: retorno.focoInicial,
+  }
+}
+
+function crearRetornoFicha(
+  clienteId: string,
+  clienteNombre: string,
+  focoInicial: FocoInicialClienteFicha,
+): RetornoFichaCliente {
+  return { clienteId, clienteNombre, focoInicial }
+}
 
 interface ContratoConfirmadoParaCierre {
   numero: string
@@ -1654,9 +1699,31 @@ export function MiCartera() {
     return agruparCartera(clientesQ.data, contratosQ.data)
   }, [clientesQ.data, contratosQ.data])
 
+  const grupoFicha =
+    overlay?.tipo === 'cliente-detalle'
+      ? (grupos?.find((grupo) => grupo.cliente.id === overlay.clienteId) ?? null)
+      : null
+  const contextoFicha = grupoFicha
+    ? resolverContextoFichaCliente({
+        grupo: grupoFicha,
+        equipo,
+        yoId: yo?.id,
+        rol: yo?.rol,
+        puedeContratar: yo?.puede_contratar === true,
+      })
+    : null
+
+  // Si una actualización de cartera retira al cliente del ámbito (por ejemplo,
+  // después de una reasignación), no conservamos un overlay invisible que
+  // pudiera reabrirse con una fotografía anterior.
+  useEffect(() => {
+    if (overlay?.tipo !== 'cliente-detalle' || grupos == null) return
+    if (grupoFicha == null || contextoFicha?.consultable !== true) setOverlay(null)
+  }, [contextoFicha?.consultable, grupoFicha, grupos, overlay?.tipo])
+
   if (esDemo) return <MiCarteraDemo />
 
-  const cerrar = () => setOverlay(null)
+  const cerrar = () => setOverlay((actual) => overlayFichaDesdeRetorno(retornoFichaDeOverlay(actual)))
   // Cierre BLINDADO de ClienteForm: no cerrar con un envío en vuelo. Radix cierra
   // con Esc/overlay incondicionalmente y el alta ya está en el servidor.
   const cerrarSeguro = () => {
@@ -1672,13 +1739,28 @@ export function MiCartera() {
     void contratosQ.refetch()
   }
 
-  const abrirNuevoContrato = (clienteId: string, clienteNombre: string, upgrade = false) => {
+  const abrirNuevoContrato = (
+    clienteId: string,
+    clienteNombre: string,
+    upgrade = false,
+    volverACliente?: RetornoFichaCliente,
+  ) => {
     setContratoConfirmado(null)
     setEnvioEnCurso(false)
-    setOverlay({ tipo: 'contrato-crear', clienteId, clienteNombre, upgrade })
+    setOverlay({
+      tipo: 'contrato-crear',
+      clienteId,
+      clienteNombre,
+      upgrade,
+      ...(volverACliente ? { volverACliente } : {}),
+    })
   }
 
-  const abrirRenovacion = (cliente: ClienteBasico, contrato: ContratoRow) => {
+  const abrirRenovacion = (
+    cliente: ClienteBasico,
+    contrato: ContratoRow,
+    volverACliente?: RetornoFichaCliente,
+  ) => {
     setContratoConfirmado(null)
     setEnvioEnCurso(false)
     setOverlay({
@@ -1686,6 +1768,7 @@ export function MiCartera() {
       clienteId: cliente.id,
       clienteNombre: cliente.nombre_completo || cliente.correo || 'el cliente',
       contrato,
+      ...(volverACliente ? { volverACliente } : {}),
     })
   }
 
@@ -1705,7 +1788,7 @@ export function MiCartera() {
     }
     setContratoConfirmado(null)
     setEnvioEnCurso(false)
-    setOverlay(null)
+    setOverlay((actual) => overlayFichaDesdeRetorno(retornoFichaDeOverlay(actual)))
   }
 
   const cerrarContratoNuevo = () => {
@@ -1714,7 +1797,7 @@ export function MiCartera() {
       finalizarContratoCreado(contratoConfirmado.numero, contratoConfirmado.creadoLocal)
       return
     }
-    setOverlay(null)
+    cerrar()
   }
 
   // Alta exitosa → refrescar cartera y encadenar el contrato (flujo del portal).
@@ -1730,7 +1813,7 @@ export function MiCartera() {
   // (cliente_nombre viaja denormalizado en la vista de contratos: sin invalidarla
   // la sub-fila mostraría el nombre viejo < 30 s).
   const alClienteCorregido = (id: string) => {
-    setOverlay(null)
+    cerrar()
     void clientesQ.refetch()
     void queryClient.invalidateQueries({
       queryKey: crmQueryKeys.clienteDetalle(id),
@@ -1740,15 +1823,19 @@ export function MiCartera() {
 
   // Crear/corregir contrato → invalidar contratos() (prefijo: cubre cronograma+titulares).
   const recargarContratos = () => {
-    setOverlay(null)
+    cerrar()
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
   // El servidor decide si la corrección sigue dentro de las 5 horas y, cuando
   // la acepta, reserva una nueva revisión PDF. La UI no intenta anticipar esa
   // decisión con el estado de la revisión anterior.
-  const abrirCorreccionContrato = (contrato: ContratoRow) => {
-    setOverlay({ tipo: 'contrato-corregir', contrato })
+  const abrirCorreccionContrato = (contrato: ContratoRow, volverACliente?: RetornoFichaCliente) => {
+    setOverlay({
+      tipo: 'contrato-corregir',
+      contrato,
+      ...(volverACliente ? { volverACliente } : {}),
+    })
   }
 
   const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
@@ -1815,15 +1902,118 @@ export function MiCartera() {
           />
         </Dialog>
       )}
-      {overlay?.tipo === 'cliente-detalle' && (
-        <Dialog
+      {overlay?.tipo === 'cliente-detalle' && grupoFicha && contextoFicha?.consultable && (
+        <Sheet
           open
           onClose={cerrar}
-          ariaLabel={`Detalle de ${overlay.clienteNombre || 'cliente'}`}
-          className="w-[640px]"
+          ariaLabel={`Ficha comercial de ${overlay.clienteNombre || 'cliente'}`}
+          className="w-[620px] max-w-full"
         >
-          <ClienteDetalle clienteId={overlay.clienteId} onCerrar={cerrar} />
-        </Dialog>
+          <ClienteFicha
+            grupo={grupoFicha}
+            analistaNombre={contextoFicha.analistaNombre}
+            focoInicial={overlay.focoInicial}
+            operaciones={(operacionesQ.data ?? []).filter(
+              (operacion) => operacion.cliente_id === grupoFicha.cliente.id,
+            )}
+            movimientosInversionPendientes={operacionesQ.isPending}
+            movimientosInversionDesactualizados={
+              operacionesQ.isError
+                ? {
+                    reintentar: () => void operacionesQ.refetch(),
+                    actualizando: operacionesQ.isFetching,
+                  }
+                : null
+            }
+            operable={contextoFicha.operable}
+            motivoNoOperable={contextoFicha.motivoNoOperable}
+            edicionGlobal={contextoFicha.edicionGlobal}
+            puedeVerCuentas={contextoFicha.puedeVerCuentas}
+            puedeContactar={contextoFicha.puedeContactar}
+            datosCarteraDesactualizados={recargaFallida ? { reintentar: reintentarCarga } : null}
+            onAccesoRevocado={() => {
+              cerrar()
+              void clientesQ.refetch()
+              void contratosQ.refetch()
+            }}
+            onAsignacionDesactualizada={() => void clientesQ.refetch()}
+            onCerrar={cerrar}
+            onGestionar={
+              contextoFicha.gestionable
+                ? () =>
+                    setOverlay({
+                      tipo: 'cliente-gestionar',
+                      clienteId: grupoFicha.cliente.id,
+                      clienteNombre: grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                      volverACliente: crearRetornoFicha(
+                        overlay.clienteId,
+                        overlay.clienteNombre,
+                        'siguiente-contacto',
+                      ),
+                    })
+                : undefined
+            }
+            onCorregir={
+              contextoFicha.accionable
+                ? () =>
+                    setOverlay({
+                      tipo: 'cliente-corregir',
+                      clienteId: grupoFicha.cliente.id,
+                      volverACliente: crearRetornoFicha(
+                        overlay.clienteId,
+                        overlay.clienteNombre,
+                        'siguiente-contacto',
+                      ),
+                    })
+                : undefined
+            }
+            onNuevoContrato={
+              contextoFicha.accionable
+                ? () =>
+                    abrirNuevoContrato(
+                      grupoFicha.cliente.id,
+                      grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                      false,
+                      crearRetornoFicha(overlay.clienteId, overlay.clienteNombre, 'inversiones'),
+                    )
+                : undefined
+            }
+            onUpgrade={
+              contextoFicha.accionable
+                ? () =>
+                    abrirNuevoContrato(
+                      grupoFicha.cliente.id,
+                      grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                      true,
+                      crearRetornoFicha(overlay.clienteId, overlay.clienteNombre, 'inversiones'),
+                    )
+                : undefined
+            }
+            onDetalleContrato={(contrato) =>
+              setOverlay({
+                tipo: 'contrato-detalle',
+                contrato,
+                volverACliente: crearRetornoFicha(overlay.clienteId, overlay.clienteNombre, {
+                  tipo: 'contrato',
+                  contratoId: contrato.id,
+                }),
+              })
+            }
+            onRenovarContrato={
+              contextoFicha.accionable
+                ? (contrato) =>
+                    abrirRenovacion(
+                      grupoFicha.cliente,
+                      contrato,
+                      crearRetornoFicha(overlay.clienteId, overlay.clienteNombre, {
+                        tipo: 'contrato',
+                        contratoId: contrato.id,
+                      }),
+                    )
+                : undefined
+            }
+          />
+        </Sheet>
       )}
       {overlay?.tipo === 'cliente-gestionar' && (
         <Dialog
@@ -1910,7 +2100,7 @@ export function MiCartera() {
             puedeReasignar={puedeReasignarVenta(yo)}
             onEliminar={async () => {
               const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
-              setOverlay(null)
+              cerrar()
               await queryClient.invalidateQueries({
                 queryKey: crmQueryKeys.contratos(),
               })
@@ -2042,7 +2232,6 @@ function MiCarteraDemo() {
     ].filter((k) => idsClientes.has(k.cliente_id))
     return agruparCartera(clientesVis, contratosVis)
   }, [fixtures, yo, ambito, contratosLocales])
-
   const tocaReal = () => toast.info('Disponible solo con tu cuenta real (demo)')
   const abrirDetalleCliente = (cliente: ClienteBasico) => {
     const detalle = fixtures?.detallesClientes[cliente.id]

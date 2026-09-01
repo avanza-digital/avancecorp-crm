@@ -47,6 +47,13 @@ export const ESTADO_COLOR: Record<EstadoContrato, string> = {
   retirado: 'var(--muted-foreground)',
 }
 
+export const ESTADO_CONTRATO_LABEL: Record<EstadoContrato, string> = {
+  activo: 'Vigente',
+  vencido: 'Vencido',
+  renovado: 'Renovado',
+  retirado: 'Retirado',
+}
+
 /**
  * Presets del select de plazo del portal; los años exactos sirven para el
  * interés compuesto (capitaliza anual). Es la BASE compartida: cada formulario

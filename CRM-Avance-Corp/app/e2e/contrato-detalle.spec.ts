@@ -104,11 +104,16 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
   await expect(dialogo.getByText('pagado', { exact: true })).toBeVisible()
   await expect(dialogo.getByText('pendiente', { exact: true }).first()).toBeVisible()
   // …el pago REAL (fecha · monto) solo en la cuota pagada…
-  await expect(dialogo.getByText(/· S\/ 125/)).toBeVisible()
-  // …y los totales (1 de 2 de interés; por pagar = 125 + 10,000 del retorno).
+  await expect(dialogo.getByRole('row', { name: /Cuota #1/ }).getByText(/· S\/ 125/)).toBeVisible()
+  // …y el resumen operativo antes de la tabla (mora, próxima cuota y saldo).
+  const resumen = dialogo.getByRole('region', { name: 'Resumen del cronograma' })
+  await expect(resumen.getByText('Cuotas vencidas')).toBeVisible()
+  await expect(resumen.getByText('0', { exact: true })).toBeVisible()
+  await expect(resumen.getByText(/· S\/ 125/)).toBeVisible()
+  await expect(resumen.getByText('S/ 10,125')).toBeVisible()
+  // El pie conserva el avance y lo efectivamente pagado, sin repetir el saldo.
   await expect(dialogo.getByText(/1 de 2/)).toBeVisible()
-  await expect(dialogo.getByText(/Por pagar/)).toBeVisible()
-  await expect(dialogo.getByText('S/ 10,125')).toBeVisible()
+  await expect(dialogo.getByText(/Pagado S\/ 125/)).toBeVisible()
 
   // Nada salió a producción de verdad (toda la sesión corre sobre el mock).
   await dialogo.getByRole('button', { name: /cerrar/i }).click()

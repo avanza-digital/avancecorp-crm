@@ -2,12 +2,22 @@
 // `crm.cliente_detalle_fn`: devuelve cero filas fuera del ámbito y separa banca
 // embebida del permiso para consultar el ledger. La ventana de 5 h solo limita
 // escrituras y no participa en esta lectura.
-import { useEffect, useState, type ReactNode } from 'react'
-import { History, Landmark, RotateCcw, UserRound, WifiOff } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { History, RotateCcw, UserRound, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SegundoNumero } from '@/components/app/segundo-numero'
+import {
+  CuentasClienteMoneda,
+  DatoCliente as Dato,
+} from '@/components/app/cliente-cuentas-vista'
+import {
+  cuentaClienteDesdeRpc,
+  cuentasClienteEmbebidas,
+  valorCliente as valor,
+  type CuentaClienteVista,
+} from '@/lib/cliente-cuentas-modelo'
 import { mensajeDeError } from '@/data/crm-api'
 import {
   useActividadesCliente,
@@ -16,133 +26,9 @@ import {
   useSegundoNumeroCliente,
 } from '@/data/crm-queries'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
-import { fechaHora, type Moneda } from '@/lib/format'
-import type { ClienteDetalle as ClienteDetalleDatos, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
+import { fechaHora } from '@/lib/format'
+import type { ClienteDetalle as ClienteDetalleDatos } from '@/lib/clientes-tipos'
 import { presentarCitas } from '@/lib/terminologia'
-
-function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">{etiqueta}</p>
-      <p className="text-sm font-bold text-foreground [overflow-wrap:anywhere]">{children}</p>
-    </div>
-  )
-}
-
-function valor(valor: string | null): string {
-  return valor?.trim() || '—'
-}
-
-/**
- * Vista unificada de una cuenta de depósito, venga del ledger
- * `crm.cuentas_bancarias` (vía RPC) o de las columnas embebidas del perfil
- * (solo demo/precarga). Un solo shape → un solo render.
- */
-interface CuentaVista {
-  clave: string
-  banco: string | null
-  tipoCuenta: string | null
-  numeroCuenta: string | null
-  cci: string | null
-  titularDistinto: boolean
-  beneficiarioNombre: string | null
-  beneficiarioDni: string | null
-  /** null = casilla vigente del perfil (no tiene fecha de registro propia). */
-  registradaEn: string | null
-}
-
-function cuentaDesdeRpc(cuenta: CuentaBancariaSeleccionable): CuentaVista {
-  return {
-    clave: cuenta.cuenta_id ?? `perfil-${cuenta.moneda}`,
-    banco: cuenta.banco,
-    tipoCuenta: cuenta.tipo_cuenta,
-    numeroCuenta: cuenta.numero_cuenta,
-    cci: cuenta.cci,
-    titularDistinto: cuenta.titular_distinto,
-    beneficiarioNombre: cuenta.beneficiario_nombre,
-    beneficiarioDni: cuenta.beneficiario_dni,
-    registradaEn: cuenta.creada_en,
-  }
-}
-
-/**
- * Demo/precarga: el fixture trae solo las 2 casillas embebidas del perfil
- * (modelo viejo). Se adaptan a la vista común; sin red no hay ledger que mirar.
- */
-function cuentasEmbebidas(detalle: ClienteDetalleDatos, moneda: Moneda): CuentaVista[] {
-  const c =
-    moneda === 'USD'
-      ? {
-          banco: detalle.banco_usd,
-          tipoCuenta: detalle.tipo_cuenta_usd,
-          numeroCuenta: detalle.numero_cuenta_usd,
-          cci: detalle.cci_usd,
-          titularDistinto: detalle.titular_distinto_usd,
-          beneficiarioNombre: detalle.beneficiario_nombre_usd,
-          beneficiarioDni: detalle.beneficiario_dni_usd,
-        }
-      : {
-          banco: detalle.banco,
-          tipoCuenta: detalle.tipo_cuenta,
-          numeroCuenta: detalle.numero_cuenta,
-          cci: detalle.cci,
-          titularDistinto: detalle.titular_distinto,
-          beneficiarioNombre: detalle.beneficiario_nombre,
-          beneficiarioDni: detalle.beneficiario_dni,
-        }
-  const tieneCuenta = [c.banco, c.tipoCuenta, c.numeroCuenta, c.cci].some((dato) => dato?.trim())
-  return tieneCuenta ? [{ clave: `perfil-${moneda}`, ...c, registradaEn: null }] : []
-}
-
-function CuentasMoneda({ moneda, cuentas }: { moneda: Moneda; cuentas: CuentaVista[] }) {
-  const titulo =
-    moneda === 'PEN'
-      ? cuentas.length > 1
-        ? 'Cuentas para depósitos en soles'
-        : 'Cuenta para depósitos en soles'
-      : cuentas.length > 1
-        ? 'Cuentas para depósitos en dólares'
-        : 'Cuenta para depósitos en dólares'
-
-  return (
-    <section className="rounded-xl border border-border bg-muted/30 p-3" aria-label={titulo}>
-      <div className="flex items-center gap-2">
-        <Landmark className="size-4 text-primary" aria-hidden />
-        {/* h4: subsección de "Datos bancarios" (h3) — el outline del diálogo lo refleja. */}
-        <h4 className="text-xs font-bold text-foreground">{titulo}</h4>
-      </div>
-      {cuentas.length > 0 ? (
-        // div role="list" (patrón de mi-cartera): semántica de lista explícita
-        // que el preflight de Tailwind no puede degradar en VoiceOver.
-        <div className="mt-3 space-y-3" role="list">
-          {cuentas.map((cuenta, indice) => (
-            <div
-              key={cuenta.clave}
-              role="listitem"
-              aria-label={cuentas.length > 1 ? `Cuenta ${indice + 1} de ${cuentas.length}` : undefined}
-              className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-4"
-            >
-              <Dato etiqueta="Banco">{valor(cuenta.banco)}</Dato>
-              <Dato etiqueta="Tipo de cuenta">{valor(cuenta.tipoCuenta)}</Dato>
-              <Dato etiqueta="N° de cuenta">{valor(cuenta.numeroCuenta)}</Dato>
-              <Dato etiqueta="CCI">{valor(cuenta.cci)}</Dato>
-              <Dato etiqueta="Titular de la cuenta">{cuenta.titularDistinto ? 'Beneficiario' : 'Cliente'}</Dato>
-              {cuenta.titularDistinto && (
-                <>
-                  <Dato etiqueta="Beneficiario">{valor(cuenta.beneficiarioNombre)}</Dato>
-                  <Dato etiqueta="Documento del beneficiario">{valor(cuenta.beneficiarioDni)}</Dato>
-                </>
-              )}
-              {cuenta.registradaEn != null && <Dato etiqueta="Registrada el">{fechaHora(cuenta.registradaEn)}</Dato>}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-muted-foreground">No registró una cuenta en esta moneda.</p>
-      )}
-    </section>
-  )
-}
 
 export interface ClienteDetalleProps {
   clienteId: string
@@ -158,6 +44,7 @@ const ACTIVIDAD_LABEL = {
   whatsapp_recibido: 'WhatsApp respondido',
   reunion_realizada: 'Cita realizada',
   nota: 'Nota comercial',
+  reasignacion: 'Asignación actualizada',
 } as const
 
 /**
@@ -217,8 +104,8 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
   // milisegundos y ambas copias post-montaje; unificar exigiría una RPC conjunta.
   const [cuentasConfirmadas, setCuentasConfirmadas] = useState<{
     clienteId: string
-    pen: CuentaVista[]
-    usd: CuentaVista[]
+    pen: CuentaClienteVista[]
+    usd: CuentaClienteVista[]
   } | null>(null)
 
   useEffect(() => {
@@ -227,8 +114,8 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
     if (!qUsd.isSuccess || qUsd.isFetching || !qUsd.isFetchedAfterMount) return
     setCuentasConfirmadas({
       clienteId,
-      pen: qPen.data.map(cuentaDesdeRpc),
-      usd: qUsd.data.map(cuentaDesdeRpc),
+      pen: qPen.data.map(cuentaClienteDesdeRpc),
+      usd: qUsd.data.map(cuentaClienteDesdeRpc),
     })
   }, [
     clienteId,
@@ -263,7 +150,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
     detalle?.banca_visible !== true
       ? null
       : datos !== undefined || detalle.cuentas_bancarias_visibles !== true
-        ? cuentasEmbebidas(detalle, 'PEN')
+        ? cuentasClienteEmbebidas(detalle, 'PEN')
         : cuentasConfirmadas?.clienteId === clienteId
           ? cuentasConfirmadas.pen
           : null
@@ -271,7 +158,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
     detalle?.banca_visible !== true
       ? null
       : datos !== undefined || detalle.cuentas_bancarias_visibles !== true
-        ? cuentasEmbebidas(detalle, 'USD')
+        ? cuentasClienteEmbebidas(detalle, 'USD')
         : cuentasConfirmadas?.clienteId === clienteId
           ? cuentasConfirmadas.usd
           : null
@@ -393,8 +280,8 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
                 </div>
               ) : (
                 <div className="mt-2 space-y-3">
-                  <CuentasMoneda moneda="PEN" cuentas={cuentasPen} />
-                  <CuentasMoneda moneda="USD" cuentas={cuentasUsd} />
+                  <CuentasClienteMoneda moneda="PEN" cuentas={cuentasPen} uso="depositos" />
+                  <CuentasClienteMoneda moneda="USD" cuentas={cuentasUsd} uso="depositos" />
                 </div>
               )}
             </section>

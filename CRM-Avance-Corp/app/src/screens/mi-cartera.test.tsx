@@ -4,12 +4,13 @@
 // (MiCartera pide useQueryClient para las invalidaciones). Ruta REAL (demo=false):
 // no hay import() dinámico de fixtures.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type {
   ClienteBasico,
   ClienteDetalle,
+  ClienteFichaComercial,
   ContratoRow,
   CuentaBancariaSeleccionable,
   OperacionCartera,
@@ -35,6 +36,7 @@ let EQUIPO: Array<{
   activo: boolean
 }> = []
 let DETALLE: ClienteDetalle | null = null
+let FICHA_COMERCIAL: ClienteFichaComercial | null = null
 // Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
 // montar(): una por moneda desde las casillas embebidas (como el perfil real).
 let CUENTAS: {
@@ -155,6 +157,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useOperacionesCartera: () => q(OPERACIONES, ERROR_OPERACIONES, REFETCH_OPERACIONES),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
+    useClienteFichaComercial: vi.fn(() => q(FICHA_COMERCIAL)),
     useActividadesCliente: () => q([]),
     useDatosLegalesContrato: (clienteId: string) =>
       q({
@@ -321,6 +324,13 @@ function montar(
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
   DETALLE = over.detalle === undefined ? detalle() : over.detalle
+  FICHA_COMERCIAL =
+    DETALLE == null
+      ? null
+      : {
+          ...DETALLE,
+          activo: CLIENTES?.find((cliente) => cliente.id === DETALLE?.id)?.activo ?? true,
+        }
   CUENTAS = cuentasDesdeDetalle(DETALLE)
   archivoPdf.consultar.mockReset().mockResolvedValue({ estado: 'sellado' })
   archivoPdf.asegurar.mockReset().mockResolvedValue({ estado: 'sellado' })
@@ -358,7 +368,7 @@ async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
   const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
   const filaCliente = nombre.closest('tr')
   if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
-  await user.click(within(filaCliente).getByRole('button', { name: /\+ Contrato/ }))
+  await user.click(within(filaCliente).getByRole('button', { name: 'Registrar nueva inversión' }))
   expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
 }
 
@@ -408,9 +418,9 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
   })
 
-  it('gating: la fila propia ofrece "+ Contrato"', () => {
+  it('gating: la fila propia ofrece "Registrar nueva inversión"', () => {
     montar()
-    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
   })
 
   it('permite iniciar una gestión comercial directamente sobre el cliente', async () => {
@@ -439,8 +449,8 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', {
@@ -458,7 +468,7 @@ describe('MiCartera (pantalla)', () => {
     const user = userEvent.setup()
     montar()
 
-    await user.click(screen.getByRole('button', { name: 'Upgrade' }))
+    await user.click(screen.getByRole('button', { name: 'Aumentar inversión' }))
 
     expect(screen.getByRole('dialog', { name: 'Registrar upgrade de CLIENTE UNO' })).toBeInTheDocument()
     expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0)
@@ -578,7 +588,7 @@ describe('MiCartera (pantalla)', () => {
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
   })
 
@@ -617,7 +627,7 @@ describe('MiCartera (pantalla)', () => {
       'title',
       'Corregir datos del cliente · autorización global de Gerencia',
     )
-    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', {
@@ -656,8 +666,8 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Gestionar' }))
     expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
@@ -678,8 +688,8 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
     const encabezados = screen.getAllByRole('columnheader')
     expect(within(encabezados.at(-1)!).getByText('Acciones')).toBeInTheDocument()
     const fila = screen.getByText('CLIENTE UNO').closest('tr')!
@@ -693,12 +703,45 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
 
     expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
-    expect(screen.getByText('Datos personales')).toBeInTheDocument()
+    expect(screen.getByText('Capital vigente')).toBeInTheDocument()
+    expect(screen.getByText('Inversiones y contratos')).toBeInTheDocument()
+    expect(screen.getByText('Historial de gestiones')).toBeInTheDocument()
+    expect(screen.getByText('Información del cliente')).toBeInTheDocument()
     expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
-    expect(screen.getByText('Cuenta para depósitos en soles')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para recibir pagos en soles')).toBeInTheDocument()
     expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
-    expect(screen.getByText('Cuenta para depósitos en dólares')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para recibir pagos en dólares')).toBeInTheDocument()
     expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
+  })
+
+  it('vuelve de Gestionar a la misma Ficha 360 y enfoca Seguimiento', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    await user.click(within(ficha).getByRole('button', { name: 'Agendar seguimiento' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    const siguienteContacto = screen.getByRole('heading', { name: 'Seguimiento' }).closest('section')
+    expect(siguienteContacto).not.toBeNull()
+    await waitFor(() => expect(siguienteContacto).toHaveFocus())
+  })
+
+  it('vuelve del detalle de contrato a la misma Ficha 360 y al contrato de origen', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
+    await user.click(within(ficha).getByRole('button', { name: 'Ver contrato 2026-01-000001' }))
+    const detalleContrato = screen.getByRole('dialog', { name: 'Contrato 2026-01-000001' })
+    await user.click(within(detalleContrato).getByRole('button', { name: 'Cerrar' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    const contratoOrigen = screen.getByRole('button', { name: 'Ver contrato 2026-01-000001' })
+    await waitFor(() => expect(contratoOrigen).toHaveFocus())
   })
 
   it('con filtro activo el grupo se auto-expande y AÚN se puede colapsar (botón real)', async () => {
@@ -984,7 +1027,7 @@ describe('MiCartera (demo aislada)', () => {
     const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
     const filaCliente = nombre.closest('tr')
     if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
-    await user.click(within(filaCliente).getByRole('button', { name: /\+ Contrato/ }))
+    await user.click(within(filaCliente).getByRole('button', { name: 'Registrar nueva inversión' }))
 
     expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
@@ -1192,8 +1235,8 @@ describe('MiCartera — cliente desactivado en el portal', () => {
 
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', {
@@ -1504,8 +1547,8 @@ describe('MiCartera — supervisión (filtro por analista + Sin analista)', () =
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Aumentar inversión' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
     // Supervisar el roster habilita gestión y contratos, no el PATCH del
     // perfil: esa corrección sigue siendo solo del dueño (o de Gerencia).
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
@@ -1542,7 +1585,7 @@ describe('MiCartera — supervisión (filtro por analista + Sin analista)', () =
     expect(screen.getByText('CLIENTE FANTASMA')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Primer contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar primera inversión' })).not.toBeInTheDocument()
     const encabezados = screen.getAllByRole('columnheader')
     const fila = screen.getByText('CLIENTE FANTASMA').closest('tr')!
     expect(within(fila).getAllByRole('cell')).toHaveLength(encabezados.length)
@@ -1684,7 +1727,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
   })
 
-  it('gating: una fila AJENA no ofrece "+ Contrato"', () => {
+  it('gating: una fila AJENA no ofrece "Registrar nueva inversión"', () => {
     activarMovil()
     montar({
       clientes: [
@@ -1698,7 +1741,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
   })
 
   it('en móvil mantiene Gestionar para cartera propia sin permiso contractual', () => {
@@ -1713,8 +1756,8 @@ describe('MiCartera (móvil, card-stack)', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aumentar inversión' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar nueva inversión' })).not.toBeInTheDocument()
   })
 
   it('Ver detalle abre en móvil la ficha completa aun con la ventana vencida', async () => {
@@ -1876,8 +1919,8 @@ describe('MiCartera (móvil, card-stack)', () => {
     activarMovil()
     montar({ clientes: [cliente({ creado_en: '2020-01-01T00:00:00.000Z' })] })
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
-    // sigue siendo mío → "+ Contrato" continúa disponible.
-    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+    // sigue siendo mío → "Registrar nueva inversión" continúa disponible.
+    expect(screen.getByRole('button', { name: 'Registrar nueva inversión' })).toBeInTheDocument()
   })
 
   it('Corregir cliente: AUSENTE si el cliente es de otro analista', () => {
@@ -2054,7 +2097,7 @@ describe('MiCartera — filtro por mes de cierre', () => {
     })
     expect(screen.getByText('CLIENTA DE AHORA')).toBeInTheDocument()
     expect(screen.getByText('RECIEN CAPTADO')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /\+ Primer contrato/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar primera inversión' })).toBeInTheDocument()
   })
 
   it('con «Todos los meses» los rótulos vuelven a los de siempre', async () => {
