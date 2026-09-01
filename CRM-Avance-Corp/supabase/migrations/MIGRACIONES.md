@@ -6273,10 +6273,22 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
-## P-055 · ATR-4 — LA SANCIÓN DE ANULAR ES SOLO DE CONVERSIÓN (2026-09-01)
+## P-055 · ATR-4 — ✅ EN PRODUCCIÓN EL 01/09 (REGISTRO 193): LA SANCIÓN DE ANULAR ES SOLO DE CONVERSIÓN
 
-**Estado: 🟢 PAQUETE COMPLETO, ENSAYADO Y REFUTADO — LISTO PARA EL `!` DE MIGUEL (será el
-registro 193).** Migración `20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql` ·
+**Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01, ONCE días antes de su calendario
+(«12/09+»).** Batería post-publish EN VERDE: **registro 193** con cuerpo, **0 actas mudas**, y el
+cuerpo registrado es **byte a byte el archivo** (md5 `b46efb62dce76bc3793f64cb2e85da82` — el
+arreglo ① de la 2.ª vuelta pagó aquí) · **las 8 funciones con su huella nueva** y el núcleo con
+sus atributos y ACL `{postgres=X/postgres}` intactos · **los 4 guardianes y los 4 gates del repo
+en verde** (6 puertas · 30 contadores · 14 piezas F7 · 0 tablas sin rastro) · `vigia_alertas` 0 ·
+advisors por SQL: **0 en todas las clases de ERROR** · la demo qorilazo sigue fuera del dinero ·
+mundo intacto: 0 anulaciones reales, 0 deudas.
+**Con ATR-4 dentro ANTES del primer sello, la pregunta transitoria del contrato («las deudas de
+capital ya registradas, ¿se saldan o se condonan?») MUERE SIN NACER: nunca existirá una deuda
+con la regla vieja.** Pendiente aparte: publicar el front con `/release-crm` (textos nuevos de
+anular; los viejos solo mentirían si alguien anula, y hoy no hay anulaciones reales).
+
+**Estado previo (el paquete que autorizó publicar):** Migración `20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql` ·
 `scripts/ensayo-atr4-conducta-sintetica.sql` (**ATR4-ENSAYO-CONDUCTA-VERDE** contra prod,
 deshecho) · `scripts/rollback-atr4-p055.sql` (**ATR4-CICLO-VERDE-v2**: ida→vuelta al byte→re-ida)
 · `scripts/registrar-atr4-version.sql`. Front actualizado (textos de anular + tests, 2433/2433).
