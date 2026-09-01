@@ -6273,6 +6273,51 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · ATR-2 — TRIPLE ENSAYO DEL 01/09: PUBLICABLE YA, SIN ESPERAR AL SELLO
+
+**Estado: 🟢 LISTA PARA PUBLICAR HOY con el `!` de Miguel** (sigue SIN publicar; decisión suya).
+Producción verificada intacta tras los tres ensayos: 191 versiones, 0 meses sellados, núcleo
+`capital_episodios` con su huella original `872f5ad4…`, 0 clones residuales, ATR-2 no registrada.
+
+**🔑 EL CANDADO NO ES UNA FECHA — es CONDICIONAL, y hoy NO salta.** El preflight (línea 99) dice:
+aborta si `agosto NO sellado` **Y** `hay renovaciones-de-cadena con mes agosto en el delta`. Con el
+**delta en 0** (medido hoy: 0 contratos divergentes) la segunda condición es falsa y **el preflight
+pasa con agosto abierto**. El «11–12/09» de la cabecera es **disciplina declarada**, no un bloqueo
+técnico — y esta sesión midió que esa disciplina no tiene coste.
+
+**Los 12 pines del preflight: 12/12 INTACTOS** tras las Olas R y 1 (registros 190 y 191, publicadas
+DESPUÉS de preparar ATR-2). Ninguna de las 12 funciones ancladas se movió.
+
+**TRES ENSAYOS, TODOS CONTRA PRODUCCIÓN Y DESHECHOS:**
+1. **`ATR2-CICLO-VERDE-v2`** — el ensayo con cadena sintética que ya existía
+   (`scripts/ensayo-atr2-cadena-sintetica.sql`: migración entera + siembra de una cadena real +
+   oráculos + marcha atrás al byte). Re-corrido hoy: **sigue verde con las Olas R/1 dentro**.
+2. **`ENSAYO-COMBINADO-SELLO+ATR2-VERDE`** (nuevo,
+   `scripts/ensayo-atr2-sobre-agosto-sellado.sql`) — **el 10/09 y el 11/09 en la MISMA
+   transacción**: sellar agosto por el camino del cron → aplicar ATR-2 entera con agosto ya
+   sellado → comprobar que **la foto sellada no se movió ni un byte** (huella por elemento de las
+   18 filas + la cabecera del sello). Es el orden previsto por el calendario, y funciona.
+3. **`ENSAYO-ORDEN-INVERSO-VERDE`** (nuevo, `scripts/ensayo-atr2-antes-del-sello.sql`) — **la
+   prueba decisiva**: aplicar ATR-2 PRIMERO y sellar agosto DESPUÉS, con el sello leyendo ya el
+   núcleo parcheado, y comparar contra la **línea base del ensayo de la F2**
+   (`656c6b6e00f2d2a6867eb184b9f5c02b`). **Resultado: la foto sellada es IDÉNTICA.** ⇒ Publicar
+   ATR-2 antes del 10/09 **no cambia el sello**. Queda demostrado, no argumentado.
+   (El guion está escrito fail-closed: si la huella hubiera diferido, aborta con `ATENCION:
+   publicar ATR-2 hoy CAMBIA el sello del 10/09`.)
+
+**Por qué el efecto es cero, en una línea:** con delta vacío el resolutor de cadena devuelve el
+propio `analista_cierre_id` del contrato (no-op), así que el núcleo parcheado calcula lo mismo que
+el viejo. Solo una RENOVACIÓN DE CADENA DE UPGRADE se movería, y hoy no existe ninguna.
+
+**Vía de publicación (sin cambios):** `db query --linked --file` la migración →
+`scripts/registrar-atr2-version.sql` (exige la huella VIVA `90f1d8c2…` antes de registrar) →
+gates → advisors. Será el registro **192**. 🔴 Si se revierte: retirar A MANO la fila
+`20260830233000` del registro.
+
+**Lo que sigue valiendo del calendario:** si entre hoy y el sello NACIERA una renovación de cadena
+de upgrade con mes agosto, el candado del preflight **sí** saltaría y habría que decidir con
+Miguel. El guion del orden inverso se puede re-correr en cualquier momento para re-comprobarlo.
+
 ## P-055 · FASE 2 — ENSAYO DEFINITIVO DEL PRIMER SELLO (2026-09-01)
 
 **Estado: ✅ ENSAYADO CONTRA PRODUCCION Y DESHECHO ENTERO. Produccion verificada intacta despues
