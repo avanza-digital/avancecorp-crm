@@ -2315,7 +2315,7 @@ const CrearContratoResultadoSchema = v.object({
     // de contrato moría con «El servidor no confirmó completamente el contrato»
     // aunque el contrato SÍ se había creado. Un parche que solo vive en el
     // artefacto no existe: si no está en un commit, el siguiente release lo pisa.
-    template_version: v.picklist(['contrato-aep-17-v3', 'contrato-aep-17-v4', 'contrato-aep-17-v5']),
+    template_version: v.picklist(['contrato-aep-17-v3', 'contrato-aep-17-v4', 'contrato-aep-17-v5', 'contrato-aep-17-v6']),
     intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
     lease_expira_en: v.nullable(v.string()),
     reintentable: v.boolean(),

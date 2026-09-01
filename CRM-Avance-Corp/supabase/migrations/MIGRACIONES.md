@@ -6273,6 +6273,69 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · ATR-4 — LA SANCIÓN DE ANULAR ES SOLO DE CONVERSIÓN (2026-09-01)
+
+**Estado: 🟢 PAQUETE COMPLETO, ENSAYADO Y REFUTADO — LISTO PARA EL `!` DE MIGUEL (será el
+registro 193).** Migración `20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql` ·
+`scripts/ensayo-atr4-conducta-sintetica.sql` (**ATR4-ENSAYO-CONDUCTA-VERDE** contra prod,
+deshecho) · `scripts/rollback-atr4-p055.sql` (**ATR4-CICLO-VERDE-v2**: ida→vuelta al byte→re-ida)
+· `scripts/registrar-atr4-version.sql`. Front actualizado (textos de anular + tests, 2433/2433).
+
+**La regla (Miguel, 31/08): «solo la conversión, siempre».** Anular baja la conversión del
+analista con mes abierto o sellado por igual; el capital NO se toca jamás — ni la producción del
+analista ni el AUM de la empresa. **CINCO bisturís, todo en la LECTURA:**
+1. `produccion_mes_por_vendedor` — fuera las CTE `anulados`/`neutralizados`; la pierna coop
+   filtra por **MEDIDA del núcleo** (`medida='stock'`), no por el flag.
+2. `registrar_ajuste_si_mes_cerrado` — la deuda de mes sellado carga SOLO numerador
+   (capital 0/0, detalle `[]`); numerador 0 ⇒ NULL POR DISEÑO (la alerta del vigía queda).
+3. `capital_episodios` — la coop anulada REAL vuelve a `medida='stock'` con su monto; conserva
+   `estado='anulado'` y el flag. ÚNICA excepción DECLARADA por id sellado: la demo qorilazo
+   (S/100k, lead REAL — el filtro de demos no la caza, medido).
+4. `contratos_afectados_por_anulacion` — SOLO informativa; compara por la ATRIBUCIÓN EFECTIVA
+   (`coalesce(analista_atribuido_cadena, analista_cierre_id)`), no por `creado_por`.
+5. **LAS LENTES DEL DINERO** (la refutación tumbó el «sin tocar lentes» del contrato del vault):
+   `metricas_vencimientos_fn`, `directorio_ranking_analistas` y `metricas_directorio` cortaban
+   la pierna coop por `estado='vigente'` — habrían borrado a la anulada aunque el núcleo la
+   conservara; `cierres_externos_fn` llevaba contabilidad paralela (`anulado_en is null`). Las
+   cuatro pasan a la MEDIDA (o a la exclusión declarada de la demo, en la paralela).
+
+**Re-sellos:** 4 exenciones del censo F6.a (las 3 del contrato + `cierres_externos_fn`, que el
+trinquete cazó en vivo) + sello agregado + **el censo de VIGENCIA** (F5.a): el ranking del
+Directorio es puerta exenta allí — su fórmula es md5 SIN lower (distinta de la del F6.a; ambas
+medidas contra los assert vivos, que las cazaron una a una hasta quedar exactas).
+
+**Preflight:** pines de las 12 funciones (las 8 que se tocan con cuerpo viejo exacto + 4 del
+mundo alrededor) + **candado del mundo**: 0 anulaciones de Avance, 0 deudas, exactamente 1 coop
+anulada = la demo por id y motivo. Si nace una anulación REAL antes de publicar, ABORTA y se
+decide con Miguel. **Postflight:** las 8 cambiaron de verdad · anti-conteos · atributos y ACL ·
+**tres paridades al byte** (capital global, conversión global, producción de agosto: con el
+mundo de hoy, ANTES = DESPUÉS) · la demo sigue sin ser dinero · los 2 guardianes en OK.
+
+**El ensayo de conducta (los 4 escenarios del contrato + el sello):** coop y avance anulados con
+mes ABIERTO → producción idéntica al byte, AUM intacto, **las 4 lentes fotografiadas BAJO CLAIMS
+no se mueven**, y la conversión baja EXACTO el episodio; con mes SELLADO (sellado dentro del
+ensayo por el camino del cron) → la deuda nace solo-conversión (numerador EXACTO al episodio,
+capital 0/0) y la foto sellada no se toca. **Orden inverso v3:** el sello con ATR-4 dentro es
+IDÉNTICO al sello con las reglas vivas **medido en la MISMA transacción** (línea base LOCAL — la
+constante de las 00:32 caducó a mediodía porque el negocio REGISTRÓ 3 contratos de agosto
+mientras se ensayaba: el discriminador separó DATO de LÓGICA e hizo su trabajo).
+
+**Refutación (4 lentes en paralelo + verificadores): NO-GO del dinero ATENDIDO ENTERO.** Los 8
+confirmados, cerrados: las 3 lentes vivas + la contabilidad paralela (→ bisturí 5) · el
+registrador NO PARSEABA (dollar-quote anónimo cortado por el `do $$` del cuerpo embebido → tag
+`$reg_atr4$`, y el cuerpo guardado ahora es BYTE-EXACTO al archivo) · el rollback re-sellaba con
+razones INVENTADAS (→ las vivas leídas de prod, en dollar-quote) y le faltaba candado de mundo
+(→ solo corre con 0 anulaciones reales; después de la primera, se corrige HACIA DELANTE) · los
+textos del front prometían descuento de cuota (→ «baja la conversión; el capital no se toca», con
+sus tests) · faltaba esta entrada del ledger.
+
+**⚠️ Operativo del publish:** mismo patrón de la noche — `db query --linked --file` migración →
+`registrar-atr4-version.sql` → gates → advisors. El ensayo retiene el candado global de cierre:
+no publicar metas ni anular en ese minuto. 🔴 Si se revierte: `rollback-atr4-p055.sql` (solo con
+0 anulaciones reales) y retirar A MANO la fila `20260901180000`. **Deudas al banco:** mutante de
+los bisturís (romper uno y ver el acto exacto que lo caza) · absorción de una deuda
+numerador-pura por `saldar_ajustes` en el sello del mes siguiente (imposible con un solo sello).
+
 ## P-055 · ATR-2 — ✅ EN PRODUCCIÓN EL 01/09 (REGISTRO 192), NUEVE DÍAS ANTES DEL CALENDARIO
 
 **Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01, con agosto ABIERTO y ningún mes sellado.**
@@ -6541,3 +6604,34 @@ y `gate:f7` verdes tras el movimiento.
 2. `npx supabase db query --linked --file supabase/scripts/registrar-ola-r-version.sql`
 Después la F7.1 (060000 + su registrador). Si se revierte: rollback + retirar a mano la fila
 20260831055000.
+
+## CONTRATO PDF · PLANTILLA v6 — DATOS ECONÓMICOS RESALTADOS (2026-09-01)
+
+**Pedido de Miguel:** capital aportado (3.1), porcentaje de participación (3.4) y plazo (5.1)
+en **negrita + MAYÚSCULAS** (negro, como los datos del inversionista), y el **domicilio del
+inversionista en MAYÚSCULAS**. Aprobado sobre muestra renderizada con el renderer real.
+
+**Migración:** `20260901115030_crm_contrato_pdf_plantilla_v6_datos_resaltados.sql` — espejo del
+salto v4→v5 (20260818233729): default y CHECK de `private.contrato_pdf_jobs` a v6, CHECK de
+`private.contrato_pdfs` acepta v6, re-estampa las reservas v5 sin bytes ni lease (14 en prod al
+censar) y `private.crear_job_contrato_pdf_base` estampa `contrato-aep-17-v6` (cuerpo = el VIVO
+de prod con la frontera documental, solo cambia el literal).
+
+**Edge (mismo paquete, árbol `supabase/functions/crm-contrato-pdf-v2`):** constante v6;
+`versionJobLegible` acepta ahora v2 **y v5** además de la vigente (los 69 sellados v5 + 3 v2
+siguen legibles); template con las negritas/mayúsculas. 27/27 tests Deno, golden v6
+`1b2e3d26e556…` (871.757 bytes). Función viva contrastada contra HEAD antes de tocar: 8/8
+byte a byte (lección de la v8).
+
+**Front:** `crm-api.ts` picklist de `template_version` acepta v6 (creación de contrato valida
+la RESPUESTA → front primero, lección del 33.º release).
+
+**Publicación (Miguel, con `!`, EN ESTE ORDEN):**
+1. Front: `/release-crm` (tolerante a v5 y v6; sin esto, tras la migración toda creación
+   moriría con «El servidor no confirmó completamente el contrato»).
+2. Edge: `npx supabase functions deploy crm-contrato-pdf-v2` (v10; lee v5 sellados, aún no
+   renderiza pendientes v5 → 409 reintentable, ventana de segundos).
+3. BD: `npx supabase db query --linked --file supabase/migrations/20260901115030_crm_contrato_pdf_plantilla_v6_datos_resaltados.sql`
+   (re-estampa pendientes y estampa v6 en adelante; cierra la ventana).
+Rollback: redeploy del commit v9 + `create or replace` con literal v5 + re-estampar pendientes
+v6→v5 (los CHECK ampliados pueden quedarse: son aditivos).

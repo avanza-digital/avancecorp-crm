@@ -121,7 +121,7 @@ Deno.test("assets legales v2 conservan los SHA versionados", async () => {
   igual(resultado.firmaBytes, 26588, "tamaño firma del ASOCIANTE");
 });
 
-Deno.test("template v5 reproduce la firma y numeración del modelo", () => {
+Deno.test("template v6 reproduce la firma y numeración del modelo", () => {
   const definicion = construirContratoPdf({
     contrato: {
       numero: SNAPSHOT.contrato.numero,
@@ -154,7 +154,8 @@ Deno.test("template v5 reproduce la firma y numeración del modelo", () => {
       "dentro de un plazo máximo de siete (7) días hábiles contados desde dicho vencimiento",
       "EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención",
       "resultados económicos del presente contrato se encuentran vinculados",
-      "dieciocho por ciento (18.00 %)",
+      "DIECIOCHO POR CIENTO (18.00 %)",
+      "UN (1) AÑO",
     ]
   ) {
     assert(contenido.includes(fragmento), `contenido v3 ausente: ${fragmento}`);
@@ -233,11 +234,14 @@ Deno.test("template v5 reproduce la firma y numeración del modelo", () => {
       "DNI N° 44232474",
       SNAPSHOT.titular.nombreCompleto,
       "DNI N° 45781234",
-      SNAPSHOT.titular.domicilio,
+      SNAPSHOT.titular.domicilio.toUpperCase(),
       SNAPSHOT.titular.correo,
       SNAPSHOT.analista.nombreCompleto,
       SNAPSHOT.analista.celular,
       SNAPSHOT.analista.correo,
+      "S/ 15,000.00 (QUINCE MIL Y 00/100 SOLES)",
+      "DIECIOCHO POR CIENTO (18.00 %)",
+      "UN (1) AÑO",
     ]
   ) {
     assert(
@@ -262,7 +266,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs v5 byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v6 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -278,10 +282,10 @@ Deno.test("PdfPrinter produce dos PDFs v5 byte-idénticos con fecha fija", async
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "b7346c169ced31bba8aad966d97e4c1a6ded85b4f22466587b6bc5dcb8377995",
-    "golden byte a byte del template v5",
+    "1b2e3d26e556b55cda0d0adba07106f4aec4d71eea57ba8dae738241f45697d6",
+    "golden byte a byte del template v6",
   );
-  igual(primero.bytes, 871280, "tamaño golden del template v5");
+  igual(primero.bytes, 871757, "tamaño golden del template v6");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,

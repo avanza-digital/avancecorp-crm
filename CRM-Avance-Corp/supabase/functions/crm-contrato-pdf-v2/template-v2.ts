@@ -462,7 +462,7 @@ export function construirContratoPdf(
   const documento = `${
     etiquetaDocumento(titular.tipoDocumento)
   } N° ${titular.documento}`;
-  const porcentajeLetras = enteroEnLetras(contrato.porcentaje).toLowerCase();
+  const porcentajeLetras = enteroEnLetras(contrato.porcentaje);
   const fechaFirma = fechaPartes(contrato.fechaInicio);
 
   const contenido: Content[] = [
@@ -503,7 +503,7 @@ export function construirContratoPdf(
       { text: ", con " },
       { text: documento, bold: true },
       { text: " y con domicilio en " },
-      { text: titular.domicilio, bold: true },
+      { text: titular.domicilio.toUpperCase(), bold: true },
       {
         text:
           ", a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:",
@@ -516,15 +516,22 @@ export function construirContratoPdf(
         tituloClausula(
           "TERCERA: CONTRIBUCIÓN DEL ASOCIADO, RIESGO EMPRESARIAL Y PARTICIPACIÓN EN UTILIDADES",
         ),
-        parrafoNumerado(
-          3,
-          1,
-          `EL ASOCIADO se obliga a efectuar una contribución dineraria ascendente a ${
-            montoVisible(contrato.capital, contrato.moneda)
-          } (${
-            montoEnLetras(contrato.capital, contrato.moneda)
-          }), mediante la cual adquiere el derecho a participar en los resultados o utilidades que generen las actividades empresariales materia del presente contrato.`,
-        ),
+        parrafoNumerado(3, 1, [
+          {
+            text:
+              "EL ASOCIADO se obliga a efectuar una contribución dineraria ascendente a ",
+          },
+          {
+            text: `${montoVisible(contrato.capital, contrato.moneda)} (${
+              montoEnLetras(contrato.capital, contrato.moneda)
+            })`,
+            bold: true,
+          },
+          {
+            text:
+              ", mediante la cual adquiere el derecho a participar en los resultados o utilidades que generen las actividades empresariales materia del presente contrato.",
+          },
+        ]),
       ],
       unbreakable: true,
     },
@@ -538,13 +545,19 @@ export function construirContratoPdf(
       3,
       "La contribución será aplicada al desarrollo de las actividades empresariales materia del presente contrato, cuya gestión corresponde a EL ASOCIANTE conforme a los criterios establecidos en la cláusula cuarta. EL ASOCIADO reconoce que los resultados de su participación se encuentran vinculados al desarrollo y resultados de dichas actividades empresariales.",
     ),
-    parrafoNumerado(
-      3,
-      4,
-      `EL ASOCIADO tendrá derecho a participar en el ${porcentajeLetras} por ciento (${
-        contrato.porcentaje.toFixed(2)
-      } %) de las utilidades netas distribuibles que generen las actividades empresariales materia del presente contrato, siempre que existan utilidades netas suficientes y liquidadas conforme al presente contrato.`,
-    ),
+    parrafoNumerado(3, 4, [
+      { text: "EL ASOCIADO tendrá derecho a participar en el " },
+      {
+        text: `${porcentajeLetras} POR CIENTO (${
+          contrato.porcentaje.toFixed(2)
+        } %)`,
+        bold: true,
+      },
+      {
+        text:
+          " de las utilidades netas distribuibles que generen las actividades empresariales materia del presente contrato, siempre que existan utilidades netas suficientes y liquidadas conforme al presente contrato.",
+      },
+    ]),
     parrafoNumerado(
       3,
       5,
@@ -583,13 +596,18 @@ export function construirContratoPdf(
     tablaLiquidacion(),
     ...clausulaEstatica(4),
     tituloClausula("QUINTA: PLAZO DE DURACIÓN DEL CONTRATO"),
-    parrafoNumerado(
-      5,
-      1,
-      `El plazo de duración obligatoria del presente contrato será de ${
-        plazoVisible(contrato.fechaInicio, contrato.fechaVencimiento)
-      }, contado a partir de la fecha de suscripción del presente documento.`,
-    ),
+    parrafoNumerado(5, 1, [
+      { text: "El plazo de duración obligatoria del presente contrato será de " },
+      {
+        text: plazoVisible(contrato.fechaInicio, contrato.fechaVencimiento)
+          .toUpperCase(),
+        bold: true,
+      },
+      {
+        text:
+          ", contado a partir de la fecha de suscripción del presente documento.",
+      },
+    ]),
     parrafoNumerado(
       5,
       2,
