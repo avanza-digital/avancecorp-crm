@@ -13,8 +13,16 @@ preflight rechazó un despliegue que habría borrado ~3 767 líneas de trabajo a
 migraciones ya aplicadas). Puede contener además trabajo aún sin publicar; lo que nunca puede
 es quedarse atrás.
 
+**Dónde vive el tronco (ojo, hay tres `main` distintos y solo uno sirve):**
+- **El tronco es el `main` LOCAL de este taller** (raíz `833d8c2`). Es el único que contiene a
+  la vez el CRM, el portal (submódulo `public_html`) y las migraciones aplicadas.
+- Su espejo en GitHub es **`avancecorp/tronco`**, NO `avancecorp/main`: ese `main` remoto es
+  una línea heredada del CRM antiguo (raíz `b9735c3`), **sin ningún antepasado común** con el
+  taller — nunca hagas `pull` de ahí ni lo pises con un push forzado (son 142 commits ajenos).
+- El portal sí es limpio: su tronco es `main` en `avanzadigitald/avancecorp-portal`.
+
 **Al empezar una sesión:**
-1. `git checkout main && git pull avancecorp main` — y trabaja desde ahí, o desde una rama
+1. `git checkout main && git pull avancecorp tronco` — y trabaja desde ahí, o desde una rama
    corta que salga de `main`.
 2. Si te encuentras en una rama vieja (`wip/…`, `release/…` de otro día), NO trabajes encima:
    comprueba antes con `git merge-base --is-ancestor main <tu-rama>` que contiene el tronco.
@@ -28,8 +36,9 @@ es quedarse atrás.
   archivos que hoy están vivos y que contenga lo publicado.
 
 **Después de publicar, el mismo día:** fusiona a `main` lo que acabas de publicar y súbelo
-(`git push avancecorp main`). Una rama que se publica y no vuelve al tronco es la semilla del
-próximo borrado accidental.
+(`git push avancecorp main:tronco`, y `git -C public_html push origin main` si tocaste el
+portal). Una rama que se publica y no vuelve al tronco es la semilla del próximo borrado
+accidental.
 
 **Si el preflight te rechaza:** NO fuerces. Averigua qué rama está viva, crea una rama nueva
 desde ese tip y asienta tu cambio encima (`git checkout <tu-commit> -- <archivos>` tras
