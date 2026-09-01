@@ -83,13 +83,17 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
 }
 
 describe('BANCOS_PE (catálogo del portal)', () => {
-  it('trae las 33 entidades en 3 apartados, sin "Otro" (lo agrega el select al final)', () => {
+  it('trae las 34 entidades en 3 apartados, sin "Otro" (lo agrega el select al final)', () => {
     const planas = BANCOS_PE.flatMap((g) => [...g.opciones])
-    expect(planas).toHaveLength(33)
+    expect(planas).toHaveLength(34)
     expect(BANCOS_PE.map((g) => g.grupo)).toEqual(['Bancos', 'Cajas municipales', 'Financieras'])
     expect(planas).not.toContain('Otro')
     // Casos que el portal agregó a propósito y no deben perderse en el espejo.
     expect(planas).toContain('Banco SIP')
+    // Alfin Banco (ex Banco Azteca Perú) — agregado 2026-09-01 a pedido de
+    // Miguel: hay clientes con cuenta ahí que caían en "Otro". Nombre EXACTO
+    // el de la SBS, porque es el que se imprime en el contrato.
+    expect(planas).toContain('Alfin Banco')
     expect(planas).toContain('Caja Huancayo')
     // Caja Sullana quedó excluida a propósito (intervenida por la SBS en 2024).
     expect(planas).not.toContain('Caja Sullana')

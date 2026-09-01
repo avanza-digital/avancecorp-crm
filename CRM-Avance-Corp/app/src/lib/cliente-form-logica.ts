@@ -20,6 +20,7 @@ export const BANCOS_PE = [
     opciones: [
       'BCP', 'Interbank', 'BBVA', 'Scotiabank', 'BanBif', 'Banco de la Nación',
       'Banco Pichincha', 'Banco Falabella', 'Banco GNB', 'MiBanco', 'Banco Ripley',
+      'Alfin Banco',
       'Banco de Comercio', 'Banco SIP', 'Citibank',
     ],
   },
