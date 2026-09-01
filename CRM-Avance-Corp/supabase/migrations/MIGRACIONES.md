@@ -6273,6 +6273,65 @@ Archivos: `migrations/20260831060000_crm_f7_1_cerrar_lo_que_quedo_suelto.sql` ·
 temporal en hora de Lima: ventana [31/08 – 02/09]; ver el bloque OPERATIVO arriba).
 
 
+## P-055 · F7.2 — ✅ EN PRODUCCIÓN EL 01/09: EL INTERRUPTOR LEGACY, CERRADO CON LLAVE
+
+**Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01 (`20260901200000`).** Batería verde:
+interruptor con ACL `{postgres=X/postgres}` · su acta en el libro (observación, cerrada 01/09,
+**demolible el 15/09**) · **15 piezas vigiladas** (11 en observación + 4 permanentes) · los 4
+gates del repo verdes · advisors 0 en las clases de ERROR · vigía 0 · **negocio intacto** (496
+contratos, 572 condiciones — el equipo siguió cerrando ventas mientras se publicaba).
+⚠️ El registro llegó a **196 versiones**: dos son de otra sesión que publicó en paralelo.
+
+**Qué se cerró y por qué — medido el 01/09.** `crm.cerrar_altas_legacy_productos(bigint)` es el
+interruptor que apagaría el «modo compatibilidad» del catálogo. Estado real medido: el único
+producto es `HISTORICO-SIN-CATALOGO` (archivado, legacy), **las 568 condiciones son TODAS legacy
+y cero normales**, y los contratos cuelgan de ahí ⇒ **si alguien lograra ejecutarlo, el equipo
+dejaría de poder crear contratos**. Hoy es inejecutable (su propio cuerpo exige una condición
+no-legacy publicada y no hay ninguna), nunca se usó, y ninguna pantalla lo dispara: el envoltorio
+`cerrarCompatibilidadLegacyProductos` existe en el front pero **ningún componente lo importa**.
+🔑 Y además **desbloquea la Ola 2**: nombraba tres de las siete gemelas por `to_regprocedure`.
+
+**⚠️ NO se tocó el catálogo de condiciones** (tablas, datos, FK, columna, trigger de snapshot):
+eso es infraestructura VIVA del cierre de ventas — 18 personas la mueven a diario — y Miguel
+decidió el 01/09 que **no se toca**. Ver «El catálogo de productos NO es un catálogo».
+
+**Paquete:** migración · `scripts/registrar-f7-2-version.sql` (relectura fail-closed) ·
+`scripts/rollback-f7-2-p055.sql` (reabre el interruptor y retira el acta bajando el candado
+NOMBRADO `trg_f7_obs_01_no_borrar`) · `scripts/ensayo-f7-2-ciclo.sql` → **F7.2-CICLO-VERDE**
+contra prod, deshecho. 🔴 Si se revierte: retirar A MANO la fila `20260901200000`.
+
+## P-055 · F7 · LAS DEMOLICIONES, LISTAS PARA CORRER (13 y 14/09)
+
+**Estado: 🟢 ESCRITAS, ENSAYADAS Y COMMITEADAS — esperan solo el `!` en su fecha.**
+`F7-ENSAYO-COMPLETO-VERDE` (`scripts/ensayo-f7-cadena-completa.sql`): cierre + las dos
+demoliciones + las dos marchas atrás, todo contra prod y deshecho; producción verificada intacta.
+
+- **Ola 2 (13/09)** `20260913120000` — demuele las 7 gemelas. Preflight: ventana POR FILA ·
+  stop-the-line si el vigía tiene alertas · huellas contra la captura viva del 01/09 · «nadie
+  VIVO las nombra» (una pieza ya cerrada es referencia INERTE y no bloquea).
+  Marcha atrás: `scripts/rollback-f7-ola2-gemelas.sql`.
+- **Ola 2b (14/09)** `20260914120000` — demuele **solo** `metricas_altas_analista_fn`.
+  Marcha atrás: `scripts/rollback-f7-ola2b-tableros.sql`.
+
+**🔴 CUATRO TRAMPAS QUE EL ENSAYO CAZÓ (ninguna era visible leyendo el código):**
+1. **Recrear una función en `public` la REABRE**: los default privileges de Supabase le devuelven
+   EXECUTE a anon/authenticated/service_role y `revoke ... from public` (el ROL) NO los quita. Lo
+   cazó el propio vigilante F7 a mitad del ensayo. Los rollbacks revocan a los tres explícitamente.
+2. El trigger `solo_crece` **exige rastro escrito en `nota`** al cambiar de estado — y
+   `nota || texto` es NULL si `nota` es NULL (va con `coalesce`).
+3. Volver de `demolida` a `observacion` **exige bajar el candado NOMBRADO** (doctrina
+   limpieza-leads), nunca un `disable trigger user` a ciegas.
+4. **🔴 DEUDA DECLARADA — dos tableros salen del plan:** `metricas_distribucion_leads_fn` y su
+   `v2` pertenecen al rol `crm_metricas_bridge`, y por el canal de publicación **no se puede
+   asumir ese rol** (`42501 permission denied to set role`): ni `alter owner` ni `set role`. Su
+   marcha atrás las recrearía con dueño `postgres` y el vigilante las vería REABIERTAS. **No se
+   derriba lo que no se sabe reconstruir**: quedan cerradas y vigiladas hasta tener una vía con
+   superusuario (panel de Supabase o conexión directa).
+
+**Los 14 días NO se tocaron.** El ensayo viaja en el tiempo solo dentro de su transacción
+abortada, y su ACTO 2 es el **mutante del candado**: comprueba que hoy las 7 gemelas están dentro
+de su ventana, o sea que el trinquete de verdad frena. En producción el CHECK sigue intacto.
+
 ## P-055 · ATR-4 — ✅ EN PRODUCCIÓN EL 01/09 (REGISTRO 193): LA SANCIÓN DE ANULAR ES SOLO DE CONVERSIÓN
 
 **Estado: ✅ PUBLICADA por Miguel con `!` el 2026-09-01, ONCE días antes de su calendario
