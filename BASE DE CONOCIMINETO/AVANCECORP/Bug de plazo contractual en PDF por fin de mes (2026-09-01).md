@@ -1,7 +1,7 @@
 ---
 tags: [bug, contratos, pdf, fechas, produccion]
 actualizado: 2026-09-01
-estado: corregido-local-pendiente-produccion
+estado: desplegado-pendiente-generar-revisiones
 ---
 
 # Bug de plazo contractual en PDF por fin de mes (2026-09-01)
@@ -80,9 +80,17 @@ snapshot v5 original. También actualiza a v7 las reservas v5/v6 que todavía no
 tienen bytes ni lease. Fue ensayada en PostgreSQL temporal con siete fixtures y
 pasó junto con 29 pruebas Deno, 44 pruebas Vitest y el typecheck del portal.
 
-No se aplicó todavía ningún cambio a producción: falta la autorización expresa
-del SQL y luego publicar en orden frontend → Edge → migración → generación de
-las siete revisiones.
+La corrección está publicada en producción: frontend compatible, Edge v12 y
+migración registrada como `20260901191947`. Las 14 reservas anteriores sin
+bytes pasaron a v7 y los 7 contratos afectados tienen una revisión 2 v7
+pendiente; sus PDFs v5/revisión 1 permanecen intactos.
+
+Falta acuñar y verificar los siete archivos. La Edge exige una sesión humana
+autorizada y no había Browser conectado durante el despliegue; se rechazó usar
+impersonación o una llave administrativa como sustituto del usuario. Al abrir
+una sesión de Admin/Gerencia en `crm.miavance.com`, invocar `ensure` para cada
+contrato y comprobar estado `sellado`, `sha256`, bytes y texto de la cláusula
+5.1.
 
 Relacionado: [[PDF de contrato (generador) — plan]] · [[Rol Analista]] ·
 [[Ciclo de vida de contratos]] · [[Bug de fechas UTC]]

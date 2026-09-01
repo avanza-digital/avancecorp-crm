@@ -6676,8 +6676,10 @@ sellados intactos (69 v5 + 3 v2, ledger 72).
 
 ## CONTRATO PDF · PLANTILLA v7 — PLAZO AJUSTADO A FIN DE MES (2026-09-01)
 
-**Estado: preparado y validado localmente; pendiente de autorización y publicación.**
-Migración `20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql`.
+**Estado: ✅ frontend, Edge y migración EN PRODUCCIÓN; generación de las siete revisiones
+pendiente de una sesión humana autorizada.** Migración local
+`20260901184132_crm_contrato_pdf_plantilla_v7_plazo_fin_mes.sql`, registrada por Supabase como
+`20260901191947`.
 
 **Causa corregida:** la plantilla restaba un mes cuando el día de vencimiento era menor que el
 día de inicio. Esa regla interpretaba `2026-08-31`→`2027-02-28` como 5 meses, aunque el formulario
@@ -6699,7 +6701,8 @@ v6. Los siete afectados son v5/revisión 1. La migración v6 está viva en defau
 pero `20260901115030` no aparece en el registro remoto; por eso la v7 es autosuficiente y no depende
 de que el runner aplique esa fila omitida.
 
-**Pruebas:** 29/29 Deno (incluye fin de mes, día incompleto, año bisiesto y lectura histórica v6),
+**Pruebas:** 29/29 Deno (incluye 31/08→28/02, 31/08→29/02 bisiesto, día incompleto,
+año bisiesto y lectura histórica v6),
 44/44 Vitest focalizadas, typecheck del frontend y ensayo transaccional en PostgreSQL 16 con siete
 fixtures + una reserva v6: `CONTRATO_PDF_V7_MIGRATION_OK`. Golden v7
 `88665f229db4…` (871.757 bytes).
@@ -6707,6 +6710,17 @@ fixtures + una reserva v6: `CONTRATO_PDF_V7_MIGRATION_OK`. Golden v7
 **Orden de publicación previsto:** front tolerante a v7 → Edge v7 (sigue leyendo sellados
 v2/v5/v6) → migración v7 → generación/verificación de las siete revisiones nuevas. La ventana entre
 Edge y BD solo afecta temporalmente a reservas v6 pendientes; la migración las convierte a v7.
+
+**Publicación 2026-09-01:** frontend aislado sobre el commit vivo `3d89d2787123`, con solo
+`crm-api.ts`, `contrato-pdf.ts` y su test modificados (los cambios paralelos del worktree principal
+quedaron fuera). Release `crm-20260901T191336Z-3d89d2787123`, build
+`build-20260901T191336554Z`, ZIP SHA-256 `ea1be181b247…`; versión estable en tres lecturas, JS y
+CSS principales idénticos local↔producción, ZIP 404 en ambos dominios. Edge
+`crm-contrato-pdf-v2` v12 activa, `verify_jwt=true`, fuente remota con v7 y
+`diaAniversarioAjustado`; smoke sin JWT 401. Migración aplicada tras preflight 7/7: default v7,
+trigger de inmutabilidad activo, 14 reservas v6→v7, 7 revisiones 2 v7 pendientes, revisiones 1 v5
+preservadas y advisors sin ERROR. No se acuñaron los siete bytes todavía: Browser no expuso una
+sesión y se rechazó usar impersonación o llaves administrativas como usuario.
 
 ## CRM · LANDING/FORMULARIO EN ALTA MANUAL, FUERA DEL DIVISOR (2026-09-01)
 
