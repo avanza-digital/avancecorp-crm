@@ -1,13 +1,51 @@
 ---
-tags: [crm, sql, rls, seguridad, plan, pendiente]
-actualizado: 2026-08-09
-estado: DISEÑADO, ATACADO y AUDITADO — falta la decisión de Miguel y el ciclo de branch
+tags: [crm, sql, rls, seguridad, ranking, resuelto]
+actualizado: 2026-09-02
+estado: RPC F2.2 VIVA — acoplamiento del front corregido; pendiente desplegar el cambio de interfaz
 ---
 
 # Ranking de conversión del supervisor — la RPC que falta (decisión #10, parte b2)
 
 Relacionado con [[Plan de escalabilidad del CRM a data gigante]] (decisión #10) y
 [[Telemetria del CRM tiene dos extremos]].
+
+## Actualización 2026-09-02 — el núcleo ya vive; la falla estaba en el front
+
+Esta nota conserva debajo el razonamiento histórico previo a F2.2. El nombre del
+archivo también es histórico: `crm.metricas_conversiones_equipo_fn` ya está
+aplicada y responde con alcance `equipo` para supervisión y `global` para
+gerencia.
+
+La revisión en producción confirmó que los tres núcleos del ranking están sanos:
+
+| Pestaña | Fuente autoritativa existente |
+|---|---|
+| Conversión general | `crm.conversion_mensual_fn` |
+| Capital total | metas del mes + `crm.cumplimiento_metas_fn` + TC BCRP |
+| Cosecha del lote | `crm.metricas_conversiones_equipo_fn` |
+
+La falla funcional era de composición: la sección de gerencia activaba además
+`crm.metricas_conversiones_fn` —una RPC amplia de inteligencia— y el componente
+usaba su payload para descubrir identidades del tab de capital. Encima compartía
+un único error entre las tres pestañas. Una lectura lateral caída podía apagar un
+número sano de otro núcleo; en supervisión, un fallo mensual también podía tapar
+el capital.
+
+Corrección aplicada en el front, sin crear RPC, función SQL ni cálculo paralelo:
+
+- la sección Ranking de gerencia ya no solicita `metricas_conversiones_fn`;
+- cada pestaña consume directamente su núcleo y tiene carga, error y reintento
+  propios;
+- el clasificador de capital existente recibe el roster visible y, solo si ese
+  roster no llegó, usa como respaldo los IDs ya servidos por metas/cumplimiento;
+- el alcance visible sigue siendo la frontera: no se agregan IDs laterales cuando
+  existe roster de supervisor o gerencia.
+
+Smokes de solo lectura del 2026-09-02: supervisor = 10 filas, gerencia = 17 filas,
+ambos con `cosecha_cuadra=true`. Validación local del cambio: 184 archivos / 2495
+pruebas con cobertura, typecheck, build, bundle y umbral de duplicación en verde;
+el E2E focalizado de Equipo pasó 4/4. El cambio de interfaz queda pendiente de
+despliegue.
 
 ## Dónde encaja
 

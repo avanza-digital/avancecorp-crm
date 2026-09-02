@@ -193,7 +193,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const sesionReal = Boolean(yo && !yo.demo)
   const modoDemo = yo?.demo === true
   const periodoMetricas = periodo
-  const necesitaConversiones = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento'].includes(seccion)
+  // `metricas_conversiones_fn` alimenta inteligencia/resumen, NO el ranking.
+  // El ranking tiene tres fuentes propias y todas nacen de los núcleos: mensual,
+  // cumplimiento de metas/capital y cosecha. Mantenerlo en esta lista hacía que
+  // una consulta lateral pudiera apagar sus tres pestañas.
+  const necesitaConversiones = ['completo', 'resumen', 'conversiones', 'metas', 'rendimiento'].includes(seccion)
+  const necesitaConversionMensual = necesitaConversiones || seccion === 'ranking-vendedores'
   const necesitaReuniones = ['completo', 'resumen', 'reuniones'].includes(seccion)
   const necesitaDistribucion = seccion === 'rendimiento'
   // El filtro de origen SOLO gobierna las lecturas del LOTE (Resumen y
@@ -222,7 +227,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // el mes de la FECHA FINAL del rango (decisión E2, plan §4bis) — mismo
   // criterio que ya usa el aviso del panel de metas.
   const periodoConversionMes = `${periodoMetricas.hasta.slice(0, 7)}-01`
-  const qConversionMensual = useConversionMensual(sesionReal && necesitaConversiones, periodoConversionMes)
+  const qConversionMensual = useConversionMensual(sesionReal && necesitaConversionMensual, periodoConversionMes)
   // Cosecha por analista del ranking (F2.2/D2): mismo MES que la mensual del
   // tab — del 01 al final del rango elegido — para que las dos lecturas de una
   // fila hablen del mismo período. Solo se consulta en la sección que la pinta.
@@ -236,6 +241,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     : qCosechaRanking.isPending || qCosechaRanking.isFetching
       ? undefined
       : (qCosechaRanking.data ?? null)
+  const cosechaRankingCargando = sesionReal
+    && seccion === 'ranking-vendedores'
+    && (qCosechaRanking.isPending || qCosechaRanking.isFetching)
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones
   // El mundo demo de gerencia es `demo-v*` (el de inteligencia comercial): el
@@ -297,6 +305,16 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const errorConversionMensual = conversionesDeEjemplo
     ? null
     : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.')
+  const errorCosechaRanking = modoDemo
+    ? null
+    : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudo calcular la cosecha del lote.')
+  const errorCapitalRanking = modoDemo
+    ? null
+    : objetivosError
+      ? 'No se pudieron cargar las metas mensuales del ranking.'
+      : cumplimientoMetasError
+        ? 'No se pudo calcular el capital confirmado del ranking.'
+        : null
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de citas.')
   // La MENSUAL también alimenta al Resumen (su bloque de conversión): su fallo
   // es un error del panel, con reintento — la tercera pantalla del mismo hueco
@@ -350,7 +368,24 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} cumplimiento={cumplimientoVisual?.gerencia ?? null} origenFiltrado={conversionesDeEjemplo ? null : origenActivo} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual() }} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} cosecha={cosechaRanking} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
+      {seccion === 'ranking-vendedores' && (
+        <RankingVendedoresPanel
+          conversionMensual={conversionMensualPaneles}
+          conversionError={errorConversionMensual}
+          onReintentarConversion={reintentarConversionMensual}
+          cosecha={cosechaRanking}
+          cosechaCargando={cosechaRankingCargando}
+          cosechaError={errorCosechaRanking}
+          onReintentarCosecha={() => { if (sesionReal) void qCosechaRanking.refetch() }}
+          equipo={datosEquipoConversion}
+          metasVendedores={metasVendedoresVisuales}
+          cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}}
+          metaMensual={metaMensual}
+          capitalError={errorCapitalRanking}
+          onReintentarCapital={() => { void recargar(); tipoCambio.recargar() }}
+          tc={tipoCambio.tc}
+        />
+      )}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 

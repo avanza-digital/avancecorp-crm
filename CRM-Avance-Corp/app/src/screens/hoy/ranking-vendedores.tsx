@@ -14,15 +14,12 @@ import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mens
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
   adaptarConversionMensual,
-  adaptarConversionVendedores,
   type DetalleConversionMensual,
-  type DetalleRankeable,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
   type RankingCapitalTotalVendedores,
   type RankingConversionVendedores,
 } from '@/lib/conversion-vendedores'
-import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasConversionesEquipo, ResponsableEquipo } from '@/lib/metricas-conversiones-equipo'
 import type {
   CumplimientoVendedor,
@@ -32,7 +29,6 @@ import type { TipoCambio } from '@/lib/tipo-cambio'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 
 interface RankingVendedoresPanelProps {
-  datos: MetricasConversiones | null | undefined
   /**
    * LA fuente del tab «Conversión» desde la conversión mensual ponderada
    * (`crm.conversion_mensual_fn`) — tri-estado como `tc`:
@@ -43,6 +39,9 @@ interface RankingVendedoresPanelProps {
    * es la mentira que este cambio elimina.
    */
   conversionMensual: ConversionMensual | null | undefined
+  /** Un fallo de conversión solo bloquea SU pestaña. */
+  conversionError: string | null
+  onReintentarConversion: () => void
   /**
    * Segunda lectura POR COSECHA del ranking (`crm.metricas_conversiones_equipo_fn`,
    * F2.2 — patrón D2: de los leads que cada quien RECIBIÓ en el mes, cuántos
@@ -53,19 +52,23 @@ interface RankingVendedoresPanelProps {
    * `paridad_nucleo=0`; cualquier media verificación se oculta (F3.4).
    */
   cosecha?: MetricasConversionesEquipo | null | undefined
+  cosechaCargando: boolean
+  /** Un fallo de cosecha no tapa conversión ni capital. */
+  cosechaError: string | null
+  onReintentarCosecha: () => void
   equipo: ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
   metaMensual: MetaMensualGerencia
+  /** Metas/cumplimiento fallidos solo bloquean el tab de capital. */
+  capitalError: string | null
+  onReintentarCapital: () => void
   /**
    * TC USD→PEN resuelto por el servidor (edge crm-tipo-cambio · BCRP).
    * `undefined` = consultando (el tab de capital muestra carga, no degrada);
    * `null` = no disponible → total solo-PEN con US$ rotulado aparte.
    */
   tc: TipoCambio | null | undefined
-  cargando: boolean
-  error: string | null
-  onReintentar: () => void
   /** Encabezado. El supervisor ve «Ranking de mi equipo», no «general». */
   titulo?: string
   /** Chip de alcance: «Equipo completo» en gerencia, «Mi equipo» en supervisión. */
@@ -389,7 +392,7 @@ function RankingConversion({ ranking }: {
 // ranking y las filas de equipo desde la decisión #10. Aquí va con `tono="gerencia"`
 // porque los tokens --gi-* solo resuelven dentro de .gerencia-inteligencia.
 
-function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores<DetalleRankeable> }): JSX.Element {
+function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores }): JSX.Element {
   const filas = ranking.conPuesto
   return (
     <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total">
@@ -472,29 +475,25 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
 }
 
 export function RankingVendedoresPanel({
-  datos,
   conversionMensual,
+  conversionError,
+  onReintentarConversion,
   cosecha,
+  cosechaCargando,
+  cosechaError,
+  onReintentarCosecha,
   equipo,
   metasVendedores,
   cumplimientoVendedores,
   metaMensual,
+  capitalError,
+  onReintentarCapital,
   tc,
-  cargando,
-  error,
-  onReintentar,
   titulo = 'Ranking general de analistas',
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
 }: RankingVendedoresPanelProps): JSX.Element {
   const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
-  // El payload viejo sigue siendo el roster del tab de CAPITAL (sus números
-  // salen de metas/cumplimientos, no de él); el de CONVERSIÓN se adapta aparte
-  // desde la mensual — cada tab con su fuente, ninguna maquillando a la otra.
-  const adaptada = useMemo(
-    () => adaptarConversionVendedores(datos, equipo),
-    [datos, equipo],
-  )
   const adaptadaMensual = useMemo(
     () => adaptarConversionMensual(conversionMensual ?? null, equipo),
     [conversionMensual, equipo],
@@ -508,10 +507,31 @@ export function RankingVendedoresPanel({
   // oculto; el ranking ponderado no depende de esta segunda lectura.
   const cosechaEnRevision = cosecha != null && !sondasNucleoVerificadas(cosecha.sondas)
   const rankingCapitalTotal = useMemo(
-    () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
-    [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
+    () => clasificarRankingCapitalTotal(equipo, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
+    [cumplimientoVendedores, equipo, metasVendedores, tc],
   )
-  const totalVendedores = Math.max(adaptada.vendedores.length, adaptadaMensual.vendedores.length)
+  const totalVendedores = new Set([
+    ...rankingCapitalTotal.conPuesto.map((fila) => fila.vendedor.vendedorId),
+    ...rankingCapitalTotal.sinMeta.map((fila) => fila.vendedor.vendedorId),
+    ...rankingCapitalTotal.indisponibles.map((fila) => fila.vendedor.vendedorId),
+    ...adaptadaMensual.vendedores.map((fila) => fila.vendedorId),
+    ...(cosecha?.responsables ?? []).map((fila) => fila.vendedor_id),
+  ]).size
+  const errorActivo = tipo === 'conversion'
+    ? conversionError
+    : tipo === 'capital-total'
+      ? capitalError
+      : cosechaError
+  const reintentarActivo = tipo === 'conversion'
+    ? onReintentarConversion
+    : tipo === 'capital-total'
+      ? onReintentarCapital
+      : onReintentarCosecha
+  const cargandoActivo = tipo === 'conversion'
+    ? conversionMensual === undefined
+    : tipo === 'capital-total'
+      ? metaMensual.comparable && tc === undefined
+      : cosechaCargando
   const formulaConversion = conversionMensual == null
     ? '(Cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes'
     : `(Cierres no referidos + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes`
@@ -548,16 +568,23 @@ export function RankingVendedoresPanel({
         </p>
       </div>
 
-      {cargando && !datos ? <CargandoTabpanel tab={tipo} mensaje="Cargando el ranking…" /> : error ? (
-        <TabpanelMarco tab={tipo}><ErrorRanking error={error} onReintentar={onReintentar} /></TabpanelMarco>
+      {errorActivo ? (
+        <TabpanelMarco tab={tipo}><ErrorRanking error={errorActivo} onReintentar={reintentarActivo} /></TabpanelMarco>
+      ) : cargandoActivo ? (
+        <CargandoTabpanel
+          tab={tipo}
+          mensaje={tipo === 'conversion'
+            ? 'Consultando la conversión del mes…'
+            : tipo === 'capital-total'
+              ? 'Consultando tipo de cambio…'
+              : 'Consultando la cosecha del lote…'}
+        />
       ) : totalVendedores === 0 ? (
         <TabpanelMarco tab={tipo}>
           <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay analistas para mostrar</p></div></div>
         </TabpanelMarco>
       ) : tipo === 'conversion' ? (
-        conversionMensual === undefined
-          ? <CargandoTabpanel tab="conversion" mensaje="Consultando la conversión del mes…" />
-          : <RankingConversion ranking={rankingConversion} />
+        <RankingConversion ranking={rankingConversion} />
       ) : tipo === 'cosecha' ? (
         <TabpanelMarco tab="cosecha">
           <CosechaLote cosecha={cosecha} equipo={equipo} enRevision={cosechaEnRevision} />
@@ -569,7 +596,7 @@ export function RankingVendedoresPanel({
             <p role="status" className="mt-2 text-xs font-medium text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>
           </div>
         </div>
-      ) : tc === undefined ? <CargandoTabpanel tab="capital-total" mensaje="Consultando el tipo de cambio…" /> : (
+      ) : (
         <>
           {tc === null && (
             // Sin este botón, un fallo AISLADO del TC no tenía vía de recuperación:
@@ -578,7 +605,7 @@ export function RankingVendedoresPanel({
               <span className="text-xs font-semibold text-amber-900">
                 Tipo de cambio no disponible: el total muestra solo S/ y el US$ va aparte.
               </span>
-              <Button type="button" variant="outline" size="sm" onClick={onReintentar}>
+              <Button type="button" variant="outline" size="sm" onClick={onReintentarCapital}>
                 <RefreshCw aria-hidden /> Reintentar tipo de cambio
               </Button>
             </div>

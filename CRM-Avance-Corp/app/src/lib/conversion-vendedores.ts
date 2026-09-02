@@ -117,6 +117,21 @@ export interface RankingConversionVendedores<D extends DetalleRankeable = Detall
 
 export type EstadoCapitalVendedor = 'comparable' | 'sin_meta' | 'indisponible'
 
+/**
+ * Identidad mínima que necesita el ranking de capital.
+ *
+ * Vive separada de `ConversionVendedorAdaptada` a propósito: el capital sale
+ * de `cumplimiento_metas_fn` y no debe depender de que haya cargado ninguna
+ * RPC de conversión. Antes el componente fabricaba estas identidades pasando
+ * por `adaptarConversionVendedores(metricas_conversiones_fn, ...)`; una caída
+ * de aquella lectura lateral podía dejar sin ranking a un capital sano.
+ */
+interface IdentidadVendedorRanking {
+  vendedorId: string
+  nombre: string
+  supervisorNombre: string
+}
+
 function porNombre(
   a: Pick<ConversionVendedorAdaptada, 'nombre' | 'vendedorId'>,
   b: Pick<ConversionVendedorAdaptada, 'nombre' | 'vendedorId'>,
@@ -372,8 +387,8 @@ export function clasificarRankingConversion<D extends DetalleRankeable>(
   return { conPuesto, sinMuestra, indisponibles }
 }
 
-export interface CapitalTotalVendedor<D extends DetalleRankeable = DetalleConversionVendedor> {
-  vendedor: ConversionVendedorAdaptada<D>
+export interface CapitalTotalVendedor {
+  vendedor: IdentidadVendedorRanking
   capitalPen: number | null
   capitalUsd: number | null
   /** PEN + USD convertido al TC; sin TC, solo PEN (el USD se rotula aparte). */
@@ -386,7 +401,7 @@ export interface CapitalTotalVendedor<D extends DetalleRankeable = DetalleConver
   estadoCapital: EstadoCapitalVendedor
 }
 
-export type CapitalTotalConPuesto<D extends DetalleRankeable = DetalleConversionVendedor> = CapitalTotalVendedor<D> & {
+export type CapitalTotalConPuesto = CapitalTotalVendedor & {
   capitalPen: number
   capitalUsd: number
   capitalTotal: number
@@ -395,7 +410,7 @@ export type CapitalTotalConPuesto<D extends DetalleRankeable = DetalleConversion
   estadoCapital: 'comparable'
 }
 
-export type CapitalTotalSinMeta<D extends DetalleRankeable = DetalleConversionVendedor> = CapitalTotalVendedor<D> & {
+export type CapitalTotalSinMeta = CapitalTotalVendedor & {
   capitalPen: number
   capitalUsd: number
   capitalTotal: number
@@ -404,10 +419,10 @@ export type CapitalTotalSinMeta<D extends DetalleRankeable = DetalleConversionVe
   estadoCapital: 'sin_meta'
 }
 
-export interface RankingCapitalTotalVendedores<D extends DetalleRankeable = DetalleConversionVendedor> {
-  conPuesto: CapitalTotalConPuesto<D>[]
-  sinMeta: CapitalTotalSinMeta<D>[]
-  indisponibles: CapitalTotalVendedor<D>[]
+export interface RankingCapitalTotalVendedores {
+  conPuesto: CapitalTotalConPuesto[]
+  sinMeta: CapitalTotalSinMeta[]
+  indisponibles: CapitalTotalVendedor[]
   /** TC realmente aplicado; null = el USD quedó FUERA del total (jamás se inventa tasa). */
   tc: number | null
 }
@@ -421,17 +436,43 @@ export interface RankingCapitalTotalVendedores<D extends DetalleRankeable = Deta
  * La meta también unifica (objetivo USD legado convertido; hoy las metas están
  * normalizadas a PEN, así que suele ser solo el objetivo en soles).
  */
-export function clasificarRankingCapitalTotal<D extends DetalleRankeable>(
-  vendedores: readonly ConversionVendedorAdaptada<D>[],
+export function clasificarRankingCapitalTotal(
+  vendedores: readonly (IdentidadVendedorRanking | ConversionEquipoVendedor)[],
   metas: ObjetivosPorVendedor,
   cumplimientos: Record<string, CumplimientoVendedor>,
   tc: number | null,
-): RankingCapitalTotalVendedores<D> {
+): RankingCapitalTotalVendedores {
   // La política de conversión vive en lib/capital-unificado (fuente única): la
   // comparten este ranking y las filas de equipo desde la decisión #10.
   const tcValido = tcAplicable(tc)
 
-  const filas = vendedores.map<CapitalTotalVendedor<D>>((vendedor) => {
+  // El mismo clasificador conserva el roster visible como frontera de alcance.
+  // Si ese roster no llegó, usa los ids de los dos núcleos de capital como
+  // respaldo fail-closed. No nace un adapter ni una función paralela.
+  const identidadPorId = new Map<string, IdentidadVendedorRanking>()
+  for (const vendedor of vendedores) {
+    if (!vendedor.vendedorId || identidadPorId.has(vendedor.vendedorId)) continue
+    identidadPorId.set(vendedor.vendedorId, {
+      vendedorId: vendedor.vendedorId,
+      nombre: vendedor.nombre,
+      supervisorNombre: vendedor.supervisorNombre,
+    })
+  }
+  if (identidadPorId.size === 0) {
+    for (const vendedorId of [...new Set([
+      ...Object.keys(metas),
+      ...Object.keys(cumplimientos),
+    ])].sort()) {
+      if (!vendedorId) continue
+      identidadPorId.set(vendedorId, {
+        vendedorId,
+        nombre: 'Analista no identificado',
+        supervisorNombre: 'Equipo no disponible',
+      })
+    }
+  }
+
+  const filas = [...identidadPorId.values()].map<CapitalTotalVendedor>((vendedor) => {
     // Un cumplimiento SIN detalles no es «S/ 0 confirmado»: es un payload que la
     // frontera RPC no debería producir — se degrada a indisponible, no a puesto
     // con cero (hallazgo Codex: el tipo público no garantiza la matriz completa).
@@ -467,7 +508,7 @@ export function clasificarRankingCapitalTotal<D extends DetalleRankeable>(
   })
 
   const conPuesto = filas
-    .filter((fila): fila is CapitalTotalConPuesto<D> => (
+    .filter((fila): fila is CapitalTotalConPuesto => (
       fila.estadoCapital === 'comparable'
       && fila.capitalTotal != null
       && fila.metaCapital != null
@@ -477,7 +518,7 @@ export function clasificarRankingCapitalTotal<D extends DetalleRankeable>(
       || (b.capitalTotal ?? -1) - (a.capitalTotal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const sinMeta = filas
-    .filter((fila): fila is CapitalTotalSinMeta<D> => (
+    .filter((fila): fila is CapitalTotalSinMeta => (
       fila.estadoCapital === 'sin_meta'
       && fila.capitalTotal != null
       && fila.metaCapital == null

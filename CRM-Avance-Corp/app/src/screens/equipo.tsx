@@ -500,6 +500,7 @@ function EquipoSupervisor(): JSX.Element {
     objetivos,
     objetivosError,
     cumplimientoMetas,
+    cumplimientoMetasError,
     recargar,
   } = useCRMData()
   const { yo } = useAuth()
@@ -511,7 +512,8 @@ function EquipoSupervisor(): JSX.Element {
   const resumen = resumenOp.resumen
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (no hay cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
-  const { tc } = useTipoCambio()
+  const tipoCambio = useTipoCambio()
+  const { tc } = tipoCambio
   // ── Ranking de MI equipo (decisión #10) ──
   // Vive AQUÍ y no en «Hoy» porque en producción `FUNCIONES_LEADS_APROBADAS`
   // está en false: un supervisor real NO ve el mundo de leads, así que «Hoy» no
@@ -550,6 +552,19 @@ function EquipoSupervisor(): JSX.Element {
     : qConversionMensual.isPending || qConversionMensual.isFetching
       ? undefined
       : (qConversionMensual.data ?? null)
+  const errorConversionRanking = !yo?.demo && qConversionMensual.isError
+    ? 'No se pudo calcular la conversión mensual del equipo.'
+    : null
+  const errorCosechaRanking = !yo?.demo && qCosechaEquipo.isError
+    ? 'No se pudo calcular la cosecha del lote del equipo.'
+    : null
+  const errorCapitalRanking = yo?.demo
+    ? null
+    : objetivosError
+      ? 'No se pudieron cargar las metas mensuales del equipo.'
+      : cumplimientoMetasError
+        ? 'No se pudo calcular el capital confirmado del equipo.'
+        : null
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
@@ -662,21 +677,20 @@ function EquipoSupervisor(): JSX.Element {
           mira a su gente. */}
       <div className="gerencia-inteligencia">
         <RankingVendedoresPanel
-          datos={null}
           conversionMensual={conversionMensualEquipo}
+          conversionError={errorConversionRanking}
+          onReintentarConversion={() => { if (!yo?.demo) void qConversionMensual.refetch() }}
           cosecha={cosechaEquipo}
+          cosechaCargando={!yo?.demo && (qCosechaEquipo.isPending || qCosechaEquipo.isFetching)}
+          cosechaError={errorCosechaRanking}
+          onReintentarCosecha={() => { if (!yo?.demo) void qCosechaEquipo.refetch() }}
           equipo={equipoConversion}
           metasVendedores={objetivos.porVendedor ?? {}}
           cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
           metaMensual={metaMensual}
+          capitalError={errorCapitalRanking}
+          onReintentarCapital={() => { void recargar(); tipoCambio.recargar() }}
           tc={tc}
-          cargando={false}
-          // El fallo de la MENSUAL es un error del ranking, no una degradación
-          // muda a «indisponible» (exigencia pre-release de Miguel, 2026-08-15).
-          error={!yo?.demo && qConversionMensual.isError
-            ? 'No se pudo calcular la conversión mensual del equipo.'
-            : null}
-          onReintentar={() => { void recargar(); if (!yo?.demo) void qConversionMensual.refetch() }}
           titulo="Ranking de mi equipo"
           etiquetaAlcance="Mi equipo"
           tabInicial="capital-total"

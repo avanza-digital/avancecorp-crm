@@ -63,8 +63,16 @@ vi.mock('./inteligencia-comercial', () => ({
   ),
 }))
 vi.mock('./ranking-vendedores', () => ({
-  RankingVendedoresPanel: ({ error }: { error: string | null }) => (
-    <h1>Ranking de analistas{error ? ` · ERROR: ${error}` : ''}</h1>
+  RankingVendedoresPanel: ({
+    conversionError,
+    capitalError,
+    cosechaError,
+  }: {
+    conversionError: string | null
+    capitalError: string | null
+    cosechaError: string | null
+  }) => (
+    <h1>Ranking de analistas{conversionError || capitalError || cosechaError ? ` · ERROR: ${conversionError ?? capitalError ?? cosechaError}` : ''}</h1>
   ),
 }))
 // El TC real invocaría la edge crm-tipo-cambio desde el hook; en tests queda
@@ -491,7 +499,9 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-06-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-06-30')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30', null)
+    // El ranking ya no enciende metricas_conversiones_fn: sus pestañas leen
+    // mensual, cumplimiento/capital y cosecha, cada una por separado.
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(false, '2026-06-01', '2026-06-30', null)
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
   })
 })
@@ -508,6 +518,14 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
 
   it('con la mensual sana no se inventa ningún error', () => {
     montar({}, 'ranking-vendedores')
+    expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('un fallo de metricas_conversiones_fn no bloquea el ranking porque ya no es una fuente suya', () => {
+    ESTADO_CONVERSIONES.error = new Error('consulta lateral caída')
+    montar({}, 'ranking-vendedores')
+
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(false, expect.any(String), expect.any(String), null)
     expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
   })
 

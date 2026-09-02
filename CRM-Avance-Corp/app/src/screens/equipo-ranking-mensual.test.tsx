@@ -1,7 +1,8 @@
 // Arnés FOCALIZADO de equipo.tsx: solo el cableado «el fallo de la conversión
 // MENSUAL es un error real del ranking» (exigencia pre-release, 2026-08-15).
 // El panel completo ya tiene su suite; aquí se prueba que ESTA pantalla le
-// pasa el error — antes iba error={null} fijo y el fallo degradaba mudo.
+// pasa el error de SU pestaña — antes un error global degradaba o bloqueaba
+// también las lecturas sanas.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -187,10 +188,11 @@ vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
 vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
 }))
-// El panel imprime su prop error: es EXACTAMENTE lo que este arnés afirma.
+// El panel imprime el error propio de conversión: es exactamente lo que este
+// arnés afirma, sin mezclarlo con capital o cosecha.
 vi.mock('./hoy/ranking-vendedores', () => ({
-  RankingVendedoresPanel: ({ error }: { error: string | null }) => (
-    <h1>Ranking de mi equipo{error ? ` · ERROR: ${error}` : ''}</h1>
+  RankingVendedoresPanel: ({ conversionError }: { conversionError: string | null }) => (
+    <h1>Ranking de mi equipo{conversionError ? ` · ERROR: ${conversionError}` : ''}</h1>
   ),
 }))
 

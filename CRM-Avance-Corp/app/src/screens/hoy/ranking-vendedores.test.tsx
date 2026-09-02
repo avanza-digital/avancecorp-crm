@@ -5,7 +5,6 @@ import {
   conversionMensualInteligenciaDemo,
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
-  metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ResponsableConversionMensual } from '@/lib/conversion-mensual'
@@ -40,6 +39,18 @@ function filaSinActividad(vendedorId: string): ResponsableConversionMensual {
   }
 }
 
+function fuentesRankingSinError() {
+  return {
+    conversionError: null,
+    onReintentarConversion: vi.fn(),
+    cosechaCargando: false,
+    cosechaError: null,
+    onReintentarCosecha: vi.fn(),
+    capitalError: null,
+    onReintentarCapital: vi.fn(),
+  }
+}
+
 describe('ranking general de analistas', () => {
   it('muestra cualquier cantidad de analistas, incluidos los que aún no tienen leads', () => {
     const sinLeads: ConversionEquipoVendedor = {
@@ -68,18 +79,6 @@ describe('ranking general de analistas', () => {
     }
     const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
 
-    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-    datos.responsables?.push({
-      vendedor_id: 'demo-v7',
-      leads: 0,
-      contactados: 0,
-      reuniones_realizadas: 0,
-      clientes: 0,
-      conversion_pct: null,
-      capital_pen: 0,
-      capital_usd: 0,
-      tendencia_semanal: [],
-    })
     // El tab de conversión bebe de la MENSUAL: mismo roster que `equipo` (el
     // fail-closed exige una fila por identidad visible, como la RPC real).
     const mensual = conversionMensualInteligenciaDemo(Date.now())
@@ -96,16 +95,13 @@ describe('ranking general de analistas', () => {
 
     const { rerender } = render(
       <RankingVendedoresPanel
-        datos={datos}
         conversionMensual={mensual}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
@@ -164,16 +160,13 @@ describe('ranking general de analistas', () => {
 
     rerender(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
         conversionMensual={mensual}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
         tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
@@ -185,16 +178,13 @@ describe('ranking general de analistas', () => {
   it('mientras el TC está en consulta muestra carga — nunca afirma «no disponible»', () => {
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         equipo={conversionEquipoDemo()}
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={undefined}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
@@ -210,16 +200,14 @@ describe('ranking general de analistas', () => {
     const onReintentar = vi.fn()
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         equipo={conversionEquipoDemo()}
         metasVendedores={{ 'demo-v2': todasLasMetas['demo-v2']! }}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={null}
-        cargando={false}
-        error={null}
-        onReintentar={onReintentar}
+        {...fuentesRankingSinError()}
+        onReintentarCapital={onReintentar}
       />,
     )
 
@@ -240,21 +228,17 @@ describe('ranking general de analistas', () => {
   })
 
   it('sin conversión mensual el tab queda «No disponible» — JAMÁS sirve la fórmula vieja', () => {
-    // El payload viejo llega COMPLETO (responsables incluidos) a propósito:
-    // si el tab lo usara de fallback, aquí habría tabla con puestos. La
-    // fórmula del rango bajo el rótulo mensual es la mentira que se elimina.
+    // Sin el payload mensual no existe fallback: la fórmula del rango bajo el
+    // rótulo mensual sería una mentira.
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={null}
         equipo={conversionEquipoDemo()}
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={null}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
@@ -268,16 +252,13 @@ describe('ranking general de analistas', () => {
   it('mientras la conversión mensual está en consulta muestra carga, no «No disponible»', () => {
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={undefined}
         equipo={conversionEquipoDemo()}
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={null}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
@@ -285,23 +266,134 @@ describe('ranking general de analistas', () => {
     expect(screen.queryByRole('table', { name: 'Ranking de conversión general' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Analistas sin posición en conversión' })).not.toBeInTheDocument()
   })
+
+  it('con el roster aún vacío mantiene el estado de carga en vez de afirmar que no hay analistas', () => {
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={undefined}
+        equipo={[]}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('Consultando la conversión del mes…')).toBeInTheDocument()
+    expect(screen.queryByText('Aún no hay analistas para mostrar')).not.toBeInTheDocument()
+  })
+})
+
+describe('aislamiento de las fuentes del ranking', () => {
+  it('si falla conversión, Capital total sigue operativo y el reintento llama solo a conversión', () => {
+    const reintentarConversion = vi.fn()
+    const reintentarCapital = vi.fn()
+
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={undefined}
+        conversionError="No se pudo calcular la conversión mensual."
+        onReintentarConversion={reintentarConversion}
+        cosecha={undefined}
+        cosechaCargando={false}
+        cosechaError={null}
+        onReintentarCosecha={vi.fn()}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        capitalError={null}
+        onReintentarCapital={reintentarCapital}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        tabInicial="capital-total"
+      />,
+    )
+
+    expect(screen.getByRole('table', { name: 'Ranking de capital total en soles' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Conversión general' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular la conversión mensual.')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reintentarConversion).toHaveBeenCalledTimes(1)
+    expect(reintentarCapital).not.toHaveBeenCalled()
+  })
+
+  it('si falla Capital total, la conversión del núcleo sigue visible', () => {
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        conversionError={null}
+        onReintentarConversion={vi.fn()}
+        cosecha={undefined}
+        cosechaCargando={false}
+        cosechaError={null}
+        onReintentarCosecha={vi.fn()}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        capitalError="No se pudo calcular el capital confirmado."
+        onReintentarCapital={vi.fn()}
+        tc={null}
+      />,
+    )
+
+    expect(screen.getByRole('table', { name: 'Ranking de conversión general' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular el capital confirmado.')
+  })
+
+  it('si falla Cosecha, las otras pestañas siguen operativas y su reintento es exclusivo', () => {
+    const reintentarCosecha = vi.fn()
+    const reintentarConversion = vi.fn()
+
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        conversionError={null}
+        onReintentarConversion={reintentarConversion}
+        cosecha={undefined}
+        cosechaCargando={false}
+        cosechaError="No se pudo calcular la cosecha del lote."
+        onReintentarCosecha={reintentarCosecha}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        capitalError={null}
+        onReintentarCapital={vi.fn()}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+      />,
+    )
+
+    expect(screen.getByRole('table', { name: 'Ranking de conversión general' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular la cosecha del lote.')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reintentarCosecha).toHaveBeenCalledTimes(1)
+    expect(reintentarConversion).not.toHaveBeenCalled()
+  })
 })
 
 describe('la relación pestaña↔panel sobrevive a error y a vacío (observación #6)', () => {
   const base = {
-    datos: null,
     conversionMensual: null,
     equipo: [],
     metasVendedores: {},
     cumplimientoVendedores: {},
     metaMensual: { etiqueta: 'agosto 2026', comparable: true as const },
     tc: null,
-    cargando: false,
-    onReintentar: vi.fn(),
+    ...fuentesRankingSinError(),
   }
 
   it('en ERROR, el tabpanel que los tabs prometen sigue existiendo', () => {
-    render(<RankingVendedoresPanel {...base} error="No se pudo calcular la conversión mensual." />)
+    render(<RankingVendedoresPanel {...base} conversionError="No se pudo calcular la conversión mensual." />)
 
     const panel = screen.getByRole('tabpanel')
     expect(panel).toHaveAttribute('id', 'panel-ranking-conversion')
@@ -310,7 +402,7 @@ describe('la relación pestaña↔panel sobrevive a error y a vacío (observaci�
   })
 
   it('en VACÍO también — y con el id de la pestaña ACTIVA', () => {
-    render(<RankingVendedoresPanel {...base} error={null} tabInicial="capital-total" />)
+    render(<RankingVendedoresPanel {...base} tabInicial="capital-total" />)
 
     const panel = screen.getByRole('tabpanel')
     expect(panel).toHaveAttribute('id', 'panel-ranking-capital')
@@ -345,10 +437,12 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     }
   }
 
-  function montar(cosecha: MetricasConversionesEquipo | null | undefined) {
+  function montar(
+    cosecha: MetricasConversionesEquipo | null | undefined,
+    cosechaCargando = false,
+  ) {
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         cosecha={cosecha}
         equipo={conversionEquipoDemo()}
@@ -356,9 +450,8 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={null}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
+        cosechaCargando={cosechaCargando}
       />,
     )
   }
@@ -389,6 +482,13 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     abrirCosecha()
     expect(screen.getByText('Seguimiento del lote no disponible por ahora.')).toBeInTheDocument()
     expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+  })
+
+  it('mientras consulta la cosecha mantiene carga y no afirma que está indisponible', () => {
+    montar(undefined, true)
+    abrirCosecha()
+    expect(screen.getByText('Consultando la cosecha del lote…')).toBeInTheDocument()
+    expect(screen.queryByText('Seguimiento del lote no disponible por ahora.')).not.toBeInTheDocument()
   })
 
   it('F3.4: con la sonda en falso la pestaña entera se OCULTA y se avisa', () => {
@@ -436,16 +536,13 @@ describe('el desglose de cartera por fila (hallazgo de Grecia, 27/08)', () => {
 
     render(
       <RankingVendedoresPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={mensual}
         equipo={conversionEquipoDemo()}
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         tc={null}
-        cargando={false}
-        error={null}
-        onReintentar={vi.fn()}
+        {...fuentesRankingSinError()}
       />,
     )
 
