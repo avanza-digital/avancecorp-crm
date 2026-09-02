@@ -7,6 +7,7 @@ import {
   type MetricasVendedoresOperativas,
 } from '@/lib/metricas-vendedores'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
+import { periodoLima } from '@/lib/objetivos'
 import type { Actividad, Lead, Miembro } from '@/lib/tipos'
 import { useMetricasVendedores } from './crm-queries'
 
@@ -34,9 +35,11 @@ export function useMetricasVendedoresOperativas(
 ): MetricasVendedoresOperativasHook {
   const { yo } = useAuth()
   const sesionReal = Boolean(habilitado && yo && !yo.demo)
-  const consulta = useMetricasVendedores(sesionReal)
-  // Reloj vivo: los «días sin actividad» del espejo demo avanzan solos.
+  // El mismo reloj vivo que envejece la actividad cambia la identidad de la
+  // query al iniciar un mes calendario en Lima. Así Supervisor/Equipo no
+  // conservan en caché la conversión del mes anterior hasta otra mutación.
   const ahora = useAhora()
+  const consulta = useMetricasVendedores(sesionReal, periodoLima(ahora))
   const metricas = useMemo(
     () => {
       if (!habilitado || !yo) return null

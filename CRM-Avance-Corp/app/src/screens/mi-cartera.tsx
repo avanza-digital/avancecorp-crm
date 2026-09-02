@@ -1834,10 +1834,12 @@ export function MiCartera() {
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
-  // Crear/corregir contrato → invalidar contratos() (prefijo: cubre cronograma+titulares).
+  // Crear/corregir contrato → refrescar tanto la cartera como los núcleos de
+  // métricas: capital, conversión y cumplimiento pueden cambiar con la venta.
   const recargarContratos = () => {
     cerrar()
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
   }
 
   // El servidor decide si la corrección sigue dentro de las 5 horas y, cuando
@@ -2114,9 +2116,10 @@ export function MiCartera() {
             onEliminar={async () => {
               const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
               cerrar()
-              await queryClient.invalidateQueries({
-                queryKey: crmQueryKeys.contratos(),
-              })
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() }),
+                queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() }),
+              ])
               toast.success(
                 `Contrato ${overlay.contrato.numero_contrato} eliminado con ${archivosEliminados} archivo${archivosEliminados === 1 ? '' : 's'}.`,
               )

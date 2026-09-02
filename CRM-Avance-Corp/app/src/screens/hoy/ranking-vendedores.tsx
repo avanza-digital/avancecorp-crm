@@ -9,6 +9,7 @@ import {
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
 import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { totalEnSoles } from '@/lib/capital-unificado'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -24,6 +25,7 @@ import type { MetricasConversionesEquipo, ResponsableEquipo } from '@/lib/metric
 import type {
   CumplimientoVendedor,
   ObjetivosPorVendedor,
+  ProduccionFueraRanking,
 } from '@/lib/objetivos'
 import type { TipoCambio } from '@/lib/tipo-cambio'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
@@ -59,9 +61,13 @@ interface RankingVendedoresPanelProps {
   equipo: ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
+  /** Produccion empresarial identificada que no puede recibir un puesto. */
+  fueraRanking?: ProduccionFueraRanking[]
   metaMensual: MetaMensualGerencia
   /** Nombre, supervisor y población salen de la foto mensual autoritativa. */
   usarIdentidadSnapshot?: boolean
+  /** Un histórico puede seguir abierto o ser ya una foto definitiva. */
+  estadoFotoMensual?: 'sellada' | 'abierta'
   /** La foto mensual que fija identidad, metas y capital está en vuelo. */
   fotoMensualCargando?: boolean
   /** Sin esa foto ninguna pestaña puede afirmar la población del mes. */
@@ -85,6 +91,14 @@ interface RankingVendedoresPanelProps {
 }
 
 type TipoRanking = 'conversion' | 'capital-total' | 'cosecha'
+
+const MOTIVO_FUERA_RANKING: Record<ProduccionFueraRanking['motivo'], string> = {
+  analista_sin_meta: 'Analista sin meta mensual',
+  analista_sin_supervisor: 'Analista sin supervisor válido',
+  supervisor: 'Producción atribuida a supervisor',
+  gerencia: 'Producción atribuida a Gerencia',
+  fuera_estructura: 'Responsable fuera de la estructura comercial',
+}
 
 /** ids tab↔panel por pestaña: los tres marcos (vivo, carga, error/vacío) los
  * comparten para que `aria-controls` jamás prometa un nodo inexistente. */
@@ -232,7 +246,7 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
       </div>
     )
   }
-  if (cosecha == null || cosecha.responsables.length === 0) {
+  if (cosecha == null) {
     return (
       <div className="grid min-h-64 place-items-center px-5 text-center">
         <p className="text-sm font-semibold text-[var(--gi-muted)]">Seguimiento del lote no disponible por ahora.</p>
@@ -240,10 +254,23 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
     )
   }
 
-  const nombrePorId = new Map(equipo.filter((m) => m.vendedorId).map((m) => [m.vendedorId, m]))
-  const filas = [...cosecha.responsables].sort((a, b) => (
-    b.clientes - a.clientes || b.leads - a.leads || a.vendedor_id.localeCompare(b.vendedor_id)
-  ))
+  const detallePorId = new Map(cosecha.responsables.map((fila) => [fila.vendedor_id, fila]))
+  // La población ya viene resuelta por el panel. Cosecha solo agrega medidas
+  // por ID: una fila extra de la RPC (incluido fuera_de_roster) no puede crear
+  // una identidad, y una medida ausente queda explícitamente indisponible.
+  const filas = equipo
+    .filter((fila): fila is ConversionEquipoVendedor & { vendedorId: string } => fila.vendedorId != null)
+    .map((identidad) => ({ identidad, detalle: detallePorId.get(identidad.vendedorId) }))
+    .sort((a, b) => {
+      if (a.detalle == null && b.detalle != null) return 1
+      if (a.detalle != null && b.detalle == null) return -1
+      if (a.detalle != null && b.detalle != null) {
+        const diferencia = b.detalle.clientes - a.detalle.clientes || b.detalle.leads - a.detalle.leads
+        if (diferencia !== 0) return diferencia
+      }
+      return a.identidad.nombre.localeCompare(b.identidad.nombre, 'es')
+        || a.identidad.vendedorId.localeCompare(b.identidad.vendedorId)
+    })
 
   return (
     <div>
@@ -251,18 +278,17 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
         Un cierre tardío sube esta lista, pero a la conversión le cuenta en el mes en que cerró — el mes sellado no se mueve.
       </p>
       <ol aria-label="Cosecha del lote por analista" className="divide-y divide-[var(--gi-line)]">
-        {filas.map((fila) => {
-          const identidad = nombrePorId.get(fila.vendedor_id)
-          return (
-            <li key={fila.vendedor_id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
-              <span className="min-w-0">
-                <strong className="block truncate text-sm text-[var(--gi-navy)]">{identidad?.nombre ?? 'Analista no identificado'}</strong>
-                <span className="block truncate text-[11px] font-medium text-[var(--gi-muted)]">{identidad?.supervisorNombre ?? 'Equipo no disponible'}</span>
-              </span>
-              <span title={TITLE_COSECHA} className="text-xs font-semibold tabular-nums text-[var(--gi-navy)]">{lineaCosecha(fila)}</span>
-            </li>
-          )
-        })}
+        {filas.map(({ identidad, detalle }) => (
+          <li key={identidad.vendedorId} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
+            <span className="min-w-0">
+              <strong className="block truncate text-sm text-[var(--gi-navy)]">{identidad.nombre}</strong>
+              <span className="block truncate text-[11px] font-medium text-[var(--gi-muted)]">{identidad.supervisorNombre}</span>
+            </span>
+            <span title={TITLE_COSECHA} className="text-xs font-semibold tabular-nums text-[var(--gi-navy)]">
+              {lineaCosecha(detalle) ?? 'Seguimiento no disponible'}
+            </span>
+          </li>
+        ))}
       </ol>
     </div>
   )
@@ -417,7 +443,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gi-line)]">
-            {filas.map(({ vendedor, capitalPen, capitalUsd, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
+            {filas.map(({ vendedor, capitalPen, capitalUsd, capitalAjustePen, capitalAjusteUsd, contratosAjuste, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
               <tr key={vendedor.vendedorId} className="transition-colors hover:bg-[#f7f5f1]/70">
                 <td className="px-5 py-3"><Puesto indice={indice} /></td>
                 <th className="max-w-56 px-3 py-3 text-sm font-bold text-[var(--gi-navy)]" scope="row"><span className="block truncate">{vendedor.nombre}</span></th>
@@ -425,6 +451,17 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(capitalTotal, 'PEN')}</span>
                   <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" />
+                  {(capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAjuste > 0) && (
+                    <span
+                      className="mt-1 block text-[10px] font-semibold text-amber-800"
+                      title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+                    >
+                      Neto tras ajuste de cierre
+                      {capitalAjustePen > 0 ? ` · −${money(capitalAjustePen, 'PEN')}` : ''}
+                      {capitalAjusteUsd > 0 ? ` · −${money(capitalAjusteUsd, 'USD')}` : ''}
+                      {contratosAjuste > 0 ? ` · −${numero(contratosAjuste)} ${contratosAjuste === 1 ? 'contrato' : 'contratos'}` : ''}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(metaCapital, 'PEN')}</span>
@@ -441,7 +478,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
       </div>
 
       <ol aria-label="Ranking de capital total en soles" className="divide-y divide-[var(--gi-line)] md:hidden">
-        {filas.map(({ vendedor, capitalPen, capitalUsd, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
+        {filas.map(({ vendedor, capitalPen, capitalUsd, capitalAjustePen, capitalAjusteUsd, contratosAjuste, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
           <li key={vendedor.vendedorId} className="px-4 py-4">
             <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-start gap-3">
               <Puesto indice={indice} />
@@ -452,6 +489,17 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
               <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
               <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" /></span>
             </div>
+            {(capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAjuste > 0) && (
+              <p
+                className="ml-12 mt-1 text-[10px] font-semibold text-amber-800"
+                title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+              >
+                Neto tras ajuste de cierre
+                {capitalAjustePen > 0 ? ` · −${money(capitalAjustePen, 'PEN')}` : ''}
+                {capitalAjusteUsd > 0 ? ` · −${money(capitalAjusteUsd, 'USD')}` : ''}
+                {contratosAjuste > 0 ? ` · −${numero(contratosAjuste)} ${contratosAjuste === 1 ? 'contrato' : 'contratos'}` : ''}
+              </p>
+            )}
             <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
           </li>
         ))}
@@ -463,7 +511,22 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {ranking.sinMeta.map((fila) => (
               <li key={fila.vendedor.vendedorId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--gi-line)] bg-white px-3 py-2.5">
-                <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span><DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
+                <span className="min-w-0">
+                  <strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong>
+                  <span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span>
+                  <DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} tono="gerencia" />
+                  {(fila.capitalAjustePen > 0 || fila.capitalAjusteUsd > 0 || fila.contratosAjuste > 0) && (
+                    <span
+                      className="mt-1 block text-[10px] font-semibold text-amber-800"
+                      title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+                    >
+                      Neto tras ajuste de cierre
+                      {fila.capitalAjustePen > 0 ? ` · −${money(fila.capitalAjustePen, 'PEN')}` : ''}
+                      {fila.capitalAjusteUsd > 0 ? ` · −${money(fila.capitalAjusteUsd, 'USD')}` : ''}
+                      {fila.contratosAjuste > 0 ? ` · −${numero(fila.contratosAjuste)} ${fila.contratosAjuste === 1 ? 'contrato' : 'contratos'}` : ''}
+                    </span>
+                  )}
+                </span>
                 {/* Una meta 100% US$ sin TC NO es «sin meta»: está pendiente de conversión. */}
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{fila.metaUsd > 0 ? 'Meta en US$ · sin TC' : 'Sin meta'}</span>
               </li>
@@ -481,6 +544,85 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
   )
 }
 
+function ProduccionFueraRankingPanel({
+  filas,
+  tc,
+}: {
+  filas: ProduccionFueraRanking[]
+  tc: TipoCambio | null | undefined
+}): JSX.Element | null {
+  if (filas.length === 0) return null
+
+  return (
+    <aside
+      aria-label="Producción fuera del ranking"
+      className="border-t border-[var(--gi-line)] bg-amber-50/45 px-4 py-4 sm:px-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--gi-navy)]">Producción fuera del ranking</h3>
+          <p className="mt-1 max-w-3xl text-[11px] font-medium leading-relaxed text-[var(--gi-muted)]">
+            Suma al resultado total de la empresa, pero no entrega puesto ni altera el orden de los analistas.
+          </p>
+        </div>
+        <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
+          {numero(filas.length)} {filas.length === 1 ? 'responsable' : 'responsables'} sin puesto
+        </span>
+      </div>
+
+      <ul className="mt-3 grid gap-2 lg:grid-cols-2">
+        {filas.map((fila) => {
+          const capitalPen = fila.detalles.reduce((total, detalle) => (
+            detalle.moneda === 'PEN' ? total + detalle.capitalReal : total
+          ), 0)
+          const capitalUsd = fila.detalles.reduce((total, detalle) => (
+            detalle.moneda === 'USD' ? total + detalle.capitalReal : total
+          ), 0)
+          const contratos = fila.detalles.reduce(
+            (total, detalle) => total + detalle.contratosReal,
+            0,
+          )
+          const cierres = (fila.conversion?.cierresNoReferidos ?? 0)
+            + (fila.conversion?.cierresReferidos ?? 0)
+          const capital = totalEnSoles(capitalPen, capitalUsd, tc?.promedio)
+
+          return (
+            <li
+              key={fila.personaId}
+              className="rounded-xl border border-amber-200/80 bg-white px-3 py-3"
+            >
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                <span className="min-w-0">
+                  <strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.nombre}</strong>
+                  <span className="mt-0.5 block text-[10px] font-medium text-[var(--gi-muted)]">
+                    {MOTIVO_FUERA_RANKING[fila.motivo]}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
+                  No suma al ranking
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--gi-muted)]">Capital confirmado</span>
+                  <strong className="block text-sm tabular-nums text-[var(--gi-navy)]">{money(capital.total, 'PEN')}</strong>
+                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={capital.tc} tono="gerencia" />
+                </span>
+                <span className="text-right text-[10px] font-semibold text-[var(--gi-muted)]">
+                  {numero(contratos)} {contratos === 1 ? 'contrato' : 'contratos'}
+                  <span className="block">
+                    {numero(cierres)} {cierres === 1 ? 'cierre de lead' : 'cierres de lead'} · {numero(fila.cartera.conversionesClientes)} {fila.cartera.conversionesClientes === 1 ? 'operación de cartera' : 'operaciones de cartera'}
+                  </span>
+                </span>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </aside>
+  )
+}
+
 export function RankingVendedoresPanel({
   conversionMensual,
   conversionError,
@@ -492,8 +634,10 @@ export function RankingVendedoresPanel({
   equipo,
   metasVendedores,
   cumplimientoVendedores,
+  fueraRanking = [],
   metaMensual,
   usarIdentidadSnapshot = false,
+  estadoFotoMensual,
   fotoMensualCargando = false,
   fotoMensualError = null,
   onReintentarFotoMensual,
@@ -505,39 +649,54 @@ export function RankingVendedoresPanel({
   tabInicial = 'conversion',
 }: RankingVendedoresPanelProps): JSX.Element {
   const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
-  // El cumplimiento mensual trae identidad junto con meta y producción. Cuando
-  // el caller ya obtuvo esa foto, ELLA define la población: unirla al roster
-  // del store incorporaría altas de otro mes (o conservaría bajas tras cruzar
-  // medianoche) y podría invalidar todo el ranking de conversión.
+  // Una sola fuente define identidades para las TRES pestañas. En el mes
+  // vigente manda el roster vivo; cumplimiento solo aporta meta/capital y no
+  // puede reintroducir una baja. En un mes cerrado manda exclusivamente la
+  // foto mensual, de modo que un alta posterior tampoco reescribe la historia.
   const equipoRanking = useMemo(() => {
-    const porId = new Map(
-      usarIdentidadSnapshot
-        ? []
-        : equipo
-          .filter((fila) => fila.vendedorId)
-          .map((fila) => [fila.vendedorId as string, fila]),
-    )
+    const porId = new Map<string, ConversionEquipoVendedor>()
+    if (!usarIdentidadSnapshot) {
+      for (const fila of equipo) {
+        if (!fila.vendedorId) continue
+        porId.set(fila.vendedorId, fila)
+      }
+      return [...porId.values()]
+    }
     for (const fila of Object.values(cumplimientoVendedores)) {
-      const actual = porId.get(fila.vendedorId)
-      if (actual && !usarIdentidadSnapshot) continue
       porId.set(fila.vendedorId, {
         vendedorId: fila.vendedorId,
         nombre: fila.nombre,
+        supervisorId: fila.supervisorId,
         supervisorNombre: fila.supervisorNombre,
-        leads: actual?.leads ?? 0,
-        contactados: actual?.contactados ?? 0,
-        reunionesPactadas: actual?.reunionesPactadas ?? 0,
-        reunionesRealizadas: actual?.reunionesRealizadas ?? 0,
-        clientes: actual?.clientes ?? 0,
-        descartados: actual?.descartados ?? 0,
-        conversionPct: actual?.conversionPct ?? null,
+        leads: 0,
+        contactados: 0,
+        reunionesPactadas: 0,
+        reunionesRealizadas: 0,
+        clientes: 0,
+        descartados: 0,
+        conversionPct: null,
       })
     }
     return [...porId.values()]
   }, [cumplimientoVendedores, equipo, usarIdentidadSnapshot])
+  const idsPoblacion = useMemo(
+    () => new Set(equipoRanking.map((fila) => fila.vendedorId).filter((id): id is string => id != null)),
+    [equipoRanking],
+  )
+  // Los núcleos son fuentes de MEDIDAS. Se proyectan al set autoritativo antes
+  // de usar los adaptadores existentes, para que ni una respuesta obsoleta ni
+  // fuera_de_roster materialicen una persona en pantalla.
+  const conversionMensualPoblacion = useMemo(() => (
+    conversionMensual == null
+      ? conversionMensual
+      : {
+          ...conversionMensual,
+          responsables: conversionMensual.responsables.filter((fila) => idsPoblacion.has(fila.vendedor_id)),
+        }
+  ), [conversionMensual, idsPoblacion])
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, equipoRanking),
-    [conversionMensual, equipoRanking],
+    () => adaptarConversionMensual(conversionMensualPoblacion ?? null, equipoRanking),
+    [conversionMensualPoblacion, equipoRanking],
   )
   const rankingConversion = useMemo(
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
@@ -551,13 +710,7 @@ export function RankingVendedoresPanel({
     () => clasificarRankingCapitalTotal(equipoRanking, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [cumplimientoVendedores, equipoRanking, metasVendedores, tc],
   )
-  const totalVendedores = new Set([
-    ...rankingCapitalTotal.conPuesto.map((fila) => fila.vendedor.vendedorId),
-    ...rankingCapitalTotal.sinMeta.map((fila) => fila.vendedor.vendedorId),
-    ...rankingCapitalTotal.indisponibles.map((fila) => fila.vendedor.vendedorId),
-    ...adaptadaMensual.vendedores.map((fila) => fila.vendedorId),
-    ...(cosecha?.responsables ?? []).map((fila) => fila.vendedor_id),
-  ]).size
+  const totalVendedores = equipoRanking.length
   const poblacionMensualIndisponible = fotoMensualCargando || Boolean(fotoMensualError)
   const errorActivo = fotoMensualError ?? (tipo === 'conversion'
     ? conversionError
@@ -596,6 +749,18 @@ export function RankingVendedoresPanel({
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
           <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><CalendarDays className="size-4 text-[var(--gi-blue)]" aria-hidden />Mes calendario · {metaMensual.etiqueta}</div>
+          {estadoFotoMensual && (
+            <div
+              className="rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"
+              title={tipo === 'cosecha'
+                ? 'Los leads recibidos ese mes pueden convertirse después; esta lectura sigue actualizándose.'
+                : undefined}
+            >
+              {tipo === 'cosecha'
+                ? 'Cosecha en maduración'
+                : estadoFotoMensual === 'sellada' ? 'Foto sellada' : 'Mes aún abierto'}
+            </div>
+          )}
         </div>
       </header>
 
@@ -666,6 +831,9 @@ export function RankingVendedoresPanel({
           )}
           <RankingCapitalTotal ranking={rankingCapitalTotal} />
         </>
+      )}
+      {!fotoMensualCargando && !fotoMensualError && (
+        <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
       )}
     </section>
   )

@@ -254,4 +254,5 @@ export const CUMPLIMIENTO_METAS_DEMO: CumplimientoMetasJerarquico = {
   supervisor: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS.filter((fila) => fila.supervisorId === 'd-sup1')),
   gerencia: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS),
   porVendedor: CUMPLIMIENTO_VENDEDORES_DEMO,
+  fueraRanking: [],
 }

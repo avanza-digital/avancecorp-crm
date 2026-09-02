@@ -6,6 +6,7 @@
 export interface SondasParidadNucleo {
   cuadra?: boolean | null
   paridad_nucleo?: number | null
+  paridad_filas?: number | null
 }
 
 /**
@@ -18,7 +19,10 @@ export interface SondasParidadNucleo {
 export function sondasNucleoVerificadas(
   sondas: SondasParidadNucleo | null | undefined,
 ): boolean {
-  return sondas?.cuadra === true && sondas.paridad_nucleo === 0
+  return sondas?.cuadra === true
+    && sondas.paridad_nucleo === 0
+    && Number.isInteger(sondas.paridad_filas)
+    && Number(sondas.paridad_filas) > 0
 }
 
 export type EstadoVerificacionNucleo =
@@ -35,6 +39,7 @@ export function estadoVerificacionNucleo(
     sondas == null
     || sondas.cuadra == null
     || sondas.paridad_nucleo == null
+    || sondas.paridad_filas == null
   ) {
     return 'sin_verificacion'
   }

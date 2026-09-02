@@ -15,6 +15,7 @@ import {
   CrmApiError,
   listarMetricasCapitalMes,
   listarMetricasPagosMes,
+  listarMetricasVendedores,
   listarMetricasVencimientos,
 } from './crm-api'
 
@@ -136,5 +137,44 @@ describe('listarMetricasVencimientos (msw)', () => {
 
     await expect(promesa).rejects.toBeInstanceOf(CrmApiError)
     await expect(promesa).rejects.toMatchObject({ code: 'PGRST123' })
+  })
+})
+
+describe('listarMetricasVendedores (msw)', () => {
+  const foto = (periodo: string) => ({
+    version: 1,
+    generado_en: '2026-09-02T15:00:00.000Z',
+    ventana_convertidos_dias: 45,
+    ventana_metrica: 'mes_calendario',
+    mes_metrica: periodo,
+    vendedores: [],
+    equipos: [],
+  })
+
+  it('entrega únicamente la foto del mes calendario esperado', async () => {
+    server.use(
+      http.post(RPC('metricas_vendedores_fn'), () => HttpResponse.json(foto('2026-09-01'))),
+    )
+
+    await expect(listarMetricasVendedores('2026-09-01')).resolves.toMatchObject({
+      ventana_metrica: 'mes_calendario',
+      mes_metrica: '2026-09-01',
+    })
+  })
+
+  it('rechaza una respuesta cacheada o servida para el mes anterior', async () => {
+    server.use(
+      http.post(RPC('metricas_vendedores_fn'), () => HttpResponse.json(foto('2026-08-01'))),
+    )
+
+    await expect(listarMetricasVendedores('2026-09-01')).rejects.toMatchObject({
+      code: 'METRICAS_VENDEDORES_CONTRACT',
+    })
+  })
+
+  it('rechaza un mes imposible antes de consultar la RPC', async () => {
+    await expect(listarMetricasVendedores('2026-13-01')).rejects.toMatchObject({
+      code: 'PERIODO_METRICAS_INVALIDO',
+    })
   })
 })

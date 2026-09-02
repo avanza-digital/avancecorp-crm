@@ -9,7 +9,7 @@ import {
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
-import type { ObjetivosPorVendedor } from '@/lib/objetivos'
+import type { ObjetivosPorVendedor, ProduccionFueraRanking } from '@/lib/objetivos'
 import { RankingVendedoresPanel } from './ranking-vendedores'
 
 /** Fila mensual sin actividad — el roster real siempre trae UNA fila por analista. */
@@ -52,6 +52,94 @@ function fuentesRankingSinError() {
 }
 
 describe('ranking general de analistas', () => {
+  it('muestra la producción no analista aparte sin concederle puesto', () => {
+    const cumplimiento = cumplimientoMetasConversionEquipoDemo()
+    const base = cumplimiento.porVendedor['demo-v1']!
+    const fueraRanking: ProduccionFueraRanking[] = [{
+      personaId: 'supervisor-produccion-propia',
+      nombre: 'Supervisor con inversión propia',
+      rolCrm: 'supervisor',
+      motivo: 'supervisor',
+      conversion: {
+        divisor: 4,
+        divisorAproximado: 0,
+        divisorPorMotivo: { asignacion: 4 },
+        cierresNoReferidos: 1,
+        cierresReferidos: 0,
+        cierresDeArrastre: 0,
+        referidosRecibidos: 0,
+        numerador: 1,
+      },
+      detalles: base.detalles.map((detalle, indice) => ({
+        ...detalle,
+        capitalObjetivo: 0,
+        capitalReal: indice === 0 ? 70_000 : indice === 1 ? 1_000 : 0,
+        capitalCumplimientoPct: null,
+        contratosObjetivo: 0,
+        contratosReal: indice < 2 ? 1 : 0,
+        contratosCumplimientoPct: null,
+      })),
+      cartera: {
+        conversionesClientes: 1,
+        conversionesRenovacion: 1,
+        conversionesUpgrade: 0,
+        operacionesRenovacion: 1,
+        operacionesUpgrade: 0,
+        capitalRenovadoPen: 5_000,
+        capitalRenovadoUsd: 0,
+        capitalAdicionalPen: 0,
+        capitalAdicionalUsd: 0,
+        renovacionesSinDesglose: 0,
+      },
+    }]
+
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        cosecha={undefined}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimiento.porVendedor}
+        fueraRanking={fueraRanking}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('6 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    const bloque = screen.getByRole('complementary', { name: 'Producción fuera del ranking' })
+    expect(within(bloque).getByText('Supervisor con inversión propia')).toBeInTheDocument()
+    expect(within(bloque).getByText('Producción atribuida a supervisor')).toBeInTheDocument()
+    expect(within(bloque).getByText('No suma al ranking')).toBeInTheDocument()
+    expect(within(bloque).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
+    expect(within(bloque).getByText('2 contratos')).toBeInTheDocument()
+  })
+
+  it('no promete una foto sellada en Cosecha, que continúa madurando', () => {
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        cosecha={undefined}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        estadoFotoMensual="sellada"
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('Foto sellada')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    expect(screen.queryByText('Foto sellada')).not.toBeInTheDocument()
+    expect(screen.getByText('Cosecha en maduración')).toHaveAttribute(
+      'title',
+      expect.stringContaining('pueden convertirse después'),
+    )
+  })
+
   it('muestra cualquier cantidad de analistas, incluidos los que aún no tienen leads', () => {
     const sinLeads: ConversionEquipoVendedor = {
       vendedorId: 'demo-v7',
@@ -78,6 +166,13 @@ describe('ranking general de analistas', () => {
       'demo-v2': todasLasMetas['demo-v2']!,
     }
     const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+    cumplimientos['demo-v2']!.ajuste = {
+      pendiente: 0,
+      aplicado: 1,
+      aplicadoPen: 40_000,
+      aplicadoUsd: 150,
+      contratosAplicados: 2,
+    }
 
     // El tab de conversión bebe de la MENSUAL: mismo roster que `equipo` (el
     // fail-closed exige una fila por identidad visible, como la RPC real).
@@ -152,6 +247,12 @@ describe('ranking general de analistas', () => {
     expect(within(filasCapital[1]!).getByText(/S\/ 346,000/)).toBeInTheDocument()
     expect(within(filasCapital[1]!).getByText(/S\/ 290,000 \+ US\$ 16,000/)).toBeInTheDocument()
     expect(within(filasCapital[1]!).getByText(/S\/ 285,000/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(
+      /Neto tras ajuste de cierre · −S\/ 40,000 · −US\$ 150 · −2 contratos/,
+    )).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByTitle(
+      'El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes.',
+    )).toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Gabriela Soto')).not.toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Sin analista asignado')).not.toBeInTheDocument()
     const fueraCapital = screen.getByRole('region', { name: 'Analistas sin posición en capital' })
@@ -272,9 +373,32 @@ describe('ranking general de analistas', () => {
       )),
       altaPosterior,
     ]
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.responsables.push(filaSinActividad('fuera-del-roster'))
+    const cosecha: MetricasConversionesEquipo = {
+      version: 1,
+      generado_en: '2026-09-02T12:00:00Z',
+      alcance: 'global',
+      periodo: { desde: '2026-08-01', hasta: '2026-08-31' },
+      responsables: [
+        { vendedor_id: 'demo-v1', leads: 38, clientes: 5, conversion_pct: 13.2 },
+        { vendedor_id: 'demo-v7', leads: 4, clientes: 1, conversion_pct: 25 },
+        { vendedor_id: 'fuera-del-roster', leads: 7, clientes: 2, conversion_pct: 28.57 },
+      ],
+      sondas: {
+        cuadra: true,
+        paridad_nucleo: 0,
+        paridad_filas: 3,
+        divisor_fuera_del_roster: 7,
+        numerador_fuera_del_roster: 2,
+        cierres_anulados: 0,
+        clientes_acreditados_a_otro_dueno: 0,
+      },
+    }
     render(
       <RankingVendedoresPanel
-        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        conversionMensual={mensual}
+        cosecha={cosecha}
         equipo={rosterVivo}
         metasVendedores={cumplimiento}
         cumplimientoVendedores={cumplimiento}
@@ -294,6 +418,14 @@ describe('ranking general de analistas', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
     expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    const listaCosecha = screen.getByRole('list', { name: 'Cosecha del lote por analista' })
+    expect(within(listaCosecha).getAllByRole('listitem')).toHaveLength(Object.keys(cumplimiento).length)
+    expect(within(listaCosecha).getByText('Ana Torres')).toBeInTheDocument()
+    expect(within(listaCosecha).queryByText('Nombre actual')).not.toBeInTheDocument()
+    expect(within(listaCosecha).queryByText('Alta de setiembre')).not.toBeInTheDocument()
+    expect(within(listaCosecha).queryByText('Analista no identificado')).not.toBeInTheDocument()
   })
 
   it('en el mes vigente conserva un alta del roster aunque todavía no tenga meta ni capital', () => {
@@ -337,6 +469,103 @@ describe('ranking general de analistas', () => {
     expect(within(altaCapital!).getByText('Capital no disponible')).toBeInTheDocument()
     expect(within(altaCapital!).getByText('No disponible')).toBeInTheDocument()
     expect(within(altaCapital!).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
+  })
+
+  it('en el mes vigente ninguna fuente de medidas agrega identidades fuera del roster vivo', () => {
+    const altaVigente: ConversionEquipoVendedor = {
+      vendedorId: 'alta-vigente-sin-foto',
+      nombre: 'Alta vigente sin foto',
+      supervisorNombre: 'Equipo actual',
+      leads: 0,
+      contactados: 0,
+      reunionesPactadas: 0,
+      reunionesRealizadas: 0,
+      clientes: 0,
+      descartados: 0,
+      conversionPct: null,
+    }
+    const equipoVivo = [conversionEquipoDemo()[0]!, altaVigente]
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.responsables.push(
+      filaSinActividad('alta-vigente-sin-foto'),
+      filaSinActividad('fuera-del-roster'),
+    )
+    const cosecha: MetricasConversionesEquipo = {
+      version: 1,
+      generado_en: '2026-09-02T12:00:00Z',
+      alcance: 'global',
+      periodo: { desde: '2026-09-01', hasta: '2026-09-02' },
+      responsables: [
+        { vendedor_id: 'demo-v1', leads: 3, clientes: 1, conversion_pct: 33.33 },
+        { vendedor_id: 'fuera-del-roster', leads: 9, clientes: 4, conversion_pct: 44.44 },
+      ],
+      sondas: {
+        cuadra: true,
+        paridad_nucleo: 0,
+        paridad_filas: 2,
+        divisor_fuera_del_roster: 9,
+        numerador_fuera_del_roster: 4,
+        cierres_anulados: 0,
+        clientes_acreditados_a_otro_dueno: 0,
+      },
+    }
+
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={mensual}
+        cosecha={cosecha}
+        equipo={equipoVivo}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        usarIdentidadSnapshot={false}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('2 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.queryByText('Bruno Díaz')).not.toBeInTheDocument()
+    expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
+    const fueraConversion = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })
+    expect(within(fueraConversion).getByText('Alta vigente sin foto')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+    const altaCapital = screen.getByText('Alta vigente sin foto').closest('li')
+    expect(altaCapital).not.toBeNull()
+    expect(within(altaCapital!).getByText('Capital no disponible')).toBeInTheDocument()
+    expect(within(altaCapital!).getByText('No disponible')).toBeInTheDocument()
+    expect(within(altaCapital!).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Bruno Díaz')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    const listaCosecha = screen.getByRole('list', { name: 'Cosecha del lote por analista' })
+    expect(within(listaCosecha).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(listaCosecha).getByText('Ana Torres')).toBeInTheDocument()
+    expect(within(listaCosecha).getByText('Alta vigente sin foto')).toBeInTheDocument()
+    expect(within(listaCosecha).getByText('Seguimiento no disponible')).toBeInTheDocument()
+    expect(within(listaCosecha).queryByText('Analista no identificado')).not.toBeInTheDocument()
+  })
+
+  it('en el mes vigente un roster vacío no revive analistas desde cumplimiento al abrir Capital', () => {
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        equipo={[]}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        usarIdentidadSnapshot={false}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('0 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+    expect(screen.getByText('Aún no hay analistas para mostrar')).toBeInTheDocument()
+    expect(screen.queryByText('Ana Torres')).not.toBeInTheDocument()
+    expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
   })
 
   it('sin tipo de cambio degrada a solo PEN con el US$ rotulado aparte', () => {

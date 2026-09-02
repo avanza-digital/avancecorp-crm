@@ -158,6 +158,12 @@ function useInvalidarUsuarios() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [...crmQueryKeys.config(), 'usuarios'] }),
       queryClient.invalidateQueries({ queryKey: crmQueryKeys.configUsuariosCatalogo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasConversionesPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.conversionMensualPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.cumplimientoMetasPrefijo() }),
+      queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasReunionesPrefijo() }),
     ])
   }
 }
@@ -264,7 +270,18 @@ export function usePublicarMetas(periodo: string) {
   return useMutation({
     mutationFn: mutacionSoloReal(demo, publicarMetas),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.configMetas(periodo) })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.configMetas(periodo) }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cumplimientoMetasPeriodo(periodo),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.conversionMensualPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+        }),
+      ])
     },
   })
 }

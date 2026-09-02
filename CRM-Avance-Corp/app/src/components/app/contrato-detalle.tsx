@@ -6,6 +6,7 @@
 // cartera (contrato ajeno = 0 filas, fail-closed). Se monta DENTRO de <Dialog>
 // (mismo patrón que ContratoNuevo: el caller pone el Dialog, aquí va el panel).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, FileText, LoaderCircle, RotateCcw, Trash2, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +15,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { fmtFecha, money } from '@/lib/format'
 import { mensajeDeError } from '@/data/crm-api'
-import { useAtribucionContrato, useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
+import {
+  crmQueryKeys,
+  useAtribucionContrato,
+  useContrato,
+  useCronograma,
+  useTitulares,
+} from '@/data/crm-queries'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -112,6 +119,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   analistas,
   puedeReasignar = false,
 }: ContratoDetalleProps) {
+  const queryClient = useQueryClient()
   // DEMO: con datos precargados los hooks quedan DESHABILITADOS — cero red
   // (una sesión demo no tiene Supabase, ver ContratoDetalleDatos).
   const precargado = datos != null
@@ -568,7 +576,10 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                           setEnviandoReasignar(true)
                           try {
                             await reasignarAnalistaContrato(contratoId, nuevoAnalista, motivoReasignar.trim())
-                            await qAtribucion.refetch()
+                            await Promise.all([
+                              qAtribucion.refetch(),
+                              queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() }),
+                            ])
                             setReasignando(false)
                             setNuevoAnalista('')
                             setMotivoReasignar('')

@@ -17,6 +17,7 @@ import {
 const V1 = '00000000-0000-4000-8000-000000000001'
 const V2 = '00000000-0000-4000-8000-000000000002'
 const S1 = '00000000-0000-4000-8000-000000000011'
+const S2 = '00000000-0000-4000-8000-000000000012'
 
 function detalles(capitalPen: number, capitalUsd: number): DetalleMeta[] {
   return [
@@ -156,6 +157,115 @@ describe('metas versionadas y jerarquía', () => {
     expect('conversionReal' in cumplimiento.supervisor!).toBe(false)
     expect(capitalReal(cumplimiento.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
     expect(capitalReal(cumplimiento.supervisor!, 'USD')).toBeCloseTo(20_416.67, 1)
+  })
+
+  it('suma la producción externa solo al total empresa y nunca crea un puesto', () => {
+    const respuesta = respuestaCumplimiento()
+    respuesta.fuera_ranking = [{
+      persona_id: S2,
+      nombre: 'Supervisor con inversión propia',
+      rol_crm: 'supervisor',
+      motivo: 'supervisor',
+      conversion: {
+        divisor: 4,
+        divisor_aproximado: 0,
+        divisor_por_motivo: { asignacion: 4 },
+        cierres_no_referidos: 1,
+        cierres_referidos: 0,
+        cierres_de_arrastre: 0,
+        referidos_recibidos: 0,
+        numerador: 1,
+      },
+      detalles: detalles(0, 0).map((detalle, indice) => ({
+        ...detalle,
+        capital_objetivo: 0,
+        capital_real: indice === 0 ? 70_000 : indice === 1 ? 1_000 : 0,
+        capital_cumplimiento_pct: null,
+        contratos_objetivo: 0,
+        contratos_real: indice < 2 ? 1 : 0,
+        contratos_cumplimiento_pct: null,
+        capital_ajuste: 0,
+        contratos_ajuste: 0,
+      })),
+      cartera: {
+        conversiones_clientes: 1,
+        conversiones_renovacion: 1,
+        conversiones_upgrade: 0,
+        operaciones_renovacion: 1,
+        operaciones_upgrade: 0,
+        capital_renovado_pen: 5_000,
+        capital_renovado_usd: 0,
+        capital_adicional_pen: 0,
+        capital_adicional_usd: 0,
+        renovaciones_sin_desglose: 0,
+      },
+    }]
+
+    const cumplimiento = cumplimientoDesdeRpc(
+      v.parse(CumplimientoMetasSchema, respuesta),
+      S1,
+    )
+
+    expect(cumplimiento.porVendedor[S2]).toBeUndefined()
+    expect(cumplimiento.fueraRanking).toHaveLength(1)
+    expect(cumplimiento.fueraRanking[0]).toMatchObject({
+      personaId: S2,
+      nombre: 'Supervisor con inversión propia',
+      rolCrm: 'supervisor',
+      motivo: 'supervisor',
+    })
+    expect(capitalReal(cumplimiento.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
+    expect(capitalReal(cumplimiento.gerencia!, 'PEN')).toBeCloseTo(274_166.67, 1)
+    expect(capitalReal(cumplimiento.gerencia!, 'USD')).toBeCloseTo(21_416.67, 1)
+  })
+
+  it('conserva y agrega el descuento aplicado en una foto mensual cerrada', () => {
+    const respuesta = respuestaCumplimiento()
+    const fila = respuesta.vendedores[0]!
+    fila.ajuste = {
+      pendiente: 0,
+      aplicado: 1,
+      aplicado_pen: 40_000,
+      aplicado_usd: 150,
+    }
+    const detallePen = fila.detalles.find((detalle) => (
+      detalle.categoria === 'nuevo' && detalle.moneda === 'PEN'
+    ))!
+    detallePen.capital_real = 60_000
+    detallePen.contratos_real = 1
+    detallePen.capital_ajuste = 40_000
+    detallePen.contratos_ajuste = 1
+    const detalleUsd = fila.detalles.find((detalle) => (
+      detalle.categoria === 'nuevo' && detalle.moneda === 'USD'
+    ))!
+    detalleUsd.capital_ajuste = 150
+    detalleUsd.contratos_ajuste = 2
+
+    const cumplimiento = cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, respuesta), S1)
+    const vendedor = cumplimiento.porVendedor[V1]!
+
+    expect(vendedor.ajuste).toEqual({
+      pendiente: 0,
+      aplicado: 1,
+      aplicadoPen: 40_000,
+      aplicadoUsd: 150,
+      contratosAplicados: 3,
+    })
+    const detalleAdaptadoPen = vendedor.detalles.find((detalle) => (
+      detalle.categoria === 'nuevo' && detalle.moneda === 'PEN'
+    ))!
+    expect(detalleAdaptadoPen).toMatchObject({
+      capitalReal: 60_000,
+      capitalAjuste: 40_000,
+      contratosReal: 1,
+      contratosAjuste: 1,
+    })
+    expect(cumplimiento.supervisor?.ajuste).toEqual(vendedor.ajuste)
+    expect(cumplimiento.gerencia?.ajuste).toEqual(vendedor.ajuste)
+    expect(cumplimiento.supervisor?.detalles.find((detalle) => (
+      detalle.categoria === 'nuevo' && detalle.moneda === 'PEN'
+    ))).toMatchObject({ capitalAjuste: 40_000, contratosAjuste: 1 })
+    expect(detalleAdaptadoPen.capitalReal + detalleAdaptadoPen.capitalAjuste!).toBe(100_000)
   })
 
   // Decisión de Miguel (2026-08-10): «si un analista se va, el progreso hasta la

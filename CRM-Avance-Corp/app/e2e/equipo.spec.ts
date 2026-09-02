@@ -42,7 +42,15 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
   await page.clock.setFixedTime(new Date('2026-09-02T15:00:00.000Z'))
   const foto = rankingAgostoReal()
   const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
+  const respuestasNoSimuladas: string[] = []
+  const consultasReconocimientos: string[] = []
+  const respuestasReconocimientos: number[] = []
   page.on('request', (request) => {
+    if (request.url().includes('alertas_reconocimientos')) {
+      consultasReconocimientos.push(
+        `${request.method()} ${new URL(request.url()).pathname} ${request.headers()['accept-profile'] ?? ''}`,
+      )
+    }
     if (request.method() !== 'POST') return
     const ruta = new URL(request.url()).pathname
     if (![
@@ -52,6 +60,16 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       '/functions/v1/crm-tipo-cambio',
     ].includes(ruta)) return
     llamadas.push({ ruta, cuerpo: request.postDataJSON() as Record<string, unknown> })
+  })
+  page.on('response', (response) => {
+    if (response.url().includes('alertas_reconocimientos')) {
+      respuestasReconocimientos.push(response.status())
+    }
+    if (response.status() < 400) return
+    const request = response.request()
+    respuestasNoSimuladas.push(
+      `${response.status()} ${request.method()} ${new URL(response.url()).pathname}`,
+    )
   })
 
   await montarBackendReal(page, {
@@ -67,7 +85,10 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
   await loginReal(page)
   await page.getByRole('button', { name: 'Gestión de equipo', exact: true }).click()
 
-  await page.getByLabel('Mes del ranking').fill('2026-08')
+  const selectorMes = page.getByLabel('Mes del ranking')
+  await expect(selectorMes).toHaveValue('2026-09')
+  await expect(page.getByText('ANA AGOSTO')).toHaveCount(0)
+  await selectorMes.fill('2026-08')
   await expect(page.getByText('Mes calendario · agosto 2026')).toBeVisible()
   await expect(page.locator('[data-gi-panel]').getByText('Mi equipo', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Conversión general' }).click()
@@ -106,6 +127,11 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
     }),
   ]))
+  expect(respuestasNoSimuladas).toEqual([])
+  expect(consultasReconocimientos).toEqual([
+    'GET /rest/v1/alertas_reconocimientos_vigentes crm',
+  ])
+  expect(respuestasReconocimientos).toEqual([200])
 })
 
 test('demo gerencia: un bloque por supervisor con la TABLA comparativa de analistas', async ({ page }) => {

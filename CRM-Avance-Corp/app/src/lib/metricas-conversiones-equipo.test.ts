@@ -29,7 +29,38 @@ function payload(over: Partial<MetricasConversionesEquipo> = {}): MetricasConver
 
 describe('MetricasConversionesEquipoSchema — fail-closed sobre SU propio contrato', () => {
   it('acepta el payload del equipo', () => {
+    const anterior = v.safeParse(MetricasConversionesEquipoSchema, payload())
+    expect(anterior.success).toBe(true)
+    if (!anterior.success) return
+    expect('revision' in anterior.output).toBe(false)
+    expect('cierre' in anterior.output).toBe(false)
+  })
+
+  it('conserva revisión y cierre de un mes calendario, con rollout compatible', () => {
+    const mensual = v.safeParse(MetricasConversionesEquipoSchema, payload({
+      periodo: { desde: '2026-08-01', hasta: '2026-08-31' },
+      revision: 7,
+      cierre: { cerrado: true, cerrado_en: '2026-09-10T14:20:00Z', automatico: true },
+    }))
+    expect(mensual.success).toBe(true)
+    if (!mensual.success) return
+    expect(mensual.output.revision).toBe(7)
+    expect(mensual.output.cierre?.cerrado).toBe(true)
+
+    // Un rango libre del productor nuevo usa null; el productor anterior omite
+    // ambas claves. Los dos contratos conviven durante frontend→backend.
+    expect(v.safeParse(MetricasConversionesEquipoSchema, payload({
+      revision: null,
+      cierre: null,
+    })).success).toBe(true)
     expect(v.safeParse(MetricasConversionesEquipoSchema, payload()).success).toBe(true)
+  })
+
+  it.each([-1, 1.5, 'siete'])('rechaza una revisión de cosecha inválida: %s', (revision) => {
+    expect(v.safeParse(MetricasConversionesEquipoSchema, {
+      ...payload(),
+      revision,
+    }).success).toBe(false)
   })
 
   it('acepta conversion_pct nulo: sin muestra no hay porcentaje que afirmar', () => {
@@ -51,6 +82,25 @@ describe('MetricasConversionesEquipoSchema — fail-closed sobre SU propio contr
   it('RECHAZA un responsable al que le falte un campo del contrato', () => {
     const r = v.safeParse(MetricasConversionesEquipoSchema, payload({
       responsables: [{ vendedor_id: 'v-1', leads: 20, clientes: 5 } as never],
+    }))
+
+    expect(r.success).toBe(false)
+  })
+
+  it.each([
+    ['cuadra true sin filas', { cuadra: true, paridad_nucleo: 0, paridad_filas: 0 }],
+    ['cuadra null con filas', { cuadra: null, paridad_nucleo: 0, paridad_filas: 1 }],
+    ['filas negativas', { cuadra: null, paridad_nucleo: 0, paridad_filas: -1 }],
+    ['filas fraccionarias', { cuadra: true, paridad_nucleo: 0, paridad_filas: 1.5 }],
+  ])('RECHAZA sondas imposibles: %s', (_caso, base) => {
+    const r = v.safeParse(MetricasConversionesEquipoSchema, payload({
+      sondas: {
+        ...base,
+        divisor_fuera_del_roster: 0,
+        numerador_fuera_del_roster: 0,
+        cierres_anulados: 0,
+        clientes_acreditados_a_otro_dueno: 0,
+      },
     }))
 
     expect(r.success).toBe(false)

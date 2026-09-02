@@ -30,8 +30,10 @@ import { money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/li
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   descuentoArrastre,
+  lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
+  totalConversionPublicable,
   type ConversionMensual,
 } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -77,17 +79,25 @@ interface InteligenciaComercialPanelProps {
    * un lote recortado con totales de toda la casa es la contradicción que
    * Miguel vetó. El capital del lote filtrado sale de `origenes[]` (F1.3b). */
   origenFiltrado: string | null
+  /** Población vigente de la RPC por rango. */
   equipo: ConversionEquipoVendedor[]
+  /** Foto mensual; puede diferir del roster vigente en un histórico. */
+  equipoMensual?: ConversionEquipoVendedor[]
   metaConversion: number
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
   metaMensual: MetaMensualGerencia
-  cargando: boolean
-  error: string | null
+  /** Estado exclusivo de `crm.conversion_mensual_fn` y su foto mensual. */
+  mensualCargando: boolean
+  mensualError: string | null
+  /** Estado exclusivo de `crm.metricas_conversiones_fn` (rango/Cosecha). */
+  rangoCargando: boolean
+  rangoError: string | null
   modoDemo: boolean
   puedeAlternarEjemplo: boolean
   onAlternarEjemplo: () => void
-  onReintentar: () => void
+  onReintentarMensual: () => void
+  onReintentarRango: () => void
 }
 
 const ETAPA_LABEL: Record<MetricasConversiones['embudo'][number]['etapa'], string> = {
@@ -112,7 +122,10 @@ function nombreOrigen(valor: string): string {
 function ErrorPanel({
   error,
   onReintentar,
-}: Pick<InteligenciaComercialPanelProps, 'error' | 'onReintentar'>): JSX.Element | null {
+}: {
+  error: string | null
+  onReintentar: () => void
+}): JSX.Element | null {
   if (!error) return null
   return (
     <div className="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3" role="alert">
@@ -207,6 +220,7 @@ function DetalleVendedor({
   cumplimiento,
   periodo,
   metaMensual,
+  mensualCargando,
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
@@ -219,6 +233,7 @@ function DetalleVendedor({
   cumplimiento: CumplimientoVendedor | null
   periodo: MetricasConversiones['periodo'] | null
   metaMensual: MetaMensualGerencia
+  mensualCargando: boolean
   onCerrar: () => void
 }): JSX.Element {
   const detalle = fila?.detalle ?? null
@@ -243,6 +258,7 @@ function DetalleVendedor({
   // ponderados vs. resueltos crudos) y la ficha las pintaba juntas bajo el mismo
   // nombre, justo lo que el comentario de arriba prohíbe.
   const progresoConversion = metaMensual.comparable ? progreso(conversionMes, metaConversion) : null
+  const lecturaMensual = lecturaCobertura(mensual?.cobertura)
   const tendencia = useMemo(
     () => detalle?.tendencia_semanal ?? null,
     [detalle?.tendencia_semanal],
@@ -252,7 +268,7 @@ function DetalleVendedor({
     && conversionMes != null && conversionMes >= metaConversion
   // La cadena arranca por los estados de la conversión MENSUAL (fuente del
   // número grande) y solo si el analista es medible baja a los estados de meta.
-  const estado = mensual != null && !mensual.cobertura.medible
+  const estado = mensual != null && !lecturaMensual.mostrar
     ? 'Sin datos del mes'
     : filaMensual == null || filaMensual.estadoConversion === 'indisponible'
       ? 'No disponible'
@@ -364,7 +380,27 @@ function DetalleVendedor({
             </div>
           </SheetHeader>
           <SheetBody className="space-y-3.5 px-4 pb-5 pt-0 sm:px-5">
-            {conversionPublicable ? (
+            {mensualCargando ? (
+              <>
+                <section
+                  className="rounded-2xl border border-[var(--gi-line)] bg-[#f7f5f1] px-4 py-4"
+                  role="status"
+                  aria-busy="true"
+                >
+                  <Skeleton className="h-12 rounded-xl" />
+                  <p className="mt-2 text-xs font-semibold text-[var(--gi-muted)]">
+                    Consultando la conversión, las metas y el capital confirmado del mes…
+                  </p>
+                </section>
+                <section aria-label="Capital producido por el analista" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
+                  <p className="px-4 pt-3 text-[11px] font-medium text-[var(--gi-muted)]">Capital producido por sus leads · rango aplicado</p>
+                  <dl className="grid grid-cols-2 divide-x divide-[var(--gi-line)]">
+                    <DatoDetalle label="Capital por sus leads (PEN)" valor={capitalDisponible(capitalPen, 'PEN')} capital />
+                    <DatoDetalle label="Capital por sus leads (USD)" valor={capitalDisponible(capitalUsd, 'USD')} capital />
+                  </dl>
+                </section>
+              </>
+            ) : conversionPublicable ? (
               <>
             <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -374,6 +410,9 @@ function DetalleVendedor({
                   <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
                     Recibidos {numero(detalleMes.divisor)} · cierres {numero(detalleMes.clientes)}
                   </span>
+                )}
+                {lecturaMensual.aviso && (
+                  <span className="w-full text-[11px] font-semibold text-amber-700">{lecturaMensual.aviso}</span>
                 )}
                 {(() => {
                   // El MISMO porqué que el ranking: este % ya llega NETO de
@@ -391,7 +430,7 @@ function DetalleVendedor({
                     : null
                 })()}
               </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || (mensual != null && !mensual.cobertura.medible) || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
+              <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || !lecturaMensual.mostrar || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
             </section>
 
             <section aria-label="Resultados del periodo" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
@@ -497,9 +536,9 @@ function DetalleVendedor({
             ) : (
               <>
                 <section className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
-                  <p className="text-xs font-bold text-amber-900">Conversión del mes en revisión</p>
+                  <p className="text-xs font-bold text-amber-900">Conversión del mes no disponible</p>
                   <p className="mt-1 text-[11px] font-medium leading-relaxed text-amber-800">
-                    Los porcentajes, cierres y tendencias permanecen ocultos hasta que las sondas del núcleo cuadren. El capital producido sigue disponible porque no depende de esa verificación.
+                    {lecturaMensual.aviso ?? 'No se recibió una lectura mensual completa. El capital producido sigue disponible porque pertenece al rango aplicado.'}
                   </p>
                 </section>
                 <section aria-label="Capital producido por el analista" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
@@ -524,16 +563,20 @@ export function InteligenciaComercialPanel({
   cumplimiento,
   origenFiltrado,
   equipo,
+  equipoMensual,
   metaConversion,
   metasVendedores,
   cumplimientoVendedores,
   metaMensual,
-  cargando,
-  error,
+  mensualCargando,
+  mensualError,
+  rangoCargando,
+  rangoError,
   modoDemo,
   puedeAlternarEjemplo,
   onAlternarEjemplo,
-  onReintentar,
+  onReintentarMensual,
+  onReintentarRango,
 }: InteligenciaComercialPanelProps): JSX.Element {
   const [vendedorId, setVendedorId] = useState('')
   const [detalleAbierto, setDetalleAbierto] = useState(false)
@@ -542,8 +585,8 @@ export function InteligenciaComercialPanel({
     [datos, equipo],
   )
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
-    [conversionMensual, equipo],
+    () => adaptarConversionMensual(conversionMensual ?? null, equipoMensual ?? equipo),
+    [conversionMensual, equipo, equipoMensual],
   )
   const ranking = useMemo(
     () => clasificarRankingConversion(adaptada.vendedores),
@@ -635,25 +678,22 @@ export function InteligenciaComercialPanel({
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const clientes = datos?.cohorte.contratos ?? 0
-  // La cifra grande de ESTA pantalla es EL BRUTO (decisión de Miguel, 27/08,
-  // tras su veto: «quiero ver solo lo que entró, así en bruto — lo que entró
-  // y lo que cerró»; la dualidad entró/base se leía como contradicción).
-  // Nombre de la casa: COSECHA — el que él mismo acuñó para la pestaña del
-  // Ranking. La «Conversión del mes» (núcleo ponderado) sigue reinando en
-  // HOY, Metas y Ranking; aquí ya no se pinta, aunque viaja en el payload
-  // para quien audite. Bruto = cohorte servida, sin exclusiones ni pesos.
   const nucleo = datos?.nucleo ?? null
   const sondasConv = datos?.sondas ?? null
   const cosechaLeads = datos?.cohorte.leads ?? 0
   const cosechaCierres = datos?.cohorte.contratos ?? 0
   const cosechaPct = datos?.cohorte.conversion_contratos_pct ?? null
-  // La pantalla principal es bruta y no depende de las sondas del núcleo. El
-  // detalle que sí se rotula «conversión del mes» conserva su propia frontera:
-  // solo se publica cuando el contrato mensual completo es publicable.
-  // La ausencia o un mes no medible conservan sus estados informativos
-  // («No disponible» / «Sin datos del mes»). Solo la sonda dura de integridad
-  // cierra la ficha: en ese caso ninguna cifra mensual exacta es publicable.
-  const conversionMensualPublicable = (conversionMensual?.cobertura.cierres_sin_episodio ?? 0) === 0
+  // El nombre «Conversiones» muestra como cifra principal la misma conversión
+  // mensual canónica que HOY, Metas y Ranking. La Cosecha permanece visible,
+  // pero siempre rotulada como lectura del rango/origen: son dos preguntas.
+  const lecturaMensual = lecturaCobertura(conversionMensual?.cobertura)
+  const totalMensual = totalConversionPublicable(conversionMensual)
+  const conversionMensualPublicable = lecturaMensual.mostrar
+  const conversionMesPct = totalMensual?.conversion_pct ?? null
+  const cierresMes = totalMensual == null
+    ? null
+    : totalMensual.cierres_no_referidos + totalMensual.cierres_referidos
+  const operacionesCarteraMes = totalMensual?.cartera.conversiones_clientes ?? null
   // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
   // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
   // no consulta el tipo de cambio y la casa prohíbe sumarlos a ciegas.
@@ -676,6 +716,21 @@ export function InteligenciaComercialPanel({
     { label: 'Leads que llegaron a cita', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} con cita pactada`, icon: CalendarCheck, color: C.teal },
     kpiCapital,
   ]
+  const mensualEsperando = mensualCargando && conversionMensual === undefined
+  const cosechaHero = datos != null
+    ? pct(cosechaPct)
+    : rangoCargando
+      ? 'Cargando…'
+      : rangoError
+        ? 'No disponible'
+        : '—'
+  const capitalLoteHero = datos != null
+    ? moneyCompacta(capitalLotePen, 'PEN')
+    : rangoCargando
+      ? 'Cargando…'
+      : rangoError
+        ? 'No disponible'
+        : '—'
 
   return (
     <Card className="gi-card overflow-hidden border-0 shadow-none">
@@ -685,37 +740,53 @@ export function InteligenciaComercialPanel({
           {puedeAlternarEjemplo && <Button type="button" variant={modoDemo ? 'default' : 'outline'} size="sm" onClick={onAlternarEjemplo}><Eye aria-hidden /> {modoDemo ? 'Ver datos reales' : 'Ver ejemplo'}</Button>}
         </div>
       </CardHeader>
-      <ErrorPanel error={error} onReintentar={onReintentar} />
-      {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos ? <Vacio /> : (
-        <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
-          <section data-gi-hero className="gi-summary-hero">
-            {/* La cifra grande es EL BRUTO del período (cohorte servida):
-                entró tanto, cerró tanto. Decisión de Miguel 27/08 — la
-                Conversión del mes (núcleo) vive en HOY/Metas/Ranking. */}
+      <ErrorPanel error={mensualError} onReintentar={onReintentarMensual} />
+      <CardContent className="bg-[var(--gi-canvas)] p-4 sm:p-5">
+          <section
+            data-gi-hero
+            className="gi-summary-hero"
+            aria-label="Conversión mensual canónica"
+            aria-busy={mensualEsperando}
+          >
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">Cosecha del período</p>
-              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{pct(cosechaPct)}</p>
-              <p className="mt-2 text-xs text-white/65">
-                Entraron {numero(cosechaLeads)} leads · cerraron {numero(cosechaCierres)}
-                {hayFiltroOrigen ? ` · origen: ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}
+              <p className="gi-label text-white/65">Conversión del mes · {metaMensual.etiqueta}</p>
+              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">
+                {mensualEsperando ? 'Calculando…' : porcentajeConversionCanonica(conversionMesPct)}
               </p>
+              <p className="mt-2 text-xs text-white/65">
+                {mensualEsperando
+                  ? 'Todos los orígenes · consultando el núcleo mensual…'
+                  : `Todos los orígenes · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} recibidos · ${numero(cierresMes ?? 0)} cierres`}`}
+                {!mensualEsperando && (operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : ''}
+              </p>
+              {!mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>
+              <div className="gi-hero-metric"><span>Cosecha del rango{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
               {/* Con filtro de origen, las cifras de EMPRESA se retiran del
                   héroe: capital del mes y meta al lado de un lote recortado
                   eran la contradicción vetada. */}
               {hayFiltroOrigen ? (
-                <div className="gi-hero-metric"><span>Capital del lote</span><strong>{moneyCompacta(capitalLotePen, 'PEN')}</strong></div>
+                <div className="gi-hero-metric"><span>Capital del lote</span><strong>{capitalLoteHero}</strong></div>
               ) : (
                 <>
-                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : moneyCompacta(capitalMesPen, 'PEN')}</strong></div>
-                  <div className="gi-hero-metric"><span>Meta · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
+                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{mensualEsperando ? 'Consultando…' : capitalMesPen == null ? '—' : moneyCompacta(capitalMesPen, 'PEN')}</strong></div>
+                  <div className="gi-hero-metric"><span>Meta · {metaMensual.etiqueta}</span><strong>{mensualEsperando ? 'Consultando…' : metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
                 </>
               )}
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
+      </CardContent>
+
+      <section
+        aria-label="Análisis de Cosecha del rango"
+        aria-busy={rangoCargando && datos === undefined}
+        className="border-t border-[var(--gi-line)] bg-[var(--gi-canvas)]"
+      >
+        <ErrorPanel error={rangoError} onReintentar={onReintentarRango} />
+        {rangoCargando && !datos ? <Cargando /> : !datos && rangoError ? null : !datos ? <Vacio /> : (
+        <CardContent className="space-y-4 p-4 sm:p-5">
 
           {/* F3.4: lo que dicen las sondas se dice. (El aviso de descuadre del
               núcleo se fue con el núcleo: esta pantalla ya pinta el BRUTO y a
@@ -795,7 +866,8 @@ export function InteligenciaComercialPanel({
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={conversionMensualPublicable} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      </section>
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={conversionMensualPublicable} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} mensualCargando={mensualEsperando} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

@@ -7,6 +7,8 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState, type ReactNode } from 'react'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
+import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import {
   objetivosCero,
   type CumplimientoMetasJerarquico,
@@ -54,11 +56,24 @@ const ESTADO_CUMPLIMIENTO_RANKING = vi.hoisted(() => ({
   isFetching: false,
   refetch: vi.fn(),
 }))
+const ESTADO_COSECHA_RANKING = vi.hoisted(() => ({
+  data: undefined as MetricasConversionesEquipo | undefined,
+  error: null as unknown,
+  isError: false,
+  isPending: false,
+  isFetching: false,
+  refetch: vi.fn(),
+}))
+const REFETCH_CONVERSION_MENSUAL = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: LEADS, vendedores: [], esGlobal: true },
+    ambito: {
+      leads: LEADS,
+      vendedores: EQUIPO.filter((miembro) => miembro.rol_crm === 'vendedor'),
+      esGlobal: true,
+    },
     equipo: EQUIPO,
     objetivos: OBJETIVOS,
     objetivosError: OBJETIVOS_ERROR,
@@ -71,8 +86,53 @@ vi.mock('@/lib/store-context', () => ({
 // prueba aquí y montarlos exigiría un QueryClient y el bundle de gráficas.
 vi.mock('./distribucion-leads-gerencia', () => ({ DistribucionLeadsGerencia: () => null }))
 vi.mock('./inteligencia-comercial', () => ({
-  InteligenciaComercialPanel: ({ error }: { error: string | null }) => (
-    <h1>Inteligencia comercial{error ? ` · ERROR: ${error}` : ''}</h1>
+  InteligenciaComercialPanel: ({
+    conversionMensual,
+    equipo,
+    equipoMensual,
+    mensualError,
+    rangoError,
+    mensualCargando,
+    rangoCargando,
+    metaMensual,
+    metaConversion,
+    modoDemo,
+    puedeAlternarEjemplo,
+    onAlternarEjemplo,
+    onReintentarMensual,
+    onReintentarRango,
+  }: {
+    conversionMensual: { periodo?: { mes?: string } } | null | undefined
+    equipo: Array<{ vendedorId?: string | null }>
+    equipoMensual?: Array<{ vendedorId?: string | null }>
+    mensualError: string | null
+    rangoError: string | null
+    mensualCargando: boolean
+    rangoCargando: boolean
+    metaMensual: { etiqueta: string; errorCarga?: boolean }
+    metaConversion: number
+    modoDemo: boolean
+    puedeAlternarEjemplo: boolean
+    onAlternarEjemplo: () => void
+    onReintentarMensual: () => void
+    onReintentarRango: () => void
+  }) => (
+    <div>
+      <h1>Inteligencia comercial</h1>
+      <output aria-label="Error mensual de Conversiones">{mensualError ? `ERROR: ${mensualError}` : ''}</output>
+      <output aria-label="Error de rango en Conversiones">{rangoError ? `ERROR: ${rangoError}` : ''}</output>
+      <output aria-label="Carga mensual de Conversiones">{String(mensualCargando)}</output>
+      <output aria-label="Dato mensual de Conversiones">{conversionMensual === undefined ? 'esperando' : 'recibido'}</output>
+      <output aria-label="Período mensual de Conversiones">{conversionMensual?.periodo?.mes ?? ''}</output>
+      <output aria-label="Población de rango en Conversiones">{equipo.map((fila) => fila.vendedorId).join(',')}</output>
+      <output aria-label="Población mensual en Conversiones">{(equipoMensual ?? equipo).map((fila) => fila.vendedorId).join(',')}</output>
+      <output aria-label="Carga de rango en Conversiones">{String(rangoCargando)}</output>
+      <output aria-label="Meta mensual de Conversiones">{metaMensual.etiqueta}|{metaMensual.errorCarga ? 'error' : 'ok'}|{metaConversion}</output>
+      <output aria-label="Modo de Conversiones">{modoDemo ? 'ejemplo' : 'real'}</output>
+      {puedeAlternarEjemplo && <button type="button" onClick={onAlternarEjemplo}>Ver ejemplo</button>}
+      {mensualError && <button type="button" onClick={onReintentarMensual}>Reintentar mensual</button>}
+      {rangoError && <button type="button" onClick={onReintentarRango}>Reintentar rango</button>}
+    </div>
   ),
 }))
 vi.mock('./ranking-vendedores', () => ({
@@ -87,6 +147,7 @@ vi.mock('./ranking-vendedores', () => ({
     fotoMensualError,
     onReintentarFotoMensual,
     usarIdentidadSnapshot,
+    estadoFotoMensual,
     etiquetaAlcance,
   }: {
     conversionError: string | null
@@ -99,6 +160,7 @@ vi.mock('./ranking-vendedores', () => ({
     fotoMensualError?: string | null
     onReintentarFotoMensual?: () => void
     usarIdentidadSnapshot?: boolean
+    estadoFotoMensual?: 'sellada' | 'abierta'
     etiquetaAlcance?: string
   }) => (
     <div>
@@ -108,6 +170,7 @@ vi.mock('./ranking-vendedores', () => ({
       <output aria-label="Cumplimiento del ranking">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
       <output aria-label="Carga de foto mensual">{String(fotoMensualCargando ?? false)}</output>
       <output aria-label="Identidad mensual">{String(usarIdentidadSnapshot ?? false)}</output>
+      <output aria-label="Estado de foto mensual">{estadoFotoMensual ?? 'vigente'}</output>
       <output aria-label="Alcance del ranking">{etiquetaAlcance ?? 'Equipo completo'}</output>
       {fotoMensualError && <button type="button" onClick={onReintentarFotoMensual}>Reintentar foto mensual</button>}
     </div>
@@ -133,8 +196,12 @@ vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
 }))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
 vi.mock('./resumen-gerencia', () => ({
-  ResumenGerenciaPanel: ({ error }: { error: string | null }) => (
-    <h1>Resumen comercial{error ? ` · ERROR: ${error}` : ''}</h1>
+  ResumenGerenciaPanel: ({ error, mensualCargando, onReintentar }: { error: string | null; mensualCargando?: boolean; onReintentar: () => void }) => (
+    <div>
+      <h1>Resumen comercial{error ? ` · ERROR: ${error}` : ''}</h1>
+      <output aria-label="Carga mensual del Resumen">{String(mensualCargando ?? false)}</output>
+      <button type="button" onClick={onReintentar}>Reintentar fuentes del Resumen</button>
+    </div>
   ),
 }))
 vi.mock('./equipo-gerencia', () => ({ EquipoGerenciaPanel: () => null }))
@@ -146,6 +213,7 @@ vi.mock('@/components/gerencia/motion', () => ({
 // La conversión mensual (la definición), controlable por test.
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 let CONVERSION_MENSUAL_FALLA = false
+let CONVERSION_MENSUAL_FETCHING = false
 vi.mock('@/data/crm-queries', () => ({
   // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
   // el banner simplemente no existe.
@@ -167,19 +235,19 @@ vi.mock('@/data/crm-queries', () => ({
   },
   // Cosecha del ranking (F2.2/D2): mismo doble sin red; sus casos de pintura
   // viven en ranking-vendedores.test.tsx.
-  useMetricasConversionesEquipo: (...argumentos: [boolean, string, string]) => {
+  useMetricasConversionesEquipo: (...argumentos: [boolean, string, string, 'global', string?]) => {
     CONSULTAS.cosecha(...argumentos)
-    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
+    return ESTADO_COSECHA_RANKING
   },
-  useConversionMensual: (...argumentos: [boolean, string]) => {
+  useConversionMensual: (...argumentos: [boolean, string, 'global', string?]) => {
     CONSULTAS.conversionMensual(...argumentos)
     return {
     data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
     error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,
     isError: CONVERSION_MENSUAL_FALLA,
     isPending: false,
-    isFetching: false,
-    refetch: () => {},
+    isFetching: CONVERSION_MENSUAL_FETCHING,
+    refetch: REFETCH_CONVERSION_MENSUAL,
     }
   },
   useCumplimientoMetas: (...argumentos: [boolean, string, string | null | undefined]) => {
@@ -233,6 +301,7 @@ function montar(
   over: {
     leads?: Lead[]
     objetivos?: ObjetivoComercial
+    periodoObjetivos?: string
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
@@ -252,8 +321,20 @@ function montar(
   LEADS = over.leads ?? [lead()]
   OBJETIVOS_ERROR = over.objetivosError ?? false
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
-  OBJETIVOS = { ...METAS_DEMO, gerencia: over.objetivos ?? METAS_DEMO.gerencia }
-  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
+  OBJETIVOS = {
+    ...METAS_DEMO,
+    periodo: over.periodoObjetivos ?? '2026-07-01',
+    gerencia: over.objetivos ?? METAS_DEMO.gerencia,
+  }
+  CUMPLIMIENTO = over.cumplimiento == null
+    ? (over.cumplimiento ?? null)
+    : { ...over.cumplimiento, periodo: OBJETIVOS.periodo }
+  if (over.cumplimiento !== undefined
+    && ESTADO_CUMPLIMIENTO_RANKING.data === undefined
+    && !ESTADO_CUMPLIMIENTO_RANKING.isPending
+    && !ESTADO_CUMPLIMIENTO_RANKING.isError) {
+    ESTADO_CUMPLIMIENTO_RANKING.data = over.cumplimiento ?? undefined
+  }
   return render(<PeriodoGerenciaProvider><HoyGerencia seccion={seccion} /></PeriodoGerenciaProvider>)
 }
 
@@ -269,10 +350,13 @@ beforeEach(() => {
   TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
   vi.useFakeTimers()
   vi.clearAllMocks()
+  RECARGAR.mockResolvedValue(true)
   OBJETIVOS_ERROR = false
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
+  CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_FALLA = false
+  CONVERSION_MENSUAL_FETCHING = false
   EQUIPO = []
   ASIENTOS_TRAZA = []
   ESTADO_CONVERSIONES.data = undefined
@@ -286,6 +370,13 @@ beforeEach(() => {
   ESTADO_CUMPLIMIENTO_RANKING.isPending = false
   ESTADO_CUMPLIMIENTO_RANKING.isFetching = false
   ESTADO_CUMPLIMIENTO_RANKING.refetch.mockReset()
+  ESTADO_COSECHA_RANKING.data = undefined
+  ESTADO_COSECHA_RANKING.error = null
+  ESTADO_COSECHA_RANKING.isError = false
+  ESTADO_COSECHA_RANKING.isPending = false
+  ESTADO_COSECHA_RANKING.isFetching = false
+  ESTADO_COSECHA_RANKING.refetch.mockReset()
+  REFETCH_CONVERSION_MENSUAL.mockReset()
 })
 
 afterEach(() => {
@@ -333,17 +424,14 @@ describe('Hoy · gerencia — ranking por mes calendario', () => {
     ESTADO_CUMPLIMIENTO_RANKING.data = {
       ...CUMPLIMIENTO_METAS_DEMO,
       periodo: '2026-08-01',
+      cierre: { cerrado: true, cerrado_en: '2026-09-10T14:20:00Z', automatico: true },
     }
     montar({}, 'ranking-vendedores', SETIEMBRE_2)
 
-    // Aunque el filtro libre termine a mitad de mes, el ranking responde a la
-    // regla comercial confirmada: toma el mes calendario de la fecha final.
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-10' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-20' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-08' } })
 
-    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(true, '2026-08-01')
-    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-31')
+    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(true, '2026-08-01', 'global', 'g-1')
+    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-31', 'global', 'g-1')
     expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 'g-1')
     expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
     expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('agosto 2026|true')
@@ -351,30 +439,38 @@ describe('Hoy · gerencia — ranking por mes calendario', () => {
     expect(screen.getByLabelText('Cumplimiento del ranking')).toHaveTextContent('d-v1,d-v2,d-v3')
     expect(screen.getByLabelText('Carga de foto mensual')).toHaveTextContent('false')
     expect(screen.getByLabelText('Identidad mensual')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Estado de foto mensual')).toHaveTextContent('sellada')
   })
 
   it('mantiene las tres lecturas en carga mientras llega la foto histórica', () => {
     ESTADO_CUMPLIMIENTO_RANKING.isPending = true
     montar({}, 'ranking-vendedores', SETIEMBRE_2)
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-08' } })
 
     expect(screen.getByLabelText('Carga de foto mensual')).toHaveTextContent('true')
     expect(screen.getByLabelText('Metas del ranking')).toBeEmptyDOMElement()
     expect(screen.getByLabelText('Cumplimiento del ranking')).toBeEmptyDOMElement()
   })
 
+  it('rechaza meses futuros o inválidos aunque el input se manipule fuera del navegador', () => {
+    montar({}, 'ranking-vendedores', SETIEMBRE_2)
+
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-10' } })
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-13' } })
+
+    expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-09')
+    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(true, '2026-09-01', 'global', 'g-1')
+    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-02', 'global', 'g-1')
+  })
+
   it('en demo mantiene el ranking en el mes vigente aunque el filtro global apunte a agosto', () => {
     montar({ demo: true }, 'ranking-vendedores', SETIEMBRE_2)
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-08' } })
 
-    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(false, '2026-09-01')
-    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(false, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(false, '2026-09-01', 'global', 'g-1')
+    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(false, '2026-09-01', '2026-09-02', 'global', 'g-1')
     expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(false, '2026-09-01', 'g-1')
     expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
     expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('setiembre 2026|true')
@@ -421,7 +517,9 @@ describe('Hoy · gerencia — ranking por mes calendario', () => {
     expect(screen.getByText(/ERROR: No se pudieron cargar la identidad, las metas y el capital del mes elegido\./)).toBeInTheDocument()
     expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('setiembre 2026|false')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
     expect(ESTADO_CUMPLIMIENTO_RANKING.refetch).toHaveBeenCalledTimes(1)
+    expect(ESTADO_COSECHA_RANKING.refetch).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -439,32 +537,27 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(meta.getAllByText('meta por definir')).toHaveLength(2)
   })
 
-  // Las metas se pactan por MES, así que esta sección mide siempre el mes en
-  // curso y el selector de rango de arriba no la toca. Antes se desactivaba la
-  // comparación al cambiar el rango, pero el importe que quedaba en pantalla
-  // seguía siendo el del mes: una cifra mensual rotulada «rango aplicado».
-  it('mide siempre el mes en curso y lo dice cuando el rango es otro', () => {
+  it('cambia meta, capital y conversión juntos por mes calendario', () => {
     montar({}, 'metas')
 
     const metaVigente = within(tarjetaMeta())
     expect(metaVigente.getByText('Meta mensual · julio 2026')).toBeInTheDocument()
     expect(metaVigente.queryByText('0%')).not.toBeInTheDocument()
-    expect(metaVigente.getByText('Cumplimiento confirmado no disponible')).toBeInTheDocument()
-    expect(metaVigente.getByText('Todavía no hay leads recibidos este mes')).toBeInTheDocument()
+    expect(metaVigente.getAllByText('Meta del mes todavía sin fijar')).toHaveLength(2)
     // Sin rango raro no hay por qué advertir nada.
     expect(metaVigente.queryByText(/no del rango que elegiste/)).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-06-01' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-06-30' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-06' } })
 
     const metaHistorica = within(tarjetaMeta())
-    expect(metaHistorica.getByText(/Estas cifras son del mes en curso \(julio 2026\)/))
-      .toBeInTheDocument()
+    expect(metaHistorica.getByText('Meta mensual · junio 2026')).toBeInTheDocument()
+    expect(metaHistorica.getByText(/Vista histórica de junio 2026/)).toBeInTheDocument()
     expect(metaHistorica.queryByText('0%')).not.toBeInTheDocument()
   })
 
   it('si falla la lectura de metas no muestra ceros como objetivos ni permite editar encima', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isError = true
+    ESTADO_CUMPLIMIENTO_RANKING.error = new Error('foto mensual caída')
     montar({
       objetivos: objetivosCero('2026-07-01').gerencia,
       objetivosError: true,
@@ -474,11 +567,25 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(meta.queryByText('meta por definir')).not.toBeInTheDocument()
     expect(meta.queryByText('Editor de metas')).not.toBeInTheDocument()
     expect(meta.queryAllByRole('progressbar')).toHaveLength(0)
-    expect(meta.getByText('No pudimos cargar las metas mensuales')).toBeInTheDocument()
+    expect(meta.getByText(/No se pudieron cargar la identidad, las metas y el capital/)).toBeInTheDocument()
     expect(meta.getAllByText('meta no disponible')).toHaveLength(2)
 
+    fireEvent.click(meta.getByRole('button', { name: 'Reintentar cumplimiento' }))
+    expect(ESTADO_CUMPLIMIENTO_RANKING.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('bloquea el editor con una foto del mes anterior y permite reintentar el rollover', async () => {
+    RECARGAR.mockResolvedValue(false)
+    montar({ periodoObjetivos: '2026-06-01' }, 'metas')
+
+    await act(async () => {})
+
+    const meta = within(tarjetaMeta())
+    expect(meta.queryByText('Editor de metas')).not.toBeInTheDocument()
+    expect(meta.getByText('No pudimos cargar las metas del mes vigente')).toBeInTheDocument()
     fireEvent.click(meta.getByRole('button', { name: 'Reintentar' }))
-    expect(RECARGAR).toHaveBeenCalledTimes(1)
+    await act(async () => {})
+    expect(RECARGAR).toHaveBeenCalledTimes(2)
   })
 
   it('el cumplimiento no depende de la consulta de pipeline y nunca se reemplaza con producción', () => {
@@ -495,14 +602,16 @@ describe('Hoy · gerencia — meta del mes', () => {
 
     ESTADO_CONVERSIONES.isPending = false
     ESTADO_CONVERSIONES.error = new Error('sin conexión')
+    ESTADO_CUMPLIMIENTO_RANKING.data = undefined
+    ESTADO_CUMPLIMIENTO_RANKING.isError = true
+    ESTADO_CUMPLIMIENTO_RANKING.error = new Error('foto mensual caída')
     montar({ cumplimiento: null, cumplimientoError: true }, 'metas')
 
     meta = within(tarjetaMeta())
-    expect(meta.getByRole('alert')).toHaveTextContent('No se pudo calcular el cumplimiento confirmado')
-    expect(meta.getByText('Cumplimiento confirmado no disponible')).toBeInTheDocument()
+    expect(meta.getByRole('alert')).toHaveTextContent('No se pudieron cargar la identidad, las metas y el capital')
     expect(meta.queryByText('S/ 0')).not.toBeInTheDocument()
     fireEvent.click(meta.getByRole('button', { name: 'Reintentar cumplimiento' }))
-    expect(RECARGAR).toHaveBeenCalledTimes(1)
+    expect(ESTADO_CUMPLIMIENTO_RANKING.refetch).toHaveBeenCalledTimes(1)
   })
 
   // Pedido de Miguel (2026-08-10): «me gustaría ver cuánto vamos en soles y
@@ -556,6 +665,23 @@ describe('Hoy · gerencia — meta del mes', () => {
 })
 
 describe('Hoy · gerencia — período del tablero', () => {
+  it('no promete que el origen filtre las citas globales del resumen', () => {
+    montar({}, 'resumen')
+
+    expect(screen.getByText(/el rango recorta Cosecha, citas y embudo; el origen recorta Cosecha y embudo/))
+      .toBeInTheDocument()
+    expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
+      .not.toBeInTheDocument()
+  })
+
+  it('el reintento del Resumen recupera también el tipo de cambio', () => {
+    montar({}, 'resumen')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fuentes del Resumen' }))
+
+    expect(RECARGAR_TC).toHaveBeenCalledTimes(1)
+  })
+
   it('abre en el mes calendario vigente de Lima y lo propaga a todas las métricas', () => {
     montar()
 
@@ -583,19 +709,17 @@ describe('Hoy · gerencia — período del tablero', () => {
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-01', null)
   })
 
-  it('refresca el TC vigente a medianoche aunque el rango libre sea histórico', () => {
+  it('mantiene el TC del cierre elegido al cruzar medianoche con un mes histórico', () => {
     montar({}, 'metas', new Date('2026-09-03T04:59:59Z'))
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
-    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-08' } })
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
     expect(RECARGAR_TC).not.toHaveBeenCalled()
 
     act(() => { vi.advanceTimersByTime(1_000) })
 
-    expect(RECARGAR_TC).toHaveBeenCalledTimes(1)
-    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
+    expect(RECARGAR_TC).not.toHaveBeenCalled()
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
   })
 
   it('recalcula todas las consultas al aplicar otro rango', () => {
@@ -667,12 +791,12 @@ describe('Hoy · gerencia — período del tablero', () => {
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Ir a ranking' }))
 
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-06-01')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-06-30')
+    expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-06')
+    expect(screen.queryByLabelText('Origen del lead')).not.toBeInTheDocument()
     // El ranking ya no enciende metricas_conversiones_fn: sus pestañas leen
     // mensual, cumplimiento/capital y cosecha, cada una por separado.
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(false, '2026-06-01', '2026-06-30', null)
-    expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Aplicar' })).not.toBeInTheDocument()
   })
 })
 
@@ -706,12 +830,208 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     expect(screen.getByText(/ERROR: .*No se pudo calcular la conversión mensual\./)).toBeInTheDocument()
   })
 
+  it('el Resumen mantiene neutral la foto mensual mientras espera capital y meta', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isPending = true
+    montar({}, 'resumen')
+
+    expect(screen.getByLabelText('Carga mensual del Resumen')).toHaveTextContent('true')
+  })
+
   it('Inteligencia Comercial también recibe el fallo de la MENSUAL (no lo oculta)', () => {
     // Observación #3 de la revisión externa: su héroe y su ficha beben de la
     // mensual, pero el error que recibía era solo el del payload de rango.
     CONVERSION_MENSUAL_FALLA = true
     montar({}, 'conversiones')
 
-    expect(screen.getByText(/ERROR: No se pudo calcular la conversión mensual\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Error mensual de Conversiones')).toHaveTextContent(
+      'ERROR: No se pudo calcular la conversión mensual.',
+    )
+    expect(screen.getByLabelText('Error de rango en Conversiones')).toBeEmptyDOMElement()
+  })
+
+  it('Inteligencia Comercial entrega el fallo de Cosecha solo al estado del rango', () => {
+    ESTADO_CONVERSIONES.error = new Error('consulta lateral caída')
+    montar({}, 'conversiones')
+
+    expect(screen.getByLabelText('Error mensual de Conversiones')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Error de rango en Conversiones')).toHaveTextContent(
+      'ERROR: No se pudieron cargar las conversiones.',
+    )
+    expect(screen.getByLabelText('Carga mensual de Conversiones')).toHaveTextContent('false')
+  })
+
+  it('mantiene la lectura mensual en carga hasta recibir también capital y meta', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isPending = true
+    montar({}, 'conversiones')
+
+    expect(screen.getByLabelText('Carga mensual de Conversiones')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Dato mensual de Conversiones')).toHaveTextContent('esperando')
+    expect(screen.getByLabelText('Carga de rango en Conversiones')).toHaveTextContent('false')
+  })
+
+  it('durante el refetch de un mes histórico no mezcla las fotos cacheadas', () => {
+    CONVERSION_MENSUAL = {
+      ...conversionMensualDemo(Date.now(), { alcance: 'global' }),
+      cierre: { cerrado: false },
+    }
+    CONVERSION_MENSUAL_FETCHING = true
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-06-01',
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO_RANKING.isFetching = true
+    montar({}, 'conversiones')
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-06-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-06-30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Carga mensual de Conversiones')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Dato mensual de Conversiones')).toHaveTextContent('esperando')
+  })
+
+  it('detecta una conversión abierta mezclada con cumplimiento ya sellado', () => {
+    CONVERSION_MENSUAL = {
+      ...conversionMensualDemo(Date.parse('2026-06-15T15:00:00Z'), { alcance: 'global' }),
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-06-01',
+      cierre: { cerrado: true },
+    }
+    montar({}, 'ranking-vendedores')
+
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-06' } })
+
+    expect(screen.getByRole('heading', { name: /Ranking de analistas · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
+  })
+
+  it('bloquea la terna cuando una revisión difiere y reintenta los tres núcleos', () => {
+    CONVERSION_MENSUAL = {
+      ...conversionMensualDemo(Date.parse('2026-06-15T15:00:00Z'), { alcance: 'global' }),
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-06-01',
+      revision: 8,
+      cierre: { cerrado: false },
+    }
+    ESTADO_COSECHA_RANKING.data = {
+      version: 1,
+      revision: 7,
+      cierre: { cerrado: false },
+      generado_en: '2026-06-30T15:00:00Z',
+      alcance: 'global',
+      periodo: { desde: '2026-06-01', hasta: '2026-06-30' },
+      responsables: [],
+    }
+    montar({}, 'ranking-vendedores')
+
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-06' } })
+
+    expect(screen.getByRole('heading', { name: /Ranking de analistas · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
+    expect(ESTADO_CUMPLIMIENTO_RANKING.refetch).toHaveBeenCalledTimes(1)
+    expect(ESTADO_COSECHA_RANKING.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('bloquea una Cosecha que llega con otro mes aunque coincidan revisión y cierre', () => {
+    CONVERSION_MENSUAL = {
+      ...conversionMensualDemo(Date.parse('2026-06-15T15:00:00Z'), { alcance: 'global' }),
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-06-01',
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    ESTADO_COSECHA_RANKING.data = {
+      version: 1,
+      revision: 7,
+      cierre: { cerrado: false },
+      generado_en: '2026-06-30T15:00:00Z',
+      alcance: 'global',
+      periodo: { desde: '2026-05-01', hasta: '2026-05-31' },
+      responsables: [],
+    }
+    montar({}, 'ranking-vendedores')
+
+    fireEvent.change(screen.getByLabelText('Mes calendario'), { target: { value: '2026-06' } })
+
+    expect(screen.getByRole('heading', { name: /Ranking de analistas · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
+  })
+
+  it('al ver el ejemplo no arrastra el error ni la meta fallida de la foto real', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isError = true
+    ESTADO_CUMPLIMIENTO_RANKING.error = new Error('foto mensual caída')
+    montar({}, 'conversiones', new Date('2026-09-02T15:00:00Z'))
+
+    const origen = screen.getByLabelText('Origen del lead')
+    fireEvent.change(origen, { target: { value: 'referido' } })
+    expect(origen).toHaveValue('referido')
+    expect(screen.getByLabelText('Error mensual de Conversiones')).not.toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver ejemplo' }))
+
+    expect(screen.getByLabelText('Modo de Conversiones')).toHaveTextContent('ejemplo')
+    expect(screen.getByLabelText('Error mensual de Conversiones')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Meta mensual de Conversiones')).toHaveTextContent('setiembre 2026|ok|')
+    expect(screen.getByLabelText('Meta mensual de Conversiones')).not.toHaveTextContent('|0')
+    expect(origen).toBeDisabled()
+    expect(origen).toHaveValue('')
+    expect(screen.getByText(/Los datos de ejemplo no se filtran por origen/)).toBeInTheDocument()
+  })
+
+  it('el ejemplo mensual respeta el mes elegido y no lo rotula con datos del mes vigente', () => {
+    montar({}, 'conversiones', new Date('2026-09-02T15:00:00Z'))
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ver ejemplo' }))
+
+    expect(screen.getByLabelText('Período mensual de Conversiones')).toHaveTextContent('2026-08')
+    expect(screen.getByLabelText('Meta mensual de Conversiones')).toHaveTextContent('agosto 2026')
+  })
+
+  it('no mezcla el roster vigente del rango con la identidad de un mes histórico', () => {
+    const vendedorHistorico = Object.keys(CUMPLIMIENTO_METAS_DEMO.porVendedor)[0]!
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-06-01',
+    }
+    EQUIPO = [{
+      perfil_id: 'vendedor-vigente',
+      nombre_completo: 'VENDEDOR VIGENTE',
+      rol_crm: 'vendedor',
+      supervisor_id: 'supervisor-vigente',
+      activo: true,
+    } as Miembro]
+    montar({}, 'conversiones')
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-06-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-06-30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Población de rango en Conversiones')).toHaveTextContent('vendedor-vigente')
+    expect(screen.getByLabelText('Población mensual en Conversiones')).toHaveTextContent(vendedorHistorico)
+    expect(screen.getByLabelText('Población mensual en Conversiones')).not.toHaveTextContent('vendedor-vigente')
+  })
+
+  it('Inteligencia Comercial entrega la carga de Cosecha sin marcar la mensual como pendiente', () => {
+    ESTADO_CONVERSIONES.isPending = true
+    montar({}, 'conversiones')
+
+    expect(screen.getByLabelText('Carga mensual de Conversiones')).toHaveTextContent('false')
+    expect(screen.getByLabelText('Carga de rango en Conversiones')).toHaveTextContent('true')
   })
 })

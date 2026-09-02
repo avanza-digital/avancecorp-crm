@@ -708,6 +708,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // rezagada de A no repuebla el store de B tras un cambio de sesión (fuga de PII
   // que detectó la revisión adversarial), ni pisa datos de una recarga posterior.
   const epocaRef = useRef(0)
+  // Foco/reconexión no deben abrir otra lectura si una mutación o el botón
+  // «Actualizar» ya está usando el mismo pipeline. Es contador —no promesa
+  // compartida— porque una mutación posterior sí necesita su propia lectura
+  // luego de confirmar el commit.
+  const resincronizacionesRealesEnVueloRef = useRef(0)
+  const ultimaResincronizacionAutomaticaRef = useRef<number | null>(null)
 
   // Paneles globales
   const [leadAbiertoId, setLeadAbiertoId] = useState<string | null>(null)
@@ -843,7 +849,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // rechazo, deshacer el espejo optimista). Devuelve `true` solo si el resultado
   // se APLICÓ (misma época): el llamador usa eso para no mentir en el toast de
   // rollback cuando el servidor está inalcanzable.
-  const resincronizarReal = useCallback(async (): Promise<boolean> => {
+  const resincronizarReal = useCallback(async (
+    {
+      invalidarNucleosConversion = false,
+      invalidarConversionRango = false,
+      invalidarReuniones = false,
+      invalidarAgenda = false,
+    }: {
+      invalidarNucleosConversion?: boolean
+      invalidarConversionRango?: boolean
+      invalidarReuniones?: boolean
+      invalidarAgenda?: boolean
+    } = {},
+  ): Promise<boolean> => {
     const miEpoca = epocaRef.current
     // Puente de coherencia F1 (TRANSITORIO hasta F3): mientras las mutaciones
     // pasen por el store, cada resincronización invalida por prefijo las
@@ -860,6 +878,38 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // foto anterior. Invalidar (no refetch): un remonte dentro del staleTime
     // serviría la página rancia desde caché.
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() })
+    if (invalidarNucleosConversion) {
+      // Crear, cambiar el origen o mover la tenencia de un lead modifica la
+      // población/atribución que leen los tres frentes del ranking. Cada
+      // productor conserva su caché y su fórmula; solo comparten este punto de
+      // caducidad por prefijo. `fuera_de_roster` sigue siendo parte agregada de
+      // los payloads, nunca una identidad que el store reconstruya.
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.conversionMensualPrefijo(),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+      })
+    }
+    if (invalidarNucleosConversion || invalidarConversionRango) {
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+      })
+    }
+    if (invalidarReuniones) {
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+      })
+    }
+    if (invalidarAgenda) {
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+      })
+    }
+    resincronizacionesRealesEnVueloRef.current += 1
     try {
       const {
         leads,
@@ -888,6 +938,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     } catch (error: unknown) {
       registrarError('crm.resincronizacion_fallida', error)
       return false
+    } finally {
+      resincronizacionesRealesEnVueloRef.current = Math.max(
+        0,
+        resincronizacionesRealesEnVueloRef.current - 1,
+      )
     }
   }, [cargarReal])
 
@@ -1026,6 +1081,36 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       control.abort()
     }
   }, [demoSolicitado, sesionReal, soloRoles, yo?.id, intentoReal, cargarReal])
+
+  useEffect(() => {
+    if (!realActivo) {
+      ultimaResincronizacionAutomaticaRef.current = null
+      return
+    }
+
+    // Foco + visibilitychange suelen llegar juntos y una reconexión puede
+    // dispararlos inmediatamente después. El enfriamiento evita una segunda
+    // vuelta apenas termina la primera; el contador de arriba cubre además los
+    // eventos que llegan mientras todavía hay una lectura en vuelo.
+    const resincronizarAlVolver = () => {
+      if (document.visibilityState !== 'visible') return
+      const ahora = Date.now()
+      const ultima = ultimaResincronizacionAutomaticaRef.current
+      if (ultima != null && ahora - ultima < 20_000) return
+      ultimaResincronizacionAutomaticaRef.current = ahora
+      if (resincronizacionesRealesEnVueloRef.current > 0) return
+      void resincronizarReal({ invalidarNucleosConversion: true })
+    }
+
+    window.addEventListener('focus', resincronizarAlVolver)
+    document.addEventListener('visibilitychange', resincronizarAlVolver)
+    window.addEventListener('online', resincronizarAlVolver)
+    return () => {
+      window.removeEventListener('focus', resincronizarAlVolver)
+      document.removeEventListener('visibilitychange', resincronizarAlVolver)
+      window.removeEventListener('online', resincronizarAlVolver)
+    }
+  }, [realActivo, resincronizarReal])
 
   // Persistencia demo (solo sessionStorage — jamás Supabase)
   useEffect(() => {
@@ -1176,9 +1261,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       {
         notificarError = true,
         revertirOptimista,
+        invalidarNucleosConversion = false,
+        invalidarConversionRango = false,
+        invalidarReuniones = false,
+        invalidarAgenda = false,
       }: {
         notificarError?: boolean
         revertirOptimista?: () => void
+        invalidarNucleosConversion?: boolean
+        invalidarConversionRango?: boolean
+        invalidarReuniones?: boolean
+        invalidarAgenda?: boolean
       } = {},
     ): Promise<ResultadoPersistencia> => {
       if (!realActivo) return Promise.resolve({ ok: true })
@@ -1193,7 +1286,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       }
       return escritura.then(
         () => {
-          void resincronizarReal()
+          void resincronizarReal({
+            invalidarNucleosConversion,
+            invalidarConversionRango,
+            invalidarReuniones,
+            invalidarAgenda,
+          })
           return { ok: true }
         },
         (causa: unknown) => {
@@ -1209,7 +1307,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // El toast NO puede prometer "se restauró" a ciegas: si el resync de
           // rollback también falla (sin conexión), el espejo optimista sigue
           // pintado. Solo se afirma la restauración cuando de verdad se aplicó.
-          void resincronizarReal().then((restaurado) => {
+          void resincronizarReal({
+            invalidarNucleosConversion,
+            invalidarConversionRango,
+            invalidarReuniones,
+            invalidarAgenda,
+          }).then((restaurado) => {
             if (!notificarError) return
             toast.error(
               restaurado
@@ -1222,8 +1325,16 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       )
     }
 
-    const persistir = (op: () => Promise<void>): Promise<boolean> =>
-      persistirConDetalle(op).then((resultado) => resultado.ok)
+    const persistir = (
+      op: () => Promise<void>,
+      impacto: {
+        invalidarNucleosConversion?: boolean
+        invalidarConversionRango?: boolean
+        invalidarReuniones?: boolean
+        invalidarAgenda?: boolean
+      } = {},
+    ): Promise<boolean> =>
+      persistirConDetalle(op, impacto).then((resultado) => resultado.ok)
 
     return {
       leads: datos.leads,
@@ -1360,6 +1471,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             enlace_reunion: tarea.enlace_reunion ?? null,
             creado_por: miId,
           }),
+          {
+            invalidarConversionRango: Boolean(lead && (avance || tarea.tipo === 'reunion')),
+            invalidarReuniones: tarea.tipo === 'reunion',
+            invalidarAgenda: true,
+          },
         )
         // El avance viaja al llamador para que lo ANUNCIE (los otros dos
         // escritores ya lo hacían): mover la etapa sin decirlo asusta más que
@@ -1554,23 +1670,32 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               enlace_reunion: sig.enlace_reunion ?? null,
             }
           : null
-        const persistido = persistir(async () => {
-          await ejecutarCierreTarea({
-            tarea: t,
-            estado: input.estado,
-            resultadoTipo: resultado,
-            resultadoDetalle: detalle,
-            resultadoReunion: input.resultado_reunion ?? null,
-            motivoNoRealizada: input.estado === 'no_show' ? 'cliente_no_asistio' : (input.motivo_no_realizada ?? null),
-            detalleReunion: detalle,
-            siguiente: siguientePayload,
-          })
-          if (t.perfil_id) {
-            await queryClient.invalidateQueries({
-              queryKey: crmQueryKeys.actividadesCliente(t.perfil_id),
+        const persistido = persistir(
+          async () => {
+            await ejecutarCierreTarea({
+              tarea: t,
+              estado: input.estado,
+              resultadoTipo: resultado,
+              resultadoDetalle: detalle,
+              resultadoReunion: input.resultado_reunion ?? null,
+              motivoNoRealizada: input.estado === 'no_show' ? 'cliente_no_asistio' : (input.motivo_no_realizada ?? null),
+              detalleReunion: detalle,
+              siguiente: siguientePayload,
             })
-          }
-        })
+            if (t.perfil_id) {
+              await queryClient.invalidateQueries({
+                queryKey: crmQueryKeys.actividadesCliente(t.perfil_id),
+              })
+            }
+          },
+          {
+            invalidarConversionRango: Boolean(
+              t.lead_id && (t.tipo === 'reunion' || resultado || avanceFinal || sigLocal?.tipo === 'reunion'),
+            ),
+            invalidarReuniones: t.tipo === 'reunion' || sigLocal?.tipo === 'reunion',
+            invalidarAgenda: true,
+          },
+        )
         return {
           ok: true,
           persistido,
@@ -1620,7 +1745,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                 : x,
             ),
           ])
-          persistir(() => reprogramarReunion(id, iso, nuevaId).then(() => undefined))
+          persistir(
+            () => reprogramarReunion(id, iso, nuevaId).then(() => undefined),
+            { invalidarReuniones: true, invalidarAgenda: true },
+          )
           return { ok: true }
         }
         // Optimista espejo del trigger: mover fecha incrementa el contador y
@@ -1637,7 +1765,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               : x,
           ),
         )
-        persistir(() => actualizarTarea(id, { vence_en: iso, confirmada_en: null }))
+        persistir(
+          () => actualizarTarea(id, { vence_en: iso, confirmada_en: null }),
+          { invalidarAgenda: true },
+        )
         return { ok: true }
       },
 
@@ -1648,7 +1779,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (!t) return noEncontrado()
         const iso = new Date().toISOString()
         setTareas((prev) => prev.map((x) => (x.id === id ? { ...x, confirmada_en: iso } : x)))
-        persistir(() => actualizarTarea(id, { confirmada_en: iso }))
+        persistir(
+          () => actualizarTarea(id, { confirmada_en: iso }),
+          { invalidarReuniones: t.tipo === 'reunion', invalidarAgenda: true },
+        )
         return { ok: true }
       },
 
@@ -1760,6 +1894,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             detalleReunion: cierreReunion?.detalle ?? null,
             siguiente: null,
           }),
+          {
+            invalidarConversionRango: Boolean(t.lead_id && (t.tipo === 'reunion' || retroceso)),
+            invalidarReuniones: t.tipo === 'reunion',
+            invalidarAgenda: true,
+          },
         )
         return retroceso ? { ok: true, retroceso, persistido } : { ok: true, persistido }
       },
@@ -1928,6 +2067,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           },
           {
             notificarError: false,
+            invalidarNucleosConversion: true,
             revertirOptimista: () => {
               setDatos((d) => ({
                 ...d,
@@ -1990,7 +2130,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (choque) return choque
         }
         aplicar(id, parche)
-        persistir(() => actualizarLead(id, parche))
+        persistir(
+          () => actualizarLead(id, parche),
+          {
+            invalidarNucleosConversion:
+              parche.origen !== undefined && parche.origen !== actual.origen,
+            invalidarReuniones:
+              parche.origen !== undefined && parche.origen !== actual.origen,
+          },
+        )
         return { ok: true }
       },
 
@@ -2049,7 +2197,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             : actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[etapa].label}`),
         )
         // El trigger del servidor genera la actividad real; el resync la trae.
-        persistir(() => actualizarLead(id, parche))
+        persistir(() => actualizarLead(id, parche), { invalidarConversionRango: true })
         return { ok: true }
       },
 
@@ -2090,25 +2238,28 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // revierte ni se miente con "se restauró" — se avisa puntualmente que la
         // nota no se guardó (el descarte es correcto). La atomicidad real (un
         // RPC crm.descartar_lead) llega con el bloque 6, que ya toca la BD.
-        persistir(async () => {
-          await actualizarLead(id, {
-            etapa: 'descartado',
-            motivo_descarte: motivo,
-          })
-          if (notaLimpia) {
-            try {
-              await insertarActividad({
-                lead_id: id,
-                tipo: 'nota',
-                detalle: `Descarte · ${labelMotivo} — ${notaLimpia}`,
-                creado_por: miId,
-              })
-            } catch (causa) {
-              registrarError('crm.descarte_nota_fallida', causa)
-              toast.warning('Lead descartado, pero no se pudo guardar la nota del descarte')
+        persistir(
+          async () => {
+            await actualizarLead(id, {
+              etapa: 'descartado',
+              motivo_descarte: motivo,
+            })
+            if (notaLimpia) {
+              try {
+                await insertarActividad({
+                  lead_id: id,
+                  tipo: 'nota',
+                  detalle: `Descarte · ${labelMotivo} — ${notaLimpia}`,
+                  creado_por: miId,
+                })
+              } catch (causa) {
+                registrarError('crm.descarte_nota_fallida', causa)
+                toast.warning('Lead descartado, pero no se pudo guardar la nota del descarte')
+              }
             }
-          }
-        })
+          },
+          { invalidarConversionRango: true },
+        )
         return { ok: true }
       },
 
@@ -2339,7 +2490,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           { etapa: 'nuevo', motivo_descarte: null },
           actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO.descartado.label} → ${ETAPA_INFO.nuevo.label}`),
         )
-        persistir(() => actualizarLead(id, { etapa: 'nuevo', motivo_descarte: null }))
+        persistir(
+          () => actualizarLead(id, { etapa: 'nuevo', motivo_descarte: null }),
+          { invalidarConversionRango: true },
+        )
         return { ok: true }
       },
 
@@ -2391,6 +2545,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             detalle: act.detalle,
             creado_por: miId,
           }),
+          { invalidarConversionRango: true },
         )
         return avance ? { ok: true, avance } : { ok: true }
       },
@@ -2460,11 +2615,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           actividadAuto(id, 'reasignacion', `${tenenciaAnterior} → ${tenenciaNueva}`),
         )
         // La actividad real la emite el trigger trg_leads_reasignacion.
-        persistir(() =>
-          actualizarLead(id, {
+        persistir(
+          () => actualizarLead(id, {
             vendedor_id: vendedorDestino,
             asignado_supervisor_id: supervisorDestino,
           }),
+          { invalidarNucleosConversion: true, invalidarReuniones: true },
         )
         return { ok: true }
       },

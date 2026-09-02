@@ -4,6 +4,7 @@
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
 import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ArrowRightLeft,
@@ -81,7 +82,7 @@ import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
 import { INFO_COOPERATIVA, type Cooperativa } from '@/lib/cierres-externos'
 import { estadoDelCierre, puedeAnularCierreAvance } from '@/lib/cierre-estado'
-import { useCierresEstado, useConvertirLeadExterno } from '@/data/crm-queries'
+import { crmQueryKeys, useCierresEstado, useConvertirLeadExterno } from '@/data/crm-queries'
 import { AnularCierreAvanceDialog } from '@/components/app/anular-cierre-avance'
 import { ChipAnulado } from '@/components/app/chip-anulado'
 import {
@@ -1544,6 +1545,7 @@ function sugerirIdentidadDelLead(nombreCompleto: string): IdentidadSugerida {
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { convertir, convertirExterno, recargar, equipo } = useCRMData()
   const { yo } = useAuth()
+  const queryClient = useQueryClient()
   // De quién es la venta (P-055 Fase 3). El selector arranca en el analista DEL
   // LEAD —que es quien lo trabajó— y no en quien está tecleando; si el lead no
   // tiene analista, arranca en quien registra. SOLO ACTIVOS (decisión de
@@ -1725,6 +1727,30 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         domicilio: domicilioValidado.valor,
         bancarios: { pen, usd },
       })
+      // La Edge ya confirmó el alta y el cierre AVANCE. `recargar()` actualiza
+      // el snapshot transitorio del store, pero no las fotografías de TanStack
+      // que alimentan cartera, rankings y cumplimiento: todas deben caducar
+      // antes de continuar al contrato para no conservar el 0 % anterior.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.clientes() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.conversionMensualPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+        }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
+      ])
       // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo.
       const recargaConfirmada = await recargar()
       if (!recargaConfirmada) {
@@ -1959,7 +1985,16 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           monedaSugerida={l.moneda}
           analistas={analistasParaContrato}
           analistaInicial={l.vendedor_id ?? yo?.id ?? null}
-          onCreado={onClose}
+          onCreado={async () => {
+            // La conversión ya refrescó el núcleo SIN contrato. Al confirmar
+            // ahora la inversión, esa foto recién cargada vuelve a quedar
+            // obsoleta: cartera y métricas deben caducar juntas.
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() }),
+              queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() }),
+            ])
+            onClose()
+          }}
           onOmitir={onClose}
         />
       </Dialog>

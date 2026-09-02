@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, render as renderBase, screen, waitFor } from '@testing-library/react'
+import type { ReactElement, ReactNode } from 'react'
 import userEvent from '@testing-library/user-event'
 import { Dialog } from '@/components/ui/dialog'
 import type { ContratoRow } from '@/lib/clientes-tipos'
@@ -119,6 +121,18 @@ const archivo = {
 }
 
 const { ContratoDetalle } = await import('./contrato-detalle')
+
+function render(elemento: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+
+  return renderBase(elemento, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  })
+}
 
 function diferida<T>() {
   let resolver!: (valor: T) => void

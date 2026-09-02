@@ -70,6 +70,16 @@ describe('frontera HTTP de los reconocimientos (F4.2)', () => {
     expect(filas).toEqual([ASIENTO_SERVIDOR])
   })
 
+  it('una cancelación de navegación sigue siendo AbortError y no genera una falsa alerta operativa', async () => {
+    const control = new AbortController()
+    control.abort()
+
+    await expect(listarReconocimientosAlertas(control.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(observabilidad.registrarError).not.toHaveBeenCalled()
+  })
+
   it('el INSERT va a la TABLA con exactamente las claves del contrato', async () => {
     const cuerpos: Array<Record<string, unknown>> = []
     server.use(

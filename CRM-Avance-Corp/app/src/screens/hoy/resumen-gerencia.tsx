@@ -53,7 +53,10 @@ interface ResumenGerenciaPanelProps {
    */
   conversionMensual: ConversionMensual | null | undefined
   reuniones: MetricasReuniones | null | undefined
+  /** Población vigente de la RPC por rango. */
   equipo: ConversionEquipoVendedor[]
+  /** Foto mensual; puede diferir del roster vigente en un histórico. */
+  equipoMensual?: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
   cumplimiento: CumplimientoAgregado | null
   metaMensual: MetaMensualGerencia
@@ -63,6 +66,8 @@ interface ResumenGerenciaPanelProps {
    * dice para que las dos aguas no se confundan. */
   origenFiltrado: string | null
   cargando: boolean
+  /** Carga inicial de conversión + meta/capital mensual; no bloquea el rango. */
+  mensualCargando?: boolean
   error: string | null
   modoDemo: boolean
   onReintentar: () => void
@@ -129,12 +134,14 @@ export function ResumenGerenciaPanel({
   conversionMensual,
   reuniones,
   equipo,
+  equipoMensual,
   meta,
   cumplimiento,
   metaMensual,
   tc,
   origenFiltrado,
   cargando,
+  mensualCargando = false,
   error,
   modoDemo,
   onReintentar,
@@ -167,13 +174,16 @@ export function ResumenGerenciaPanel({
   const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
   const hayDolares = (cumplimientoCapitalUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tc === undefined && hayDolares
+  const tcCaido = tc === null && hayDolares
   // El capital del héroe y del KPI es el CONFIRMADO del mes (cumplimiento de
   // cierres) — la misma fuente y el mismo nombre que Metas y «Avance de metas».
   // Antes leía `produccion.capital_*`, que suma contratos enlazados a un lead
   // vía `crm.leads.contrato_id`: ese enlace jamás se ha escrito (auditoría en
   // producción 27/08: 0 enlaces históricos), así que afirmaba «S/ 0» con
   // S/ 3,7 M cerrados. Decisión de Miguel 27/08: fuente de cierres (opción A).
-  const capitalMesTexto = tcEnVuelo || capitalTotal.total == null ? '—' : money(capitalTotal.total, 'PEN')
+  const capitalMesTexto = tcEnVuelo
+    ? 'Calculando…'
+    : capitalTotal.total == null ? '—' : money(capitalTotal.total, 'PEN')
   const capitalMesDetalle = cumplimiento == null
     ? 'Cumplimiento confirmado no disponible'
     : tcEnVuelo
@@ -270,8 +280,8 @@ export function ResumenGerenciaPanel({
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
-    [conversionMensual, equipo],
+    () => adaptarConversionMensual(conversionMensual ?? null, equipoMensual ?? equipo),
+    [conversionMensual, equipo, equipoMensual],
   )
   const rankingMes = useMemo(
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
@@ -341,6 +351,7 @@ export function ResumenGerenciaPanel({
     || (conversionMensual?.total.divisor ?? 0) > 0
     || (conversionMensual?.total.numerador ?? 0) > 0
     || metaMensual.errorCarga === true
+    || mensualCargando
 
   if (cargando && !conversiones && !reuniones) {
     return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
@@ -353,17 +364,29 @@ export function ResumenGerenciaPanel({
   return (
     <div className="space-y-4">
       {error && <ErrorResumen error={error} onReintentar={onReintentar} />}
+      {tcCaido && (
+        <div className="gi-card flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
+          <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+            <AlertTriangle className="size-4" aria-hidden /> Sin tipo de cambio, el total no incluye los dólares.
+          </span>
+          <Button type="button" variant="outline" size="sm" onClick={onReintentar}>
+            <RefreshCw aria-hidden /> Reintentar tipo de cambio
+          </Button>
+        </div>
+      )}
       {origenFiltrado != null && (
         <p role="status" className="rounded-xl border border-[var(--gi-line)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--gi-navy)]">
-          Filtrando por origen: {etiquetaOrigen(origenFiltrado)} — aplica a las lecturas del período; la conversión del mes y las metas son de toda la empresa.
+          Filtrando por origen: {etiquetaOrigen(origenFiltrado)} — aplica a la Cosecha y al embudo del período; las citas, la conversión del mes y las metas son de toda la empresa.
         </p>
       )}
       <section data-gi-hero className="gi-summary-hero">
         <div>
           <p className="gi-label text-white/65">Conversión del mes</p>
-          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{pct(conversionMes)}</p>
+          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{mensualCargando ? 'Calculando…' : pct(conversionMes)}</p>
           <p className="mt-2 text-xs text-white/65">
-            {conversionMensual != null && !lecturaConversion.mostrar
+            {mensualCargando
+              ? 'Consultando conversión, capital y meta del mes…'
+              : conversionMensual != null && !lecturaConversion.mostrar
               ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
               // UN SOLO contador de leads a la vista (Miguel, 27/08 noche:
               // «están mal las cantidades, debería jalar del mismo contador»):
@@ -381,12 +404,14 @@ export function ResumenGerenciaPanel({
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
           {/* Pastilla ESTRECHA: monto compacto (el exacto vive en el KPI de
               abajo). La captura de Miguel mostro «S/ 4,700,021.9» truncado. */}
-          <div className="gi-hero-metric"><span>Capital del mes</span><strong>{tcEnVuelo || capitalTotal.total == null ? '—' : moneyCompacta(capitalTotal.total, 'PEN')}</strong></div>
+          <div className="gi-hero-metric"><span>Capital del mes</span><strong>{mensualCargando || tcEnVuelo ? 'Consultando…' : capitalTotal.total == null ? '—' : moneyCompacta(capitalTotal.total, 'PEN')}</strong></div>
           <div className="gi-hero-metric"><span>Citas</span><strong>{numeroDisponible(reunionesRealizadas)}</strong></div>
           <div className="gi-hero-metric">
             <span>Meta · {metaMensual.etiqueta}</span>
             <strong>
-              {metaMensual.errorCarga
+              {mensualCargando
+                ? 'Consultando…'
+                : metaMensual.errorCarga
                 ? 'No disponible'
                 : metasComparables && metaConversion != null
                   ? `${numero(metaConversion, 1)}%`
@@ -400,11 +425,11 @@ export function ResumenGerenciaPanel({
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Conversión del mes" valor={pct(conversionMes)} detalle={cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
+        <Kpi label="Conversión del mes" valor={mensualCargando ? 'Calculando…' : pct(conversionMes)} detalle={mensualCargando ? 'Consultando el mes…' : cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
         {/* «del período», sin más: Miguel vetó «dados de alta» (27/08). La
             distinción con el divisor la explica el héroe, no este detalle. */}
         <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del período`} Icon={UserRoundCheck} color={C.green} />
-        <Kpi label="Capital confirmado del mes" valor={capitalMesTexto} detalle={capitalMesDetalle} Icon={WalletCards} color={C.teal} />
+        <Kpi label="Capital confirmado del mes" valor={mensualCargando ? 'Calculando…' : capitalMesTexto} detalle={mensualCargando ? 'Consultando capital y meta…' : capitalMesDetalle} Icon={WalletCards} color={C.teal} />
         <Kpi label="Citas realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando citas…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>
 
@@ -433,7 +458,9 @@ export function ResumenGerenciaPanel({
             </a>
           </div>
           <div className="mt-5 space-y-4">
-            {mejores.length > 0
+            {mensualCargando
+              ? <Skeleton className="h-28 rounded-2xl" aria-label="Consultando ranking mensual" />
+              : mejores.length > 0
               ? mejores.map((fila, indice) => (
                   <div key={fila.vendedorId}>
                     <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.nombre}</span><strong className="tabular-nums">{pct(fila.detalle.conversion_pct)}</strong></div>
@@ -471,7 +498,9 @@ export function ResumenGerenciaPanel({
         <section data-gi-panel className="gi-card p-5">
           <h2 className="gi-title">Avance de metas</h2>
           <p className="gi-caption mt-1">Meta mensual · {metaMensual.etiqueta}</p>
-          {metasComparables ? (
+          {mensualCargando ? (
+            <Skeleton className="mt-5 h-24 rounded-2xl" aria-label="Consultando avance de metas" />
+          ) : metasComparables ? (
             <div className="mt-5 space-y-5">
               <div>
                 <div className="mb-2 flex justify-between text-xs">

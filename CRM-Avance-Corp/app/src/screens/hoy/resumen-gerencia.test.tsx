@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
@@ -107,7 +107,7 @@ function conOrigenesVerificados(datos: MetricasConversiones): MetricasConversion
     sondas: {
       cuadra: true,
       paridad_nucleo: 0,
-      paridad_filas: 0,
+      paridad_filas: 1,
       divisor_fuera_del_roster: 0,
       numerador_fuera_del_roster: 0,
       cierres_sin_ficha_convertida: 0,
@@ -293,6 +293,37 @@ describe('ranking general de analistas', () => {
 })
 
 describe('estados vacíos del resumen de Gerencia', () => {
+  it('no convierte una foto mensual pendiente en cero ni en ausencia de meta', () => {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-09-01', '2026-09-02')}
+        conversionMensual={undefined}
+        reuniones={metricasReunionesDemo('2026-09-01', '2026-09-02')}
+        equipo={conversionEquipoDemo()}
+        meta={objetivosCero('2026-09-01').gerencia}
+        cumplimiento={null}
+        tc={TC_TEST}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        cargando
+        mensualCargando
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Consultando conversión, capital y meta del mes…')).toBeInTheDocument()
+    expect(screen.getAllByText('Consultando…')).toHaveLength(2)
+    expect(screen.getByText('Consultando el mes…').closest('[data-gi-kpi]')).toHaveTextContent('Calculando…')
+    expect(screen.getByText('Consultando capital y meta…').closest('[data-gi-kpi]')).toHaveTextContent('Calculando…')
+    expect(screen.getByLabelText('Consultando ranking mensual')).toBeInTheDocument()
+    expect(screen.getByLabelText('Consultando avance de metas')).toBeInTheDocument()
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin meta')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cumplimiento confirmado no disponible')).not.toBeInTheDocument()
+  })
+
   it('mantiene reuniones y metas visibles aunque la cohorte no tenga leads', () => {
     render(
       <ResumenGerenciaPanel
@@ -383,10 +414,36 @@ describe('estados vacíos del resumen de Gerencia', () => {
     )
 
     const tarjeta = screen.getByText('Capital confirmado del mes').closest('[data-gi-kpi]')
-    expect(tarjeta).toHaveTextContent('—')
+    expect(tarjeta).toHaveTextContent('Calculando…')
     expect(tarjeta).toHaveTextContent('Consultando el tipo de cambio para consolidar los dólares…')
+    expect(screen.getByText('Capital del mes').closest('.gi-hero-metric')).toHaveTextContent('Consultando…')
     // Un total solo-PEN aquí sería afirmar un número que va a cambiar al llegar el TC.
     expect(within(tarjeta as HTMLElement).queryByText(money(1_480_000, 'PEN'))).not.toBeInTheDocument()
+  })
+
+  it('si falla el tipo de cambio explica la degradación y conserva una salida de recuperación', () => {
+    const onReintentar = vi.fn()
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={null}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={onReintentar}
+      />,
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Sin tipo de cambio, el total no incluye los dólares.')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar tipo de cambio' }))
+    expect(onReintentar).toHaveBeenCalledTimes(1)
   })
 
   it('conserva los datos disponibles cuando falla una de las métricas', () => {
@@ -452,6 +509,32 @@ describe('estados vacíos del resumen de Gerencia', () => {
 })
 
 describe('meta publicada de conversión en el resumen de Gerencia', () => {
+  it('aclara que el origen no filtra las citas de toda la empresa', () => {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
+        origenFiltrado="referido"
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText(
+        /aplica a la Cosecha y al embudo del período; las citas, la conversión del mes y las metas son de toda la empresa/,
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('no inventa un 15 % cuando todavía no existe una meta publicada', () => {
     render(
       <ResumenGerenciaPanel

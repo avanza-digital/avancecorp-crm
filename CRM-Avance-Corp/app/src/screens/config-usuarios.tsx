@@ -37,6 +37,7 @@ import {
 } from '@/data/crm-config-queries'
 import { mensajeDeError } from '@/data/crm-api'
 import { useAuth } from '@/lib/auth-context'
+import { useCRMData } from '@/lib/store-context'
 import {
   TIPOS_DOCUMENTO,
   TIPOS_DOCUMENTO_K,
@@ -221,6 +222,7 @@ function motivoBloqueoActivacion(usuario: UsuarioAdministrable): string | null {
 
 export function ConfigUsuarios() {
   const { yo } = useAuth()
+  const { recargar } = useCRMData()
   // La demo es una fotografía explorable: ninguna capacidad de Gerencia se
   // convierte en una escritura ficticia ni llega por accidente al backend.
   const sesionReal = Boolean(yo && !yo.demo)
@@ -366,6 +368,7 @@ export function ConfigUsuarios() {
         })
         toast.success('Datos del usuario actualizados.')
       }
+      await recargar()
       setModal(null)
     } catch (fallo) {
       toast.error(mensajeDeError(fallo, esAlta ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.'))
@@ -400,6 +403,7 @@ export function ConfigUsuarios() {
       } else {
         toast.warning('No se cambió el acceso: la identidad pertenece a otro flujo. Recarga el directorio.')
       }
+      await recargar()
       setModal(null)
     } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudo completar el alta del analista.'))
@@ -414,6 +418,7 @@ export function ConfigUsuarios() {
         rol,
         versionEquipo: modal.usuario.version_equipo,
       })
+      await recargar()
       toast.success(modal.usuario.rol_crm ? 'Rol CRM actualizado.' : 'Rol CRM asignado; Gerencia debe completar jerarquía y activación.')
       setModal(null)
     } catch (error) {
@@ -433,6 +438,7 @@ export function ConfigUsuarios() {
         supervisorId: supervisorId || null,
         versionEquipo: modal.usuario.version_equipo,
       })
+      await recargar()
       toast.success('Jerarquía actualizada.')
       setModal(null)
     } catch (error) {
@@ -459,6 +465,7 @@ export function ConfigUsuarios() {
         reemplazoId: activar ? null : reemplazoId || null,
         versionEquipo: modal.usuario.version_equipo,
       })
+      await recargar()
       toast.success(activar ? 'Membresía CRM activada.' : 'Membresía desactivada y responsabilidades transferidas.')
       setModal(null)
     } catch (error) {

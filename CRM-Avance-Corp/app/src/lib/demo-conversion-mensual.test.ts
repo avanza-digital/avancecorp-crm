@@ -33,6 +33,10 @@ describe('conversionMensualDemo — la demo cuenta igual que producción', () =>
     }
     const r = v.safeParse(ConversionMensualSchema, conUuids)
     expect(r.success).toBe(true)
+    expect(payload.periodo).toMatchObject({
+      desde: '2026-08-01T05:00:00.000Z',
+      hasta: '2026-09-01T05:00:00.000Z',
+    })
   })
 
   it('ANALISTA UNO: divisor 8 (los 2 referidos FUERA), numerador 2.15, 26.88 %', () => {

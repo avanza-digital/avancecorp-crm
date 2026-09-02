@@ -7,8 +7,9 @@
 // (Radix) exige el contexto del diálogo, igual que en la pantalla.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
-import { CrmApiError } from '@/data/crm-api'
+import { CrmApiError, type AtribucionContrato } from '@/data/crm-api'
 import type { ContratoRow, Cuota, Titular } from '@/lib/clientes-tipos'
 
 type Consulta<T> = {
@@ -22,6 +23,9 @@ type Consulta<T> = {
 
 let TITULARES: Consulta<Titular[] | null> = consulta([])
 let CRONOGRAMA: Consulta<Cuota[] | null> = consulta([])
+let ATRIBUCION: AtribucionContrato | null = null
+let REFETCH_ATRIBUCION = vi.fn()
+const MUTACIONES = vi.hoisted(() => ({ reasignar: vi.fn() }))
 
 function consulta<T>(data: T, error: unknown = null): Consulta<T> {
   return {
@@ -33,6 +37,11 @@ function consulta<T>(data: T, error: unknown = null): Consulta<T> {
     isFetching: false,
   }
 }
+
+vi.mock('@/data/crm-api', async (importActual) => ({
+  ...(await importActual<typeof import('@/data/crm-api')>()),
+  reasignarAnalistaContrato: MUTACIONES.reasignar,
+}))
 
 const CONTRATO: ContratoRow = {
   id: 'k-1',
@@ -70,7 +79,10 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useTitulares: () => TITULARES,
     // P-055 Fase 3: el detalle pregunta de quién es la venta. Sin atribución el
     // bloque no se pinta, que es justo lo que estas pruebas esperan ver.
-    useAtribucionContrato: () => consulta(null),
+    useAtribucionContrato: () => ({
+      ...consulta(ATRIBUCION),
+      refetch: REFETCH_ATRIBUCION,
+    }),
   }
 })
 
@@ -79,19 +91,27 @@ const { ContratoDetalle } = await import('./contrato-detalle')
 beforeEach(() => {
   TITULARES = consulta([])
   CRONOGRAMA = consulta([])
+  ATRIBUCION = null
+  REFETCH_ATRIBUCION = vi.fn()
+  MUTACIONES.reasignar.mockReset().mockResolvedValue(undefined)
 })
 
 function montar(
   opciones: {
     puedeEliminar?: boolean
     onEliminar?: () => Promise<void> | void
+    analistas?: { perfil_id: string; nombre_completo: string }[]
+    puedeReasignar?: boolean
   } = {},
 ) {
-  return render(
-    <Dialog open onClose={vi.fn()} ariaLabel="Detalle del contrato">
-      <ContratoDetalle contratoId="k-1" onCerrar={vi.fn()} {...opciones} />
-    </Dialog>,
-  )
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return Object.assign(render(
+    <QueryClientProvider client={queryClient}>
+      <Dialog open onClose={vi.fn()} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId="k-1" onCerrar={vi.fn()} {...opciones} />
+      </Dialog>
+    </QueryClientProvider>,
+  ), { queryClient })
 }
 
 describe('ContratoDetalle · co-titulares', () => {
@@ -114,6 +134,42 @@ describe('ContratoDetalle · co-titulares', () => {
 
     await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
     expect(onEliminar).toHaveBeenCalledOnce()
+  })
+
+  it('al reasignar refresca la atribución e invalida el núcleo compartido de métricas', async () => {
+    ATRIBUCION = {
+      contrato_id: 'k-1',
+      analista_id: 'v-1',
+      analista_nombre: 'ANA UNO',
+      es_demo: false,
+      registrado_por: 'ANA UNO',
+      reasignaciones: [],
+    }
+    const { default: userEvent } = await import('@testing-library/user-event')
+    const user = userEvent.setup()
+    const { queryClient } = montar({
+      puedeReasignar: true,
+      analistas: [
+        { perfil_id: 'v-1', nombre_completo: 'ANA UNO' },
+        { perfil_id: 'v-2', nombre_completo: 'BRUNO DOS' },
+      ],
+    })
+    const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await user.click(screen.getByRole('button', { name: 'Reasignar' }))
+    await user.selectOptions(screen.getByLabelText('Pasa a'), 'v-2')
+    await user.type(screen.getByLabelText('Motivo'), 'Corrección de atribución')
+    await user.click(screen.getByRole('button', { name: 'Reasignar' }))
+
+    await vi.waitFor(() => {
+      expect(MUTACIONES.reasignar).toHaveBeenCalledWith(
+        'k-1',
+        'v-2',
+        'Corrección de atribución',
+      )
+      expect(REFETCH_ATRIBUCION).toHaveBeenCalledOnce()
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ['crm', 'metricas'] })
+    })
   })
 
   it('muestra el producto y la versión contractual de origen', () => {

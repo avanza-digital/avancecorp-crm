@@ -39,9 +39,10 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 const TIPO_CAMBIO: { tc: { promedio: number, fuente: string } | null | undefined } = {
   tc: { promedio: 3.5, fuente: 'BCRP · prom. 7d' },
 }
+const RECARGAR_TIPO_CAMBIO = vi.fn()
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
-  useTipoCambio: () => ({ tc: TIPO_CAMBIO.tc, recargar: () => {} }),
+  useTipoCambio: () => ({ tc: TIPO_CAMBIO.tc, recargar: RECARGAR_TIPO_CAMBIO }),
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
@@ -63,6 +64,8 @@ vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
 // La conversión mensual del equipo, controlable por test (sin QueryClient).
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
+let CONVERSION_MENSUAL_PENDING = false
+const REFETCH_CONVERSION_MENSUAL = vi.fn()
 let METRICAS_AGENDA: import('@/lib/metricas-agenda').MetricasAgenda | undefined
 vi.mock('@/data/crm-queries', () => ({
   useMetricasAgenda: () => ({
@@ -75,6 +78,9 @@ vi.mock('@/data/crm-queries', () => ({
   useConversionMensual: () => ({
     data: CONVERSION_MENSUAL ?? undefined,
     isError: CONVERSION_MENSUAL_ERROR,
+    isPending: CONVERSION_MENSUAL_PENDING,
+    isFetching: CONVERSION_MENSUAL_PENDING,
+    refetch: REFETCH_CONVERSION_MENSUAL,
   }),
   // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
   useCierresExternos: () => ({
@@ -181,6 +187,7 @@ function montar(
     leads?: Lead[]
     vendedores?: Miembro[]
     objetivos?: Partial<ObjetivosPorRol['supervisor']>
+    periodoObjetivos?: string
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
@@ -204,8 +211,14 @@ function montar(
   VENDEDORES = over.vendedores ?? []
   OBJETIVOS_ERROR = over.objetivosError ?? false
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
-  OBJETIVOS = { ...METAS_DEMO, supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos } }
-  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
+  OBJETIVOS = {
+    ...METAS_DEMO,
+    periodo: over.periodoObjetivos ?? '2026-07-01',
+    supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos },
+  }
+  CUMPLIMIENTO = over.cumplimiento == null
+    ? (over.cumplimiento ?? null)
+    : { ...over.cumplimiento, periodo: OBJETIVOS.periodo }
   COLA_EN_VUELO = over.colaEnVuelo ?? false
   COLA_CAIDA = false
   const pantalla = over.splashVisible == null
@@ -284,9 +297,11 @@ beforeEach(() => {
   METRICAS_AGENDA = undefined
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
+  CONVERSION_MENSUAL_PENDING = false
   TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
   vi.useFakeTimers()
   vi.clearAllMocks()
+  recargar.mockResolvedValue(true)
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   OBJETIVOS_ERROR = false
@@ -295,6 +310,29 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+it('recarga una sola vez si la foto del store quedó en el mes anterior', () => {
+  montar({ periodoObjetivos: '2026-06-01', estricto: true })
+
+  expect(recargar).toHaveBeenCalledTimes(1)
+})
+
+it('nunca rotula la foto anterior como vigente y deja reintentar si el rollover falla', async () => {
+  recargar.mockResolvedValue(false)
+  CONVERSION_MENSUAL = conversionMensualEquipo(50, 2)
+  montar({
+    periodoObjetivos: '2026-06-01',
+    objetivos: { conversionObjetivo: 99 },
+  })
+
+  await act(async () => {})
+
+  expect(screen.queryByText(/de 99%/)).not.toBeInTheDocument()
+  expect(screen.getAllByText('Meta mensual no disponible')).toHaveLength(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+  await act(async () => {})
+  expect(recargar).toHaveBeenCalledTimes(2)
 })
 
 // 2026-08-23 «una cosa se avisa en un solo lugar»: la tarjeta «Leads sin
@@ -633,6 +671,25 @@ describe('Hoy · supervisor — reparto compacto', () => {
 })
 
 describe('Hoy · supervisor — meta del equipo', () => {
+  it('distingue la consulta mensual de un mes realmente sin datos', () => {
+    CONVERSION_MENSUAL_PENDING = true
+    montar({ cumplimiento: cumplimientoSupervisor(40, 10) })
+
+    expect(screen.getByText('Calculando…')).toBeInTheDocument()
+    expect(screen.getByText('Consultando la conversión del mes…')).toBeInTheDocument()
+    expect(screen.queryByText('Sin datos de asignación para este mes')).not.toBeInTheDocument()
+  })
+
+  it('permite reintentar la conversión mensual sin recargar el store sano', () => {
+    CONVERSION_MENSUAL_ERROR = true
+    montar({ cumplimiento: cumplimientoSupervisor(40, 10) })
+
+    expect(screen.getByText('Conversión del mes no disponible')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
+    expect(recargar).not.toHaveBeenCalled()
+  })
+
   it('la conversión del equipo proviene de la RPC MENSUAL, no del cumplimiento ni del pipeline', () => {
     // El cumplimiento dice 80 % (fórmula vieja); la RPC mensual, 50 % con 10
     // recibidos. El tile pinta la mensual: número nuevo bajo rótulo nuevo (E1).
@@ -746,6 +803,28 @@ describe('Hoy · supervisor — meta del equipo', () => {
 
     expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/))
       .toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(RECARGAR_TIPO_CAMBIO).toHaveBeenCalledTimes(1)
+  })
+
+  it('mientras consulta el tipo de cambio no afirma que falló ni publica el subtotal', () => {
+    TIPO_CAMBIO.tc = undefined
+    montar({ cumplimiento: cumplimientoSupervisor(40, 10) })
+
+    expect(screen.getByText('Calculando…')).toBeInTheDocument()
+    expect(screen.getByText('Consultando el tipo de cambio para consolidar los dólares…')).toBeInTheDocument()
+    expect(screen.queryByText(/sin tipo de cambio: el total NO incluye los dólares/)).not.toBeInTheDocument()
+  })
+
+  it('refresca el promedio móvil del tipo de cambio al comenzar otro día en Lima', () => {
+    montar({ cumplimiento: cumplimientoSupervisor(40, 10) })
+
+    act(() => {
+      vi.setSystemTime(new Date('2026-07-16T15:00:00Z'))
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(RECARGAR_TIPO_CAMBIO).toHaveBeenCalledTimes(1)
   })
 
   // ESTADO DE PRODUCCIÓN (2026-08-10): ninguna revisión de metas publicada, así

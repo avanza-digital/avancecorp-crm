@@ -8,11 +8,18 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { CUMPLIMIENTO_METAS_DEMO } from '@/lib/demo'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
+import type { ConversionMensual } from '@/lib/conversion-mensual'
+import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import { objetivosCero, type CumplimientoMetasJerarquico } from '@/lib/objetivos'
 import type { Miembro, Yo } from '@/lib/tipos'
 
 let YO: Yo | null = null
 let MENSUAL_FALLA = false
+let CONVERSION_MENSUAL_DATA: ConversionMensual | undefined
+let COSECHA_DATA: MetricasConversionesEquipo | undefined
+let COSECHA_PENDING = false
+let COSECHA_FETCHING = false
 let CONVERSION_OPERATIVA: number | null | undefined
 let CONVERSION_EQUIPO_OPERATIVA: number | null | undefined
 let CONVERSION_DISPONIBLE = true
@@ -20,6 +27,7 @@ let CONVERSION_EQUIPO_DISPONIBLE = true
 let AVISO_CONVERSION: string | null = null
 let CUMPLIMIENTO_STORE: CumplimientoMetasJerarquico | null = null
 const CONSULTAS_RANKING = vi.hoisted(() => ({
+  cierre: vi.fn(),
   conversion: vi.fn(),
   cosecha: vi.fn(),
   cumplimiento: vi.fn(),
@@ -32,6 +40,8 @@ const ESTADO_CUMPLIMIENTO = vi.hoisted(() => ({
   isFetching: false,
   refetch: vi.fn(),
 }))
+const REFETCH_CONVERSION_MENSUAL = vi.hoisted(() => vi.fn())
+const REFETCH_COSECHA = vi.hoisted(() => vi.fn())
 
 const VENDEDOR: Miembro = {
   perfil_id: 'v-1',
@@ -88,26 +98,32 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/data/crm-queries', async (importActual) => ({
   ...(await importActual<typeof import('@/data/crm-queries')>()),
-  useConversionMensual: (...argumentos: [boolean, string]) => {
+  useCierreMesEstado: (habilitada: boolean) => {
+    CONSULTAS_RANKING.cierre(habilitada)
+    return { data: undefined, isError: false }
+  },
+  useConversionMensual: (...argumentos: [boolean, string, 'equipo', string | undefined]) => {
     CONSULTAS_RANKING.conversion(...argumentos)
     return {
-      data: undefined,
+      data: CONVERSION_MENSUAL_DATA,
       error: MENSUAL_FALLA ? new Error('500 simulado') : null,
       isError: MENSUAL_FALLA,
       isPending: false,
       isFetching: false,
-      refetch: vi.fn(),
+      refetch: REFETCH_CONVERSION_MENSUAL,
     }
   },
-  useMetricasConversionesEquipo: (...argumentos: [boolean, string, string]) => {
+  useMetricasConversionesEquipo: (
+    ...argumentos: [boolean, string, string, 'equipo', string | undefined]
+  ) => {
     CONSULTAS_RANKING.cosecha(...argumentos)
     return {
-      data: undefined,
+      data: COSECHA_DATA,
       error: null,
       isError: false,
-      isPending: false,
-      isFetching: false,
-      refetch: vi.fn(),
+      isPending: COSECHA_PENDING,
+      isFetching: COSECHA_FETCHING,
+      refetch: REFETCH_COSECHA,
     }
   },
   useCumplimientoMetas: (...argumentos: [boolean, string, string | null | undefined]) => {
@@ -235,9 +251,11 @@ vi.mock('./hoy/ranking-vendedores', () => ({
     metasVendedores,
     cumplimientoVendedores,
     fotoMensualCargando,
+    cosechaCargando,
     fotoMensualError,
     onReintentarFotoMensual,
     usarIdentidadSnapshot,
+    estadoFotoMensual,
   }: {
     conversionError: string | null
     capitalError: string | null
@@ -245,9 +263,11 @@ vi.mock('./hoy/ranking-vendedores', () => ({
     metasVendedores: Record<string, unknown>
     cumplimientoVendedores: Record<string, unknown>
     fotoMensualCargando?: boolean
+    cosechaCargando?: boolean
     fotoMensualError?: string | null
     onReintentarFotoMensual?: () => void
     usarIdentidadSnapshot?: boolean
+    estadoFotoMensual?: 'sellada' | 'abierta'
   }) => (
     <div>
       <h1>Ranking de mi equipo{fotoMensualError || conversionError || capitalError ? ` · ERROR: ${fotoMensualError ?? conversionError ?? capitalError}` : ''}</h1>
@@ -255,7 +275,9 @@ vi.mock('./hoy/ranking-vendedores', () => ({
       <output aria-label="Metas históricas de equipo">{Object.keys(metasVendedores).sort().join(',')}</output>
       <output aria-label="Cumplimiento histórico de equipo">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
       <output aria-label="Carga mensual de equipo">{String(fotoMensualCargando ?? false)}</output>
+      <output aria-label="Carga de cosecha de equipo">{String(cosechaCargando ?? false)}</output>
       <output aria-label="Identidad mensual de equipo">{String(usarIdentidadSnapshot ?? false)}</output>
+      <output aria-label="Estado de foto mensual de equipo">{estadoFotoMensual ?? 'vigente'}</output>
       {fotoMensualError && <button type="button" onClick={onReintentarFotoMensual}>Reintentar foto mensual</button>}
     </div>
   ),
@@ -287,10 +309,29 @@ function fotoMensual(periodo: string, vendedorId: string): CumplimientoMetasJera
   }
 }
 
+function cosechaMensual(
+  desde: string,
+  hasta: string,
+  over: Partial<MetricasConversionesEquipo> = {},
+): MetricasConversionesEquipo {
+  return {
+    version: 1,
+    generado_en: `${hasta}T15:00:00Z`,
+    alcance: 'equipo',
+    periodo: { desde, hasta },
+    responsables: [],
+    ...over,
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-02T15:00:00Z'))
   MENSUAL_FALLA = false
+  CONVERSION_MENSUAL_DATA = undefined
+  COSECHA_DATA = undefined
+  COSECHA_PENDING = false
+  COSECHA_FETCHING = false
   CONVERSION_OPERATIVA = undefined
   CONVERSION_EQUIPO_OPERATIVA = undefined
   CONVERSION_DISPONIBLE = true
@@ -309,6 +350,8 @@ beforeEach(() => {
   ESTADO_CUMPLIMIENTO.isPending = false
   ESTADO_CUMPLIMIENTO.isFetching = false
   ESTADO_CUMPLIMIENTO.refetch.mockReset()
+  REFETCH_CONVERSION_MENSUAL.mockReset()
+  REFETCH_COSECHA.mockReset()
   vi.clearAllMocks()
 })
 
@@ -317,11 +360,30 @@ afterEach(() => {
 })
 
 describe('Equipo — el ranking y la conversión mensual', () => {
+  it('mantiene activo el observador de cierre sin mostrar el banner de Gerencia', () => {
+    CONVERSION_EQUIPO_OPERATIVA = 12
+    montar()
+
+    expect(CONSULTAS_RANKING.cierre).toHaveBeenLastCalledWith(true)
+  })
+
   it('permite al supervisor elegir agosto y alinea los tres núcleos mensuales', () => {
     ESTADO_CUMPLIMIENTO.data = {
       ...CUMPLIMIENTO_METAS_DEMO,
       periodo: '2026-09-01',
     }
+    CONVERSION_MENSUAL_DATA = {
+      ...conversionMensualDemo(Date.parse('2026-09-02T15:00:00Z'), {
+        alcance: 'equipo',
+        actorId: 's-1',
+      }),
+      revision: 1,
+      cierre: { cerrado: false },
+    }
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02', {
+      revision: 1,
+      cierre: { cerrado: false },
+    })
     montar()
 
     const selector = screen.getByLabelText('Mes del ranking')
@@ -331,11 +393,26 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     ESTADO_CUMPLIMIENTO.data = {
       ...CUMPLIMIENTO_METAS_DEMO,
       periodo: '2026-08-01',
+      cierre: { cerrado: false },
     }
+    CONVERSION_MENSUAL_DATA = {
+      ...conversionMensualDemo(Date.parse('2026-08-15T15:00:00Z'), {
+        alcance: 'equipo',
+        actorId: 's-1',
+      }),
+      revision: 1,
+      cierre: { cerrado: false },
+    }
+    COSECHA_DATA = cosechaMensual('2026-08-01', '2026-08-31', {
+      revision: 1,
+      cierre: { cerrado: false },
+    })
     fireEvent.change(selector, { target: { value: '2026-08' } })
 
-    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-08-01')
-    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-31')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-08-01', 'equipo', 's-1')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(
+      true, '2026-08-01', '2026-08-31', 'equipo', 's-1',
+    )
     expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 's-1')
     expect(CONSULTAS_RANKING.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
     expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('agosto 2026|true')
@@ -343,18 +420,60 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     expect(screen.getByLabelText('Cumplimiento histórico de equipo')).toHaveTextContent('d-v1,d-v2,d-v3')
     expect(screen.getByLabelText('Carga mensual de equipo')).toHaveTextContent('false')
     expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Estado de foto mensual de equipo')).toHaveTextContent('abierta')
+    expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('tolera el backend anterior solo mientras conversión y Cosecha omiten juntos los tokens', () => {
+    CONVERSION_MENSUAL_DATA = conversionMensualDemo(
+      Date.parse('2026-09-02T15:00:00Z'),
+      { alcance: 'equipo', actorId: 's-1' },
+    )
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-09-01',
+    }
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02')
+
+    montar()
+
+    expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('falla cerrado si el rollout publica tokens solo en uno de los dos productores nuevos', () => {
+    CONVERSION_MENSUAL_DATA = conversionMensualDemo(
+      Date.parse('2026-09-02T15:00:00Z'),
+      { alcance: 'equipo', actorId: 's-1' },
+    )
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-09-01',
+    }
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02', {
+      revision: 1,
+      cierre: { cerrado: false },
+    })
+
+    montar()
+
+    expect(screen.getByRole('heading', { name: /Ranking de mi equipo · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
   })
 
   it('avanza el corte vigente al cruzar la medianoche de Lima', () => {
     vi.setSystemTime(new Date('2026-09-03T04:59:59Z'))
     montar()
 
-    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01')
-    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01', 'equipo', 's-1')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(
+      true, '2026-09-01', '2026-09-02', 'equipo', 's-1',
+    )
 
     act(() => { vi.advanceTimersByTime(1_000) })
 
-    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-03')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(
+      true, '2026-09-01', '2026-09-03', 'equipo', 's-1',
+    )
   })
 
   it('al cruzar de mes pide la foto nueva y nunca reutiliza el cumplimiento anterior del store', () => {
@@ -385,8 +504,10 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     fireEvent.change(screen.getByLabelText('Mes del ranking'), { target: { value: '2026-10' } })
 
     expect(screen.getByLabelText('Mes del ranking')).toHaveValue('2026-09')
-    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01')
-    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01', 'equipo', 's-1')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(
+      true, '2026-09-01', '2026-09-02', 'equipo', 's-1',
+    )
   })
 
   it('en demo fija el ranking al mes vigente y no fabrica un histórico', () => {
@@ -398,8 +519,10 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     expect(selector).toHaveValue('2026-09')
     expect(screen.getByText('Demo · mes vigente')).toBeInTheDocument()
     expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('setiembre 2026|true')
-    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(false, '2026-09-01')
-    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(false, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(false, '2026-09-01', 'equipo', 's-1')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(
+      false, '2026-09-01', '2026-09-02', 'equipo', 's-1',
+    )
     expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(false, '2026-09-01', 's-1')
     expect(CONSULTAS_RANKING.tipoCambio).toHaveBeenLastCalledWith(false, '2026-09-02')
     expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('false')
@@ -419,6 +542,24 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     expect(screen.getByLabelText('Cumplimiento histórico de equipo')).toBeEmptyDOMElement()
   })
 
+  it('conserva la cosecha visible mientras la refresca en segundo plano', () => {
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02')
+    COSECHA_FETCHING = true
+    montar()
+
+    expect(screen.getByLabelText('Carga de cosecha de equipo')).toHaveTextContent('false')
+  })
+
+  it('oculta la cosecha cacheada mientras refresca un mes histórico', () => {
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02')
+    COSECHA_FETCHING = true
+    montar()
+
+    fireEvent.change(screen.getByLabelText('Mes del ranking'), { target: { value: '2026-08' } })
+
+    expect(screen.getByLabelText('Carga de cosecha de equipo')).toHaveTextContent('true')
+  })
+
   it('si falla la foto mensual entrega un error global, también en el mes vigente', () => {
     ESTADO_CUMPLIMIENTO.isError = true
     montar()
@@ -426,7 +567,63 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     expect(screen.getByText(/ERROR: No se pudieron cargar la identidad, las metas y el capital del mes elegido\./)).toBeInTheDocument()
     expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('setiembre 2026|false')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
     expect(ESTADO_CUMPLIMIENTO.refetch).toHaveBeenCalledTimes(1)
+    expect(REFETCH_COSECHA).toHaveBeenCalledTimes(1)
+  })
+
+  it('bloquea revisiones mezcladas y reintenta conversión, cumplimiento y Cosecha', () => {
+    CONVERSION_MENSUAL_DATA = {
+      ...conversionMensualDemo(Date.parse('2026-09-02T15:00:00Z'), {
+        alcance: 'equipo',
+        actorId: 's-1',
+      }),
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-09-01',
+      revision: 8,
+      cierre: { cerrado: false },
+    }
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02', {
+      revision: 7,
+      cierre: { cerrado: false },
+    })
+    montar()
+
+    expect(screen.getByRole('heading', { name: /Ranking de mi equipo · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
+    expect(ESTADO_CUMPLIMIENTO.refetch).toHaveBeenCalledTimes(1)
+    expect(REFETCH_COSECHA).toHaveBeenCalledTimes(1)
+  })
+
+  it('bloquea una Cosecha con otro estado de cierre aunque mes y revisión coincidan', () => {
+    CONVERSION_MENSUAL_DATA = {
+      ...conversionMensualDemo(Date.parse('2026-09-02T15:00:00Z'), {
+        alcance: 'equipo',
+        actorId: 's-1',
+      }),
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-09-01',
+      revision: 7,
+      cierre: { cerrado: false },
+    }
+    COSECHA_DATA = cosechaMensual('2026-09-01', '2026-09-02', {
+      revision: 7,
+      cierre: { cerrado: true },
+    })
+    montar()
+
+    expect(screen.getByRole('heading', { name: /Ranking de mi equipo · ERROR/ }))
+      .toHaveTextContent('mismo mes, revisión o estado de cierre')
   })
 
   it('mantiene el reparto fuera de Gestión de equipo', () => {

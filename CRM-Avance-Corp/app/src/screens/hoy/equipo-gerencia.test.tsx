@@ -1,7 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { conversionEquipoDemo, conversionMensualInteligenciaDemo } from '@/lib/demo-inteligencia-comercial'
-import type { Miembro } from '@/lib/tipos'
 import { EquipoGerenciaPanel } from './equipo-gerencia'
 
 vi.mock('@/components/gerencia/echart-lazy', () => ({
@@ -19,11 +18,6 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
     />
   ),
 }))
-
-const MIEMBROS: Miembro[] = [
-  { perfil_id: 'demo-s1', nombre_completo: 'María Salazar', rol_crm: 'supervisor', activo: true },
-  { perfil_id: 'demo-s2', nombre_completo: 'José Rivas', rol_crm: 'supervisor', activo: true },
-]
 
 function identidadSinMetricas() {
   return conversionEquipoDemo().map((fila) => ({
@@ -44,7 +38,6 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       <EquipoGerenciaPanel
         conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         conversiones={identidadSinMetricas()}
-        miembros={MIEMBROS}
       />,
     )
 
@@ -83,7 +76,6 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       <EquipoGerenciaPanel
         conversionMensual={null}
         conversiones={identidadSinMetricas()}
-        miembros={MIEMBROS}
       />,
     )
 
@@ -92,6 +84,33 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     expect(screen.getAllByText('Datos no disponibles').length).toBeGreaterThan(0)
     // Los KPIs del mes degradan a «—», nunca a cero.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('mantiene separados dos equipos aunque sus supervisores tengan el mismo nombre', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    const ids = new Set(mensual.responsables.slice(0, 2).map((fila) => fila.vendedor_id))
+    const identidades = identidadSinMetricas()
+      .filter((fila) => fila.vendedorId != null && ids.has(fila.vendedorId))
+      .map((fila, indice) => ({
+        ...fila,
+        supervisorId: `supervisor-${indice + 1}`,
+        supervisorNombre: 'SUPERVISIÓN HOMÓNIMA',
+      }))
+
+    render(
+      <EquipoGerenciaPanel
+        conversionMensual={{
+          ...mensual,
+          responsables: mensual.responsables.filter((fila) => ids.has(fila.vendedor_id)),
+        }}
+        conversiones={identidades}
+      />,
+    )
+
+    const tarjeta = screen.getByText('Supervisores').closest('[data-gi-kpi]')
+    expect(tarjeta).not.toBeNull()
+    expect(within(tarjeta as HTMLElement).getByText('2')).toBeInTheDocument()
+    expect(screen.getAllByText('SUPERVISIÓN HOMÓNIMA')).toHaveLength(2)
   })
 
   it('una sonda rota oculta también los KPIs globales, no solo las filas', () => {
@@ -103,7 +122,6 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
           cobertura: { ...mensual.cobertura, cierres_sin_episodio: 1 },
         }}
         conversiones={identidadSinMetricas()}
-        miembros={MIEMBROS}
       />,
     )
 

@@ -15,6 +15,7 @@ import { CrmApiError, obtenerCumplimientoMetas, obtenerMetasDelMes } from './crm
 const RPC = (fn: string) => `http://supabase.test/rest/v1/rpc/${fn}`
 const VENDEDOR_ID = '10000000-0000-4000-8000-000000000001'
 const SUPERVISOR_ID = '10000000-0000-4000-8000-000000000002'
+const RESPONSABLE_FUERA_ID = '10000000-0000-4000-8000-000000000003'
 const server = setupServer()
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
@@ -81,6 +82,48 @@ function cumplimientoValido(sobre: Record<string, unknown> = {}): Record<string,
   }
 }
 
+function produccionFueraRankingValida(): Record<string, unknown> {
+  return {
+    persona_id: RESPONSABLE_FUERA_ID,
+    nombre: 'SUPERVISOR CON INVERSIÓN PROPIA',
+    rol_crm: 'supervisor',
+    motivo: 'supervisor',
+    conversion: {
+      divisor: '4',
+      divisor_aproximado: '0',
+      divisor_por_motivo: { asignacion: '4' },
+      cierres_no_referidos: '1',
+      cierres_referidos: '0',
+      cierres_de_arrastre: '0',
+      referidos_recibidos: '0',
+      numerador: '1',
+    },
+    detalles: detallesMeta().map((detalle, indice) => ({
+      ...detalle,
+      capital_objetivo: '0',
+      capital_real: indice === 0 ? '70000' : '0',
+      capital_cumplimiento_pct: null,
+      contratos_objetivo: '0',
+      contratos_real: indice === 0 ? '1' : '0',
+      contratos_cumplimiento_pct: null,
+      capital_ajuste: '0',
+      contratos_ajuste: '0',
+    })),
+    cartera: {
+      conversiones_clientes: '1',
+      conversiones_renovacion: '1',
+      conversiones_upgrade: '0',
+      operaciones_renovacion: '1',
+      operaciones_upgrade: '0',
+      capital_renovado_pen: '5000',
+      capital_renovado_usd: '0',
+      capital_adicional_pen: '0',
+      capital_adicional_usd: '0',
+      renovaciones_sin_desglose: '0',
+    },
+  }
+}
+
 describe('lectores versionados de metas', () => {
   it('consulta ambos RPC en crm, envía el período y coerciona numeric/bigint', async () => {
     const cuerpos: unknown[] = []
@@ -120,6 +163,37 @@ describe('lectores versionados de metas', () => {
       },
     })
     expect(cumplimiento.vendedores[0]).toMatchObject({ conversion_real: 20, resueltos: 10 })
+  })
+
+  it('acepta el campo opcional fuera_ranking y valida su contrato completo', async () => {
+    server.use(
+      http.post(RPC('cumplimiento_metas_fn'), () => HttpResponse.json(cumplimientoValido({
+        fuera_ranking: [produccionFueraRankingValida()],
+      }))),
+    )
+
+    const cumplimiento = await obtenerCumplimientoMetas('2026-08-01')
+    expect(cumplimiento.fuera_ranking).toHaveLength(1)
+    expect(cumplimiento.fuera_ranking?.[0]).toMatchObject({
+      persona_id: RESPONSABLE_FUERA_ID,
+      rol_crm: 'supervisor',
+      motivo: 'supervisor',
+      conversion: { divisor: 4, numerador: 1 },
+      cartera: { capital_renovado_pen: 5000 },
+    })
+    expect(cumplimiento.fuera_ranking?.[0]?.detalles[0]).toMatchObject({
+      capital_real: 70000,
+      contratos_real: 1,
+    })
+
+    server.use(
+      http.post(RPC('cumplimiento_metas_fn'), () => HttpResponse.json(cumplimientoValido({
+        fuera_ranking: [{ ...produccionFueraRankingValida(), puesto: 1 }],
+      }))),
+    )
+    await expect(obtenerCumplimientoMetas('2026-08-01')).rejects.toMatchObject({
+      code: 'ROW_CONTRACT',
+    })
   })
 
   it('rechaza claves desconocidas y dimensiones incompletas en vez de degradarlas', async () => {

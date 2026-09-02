@@ -89,4 +89,14 @@ describe('frontera HTTP de los recordatorios (F3.1)', () => {
     expect(filas).toHaveLength(1)
     expect(filas[0]!.telefono).toBe('+51987654321')
   })
+
+  it('una cancelación de navegación no se registra como caída de la campana', async () => {
+    const control = new AbortController()
+    control.abort()
+
+    await expect(listarRecordatoriosDisponibilidad(control.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(observabilidad.registrarError).not.toHaveBeenCalled()
+  })
 })

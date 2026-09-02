@@ -85,6 +85,33 @@ describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
     })
   })
 
+  it('al cambiar de mes invalida el TC anterior antes de resolver el nuevo corte', async () => {
+    invoke.mockResolvedValueOnce({
+      data: {
+        promedio: 3.53,
+        fuente: 'SBS · prom. 7d',
+        fecha_corte: '2026-08-31',
+      },
+      error: null,
+    })
+    invoke.mockImplementationOnce(() => new Promise(() => {}))
+    const { result, rerender } = renderHook(
+      ({ corte }) => useTipoCambio(true, corte),
+      { initialProps: { corte: '2026-08-31' } },
+    )
+    await waitFor(() => expect(result.current.tc).toEqual({
+      promedio: 3.53,
+      fuente: 'SBS · prom. 7d al 31/08/2026',
+    }))
+
+    rerender({ corte: '2026-07-31' })
+
+    expect(result.current.tc).toBeUndefined()
+    expect(invoke).toHaveBeenLastCalledWith('crm-tipo-cambio', {
+      body: { fecha_corte: '2026-07-31' },
+    })
+  })
+
   it.each([
     ['otro corte', '2026-09-01'],
     ['sin corte declarado', undefined],

@@ -15,7 +15,6 @@ import {
   type ConversionVendedorAdaptada,
   type DetalleConversionMensual,
 } from '@/lib/conversion-vendedores'
-import type { Miembro } from '@/lib/tipos'
 
 function pct(valor: number | null): string {
   return porcentajeConversionCanonica(valor)
@@ -35,7 +34,6 @@ function etiquetaEstado(fila: ConversionVendedorAdaptada<DetalleConversionMensua
 export function EquipoGerenciaPanel({
   conversionMensual,
   conversiones,
-  miembros,
 }: {
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — única
@@ -45,7 +43,6 @@ export function EquipoGerenciaPanel({
    */
   conversionMensual: ConversionMensual | null | undefined
   conversiones: ConversionEquipoVendedor[]
-  miembros: Miembro[]
 }): JSX.Element {
   const adaptada = useMemo(
     () => adaptarConversionMensual(conversionMensual ?? null, conversiones),
@@ -64,7 +61,15 @@ export function EquipoGerenciaPanel({
   const cierres = total == null ? null : total.cierres_no_referidos + total.cierres_referidos
   const conversion = total?.conversion_pct ?? null
   const vendedores = adaptada.vendedores.length
-  const supervisores = miembros.filter((m) => m.activo && m.rol_crm === 'supervisor').length
+  // La identidad pertenece a la misma población que la conversión: roster
+  // vivo hoy o snapshot del mes histórico. Contar supervisores desde el store
+  // actual hacía que agosto mezclara la jerarquía de setiembre.
+  const supervisores = new Set(
+    adaptada.vendedores
+      .filter((fila) => fila.supervisorNombre !== 'Sin supervisor'
+        && fila.supervisorNombre !== 'Equipo no disponible')
+      .map((fila) => fila.supervisorId ?? `nombre:${fila.supervisorNombre}`),
+  ).size
   const kpis = [
     { label: 'Analistas', valor: numero(vendedores), icon: UsersRound, color: C.blue },
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
@@ -116,11 +121,17 @@ export function EquipoGerenciaPanel({
   }), [medibles])
 
   const grupos = useMemo(() => {
-    const mapa = new Map<string, ConversionVendedorAdaptada<DetalleConversionMensual>[]>()
+    const mapa = new Map<string, {
+      nombre: string
+      vendedores: ConversionVendedorAdaptada<DetalleConversionMensual>[]
+    }>()
     for (const fila of adaptada.vendedores) {
-      mapa.set(fila.supervisorNombre, [...(mapa.get(fila.supervisorNombre) ?? []), fila])
+      const clave = fila.supervisorId ?? `nombre:${fila.supervisorNombre}`
+      const grupo = mapa.get(clave)
+      if (grupo) grupo.vendedores.push(fila)
+      else mapa.set(clave, { nombre: fila.supervisorNombre, vendedores: [fila] })
     }
-    return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b, 'es'))
+    return [...mapa.entries()].sort(([, a], [, b]) => a.nombre.localeCompare(b.nombre, 'es'))
   }, [adaptada.vendedores])
 
   if (adaptada.vendedores.length === 0) {
@@ -143,7 +154,7 @@ export function EquipoGerenciaPanel({
       )}
 
       <div className="space-y-4">
-        {grupos.map(([supervisor, vendedoresGrupo]) => {
+        {grupos.map(([supervisorId, { nombre: supervisor, vendedores: vendedoresGrupo }]) => {
           const grupoDisponible = vendedoresGrupo.every((fila) => fila.detalle != null)
           // F3: el navegador ya no divide el % del grupo (era la última
           // aritmética de conversión que quedaba aquí). El servidor no sirve
@@ -158,7 +169,7 @@ export function EquipoGerenciaPanel({
             : null
           const maximoGrupo = Math.max(1, ...vendedoresGrupo.map((fila) => fila.detalle?.conversion_pct ?? 0))
           return (
-            <section key={supervisor} data-gi-panel className="gi-card overflow-hidden">
+            <section key={supervisorId} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
                 <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} {vendedoresGrupo.length === 1 ? 'analista' : 'analistas'}</p></div>
                 <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalRecibidos == null ? 'Datos no disponibles' : `cierres del mes · ${numero(totalRecibidos)} recibidos`}</p></div>

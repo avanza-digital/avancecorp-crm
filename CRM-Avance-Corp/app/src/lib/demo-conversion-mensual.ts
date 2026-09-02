@@ -200,6 +200,11 @@ export function derivarConversionMensual(
 ): ConversionMensual {
   const periodo = periodoLima(ahoraMs)
   const mesActual = mesRelativo(periodo, 0)
+  // El eco temporal del demo es el mismo contrato de la RPC: límites del mes
+  // calendario en Lima, no el instante arbitrario en que se abrió la pantalla.
+  const numeroMes = Number(mesActual.mes.slice(5, 7))
+  const desdePeriodo = new Date(Date.UTC(mesActual.anio, numeroMes - 1, 1, 5)).toISOString()
+  const hastaPeriodo = new Date(Date.UTC(mesActual.anio, numeroMes, 1, 5)).toISOString()
 
   const todas: ResponsableConversionMensual[] = roster
     .map((analista) => filaDe(analista, periodo, episodios))
@@ -235,8 +240,8 @@ export function derivarConversionMensual(
       mes_nombre: mesActual.nombre,
       anio: mesActual.anio,
       zona: 'America/Lima',
-      desde: new Date(ahoraMs).toISOString(),
-      hasta: new Date(ahoraMs).toISOString(),
+      desde: desdePeriodo,
+      hasta: hastaPeriodo,
     },
     ponderacion: { referido: PESO_REFERIDO_DEMO, fuente: 'crm.conversion_pesos' },
     fuentes: {

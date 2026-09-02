@@ -76,7 +76,7 @@ describe('cumplimiento mensual del ranking', () => {
 
     expect(mocks.obtenerCumplimiento).toHaveBeenCalledWith('2026-08-01', expect.any(AbortSignal))
     expect(cliente.getQueryCache().find({
-      queryKey: crmQueryKeys.cumplimientoMetas('2026-08-01'),
+      queryKey: crmQueryKeys.cumplimientoMetas('2026-08-01', SUPERVISOR_ID),
       exact: true,
     })).toBeDefined()
     expect(result.current.data).toMatchObject({
@@ -99,7 +99,18 @@ describe('cumplimiento mensual del ranking', () => {
 
     expect(mocks.obtenerCumplimiento).not.toHaveBeenCalled()
     expect(cliente.getQueryCache().getAll().map((query) => query.queryKey)).toEqual([
-      ['crm', 'metricas', 'cumplimiento-metas', '2026-08-01'],
+      ['crm', 'metricas', 'cumplimiento-metas', '2026-08-01', SUPERVISOR_ID],
+    ])
+  })
+
+  it('separa el mismo mes por actor para no cruzar snapshots de dos ámbitos', () => {
+    const { cliente, wrapper } = arnes()
+    renderHook(() => useCumplimientoMetas(false, '2026-08-01', SUPERVISOR_ID), { wrapper })
+    renderHook(() => useCumplimientoMetas(false, '2026-08-01', VENDEDOR_ID), { wrapper })
+
+    expect(cliente.getQueryCache().getAll().map((query) => query.queryKey)).toEqual([
+      ['crm', 'metricas', 'cumplimiento-metas', '2026-08-01', SUPERVISOR_ID],
+      ['crm', 'metricas', 'cumplimiento-metas', '2026-08-01', VENDEDOR_ID],
     ])
   })
 

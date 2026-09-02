@@ -52,6 +52,7 @@ import {
   metaVigente,
   capitalReal,
   metaConversionAplicable,
+  objetivosCero,
   periodoLima,
 } from '@/lib/objetivos'
 import { useConversionMensual } from '@/data/crm-queries'
@@ -63,7 +64,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
-import { moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { hashDe } from '@/lib/router'
 import { tresCosasDeHoy } from '@/lib/tres-cosas'
@@ -125,6 +126,22 @@ export function HoySupervisor(): JSX.Element {
   // Reloj vivo: tick por minuto y al volver a la pestaña — la bandeja y los
   // "hace N" se refrescan solos al pasar el tiempo.
   const ahora = useAhora()
+  const periodoVigente = periodoLima(ahora)
+  const periodoStoreIntentado = useRef<string | null>(null)
+  const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
+  const fotoMensualStoreVigente = yo?.demo === true || (
+    objetivos.periodo === periodoVigente
+    && (cumplimientoMetas == null || cumplimientoMetas.periodo === periodoVigente)
+  )
+  useEffect(() => {
+    if (yo?.demo || fotoMensualStoreVigente
+      || periodoStoreIntentado.current === periodoVigente) return
+    periodoStoreIntentado.current = periodoVigente
+    setRecargaPeriodoFallida(false)
+    void recargar().then((ok) => {
+      if (!ok) setRecargaPeriodoFallida(true)
+    })
+  }, [fotoMensualStoreVigente, periodoVigente, recargar, yo?.demo])
   // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
   const [colaExpandida, setColaExpandida] = useState(false)
   // Pestaña elegida a mano; `null` = automática (la primera con filas), así
@@ -142,7 +159,14 @@ export function HoySupervisor(): JSX.Element {
   const rank = vendedoresOp.metricas?.filas ?? null
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
-  const { tc } = useTipoCambio()
+  const { tc, recargar: recargarTipoCambio } = useTipoCambio()
+  const diaTipoCambio = fechaLima(ahora)
+  const diaTipoCambioAnterior = useRef(diaTipoCambio)
+  useEffect(() => {
+    if (diaTipoCambioAnterior.current === diaTipoCambio) return
+    diaTipoCambioAnterior.current = diaTipoCambio
+    recargarTipoCambio()
+  }, [diaTipoCambio, recargarTipoCambio])
   // Pronóstico: `capitalPrincipal` (criterio compartido con Cartera/Pipeline),
   // NUNCA un total mixto. Antes se fijaba PEN a mano y un equipo que vende en
   // dólares se titulaba «S/ 0».
@@ -286,9 +310,22 @@ export function HoySupervisor(): JSX.Element {
 
   // La meta sale del snapshot cuando lo hay: si un analista se fue o cambió
   // de equipo, su meta y su producción viajan juntas (ver `metaVigente`).
-  const meta = metaVigente(objetivos.supervisor, cumplimientoMetas?.supervisor ?? null)
-  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
-  const cumplimiento = cumplimientoMetas?.supervisor ?? null
+  const fotoMensualStoreCargando = !yo?.demo
+    && !fotoMensualStoreVigente
+    && !recargaPeriodoFallida
+  const objetivosMensualesError = fotoMensualStoreVigente
+    ? objetivosError
+    : recargaPeriodoFallida
+  const cumplimientoMensualError = fotoMensualStoreVigente
+    ? cumplimientoMetasError
+    : recargaPeriodoFallida
+  const objetivosMensuales = fotoMensualStoreVigente
+    ? objetivos
+    : objetivosCero(periodoVigente)
+  const cumplimientoMensual = fotoMensualStoreVigente ? cumplimientoMetas : null
+  const meta = metaVigente(objetivosMensuales.supervisor, cumplimientoMensual?.supervisor ?? null)
+  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosMensualesError)
+  const cumplimiento = cumplimientoMensual?.supervisor ?? null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
@@ -299,10 +336,20 @@ export function HoySupervisor(): JSX.Element {
   // llega ya, sin esperar a la migración B (E1, plan §4bis). El total viene
   // RECALCULADO del servidor (suma÷suma, jamás media de porcentajes).
   const esDemoConversion = yo?.demo === true
-  const qConversionMensual = useConversionMensual(!esDemoConversion, periodoLima(Date.now()))
+  const qConversionMensual = useConversionMensual(
+    !esDemoConversion,
+    periodoVigente,
+    'equipo',
+    yo?.id,
+  )
+  const conversionMensualCargando = !esDemoConversion
+    && qConversionMensual.isPending
+    && qConversionMensual.data === undefined
   const conversionMensual = esDemoConversion
     ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
-    : (qConversionMensual.data ?? null)
+    : conversionMensualCargando
+      ? undefined
+      : (qConversionMensual.data ?? null)
   const conversionMensualError = !esDemoConversion && qConversionMensual.isError
   // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
   // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
@@ -322,6 +369,28 @@ export function HoySupervisor(): JSX.Element {
   const metaCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
   const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tc === undefined && hayDolares
+  const tcCaido = tc === null && hayDolares
+  const ajusteCierre = cumplimiento?.ajuste
+  const notaAjusteCierre = ajusteCierre != null && (
+    ajusteCierre.aplicadoPen > 0
+    || ajusteCierre.aplicadoUsd > 0
+    || ajusteCierre.contratosAplicados > 0
+  )
+    ? [
+        'Neto tras ajuste de cierre',
+        ajusteCierre.aplicadoPen > 0 ? `−${money(ajusteCierre.aplicadoPen, 'PEN')}` : null,
+        ajusteCierre.aplicadoUsd > 0 ? `−${money(ajusteCierre.aplicadoUsd, 'USD')}` : null,
+        ajusteCierre.contratosAplicados > 0
+          ? `−${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
+          : null,
+      ].filter(Boolean).join(' · ')
+    : null
+  const notaCapitalMonedas = !tcEnVuelo && (capitalConfirmadoUsd ?? 0) > 0
+    ? `${moneyK(capitalConfirmadoPen ?? 0, 'PEN')} + ${moneyK(capitalConfirmadoUsd ?? 0, 'USD')}`
+      + (capitalConfirmado.tc == null
+        ? ' · sin tipo de cambio: el total NO incluye los dólares'
+        : ` · ${rotuloTipoCambio(capitalConfirmado.tc, tc?.fuente ?? 'TC del día')}`)
+    : null
   const filasMeta: Array<{
     label: string
     txt: string
@@ -332,31 +401,32 @@ export function HoySupervisor(): JSX.Element {
     {
       label: 'Capital confirmado',
       txt:
-        (metaCapital.total ?? 0) > 0 && capitalConfirmado.total != null
+        tcEnVuelo
+          ? 'Calculando…'
+          : (metaCapital.total ?? 0) > 0 && capitalConfirmado.total != null
           ? `${moneyK(capitalConfirmado.total, 'PEN')} de ${moneyK(metaCapital.total ?? 0, 'PEN')}`
           : capitalConfirmado.total == null ? '—' : moneyK(capitalConfirmado.total, 'PEN'),
       pct: tcEnVuelo ? 0 : pctMeta(capitalConfirmado.total ?? 0, metaCapital.total ?? 0),
       // El desglose solo aporta cuando hay dólares; si no, repetiría el total.
-      nota: (capitalConfirmadoUsd ?? 0) > 0
-        ? `${moneyK(capitalConfirmadoPen ?? 0, 'PEN')} + ${moneyK(capitalConfirmadoUsd ?? 0, 'USD')}`
-          + (capitalConfirmado.tc == null
-            ? ' · sin tipo de cambio: el total NO incluye los dólares'
-            : ` · ${rotuloTipoCambio(capitalConfirmado.tc, tc?.fuente ?? 'TC del día')}`)
-        : null,
-      sinDato: objetivosError
+      nota: [notaCapitalMonedas, notaAjusteCierre].filter(Boolean).join(' · ') || null,
+      sinDato: fotoMensualStoreCargando
+        ? 'Actualizando la meta y el cumplimiento de este mes…'
+        : objetivosMensualesError
         ? 'Meta mensual no disponible'
         : tcEnVuelo
           ? 'Consultando el tipo de cambio para consolidar los dólares…'
           : (metaCapital.total ?? 0) <= 0
             ? SIN_META
-            : cumplimientoMetasError || capitalConfirmado.total == null
+            : cumplimientoMensualError || capitalConfirmado.total == null
               ? 'Cumplimiento confirmado no disponible'
               : null,
     },
     {
       label: 'Conversión del mes',
       txt:
-        conversionConfirmada == null
+        conversionMensualCargando
+          ? 'Calculando…'
+          : conversionConfirmada == null
           ? '—'
           : metaConversion != null
             ? `${porcentajeConversionCanonica(conversionConfirmada)} de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
@@ -365,13 +435,17 @@ export function HoySupervisor(): JSX.Element {
       // esto la sustituía, y un mes con recibidos y cierres decía «sin datos».
       nota: lecturaConversion.aviso,
       pct: pctMeta(conversionConfirmada ?? 0, metaConversion ?? 0),
-      sinDato: conversionMensualError
-        ? 'Conversión del mes no disponible'
-        : !lecturaConversion.mostrar
+      sinDato: conversionMensualCargando
+        ? 'Consultando la conversión del mes…'
+        : conversionMensualError
+          ? 'Conversión del mes no disponible'
+          : !lecturaConversion.mostrar
           ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
           : conversionConfirmada == null
             ? 'Sin leads recibidos este mes'
-            : objetivosError
+            : fotoMensualStoreCargando
+              ? 'Actualizando la meta de este mes…'
+              : objetivosMensualesError
               ? 'Meta mensual no disponible'
               : metaConversion == null
                 ? SIN_META
@@ -899,8 +973,23 @@ export function HoySupervisor(): JSX.Element {
               <p className="text-[10.5px] text-muted-foreground">
                 El capital en dólares entra al total convertido a tipo de cambio real. El capital abierto de arriba es pronóstico y no cuenta como cumplimiento.
               </p>
-              {(objetivosError || cumplimientoMetasError) && (
-                <Button variant="ghost" size="sm" onClick={() => void recargar()}>Reintentar</Button>
+              {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (objetivosMensualesError || cumplimientoMensualError) {
+                      setRecargaPeriodoFallida(false)
+                      void recargar().then((ok) => {
+                        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
+                      })
+                    }
+                    if (conversionMensualError) void qConversionMensual.refetch()
+                    if (tcCaido) recargarTipoCambio()
+                  }}
+                >
+                  Reintentar
+                </Button>
               )}
             </CardContent>
           </Card>
@@ -909,7 +998,7 @@ export function HoySupervisor(): JSX.Element {
                oculta solo si el mes no tiene cierres en cooperativas. ── */}
           <DesglosePorEmpresa
             demo={yo?.demo === true}
-            porVendedor={cumplimientoMetas?.porVendedor ?? null}
+            porVendedor={cumplimientoMensual?.porVendedor ?? null}
           />
         </div>
       </div>

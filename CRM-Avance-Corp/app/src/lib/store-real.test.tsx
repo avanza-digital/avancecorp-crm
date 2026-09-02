@@ -13,9 +13,15 @@ import type { Yo } from './tipos'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import type { CumplimientoMetasRpc } from './objetivos'
 import * as crmApi from '@/data/crm-api'
+import { crmQueryKeys } from '@/data/crm-queries'
+import { queryClient } from './query-client'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}))
+
+vi.mock('./query-client', () => ({
+  queryClient: { invalidateQueries: vi.fn().mockResolvedValue(undefined) },
 }))
 
 vi.mock('@/data/crm-api', async (importActual) => {
@@ -56,6 +62,7 @@ const cerrarReunionMock = vi.mocked(crmApi.cerrarReunion)
 const reprogramarReunionMock = vi.mocked(crmApi.reprogramarReunion)
 const obtenerMetasMock = vi.mocked(crmApi.obtenerMetasDelMes)
 const obtenerCumplimientoMock = vi.mocked(crmApi.obtenerCumplimientoMetas)
+const invalidarQueriesMock = vi.mocked(queryClient.invalidateQueries)
 
 const ROSTER = [
   {
@@ -388,6 +395,124 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
+  it('al volver al foco incorpora un alta remota de roster y metas sin duplicar la carga', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    vi.clearAllMocks()
+
+    const analistaNuevo = {
+      perfil_id: 'u-v2',
+      nombre_completo: 'Analista Remoto',
+      rol_crm: 'vendedor' as const,
+      supervisor_id: 'u-s1',
+      activo: true,
+    }
+    const configuracionRemota = configuracionMetas(500_000, 50_000, 20)
+    configuracionRemota.revision = 5
+    configuracionRemota.vendedores.push({
+      ...configuracionRemota.vendedores[0]!,
+      vendedor_id: analistaNuevo.perfil_id,
+      nombre: analistaNuevo.nombre_completo,
+    })
+    let resolverRoster!: (miembros: typeof ROSTER) => void
+    listarEquipo.mockImplementationOnce(() => new Promise<typeof ROSTER>((resolve) => {
+      resolverRoster = resolve
+    }))
+    obtenerMetasMock.mockResolvedValueOnce(configuracionRemota)
+    obtenerCumplimientoMock.mockResolvedValueOnce(
+      cumplimientoMetas(250_000, 25_000, 50, configuracionRemota),
+    )
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('online'))
+    })
+    await waitFor(() => expect(listarEquipo).toHaveBeenCalledTimes(1))
+    expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
+    expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.conversionMensualPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+
+    await act(async () => {
+      resolverRoster([...ROSTER, analistaNuevo])
+    })
+
+    await waitFor(() => expect(api().ambito.vendedores.map((fila) => fila.perfil_id)).toContain('u-v2'))
+    expect(api().objetivos.porVendedor?.['u-v2']).toMatchObject({
+      vendedorId: 'u-v2',
+      nombre: 'Analista Remoto',
+      conversionObjetivo: 20,
+    })
+    expect(api().cumplimientoMetas?.porVendedor['u-v2']).toMatchObject({
+      vendedorId: 'u-v2',
+      nombre: 'Analista Remoto',
+    })
+  })
+
+  it('al reconectar elimina del ranking vigente una baja remota de roster y metas', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().ambito.vendedores.map((fila) => fila.perfil_id)).toContain('u-v1')
+    vi.clearAllMocks()
+
+    const rosterRemoto = ROSTER.filter((miembro) => miembro.perfil_id !== 'u-v1')
+    const configuracionRemota = configuracionMetas()
+    configuracionRemota.revision = 6
+    configuracionRemota.vendedores = []
+    listarEquipo.mockResolvedValueOnce(rosterRemoto)
+    obtenerMetasMock.mockResolvedValueOnce(configuracionRemota)
+    obtenerCumplimientoMock.mockResolvedValueOnce(cumplimientoMetas(0, 0, null, configuracionRemota))
+
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+
+    await waitFor(() => expect(api().ambito.vendedores.map((fila) => fila.perfil_id)).not.toContain('u-v1'))
+    expect(api().objetivos.porVendedor?.['u-v1']).toBeUndefined()
+    expect(api().cumplimientoMetas?.porVendedor['u-v1']).toBeUndefined()
+    expect(listarEquipo).toHaveBeenCalledTimes(1)
+    expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
+    expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('focus y reconnect no duplican una recarga explícita que ya está en vuelo', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    vi.clearAllMocks()
+
+    let resolverRoster!: (miembros: typeof ROSTER) => void
+    listarEquipo.mockImplementationOnce(() => new Promise<typeof ROSTER>((resolve) => {
+      resolverRoster = resolve
+    }))
+
+    let recarga!: Promise<boolean>
+    act(() => {
+      recarga = api().recargar()
+    })
+    await waitFor(() => expect(listarEquipo).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+      window.dispatchEvent(new Event('online'))
+    })
+    expect(listarEquipo).toHaveBeenCalledTimes(1)
+    expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
+    expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolverRoster(ROSTER)
+      expect(await recarga).toBe(true)
+    })
+  })
+
   it('Directorio conserva la lectura de datos operativos sin heredar escritura', async () => {
     const { api, estado } = montar('directorio')
 
@@ -433,6 +558,32 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(actualizarLead).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
   })
 
+  it('cambiar etapa y registrar actividad caducan las dos fotos de conversión por rango', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+
+    invalidarQueriesMock.mockClear()
+    expect(mutar((a) => a.cambiarEtapa(id, 'contactado'))).toMatchObject({ ok: true })
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { etapa: 'contactado' }))
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+
+    invalidarQueriesMock.mockClear()
+    expect(mutar((a) => a.registrarActividad(id, 'llamada_realizada', 'Contactó'))).toMatchObject({ ok: true })
+    await waitFor(() => expect(insertarActividad).toHaveBeenCalledWith(expect.objectContaining({ lead_id: id })))
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+  })
+
   it('expone las metas en solo lectura; la escritura vive únicamente en Configuración', async () => {
     const { api, estado } = montar('gerencia')
     await waitFor(() => expect(estado().cargando).toBe(false))
@@ -463,6 +614,72 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }))
     await expect(res.persistido).resolves.toEqual({ ok: true })
     await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.conversionMensualPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+    })
+  })
+
+  it('cambiar el origen y reasignar caducan los tres núcleos; editar otro campo no', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+
+    invalidarQueriesMock.mockClear()
+    const edicionComun = mutar((a) => a.editarLead(id, { nota: 'Dato que no cambia atribución' }))
+    expect(edicionComun).toMatchObject({ ok: true })
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, expect.objectContaining({ nota: 'Dato que no cambia atribución' })))
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.conversionMensualPrefijo(),
+    })
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+    })
+
+    invalidarQueriesMock.mockClear()
+    const cambioOrigen = mutar((a) => a.editarLead(id, { origen: 'referido' }))
+    expect(cambioOrigen).toMatchObject({ ok: true })
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, expect.objectContaining({ origen: 'referido' })))
+    for (const queryKey of [
+      crmQueryKeys.conversionMensualPrefijo(),
+      crmQueryKeys.metricasConversionesPrefijo(),
+      crmQueryKeys.metricasConversionesEquipoPrefijo(),
+      crmQueryKeys.cumplimientoMetasPrefijo(),
+      crmQueryKeys.metricasReunionesPrefijo(),
+    ]) {
+      expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey })
+    }
+
+    invalidarQueriesMock.mockClear()
+    const reasignacion = mutar((a) => a.reasignar(id, null))
+    expect(reasignacion).toMatchObject({ ok: true })
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, {
+      vendedor_id: null,
+      asignado_supervisor_id: 'u-s1',
+    }))
+    for (const queryKey of [
+      crmQueryKeys.conversionMensualPrefijo(),
+      crmQueryKeys.metricasConversionesPrefijo(),
+      crmQueryKeys.metricasConversionesEquipoPrefijo(),
+      crmQueryKeys.cumplimientoMetasPrefijo(),
+      crmQueryKeys.metricasReunionesPrefijo(),
+    ]) {
+      expect(invalidarQueriesMock).toHaveBeenCalledWith({ queryKey })
+    }
   })
 
   it('crearLead expone el rechazo sanitizado del INSERT para no anunciar un falso éxito', async () => {
@@ -642,6 +859,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().tareasDe(leadId)).toHaveLength(1)
     await expect(res.persistido).resolves.toBe(true)
     await waitFor(() => expect(listarTareas).toHaveBeenCalled()) // resync
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+    })
+    expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+    })
   })
 
   it('crearTarea permite gestionar un cliente de cartera mediante perfil_id', async () => {
@@ -677,6 +900,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
     expect(api().tareasDeCliente?.(clienteId)).toHaveLength(1)
     await expect(res.persistido).resolves.toBe(true)
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+    })
   })
 
   it('crearTarea expone el rechazo remoto y resincroniza la fila optimista', async () => {
@@ -844,6 +1073,16 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('completada')
     expect(api().tareas.some((t) => t.titulo === 'WhatsApp a CLIENTE' && t.estado === 'pendiente')).toBe(true)
     expect(api().actividades.some((a2) => a2.tipo === 'llamada_no_contestada')).toBe(true)
+    await expect(res.persistido).resolves.toBe(true)
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
   })
 
   it('una reunión de cliente se cierra por cerrar_tarea, conserva perfil_id y no altera el timeline de leads', async () => {
@@ -915,6 +1154,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       tipo: 'whatsapp',
     })
     expect(api().actividades).toHaveLength(0)
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+    })
   })
 
   it('una reunión cancelada de cliente conserva motivo y detalle por cerrar_tarea', async () => {
@@ -1093,6 +1338,14 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const conf = mutar((a) => a.confirmarTarea(nueva?.id ?? ''))
     expect(conf.ok).toBe(true)
     expect(api().tareas[0]?.confirmada_en).toBeTruthy()
+    await waitFor(() => {
+      expect(invalidarQueriesMock).toHaveBeenCalledWith({
+        queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+      })
+      expect(invalidarQueriesMock).toHaveBeenCalledWith({
+        queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+      })
+    })
   })
 
   it('anular una reunión conserva motivo/detalle y usa solo la RPC especializada', async () => {
@@ -1140,6 +1393,13 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       siguiente: null,
     })
     expect(cerrarTareaMock).not.toHaveBeenCalled()
+    await expect(res.persistido).resolves.toBe(true)
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasAgendaPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+    })
   })
 
   it('editar capital real persiste monto y moneda juntos', async () => {
@@ -1222,6 +1482,35 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
         }),
       ),
     )
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+  })
+
+  it('reabrir un descartado caduca las dos fotos de conversión por rango', async () => {
+    listarLeads.mockResolvedValueOnce([
+      { ...leadBase(), etapa: 'descartado', motivo_descarte: 'sin_fondos' },
+    ])
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads[0]?.etapa).toBe('descartado'))
+
+    invalidarQueriesMock.mockClear()
+    expect(mutar((a) => a.reabrir(leadBase().id))).toMatchObject({ ok: true })
+    await waitFor(() =>
+      expect(actualizarLead).toHaveBeenCalledWith(leadBase().id, {
+        etapa: 'nuevo',
+        motivo_descarte: null,
+      }),
+    )
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidarQueriesMock).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
   })
 
   it('descartar real: si la nota falla tras el update OK, avisa el fallo parcial SIN mentir "se restauró"', async () => {

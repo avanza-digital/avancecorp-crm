@@ -131,6 +131,14 @@ vi.mock('@/lib/contrato-pdf-demo-loader', () => ({
   archivarContratoPdfDemoHabilitado: archivoPdf.archivarDemo,
 }))
 
+// El formulario tiene su propia suite. Aquí solo ejercemos el callback con el
+// que MiCartera cierra el diálogo e invalida sus dos familias de caché.
+vi.mock('@/components/app/contrato-corregir', () => ({
+  ContratoCorregir: ({ onGuardado }: { onGuardado: () => void }) => (
+    <button type="button" onClick={onGuardado}>Confirmar corrección simulada</button>
+  ),
+}))
+
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
@@ -183,7 +191,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   }
 })
 
-const { useClienteDetalle } = await import('@/data/crm-queries')
+const { crmQueryKeys, useClienteDetalle } = await import('@/data/crm-queries')
 const useClienteDetalleMock = vi.mocked(useClienteDetalle)
 const { MiCartera } = await import('./mi-cartera')
 
@@ -355,11 +363,11 @@ function montar(
     archivosEliminados: 2,
   })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  return Object.assign(render(
     <QueryClientProvider client={qc}>
       <MiCartera />
     </QueryClientProvider>,
-  )
+  ), { queryClient: qc })
 }
 
 /**
@@ -804,7 +812,8 @@ describe('MiCartera (pantalla)', () => {
 
   it('abre la corrección aunque ya exista PDF: el servidor creará una nueva revisión', async () => {
     const user = userEvent.setup()
-    montar()
+    const { queryClient } = montar()
+    const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
     await user.click(
       screen.getByRole('button', {
         name: /Expandir los contratos de\s*CLIENTE UNO/,
@@ -822,11 +831,17 @@ describe('MiCartera (pantalla)', () => {
       }),
     ).toBeInTheDocument()
     expect(archivoPdf.consultar).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar corrección simulada' }))
+    await waitFor(() => {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.contratos() })
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricas() })
+    })
   })
 
   it('Admin elimina desde el detalle solo tras doble confirmación y por la Edge', async () => {
     const user = userEvent.setup()
-    montar({
+    const { queryClient } = montar({
       yo: {
         id: 'admin',
         rol: 'gerencia',
@@ -835,6 +850,7 @@ describe('MiCartera (pantalla)', () => {
         demo: false,
       },
     })
+    const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
     await user.click(
       screen.getByRole('button', {
         name: /Expandir los contratos de\s*CLIENTE UNO/,
@@ -847,6 +863,8 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
 
     await vi.waitFor(() => expect(archivoPdf.eliminar).toHaveBeenCalledWith('k-1'))
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.contratos() })
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricas() })
   })
 
   it('Corregir del contrato: AUSENTE si la ventana de 5 h ya venció', async () => {

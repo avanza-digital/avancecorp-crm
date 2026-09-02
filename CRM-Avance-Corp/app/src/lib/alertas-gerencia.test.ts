@@ -87,7 +87,7 @@ function sondasVerificadas() {
   return {
     cuadra: true,
     paridad_nucleo: 0,
-    paridad_filas: 0,
+    paridad_filas: 1,
     divisor_fuera_del_roster: 0,
     numerador_fuera_del_roster: 0,
     cierres_sin_ficha_convertida: 0,

@@ -28,6 +28,8 @@
 // mire, que es justo el bug que la decisión #10 quiere cerrar.
 import * as v from 'valibot'
 import type { ConversionEquipoVendedor } from './conversion-equipo'
+import { EnteroNoNegativoRpcSchema } from './esquemas-rpc'
+import { CierreDelMesSchema } from './objetivos'
 import {
   estadoConversion,
   type ConversionVendedorAdaptada,
@@ -64,18 +66,34 @@ const NucleoEquipoSchema = v.object({
  * (`clientes` = dueño actual vs `nucleo_*` = quien cerró). `cuadra: false` es
  * la señal de F3.4: cifras en revisión, no un número inventado.
  */
-const SondasEquipoSchema = v.object({
-  cuadra: v.nullable(v.boolean()),
-  paridad_nucleo: v.nullable(v.number()),
-  paridad_filas: v.number(),
-  divisor_fuera_del_roster: v.number(),
-  numerador_fuera_del_roster: v.number(),
-  cierres_anulados: v.number(),
-  clientes_acreditados_a_otro_dueno: v.number(),
-})
+const SondasEquipoSchema = v.pipe(
+  v.object({
+    cuadra: v.nullable(v.boolean()),
+    paridad_nucleo: v.nullable(v.number()),
+    paridad_filas: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    divisor_fuera_del_roster: v.number(),
+    numerador_fuera_del_roster: v.number(),
+    cierres_anulados: v.number(),
+    clientes_acreditados_a_otro_dueno: v.number(),
+  }),
+  // Espejo exacto del productor SQL: sin filas comparables no hay veredicto;
+  // con al menos una fila, `cuadra` siempre es un booleano explícito.
+  v.check(
+    (sondas) => sondas.paridad_filas === 0
+      ? sondas.cuadra === null
+      : sondas.cuadra !== null,
+    'Las sondas de paridad no corresponden a una salida posible del núcleo.',
+  ),
+)
 
 export const MetricasConversionesEquipoSchema = v.object({
   version: v.literal(1),
+  /** Tokens de la foto mensual. Ambos son opcionales mientras el frontend se
+   * despliega antes que el backend; un rango libre nuevo los publica como null.
+   * En un mes calendario, si aparecen, la pantalla exige que coincidan con los
+   * otros dos núcleos y falla cerrada ante una respuesta parcial del rollout. */
+  revision: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+  cierre: v.optional(v.nullable(CierreDelMesSchema)),
   generado_en: v.string(),
   /** Lo decide el SERVIDOR según el rol del actor, no el cliente por su cuenta. */
   alcance: v.picklist(['equipo', 'global']),
@@ -103,12 +121,16 @@ export function adaptarConversionEquipo(
 ): ConversionVendedoresAdaptada<ResponsableEquipo> {
   const responsables = datos?.responsables
   const detallePorId = new Map((responsables ?? []).map((r) => [r.vendedor_id, r]))
-  const identidadPorId = new Map<string, Pick<ConversionEquipoVendedor, 'nombre' | 'supervisorNombre'>>()
+  const identidadPorId = new Map<
+    string,
+    { nombre: string; supervisorId: string | null; supervisorNombre: string }
+  >()
 
   for (const integrante of equipo) {
     if (!integrante.vendedorId || identidadPorId.has(integrante.vendedorId)) continue
     identidadPorId.set(integrante.vendedorId, {
       nombre: integrante.nombre,
+      supervisorId: integrante.supervisorId ?? null,
       supervisorNombre: integrante.supervisorNombre,
     })
   }
@@ -119,6 +141,7 @@ export function adaptarConversionEquipo(
     if (identidadPorId.has(r.vendedor_id)) continue
     identidadPorId.set(r.vendedor_id, {
       nombre: 'Analista no identificado',
+      supervisorId: null,
       supervisorNombre: 'Equipo no disponible',
     })
   }

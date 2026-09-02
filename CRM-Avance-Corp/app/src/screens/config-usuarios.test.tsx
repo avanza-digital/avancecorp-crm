@@ -20,6 +20,7 @@ const dobles = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
   toastError: vi.fn(),
+  recargar: vi.fn(),
 }))
 
 vi.mock('sonner', () => ({
@@ -28,6 +29,10 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ yo: dobles.yo }),
+}))
+
+vi.mock('@/lib/store-context', () => ({
+  useCRMData: () => ({ recargar: dobles.recargar }),
 }))
 
 vi.mock('@/data/crm-config-queries', () => ({
@@ -149,6 +154,7 @@ beforeEach(() => {
   dobles.toastSuccess.mockReset()
   dobles.toastWarning.mockReset()
   dobles.toastError.mockReset()
+  dobles.recargar.mockReset().mockResolvedValue(true)
 })
 
 describe('ConfigUsuarios', () => {
@@ -261,6 +267,7 @@ describe('ConfigUsuarios', () => {
     expect(dobles.toastSuccess).toHaveBeenCalledWith(
       'Analista CRM creado y activado. Ya puede ingresar con su documento.',
     )
+    expect(dobles.recargar).toHaveBeenCalledOnce()
     expect(screen.queryByRole('dialog', { name: 'Nuevo analista CRM' })).not.toBeInTheDocument()
   })
 
@@ -451,5 +458,6 @@ describe('ConfigUsuarios', () => {
     expect(dobles.toastSuccess).toHaveBeenCalledWith(
       'Membresía desactivada y responsabilidades transferidas.',
     )
+    expect(dobles.recargar).toHaveBeenCalledOnce()
   })
 })

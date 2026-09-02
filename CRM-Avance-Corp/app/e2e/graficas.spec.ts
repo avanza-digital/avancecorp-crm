@@ -71,10 +71,11 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
   })
 
-  test('ranking real de Gerencia normaliza un rango de agosto al mes calendario completo', async ({ page }) => {
+  test('ranking real de Gerencia consulta agosto como mes calendario completo', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-09-02T15:00:00.000Z'))
     const foto = rankingAgostoReal()
     const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
+    const respuestasNoSimuladas: string[] = []
     page.on('request', (request) => {
       if (request.method() !== 'POST') return
       const ruta = new URL(request.url()).pathname
@@ -85,6 +86,13 @@ test.describe('resumen de Gerencia en sesión real', () => {
         '/functions/v1/crm-tipo-cambio',
       ].includes(ruta)) return
       llamadas.push({ ruta, cuerpo: request.postDataJSON() as Record<string, unknown> })
+    })
+    page.on('response', (response) => {
+      if (response.status() < 400) return
+      const request = response.request()
+      respuestasNoSimuladas.push(
+        `${response.status()} ${request.method()} ${new URL(response.url()).pathname}`,
+      )
     })
 
     await montarBackendReal(page, {
@@ -100,11 +108,12 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await loginReal(page)
     await page.getByRole('button', { name: 'Ranking', exact: true }).click()
 
-    // El rango libre solo ELIGE el mes: las tres fuentes y el TC reciben el
-    // calendario completo de agosto, no el subrango 10–20 seleccionado.
-    await page.getByLabel('Desde').fill('2026-08-10')
-    await page.getByLabel('Hasta').fill('2026-08-20')
-    await page.getByRole('button', { name: 'Aplicar', exact: true }).click()
+    // El ranking ya no expone un rango ambiguo: el selector mensual gobierna
+    // las tres fuentes y el TC con el calendario completo de agosto.
+    const selectorMes = page.getByLabel('Mes calendario')
+    await expect(selectorMes).toHaveValue('2026-09')
+    await expect(page.getByText('ANA AGOSTO')).toHaveCount(0)
+    await selectorMes.fill('2026-08')
 
     await expect(page.getByText('Mes calendario · agosto 2026')).toBeVisible()
     const conversion = page.getByRole('table', { name: 'Ranking de conversión general' })
@@ -140,5 +149,6 @@ test.describe('resumen de Gerencia en sesión real', () => {
         cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
       }),
     ]))
+    expect(respuestasNoSimuladas).toEqual([])
   })
 })

@@ -240,7 +240,7 @@ const DetallesCumplimientoSchema = v.pipe(
  * `cerrado` es true, a propósito: un invariante de más aquí vuelve a ser una
  * pantalla apagada, y lo único que se pierde si faltaran es la fecha del rótulo.
  */
-const CierreDelMesSchema = v.strictObject({
+export const CierreDelMesSchema = v.strictObject({
   cerrado: v.boolean(),
   cerrado_en: v.optional(FechaHoraSchema),
   automatico: v.optional(v.boolean()),
@@ -293,6 +293,56 @@ const CumplimientoVendedorSchema = v.strictObject({
   detalles: DetallesCumplimientoSchema,
 })
 
+// Produccion empresarial que existe y debe cuadrar en Gerencia, pero cuyo
+// responsable no puede competir como analista (p. ej. un supervisor). Es una
+// clave opcional para que este bundle pueda salir antes que la migracion.
+const ConversionFueraRankingSchema = v.strictObject({
+  divisor: EnteroNoNegativoRpcSchema,
+  divisor_aproximado: EnteroNoNegativoRpcSchema,
+  divisor_por_motivo: v.record(v.string(), EnteroNoNegativoRpcSchema),
+  cierres_no_referidos: EnteroNoNegativoRpcSchema,
+  cierres_referidos: EnteroNoNegativoRpcSchema,
+  cierres_de_arrastre: EnteroNoNegativoRpcSchema,
+  referidos_recibidos: EnteroNoNegativoRpcSchema,
+  numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
+})
+
+const CarteraFueraRankingSchema = v.strictObject({
+  conversiones_clientes: EnteroNoNegativoRpcSchema,
+  conversiones_renovacion: EnteroNoNegativoRpcSchema,
+  conversiones_upgrade: EnteroNoNegativoRpcSchema,
+  operaciones_renovacion: EnteroNoNegativoRpcSchema,
+  operaciones_upgrade: EnteroNoNegativoRpcSchema,
+  capital_renovado_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_renovado_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  renovaciones_sin_desglose: EnteroNoNegativoRpcSchema,
+})
+
+const ProduccionFueraRankingSchema = v.strictObject({
+  persona_id: UuidSchema,
+  nombre: TextoNoVacioSchema,
+  rol_crm: v.picklist([
+    'vendedor',
+    'supervisor',
+    'gerencia',
+    'coordinador',
+    'directorio',
+    'fuera_equipo',
+  ]),
+  motivo: v.picklist([
+    'analista_sin_meta',
+    'analista_sin_supervisor',
+    'supervisor',
+    'gerencia',
+    'fuera_estructura',
+  ]),
+  conversion: v.nullable(ConversionFueraRankingSchema),
+  detalles: DetallesCumplimientoSchema,
+  cartera: CarteraFueraRankingSchema,
+})
+
 export const CumplimientoMetasSchema = v.strictObject({
   version: v.literal(1),
   periodo: FechaSchema,
@@ -310,6 +360,7 @@ export const CumplimientoMetasSchema = v.strictObject({
   // Llega con el cierre de mes (20260815003742), en las dos ramas.
   cierre: v.optional(CierreDelMesSchema),
   vendedores: v.array(CumplimientoVendedorSchema),
+  fuera_ranking: v.optional(v.array(ProduccionFueraRankingSchema)),
 })
 
 export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasSchema>
@@ -319,6 +370,23 @@ export interface CumplimientoDetalle extends ObjetivoDetalle {
   capitalCumplimientoPct: number | null
   contratosReal: number
   contratosCumplimientoPct: number | null
+  /** Descuento ya aplicado al sellar el mes; `capitalReal` ya llega neto. */
+  capitalAjuste?: number
+  /** Contratos ya descontados al sellar el mes; `contratosReal` ya llega neto. */
+  contratosAjuste?: number
+}
+
+export interface AjusteCumplimiento {
+  /** Deuda de conversión aún pendiente; no se descuenta del mes abierto. */
+  pendiente: number
+  /** Numerador de conversión descontado al cerrar la foto. */
+  aplicado: number
+  /** Capital PEN descontado; permite recuperar el bruto desde la cifra neta. */
+  aplicadoPen: number
+  /** Capital USD descontado; permite recuperar el bruto desde la cifra neta. */
+  aplicadoUsd: number
+  /** Contratos descontados, consolidados desde las seis casillas del detalle. */
+  contratosAplicados: number
 }
 
 export interface CumplimientoComercial {
@@ -333,6 +401,11 @@ export interface CumplimientoComercial {
    * idénticos a los de siempre, y el día que B entre, cambian solos de fórmula.
    */
   numerador: number
+  /**
+   * Ajustes del cierre que explican por qué los reales son netos. Es opcional
+   * durante la compatibilidad con payloads anteriores al cierre de mes.
+   */
+  ajuste?: AjusteCumplimiento
   detalles: CumplimientoDetalle[]
 }
 
@@ -341,6 +414,47 @@ export interface CumplimientoVendedor extends CumplimientoComercial {
   nombre: string
   supervisorId: string
   supervisorNombre: string
+}
+
+export interface ProduccionFueraRanking {
+  personaId: string
+  nombre: string
+  rolCrm:
+    | 'vendedor'
+    | 'supervisor'
+    | 'gerencia'
+    | 'coordinador'
+    | 'directorio'
+    | 'fuera_equipo'
+  motivo:
+    | 'analista_sin_meta'
+    | 'analista_sin_supervisor'
+    | 'supervisor'
+    | 'gerencia'
+    | 'fuera_estructura'
+  conversion: {
+    divisor: number
+    divisorAproximado: number
+    divisorPorMotivo: Record<string, number>
+    cierresNoReferidos: number
+    cierresReferidos: number
+    cierresDeArrastre: number
+    referidosRecibidos: number
+    numerador: number
+  } | null
+  detalles: CumplimientoDetalle[]
+  cartera: {
+    conversionesClientes: number
+    conversionesRenovacion: number
+    conversionesUpgrade: number
+    operacionesRenovacion: number
+    operacionesUpgrade: number
+    capitalRenovadoPen: number
+    capitalRenovadoUsd: number
+    capitalAdicionalPen: number
+    capitalAdicionalUsd: number
+    renovacionesSinDesglose: number
+  }
 }
 
 export interface FuentesRealesCumplimientoMetas {
@@ -365,11 +479,36 @@ export interface CumplimientoMetasJerarquico {
   supervisor: CumplimientoAgregado | null
   gerencia: CumplimientoAgregado | null
   porVendedor: Record<string, CumplimientoVendedor>
+  /** Produccion identificada que cuadra en empresa sin generar un puesto. */
+  fueraRanking: ProduccionFueraRanking[]
 }
 
 function cumplimientoDesdeVendedor(
   fila: CumplimientoMetasRpc['vendedores'][number],
 ): CumplimientoVendedor {
+  const detalles = fila.detalles.map((detalle) => ({
+    categoria: detalle.categoria,
+    moneda: detalle.moneda,
+    capitalObjetivo: detalle.capital_objetivo,
+    capitalReal: detalle.capital_real,
+    capitalCumplimientoPct: detalle.capital_cumplimiento_pct,
+    contratosObjetivo: detalle.contratos_objetivo,
+    contratosReal: detalle.contratos_real,
+    contratosCumplimientoPct: detalle.contratos_cumplimiento_pct,
+    capitalAjuste: detalle.capital_ajuste ?? 0,
+    contratosAjuste: detalle.contratos_ajuste ?? 0,
+  }))
+  const capitalAjustePen = detalles.reduce((total, detalle) => (
+    detalle.moneda === 'PEN' ? total + detalle.capitalAjuste : total
+  ), 0)
+  const capitalAjusteUsd = detalles.reduce((total, detalle) => (
+    detalle.moneda === 'USD' ? total + detalle.capitalAjuste : total
+  ), 0)
+  const contratosAplicados = detalles.reduce(
+    (total, detalle) => total + detalle.contratosAjuste,
+    0,
+  )
+
   return {
     vendedorId: fila.vendedor_id,
     nombre: fila.nombre,
@@ -384,16 +523,18 @@ function cumplimientoDesdeVendedor(
     // (sin él, un solo undefined convertiría el agregado en NaN y el NaN pasa
     // en silencio hasta la pantalla).
     numerador: fila.numerador ?? fila.convertidos,
-    detalles: fila.detalles.map((detalle) => ({
-      categoria: detalle.categoria,
-      moneda: detalle.moneda,
-      capitalObjetivo: detalle.capital_objetivo,
-      capitalReal: detalle.capital_real,
-      capitalCumplimientoPct: detalle.capital_cumplimiento_pct,
-      contratosObjetivo: detalle.contratos_objetivo,
-      contratosReal: detalle.contratos_real,
-      contratosCumplimientoPct: detalle.contratos_cumplimiento_pct,
-    })),
+    ...(fila.ajuste != null || capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAplicados > 0
+      ? {
+          ajuste: {
+            pendiente: fila.ajuste?.pendiente ?? 0,
+            aplicado: fila.ajuste?.aplicado ?? 0,
+            aplicadoPen: fila.ajuste?.aplicado_pen ?? capitalAjustePen,
+            aplicadoUsd: fila.ajuste?.aplicado_usd ?? capitalAjusteUsd,
+            contratosAplicados,
+          },
+        }
+      : {}),
+    detalles,
   }
 }
 
@@ -420,20 +561,44 @@ export function agregarCumplimientos(
   const reales = new Map(CLAVES_DIMENSION.map((clave) => [clave, {
     capitalReal: 0,
     contratosReal: 0,
+    capitalAjuste: 0,
+    contratosAjuste: 0,
   }]))
+  const tieneAjuste = filas.some((fila) => fila.ajuste != null)
+  const ajuste = filas.reduce<AjusteCumplimiento>((total, fila) => ({
+    pendiente: total.pendiente + (fila.ajuste?.pendiente ?? 0),
+    aplicado: total.aplicado + (fila.ajuste?.aplicado ?? 0),
+    aplicadoPen: total.aplicadoPen + (fila.ajuste?.aplicadoPen ?? 0),
+    aplicadoUsd: total.aplicadoUsd + (fila.ajuste?.aplicadoUsd ?? 0),
+    contratosAplicados: total.contratosAplicados + (fila.ajuste?.contratosAplicados ?? 0),
+  }), {
+    pendiente: 0,
+    aplicado: 0,
+    aplicadoPen: 0,
+    aplicadoUsd: 0,
+    contratosAplicados: 0,
+  })
   for (const fila of filas) {
     for (const detalle of fila.detalles) {
       const destino = reales.get(`${detalle.categoria}:${detalle.moneda}`)
       if (!destino) continue
       destino.capitalReal += detalle.capitalReal
       destino.contratosReal += detalle.contratosReal
+      destino.capitalAjuste += detalle.capitalAjuste ?? 0
+      destino.contratosAjuste += detalle.contratosAjuste ?? 0
     }
   }
 
   return {
     conversionObjetivo: metas.conversionObjetivo,
+    ...(tieneAjuste ? { ajuste } : {}),
     detalles: metas.detalles.map((meta) => {
-      const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? { capitalReal: 0, contratosReal: 0 }
+      const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? {
+        capitalReal: 0,
+        contratosReal: 0,
+        capitalAjuste: 0,
+        contratosAjuste: 0,
+      }
       return {
         ...meta,
         ...real,
@@ -485,6 +650,56 @@ export function cumplimientoDesdeRpc(
     respuesta.vendedores.map((fila) => [fila.vendedor_id, cumplimientoDesdeVendedor(fila)]),
   )
   const filas = Object.values(porVendedor)
+  const fueraRanking: ProduccionFueraRanking[] = (respuesta.fuera_ranking ?? []).map((fila) => ({
+    personaId: fila.persona_id,
+    nombre: fila.nombre,
+    rolCrm: fila.rol_crm,
+    motivo: fila.motivo,
+    conversion: fila.conversion == null ? null : {
+      divisor: fila.conversion.divisor,
+      divisorAproximado: fila.conversion.divisor_aproximado,
+      divisorPorMotivo: fila.conversion.divisor_por_motivo,
+      cierresNoReferidos: fila.conversion.cierres_no_referidos,
+      cierresReferidos: fila.conversion.cierres_referidos,
+      cierresDeArrastre: fila.conversion.cierres_de_arrastre,
+      referidosRecibidos: fila.conversion.referidos_recibidos,
+      numerador: fila.conversion.numerador,
+    },
+    detalles: fila.detalles.map((detalle) => ({
+      categoria: detalle.categoria,
+      moneda: detalle.moneda,
+      capitalObjetivo: detalle.capital_objetivo,
+      capitalReal: detalle.capital_real,
+      capitalCumplimientoPct: detalle.capital_cumplimiento_pct,
+      contratosObjetivo: detalle.contratos_objetivo,
+      contratosReal: detalle.contratos_real,
+      contratosCumplimientoPct: detalle.contratos_cumplimiento_pct,
+      capitalAjuste: detalle.capital_ajuste ?? 0,
+      contratosAjuste: detalle.contratos_ajuste ?? 0,
+    })),
+    cartera: {
+      conversionesClientes: fila.cartera.conversiones_clientes,
+      conversionesRenovacion: fila.cartera.conversiones_renovacion,
+      conversionesUpgrade: fila.cartera.conversiones_upgrade,
+      operacionesRenovacion: fila.cartera.operaciones_renovacion,
+      operacionesUpgrade: fila.cartera.operaciones_upgrade,
+      capitalRenovadoPen: fila.cartera.capital_renovado_pen,
+      capitalRenovadoUsd: fila.cartera.capital_renovado_usd,
+      capitalAdicionalPen: fila.cartera.capital_adicional_pen,
+      capitalAdicionalUsd: fila.cartera.capital_adicional_usd,
+      renovacionesSinDesglose: fila.cartera.renovaciones_sin_desglose,
+    },
+  }))
+  const fueraComoCumplimiento: CumplimientoComercial[] = fueraRanking.map((fila) => ({
+    conversionObjetivo: 0,
+    conversionReal: null,
+    convertidos: (fila.conversion?.cierresNoReferidos ?? 0)
+      + (fila.conversion?.cierresReferidos ?? 0)
+      + fila.cartera.conversionesClientes,
+    resueltos: fila.conversion?.divisor ?? 0,
+    numerador: fila.conversion?.numerador ?? 0,
+    detalles: fila.detalles,
+  }))
   return {
     periodo: respuesta.periodo,
     revision: respuesta.revision,
@@ -496,8 +711,9 @@ export function cumplimientoDesdeRpc(
     cierre: respuesta.cierre ?? null,
     vendedor: actorId ? (porVendedor[actorId] ?? null) : null,
     supervisor: agregarCumplimientos(filas.filter((fila) => fila.supervisorId === actorId)),
-    gerencia: agregarCumplimientos(filas),
+    gerencia: agregarCumplimientos([...filas, ...fueraComoCumplimiento]),
     porVendedor,
+    fueraRanking,
   }
 }
 

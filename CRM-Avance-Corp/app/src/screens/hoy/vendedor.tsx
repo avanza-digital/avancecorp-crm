@@ -5,6 +5,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type JSX,
@@ -57,8 +58,8 @@ import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { planPorLead } from '@/lib/plan-lead'
 import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
-import { agendaDeTareas, esDeHoy, tareaAEvento, type EventoAgenda } from '@/lib/agenda-derivada'
-import { capitalObjetivo, metaVigente, capitalReal, metaConversionAplicable, periodoLima } from '@/lib/objetivos'
+import { agendaDeTareas, esDeHoy, fechaLima, tareaAEvento, type EventoAgenda } from '@/lib/agenda-derivada'
+import { capitalObjetivo, metaVigente, capitalReal, metaConversionAplicable, objetivosCero, periodoLima } from '@/lib/objetivos'
 import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
@@ -863,6 +864,22 @@ export function HoyVendedor(): JSX.Element {
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
   // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
   const ahora = useAhora()
+  const periodoVigente = periodoLima(ahora)
+  const periodoStoreIntentado = useRef<string | null>(null)
+  const [recargaPeriodoFallida, setRecargaPeriodoFallida] = useState(false)
+  const fotoMensualStoreVigente = yo?.demo === true || (
+    objetivos.periodo === periodoVigente
+    && (cumplimientoMetas == null || cumplimientoMetas.periodo === periodoVigente)
+  )
+  useEffect(() => {
+    if (yo?.demo || fotoMensualStoreVigente
+      || periodoStoreIntentado.current === periodoVigente) return
+    periodoStoreIntentado.current = periodoVigente
+    setRecargaPeriodoFallida(false)
+    void recargar().then((ok) => {
+      if (!ok) setRecargaPeriodoFallida(true)
+    })
+  }, [fotoMensualStoreVigente, periodoVigente, recargar, yo?.demo])
 
   // Universo del analista — ambito.leads ya es SOLO su cartera. Memoizado porque
   // de él cuelgan `idsMios` y la agenda derivada: un array nuevo en cada render
@@ -888,9 +905,22 @@ export function HoyVendedor(): JSX.Element {
   // Meta y producción del MISMO snapshot: ver `metaVigente`. Para el analista
   // importa igual, porque un cambio de equipo a mitad de mes no debe borrarle
   // la meta con la que se le está midiendo.
-  const meta = metaVigente(objetivos.vendedor, cumplimientoMetas?.vendedor ?? null)
-  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
-  const cumplimiento = cumplimientoMetas?.vendedor ?? null
+  const fotoMensualStoreCargando = !yo?.demo
+    && !fotoMensualStoreVigente
+    && !recargaPeriodoFallida
+  const objetivosMensualesError = fotoMensualStoreVigente
+    ? objetivosError
+    : recargaPeriodoFallida
+  const cumplimientoMensualError = fotoMensualStoreVigente
+    ? cumplimientoMetasError
+    : recargaPeriodoFallida
+  const objetivosMensuales = fotoMensualStoreVigente
+    ? objetivos
+    : objetivosCero(periodoVigente)
+  const cumplimientoMensual = fotoMensualStoreVigente ? cumplimientoMetas : null
+  const meta = metaVigente(objetivosMensuales.vendedor, cumplimientoMensual?.vendedor ?? null)
+  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosMensualesError)
+  const cumplimiento = cumplimientoMensual?.vendedor ?? null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
@@ -900,17 +930,29 @@ export function HoyVendedor(): JSX.Element {
   // acordada), NO del cumplimiento: hasta la migración B el cumplimiento sigue
   // con la fórmula vieja y este tile ya enseña la buena (decisión E1, plan
   // §4bis). El alcance 'propio' devuelve EXACTAMENTE una fila: la suya.
-  const periodoConversion = periodoLima(Date.now())
+  const periodoConversion = periodoVigente
   const esDemo = yo?.demo === true
-  const qConversionMensual = useConversionMensual(!esDemo, periodoConversion)
+  const qConversionMensual = useConversionMensual(
+    !esDemo,
+    periodoConversion,
+    'propio',
+    yo?.id,
+  )
+  const conversionMensualCargando = !esDemo
+    && qConversionMensual.isPending
+    && qConversionMensual.data === undefined
   const conversionMensual = esDemo
     ? conversionMensualDemo(Date.now(), {
         alcance: 'propio',
         actorId: yo?.id ?? 'd-v1',
       })
-    : (qConversionMensual.data ?? null)
+    : conversionMensualCargando
+      ? undefined
+      : (qConversionMensual.data ?? null)
   const conversionMensualError = !esDemo && qConversionMensual.isError
-  const miConversion = conversionMensual?.responsables[0] ?? null
+  const miConversion = conversionMensual?.responsables.find(
+    (fila) => fila.vendedor_id === yo?.id,
+  ) ?? null
   // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
   // 2026-08-14). La regla vive en `lecturaCobertura`, no aquí: cuatro pantallas
   // pintan esta misma cifra y escrita cuatro veces acabarían discrepando.
@@ -928,10 +970,26 @@ export function HoyVendedor(): JSX.Element {
   //
   // El MISMO tc entra en el capital y en la meta: si falta, los dos quedan
   // solo-PEN y el porcentaje sigue comparando peras con peras.
-  const { tc: tipoCambio } = useTipoCambio()
+  const { tc: tipoCambio, recargar: recargarTipoCambio } = useTipoCambio()
+  const diaTipoCambio = fechaLima(ahora)
+  const diaTipoCambioAnterior = useRef(diaTipoCambio)
+  useEffect(() => {
+    if (diaTipoCambioAnterior.current === diaTipoCambio) return
+    diaTipoCambioAnterior.current = diaTipoCambio
+    recargarTipoCambio()
+  }, [diaTipoCambio, recargarTipoCambio])
   const tcPromedio = tipoCambio?.promedio ?? null
   const capitalTotal = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tcPromedio)
   const metaTotal = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
+  const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
+  const tcEnVuelo = tipoCambio === undefined && hayDolares
+  const tcCaido = tipoCambio === null && hayDolares
+  const ajusteCierre = cumplimiento?.ajuste
+  const hayAjusteCierre = ajusteCierre != null && (
+    ajusteCierre.aplicadoPen > 0
+    || ajusteCierre.aplicadoUsd > 0
+    || ajusteCierre.contratosAplicados > 0
+  )
 
   // Cola de acción personal (el ámbito del analista no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
@@ -1376,9 +1434,9 @@ export function HoyVendedor(): JSX.Element {
               </p>
             </div>
             <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
-              {capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
+              {tcEnVuelo ? 'Capital consultando…' : capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
               {' · '}
-              {`Conversión ${porcentajeConversionCanonica(conversion)}`}
+              {conversionMensualCargando ? 'Conversión consultando…' : `Conversión ${porcentajeConversionCanonica(conversion)}`}
             </span>
             <ChevronRight
               className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
@@ -1390,17 +1448,38 @@ export function HoyVendedor(): JSX.Element {
               <MetaFila
                 icon={Wallet}
                 label="Capital confirmado"
-                valorTxt={capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
+                valorTxt={tcEnVuelo ? 'Calculando…' : capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
                 metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
                 pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
                 delay={0}
-                nota={<DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
+                nota={(
+                  <>
+                    {!tcEnVuelo && <DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
+                    {hayAjusteCierre && ajusteCierre && (
+                      <p
+                        className="text-[11px] font-semibold tabular-nums text-warning-text"
+                        title="El capital confirmado ya es neto: estos importes y contratos se descontaron al cerrar el mes."
+                      >
+                        Neto tras ajuste de cierre
+                        {ajusteCierre.aplicadoPen > 0 ? ` · −${money(ajusteCierre.aplicadoPen, 'PEN')}` : ''}
+                        {ajusteCierre.aplicadoUsd > 0 ? ` · −${money(ajusteCierre.aplicadoUsd, 'USD')}` : ''}
+                        {ajusteCierre.contratosAplicados > 0
+                          ? ` · −${numero(ajusteCierre.contratosAplicados)} ${ajusteCierre.contratosAplicados === 1 ? 'contrato' : 'contratos'}`
+                          : ''}
+                      </p>
+                    )}
+                  </>
+                )}
                 neutro={
-                  objetivosError
+                  fotoMensualStoreCargando
+                    ? 'Actualizando la meta y el cumplimiento de este mes…'
+                    : objetivosMensualesError
                     ? 'Meta mensual no disponible'
-                    : (metaTotal.total ?? 0) <= 0
+                    : tcEnVuelo
+                      ? 'Consultando el tipo de cambio para consolidar los dólares…'
+                      : (metaTotal.total ?? 0) <= 0
                       ? SIN_META
-                      : cumplimientoMetasError || capitalTotal.total == null
+                      : cumplimientoMensualError || capitalTotal.total == null
                         ? 'Cumplimiento confirmado no disponible'
                         : undefined
                 }
@@ -1408,7 +1487,7 @@ export function HoyVendedor(): JSX.Element {
               <MetaFila
                 icon={TrendingUp}
                 label="Conversión del mes"
-                valorTxt={porcentajeConversionCanonica(conversion)}
+                valorTxt={conversionMensualCargando ? 'Calculando…' : porcentajeConversionCanonica(conversion)}
                 metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
                 pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
                 delay={180}
@@ -1448,9 +1527,11 @@ export function HoyVendedor(): JSX.Element {
                   ) : undefined
                 }
                 neutro={
-                  conversionMensualError
-                    ? 'Conversión del mes no disponible'
-                    : !lecturaConversion.mostrar
+                  conversionMensualCargando
+                    ? 'Consultando la conversión del mes…'
+                    : conversionMensualError
+                      ? 'Conversión del mes no disponible'
+                      : !lecturaConversion.mostrar
                       ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
                       : miConversion?.estado === 'solo_referidos'
                         ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
@@ -1458,7 +1539,9 @@ export function HoyVendedor(): JSX.Element {
                           ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
                           : miConversion?.estado === 'sin_actividad' || conversion == null
                             ? 'Sin leads recibidos este mes'
-                            : objetivosError
+                            : fotoMensualStoreCargando
+                              ? 'Actualizando la meta de este mes…'
+                              : objetivosMensualesError
                               ? 'Meta mensual no disponible'
                               : metaConversion == null
                                 ? SIN_META
@@ -1466,7 +1549,7 @@ export function HoyVendedor(): JSX.Element {
                 }
               />
             </div>
-            {(objetivosError || cumplimientoMetasError || conversionMensualError) && (
+            {(objetivosMensualesError || cumplimientoMensualError || conversionMensualError || tcCaido) && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
                 {/* El reintento cubre TAMBIÉN la conversión mensual (observación
@@ -1476,8 +1559,14 @@ export function HoyVendedor(): JSX.Element {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (objetivosError || cumplimientoMetasError) void recargar()
+                    if (objetivosMensualesError || cumplimientoMensualError) {
+                      setRecargaPeriodoFallida(false)
+                      void recargar().then((ok) => {
+                        if (!ok && !fotoMensualStoreVigente) setRecargaPeriodoFallida(true)
+                      })
+                    }
                     if (conversionMensualError) void qConversionMensual.refetch()
+                    if (tcCaido) recargarTipoCambio()
                   }}
                 >
                   Reintentar

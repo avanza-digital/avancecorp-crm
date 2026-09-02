@@ -235,10 +235,11 @@ export type Database = {
           ajuste_numerador: number
           ajuste_pen: number
           ajuste_usd: number
+          cartera: Json
           cierres_de_arrastre: number
           cierres_no_referidos: number
           cierres_referidos: number
-          conversion_objetivo: number | null
+          conversion_objetivo: number
           conversion_pct: number | null
           detalles: Json
           divisor: number
@@ -252,18 +253,19 @@ export type Database = {
           referidos_aporta_pct: number | null
           referidos_dados_de_alta: number
           referidos_recibidos: number
-          supervisor_id: string | null
-          supervisor_nombre: string | null
+          supervisor_id: string
+          supervisor_nombre: string
           vendedor_id: string
         }
         Insert: {
           ajuste_numerador?: number
           ajuste_pen?: number
           ajuste_usd?: number
+          cartera?: Json
           cierres_de_arrastre: number
           cierres_no_referidos: number
           cierres_referidos: number
-          conversion_objetivo?: number | null
+          conversion_objetivo: number
           conversion_pct?: number | null
           detalles?: Json
           divisor: number
@@ -277,18 +279,19 @@ export type Database = {
           referidos_aporta_pct?: number | null
           referidos_dados_de_alta: number
           referidos_recibidos: number
-          supervisor_id?: string | null
-          supervisor_nombre?: string | null
+          supervisor_id: string
+          supervisor_nombre: string
           vendedor_id: string
         }
         Update: {
           ajuste_numerador?: number
           ajuste_pen?: number
           ajuste_usd?: number
+          cartera?: Json
           cierres_de_arrastre?: number
           cierres_no_referidos?: number
           cierres_referidos?: number
-          conversion_objetivo?: number | null
+          conversion_objetivo?: number
           conversion_pct?: number | null
           detalles?: Json
           divisor?: number
@@ -302,8 +305,8 @@ export type Database = {
           referidos_aporta_pct?: number | null
           referidos_dados_de_alta?: number
           referidos_recibidos?: number
-          supervisor_id?: string | null
-          supervisor_nombre?: string | null
+          supervisor_id?: string
+          supervisor_nombre?: string
           vendedor_id?: string
         }
         Relationships: [

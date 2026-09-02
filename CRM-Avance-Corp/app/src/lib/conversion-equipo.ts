@@ -3,6 +3,8 @@ import type { Miembro } from './tipos'
 export interface ConversionEquipoVendedor {
   vendedorId: string | null
   nombre: string
+  /** Identidad estable para no fusionar equipos cuyos supervisores comparten nombre. */
+  supervisorId?: string | null
   supervisorNombre: string
   leads: number
   contactados: number
@@ -16,11 +18,13 @@ export interface ConversionEquipoVendedor {
 function filaVacia(
   vendedorId: string | null,
   nombre: string,
+  supervisorId: string | null,
   supervisorNombre: string,
 ): ConversionEquipoVendedor {
   return {
     vendedorId,
     nombre,
+    supervisorId,
     supervisorNombre,
     leads: 0,
     contactados: 0,
@@ -52,6 +56,7 @@ export function identidadesEquipoConversion(
     .map((vendedor) => filaVacia(
       vendedor.perfil_id,
       vendedor.nombre_completo,
+      vendedor.supervisor_id ?? null,
       vendedor.supervisor_id
         ? (nombreSupervisor.get(vendedor.supervisor_id) ?? 'Sin supervisor')
         : 'Sin supervisor',

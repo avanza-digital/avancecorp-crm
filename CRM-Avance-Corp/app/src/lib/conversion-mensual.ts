@@ -34,9 +34,16 @@ import {
   UuidSchema,
 } from './esquemas-rpc'
 import { fmtFecha, numero } from './format'
+import { CierreDelMesSchema } from './objetivos'
 
 /** Porcentaje sin techo: la definición supera el 100 % por diseño. */
 const PorcentajeSinTechoSchema = v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))
+
+/** Mes calendario real. Rechaza ecos imposibles como `2026-13`. */
+const MesCalendarioSchema = v.pipe(
+  v.string(),
+  v.regex(/^\d{4}-(?:0[1-9]|1[0-2])$/),
+)
 
 /** Los CUATRO estados que emite el servidor. `indisponible` NO está aquí a
  * propósito: es el quinto estado y lo produce SOLO el cliente (fail-closed de
@@ -91,14 +98,26 @@ export const CoberturaConversionSchema = v.pipe(
   ),
 )
 
-const TramoProcedenciaSchema = v.object({
-  /** null en el cubo `anteriores` (cierres de más de 11 meses atrás). */
-  mes: v.nullable(v.string()),
-  mes_nombre: v.string(),
-  anio: v.nullable(v.pipe(NumeroRpcSchema, v.integer())),
-  cierres: EnteroNoNegativoRpcSchema,
-  cierres_referidos: EnteroNoNegativoRpcSchema,
-})
+const TramoProcedenciaSchema = v.pipe(
+  v.object({
+    /** null en el cubo `anteriores` (cierres de más de 11 meses atrás). */
+    mes: v.nullable(MesCalendarioSchema),
+    mes_nombre: v.string(),
+    anio: v.nullable(v.pipe(NumeroRpcSchema, v.integer())),
+    cierres: EnteroNoNegativoRpcSchema,
+    cierres_referidos: EnteroNoNegativoRpcSchema,
+  }),
+  v.check(
+    (tramo) => tramo.cierres_referidos <= tramo.cierres,
+    'La procedencia mensual tiene más cierres referidos que cierres',
+  ),
+  v.check(
+    (tramo) => tramo.mes == null
+      ? tramo.anio == null
+      : tramo.anio === Number(tramo.mes.slice(0, 4)),
+    'La procedencia mensual contradice su año',
+  ),
+)
 
 const ReferidosResponsableSchema = v.object({
   recibidos: EnteroNoNegativoRpcSchema,
@@ -110,7 +129,7 @@ const ReferidosResponsableSchema = v.object({
 /** Un descuento que viene de un mes YA CERRADO: cuándo y por qué. `motivo` es
  * el texto libre de la anulación de gerencia (≤300), no un vocabulario. */
 const OrigenAjusteSchema = v.object({
-  periodo: v.string(),
+  periodo: MesCalendarioSchema,
   motivo: v.string(),
   numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
 })
@@ -162,23 +181,56 @@ const CarteraTotalSchema = v.object({
   operaciones_upgrade: EnteroNoNegativoRpcSchema,
 })
 
-const ResponsableConversionSchema = v.object({
-  vendedor_id: UuidSchema,
-  supervisor_id: v.nullable(UuidSchema),
-  divisor: EnteroNoNegativoRpcSchema,
-  cierres_no_referidos: EnteroNoNegativoRpcSchema,
-  cierres_referidos: EnteroNoNegativoRpcSchema,
-  /** Cierres del mes cuyo divisor fue OTRO mes: el sumando que explica un
-   * ratio por encima de 100 sin recorrer `procedencia`. */
-  cierres_de_arrastre: EnteroNoNegativoRpcSchema,
-  numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
-  conversion_pct: PorcentajeSinTechoSchema,
-  estado: EstadoResponsableSchema,
-  procedencia: v.array(TramoProcedenciaSchema),
-  referidos: ReferidosResponsableSchema,
-  ajuste: v.optional(AjusteConversionSchema),
-  cartera: CarteraResponsableSchema,
-})
+const ResponsableConversionSchema = v.pipe(
+  v.object({
+    vendedor_id: UuidSchema,
+    supervisor_id: v.nullable(UuidSchema),
+    divisor: EnteroNoNegativoRpcSchema,
+    cierres_no_referidos: EnteroNoNegativoRpcSchema,
+    cierres_referidos: EnteroNoNegativoRpcSchema,
+    /** Cierres del mes cuyo divisor fue OTRO mes: el sumando que explica un
+     * ratio por encima de 100 sin recorrer `procedencia`. */
+    cierres_de_arrastre: EnteroNoNegativoRpcSchema,
+    numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
+    conversion_pct: PorcentajeSinTechoSchema,
+    estado: EstadoResponsableSchema,
+    procedencia: v.array(TramoProcedenciaSchema),
+    referidos: ReferidosResponsableSchema,
+    ajuste: v.optional(AjusteConversionSchema),
+    cartera: CarteraResponsableSchema,
+  }),
+  v.check((fila) => {
+    if (fila.divisor === 0) return fila.conversion_pct == null
+    if (fila.conversion_pct == null) return false
+    const calculado = 100 * fila.numerador / fila.divisor
+    const tolerancia = 0.005000001
+      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
+    return Math.abs(fila.conversion_pct - calculado) <= tolerancia
+  }, 'La conversión del responsable no corresponde a su numerador y divisor'),
+  v.check((fila) => {
+    const cierres = fila.cierres_no_referidos + fila.cierres_referidos
+    const estadoEsperado = fila.divisor > 0
+      ? 'medible'
+      : fila.referidos.recibidos > 0
+        ? 'solo_referidos'
+        : cierres > 0 || fila.cartera.conversiones_clientes > 0
+          ? 'solo_arrastre'
+          : 'sin_actividad'
+    return fila.estado === estadoEsperado
+  }, 'El estado del responsable contradice su actividad mensual'),
+  v.check((fila) => {
+    const cierres = fila.cierres_no_referidos + fila.cierres_referidos
+    const cierresProcedencia = fila.procedencia.reduce((total, tramo) => total + tramo.cierres, 0)
+    const referidosProcedencia = fila.procedencia.reduce(
+      (total, tramo) => total + tramo.cierres_referidos,
+      0,
+    )
+    return fila.referidos.cerrados === fila.cierres_referidos
+      && fila.cierres_de_arrastre <= cierres
+      && cierresProcedencia === cierres
+      && referidosProcedencia === fila.cierres_referidos
+  }, 'El desglose de cierres del responsable no cuadra'),
+)
 
 const TotalConversionSchema = v.object({
   analistas: EnteroNoNegativoRpcSchema,
@@ -193,38 +245,117 @@ const TotalConversionSchema = v.object({
   cartera: CarteraTotalSchema,
 })
 
-export const ConversionMensualSchema = v.object({
-  version: v.literal(1),
-  generado_en: FechaHoraSchema,
-  /** Lo decide el SERVIDOR, que conoce el recorte; el front solo lo lee. */
-  alcance: v.picklist(['propio', 'equipo', 'global']),
-  periodo: v.object({
-    mes: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}$/)),
-    mes_nombre: v.string(),
-    anio: v.pipe(NumeroRpcSchema, v.integer()),
-    zona: v.literal('America/Lima'),
-    desde: FechaHoraSchema,
-    hasta: FechaHoraSchema,
+export const ConversionMensualSchema = v.pipe(
+  v.object({
+    version: v.literal(1),
+    /** Revisión de metas que gobernó esta lectura. Es opcional solo durante el
+     * rollout frontend→backend; cuando el servidor la publique, las pantallas la
+     * comparan con cumplimiento y cosecha antes de mostrar el ranking. */
+    revision: v.optional(EnteroNoNegativoRpcSchema),
+    generado_en: FechaHoraSchema,
+    /** Lo decide el SERVIDOR, que conoce el recorte; el adaptador exige el eco
+     * exacto del alcance que el consumidor declaró esperar. */
+    alcance: v.picklist(['propio', 'equipo', 'global']),
+    periodo: v.object({
+      mes: MesCalendarioSchema,
+      mes_nombre: v.string(),
+      anio: v.pipe(NumeroRpcSchema, v.integer()),
+      zona: v.literal('America/Lima'),
+      desde: FechaHoraSchema,
+      hasta: FechaHoraSchema,
+    }),
+    ponderacion: v.object({
+      referido: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1)),
+      fuente: v.literal('crm.conversion_pesos'),
+    }),
+    // Tokens de versión del contrato, no la fórmula (la migración documenta por
+    // qué `numerador` dice `resultado_en` aunque la consulta defienda con
+    // coalesce). Cambiarlos exige cambiar servidor y front en el MISMO deploy —
+    // que es exactamente lo que este literal existe para impedir por accidente.
+    fuentes: v.object({
+      divisor: v.literal('crm.lead_asignaciones.asignado_en'),
+      numerador: v.literal('crm.lead_asignaciones.resultado_en'),
+      referido: v.literal('crm.lead_asignaciones.origen'),
+    }),
+    cobertura: CoberturaConversionSchema,
+    /** Estado del mismo snapshot mensual. Se conserva para impedir que una
+     * transición abierto → sellado mezcle esta lectura con cumplimiento. */
+    cierre: v.optional(CierreDelMesSchema),
+    /** Mismo total que `total.cartera`, también publicado en la raíz por el RPC. */
+    cartera: CarteraTotalSchema,
+    total: TotalConversionSchema,
+    responsables: v.array(ResponsableConversionSchema),
   }),
-  ponderacion: v.object({
-    referido: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1)),
-    fuente: v.literal('crm.conversion_pesos'),
-  }),
-  // Tokens de versión del contrato, no la fórmula (la migración documenta por
-  // qué `numerador` dice `resultado_en` aunque la consulta defienda con
-  // coalesce). Cambiarlos exige cambiar servidor y front en el MISMO deploy —
-  // que es exactamente lo que este literal existe para impedir por accidente.
-  fuentes: v.object({
-    divisor: v.literal('crm.lead_asignaciones.asignado_en'),
-    numerador: v.literal('crm.lead_asignaciones.resultado_en'),
-    referido: v.literal('crm.lead_asignaciones.origen'),
-  }),
-  cobertura: CoberturaConversionSchema,
-  /** Mismo total que `total.cartera`, también publicado en la raíz por el RPC. */
-  cartera: CarteraTotalSchema,
-  total: TotalConversionSchema,
-  responsables: v.array(ResponsableConversionSchema),
-})
+  v.check((payload) => {
+    const [anio, mes] = payload.periodo.mes.split('-').map(Number)
+    return payload.periodo.anio === anio
+      && Date.parse(payload.periodo.desde) === Date.UTC(anio!, mes! - 1, 1, 5)
+      && Date.parse(payload.periodo.hasta) === Date.UTC(anio!, mes!, 1, 5)
+  }, 'El período mensual contradice sus límites de America/Lima'),
+  v.check((payload) => {
+    if (payload.total.divisor === 0) return payload.total.conversion_pct == null
+    if (payload.total.conversion_pct == null) return false
+    const calculado = 100 * payload.total.numerador / payload.total.divisor
+    const tolerancia = 0.005000001
+      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
+    return Math.abs(payload.total.conversion_pct - calculado) <= tolerancia
+  }, 'La conversión total no corresponde a su numerador y divisor'),
+  v.check((payload) => {
+    if (payload.total.divisor === 0) return payload.total.referidos_aporta_pct == null
+    if (payload.total.referidos_aporta_pct == null) return false
+    const calculado = 100 * payload.ponderacion.referido
+      * payload.total.cierres_referidos / payload.total.divisor
+    const tolerancia = 0.005000001
+      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
+    return Math.abs(payload.total.referidos_aporta_pct - calculado) <= tolerancia
+  }, 'El aporte referido total no corresponde a la ponderación declarada'),
+  v.check((payload) => payload.responsables.every((fila) => {
+    if (fila.divisor === 0) return fila.referidos.aporta_pct == null
+    if (fila.referidos.aporta_pct == null) return false
+    const calculado = 100 * payload.ponderacion.referido
+      * fila.cierres_referidos / fila.divisor
+    const tolerancia = 0.005000001
+      + Number.EPSILON * Math.max(1, Math.abs(calculado)) * 8
+    return Math.abs(fila.referidos.aporta_pct - calculado) <= tolerancia
+  }), 'El aporte referido de un responsable no corresponde a la ponderación declarada'),
+  v.check((payload) => {
+    const ids = new Set(payload.responsables.map((fila) => fila.vendedor_id))
+    if (ids.size !== payload.responsables.length) return false
+
+    const fuera = payload.cobertura.fuera_de_roster
+    const analistas = payload.responsables.length + fuera.analistas
+    const divisor = payload.responsables.reduce((total, fila) => total + fila.divisor, 0)
+      + fuera.divisor
+    const cierres = payload.responsables.reduce(
+      (total, fila) => total + fila.cierres_no_referidos + fila.cierres_referidos,
+      0,
+    ) + fuera.cierres
+    const numerador = payload.responsables.reduce((total, fila) => total + fila.numerador, 0)
+      + fuera.numerador
+    const tolerancia = 1e-9 + Number.EPSILON
+      * Math.max(1, Math.abs(payload.total.numerador), Math.abs(numerador)) * 16
+
+    return payload.total.analistas === analistas
+      && payload.total.divisor === divisor
+      && payload.total.cierres_no_referidos + payload.total.cierres_referidos === cierres
+      && Math.abs(payload.total.numerador - numerador) <= tolerancia
+  }, 'El total mensual no cuadra con responsables y fuera de roster'),
+  v.check((payload) => {
+    const motivos = Object.values(payload.cobertura.divisor_por_motivo)
+      .reduce((total, cantidad) => total + cantidad, 0)
+    const cierres = payload.total.cierres_no_referidos + payload.total.cierres_referidos
+    return motivos === payload.total.divisor
+      && payload.cobertura.divisor_aproximado <= payload.total.divisor
+      && payload.total.cierres_de_arrastre <= cierres
+  }, 'Las sondas de cobertura no cuadran con el total mensual'),
+  v.check((payload) => Object.entries(payload.cartera).every(
+    ([campo, valor]) => payload.total.cartera[campo as keyof typeof payload.cartera] === valor,
+  ), 'La cartera raíz contradice la cartera del total'),
+  v.check(
+    (payload) => payload.alcance !== 'propio' || payload.responsables.length <= 1,
+    'El alcance propio no puede contener varios responsables',
+  ),
+)
 
 export type ConversionMensual = v.InferOutput<typeof ConversionMensualSchema>
 export type ResponsableConversionMensual = ConversionMensual['responsables'][number]

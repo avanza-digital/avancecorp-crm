@@ -143,7 +143,7 @@ describe('adapter de responsables de conversión', () => {
     expect(total.conPuesto[0]!.avance).toBeCloseTo((430_000 / 390_000) * 100, 6)
   })
 
-  it('el capital construye su roster desde cumplimiento/metas, sin depender de una RPC de conversión', () => {
+  it('trata un roster vacío como autoritativo y no repuebla bajas desde cumplimiento/metas', () => {
     const meta = metasConversionEquipoDemo()['demo-v1']!
     const cumplimiento = cumplimientoMetasConversionEquipoDemo().porVendedor['demo-v1']!
 
@@ -154,14 +154,9 @@ describe('adapter de responsables de conversión', () => {
       3.5,
     )
 
-    expect(ranking.conPuesto[0]!.vendedor).toEqual({
-      vendedorId: 'historico-v1',
-      nombre: 'Analista no identificado',
-      supervisorNombre: 'Equipo no disponible',
-    })
-    expect(ranking.conPuesto).toHaveLength(1)
-    expect(ranking.conPuesto[0]!.vendedor.vendedorId).toBe('historico-v1')
-    expect(ranking.conPuesto[0]!.capitalTotal).toBe(430_000)
+    expect(ranking.conPuesto).toEqual([])
+    expect(ranking.sinMeta).toEqual([])
+    expect(ranking.indisponibles).toEqual([])
   })
 
   it('un cumplimiento sin detalles degrada a indisponible — jamás a un puesto con S/ 0', () => {

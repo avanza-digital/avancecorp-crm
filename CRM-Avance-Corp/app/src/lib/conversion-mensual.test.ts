@@ -30,6 +30,7 @@ const CARTERA_TOTAL = {
 function payloadCanonico() {
   return {
     version: 1,
+    revision: 7,
     generado_en: '2026-08-11T21:00:00+00:00',
     alcance: 'global',
     periodo: {
@@ -55,6 +56,7 @@ function payloadCanonico() {
       cierres_sin_episodio: 0,
       fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
     },
+    cierre: { cerrado: false },
     total: {
       analistas: 1,
       divisor: 90,
@@ -110,6 +112,41 @@ describe('ConversionMensualSchema — el contrato', () => {
     expect(r.output.alcance).toBe('global')
   })
 
+  it('conserva la revisión compartida y tolera que el backend previo aún no la publique', () => {
+    const vigente = v.safeParse(ConversionMensualSchema, payloadCanonico())
+    expect(vigente.success).toBe(true)
+    if (!vigente.success) return
+    expect(vigente.output.revision).toBe(7)
+
+    const { revision: _revision, ...legado } = payloadCanonico()
+    const anterior = v.safeParse(ConversionMensualSchema, legado)
+    expect(anterior.success).toBe(true)
+    if (!anterior.success) return
+    expect('revision' in anterior.output).toBe(false)
+  })
+
+  it.each([-1, 1.5, 'siete'])('rechaza una revisión mensual inválida: %s', (revision) => {
+    expect(v.safeParse(ConversionMensualSchema, {
+      ...payloadCanonico(),
+      revision,
+    }).success).toBe(false)
+  })
+
+  it('conserva el estado abierto/sellado para alinear las lecturas del mes', () => {
+    const payload = {
+      ...payloadCanonico(),
+      cierre: {
+        cerrado: true,
+        cerrado_en: '2026-09-10T14:20:00+00:00',
+        automatico: true,
+      },
+    }
+    const r = v.safeParse(ConversionMensualSchema, payload)
+    expect(r.success).toBe(true)
+    if (!r.success) return
+    expect(r.output.cierre).toEqual(payload.cierre)
+  })
+
   it('estado solo_referidos PARSEA — si faltara en el picklist se caería el payload entero', () => {
     const p = payloadCanonico()
     p.responsables[0] = {
@@ -118,32 +155,99 @@ describe('ConversionMensualSchema — el contrato', () => {
       cierres_no_referidos: 0,
       cierres_referidos: 2,
       cierres_de_arrastre: 0,
-      numerador: 0.3,
+      numerador: 4.3,
       conversion_pct: null as unknown as number,
       estado: 'solo_referidos',
-      procedencia: [],
+      procedencia: [
+        { mes: '2026-07', mes_nombre: 'julio', anio: 2026, cierres: 2, cierres_referidos: 2 },
+      ],
       referidos: { recibidos: 8, cerrados: 2, dados_de_alta: 8, aporta_pct: null as unknown as number },
+    }
+    ;(p.cobertura as { divisor_por_motivo: Record<string, number> }).divisor_por_motivo = {}
+    p.total = {
+      ...p.total,
+      divisor: 0,
+      cierres_no_referidos: 0,
+      cierres_referidos: 2,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 8,
+      numerador: 4.3,
+      conversion_pct: null as unknown as number,
+      referidos_aporta_pct: null as unknown as number,
     }
     const r = v.safeParse(ConversionMensualSchema, p)
     expect(r.success).toBe(true)
   })
 
-  it('los otros dos estados con divisor 0 también parsean', () => {
-    for (const estado of ['solo_arrastre', 'sin_actividad'] as const) {
-      const p = payloadCanonico()
-      p.responsables[0] = {
-        ...p.responsables[0]!,
-        divisor: 0,
-        conversion_pct: null as unknown as number,
-        estado,
-      }
-      expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+  it('estado solo_arrastre PARSEA con cierres u operaciones y divisor 0', () => {
+    const p = payloadCanonico()
+    p.responsables[0] = {
+      ...p.responsables[0]!,
+      divisor: 0,
+      conversion_pct: null as unknown as number,
+      estado: 'solo_arrastre',
+      referidos: { ...p.responsables[0]!.referidos, recibidos: 0, aporta_pct: null as unknown as number },
     }
+    ;(p.cobertura as { divisor_por_motivo: Record<string, number> }).divisor_por_motivo = {}
+    p.total = {
+      ...p.total,
+      divisor: 0,
+      referidos_recibidos: 0,
+      conversion_pct: null as unknown as number,
+      referidos_aporta_pct: null as unknown as number,
+    }
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+  })
+
+  it('estado sin_actividad PARSEA solo cuando no hay cierres, recibidos ni cartera', () => {
+    const p = payloadCanonico()
+    const carteraResponsable = {
+      ...CARTERA_RESPONSABLE,
+      conversiones_clientes: 0,
+      conversiones_renovacion: 0,
+      conversiones_upgrade: 0,
+    }
+    const carteraTotal = {
+      ...CARTERA_TOTAL,
+      ...carteraResponsable,
+      operaciones_renovacion: 0,
+      operaciones_upgrade: 0,
+    }
+    p.responsables[0] = {
+      ...p.responsables[0]!,
+      divisor: 0,
+      cierres_no_referidos: 0,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      numerador: 0,
+      conversion_pct: null as unknown as number,
+      estado: 'sin_actividad',
+      procedencia: [],
+      referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null as unknown as number },
+      cartera: carteraResponsable,
+    }
+    ;(p.cobertura as { divisor_por_motivo: Record<string, number> }).divisor_por_motivo = {}
+    p.cartera = carteraTotal
+    p.total = {
+      ...p.total,
+      divisor: 0,
+      cierres_no_referidos: 0,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 0,
+      numerador: 0,
+      conversion_pct: null as unknown as number,
+      referidos_aporta_pct: null as unknown as number,
+      cartera: carteraTotal,
+    }
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
   })
 
   it('una conversión del 200 % parsea SIN recorte (la definición supera 100 por diseño)', () => {
     const p = payloadCanonico()
+    p.total.numerador = 180
     p.total.conversion_pct = 200
+    p.responsables[0]!.numerador = 180
     p.responsables[0]!.conversion_pct = 200
     const r = v.safeParse(ConversionMensualSchema, p)
     expect(r.success).toBe(true)
@@ -154,6 +258,8 @@ describe('ConversionMensualSchema — el contrato', () => {
   it('preserva el desglose de cartera y la precisión numeric en raíz, total y responsable', () => {
     const p = payloadCanonico()
     ;(p.cartera as { capital_renovado_pen: unknown }).capital_renovado_pen = '125000.7501'
+    ;(p.total.cartera as { capital_renovado_pen: unknown }).capital_renovado_pen = '125000.7501'
+    ;(p.cartera as { capital_adicional_usd: unknown }).capital_adicional_usd = '300.755'
     ;(p.total.cartera as { capital_adicional_usd: unknown }).capital_adicional_usd = '300.755'
     ;(p.responsables[0]!.cartera as { capital_renovado_usd: unknown }).capital_renovado_usd = '2500.505'
 
@@ -225,13 +331,67 @@ describe('ConversionMensualSchema — el contrato', () => {
 
   it('el cubo `anteriores` parsea con mes y año en null', () => {
     const p = payloadCanonico()
-    p.responsables[0]!.procedencia.push({
+    p.responsables[0]!.procedencia[2] = {
       mes: null as unknown as string,
       mes_nombre: 'anteriores',
       anio: null as unknown as number,
-      cierres: 2,
+      cierres: 1,
       cierres_referidos: 0,
-    })
+    }
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+  })
+
+  it('RECHAZA un período cuyo año o límites no corresponden al mes', () => {
+    const anioIncorrecto = payloadCanonico()
+    anioIncorrecto.periodo.anio = 2025
+    expect(v.safeParse(ConversionMensualSchema, anioIncorrecto).success).toBe(false)
+
+    const hastaIncorrecto = payloadCanonico()
+    hastaIncorrecto.periodo.hasta = '2026-08-31T05:00:00+00:00'
+    expect(v.safeParse(ConversionMensualSchema, hastaIncorrecto).success).toBe(false)
+  })
+
+  it('RECHAZA porcentajes, estados y procedencia que contradicen sus cantidades', () => {
+    const porcentaje = payloadCanonico()
+    porcentaje.total.conversion_pct = 18
+    expect(v.safeParse(ConversionMensualSchema, porcentaje).success).toBe(false)
+
+    const estado = payloadCanonico()
+    estado.responsables[0]!.estado = 'sin_actividad'
+    expect(v.safeParse(ConversionMensualSchema, estado).success).toBe(false)
+
+    const procedencia = payloadCanonico()
+    procedencia.responsables[0]!.procedencia[0]!.cierres = 23
+    expect(v.safeParse(ConversionMensualSchema, procedencia).success).toBe(false)
+  })
+
+  it('ACEPTA el total con fuera_de_roster y exige que se sume sin inventar una fila', () => {
+    const p = payloadCanonico()
+    p.cobertura.fuera_de_roster = { analistas: 2, divisor: 10, cierres: 2, numerador: 1.3 }
+    ;(p.cobertura as { divisor_por_motivo: Record<string, number> }).divisor_por_motivo = {
+      ingreso: 86,
+      reasignado: 4,
+      fuera_de_roster: 10,
+    }
+    p.total = {
+      ...p.total,
+      analistas: 3,
+      divisor: 100,
+      cierres_no_referidos: 18,
+      numerador: 19.1,
+      conversion_pct: 19.1,
+      referidos_aporta_pct: 1.8,
+    }
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
+
+    p.total.divisor = 90
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
+  })
+
+  it('mes parcial conserva un porcentaje publicable y no se confunde con contrato roto', () => {
+    const p = payloadCanonico()
+    p.cobertura.medible = false
+    ;(p.cobertura as { motivo_no_medible: string | null }).motivo_no_medible = 'mes_parcial'
     expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
   })
 })

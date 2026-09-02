@@ -5,10 +5,19 @@
 // solo deja data vieja en silencio — por eso se pinea aquí (y el flujo cruzado
 // completo se cubre en e2e/contratos.spec.ts).
 import { createElement, type ReactNode } from 'react'
-import { renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it } from 'vitest'
-import { crmQueryKeys, useClientes, useContrato, useContratos } from './crm-queries'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  crmQueryKeys,
+  useClientes,
+  useContrato,
+  useContratos,
+  useConversionMensual,
+  useCierreMesEstado,
+  useMetricasConversionesEquipo,
+  useMetricasVendedores,
+} from './crm-queries'
 
 /** QueryClient limpio por test + wrapper del provider (sin red: ver abajo). */
 function arnes() {
@@ -60,8 +69,155 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
   it('las métricas del ámbito operativo cuelgan de metricas-ambito', () => {
     expect(crmQueryKeys.metricasAmbito()).toEqual(['crm', 'metricas-ambito'])
     expect(crmQueryKeys.resumenCartera()).toEqual(['crm', 'metricas-ambito', 'resumen-cartera'])
-    expect(crmQueryKeys.metricasVendedores()).toEqual(['crm', 'metricas-ambito', 'metricas-vendedores'])
+    expect(crmQueryKeys.metricasVendedores('2026-09-01')).toEqual([
+      'crm', 'metricas-ambito', 'metricas-vendedores', '2026-09-01',
+    ])
     expect(crmQueryKeys.resumenReparto()).toEqual(['crm', 'metricas-ambito', 'resumen-reparto'])
+  })
+
+  it('abre una foto operativa nueva cuando cambia el mes calendario', () => {
+    const { cliente, wrapper } = arnes()
+    const { rerender } = renderHook(
+      ({ periodo }) => useMetricasVendedores(false, periodo),
+      { initialProps: { periodo: '2026-08-01' }, wrapper },
+    )
+
+    rerender({ periodo: '2026-09-01' })
+
+    expect(cliente.getQueryCache().getAll().map((query) => query.queryKey)).toEqual([
+      ['crm', 'metricas-ambito', 'metricas-vendedores', '2026-08-01'],
+      ['crm', 'metricas-ambito', 'metricas-vendedores', '2026-09-01'],
+    ])
+  })
+
+  it('las fotos de conversión separan período, alcance y actor', () => {
+    expect(crmQueryKeys.conversionMensual('2026-08-01', 'propio', 'v-1')).toEqual([
+      'crm', 'metricas', 'conversion-mensual', '2026-08-01', 'propio', 'v-1',
+    ])
+    expect(crmQueryKeys.conversionMensual('2026-08-01', 'equipo', 's-1')).toEqual([
+      'crm', 'metricas', 'conversion-mensual', '2026-08-01', 'equipo', 's-1',
+    ])
+    expect(crmQueryKeys.conversionMensual('2026-08-01', 'global', 'g-ignorado')).toEqual([
+      'crm', 'metricas', 'conversion-mensual', '2026-08-01', 'global', null,
+    ])
+    expect(crmQueryKeys.metricasConversionesEquipo(
+      '2026-08-01',
+      '2026-08-31',
+      'equipo',
+      's-1',
+    )).toEqual([
+      'crm', 'metricas', 'conversiones-equipo',
+      '2026-08-01', '2026-08-31', 'equipo', 's-1',
+    ])
+  })
+
+  it('agenda y reuniones cuelgan de prefijos invalidables sin borrar otras métricas', () => {
+    expect(crmQueryKeys.metricasAgendaPrefijo()).toEqual(['crm', 'metricas', 'agenda-equipo'])
+    expect(crmQueryKeys.metricasAgenda('2026-08-01', '2026-08-31')).toEqual([
+      'crm', 'metricas', 'agenda-equipo', '2026-08-01', '2026-08-31',
+    ])
+    expect(crmQueryKeys.metricasReunionesPrefijo()).toEqual(['crm', 'metricas', 'reuniones'])
+    expect(crmQueryKeys.metricasReuniones('2026-08-01', '2026-08-31')).toEqual([
+      'crm', 'metricas', 'reuniones', '2026-08-01', '2026-08-31',
+    ])
+  })
+
+  it('los hooks registran exactamente las claves dimensionadas aunque estén deshabilitados', () => {
+    const { cliente, wrapper } = arnes()
+    renderHook(() => useConversionMensual(false, '2026-08-01', 'propio', 'v-1'), { wrapper })
+    renderHook(() => useConversionMensual(false, '2026-08-01', 'global', 'g-1'), { wrapper })
+    renderHook(() => useMetricasConversionesEquipo(
+      false,
+      '2026-08-01',
+      '2026-08-31',
+      'equipo',
+      's-1',
+    ), { wrapper })
+
+    expect(cliente.getQueryCache().getAll().map((query) => query.queryKey)).toEqual([
+      ['crm', 'metricas', 'conversion-mensual', '2026-08-01', 'propio', 'v-1'],
+      ['crm', 'metricas', 'conversion-mensual', '2026-08-01', 'global', null],
+      [
+        'crm', 'metricas', 'conversiones-equipo',
+        '2026-08-01', '2026-08-31', 'equipo', 's-1',
+      ],
+    ])
+  })
+
+  it('al detectar un nuevo mes sellado caduca las tres fotos mensuales abiertas', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
+    const invalidar = vi.spyOn(cliente, 'invalidateQueries')
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: cliente }, children)
+    const claveCumplimiento = crmQueryKeys.cumplimientoMetas('2026-08-01', 'g-1')
+    const claveConversion = crmQueryKeys.conversionMensual('2026-08-01', 'global')
+    const claveCosecha = crmQueryKeys.metricasConversionesEquipo(
+      '2026-08-01', '2026-08-31', 'global',
+    )
+    const claveReuniones = crmQueryKeys.metricasReuniones('2026-08-01', '2026-08-31')
+    const base = {
+      version: 1 as const,
+      generado_en: '2026-09-10T14:25:00Z',
+      hoy: '2026-09-10',
+      zona: 'America/Lima' as const,
+      mes_en_curso: { mes: '2026-09', mes_nombre: 'setiembre', cierra_el: '2026-10-10' },
+      pendiente: null,
+    }
+    cliente.setQueryData(crmQueryKeys.cierreMesEstado(), {
+      ...base,
+      ultimo_cerrado: null,
+    })
+    for (const clave of [claveCumplimiento, claveConversion, claveCosecha, claveReuniones]) {
+      cliente.setQueryData(clave, { foto: 'abierta' })
+    }
+    renderHook(() => useCierreMesEstado(true), { wrapper })
+
+    act(() => {
+      cliente.setQueryData(crmQueryKeys.cierreMesEstado(), {
+        ...base,
+        ultimo_cerrado: {
+          mes: '2026-08', mes_nombre: 'agosto', cerrado_en: '2026-09-10T14:20:00Z', automatico: true,
+        },
+      })
+    })
+
+    await waitFor(() => expect(cliente.getQueryState(claveCumplimiento)?.isInvalidated).toBe(true))
+    expect(cliente.getQueryState(claveConversion)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(claveCosecha)?.isInvalidated).toBe(true)
+    expect(cliente.getQueryState(claveReuniones)?.isInvalidated).toBe(false)
+    const clavesInvalidadas = invalidar.mock.calls.map((llamada) => JSON.stringify(llamada[0]?.queryKey))
+    const posicionCosecha = clavesInvalidadas.indexOf(
+      JSON.stringify(crmQueryKeys.metricasConversionesEquipoPrefijo()),
+    )
+    expect(posicionCosecha).toBeGreaterThan(clavesInvalidadas.indexOf(
+      JSON.stringify(crmQueryKeys.cumplimientoMetasPrefijo()),
+    ))
+    expect(posicionCosecha).toBeGreaterThan(clavesInvalidadas.indexOf(
+      JSON.stringify(crmQueryKeys.conversionMensualPrefijo()),
+    ))
+  })
+
+  it('también caduca fotos abiertas si el primer estado observado ya viene sellado', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: cliente }, children)
+    const clave = crmQueryKeys.conversionMensual('2026-08-01', 'global')
+    cliente.setQueryData(clave, { foto: 'abierta' })
+    cliente.setQueryData(crmQueryKeys.cierreMesEstado(), {
+      version: 1,
+      generado_en: '2026-09-10T14:25:00Z',
+      hoy: '2026-09-10',
+      zona: 'America/Lima',
+      mes_en_curso: { mes: '2026-09', mes_nombre: 'setiembre', cierra_el: '2026-10-10' },
+      pendiente: null,
+      ultimo_cerrado: {
+        mes: '2026-08', mes_nombre: 'agosto', cerrado_en: '2026-09-10T14:20:00Z', automatico: true,
+      },
+    })
+
+    renderHook(() => useCierreMesEstado(true), { wrapper })
+
+    await waitFor(() => expect(cliente.getQueryState(clave)?.isInvalidated).toBe(true))
   })
 
   it('useContrato NO inventa clave: registra bajo crmQueryKeys.contratos() (select por id)', () => {

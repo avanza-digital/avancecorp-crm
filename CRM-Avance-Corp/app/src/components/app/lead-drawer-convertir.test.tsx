@@ -9,6 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import { StoreDataContext } from '@/lib/store-context'
@@ -39,42 +40,46 @@ const { mutarCierreExterno } = vi.hoisted(() => ({
   mutarCierreExterno: vi.fn(),
 }))
 
-vi.mock('@/data/crm-queries', () => ({
-  useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
-  useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
-    data: moneda === 'PEN'
-      ? [{
-          cuenta_id: null,
-          moneda: 'PEN',
-          banco: 'BCP',
-          tipo_cuenta: 'ahorros',
-          numero_cuenta: '191000001234',
-          cci: '00112233445566778899',
-          titular_distinto: false,
-          beneficiario_nombre: null,
-          beneficiario_dni: null,
-          origen: 'perfil',
-          es_cuenta_perfil: true,
-          creada_en: null,
-        }]
-      : [],
-    isPending: false,
-    isError: false,
-    isFetching: false,
-    refetch: vi.fn(),
-  })),
-  useConvertirLeadExterno: vi.fn(() => ({ mutateAsync: mutarCierreExterno })),
-  // Pre-vuelo legal del contrato. Aquí el cliente ACABA de nacer con su
-  // domicilio (la conversión lo captura), así que no falta nada: este camino no
-  // debe ver nunca el bloque que pide el domicilio.
-  useDatosLegalesContrato: vi.fn((clienteId: string) => ({
-    data: { clienteId, faltaDomicilio: false, faltanCliente: [], faltanAnalista: [] },
-    isPending: false,
-    isError: false,
-    isFetching: false,
-    refetch: vi.fn(),
-  })),
-}))
+vi.mock('@/data/crm-queries', async (importActual) => {
+  const actual = await importActual<typeof import('@/data/crm-queries')>()
+  return {
+    ...actual,
+    useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
+    useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
+      data: moneda === 'PEN'
+        ? [{
+            cuenta_id: null,
+            moneda: 'PEN',
+            banco: 'BCP',
+            tipo_cuenta: 'ahorros',
+            numero_cuenta: '191000001234',
+            cci: '00112233445566778899',
+            titular_distinto: false,
+            beneficiario_nombre: null,
+            beneficiario_dni: null,
+            origen: 'perfil',
+            es_cuenta_perfil: true,
+            creada_en: null,
+          }]
+        : [],
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    })),
+    useConvertirLeadExterno: vi.fn(() => ({ mutateAsync: mutarCierreExterno })),
+    // Pre-vuelo legal del contrato. Aquí el cliente ACABA de nacer con su
+    // domicilio (la conversión lo captura), así que no falta nada: este camino no
+    // debe ver nunca el bloque que pide el domicilio.
+    useDatosLegalesContrato: vi.fn((clienteId: string) => ({
+      data: { clienteId, faltaDomicilio: false, faltanCliente: [], faltanAnalista: [] },
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    })),
+  }
+})
 
 // El catálogo versionado tiene sus pruebas propias. Este diálogo solo necesita
 // que el paso contractual pueda montarse sin una frontera remota ni QueryClient.
@@ -88,7 +93,30 @@ vi.mock('@/data/crm-config-queries', () => ({
   }),
 }))
 
+// ContratoNuevo tiene una suite propia. Aquí conservamos el título accesible y
+// ejercemos el callback exacto que cierra el flujo después de crear la venta.
+vi.mock('@/components/app/contrato-nuevo', async () => {
+  const { DialogTitle } = await import('@/components/ui/dialog')
+  return {
+    ContratoNuevo: ({
+      clienteNombre,
+      onCreado,
+    }: {
+      clienteNombre: string
+      onCreado: () => void | Promise<void>
+    }) => (
+      <>
+        <DialogTitle>Crear contrato de {clienteNombre}</DialogTitle>
+        <button type="button" onClick={() => { void onCreado() }}>
+          Confirmar contrato simulado
+        </button>
+      </>
+    ),
+  }
+})
+
 const { DialogConvertir } = await import('./lead-drawer')
+const { crmQueryKeys } = await import('@/data/crm-queries')
 const { CrmApiError } = crmApi
 
 const convertirEdge = vi.mocked(crmApi.convertirLead)
@@ -140,6 +168,10 @@ function montar({
   const onClose = vi.fn()
   const recargar = vi.fn().mockResolvedValue(recargaOk)
   const convertirExterno = vi.fn(() => ({ ok: true }))
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  const invalidar = vi.spyOn(queryClient, 'invalidateQueries')
   // Stub mínimo del store: DialogConvertir solo usa convertir/convertirExterno
   // (demo) y recargar.
   const api = {
@@ -151,13 +183,15 @@ function montar({
     equipo: [],
   } as unknown as StoreDataApi
   render(
-    <AuthContext.Provider value={sesion(demo, rol)}>
-      <StoreDataContext.Provider value={api}>
-        <DialogConvertir l={leadBase(lead)} onClose={onClose} />
-      </StoreDataContext.Provider>
-    </AuthContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={sesion(demo, rol)}>
+        <StoreDataContext.Provider value={api}>
+          <DialogConvertir l={leadBase(lead)} onClose={onClose} />
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   )
-  return { onClose, recargar, convertirExterno }
+  return { onClose, recargar, convertirExterno, invalidar }
 }
 
 /** El flujo arranca en «¿Dónde invirtió?»: esta variante lo pasa eligiendo
@@ -318,7 +352,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
       domicilio_accion: 'completado',
       email_enviado: true,
     })
-    const { recargar } = await montarEnAvance()
+    const { onClose, recargar, invalidar } = await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -353,7 +387,32 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     // Y NO queda ningún segundo paso que pueda fallar y dejar al cliente sin cuenta.
     expect(actualizarCliente).not.toHaveBeenCalled()
     expect(recargar).toHaveBeenCalled()
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.clientes() })
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesPrefijo(),
+    })
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+    })
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.conversionMensualPrefijo(),
+    })
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.cumplimientoMetasPrefijo(),
+    })
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+    })
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricasAmbito() })
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.leads() })
     expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar contrato simulado' }))
+    await waitFor(() => {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.contratos() })
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: crmQueryKeys.metricas() })
+      expect(onClose).toHaveBeenCalledOnce()
+    })
   })
 
   it('permite corregir la sugerencia antes de crear el cliente para pagos', async () => {

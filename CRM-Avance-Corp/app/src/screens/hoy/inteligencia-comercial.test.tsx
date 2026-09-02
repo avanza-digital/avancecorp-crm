@@ -40,10 +40,50 @@ const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
 const CUMPLIMIENTO_PANEL = cumplimientoMetasConversionEquipoDemo().gerencia
 
 describe('detalle de conversión por analista', () => {
-  it('no mezcla un error inicial con el mensaje de datos vacíos', () => {
+  it('mantiene el héroe mensual cuando falla la lectura secundaria del rango', () => {
+    const onReintentarMensual = vi.fn()
+    const onReintentarRango = vi.fn()
     render(
       <InteligenciaComercialPanel
         datos={undefined}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
+        equipo={conversionEquipoDemo()}
+        metaConversion={15}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError="No se pudieron cargar las conversiones del rango."
+        modoDemo={false}
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentarMensual={onReintentarMensual}
+        onReintentarRango={onReintentarRango}
+      />,
+    )
+
+    const heroe = within(screen.getByRole('region', { name: 'Conversión mensual canónica' }))
+    expect(heroe.getByText('Conversión del mes · agosto 2026')).toBeInTheDocument()
+    expect(heroe.getByText('23.85%')).toBeInTheDocument()
+    expect(heroe.getByText('No disponible')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las conversiones del rango.')
+    expect(screen.queryByRole('img', { name: 'Cosecha del período por analista' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Aún no hay leads para analizar')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(onReintentarRango).toHaveBeenCalledTimes(1)
+    expect(onReintentarMensual).not.toHaveBeenCalled()
+  })
+
+  it('mantiene los paneles del rango cuando falla el núcleo mensual', () => {
+    const onReintentarMensual = vi.fn()
+    const onReintentarRango = vi.fn()
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={null}
         cumplimiento={CUMPLIMIENTO_PANEL}
         origenFiltrado={null}
@@ -52,17 +92,63 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error="No se pudieron cargar las conversiones."
+        mensualCargando={false}
+        mensualError="No se pudo calcular la conversión mensual."
+        rangoCargando={false}
+        rangoError={null}
         modoDemo={false}
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={onReintentarMensual}
+        onReintentarRango={onReintentarRango}
       />,
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las conversiones.')
-    expect(screen.queryByText('Aún no hay leads para analizar')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular la conversión mensual.')
+    expect(screen.getByRole('region', { name: 'Conversión mensual canónica' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(onReintentarMensual).toHaveBeenCalledTimes(1)
+    expect(onReintentarRango).not.toHaveBeenCalled()
+  })
+
+  it('muestra toda la foto mensual en carga sin tapar la Cosecha ni fingir ausencia', () => {
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={undefined}
+        cumplimiento={null}
+        origenFiltrado={null}
+        equipo={conversionEquipoDemo()}
+        metaConversion={15}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        mensualCargando
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
+        modoDemo={false}
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
+      />,
+    )
+
+    const heroe = screen.getByRole('region', { name: 'Conversión mensual canónica' })
+    expect(heroe).toHaveAttribute('aria-busy', 'true')
+    expect(within(heroe).getByText('Calculando…')).toBeInTheDocument()
+    expect(within(heroe).getAllByText('Consultando…')).toHaveLength(2)
+    expect(within(heroe).queryByText('Sin meta')).not.toBeInTheDocument()
+    expect(within(heroe).queryByText('—')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(detalle.getByText('Consultando la conversión, las metas y el capital confirmado del mes…')).toBeInTheDocument()
+    expect(detalle.queryByText('Conversión del mes no disponible')).not.toBeInTheDocument()
   })
 
   it('abre una ficha compacta y muestra el capital PEN y USD por separado', () => {
@@ -77,12 +163,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -138,12 +227,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -177,12 +269,15 @@ describe('detalle de conversión por analista', () => {
           'demo-v1': { ...cumplimientoAna, conversionReal: 40 },
         }}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -206,12 +301,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -248,12 +346,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -297,7 +398,7 @@ describe('detalle de conversión por analista', () => {
     datos.sondas = {
       cuadra: true,
       paridad_nucleo: 0,
-      paridad_filas: 0,
+      paridad_filas: 1,
       divisor_fuera_del_roster: 0,
       numerador_fuera_del_roster: 0,
       cierres_sin_ficha_convertida: 0,
@@ -319,12 +420,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo={false}
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -332,10 +436,10 @@ describe('detalle de conversión por analista', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
 
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(detalle.getByText('No disponible')).toBeInTheDocument()
+    expect(detalle.getByText('Conversión del mes no disponible')).toBeInTheDocument()
     expect(detalle.getAllByText('—').length).toBeGreaterThan(0)
     expect(detalle.queryByText(money(360_000, 'PEN'))).not.toBeInTheDocument()
-    expect(detalle.getByText('Tendencia no disponible')).toBeInTheDocument()
+    expect(detalle.queryByText('Tendencia no disponible')).not.toBeInTheDocument()
   })
 
   it('la ficha falla cerrada ante cierres mensuales sin episodio, pero conserva el capital del rango', () => {
@@ -353,18 +457,22 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(detalle.getByText('Conversión del mes en revisión')).toBeInTheDocument()
+    expect(detalle.getByText('Conversión del mes no disponible')).toBeInTheDocument()
+    expect(detalle.getByText(/1 cierre no tiene episodio verificable/)).toBeInTheDocument()
     expect(detalle.queryByText('34.58%')).not.toBeInTheDocument()
     expect(detalle.queryByText('Recibidos 12 · cierres 5')).not.toBeInTheDocument()
     expect(detalle.queryByRole('img', { name: 'Tendencia semanal de conversión de Ana Torres' })).not.toBeInTheDocument()
@@ -372,7 +480,7 @@ describe('detalle de conversión por analista', () => {
     expect(detalle.getByText(money(20_000, 'USD'))).toBeInTheDocument()
   })
 
-  it('la ficha rotula los estados del mes: Elena solo referidos, y el mes no medible', () => {
+  it('la ficha rotula solo referidos y publica un mes parcial con aviso provisional', () => {
     const { unmount } = render(
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
@@ -384,12 +492,15 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -405,7 +516,12 @@ describe('detalle de conversión por analista', () => {
     unmount()
 
     const sinDatos = conversionMensualInteligenciaDemo(AHORA)
-    sinDatos.cobertura = { ...sinDatos.cobertura, medible: false }
+    sinDatos.cobertura = {
+      ...sinDatos.cobertura,
+      medible: false,
+      motivo_no_medible: 'mes_parcial',
+      suelo_historico: '2026-08-17',
+    }
     render(
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
@@ -417,19 +533,23 @@ describe('detalle de conversión por analista', () => {
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const ana = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    // El servidor declara el mes no medible: la ficha lo dice, no inventa %.
-    expect(ana.getByText('Sin datos del mes')).toBeInTheDocument()
+    expect(ana.getByText('34.58%')).toBeInTheDocument()
+    expect(ana.getByText(/Provisional: el registro empieza/)).toBeInTheDocument()
+    expect(ana.queryByText('Sin datos del mes')).not.toBeInTheDocument()
   })
 })
 
@@ -499,26 +619,27 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo={modoDemo}
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
   }
 
-  it('con sonda verificada, el héroe conserva la cosecha bruta y no pinta el núcleo', () => {
+  it('el héroe muestra la conversión mensual canónica y deja Cosecha como lectura del rango', () => {
     montarConNucleo({ ...SONDAS })
-    // Decisión de Miguel (27/08): la cifra grande de ESTA pantalla es EL
-    // BRUTO — entró vs cerró — bajo el nombre de la casa «Cosecha del
-    // período». El núcleo (7.2%) viaja en el payload pero NO se pinta aquí.
+    expect(screen.getByText('Conversión del mes · agosto 2026')).toBeInTheDocument()
+    expect(screen.getByText('23.85%')).toBeInTheDocument()
     expect(screen.getAllByText('Cosecha del período').length).toBeGreaterThan(0)
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.getByText('Entraron 184 leads · cerraron 17')).toBeInTheDocument()
+    expect(screen.getByText('17 cierres de 184')).toBeInTheDocument()
     expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
-    expect(screen.queryByText('Conversión del mes')).not.toBeInTheDocument()
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
@@ -598,12 +719,15 @@ describe('F1.3: capital por leads (veto de Miguel 27/08: fuera del héroe)', () 
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -630,12 +754,15 @@ describe('F1.3b: capital producido por origen', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -662,12 +789,15 @@ describe('F1.3b: capital producido por origen', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
 
@@ -693,12 +823,15 @@ describe('filtro de origen en Conversiones (27/08)', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
-        cargando={false}
-        error={null}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
         modoDemo
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
-        onReintentar={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
       />,
     )
   }
@@ -706,7 +839,7 @@ describe('filtro de origen en Conversiones (27/08)', () => {
   it('con filtro, las cifras de EMPRESA se retiran y entra el capital del LOTE', () => {
     montarConOrigen('referido')
     // El héroe rotula el origen y el lote reemplaza al capital/meta de empresa.
-    expect(screen.getByText(/origen: Referido/)).toBeInTheDocument()
+    expect(screen.getByText(/Cosecha del rango · Referido/)).toBeInTheDocument()
     expect(screen.queryByText('Capital del mes')).not.toBeInTheDocument()
     expect(screen.queryByText(/Meta mensual ·/)).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado del mes')).not.toBeInTheDocument()

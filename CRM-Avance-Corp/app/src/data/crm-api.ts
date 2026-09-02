@@ -1423,6 +1423,7 @@ export async function listarRecordatoriosDisponibilidad(signal?: AbortSignal): P
     .order('recordar_en', { ascending: true })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw aErrorApi(error, 'crm.recordatorios.listar_fallido')
   const resultado = v.safeParse(RecordatoriosCampanaSchema, data ?? [])
   if (!resultado.success) {
@@ -1506,6 +1507,7 @@ export async function listarReconocimientosAlertas(
     .limit(1000)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw aErrorApi(error, 'crm.reconocimientos.listar_fallido')
   const resultado = v.safeParse(AsientosReconocimientoSchema, data ?? [])
   if (!resultado.success) {
@@ -3660,7 +3662,15 @@ export async function listarMetricasConversiones(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.conversiones_fallido')
   const resultado = v.safeParse(MetricasConversionesSchema, data)
-  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+  // El schema conserva `origen_filtrado` optional para poder inspeccionar un
+  // payload legado de forma aislada; este borde HTTP no puede hacerlo: entregar
+  // un lote sin saber si el servidor aplicó el filtro rotularía datos ajenos.
+  if (
+    !resultado.success
+    || resultado.output.periodo.desde !== desde
+    || resultado.output.periodo.hasta !== hasta
+    || resultado.output.origen_filtrado !== origen
+  ) {
     const fallo = new CrmApiError(
       'Las métricas de conversión no tienen el formato esperado.',
       'METRICAS_CONVERSIONES_CONTRACT',
@@ -3681,15 +3691,20 @@ const PERIODO_MENSUAL_RE = /^\d{4}-\d{2}-01$/
  * MENSUAL POR CONTRATO: `periodo` es el PRIMER DÍA del mes ('2026-08-01') y la
  * pregunta «qué devuelve en un rango libre» es inexpresable. El ámbito lo
  * decide el SERVIDOR (analista→su fila, supervisor→su subárbol, gerencia y
- * lector global→empresa) y viaja en `alcance`; los denegados reciben 42501
+ * lector global→empresa) y viaja en `alcance`; el consumidor declara cuál
+ * espera y cualquier eco distinto se rechaza. Los denegados reciben 42501
  * duro, jamás un payload de ceros.
  *
  * La verificación de eco compara `periodo.mes` con el MES pedido — el payload
  * no trae `desde/hasta` en fecha-plana como sus hermanas, trae el mes nombrado
  * (copiar aquí el patrón desde/hasta rechazaría el 100 % de las respuestas).
  */
-export async function obtenerConversionMensual(periodo: string, signal?: AbortSignal): Promise<ConversionMensual> {
-  if (!PERIODO_MENSUAL_RE.test(periodo)) {
+export async function obtenerConversionMensual(
+  periodo: string,
+  alcanceEsperado: ConversionMensual['alcance'],
+  signal?: AbortSignal,
+): Promise<ConversionMensual> {
+  if (!PERIODO_MENSUAL_RE.test(periodo) || !v.safeParse(FechaMetricaSchema, periodo).success) {
     const fallo = new CrmApiError('El período de la conversión mensual no es válido.', 'PERIODO_METRICAS_INVALIDO')
     // Con registro (patrón agenda, no el de conversiones): un periodo inválido
     // aquí es un bug del front, no del usuario, y sin evento no se detecta.
@@ -3707,7 +3722,11 @@ export async function obtenerConversionMensual(periodo: string, signal?: AbortSi
   if (error) throw falloMetricas(error, 'crm.metricas.conversion_mensual_fallido')
 
   const resultado = v.safeParse(ConversionMensualSchema, data)
-  if (!resultado.success || resultado.output.periodo.mes !== periodo.slice(0, 7)) {
+  if (
+    !resultado.success
+    || resultado.output.periodo.mes !== periodo.slice(0, 7)
+    || resultado.output.alcance !== alcanceEsperado
+  ) {
     const fallo = new CrmApiError('La conversión mensual no tiene el formato esperado.', 'CONVERSION_MENSUAL_CONTRACT')
     registrarError('crm.metricas.conversion_mensual_fuera_de_contrato', fallo)
     throw fallo
@@ -3724,11 +3743,13 @@ export async function obtenerConversionMensual(periodo: string, signal?: AbortSi
  * que validar este payload con aquel fallaría siempre.
  *
  * El servidor decide el `alcance`: «equipo» para el supervisor, «global» para
- * gerencia y el lector. El front no lo infiere de su propio rol.
+ * gerencia y el lector. La superficie declara el esperado y este adaptador
+ * exige el eco exacto antes de entregar el ranking.
  */
 export async function listarMetricasConversionesEquipo(
   desde: string,
   hasta: string,
+  alcanceEsperado: MetricasConversionesEquipo['alcance'],
   signal?: AbortSignal,
 ): Promise<MetricasConversionesEquipo> {
   if (!periodoMetricasValido(desde, hasta)) {
@@ -3744,7 +3765,12 @@ export async function listarMetricasConversionesEquipo(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.conversiones_equipo_fallido')
   const resultado = v.safeParse(MetricasConversionesEquipoSchema, data)
-  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+  if (
+    !resultado.success
+    || resultado.output.periodo.desde !== desde
+    || resultado.output.periodo.hasta !== hasta
+    || resultado.output.alcance !== alcanceEsperado
+  ) {
     const fallo = new CrmApiError(
       'El ranking de conversión del equipo no tiene el formato esperado.',
       'METRICAS_CONVERSIONES_EQUIPO_CONTRACT',
@@ -3838,7 +3864,15 @@ export async function listarColaAccion(pLimite = LIMITE_COLA_ACCION, signal?: Ab
  * un ranking y unos tiles con cortes distintos en la misma pantalla serían
  * números que se contradicen.
  */
-export async function listarMetricasVendedores(signal?: AbortSignal): Promise<MetricasVendedoresPayload> {
+export async function listarMetricasVendedores(
+  periodoEsperado: string,
+  signal?: AbortSignal,
+): Promise<MetricasVendedoresPayload> {
+  if (!PERIODO_MENSUAL_RE.test(periodoEsperado) || !v.safeParse(FechaMetricaSchema, periodoEsperado).success) {
+    const fallo = new CrmApiError('El período de las métricas por analista no es válido.', 'PERIODO_METRICAS_INVALIDO')
+    registrarError('crm.metricas.vendedores_periodo_invalido', fallo)
+    throw fallo
+  }
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc('metricas_vendedores_fn')
   if (signal) consulta = consulta.abortSignal(signal)
@@ -3846,7 +3880,12 @@ export async function listarMetricasVendedores(signal?: AbortSignal): Promise<Me
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.vendedores_fallido')
   const resultado = v.safeParse(MetricasVendedoresSchema, data)
-  if (!resultado.success || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS) {
+  if (
+    !resultado.success
+    || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS
+    || resultado.output.ventana_metrica !== 'mes_calendario'
+    || resultado.output.mes_metrica !== periodoEsperado
+  ) {
     const fallo = new CrmApiError(
       'Las métricas por analista no tienen el formato esperado.',
       'METRICAS_VENDEDORES_CONTRACT',

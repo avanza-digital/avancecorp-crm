@@ -35,7 +35,7 @@ import { moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { useConversionMensual, useCumplimientoMetas, useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { useCierreMesEstado, useConversionMensual, useCumplimientoMetas, useMetricasConversionesEquipo } from '@/data/crm-queries'
 import { periodoInicialGerencia, periodoMesCalendario, semanticaMetaMensual } from '@/components/gerencia/periodo'
 import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
@@ -503,6 +503,10 @@ function EquipoSupervisor(): JSX.Element {
   } = useCRMData()
   const { yo } = useAuth()
   const { diaLima } = usePeriodoGerencia()
+  // Observador sin interfaz: el banner sigue siendo exclusivo de Gerencia,
+  // pero un supervisor con la pestaña abierta también debe caducar las fotos
+  // cuando el cron transforma el mes abierto en un snapshot sellado.
+  useCierreMesEstado(Boolean(yo && !yo.demo))
   // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola (en real esos
   // vencimientos llegan resueltos dentro de cola_accion_fn).
   const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito, yo?.demo === true)
@@ -565,7 +569,8 @@ function EquipoSupervisor(): JSX.Element {
     yo?.id,
   )
   const cumplimientoRankingCargando = rankingRealActivo
-    && (qCumplimientoRanking.isPending || qCumplimientoRanking.isFetching)
+    && ((qCumplimientoRanking.isPending && qCumplimientoRanking.data === undefined)
+      || (rankingHistorico && qCumplimientoRanking.isFetching))
   const cumplimientoRanking = rankingRealActivo
     ? cumplimientoRankingCargando
       ? undefined
@@ -583,7 +588,12 @@ function EquipoSupervisor(): JSX.Element {
   // viejo del equipo medía otra pregunta y ya no alimenta este tab. Tri-estado
   // como el TC: undefined = consultando, null = no disponible (fail-closed).
   const periodoConversionMes = periodoRanking.desde
-  const qConversionMensual = useConversionMensual(!yo?.demo, periodoConversionMes)
+  const qConversionMensual = useConversionMensual(
+    !yo?.demo,
+    periodoConversionMes,
+    'equipo',
+    yo?.id,
+  )
   // Cosecha por analista de MI equipo (F2.2/D2, alcance equipo por rol en el
   // servidor): mismo MES que la mensual del tab. Tri-estado; en demo no se
   // consulta ni se pinta (el espejo demo no la produce — fail-closed).
@@ -591,25 +601,86 @@ function EquipoSupervisor(): JSX.Element {
     !yo?.demo,
     periodoConversionMes,
     periodoRanking.hasta,
+    'equipo',
+    yo?.id,
   )
   const cosechaEquipo = yo?.demo
     ? undefined
-    : qCosechaEquipo.isPending || qCosechaEquipo.isFetching
+    : (qCosechaEquipo.isPending && qCosechaEquipo.data === undefined)
+        || (rankingHistorico && qCosechaEquipo.isFetching)
       ? undefined
       : (qCosechaEquipo.data ?? null)
   const conversionMensualEquipo = yo?.demo
     ? conversionMensualDemo(ahoraRanking, { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
-    : qConversionMensual.isPending || qConversionMensual.isFetching
+    : (qConversionMensual.isPending && qConversionMensual.data === undefined)
+        || (rankingHistorico && qConversionMensual.isFetching)
       ? undefined
       : (qConversionMensual.data ?? null)
+  const mesFotoMensualEsperado = periodoRanking.desde.slice(0, 7)
+  const mesConversionMensual = qConversionMensual.data?.periodo.mes
+  const mesCumplimientoMensual = qCumplimientoRanking.data?.periodo.slice(0, 7)
+  const mesCosechaMensual = qCosechaEquipo.data?.periodo.desde.slice(0, 7)
+  const cierreConversionMensual = qConversionMensual.data?.cierre?.cerrado
+  const cierreCumplimientoMensual = qCumplimientoRanking.data?.cierre?.cerrado
+  const cierreCosechaMensual = qCosechaEquipo.data?.cierre?.cerrado
+  const conversionPublicaRevision = qConversionMensual.data != null
+    && 'revision' in qConversionMensual.data
+  const cosechaPublicaRevision = qCosechaEquipo.data != null
+    && 'revision' in qCosechaEquipo.data
+  const cosechaPublicaCierre = qCosechaEquipo.data != null
+    && 'cierre' in qCosechaEquipo.data
+  const fotoMensualBaseLista = rankingRealActivo
+    && qConversionMensual.data != null
+    && qCumplimientoRanking.data != null
+  const fotoMensualCompletaLista = fotoMensualBaseLista && qCosechaEquipo.data != null
+  const fotoMensualBaseDesalineada = fotoMensualBaseLista && (
+    mesConversionMensual !== mesFotoMensualEsperado
+    || mesCumplimientoMensual !== mesFotoMensualEsperado
+    || (
+      conversionPublicaRevision
+      && qConversionMensual.data?.revision !== qCumplimientoRanking.data?.revision
+    )
+    || (
+      typeof cierreConversionMensual === 'boolean'
+      && typeof cierreCumplimientoMensual === 'boolean'
+      && cierreConversionMensual !== cierreCumplimientoMensual
+    )
+  )
+  // Compatibilidad de rollout: el backend anterior no publica los tokens en
+  // conversión/cosecha. Cuando cualquiera de los dos empiece a publicarlos, la
+  // terna completa debe coincidir o el ranking queda bloqueado hasta reintentar.
+  const fotoMensualDesalineada = fotoMensualBaseDesalineada
+    || Boolean(fotoMensualCompletaLista && (
+      mesCosechaMensual !== mesFotoMensualEsperado
+      || qCosechaEquipo.data?.periodo.desde !== periodoRanking.desde
+      || qCosechaEquipo.data?.periodo.hasta !== periodoRanking.hasta
+      || ((conversionPublicaRevision || cosechaPublicaRevision) && (
+        typeof qConversionMensual.data?.revision !== 'number'
+        || typeof qCosechaEquipo.data?.revision !== 'number'
+        || qConversionMensual.data.revision !== qCumplimientoRanking.data?.revision
+        || qCosechaEquipo.data.revision !== qCumplimientoRanking.data?.revision
+      ))
+      || (cosechaPublicaCierre && (
+        typeof cierreConversionMensual !== 'boolean'
+        || typeof cierreCumplimientoMensual !== 'boolean'
+        || typeof cierreCosechaMensual !== 'boolean'
+        || cierreConversionMensual !== cierreCumplimientoMensual
+        || cierreCosechaMensual !== cierreCumplimientoMensual
+      ))
+    ))
+  const mensajeFotoMensualDesalineada = 'Las fuentes de la foto mensual no corresponden al mismo mes, revisión o estado de cierre. Reintenta para completar la actualización.'
   const errorConversionRanking = !yo?.demo && qConversionMensual.isError
     ? 'No se pudo calcular la conversión mensual del equipo.'
     : null
   const errorCosechaRanking = !yo?.demo && qCosechaEquipo.isError
     ? 'No se pudo calcular la cosecha del lote del equipo.'
     : null
-  const errorFotoMensualRanking = rankingRealActivo && qCumplimientoRanking.isError
-    ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'
+  const errorFotoMensualRanking = rankingRealActivo
+    ? qCumplimientoRanking.isError
+      ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'
+      : fotoMensualDesalineada
+        ? mensajeFotoMensualDesalineada
+        : null
     : null
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
@@ -749,9 +820,16 @@ function EquipoSupervisor(): JSX.Element {
         <RankingVendedoresPanel
           conversionMensual={conversionMensualEquipo}
           conversionError={errorConversionRanking}
-          onReintentarConversion={() => { if (!yo?.demo) void qConversionMensual.refetch() }}
+          onReintentarConversion={() => {
+            if (yo?.demo) return
+            void qConversionMensual.refetch()
+          }}
           cosecha={cosechaEquipo}
-          cosechaCargando={!yo?.demo && (qCosechaEquipo.isPending || qCosechaEquipo.isFetching)}
+          cosechaCargando={
+            !yo?.demo
+            && ((qCosechaEquipo.isPending && qCosechaEquipo.data === undefined)
+              || (rankingHistorico && qCosechaEquipo.isFetching))
+          }
           cosechaError={errorCosechaRanking}
           onReintentarCosecha={() => { if (!yo?.demo) void qCosechaEquipo.refetch() }}
           equipo={equipoConversion}
@@ -761,9 +839,16 @@ function EquipoSupervisor(): JSX.Element {
           // El vigente conserva altas/bajas del roster vivo; la identidad se
           // congela únicamente al consultar un mes histórico.
           usarIdentidadSnapshot={rankingHistorico}
+          {...(rankingHistorico && cumplimientoRanking?.cierre
+            ? { estadoFotoMensual: cumplimientoRanking.cierre.cerrado ? 'sellada' as const : 'abierta' as const }
+            : {})}
           fotoMensualCargando={cumplimientoRankingCargando}
           fotoMensualError={errorFotoMensualRanking}
-          onReintentarFotoMensual={() => { void qCumplimientoRanking.refetch() }}
+          onReintentarFotoMensual={() => {
+            void qConversionMensual.refetch()
+            void qCumplimientoRanking.refetch()
+            void qCosechaEquipo.refetch()
+          }}
           capitalError={null}
           onReintentarCapital={() => {
             tipoCambioRanking.recargar()

@@ -962,7 +962,7 @@ export function metricasVendedoresReal(leads: LeadReal[]): Record<string, unknow
     generado_en: new Date().toISOString(),
     ventana_convertidos_dias: 45,
     ventana_metrica: 'mes_calendario',
-    mes_metrica: '2026-08-01',
+    mes_metrica: '2026-09-01',
     peso_referido: 0.15,
     cobertura_conversion: {
       medible: true,
@@ -1158,12 +1158,20 @@ export function conversionMensualVaciaReal(): ConversionMensualRealFixture {
  * crm.conversion_mensual_fn con actividad: 2 cierres sobre 20 recibidos (10 %).
  * Los ids son UUID porque el contrato del front los exige (fail-closed).
  */
-export function conversionMensualReal(): ConversionMensualRealFixture {
+export function conversionMensualReal(periodo = '2026-09'): ConversionMensualRealFixture {
   const cartera = carteraTotalVaciaReal()
+  const [anioTxt = '2026', mesTxt = '09'] = periodo.split('-')
+  const nombresMes = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre']
   const filaBase = {
     cierres_referidos: 0,
     cierres_de_arrastre: 0,
-    procedencia: [],
+    procedencia: [{
+      mes: periodo,
+      mes_nombre: nombresMes[Number(mesTxt) - 1] ?? 'setiembre',
+      anio: Number(anioTxt),
+      cierres: 1,
+      cierres_referidos: 0,
+    }],
     referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: 0 },
     cartera: carteraResponsableVaciaReal(),
   }
@@ -1254,7 +1262,7 @@ export function rankingAgostoReal(): {
     ]),
   ]
 
-  const conversionBase = conversionMensualReal()
+  const conversionBase = conversionMensualReal('2026-08')
   return {
     configuracionMetas: {
       version: 1,
@@ -1436,6 +1444,7 @@ export function metricasConversionesReal(): Record<string, unknown> {
 
 function metricasConversionesVaciasReal(): Record<string, unknown> {
   return {
+    origen_filtrado: null,
     version: 1,
     generado_en: '2026-08-07T17:00:00.000Z',
     periodo: periodoMetricasReal(),
@@ -1531,11 +1540,17 @@ function esRegistro(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
 }
 
-function metricasParaPeriodo(payload: unknown, desde: string, hasta: string): unknown {
+function metricasParaPeriodo(
+  payload: unknown,
+  desde: string,
+  hasta: string,
+  origenFiltrado?: string | null,
+): unknown {
   if (!esRegistro(payload)) return payload
   if (esRegistro(payload.periodo)) {
     return {
       ...payload,
+      ...(origenFiltrado === undefined ? {} : { origen_filtrado: origenFiltrado }),
       periodo: { ...periodoMetricasReal(desde, hasta) },
     }
   }
@@ -2577,36 +2592,75 @@ export async function montarBackendReal(
     // ── metas versionadas + cumplimiento confirmado (boot del store) ──
     if (p === '/rest/v1/rpc/configuracion_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      const periodo = body.p_periodo ?? String(estado.configuracionMetas.periodo)
+      const mismaFoto = periodo === estado.configuracionMetas.periodo
       return json(route, {
         ...estado.configuracionMetas,
-        periodo: body.p_periodo ?? estado.configuracionMetas.periodo,
+        periodo,
+        vendedores: mismaFoto ? estado.configuracionMetas.vendedores : [],
       })
     }
     if (p === '/rest/v1/rpc/cierre_mes_estado_fn' && method === 'POST') {
-      // El estado QUIETO del ciclo (forma del fixture generado ejecutando):
-      // nada pendiente, nada sellado — el banner del aviso no aparece y los
-      // specs quedan deterministas. Sin esta ruta, el fail-closed de abajo le
-      // daba 500 + reintentos a CADA pantalla de gerencia: latencia y ruido
-      // que llegaron a tumbar por timeout el spec de Equipo en la suite llena.
+      // Reloj coherente con el clock de los specs mensuales (02/09): agosto
+      // sigue en ventana de ajuste y julio es la última foto ya sellada.
       return json(route, {
         version: 1,
-        generado_en: '2026-07-17T17:00:00.000Z',
-        hoy: '2026-07-17',
+        generado_en: '2026-09-02T15:00:00.000Z',
+        hoy: '2026-09-02',
         zona: 'America/Lima',
-        mes_en_curso: { mes: '2026-07', mes_nombre: 'julio', cierra_el: '2026-08-10' },
-        pendiente: null,
-        ultimo_cerrado: null,
+        mes_en_curso: { mes: '2026-09', mes_nombre: 'setiembre', cierra_el: '2026-10-10' },
+        pendiente: {
+          mes: '2026-08',
+          mes_nombre: 'agosto',
+          cierra_el: '2026-09-10',
+          dias_para_cierre: 8,
+          estado: 'en_ventana',
+        },
+        ultimo_cerrado: {
+          mes: '2026-07',
+          mes_nombre: 'julio',
+          cerrado_en: '2026-08-10T14:20:00.000Z',
+          automatico: true,
+        },
       })
     }
     if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      const periodo = body.p_periodo ?? String(estado.cumplimientoMetas.periodo)
+      const mes = periodo.slice(0, 7)
+      const mismaFoto = periodo === estado.cumplimientoMetas.periodo
       return json(route, {
         ...estado.cumplimientoMetas,
-        periodo: body.p_periodo ?? estado.cumplimientoMetas.periodo,
+        periodo,
+        vendedores: mismaFoto ? estado.cumplimientoMetas.vendedores : [],
+        cierre: mes <= '2026-07'
+          ? { cerrado: true, cerrado_en: '2026-08-10T14:20:00.000Z', automatico: true }
+          : { cerrado: false },
       })
     }
     if (p === '/rest/v1/rpc/estado_sla_leads_fn') {
       return json(route, [])
+    }
+    if (p === '/rest/v1/alertas_reconocimientos_vigentes' && method === 'GET') {
+      return json(route, [])
+    }
+    if (p === '/rest/v1/rpc/cierres_externos_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      return json(route, {
+        version: 1,
+        periodo: String(body.p_periodo ?? '2026-09-01'),
+        alcance: estado.rolCrm === 'vendedor'
+          ? 'propio'
+          : estado.rolCrm === 'supervisor'
+            ? 'equipo'
+            : 'global',
+        cierres: [],
+        cierres_total: 0,
+        cierres_mes: [],
+        cierres_mes_total: 0,
+        totales: [],
+        por_empresa: [],
+      })
     }
 
     // ── estado del cierre y anulación de gerencia (Avance) ──────────────────
@@ -2711,21 +2765,35 @@ export async function montarBackendReal(
 
     // ── métricas de gerencia (gráficas del panel Hoy) ──
     if (p === '/rest/v1/rpc/metricas_conversiones_fn' && method === 'POST') {
-      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string; p_origen?: string }
       const desde = String(body.p_desde ?? '')
       const hasta = String(body.p_hasta ?? '')
-      return json(route, metricasParaPeriodo(estado.metricas.conversiones, desde, hasta))
+      return json(route, metricasParaPeriodo(
+        estado.metricas.conversiones,
+        desde,
+        hasta,
+        body.p_origen ?? null,
+      ))
     }
     if (p === '/rest/v1/rpc/conversion_mensual_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
       // El contrato del front ECO-verifica el mes pedido: el mock lo devuelve tal cual.
       const mes = String(body.p_periodo ?? '2026-08-01').slice(0, 7)
       const [anioTxt = '2026', mesTxt = '08'] = mes.split('-')
+      const inicioMesSiguiente = new Date(Date.UTC(Number(anioTxt), Number(mesTxt), 1))
+      const mesSiguiente = `${inicioMesSiguiente.getUTCFullYear()}-${String(inicioMesSiguiente.getUTCMonth() + 1).padStart(2, '0')}`
       const nombresMes = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre']
       const alcance = estado.rolCrm === 'vendedor' ? 'propio' : estado.rolCrm === 'supervisor' ? 'equipo' : 'global'
+      const procedencia = estado.metricas.conversionMensual.responsables[0]?.procedencia
+      const mesFuente = Array.isArray(procedencia)
+        ? String((procedencia[0] as Record<string, unknown> | undefined)?.mes ?? '')
+        : ''
+      const foto = mesFuente === '' || mesFuente === mes
+        ? estado.metricas.conversionMensual
+        : conversionMensualVaciaReal()
       return json(route, {
         version: 1,
-        generado_en: '2026-08-07T17:00:00.000Z',
+        generado_en: '2026-09-02T15:00:00.000Z',
         alcance,
         periodo: {
           mes,
@@ -2733,7 +2801,7 @@ export async function montarBackendReal(
           anio: Number(anioTxt),
           zona: 'America/Lima',
           desde: `${mes}-01T05:00:00+00:00`,
-          hasta: `${mes}-28T05:00:00+00:00`,
+          hasta: `${mesSiguiente}-01T05:00:00+00:00`,
         },
         ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
         fuentes: {
@@ -2746,25 +2814,38 @@ export async function montarBackendReal(
           suelo_historico: null,
           motivo_no_medible: null,
           divisor_aproximado: 0,
-          divisor_por_motivo: {},
+          divisor_por_motivo: Number(foto.total.divisor ?? 0) > 0
+            ? { ingreso: Number(foto.total.divisor) }
+            : {},
           cierres_sin_episodio: 0,
           fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
         },
-        cartera: estado.metricas.conversionMensual.cartera,
-        total: estado.metricas.conversionMensual.total,
-        responsables: estado.metricas.conversionMensual.responsables,
+        cierre: mes <= '2026-07'
+          ? { cerrado: true, cerrado_en: '2026-08-10T14:20:00.000Z', automatico: true }
+          : { cerrado: false },
+        cartera: foto.cartera,
+        total: foto.total,
+        responsables: foto.responsables,
       })
     }
     if (p === '/rest/v1/rpc/metricas_conversiones_equipo_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
       const desde = String(body.p_desde ?? '')
       const hasta = String(body.p_hasta ?? '')
+      const procedencia = estado.metricas.conversionMensual.responsables[0]?.procedencia
+      const mesFuente = Array.isArray(procedencia)
+        ? String((procedencia[0] as Record<string, unknown> | undefined)?.mes ?? '')
+        : ''
+      const cosecha = mesFuente === '' || mesFuente === desde.slice(0, 7)
+        ? estado.metricas.cosecha
+        : []
+      const paridadFilas = cosecha.length
       return json(route, {
         version: 1,
         generado_en: '2026-09-02T15:00:00.000Z',
         alcance: estado.rolCrm === 'supervisor' ? 'equipo' : 'global',
         periodo: { desde, hasta },
-        responsables: estado.metricas.cosecha,
+        responsables: cosecha,
         nucleo: {
           base: 'asignacion',
           incluye_cartera: true,
@@ -2772,9 +2853,9 @@ export async function montarBackendReal(
           mes_peso: `${desde.slice(0, 7)}-01`,
         },
         sondas: {
-          cuadra: true,
+          cuadra: paridadFilas > 0 ? true : null,
           paridad_nucleo: 0,
-          paridad_filas: 0,
+          paridad_filas: paridadFilas,
           divisor_fuera_del_roster: 0,
           numerador_fuera_del_roster: 0,
           cierres_anulados: 0,

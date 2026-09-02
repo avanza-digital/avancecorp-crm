@@ -34,6 +34,7 @@ import type { ConversionMensual } from '@/lib/conversion-mensual'
 // En demo la pantalla ni lo consulta (deriva de demo-conversion-mensual).
 let CONVERSION_MENSUAL: ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
+let CONVERSION_MENSUAL_PENDING = false
 const REFETCH_MENSUAL = vi.fn()
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
@@ -42,6 +43,8 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useConversionMensual: () => ({
       data: CONVERSION_MENSUAL ?? undefined,
       isError: CONVERSION_MENSUAL_ERROR,
+      isPending: CONVERSION_MENSUAL_PENDING,
+      isFetching: CONVERSION_MENSUAL_PENDING,
       refetch: REFETCH_MENSUAL,
     }),
   }
@@ -90,13 +93,14 @@ vi.mock('@/lib/store-context', () => ({
 // El tipo de cambio viene de una edge; aquí se fija para que el CONSOLIDADO sea
 // determinista. `TC = null` prueba el caso honesto: sin tasa, el total no puede
 // incluir los dólares y la pantalla tiene que decirlo.
-let TC: { promedio: number; fuente: string } | null = {
+let TC: { promedio: number; fuente: string } | null | undefined = {
   promedio: 3.5,
   fuente: 'BCRP · prom. 7d',
 }
+const RECARGAR_TIPO_CAMBIO = vi.fn()
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
-  useTipoCambio: () => ({ tc: TC, recargar: vi.fn() }),
+  useTipoCambio: () => ({ tc: TC, recargar: RECARGAR_TIPO_CAMBIO }),
 }))
 // El contador animado cuenta 0→N por requestAnimationFrame: con timers falsos
 // el texto quedaría a medio camino y las aserciones serían una lotería.
@@ -221,6 +225,7 @@ function montar(
     tareas?: Tarea[]
     actividades?: Actividad[]
     objetivos?: Partial<ObjetivosPorRol['vendedor']>
+    periodoObjetivos?: string
     /** El store no pudo LEER las metas: sus ceros no son un dato. */
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
@@ -242,9 +247,12 @@ function montar(
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
   OBJETIVOS = {
     ...METAS_DEMO,
+    periodo: over.periodoObjetivos ?? '2026-07-01',
     vendedor: { ...METAS_DEMO.vendedor, ...over.objetivos },
   }
-  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
+  CUMPLIMIENTO = over.cumplimiento == null
+    ? (over.cumplimiento ?? null)
+    : { ...over.cumplimiento, periodo: OBJETIVOS.periodo }
   render(<HoyVendedor />)
 }
 
@@ -313,7 +321,7 @@ function conversionMensualPropia(
     operaciones_upgrade: 0,
   }
   const fila: ConversionMensual['responsables'][number] = {
-    vendedor_id: '00000000-0000-4000-8000-000000000001',
+    vendedor_id: 'v-1',
     supervisor_id: null,
     divisor,
     cierres_no_referidos: cierres,
@@ -423,6 +431,7 @@ function cumplimientoPenUsd(
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  recargar.mockResolvedValue(true)
   crearTarea.mockReturnValue({ ok: true, id: 't-nueva' })
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
@@ -431,6 +440,7 @@ beforeEach(() => {
   // Cada test que quiera un mes medible siembra su propio payload.
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
+  CONVERSION_MENSUAL_PENDING = false
   COLA_CARGANDO = false
   COLA_ERROR = false
   TC = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
@@ -438,6 +448,29 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+it('recarga una sola vez si la foto del store quedó en el mes anterior', () => {
+  montar({ periodoObjetivos: '2026-06-01' })
+
+  expect(recargar).toHaveBeenCalledTimes(1)
+})
+
+it('no reutiliza la meta del mes anterior y deja reintentar un rollover fallido', async () => {
+  recargar.mockResolvedValue(false)
+  CONVERSION_MENSUAL = conversionMensualPropia(50, 2)
+  montar({
+    periodoObjetivos: '2026-06-01',
+    objetivos: { conversionObjetivo: 99 },
+  })
+
+  await act(async () => {})
+
+  expect(screen.queryByText('meta 99%')).not.toBeInTheDocument()
+  expect(screen.getByText('No pudimos cargar toda la información mensual.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+  await act(async () => {})
+  expect(recargar).toHaveBeenCalledTimes(2)
 })
 
 describe('Hoy · analista — contrato perceptual de Ahora', () => {
@@ -719,6 +752,15 @@ describe('Hoy · analista — capital en proceso', () => {
 })
 
 describe('Hoy · analista — meta del mes', () => {
+  it('distingue la consulta mensual de un mes realmente sin datos', () => {
+    CONVERSION_MENSUAL_PENDING = true
+    montar({ cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50) })
+
+    expect(screen.getByText('Consultando la conversión del mes…')).toBeInTheDocument()
+    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Conversión consultando…')
+    expect(screen.queryByText('Sin datos de asignación para este mes')).not.toBeInTheDocument()
+  })
+
   it('la conversión proviene de la RPC MENSUAL (la definición), no del cumplimiento ni del pipeline', () => {
     // El cumplimiento dice 80 % (fórmula vieja, viva hasta la migración B) y la
     // RPC mensual dice 50 %: el tile pinta la MENSUAL. Rótulo nuevo sobre
@@ -950,6 +992,31 @@ describe('Hoy · analista — meta del mes', () => {
     expect(screen.getByText('S/ 120k')).toBeInTheDocument()
     // …y el analista tiene que enterarse de que le falta media moneda en el avance.
     expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(RECARGAR_TIPO_CAMBIO).toHaveBeenCalledTimes(1)
+  })
+
+  it('mientras consulta el tipo de cambio no publica un subtotal ni afirma un fallo', () => {
+    TC = undefined
+    montar({
+      objetivos: metaPenUsd(150_000, 20_000),
+      cumplimiento: cumplimientoPenUsd(120_000, 20_000),
+    })
+
+    expect(screen.getByText('Tu cumplimiento del mes').closest('summary')).toHaveTextContent('Capital consultando…')
+    expect(screen.getByText('Consultando el tipo de cambio para consolidar los dólares…')).toBeInTheDocument()
+    expect(screen.queryByText(/sin tipo de cambio: el total NO incluye los dólares/)).not.toBeInTheDocument()
+  })
+
+  it('refresca el promedio móvil del tipo de cambio al comenzar otro día en Lima', () => {
+    montar({ cumplimiento: cumplimientoPenUsd(120_000, 20_000) })
+
+    act(() => {
+      vi.setSystemTime(new Date('2026-07-16T15:00:00Z'))
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(RECARGAR_TIPO_CAMBIO).toHaveBeenCalledTimes(1)
   })
 
   // ⚠️ ESTE es el test que faltaba, y el que habría evitado un redespliegue: el

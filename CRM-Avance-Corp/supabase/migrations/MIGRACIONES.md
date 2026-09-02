@@ -7314,3 +7314,61 @@ con el suyo), comentarios conservados.
 para firmar; la próxima verificación real es esta noche de 19:00 a 23:59 Lima
 (Vencimientos ya no debe mover nada) y el 23/09 (150 000 PEN que vencen ese día
 tienen que seguir en «por vencer» hasta medianoche de Lima).
+
+## 20260902202247 · `crm_ranking_foto_mensual_coherente`
+
+**Estado: VALIDADA EN CALCO LIMPIO DE PRODUCCIÓN; pendiente de aplicar.**
+
+**Qué.** Unifica la población mensual de Conversión, Cumplimiento/Capital y
+Cosecha sin crear calculadoras nuevas. Reemplaza en sitio seis núcleos
+existentes: `private.produccion_mes_por_vendedor`, `crm.cerrar_periodo`,
+`crm.conversion_mensual_sin_cartera_fn`, `crm.conversion_mensual_fn`,
+`crm.cumplimiento_metas_fn` y `crm.metricas_conversiones_equipo_fn`. La foto
+existente `crm.cierre_mes_vendedor` gana `cartera jsonb NOT NULL`; no aparece
+ninguna tabla, función ni RPC paralela.
+
+**Regla comercial.** Un mes calendario histórico abierto usa la última
+revisión publicada de metas como roster. Al cerrar, la foto suma también a
+quien produjo o tuvo cartera aunque no tuviera meta: conserva vendedor y
+supervisor, pone sus objetivos en cero y no pierde su producción real. Una vez
+cerrado, Conversión y Cumplimiento leen la cartera congelada, no el presente.
+Las fórmulas y porcentajes no cambian.
+
+La producción atribuida explícitamente a un supervisor, Gerencia, coordinación,
+directorio o una identidad ya fuera del equipo tampoco se borra ni se disfraza
+de analista: queda nominada en `periodos_cerrados.cobertura.fuera_ranking` y
+sale solo para Gerencia en `cumplimiento_metas_fn.fuera_ranking`. Suma a los
+totales empresariales de capital, cartera y conversión, pero no materializa una
+fila en `vendedores`/`responsables`, no aumenta el contador de analistas y no
+recibe puesto. El frontend la muestra bajo «Producción fuera del ranking».
+
+**Contrato de coherencia.** Las tres respuestas mensuales publican el mismo
+`revision` y `cierre`; los rangos libres de Cosecha declaran ambos como `null`.
+Esto permite que Gerencia y Supervisión bloqueen una mezcla de fotos distintas
+en vez de enseñar rankings contradictorios.
+
+**Guardas.** Preflight exige cero meses cerrados y las seis huellas exactas de
+producción. El cierre conserva el candado global, el candado por período,
+`private.saldar_ajustes` y añade un lock compartido del roster durante la foto.
+Postflight comprueba owner, lenguaje, volatilidad, DEFINER, `search_path`, ACL,
+columnas no nulas y el censo analítico sellado. La transacción entera revierte
+si una sola condición no coincide.
+
+**Orden de publicación.** `fuera_ranking` es opcional en el contrato del
+frontend para aceptar tanto el servidor anterior como el nuevo. Por eso el
+bundle compatible se publica primero y la migración después; el orden inverso
+haría que el `strictObject` del bundle vivo rechazara la clave nueva.
+
+**Refutación y pruebas.** La revisión independiente encontró tres huecos antes
+del deploy: población histórica duplicada fuera del núcleo base, bajas
+históricas descartadas al final y ausencia del candado global en el preflight.
+Los tres quedaron corregidos. La migración se aplicó desde cero sobre un dump
+combinado fresco de `public,crm,private`; el censo terminó en
+`30/30, 0 sin declarar`. El oráculo conjunto ejecutó altas, bajas,
+transferencias, ámbitos de Gerencia/Supervisor, foto abierta/cerrada, aislamiento
+de cartera y un cierre real con S/ 43 210 de producción sin meta: objetivo cero,
+supervisor preservado, seis dimensiones y cartera completa. Añade inversiones
+de supervisor en mes abierto y cerrado, prueba que quedan nominadas fuera del
+ranking, que solo Gerencia las ve, que el total empresa las conserva y que el
+contador/las filas rankeables no cambian. Resultado:
+`TEST-RANKING-POBLACION-MENSUAL: TODO VERDE`.

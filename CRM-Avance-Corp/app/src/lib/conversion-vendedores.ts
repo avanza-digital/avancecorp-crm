@@ -75,6 +75,7 @@ export interface DetalleRankeable {
 export interface ConversionVendedorAdaptada<D extends DetalleRankeable = DetalleConversionVendedor> {
   vendedorId: string
   nombre: string
+  supervisorId: string | null
   supervisorNombre: string
   detalle: D | null
   estadoConversion: EstadoConversionVendedor
@@ -203,12 +204,17 @@ export function adaptarConversionVendedores(
   const detallePorId = new Map(
     (responsables ?? []).map((detalle) => [detalle.vendedor_id, detalle]),
   )
-  const identidadPorId = new Map<string, Pick<ConversionEquipoVendedor, 'nombre' | 'supervisorNombre'>>()
+  const identidadPorId = new Map<string, {
+    nombre: string
+    supervisorId: string | null
+    supervisorNombre: string
+  }>()
 
   for (const integrante of equipo) {
     if (!integrante.vendedorId || identidadPorId.has(integrante.vendedorId)) continue
     identidadPorId.set(integrante.vendedorId, {
       nombre: integrante.nombre,
+      supervisorId: integrante.supervisorId ?? null,
       supervisorNombre: integrante.supervisorNombre,
     })
   }
@@ -219,6 +225,7 @@ export function adaptarConversionVendedores(
     if (identidadPorId.has(detalle.vendedor_id)) continue
     identidadPorId.set(detalle.vendedor_id, {
       nombre: 'Analista no identificado',
+      supervisorId: null,
       supervisorNombre: 'Equipo no disponible',
     })
   }
@@ -287,12 +294,17 @@ export function adaptarConversionMensual(
   const detallePorId = new Map(
     (responsables ?? []).map((fila) => [fila.vendedor_id, fila]),
   )
-  const identidadPorId = new Map<string, Pick<ConversionEquipoVendedor, 'nombre' | 'supervisorNombre'>>()
+  const identidadPorId = new Map<string, {
+    nombre: string
+    supervisorId: string | null
+    supervisorNombre: string
+  }>()
 
   for (const integrante of equipo) {
     if (!integrante.vendedorId || identidadPorId.has(integrante.vendedorId)) continue
     identidadPorId.set(integrante.vendedorId, {
       nombre: integrante.nombre,
+      supervisorId: integrante.supervisorId ?? null,
       supervisorNombre: integrante.supervisorNombre,
     })
   }
@@ -300,6 +312,7 @@ export function adaptarConversionMensual(
     if (identidadPorId.has(fila.vendedor_id)) continue
     identidadPorId.set(fila.vendedor_id, {
       nombre: 'Analista no identificado',
+      supervisorId: null,
       supervisorNombre: 'Equipo no disponible',
     })
   }
@@ -391,6 +404,10 @@ export interface CapitalTotalVendedor {
   vendedor: IdentidadVendedorRanking
   capitalPen: number | null
   capitalUsd: number | null
+  /** Descuentos ya absorbidos por la foto; el capital mostrado arriba es neto. */
+  capitalAjustePen: number
+  capitalAjusteUsd: number
+  contratosAjuste: number
   /** PEN + USD convertido al TC; sin TC, solo PEN (el USD se rotula aparte). */
   capitalTotal: number | null
   /** Split crudo de la meta (0 si no hay meta): permite rotular el recorte sin TC. */
@@ -447,8 +464,10 @@ export function clasificarRankingCapitalTotal(
   const tcValido = tcAplicable(tc)
 
   // El mismo clasificador conserva el roster visible como frontera de alcance.
-  // Si ese roster no llegó, usa los ids de los dos núcleos de capital como
-  // respaldo fail-closed. No nace un adapter ni una función paralela.
+  // Incluso un arreglo vacío es una población autoritativa: metas y
+  // cumplimiento aportan MEDIDAS, pero no pueden reintroducir una baja ni
+  // inventar una identidad cuando el equipo vigente o la foto histórica están
+  // explícitamente vacíos.
   const identidadPorId = new Map<string, IdentidadVendedorRanking>()
   for (const vendedor of vendedores) {
     if (!vendedor.vendedorId || identidadPorId.has(vendedor.vendedorId)) continue
@@ -458,20 +477,6 @@ export function clasificarRankingCapitalTotal(
       supervisorNombre: vendedor.supervisorNombre,
     })
   }
-  if (identidadPorId.size === 0) {
-    for (const vendedorId of [...new Set([
-      ...Object.keys(metas),
-      ...Object.keys(cumplimientos),
-    ])].sort()) {
-      if (!vendedorId) continue
-      identidadPorId.set(vendedorId, {
-        vendedorId,
-        nombre: 'Analista no identificado',
-        supervisorNombre: 'Equipo no disponible',
-      })
-    }
-  }
-
   const filas = [...identidadPorId.values()].map<CapitalTotalVendedor>((vendedor) => {
     // Un cumplimiento SIN detalles no es «S/ 0 confirmado»: es un payload que la
     // frontera RPC no debería producir — se degrada a indisponible, no a puesto
@@ -480,6 +485,9 @@ export function clasificarRankingCapitalTotal(
     const cumplimiento = crudo != null && crudo.detalles.length > 0 ? crudo : undefined
     const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
     const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+    const capitalAjustePen = cumplimiento?.ajuste?.aplicadoPen ?? 0
+    const capitalAjusteUsd = cumplimiento?.ajuste?.aplicadoUsd ?? 0
+    const contratosAjuste = cumplimiento?.ajuste?.contratosAplicados ?? 0
     const capitalTotal = totalEnSoles(capitalPen, capitalUsd, tcValido).total
     const meta = metas[vendedor.vendedorId]
     const metaPen = meta ? capitalObjetivo(meta, 'PEN') : 0
@@ -496,6 +504,9 @@ export function clasificarRankingCapitalTotal(
       vendedor,
       capitalPen,
       capitalUsd,
+      capitalAjustePen,
+      capitalAjusteUsd,
+      contratosAjuste,
       capitalTotal,
       metaPen,
       metaUsd,

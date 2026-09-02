@@ -67,28 +67,40 @@ export interface EstadoTipoCambio {
 export function useTipoCambio(habilitado = true, fechaCorte?: string): EstadoTipoCambio {
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
-  const [tc, setTc] = useState<TipoCambio | null | undefined>(undefined)
   const [version, setVersion] = useState(0)
+  // La clave forma parte del estado para que un cambio agosto→julio invalide
+  // el valor anterior durante EL MISMO render, antes de que corra el effect.
+  // Así nunca se pinta el TC de un mes bajo la etiqueta de otro.
+  const claveSolicitud = `${habilitado ? '1' : '0'}|${esDemo ? '1' : '0'}|${fechaCorte ?? 'hoy'}|${version}`
+  const [estado, setEstado] = useState<{
+    clave: string
+    valor: TipoCambio | null | undefined
+  }>(() => ({ clave: claveSolicitud, valor: undefined }))
   const recargar = useCallback(() => setVersion((n) => n + 1), [])
+  const tc = estado.clave === claveSolicitud
+    ? estado.valor
+    : habilitado
+      ? undefined
+      : null
 
   useEffect(() => {
     if (!habilitado) {
-      setTc(null)
+      setEstado({ clave: claveSolicitud, valor: null })
       return
     }
     if (esDemo) {
       const fuente = fechaCorte === undefined
         ? 'demo · prom. 7d'
         : `demo · prom. 7d al ${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
-      setTc({ promedio: promedioSemanal(SERIE_DEMO), fuente })
+      setEstado({ clave: claveSolicitud, valor: { promedio: promedioSemanal(SERIE_DEMO), fuente } })
       return
     }
     if (!sb) {
-      setTc(null)
+      setEstado({ clave: claveSolicitud, valor: null })
       return
     }
     let cancelado = false
-    setTc(undefined) // consultando (también al reintentar tras un fallo)
+    setEstado({ clave: claveSolicitud, valor: undefined }) // consultando (también al reintentar tras un fallo)
     const invocacion = fechaCorte === undefined
       ? sb.functions.invoke('crm-tipo-cambio')
       : sb.functions.invoke('crm-tipo-cambio', { body: { fecha_corte: fechaCorte } })
@@ -104,7 +116,7 @@ export function useTipoCambio(habilitado = true, fechaCorte?: string): EstadoTip
         const fuente = fechaCorte === undefined
           ? r.output.fuente
           : `${r.output.fuente} al ${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
-        setTc({ promedio: r.output.promedio, fuente })
+        setEstado({ clave: claveSolicitud, valor: { promedio: r.output.promedio, fuente } })
       })
       .catch((e: unknown) => {
         if (cancelado) return
@@ -113,12 +125,12 @@ export function useTipoCambio(habilitado = true, fechaCorte?: string): EstadoTip
         registrarAviso('crm.tipo_cambio_no_disponible', {
           motivo: e instanceof Error ? e.message : 'desconocido',
         })
-        setTc(null)
+        setEstado({ clave: claveSolicitud, valor: null })
       })
     return () => {
       cancelado = true
     }
-  }, [esDemo, fechaCorte, habilitado, version])
+  }, [claveSolicitud, esDemo, fechaCorte, habilitado])
 
   return { tc, recargar }
 }
