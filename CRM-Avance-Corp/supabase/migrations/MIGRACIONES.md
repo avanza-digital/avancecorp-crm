@@ -7266,3 +7266,31 @@ fecha-servidor = fecha-Lima, así que la foto «después» tiene que ser IDÉNTI
 
 **Rollback preservado:** `rollback-g0-reloj-20260902200000.sql` con los cuatro
 cuerpos vivos tal cual estaban (SHA-256 `48e6a687…93ae4`).
+
+**Enmienda (mismo día):** el primer intento de aplicar abortó en su propio
+postflight — escribí los booleanos de la huella de metadata como `true/false` y
+Postgres los imprime `t/f`; todo lo demás coincidía byte a byte. Como el archivo
+ya estaba confirmado y el hook del CRM no deja editar migraciones versionadas,
+la corrección vive en **`20260902201000_crm_g0_reloj_hoy_es_lima_v2.sql`**, con
+los CUATRO cuerpos idénticos (verificado por `diff`) y solo la huella cambiada.
+`20260902200000` queda en el repo **sin aplicar y sin poder aplicarse nunca**:
+su preflight exige el md5 viejo (que dejará de existir) y su postflight una
+huella imposible. Lección: el guard hizo exactamente su trabajo — abortó la
+transacción entera y no dejó nada a medias.
+
+**Codex refutó la migración antes de aplicarla** (sesión `01a0633f…`, ~25 min,
+solo lectura contra producción): A1 equivalencia y planes/índices CONFIRMADA
+(`Function Scan` ya era el plan por ser DEFINER con `SET search_path`; los tres
+índices de fecha se conservan); A2 sintaxis y precedencia de las 8 sustituciones
+CONFIRMADA (sin doble conversión); A3 `create or replace` conserva OID/ACL/deps
+CONFIRMADA (0 dependientes, 1 sobrecarga por nombre); A4 alcance del G0
+CONFIRMADA (quedan 10 usos de `current_date` AJENOS al núcleo: pagos del Portal,
+productos, F7 — no son de esta migración). **A5 REFUTADA**: el postflight de
+substrings no acreditaba una recreación fiel → ahora exige md5 posterior EXACTO
+por `regprocedure` + huella completa de metadata (owner, lenguaje, volatilidad,
+paralelismo, strict, leakproof, coste, filas, resultado, `search_path`, ACL con
+grantor, comentario, dependientes) + cuenta = 4 + sin sobrecargas. **A6
+REFUTADA**: dos fotos en transacciones distintas no prueban paridad → la paridad
+va DENTRO de una sola transacción `REPEATABLE READ` con los mismos claims, foto
+antes → reemplazo → foto después, y aborta si difieren o si es hora de borde.
+Añadido además `pg_advisory_xact_lock` de exclusión entre despliegues.
