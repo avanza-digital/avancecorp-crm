@@ -6964,3 +6964,39 @@ El frontend completo se publicó primero como
 `crm-20260829T220216Z-e8ac4262b75d` (`build-20260829T220216363Z`). El detalle
 operativo está en [[Deploy Ficha 360 2026-08-29]] y
 [[Mejoras UX Ficha 360 2026-08-29]].
+
+---
+
+## P-055 · EL LECTOR GLOBAL NO VE LO BORRADO (2026-09-01/02)
+
+🟡 **ESCRITA Y ENSAYADA CONTRA EL BANCO; SIN PUBLICAR — espera el `!` de Miguel.**
+Migración `20260902040000_crm_lector_global_no_ve_borrados.sql` · marcha atrás
+`scripts/rollback-lector-global-borrados.sql`.
+
+**El hallazgo** lo destapó la primera corrida ejecutable de `test:rls` (banco a
+paridad total, 01/09): `leads_select` exige `activo = true` a analistas,
+supervisores y gerencia, pero la rama `es_lector_global()` va FUERA de ese
+candado — con 7 leads vivos, gerencia veía 7 y el Directorio veía 55, los
+soft-borrados incluidos, con su PII (DNI, nacimiento, género). La MISMA forma
+está copiada en `tareas_select` (qual idéntica al byte) y en
+`actividades_select` (el predicado de leads dentro del EXISTS). Decisión de
+Miguel el 01/09: «arregla las dos» → el lector global ve TODO lo vivo y NADA de
+lo borrado, igual que gerencia.
+
+**Qué hace:** mete la rama del lector dentro del candado `activo = true` en las
+TRES políticas, conservando letra a letra las ramas de analista/bandeja/gerencia
+(initplans incluidos). `equipo_select` se deja a propósito: ver miembros dados
+de baja es la semántica del P04 (revocado ≠ ajeno).
+
+**Defensas:** preflight fija por md5 las tres cláusulas vivas
+(`4fc91b80…` ×2, `40b0cd19…`) y aborta si el mundo se movió; postflight de
+CONDUCTA en la misma transacción — con los claims de un directorio real: ve
+exactamente los vivos y CERO borrados en leads, tareas y actividades. Ensayo en
+el banco: `POSTFLIGHT OK: lector global ve 7 vivos de 88 totales y 0 borrados`;
+la marcha atrás restaura las tres cláusulas **al byte** (md5 original
+verificado en su propio postflight).
+
+**En el mismo acto (suite):** el bloque «fuera de roster» dejó de asumir mes
+virgen — mide en el ledger `lead_asignaciones` si `sup1` ya contaba como
+analista del mes y exige el delta EXACTO (1 en mes virgen, 0 si ya contaba); el
+delta de divisor sigue +1 estricto siempre.

@@ -27,6 +27,24 @@ function revocarEquipoFueraDeBanda(perfilId) {
      alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia;
      commit;`]);
 }
+
+// El ledger `crm.lead_asignaciones` esta sellado tambien para service_role
+// (deny-by-default, y esta bien que lo este: PostgREST devolvia 42501 y la
+// medicion de abajo reventaba). Leerlo para calcular deltas esperados es
+// trabajo de la MISMA via fuera de banda. Solo lectura; devuelve un entero.
+function contarFueraDeBanda(etiqueta, sql) {
+  const psqlBanco = process.env.CRM_BANCO_PSQL_URL ?? '';
+  if (!psqlBanco) {
+    throw new Error(`falta CRM_BANCO_PSQL_URL — ${etiqueta} exige la via fuera de banda del banco (LEEME-seed)`);
+  }
+  const salida = execFileSync('psql',
+    [psqlBanco, '-v', 'ON_ERROR_STOP=1', '-qAt', '-c', sql], { encoding: 'utf8' }).trim();
+  const n = Number(salida);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error(`${etiqueta}: el conteo fuera de banda no es un entero (${salida})`);
+  }
+  return n;
+}
 import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
@@ -8288,6 +8306,24 @@ async function testConversionMensual(sessions, seed) {
   const filaAntesVend1 = filaDe(antes.data, ids.vend1);
   const totalAntes = antes.data?.total ?? {};
   const coberturaAntes = antes.data?.cobertura ?? {};
+  // 🔴 Banco persistente (01/09): el divisor bebe del ledger INSERT-only, asi
+  //    que sup1 —el productor fuera de roster que siembra este bloque— puede
+  //    YA contar como analista del mes por una corrida anterior, y entonces el
+  //    delta de `analistas` (conteo de DISTINTOS) es 0 y no 1. En vez de
+  //    adivinarlo por los agregados, se MIDE en el ledger antes de sembrar y
+  //    el delta esperado se calcula exacto: 1 en mes virgen, 0 si ya contaba.
+  //    El delta de `divisor` sigue siendo +1 estricto en ambos casos — esa es
+  //    la guarda que impide el «0 > 0» que este productor vino a matar.
+  //    El ledger esta sellado tambien para service_role (42501 por PostgREST),
+  //    asi que la medicion va por la via fuera de banda del banco, igual que
+  //    la baja historica. Lima es UTC-5 fijo (sin DST).
+  const sup1Previas = contarFueraDeBanda(
+    'medir si sup1 ya contaba como analista del mes en el ledger',
+    `select count(*) from crm.lead_asignaciones
+      where analista_id = '${ids.sup1}'
+        and asignado_en >= '${MES}-01T00:00:00-05:00'::timestamptz`,
+  );
+  const deltaAnalistaFueraRoster = sup1Previas > 0 ? 0 : 1;
   if (!check(filaAntesVend1 !== null,
     'vend1 tiene fila en la linea base: los tramos de delta, paridad y soft-delete tienen sujeto',
     JSON.stringify([...idsDe(antes.data)]))) {
@@ -8624,9 +8660,9 @@ async function testConversionMensual(sessions, seed) {
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
       && cerca(deltaTotal('numerador'), 1.15)
-      && deltaTotal('analistas') === 1,
-      'D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor, +1 analista)',
-      JSON.stringify({ antes: totalAntes, despues: totalDespues }));
+      && deltaTotal('analistas') === deltaAnalistaFueraRoster,
+      `D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor, +${deltaAnalistaFueraRoster} analista segun el ledger)`,
+      JSON.stringify({ antes: totalAntes, despues: totalDespues, sup1YaContaba: deltaAnalistaFueraRoster === 0 }));
 
     const coberturaDespues = payload?.cobertura ?? {};
     const motivoAntes = num(coberturaAntes?.divisor_por_motivo?.ingreso);
@@ -8639,10 +8675,10 @@ async function testConversionMensual(sessions, seed) {
       'el desglose por motivo sube +2 en "ingreso" (roster + fuera de roster, el valor REAL del CHECK)',
       JSON.stringify(coberturaDespues?.divisor_por_motivo));
     check(num(coberturaDespues?.fuera_de_roster?.analistas)
-      - num(coberturaAntes?.fuera_de_roster?.analistas) === 1
+      - num(coberturaAntes?.fuera_de_roster?.analistas) === deltaAnalistaFueraRoster
       && num(coberturaDespues?.fuera_de_roster?.divisor)
       - num(coberturaAntes?.fuera_de_roster?.divisor) === 1,
-      'el productor SIN rol CRM legacy `vendedor` se cuenta entero en fuera_de_roster, y solo alli',
+      `el productor SIN rol CRM legacy \`vendedor\` se cuenta entero en fuera_de_roster, y solo alli (+1 divisor, +${deltaAnalistaFueraRoster} analista segun el ledger)`,
       JSON.stringify({ antes: coberturaAntes?.fuera_de_roster, despues: coberturaDespues?.fuera_de_roster }));
     // La sonda no puede inventarse un hueco: los dos cierres que acaban de
     // nacer TIENEN su episodio cerrado dentro del mismo mes. Si la ventana del

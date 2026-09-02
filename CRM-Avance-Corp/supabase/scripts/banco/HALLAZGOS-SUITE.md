@@ -162,6 +162,48 @@ DISTINTOS) satura en la primera y el delta «+1 analista» sale 0 para siempre.
 `analistas` vuelve a ser +1 en toda corrida. Mientras tanto, los 2 rojos dicen la verdad
 sobre un mundo con historia — que es exactamente el mundo real.
 
+## 11 · 🔑 El bloque de conversión CONSUME un analista ocioso por corrida (decisión pendiente)
+
+Generalización del hallazgo 10, y la razón por la que el arreglo del D8 **aún no se ha
+podido ejercitar de punta a punta**.
+
+El bloque de conversión necesita, cada corrida, **un analista del roster con divisor 0 en el
+mes** — es el sujeto del tercer estado (`solo_referidos`). Lo elige del payload y acto
+seguido le da un referido… que entra en el ledger `crm.lead_asignaciones`. **Cada corrida
+quema uno.** Medido tras cinco corridas del 01/09:
+
+```
+analistas del roster ociosos este mes: 0 de 6
+```
+
+Y entonces el bloque aborta con dos rojos honestos («la línea base tiene al menos una fila
+sin_actividad», «hay un analista del roster sin actividad al que darle SOLO un referido»),
+saltándose el resto — incluidas las aserciones del D8 que se acaban de arreglar.
+
+**Por qué NO lo arreglé por mi cuenta.** La salida obvia sería limpiar el ledger en el
+reset. El candado es explícito y absoluto:
+
+```
+trg_lead_asignaciones_00_inmutables  BEFORE INSERT OR DELETE OR UPDATE
+  → 'Los episodios de asignacion no se eliminan'
+```
+
+Es **la garantía que la propia suite custodia** («ni el gate perfora esa garantía con
+hard-delete»). Bajarla para poder ensayar es exactamente lo que este proyecto no hace, y a
+diferencia del domicilio de la sonda —residuo de test sin valor— aquí el candado protege la
+integridad de un ledger de auditoría.
+
+**Las opciones, para que decida Miguel:**
+
+| | Qué implica | Coste |
+|---|---|---|
+| **A. Analista ocioso rotatorio** | El reset crea un `GATE OCIOSO` fresco por corrida y retira el anterior | Toca el roster: hay que revisar toda aserción que cuente miembros |
+| **B. Banco nuevo por mes** | Se acepta que el bloque corre una vez por banco y mes | Ninguno en código; el gate deja de ser re-corrible sin re-montar |
+| **C. Limpiar el ledger en el reset** | Solo filas de leads transitorios, por psql | 🔴 Baja el candado que la suite custodia — **no recomendado** |
+
+Mi recomendación es **A**, con el censo de aserciones afectadas hecho antes de tocar nada.
+Mientras tanto los dos rojos dicen la verdad: el banco ya gastó sus analistas ociosos.
+
 ---
 
 ## Cómo repetir la corrida
