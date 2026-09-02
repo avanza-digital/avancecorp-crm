@@ -117,3 +117,19 @@ de base de datos descrito arriba.
   SHA-256 `ae395cbc1a09d081382c72d7143988e548616d4228c6157815eaf33ea544a8b1`.
 - Frontend anterior inmediato:
   `releases/crm-20260902T060243Z-5c208ad9bf31.zip`.
+
+## Addendum del mismo día — foto mensual y producción externa
+
+La primera publicación resolvió el mes calendario y el tipo de cambio. La
+auditoría posterior amplió la misma arquitectura, sin núcleos paralelos, para
+que Conversión, Capital y Cosecha compartan además revisión, cierre y población
+congelada. Se publicó el frontend
+`crm-20260902T223231Z-9b5cc36935ec` y se aplicaron
+`20260902202247_crm_ranking_foto_mensual_coherente` y
+`20260902224847_crm_conversion_total_analistas_solo_ranking`.
+
+La verificación final de producción deja agosto en 16/16/16 filas rankeables y
+septiembre en 17/17/17. Las inversiones atribuidas a supervisores u otras
+identidades no analistas permanecen en el total empresa y en el bloque de
+Gerencia, pero nunca aumentan `total.analistas` ni reciben posición. Ver
+[[Produccion fuera del ranking (decision 2026-09-02)]].

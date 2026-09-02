@@ -7382,7 +7382,7 @@ servidor y la historia oficial de migraciones quedó registrada.
 
 ## 20260902224847 · `crm_conversion_total_analistas_solo_ranking`
 
-**Estado: VALIDADA EN CALCO LIMPIO DE PRODUCCIÓN; pendiente de aplicar.**
+**Estado: APLICADA EN PRODUCCIÓN el 2026-09-02.**
 
 **Qué.** Corrige una única expresión dentro del núcleo existente
 `crm.conversion_mensual_sin_cartera_fn(date)`. En el mes abierto,
@@ -7403,3 +7403,12 @@ resella el censo analítico. El oráculo incorpora un supervisor con episodio re
 fuera del roster: antes del parche reproduce `2 analistas / 1 responsable` y
 falla; después devuelve `1 / 1`, conserva el divisor externo y termina
 `TEST-RANKING-POBLACION-MENSUAL: TODO VERDE`.
+
+**Verificación viva.** Agosto pasó de `18 analistas / 16 responsables` a
+`16 / 16`; divisor `823`, numerador `55,9` y conversión `6,79 %` quedaron
+idénticos. Sus dos supervisores externos siguen declarados en cobertura y las
+tres identidades de producción externa permanecen fuera de las posiciones, con
+S/ 65 000, USD 12 640 y tres operaciones conservadas. Septiembre quedó en
+`17 / 17`, divisor `182`, numerador `9` y `4,95 %`. La huella productiva final
+es `a64a30be3182589c02553759728276f2`, el censo terminó `30/30` y la historia
+oficial registró nueve bloques bajo el nombre correcto.

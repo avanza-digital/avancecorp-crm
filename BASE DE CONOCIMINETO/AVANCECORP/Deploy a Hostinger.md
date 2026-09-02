@@ -720,3 +720,32 @@ Relacionado: [[Carga de leads desde hoja de Google]].
 Relacionado: [[Hoy del vendedor - Ahora y Después]] ·
 [[Derivar leads del supervisor - paginacion compacta]] ·
 [[Hoy del supervisor - reparto compacto]].
+
+## 2026-09-02 · Rankings mensuales coherentes y producción externa separada
+
+- **Artefacto frontend:** `crm-20260902T223231Z-9b5cc36935ec`, build
+  `build-20260902T223231308Z`, SHA-256
+  `267921d25e53784dd09c55b86cacd810876c5ac339cdf4c4d23343983e25abb4`.
+  Se construyó desde un worktree limpio del commit `9b5cc36` y se publicó antes
+  del servidor porque el contrato nuevo añade `fuera_ranking`.
+- **Verificación viva:** 62/62 archivos no imagen coincidieron por SHA-256 y
+  12/12 imágenes respondieron 200. Tres lecturas consecutivas de
+  `version.json` devolvieron el build nuevo; el ZIP y `.vite/license.md`
+  respondieron 404. Tras purgar la caché, el asset principal anterior quedó en
+  404.
+- **Servidor:** se aplicaron y registraron
+  `20260902202247_crm_ranking_foto_mensual_coherente` y el ajuste incremental
+  `20260902224847_crm_conversion_total_analistas_solo_ranking`. El segundo no
+  exigió otro despliegue frontend: solo alinea `total.analistas` con las filas
+  que ya mostraba el bundle.
+- **Prueba viva final:** agosto 16/16 filas en Conversión, Capital y Cosecha;
+  tres identidades externas y ninguna en posiciones; septiembre 17/17. La
+  conversión quedó en 6,79 % para agosto y 4,95 % para septiembre. Censo 30/30,
+  owner/ACL/`SECURITY DEFINER`/`search_path` verificados.
+- **Rollback frontend inmediato:**
+  `crm-20260902T170713Z-e9d9a283175b`. Las migraciones conservan el mismo
+  contrato público y solo sustituyen núcleos existentes; cualquier reversión
+  de servidor debe hacerse con un SQL focal auditado, nunca borrando fotos.
+
+Relacionado: [[Produccion fuera del ranking (decision 2026-09-02)]] ·
+[[Rankings por mes calendario (decision 2026-09-02)]].

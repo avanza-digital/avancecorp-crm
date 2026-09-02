@@ -23,7 +23,7 @@ Un analista que produjo sin meta mensual conserva su producción con objetivos c
 
 El frontend compatible debe publicarse antes que la migración porque `cumplimiento_metas_fn` añadirá la clave `fuera_ranking` a una respuesta validada de forma estricta. Ver [[Deploy a Hostinger]].
 
-## Evidencia previa al despliegue
+## Evidencia y despliegue
 
 - Migración aplicada desde cero sobre un calco limpio del esquema productivo.
 - Seis núcleos revisados con `plpgsql_check`: cero hallazgos.
@@ -31,4 +31,23 @@ El frontend compatible debe publicarse antes que la migración porque `cumplimie
 - Frontend: 2.635 pruebas unitarias, build y controles de bundle/duplicación aprobados.
 - Navegador: 113 pruebas aprobadas, 26 omitidas por suites desactivadas y cero fallidas.
 
-Estado al redactar esta nota: validado y pendiente de publicación frontend primero, migración después.
+El frontend se publicó primero desde `main` con el release
+`crm-20260902T223231Z-9b5cc36935ec`; después se aplicó y registró
+`20260902202247_crm_ranking_foto_mensual_coherente` en Supabase.
+
+La verificación real de agosto descubrió una última incoherencia únicamente en
+el contador del mes abierto: existían 16 filas con puesto, pero
+`total.analistas` decía 18 al sumar dos supervisores externos. Se corrigió en el
+mismo núcleo existente mediante
+`20260902224847_crm_conversion_total_analistas_solo_ranking`, sin cambiar las
+medidas. Resultado productivo final:
+
+- agosto: 16 analistas / 16 responsables, divisor 823, numerador 55,9 y 6,79 %;
+- septiembre: 17 / 17, divisor 182, numerador 9 y 4,95 %;
+- fuera del ranking en agosto: tres identidades, ninguna con puesto; S/ 65 000,
+  USD 12 640 y tres operaciones conservadas en el total empresa;
+- censo analítico: 30/30, huella y permisos del núcleo intactos salvo el cambio
+  funcional autorizado.
+
+Estado final: **implementado, publicado y auditado en producción**. Ver
+[[Deploy a Hostinger]] y [[Rankings por mes calendario (decision 2026-09-02)]].
