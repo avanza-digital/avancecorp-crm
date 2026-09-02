@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   crm: {
     Tables: {
@@ -61,7 +61,7 @@ export type Database = {
           id: string
           tarea_id: string | null
           tipo: string
-          vendedor_id: string
+          vendedor_id: string | null
         }
         Insert: {
           cliente_id: string
@@ -71,7 +71,7 @@ export type Database = {
           id?: string
           tarea_id?: string | null
           tipo: string
-          vendedor_id: string
+          vendedor_id?: string | null
         }
         Update: {
           cliente_id?: string
@@ -81,7 +81,7 @@ export type Database = {
           id?: string
           tarea_id?: string | null
           tipo?: string
-          vendedor_id?: string
+          vendedor_id?: string | null
         }
         Relationships: [
           {
@@ -966,8 +966,8 @@ export type Database = {
       leads: {
         Row: {
           activo: boolean
-          alta_manual: boolean
           actualizado_en: string
+          alta_manual: boolean
           asignado_supervisor_id: string | null
           categoria_interes: string | null
           ciclo_actual: number
@@ -1005,8 +1005,8 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
-          alta_manual?: boolean
           actualizado_en?: string
+          alta_manual?: boolean
           asignado_supervisor_id?: string | null
           categoria_interes?: string | null
           ciclo_actual?: number
@@ -1044,8 +1044,8 @@ export type Database = {
         }
         Update: {
           activo?: boolean
-          alta_manual?: boolean
           actualizado_en?: string
+          alta_manual?: boolean
           asignado_supervisor_id?: string | null
           categoria_interes?: string | null
           ciclo_actual?: number
@@ -1617,6 +1617,51 @@ export type Database = {
         }
         Relationships: []
       }
+      reasignaciones_analista: {
+        Row: {
+          analista_a: string
+          analista_de: string | null
+          contrato_id: string
+          id: string
+          motivo: string
+          reasignado_en: string
+          reasignado_por: string
+        }
+        Insert: {
+          analista_a: string
+          analista_de?: string | null
+          contrato_id: string
+          id?: string
+          motivo: string
+          reasignado_en?: string
+          reasignado_por: string
+        }
+        Update: {
+          analista_a?: string
+          analista_de?: string | null
+          contrato_id?: string
+          id?: string
+          motivo?: string
+          reasignado_en?: string
+          reasignado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reasignaciones_analista_analista_a_fkey"
+            columns: ["analista_a"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
+          },
+          {
+            foreignKeyName: "reasignaciones_analista_analista_de_fkey"
+            columns: ["analista_de"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
       recordatorios_disponibilidad: {
         Row: {
           creado_en: string
@@ -1945,6 +1990,7 @@ export type Database = {
           creado_en: string | null
           creado_por: string | null
           estado: string | null
+          fecha_cierre_comercial: string | null
           fecha_inicio: string | null
           fecha_vencimiento: string | null
           id: string | null
@@ -2003,10 +2049,6 @@ export type Database = {
       actualizar_cliente_gerencia_con_domicilio: {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
-      }
-      atribucion_contrato_fn: {
-        Args: { p_contrato_id: string }
-        Returns: Json
       }
       actualizar_contrato_con_cuenta: {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
@@ -2095,6 +2137,7 @@ export type Database = {
         }
         Returns: Json
       }
+      atribucion_contrato_fn: { Args: { p_contrato_id: string }; Returns: Json }
       ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
       buscar_candidato_por_correo_fn: {
         Args: { p_correo: string }
@@ -2172,30 +2215,12 @@ export type Database = {
       cierre_mes_estado_fn: { Args: never; Returns: Json }
       cierres_estado_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       cierres_externos_fn: { Args: { p_periodo: string }; Returns: Json }
-      clientes_basicos_fn: {
-        Args: never
-        Returns: {
-          activo: boolean
-          apellidos: string
-          asesor_perfil_id: string
-          correo: string
-          creado_en: string
-          creado_por: string
-          dni: string
-          id: string
-          nombre_completo: string
-          nombres: string
-          telefono: string
-          tipo_documento: string
-        }[]
-      }
       cliente_detalle_fn: {
         Args: { p_cliente_id: string }
         Returns: {
           apellidos: string
           asesor_perfil_id: string
           banca_visible: boolean
-          cuentas_bancarias_visibles: boolean
           banco: string
           banco_usd: string
           beneficiario_dni: string
@@ -2207,6 +2232,7 @@ export type Database = {
           correo: string
           creado_en: string
           creado_por: string
+          cuentas_bancarias_visibles: boolean
           dni: string
           domicilio: string
           id: string
@@ -2230,6 +2256,23 @@ export type Database = {
           asesor_perfil_id: string
           correo: string
           creado_en: string
+          dni: string
+          id: string
+          nombre_completo: string
+          nombres: string
+          telefono: string
+          tipo_documento: string
+        }[]
+      }
+      clientes_basicos_fn: {
+        Args: never
+        Returns: {
+          activo: boolean
+          apellidos: string
+          asesor_perfil_id: string
+          correo: string
+          creado_en: string
+          creado_por: string
           dni: string
           id: string
           nombre_completo: string
@@ -2312,6 +2355,36 @@ export type Database = {
           creado_en: string
           creado_por: string
           estado: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          id: string
+          modalidad: string
+          moneda: string
+          notas_internas: string
+          numero_contrato: string
+          producto_codigo: string
+          producto_condicion_id: string
+          producto_id: string
+          producto_nombre: string
+          producto_version: number
+          producto_version_estado: string
+          producto_version_id: string
+          tasa_anual: number
+          tipo_interes: string
+        }[]
+      }
+      contratos_cartera_v2_fn: {
+        Args: never
+        Returns: {
+          asesor_perfil_id: string
+          capital: number
+          categoria: string
+          cliente_id: string
+          cliente_nombre: string
+          creado_en: string
+          creado_por: string
+          estado: string
+          fecha_cierre_comercial: string
           fecha_inicio: string
           fecha_vencimiento: string
           id: string
@@ -2421,6 +2494,7 @@ export type Database = {
           p_nota?: string
           p_origen: string
           p_telefono: string
+          p_telefono_alternativo?: string
           p_vendedor_id?: string
         }
         Returns: Json
@@ -2663,7 +2737,7 @@ export type Database = {
         Returns: Json
       }
       metricas_conversiones_fn: {
-        Args: { p_desde: string; p_hasta: string }
+        Args: { p_desde: string; p_hasta: string; p_origen?: string }
         Returns: Json
       }
       metricas_distribucion_leads_fn: {
@@ -2792,6 +2866,10 @@ export type Database = {
       publicar_version_producto_inversion: {
         Args: { p_expected_revision: number; p_version_id: string }
         Returns: Json
+      }
+      purgar_membresia_crm: {
+        Args: { p_motivo: string; p_perfil_id: string }
+        Returns: undefined
       }
       registrar_candidato_usuario_fn: {
         Args: {
@@ -3593,17 +3671,6 @@ export type Database = {
       }
       admin_pagos_metricas: { Args: never; Returns: Json }
       admin_pagos_resumen: { Args: never; Returns: Json }
-      // P-055 Fase 3: mover la venta de un analista a otro, con motivo. La
-      // atribución no se puede cambiar por ninguna otra vía (un trigger lo
-      // impide), así que esta es la única firma que existe para ello.
-      reasignar_analista_contrato: {
-        Args: {
-          p_analista_id: string
-          p_contrato_id: string
-          p_motivo: string
-        }
-        Returns: Json
-      }
       bandeja_actividad: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -3681,6 +3748,10 @@ export type Database = {
       es_gestor_cartera: { Args: never; Returns: boolean }
       es_operaciones: { Args: never; Returns: boolean }
       es_superadmin: { Args: never; Returns: boolean }
+      marcar_contrato_demo: {
+        Args: { p_contrato_id: string; p_es_demo: boolean; p_motivo: string }
+        Returns: Json
+      }
       marcar_contratos_vencidos: {
         Args: never
         Returns: {
@@ -3761,6 +3832,10 @@ export type Database = {
         }[]
       }
       puede_ver_contrato: { Args: { p_contrato_id: string }; Returns: boolean }
+      reasignar_analista_contrato: {
+        Args: { p_analista_id: string; p_contrato_id: string; p_motivo: string }
+        Returns: Json
+      }
       verificar_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {
@@ -3780,12 +3855,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3809,11 +3884,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3834,11 +3909,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3859,11 +3934,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3876,11 +3951,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
