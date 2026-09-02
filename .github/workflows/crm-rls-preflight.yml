@@ -5,6 +5,7 @@ on:
     paths:
       - 'CRM-Avance-Corp/package.json'
       - 'CRM-Avance-Corp/package-lock.json'
+      - 'CRM-Avance-Corp/deno.lock'
       - 'CRM-Avance-Corp/supabase/scripts/**'
       - 'CRM-Avance-Corp/supabase/functions/crm-tipo-cambio/**'
       - '_supabase_functions/functions/**'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'CRM-Avance-Corp/package.json'
       - 'CRM-Avance-Corp/package-lock.json'
+      - 'CRM-Avance-Corp/deno.lock'
       - 'CRM-Avance-Corp/supabase/scripts/**'
       - 'CRM-Avance-Corp/supabase/functions/crm-tipo-cambio/**'
       - '_supabase_functions/functions/**'
