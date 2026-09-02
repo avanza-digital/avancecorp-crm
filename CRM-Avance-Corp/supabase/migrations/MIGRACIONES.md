@@ -7078,3 +7078,59 @@ Directorio real, repetir la sonda de conducta contra producción.**
 **Veredicto de la suite:** `✅ RLS OK — 1291 aserciones; gate aprobado`, cero
 rojos — la primera corrida completamente verde de su historia. Front: 184
 archivos, 2488 tests.
+
+---
+
+## 20260902070052 · `crm_ranking_poblacion_mes_calendario`
+
+🟢 **DESPLEGADA, REGISTRADA Y VERIFICADA EN PRODUCCIÓN EL 2026-09-02.** Corrige
+los rankings de Gerencia y Supervisión con una sola semántica mensual: la fecha
+final elige el mes calendario; un histórico usa del día 1 al último día y el
+mes vigente, del día 1 hasta hoy en Lima.
+
+No crea funciones comerciales independientes. Reemplaza únicamente los
+núcleos existentes `crm.conversion_mensual_fn(date)` y
+`crm.metricas_conversiones_equipo_fn(date,date)`. Para un histórico abierto
+ambos toman la última revisión publicada de `meta_periodos/metas_vendedor`; si
+el mes ya cerró, toman la identidad y el alcance sellados por
+`private.cierre_mes_visible`; el mes vigente mantiene el roster vivo.
+`crm.cumplimiento_metas_fn(date)` no cambió porque ya era la autoridad mensual
+de metas y capital.
+
+**Registro y estructura productiva:** ledger remoto
+`20260902070052_crm_ranking_poblacion_mes_calendario`, un cuerpo con MD5
+`edb08d2a2dcbdb41caaf1f8699b4d5d1`. Huellas posteriores: conversión
+`016f19d203bb552696d5270ee8c4884e`, métricas de equipo
+`0631448b64810fc4d0a5dc936016debf`; cumplimiento conservó
+`b76cc20b5b88604308a9974fc1948a7a`. Owner `postgres`, volatilidad `STABLE`,
+`SECURITY DEFINER`, `search_path=''`, ACL esperadas y ninguna ejecución para
+`anon/public`. Supabase Advisors: cero errores.
+
+**Oráculo con identidad autenticada:** las tres fuentes devolvieron poblaciones
+idénticas. Gerencia: agosto 16/16/16 y setiembre 17/17/17; un Supervisor real:
+agosto 8/8/8 y setiembre 10/10/10. El caso de agosto confirma la foto: 16
+miembros frente a 17 del roster actual.
+
+**Edge complementaria:** la función existente `crm-tipo-cambio` pasó de v7 a
+v8, sin cambiar `verify_jwt=true`. Acepta un `fecha_corte`, toma las últimas
+siete fechas publicadas por BCRP hasta ese corte y lo devuelve explícitamente.
+El corte 2026-08-31 produjo 3,3491 (21–31/08); futuro 400 y sin JWT 401.
+
+**Gate:** 2.524/2.524 unitarias; E2E completo 113 aprobadas, 26 omitidas, cero
+fallidas; focal Gerencia/Supervisión 9/9; Edge 30/30 Node y 5/5 Deno, más
+formato, lint y typecheck. Tres auditorías independientes cerraron sin
+bloqueadores. `CRM app quality` terminó verde (`33644821968`). El primer
+preflight RLS sí destapó una diferencia del runner: Deno 2, con `package.json`,
+usaba `nodeModulesDir=manual` y no instalaba `npm:openai`, dependencia
+transitiva solo de `edge-runtime.d.ts`; las 30 pruebas Node habían pasado y no
+se abrió ninguna conexión remota. `eca2dcb85cef` añadió auto-instalación con
+lock congelado y registró el lock completo. El comando pasó desde checkout y
+caché vacíos, y el CI `33646311542` cerró verde.
+
+**Rollback probado/preservado:** `/private/tmp/rollback-ranking-20260902070052.sql`
+(SHA-256 `a863055cb91da437787cc072b2157e4c6892664d1b65797a7d9ac4edbac86a8e`),
+volcado previo `/private/tmp/crm-before-ranking-20260902.sql` (SHA-256
+`8d5a51f9338bdb5491788b56482f4d24d4b5a833531b142ba13f200049ee96e8`) y
+fuente Edge v7 en
+`/private/tmp/crm-tipo-cambio-v7.RYpJr3/supabase/functions/crm-tipo-cambio/index.ts`
+(SHA-256 `ae395cbc1a09d081382c72d7143988e548616d4228c6157815eaf33ea544a8b1`).

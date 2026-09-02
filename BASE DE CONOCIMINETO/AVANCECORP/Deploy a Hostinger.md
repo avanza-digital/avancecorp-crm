@@ -49,6 +49,34 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-02 (~09:54 hora de Lima) — CRM: rankings históricos por mes
+  calendario:** Gerencia y Supervisión seleccionan agosto sin perder la meta
+  mensual; Conversión, Capital total y Cosecha comparten el mismo mes, alcance
+  y foto histórica. El mes vigente conserva el roster vivo. Los USD históricos
+  usan los últimos siete días publicados por BCRP hasta el cierre del mes.
+  No se crearon RPC, tablas ni Edge Functions paralelas: se reemplazaron dos
+  núcleos existentes, `crm.cumplimiento_metas_fn` quedó intacta y la Edge
+  existente `crm-tipo-cambio` pasó de v7 a v8 con `verify_jwt=true`. Commit
+  publicado desde `main` hacia `avancecorp/tronco`: `5b1c808f9138`;
+  migración `20260902070052_crm_ranking_poblacion_mes_calendario`. Release
+  **`crm-20260902T145408Z-5b1c808f9138`**, build
+  **`build-20260902T145407204Z`**, ZIP SHA-256
+  **`3b7797c1f57c939fc7d6b362337a3f3e7082ae3229d3a9a5be90fae001d01132`**.
+  Gate: 2.524/2.524 unitarias; E2E 113 aprobadas, 26 omitidas y 0 fallidas;
+  focal Gerencia/Supervisión 9/9; Edge 30/30 Node y 5/5 Deno; Advisors sin
+  errores. `CRM app quality` quedó verde (`33644821968`). El primer preflight
+  RLS detectó que Deno no instalaba en limpio una dependencia transitiva de los
+  tipos de Supabase; `eca2dcb85cef` fijó el lock y el modo auto+frozen sin tocar
+  runtime, y el rerun `33646311542` terminó verde. Oráculo productivo: Gerencia
+  agosto 16/16/16 y setiembre 17/17/17;
+  Supervisor agosto 8/8/8 y setiembre 10/10/10. En vivo: 62/62 archivos de
+  código idénticos, 12/12 imágenes 200, ZIP 404 y asset anterior 404. La sesión
+  de navegador disponible era de reparto: verificó el build y el guard de rol,
+  mientras las vistas autenticadas se cubrieron por E2E y consultas con
+  identidad real. **Rollback inmediato frontend:**
+  `crm-20260902T060243Z-5c208ad9bf31.zip`; rollback SQL y Edge v7 constan en
+  [[Rankings por mes calendario (decision 2026-09-02)]].
+
 - **Deploy 2026-09-02 (~01:03 hora de Lima) — CRM: rankings de supervisión y
   gerencia reconectados a sus núcleos canónicos:** cambio solo de frontend,
   sin RPC, función SQL, migración ni cálculo paralelo. Cada pestaña usa su
