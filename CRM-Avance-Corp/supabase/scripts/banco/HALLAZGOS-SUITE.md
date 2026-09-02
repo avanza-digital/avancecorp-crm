@@ -2,6 +2,18 @@
 
 **Resultado: 1 274 de 1 279 aserciones en verde · 6 fallos.**
 
+> **Actualización (noche del 01/09):** los 6 fallos + el falso verde del §7 quedaron
+> corregidos con «ATR-4 manda» de Miguel y **dos rondas de refutación de Codex** (4 de los 5
+> arreglos tenían su propio agujero — hasta el arreglo de un falso verde puede fabricar
+> otro). De la re-corrida salieron además los hallazgos **8, 9 y 10** de abajo.
+>
+> **Veredicto de la re-corrida (tercera, con reset): 1 287 ✓ · 5 ✗ — y los 6 arreglos
+> aprobados pasaron TODOS.** Los 5 rojos restantes son: los 2 del hallazgo 9 (decisión de
+> Miguel, va por migración de policy), los 2 del hallazgo 10 (cambio de suite pendiente de
+> OK), y 1 del D3 que desmintió a Codex: afirmó que el gate de `cerrar_contrato` respondía
+> P0001 sin ERRCODE y la corrida midió **42501 al literal** (el `USING ERRCODE = '42501'`
+> está en el prosrc vivo). Corregido a lo MEDIDO — ni el auditor se cree sin re-medir.
+
 Es la **primera vez** que la suite entera corre desde que se escribieron muchas de sus
 aserciones: producción no tiene cuentas demo, así que hasta hoy no había dónde ejecutarla.
 Los 6 fallos son, por eso, valiosos: son la deuda que llevaba meses invisible.
@@ -87,12 +99,78 @@ contrato del negocio, así que **lo confirma Miguel** antes de tocarlo.
 
 ---
 
+## 7 · 🔑 El falso verde de `cerrar_contrato` (salió al arreglar el D3)
+
+El «D3 vend1 NO cierra contratos» fallaba y su gemelo «gerencia SÍ» pasaba. Al arreglarlo se
+midió la causa: la pareja llamaba a la RPC con **nombres de parámetros inventados**
+(`p_contrato_id`, `p_contrato_destino`; la firma viva es `p_id, p_resultado,
+p_contrato_nuevo_id`). PostgREST devolvía PGRST202 «no matching function»: el NO fallaba
+honesto, y el SÍ llevaba tiempo **pasando en falso** — nunca llegó a la función, pero «no
+denegado» daba verde. Corregidos los nombres y clavados **código y mensaje exactos** en las
+dos mitades (P0001 `No autorizado` / P0001 `Contrato no encontrado`; el `RAISE` vivo no
+lleva ERRCODE — si el contrato debe ser 42501, el cambio va en la FUNCIÓN, por migración).
+
+## 8 · La suite asumía un banco DESECHABLE
+
+En la segunda corrida contra el MISMO banco aparecieron rojos nuevos que la primera no tuvo:
+choque con `uq_leads_telefono_vivo` (la bolsa F2 queda VIVA con teléfono fijo a propósito),
+conteos contaminados por transitorios de la corrida anterior, y el bloque de domicilio —
+que **documenta** que deja escrito `public.perfiles.domicilio` y no puede deshacerlo (el
+trigger `perfiles_domicilio_legal_no_borrar` prohíbe volver a NULL).
+
+La suite nació para branches de un solo uso (crear → correr → destruir); un banco
+persistente necesita **reset entre corridas**. Está en `reset-gate-banco.sql` (solo-banco:
+baja UN trigger nombrado dentro de la transacción para limpiar el residuo de test) y el
+arranque de la suite ahora desactiva la bolsa F2 de una corrida anterior por su huella fija.
+
+## 9 · 🔑 El lector global ve los leads DESACTIVADOS (asimetría real de la política)
+
+El reset dejó exactamente 7 leads vivos (verificado con recibo). Gerencia vio 7 ✓ —
+**directorio vio 55**, incluidos todos los transitorios ya desactivados. Medido en la
+política viva `leads_select`:
+
+```
+( activo = true AND (propio | bandeja-supervisor | gerencia) )
+OR es_lector_global()          ← esta rama NO filtra activo
+```
+
+Analistas, supervisores y gerencia solo ven leads vivos; el **lector global (Directorio) ve
+también los soft-borrados**, con su PII (DNI, fecha de nacimiento). En producción hoy casi
+no hay leads desactivados, así que no se nota — pero un lead «eliminado» por limpieza queda
+legible para ese rol. **¿Es deliberado?** Decide Miguel; el arreglo sería una migración de
+policy (`or (es_lector_global() and activo)`), nunca un retoque del test. Mientras tanto,
+las dos aserciones «directorio ve 7» quedan rojas **diciendo la verdad**.
+
+## 10 · El ledger de asignaciones hace que D8 no sea re-corrible en el mismo mes
+
+Los dos rojos del bloque «fuera de roster» (D8) en la re-corrida:
+
+```
+fuera_de_roster antes {divisor 4, analistas 2} → después {divisor 5, analistas 2}
+                                    esperado: +1 divisor ✓, +1 analista ✗ (delta 0)
+```
+
+**Causa, y es por diseño:** el divisor de conversión bebe del **ledger de asignaciones**,
+que es INSERT-only — la garantía que la propia suite custodia («ni el gate perfora esa
+garantía con hard-delete»). El reset no puede ni debe vaciarlo. Así que `sup1`, el productor
+fuera-de-roster que el bloque siembra, **ya era** analista fuera-de-roster del mes por la
+corrida anterior: su `divisor` sí suma +1 por corrida, pero `analistas` (conteo de
+DISTINTOS) satura en la primera y el delta «+1 analista» sale 0 para siempre.
+
+**Arreglo pendiente de OK (cambio de suite, no de servidor):** que D8 siembre un productor
+**único por corrida** (perfil aleatorio) en vez de reutilizar a `sup1`; entonces el delta de
+`analistas` vuelve a ser +1 en toda corrida. Mientras tanto, los 2 rojos dicen la verdad
+sobre un mundo con historia — que es exactamente el mundo real.
+
+---
+
 ## Cómo repetir la corrida
 
 ```bash
 export SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=...
 export CRM_BANCO_PSQL_URL="$(cat $S/banco-pooler.txt)"   # pooler en SESIÓN, 5432
 export CRM_DEMO_PASSWORD='...'
+psql "$CRM_BANCO_PSQL_URL" -f supabase/scripts/banco/reset-gate-banco.sql  # hallazgo 8
 npm run seed:demo        # ⚠️ ver abajo
 #   → correr el bloque «Baja historica de vendInactive» de LEEME-seed.md
 npm run test:rls

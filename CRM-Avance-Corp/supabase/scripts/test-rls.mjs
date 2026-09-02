@@ -440,6 +440,24 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.avanceLeadReunion,
     ]),
   );
+
+  // 🔴 Residuos DE OTRA CORRIDA (banco persistente, 01/09). Los TRANSIENT_IDS
+  // son aleatorios por proceso, asi que este arranque no puede verlos por id —
+  // pero el lead de bolsa del bloque F2 usa un TELEFONO FIJO y se deja VIVO a
+  // proposito en la cola global (prueba la liberacion gerencial). En un branch
+  // de un solo uso daba igual; en un banco que se reusa, la corrida siguiente
+  // chocaba con `uq_leads_telefono_vivo` (23505) y ademas el lead vivo
+  // contaminaba los conteos de cola de los bloques tempranos. Se desactiva por
+  // su huella FIJA (telefono + nombre), el mismo soft-delete de produccion; la
+  // parcial `uq_leads_telefono_vivo` solo cuenta vivos, asi que con esto basta.
+  await requireAdmin(
+    'desactivar la bolsa F2 de una corrida anterior (telefono fijo)',
+    admin.schema('crm').from('leads')
+      .update({ activo: false })
+      .eq('telefono', '+51996600311')
+      .eq('nombre_completo', 'F2 TOMA BOLSA TRANSIENT')
+      .eq('activo', true),
+  );
 }
 
 async function verifySeed() {
@@ -2128,40 +2146,58 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
     ['P0001', '22023'],
   );
 
-  // 2) LA ETIQUETA NO SE PUEDE INYECTAR: escribirla suelta en el payload es un
-  //    no-op silencioso (el BEFORE trigger la reescribe desde old).
-  const forjada = await positive(
-    'vend1 intenta escribir cancelada_por="sistema" en una tarea viva',
+  // 2) LA ETIQUETA NO SE PUEDE INYECTAR — y desde 20260829175638 la defensa es
+  //    MAS temprana: `authenticated` ya ni siquiera tiene UPDATE sobre
+  //    crm.tareas, asi que la inyeccion del analista muere en la capa de
+  //    permisos (42501), antes de que el trigger tenga nada que decir.
+  //    Historia: el contrato original (20260727032429) era "no-op silencioso
+  //    del BEFORE trigger" y quedo MUERTO con esa revocacion; la suite no pudo
+  //    correr entre ambas fechas (0 demos en prod) y el banco lo destapo el
+  //    01/09. El contrato del trigger NO se pierde: se prueba en 2b con el
+  //    unico rol que conserva UPDATE.
+  //    ⚠️ Codex (01/09) refutó la primera versión de este arreglo: usaba
+  //    `expectBlockedMutation`, que acepta CUALQUIER portazo de autorización y
+  //    hasta cero filas sin error — no exigía el 42501. Aquí el contrato ES el
+  //    codigo y el mensaje exactos, así que va con el helper estricto.
+  await expectExpectedFailure(
+    'vend1 intenta escribir cancelada_por="sistema" en una tarea viva (sin UPDATE desde 20260829175638)',
     vend1.client.schema('crm').from('tareas')
       .update({ cancelada_por: 'sistema' })
       .eq('id', TRANSIENT_IDS.anularTareaReunion)
-      .select('id, estado, cancelada_por')
-      .single(),
+      .select('id'),
+    ['42501'],
+    /permission denied.*tareas/i,
   );
-  if (forjada) {
-    check(forjada.data.cancelada_por === null && forjada.data.estado === 'pendiente',
-      'la etiqueta inyectada por el cliente se ignora (sigue null y pendiente)',
-      `cancelada_por=${forjada.data.cancelada_por}`);
-  }
-
-  // 2b) LA FIRMA TAMPOCO (20260727032429). Mismo contrato que la etiqueta: un
-  //     no-op SILENCIOSO, no un 400 de constraint — el CHECK tambien la
-  //     atraparia, pero el cliente debe ver "campo ignorado" como en el resto de
-  //     columnas selladas. Se intenta firmar como sup1: si colara, un analista
-  //     podria marcar sus propias anulaciones como si se las hubiera ordenado su
-  //     jefe y sacarlas del denominador de su %.
-  const firmaForjada = await positive(
-    'vend1 intenta firmar una tarea viva como si la hubiera anulado sup1',
+  await expectExpectedFailure(
+    'vend1 intenta firmar una tarea viva como si la hubiera anulado sup1 (sin UPDATE desde 20260829175638)',
     vend1.client.schema('crm').from('tareas')
       .update({ cancelada_por_id: sup1Id })
       .eq('id', TRANSIENT_IDS.anularTareaReunion)
-      .select('id, estado, cancelada_por_id')
+      .select('id'),
+    ['42501'],
+    /permission denied.*tareas/i,
+  );
+
+  // 2b) EL TRIGGER SIGUE PROBADO, por el llamador MAS fuerte. service_role SI
+  //     conserva UPDATE, y el BEFORE trigger reescribe etiqueta y firma desde
+  //     `old` (no-op silencioso) salvo que la RPC encienda su GUC
+  //     (crm.op_tarea / crm.cancela_sistema — es exencion por GUC, no por rol).
+  //     Si un dia el trigger muere, esto se pone rojo aunque los permisos
+  //     sigan bien: son dos defensas y cada una tiene su aserción.
+  const forjadaAdmin = await positive(
+    'service_role intenta inyectar etiqueta y firma en una tarea viva',
+    admin.schema('crm').from('tareas')
+      .update({ cancelada_por: 'sistema', cancelada_por_id: sup1Id })
+      .eq('id', TRANSIENT_IDS.anularTareaReunion)
+      .select('id, estado, cancelada_por, cancelada_por_id')
       .single(),
   );
-  if (firmaForjada) {
-    check(firmaForjada.data.cancelada_por_id === null && firmaForjada.data.estado === 'pendiente',
-      'la firma inyectada por el cliente se ignora (sigue null y pendiente)',
-      `cancelada_por_id=${firmaForjada.data.cancelada_por_id}`);
+  if (forjadaAdmin) {
+    check(forjadaAdmin.data.cancelada_por === null
+        && forjadaAdmin.data.cancelada_por_id === null
+        && forjadaAdmin.data.estado === 'pendiente',
+      'el trigger reescribe etiqueta y firma desde old (no-op) incluso para service_role',
+      JSON.stringify(forjadaAdmin.data));
   }
 
   // 3) Por la RPC sí, y queda firmada con el sentinel legacy `asesor`.
@@ -4702,6 +4738,17 @@ async function testContractBankAccounts(sessions, seed) {
     //     (23514) — eso PRUEBA que la cartera ya no es la barrera, sin escribir
     //     una fila. Esta pareja clava que las dos superficies divergieron a
     //     propósito y no por un predicado suelto.
+    //     🔴 F3.7 (20260829183000) añadió una regla que dispara ANTES: si quien
+    //     registra no está en el equipo comercial, la venta necesita un
+    //     `analista_cierre_id` EXPLÍCITO (22023 «Elige el analista de la
+    //     venta»). Sin él, este caso moría ahí y dejaba la cartera SIN medir
+    //     (lo destapó el banco el 01/09). Se nombra a vend3 —activo, de OTRO
+    //     subárbol y NO dueño del cliente— para atravesar esa puerta y volver
+    //     a llegar a la de términos: el actor sigue siendo el MISMO
+    //     (directorio-como-analista) y la divergencia banca↔alta sigue clavada
+    //     sobre él. Codex verificó el ORDEN vivo de las validaciones: cliente y
+    //     autoridad del registrador van ANTES que el analista nombrado, así que
+    //     llegar a 23514 sigue midiendo la autoridad, no solo los términos.
     await requireAdmin(
       'banca P04: convertir directorio temporalmente en analista sin membresia',
       admin.from('perfiles').update({ rol: 'analista' }).eq('id', directorProfileId),
@@ -4724,6 +4771,13 @@ async function testContractBankAccounts(sessions, seed) {
           capital: 1000,
           tasa_anual: 10,
           categoria: 'nuevo',
+          // F3.7: quien registra (directorio-como-analista) no está en
+          // crm.equipo, así que la venta debe nombrar a su analista. vend3 está
+          // activo en OTRO subárbol y NO es el dueño del cliente (el dueño es
+          // vend1) — doble filo: si la cartera volviera a ser barrera para el
+          // registrador O para el analista nombrado, esto no llegaría a los
+          // términos.
+          analista_cierre_id: seed.profileIdByKey.vend3,
         },
         p_cronograma: [],
       }),
@@ -6075,8 +6129,33 @@ async function testCitasNucleo(sessions, seed) {
     timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(fecha);
   const ahora = new Date();
+  // 🔴 La ventana se ANCLA AL FIXTURE, no a «los ultimos 29 dias»: las citas de
+  //    seed-demo tienen fechas FIJAS (TAREAS, 2026-07-2x) y la ventana relativa
+  //    al reloj las fue dejando atras — el 01/09 la guarda anti-vacuidad se puso
+  //    roja con el fixture INTACTO (bomba de tiempo, no regresion). La RPC
+  //    admite hasta 365 dias hacia atras, asi que se abre desde la cita mas
+  //    antigua; y si el fixture envejece mas alla del alcance de la RPC, la
+  //    aserción de abajo lo dice CON NOMBRE en vez de fingir un mundo vacio.
+  //    ⚠️ Codex (01/09) refutó la primera versión del ancla en dos puntos:
+  //    (a) tomaba el mínimo de TODAS las TAREAS y la RPC solo mira
+  //    `tipo='reunion'` — una llamada vieja habría ensanchado la ventana y
+  //    disparado la alarma de envejecimiento con las reuniones aún vigentes;
+  //    (b) el clamp usaba 364 días cuando la RPC rechaza solo diferencias
+  //    MAYORES que 365 — la alarma se habría puesto roja un día antes que la
+  //    propia RPC. Corregido: solo reuniones, y 365.
+  const fechasCita = TAREAS
+    .filter((t) => t.tipo === 'reunion')
+    .map((t) => Date.parse(t.venceEn));
+  const primeraCita = fechasCita.length ? Math.min(...fechasCita) : NaN;
+  check(Number.isFinite(primeraCita),
+    'reuniones: el fixture trae al menos una reunion con fecha valida');
+  if (!Number.isFinite(primeraCita)) return;
+  const alcanceMaximo = ahora.getTime() - 365 * 24 * 60 * 60 * 1000;
+  check(primeraCita >= alcanceMaximo,
+    'reuniones: el fixture sigue al alcance de la RPC (reuniones de seed-demo con 365 dias o menos; si esto falla, re-fechar fixtures.mjs)',
+    `primera reunion ${new Date(primeraCita).toISOString()}`);
   const P = {
-    p_desde: enLima(new Date(ahora.getTime() - 29 * 24 * 60 * 60 * 1000)),
+    p_desde: enLima(new Date(Math.max(primeraCita, alcanceMaximo))),
     p_hasta: enLima(ahora),
   };
 
@@ -6210,10 +6289,35 @@ async function testCapacidadUnificada(sessions, seed) {
     sessions.clientBank.client.schema('crm').rpc('productos_inversion_seleccion_fn', {}), false);
 
   // D3 · cerrar contrato: vendedor NO, gerencia SI
-  await pasaElGate('D3 vend1 NO cierra contratos',
-    sessions.vend1.client.rpc('cerrar_contrato', { p_contrato_id: crypto.randomUUID(), p_resultado: 'retirado', p_contrato_destino: null }), false);
-  await pasaElGate('D3 gerencia SI llega al gate de cerrar_contrato',
-    sessions.gerencia.client.rpc('cerrar_contrato', { p_contrato_id: crypto.randomUUID(), p_resultado: 'retirado', p_contrato_destino: null }), true);
+  // 🔴 Los nombres de los parametros van AL LITERAL de la firma viva
+  //    (p_id, p_resultado, p_contrato_nuevo_id). Con nombres inventados
+  //    PostgREST devuelve PGRST202 «no matching function» y la pareja se rompia
+  //    en DOS direcciones: el NO fallaba honesto (PGRST202 no es denegacion)
+  //    y el SI pasaba EN FALSO — nunca llego a la funcion, pero "no denegado"
+  //    daba verde. Falso verde en la suite de seguridad, destapado por el banco
+  //    el 01/09 gracias a que su mitad roja delato a la verde.
+  //    ⚠️ Codex refutó ademas el arreglo a medias: `pasaElGate(..., true)`
+  //    seguia dando verde con PGRST202, 42P01 o cualquier error interno. Se
+  //    clava CODIGO Y MENSAJE exactos en ambas mitades. Nota honesta: Codex
+  //    afirmo que el `RAISE 'No autorizado'` no llevaba ERRCODE (P0001) y la
+  //    corrida contra el banco lo DESMINTIO: el gate vivo responde 42501 al
+  //    literal (`USING ERRCODE = '42501'`, verificado en el prosrc). Se clava
+  //    lo MEDIDO, no lo argumentado — ni siquiera cuando lo argumenta el
+  //    auditor. La mitad de gerencia si muere en P0001 (Contrato no
+  //    encontrado, RAISE sin codigo): cada mitad con su codigo real.
+  const argsD3 = { p_id: crypto.randomUUID(), p_resultado: 'retirado', p_contrato_nuevo_id: null };
+  await expectExpectedFailure(
+    'D3 vend1 NO cierra contratos',
+    sessions.vend1.client.rpc('cerrar_contrato', argsD3),
+    ['42501'],
+    /^No autorizado$/i,
+  );
+  await expectExpectedFailure(
+    'D3 gerencia llega al CUERPO de cerrar_contrato (pasa el gate, muere en el contrato inexistente)',
+    sessions.gerencia.client.rpc('cerrar_contrato', argsD3),
+    ['P0001'],
+    /Contrato no encontrado/i,
+  );
 
   // D4 · el candado de pares, desde el PANEL (auth.uid presente = sesion admin).
   //      Un par no declarado rebota; la tabla de pares NO se puede vaciar.
@@ -9371,6 +9475,20 @@ async function testCierresExternos(sessions, seed) {
     // ── 4 · La correccion es de gerencia ────────────────────────────────────
     const cierreId = fila?.cierre_id ?? null;
     if (cierreId) {
+      // ⚠️ Codex (01/09) refutó la aserción de totales por `.some(>=1500)` sin
+      //    moneda: cualquier OTRO prodelco del historial la dejaba verde aunque
+      //    los 1500 recien anulados hubieran salido. El contrato de ATR-4 se
+      //    prueba con ARITMETICA EXACTA sobre una linea base capturada ANTES de
+      //    la correccion: corregir suma 1500/+1 a prodelco/PEN, y anular deja
+      //    esa foto EXACTAMENTE igual.
+      const totalProdelcoPen = (payload) => {
+        const t = (payload?.totales ?? [])
+          .find((x) => x.cooperativa === 'prodelco' && x.moneda === 'PEN') ?? null;
+        return { capital: Number(t?.capital ?? 0), cierres: Number(t?.cierres ?? 0) };
+      };
+      // linea base: la relectura de vend1 tras crear el cierre (aun qorilazo).
+      const prodelcoBase = totalProdelcoPen(lecturaTras?.data);
+      let prodelcoCorr = null;
       const argsCorreccion = {
         p_cierre_id: cierreId,
         p_cooperativa: 'prodelco',
@@ -9400,12 +9518,25 @@ async function testCierresExternos(sessions, seed) {
           .find((c) => c.lead_id === IDS_CIERRES_EXTERNOS.leadCoop) ?? null;
         check(filaTras?.cooperativa === 'prodelco' && Number(filaTras?.monto) === 1500,
           'la correccion quedo en la foto', JSON.stringify(filaTras));
+        prodelcoCorr = totalProdelcoPen(relectura?.data);
+        check(prodelcoCorr.capital === prodelcoBase.capital + 1500
+            && prodelcoCorr.cierres === prodelcoBase.cierres + 1,
+          'la correccion movio prodelco/PEN EXACTAMENTE +1500 y +1 cierre',
+          JSON.stringify({ base: prodelcoBase, tras: prodelcoCorr }));
       }
 
-      // ── 5 · La ANULACION es de gerencia, y deja de contar ────────────────
-      // Es el freno de emergencia contra un cierre falso. Aqui se vigila QUIEN
-      // puede tirar de el (solo gerencia) y que el cierre salga de los totales
-      // sin desaparecer de las filas.
+      // ── 5 · La ANULACION es de gerencia — castiga la CONVERSION, no el capital
+      // Freno de emergencia contra un cierre falso. Se vigila QUIEN puede tirar
+      // de el (solo gerencia) y el contrato de ATR-4 (registro 193, 01/09,
+      // decision de Miguel: «solo la conversion, siempre»): la fila queda
+      // MARCADA y el capital SIGUE en los totales — anular es sancion al
+      // analista, no un borrador de dinero de la empresa. Lo que baja es su
+      // conversion; probar ESA bajada pide los fixtures de cadena del proximo
+      // ciclo de banco (deuda ya nombrada en ATR-1/ATR-2).
+      // Historia: hasta el 01/09 aqui se exigia lo contrario (que el cierre
+      // saliera de los totales). La suite no habia podido correr nunca y el
+      // banco destapo la contradiccion el mismo dia en que ATR-4 la volvio
+      // norma; Miguel confirmo «ATR-4 manda» antes de tocar esta aserción.
       const anular = (clave, args) => sessions[clave].client
         .schema('crm').rpc('anular_cierre_externo', args);
       const argsAnular = { p_cierre_id: cierreId, p_motivo: 'GATE: cierre de prueba' };
@@ -9430,11 +9561,12 @@ async function testCierresExternos(sessions, seed) {
         check(filaAnulada != null && filaAnulada.anulado_en != null,
           'el cierre anulado SIGUE en las filas, marcado',
           JSON.stringify(filaAnulada));
-        const enTotales = (traAnular?.data?.totales ?? [])
-          .some((t) => t.cooperativa === 'prodelco' && Number(t.capital) >= 1500);
-        check(!enTotales,
-          'el cierre anulado salio de los totales (no es dinero)',
-          JSON.stringify(traAnular?.data?.totales));
+        const prodelcoAnul = totalProdelcoPen(traAnular?.data);
+        check(prodelcoCorr != null
+            && prodelcoAnul.capital === prodelcoCorr.capital
+            && prodelcoAnul.cierres === prodelcoCorr.cierres,
+          'ATR-4: anular NO movio ni un centimo de prodelco/PEN (sanciona la conversion del analista; el capital no se toca jamas)',
+          JSON.stringify({ trasCorregir: prodelcoCorr, trasAnular: prodelcoAnul }));
         const doble = await anular('gerencia', argsAnular);
         check(doble.error != null && /ya estaba anulado/i.test(doble.error?.message ?? ''),
           'un cierre anulado no se anula dos veces', errorText(doble.error));
