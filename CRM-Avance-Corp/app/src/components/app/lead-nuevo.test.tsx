@@ -785,9 +785,9 @@ describe('LeadNuevo — Tomar lead (F2)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
       'La disponibilidad acaba de cambiar. Este contacto ya está asignado a ANA PÉREZ.',
-    )
+    ))
     expect(actions.abrirLead).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
     // a11y F2-M2: el foco no queda huérfano en body al retirarse el botón.
