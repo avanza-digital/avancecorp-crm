@@ -7213,5 +7213,17 @@ confirmar de otra sesión (los del puente de leads). Preflight:
 front ya está publicado pidiendo la columna, revertir el servidor deja la
 cartera en blanco: primero el front.
 
-**Pendiente:** subida del front (`/release-crm`, humana), gate `test-rls.mjs` y
-E2E.
+**Front PUBLICADO el 2026-09-02** por Miguel con `/release-crm` desde la carpeta
+del subproyecto (el skill no figura desde la raíz). Se le pasó el ZIP ya
+construido y verificado en vez de dejarle rehacerlo: el taller estaba sucio por
+OTRA sesión en curso (20 archivos de conversión/ranking a medio editar) y un ZIP
+nuevo habría metido ese trabajo ajeno en la foto.
+
+**Verificado contra lo VIVO, no contra el artefacto** (la lección de
+«un parche que solo vive en el artefacto no existe»): los **51 archivos servidos
+por crm.miavance.com son byte a byte idénticos** al manifiesto —
+`identicos=51 distintos=0 inaccesibles=0` contrastando SHA-256 fichero a fichero.
+`version.json` vivo: `build-20260902T170712941Z`.
+
+**Pendiente:** gate `test-rls.mjs` y E2E, que no se corrieron porque el árbol
+compartido no está limpio; correrlos cuando la otra sesión asiente lo suyo.
