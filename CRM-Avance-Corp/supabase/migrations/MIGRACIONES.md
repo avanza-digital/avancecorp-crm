@@ -7227,3 +7227,42 @@ por crm.miavance.com son byte a byte idénticos** al manifiesto —
 
 **Pendiente:** gate `test-rls.mjs` y E2E, que no se corrieron porque el árbol
 compartido no está limpio; correrlos cuando la otra sesión asiente lo suyo.
+
+## 20260902200000 · `crm_g0_reloj_hoy_es_lima`
+
+**Estado: ESCRITA, EN REFUTACIÓN POR CODEX.** Autorizada por Miguel el 02/09
+(«ok sigamos hazlo»), incluido el OK para tocar `public.dashboard_admin_metricas`.
+
+**Qué.** En cuatro funciones de lectura, «hoy» deja de ser la fecha del servidor
+(UTC) y pasa a ser la fecha civil de Lima: `current_date` →
+`(now() at time zone 'America/Lima')::date`. Ocho sustituciones en total
+(capital 2, pagos 1, vencimientos 3, dashboard del Portal 2). **Nada más
+cambia**: los cuerpos se generaron desde `pg_get_functiondef` de las funciones
+vivas y se aplican con `create or replace`, que conserva OID, grants y
+dependencias. El `search_path` no vacío de `metricas_pagos_mes_fn` se conserva
+tal cual — es otra decisión y otra migración.
+
+**Por qué.** Lima va 5 h por detrás de UTC: de 19:00 a 23:59 el servidor ya
+está en «mañana». El oráculo R3 del G0 (02/09, READ ONLY, un año día a día con
+`cd = D` y `cd = D+1`, fidelidad 0 contra el núcleo) midió la consecuencia:
+Vencimientos falla a DIARIO (282 de 365 días con `p_dias = 90`: lo que vence hoy
+desaparece de «por vencer» a las 19:00 y lo de D+p_dias entra un día antes);
+Capital mensual pierde el mes más antiguo de su ventana de 12 cinco horas antes
+el último día de cada mes (primer fallo visible: 31/12/2026); el tablero del
+Portal marca «vencido» desde las 19:00 lo que vence hoy. Medido para ESTA noche
+(02/09): nada vence hoy, pero 3 contratos entrarían un día antes en la ventana
+de 90 días y 1 en la de 365.
+
+**Guardas.** Preflight: `md5(prosrc)` de cada función debe ser el que se leyó al
+generar la migración — si alguien la cambió entre medias, aborta en vez de
+pisarla. Postflight: sin `current_date`, con la fecha de Lima, DEFINER, PUBLIC
+fuera, `search_path` y ACL idénticos a los previos.
+
+**Prueba de no-regresión.** Foto «antes» de las cuatro salidas a las **12:50 de
+Lima** (claims de Gerencia, READ ONLY, md5 del jsonb ordenado): a esa hora
+fecha-servidor = fecha-Lima, así que la foto «después» tiene que ser IDÉNTICA.
+`capital_12 643e0b0a…` (40 filas) · `venc_365 67049435…` (23 filas) ·
+`venc_90 71e0ba17…` · `pagos_12 c95221c8…` (157 filas) · `dashboard 09daf7a0…`.
+
+**Rollback preservado:** `rollback-g0-reloj-20260902200000.sql` con los cuatro
+cuerpos vivos tal cual estaban (SHA-256 `48e6a687…93ae4`).
