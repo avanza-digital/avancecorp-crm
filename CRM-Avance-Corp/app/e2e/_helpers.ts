@@ -317,6 +317,8 @@ function cuentaPerfilReal(
 // ── Contratos del portal (public.contratos con el embed cliente:perfiles) ─────
 export interface ContratoReal {
   id: string
+  /** 'YYYY-MM-DD' — el mes por el que Mi cartera reparte sus bloques. */
+  fecha_cierre_comercial?: string
   numero_contrato: string
   cliente_id: string
   capital: number
@@ -394,6 +396,12 @@ const PRODUCTOS_SELECCIONABLES_REAL: Record<string, unknown>[] = [
 ]
 
 export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
+  // Por defecto el contrato se cierra el día (Lima) en que se registra: así un
+  // spec que mueve `creado_en` para colocarlo en un mes sigue diciendo lo mismo
+  // ahora que el bloque va por FECHA DE CIERRE. Quien las quiera distintas pasa
+  // `fecha_cierre_comercial`.
+  const creadoEn = over.creado_en ?? '2026-07-01T00:00:00.000Z'
+  const diaLima = new Date(Date.parse(creadoEn) - 5 * 3600_000).toISOString().slice(0, 10)
   return {
     id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     numero_contrato: '2026-01-000123',
@@ -407,9 +415,10 @@ export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
     estado: 'activo',
     fecha_inicio: '2026-07-01',
     fecha_vencimiento: '2027-07-01',
+    fecha_cierre_comercial: diaLima,
     notas_internas: null,
     creado_por: UID,
-    creado_en: '2026-07-01T00:00:00.000Z',
+    creado_en: creadoEn,
     cliente_nombre: 'CLIENTE PORTAL UNO',
     asesor_perfil_id: UID,
     producto_condicion_id: PRODUCTO_CONDICION_PEN_ID,

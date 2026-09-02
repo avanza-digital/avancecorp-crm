@@ -128,6 +128,7 @@ function filaContrato(sobre: Record<string, unknown> = {}): Record<string, unkno
     estado: 'activo',
     fecha_inicio: '2026-07-01',
     fecha_vencimiento: '2027-07-01',
+    fecha_cierre_comercial: '2026-07-01',
     notas_internas: null,
     creado_por: 'analista-1',
     creado_en: '2026-07-15T12:00:00.000Z',
@@ -581,6 +582,9 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
         expect(select).toContain('cliente_nombre')
         expect(select).toContain('producto_condicion_id')
         expect(select).toContain('producto_version')
+        // La pide EXPLÍCITA: es la fecha por la que Mi cartera reparte sus
+        // bloques, y sin ella la fila se descarta (abajo se comprueba).
+        expect(select).toContain('fecha_cierre_comercial')
         return HttpResponse.json([
           filaContrato({ capital: '10000.50', tasa_anual: '15.5' }),
           filaContrato({ id: 'ct-2', estado: 'zombie' }), // fuera de contrato → se descarta
@@ -588,6 +592,9 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
             id: 'ct-3',
             producto_condicion_id: 'snapshot-sin-uuid',
           }),
+          // Sin fecha de cierre la fila NO pasa: mejor perderla con ruido que
+          // repartir la cartera por un mes inventado.
+          { ...filaContrato({ id: 'ct-4' }), fecha_cierre_comercial: undefined },
         ])
       }),
     )

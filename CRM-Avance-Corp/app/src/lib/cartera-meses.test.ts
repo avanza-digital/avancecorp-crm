@@ -1,15 +1,19 @@
-// Tests del motor puro que parte Mi cartera en bloques por MES de cierre:
+// Tests del motor puro que parte Mi cartera en bloques por MES DE CIERRE
+// COMERCIAL (el mismo con el que se paga la cuota, desde el 02/09/2026):
 // la trampa de la zona horaria (Lima vs UTC), el cliente que cerró en varios
 // meses, PEN y USD jamás sumados, los dos cubos (sin contrato / sin fecha) y el
 // conteo de contratos registrados por otra persona.
 import { describe, expect, it } from 'vitest'
 import {
   agruparPorMes,
+  mesDeCierre,
   mesLima,
+  registradoEnOtroMes,
   registradoPorOtro,
   CLAVE_SIN_CONTRATOS,
   CLAVE_SIN_FECHA,
 } from './cartera-meses'
+import { fechaLima } from './agenda-derivada'
 import { agruparCartera, resumirCliente } from './cartera-vista'
 import type { ClienteBasico, ContratoRow } from './clientes-tipos'
 
@@ -31,7 +35,20 @@ function cliente(sobre: Partial<ClienteBasico> = {}): ClienteBasico {
   }
 }
 
+/** Fecha de cierre por defecto: el día (Lima) en que se registró. Un `creado_en`
+ *  ilegible se copia tal cual, para que el contrato caiga en el cubo «sin fecha»
+ *  en vez de reventar el fixture. */
+function cierrePorDefecto(creadoEn: string): string {
+  const ms = Date.parse(creadoEn)
+  return Number.isNaN(ms) ? creadoEn : fechaLima(ms)
+}
+
 function contrato(sobre: Partial<ContratoRow> = {}): ContratoRow {
+  // El bloque va por FECHA DE CIERRE. Por defecto se cierra el mismo día en que
+  // se registra (Lima), que es el caso corriente; un test que quiera separar las
+  // dos fechas pasa `fecha_cierre_comercial` explícita y gana, porque `sobre` va
+  // al final.
+  const creadoEn = sobre.creado_en ?? '2026-08-10T15:00:00.000Z'
   return {
     id: 'k-1',
     numero_contrato: '2026-01-000001',
@@ -46,9 +63,10 @@ function contrato(sobre: Partial<ContratoRow> = {}): ContratoRow {
     estado: 'activo',
     fecha_inicio: '2026-08-01',
     fecha_vencimiento: '2027-08-01',
+    fecha_cierre_comercial: cierrePorDefecto(creadoEn),
     notas_internas: null,
     creado_por: null,
-    creado_en: '2026-08-10T15:00:00.000Z',
+    creado_en: creadoEn,
     producto_condicion_id: '10000000-0000-4000-8000-000000000001',
     producto_id: '20000000-0000-4000-8000-000000000001',
     producto_codigo: 'RENTA-BASE',
@@ -203,7 +221,7 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
     )
     const meses = agruparPorMes(grupos)
     expect(meses.map((m) => m.clave)).toEqual(['2026-08', CLAVE_SIN_FECHA])
-    expect(meses.at(-1)!.etiqueta).toBe('Sin fecha de registro')
+    expect(meses.at(-1)!.etiqueta).toBe('Sin fecha de cierre')
   })
 
   it('cuenta cuántos contratos del mes los registró otra persona', () => {
@@ -249,5 +267,60 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
     expect(agosto.capitalPen).toBe(25000)
     expect(agosto.registradosPorOtro).toBe(1)
     expect(meses.at(-1)!.grupos.map((g) => g.cliente.id)).toEqual(['c-3'])
+  })
+})
+
+describe('el mes que manda es el de CIERRE, no el de registro', () => {
+  // El caso que lo destapó: contrato 2026-01-001348, cerrado el domingo 31 de
+  // agosto y tecleado el lunes 1 de septiembre a las 11:00 de Lima. La cuota lo
+  // paga en agosto; el bloque tiene que decir lo mismo.
+  it('un cierre de agosto tecleado el 1 de septiembre cae en AGOSTO', () => {
+    const k = contrato({
+      id: '1348',
+      fecha_inicio: '2026-08-31',
+      fecha_cierre_comercial: '2026-08-31',
+      creado_en: '2026-09-01T16:00:49.024Z', // 11:00 de Lima
+    })
+    const meses = agruparPorMes(agruparCartera([cliente()], [k]))
+    expect(meses.map((m) => m.clave)).toEqual(['2026-08'])
+    expect(mesLima(k.creado_en)).toBe('2026-09') // el registro sigue siendo septiembre
+  })
+
+  // LA TRAMPA: `fecha_cierre_comercial` es una fecha SECA. Pasada por el
+  // conversor de instantes, '2026-08-01' se leería como medianoche UTC = 31 de
+  // JULIO en Lima. Son 49 contratos reales cerrados en día 1.
+  it('un cierre el DÍA 1 no se escapa al mes anterior', () => {
+    expect(mesDeCierre('2026-08-01')).toBe('2026-08')
+    expect(mesLima('2026-08-01')).toBe('2026-07') // lo que habría pasado sin helper propio
+    const k = contrato({ fecha_cierre_comercial: '2026-08-01', creado_en: '2026-08-01T16:00:00.000Z' })
+    expect(agruparPorMes(agruparCartera([cliente()], [k]))[0]!.clave)
+      .toBe('2026-08')
+  })
+
+  it('manda el cierre aunque la fecha de INICIO sea de otro mes', () => {
+    const k = contrato({ fecha_inicio: '2026-09-03', fecha_cierre_comercial: '2026-08-28' })
+    expect(agruparPorMes(agruparCartera([cliente()], [k]))[0]!.clave)
+      .toBe('2026-08')
+  })
+
+  it('un cierre ilegible cae en su cubo, no en un mes inventado', () => {
+    expect(mesDeCierre('')).toBeNull()
+    expect(mesDeCierre('2026-13-01')).toBeNull()
+    expect(mesDeCierre(null)).toBeNull()
+    const k = contrato({ fecha_cierre_comercial: 'sin-fecha' })
+    expect(agruparPorMes(agruparCartera([cliente()], [k]))[0]!.clave)
+      .toBe(CLAVE_SIN_FECHA)
+  })
+
+  // La fecha de registro no se tira: es la única que nadie puede mover, y la
+  // cabecera la declara para que el mes siga siendo auditable.
+  it('cuenta cuántos se teclearon fuera de su mes', () => {
+    const dentro = contrato({ id: 'a', fecha_cierre_comercial: '2026-08-20', creado_en: '2026-08-20T16:00:00.000Z' })
+    const fuera = contrato({ id: 'b', fecha_cierre_comercial: '2026-08-31', creado_en: '2026-09-01T16:00:49.024Z' })
+    expect(registradoEnOtroMes(dentro)).toBe(false)
+    expect(registradoEnOtroMes(fuera)).toBe(true)
+    const agosto = agruparPorMes(agruparCartera([cliente()], [dentro, fuera]))[0]!
+    expect(agosto.contratos).toBe(2)
+    expect(agosto.registradosEnOtroMes).toBe(1)
   })
 })

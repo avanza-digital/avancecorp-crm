@@ -6,6 +6,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { fechaLima } from '../lib/agenda-derivada'
+import { MES_TODOS } from '../lib/cartera-meses'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type {
   ClienteBasico,
@@ -203,7 +205,20 @@ function cliente(over: Partial<ClienteBasico> = {}): ClienteBasico {
   }
 }
 
+/** Fecha de cierre por defecto: el día (Lima) en que se registró. Un `creado_en`
+ *  ilegible se copia tal cual, para que el contrato caiga en el cubo «sin fecha»
+ *  en vez de reventar el fixture. */
+function cierrePorDefecto(creadoEn: string): string {
+  const ms = Date.parse(creadoEn)
+  return Number.isNaN(ms) ? creadoEn : fechaLima(ms)
+}
+
 function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
+  // Por defecto el contrato se cierra el día en que se registra (Lima): es el
+  // caso corriente, y así los tests que mueven `creado_en` para colocar un
+  // contrato en un mes siguen diciendo lo mismo ahora que el bloque va por
+  // fecha de CIERRE. Quien quiera separarlas pasa `fecha_cierre_comercial`.
+  const creadoEn = over.creado_en ?? new Date().toISOString()
   return {
     id: 'k-1',
     numero_contrato: '2026-01-000001',
@@ -218,9 +233,10 @@ function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
     estado: 'activo',
     fecha_inicio: '2026-01-01',
     fecha_vencimiento: '2027-01-01',
+    fecha_cierre_comercial: cierrePorDefecto(creadoEn),
     notas_internas: null,
     creado_por: 'yo',
-    creado_en: new Date().toISOString(),
+    creado_en: creadoEn,
     producto_condicion_id: '10000000-0000-4000-8000-000000000001',
     producto_id: '20000000-0000-4000-8000-000000000001',
     producto_codigo: 'RENTA-BASE',
@@ -365,6 +381,11 @@ function diferida<T>() {
 }
 
 async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
+  // La pantalla arranca en el MES EN CURSO y los bloques van por fecha de
+  // CIERRE: el contrato de ROSA se cerró hace meses (aunque se registrara hace
+  // dos horas), así que hay que abrir la cartera entera para verla. Es
+  // exactamente lo que haría el analista, y por eso el paso vive aquí.
+  await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
   const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
   const filaCliente = nombre.closest('tr')
   if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
@@ -955,6 +976,9 @@ describe('MiCartera (demo aislada)', () => {
       contratos: [],
     })
 
+    // Bloques por fecha de CIERRE: el contrato de ROSA se cerró hace meses,
+    // así que la cartera entera es donde se la ve (ver abrirAltaContratoDemo).
+    await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
     const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
     const fila = nombre.closest('tr')
     if (!fila) throw new Error('fila del cliente demo no encontrada')
@@ -982,6 +1006,9 @@ describe('MiCartera (demo aislada)', () => {
       contratos: [],
     })
 
+    // Bloques por fecha de CIERRE: el contrato de ROSA se cerró hace meses,
+    // así que la cartera entera es donde se la ve (ver abrirAltaContratoDemo).
+    await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
     const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
     const fila = nombre.closest('tr')!
     await user.click(within(fila).getByRole('button', { name: 'Ver detalle' }))
@@ -1024,6 +1051,9 @@ describe('MiCartera (demo aislada)', () => {
       contratos: [],
     })
 
+    // Bloques por fecha de CIERRE: el contrato de ROSA se cerró hace meses,
+    // así que la cartera entera es donde se la ve (ver abrirAltaContratoDemo).
+    await user.selectOptions(await screen.findByLabelText('Filtrar por mes de cierre'), MES_TODOS)
     const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
     const filaCliente = nombre.closest('tr')
     if (!filaCliente) throw new Error('fila del cliente demo no encontrada')

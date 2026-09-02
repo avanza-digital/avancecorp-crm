@@ -48,6 +48,7 @@ const CONTRATO: ContratoRow = {
   estado: 'activo',
   fecha_inicio: '2026-07-08',
   fecha_vencimiento: '2027-07-08',
+  fecha_cierre_comercial: '2026-07-08',
   notas_internas: null,
   creado_por: 'yo',
   creado_en: new Date().toISOString(),

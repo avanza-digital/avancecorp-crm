@@ -177,6 +177,7 @@ function contratoBase(over: Partial<ContratoRow> = {}): ContratoRow {
     estado: 'activo',
     fecha_inicio: '2025-08-25',
     fecha_vencimiento: '2026-08-25',
+    fecha_cierre_comercial: '2025-08-25',
     notas_internas: null,
     creado_por: 'yo',
     creado_en: '2025-08-25T15:00:00.000Z',

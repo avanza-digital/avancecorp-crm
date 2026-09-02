@@ -94,6 +94,7 @@ function contratoBase(over: Partial<ContratoRow> = {}): ContratoRow {
     estado: 'activo',
     fecha_inicio: '2026-01-15',
     fecha_vencimiento: '2027-01-15',
+    fecha_cierre_comercial: '2026-01-15',
     notas_internas: null,
     creado_por: 'yo',
     creado_en: new Date().toISOString(), // ventana de 5 h viva

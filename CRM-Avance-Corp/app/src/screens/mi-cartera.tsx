@@ -946,7 +946,9 @@ function VistaMiCartera({
   const [soloPorVencer, setSoloPorVencer] = useState(false)
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
   const [pagina, setPagina] = useState(0)
-  // Filtro de MES DE CIERRE. Arranca en el mes en curso (decisión de Miguel,
+  // Filtro de MES DE CIERRE — el del cierre comercial, el mismo con el que se
+  // mide la cuota (antes era el mes de REGISTRO; ver cartera-meses.ts).
+  // Arranca en el mes en curso (decisión de Miguel,
   // 2026-08-14): el analista abre y ve lo que lleva cerrado ESTE mes, sin tener
   // que leer una lista de meses. `ahora` se congela al montar para que el valor
   // inicial no cambie a mitad de sesión si cruza la medianoche.
@@ -1496,7 +1498,8 @@ function VistaMiCartera({
                 cosas distintas.
                 ⚠️ Dice «cerrados» y NO es la cuota: cuenta todo contrato de un
                 cliente del analista, mientras la cuota le paga por los que
-                registró él. Cuando el mes incluye alguno ajeno se DICE — si no,
+                registró él. El MES sí es ya el mismo que el de la cuota (el del
+                cierre comercial), desde el 02/09/2026. Cuando el mes incluye alguno ajeno se DICE — si no,
                 vería un capital aquí y otro en Hoy sin explicación. */}
             {bloque != null && bloque.contratos > 0 && (
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 pb-3 text-xs tabular-nums text-muted-foreground-strong">
@@ -1513,6 +1516,16 @@ function VistaMiCartera({
                   <span className="text-warning-text">
                     incluye {bloque.registradosPorOtro} registrado
                     {bloque.registradosPorOtro === 1 ? '' : 's'} por otra persona
+                  </span>
+                )}
+                {/* El bloque va por mes de CIERRE desde el 02/09/2026, pero la
+                    fecha de registro es la única que nadie puede mover: cuando
+                    un cierre se tecleó en otro mes se DICE, para que el mes siga
+                    siendo auditable de un vistazo. */}
+                {bloque.registradosEnOtroMes > 0 && (
+                  <span>
+                    {bloque.registradosEnOtroMes} se registr
+                    {bloque.registradosEnOtroMes === 1 ? 'ó' : 'aron'} en otro mes
                   </span>
                 )}
               </p>
@@ -2292,6 +2305,15 @@ function MiCarteraDemo() {
       estado: 'activo',
       fecha_inicio: creadoLocal.input.fecha_inicio,
       fecha_vencimiento: creadoLocal.input.fecha_vencimiento,
+      // Misma regla que el alta real: el cierre es la MENOR entre la fecha de
+      // inicio y el día en que se registra. Se puede retro-datar (quedan
+      // clientes antiguos por meter), nunca adelantar. Si el demo la calculara
+      // distinto, la cartera ficticia se repartiría por meses que producción no
+      // haría.
+      fecha_cierre_comercial:
+        creadoLocal.input.fecha_inicio < fechaLima(Date.parse(creadoEn))
+          ? creadoLocal.input.fecha_inicio
+          : fechaLima(Date.parse(creadoEn)),
       notas_internas: creadoLocal.input.notas_internas ?? null,
       creado_por: yo?.id ?? null,
       creado_en: creadoEn,

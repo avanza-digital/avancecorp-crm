@@ -11,7 +11,7 @@ import type { ContratoRow } from './clientes-tipos'
 
 /** Cubo de los clientes que todavía no tienen ningún contrato. */
 export const CLAVE_SIN_CONTRATOS = 'sin-contratos'
-/** Cubo defensivo: contrato cuya fecha de registro no se puede leer. */
+/** Cubo defensivo: contrato cuya fecha de cierre no se puede leer. */
 export const CLAVE_SIN_FECHA = 'sin-fecha'
 /** Valor del filtro que apaga el recorte por mes: la cartera entera. */
 export const MES_TODOS = 'todos'
@@ -31,7 +31,7 @@ export interface MesCartera {
   /** 'YYYY-MM' | CLAVE_SIN_FECHA | CLAVE_SIN_CONTRATOS. Clave estable del bloque
    *  — la usan el plegado y la paginación, así que no puede ser el índice. */
   clave: string
-  /** 'Agosto 2026' | 'Sin fecha de registro' | 'Clientes sin contrato'. */
+  /** 'Agosto 2026' | 'Sin fecha de cierre' | 'Clientes sin contrato'. */
   etiqueta: string
   /** El cliente con SOLO sus contratos de este mes y el resumen recalculado. */
   grupos: GrupoCartera[]
@@ -41,6 +41,8 @@ export interface MesCartera {
   capitalUsd: number
   /** De esos, cuántos los registró alguien distinto del analista del cliente. */
   registradosPorOtro: number
+  /** De esos, cuántos se TECLEARON en un mes distinto del que se cerraron. */
+  registradosEnOtroMes: number
 }
 
 function redondear2(n: number): number {
@@ -64,6 +66,42 @@ export function mesLima(iso: string | null | undefined): string | null {
 }
 
 /**
+ * Mes 'YYYY-MM' de una fecha SECA ('YYYY-MM-DD'), leída tal cual.
+ *
+ * NO pasa por `mesLima` a propósito, y esta es la trampa: `fecha_cierre_comercial`
+ * es un DATE, no un instante. `Date.parse('2026-08-01')` da la medianoche UTC, que
+ * en Lima es el 31 de JULIO — los 49 contratos cerrados en día 1 se irían al mes
+ * anterior ellos solos. Una fecha de calendario no tiene huso: se recorta, no se
+ * convierte.
+ *
+ * Devuelve null si no tiene la forma esperada, para que el contrato caiga en el
+ * cubo visible de CLAVE_SIN_FECHA en vez de en un mes equivocado.
+ */
+export function mesDeCierre(fecha: string | null | undefined): string | null {
+  if (fecha == null) return null
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(fecha.trim())
+  if (m == null) return null
+  const mes = Number(m[2])
+  if (mes < 1 || mes > 12) return null
+  return `${m[1]}-${m[2]}`
+}
+
+/**
+ * ¿Este contrato se registró en un mes distinto del que se cerró?
+ *
+ * Importa porque la fecha de cierre SÍ se puede retro-datar (a propósito: quedan
+ * clientes antiguos por registrar) mientras que la de registro no la puede mover
+ * nadie. Al agrupar por cierre esa señal se perdería; contándola aquí, la
+ * cabecera del bloque puede decirlo y el mes sigue siendo auditable.
+ */
+export function registradoEnOtroMes(contrato: ContratoRow): boolean {
+  const cierre = mesDeCierre(contrato.fecha_cierre_comercial)
+  const registro = mesLima(contrato.creado_en)
+  if (cierre == null || registro == null) return false
+  return cierre !== registro
+}
+
+/**
  * ¿Este contrato lo registró alguien distinto del analista del cliente? Importa
  * porque Miguel decidió (2026-08-14) que el bloque cuente TODO contrato de sus
  * clientes, mientras que la CUOTA solo le paga por los que registró él. Cuando
@@ -82,7 +120,7 @@ export function registradoPorOtro(contrato: ContratoRow, grupo: GrupoCartera): b
 export function etiquetaDeMes(clave: string): string {
   if (clave === MES_TODOS) return 'Todos los meses'
   if (clave === CLAVE_SIN_CONTRATOS) return 'Clientes sin contrato'
-  if (clave === CLAVE_SIN_FECHA) return 'Sin fecha de registro'
+  if (clave === CLAVE_SIN_FECHA) return 'Sin fecha de cierre'
   const anio = clave.slice(0, 4)
   const mes = Number(clave.slice(5, 7))
   return `${MESES_LARGOS[mes - 1] ?? clave} ${anio}`
@@ -103,10 +141,21 @@ export function ordenDeBloque(a: string, b: string): number {
 /**
  * Parte la cartera en bloques por mes de CIERRE.
  *
- * · **La fecha que manda es `creado_en`** (cuándo se registró el contrato), no
- *   `fecha_inicio`: es la misma ventana con la que se mide la cuota del mes, y
- *   `fecha_inicio` sí puede retro-datarse — con ella, dos contratos idénticos
- *   acabarían en meses distintos según quién los mire.
+ * · **La fecha que manda es `fecha_cierre_comercial`** (cuándo VENDIÓ), que es
+ *   exactamente la ventana con la que se le mide la cuota del mes. Hasta el
+ *   02/09/2026 mandaba `creado_en` (cuándo lo tecleó): era la misma ventana
+ *   cuando se decidió, el 14/08, pero el P-055 movió la cuota a la fecha de
+ *   cierre y esta pantalla se quedó atrás — nueve cierres de agosto teclados el
+ *   1 de septiembre salían bajo «Septiembre 2026» mientras la cuota los pagaba
+ *   en agosto.
+ *
+ * · **NO se usa `fecha_inicio`** aunque también viaje al front y coincida casi
+ *   siempre: hay 4 contratos cuyo mes de inicio no es el de su cierre, y dos de
+ *   ellos se irían a septiembre habiendo cerrado en agosto.
+ *
+ * · **La fecha de registro no se tira**: `registradosEnOtroMes` cuenta cuántos se
+ *   teclearon fuera de su mes, porque esa fecha es la única que nadie puede
+ *   mover y la cabecera la declara.
  *
  * · **Un cliente aparece en CADA mes en el que cerró**, con los contratos de ese
  *   mes y su resumen recalculado sobre ellos (`resumirCliente`).
@@ -125,12 +174,15 @@ export function ordenDeBloque(a: string, b: string): number {
  * se ve. Un cliente sin ningún contrato visible cae en CLAVE_SIN_CONTRATOS.
  */
 export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
-  const porClave = new Map<string, { grupos: GrupoCartera[]; contratos: number; pen: number; usd: number; otros: number }>()
+  const porClave = new Map<
+    string,
+    { grupos: GrupoCartera[]; contratos: number; pen: number; usd: number; otros: number; otroMes: number }
+  >()
 
   const bloque = (clave: string) => {
     let b = porClave.get(clave)
     if (!b) {
-      b = { grupos: [], contratos: 0, pen: 0, usd: 0, otros: 0 }
+      b = { grupos: [], contratos: 0, pen: 0, usd: 0, otros: 0, otroMes: 0 }
       porClave.set(clave, b)
     }
     return b
@@ -145,7 +197,7 @@ export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
     // bloque entra una COPIA del grupo con solo los contratos de ese mes.
     const porMes = new Map<string, ContratoRow[]>()
     for (const c of g.contratos) {
-      const clave = mesLima(c.creado_en) ?? CLAVE_SIN_FECHA
+      const clave = mesDeCierre(c.fecha_cierre_comercial) ?? CLAVE_SIN_FECHA
       const lista = porMes.get(clave)
       if (lista) lista.push(c)
       else porMes.set(clave, [c])
@@ -159,6 +211,7 @@ export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
         if (c.moneda === 'USD') b.usd += cap
         else b.pen += cap
         if (registradoPorOtro(c, g)) b.otros += 1
+        if (registradoEnOtroMes(c)) b.otroMes += 1
       }
     }
   }
@@ -172,6 +225,7 @@ export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
       capitalPen: redondear2(b.pen),
       capitalUsd: redondear2(b.usd),
       registradosPorOtro: b.otros,
+      registradosEnOtroMes: b.otroMes,
     }))
     .sort((a, b) => ordenDeBloque(a.clave, b.clave))
 }

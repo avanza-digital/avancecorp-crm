@@ -7134,3 +7134,59 @@ volcado previo `/private/tmp/crm-before-ranking-20260902.sql` (SHA-256
 fuente Edge v7 en
 `/private/tmp/crm-tipo-cambio-v7.RYpJr3/supabase/functions/crm-tipo-cambio/index.ts`
 (SHA-256 `ae395cbc1a09d081382c72d7143988e548616d4228c6157815eaf33ea544a8b1`).
+
+## 20260902190000 · `crm_mi_cartera_por_mes_de_cierre`
+
+**Estado: ESCRITA, SIN APLICAR.** Espera el `!` de Miguel y el ciclo de branch.
+
+**Qué.** `crm.contratos_cartera` gana una columna de lectura,
+`fecha_cierre_comercial`, para que «Mi cartera» pueda partir sus bloques por el
+mes en que el analista VENDIÓ en vez del mes en que TECLEÓ.
+
+**Por qué.** La pantalla agrupaba por `creado_en` desde el 14/08, cuando la
+cuota también medía por `creado_en`. El P-055 movió la cuota a
+`fecha_cierre_comercial` y la pantalla se quedó atrás. El 02/09/2026, nueve
+cierres de agosto registrados el 01/09 (S/ 517.500 + US$ 37.000, de MERLYS
+GARCIA, FIORELLA RUIZ y KELLY VEGA) aparecen bajo «Septiembre 2026» mientras la
+cuota los cuenta en agosto. El caso que lo destapó: contrato `2026-01-001348`,
+cerrado el 31/08 y tecleado el 01/09 a las 11:00 de Lima. En toda la base son
+164 de 499 contratos los que caen en un mes distinto según qué fecha se mire, y
+la deriva va SIEMPRE en la misma dirección: se registra después de vender.
+
+**Sin DROP de nada vivo.** La migración 20260829182500 había descartado ampliar
+esta vista porque `contratos_cartera_fn` es `security definer` con
+`returns table(...)` y añadirle una columna exige DROP + CREATE. Sigue siendo
+verdad, y por eso NO se toca: se ENVUELVE en `crm.contratos_cartera_v2_fn()`,
+que pregunta a la función viva (donde vive la regla de quién ve qué contrato) y
+le pega la fecha con un join 1:1 por PK. La vista se rehace con
+`create or replace view`, que SÍ admite añadir una columna al final conservando
+OID, grants y `security_invoker`.
+
+Las otras dos premisas de aquella nota ya no se sostenían, y se comprobó contra
+producción antes de escribir esto: `cronograma_contrato_fn` y
+`titulares_contrato_fn` llaman a la FUNCIÓN, no a la vista; solo
+`atribucion_contrato_fn` nombra la vista, desde el cuerpo y sin dependencia
+registrada (`pg_depend` sobre la vista devuelve vacío).
+
+**Lo que NO toca:** la cuota, los rankings, `capital_episodios` ni la
+posibilidad de retro-datar un cierre. Esa puerta se deja ABIERTA a propósito
+(Miguel, 02/09): quedan clientes antiguos sin registrar. El alta sigue
+calculando `least(fecha_inicio, día de registro)` y el mes sellado sigue siendo
+corregible solo por Gerencia.
+
+**La trampa del front (la cazó Codex refutando).** `fecha_cierre_comercial` es
+un DATE. Pasada por el conversor de instantes a Lima, `'2026-08-01'` se leería
+como medianoche UTC = **31 de julio**: 49 contratos reales cerrados en día 1 se
+habrían ido al mes anterior. Por eso `cartera-meses.ts` estrena `mesDeCierre()`,
+que RECORTA la cadena y no convierte nada, con su test de regresión.
+
+**La señal que no se pierde.** El mes de registro es la única fecha que nadie
+puede mover, así que no se tira: `registradosEnOtroMes` cuenta cuántos cierres
+del bloque se teclearon fuera de su mes y la cabecera lo declara, igual que ya
+avisaba de los registrados por otra persona.
+
+**Gate del front (verde, 02/09):** `npm run check` completo — 2.529/2.529
+unitarias, lint, typecheck, coverage, build, bundle y duplicación.
+
+**Pendiente al aplicar:** `npm run gen:types` en `app/` (la columna no existe
+todavía en `database.types.ts`), gate `test-rls.mjs`, advisors y E2E.

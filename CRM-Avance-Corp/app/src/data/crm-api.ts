@@ -2898,6 +2898,7 @@ const COLUMNAS_CONTRATO = [
   'estado',
   'fecha_inicio',
   'fecha_vencimiento',
+  'fecha_cierre_comercial',
   'notas_internas',
   'creado_por',
   'creado_en',
@@ -2925,6 +2926,10 @@ const ContratoRowSchema = v.object({
   estado: v.picklist(ESTADOS_CONTRATO),
   fecha_inicio: v.string(),
   fecha_vencimiento: v.string(),
+  // El mes con el que se le mide la cuota al analista. Va REQUERIDA a
+  // propósito: si el servidor dejara de mandarla, es mejor que la fila se
+  // descarte con ruido a que la cartera se reparta por un mes inventado.
+  fecha_cierre_comercial: v.string(),
   notas_internas: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
@@ -2982,6 +2987,7 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
       estado: fila.estado,
       fecha_inicio: fila.fecha_inicio,
       fecha_vencimiento: fila.fecha_vencimiento,
+      fecha_cierre_comercial: fila.fecha_cierre_comercial,
       notas_internas: fila.notas_internas,
       creado_por: fila.creado_por,
       creado_en: fila.creado_en,

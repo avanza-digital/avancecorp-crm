@@ -136,6 +136,9 @@ export interface ContratoRow {
   estado: EstadoContrato
   fecha_inicio: string // YYYY-MM-DD
   fecha_vencimiento: string // YYYY-MM-DD
+  /** YYYY-MM-DD — cuándo se VENDIÓ. Es el mes por el que se paga la cuota y por
+   *  el que «Mi cartera» reparte sus bloques. NO es un instante: no lleva huso. */
+  fecha_cierre_comercial: string
   notas_internas: string | null
   creado_por: string | null
   creado_en: string // ISO — ventana de 5 h para "Corregir"

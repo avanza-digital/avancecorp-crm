@@ -339,6 +339,8 @@ const CONTRATO_A: ContratoRow = {
   estado: 'activo',
   fecha_inicio: INICIO_A,
   fecha_vencimiento: vencimientoDesdePlazo(INICIO_A, 12),
+  // Cierre = la MENOR entre inicio y día de registro, igual que el alta real.
+  fecha_cierre_comercial: INICIO_A,
   notas_internas: 'Cliente puntual; domicilia el pago los primeros días del mes.',
   creado_por: ASESOR_DEMO,
   creado_en: haceHoras(2), // ventana VIVA → Corregir habilitado
@@ -366,6 +368,9 @@ const CONTRATO_B: ContratoRow = {
   estado: 'activo',
   fecha_inicio: fechaLocalMesDia(-3, 15),
   fecha_vencimiento: fechaLocalMesDia(9, 15), // inicio + 1 año exacto (aniosExactos=1)
+  // Cerrado hace 3 MESES y registrado hace 3 días: es el caso que ejercita el
+  // aviso «se registraron en otro mes» de la cabecera del bloque.
+  fecha_cierre_comercial: fechaLocalMesDia(-3, 15),
   notas_internas: 'Renovación en dólares; capitaliza al año.',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(3), // ventana VENCIDA → Corregir bloqueado
@@ -394,6 +399,7 @@ const CONTRATO_C: ContratoRow = {
   estado: 'activo',
   fecha_inicio: INICIO_C,
   fecha_vencimiento: vencimientoDesdePlazo(INICIO_C, 12),
+  fecha_cierre_comercial: INICIO_C,
   notas_internas: 'Cuenta mancomunada con dos co-titulares (cónyuges).',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(20), // ventana VENCIDA → Corregir bloqueado

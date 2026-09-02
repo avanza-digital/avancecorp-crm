@@ -72,6 +72,7 @@ const contrato: ContratoRow = {
   // — eso lo fija la prueba del final del archivo.
   fecha_inicio: '2026-08-19',
   fecha_vencimiento: '2027-08-19',
+  fecha_cierre_comercial: '2026-08-19',
   notas_internas: null,
   creado_por: 'd-v1',
   creado_en: '2026-08-19T12:00:00.000Z',
