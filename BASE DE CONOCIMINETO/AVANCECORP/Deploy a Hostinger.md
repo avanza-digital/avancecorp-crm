@@ -49,6 +49,27 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-02 (~01:03 hora de Lima) — CRM: rankings de supervisión y
+  gerencia reconectados a sus núcleos canónicos:** cambio solo de frontend,
+  sin RPC, función SQL, migración ni cálculo paralelo. Cada pestaña usa su
+  fuente autoritativa y conserva carga, error y reintento independientes;
+  Gerencia deja de depender de `crm.metricas_conversiones_fn` para componer el
+  ranking. Commits en el `main` local y publicados a su espejo correcto
+  `avancecorp/tronco`: `2d1cd0c` (documentación multiempresa) y `5c208ad`
+  (ranking). Release **`crm-20260902T060243Z-5c208ad9bf31`**, build
+  **`build-20260902T060242726Z`**, ZIP SHA-256
+  **`a5c942832ba452a540653c79c8464bd4e16cdb7a0b5fce5983eae5871a3e72d1`**.
+  Gate limpio: 184 archivos / 2.495 pruebas, lint, TypeScript, cobertura,
+  build, bundle y duplicación; el pre-push repitió 2.495/2.495. El ZIP contiene
+  el project ref esperado, una llave `anon` y cero credenciales privilegiadas.
+  Preflight: el candidato desciende del vivo `75c03d0`. En producción, 60/60
+  archivos no transformados coincidieron por SHA-256, 14/14 imágenes
+  respondieron 200, `.htaccess` 403, ZIP 404 en CRM y portal y el bundle viejo
+  quedó 404 después de purgar caché. Smoke autenticado de Gerencia: ranking de
+  17 analistas cargó sus tres pestañas con datos y cero errores de consola.
+  **Rollback:** `crm-20260902T033133Z-75c03d0c0ee1.zip`. Detalle en
+  [[Ranking de conversion del supervisor (RPC pendiente)]].
+
 - **Deploy 2026-08-31 (~16:49 hora de Lima) — CRM: restauración de la Ficha
   360 sobre el release vivo:** el build del 30/08 provenía de una rama paralela
   y sustituyó la ficha completa por el detalle básico. Se integraron ambos

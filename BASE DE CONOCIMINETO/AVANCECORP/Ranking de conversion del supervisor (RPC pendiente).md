@@ -1,7 +1,7 @@
 ---
 tags: [crm, sql, rls, seguridad, ranking, resuelto]
 actualizado: 2026-09-02
-estado: RPC F2.2 VIVA — acoplamiento del front corregido; pendiente desplegar el cambio de interfaz
+estado: RESUELTO Y EN PRODUCCIÓN — núcleos canónicos desacoplados por pestaña
 ---
 
 # Ranking de conversión del supervisor — la RPC que falta (decisión #10, parte b2)
@@ -44,8 +44,19 @@ Corrección aplicada en el front, sin crear RPC, función SQL ni cálculo parale
 Smokes de solo lectura del 2026-09-02: supervisor = 10 filas, gerencia = 17 filas,
 ambos con `cosecha_cuadra=true`. Validación local del cambio: 184 archivos / 2495
 pruebas con cobertura, typecheck, build, bundle y umbral de duplicación en verde;
-el E2E focalizado de Equipo pasó 4/4. El cambio de interfaz queda pendiente de
-despliegue.
+el E2E focalizado de Equipo pasó 4/4.
+
+**Publicado el 2026-09-02 (~01:03, hora de Lima).** Release
+`crm-20260902T060243Z-5c208ad9bf31`, build
+`build-20260902T060242726Z`, ZIP SHA-256
+`a5c942832ba452a540653c79c8464bd4e16cdb7a0b5fce5983eae5871a3e72d1`.
+El preflight demostró ascendencia desde el release vivo `75c03d0`; 60/60
+archivos no transformados coincidieron byte por byte, las 14 imágenes
+respondieron 200, el ZIP quedó inaccesible (404 en CRM y portal) y el asset
+anterior quedó 404 tras purgar la caché. Smoke autenticado de Gerencia: 17
+analistas visibles en Conversión general, Capital total y Cosecha del lote,
+sin errores de consola. Rollback inmediato:
+`crm-20260902T033133Z-75c03d0c0ee1.zip`. Ver [[Deploy a Hostinger]].
 
 ## Dónde encaja
 
