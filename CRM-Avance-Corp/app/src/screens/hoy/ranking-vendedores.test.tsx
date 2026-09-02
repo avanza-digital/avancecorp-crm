@@ -106,6 +106,7 @@ describe('ranking general de analistas', () => {
     )
 
     expect(screen.getByText('7 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('Mes calendario · agosto 2026')).toBeInTheDocument()
     expect(screen.getByText('(Cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes')).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
@@ -193,6 +194,149 @@ describe('ranking general de analistas', () => {
     expect(screen.getByText(/consultando tipo de cambio/)).toBeInTheDocument()
     expect(screen.queryByText(/tipo de cambio no disponible/)).not.toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Ranking de capital total en soles' })).not.toBeInTheDocument()
+  })
+
+  it('mientras llega la foto mensual bloquea las tres pestañas, sin identidades ni ceros falsos', () => {
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        fotoMensualCargando
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        tabInicial="capital-total"
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
+    expect(screen.getByText('— analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.queryByText('Sin meta')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Ranking de capital total en soles' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Conversión general' }))
+    expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
+    expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
+    expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
+  })
+
+  it('si falla la foto mensual, las tres pestañas fallan cerradas y reintentan esa misma fuente', () => {
+    const reintentarFoto = vi.fn()
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: false, errorCarga: true }}
+        fotoMensualError="No se pudo cargar la foto mensual."
+        onReintentarFotoMensual={reintentarFoto}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    for (const tab of ['Conversión general', 'Capital total', 'Cosecha del lote']) {
+      fireEvent.click(screen.getByRole('tab', { name: tab }))
+      expect(screen.getByRole('alert')).toHaveTextContent('No se pudo cargar la foto mensual.')
+      fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    }
+    expect(screen.getByText('— analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(reintentarFoto).toHaveBeenCalledTimes(3)
+  })
+
+  it('en un mes cerrado usa la identidad de la foto aunque el roster vivo haya cambiado', () => {
+    const cumplimiento = cumplimientoMetasConversionEquipoDemo().porVendedor
+    const altaPosterior: ConversionEquipoVendedor = {
+      vendedorId: 'demo-v7',
+      nombre: 'Alta de setiembre',
+      supervisorNombre: 'Equipo actual',
+      leads: 0,
+      contactados: 0,
+      reunionesPactadas: 0,
+      reunionesRealizadas: 0,
+      clientes: 0,
+      descartados: 0,
+      conversionPct: null,
+    }
+    const rosterVivo = [
+      ...conversionEquipoDemo().map((fila) => (
+        fila.vendedorId === 'demo-v1'
+          ? { ...fila, nombre: 'Nombre actual', supervisorNombre: 'Equipo actual' }
+          : fila
+      )),
+      altaPosterior,
+    ]
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        equipo={rosterVivo}
+        metasVendedores={cumplimiento}
+        cumplimientoVendedores={cumplimiento}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        usarIdentidadSnapshot
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    expect(screen.getByRole('table', { name: 'Ranking de conversión general' }))
+      .toHaveTextContent('Ana Torres')
+    expect(screen.queryByText('Nombre actual')).not.toBeInTheDocument()
+    expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Ranking de conversión general' }))
+      .toHaveTextContent('34.58%')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+    expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
+  })
+
+  it('en el mes vigente conserva un alta del roster aunque todavía no tenga meta ni capital', () => {
+    const altaVigente: ConversionEquipoVendedor = {
+      vendedorId: 'alta-vigente',
+      nombre: 'Alta vigente',
+      supervisorNombre: 'Equipo actual',
+      leads: 0,
+      contactados: 0,
+      reunionesPactadas: 0,
+      reunionesRealizadas: 0,
+      clientes: 0,
+      descartados: 0,
+      conversionPct: null,
+    }
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.responsables.push(filaSinActividad('alta-vigente'))
+
+    render(
+      <RankingVendedoresPanel
+        conversionMensual={mensual}
+        equipo={[...conversionEquipoDemo(), altaVigente]}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        usarIdentidadSnapshot={false}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+        {...fuentesRankingSinError()}
+      />,
+    )
+
+    const fueraConversion = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })
+    const altaConversion = within(fueraConversion).getByText('Alta vigente').closest('li')
+    expect(altaConversion).not.toBeNull()
+    expect(within(altaConversion!).getByText('Sin muestra')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+
+    const altaCapital = screen.getByText('Alta vigente').closest('li')
+    expect(altaCapital).not.toBeNull()
+    expect(within(altaCapital!).getByText('Capital no disponible')).toBeInTheDocument()
+    expect(within(altaCapital!).getByText('No disponible')).toBeInTheDocument()
+    expect(within(altaCapital!).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
   })
 
   it('sin tipo de cambio degrada a solo PEN con el US$ rotulado aparte', () => {

@@ -6,7 +6,13 @@
 // ningún botón de acción (espejo del write-gating de demo-roles.spec.ts).
 // En todos: cero requests al host de Supabase (gate fail-closed).
 import { expect, test } from '@playwright/test'
-import { bloquearSupabase, entrarDemo } from './_helpers'
+import {
+  bloquearSupabase,
+  entrarDemo,
+  loginReal,
+  montarBackendReal,
+  rankingAgostoReal,
+} from './_helpers'
 
 test('demo supervisor: Gestión de equipo conserva seguimiento y separa el reparto', async ({ page }) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase.
@@ -30,6 +36,76 @@ test('demo supervisor: Gestión de equipo conserva seguimiento y separa el repar
   await expect(page.getByRole('button', { name: 'Asignar' })).toHaveCount(0)
 
   expect(requestsSupabase()).toBe(0)
+})
+
+test('supervisor real: el selector mensual recupera la foto completa de agosto', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-02T15:00:00.000Z'))
+  const foto = rankingAgostoReal()
+  const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
+  page.on('request', (request) => {
+    if (request.method() !== 'POST') return
+    const ruta = new URL(request.url()).pathname
+    if (![
+      '/rest/v1/rpc/conversion_mensual_fn',
+      '/rest/v1/rpc/cumplimiento_metas_fn',
+      '/rest/v1/rpc/metricas_conversiones_equipo_fn',
+      '/functions/v1/crm-tipo-cambio',
+    ].includes(ruta)) return
+    llamadas.push({ ruta, cuerpo: request.postDataJSON() as Record<string, unknown> })
+  })
+
+  await montarBackendReal(page, {
+    rolCrm: 'supervisor',
+    rolPortal: 'comercial',
+    configuracionMetas: foto.configuracionMetas,
+    cumplimientoMetas: foto.cumplimientoMetas,
+    metricas: {
+      conversionMensual: foto.conversionMensual,
+      cosecha: foto.cosecha,
+    },
+  })
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Gestión de equipo', exact: true }).click()
+
+  await page.getByLabel('Mes del ranking').fill('2026-08')
+  await expect(page.getByText('Mes calendario · agosto 2026')).toBeVisible()
+  await expect(page.locator('[data-gi-panel]').getByText('Mi equipo', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Conversión general' }).click()
+  await expect(
+    page.getByRole('table', { name: 'Ranking de conversión general' })
+      .getByRole('row', { name: /BRUNO AGOSTO/ }),
+  ).toContainText('12.50%')
+
+  await page.getByRole('tab', { name: 'Capital total' }).click()
+  await expect(page.getByText(/TC S\/ 3\.53 \(SBS · prom\. 7d al 31\/08\/2026\)/)).toBeVisible()
+  await expect(
+    page.getByRole('table', { name: 'Ranking de capital total en soles' })
+      .getByRole('row', { name: /BRUNO AGOSTO/ }),
+  ).toContainText('S/ 21,765')
+
+  await page.getByRole('tab', { name: 'Cosecha del lote' }).click()
+  const cosecha = page.getByRole('list', { name: 'Cosecha del lote por analista' })
+  await expect(cosecha.getByText('BRUNO AGOSTO')).toBeVisible()
+  await expect(cosecha.getByText('De sus 8 leads del mes, 1 ya es cliente (12.50%)')).toBeVisible()
+
+  expect(llamadas).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      ruta: '/rest/v1/rpc/conversion_mensual_fn',
+      cuerpo: expect.objectContaining({ p_periodo: '2026-08-01' }),
+    }),
+    expect.objectContaining({
+      ruta: '/rest/v1/rpc/cumplimiento_metas_fn',
+      cuerpo: expect.objectContaining({ p_periodo: '2026-08-01' }),
+    }),
+    expect.objectContaining({
+      ruta: '/rest/v1/rpc/metricas_conversiones_equipo_fn',
+      cuerpo: expect.objectContaining({ p_desde: '2026-08-01', p_hasta: '2026-08-31' }),
+    }),
+    expect.objectContaining({
+      ruta: '/functions/v1/crm-tipo-cambio',
+      cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
+    }),
+  ]))
 })
 
 test('demo gerencia: un bloque por supervisor con la TABLA comparativa de analistas', async ({ page }) => {

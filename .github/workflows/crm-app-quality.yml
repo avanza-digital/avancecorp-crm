@@ -6,7 +6,7 @@ on:
       - 'CRM-Avance-Corp/app/**'
       - '.github/workflows/crm-app-quality.yml'
   push:
-    branches: [main]
+    branches: [main, tronco]
     paths:
       - 'CRM-Avance-Corp/app/**'
       - '.github/workflows/crm-app-quality.yml'

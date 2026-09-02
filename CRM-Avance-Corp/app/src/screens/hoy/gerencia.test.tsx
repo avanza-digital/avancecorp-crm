@@ -3,7 +3,7 @@
 //
 // El reloj se fija con timers falsos: el mes vigente se deriva del instante.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState, type ReactNode } from 'react'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
@@ -29,14 +29,27 @@ let OBJETIVOS_ERROR = false
 let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
 let CUMPLIMIENTO_ERROR = false
 const RECARGAR = vi.fn(async () => true)
+const RECARGAR_TC = vi.fn()
 const CONSULTAS = vi.hoisted(() => ({
   conversiones: vi.fn(),
+  conversionMensual: vi.fn(),
+  cumplimiento: vi.fn(),
+  cosecha: vi.fn(),
   reuniones: vi.fn(),
   distribucion: vi.fn(),
+  tipoCambio: vi.fn(),
 }))
 const ESTADO_CONVERSIONES = vi.hoisted(() => ({
   data: undefined as unknown,
   error: null as unknown,
+  isPending: false,
+  isFetching: false,
+  refetch: vi.fn(),
+}))
+const ESTADO_CUMPLIMIENTO_RANKING = vi.hoisted(() => ({
+  data: undefined as CumplimientoMetasJerarquico | undefined,
+  error: null as unknown,
+  isError: false,
   isPending: false,
   isFetching: false,
   refetch: vi.fn(),
@@ -67,12 +80,37 @@ vi.mock('./ranking-vendedores', () => ({
     conversionError,
     capitalError,
     cosechaError,
+    metaMensual,
+    metasVendedores,
+    cumplimientoVendedores,
+    fotoMensualCargando,
+    fotoMensualError,
+    onReintentarFotoMensual,
+    usarIdentidadSnapshot,
+    etiquetaAlcance,
   }: {
     conversionError: string | null
     capitalError: string | null
     cosechaError: string | null
+    metaMensual: { etiqueta: string, comparable: boolean }
+    metasVendedores: Record<string, unknown>
+    cumplimientoVendedores: Record<string, unknown>
+    fotoMensualCargando?: boolean
+    fotoMensualError?: string | null
+    onReintentarFotoMensual?: () => void
+    usarIdentidadSnapshot?: boolean
+    etiquetaAlcance?: string
   }) => (
-    <h1>Ranking de analistas{conversionError || capitalError || cosechaError ? ` · ERROR: ${conversionError ?? capitalError ?? cosechaError}` : ''}</h1>
+    <div>
+      <h1>Ranking de analistas{fotoMensualError || conversionError || capitalError || cosechaError ? ` · ERROR: ${fotoMensualError ?? conversionError ?? capitalError ?? cosechaError}` : ''}</h1>
+      <output aria-label="Meta del ranking">{metaMensual.etiqueta}|{String(metaMensual.comparable)}</output>
+      <output aria-label="Metas del ranking">{Object.keys(metasVendedores).sort().join(',')}</output>
+      <output aria-label="Cumplimiento del ranking">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
+      <output aria-label="Carga de foto mensual">{String(fotoMensualCargando ?? false)}</output>
+      <output aria-label="Identidad mensual">{String(usarIdentidadSnapshot ?? false)}</output>
+      <output aria-label="Alcance del ranking">{etiquetaAlcance ?? 'Equipo completo'}</output>
+      {fotoMensualError && <button type="button" onClick={onReintentarFotoMensual}>Reintentar foto mensual</button>}
+    </div>
   ),
 }))
 // El TC real invocaría la edge crm-tipo-cambio desde el hook; en tests queda
@@ -88,7 +126,10 @@ const TIPO_CAMBIO: { tc: { promedio: number, fuente: string } | null | undefined
 }
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
-  useTipoCambio: () => ({ tc: TIPO_CAMBIO.tc, recargar: () => {} }),
+  useTipoCambio: (...argumentos: [boolean?, string?]) => {
+    CONSULTAS.tipoCambio(...argumentos)
+    return { tc: TIPO_CAMBIO.tc, recargar: RECARGAR_TC }
+  },
 }))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
 vi.mock('./resumen-gerencia', () => ({
@@ -126,17 +167,25 @@ vi.mock('@/data/crm-queries', () => ({
   },
   // Cosecha del ranking (F2.2/D2): mismo doble sin red; sus casos de pintura
   // viven en ranking-vendedores.test.tsx.
-  useMetricasConversionesEquipo: () => (
-    { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
-  ),
-  useConversionMensual: () => ({
+  useMetricasConversionesEquipo: (...argumentos: [boolean, string, string]) => {
+    CONSULTAS.cosecha(...argumentos)
+    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
+  },
+  useConversionMensual: (...argumentos: [boolean, string]) => {
+    CONSULTAS.conversionMensual(...argumentos)
+    return {
     data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
     error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,
     isError: CONVERSION_MENSUAL_FALLA,
     isPending: false,
     isFetching: false,
     refetch: () => {},
-  }),
+    }
+  },
+  useCumplimientoMetas: (...argumentos: [boolean, string, string | null | undefined]) => {
+    CONSULTAS.cumplimiento(...argumentos)
+    return ESTADO_CUMPLIMIENTO_RANKING
+  },
   useMetricasDistribucionLeads: (...argumentos: [boolean, string, string]) => {
     CONSULTAS.distribucion(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
@@ -187,6 +236,7 @@ function montar(
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
+    demo?: boolean
   } = {},
   seccion: SeccionGerencia = 'completo',
   ahora: Date = MIERCOLES_10AM,
@@ -196,7 +246,7 @@ function montar(
     id: 'g-1',
     nombre_completo: 'GERENCIA UNO',
     rol: 'gerencia',
-    demo: false,
+    demo: over.demo ?? false,
     puede_contratar: true,
   }
   LEADS = over.leads ?? [lead()]
@@ -230,6 +280,12 @@ beforeEach(() => {
   ESTADO_CONVERSIONES.isPending = false
   ESTADO_CONVERSIONES.isFetching = false
   ESTADO_CONVERSIONES.refetch.mockReset()
+  ESTADO_CUMPLIMIENTO_RANKING.data = undefined
+  ESTADO_CUMPLIMIENTO_RANKING.error = null
+  ESTADO_CUMPLIMIENTO_RANKING.isError = false
+  ESTADO_CUMPLIMIENTO_RANKING.isPending = false
+  ESTADO_CUMPLIMIENTO_RANKING.isFetching = false
+  ESTADO_CUMPLIMIENTO_RANKING.refetch.mockReset()
 })
 
 afterEach(() => {
@@ -267,6 +323,105 @@ describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {
     ASIENTOS_TRAZA = [asientoTraza]
     montar({}, 'conversiones')
     expect(screen.queryByRole('heading', { name: 'Compromisos de supervisores' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Hoy · gerencia — ranking por mes calendario', () => {
+  const SETIEMBRE_2 = new Date('2026-09-02T15:00:00Z')
+
+  it('al elegir agosto alinea conversión, cosecha, meta y capital con todo agosto', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-08-01',
+    }
+    montar({}, 'ranking-vendedores', SETIEMBRE_2)
+
+    // Aunque el filtro libre termine a mitad de mes, el ranking responde a la
+    // regla comercial confirmada: toma el mes calendario de la fecha final.
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-10' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-20' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(true, '2026-08-01')
+    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-31')
+    expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 'g-1')
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
+    expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('agosto 2026|true')
+    expect(screen.getByLabelText('Metas del ranking')).toHaveTextContent('d-v1,d-v2,d-v3')
+    expect(screen.getByLabelText('Cumplimiento del ranking')).toHaveTextContent('d-v1,d-v2,d-v3')
+    expect(screen.getByLabelText('Carga de foto mensual')).toHaveTextContent('false')
+    expect(screen.getByLabelText('Identidad mensual')).toHaveTextContent('true')
+  })
+
+  it('mantiene las tres lecturas en carga mientras llega la foto histórica', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isPending = true
+    montar({}, 'ranking-vendedores', SETIEMBRE_2)
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(screen.getByLabelText('Carga de foto mensual')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Metas del ranking')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Cumplimiento del ranking')).toBeEmptyDOMElement()
+  })
+
+  it('en demo mantiene el ranking en el mes vigente aunque el filtro global apunte a agosto', () => {
+    montar({ demo: true }, 'ranking-vendedores', SETIEMBRE_2)
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+
+    expect(CONSULTAS.conversionMensual).toHaveBeenLastCalledWith(false, '2026-09-01')
+    expect(CONSULTAS.cosecha).toHaveBeenLastCalledWith(false, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(false, '2026-09-01', 'g-1')
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
+    expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('setiembre 2026|true')
+    expect(screen.getByLabelText('Alcance del ranking')).toHaveTextContent('Demo · mes vigente')
+    expect(screen.getByLabelText('Identidad mensual')).toHaveTextContent('false')
+  })
+
+  it('consulta también la foto del mes vigente y no reutiliza el store del mes anterior', () => {
+    const fila = Object.values(CUMPLIMIENTO_METAS_DEMO.porVendedor)[0]!
+    const foto = (periodo: string, vendedorId: string): CumplimientoMetasJerarquico => ({
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo,
+      porVendedor: {
+        [vendedorId]: { ...fila, vendedorId },
+      },
+    })
+    ESTADO_CUMPLIMIENTO_RANKING.data = foto('2026-08-01', 'foto-agosto')
+    montar(
+      { cumplimiento: foto('2026-08-01', 'store-agosto') },
+      'ranking-vendedores',
+      new Date('2026-09-01T04:59:59Z'),
+    )
+
+    expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 'g-1')
+    expect(screen.getByLabelText('Metas del ranking')).toHaveTextContent('foto-agosto')
+    expect(screen.getByLabelText('Metas del ranking')).not.toHaveTextContent('store-agosto')
+    expect(screen.getByLabelText('Identidad mensual')).toHaveTextContent('false')
+
+    ESTADO_CUMPLIMIENTO_RANKING.data = foto('2026-09-01', 'foto-setiembre')
+    act(() => { vi.advanceTimersByTime(1_000) })
+
+    expect(CONSULTAS.cumplimiento).toHaveBeenLastCalledWith(true, '2026-09-01', 'g-1')
+    expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('setiembre 2026|true')
+    expect(screen.getByLabelText('Metas del ranking')).toHaveTextContent('foto-setiembre')
+    expect(screen.getByLabelText('Metas del ranking')).not.toHaveTextContent('store-agosto')
+    expect(screen.getByLabelText('Identidad mensual')).toHaveTextContent('false')
+  })
+
+  it('si falla la foto mensual, el ranking recibe un error global fail-closed', () => {
+    ESTADO_CUMPLIMIENTO_RANKING.isError = true
+    ESTADO_CUMPLIMIENTO_RANKING.error = new Error('periodo cruzado')
+    montar({}, 'ranking-vendedores', SETIEMBRE_2)
+
+    expect(screen.getByText(/ERROR: No se pudieron cargar la identidad, las metas y el capital del mes elegido\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta del ranking')).toHaveTextContent('setiembre 2026|false')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(ESTADO_CUMPLIMIENTO_RANKING.refetch).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -426,6 +581,21 @@ describe('Hoy · gerencia — período del tablero', () => {
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-01')
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-01', null)
+  })
+
+  it('refresca el TC vigente a medianoche aunque el rango libre sea histórico', () => {
+    montar({}, 'metas', new Date('2026-09-03T04:59:59Z'))
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-08-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-08-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
+    expect(RECARGAR_TC).not.toHaveBeenCalled()
+
+    act(() => { vi.advanceTimersByTime(1_000) })
+
+    expect(RECARGAR_TC).toHaveBeenCalledTimes(1)
+    expect(CONSULTAS.tipoCambio).toHaveBeenLastCalledWith(true, undefined)
   })
 
   it('recalcula todas las consultas al aplicar otro rango', () => {

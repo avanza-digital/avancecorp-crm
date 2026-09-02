@@ -102,6 +102,14 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  useCumplimientoMetas: () => ({
+    data: undefined,
+    error: null,
+    isError: false,
+    isPending: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
   useConversionMensual: () => ({
     data: CONVERSION_UI ?? undefined,
     error: null,

@@ -38,6 +38,24 @@ export function periodoInicialGerencia(ahora = Date.now()): PeriodoGerencia {
   return { desde: `${hasta.slice(0, 7)}-01`, hasta }
 }
 
+/**
+ * Convierte un mes YYYY-MM en su corte comercial mensual.
+ * Los meses cerrados abarcan todo el calendario; el vigente termina hoy en
+ * Lima para no consultar días futuros. Esta es la frontera única que alinea
+ * conversión, capital y cosecha dentro de los rankings.
+ */
+export function periodoMesCalendario(mes: string, ahora = Date.now()): PeriodoGerencia {
+  const vigente = periodoInicialGerencia(ahora)
+  const mesVigente = vigente.desde.slice(0, 7)
+  const desde = `${mes}-01`
+  if (mes === mesVigente) return { desde, hasta: vigente.hasta }
+
+  const anio = Number(mes.slice(0, 4))
+  const numeroMes = Number(mes.slice(5, 7))
+  const hasta = new Date(Date.UTC(anio, numeroMes, 0)).toISOString().slice(0, 10)
+  return { desde, hasta }
+}
+
 /** Replica las restricciones de fecha de los RPC antes de consultar. */
 export function validarPeriodoGerencia(
   periodo: PeriodoGerencia,
@@ -67,13 +85,17 @@ export function validarPeriodoGerencia(
   return { valido: true }
 }
 
-/** Solo el corte exacto del mes vigente se compara con la meta mensual. */
+/**
+ * Describe la meta mensual disponible y comprueba que el rango aplicado sea
+ * exactamente el corte de esa meta. Por defecto conserva el contrato histórico
+ * del store (mes vigente); los rankings le pasan su mes calendario normalizado.
+ */
 export function semanticaMetaMensual(
   periodo: PeriodoGerencia,
   ahora = Date.now(),
+  periodoMeta: PeriodoGerencia = periodoInicialGerencia(ahora),
 ): MetaMensualGerencia {
-  const vigente = periodoInicialGerencia(ahora)
-  const fecha = new Date(`${vigente.desde}T12:00:00Z`)
+  const fecha = new Date(`${periodoMeta.desde}T12:00:00Z`)
   const etiqueta = new Intl.DateTimeFormat('es-PE', {
     month: 'long',
     year: 'numeric',
@@ -82,7 +104,7 @@ export function semanticaMetaMensual(
 
   return {
     etiqueta,
-    comparable: periodo.desde === vigente.desde && periodo.hasta === vigente.hasta,
+    comparable: periodo.desde === periodoMeta.desde && periodo.hasta === periodoMeta.hasta,
   }
 }
 

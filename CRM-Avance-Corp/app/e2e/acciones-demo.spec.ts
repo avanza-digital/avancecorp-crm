@@ -10,13 +10,12 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
 
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await expect(modal).toBeVisible()
-  // Regla D8 (Miguel, 2026-08-11): el alta manual del analista ofrece SOLO
-  // Referido/Oficina/Otro — Landing y Formulario se cargan solos (puente) y
-  // jamás a mano. El servidor lo exige (migración F); el form lo espeja.
-  for (const origen of ['referido', 'oficina', 'otro']) {
+  // Decisión de Miguel (2026-09-01): el alta manual también permite declarar
+  // Landing y Formulario. Web/Campaña/WhatsApp siguen siendo solo históricos.
+  for (const origen of ['referido', 'landing', 'formulario', 'oficina', 'otro']) {
     await expect(modal.locator(`#nl-origen option[value="${origen}"]`)).toHaveCount(1)
   }
-  for (const origenRetirado of ['landing', 'formulario', 'web', 'campania', 'whatsapp']) {
+  for (const origenRetirado of ['web', 'campania', 'whatsapp']) {
     await expect(modal.locator(`#nl-origen option[value="${origenRetirado}"]`)).toHaveCount(0)
   }
   await modal.locator('#nl-nombre').fill('LEAD PRUEBA E2E')

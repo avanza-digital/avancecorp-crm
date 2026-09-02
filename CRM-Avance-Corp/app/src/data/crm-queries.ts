@@ -7,6 +7,7 @@ import type {
   CorregirCierreExternoDatos,
 } from './crm-api'
 import { normalizarLeadIds } from '@/lib/cierre-estado'
+import { cumplimientoDesdeRpc } from '@/lib/objetivos'
 import {
   actualizarCapacidadLeadsObjetivo,
   anularCierreAvance,
@@ -30,6 +31,7 @@ import {
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
   obtenerConversionMensual,
+  obtenerCumplimientoMetas,
   listarMetricasReuniones,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeadsV3,
@@ -114,6 +116,10 @@ export const crmQueryKeys = {
   // La conversión mensual ponderada (LA definición). También con clave propia y
   // por el mismo motivo: el ámbito lo recorta el servidor según quién pregunta.
   conversionMensual: (periodo: string) => [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
+  // Foto mensual autoritativa de metas + producción confirmada. La RPC ya
+  // conserva identidad y jerarquía del snapshot; la clave por mes impide
+  // servir agosto bajo el rótulo de setiembre.
+  cumplimientoMetas: (periodo: string) => [...crmQueryKeys.metricas(), 'cumplimiento-metas', periodo] as const,
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
@@ -516,6 +522,30 @@ export function useConversionMensual(habilitada: boolean, periodo: string) {
   return useQuery({
     queryKey: crmQueryKeys.conversionMensual(periodo),
     queryFn: ({ signal }) => obtenerConversionMensual(periodo, signal),
+    enabled: habilitada && Boolean(periodo),
+  })
+}
+
+/**
+ * Meta y producción del MISMO snapshot mensual (`crm.cumplimiento_metas_fn`).
+ * No reconstruye objetivos ni resultados: solo adapta el payload autoritativo
+ * ya recortado por el rol autenticado.
+ */
+export function useCumplimientoMetas(
+  habilitada: boolean,
+  periodo: string,
+  actorId?: string | null,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.cumplimientoMetas(periodo),
+    queryFn: async ({ signal }) => {
+      const respuesta = await obtenerCumplimientoMetas(periodo, signal)
+      if (respuesta.periodo !== periodo) {
+        throw new Error('La foto mensual recibida no corresponde al periodo solicitado')
+      }
+      return respuesta
+    },
+    select: (respuesta) => cumplimientoDesdeRpc(respuesta, actorId),
     enabled: habilitada && Boolean(periodo),
   })
 }

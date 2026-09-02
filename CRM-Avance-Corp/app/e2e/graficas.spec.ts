@@ -10,6 +10,7 @@ import {
   metricasConversionesReal,
   metricasReunionesReal,
   montarBackendReal,
+  rankingAgostoReal,
 } from './_helpers'
 
 test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase', async ({ page }) => {
@@ -68,5 +69,76 @@ test.describe('resumen de Gerencia en sesión real', () => {
       page.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' }),
     ).toHaveCount(0)
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
+  })
+
+  test('ranking real de Gerencia normaliza un rango de agosto al mes calendario completo', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-09-02T15:00:00.000Z'))
+    const foto = rankingAgostoReal()
+    const llamadas: { ruta: string; cuerpo: Record<string, unknown> }[] = []
+    page.on('request', (request) => {
+      if (request.method() !== 'POST') return
+      const ruta = new URL(request.url()).pathname
+      if (![
+        '/rest/v1/rpc/conversion_mensual_fn',
+        '/rest/v1/rpc/cumplimiento_metas_fn',
+        '/rest/v1/rpc/metricas_conversiones_equipo_fn',
+        '/functions/v1/crm-tipo-cambio',
+      ].includes(ruta)) return
+      llamadas.push({ ruta, cuerpo: request.postDataJSON() as Record<string, unknown> })
+    })
+
+    await montarBackendReal(page, {
+      rolCrm: 'gerencia',
+      rolPortal: 'comercial',
+      configuracionMetas: foto.configuracionMetas,
+      cumplimientoMetas: foto.cumplimientoMetas,
+      metricas: {
+        conversionMensual: foto.conversionMensual,
+        cosecha: foto.cosecha,
+      },
+    })
+    await loginReal(page)
+    await page.getByRole('button', { name: 'Ranking', exact: true }).click()
+
+    // El rango libre solo ELIGE el mes: las tres fuentes y el TC reciben el
+    // calendario completo de agosto, no el subrango 10–20 seleccionado.
+    await page.getByLabel('Desde').fill('2026-08-10')
+    await page.getByLabel('Hasta').fill('2026-08-20')
+    await page.getByRole('button', { name: 'Aplicar', exact: true }).click()
+
+    await expect(page.getByText('Mes calendario · agosto 2026')).toBeVisible()
+    const conversion = page.getByRole('table', { name: 'Ranking de conversión general' })
+    await expect(conversion.getByRole('row', { name: /ANA AGOSTO/ })).toContainText('8.33%')
+
+    await page.getByRole('tab', { name: 'Capital total' }).click()
+    await expect(page.getByText(/TC S\/ 3\.53 \(SBS · prom\. 7d al 31\/08\/2026\)/)).toBeVisible()
+    await expect(
+      page.getByRole('table', { name: 'Ranking de capital total en soles' })
+        .getByRole('row', { name: /ANA AGOSTO/ }),
+    ).toContainText('S/ 43,530')
+
+    await page.getByRole('tab', { name: 'Cosecha del lote' }).click()
+    const cosecha = page.getByRole('list', { name: 'Cosecha del lote por analista' })
+    await expect(cosecha.getByText('ANA AGOSTO')).toBeVisible()
+    await expect(cosecha.getByText('De sus 12 leads del mes, 1 ya es cliente (8.33%)')).toBeVisible()
+
+    expect(llamadas).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruta: '/rest/v1/rpc/conversion_mensual_fn',
+        cuerpo: expect.objectContaining({ p_periodo: '2026-08-01' }),
+      }),
+      expect.objectContaining({
+        ruta: '/rest/v1/rpc/cumplimiento_metas_fn',
+        cuerpo: expect.objectContaining({ p_periodo: '2026-08-01' }),
+      }),
+      expect.objectContaining({
+        ruta: '/rest/v1/rpc/metricas_conversiones_equipo_fn',
+        cuerpo: expect.objectContaining({ p_desde: '2026-08-01', p_hasta: '2026-08-31' }),
+      }),
+      expect.objectContaining({
+        ruta: '/functions/v1/crm-tipo-cambio',
+        cuerpo: expect.objectContaining({ fecha_corte: '2026-08-31' }),
+      }),
+    ]))
   })
 })

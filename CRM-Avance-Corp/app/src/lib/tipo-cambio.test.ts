@@ -64,6 +64,40 @@ describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
     expect(invoke).toHaveBeenCalledWith('crm-tipo-cambio')
   })
 
+  it('fecha de corte mensual → la envía a la misma edge sin crear otra frontera', async () => {
+    invoke.mockResolvedValue({
+      data: {
+        promedio: 3.3965,
+        fuente: 'SBS · prom. 7d',
+        dias: 7,
+        fecha_corte: '2026-08-31',
+      },
+      error: null,
+    })
+    const { result } = renderHook(() => useTipoCambio(true, '2026-08-31'))
+
+    await waitFor(() => expect(result.current.tc).toEqual({
+      promedio: 3.3965,
+      fuente: 'SBS · prom. 7d al 31/08/2026',
+    }))
+    expect(invoke).toHaveBeenCalledWith('crm-tipo-cambio', {
+      body: { fecha_corte: '2026-08-31' },
+    })
+  })
+
+  it.each([
+    ['otro corte', '2026-09-01'],
+    ['sin corte declarado', undefined],
+  ])('respuesta válida pero con %s → null (fail-closed)', async (_caso, fecha_corte) => {
+    invoke.mockResolvedValue({
+      data: { promedio: 3.3965, fuente: 'SBS · prom. 7d', fecha_corte },
+      error: null,
+    })
+    const { result } = renderHook(() => useTipoCambio(true, '2026-08-31'))
+
+    await waitFor(() => expect(result.current.tc).toBeNull())
+  })
+
   it.each([
     ['promedio 0', { promedio: 0, fuente: 'SBS' }],
     ['promedio negativo', { promedio: -1, fuente: 'SBS' }],

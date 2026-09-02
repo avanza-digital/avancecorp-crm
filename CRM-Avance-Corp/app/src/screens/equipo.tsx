@@ -13,7 +13,7 @@
 // recorte lo garantiza el contrato del store, no la disciplina de esta pantalla).
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido = navy #111e3d.
-import { useMemo, useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { Activity, Inbox, ListTodo, ShieldCheck, Users, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -35,8 +35,9 @@ import { moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { useConversionMensual, useMetricasConversionesEquipo } from '@/data/crm-queries'
-import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
+import { useConversionMensual, useCumplimientoMetas, useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { periodoInicialGerencia, periodoMesCalendario, semanticaMetaMensual } from '@/components/gerencia/periodo'
+import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
@@ -498,12 +499,10 @@ function EquipoSupervisor(): JSX.Element {
     tareas,
     equipo,
     objetivos,
-    objetivosError,
     cumplimientoMetas,
-    cumplimientoMetasError,
-    recargar,
   } = useCRMData()
   const { yo } = useAuth()
+  const { diaLima } = usePeriodoGerencia()
   // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola (en real esos
   // vencimientos llegan resueltos dentro de cola_accion_fn).
   const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito, yo?.demo === true)
@@ -514,6 +513,13 @@ function EquipoSupervisor(): JSX.Element {
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
   const tipoCambio = useTipoCambio()
   const { tc } = tipoCambio
+  const recargarTipoCambioVigente = tipoCambio.recargar
+  const diaTipoCambioAnterior = useRef(diaLima)
+  useEffect(() => {
+    if (diaTipoCambioAnterior.current === diaLima) return
+    diaTipoCambioAnterior.current = diaLima
+    recargarTipoCambioVigente()
+  }, [diaLima, recargarTipoCambioVigente])
   // ── Ranking de MI equipo (decisión #10) ──
   // Vive AQUÍ y no en «Hoy» porque en producción `FUNCIONES_LEADS_APROBADAS`
   // está en false: un supervisor real NO ve el mundo de leads, así que «Hoy» no
@@ -523,16 +529,60 @@ function EquipoSupervisor(): JSX.Element {
     () => identidadesEquipoConversion(ambito.vendedores, equipo),
     [ambito.vendedores, equipo],
   )
-  const periodoRanking = useMemo(() => periodoInicialGerencia(), [])
+  const ahoraRanking = Date.parse(`${diaLima}T12:00:00Z`)
+  const periodoRankingVigente = periodoInicialGerencia(ahoraRanking)
+  const mesRankingVigente = periodoRankingVigente.desde.slice(0, 7)
+  const [mesRanking, setMesRanking] = useState(mesRankingVigente)
+  const mesRankingVigenteAnterior = useRef(mesRankingVigente)
+  useEffect(() => {
+    const anterior = mesRankingVigenteAnterior.current
+    mesRankingVigenteAnterior.current = mesRankingVigente
+    if (mesRanking === anterior && mesRankingVigente !== anterior) {
+      setMesRanking(mesRankingVigente)
+    }
+  }, [mesRanking, mesRankingVigente])
+  // La demo no conserva fotos mensuales: se fija al mes vigente para no
+  // presentar el mismo fixture actual bajo la etiqueta de un mes histórico.
+  const mesRankingAplicado = yo?.demo || mesRanking > mesRankingVigente
+    ? mesRankingVigente
+    : mesRanking
+  const periodoRanking = useMemo(
+    () => periodoMesCalendario(mesRankingAplicado, ahoraRanking),
+    [ahoraRanking, mesRankingAplicado],
+  )
+  const rankingHistorico = periodoRanking.desde !== periodoRankingVigente.desde
+  // La radiografía operativa de arriba conserva el TC actual. Solo el ranking
+  // histórico pide una segunda lectura anclada al cierre del mes elegido.
+  const tipoCambioHistorico = useTipoCambio(
+    !yo?.demo && rankingHistorico,
+    periodoRanking.hasta,
+  )
+  const tipoCambioRanking = rankingHistorico ? tipoCambioHistorico : tipoCambio
+  const rankingRealActivo = !yo?.demo
+  const qCumplimientoRanking = useCumplimientoMetas(
+    rankingRealActivo,
+    periodoRanking.desde,
+    yo?.id,
+  )
+  const cumplimientoRankingCargando = rankingRealActivo
+    && (qCumplimientoRanking.isPending || qCumplimientoRanking.isFetching)
+  const cumplimientoRanking = rankingRealActivo
+    ? cumplimientoRankingCargando
+      ? undefined
+      : (qCumplimientoRanking.data ?? null)
+    : cumplimientoMetas
+  const metasVendedoresRanking = cumplimientoRanking?.porVendedor
+    ?? (rankingRealActivo ? {} : (objetivos.porVendedor ?? {}))
   const metaMensual = useMemo(() => {
-    const semantica = semanticaMetaMensual(periodoRanking)
-    return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
-  }, [objetivosError, periodoRanking])
+    const semantica = semanticaMetaMensual(periodoRanking, ahoraRanking, periodoRanking)
+    const errorCarga = rankingRealActivo && qCumplimientoRanking.isError
+    return errorCarga ? { ...semantica, comparable: false, errorCarga: true } : semantica
+  }, [ahoraRanking, periodoRanking, qCumplimientoRanking.isError, rankingRealActivo])
   // La conversión de MI equipo sale de la MISMA RPC mensual que su tile de
   // «Hoy» (`crm.conversion_mensual_fn`, alcance equipo por rol) — el payload
   // viejo del equipo medía otra pregunta y ya no alimenta este tab. Tri-estado
   // como el TC: undefined = consultando, null = no disponible (fail-closed).
-  const periodoConversionMes = `${periodoRanking.hasta.slice(0, 7)}-01`
+  const periodoConversionMes = periodoRanking.desde
   const qConversionMensual = useConversionMensual(!yo?.demo, periodoConversionMes)
   // Cosecha por analista de MI equipo (F2.2/D2, alcance equipo por rol en el
   // servidor): mismo MES que la mensual del tab. Tri-estado; en demo no se
@@ -548,7 +598,7 @@ function EquipoSupervisor(): JSX.Element {
       ? undefined
       : (qCosechaEquipo.data ?? null)
   const conversionMensualEquipo = yo?.demo
-    ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
+    ? conversionMensualDemo(ahoraRanking, { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
     : qConversionMensual.isPending || qConversionMensual.isFetching
       ? undefined
       : (qConversionMensual.data ?? null)
@@ -558,13 +608,9 @@ function EquipoSupervisor(): JSX.Element {
   const errorCosechaRanking = !yo?.demo && qCosechaEquipo.isError
     ? 'No se pudo calcular la cosecha del lote del equipo.'
     : null
-  const errorCapitalRanking = yo?.demo
-    ? null
-    : objetivosError
-      ? 'No se pudieron cargar las metas mensuales del equipo.'
-      : cumplimientoMetasError
-        ? 'No se pudo calcular el capital confirmado del equipo.'
-        : null
+  const errorFotoMensualRanking = rankingRealActivo && qCumplimientoRanking.isError
+    ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'
+    : null
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
@@ -675,7 +721,31 @@ function EquipoSupervisor(): JSX.Element {
           supervisor real no ve el mundo de leads y «Hoy» no existe para él.
           «Gestión de equipo» sí la ve (no está en VISTAS_LEADS) y es donde ya
           mira a su gente. */}
-      <div className="gerencia-inteligencia">
+      <div className="gerencia-inteligencia space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <label htmlFor="mes-ranking-supervisor" className="text-xs font-bold text-foreground">
+            Mes del ranking
+          </label>
+          <input
+            id="mes-ranking-supervisor"
+            aria-label="Mes del ranking"
+            type="month"
+            value={mesRankingAplicado}
+            max={mesRankingVigente}
+            disabled={yo?.demo}
+            title={yo?.demo ? 'Demo · mes vigente' : undefined}
+            onChange={(evento) => {
+              const nuevoMes = evento.currentTarget.value
+              if (/^\d{4}-(0[1-9]|1[0-2])$/.test(nuevoMes) && nuevoMes <= mesRankingVigente) {
+                setMesRanking(nuevoMes)
+              }
+            }}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm font-semibold text-foreground"
+          />
+          {yo?.demo && (
+            <span className="text-xs font-semibold text-muted-foreground">Demo · mes vigente</span>
+          )}
+        </div>
         <RankingVendedoresPanel
           conversionMensual={conversionMensualEquipo}
           conversionError={errorConversionRanking}
@@ -685,12 +755,20 @@ function EquipoSupervisor(): JSX.Element {
           cosechaError={errorCosechaRanking}
           onReintentarCosecha={() => { if (!yo?.demo) void qCosechaEquipo.refetch() }}
           equipo={equipoConversion}
-          metasVendedores={objetivos.porVendedor ?? {}}
-          cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
+          metasVendedores={metasVendedoresRanking}
+          cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
           metaMensual={metaMensual}
-          capitalError={errorCapitalRanking}
-          onReintentarCapital={() => { void recargar(); tipoCambio.recargar() }}
-          tc={tc}
+          // El vigente conserva altas/bajas del roster vivo; la identidad se
+          // congela únicamente al consultar un mes histórico.
+          usarIdentidadSnapshot={rankingHistorico}
+          fotoMensualCargando={cumplimientoRankingCargando}
+          fotoMensualError={errorFotoMensualRanking}
+          onReintentarFotoMensual={() => { void qCumplimientoRanking.refetch() }}
+          capitalError={null}
+          onReintentarCapital={() => {
+            tipoCambioRanking.recargar()
+          }}
+          tc={tipoCambioRanking.tc}
           titulo="Ranking de mi equipo"
           etiquetaAlcance="Mi equipo"
           tabInicial="capital-total"

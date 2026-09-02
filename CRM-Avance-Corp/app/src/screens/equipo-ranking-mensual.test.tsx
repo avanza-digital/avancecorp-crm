@@ -4,9 +4,11 @@
 // pasa el error de SU pestaña — antes un error global degradaba o bloqueaba
 // también las lecturas sanas.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { objetivosCero } from '@/lib/objetivos'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
+import { CUMPLIMIENTO_METAS_DEMO } from '@/lib/demo'
+import { objetivosCero, type CumplimientoMetasJerarquico } from '@/lib/objetivos'
 import type { Miembro, Yo } from '@/lib/tipos'
 
 let YO: Yo | null = null
@@ -16,6 +18,20 @@ let CONVERSION_EQUIPO_OPERATIVA: number | null | undefined
 let CONVERSION_DISPONIBLE = true
 let CONVERSION_EQUIPO_DISPONIBLE = true
 let AVISO_CONVERSION: string | null = null
+let CUMPLIMIENTO_STORE: CumplimientoMetasJerarquico | null = null
+const CONSULTAS_RANKING = vi.hoisted(() => ({
+  conversion: vi.fn(),
+  cosecha: vi.fn(),
+  cumplimiento: vi.fn(),
+  tipoCambio: vi.fn(),
+}))
+const ESTADO_CUMPLIMIENTO = vi.hoisted(() => ({
+  data: undefined as CumplimientoMetasJerarquico | undefined,
+  isError: false,
+  isPending: false,
+  isFetching: false,
+  refetch: vi.fn(),
+}))
 
 const VENDEDOR: Miembro = {
   perfil_id: 'v-1',
@@ -62,7 +78,7 @@ vi.mock('@/lib/store-context', () => ({
       : CONVERSION_OPERATIVA === undefined ? [] : [VENDEDOR],
     objetivos: objetivosCero(),
     objetivosError: false,
-    cumplimientoMetas: null,
+    cumplimientoMetas: CUMPLIMIENTO_STORE,
     recargar: vi.fn(),
     reasignar: vi.fn(),
     agenda: [],
@@ -72,14 +88,32 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/data/crm-queries', async (importActual) => ({
   ...(await importActual<typeof import('@/data/crm-queries')>()),
-  useConversionMensual: () => ({
-    data: undefined,
-    error: MENSUAL_FALLA ? new Error('500 simulado') : null,
-    isError: MENSUAL_FALLA,
-    isPending: false,
-    isFetching: false,
-    refetch: vi.fn(),
-  }),
+  useConversionMensual: (...argumentos: [boolean, string]) => {
+    CONSULTAS_RANKING.conversion(...argumentos)
+    return {
+      data: undefined,
+      error: MENSUAL_FALLA ? new Error('500 simulado') : null,
+      isError: MENSUAL_FALLA,
+      isPending: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    }
+  },
+  useMetricasConversionesEquipo: (...argumentos: [boolean, string, string]) => {
+    CONSULTAS_RANKING.cosecha(...argumentos)
+    return {
+      data: undefined,
+      error: null,
+      isError: false,
+      isPending: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    }
+  },
+  useCumplimientoMetas: (...argumentos: [boolean, string, string | null | undefined]) => {
+    CONSULTAS_RANKING.cumplimiento(...argumentos)
+    return ESTADO_CUMPLIMIENTO
+  },
 }))
 // Lo que el foco de este arnés no mira, en su versión más barata.
 vi.mock('@/data/use-estado-sla-operativo', () => ({
@@ -183,7 +217,10 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
 }))
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/tipo-cambio')>(),
-  useTipoCambio: () => ({ tc: null, recargar: vi.fn() }),
+  useTipoCambio: (...argumentos: [boolean?, string?]) => {
+    CONSULTAS_RANKING.tipoCambio(...argumentos)
+    return { tc: null, recargar: vi.fn() }
+  },
 }))
 vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
@@ -191,8 +228,36 @@ vi.mock('@/components/common/animated-value', () => ({
 // El panel imprime el error propio de conversión: es exactamente lo que este
 // arnés afirma, sin mezclarlo con capital o cosecha.
 vi.mock('./hoy/ranking-vendedores', () => ({
-  RankingVendedoresPanel: ({ conversionError }: { conversionError: string | null }) => (
-    <h1>Ranking de mi equipo{conversionError ? ` · ERROR: ${conversionError}` : ''}</h1>
+  RankingVendedoresPanel: ({
+    conversionError,
+    capitalError,
+    metaMensual,
+    metasVendedores,
+    cumplimientoVendedores,
+    fotoMensualCargando,
+    fotoMensualError,
+    onReintentarFotoMensual,
+    usarIdentidadSnapshot,
+  }: {
+    conversionError: string | null
+    capitalError: string | null
+    metaMensual: { etiqueta: string, comparable: boolean }
+    metasVendedores: Record<string, unknown>
+    cumplimientoVendedores: Record<string, unknown>
+    fotoMensualCargando?: boolean
+    fotoMensualError?: string | null
+    onReintentarFotoMensual?: () => void
+    usarIdentidadSnapshot?: boolean
+  }) => (
+    <div>
+      <h1>Ranking de mi equipo{fotoMensualError || conversionError || capitalError ? ` · ERROR: ${fotoMensualError ?? conversionError ?? capitalError}` : ''}</h1>
+      <output aria-label="Meta del ranking de equipo">{metaMensual.etiqueta}|{String(metaMensual.comparable)}</output>
+      <output aria-label="Metas históricas de equipo">{Object.keys(metasVendedores).sort().join(',')}</output>
+      <output aria-label="Cumplimiento histórico de equipo">{Object.keys(cumplimientoVendedores).sort().join(',')}</output>
+      <output aria-label="Carga mensual de equipo">{String(fotoMensualCargando ?? false)}</output>
+      <output aria-label="Identidad mensual de equipo">{String(usarIdentidadSnapshot ?? false)}</output>
+      {fotoMensualError && <button type="button" onClick={onReintentarFotoMensual}>Reintentar foto mensual</button>}
+    </div>
   ),
 }))
 
@@ -202,16 +267,36 @@ const { Equipo } = await import('./equipo')
 // pantalla; aquí degradan a error sin red y este arnés no los mira.
 function montar() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={qc}><Equipo /></QueryClientProvider>)
+  return render(
+    <QueryClientProvider client={qc}>
+      <PeriodoGerenciaProvider>
+        <Equipo />
+      </PeriodoGerenciaProvider>
+    </QueryClientProvider>,
+  )
+}
+
+function fotoMensual(periodo: string, vendedorId: string): CumplimientoMetasJerarquico {
+  const fila = Object.values(CUMPLIMIENTO_METAS_DEMO.porVendedor)[0]!
+  return {
+    ...CUMPLIMIENTO_METAS_DEMO,
+    periodo,
+    porVendedor: {
+      [vendedorId]: { ...fila, vendedorId },
+    },
+  }
 }
 
 beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-09-02T15:00:00Z'))
   MENSUAL_FALLA = false
   CONVERSION_OPERATIVA = undefined
   CONVERSION_EQUIPO_OPERATIVA = undefined
   CONVERSION_DISPONIBLE = true
   CONVERSION_EQUIPO_DISPONIBLE = true
   AVISO_CONVERSION = null
+  CUMPLIMIENTO_STORE = null
   YO = {
     id: 's-1',
     nombre_completo: 'SUPERVISOR UNO',
@@ -219,9 +304,131 @@ beforeEach(() => {
     demo: false,
     puede_contratar: false,
   }
+  ESTADO_CUMPLIMIENTO.data = undefined
+  ESTADO_CUMPLIMIENTO.isError = false
+  ESTADO_CUMPLIMIENTO.isPending = false
+  ESTADO_CUMPLIMIENTO.isFetching = false
+  ESTADO_CUMPLIMIENTO.refetch.mockReset()
+  vi.clearAllMocks()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('Equipo — el ranking y la conversión mensual', () => {
+  it('permite al supervisor elegir agosto y alinea los tres núcleos mensuales', () => {
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-09-01',
+    }
+    montar()
+
+    const selector = screen.getByLabelText('Mes del ranking')
+    expect(selector).toHaveValue('2026-09')
+    expect(selector).toHaveAttribute('max', '2026-09')
+
+    ESTADO_CUMPLIMIENTO.data = {
+      ...CUMPLIMIENTO_METAS_DEMO,
+      periodo: '2026-08-01',
+    }
+    fireEvent.change(selector, { target: { value: '2026-08' } })
+
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-08-01')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-31')
+    expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 's-1')
+    expect(CONSULTAS_RANKING.tipoCambio).toHaveBeenLastCalledWith(true, '2026-08-31')
+    expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('agosto 2026|true')
+    expect(screen.getByLabelText('Metas históricas de equipo')).toHaveTextContent('d-v1,d-v2,d-v3')
+    expect(screen.getByLabelText('Cumplimiento histórico de equipo')).toHaveTextContent('d-v1,d-v2,d-v3')
+    expect(screen.getByLabelText('Carga mensual de equipo')).toHaveTextContent('false')
+    expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('true')
+  })
+
+  it('avanza el corte vigente al cruzar la medianoche de Lima', () => {
+    vi.setSystemTime(new Date('2026-09-03T04:59:59Z'))
+    montar()
+
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-02')
+
+    act(() => { vi.advanceTimersByTime(1_000) })
+
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-03')
+  })
+
+  it('al cruzar de mes pide la foto nueva y nunca reutiliza el cumplimiento anterior del store', () => {
+    vi.setSystemTime(new Date('2026-09-01T04:59:59Z'))
+    CUMPLIMIENTO_STORE = fotoMensual('2026-08-01', 'store-agosto')
+    ESTADO_CUMPLIMIENTO.data = fotoMensual('2026-08-01', 'foto-agosto')
+    montar()
+
+    expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(true, '2026-08-01', 's-1')
+    expect(screen.getByLabelText('Metas históricas de equipo')).toHaveTextContent('foto-agosto')
+    expect(screen.getByLabelText('Metas históricas de equipo')).not.toHaveTextContent('store-agosto')
+    expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('false')
+
+    ESTADO_CUMPLIMIENTO.data = fotoMensual('2026-09-01', 'foto-setiembre')
+    act(() => { vi.advanceTimersByTime(1_000) })
+
+    expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(true, '2026-09-01', 's-1')
+    expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('setiembre 2026|true')
+    expect(screen.getByLabelText('Metas históricas de equipo')).toHaveTextContent('foto-setiembre')
+    expect(screen.getByLabelText('Metas históricas de equipo')).not.toHaveTextContent('store-agosto')
+    expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('false')
+    expect(CONSULTAS_RANKING.tipoCambio.mock.calls).toContainEqual([])
+  })
+
+  it('rechaza un mes futuro aunque el input se manipule fuera del navegador', () => {
+    montar()
+
+    fireEvent.change(screen.getByLabelText('Mes del ranking'), { target: { value: '2026-10' } })
+
+    expect(screen.getByLabelText('Mes del ranking')).toHaveValue('2026-09')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(true, '2026-09-01')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(true, '2026-09-01', '2026-09-02')
+  })
+
+  it('en demo fija el ranking al mes vigente y no fabrica un histórico', () => {
+    YO = { ...YO!, demo: true }
+    montar()
+
+    const selector = screen.getByLabelText('Mes del ranking')
+    expect(selector).toBeDisabled()
+    expect(selector).toHaveValue('2026-09')
+    expect(screen.getByText('Demo · mes vigente')).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('setiembre 2026|true')
+    expect(CONSULTAS_RANKING.conversion).toHaveBeenLastCalledWith(false, '2026-09-01')
+    expect(CONSULTAS_RANKING.cosecha).toHaveBeenLastCalledWith(false, '2026-09-01', '2026-09-02')
+    expect(CONSULTAS_RANKING.cumplimiento).toHaveBeenLastCalledWith(false, '2026-09-01', 's-1')
+    expect(CONSULTAS_RANKING.tipoCambio).toHaveBeenLastCalledWith(false, '2026-09-02')
+    expect(screen.getByLabelText('Identidad mensual de equipo')).toHaveTextContent('false')
+
+    fireEvent.change(selector, { target: { value: '2026-08' } })
+    expect(selector).toHaveValue('2026-09')
+  })
+
+  it('no presenta ceros mientras carga el mes histórico', () => {
+    ESTADO_CUMPLIMIENTO.isPending = true
+    montar()
+
+    fireEvent.change(screen.getByLabelText('Mes del ranking'), { target: { value: '2026-08' } })
+
+    expect(screen.getByLabelText('Carga mensual de equipo')).toHaveTextContent('true')
+    expect(screen.getByLabelText('Metas históricas de equipo')).toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Cumplimiento histórico de equipo')).toBeEmptyDOMElement()
+  })
+
+  it('si falla la foto mensual entrega un error global, también en el mes vigente', () => {
+    ESTADO_CUMPLIMIENTO.isError = true
+    montar()
+
+    expect(screen.getByText(/ERROR: No se pudieron cargar la identidad, las metas y el capital del mes elegido\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta del ranking de equipo')).toHaveTextContent('setiembre 2026|false')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar foto mensual' }))
+    expect(ESTADO_CUMPLIMIENTO.refetch).toHaveBeenCalledTimes(1)
+  })
+
   it('mantiene el reparto fuera de Gestión de equipo', () => {
     montar()
 

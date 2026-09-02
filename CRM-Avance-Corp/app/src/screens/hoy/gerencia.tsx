@@ -8,6 +8,7 @@ import { GerenciaMotion } from '@/components/gerencia/motion'
 import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import {
   periodoInicialGerencia,
+  periodoMesCalendario,
   semanticaMetaMensual,
   validarPeriodoGerencia,
   type PeriodoGerencia,
@@ -39,6 +40,7 @@ import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useConversionMensual,
+  useCumplimientoMetas,
   useMetricasConversiones,
   useMetricasConversionesEquipo,
   useMetricasDistribucionLeadsV3,
@@ -163,13 +165,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     recargar,
   } = useCRMData()
   const { yo } = useAuth()
-  // TC USD→PEN del servidor (edge crm-tipo-cambio · BCRP): lo consume SOLO el
-  // ranking de capital total — en las demás secciones ni se consulta (hallazgo
-  // de la verificación: cada cambio de vista remonta la pantalla).
-  const tipoCambio = useTipoCambio(
-    seccion === 'ranking-vendedores' || seccion === 'metas'
-    || seccion === 'completo' || seccion === 'resumen',
-  )
   const { periodo, setPeriodo, diaLima, origenFiltrado, setOrigenFiltrado } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
   const periodoAnterior = useRef(periodo)
@@ -193,6 +188,35 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const sesionReal = Boolean(yo && !yo.demo)
   const modoDemo = yo?.demo === true
   const periodoMetricas = periodo
+  const ahoraPeriodo = Date.parse(`${diaLima}T12:00:00Z`)
+  // Los rankings son estrictamente mensuales: la fecha final elige el mes y
+  // este corte único gobierna conversión, capital y cosecha. Para el mes vivo
+  // termina hoy; para uno cerrado usa su último día calendario.
+  const periodoRanking = useMemo(
+    () => modoDemo
+      ? periodoInicialGerencia(ahoraPeriodo)
+      : periodoMesCalendario(periodoMetricas.hasta.slice(0, 7), ahoraPeriodo),
+    [ahoraPeriodo, modoDemo, periodoMetricas.hasta],
+  )
+  const rankingHistorico = periodoRanking.desde !== periodoInicialGerencia(ahoraPeriodo).desde
+  // El ranking convierte USD con el TC de SU cierre mensual. Las tarjetas de
+  // resumen/metas siguen usando hoy, aunque el filtro libre apunte a otro mes.
+  const usaTipoCambioHistorico = seccion === 'ranking-vendedores' && rankingHistorico
+  const fechaCorteTipoCambio = usaTipoCambioHistorico
+    ? periodoRanking.hasta
+    : undefined
+  const tipoCambio = useTipoCambio(
+    seccion === 'ranking-vendedores' || seccion === 'metas'
+    || seccion === 'completo' || seccion === 'resumen',
+    fechaCorteTipoCambio,
+  )
+  const recargarTipoCambio = tipoCambio.recargar
+  const diaTipoCambioAnterior = useRef(diaLima)
+  useEffect(() => {
+    if (diaTipoCambioAnterior.current === diaLima) return
+    diaTipoCambioAnterior.current = diaLima
+    if (!usaTipoCambioHistorico) recargarTipoCambio()
+  }, [diaLima, recargarTipoCambio, usaTipoCambioHistorico])
   // `metricas_conversiones_fn` alimenta inteligencia/resumen, NO el ranking.
   // El ranking tiene tres fuentes propias y todas nacen de los núcleos: mensual,
   // cumplimiento de metas/capital y cosecha. Mantenerlo en esta lista hacía que
@@ -226,15 +250,21 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // MENSUAL por contrato y este panel se gobierna con un rango LIBRE: se pide
   // el mes de la FECHA FINAL del rango (decisión E2, plan §4bis) — mismo
   // criterio que ya usa el aviso del panel de metas.
-  const periodoConversionMes = `${periodoMetricas.hasta.slice(0, 7)}-01`
+  const periodoConversionMes = periodoRanking.desde
   const qConversionMensual = useConversionMensual(sesionReal && necesitaConversionMensual, periodoConversionMes)
+  const rankingRealActivo = sesionReal && seccion === 'ranking-vendedores'
+  const qCumplimientoRanking = useCumplimientoMetas(
+    rankingRealActivo,
+    periodoRanking.desde,
+    yo?.id,
+  )
   // Cosecha por analista del ranking (F2.2/D2): mismo MES que la mensual del
   // tab — del 01 al final del rango elegido — para que las dos lecturas de una
   // fila hablen del mismo período. Solo se consulta en la sección que la pinta.
   const qCosechaRanking = useMetricasConversionesEquipo(
     sesionReal && seccion === 'ranking-vendedores',
-    periodoConversionMes,
-    periodoMetricas.hasta,
+    periodoRanking.desde,
+    periodoRanking.hasta,
   )
   const cosechaRanking = seccion !== 'ranking-vendedores' || modoDemo
     ? undefined
@@ -251,8 +281,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // un total en el héroe y otro en el ranking sería la demo enseñando dos
   // negocios distintos.
   const conversionMensualDemoIntel = useMemo(
-    () => (conversionesDeEjemplo ? conversionMensualInteligenciaDemo(Date.now()) : null),
-    [conversionesDeEjemplo],
+    () => (conversionesDeEjemplo ? conversionMensualInteligenciaDemo(ahoraPeriodo) : null),
+    [ahoraPeriodo, conversionesDeEjemplo],
   )
   const conversionMensual = modoDemo
     ? conversionMensualDemoIntel
@@ -287,9 +317,31 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     [conversionesDeEjemplo, objetivos.porVendedor],
   )
   const cumplimientoVisual = useMemo(
-    () => conversionesDeEjemplo ? cumplimientoMetasConversionEquipoDemo() : cumplimientoMetas,
-    [conversionesDeEjemplo, cumplimientoMetas],
+    () => {
+      if (!conversionesDeEjemplo) return cumplimientoMetas
+      return { ...cumplimientoMetasConversionEquipoDemo(), periodo: periodoRanking.desde }
+    },
+    [conversionesDeEjemplo, cumplimientoMetas, periodoRanking.desde],
   )
+  const cumplimientoRankingCargando = rankingRealActivo
+    && (qCumplimientoRanking.isPending || qCumplimientoRanking.isFetching)
+  const cumplimientoRanking = rankingRealActivo
+    ? cumplimientoRankingCargando
+      ? undefined
+      : (qCumplimientoRanking.data ?? null)
+    : cumplimientoVisual
+  // `CumplimientoVendedor` contiene la meta de la misma revisión que el capital.
+  // La identidad/población se decide aparte en el panel: roster vivo hoy y foto
+  // congelada únicamente para históricos.
+  const metasVendedoresRanking = cumplimientoRanking?.porVendedor
+    ?? (rankingRealActivo ? {} : metasVendedoresVisuales)
+  const metaMensualRanking = useMemo(() => {
+    const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
+    const errorCarga = rankingRealActivo ? qCumplimientoRanking.isError : objetivosError
+    return errorCarga
+      ? { ...semantica, comparable: false, errorCarga: true }
+      : semantica
+  }, [ahoraPeriodo, objetivosError, periodoRanking, qCumplimientoRanking.isError, rankingRealActivo])
   const metaConversionVisual = conversionesDeEjemplo
     ? agregarObjetivos(Object.values(metasVendedoresVisuales)).conversionObjetivo
     : meta.conversionObjetivo
@@ -308,13 +360,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const errorCosechaRanking = modoDemo
     ? null
     : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudo calcular la cosecha del lote.')
-  const errorCapitalRanking = modoDemo
-    ? null
-    : objetivosError
-      ? 'No se pudieron cargar las metas mensuales del ranking.'
-      : cumplimientoMetasError
-        ? 'No se pudo calcular el capital confirmado del ranking.'
-        : null
+  const errorFotoMensualRanking = rankingRealActivo && qCumplimientoRanking.isError
+    ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'
+    : null
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de citas.')
   // La MENSUAL también alimenta al Resumen (su bloque de conversión): su fallo
   // es un error del panel, con reintento — la tercera pantalla del mismo hueco
@@ -378,12 +426,21 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           cosechaError={errorCosechaRanking}
           onReintentarCosecha={() => { if (sesionReal) void qCosechaRanking.refetch() }}
           equipo={datosEquipoConversion}
-          metasVendedores={metasVendedoresVisuales}
-          cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}}
-          metaMensual={metaMensual}
-          capitalError={errorCapitalRanking}
-          onReintentarCapital={() => { void recargar(); tipoCambio.recargar() }}
+          metasVendedores={metasVendedoresRanking}
+          cumplimientoVendedores={cumplimientoRanking?.porVendedor ?? {}}
+          metaMensual={metaMensualRanking}
+          // El mes vivo sigue el roster activo; solo un mes histórico congela
+          // nombre, supervisor y población en la foto mensual.
+          usarIdentidadSnapshot={rankingHistorico}
+          fotoMensualCargando={cumplimientoRankingCargando}
+          fotoMensualError={errorFotoMensualRanking}
+          onReintentarFotoMensual={() => { void qCumplimientoRanking.refetch() }}
+          capitalError={null}
+          onReintentarCapital={() => {
+            tipoCambio.recargar()
+          }}
           tc={tipoCambio.tc}
+          etiquetaAlcance={modoDemo ? 'Demo · mes vigente' : 'Equipo completo'}
         />
       )}
 

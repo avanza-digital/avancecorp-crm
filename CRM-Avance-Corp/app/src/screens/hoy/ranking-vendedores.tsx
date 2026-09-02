@@ -1,5 +1,5 @@
 import { useMemo, useState, type JSX, type ReactNode } from 'react'
-import { AlertTriangle, RefreshCw, Target, Trophy } from 'lucide-react'
+import { AlertTriangle, CalendarDays, RefreshCw, Target, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
@@ -60,7 +60,14 @@ interface RankingVendedoresPanelProps {
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
   metaMensual: MetaMensualGerencia
-  /** Metas/cumplimiento fallidos solo bloquean el tab de capital. */
+  /** Nombre, supervisor y población salen de la foto mensual autoritativa. */
+  usarIdentidadSnapshot?: boolean
+  /** La foto mensual que fija identidad, metas y capital está en vuelo. */
+  fotoMensualCargando?: boolean
+  /** Sin esa foto ninguna pestaña puede afirmar la población del mes. */
+  fotoMensualError?: string | null
+  onReintentarFotoMensual?: () => void
+  /** Fallos exclusivos del cálculo de capital solo bloquean ese tab. */
   capitalError: string | null
   onReintentarCapital: () => void
   /**
@@ -486,6 +493,10 @@ export function RankingVendedoresPanel({
   metasVendedores,
   cumplimientoVendedores,
   metaMensual,
+  usarIdentidadSnapshot = false,
+  fotoMensualCargando = false,
+  fotoMensualError = null,
+  onReintentarFotoMensual,
   capitalError,
   onReintentarCapital,
   tc,
@@ -494,9 +505,39 @@ export function RankingVendedoresPanel({
   tabInicial = 'conversion',
 }: RankingVendedoresPanelProps): JSX.Element {
   const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
+  // El cumplimiento mensual trae identidad junto con meta y producción. Cuando
+  // el caller ya obtuvo esa foto, ELLA define la población: unirla al roster
+  // del store incorporaría altas de otro mes (o conservaría bajas tras cruzar
+  // medianoche) y podría invalidar todo el ranking de conversión.
+  const equipoRanking = useMemo(() => {
+    const porId = new Map(
+      usarIdentidadSnapshot
+        ? []
+        : equipo
+          .filter((fila) => fila.vendedorId)
+          .map((fila) => [fila.vendedorId as string, fila]),
+    )
+    for (const fila of Object.values(cumplimientoVendedores)) {
+      const actual = porId.get(fila.vendedorId)
+      if (actual && !usarIdentidadSnapshot) continue
+      porId.set(fila.vendedorId, {
+        vendedorId: fila.vendedorId,
+        nombre: fila.nombre,
+        supervisorNombre: fila.supervisorNombre,
+        leads: actual?.leads ?? 0,
+        contactados: actual?.contactados ?? 0,
+        reunionesPactadas: actual?.reunionesPactadas ?? 0,
+        reunionesRealizadas: actual?.reunionesRealizadas ?? 0,
+        clientes: actual?.clientes ?? 0,
+        descartados: actual?.descartados ?? 0,
+        conversionPct: actual?.conversionPct ?? null,
+      })
+    }
+    return [...porId.values()]
+  }, [cumplimientoVendedores, equipo, usarIdentidadSnapshot])
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
-    [conversionMensual, equipo],
+    () => adaptarConversionMensual(conversionMensual ?? null, equipoRanking),
+    [conversionMensual, equipoRanking],
   )
   const rankingConversion = useMemo(
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
@@ -507,8 +548,8 @@ export function RankingVendedoresPanel({
   // oculto; el ranking ponderado no depende de esta segunda lectura.
   const cosechaEnRevision = cosecha != null && !sondasNucleoVerificadas(cosecha.sondas)
   const rankingCapitalTotal = useMemo(
-    () => clasificarRankingCapitalTotal(equipo, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
-    [cumplimientoVendedores, equipo, metasVendedores, tc],
+    () => clasificarRankingCapitalTotal(equipoRanking, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
+    [cumplimientoVendedores, equipoRanking, metasVendedores, tc],
   )
   const totalVendedores = new Set([
     ...rankingCapitalTotal.conPuesto.map((fila) => fila.vendedor.vendedorId),
@@ -517,21 +558,24 @@ export function RankingVendedoresPanel({
     ...adaptadaMensual.vendedores.map((fila) => fila.vendedorId),
     ...(cosecha?.responsables ?? []).map((fila) => fila.vendedor_id),
   ]).size
-  const errorActivo = tipo === 'conversion'
+  const poblacionMensualIndisponible = fotoMensualCargando || Boolean(fotoMensualError)
+  const errorActivo = fotoMensualError ?? (tipo === 'conversion'
     ? conversionError
     : tipo === 'capital-total'
       ? capitalError
-      : cosechaError
-  const reintentarActivo = tipo === 'conversion'
-    ? onReintentarConversion
-    : tipo === 'capital-total'
-      ? onReintentarCapital
-      : onReintentarCosecha
-  const cargandoActivo = tipo === 'conversion'
+      : cosechaError)
+  const reintentarActivo = fotoMensualError
+    ? (onReintentarFotoMensual ?? onReintentarCapital)
+    : tipo === 'conversion'
+      ? onReintentarConversion
+      : tipo === 'capital-total'
+        ? onReintentarCapital
+        : onReintentarCosecha
+  const cargandoActivo = fotoMensualCargando || (tipo === 'conversion'
     ? conversionMensual === undefined
     : tipo === 'capital-total'
       ? metaMensual.comparable && tc === undefined
-      : cosechaCargando
+      : cosechaCargando)
   const formulaConversion = conversionMensual == null
     ? '(Cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes'
     : `(Cierres no referidos + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes`
@@ -542,9 +586,17 @@ export function RankingVendedoresPanel({
         <div>
           <p className="gi-label text-[var(--gi-blue)]">Desempeño comercial</p>
           <h2 className="mt-1 text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">{titulo}</h2>
-          <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">{numero(totalVendedores)} {totalVendedores === 1 ? 'analista' : 'analistas'} · sin límite fijo de participantes</p>
+          <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">
+            {poblacionMensualIndisponible
+              ? '— analistas'
+              : `${numero(totalVendedores)} ${totalVendedores === 1 ? 'analista' : 'analistas'}`}
+            {' · sin límite fijo de participantes'}
+          </p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
+          <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><CalendarDays className="size-4 text-[var(--gi-blue)]" aria-hidden />Mes calendario · {metaMensual.etiqueta}</div>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
@@ -573,11 +625,13 @@ export function RankingVendedoresPanel({
       ) : cargandoActivo ? (
         <CargandoTabpanel
           tab={tipo}
-          mensaje={tipo === 'conversion'
-            ? 'Consultando la conversión del mes…'
-            : tipo === 'capital-total'
-              ? 'Consultando tipo de cambio…'
-              : 'Consultando la cosecha del lote…'}
+          mensaje={fotoMensualCargando
+            ? 'Consultando identidad, metas y capital del mes…'
+            : tipo === 'conversion'
+              ? 'Consultando la conversión del mes…'
+              : tipo === 'capital-total'
+                ? 'Consultando tipo de cambio…'
+                : 'Consultando la cosecha del lote…'}
         />
       ) : totalVendedores === 0 ? (
         <TabpanelMarco tab={tipo}>
@@ -587,7 +641,7 @@ export function RankingVendedoresPanel({
         <RankingConversion ranking={rankingConversion} />
       ) : tipo === 'cosecha' ? (
         <TabpanelMarco tab="cosecha">
-          <CosechaLote cosecha={cosecha} equipo={equipo} enRevision={cosechaEnRevision} />
+          <CosechaLote cosecha={cosecha} equipo={equipoRanking} enRevision={cosechaEnRevision} />
         </TabpanelMarco>
       ) : !metaMensual.comparable ? (
         <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total" className="grid min-h-64 place-items-center px-5 text-center">

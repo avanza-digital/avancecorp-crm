@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   PeriodoGerenciaProvider,
 } from './periodo-context'
-import { periodoInicialGerencia, validarPeriodoGerencia } from './periodo'
+import {
+  periodoInicialGerencia,
+  periodoMesCalendario,
+  semanticaMetaMensual,
+  validarPeriodoGerencia,
+} from './periodo'
 import { usePeriodoGerencia } from './use-periodo-gerencia'
 
 const ANTES_DE_MEDIANOCHE_LIMA = new Date('2026-08-01T04:59:59Z')
@@ -92,6 +97,44 @@ describe('validarPeriodoGerencia', () => {
       { desde: '2026-07-01', hasta: '2026-07-16' },
       antesDeMedianoche,
     )).toMatchObject({ valido: false, codigo: 'fecha_futura' })
+  })
+})
+
+describe('periodo mensual de rankings', () => {
+  const ahora = new Date('2026-09-02T15:00:00Z').getTime()
+
+  it('normaliza un mes histórico a todo su calendario', () => {
+    expect(periodoMesCalendario('2026-08', ahora)).toEqual({
+      desde: '2026-08-01',
+      hasta: '2026-08-31',
+    })
+  })
+
+  it('corta el mes vigente al día de hoy en Lima', () => {
+    expect(periodoMesCalendario('2026-09', ahora)).toEqual({
+      desde: '2026-09-01',
+      hasta: '2026-09-02',
+    })
+  })
+
+  it('respeta el último día real de un febrero bisiesto', () => {
+    expect(periodoMesCalendario('2024-02', ahora)).toEqual({
+      desde: '2024-02-01',
+      hasta: '2024-02-29',
+    })
+  })
+
+  it('rotula y compara la meta contra el mes elegido por el ranking', () => {
+    const agosto = periodoMesCalendario('2026-08', ahora)
+    expect(semanticaMetaMensual(agosto, ahora, agosto)).toEqual({
+      etiqueta: 'agosto 2026',
+      comparable: true,
+    })
+  })
+
+  it('conserva por defecto la protección del store contra rangos libres', () => {
+    expect(semanticaMetaMensual({ desde: '2026-08-01', hasta: '2026-08-31' }, ahora))
+      .toEqual({ etiqueta: 'setiembre 2026', comparable: false })
   })
 })
 

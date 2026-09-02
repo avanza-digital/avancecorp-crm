@@ -1179,6 +1179,132 @@ export function conversionMensualReal(): ConversionMensualRealFixture {
   }
 }
 
+/**
+ * Foto mensual coherente de agosto para ejercer el ranking REAL de punta a
+ * punta. Las tres fuentes usan los mismos UUID/nombres: cumplimiento aporta la
+ * identidad y el capital congelados, la mensual aporta la conversión oficial y
+ * la cosecha sigue el lote recibido. Si una pantalla vuelve a mezclar el roster
+ * vivo con esta foto histórica, los E2E dejan de encontrar estos nombres.
+ */
+export function rankingAgostoReal(): {
+  configuracionMetas: Record<string, unknown>
+  cumplimientoMetas: Record<string, unknown>
+  conversionMensual: ConversionMensualRealFixture
+  cosecha: Record<string, unknown>[]
+} {
+  const responsables = [
+    {
+      vendedor_id: ANALISTA_ANA_ID,
+      nombre: 'ANA AGOSTO',
+      conversion_objetivo: 10,
+      conversion_real: 8.33,
+      convertidos: 1,
+      resueltos: 12,
+      numerador: 1,
+      cierres_no_referidos: 1,
+      cierres_referidos: 0,
+      capital_pen: 40_000,
+      capital_usd: 1_000,
+    },
+    {
+      vendedor_id: ANALISTA_BRUNO_ID,
+      nombre: 'BRUNO AGOSTO',
+      conversion_objetivo: 10,
+      conversion_real: 12.5,
+      convertidos: 1,
+      resueltos: 8,
+      numerador: 1,
+      cierres_no_referidos: 1,
+      cierres_referidos: 0,
+      capital_pen: 20_000,
+      capital_usd: 500,
+    },
+  ]
+  const detalles = (capitalPen: number, capitalUsd: number) => [
+    {
+      categoria: 'nuevo', moneda: 'PEN', capital_objetivo: 100_000,
+      capital_real: capitalPen, capital_cumplimiento_pct: capitalPen / 1_000,
+      contratos_objetivo: 2, contratos_real: 1, contratos_cumplimiento_pct: 50,
+    },
+    {
+      categoria: 'nuevo', moneda: 'USD', capital_objetivo: 10_000,
+      capital_real: capitalUsd, capital_cumplimiento_pct: capitalUsd / 100,
+      contratos_objetivo: 1, contratos_real: 1, contratos_cumplimiento_pct: 100,
+    },
+    ...(['renovacion', 'upgrade'] as const).flatMap((categoria) => [
+      {
+        categoria, moneda: 'PEN', capital_objetivo: 0, capital_real: 0,
+        capital_cumplimiento_pct: null, contratos_objetivo: 0,
+        contratos_real: 0, contratos_cumplimiento_pct: null,
+      },
+      {
+        categoria, moneda: 'USD', capital_objetivo: 0, capital_real: 0,
+        capital_cumplimiento_pct: null, contratos_objetivo: 0,
+        contratos_real: 0, contratos_cumplimiento_pct: null,
+      },
+    ]),
+  ]
+
+  const conversionBase = conversionMensualReal()
+  return {
+    configuracionMetas: {
+      version: 1,
+      periodo: '2026-08-01',
+      revision: 4,
+      publicada_en: '2026-08-01T13:00:00.000Z',
+      publicada_por: null,
+      publicada_por_nombre: null,
+      puede_editar: false,
+      sin_supervisor: [],
+      vendedores: responsables.map((fila) => ({
+        vendedor_id: fila.vendedor_id,
+        nombre: fila.nombre,
+        supervisor_id: UID,
+        supervisor_nombre: 'SUPERVISOR AGOSTO',
+        conversion_objetivo: fila.conversion_objetivo,
+        detalles: detalles(fila.capital_pen, fila.capital_usd).map((detalle) => ({
+          categoria: detalle.categoria,
+          moneda: detalle.moneda,
+          capital_objetivo: detalle.capital_objetivo,
+          contratos_objetivo: detalle.contratos_objetivo,
+        })),
+      })),
+    },
+    cumplimientoMetas: {
+      version: 1,
+      periodo: '2026-08-01',
+      revision: 4,
+      publicada_en: '2026-08-01T13:00:00.000Z',
+      fuentes_reales: {
+        capital_y_contratos: 'contratos_confirmados',
+        conversion: 'leads_recibidos_ponderado',
+      },
+      ponderacion_referido: 0.15,
+      cierre: { cerrado: false },
+      vendedores: responsables.map(({ capital_pen, capital_usd, ...fila }) => ({
+        ...fila,
+        supervisor_id: UID,
+        supervisor_nombre: 'SUPERVISOR AGOSTO',
+        ajuste: { pendiente: 0 },
+        detalles: detalles(capital_pen, capital_usd),
+      })),
+    },
+    conversionMensual: {
+      ...conversionBase,
+      responsables: conversionBase.responsables.map((fila) => ({ ...fila, supervisor_id: UID })),
+    },
+    cosecha: responsables.map((fila) => ({
+      vendedor_id: fila.vendedor_id,
+      leads: fila.resueltos,
+      clientes: fila.convertidos,
+      conversion_pct: fila.conversion_real,
+      nucleo_divisor: fila.resueltos,
+      nucleo_numerador: fila.numerador,
+      nucleo_conversion_pct: fila.conversion_real,
+    })),
+  }
+}
+
 /** Snapshot válido de las métricas comerciales que consume el Resumen actual. */
 export function metricasConversionesReal(): Record<string, unknown> {
   return {
@@ -1523,6 +1649,8 @@ export interface BackendReal {
     agenda: unknown[]
     /** Total y filas de crm.conversion_mensual_fn (el periodo lo eco-a el handler). */
     conversionMensual: ConversionMensualRealFixture
+    /** Filas de crm.metricas_conversiones_equipo_fn (cosecha del lote). */
+    cosecha: Record<string, unknown>[]
   }
   /** C1 — cola global que devuelve crm.leads_por_repartir() al coordinador. */
   colaReparto: Record<string, unknown>[]
@@ -1686,6 +1814,7 @@ export async function montarBackendReal(
       distribucion: init.metricas?.distribucion ?? metricasDistribucionVaciaReal(),
       agenda: init.metricas?.agenda ?? [],
       conversionMensual: init.metricas?.conversionMensual ?? conversionMensualVaciaReal(),
+      cosecha: init.metricas?.cosecha ?? [],
     },
     colaReparto: init.colaReparto ?? [],
     descartados: init.descartados ?? [],
@@ -2514,7 +2643,14 @@ export async function montarBackendReal(
 
     // ── edges nuevas: tipo de cambio (meta del analista) y conversión de lead ──
     if (p === '/functions/v1/crm-tipo-cambio') {
-      return json(route, { promedio: 3.53, fuente: 'SBS · prom. 7d' })
+      const body = req.postData()
+        ? (req.postDataJSON() as { fecha_corte?: string })
+        : {}
+      return json(route, {
+        promedio: 3.53,
+        fuente: 'SBS · prom. 7d',
+        ...(body.fecha_corte ? { fecha_corte: body.fecha_corte } : {}),
+      })
     }
     if (p === '/functions/v1/crm-convertir-lead' && method === 'POST') {
       return json(route, {
@@ -2608,6 +2744,33 @@ export async function montarBackendReal(
         cartera: estado.metricas.conversionMensual.cartera,
         total: estado.metricas.conversionMensual.total,
         responsables: estado.metricas.conversionMensual.responsables,
+      })
+    }
+    if (p === '/rest/v1/rpc/metricas_conversiones_equipo_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const desde = String(body.p_desde ?? '')
+      const hasta = String(body.p_hasta ?? '')
+      return json(route, {
+        version: 1,
+        generado_en: '2026-09-02T15:00:00.000Z',
+        alcance: estado.rolCrm === 'supervisor' ? 'equipo' : 'global',
+        periodo: { desde, hasta },
+        responsables: estado.metricas.cosecha,
+        nucleo: {
+          base: 'asignacion',
+          incluye_cartera: true,
+          peso_referido: 0.15,
+          mes_peso: `${desde.slice(0, 7)}-01`,
+        },
+        sondas: {
+          cuadra: true,
+          paridad_nucleo: 0,
+          paridad_filas: 0,
+          divisor_fuera_del_roster: 0,
+          numerador_fuera_del_roster: 0,
+          cierres_anulados: 0,
+          clientes_acreditados_a_otro_dueno: 0,
+        },
       })
     }
     if (p === '/rest/v1/rpc/metricas_reuniones_fn' && method === 'POST') {

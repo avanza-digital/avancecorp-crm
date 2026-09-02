@@ -1,4 +1,4 @@
-// lib/tipo-cambio.ts — Tipo de cambio USD→PEN (promedio de la última semana),
+// lib/tipo-cambio.ts — Tipo de cambio USD→PEN (promedio de 7 días hábiles),
 // para convertir el capital en dólares a soles DENTRO de la meta del mes.
 //
 // ⚠️ La regla central "PEN y USD JAMÁS se suman" (ver lib/inteligencia.ts) sigue
@@ -13,7 +13,7 @@ import { sb } from './supabase'
 import { registrarAviso } from './observabilidad'
 
 export interface TipoCambio {
-  /** Soles por 1 USD — promedio de los últimos ~7 días. */
+  /** Soles por 1 USD — promedio de los últimos 7 días hábiles disponibles. */
   promedio: number
   /** Origen legible para mostrar bajo la meta (ej. "SUNAT · prom. 7d", "demo"). */
   fuente: string
@@ -39,6 +39,7 @@ const SERIE_DEMO = [3.742, 3.738, 3.751, 3.76, 3.755, 3.749, 3.762]
 const TipoCambioSchema = v.object({
   promedio: v.pipe(v.number(), v.check((x) => Number.isFinite(x) && x > 0)),
   fuente: v.string(),
+  fecha_corte: v.optional(v.string()),
 })
 
 export interface EstadoTipoCambio {
@@ -53,15 +54,17 @@ export interface EstadoTipoCambio {
 }
 
 /**
- * Tipo de cambio USD→PEN promedio de la última semana.
+ * Tipo de cambio USD→PEN promedio de los últimos 7 días hábiles.
  * - Demo: promedio de una serie simulada, etiquetado "demo".
  * - Real: edge `crm-tipo-cambio` (promedio 7 días hábiles del TC SBS vía la API
- *   pública del BCRP; cache de 1 h en la edge). Si la edge o el BCRP fallan →
+ *   pública del BCRP; cache de 1 h por fecha de corte en la edge). `fechaCorte`
+ *   permite congelar un mes histórico en su último día; sin fecha conserva el
+ *   contrato previo y la edge usa hoy en Lima. Si la edge o el BCRP fallan →
  *   null y la pantalla degrada con honestidad a solo-PEN.
  * - `habilitado=false` (vistas que no muestran TC): ni consulta ni queda
  *   "consultando" — tc = null sin tocar la red ni la observabilidad.
  */
-export function useTipoCambio(habilitado = true): EstadoTipoCambio {
+export function useTipoCambio(habilitado = true, fechaCorte?: string): EstadoTipoCambio {
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
   const [tc, setTc] = useState<TipoCambio | null | undefined>(undefined)
@@ -74,7 +77,10 @@ export function useTipoCambio(habilitado = true): EstadoTipoCambio {
       return
     }
     if (esDemo) {
-      setTc({ promedio: promedioSemanal(SERIE_DEMO), fuente: 'demo · prom. 7d' })
+      const fuente = fechaCorte === undefined
+        ? 'demo · prom. 7d'
+        : `demo · prom. 7d al ${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
+      setTc({ promedio: promedioSemanal(SERIE_DEMO), fuente })
       return
     }
     if (!sb) {
@@ -83,14 +89,22 @@ export function useTipoCambio(habilitado = true): EstadoTipoCambio {
     }
     let cancelado = false
     setTc(undefined) // consultando (también al reintentar tras un fallo)
-    sb.functions
-      .invoke('crm-tipo-cambio')
+    const invocacion = fechaCorte === undefined
+      ? sb.functions.invoke('crm-tipo-cambio')
+      : sb.functions.invoke('crm-tipo-cambio', { body: { fecha_corte: fechaCorte } })
+    invocacion
       .then(({ data, error }) => {
         if (cancelado) return
         if (error) throw error
         const r = v.safeParse(TipoCambioSchema, data)
         if (!r.success) throw new Error('Respuesta de tipo de cambio fuera de contrato')
-        setTc({ promedio: r.output.promedio, fuente: r.output.fuente })
+        if (fechaCorte !== undefined && r.output.fecha_corte !== fechaCorte) {
+          throw new Error('Respuesta de tipo de cambio con fecha de corte incorrecta')
+        }
+        const fuente = fechaCorte === undefined
+          ? r.output.fuente
+          : `${r.output.fuente} al ${fechaCorte.slice(8, 10)}/${fechaCorte.slice(5, 7)}/${fechaCorte.slice(0, 4)}`
+        setTc({ promedio: r.output.promedio, fuente })
       })
       .catch((e: unknown) => {
         if (cancelado) return
@@ -104,7 +118,7 @@ export function useTipoCambio(habilitado = true): EstadoTipoCambio {
     return () => {
       cancelado = true
     }
-  }, [esDemo, habilitado, version])
+  }, [esDemo, fechaCorte, habilitado, version])
 
   return { tc, recargar }
 }
