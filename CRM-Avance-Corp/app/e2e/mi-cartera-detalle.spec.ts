@@ -122,6 +122,11 @@ test('demo: abre la ficha ficticia completa sin ningún request a Supabase', asy
   await entrarDemo(page, 'Analista')
   await page.getByRole('button', { name: 'Mi cartera' }).click()
 
+  // Los bloques van por FECHA DE CIERRE (02/09/2026) y la pantalla arranca en el
+  // mes en curso: el contrato ficticio de ROSA cerró hace meses, así que se abre
+  // la cartera entera. Es el mismo paso que da el analista de verdad.
+  await page.getByLabel('Filtrar por mes de cierre').selectOption('todos')
+
   const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(fila).toBeVisible()
   await fila.getByRole('button', { name: 'Ver detalle' }).click()
@@ -138,6 +143,11 @@ test('demo: directorio ve la ficha comercial sin domicilio ni números bancarios
   const requestsSupabase = await bloquearSupabase(page)
   await entrarDemo(page, 'Directorio')
   await page.getByRole('button', { name: 'Cartera', exact: true }).click()
+
+  // Los bloques van por FECHA DE CIERRE (02/09/2026) y la pantalla arranca en el
+  // mes en curso: el contrato ficticio de ROSA cerró hace meses, así que se abre
+  // la cartera entera. Es el mismo paso que da el analista de verdad.
+  await page.getByLabel('Filtrar por mes de cierre').selectOption('todos')
 
   const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(fila).toBeVisible()
