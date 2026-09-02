@@ -7294,3 +7294,23 @@ REFUTADA**: dos fotos en transacciones distintas no prueban paridad → la parid
 va DENTRO de una sola transacción `REPEATABLE READ` con los mismos claims, foto
 antes → reemplazo → foto después, y aborta si difieren o si es hora de borde.
 Añadido además `pg_advisory_xact_lock` de exclusión entre despliegues.
+
+**APLICADA EN PRODUCCIÓN el 2026-09-02 a las 15:00 de Lima** (la lanzó Miguel
+con `db query --linked --file` sobre el envoltorio; el clasificador de permisos
+bloqueó al modelo, y bien). Resultado: **`PARIDAD_OK`** — dentro de UNA
+transacción `REPEATABLE READ` con claims de Gerencia, las cinco huellas antes y
+después del reemplazo fueron idénticas (`venc_90 71e0ba17…` coincide además con
+la foto de las 12:50; las otras cuatro cambiaron respecto a esa foto porque la
+base siguió recibiendo contratos entre medias — exactamente el motivo por el que
+Codex tumbó la comparación entre transacciones).
+
+**Contado después, en lectura aparte:** md5 de `prosrc` EXACTOS
+(`a25667f6…`, `88c79901…`, `dbafa025…`, `df2c28bc…` — los mismos que Codex y yo
+calculamos por separado), cero `current_date`, la fecha de Lima 2/1/3/2 veces,
+OIDs intactos (20368/20369/20371/18403), `search_path` sin cambios (pagos sigue
+con el suyo), comentarios conservados.
+
+**Pendiente del G0:** recapturar las huellas y repetir el oráculo como **R4**
+para firmar; la próxima verificación real es esta noche de 19:00 a 23:59 Lima
+(Vencimientos ya no debe mover nada) y el 23/09 (150 000 PEN que vencen ese día
+tienen que seguir en «por vencer» hasta medianoche de Lima).
