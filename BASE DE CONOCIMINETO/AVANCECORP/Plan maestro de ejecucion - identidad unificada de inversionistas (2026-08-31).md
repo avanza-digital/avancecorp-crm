@@ -3,14 +3,18 @@ tags: [crm, identidad, inversionistas, f1, roadmap, supabase, arquitectura]
 fecha: 2026-08-31
 ultima_revision: 2026-09-01
 version: 2
-estado: propuesta-integral-lista-para-validacion-no-autoriza-sql
+estado: reemplazado-como-plan-principal-conservado-como-anexo-tecnico
 propietario_decisiones: Miguel
 alcance: F0-R1-a-F6
 meta_comercial: aumentar-capital-recurrente-mediante-retencion-y-reinversion
 horizonte_estimado: 12-semanas-mas-seguimiento-30-60-90
+reemplazado_por: Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)
 ---
 
 # Plan maestro de implementación — capital recurrente e identidad unificada de inversionistas
+
+> [!warning] Plan principal reemplazado el 2026-09-01
+> Miguel precisó que el objetivo central es permitir que un cliente invierta varias veces en distintas empresas. La fuente vigente es [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]. Esta nota se conserva únicamente como anexo técnico de identidad, seguridad y despliegue; su meta provisional de crecimiento no gobierna el proyecto.
 
 > [!warning] Alcance de esta nota
 > Este plan autoriza únicamente ordenar y revisar el trabajo. No autoriza ejecutar SQL, hacer backfill, cambiar datos ni desplegar en producción. Cada cambio de base requiere la aprobación separada definida en la sección de gates.

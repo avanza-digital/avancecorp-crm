@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan maestro definitivo — Cliente multiempresa</title>
+  <style>
+    :root {
+      --text: #202938;
+      --muted: #5f6b7a;
+      --line: #d8dee8;
+      --soft: #f5f7fa;
+      --blue: #174ea6;
+      --warning: #fff7df;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: white;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 16px;
+      line-height: 1.62;
+    }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 80px; }
+    h1, h2, h3 { color: #17233d; line-height: 1.22; }
+    h1 { margin: 0 0 16px; font-size: clamp(34px, 6vw, 54px); letter-spacing: -.03em; }
+    h2 { margin-top: 54px; padding-bottom: 8px; border-bottom: 2px solid #253b67; font-size: 28px; }
+    h3 { margin-top: 30px; font-size: 21px; }
+    p { margin: 0 0 16px; }
+    ul, ol { padding-left: 24px; }
+    li { margin-bottom: 7px; }
+    a { color: var(--blue); }
+    code { padding: 2px 5px; border-radius: 4px; background: #edf1f6; font-family: Consolas, monospace; font-size: .9em; }
+    pre { overflow-x: auto; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); font-family: Consolas, monospace; font-size: 13px; line-height: 1.55; }
+    table { width: 100%; margin: 18px 0; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--soft); }
+    .meta { color: var(--muted); }
+    .notice { margin: 24px 0; padding: 16px 18px; border-left: 4px solid #c17b00; background: var(--warning); }
+    .rule { margin: 24px 0; padding: 16px 18px; border-left: 4px solid var(--blue); background: #f2f6fc; }
+    .toc { padding: 18px 22px; border: 1px solid var(--line); background: var(--soft); }
+    .toc ol { columns: 2; margin-bottom: 0; }
+    .phase { margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 7px; }
+    .phase h3 { margin-top: 0; }
+    .gate { margin-top: 12px; font-weight: bold; }
+    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 50px; }
+    .signature { padding-top: 48px; border-bottom: 1px solid #333; font-size: 13px; }
+    @media (max-width: 700px) {
+      main { padding-top: 28px; }
+      .toc ol { columns: 1; }
+      .signatures { grid-template-columns: 1fr; }
+      table { font-size: 13px; }
+    }
+    @media print {
+      body { font-size: 11pt; }
+      main { width: 100%; padding: 0; }
+      h2 { break-after: avoid; }
+      table, pre, .phase, .notice, .rule { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header id="inicio">
+    <p class="meta">Aprobado por Miguel para firma documental de F0 · <strong>Estado al 02/09/2026:</strong> G0 capturado (R2, 198 migraciones, cero deriva) y oráculo de borde corrido (R3). <strong>G0 sin firmar</strong>: la corrección del reloj (4 funciones, refutada por Codex) espera el <code>!</code> de Miguel. F1 no autorizada. Ver <a href="#bitacora">bitácora</a>.</p>
+    <h1>Plan maestro definitivo — Cliente multiempresa e inversiones del grupo</h1>
+    <p><strong>Empresas iniciales:</strong> Avance Corp, COOPAC Qorilazo y COOPAC Prodelco.</p>
+    <p><strong>Modo de ejecución:</strong> continuo y gobernado por gates, sin cronograma artificial. Cada fase avanza en cuanto cumple su evidencia y las tareas independientes se desarrollan en paralelo.</p>
+    <div class="notice">
+      <strong>Esta aprobación no autoriza F1, SQL, backfill, cambios en Supabase ni producción.</strong>
+      Cada avance requiere su gate y una autorización de ejecución separada.
+    </div>
+    <div class="rule">
+      <strong>Veredicto final:</strong> el plan queda aprobado para firma documental de F0. La ejecución avanza continuamente por evidencia; G8 conserva una observación temporal mínima porque algunos fallos solo aparecen al atravesar un ciclo operativo real.
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Índice">
+    <strong>Contenido</strong>
+    <ol>
+      <li><a href="#objetivo">Objetivo</a></li>
+      <li><a href="#autoridad">Autoridad y aprobaciones</a></li>
+      <li><a href="#principios">Principios no negociables</a></li>
+      <li><a href="#arquitectura">Arquitectura protegida</a></li>
+      <li><a href="#modelo">Modelo relacional</a></li>
+      <li><a href="#identidad">Identidad y leads</a></li>
+      <li><a href="#capital">Fuentes económicas y Capital</a></li>
+      <li><a href="#conversion">Conversión, anulación y retirada</a></li>
+      <li><a href="#depositos">Depósitos e idempotencia</a></li>
+      <li><a href="#titularidad">Titularidad, Portal y atribución</a></li>
+      <li><a href="#seguridad">Seguridad y RLS</a></li>
+      <li><a href="#migracion">Backfill y puertas</a></li>
+      <li><a href="#fases">Fases F0–F9</a></li>
+      <li><a href="#metricas">Métricas y piloto</a></li>
+      <li><a href="#rollout">Rollout y cierre</a></li>
+    </ol>
+    <p style="margin:12px 0 0"><a href="#bitacora">→ Bitácora de avance (se actualiza en cada paso)</a></p>
+  </nav>
+
+  <section id="bitacora">
+    <h2>Bitácora de avance</h2>
+    <p class="meta">Se actualiza en cada paso del plan. Última actualización: 02/09/2026 00:45 (Lima).</p>
+    <table>
+      <thead><tr><th>Cuándo</th><th>Avance</th><th>Evidencia</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>01/09/2026</td><td>Aprobación documental de F0 (este plan es la autoridad).</td><td>Handoff en el vault; serial <code>AVC-MULTIEMPRESA-G0-20260901-R1</code>.</td><td>✅ Hecho. No autoriza ejecución.</td></tr>
+        <tr><td>01/09/2026 20:36 Lima</td><td>G0 R1: primera captura del estado productivo (196 migraciones).</td><td>Núcleo y oráculos en paridad con las referencias de la sección 7.</td><td>Superada por R2 al publicarse las migraciones 197–198.</td></tr>
+        <tr><td>01/09/2026 23:32 Lima</td><td>G0 R2: recaptura completa contra 198 migraciones, solo lectura.</td><td>Núcleo, resolutor, 17 consumidores, 6 fuentes, Capital mensual (41 filas), AUM y 513 episodios: cero deriva. Vault: «Manifiesto productivo G0 multiempresa».</td><td>✅ Capturado. Sin firmar por la observación del reloj.</td></tr>
+        <tr><td>02/09/2026 00:00 Lima</td><td>G0 R3: oráculo de borde UTC/Lima, un año simulado día a día, solo lectura.</td><td><strong>Capital mensual:</strong> el 30/09 no difiere; primer fallo visible el 31/12/2026 (enero 2026 desaparece de la gráfica de 12 meses cinco horas antes); el dinero nunca cambia de mes. <strong>Vencimientos:</strong> fallo <em>diario</em> (178 de 365 días con la ventana de 365 que usa la pantalla Hoy): el 23/09 a las 19:00 el contrato de 150 000 PEN que vence ese día deja de verse como «por vencer». <strong>Tercer afectado:</strong> el tablero de admin del Portal. Tres controles de fidelidad en 0 filas distintas; réplica igual a las RPC reales.</td><td>🔴 Observación clasificada: <strong>requiere corrección autorizada</strong>.</td></tr>
+        <tr><td>02/09/2026 00:40 Lima</td><td>Codex intentó refutar las cinco conclusiones de R3 (23 min, solo lectura).</td><td>Equivalencia, «el dinero no cambia de mes» y divergencia diaria: <strong>no refutadas</strong>. Censo: refutado en parte (hay relojes de navegador en «Mi cartera» y en el tablero antiguo del Portal; para usuarios en Lima aciertan). Corrección: refutada en alcance, <strong>son cuatro funciones</strong>, no tres (la pantalla Hoy también llama a la de pagos). Origen confirmado: el <code>current_date</code> se copió del cuerpo antiguo, no fue una decisión.</td><td>✅ Verificado en el repo. Paquete final: 4 funciones, una línea cada una; relojes de navegador en un paquete de front aparte, no bloquean G0.</td></tr>
+        <tr><td>Pendiente</td><td>Autorización de Miguel (<code>!</code>) para la migración del reloj (4 funciones); ensayo en banco; publicación antes del freeze del 08/09; recaptura de huellas y oráculos; firma de G0 (R4).</td><td>—</td><td>⏳ Espera el <code>!</code>.</td></tr>
+        <tr><td>Pendiente</td><td>Seis decisiones comerciales de F0 (responsable único, cooperativas solo PEN, documentos por empresa, quién registra, qué muestra el Portal, comisión con dos empresas el mismo mes).</td><td>Valores por defecto propuestos el 02/09.</td><td>⏳ Decisión de Miguel.</td></tr>
+        <tr><td>Pendiente</td><td>Aclarar con Supabase por qué Branching marca <code>main</code> y <code>banco-f7</code> como <code>MIGRATIONS_FAILED</code> con las bases sanas.</td><td>Vault: «Diagnóstico de Branching antes de F1».</td><td>⏳ Antes de crear el branch de F1.</td></tr>
+        <tr><td>Pendiente</td><td>Autorización expresa de F1.</td><td>—</td><td>⛔ No autorizada.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="objetivo">
+    <h2>1. Objetivo</h2>
+    <p>Permitir que una misma persona tenga múltiples inversiones, en una o varias empresas, conservando:</p>
+    <ul>
+      <li>una identidad canónica cuando la persona está verificada;</li>
+      <li>un solo lead canónico operativo;</li>
+      <li>todos sus leads históricos;</li>
+      <li>una sola historia comercial;</li>
+      <li>cada inversión legal y económicamente separada;</li>
+      <li>capital, conversión, atribución y comisión sin duplicaciones;</li>
+      <li>titularidad y cotitularidad correctas;</li>
+      <li>permisos independientes entre CRM y Portal;</li>
+      <li>una única arquitectura financiera del servidor.</li>
+    </ul>
+  </section>
+
+  <section id="autoridad">
+    <h2>2. Autoridad y aprobaciones</h2>
+    <h3>Aprobación documental de F0</h3>
+    <p>Declara este plan como autoridad y retira las reglas anteriores contradictorias. No autoriza implementación.</p>
+    <h3>Gate técnico G0</h3>
+    <p>Recaptura y firma el estado productivo posterior a ATR-2 y ATR-4: funciones, dependencias, firmas, checksums, fuentes, ACL y oráculos. No autoriza automáticamente F1.</p>
+    <h3>Autorización de ejecución</h3>
+    <p>Después de aprobar F0 y G0, Miguel deberá autorizar expresamente el inicio de F1, migraciones candidatas, backfill, despliegue y piloto real.</p>
+    <h3>Velocidad de ejecución</h3>
+    <p>Una vez autorizada la implementación, el objetivo será completar todo el tren F0→F9 lo más rápido que permitan la seguridad y la evidencia. No se asignan semanas, fechas de espera ni pausas ceremoniales entre fases.</p>
+    <ul>
+      <li>Las tareas sin dependencia directa se ejecutan en paralelo.</li>
+      <li>Un gate se revisa inmediatamente cuando sus entregables están completos.</li>
+      <li>No se espera por calendario si la evidencia ya es suficiente.</li>
+      <li>No se salta un gate para ganar velocidad.</li>
+      <li>El trabajo solo se detiene por autorización pendiente, invariante rota, riesgo no resuelto o evidencia insuficiente.</li>
+      <li>Una entrega parcial no se considera terminada: el alcance comprometido es todo el plan hasta F9 y G8.</li>
+    </ul>
+  </section>
+
+  <section id="principios">
+    <h2>3. Principios no negociables</h2>
+    <ol>
+      <li><code>private.capital_episodios</code> no se reescribe para este proyecto.</li>
+      <li>No se crea una segunda calculadora de Capital.</li>
+      <li>Avance continúa entrando mediante <code>public.contratos</code>.</li>
+      <li>Qorilazo y Prodelco continúan entrando mediante <code>crm.cierres_externos</code>.</li>
+      <li><code>crm.inversiones</code> no será fuente de montos para Capital.</li>
+      <li>Solo la primera operación elegible de toda la vida convierte.</li>
+      <li>Ninguna inversión posterior vuelve a convertir, aunque ocurra en otro mes o empresa.</li>
+      <li>Una anulación comercial elimina conversión, pero no Capital, producción ni AUM, conforme a ATR-4.</li>
+      <li>Una retirada financiera es distinta de una anulación.</li>
+      <li>Backfills y fusiones no reescriben hechos históricos.</li>
+      <li>PEN y USD no se suman sin una métrica de conversión expresamente autorizada.</li>
+      <li>Los consumidores no contienen matchers, deduplicadores ni reglas financieras.</li>
+      <li>No se modifican silenciosamente las tablas <code>public</code> del Portal.</li>
+      <li>Ser cotitular no concede automáticamente acceso digital.</li>
+      <li>No entra dinero real antes de reconciliar Capital, conversión, atribución y comisión en sombra.</li>
+      <li>Una ruta legacy con escrituras directas nunca es un rollback válido.</li>
+    </ol>
+  </section>
+
+  <section id="arquitectura">
+    <h2>4. Arquitectura protegida</h2>
+    <pre>UI / importadores / Edge Functions / service role
+                       │
+                       ▼
+              Puerta canónica del servidor
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+ public.contratos             crm.cierres_externos
+     Avance                 Qorilazo / Prodelco
+          └────────────┬────────────┘
+                       ▼
+          private.capital_episodios
+                       ▼
+             ventana autorizada
+                       ▼
+       reportes y pantallas sin reglas</pre>
+    <p><code>crm.inversiones</code> relacionará identidad, fuente, empresa, titulares, documentos, estados, Portal y postventa. No reemplazará las fuentes que Capital consume.</p>
+    <h3>Funciones permitidas</h3>
+    <ul>
+      <li>Los núcleos y helpers permanecen en esquemas no expuestos.</li>
+      <li>Se amplían las puertas canónicas existentes siempre que sea posible.</li>
+      <li>No se crean calculadoras, matchers o agregadores independientes.</li>
+      <li>Una función nueva solo se admite si pertenece a un núcleo o puerta canónica y no replica reglas.</li>
+    </ul>
+  </section>
+
+  <section id="modelo">
+    <h2>5. Modelo relacional contractual</h2>
+    <pre>crm.inversionistas
+├── 0..N crm.inversionista_identificadores
+├── 0..N crm.inversionista_leads ────────── 1 crm.leads
+├── 0..N crm.inversionista_perfiles ─────── 1 public.perfiles
+├── 0..N asignaciones / restricciones
+└── 0..1 crm.conversion_inversionista
+
+crm.empresas
+└── 0..N crm.inversiones
+
+crm.inversiones
+├── exactamente 1 empresa
+├── 1..N crm.inversion_titulares
+├── exactamente 1 fuente económica al confirmar
+│   ├── 0..1 crm.inversion_fuente_avance ── 1 public.contratos
+│   └── 0..1 crm.inversion_fuente_externa ─ 1 crm.cierres_externos
+├── 0..N crm.inversion_relaciones
+└── 0..N autorizaciones explícitas de Portal</pre>
+
+    <h3>Restricciones</h3>
+    <ul>
+      <li>Una empresa puede existir sin inversiones.</li>
+      <li>Cada inversión pertenece exactamente a una empresa.</li>
+      <li><code>crm.inversion_titulares</code> es la única fuente de titularidad.</li>
+      <li>Al confirmar existe exactamente un titular principal y cero o más cotitulares.</li>
+      <li>La puerta y un constraint diferido al <code>COMMIT</code> garantizan Avance XOR cooperativa.</li>
+      <li>Fuente→inversión es 1:1 y la empresa debe coincidir con la fuente.</li>
+      <li>Inversión, fuente, titular principal y depósito se confirman en una transacción PostgreSQL.</li>
+    </ul>
+    <div class="rule"><strong>Sin segunda verdad del titular principal:</strong> no se recomienda guardar <code>inversionista_id</code> en <code>crm.inversiones</code>. Si existiera por rendimiento, sería una proyección protegida y no editable independientemente.</div>
+  </section>
+
+  <section id="identidad">
+    <h2>6. Identidad, leads y oportunidad viva</h2>
+    <div class="rule"><strong>Invariante:</strong> existe una identidad canónica por persona verificada y un solo lead canónico operativo por esa identidad.</div>
+    <h3>Puente de leads históricos</h3>
+    <p><code>crm.inversionista_leads</code> será un puente 0..N con <code>es_canonico</code>, estado, motivo, fechas, actor y auditoría.</p>
+    <table>
+      <thead><tr><th>Estado</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>Operativo</td><td>Único lead canónico que puede recibir gestiones y abrir operaciones.</td></tr>
+        <tr><td>Histórico</td><td>Conserva captación y actividades sin abrir nuevas operaciones.</td></tr>
+        <tr><td>Fusionado</td><td>Antecedente vinculado después de resolver identidad.</td></tr>
+        <tr><td>Descartado</td><td>Conserva historia fuera del circuito operativo.</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Un lead no puede pertenecer simultáneamente a dos inversionistas.</li>
+      <li>Un índice único parcial garantiza máximo un lead <code>operativo + canónico</code> por inversionista.</li>
+      <li>La oportunidad viva es el lead canónico en etapa activa; no se crea otro pipeline.</li>
+    </ul>
+
+    <h3>Personas sin documento</h3>
+    <ul>
+      <li>Pueden existir candidatos provisionales separados.</li>
+      <li>Nombre, teléfono y correo son señales, no pruebas.</li>
+      <li>No se fusiona automáticamente por coincidencias débiles.</li>
+      <li>Una inversión conflictiva no se confirma hasta resolver identidad.</li>
+      <li>Antes de crear una identidad fuerte se revisan candidatos relacionados.</li>
+      <li>Fusiones y desvinculaciones se realizan mediante enlaces auditados, sin reescribir hechos.</li>
+    </ul>
+    <p>Al verificar o fusionar, gana la restricción comercial más fuerte. <code>no_contactar</code> se vuelve global y no se limpia automáticamente.</p>
+  </section>
+
+  <section id="capital">
+    <h2>7. Fuentes económicas y congelación de Capital</h2>
+    <h3>Avance</h3>
+    <ul>
+      <li>Fuente: <code>public.contratos</code>.</li>
+      <li>Se reutiliza la puerta contractual existente.</li>
+      <li>Número contractual manual validado en servidor.</li>
+      <li>Documento legal privado e inmutable.</li>
+      <li>Titular principal consistente con el contrato.</li>
+    </ul>
+    <h3>Qorilazo y Prodelco</h3>
+    <ul>
+      <li>Fuente: <code>crm.cierres_externos</code>.</li>
+      <li>Cada inversión confirmada crea un hecho en esa tabla.</li>
+      <li>Se reemplaza <code>UNIQUE(lead_id)</code> por una regla que permita varias inversiones y solo una conversión.</li>
+      <li>Las inversiones posteriores nunca convierten.</li>
+      <li>Capital continúa leyendo la fuente existente.</li>
+    </ul>
+
+    <h3>Manifiesto productivo G0</h3>
+    <p>Debe registrar migraciones aplicadas, firma, columnas retornadas, <code>pg_get_functiondef</code>, <code>prosrc</code>, checksums, propietario, volatilidad, seguridad, <code>search_path</code>, ACL, dependencias, fuentes y oráculos.</p>
+    <table>
+      <tbody>
+        <tr><th>ATR-2 observada</th><td><code>20260830233000</code></td></tr>
+        <tr><th>ATR-4 observada</th><td><code>20260901180000</code></td></tr>
+        <tr><th>Firma observada</th><td><code>private.capital_episodios(timestamptz,timestamptz,boolean,uuid[])</code></td></tr>
+        <tr><th>Hash pg_get_functiondef</th><td><code>b8f375fbb377582835f4cfe222240c5b</code></td></tr>
+        <tr><th>Hash prosrc</th><td><code>38c99b1bd6e8ae0bc8bb0f93d5487ce8</code></td></tr>
+      </tbody>
+    </table>
+    <div class="rule"><strong>Recaptura R2 (02/09/2026, 198 migraciones):</strong> firma, ambos hashes, ACL, dependencias, 17 consumidores, 6 fuentes y oráculos coinciden exactamente con estas referencias. <strong>R3</strong> clasificó la observación del reloj: dos consumidores (<code>metricas_capital_mes_fn</code>, <code>metricas_vencimientos_fn</code>) y el tablero de admin del Portal derivan «hoy» de <code>current_date</code> en UTC; requieren corrección autorizada antes de firmar G0. Detalle en el vault.</div>
+    <div class="notice">Son referencias observadas el 1 de septiembre de 2026, no la firma definitiva. G0 debe recapturarlas directamente del servidor productivo posterior a ATR-2/ATR-4 junto con <code>private.analista_atribuido_cadena</code>, dependencias y oráculos.</div>
+    <h3>Regla de bloqueo de G0</h3>
+    <ul>
+      <li>Los hashes, migraciones y definiciones mostrados en este documento funcionan únicamente como referencia comparativa.</li>
+      <li>G0 obtiene una evidencia nueva directamente de producción e identifica de forma inequívoca el proyecto y entorno consultados.</li>
+      <li>La recaptura incluye migraciones aplicadas, firma, resultado, <code>pg_get_functiondef</code>, <code>prosrc</code>, checksums, propietario, volatilidad, <code>SECURITY DEFINER</code>, <code>search_path</code>, ACL, dependencias y oráculos funcionales.</li>
+      <li>Los checksums se calculan desde una fuente y normalización declaradas, para que puedan reproducirse.</li>
+      <li>Cualquier diferencia bloquea G0 hasta explicar la deriva y demostrar que conserva los contratos firmados.</li>
+      <li>No se reemplaza silenciosamente un hash esperado para hacer pasar el gate.</li>
+      <li>El manifiesto recién recapturado y firmado se convierte en la evidencia autoritativa para F1.</li>
+      <li>La recaptura de G0 es de solo lectura y no autoriza ni ejecuta cambios productivos.</li>
+    </ul>
+    <p>Cada componente declarará separadamente si está diseñado, construido, publicado, verificado en producción u observado con operaciones reales.</p>
+  </section>
+
+  <section id="conversion">
+    <h2>8. Conversión, anulación, retirada y estados</h2>
+    <h3>Conversión única durante toda la vida</h3>
+    <p>Existirá un ledger canónico <code>inversionista → operación ganadora</code>, único por inversionista y protegido en PostgreSQL.</p>
+    <p>El ganador se ordena por fecha de confirmación, fecha inmutable de creación y, finalmente, identificador estable de la fuente.</p>
+    <ul>
+      <li>Las operaciones posteriores registran explícitamente que no convierten.</li>
+      <li>Si la ganadora se anula, su conversión queda en cero.</li>
+      <li>La inversión posterior no se promueve como suplente.</li>
+    </ul>
+
+    <h3>Fusión con dos conversiones históricas</h3>
+    <ol>
+      <li>Se conserva como ganadora la primera operación.</li>
+      <li>Las posteriores se invalidan por fusión.</li>
+      <li>Mes abierto: recálculo.</li>
+      <li>Mes sellado: ajuste negativo append-only contra analista y periodo originalmente acreditados.</li>
+      <li>No se reescribe la fotografía sellada.</li>
+      <li>No se ajustan Capital, producción ni comisión pagada.</li>
+    </ol>
+
+    <h3>Anulación comercial</h3>
+    <p>Reduce únicamente conversión. Conserva Capital del analista, Capital de la empresa, AUM, producción, fuente y comisiones pagadas. Los demos se excluyen mediante clasificación técnica.</p>
+    <h3>Retirada financiera</h3>
+    <p>No borra el flujo histórico, pero puede reducir AUM desde su fecha efectiva mediante una fuente reconocida por Capital.</p>
+    <p>Avance utiliza su estado contractual. Para Qorilazo y Prodelco inicialmente solo existirán <code>retiro_solicitado</code>, <code>retiro_en_revision</code> y <code>retiro_rechazado</code>. La retirada financiera externa requiere un ADR posterior.</p>
+
+    <h3>Máquina de estados</h3>
+    <table>
+      <thead><tr><th>Eje</th><th>Transición</th><th>Efecto</th></tr></thead>
+      <tbody>
+        <tr><td>Comercial</td><td>Borrador → pendiente de evidencia → confirmada</td><td>La fuente nace al confirmar.</td></tr>
+        <tr><td>Comercial</td><td>Confirmada → anulada</td><td>Conversión cero; Capital intacto.</td></tr>
+        <tr><td>Financiero</td><td>Confirmada → vigente → vencida</td><td>Vida económica de la inversión.</td></tr>
+        <tr><td>Financiero</td><td>Vigente o vencida → retirada</td><td>Reduce AUM mediante fuente reconocida.</td></tr>
+        <tr><td>Financiero</td><td>Vigente o vencida → renovada / reemplazada</td><td>Enlaza una nueva inversión; no es una secuencia lineal.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="depositos">
+    <h2>9. Depósitos, idempotencia y saga Avance</h2>
+    <h3>Ledger global</h3>
+    <ul>
+      <li>Se reutiliza <code>crm.depositos_reclamados</code>.</li>
+      <li>Avance tiene cero depósitos en este ledger.</li>
+      <li>Una inversión externa confirmada tiene exactamente un número vigente.</li>
+      <li>El vigente se deriva de <code>crm.cierres_externos.numero_transaccion</code>.</li>
+      <li>Una corrección puede producir 1..N reclamos históricos para el mismo cierre.</li>
+      <li>Los números anteriores permanecen ocupados.</li>
+      <li>No se soportan depósitos parciales o múltiples depósitos vigentes.</li>
+    </ul>
+
+    <h3>Idempotencia con hash</h3>
+    <p>Se guardan <code>idempotency_key</code>, actor, tipo de operación, versión de normalización, hash canónico, estado, resultado, fechas, errores y auditoría.</p>
+    <ul>
+      <li>Misma clave + mismo tipo + mismo hash: devuelve el resultado sin repetir efectos.</li>
+      <li>Misma clave + mismo tipo + hash diferente: conflicto auditado y cero escritura económica.</li>
+      <li>Antes de devolver un resultado previo se vuelve a validar la autorización del actor.</li>
+    </ul>
+    <p>El payload canónico incluye identidad, empresa, moneda, monto, titulares ordenados, depósito, número contractual, fechas y operación.</p>
+
+    <h3>Saga Auth–Portal–Contrato</h3>
+    <pre>reservada
+→ auth_creado_o_reutilizado
+→ persistencia_confirmada
+→ portal_autorizado
+→ correo_pendiente
+→ completada
+
+Excepciones: reintentable · compensacion_pendiente · fallida_definitiva</pre>
+    <ul>
+      <li>Reserva durable antes de Auth.</li>
+      <li>Contrato, inversión, titulares y acceso Portal se confirman en una transacción PostgreSQL.</li>
+      <li>Auth huérfano queda identificado y compensable.</li>
+      <li>El correo se envía después del commit.</li>
+      <li>Fallar el correo no revierte el contrato.</li>
+      <li>La UI no anuncia éxito antes de confirmar persistencia.</li>
+    </ul>
+  </section>
+
+  <section id="titularidad">
+    <h2>10. Titularidad, Portal, atribución y comisión</h2>
+    <h3>Permisos separados</h3>
+    <ol>
+      <li>Titularidad legal.</li>
+      <li>Visibilidad comercial interna.</li>
+      <li>Acceso autenticado al Portal.</li>
+      <li>Acceso a documentos legales.</li>
+    </ol>
+    <p>Ser cotitular no crea Auth, perfil, acceso bancario, Portal ni permiso documental.</p>
+
+    <table>
+      <thead><tr><th>Concepto</th><th>Regla</th></tr></thead>
+      <tbody>
+        <tr><td>Responsable actual</td><td>Atiende la relación y puede cambiar.</td></tr>
+        <tr><td>Registrado por</td><td>Quién digitó; hecho inmutable.</td></tr>
+        <tr><td>Atribución histórica</td><td>Analista seleccionado al cerrar.</td></tr>
+        <tr><td>Atribución efectiva viva</td><td>Política vigente para ranking y producción.</td></tr>
+        <tr><td>Atribución sellada</td><td>Fotografía inmutable del periodo.</td></tr>
+        <tr><td>Beneficiario de comisión</td><td>Regla de liquidación independiente.</td></tr>
+        <tr><td>Comisión pagada</td><td>Hecho append-only que nunca se mueve.</td></tr>
+      </tbody>
+    </table>
+    <p>En Avance, una reasignación autorizada de la cabeza de un upgrade puede mover la atribución efectiva viva de la cadena. Los meses sellados y comisiones pagadas no cambian. En cooperativas, la atribución se congela al confirmar salvo corrección autorizada.</p>
+  </section>
+
+  <section id="seguridad">
+    <h2>11. Seguridad, RPC expuestas y RLS</h2>
+    <h3>Núcleos y helpers</h3>
+    <p>Permanecen en esquemas no expuestos, sin grants a la API y accesibles solamente desde piezas autorizadas.</p>
+    <h3>RPC canónicas expuestas</h3>
+    <p>Pueden usar <code>SECURITY DEFINER</code> cuando la puerta oficial necesite escribir en tablas cerradas o cruzar una válvula protegida.</p>
+    <p>Requisitos:</p>
+    <ul>
+      <li>justificación documentada;</li>
+      <li><code>search_path</code> vacío o fijo;</li>
+      <li>nombres totalmente calificados;</li>
+      <li><code>EXECUTE</code> revocado a <code>PUBLIC</code>;</li>
+      <li>sin grants generales al esquema o a roles innecesarios;</li>
+      <li>grant sobre la firma exacta y al rol API indispensable;</li>
+      <li>validación interna de <code>auth.uid()</code>, rol, ámbito, empresa, estado y pertenencia;</li>
+      <li>auditoría, pruebas BOLA/IDOR y advisors.</li>
+    </ul>
+    <p>Un grant a <code>authenticated</code> permite invocar la RPC por PostgREST; no constituye autorización comercial.</p>
+
+    <h3>Matriz RLS</h3>
+    <p><code>rol × operación × empresa × relación × categoría de datos</code></p>
+    <table>
+      <thead><tr><th>Familia</th><th>Actores</th></tr></thead>
+      <tbody>
+        <tr><td>CRM</td><td>Vendedor, supervisor, coordinador, gerencia y directorio.</td></tr>
+        <tr><td>Portal</td><td>Cliente, analista, comercial, operaciones, admin, superadmin y directorio.</td></tr>
+        <tr><td>Técnicos</td><td><code>anon</code>, <code>authenticated</code>, Edge, <code>service_role</code> y procesos internos.</td></tr>
+      </tbody>
+    </table>
+    <p>Se prueban lectura, búsqueda, creación, corrección, confirmación, anulación, titularidad, documentos, PII y acceso Portal. Las vistas expuestas usan <code>security_invoker</code>.</p>
+  </section>
+
+  <section id="migracion">
+    <h2>12. Backfill, fusiones y puertas estructurales</h2>
+    <h3>Pipeline canónico</h3>
+    <p>Un solo resultado lógico, ejecutado en múltiples lotes reanudables.</p>
+    <ul>
+      <li><code>run_id</code>, fecha de corte y watermark;</li>
+      <li>mapa fuente→identidad→inversión;</li>
+      <li>dry-run y clasificación;</li>
+      <li>recenso de deriva;</li>
+      <li>conciliación y auditoría;</li>
+      <li>reversa mediante enlaces.</li>
+    </ul>
+    <p>No se permite migrar dos veces un cierre, reescribir contratos o cierres, borrar actividades, fusionar por aproximación o repetir backfill en F4.</p>
+
+    <h3>Puertas y CI</h3>
+    <p>Se inventarían UI, importadores, Edge Functions, service role, scripts, migraciones, correcciones e integraciones. Cada escritor tendrá una puerta canónica.</p>
+    <p>El gate CI rechazará inserts directos fuera de allowlist, matchers alternativos, sumas financieras fuera del núcleo, conversión en consumidores, funciones duplicadas y grants amplios.</p>
+    <p>Las rutas legacy se bloquean con flags durante el piloto y solo se revocan definitivamente en G8.</p>
+  </section>
+
+  <section id="fases">
+    <h2>13. Fases F0–F9</h2>
+    <article class="phase">
+      <h3>F0 — Autoridad documental</h3>
+      <ul><li>Cerrar ERD y reglas.</li><li>Firmar conversión vitalicia y ajustes por fusiones.</li><li>Diferir retirada externa.</li><li>Fijar piloto, métricas y responsables.</li><li>Retirar documentación contradictoria.</li></ul>
+      <p class="gate">Salida: plan firmado. No autoriza ejecución.</p>
+    </article>
+    <article class="phase">
+      <h3>G0 — Manifiesto productivo</h3>
+      <ul><li>Recapturar ATR-2/ATR-4.</li><li>Congelar Capital y dependencias.</li><li>Registrar estado real.</li><li>Ejecutar oráculos sin persistencia.</li><li>Confirmar ausencia de deriva.</li></ul>
+      <p class="gate">Salida: base técnica firmada. F1 requiere autorización separada.</p>
+      <p><strong>Estado 02/09/2026:</strong> capturado (R2) y clasificado (R3); <strong>sin firmar</strong> hasta corregir el reloj de cuatro funciones con autorización aparte y recapturar. Ver <a href="#bitacora">bitácora</a>.</p>
+    </article>
+    <article class="phase">
+      <h3>F1 — Expandir el esquema</h3>
+      <ul><li>Entidades definitivas inicialmente nullable.</li><li>Identidad, empresas, inversiones, titulares y fuentes.</li><li>Puente de leads y ledger de conversión.</li><li>Saga e idempotencia con hash.</li><li>Evolución de cierres y ledger existente.</li><li>RLS, ACL, índices y flags apagados.</li></ul>
+      <p class="gate">G1: esquema reconstruible, reversible y seguro.</p>
+    </article>
+    <article class="phase">
+      <h3>F2 — Pipeline de backfill</h3>
+      <ul><li>Perfiles, contratos, cierres y operaciones.</li><li>Leads canónicos e históricos.</li><li>Operación ganadora y titulares.</li><li>Demos y cola manual.</li><li>Recenso y conciliación.</li></ul>
+      <p class="gate">G2: 100% clasificado, cero fusiones ambiguas y paridad exacta.</p>
+    </article>
+    <article class="phase">
+      <h3>F3 — Puertas canónicas</h3>
+      <ul><li>Alta, importaciones y edición.</li><li>Service role.</li><li>Conversión Avance y externa.</li><li>Renovaciones y aumentos.</li><li>Correcciones, fusiones y veto global.</li><li>Gate CI.</li></ul>
+      <p class="gate">G3: ninguna ruta evita identidad, conversión, depósito o idempotencia.</p>
+    </article>
+    <article class="phase">
+      <h3>F4 — Escritura técnica aislada</h3>
+      <ul><li>Nueva inversión por puerta canónica.</li><li>Avance reutiliza contrato.</li><li>Cooperativas crean cierre externo.</li><li>XOR, saga y hash de payload.</li><li>Solo datos sintéticos.</li><li>No se repite backfill.</li></ul>
+      <p class="gate">G4: concurrencia e idempotencia verdes. No autoriza dinero real.</p>
+    </article>
+    <article class="phase">
+      <h3>F5 — Ficha 360 y Portal</h3>
+      <ul><li>Ficha neutral y leads históricos.</li><li>Empresas y monedas separadas.</li><li>Titulares y atribución.</li><li>Acceso Portal explícito.</li><li>Cero cálculo financiero en frontend.</li></ul>
+      <p class="gate">G5: UX y RLS aceptados con datos sintéticos.</p>
+    </article>
+    <article class="phase">
+      <h3>F6 — Postventa y ciclo de vida</h3>
+      <ul><li>Vencimientos, próxima acción y reinversión.</li><li>Renovaciones y reemplazos.</li><li>Responsable actual.</li><li>Atribución de upgrades.</li><li>Solicitud de retiro externo.</li></ul>
+      <p class="gate">Salida: cero estados imposibles.</p>
+    </article>
+    <article class="phase">
+      <h3>F7 — Métricas en sombra</h3>
+      <ul><li>Capital mensual y AUM.</li><li>Conversión vitalicia.</li><li>Producción, ranking y comisión.</li><li>Atribución viva y sellada.</li><li>Clientes multiempresa.</li></ul>
+      <p class="gate">G6: conciliación firmada. Recién entonces comienza el piloto económico.</p>
+    </article>
+    <article class="phase">
+      <h3>F8 — Piloto económico real</h3>
+      <ul><li>Sin duración calendario preasignada: termina apenas se cumple toda la evidencia.</li><li>15 identidades verificadas.</li><li>20 inversiones confirmadas y consecutivamente conciliadas.</li><li>Al menos 5 inversiones por empresa.</li><li>6 recorridos multiempresa.</li><li>Firmas comercial, financiera, técnica, seguridad y operación.</li></ul>
+      <p class="gate">G7: umbrales cumplidos y conciliación firmada.</p>
+    </article>
+    <article class="phase">
+      <h3>F9 — Rollout y observación</h3>
+      <ul><li>Olas por rol y empresa iniciadas apenas G7 queda aprobado.</li><li>Observación basada en volumen, estabilidad y cobertura.</li><li>Al menos un ciclo operativo mensual completo.</li><li>Soporte y adopción.</li><li>Legacy bloqueado.</li><li>Datos preservados y sin dual-write.</li></ul>
+      <p class="gate">G8: retirar grants y rutas legacy únicamente después de cumplir los umbrales y completar un ciclo operativo real que cubra cierre mensual, jobs programados, vencimientos y estabilidad.</p>
+    </article>
+  </section>
+
+  <section id="metricas">
+    <h2>14. Métricas, piloto y umbrales</h2>
+    <table>
+      <thead><tr><th>Métrica</th><th>Contrato</th></tr></thead>
+      <tbody>
+        <tr><td>Capital ingresado</td><td>Flujo por fecha, empresa y moneda; anulación no lo elimina.</td></tr>
+        <tr><td>AUM</td><td>Stock vigente; solo una retirada financiera válida lo reduce.</td></tr>
+        <tr><td>Conversión</td><td>Una sola operación ganadora durante toda la vida.</td></tr>
+        <tr><td>Producción/ranking</td><td>Capital atribuido según política viva o fotografía sellada.</td></tr>
+        <tr><td>Comisión</td><td>Beneficiario y liquidación independientes.</td></tr>
+        <tr><td>Cliente multiempresa</td><td>Identidad verificada con inversiones confirmadas en dos o más empresas.</td></tr>
+      </tbody>
+    </table>
+    <p>Cada métrica declara pregunta, población, periodo, zona <code>America/Lima</code>, empresa, moneda, tipo de cambio, atribución, estados y mes sellado.</p>
+    <div class="rule"><strong>Conciliación:</strong> global por moneda = Avance + Qorilazo + Prodelco. Una conversión a soles para ranking es una métrica separada calculada en servidor con el contrato BCRP.</div>
+
+    <h3>Piloto mínimo</h3>
+    <ul>
+      <li>15 identidades reales verificadas y al menos 5 representadas en cada empresa.</li>
+      <li>20 inversiones confirmadas y al menos 5 por empresa.</li>
+      <li>6 recorridos multiempresa.</li>
+      <li>Sin duración mínima por calendario: las 20 inversiones deben quedar consecutivamente conciliadas y sin P0/P1 abierto.</li>
+      <li>10 reintentos idempotentes y 5 carreras controladas en Supabase Branch.</li>
+      <li>Fallo de Auth, depósito repetido, identidad provisional, cotitularidad, anulación, solicitud de retiro, upgrade reasignado y mes sellado.</li>
+    </ul>
+    <h3>Firmantes</h3>
+    <p>Miguel firma la aceptación comercial. También firman los responsables financiero, de comisiones, técnico, de seguridad y operativo.</p>
+
+    <h3>Umbrales de GO</h3>
+    <table>
+      <thead><tr><th>Indicador</th><th>Requisito</th></tr></thead>
+      <tbody>
+        <tr><td>P0/P1</td><td>0 abiertos.</td></tr>
+        <tr><td>Diferencia financiera</td><td>0 por empresa y moneda.</td></tr>
+        <tr><td>Conversión, fuente o depósito duplicado</td><td>0 aceptados.</td></tr>
+        <tr><td>Identidad conflictiva confirmada</td><td>0.</td></tr>
+        <tr><td>Auth, perfil, contrato o inversión huérfanos</td><td>0 definitivos.</td></tr>
+        <tr><td>Saga pendiente</td><td>Más de 15 minutos es incidente.</td></tr>
+        <tr><td>Reintento idéntico</td><td>100% devuelve el mismo resultado.</td></tr>
+        <tr><td>Misma clave con payload distinto</td><td>100% conflicto sin efectos.</td></tr>
+        <tr><td>Ficha 360 p95</td><td>Máximo 2.5 segundos.</td></tr>
+        <tr><td>Confirmación PostgreSQL p95 sin Auth</td><td>Máximo 2 segundos.</td></tr>
+        <tr><td>Correo</td><td>Después del commit y dentro de 5 minutos.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="rollout">
+    <h2>15. Rollout, reversa, ramas y cierre</h2>
+    <h3>Flags de servidor</h3>
+    <p>Separados por empresa y operación: resolver identidad, confirmar inversión, crear Avance, crear cooperativa, habilitar Portal, mostrar Ficha 360 y publicar métricas.</p>
+    <h3>Respuesta ante incidente</h3>
+    <ol>
+      <li>Detener nuevas confirmaciones.</li>
+      <li>Conservar todas las fuentes e inversiones creadas.</li>
+      <li>Reintentar o compensar sagas.</li>
+      <li>Mantener lectura e historial.</li>
+      <li>No borrar operaciones.</li>
+      <li>No reactivar inserts directos.</li>
+      <li>No iniciar dual-write.</li>
+      <li>Usar solamente puertas controladas para la reversa funcional.</li>
+    </ol>
+
+    <h3>Ramas</h3>
+    <ul>
+      <li>Documentación: <code>plan/cliente-multiempresa-maestro</code>.</li>
+      <li>Implementación inicial: <code>feat/multiempresa-f1-expand</code>.</li>
+      <li>Worktree separado para no tocar el árbol actual.</li>
+      <li>Supabase Branch aislado.</li>
+      <li>Integración solamente después de cada gate.</li>
+      <li>Ninguna prueba destructiva en producción.</li>
+    </ul>
+    <p>Aprobar F0 no crea ramas. La rama técnica nace únicamente cuando Miguel autorice F1.</p>
+
+    <h3>Criterio de avance por evidencia</h3>
+    <p>El rollout avanza en cuanto la ola activa reúne el volumen de operaciones requerido, todas las métricas concilian, no existen P0/P1, no hay sagas u objetos huérfanos y los umbrales de rendimiento y seguridad permanecen verdes. El tiempo transcurrido por sí solo no aprueba una fase; la única espera temporal obligatoria es la observación mínima de G8.</p>
+
+    <h3>Observación temporal mínima para G8</h3>
+    <p>G8 exige al menos un ciclo operativo mensual completo contado desde la activación general o desde el último cambio material que afecte el alcance observado. El ciclo debe demostrar:</p>
+    <ul>
+      <li>un cierre mensual completo y su conciliación;</li>
+      <li>ejecución correcta de jobs diarios, periódicos y de cierre;</li>
+      <li>generación y atención de vencimientos y alertas reales;</li>
+      <li>estabilidad de Capital, AUM, conversión, atribución y comisión;</li>
+      <li>cero P0/P1 abierto, cero huérfanos y cero sagas vencidas;</li>
+      <li>rendimiento, RLS, Portal y operación dentro de sus umbrales.</li>
+    </ul>
+    <p>Un P0/P1 o un cambio material en semántica financiera, conversión, comisión, seguridad o jobs reinicia el ciclo para el alcance afectado. Correcciones menores sin impacto en esas invariantes no reinician la observación.</p>
+
+    <h3>Precedencia documental</h3>
+    <ol>
+      <li>Decisiones comerciales firmadas por Miguel.</li>
+      <li>Contratos ATR y Capital vigentes.</li>
+      <li>Este contrato multiempresa.</li>
+      <li>Manifiesto productivo G0.</li>
+      <li>Planes de fase.</li>
+      <li>Documentación histórica no retirada.</li>
+    </ol>
+    <p>F0 añadirá metadata <code>reemplaza</code>, fe de erratas e inventario de documentos, comentarios, pruebas y pantallas que todavía ordenen crear otro lead.</p>
+
+    <div class="rule">
+      <strong>Definición de terminado:</strong> una persona verificada puede invertir varias veces en Avance, Qorilazo o Prodelco desde una relación comercial única, conservando sus leads históricos, con una conversión máxima de por vida, una fuente por inversión, titularidad correcta, Capital conciliado, atribución reproducible, comisión protegida, Portal explícito, cero depósitos duplicados y cero reglas paralelas fuera del servidor.
+    </div>
+
+    <h3>Firmas de aprobación documental F0</h3>
+    <div class="signatures">
+      <div class="signature"><strong>Miguel</strong><br>Autoridad comercial · fecha</div>
+      <div class="signature"><strong>Responsable técnico</strong><br>Arquitectura · fecha</div>
+      <div class="signature"><strong>Responsable financiero</strong><br>Capital y métricas · fecha</div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

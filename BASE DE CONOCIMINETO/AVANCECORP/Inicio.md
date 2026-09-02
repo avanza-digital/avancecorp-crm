@@ -34,6 +34,7 @@ Hay **tres capas**, complementarias:
 - [[Importador de clientes]]
 - [[Gestión comercial de clientes - renovaciones y upgrades]]
 - [[Identidad unificada de inversionistas - plan pendiente]]
+- [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]]
 - [[Incidente y restauracion Ficha 360 2026-08-31]]
 - [[Nombres en mayúscula]]
 - [[Interés compuesto]]

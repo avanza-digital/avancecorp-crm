@@ -237,6 +237,7 @@ que un traslado movió capital entre empresas.
 
 ## Relacionadas
 
+- [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]
 - [[Plan maestro de ejecucion - identidad unificada de inversionistas (2026-08-31)]]
 - [[Cierres en cooperativas Qorilazo y Prodelco - plan]]
 - [[Gestión comercial de clientes - renovaciones y upgrades]]
