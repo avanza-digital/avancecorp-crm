@@ -7317,7 +7317,7 @@ tienen que seguir en «por vencer» hasta medianoche de Lima).
 
 ## 20260902202247 · `crm_ranking_foto_mensual_coherente`
 
-**Estado: VALIDADA EN CALCO LIMPIO DE PRODUCCIÓN; pendiente de aplicar.**
+**Estado: APLICADA EN PRODUCCIÓN el 2026-09-02.**
 
 **Qué.** Unifica la población mensual de Conversión, Cumplimiento/Capital y
 Cosecha sin crear calculadoras nuevas. Reemplaza en sitio seis núcleos
@@ -7371,4 +7371,35 @@ supervisor preservado, seis dimensiones y cartera completa. Añade inversiones
 de supervisor en mes abierto y cerrado, prueba que quedan nominadas fuera del
 ranking, que solo Gerencia las ve, que el total empresa las conserva y que el
 contador/las filas rankeables no cambian. Resultado:
+`TEST-RANKING-POBLACION-MENSUAL: TODO VERDE`.
+
+**Verificación viva.** Septiembre respondió revisión 1 y 17 filas rankeables;
+agosto respondió revisión 14, 16 filas rankeables y tres identidades nominadas
+fuera del ranking (dos supervisores y un vendedor sin meta). Ninguna identidad
+externa recibió puesto. Capital externo conservado: S/ 65 000, USD 12 640 y tres
+operaciones de cartera. El frontend compatible quedó publicado antes del
+servidor y la historia oficial de migraciones quedó registrada.
+
+## 20260902224847 · `crm_conversion_total_analistas_solo_ranking`
+
+**Estado: VALIDADA EN CALCO LIMPIO DE PRODUCCIÓN; pendiente de aplicar.**
+
+**Qué.** Corrige una única expresión dentro del núcleo existente
+`crm.conversion_mensual_sin_cartera_fn(date)`. En el mes abierto,
+`total.analistas` sumaba también las identidades agregadas en
+`cobertura.fuera_de_roster`, aunque esas personas no existían en
+`responsables`. El contador ahora es exactamente el número de filas que pueden
+competir. No se crea ninguna función, tabla ni RPC.
+
+**Qué no cambia.** Divisor, numerador, cierres, porcentaje y cartera continúan
+sumando toda la actividad empresarial, incluida la atribuida a supervisores u
+otras identidades externas. La corrección solo evita que dichas identidades
+inflen el número de analistas o se interpreten como participantes del ranking.
+
+**Guardas y prueba.** Preflight exige la huella productiva exacta del núcleo y
+que la expresión antigua aparezca una sola vez. Postflight fija la nueva
+huella, firma, owner, volatilidad, `SECURITY DEFINER`, `search_path`, ACL y
+resella el censo analítico. El oráculo incorpora un supervisor con episodio real
+fuera del roster: antes del parche reproduce `2 analistas / 1 responsable` y
+falla; después devuelve `1 / 1`, conserva el divisor externo y termina
 `TEST-RANKING-POBLACION-MENSUAL: TODO VERDE`.

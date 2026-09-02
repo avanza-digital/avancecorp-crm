@@ -25,6 +25,8 @@ declare
   v_contrato_sin_meta uuid := '91000000-0000-4000-8000-000000000013';
   v_contrato_sup_cierre uuid := '91000000-0000-4000-8000-000000000015';
   v_contrato_sup_abierto uuid := '91000000-0000-4000-8000-000000000016';
+  v_lead_sup_abierto uuid := '91000000-0000-4000-8000-000000000019';
+  v_sla uuid := '91000000-0000-4000-8000-000000000020';
   v_hoy date := (now() at time zone 'America/Lima')::date;
   v_mes_actual date := date_trunc('month', now() at time zone 'America/Lima')::date;
   v_mes_abierto date := (date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date;
@@ -67,6 +69,17 @@ begin
   insert into crm.conversion_pesos (vigente_desde, peso_referido, nota)
   values (v_mes_sin_meta, 0.15, 'oraculo ranking mensual')
   on conflict do nothing;
+
+  insert into crm.sla_politicas (
+    id, version, vigente_desde, zona_horaria, tipo_reloj,
+    primera_gestion_minutos, primer_contacto_minutos
+  ) values (
+    v_sla, 1, (v_mes_sin_meta - interval '1 year')::timestamptz,
+    'America/Lima', 'corrido', 60, 120
+  );
+  insert into crm.sla_politica_etapas (
+    politica_id, etapa, maximo_minutos
+  ) values (v_sla, 'nuevo', 1440);
 
   -- Dos revisiones del mes abierto: la RPC debe elegir la ultima. La primera
   -- contenia al vendedor actual; la vigente contiene al vendedor historico.
@@ -127,6 +140,35 @@ begin
     (v_mes_abierto + interval '4 days 16 hours')::timestamptz,
     'nuevo', '91000000-0000-4000-8000-000000000018',
     v_mes_abierto + 4, v_sup_hoy
+  );
+  set local session_replication_role = origin;
+
+  -- Un episodio comercial abierto del supervisor hace visible la grieta exacta
+  -- del contador: aporta al total empresa, pero no crea otro analista.
+  set local session_replication_role = replica;
+  insert into crm.leads (
+    id, nombre_completo, telefono, monto_estimado,
+    etapa, origen, vendedor_id, creado_en, sla_global_iniciado_en
+  ) values (
+    v_lead_sup_abierto, 'LEAD DE SUPERVISOR FUERA DE RANKING',
+    '+51910000019', 1000,
+    'nuevo', 'formulario', v_sup_hoy,
+    (v_mes_abierto + interval '1 day 16 hours')::timestamptz,
+    (v_mes_abierto + interval '1 day 16 hours')::timestamptz
+  );
+  insert into crm.lead_asignaciones (
+    lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura,
+    asignado_en, monto_estimado, moneda, origen,
+    sla_global_iniciado_en, sla_politica_asignacion_id,
+    primera_gestion_limite_en, primer_contacto_limite_en
+  ) values (
+    v_lead_sup_abierto, 1, 1, v_sup_hoy, 'ingreso',
+    (v_mes_abierto + interval '2 days 16 hours')::timestamptz,
+    1000, 'PEN', 'formulario',
+    (v_mes_abierto + interval '1 day 16 hours')::timestamptz,
+    v_sla,
+    (v_mes_abierto + interval '2 days 17 hours')::timestamptz,
+    (v_mes_abierto + interval '2 days 18 hours')::timestamptz
   );
   set local session_replication_role = origin;
 
@@ -222,7 +264,14 @@ begin
      ) then
     raise exception 'FUERA DE RANKING ABIERTO ROTO: %', v_capital->'fuera_ranking';
   end if;
-  if v_conversion->'cartera' is distinct from v_conversion#>'{total,cartera}'
+  if (v_conversion#>>'{total,analistas}')::int <> jsonb_array_length(v_conversion->'responsables')
+     or (v_conversion#>>'{total,analistas}')::int <> 1
+     or (v_conversion#>>'{total,divisor}')::int <> 1
+     or (v_conversion#>>'{total,numerador}')::numeric <> 0
+     or (v_conversion#>>'{cobertura,fuera_de_roster,analistas}')::int <> 1
+     or (v_conversion#>>'{cobertura,fuera_de_roster,divisor}')::int <> 1
+     or (v_conversion#>>'{cobertura,fuera_de_roster,numerador}')::numeric <> 0
+     or v_conversion->'cartera' is distinct from v_conversion#>'{total,cartera}'
      or (v_conversion->>'revision')::int <> 2
      or (v_cosecha->>'revision')::int <> 2
      or (v_capital->>'revision')::int <> 2
@@ -230,7 +279,7 @@ begin
         is distinct from (v_cosecha#>>'{cierre,cerrado}')::boolean
      or (v_conversion#>>'{cierre,cerrado}')::boolean
         is distinct from (v_capital#>>'{cierre,cerrado}')::boolean then
-    raise exception 'TOKENS/CARTERA ROTOS en mes abierto: conversion %, cosecha %, capital %',
+    raise exception 'CONTADOR/TOKENS/CARTERA ROTOS en mes abierto: conversion %, cosecha %, capital %',
       v_conversion, v_cosecha, v_capital;
   end if;
 
