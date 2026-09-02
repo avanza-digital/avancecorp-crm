@@ -7137,7 +7137,9 @@ fuente Edge v7 en
 
 ## 20260902190000 · `crm_mi_cartera_por_mes_de_cierre`
 
-**Estado: ESCRITA, SIN APLICAR.** Espera el `!` de Miguel y el ciclo de branch.
+**Estado: APLICADA EN PRODUCCIÓN el 2026-09-02** (`supabase db query --linked
+--file`, autorizada por Miguel). Front construido y con preflight pasado; su
+subida la lanza Miguel con `/release-crm`.
 
 **Qué.** `crm.contratos_cartera` gana una columna de lectura,
 `fecha_cierre_comercial`, para que «Mi cartera» pueda partir sus bloques por el
@@ -7188,5 +7190,28 @@ avisaba de los registrados por otra persona.
 **Gate del front (verde, 02/09):** `npm run check` completo — 2.529/2.529
 unitarias, lint, typecheck, coverage, build, bundle y duplicación.
 
-**Pendiente al aplicar:** `npm run gen:types` en `app/` (la columna no existe
-todavía en `database.types.ts`), gate `test-rls.mjs`, advisors y E2E.
+**Verificado tras aplicar (no dado por bueno, contado):** la vista quedó con 25
+columnas y la 25ª es `fecha_cierre_comercial`; las 24 originales no se movieron;
+`authenticated` y `service_role` conservan su SELECT; `security_invoker=true`
+sigue puesto; PUBLIC no puede ejecutar la envoltura (ACL crudo, `grantee = 0`);
+`search_path` guardado como `search_path=""`; y `crm.contratos_cartera_fn()`
+sigue viva e intacta.
+
+**Advisors:** cero de nivel ERROR. El único aviso nuevo es
+`authenticated_security_definer_function_executable` sobre la envoltura — el
+MISMO que ya llevaba `contratos_cartera_fn` y por el mismo motivo: el gate vive
+dentro de la función, que por eso es DEFINER.
+
+**Artefacto:** `crm-20260902T170713Z-e9d9a283175b` (SHA-256
+`23c6c8fef2cd50a687003620eec001e6cbdb706236c21eea59851effe3aa24e7`), construido
+desde un worktree aislado en `e9d9a28` porque el taller tenía cambios sin
+confirmar de otra sesión (los del puente de leads). Preflight:
+`live=build-20260902T145407204Z/5b1c808f9138 → candidate=e9d9a283175b`, OK.
+
+**Rollback preservado:** `rollback-mi-cartera-20260902190000.sql` (SHA-256
+`2969778bbe462b205da1c3bdf4d2d4b89f123f2f1a8f6a57c00b79a5527df39c`). ⚠️ Si el
+front ya está publicado pidiendo la columna, revertir el servidor deja la
+cartera en blanco: primero el front.
+
+**Pendiente:** subida del front (`/release-crm`, humana), gate `test-rls.mjs` y
+E2E.
