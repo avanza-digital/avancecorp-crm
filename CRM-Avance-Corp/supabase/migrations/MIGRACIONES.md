@@ -6969,9 +6969,16 @@ operativo está en [[Deploy Ficha 360 2026-08-29]] y
 
 ## P-055 · EL LECTOR GLOBAL NO VE LO BORRADO (2026-09-01/02)
 
-🟡 **ESCRITA Y ENSAYADA CONTRA EL BANCO; SIN PUBLICAR — espera el `!` de Miguel.**
-Migración `20260902040000_crm_lector_global_no_ve_borrados.sql` · marcha atrás
-`scripts/rollback-lector-global-borrados.sql`.
+🟢 **EN PRODUCCIÓN el 2026-09-02, registros 197 y 198.** Publicada por Miguel con
+su `!` por pieza, en el orden migración → registrador ×2. Registro del servidor:
+198 versiones, **cero actas mudas**, 902 leads vivos intactos.
+
+Son DOS migraciones y no una, porque el auditor RLS refutó que la primera
+bastara (ver más abajo): `20260902040000_crm_lector_global_no_ve_borrados.sql`
+(las 3 policies) y `20260902050000_crm_lector_global_definers.sql` (las 2
+SECURITY DEFINER). Marchas atrás: `scripts/rollback-lector-global-borrados.sql`
+y `scripts/rollback-lector-global-definers.sql` — **en orden inverso**, las
+DEFINER primero, o quedarían más estrictas que la RLS.
 
 **El hallazgo** lo destapó la primera corrida ejecutable de `test:rls` (banco a
 paridad total, 01/09): `leads_select` exige `activo = true` a analistas,
@@ -6996,7 +7003,78 @@ el banco: `POSTFLIGHT OK: lector global ve 7 vivos de 88 totales y 0 borrados`;
 la marcha atrás restaura las tres cláusulas **al byte** (md5 original
 verificado en su propio postflight).
 
-**En el mismo acto (suite):** el bloque «fuera de roster» dejó de asumir mes
-virgen — mide en el ledger `lead_asignaciones` si `sup1` ya contaba como
-analista del mes y exige el delta EXACTO (1 en mes virgen, 0 si ya contaba); el
-delta de divisor sigue +1 estricto siempre.
+### 🔴 No bastaba con la RLS: dos puertas DEFINER
+
+El auditor RLS dio GO **con tres hallazgos altos**, y el primero invalidaba el
+alcance: dos funciones `SECURITY DEFINER` llevan el MISMO espejo copiado y la
+RLS no las alcanza, así que la regla habría quedado incumplida por dos puertas:
+
+| Función | Qué servía a un lector global |
+|---|---|
+| `crm.actividades_del_ambito_fn()` | timeline de 365 días (hasta 10 000 filas), con el `detalle` de las conversaciones de leads borrados |
+| `crm.cierres_estado_fn(uuid[])` | canal, `anulado_en` y motivo de sus cierres |
+
+Medido en el banco **con la forma vieja**: `timeline = 195 filas` de leads
+borrados y `cierres = 4`. Con la enmienda: **0 por las tres puertas** y las 26
+actividades vivas intactas, con el ciclo aplicar → marcha atrás → re-aplicar
+en verde. Es el caso de libro de la «desincronización silenciosa del predicado
+copiado» contra la que avisa la propia suite.
+
+### Tres errores propios que cazaron los guardias
+
+1. **El postflight de la primera migración era TAUTOLÓGICO**: contaba las
+   actividades de leads borrados con un `join crm.leads` bajo `authenticated`,
+   donde la policy recién corregida ya los ocultaba → 0 siempre, aunque
+   `actividades_select` hubiera quedado rota. La sonda buena (segunda
+   migración) calcula los ids como `postgres` y pregunta SOLO a
+   `crm.actividades`.
+2. **`cierres_estado_fn` se reescribió de memoria y habría quedado ROTA**:
+   perdía el gate `puede_acceder_crm()`, el `order by` del `jsonb_agg`, el
+   mensaje exacto del tope de 200 y hasta la FORMA del payload
+   (`canal`/`anulado_en`/`motivo`). Lo destapó la marcha atrás al no cuadrar la
+   huella. 🔑 **Una función viva no se reteclea: se copia del volcado y se toca
+   lo justo** (31 líneas, verificado con diff).
+3. **La marcha atrás tampoco era fiel al byte**, por lo mismo. Reconstruida del
+   volcado; su postflight vuelve a dar `d1423797…` exacto.
+
+### ⚠️ Lo que esta publicación NO probó
+
+En producción **no hay ni un perfil `directorio` ni un solo lead borrado**
+(medido: 0 y 0; roles activos = admin, analista, cliente, comercial,
+superadmin). Los postflights de conducta cayeron por tanto en su rama de aviso
+y solo dejaron las anclas estructurales. **La garantía real es la equivalencia
+byte a byte con el banco**, donde la conducta sí se midió:
+
+| Pieza | Huella (banco == producción) |
+|---|---|
+| `leads_select` / `tareas_select` | `073deaeb…` |
+| `actividades_select` | `e80e3af9…` |
+| `actividades_del_ambito_fn` | `c2f9a322…` |
+| `cierres_estado_fn` | `bcaf7f54…` |
+
+🔑 Se cerró la puerta **antes de que llegara el visitante**: el rol Directorio
+está previsto y los leads se borran por limpieza. **Cuando exista el primer
+Directorio real, repetir la sonda de conducta contra producción.**
+
+### En el mismo acto (suite y front)
+
+- El bloque «fuera de roster» dejó de asumir mes virgen. Codex refutó la
+  primera versión: medía el ledger crudo, y el servidor NO define así «analista
+  del mes» — lo define con `private.conversion_mensual_por_vendedor`, cuya base
+  mete cierres y operaciones por FULL OUTER JOIN. Ahora se pregunta a **la misma
+  función** (y la columna era `analista_id`, no `vendedor_id`).
+- El **candidato del tercer estado pasa a ser REUTILIZABLE**: ya no se exige
+  virginidad (solo divisor y cierres en cero) y las aserciones son DELTAS. Cada
+  corrida quemaba un analista virgen y el pool se agotó (medido: 0 de 6); esto
+  lo cierra sin tocar el ledger INSERT-only ni inflar el roster.
+- **El front seguía en la conducta vieja** (`store.tsx` daba los borrados al
+  Directorio) **y su test LA EXIGÍA**. Espejo alineado y test invertido.
+  ⏳ El código está commiteado pero **NO publicado**: hasta el próximo
+  `/release-crm`, la pantalla del Directorio pide algo que el servidor ya no da.
+- **Matriz permanente**: bloque `testLectorGlobalNoVeBorrados` con las tres
+  puertas más la excepción deliberada del P04, para que nadie «arregle por
+  simetría» lo que es semántica.
+
+**Veredicto de la suite:** `✅ RLS OK — 1291 aserciones; gate aprobado`, cero
+rojos — la primera corrida completamente verde de su historia. Front: 184
+archivos, 2488 tests.
