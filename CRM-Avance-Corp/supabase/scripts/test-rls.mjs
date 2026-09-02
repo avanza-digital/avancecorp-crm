@@ -1054,6 +1054,82 @@ async function testCrossReads(sessions, seed) {
   );
 }
 
+// ── El lector global ve TODO lo vivo y NADA de lo borrado ────────────────────
+// Decision de Miguel (01/09) tras el hallazgo de la primera corrida ejecutable
+// de esta suite: la rama `es_lector_global()` iba FUERA del candado `activo` —
+// con 7 leads vivos, gerencia veia 7 y el Directorio 55, PII incluida.
+// Migraciones 20260902040000 (policies) y 20260902050000 (las dos SECURITY
+// DEFINER que llevaban el MISMO espejo copiado y que la RLS no alcanza).
+//
+// Sin este bloque, un futuro drop+create con la forma vieja —el patron que ya
+// paso con predicados copiados— pasaria el gate en verde. Se prueban LAS TRES
+// PUERTAS, porque cerrar solo la RLS no cerraba nada: medido en el banco con
+// la forma vieja, el timeline servia 195 filas de leads borrados.
+async function testLectorGlobalNoVeBorrados(sessions, seed) {
+  console.log('\n— El lector global: todo lo vivo, nada de lo borrado —');
+  const dir = sessions.directorio.client;
+
+  // 1) La rama VIVA intacta: mismo conjunto que gerencia por SELECT directo.
+  const vivosGer = await positive('gerencia lista los leads vivos',
+    sessions.gerencia.client.schema('crm').from('leads').select('id').eq('activo', true).limit(2000));
+  const vivosDir = await positive('directorio lista los leads vivos',
+    dir.schema('crm').from('leads').select('id').eq('activo', true).limit(2000));
+  if (vivosGer && vivosDir) {
+    const g = [...(vivosGer.data ?? []).map((r) => r.id)].sort();
+    const d = [...(vivosDir.data ?? []).map((r) => r.id)].sort();
+    check(g.length > 0 && JSON.stringify(g) === JSON.stringify(d),
+      'el lector global ve EXACTAMENTE los leads vivos de gerencia (la rama viva no se rompio)',
+      JSON.stringify({ gerencia: g.length, directorio: d.length }));
+  }
+
+  // 2) Los borrados, por las TRES puertas.
+  await expectHidden('directorio NO lee leads borrados (policy)',
+    dir.schema('crm').from('leads').select('id').eq('activo', false));
+  await expectHidden('directorio NO lee tareas borradas (policy)',
+    dir.schema('crm').from('tareas').select('id').eq('activo', false));
+
+  const muertos = await requireAdmin('ids de leads borrados (admin)',
+    admin.schema('crm').from('leads').select('id').eq('activo', false).limit(200));
+  const idsMuertos = (muertos?.data ?? []).map((r) => r.id);
+  if (idsMuertos.length === 0) {
+    check(false, 'la sonda de borrados necesita al menos un lead inactivo: sin el no prueba nada');
+  } else {
+    const actsMuertas = await requireAdmin('actividades de leads borrados (admin)',
+      admin.schema('crm').from('actividades').select('id').in('lead_id', idsMuertos).limit(200));
+    const idsActs = (actsMuertas?.data ?? []).map((r) => r.id);
+    if (idsActs.length > 0) {
+      await expectHidden('directorio NO lee actividades de leads borrados (policy)',
+        dir.schema('crm').from('actividades').select('id').in('id', idsActs));
+    }
+    // Puerta DEFINER 1: el timeline (la RLS no lo alcanza).
+    const timeline = await positive('directorio pide el timeline del ambito',
+      dir.schema('crm').rpc('actividades_del_ambito_fn'));
+    if (timeline) {
+      const cuela = (timeline.data ?? []).filter((f) => idsMuertos.includes(f.lead_id));
+      check(cuela.length === 0,
+        'actividades_del_ambito_fn (DEFINER) NO sirve al lector el timeline de leads borrados',
+        JSON.stringify({ colados: cuela.length }));
+    }
+    // Puerta DEFINER 2: el estado de cierres.
+    const cierres = await positive('directorio pide el estado de cierres de leads borrados',
+      dir.schema('crm').rpc('cierres_estado_fn', { p_lead_ids: idsMuertos.slice(0, 200) }));
+    if (cierres) {
+      check(Array.isArray(cierres.data) && cierres.data.length === 0,
+        'cierres_estado_fn (DEFINER) NO sirve al lector el estado de leads borrados',
+        JSON.stringify(cierres.data));
+    }
+  }
+
+  // 3) La EXCEPCION deliberada del P04: el roster historico SI se ve. Sin esta
+  //    aserción, alguien "arreglaria" equipo_select por simetria y borraria la
+  //    semantica de «revocado ≠ ajeno».
+  const equipoBajas = await positive('directorio lee el roster historico',
+    dir.schema('crm').from('equipo').select('perfil_id').eq('activo', false));
+  check((equipoBajas?.data ?? []).length > 0,
+    'P04 INTACTO: el lector global SIGUE viendo las membresias dadas de baja (revocado ≠ ajeno)',
+    JSON.stringify({ bajas: (equipoBajas?.data ?? []).length }));
+}
+
 async function testWrites(sessions, seed) {
   console.log('\n— Escrituras cruzadas y privilegios bloqueados —');
   const juan = seed.leadByName.get('JUAN PEREZ DEMO');
@@ -5557,8 +5633,10 @@ async function testMetricasServidor(sessions, seed) {
     );
     if (!visibles) continue;
     const corte = Date.now() - VENTANA_CONVERTIDOS_MS_F1;
-    // El lector global ve también soft-borrados por RLS; las RPC solo ámbito
-    // vivo — el oráculo aplica el mismo recorte (activo + ventana).
+    // Desde 20260902040000 NADIE ve soft-borrados por RLS, lector global
+    // incluido; las RPC solo sirven ámbito vivo. El oráculo aplica el mismo
+    // recorte (activo + ventana) — el filtro de `activo` sobra desde entonces,
+    // pero se deja porque también recorta la ventana de convertidos.
     const filas = (visibles.data ?? []).filter((l) => l.activo === true
       && (l.etapa !== 'convertido'
         || (l.convertido_en && Date.parse(l.convertido_en) >= corte)));
@@ -8317,11 +8395,24 @@ async function testConversionMensual(sessions, seed) {
   //    El ledger esta sellado tambien para service_role (42501 por PostgREST),
   //    asi que la medicion va por la via fuera de banda del banco, igual que
   //    la baja historica. Lima es UTC-5 fijo (sin DST).
+  //
+  //    ⚠️ Codex refuto la primera version, que contaba `lead_asignaciones` con
+  //    `asignado_en >= dia 1`: el servidor NO define asi «analista del mes».
+  //    Lo define con `private.conversion_mensual_por_vendedor(v_ini, v_fin, …)`,
+  //    cuya `base` mete tambien cierres no anulados y operaciones elegibles por
+  //    FULL OUTER JOIN — una asignacion VIEJA cerrada este mes ya hace contar a
+  //    sup1 aunque el ledger crudo diera 0, y una asignacion FUTURA daria
+  //    positivo aunque el servidor la excluya. Se pregunta a LA MISMA funcion,
+  //    con la misma ventana, alcance global y factor: la unica forma de que la
+  //    medicion no pueda divergir del juez.
   const sup1Previas = contarFueraDeBanda(
-    'medir si sup1 ya contaba como analista del mes en el ledger',
-    `select count(*) from crm.lead_asignaciones
-      where analista_id = '${ids.sup1}'
-        and asignado_en >= '${MES}-01T00:00:00-05:00'::timestamptz`,
+    'medir si sup1 ya contaba como analista del mes (misma funcion que el servidor)',
+    `select count(*) from private.conversion_mensual_por_vendedor(
+        ('${PERIODO}'::date)::timestamp at time zone 'America/Lima',
+        (('${PERIODO}'::date + interval '1 month')::timestamp at time zone 'America/Lima'),
+        true, '{}'::uuid[],
+        private.peso_referido_conversion('${PERIODO}'::date)
+      ) t where t.analista_id = '${ids.sup1}'`,
   );
   const deltaAnalistaFueraRoster = sup1Previas > 0 ? 0 : 1;
   if (!check(filaAntesVend1 !== null,
@@ -8330,26 +8421,42 @@ async function testConversionMensual(sessions, seed) {
     return;
   }
   // El LEFT JOIN desde el roster: «desaparecer no es un estado». Se asevera
-  // sobre la linea base y no sobre el payload final porque el tramo 0 consume
-  // justamente al analista ocioso para fabricar `solo_referidos`.
-  check(filasDe(antes.data).some((fila) => fila.estado === 'sin_actividad'),
-    'la linea base tiene al menos una fila sin_actividad (el roster manda, no la actividad)',
+  // que TODA fila del roster viaje con estado, sea cual sea — antes se exigia
+  // una `sin_actividad`, y eso convertia el roster en un recurso agotable (ver
+  // abajo). Lo que prueba el LEFT JOIN es que el roster manda: si un analista
+  // del roster faltara del payload, esto se pone rojo.
+  check(filasDe(antes.data).length > 0
+    && filasDe(antes.data).every((fila) => typeof fila.estado === 'string' && fila.estado.length > 0),
+    'toda fila del roster viaja con estado (el roster manda, no la actividad)',
     JSON.stringify(filasDe(antes.data).map((f) => [f.vendedor_id, f.estado])));
 
   // El sujeto de `solo_referidos` se elige del PAYLOAD, no del fixture: quien
   // esta ocioso depende de lo que hayan hecho los bloques anteriores de main()
   // (testReassignmentTrigger y testTareaFollowsLead mueven leads a vend2), y
   // clavar una clave aqui seria un fixture que caduca al reordenar el gate.
+  //
+  // 🔴 REUTILIZABLE (Codex, 01/09). Antes exigia `referidos.recibidos === 0`, o
+  //    sea un analista VIRGEN — pero darle el referido lo mete en el ledger
+  //    INSERT-only, asi que cada corrida quemaba uno y a la sexta ya no quedaba
+  //    ninguno (medido: 0 de 6). Como el ledger no se puede limpiar —y no se
+  //    va a tocar ese candado— el arreglo es no pedir virginidad: basta con
+  //    divisor y cierres en cero (que es LO QUE DEFINE el tercer estado), y las
+  //    aserciones pasan a ser DELTAS sobre su foto previa. Asi el mismo
+  //    candidato sirve indefinidamente y el bloque es re-corrible.
   const candidato = filasDe(antes.data).find((fila) => Number(fila.divisor) === 0
     && Number(fila.cierres_no_referidos) === 0
-    && Number(fila.cierres_referidos) === 0
-    && Number(fila.referidos?.recibidos) === 0);
+    && Number(fila.cierres_referidos) === 0);
   if (!check(candidato != null,
-    'hay un analista del roster sin actividad al que darle SOLO un referido (estado solo_referidos)',
+    'hay un analista del roster con divisor y cierres en cero al que darle un referido (sujeto del tercer estado)',
     JSON.stringify(filasDe(antes.data).map((f) => [f.vendedor_id, f.divisor, f.estado])))) {
     return;
   }
   const candidatoId = candidato.vendedor_id;
+  const candidatoAntes = {
+    recibidos: num(candidato.referidos?.recibidos),
+    dadosDeAlta: num(candidato.referidos?.dados_de_alta),
+    divisor: num(candidato.divisor),
+  };
 
   try {
     // ── 0b · la semilla, por la VIA REAL ────────────────────────────────────
@@ -8635,10 +8742,16 @@ async function testConversionMensual(sessions, seed) {
     const filaCandidato = filaDe(payload, candidatoId);
     if (check(filaCandidato !== null,
       'el analista del referido unico sigue en el payload', String(candidatoId))) {
-      check(Number(filaCandidato.divisor) === 0
-        && Number(filaCandidato.referidos?.recibidos) === 1,
-        'T10 · recibir SOLO un referido deja el divisor en 0 y el contador de referidos en 1',
-        JSON.stringify(filaCandidato));
+      // DELTAS, no absolutos: el candidato puede venir de corridas anteriores
+      // con referidos ya acumulados en el ledger (ver la nota de arriba). Lo
+      // que prueba T10 es el MOVIMIENTO — un referido no toca el divisor.
+      check(num(filaCandidato.divisor) === candidatoAntes.divisor
+        && num(filaCandidato.referidos?.recibidos) === candidatoAntes.recibidos + 1,
+        'T10 · recibir SOLO un referido NO mueve el divisor y sube +1 el contador de referidos',
+        JSON.stringify({ antes: candidatoAntes, despues: filaCandidato }));
+      check(num(filaCandidato.divisor) === 0,
+        'T10 · el divisor del candidato sigue en 0: es lo que define el tercer estado',
+        String(filaCandidato.divisor));
       check(filaCandidato.estado === 'solo_referidos',
         'el TERCER estado existe y se emite: divisor 0 con referidos NO es sin_actividad',
         String(filaCandidato.estado));
@@ -8646,8 +8759,9 @@ async function testConversionMensual(sessions, seed) {
         && filaCandidato.referidos?.aporta_pct === null,
         'sin divisor no hay porcentaje: NULL, jamas 0, ni en la fila ni en el aporte',
         JSON.stringify([filaCandidato.conversion_pct, filaCandidato.referidos?.aporta_pct]));
-      check(Number(filaCandidato.referidos?.dados_de_alta) === 1,
-        'el alta del referido se le acredita a quien lo dio de alta');
+      check(num(filaCandidato.referidos?.dados_de_alta) === candidatoAntes.dadosDeAlta + 1,
+        'el alta del referido se le acredita a quien lo dio de alta (+1 sobre su foto previa)',
+        JSON.stringify({ antes: candidatoAntes.dadosDeAlta, despues: filaCandidato.referidos?.dados_de_alta }));
     }
 
     const totalDespues = payload?.total ?? {};
@@ -10258,6 +10372,7 @@ async function main() {
       await readVisibilityMatrix(sessions, verifiedSeed);
       await testRecursiveHierarchy(sessions, verifiedSeed);
       await testCrossReads(sessions, verifiedSeed);
+      await testLectorGlobalNoVeBorrados(sessions, verifiedSeed);
       await testWrites(sessions, verifiedSeed);
       await testReassignmentTrigger(sessions, verifiedSeed);
       await testTenencia(sessions, verifiedSeed);

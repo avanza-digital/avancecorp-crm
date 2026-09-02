@@ -1045,11 +1045,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const rol = yo?.rol
     const miId = yo?.id ?? null
     if (can(rol, 'verTodo')) {
-      // gerencia y directorio: todo el universo + todos los analistas.
-      // Espejo del filtro `activo = true` de leads_select: solo el lector
-      // global (directorio) ve los soft-borrados; gerencia NO los ve.
+      // gerencia y directorio: todo el universo VIVO + todos los analistas.
+      // Espejo del filtro `activo = true` de leads_select. Desde
+      // 20260902040000 el candado vale para TODOS, lector global incluido:
+      // antes el Directorio veía además los soft-borrados (con su PII), y esa
+      // rama suelta era justo el hallazgo que cerró esa migración.
       return {
-        leads: rol === 'directorio' ? datos.leads : datos.leads.filter((l) => l.activo),
+        leads: datos.leads.filter((l) => l.activo),
         vendedores: equipo.filter((m) => m.rol_crm === 'vendedor'),
         esGlobal: true,
       }

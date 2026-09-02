@@ -174,14 +174,18 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
       expect(vendedoresDe(ambito.vendedores)).toEqual(['d-v1', 'd-v2', 'd-v3'])
     })
 
-    it('ve también los leads inactivos (espejo del lector global de la RLS)', async () => {
+    // 🔴 Este caso decía lo CONTRARIO hasta el 01/09: exigía que el directorio
+    // viera los inactivos, porque la RLS los dejaba pasar por una rama suelta.
+    // La migración 20260902040000 metió al lector global dentro del candado de
+    // `activo` (el Directorio veía 55 leads borrados donde gerencia veía 7, con
+    // DNI y fecha de nacimiento), así que el espejo del front cambia con ella.
+    it('NO ve los leads inactivos: el lector global entró al candado de activo', async () => {
       sembrarConLeadInactivo() // l20 pasa a activo:false
       const { ambito } = await montarStore(yoDemo('directorio'), 20)
 
-      expect(ambito.leads).toHaveLength(20)
-      const l20 = ambito.leads.find((l) => l.id === 'l20')
-      expect(l20).toBeDefined()
-      expect(l20?.activo).toBe(false)
+      expect(ambito.leads).toHaveLength(19)
+      expect(ambito.leads.find((l) => l.id === 'l20')).toBeUndefined()
+      expect(ambito.leads.every((l) => l.activo)).toBe(true)
     })
 
     it('actividadesDelAmbito es el timeline completo (las 43)', async () => {
