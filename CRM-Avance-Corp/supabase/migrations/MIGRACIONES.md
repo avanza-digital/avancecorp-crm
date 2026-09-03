@@ -7442,3 +7442,17 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 **Revisión.** auditor-rls: bloqueante B1 (PII del documento a `audit_log`) + 6 recomendados, aplicados. Codex: NO-GO con 8 bloqueantes y 3 menores, TODOS aplicados: resolver solo resuelve/crea con documento VERIFICADO y de identidad no fusionada; validación por tipo alineada con `cierres_externos` (DNI 8 / CE 9-12 / PASAPORTE 6-12); `crm.leads.inversionista_id` protegido por trigger ante escritura de la Data API; coherencia fuente↔empresa y titular principal por trigger; fusiones con `UNIQUE(fusionado_id)`, destino activo (sin ciclos) y append-only; reversa con `LOCK TABLE` (anti-carrera) y guarda que aborta si hay datos; el notice ya no afirma "forzada". Oráculo de gate y arnés de concurrencia ajustados a documento verificado.
 
 **Reversa:** `scripts/rollback-f1-multiempresa.sql`.
+
+## 20260903180000 · `crm_f2_backfill_identidad`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f2` (rama `feat/multiempresa-f2-backfill`), REVISADA (auditor-rls SIN bloqueantes + Codex), EN ENSAYO. SIN APLICAR a producción.**
+
+**Qué.** F2 del plan multiempresa: backfill que puebla la identidad de F1 desde el histórico, POR CLASES (contrato §13.2): A perfil cliente con documento válido y único → identidad; B cierre coop con documento válido → identidad + inversión externa inicial; C lead convertido hereda la identidad de su perfil o su cierre; E (sin documento, inválido, ambiguo) → revisión, sin enlazar. Deja el mapa auditable `crm.backfill_multiempresa_mapa` y asigna responsable (asesor Avance / vendedor coop) y centraliza `no_contactar`. Función `private.backfill_multiempresa_ejecutar()`.
+
+**Por qué.** F1 creó el registro de la persona pero vacío; F2 lo puebla para que F3 (puertas) y F5 (ficha) lean de ahí, sin duplicar y sin adivinar.
+
+**Guardas.** Aditivo, IDEMPOTENTE (repetible sin duplicar: resolver idempotente por documento, enlaces con `is null`, mapa con `on conflict`), REVERSIBLE (`scripts/rollback-f2-backfill.sql`, guiada por el mapa, aborta si F3 activo o hay identidades ajenas). NO mueve dinero: no toca contratos/operaciones/cierres.monto; el postflight compara la huella de Capital antes/después. Escribe los enlaces protegidos (`leads.inversionista_id`, `cierres_externos.inversionista_id`) sólo con `crm.op_privilegiada='on'` (la válvula sancionada). Respeta la invariante de F1 «un solo lead vivo por persona» (canónico vs histórico). Postflight: 100% clasificado, Capital idéntico, cero ambiguo.
+
+**Gate G2:** 100% clasificado, idempotente, reversible, Capital idéntico. Ensayo en banco con datos sembrados que cubren las clases.
+
+**Reversa:** `scripts/rollback-f2-backfill.sql`. **Oráculos:** `scripts/oraculo-f2-idempotencia.sql`, `scripts/oraculo-f2-acceso.sql`.
