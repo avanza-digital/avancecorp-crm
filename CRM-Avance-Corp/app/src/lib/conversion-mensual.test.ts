@@ -365,7 +365,7 @@ describe('ConversionMensualSchema — el contrato', () => {
     expect(v.safeParse(ConversionMensualSchema, procedencia).success).toBe(false)
   })
 
-  it('ACEPTA el total con fuera_de_roster y exige que se sume sin inventar una fila', () => {
+  it('ACEPTA producción fuera_de_roster sin sumarla al contador ni inventar una fila', () => {
     const p = payloadCanonico()
     p.cobertura.fuera_de_roster = { analistas: 2, divisor: 10, cierres: 2, numerador: 1.3 }
     ;(p.cobertura as { divisor_por_motivo: Record<string, number> }).divisor_por_motivo = {
@@ -375,7 +375,9 @@ describe('ConversionMensualSchema — el contrato', () => {
     }
     p.total = {
       ...p.total,
-      analistas: 3,
+      // Dos identidades externas aportan al total empresa, pero solo la fila
+      // de `responsables` participa del ranking.
+      analistas: 1,
       divisor: 100,
       cierres_no_referidos: 18,
       numerador: 19.1,
@@ -384,6 +386,10 @@ describe('ConversionMensualSchema — el contrato', () => {
     }
     expect(v.safeParse(ConversionMensualSchema, p).success).toBe(true)
 
+    p.total.analistas = 3
+    expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
+
+    p.total.analistas = 1
     p.total.divisor = 90
     expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
   })

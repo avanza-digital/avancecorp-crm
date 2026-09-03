@@ -51,3 +51,20 @@ medidas. Resultado productivo final:
 
 Estado final: **implementado, publicado y auditado en producción**. Ver
 [[Deploy a Hostinger]] y [[Rankings por mes calendario (decision 2026-09-02)]].
+
+## Corrección del contrato frontend — 2026-09-03
+
+La migración `20260902224847_crm_conversion_total_analistas_solo_ranking`
+dejó `total.analistas` con la semántica correcta (solo responsables con puesto),
+pero `ConversionMensualSchema` todavía exigía
+`responsables.length + cobertura.fuera_de_roster.analistas`. En septiembre la
+respuesta viva fue 17 responsables, 1 identidad externa y
+`total.analistas = 17`; la RPC respondió HTTP 200, pero el cliente rechazó el
+payload completo con `CONVERSION_MENSUAL_CONTRACT`.
+
+El contrato del frontend quedó alineado: el contador se contrasta solo contra
+`responsables.length`, mientras divisor, cierres y numerador continúan
+reconciliándose con `fuera_de_roster`. La regresión prueba además que volver a
+sumar identidades externas al contador se rechaza. Gate del frontend: 2.635
+pruebas, cobertura, build, bundle y duplicación aprobados. Pendiente de publicar
+mediante `/release-crm`.

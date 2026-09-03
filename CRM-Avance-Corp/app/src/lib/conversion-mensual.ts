@@ -323,7 +323,11 @@ export const ConversionMensualSchema = v.pipe(
     if (ids.size !== payload.responsables.length) return false
 
     const fuera = payload.cobertura.fuera_de_roster
-    const analistas = payload.responsables.length + fuera.analistas
+    // `total.analistas` cuenta SOLO las filas con derecho a puesto. La
+    // produccion fuera del ranking sigue formando parte de las medidas
+    // empresariales de abajo, pero no convierte supervisores u otras
+    // identidades externas en analistas rankeables.
+    const analistasRankeables = payload.responsables.length
     const divisor = payload.responsables.reduce((total, fila) => total + fila.divisor, 0)
       + fuera.divisor
     const cierres = payload.responsables.reduce(
@@ -335,7 +339,7 @@ export const ConversionMensualSchema = v.pipe(
     const tolerancia = 1e-9 + Number.EPSILON
       * Math.max(1, Math.abs(payload.total.numerador), Math.abs(numerador)) * 16
 
-    return payload.total.analistas === analistas
+    return payload.total.analistas === analistasRankeables
       && payload.total.divisor === divisor
       && payload.total.cierres_no_referidos + payload.total.cierres_referidos === cierres
       && Math.abs(payload.total.numerador - numerador) <= tolerancia
