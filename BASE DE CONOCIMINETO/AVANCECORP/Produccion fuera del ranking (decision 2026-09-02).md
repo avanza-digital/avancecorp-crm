@@ -68,11 +68,27 @@ reconciliándose con `fuera_de_roster`. La regresión prueba además que volver 
 sumar identidades externas al contador se rechaza. Gate del frontend: 2.635
 pruebas, cobertura, build, bundle y duplicación aprobados.
 
-**Publicación completada.** Commit `213e6fa` enviado a `avancecorp/tronco` y
-release `crm-20260903T162104Z-213e6fab1cf4` desplegado en
-`crm.miavance.com`; SHA-256 del ZIP
-`6fb265caf9e3b1adb42a0bfff0f2475da27ba321979d88f6c284a4f90d8a1c85`.
-Tras purgar la caché, `version.json` publicó
-`build-20260903T162103767Z`; `index.html` y
-`assets/crm-api-Dv27ZDF0.js` coincidieron byte a byte con el artefacto. El
-bundle principal anterior y el ZIP respondieron 404.
+### Incidente y republicación segura
+
+El primer release, `crm-20260903T162104Z-213e6fab1cf4`, se construyó desde un
+worktree limpio sin copiar `app/.env`, archivo local ignorado por Git. Vite
+generó un bundle sin `VITE_SUPABASE_URL` ni `VITE_SUPABASE_ANON_KEY`; el
+frontend falló cerrado, mostró «El acceso con cuenta aún no está disponible
+aquí» y deshabilitó `Entrar`. Se restauró inmediatamente el release previo
+`crm-20260902T223231Z-9b5cc36935ec`, recuperando las sesiones mientras se
+preparaba el artefacto correcto. La base de datos no se modificó durante el
+incidente.
+
+El commit `f767a5f` añadió un gate obligatorio a `release:crm`: exige el host
+productivo exacto, rechaza llaves privilegiadas y comprueba que URL y llave
+pública quedaron incorporadas al JavaScript emitido. Cuatro pruebas cubren
+configuración válida, variables ausentes, llave secreta y bundle sin config.
+
+La republicación correcta es
+`crm-20260903T164522Z-f767a5f976f5`, SHA-256
+`a915d21d7add63426f2203467884d7e38645331dc9c9c420959428cb37e2cb03`.
+`version.json` sirve `build-20260903T164521412Z`; `index.html`,
+`assets/index-BY99-vH0.js` y `assets/crm-api-BoAOJFi_.js` coinciden byte a byte
+con el artefacto. Supabase Auth respondió HTTP 200 con la configuración
+pública del bundle, el build defectuoso dejó de servirse y el ZIP público
+respondió 404.
