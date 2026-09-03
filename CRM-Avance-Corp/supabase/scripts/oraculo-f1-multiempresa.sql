@@ -32,8 +32,8 @@ begin
   end loop;
 
   -- (b) idempotencia: el mismo documento (con formato distinto) -> la misma persona.
-  v1 := private.inversionista_resolver('DNI','8-765-4321');   -- normaliza a 87654321
-  v2 := private.inversionista_resolver('DNI', v_doc);
+  v1 := private.inversionista_resolver('DNI','8-765-4321', true);   -- verificado; normaliza a 87654321
+  v2 := private.inversionista_resolver('DNI', v_doc);   -- sin verificar: debe RESOLVER la existente
   if v1 is null or v1 <> v2 then raise exception 'ORACULO F1: resolver no idempotente (% <> %)', v1, v2; end if;
   select count(*) into v_inv   from crm.inversionistas where id = v1;
   select count(*) into v_ident from crm.inversionista_identificadores where inversionista_id=v1 and estado='vigente';
@@ -48,7 +48,7 @@ begin
   end;
 
   -- (d) documento distinto -> identidad distinta.
-  v_ce := private.inversionista_resolver('CE','X1234567');
+  v_ce := private.inversionista_resolver('CE','123456789', true);  -- CE 9-12 digitos
   if v_ce = v1 then raise exception 'ORACULO F1: documentos distintos colapsaron en una identidad'; end if;
 
   -- (e) el DNI NO viaja en claro a public.audit_log (enmascarado, fix B1).

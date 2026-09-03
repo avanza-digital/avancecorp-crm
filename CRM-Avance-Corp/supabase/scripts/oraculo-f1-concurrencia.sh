@@ -13,7 +13,7 @@ psql "$PG" -v ON_ERROR_STOP=1 -q -c "set timezone='America/Lima';" \
 pids=()
 for i in $(seq 1 "$N"); do
   psql "$PG" -qtA -c "set timezone='America/Lima';" \
-    -c "select private.inversionista_resolver('$TIPO','$DOC');" >/dev/null 2>&1 &
+    -c "select private.inversionista_resolver('$TIPO','$DOC', true);" >/dev/null 2>&1 &
   pids+=("$!")
 done
 fail=0

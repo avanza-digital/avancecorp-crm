@@ -27,6 +27,9 @@
 --  10. crm.multiempresa_flags            — banderas de rollout, TODAS apagadas
 --   + enlaces nullable: crm.leads.inversionista_id, crm.cierres_externos.inversionista_id
 --   + primitiva private.inversionista_resolver(tipo, documento) SIN EXECUTE a la API
+--   + candados de coherencia (fuente<->empresa, titular principal, fusiones
+--     append-only sin ciclos) y proteccion de crm.leads.inversionista_id ante
+--     escritura directa por la Data API (revision de Codex).
 --
 -- SEGURIDAD (contrato §14): RLS activa en todas; CERO grants a la Data API
 -- (anon/authenticated/service_role) — el acceso sera por RPC definer en fases
@@ -95,7 +98,11 @@ create table crm.empresas (
     check (fuente_capital in ('contratos','cierres_externos')),
   creado_en timestamptz not null default now() check (isfinite(creado_en)),
   actualizado_en timestamptz not null default now() check (isfinite(actualizado_en)),
-  creado_por uuid references public.perfiles(id)
+  creado_por uuid references public.perfiles(id),
+  -- Coherencia estructural (no re-litiga decisiones): solo una empresa cuya
+  -- fuente es 'contratos' (Avance) puede crear contrato o exigir Portal.
+  constraint empresas_contrato_implica_fuente check (not crea_contrato_avance or fuente_capital = 'contratos'),
+  constraint empresas_portal_implica_fuente   check (not requiere_portal      or fuente_capital = 'contratos')
 );
 
 comment on table crm.empresas is
@@ -169,8 +176,7 @@ create table crm.inversionista_identificadores (
   inversionista_id uuid not null references crm.inversionistas(id),
   tipo_documento text not null check (tipo_documento in ('DNI','CE','PASAPORTE')),
   -- Normalizado = mayusculas y solo alfanumerico (lo calcula el resolver).
-  documento_normalizado text not null
-    check (documento_normalizado collate "C" ~ '^[A-Z0-9]{6,20}$'),
+  documento_normalizado text not null,
   -- El documento tal como se recibio (para mostrar), opcional.
   documento_original text,
   estado text not null default 'vigente' check (estado in ('vigente','historico')),
@@ -179,7 +185,15 @@ create table crm.inversionista_identificadores (
   vigente_desde timestamptz not null default now() check (isfinite(vigente_desde)),
   vigente_hasta timestamptz check (vigente_hasta is null or isfinite(vigente_hasta)),
   creado_en timestamptz not null default now() check (isfinite(creado_en)),
-  creado_por uuid references public.perfiles(id)
+  creado_por uuid references public.perfiles(id),
+  -- Formato del documento POR TIPO, alineado con crm.cierres_externos
+  -- (20260812000259): DNI 8 digitos, CE 9-12 digitos, PASAPORTE 6-12 alfanum.
+  -- Asi una identidad fuerte siempre puede representarse por un cierre valido.
+  constraint identificador_documento_por_tipo check (
+    (tipo_documento = 'DNI'       and documento_normalizado collate "C" ~ '^[0-9]{8}$')
+    or (tipo_documento = 'CE'        and documento_normalizado collate "C" ~ '^[0-9]{9,12}$')
+    or (tipo_documento = 'PASAPORTE' and documento_normalizado collate "C" ~ '^[A-Z0-9]{6,12}$')
+  )
 );
 
 comment on table crm.inversionista_identificadores is
@@ -386,32 +400,43 @@ begin
     raise exception using errcode = '22023', message = 'Tipo de documento invalido';
   end if;
   v_norm := pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_documento,''), '[^A-Za-z0-9]', '', 'g'));
-  if p_tipo = 'DNI' and v_norm !~ '^[0-9]{8}$' then
-    raise exception using errcode = '22023', message = 'DNI debe tener 8 digitos';
-  end if;
-  if v_norm !~ '^[A-Z0-9]{6,20}$' then
-    raise exception using errcode = '22023', message = 'Documento invalido';
+  -- Validacion POR TIPO alineada con crm.cierres_externos (20260812000259).
+  if (p_tipo = 'DNI'       and v_norm !~ '^[0-9]{8}$')
+     or (p_tipo = 'CE'        and v_norm !~ '^[0-9]{9,12}$')
+     or (p_tipo = 'PASAPORTE' and v_norm !~ '^[A-Z0-9]{6,12}$') then
+    raise exception using errcode = '22023', message = 'Documento invalido para el tipo';
   end if;
 
   -- Serializa la creacion del MISMO documento (otros documentos no contienden).
+  -- Asume READ COMMITTED (el default de las puertas F3): bajo REPEATABLE READ un
+  -- reintento tras el lock podria no ver al ganador (snapshot fijado antes).
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('inv_resolver:' || p_tipo || ':' || v_norm));
 
+  -- Solo resuelve un identificador VIGENTE, VERIFICADO y de identidad NO fusionada
+  -- (contrato §4.2): nunca devuelve una identidad perdedora.
   select i.inversionista_id into v_id
   from crm.inversionista_identificadores i
+  join crm.inversionistas inv on inv.id = i.inversionista_id
   where i.tipo_documento = p_tipo
     and i.documento_normalizado = v_norm
     and i.estado = 'vigente'
+    and i.verificado = true
+    and inv.estado <> 'fusionado'
   limit 1;
   if v_id is not null then
     return v_id;
   end if;
 
+  -- No crea identidad OPERATIVA sin documento verificado (contrato §4.3).
+  if p_verificado is not true then
+    raise exception using errcode = '22023',
+      message = 'No se crea identidad con documento sin verificar';
+  end if;
   insert into crm.inversionistas (estado) values ('activo') returning id into v_id;
   insert into crm.inversionista_identificadores
     (inversionista_id, tipo_documento, documento_normalizado, documento_original,
      estado, verificado, fuente)
-  values (v_id, p_tipo, v_norm, p_documento, 'vigente', coalesce(p_verificado, false),
-          coalesce(p_fuente, 'resolver'));
+  values (v_id, p_tipo, v_norm, p_documento, 'vigente', true, coalesce(p_fuente, 'resolver'));
   return v_id;
 
 exception when unique_violation then
@@ -438,6 +463,122 @@ comment on function private.inversionista_resolver(text,text,boolean,text) is
 
 revoke all on function private.inversionista_resolver(text,text,boolean,text) from public;
 revoke all on function private.inversionista_resolver(text,text,boolean,text) from anon, authenticated, service_role;
+
+-- ============================================================================
+-- 8.5. Candados de coherencia y proteccion (hallazgos de la revision de Codex)
+-- ============================================================================
+-- #4: crm.leads.inversionista_id NO puede escribirlo un cliente de la Data API
+-- (authenticated tiene UPDATE de tabla; un revoke por columna no neutraliza un
+-- grant de tabla). Un trigger lo protege igual que las guardas vivas protegen
+-- perfil_id/contrato_id: nulo al alta y restaurado en update, salvo operacion
+-- privilegiada (crm.op_privilegiada='on', que solo fijan las RPC definer).
+-- cierres_externos NO lo necesita: no tiene escritura por la Data API.
+create function private.leads_protege_inversionista_id() returns trigger
+language plpgsql security definer set search_path = '' as $p4$
+declare v_priv boolean := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false);
+begin
+  if not v_priv then
+    if tg_op = 'INSERT' then
+      new.inversionista_id := null;
+    else
+      new.inversionista_id := old.inversionista_id;
+    end if;
+  end if;
+  return new;
+end $p4$;
+revoke all on function private.leads_protege_inversionista_id() from public, anon, authenticated, service_role;
+create trigger trg_leads_protege_inversionista_id
+  before insert or update on crm.leads
+  for each row execute function private.leads_protege_inversionista_id();
+
+-- #5: la fuente economica de una inversion debe corresponder a su empresa (una
+-- empresa 'contratos' lleva contrato; una 'cierres_externos' lleva un cierre
+-- cuya cooperativa == la clave de la empresa). El XOR solo garantiza UNA fuente.
+create function private.inversiones_empresa_coherente() returns trigger
+language plpgsql security definer set search_path = '' as $p5$
+declare v_fuente text; v_clave text; v_coop text;
+begin
+  select e.fuente_capital, e.clave into v_fuente, v_clave from crm.empresas e where e.id = new.empresa_id;
+  if v_fuente is null then
+    raise exception 'inversiones: empresa % inexistente', new.empresa_id using errcode = '23503';
+  end if;
+  if new.contrato_id is not null then
+    if v_fuente <> 'contratos' then
+      raise exception 'inversiones: contrato en empresa cuya fuente es % (se esperaba contratos)', v_fuente using errcode = '23514';
+    end if;
+  else
+    if v_fuente <> 'cierres_externos' then
+      raise exception 'inversiones: cierre en empresa cuya fuente es % (se esperaba cierres_externos)', v_fuente using errcode = '23514';
+    end if;
+    select ce.cooperativa into v_coop from crm.cierres_externos ce where ce.id = new.cierre_externo_id;
+    if v_coop is distinct from v_clave then
+      raise exception 'inversiones: el cierre (coop %) no corresponde a la empresa %', v_coop, v_clave using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end $p5$;
+revoke all on function private.inversiones_empresa_coherente() from public, anon, authenticated, service_role;
+create trigger trg_inversiones_empresa_coherente
+  before insert or update on crm.inversiones
+  for each row execute function private.inversiones_empresa_coherente();
+
+-- #6: el titular 'principal' debe ser el mismo inversionista que la inversion
+-- declara como principal (evita principal=B con inversiones.inversionista_id=A).
+-- La cardinalidad "existe exactamente uno" la garantiza la puerta de F4 (crea
+-- inversion + principal en una transaccion); aqui se sella la coherencia.
+create function private.inversion_titular_coherente() returns trigger
+language plpgsql security definer set search_path = '' as $p6$
+declare v_principal uuid;
+begin
+  if new.rol = 'principal' then
+    select i.inversionista_id into v_principal from crm.inversiones i where i.id = new.inversion_id;
+    if new.inversionista_id is distinct from v_principal then
+      raise exception 'inversion_titulares: el principal debe ser el inversionista de la inversion (% <> %)',
+        new.inversionista_id, v_principal using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end $p6$;
+revoke all on function private.inversion_titular_coherente() from public, anon, authenticated, service_role;
+create trigger trg_inversion_titular_coherente
+  before insert or update on crm.inversion_titulares
+  for each row execute function private.inversion_titular_coherente();
+
+-- #7: el ancla de fusion y el libro se blindan.
+--   (a) un perdedor se fusiona UNA sola vez;
+create unique index inv_fusiones_fusionado_uidx on crm.inversionista_fusiones (fusionado_id);
+--   (b) la canonica destino debe estar ACTIVA (no fusionada): impide cadenas y
+--       ciclos (A->B->A), porque no se fusiona hacia una perdedora;
+create function private.inversionista_fusion_destino_activo() returns trigger
+language plpgsql security definer set search_path = '' as $p7a$
+declare v_estado text;
+begin
+  if new.estado = 'fusionado' and new.inversionista_canonico_id is not null then
+    select estado into v_estado from crm.inversionistas where id = new.inversionista_canonico_id;
+    if v_estado is null then
+      raise exception 'fusion: la identidad canonica % no existe', new.inversionista_canonico_id using errcode = '23503';
+    end if;
+    if v_estado = 'fusionado' then
+      raise exception 'fusion: no se fusiona hacia una identidad ya fusionada (cadena/ciclo)' using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end $p7a$;
+revoke all on function private.inversionista_fusion_destino_activo() from public, anon, authenticated, service_role;
+create trigger trg_inversionistas_fusion_destino
+  before insert or update on crm.inversionistas
+  for each row execute function private.inversionista_fusion_destino_activo();
+--   (c) el libro de fusiones es APPEND-ONLY (el comentario lo prometia; ahora un
+--       trigger lo cumple, ademas de no tener grants de la Data API).
+create function private.inversionista_fusiones_append_only() returns trigger
+language plpgsql security definer set search_path = '' as $p7b$
+begin
+  raise exception 'crm.inversionista_fusiones es append-only: % no permitido', tg_op using errcode = '0A000';
+end $p7b$;
+revoke all on function private.inversionista_fusiones_append_only() from public, anon, authenticated, service_role;
+create trigger trg_inversionista_fusiones_append_only
+  before update or delete on crm.inversionista_fusiones
+  for each row execute function private.inversionista_fusiones_append_only();
 
 -- ============================================================================
 -- 9. RLS, permisos y auditoria (contrato §14: RLS activa, CERO grants a la API)
@@ -561,7 +702,18 @@ begin
     raise exception 'POSTFLIGHT: desaparecio private.capital_episodios — F1 no debe tocar el nucleo';
   end if;
 
-  raise notice 'F1 OK: 10 tablas con RLS forzada y auditoria, 0 grants API, resolver privado, 3 empresas, flags apagadas, enlaces vacios, nucleo intacto.';
+  -- 10.9 Candados de la revision de Codex presentes.
+  if to_regprocedure('private.leads_protege_inversionista_id()') is null
+     or not exists (select 1 from pg_trigger where tgname='trg_leads_protege_inversionista_id' and not tgisinternal)
+     or to_regprocedure('private.inversiones_empresa_coherente()') is null
+     or to_regprocedure('private.inversion_titular_coherente()') is null
+     or to_regprocedure('private.inversionista_fusion_destino_activo()') is null
+     or to_regprocedure('private.inversionista_fusiones_append_only()') is null
+     or not exists (select 1 from pg_indexes where schemaname='crm' and indexname='inv_fusiones_fusionado_uidx') then
+    raise exception 'POSTFLIGHT: faltan candados de coherencia/proteccion de F1';
+  end if;
+
+  raise notice 'F1 OK: 10 tablas con RLS activa y auditoria, 0 grants API, resolver privado, 3 empresas, flags apagadas, enlaces vacios, candados de coherencia, nucleo intacto.';
 end
 $post$;
 
