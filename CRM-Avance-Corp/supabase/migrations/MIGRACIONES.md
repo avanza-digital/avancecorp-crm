@@ -7419,3 +7419,26 @@ registradas por Miguel con el `INSERT` que preparó la sesión f3 y esta sesión
 cotejó byte a byte contra los archivos confirmados. Verificado en lectura por f3:
 total **203**, ambas con 1 statement, **`20260902200000` ausente** (como debe),
 huella del registro `c6dad2fd…`.
+
+## 20260903160000 · `crm_f1_identidad_empresas_inversiones`
+
+**Estado: ESCRITA y ENSAYADA EN BANCO (rama `feat/multiempresa-f1-expand`), REVISADA (auditor-rls + Codex) — GATE G1 EN VERDE. SIN APLICAR A PRODUCCIÓN (falta el `!` de Miguel).** Autorizada por Miguel el 03/09 («desarrolla la fase 1»). NO se aplica a producción sin ensayo en banco (G1: reconstruíble) y su `!`.
+
+**Qué.** F1 del plan multiempresa: crea el esqueleto relacional de «una persona, varias inversiones, varias empresas», TODO aditivo, nullable y APAGADO (flags off). 10 tablas nuevas en `crm` (empresas, inversionistas, inversionista_identificadores, inversionista_leads, inversionista_responsables, inversionista_fusiones, inversiones, inversion_titulares, multiempresa_idempotencia, multiempresa_flags), columnas nullable `inversionista_id` en `crm.leads` y `crm.cierres_externos`, y la primitiva `private.inversionista_resolver(tipo,documento)` sin EXECUTE a la API. No toca `public.*` (salvo FKs de lectura a perfiles), no crea Auth/Portal, no toca `private.capital_episodios`.
+
+**Por qué.** Hoy la persona se escribe por cuatro caminos que no se conocen entre sí y un lead solo admite una inversión externa (`UNIQUE(lead_id)`). F1 pone el ancla de identidad y el registro relacional para que F2 (backfill) y F3 (puertas canónicas) enganchen sin duplicar.
+
+**Guardas.** Preflight: exige dependencias y aborta si `crm.inversionistas` ya existe. RLS activa en las 10 tablas; CERO grants a la Data API (anon/authenticated/service_role); acceso por RPC definer en fases siguientes. Auditoría en las 10; la tabla de identificadores usa el auditor ENMASCARADO (`private.log_audit_sin_secretos`) para que el documento nunca viaje en claro a `public.audit_log`, el resto usa `private.log_audit_crm`. Índices en FKs y columnas de RLS; únicos parciales que arbitran la carrera del resolver (identificador vigente), un lead por persona, un responsable abierto, una fuente por inversión. Postflight cuenta lo que quedó (10 tablas, RLS, 0 grants, resolver privado, 3 empresas, flags apagadas, enlaces vacíos, núcleo intacto por md5).
+
+**Gate G1 — ENSAYADO EN BANCO el 03/09/2026 (VERDE).** Branch de Supabase efímero (creado, ensayado y borrado; ~centavos). El auto-replay se detuvo en 86/203 por el preflight anclado a producción de `20260812000259` (el `MIGRATIONS_FAILED` conocido), así que se trajeron las dependencias REALES de F1 al branch (tabla `crm.cierres_externos` con su forma real, los auditores reales `enmascarar_claves`/`log_audit_sin_secretos`, y un stub de `capital_episodios` solo para la comprobación de existencia — F1 no usa el núcleo). Resultados:
+- **Reconstruíble:** F1 aplica limpio y su postflight pasa; se aplicó DOS veces (tras la reversa) sin residuo.
+- **Reversible:** `rollback-f1-multiempresa.sql` retira las 10 tablas, la función y los enlaces sin tocar nada vivo; su guarda aborta correctamente cuando hay datos (probado con los datos del test de concurrencia).
+- **Seguro:** el oráculo de gate dio TODO VERDE (Data API cerrada en las 10 tablas + resolver sin EXECUTE, resolver idempotente, índice único arbitra, documentos distintos no colapsan, **el documento NO aparece en `audit_log`** —enmascarado—, núcleo presente).
+- **Concurrencia REAL:** 12 llamadas simultáneas del mismo documento produjeron **una sola identidad** (1 inversionista, 1 identificador vigente).
+Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue disponible, pero F1 no depende de las migraciones intermedias más allá de esas dependencias.
+
+**Siguiente:** aplicar a producción es un paso aparte (gate G3 del plan: recenso, backup, reversa y autorización expresa `!` de Miguel), NO cubierto por este ensayo.
+
+**Revisión.** auditor-rls: bloqueante B1 (PII del documento a `audit_log`) + 6 recomendados, aplicados. Codex: NO-GO con 8 bloqueantes y 3 menores, TODOS aplicados: resolver solo resuelve/crea con documento VERIFICADO y de identidad no fusionada; validación por tipo alineada con `cierres_externos` (DNI 8 / CE 9-12 / PASAPORTE 6-12); `crm.leads.inversionista_id` protegido por trigger ante escritura de la Data API; coherencia fuente↔empresa y titular principal por trigger; fusiones con `UNIQUE(fusionado_id)`, destino activo (sin ciclos) y append-only; reversa con `LOCK TABLE` (anti-carrera) y guarda que aborta si hay datos; el notice ya no afirma "forzada". Oráculo de gate y arnés de concurrencia ajustados a documento verificado.
+
+**Reversa:** `scripts/rollback-f1-multiempresa.sql`.
