@@ -582,10 +582,11 @@ Todo publicado por otras sesiones de Miguel y autorizado por él según
 | `20260902202247` | `crm_ranking_foto_mensual_coherente` | registrada | `cerrar_periodo`, `conversion_mensual*`, `cumplimiento_metas_fn`, `metricas_conversiones_equipo_fn` y **`private.produccion_mes_por_vendedor`** (consumidor de Capital) |
 | `20260902224847` | `crm_conversion_total_analistas_solo_ranking` | registrada | `conversion_mensual_sin_cartera_fn` (no Capital) |
 
-Registro: **201** migraciones, última `20260902224847`, huella
-`930a546cc108e2672bd5a7ed88f3b9b6`. El registro **no refleja** `190000` ni
-`201000` (la vía `db query` no registra): deuda de higiene a saldar antes del
-próximo ciclo de banco (`reregistrar.py`), no un bloqueo de G0.
+Registro: en R4 eran **201** migraciones. El **03/09/2026 09:33 Lima Miguel
+registró** `190000` y `201000` (SQL preparado por f3, cotejado sin objeciones por
+la sesión que las aplicó): ahora **203**, cada una con un solo `statements`
+(precedente a mano), `200000` **ausente** por diseño, huella del registro
+`c6dad2fd3bc4c8d4e4c2c0258b2a3fc7`. Deuda de higiene **saldada**.
 
 Front del CRM: dos publicaciones (12:07 `e9d9a28`, 17:32 `9b5cc36`, bundles
 estáticos, sin SQL). Datos: +30 leads `landing` a las 11:08 por el puente
@@ -688,7 +689,7 @@ tabla: 506 reales + 2 demo.
 Pendientes que **no** bloquean la firma pero **sí** F1: las seis decisiones
 comerciales de F0 (preguntas 2–7 a Miguel), la aclaración del
 `MIGRATIONS_FAILED` de Branching, el registro de `190000`/`201000` en
-`schema_migrations`, y —fuera del núcleo— los 6 usos restantes de
+`schema_migrations` (hecho el 03/09), y —fuera del núcleo— los 6 usos restantes de
 `current_date` y los relojes de navegador.
 
 ## Estado de ramas
@@ -714,9 +715,9 @@ comerciales de F0 (preguntas 2–7 a Miguel), la aclaración del
    se hace en la próxima sesión, cualquier día entre 19:00 y 23:59 Lima).
 4. **Firmar G0** (Miguel) sobre esta R4, siempre que no se publique nada más en
    el servidor antes de la firma; si se publica, recapturar (R5).
-5. En paralelo: seis decisiones de F0, aclaración del `MIGRATIONS_FAILED` de
-   Branching y registro de `190000`/`201000`. Después, autorización expresa
-   para F1.
+5. ~~Seis decisiones de F0~~ **Confirmadas (7) el 03/09.** ~~Aclaración del
+   `MIGRATIONS_FAILED`~~ **Hecha (03/09).** ~~Registro de `190000`/`201000`~~
+   **Hecho (03/09, 203 migraciones).** Queda: **autorización expresa de F1**.
 
 Relacionado: [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]] ·
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]] ·

@@ -96,6 +96,8 @@ branch.
    del plan «no usar `migration repair` para ocultar la divergencia» — aquí no
    la ocultaría, la corregiría, pero hay que decidirlo expresamente.
 
-Mientras no se decida, **F1 usa la vía 1**. En cualquier caso, antes de crear el
-branch de F1 hay que registrar `190000` y `201000` (o incluirlas en el volcado)
-y excluir `200000`.
+Mientras no se decida, **F1 usa la vía 1** (elegida por Miguel el 03/09).
+**Actualización 03/09:** `190000` y `201000` ya están registradas en
+`schema_migrations` (Miguel corrió el SQL de f3; total 203, `200000` excluida,
+huella `c6dad2fd3bc4c8d4e4c2c0258b2a3fc7`), así que el volcado para el branch de
+F1 ya parte de un registro completo.
