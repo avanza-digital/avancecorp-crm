@@ -128,7 +128,7 @@ begin
   -- ── Clase A / E: perfiles cliente ──
   for r in
     select p.id, p.tipo_documento as tipo, p.asesor_perfil_id,
-           pg_catalog.upper(pg_catalog.regexp_replace(pg_catalog.coalesce(p.dni,''),'[^A-Za-z0-9]','','g')) as dnorm
+           pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p.dni,''),'[^A-Za-z0-9]','','g')) as dnorm
     from public.perfiles p where p.rol='cliente'
     order by p.id
   loop
@@ -136,7 +136,7 @@ begin
       perform private.f2_mapear('perfil', r.id, null, 'E', 'cliente sin documento', 'revision');
       v_e := v_e+1; continue;
     end if;
-    v_valido := pg_catalog.coalesce(case r.tipo
+    v_valido := coalesce(case r.tipo
       when 'DNI' then r.dnorm ~ '^[0-9]{8}$'
       when 'CE' then r.dnorm ~ '^[0-9]{9,12}$'
       when 'PASAPORTE' then r.dnorm ~ '^[A-Z0-9]{6,12}$' else false end, false);
@@ -147,7 +147,7 @@ begin
     if exists (
       select 1 from public.perfiles p2
       where p2.id <> r.id
-        and pg_catalog.upper(pg_catalog.regexp_replace(pg_catalog.coalesce(p2.dni,''),'[^A-Za-z0-9]','','g')) = r.dnorm
+        and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p2.dni,''),'[^A-Za-z0-9]','','g')) = r.dnorm
     ) then
       perform private.f2_mapear('perfil', r.id, null, 'E', 'documento compartido con otro perfil (multirrol/colision)', 'revision');
       v_e := v_e+1; continue;
@@ -175,7 +175,7 @@ begin
     from crm.cierres_externos ce where ce.id <> v_demo_cierre
     order by ce.creado_en, ce.id
   loop
-    v_valido := pg_catalog.coalesce(case r.tipo
+    v_valido := coalesce(case r.tipo
       when 'DNI' then r.dnorm ~ '^[0-9]{8}$'
       when 'CE' then r.dnorm ~ '^[0-9]{9,12}$'
       when 'PASAPORTE' then r.dnorm ~ '^[A-Z0-9]{6,12}$' else false end, false);
@@ -187,7 +187,7 @@ begin
     update crm.cierres_externos set inversionista_id = v_inv where id = r.id and inversionista_id is null;
     insert into crm.inversiones (inversionista_id, empresa_id, cierre_externo_id, estado, fecha_comercial, es_primera_conversion, creado_por)
     select v_inv, e.id, r.id, 'vigente',
-           pg_catalog.least((r.creado_en at time zone 'America/Lima')::date, (pg_catalog.now() at time zone 'America/Lima')::date),
+           least((r.creado_en at time zone 'America/Lima')::date, (pg_catalog.now() at time zone 'America/Lima')::date),
            true, r.creado_por
     from crm.empresas e
     where e.clave = r.cooperativa
@@ -210,7 +210,7 @@ begin
   -- ── Clase C / E: leads convertidos ──
   for r in
     select l.id as lead_id, l.no_contactar,
-           pg_catalog.upper(pg_catalog.regexp_replace(pg_catalog.coalesce(l.dni,''),'[^A-Za-z0-9]','','g')) as ldni,
+           pg_catalog.upper(pg_catalog.regexp_replace(coalesce(l.dni,''),'[^A-Za-z0-9]','','g')) as ldni,
            (select i.id from crm.inversionistas i where i.perfil_id = l.perfil_id and i.estado <> 'fusionado' limit 1) as inv_perfil,
            (select ce.inversionista_id from crm.cierres_externos ce where ce.lead_id = l.id) as inv_cierre
     from crm.leads l where l.etapa='convertido'
@@ -220,7 +220,7 @@ begin
       perform private.f2_mapear('lead', r.lead_id, null, 'E', 'convertido con perfil y cierre en identidades distintas', 'revision');
       v_e := v_e+1; continue;
     end if;
-    v_inv := pg_catalog.coalesce(r.inv_perfil, r.inv_cierre);
+    v_inv := coalesce(r.inv_perfil, r.inv_cierre);
     if v_inv is null then
       perform private.f2_mapear('lead', r.lead_id, null, 'E', 'lead convertido sin identidad inequivoca de perfil ni cierre', 'revision');
       v_e := v_e+1; continue;
@@ -245,13 +245,13 @@ begin
     perform private.f2_mapear('lead', r.lead_id, v_inv, 'C', 'lead convertido hereda identidad de perfil/cierre', 'alta');
     v_c := v_c+1;
     if r.no_contactar then
-      update crm.inversionistas set no_contactar = true, no_contactar_en = pg_catalog.coalesce(no_contactar_en, pg_catalog.now())
+      update crm.inversionistas set no_contactar = true, no_contactar_en = coalesce(no_contactar_en, pg_catalog.now())
       where id = v_inv and no_contactar = false;
       v_noc := v_noc+1;
     end if;
   end loop;
 
-  perform pg_catalog.set_config('crm.op_privilegiada', pg_catalog.coalesce(v_old_priv, 'off'), true);
+  perform pg_catalog.set_config('crm.op_privilegiada', coalesce(v_old_priv, 'off'), true);
   return jsonb_build_object('A',v_a,'B',v_b,'C',v_c,'E',v_e,'responsables',v_resp,'no_contactar',v_noc);
 end
 $fn$;
