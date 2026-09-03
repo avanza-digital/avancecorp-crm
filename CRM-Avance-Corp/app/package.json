@@ -11,13 +11,15 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:release-config": "node --test scripts/verificar-config-release.test.mjs",
     "test:e2e": "playwright test",
     "verify:bundle": "node scripts/verificar-bundle-produccion.mjs",
+    "verify:release": "node scripts/verificar-config-release.mjs && npm run verify:bundle",
     "dup": "jscpd src --min-tokens 70 --ignore \"**/*.test.*\" --threshold 0.8 --reporters consoleFull",
     "prepare": "lefthook install",
     "typecheck": "tsc -b --pretty false",
     "gen:types": "npx supabase@2.114.0 gen types typescript --project-id dctqcbznekcyxhjujuci --schema public,crm > src/lib/database.types.ts.tmp && mv src/lib/database.types.ts.tmp src/lib/database.types.ts",
-    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run verify:bundle && npm run dup",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run test:release-config && npm run build && npm run verify:bundle && npm run dup",
     "check:all": "npm run check && npm run test:e2e"
   },
   "dependencies": {
