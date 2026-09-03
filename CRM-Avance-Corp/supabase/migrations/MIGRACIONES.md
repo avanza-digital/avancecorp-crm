@@ -7419,3 +7419,17 @@ registradas por Miguel con el `INSERT` que preparó la sesión f3 y esta sesión
 cotejó byte a byte contra los archivos confirmados. Verificado en lectura por f3:
 total **203**, ambas con 1 statement, **`20260902200000` ausente** (como debe),
 huella del registro `c6dad2fd…`.
+
+## 20260903160000 · `crm_f1_identidad_empresas_inversiones`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f1` (rama `feat/multiempresa-f1-expand`), EN REVISIÓN (auditor-rls + Codex), SIN APLICAR.** Autorizada por Miguel el 03/09 («desarrolla la fase 1»). NO se aplica a producción sin ensayo en banco (G1: reconstruíble) y su `!`.
+
+**Qué.** F1 del plan multiempresa: crea el esqueleto relacional de «una persona, varias inversiones, varias empresas», TODO aditivo, nullable y APAGADO (flags off). 10 tablas nuevas en `crm` (empresas, inversionistas, inversionista_identificadores, inversionista_leads, inversionista_responsables, inversionista_fusiones, inversiones, inversion_titulares, multiempresa_idempotencia, multiempresa_flags), columnas nullable `inversionista_id` en `crm.leads` y `crm.cierres_externos`, y la primitiva `private.inversionista_resolver(tipo,documento)` sin EXECUTE a la API. No toca `public.*` (salvo FKs de lectura a perfiles), no crea Auth/Portal, no toca `private.capital_episodios`.
+
+**Por qué.** Hoy la persona se escribe por cuatro caminos que no se conocen entre sí y un lead solo admite una inversión externa (`UNIQUE(lead_id)`). F1 pone el ancla de identidad y el registro relacional para que F2 (backfill) y F3 (puertas canónicas) enganchen sin duplicar.
+
+**Guardas.** Preflight: exige dependencias y aborta si `crm.inversionistas` ya existe. RLS activa en las 10 tablas; CERO grants a la Data API (anon/authenticated/service_role); acceso por RPC definer en fases siguientes. Auditoría en las 10; la tabla de identificadores usa el auditor ENMASCARADO (`private.log_audit_sin_secretos`) para que el documento nunca viaje en claro a `public.audit_log`, el resto usa `private.log_audit_crm`. Índices en FKs y columnas de RLS; únicos parciales que arbitran la carrera del resolver (identificador vigente), un lead por persona, un responsable abierto, una fuente por inversión. Postflight cuenta lo que quedó (10 tablas, RLS, 0 grants, resolver privado, 3 empresas, flags apagadas, enlaces vacíos, núcleo intacto por md5).
+
+**Gate G1:** esquema reconstruíble (ensayo en banco desde cero), reversible (`scripts/rollback-f1-multiempresa.sql`, aborta si hay backfill) y seguro. El gate de comportamiento (dos altas simultáneas del mismo documento → una identidad; capital idéntico; cero fusiones ambiguas) se prueba con el oráculo de concurrencia del resolver en el banco.
+
+**Reversa:** `scripts/rollback-f1-multiempresa.sql`.
