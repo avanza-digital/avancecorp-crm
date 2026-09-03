@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { contextoContratacionDesdeAcceso } from "../_shared/acceso-crm.mjs";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
 import { validarBancarios } from "../_shared/bancarios.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
@@ -80,21 +81,15 @@ Deno.serve(async (req: Request) => {
     if (userErr || !userRes?.user) return json(cors, { error: "Sesión inválida" }, 401);
     const callerId = userRes.user.id;
 
-    // El que convierte debe ser miembro escritor del equipo CRM.
-    const { data: miembro } = await adminClient
-      .schema("crm").from("equipo")
-      .select("rol_crm, activo").eq("perfil_id", callerId).maybeSingle();
-    if (!miembro || !miembro.activo || !["vendedor", "supervisor", "gerencia"].includes(miembro.rol_crm)) {
+    // Fuente única de autorización: la RPC resuelve la membresía CRM activa con
+    // el JWT del caller. No se reinterpretan roles del Portal con service_role.
+    const { data: acceso, error: accesoErr } = await userClient
+      .schema("crm").rpc("mi_acceso_fn");
+    const contextoConversion = contextoContratacionDesdeAcceso(acceso, callerId);
+    if (accesoErr || !contextoConversion) {
       return json(cors, { error: "No autorizado para convertir leads" }, 403);
     }
-    const { data: perfilCaller } = await adminClient
-      .from("perfiles").select("rol, activo").eq("id", callerId).maybeSingle();
-    const gerenciaCrm = miembro.rol_crm === "gerencia";
-    if (!perfilCaller || !perfilCaller.activo || (
-      !gerenciaCrm && !["analista", "admin", "superadmin"].includes(perfilCaller.rol)
-    )) {
-      return json(cors, { error: "El alta de clientes la registra el analista" }, 403);
-    }
+    const rolCrm = contextoConversion.rolCrm;
 
     const body = await req.json().catch(() => ({}));
     const {
@@ -125,7 +120,7 @@ Deno.serve(async (req: Request) => {
     // 0C: el resultado ganado exige responsabilidad comercial PREVIA. Esta
     // frontera corre antes de deduplicar, crear Auth/perfiles o enviar correo:
     // un lead parqueado nunca puede dejar un cliente huérfano si el cierre falla.
-    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId, miembro.rol_crm);
+    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId, rolCrm);
     if (errorResponsabilidad) return json(cors, { error: errorResponsabilidad }, 409);
 
     // Documento (DNI/CE/Pasaporte). Se valida en la FRONTERA (el navegador es espejo).

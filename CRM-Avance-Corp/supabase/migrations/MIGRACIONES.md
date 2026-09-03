@@ -7458,3 +7458,55 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 **Siguiente:** aplicar a producción es un paso aparte (gate G3: `!` de Miguel, `db query --linked --file`), NO cubierto por este ensayo.
 
 **Reversa:** `scripts/rollback-f2-backfill.sql`. **Oráculos:** `scripts/oraculo-f2-idempotencia.sql`, `scripts/oraculo-f2-acceso.sql`.
+
+## 20260903215149 · `crm_capacidad_conversion_unica`
+
+**Estado: DESARROLLADA Y ENSAYADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.**
+
+**Incidente.** Los analistas creados desde Gerencia nacen con el contrato
+vigente `public.perfiles.rol='comercial'` +
+`crm.equipo.rol_crm='vendedor'`. PostgreSQL los reconocía como miembros CRM,
+pero el navegador y `crm-convertir-lead` conservaban una segunda allowlist de
+roles Portal (`analista/admin/superadmin`). Por eso mostraban «El alta de
+clientes la registra el analista» aunque fueran responsables activos del lead.
+
+**Qué.** `private.puede_gestionar_contratos_crm()` queda como única pregunta de
+autoridad para convertir. `crm.mi_acceso_fn()` publica su resultado como
+`puede_contratar`; las cuatro puertas SQL (`convertir_lead`, reserva, sellado de
+efectos y cierre externo) consumen el mismo helper. El frontend y la Edge
+Function dejan de interpretar roles Portal; la Edge obtiene la capacidad con
+el JWT del caller y liga `perfil_id` a la identidad verificada. No toca
+`public.*`, datos ni asignaciones existentes. La Edge `crear-cliente`, que usa
+el mismo flag para «Nuevo cliente», también consulta esta capacidad: conserva
+los roles históricos del Portal y autoasigna al nuevo `comercial + vendedor`,
+evitando trasladar el 403 desde «Convertir» a esa segunda puerta.
+
+**Guardas.** La migración parchea las definiciones vivas obtenidas con
+`pg_get_functiondef`, exige una sola huella conocida por puerta y aborta ante
+drift. El postflight fija las seis salidas de `puede_contratar`, el consumo del
+helper, owner `postgres`, volatilidad, `SECURITY DEFINER`, `search_path` y ACL
+solo para `authenticated`. También fija el perímetro del helper privado: owner
+`postgres`, `STABLE`, `SECURITY DEFINER`, `search_path=''` y cero EXECUTE para
+`anon`, `authenticated` o `service_role`.
+
+**Ensayo local.** Aplicada sobre una base descartable con las cinco firmas y
+ACL productivas: preflight, reemplazos y postflight terminaron en `COMMIT`. El
+oráculo comprobó `miembro: false → true` al cambiar exclusivamente el helper y
+`global: false` aun con el helper habilitado. Las pruebas unitarias cubren de
+forma explícita el caso nuevo `comercial + vendedor` tanto en frontend como en
+la Edge. Un mutante con EXECUTE público sobre el helper fue rechazado por el
+preflight; al restaurar su ACL privada, la misma migración terminó en `COMMIT`.
+
+**Revisión y gates.** `auditor-rls`: **GO**, sin hallazgos críticos, altos ni
+medios; su recomendación menor de incluir ambas Edges en el chequeo Deno
+persistente quedó aplicada. Gate final: frontend **2637/2637**, acceso dirigido
+**23/23**, drawer **91/91**, Edge **49/49**, Deno **5/5**, `typecheck`, `lint`,
+`build`, `deno check --frozen` y `git diff --check` en verde. El lint conserva
+únicamente cuatro advertencias de accesibilidad preexistentes en
+`coverflow-carousel.tsx`.
+
+**Orden de publicación obligatorio:** migración → Edge Functions
+(`crm-convertir-lead` y `crear-cliente`) → frontend.
+El servidor anterior no publica `puede_contratar`, por lo que el bundle nuevo
+falla cerrado hasta que la migración exista. La publicación a producción es un
+paso separado.

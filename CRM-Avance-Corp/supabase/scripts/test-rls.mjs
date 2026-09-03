@@ -2972,7 +2972,14 @@ async function testOffboardingMatrix(sessions, seed) {
     }
   }
 
-  async function assertAccess(client, expectedState, label, expectedId, expectedRole = undefined) {
+  async function assertAccess(
+    client,
+    expectedState,
+    label,
+    expectedId,
+    expectedRole = undefined,
+    expectedPuedeContratar = undefined,
+  ) {
     const response = await positive(
       label,
       client.schema('crm').rpc('mi_acceso_fn'),
@@ -2989,6 +2996,11 @@ async function testOffboardingMatrix(sessions, seed) {
           `${label}: rol_crm=${expectedRole}`,
           `respuesta=${JSON.stringify(response.data)}`);
       }
+      if (expectedPuedeContratar !== undefined) {
+        check(response.data?.puede_contratar === expectedPuedeContratar,
+          `${label}: puede_contratar=${expectedPuedeContratar}`,
+          `respuesta=${JSON.stringify(response.data)}`);
+      }
     }
   }
 
@@ -2998,6 +3010,8 @@ async function testOffboardingMatrix(sessions, seed) {
       'revocado',
       `${label}: auth canónica no aplica fallback`,
       memberId,
+      undefined,
+      false,
     );
     await expectHidden(
       `${label}: no lee su fila de equipo`,
@@ -3097,6 +3111,33 @@ async function testOffboardingMatrix(sessions, seed) {
   }
 
   try {
+    // P058: la capacidad operativa sale del rol CRM efectivo, nunca del rol
+    // Portal. Las tres cuentas positivas usan `portalRole=comercial`.
+    await assertAccess(
+      sessions.gerencia,
+      'miembro',
+      'P058: Gerencia Comercial puede contratar',
+      seed.profileIdByKey.gerencia,
+      'gerencia',
+      true,
+    );
+    await assertAccess(
+      sessions.sup1,
+      'miembro',
+      'P058: Supervisor Comercial puede contratar',
+      seed.profileIdByKey.sup1,
+      'supervisor',
+      true,
+    );
+    await assertAccess(
+      sessions.coordinador,
+      'miembro',
+      'P058: Coordinador Comercial no puede contratar',
+      seed.profileIdByKey.coordinador,
+      'coordinador',
+      false,
+    );
+
     // El fallback global legítimo se conserva si NO existe membresía CRM.
     const globalRead = await positive(
       'P04: directorio activo sin fila CRM conserva lectura global',
@@ -3112,6 +3153,7 @@ async function testOffboardingMatrix(sessions, seed) {
       'P04: auth canónica conserva fallback global sin fila CRM',
       seed.profileIdByKey.directorio,
       'directorio',
+      false,
     );
 
     // true / true: baseline permitido y RPC P-047 sin cambio de contrato.
@@ -3133,6 +3175,7 @@ async function testOffboardingMatrix(sessions, seed) {
       'P04 true/true: auth canónica reconoce la membresía',
       memberId,
       originalTeam.rol_crm,
+      true,
     );
     await positive(
       'P04 true/true: lee su lead',
@@ -4166,6 +4209,7 @@ async function testOffboardingMatrix(sessions, seed) {
       'P04 miembro activo: auth conserva la membresía CRM tras el rechazo',
       memberId,
       originalTeam.rol_crm,
+      true,
     );
     const scopedMember = await positive(
       'P04 miembro activo: consulta leads sin elevar ámbito',
