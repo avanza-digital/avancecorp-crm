@@ -718,13 +718,14 @@ comerciales de F0 (preguntas 2–7 a Miguel), la aclaración del
 5. ~~Seis decisiones de F0~~ **Confirmadas (7) el 03/09.** ~~Aclaración del
    `MIGRATIONS_FAILED`~~ **Hecha (03/09).** ~~Registro de `190000`/`201000`~~
    **Hecho (03/09, 203 migraciones).** ~~Autorización de F1~~ **Dada el 03/09.**
-6. **F1 DESARROLLADA, REVISADA Y ENSAYADA (gate G1 en verde) el 03/09** en la
-   rama aislada `feat/multiempresa-f1-expand` (migración `20260903160000`): 10
-   tablas de identidad/empresas/inversiones, enlaces nullable, resolver, todo
-   aditivo y apagado. Auditor-rls (bloqueante de PII) y Codex (NO-GO, 8
-   bloqueantes) aplicados. Ensayo en un branch efímero: reconstruíble x2,
-   reversible, seguro, y 12 carreras simultáneas → una identidad. **Falta
-   aplicar F1 a producción (gate G3 + `!`).**
+6. **F1 EN PRODUCCIÓN el 03/09** (migración **204**, `20260903160000`,
+   fusionada a `main`): 10 tablas de identidad/empresas/inversiones, enlaces
+   nullable, resolver, todo aditivo y APAGADO (flags off). Antes: ensayada en
+   banco (G1 verde) y revisada por auditor-rls (bloqueante de PII) + Codex
+   (NO-GO, 8 bloqueantes), todo aplicado. Verificada en prod: 10 tablas con RLS,
+   0 grants API, resolver privado, 5 candados de coherencia, auditor enmascarado,
+   flags apagadas, enlaces vacíos, núcleo intacto. **Sin efecto visible aún
+   (apagada); habilita F2 (backfill).**
 
 Relacionado: [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]] ·
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]] ·
