@@ -66,5 +66,13 @@ El contrato del frontend quedó alineado: el contador se contrasta solo contra
 `responsables.length`, mientras divisor, cierres y numerador continúan
 reconciliándose con `fuera_de_roster`. La regresión prueba además que volver a
 sumar identidades externas al contador se rechaza. Gate del frontend: 2.635
-pruebas, cobertura, build, bundle y duplicación aprobados. Pendiente de publicar
-mediante `/release-crm`.
+pruebas, cobertura, build, bundle y duplicación aprobados.
+
+**Publicación completada.** Commit `213e6fa` enviado a `avancecorp/tronco` y
+release `crm-20260903T162104Z-213e6fab1cf4` desplegado en
+`crm.miavance.com`; SHA-256 del ZIP
+`6fb265caf9e3b1adb42a0bfff0f2475da27ba321979d88f6c284a4f90d8a1c85`.
+Tras purgar la caché, `version.json` publicó
+`build-20260903T162103767Z`; `index.html` y
+`assets/crm-api-Dv27ZDF0.js` coincidieron byte a byte con el artefacto. El
+bundle principal anterior y el ZIP respondieron 404.
