@@ -65,7 +65,7 @@
 <body>
 <main>
   <header id="inicio">
-    <p class="meta">Aprobado por Miguel para firma documental de F0 · <strong>Estado al 03/09/2026:</strong> G0 firmado, decisiones de F0 confirmadas. <strong>F1 EN PRODUCCIÓN (migración 204):</strong> autorizada, desarrollada, revisada (auditor + Codex), ensayada en banco y aplicada a producción el 03/09. Aditiva y apagada (sin efecto visible aún). Sigue F2 (backfill). Ver <a href="#bitacora">bitácora</a>.</p>
+    <p class="meta">Aprobado por Miguel para firma documental de F0 · <strong>Estado al 03/09/2026:</strong> G0 firmado, decisiones de F0 confirmadas. <strong>F1 y F2 EN PRODUCCIÓN (migraciones 204 y 205):</strong> desarrolladas, revisadas (auditor + Codex), ensayadas en banco y aplicadas el 03/09. F2 llenó la identidad desde el histórico (427 identidades; excepciones a revisión). Sin efecto visible aún; sigue F3. Ver <a href="#bitacora">bitácora</a>.</p>
     <h1>Plan maestro definitivo — Cliente multiempresa e inversiones del grupo</h1>
     <p><strong>Empresas iniciales:</strong> Avance Corp, COOPAC Qorilazo y COOPAC Prodelco.</p>
     <p><strong>Modo de ejecución:</strong> continuo y gobernado por gates, sin cronograma artificial. Cada fase avanza en cuanto cumple su evidencia y las tareas independientes se desarrollan en paralelo.</p>
@@ -102,7 +102,7 @@
 
   <section id="bitacora">
     <h2>Bitácora de avance</h2>
-    <p class="meta">Se actualiza en cada paso del plan. Última actualización: 03/09/2026 (F1 EN PRODUCCIÓN, migración 204).</p>
+    <p class="meta">Se actualiza en cada paso del plan. Última actualización: 03/09/2026 (F1 y F2 EN PRODUCCIÓN, migraciones 204-205).</p>
     <table>
       <thead><tr><th>Cuándo</th><th>Avance</th><th>Evidencia</th><th>Estado</th></tr></thead>
       <tbody>
@@ -123,6 +123,8 @@
         <tr><td>Pendiente</td><td>Branching: por qué <code>main</code> y <code>banco-f7</code> marcan <code>MIGRATIONS_FAILED</code> con las bases sanas.</td><td><strong>Aclarado el 03/09 con la guía oficial de Supabase:</strong> el estado refleja el último intento de construir un branch replayando la historia de migraciones sobre una base vacía; falla porque la historia registrada no coincide con el esquema vivo (migraciones aplicadas con <code>db query</code> sin registro, una que nunca se aplicó, preflights anclados a producción). No es avería y no bloquea F1. Vault: «Diagnóstico de Branching antes de F1».</td><td>✅ Aclarado. Queda una decisión de Miguel: seguir con el replay manual probado (vía 1) o pasar a una migración de línea base para que los branches se construyan solos (vía 2).</td></tr>
         <tr><td>03/09/2026 09:35 Lima</td><td>Entregable de F0: <strong>catálogo de puertas de escritura</strong> de identidad e inversiones (leads, perfiles, contratos, cierres externos, operaciones de cartera, edge functions, puente de landing).</td><td>Censo en producción, solo lectura: 16 escritores de leads, 8 de perfiles, 9 de contratos, 3 de cierres externos, 2 de operaciones; 43 triggers; la persona se escribe hoy por cuatro caminos que no se conocen entre sí. Vault: «Catálogo de puertas de escritura (F0, 2026-09-03)».</td><td>✅ Hecho. Es el mapa que F3 tiene que cerrar.</td></tr>
         <tr><td>Pendiente</td><td>Autorización expresa de F1.</td><td>—</td><td>⛔ No autorizada.</td></tr>
+      <tr><td>03/09/2026</td><td><strong>F2 (backfill) DESARROLLADA, ENSAYADA (G2 verde) y APLICADA A PRODUCCIÓN</strong> (migración 205).</td><td>Revisada por auditor (sin bloqueantes) y Codex (NO-GO con 10 bloqueantes, todos corregidos). Ensayo en banco con siembra que cubre las clases y excepciones. En prod: 413 clientes→A, 4→E, 14 cierres→B, 30 convertidos→C, 4→E; 427 identidades; un solo lead vivo por persona; Capital intacto.</td><td>✅ EN PRODUCCIÓN.</td></tr>
+        <tr><td>Pendiente</td><td><strong>F3 — una sola puerta para reconocer a la persona</strong> (adaptar las puertas de alta/conversión a la primitiva de identidad; encender flags).</td><td>—</td><td>⛔ No autorizada aún.</td></tr>
       </tbody>
     </table>
   </section>

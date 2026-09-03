@@ -726,6 +726,14 @@ comerciales de F0 (preguntas 2–7 a Miguel), la aclaración del
    0 grants API, resolver privado, 5 candados de coherencia, auditor enmascarado,
    flags apagadas, enlaces vacíos, núcleo intacto. **Sin efecto visible aún
    (apagada); habilita F2 (backfill).**
+7. **F2 EN PRODUCCIÓN el 03/09** (migración **205**, `20260903180000`, fusionada
+   a `main`): el backfill llenó la identidad desde el histórico — 413 clientes→A,
+   14 cierres→B, 30 convertidos→C; 4+4 excepciones (multirrol, sin doc, inválido,
+   discrepancia, demo)→E de revisión, sin fusionar. 427 identidades. Idempotente,
+   reversible, Capital intacto, un solo lead vivo por persona. Ensayada en banco
+   (G2 verde), revisada por auditor-rls (sin bloqueantes) + Codex (NO-GO, 10
+   bloqueantes corregidos; el ensayo cazó además `pg_catalog.coalesce`). **Sin
+   efecto visible aún; habilita F3 (una sola puerta) y F5 (ficha).**
 
 Relacionado: [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]] ·
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]] ·

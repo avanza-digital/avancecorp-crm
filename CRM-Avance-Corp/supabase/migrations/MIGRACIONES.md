@@ -7445,7 +7445,7 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 
 ## 20260903180000 · `crm_f2_backfill_identidad`
 
-**Estado: ESCRITA y ENSAYADA EN BANCO (rama `feat/multiempresa-f2-backfill`), REVISADA (auditor-rls SIN bloqueantes + Codex NO-GO corregido) — GATE G2 EN VERDE. SIN APLICAR a producción (falta el `!` de Miguel).**
+**Estado: EN PRODUCCIÓN el 2026-09-03 (migración 205), fusionada a `main`.** Aplicada por Miguel con `db query --linked --file` y registrada; verificada en READ ONLY: 413 clientes→A, 4→E, 14 cierres→B, 30 convertidos→C, 4→E; 427 identidades con documento vigente, 14 inversiones coop con titular, un solo lead vivo por persona, unicidad documental, Capital intacto (postflight contra datos reales). Antes: ensayada en banco (G2 verde) y revisada por auditor-rls + Codex.
 
 **Qué.** F2 del plan multiempresa: backfill que puebla la identidad de F1 desde el histórico, POR CLASES (contrato §13.2): A perfil cliente con documento válido y único → identidad; B cierre coop con documento válido → identidad + inversión externa inicial; C lead convertido hereda la identidad de su perfil o su cierre; E (sin documento, inválido, ambiguo) → revisión, sin enlazar. Deja el mapa auditable `crm.backfill_multiempresa_mapa` y asigna responsable (asesor Avance / vendedor coop) y centraliza `no_contactar`. Función `private.backfill_multiempresa_ejecutar()`.
 
