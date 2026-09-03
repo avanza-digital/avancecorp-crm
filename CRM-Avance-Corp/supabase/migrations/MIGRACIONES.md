@@ -7412,3 +7412,10 @@ S/ 65 000, USD 12 640 y tres operaciones conservadas. Septiembre quedó en
 `17 / 17`, divisor `182`, numerador `9` y `4,95 %`. La huella productiva final
 es `a64a30be3182589c02553759728276f2`, el censo terminó `30/30` y la historia
 oficial registró nueve bloques bajo el nombre correcto.
+
+**Registro en `schema_migrations` (03/09, madrugada):** las dos migraciones
+aplicadas hoy con `db query` (`20260902190000` y `20260902201000_v2`) quedaron
+registradas por Miguel con el `INSERT` que preparó la sesión f3 y esta sesión
+cotejó byte a byte contra los archivos confirmados. Verificado en lectura por f3:
+total **203**, ambas con 1 statement, **`20260902200000` ausente** (como debe),
+huella del registro `c6dad2fd…`.
