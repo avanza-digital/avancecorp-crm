@@ -49,6 +49,23 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-03 (~18:00 hora de Lima) — CRM: el capital estimado deja de
+  colapsar en la ficha del lead:** hotfix exclusivamente de frontend. El
+  wrapper `w-full` del selector de moneda reclamaba toda la fila flexible y
+  reducía el input del monto a unos pocos píxeles. El ancho fijo ahora vive en
+  el flex-item real, Capital ocupa la fila completa y las parejas de campos se
+  apilan en viewport estrecho. Commit `4b18f42edfa0`. Gate limpio: 188 archivos,
+  **2.638/2.638 pruebas**, lint, tipos, build y bundle; regresión E2E real a
+  390×844 con monto ≥120 px, moneda ≥80 px, sin solape ni desborde. Release
+  **`crm-20260903T230001Z-4b18f42edfa0`**, build
+  **`build-20260903T230000818Z`**, ZIP SHA-256
+  **`8b18c23a96b70b78abe1abfee209dd7e5808c3305da360e8563131bca26c6309`**.
+  En vivo: 75/75 entradas verificadas (62 exactas, 12 imágenes 200 y
+  `.htaccess` 403), tres lecturas consecutivas del build, login visual correcto
+  y ZIP 404 en CRM y portal. `miavance.com` siguió 200 y sin el build del CRM.
+  No hubo cambios de SQL, datos, RLS ni Edge Functions. **Rollback:**
+  `crm-20260903T223116Z-7f6e1d4b2961.zip`.
+
 - **Deploy 2026-09-03 (~17:31 hora de Lima) — CRM: capacidad única para
   convertir leads:** corrige a los usuarios creados desde Gerencia con la
   combinación válida `comercial + vendedor`, sin cambiar roles ni recrear
