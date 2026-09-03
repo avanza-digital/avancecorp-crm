@@ -187,15 +187,19 @@ Estas reglas permiten diseñar sin dejar ambigüedades. Miguel puede cambiarlas 
 | Anulación | No borra la fila; deja de contar y conserva autor/motivo |
 | Datos demo | Se excluyen por clasificación técnica, no por nombres |
 | Transferencias | Fuera del alcance inicial; requieren ledger legal propio |
+| Fecha comercial en cooperativas | Propia por inversión: anterior o igual al registro, nunca futura; Capital y conversión la usan como en Avance; en mes sellado entra como ajuste posterior (decisión 9, **confirmada por Miguel el 02/09/2026**) |
 
 ### Decisiones que F0 debe confirmar
 
-1. si el responsable será realmente único para las tres empresas o distinto por empresa;
-2. si las cooperativas seguirán solo en PEN;
-3. qué documentos legales debe mostrar/guardar cada empresa;
-4. quiénes pueden registrar una inversión multiempresa;
-5. si el Portal mostrará únicamente Avance o un resumen de otras empresas;
-6. la regla definitiva de comisión cuando una persona invierte en dos empresas el mismo mes.
+> [!success] Las 7 CONFIRMADAS por Miguel el 03/09/2026 con los valores recomendados (la 7 lo estaba desde el 02/09).
+
+1. Responsable comercial: **único para las tres empresas** (la comisión de cada inversión igual queda para quien la cerró). ✅
+2. Cooperativas: **solo PEN** por ahora; Avance sigue en PEN y USD. ✅
+3. Documentos: **Avance, contrato PDF como hoy; cooperativas, comprobante de depósito, número de referencia y evidencia.** ✅
+4. Registran: **vendedor en sus clientes, supervisor en su equipo, Gerencia en todos; Directorio solo lee.** ✅
+5. Portal: **solo Avance**; no se crea acceso al Portal por invertir en cooperativa. ✅
+6. Comisión: **cada inversión liquida según la regla de su empresa**; la conversión se acredita una sola vez en la vida (en la primera inversión). ✅
+7. si las inversiones en cooperativa llevan una fecha comercial propia, que puede ser anterior al registro pero nunca futura; Capital y conversión la usan igual que en Avance. Si cae en un mes ya sellado, entra como ajuste posterior, sin reescribir el mes (añadida el 02/09/2026 como decisión 9 de la lista de preguntas a Miguel; **CONFIRMADA por Miguel el 02/09/2026**).
 
 ## 6. Plan por fases
 

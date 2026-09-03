@@ -1,12 +1,13 @@
 ---
 tags: [crm, multiempresa, g0, manifiesto, capital, supabase, solo-lectura]
 fecha: 2026-09-01
-estado: r3-oraculo-de-borde-observacion-clasificada-requiere-correccion-no-firmado
-serial_origen: AVC-MULTIEMPRESA-G0-20260902-R3
-serial_anterior: AVC-MULTIEMPRESA-G0-20260901-R2
+estado: r4-firmado-por-miguel-2026-09-03-f1-por-replay-manual-verificacion-en-vivo-pendiente
+serial_origen: AVC-MULTIEMPRESA-G0-20260902-R4
+serial_anterior: AVC-MULTIEMPRESA-G0-20260902-R3
 proyecto_supabase: dctqcbznekcyxhjujuci
 capturado_en_utc: 2026-09-02T04:32:13Z
 r3_ejecutado_en_utc: 2026-09-02T05:00:00Z
+r4_ejecutado_en_utc: 2026-09-02T23:50:00Z
 ---
 
 # Manifiesto productivo G0 — cliente multiempresa
@@ -17,7 +18,8 @@ r3_ejecutado_en_utc: 2026-09-02T05:00:00Z
 |---|---:|---|---|
 | R1 | 196 | 2026-09-02T01:36:25Z | Núcleo y oráculos en paridad; quedó obsoleta al publicarse 197–198 |
 | R2 | 198 | 2026-09-02T04:32:13Z | Recaptura completa contra 197–198: cero deriva respecto a R1 |
-| **R3 (esta)** | **198** (verificado: misma huella `fc46855522…`) | 2026-09-02T05:00Z | **Oráculo de borde UTC/Lima: la observación temporal queda CLASIFICADA — no es aceptable sin corrección** |
+| R3 | 198 (verificado: misma huella `fc46855522…`) | 2026-09-02T05:00Z | Oráculo de borde UTC/Lima: la observación temporal queda CLASIFICADA — no es aceptable sin corrección |
+| **R4 (esta)** | **201 registradas + 2 aplicadas sin registro** | 2026-09-02T23:50Z | **Recaptura completa con el reloj de Lima YA en producción (aplicado a las 15:00 por otra sesión de Miguel): núcleo, fuentes y contratos intactos; deriva de consumidores explicada; G0 LISTO PARA FIRMA** |
 
 R2 repite toda la batería de R1 (migraciones, núcleo, resolutor, consumidores,
 fuentes, ACL, guardianes, Capital mensual, AUM, núcleo completo y ATR-4) en
@@ -559,6 +561,136 @@ Efectos colaterales que Codex verificó y esta sesión confirmó:
 Portal) quedan como paquete de front aparte; no bloquean la firma de G0 porque
 no son consumidores del núcleo.
 
+## R4 — Recaptura con el reloj de Lima ya en producción (2026-09-02, 18:50 Lima)
+
+Serial `AVC-MULTIEMPRESA-G0-20260902-R4`. Todo en `begin read only; …; commit;`
+con `transaction_read_only = on` en cada fila. Ejecutada por la sesión
+`avancecorp-desktop-f3`; las sesiones `-28`, `-aa` y `crm-avance-corp-e3`
+confirmaron por mensaje que no publicarían nada más en el servidor esta noche.
+
+### Qué cambió en producción entre R3 (00:00 Lima) y R4 (18:50 Lima)
+
+Todo publicado por otras sesiones de Miguel y autorizado por él según
+`CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md`:
+
+| Versión | Nombre | Registro en `schema_migrations` | Qué toca |
+|---|---|---|---|
+| `20260902070052` | `crm_ranking_poblacion_mes_calendario` | registrada | `conversion_mensual_fn`, `metricas_conversiones_equipo_fn` (no Capital) |
+| `20260902190000` | `crm_mi_cartera_por_mes_de_cierre` | **aplicada ~12:05 sin registro** (`db query --linked --file`) | vista `crm.contratos_cartera` (+`fecha_cierre_comercial`), `contratos_cartera_v2_fn`; front publicado 12:07 |
+| `20260902200000` | `crm_g0_reloj_hoy_es_lima` | **nunca aplicada** (su postflight abortaba; no puede aplicarse) | — |
+| `20260902201000` | `crm_g0_reloj_hoy_es_lima_v2` | **aplicada 15:00 por Miguel, `PARIDAD_OK`, sin registro** | las 4 funciones del reloj (ver abajo) |
+| `20260902202247` | `crm_ranking_foto_mensual_coherente` | registrada | `cerrar_periodo`, `conversion_mensual*`, `cumplimiento_metas_fn`, `metricas_conversiones_equipo_fn` y **`private.produccion_mes_por_vendedor`** (consumidor de Capital) |
+| `20260902224847` | `crm_conversion_total_analistas_solo_ranking` | registrada | `conversion_mensual_sin_cartera_fn` (no Capital) |
+
+Registro: **201** migraciones, última `20260902224847`, huella
+`930a546cc108e2672bd5a7ed88f3b9b6`. El registro **no refleja** `190000` ni
+`201000` (la vía `db query` no registra): deuda de higiene a saldar antes del
+próximo ciclo de banco (`reregistrar.py`), no un bloqueo de G0.
+
+Front del CRM: dos publicaciones (12:07 `e9d9a28`, 17:32 `9b5cc36`, bundles
+estáticos, sin SQL). Datos: +30 leads `landing` a las 11:08 por el puente
+Sheets→CRM (reales, atrapados desde el 01/09); `crm.leads` recibe filas cada
+5 min por diseño; contratos reales 498 → 506 por operación normal del día.
+
+### El reloj, verificado sobre las funciones vivas
+
+| Función | `md5(prosrc)` R2 → R4 | `current_date` | fecha Lima | `md5` si se deshace la sustitución | ACL / owner / DEFINER / `search_path` |
+|---|---|---:|---:|---|---|
+| `crm.metricas_capital_mes_fn` | `b21f9a7a…` → `a25667f6…` | 0 | 2 | `b21f9a7a…` ✔ | idénticos |
+| `crm.metricas_vencimientos_fn` | `4e7751a6…` → `dbafa025…` | 0 | 3 | `4e7751a6…` ✔ | idénticos |
+| `crm.metricas_pagos_mes_fn` | `59946d10…` → `88c79901…` | 0 | 1 | `59946d10…` ✔ | idénticos (conserva `private, public, crm`) |
+| `public.dashboard_admin_metricas` | `a0843333…` → `df2c28bc…` | 0 | 2 | `a0843333…` ✔ | idénticos |
+
+«Si se deshace la sustitución» = `md5(replace(prosrc, '(now() at time zone
+''America/Lima'')::date', 'current_date'))`: que devuelva exactamente la huella
+de R2 demuestra que el ÚNICO cambio es esa sustitución, sin una coma más. La
+migración fue refutada por Codex antes de aplicarse (sesión `01a0633f…`, ledger)
+y se aplicó dentro de una sola transacción `REPEATABLE READ` con foto antes y
+después idénticas (`PARIDAD_OK`).
+
+**Verificación en vivo dentro de la franja 19:00–23:59 Lima:** PENDIENTE.
+Miguel pidió pausa a las 19:00 del 02/09; se hace en la próxima sesión (la
+franja se repite cada día). Receta: con claims de Gerencia, dentro de
+`begin read only`, comparar `crm.metricas_vencimientos_fn(365)` y `(90)`,
+`crm.metricas_capital_mes_fn(12)`, `crm.metricas_pagos_mes_fn(12)` y
+`public.dashboard_admin_metricas()` (claims de gestor) contra la réplica con
+fecha de Lima (`EXCEPT ALL` = 0 esperado) y contra la réplica con
+`current_date` UTC (diferencias esperadas donde haya contratos en el borde).
+
+### Núcleo protegido — sin deriva
+
+| Objeto | `md5(prosrc)` | `md5(pg_get_functiondef)` | Atributos |
+|---|---|---|---|
+| `private.capital_episodios(timestamptz,timestamptz,boolean,uuid[])` | `38c99b1bd6e8ae0bc8bb0f93d5487ce8` | `b8f375fbb377582835f4cfe222240c5b` | `{postgres=X/postgres}`, STABLE, DEFINER, `search_path=""`, 4 args + 17 columnas, una sobrecarga |
+| `private.analista_atribuido_cadena(uuid)` | `e39016e2913cce47faabee29c2c38fe2` | `3c9cec305b014ad8c933df25057d3e8b` | `{postgres=X/postgres}`, STABLE, invocador, `search_path=""`, una sobrecarga |
+
+Coincidencia exacta con R1, R2 y el plan.
+
+### Consumidores — 17, el mismo conjunto; 5 huellas cambiaron y las 5 están explicadas
+
+Censo con `strpos` sobre `capital_episodios` y `analista_atribuido_cadena` en
+`crm`, `public` y `private`: **17 funciones, 0 vistas**, exactamente el mismo
+conjunto que R2. Huellas idénticas a R2 en 12; cambiaron las 4 del reloj
+(migración `201000`, arriba) y `private.produccion_mes_por_vendedor`
+(`6d5ccff2…` → `ecfdf7e030497af2f299ba327102a5ea`, migración `202247`, sigue
+bebiendo del núcleo y de `conversion_episodios`). **Trinquete de Capital**
+(`scripts/trinquete-capital.sql`, misma expresión, en lectura): **0
+calculadoras crudas fuera del núcleo**. Quedan 6 funciones con `current_date`
+en esos esquemas y ninguna consume el núcleo (pagos del Portal, productos,
+`assert_f7_piezas_cerradas`): la otra sesión las propuso a Miguel como dos
+paquetes aparte, sin OK todavía.
+
+### Fuentes — huellas idénticas a R2
+
+Con la normalización de R2 (separadores `E'\n'` reales; comprobado que es la
+que reproduce sus huellas): `public.contratos` `1ff13639…` · `crm.cierres_externos`
+`dc5abe49…` · `crm.operaciones_cartera` `ad80cfe2…` · `crm.leads` `f24b05fc…` ·
+`crm.metas_vendedor` `3f74006a…` · `crm.meta_periodos` `63750509…`. Mismos
+conteos de columnas, constraints e índices; RLS habilitado en las seis; ACL de
+tabla sin cambios. `crm.cierres_externos_un_cierre_por_lead UNIQUE (lead_id)`
+sigue presente (esperado hasta F1).
+
+### Oráculos funcionales
+
+| Oráculo | R2 | **R4** |
+|---|---|---|
+| Capital mensual `metricas_capital_mes_fn(60)` (claims Gerencia) vs agregación del núcleo con reloj **de Lima** | 41 filas, 0 diferencias | **41 filas, 0 diferencias**, huella `e2e2a44213e0afd74198c32254d9a13e` (distinta de R2 por los contratos nuevos del día, no por la lógica) |
+| AUM `metricas_directorio()->'aum'` vs suma de `stock` activos + coops (ATR-4), captado desde inicio de mes Lima | JSON exacto | **JSON exacto**: PEN 19 695 113,12 · captado 371 000 · 1,9 % — USD 1 044 193,33 · 0 · 0 % |
+| Núcleo completo (2000→2100, global) | 513 episodios, `f02c25c9…` | **521 episodios**, `fbb4b7e53f8a526bd2eb6cd048cf6526` (+8 contratos reales del día) |
+| `stock` / `desglose` / `nula` | 512 / 0 / 1 | 520 / 0 / 1 (la demo `a112aead-…`, monto 0) |
+| Sin analista | 13 (0 coops) | 13 (0 coops) — baseline intacto |
+| Anulaciones Avance / externas | 0 / 1 | 0 / 1 |
+| «Demo vuelve a ser dinero» / «anulación real pierde Capital» | 0 / 0 | **0 / 0** |
+| Guardianes | 30/30 · 6/6 | **30/30 · 6/6 · F7 15 piezas OK** |
+
+Desglose R4: `contrato_nuevo` 317 (21 sin categoría), `contrato_renovacion`
+24, `contrato_upgrade` 165, `cooperativa` 15. Estados: activo 505, vencido 1,
+vigente 14, anulado 1. Stock PEN 19 705 713,12 · USD 1 044 193,33 (supera al
+AUM en los 10 600 PEN del contrato vencido, igual que en R2). Contratos en
+tabla: 506 reales + 2 demo.
+
+### Veredicto de R4
+
+- Núcleo, resolutor, fuentes y contratos (ATR-2, ATR-4, Capital): **sin deriva**.
+- Deriva de consumidores: **cinco huellas, las cinco explicadas** por
+  migraciones autorizadas del día; trinquete en 0.
+- Observación temporal de R2/R3: **corregida en producción** (`201000`) y
+  verificada función por función; verificación en vivo en la franja: ver arriba.
+- **G0 FIRMADO por Miguel el 03/09/2026** sobre esta R4 (serial
+  `AVC-MULTIEMPRESA-G0-20260902-R4`). Queda UNA verificación confirmatoria: las
+  RPC reales dentro de la franja 19:00–23:59 Lima de esta noche (Vencimientos no
+  debe mover nada; el 23/09 los 150 000 PEN que vencen ese día siguen «por
+  vencer» hasta medianoche de Lima). Si esa verificación fallara, reabre G0 (P0).
+- La firma de G0 **no** autoriza F1: F1 necesita su propia autorización expresa.
+  Cuando llegue, el branch aislado de F1 se construye por la **vía 1 (replay
+  manual)** — decisión de Miguel del 03/09 (ver [[Diagnostico de Branching antes de F1 (2026-09-01)]]).
+
+Pendientes que **no** bloquean la firma pero **sí** F1: las seis decisiones
+comerciales de F0 (preguntas 2–7 a Miguel), la aclaración del
+`MIGRATIONS_FAILED` de Branching, el registro de `190000`/`201000` en
+`schema_migrations`, y —fuera del núcleo— los 6 usos restantes de
+`current_date` y los relojes de navegador.
+
 ## Estado de ramas
 
 - Árbol local en `main` = `75c03d0` con notas multiempresa sin commit; no se
@@ -575,16 +707,16 @@ no son consumidores del núcleo.
 
 ## Próximo gate
 
-1. ~~Clasificar la observación temporal~~ **Hecho en R3**: requiere corrección.
-2. Obtener el `!` de Miguel para la migración del reloj (4 funciones, incluida
-   `metricas_pagos_mes_fn` por veredicto de Codex), ensayarla en el banco (`banco-f7` sirve para
-   ensayar SQL aunque su estado de Branching sea ambiguo) y publicarla antes del
-   freeze del 08/09 o después del sello.
-3. Recapturar las huellas de los consumidores tocados, repetir los oráculos
-   (Capital mensual, AUM, borde) y firmar G0 como R4, siempre que la cuenta de
-   migraciones sea la esperada.
-4. En paralelo: seis decisiones de F0 y aclaración del `MIGRATIONS_FAILED` de
-   Branching. Después, autorización expresa para F1.
+1. ~~Clasificar la observación temporal~~ **Hecho en R3**.
+2. ~~Corregir el reloj~~ **Hecho: `20260902201000` aplicada a las 15:00 (otra sesión, Miguel la lanzó).**
+3. ~~Recapturar y repetir los oráculos~~ **Hecho en R4.** Falta la
+   verificación en vivo de la franja 19:00–23:59 (pausada el 02/09 por Miguel;
+   se hace en la próxima sesión, cualquier día entre 19:00 y 23:59 Lima).
+4. **Firmar G0** (Miguel) sobre esta R4, siempre que no se publique nada más en
+   el servidor antes de la firma; si se publica, recapturar (R5).
+5. En paralelo: seis decisiones de F0, aclaración del `MIGRATIONS_FAILED` de
+   Branching y registro de `190000`/`201000`. Después, autorización expresa
+   para F1.
 
 Relacionado: [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]] ·
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]] ·

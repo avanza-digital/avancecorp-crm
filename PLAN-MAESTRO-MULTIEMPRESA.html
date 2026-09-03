@@ -65,7 +65,7 @@
 <body>
 <main>
   <header id="inicio">
-    <p class="meta">Aprobado por Miguel para firma documental de F0 · <strong>Estado al 02/09/2026:</strong> G0 capturado (R2, 198 migraciones, cero deriva) y oráculo de borde corrido (R3). <strong>G0 sin firmar</strong>: la corrección del reloj (4 funciones, refutada por Codex) espera el <code>!</code> de Miguel. F1 no autorizada. Ver <a href="#bitacora">bitácora</a>.</p>
+    <p class="meta">Aprobado por Miguel para firma documental de F0 · <strong>Estado al 03/09/2026:</strong> <strong>G0 FIRMADO por Miguel</strong> sobre la R4; las siete decisiones de F0 confirmadas. Queda una verificación confirmatoria esta noche (19:00–23:59). F1 todavía necesita su autorización expresa; su branch irá por replay manual. Ver <a href="#bitacora">bitácora</a>.</p>
     <h1>Plan maestro definitivo — Cliente multiempresa e inversiones del grupo</h1>
     <p><strong>Empresas iniciales:</strong> Avance Corp, COOPAC Qorilazo y COOPAC Prodelco.</p>
     <p><strong>Modo de ejecución:</strong> continuo y gobernado por gates, sin cronograma artificial. Cada fase avanza en cuanto cumple su evidencia y las tareas independientes se desarrollan en paralelo.</p>
@@ -102,7 +102,7 @@
 
   <section id="bitacora">
     <h2>Bitácora de avance</h2>
-    <p class="meta">Se actualiza en cada paso del plan. Última actualización: 02/09/2026 00:45 (Lima).</p>
+    <p class="meta">Se actualiza en cada paso del plan. Última actualización: 03/09/2026 09:50 (Lima).</p>
     <table>
       <thead><tr><th>Cuándo</th><th>Avance</th><th>Evidencia</th><th>Estado</th></tr></thead>
       <tbody>
@@ -111,9 +111,15 @@
         <tr><td>01/09/2026 23:32 Lima</td><td>G0 R2: recaptura completa contra 198 migraciones, solo lectura.</td><td>Núcleo, resolutor, 17 consumidores, 6 fuentes, Capital mensual (41 filas), AUM y 513 episodios: cero deriva. Vault: «Manifiesto productivo G0 multiempresa».</td><td>✅ Capturado. Sin firmar por la observación del reloj.</td></tr>
         <tr><td>02/09/2026 00:00 Lima</td><td>G0 R3: oráculo de borde UTC/Lima, un año simulado día a día, solo lectura.</td><td><strong>Capital mensual:</strong> el 30/09 no difiere; primer fallo visible el 31/12/2026 (enero 2026 desaparece de la gráfica de 12 meses cinco horas antes); el dinero nunca cambia de mes. <strong>Vencimientos:</strong> fallo <em>diario</em> (178 de 365 días con la ventana de 365 que usa la pantalla Hoy): el 23/09 a las 19:00 el contrato de 150 000 PEN que vence ese día deja de verse como «por vencer». <strong>Tercer afectado:</strong> el tablero de admin del Portal. Tres controles de fidelidad en 0 filas distintas; réplica igual a las RPC reales.</td><td>🔴 Observación clasificada: <strong>requiere corrección autorizada</strong>.</td></tr>
         <tr><td>02/09/2026 00:40 Lima</td><td>Codex intentó refutar las cinco conclusiones de R3 (23 min, solo lectura).</td><td>Equivalencia, «el dinero no cambia de mes» y divergencia diaria: <strong>no refutadas</strong>. Censo: refutado en parte (hay relojes de navegador en «Mi cartera» y en el tablero antiguo del Portal; para usuarios en Lima aciertan). Corrección: refutada en alcance, <strong>son cuatro funciones</strong>, no tres (la pantalla Hoy también llama a la de pagos). Origen confirmado: el <code>current_date</code> se copió del cuerpo antiguo, no fue una decisión.</td><td>✅ Verificado en el repo. Paquete final: 4 funciones, una línea cada una; relojes de navegador en un paquete de front aparte, no bloquean G0.</td></tr>
-        <tr><td>Pendiente</td><td>Autorización de Miguel (<code>!</code>) para la migración del reloj (4 funciones); ensayo en banco; publicación antes del freeze del 08/09; recaptura de huellas y oráculos; firma de G0 (R4).</td><td>—</td><td>⏳ Espera el <code>!</code>.</td></tr>
-        <tr><td>Pendiente</td><td>Seis decisiones comerciales de F0 (responsable único, cooperativas solo PEN, documentos por empresa, quién registra, qué muestra el Portal, comisión con dos empresas el mismo mes).</td><td>Valores por defecto propuestos el 02/09.</td><td>⏳ Decisión de Miguel.</td></tr>
-        <tr><td>Pendiente</td><td>Aclarar con Supabase por qué Branching marca <code>main</code> y <code>banco-f7</code> como <code>MIGRATIONS_FAILED</code> con las bases sanas.</td><td>Vault: «Diagnóstico de Branching antes de F1».</td><td>⏳ Antes de crear el branch de F1.</td></tr>
+        <tr><td>02/09/2026 15:00 Lima</td><td>Corrección del reloj <strong>aplicada en producción</strong> por otra sesión de Miguel (migración <code>20260902201000</code>, lanzada por Miguel). Cuatro funciones: Capital mensual, Vencimientos, Pagos y tablero de admin del Portal.</td><td>Refutada por Codex antes de aplicarse; aplicada en una sola transacción con foto antes y después idénticas (<code>PARIDAD_OK</code>). Verificado después por esta sesión: al deshacer la sustitución, cada función devuelve exactamente su huella anterior; permisos y <code>search_path</code> intactos.</td><td>✅ Hecho.</td></tr>
+        <tr><td>02/09/2026 18:50 Lima</td><td>G0 R4: recaptura completa sobre el estado nuevo (201 migraciones registradas + 2 aplicadas sin registro), solo lectura.</td><td>Núcleo y resolutor al byte; 6 fuentes con huella idéntica a R2; 17 consumidores, mismo conjunto, 5 huellas cambiadas y las 5 explicadas (4 del reloj + ranking del día); trinquete 0; Capital mensual 41 filas sin diferencia contra el reloj de Lima; AUM exacto; 521 episodios, ATR-4 sin violaciones; guardianes en verde. Vault: sección R4 del manifiesto.</td><td>✅ <strong>G0 listo para firma.</strong></td></tr>
+        <tr><td>02/09/2026 19:00–23:59 Lima</td><td>Verificación en vivo dentro de la franja en la que antes fallaba: las RPC reales contra el reloj de Lima.</td><td>Pausada a las 19:00 del 02/09 a pedido de Miguel; la franja se repite cada día.</td><td>⏸ Se hace en la próxima sesión.</td></tr>
+        <tr><td>03/09/2026 09:50 Lima</td><td><strong>Miguel firmó G0</strong> sobre la R4 y <strong>confirmó las siete decisiones de F0</strong> con los valores recomendados; eligió construir el branch de F1 por replay manual (vía 1).</td><td>Producción sin cambios desde la R4 (mismas huellas, 201 migraciones, 521 episodios). Queda como confirmación la verificación en vivo de esta noche.</td><td>✅ G0 firmado. F0 con sus decisiones cerradas.</td></tr>
+        <tr><td>Pendiente</td><td>Registrar en <code>schema_migrations</code> las migraciones <code>20260902190000</code> y <code>20260902201000</code> (aplicadas con <code>db query</code>, que no registra).</td><td>Preparado por esta sesión; lo ejecuta Miguel con su <code>!</code>. La <code>20260902200000</code> NO se registra nunca.</td><td>⏳ Espera el <code>!</code>.</td></tr>
+        <tr><td>Pendiente</td><td><strong>Autorización expresa de F1</strong> por Miguel.</td><td>—</td><td>⛔ No autorizada aún.</td></tr>
+        <tr><td>Pendiente</td><td>Siete decisiones comerciales de F0 (responsable único, cooperativas solo PEN, documentos por empresa, quién registra, qué muestra el Portal, comisión con dos empresas el mismo mes, y la <strong>fecha comercial propia de las inversiones en cooperativa</strong>: anterior o igual al registro, nunca futura; Capital y conversión la usan como en Avance; en mes sellado entra como ajuste posterior).</td><td>Valores por defecto propuestos el 02/09; la séptima se añadió el 02/09 00:55.</td><td>✅ Decisión 9 (fecha comercial en cooperativas) <strong>confirmada por Miguel el 02/09 01:00</strong>. ⏳ Las otras seis siguen pendientes.</td></tr>
+        <tr><td>Pendiente</td><td>Branching: por qué <code>main</code> y <code>banco-f7</code> marcan <code>MIGRATIONS_FAILED</code> con las bases sanas.</td><td><strong>Aclarado el 03/09 con la guía oficial de Supabase:</strong> el estado refleja el último intento de construir un branch replayando la historia de migraciones sobre una base vacía; falla porque la historia registrada no coincide con el esquema vivo (migraciones aplicadas con <code>db query</code> sin registro, una que nunca se aplicó, preflights anclados a producción). No es avería y no bloquea F1. Vault: «Diagnóstico de Branching antes de F1».</td><td>✅ Aclarado. Queda una decisión de Miguel: seguir con el replay manual probado (vía 1) o pasar a una migración de línea base para que los branches se construyan solos (vía 2).</td></tr>
+        <tr><td>03/09/2026 09:35 Lima</td><td>Entregable de F0: <strong>catálogo de puertas de escritura</strong> de identidad e inversiones (leads, perfiles, contratos, cierres externos, operaciones de cartera, edge functions, puente de landing).</td><td>Censo en producción, solo lectura: 16 escritores de leads, 8 de perfiles, 9 de contratos, 3 de cierres externos, 2 de operaciones; 43 triggers; la persona se escribe hoy por cuatro caminos que no se conocen entre sí. Vault: «Catálogo de puertas de escritura (F0, 2026-09-03)».</td><td>✅ Hecho. Es el mapa que F3 tiene que cerrar.</td></tr>
         <tr><td>Pendiente</td><td>Autorización expresa de F1.</td><td>—</td><td>⛔ No autorizada.</td></tr>
       </tbody>
     </table>
@@ -288,6 +294,7 @@ crm.inversiones
       <li>Se reemplaza <code>UNIQUE(lead_id)</code> por una regla que permita varias inversiones y solo una conversión.</li>
       <li>Las inversiones posteriores nunca convierten.</li>
       <li>Capital continúa leyendo la fuente existente.</li>
+      <li><strong>Decisión 9 de F0 — CONFIRMADA por Miguel el 02/09/2026:</strong> Las inversiones en cooperativa llevan una fecha comercial propia, que puede ser anterior al registro pero nunca futura; Capital y conversión la usan igual que en Avance. Si cae en un mes ya sellado, entra como ajuste posterior, sin reescribir el mes. Hoy el núcleo fecha las cooperativas por el instante de registro (<code>creado_en</code>); esta regla las alinea con Avance (<code>fecha_cierre_comercial</code>) y exige una columna nueva en F1 y su validación en F4.</li>
     </ul>
 
     <h3>Manifiesto productivo G0</h3>
@@ -301,7 +308,7 @@ crm.inversiones
         <tr><th>Hash prosrc</th><td><code>38c99b1bd6e8ae0bc8bb0f93d5487ce8</code></td></tr>
       </tbody>
     </table>
-    <div class="rule"><strong>Recaptura R2 (02/09/2026, 198 migraciones):</strong> firma, ambos hashes, ACL, dependencias, 17 consumidores, 6 fuentes y oráculos coinciden exactamente con estas referencias. <strong>R3</strong> clasificó la observación del reloj: dos consumidores (<code>metricas_capital_mes_fn</code>, <code>metricas_vencimientos_fn</code>) y el tablero de admin del Portal derivan «hoy» de <code>current_date</code> en UTC; requieren corrección autorizada antes de firmar G0. Detalle en el vault.</div>
+    <div class="rule"><strong>Recaptura R2 (02/09/2026, 198 migraciones):</strong> firma, ambos hashes, ACL, dependencias, 17 consumidores, 6 fuentes y oráculos coinciden exactamente con estas referencias. <strong>R3</strong> clasificó la observación del reloj: dos consumidores (<code>metricas_capital_mes_fn</code>, <code>metricas_vencimientos_fn</code>) y el tablero de admin del Portal derivan «hoy» de <code>current_date</code> en UTC; se corrigieron en producción el 02/09 a las 15:00 (<code>20260902201000</code>) y <strong>R4</strong> recapturó todo sobre el estado nuevo: sin deriva en núcleo, fuentes ni contratos. Detalle en el vault.</div>
     <div class="notice">Son referencias observadas el 1 de septiembre de 2026, no la firma definitiva. G0 debe recapturarlas directamente del servidor productivo posterior a ATR-2/ATR-4 junto con <code>private.analista_atribuido_cadena</code>, dependencias y oráculos.</div>
     <h3>Regla de bloqueo de G0</h3>
     <ul>
@@ -487,7 +494,7 @@ Excepciones: reintentable · compensacion_pendiente · fallida_definitiva</pre>
       <h3>G0 — Manifiesto productivo</h3>
       <ul><li>Recapturar ATR-2/ATR-4.</li><li>Congelar Capital y dependencias.</li><li>Registrar estado real.</li><li>Ejecutar oráculos sin persistencia.</li><li>Confirmar ausencia de deriva.</li></ul>
       <p class="gate">Salida: base técnica firmada. F1 requiere autorización separada.</p>
-      <p><strong>Estado 02/09/2026:</strong> capturado (R2) y clasificado (R3); <strong>sin firmar</strong> hasta corregir el reloj de cuatro funciones con autorización aparte y recapturar. Ver <a href="#bitacora">bitácora</a>.</p>
+      <p><strong>Estado 03/09/2026:</strong> capturado (R2), clasificado (R3), reloj corregido (15:00 del 02/09), recapturado (R4) y <strong>FIRMADO por Miguel</strong>. Verificación en vivo confirmatoria esta noche. Ver <a href="#bitacora">bitácora</a>.</p>
     </article>
     <article class="phase">
       <h3>F1 — Expandir el esquema</h3>
@@ -642,7 +649,7 @@ Excepciones: reintentable · compensacion_pendiente · fallida_definitiva</pre>
 
     <h3>Firmas de aprobación documental F0</h3>
     <div class="signatures">
-      <div class="signature"><strong>Miguel</strong><br>Autoridad comercial · fecha</div>
+      <div class="signature"><strong>Miguel</strong><br>Autoridad comercial · <strong>F0 firmado 03/09/2026</strong>; G0 firmado sobre R4</div>
       <div class="signature"><strong>Responsable técnico</strong><br>Arquitectura · fecha</div>
       <div class="signature"><strong>Responsable financiero</strong><br>Capital y métricas · fecha</div>
     </div>
