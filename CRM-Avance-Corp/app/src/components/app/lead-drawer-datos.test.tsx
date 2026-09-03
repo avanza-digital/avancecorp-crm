@@ -243,6 +243,28 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     )
   })
 
+  it('reserva espacio útil al monto y apila los datos cuando el drawer es estrecho', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Editar' }))
+
+    const monto = screen.getByLabelText('Capital estimado *')
+    const moneda = screen.getByLabelText('Moneda del capital estimado')
+    const filaCapital = monto.parentElement
+    const campoCapital = filaCapital?.parentElement
+    const grillaDatos = campoCapital?.parentElement
+    // Select agrega su propio wrapper `w-full`; el ancho fijo tiene que vivir
+    // un nivel por fuera para que el wrapper no aplaste al input flexible.
+    const anchoMoneda = moneda.parentElement?.parentElement
+
+    expect(filaCapital).toHaveClass('flex')
+    expect(anchoMoneda).toHaveClass('w-24', 'shrink-0')
+    expect(anchoMoneda?.parentElement).toBe(filaCapital)
+    expect(campoCapital).toHaveClass('sm:col-span-2')
+    expect(grillaDatos).toHaveClass('grid-cols-1', 'sm:grid-cols-2')
+  })
+
   it('no permite borrar ni guardar en cero el capital', async () => {
     const user = userEvent.setup()
     const { editarLead } = montar()
