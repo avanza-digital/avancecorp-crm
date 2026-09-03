@@ -49,6 +49,32 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-03 (~17:31 hora de Lima) — CRM: capacidad única para
+  convertir leads:** corrige a los usuarios creados desde Gerencia con la
+  combinación válida `comercial + vendedor`, sin cambiar roles ni recrear
+  cuentas. PostgreSQL es ahora la fuente única de la capacidad
+  `puede_contratar`; frontend, cuatro puertas SQL y las Edges dejan de mantener
+  allowlists divergentes. Commit de código `7f6e1d4b2961`; migración
+  `20260903215149_crm_capacidad_conversion_unica`, con cuerpo completo
+  registrado y postflight productivo verde. Identidad real
+  `comercial + vendedor`: `true`; Coordinación: `false`, en prueba de solo
+  lectura con `ROLLBACK`. Advisors: cero errores. Edges activas con JWT:
+  `crm-convertir-lead` v13 y `crear-cliente` v32; `OPTIONS` 200 y POST sin
+  sesión 401. Release **`crm-20260903T223116Z-7f6e1d4b2961`**, build
+  **`build-20260903T223115104Z`**, ZIP SHA-256
+  **`c06b2332890583022676355f85046405157c1ef8f2191a0fb6d7c65972a48b00`**.
+  Gate limpio: 188 archivos, 2.637/2.637 pruebas, 49/49 Edge, 5/5 Deno,
+  tipos, lint y build. En vivo: 75/75 entradas verificadas (62 exactas, 12
+  imágenes 200, `.htaccess` 403), tres lecturas consecutivas del build, login
+  visual correcto y ZIP 404 en CRM y portal. `miavance.com` respondió 200 y no
+  contiene el build del CRM. No se ejecutó una conversión autenticada real para
+  no crear un cliente productivo; la autoridad quedó ejercitada con identidad
+  real en transacción revertida. **Rollback frontend:**
+  `crm-20260903T164522Z-f767a5f976f5.zip`. Respaldo privado previo:
+  `releases/p058-predeploy-crm-private-20260903.sql`, SHA-256
+  `7d537830fe8754d0189dcf011ab2df8c023a6e9cecf5fc5053a83becc1f7cdf9`.
+  Detalle en [[Capacidad única de conversión de leads (2026-09-03)]].
+
 - **Deploy 2026-09-02 (~09:54 hora de Lima) — CRM: rankings históricos por mes
   calendario:** Gerencia y Supervisión seleccionan agosto sin perder la meta
   mensual; Conversión, Capital total y Cosecha comparten el mismo mes, alcance

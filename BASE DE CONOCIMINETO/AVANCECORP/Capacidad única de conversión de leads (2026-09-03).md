@@ -1,7 +1,7 @@
 ---
 tags: [crm, roles, autorizacion, leads, conversion]
 actualizado: 2026-09-03
-estado: desarrollado-no-desplegado
+estado: implementado-en-produccion
 ---
 
 # Capacidad única de conversión de leads (2026-09-03)
@@ -66,5 +66,28 @@ medios. El gate automatizado final quedó verde en frontend, Edge, chequeo Deno
 con lock congelado, tipos, lint y build.
 
 Orden obligatorio de publicación: **migración → ambas Edge Functions → frontend**.
-El estado al 2026-09-03 es **desarrollado y ensayado localmente, aún no
-desplegado en producción**.
+
+## Publicación en producción
+
+Publicada el 2026-09-03, aproximadamente a las 17:31 (Lima), en el orden
+previsto. La migración `20260903215149` quedó registrada con su cuerpo completo
+y pasó el postflight de catálogo y comportamiento. Una sesión simulada con la
+identidad real de un `comercial + vendedor` activo obtuvo
+`puede_contratar=true`; Coordinación obtuvo `false`. La comprobación fue de
+solo lectura y terminó en `ROLLBACK`, sin crear clientes ni modificar leads.
+Los advisors de seguridad quedaron sin errores.
+
+Las Edge Functions quedaron activas y con JWT obligatorio:
+`crm-convertir-lead` v13 y `crear-cliente` v32. El frontend publicado corresponde
+al release `crm-20260903T223116Z-7f6e1d4b2961`, build
+`build-20260903T223115104Z`, ZIP SHA-256
+`c06b2332890583022676355f85046405157c1ef8f2191a0fb6d7c65972a48b00`.
+Los 75 archivos del manifiesto se verificaron en vivo; el login cargó
+correctamente y el ZIP no quedó expuesto. El portal `miavance.com` no recibió
+el build del CRM.
+
+Rollback conservado: release frontend
+`crm-20260903T164522Z-f767a5f976f5.zip`. El respaldo schema-only privado previo
+al cambio está fuera del web root, ignorado por Git, como
+`CRM-Avance-Corp/releases/p058-predeploy-crm-private-20260903.sql`, SHA-256
+`7d537830fe8754d0189dcf011ab2df8c023a6e9cecf5fc5053a83becc1f7cdf9`.

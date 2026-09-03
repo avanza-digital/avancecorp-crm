@@ -7461,7 +7461,7 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 
 ## 20260903215149 · `crm_capacidad_conversion_unica`
 
-**Estado: DESARROLLADA Y ENSAYADA LOCALMENTE; NO APLICADA EN PRODUCCIÓN.**
+**Estado: ✅ PRODUCCIÓN 2026-09-03.**
 
 **Incidente.** Los analistas creados desde Gerencia nacen con el contrato
 vigente `public.perfiles.rol='comercial'` +
@@ -7505,8 +7505,30 @@ persistente quedó aplicada. Gate final: frontend **2637/2637**, acceso dirigido
 únicamente cuatro advertencias de accesibilidad preexistentes en
 `coverflow-carousel.tsx`.
 
-**Orden de publicación obligatorio:** migración → Edge Functions
-(`crm-convertir-lead` y `crear-cliente`) → frontend.
-El servidor anterior no publica `puede_contratar`, por lo que el bundle nuevo
-falla cerrado hasta que la migración exista. La publicación a producción es un
-paso separado.
+**Publicación.** Se respetó el orden obligatorio migración → Edge Functions
+(`crm-convertir-lead` y `crear-cliente`) → frontend. Los branches de preview
+seguían en el estado heredado `MIGRATIONS_FAILED`; con autorización explícita
+de Miguel se usó el carril productivo documentado `db query --linked --file`,
+después de respaldo schema-only, comparación de las seis definiciones vivas y
+ensayo descartable. La fila `20260903215149` quedó registrada con el cuerpo
+completo de la migración y su MD5 coincide con el archivo local.
+
+**Postflight productivo.** Las seis salidas de `puede_contratar`, las cuatro
+puertas SQL y sus propiedades de seguridad coinciden con el contrato. Una
+identidad real `comercial + vendedor` devolvió `puede_contratar=true` y una de
+Coordinación devolvió `false`, dentro de una prueba de solo lectura con
+`ROLLBACK`; usuarios y leads abiertos no cambiaron. Advisors de seguridad:
+cero errores. Las Edges quedaron `ACTIVE`, con `verify_jwt=true`:
+`crm-convertir-lead` v13 (`f6ee8ee848a9a581...`) y `crear-cliente` v32
+(`948579bb609a47f5185d83bb...`); `OPTIONS` respondió 200 y POST sin sesión 401.
+
+**Frontend productivo.** Release
+`crm-20260903T223116Z-7f6e1d4b2961`, build
+`build-20260903T223115104Z`, ZIP SHA-256
+`c06b2332890583022676355f85046405157c1ef8f2191a0fb6d7c65972a48b00`.
+En vivo: 75/75 entradas verificadas (62 byte a byte, 12 imágenes HTTP 200 y
+`.htaccess` 403), tres lecturas consecutivas del build correctas, ZIP 404 en
+CRM y portal, y login cargado visualmente. Se conservan el release anterior
+`crm-20260903T164522Z-f767a5f976f5.zip` y el respaldo privado ignorado
+`releases/p058-predeploy-crm-private-20260903.sql` (SHA-256
+`7d537830fe8754d0189dcf011ab2df8c023a6e9cecf5fc5053a83becc1f7cdf9`).
