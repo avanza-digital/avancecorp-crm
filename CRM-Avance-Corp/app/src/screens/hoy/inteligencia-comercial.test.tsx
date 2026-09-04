@@ -68,7 +68,7 @@ describe('detalle de conversión por analista', () => {
 
     const heroe = within(screen.getByRole('region', { name: 'Conversión mensual canónica' }))
     expect(heroe.getByText('Conversión del mes · agosto 2026')).toBeInTheDocument()
-    expect(heroe.getByText('23.85%')).toBeInTheDocument()
+    expect(heroe.getByText('23.06%')).toBeInTheDocument()
     expect(heroe.getByText('No disponible')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las conversiones del rango.')
     expect(screen.queryByRole('img', { name: 'Cosecha del período por analista' })).not.toBeInTheDocument()
@@ -184,12 +184,12 @@ describe('detalle de conversión por analista', () => {
     const contenido = within(detalle)
     // El número grande es LA conversión del MES (4.15÷12), no la del rango.
     expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
-    expect(contenido.getByText('34.58%')).toBeInTheDocument()
-    expect(contenido.getByText('Recibidos 12 · cierres 5')).toBeInTheDocument()
+    expect(contenido.getByText('31.50%')).toBeInTheDocument()
+    expect(contenido.getByText('Recibidos 10 · cierres 4')).toBeInTheDocument()
     // Procedencia y referidos con la letra corregida del plan.
-    expect(contenido.getByText('de agosto 4, de julio 1')).toBeInTheDocument()
+    expect(contenido.getByText('de agosto 3, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
-    expect(contenido.getByText('Fórmula: (cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes.')).toBeInTheDocument()
+    expect(contenido.getByText(/Fórmula:.*renovaciones ×0.15.*llegadas automáticas Landing\/Formulario/)).toBeInTheDocument()
     // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
     // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
     // fuente vieja lo dejaba en S/ 0 eterno).
@@ -283,7 +283,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(detalle.getByText('34.58% de 40%')).toBeInTheDocument()
+    expect(detalle.getByText('31.50% de 40%')).toBeInTheDocument()
     expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
     // Y el veredicto de estado sale del mismo número: 34.58 < 40.
     expect(detalle.getByText('Por alcanzar')).toBeInTheDocument()
@@ -473,8 +473,8 @@ describe('detalle de conversión por analista', () => {
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
     expect(detalle.getByText('Conversión del mes no disponible')).toBeInTheDocument()
     expect(detalle.getByText(/1 cierre no tiene episodio verificable/)).toBeInTheDocument()
-    expect(detalle.queryByText('34.58%')).not.toBeInTheDocument()
-    expect(detalle.queryByText('Recibidos 12 · cierres 5')).not.toBeInTheDocument()
+    expect(detalle.queryByText('31.50%')).not.toBeInTheDocument()
+    expect(detalle.queryByText('Recibidos 10 · cierres 4')).not.toBeInTheDocument()
     expect(detalle.queryByRole('img', { name: 'Tendencia semanal de conversión de Ana Torres' })).not.toBeInTheDocument()
     expect(detalle.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(detalle.getByText(money(20_000, 'USD'))).toBeInTheDocument()
@@ -547,7 +547,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const ana = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(ana.getByText('34.58%')).toBeInTheDocument()
+    expect(ana.getByText('31.50%')).toBeInTheDocument()
     expect(ana.getByText(/Provisional: el registro empieza/)).toBeInTheDocument()
     expect(ana.queryByText('Sin datos del mes')).not.toBeInTheDocument()
   })
@@ -638,8 +638,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     const heroe = within(heroeRegion)
     expect(heroe.getByText(/Conversión del rango · 01 ago\. 2026 al 27 ago\. 2026/)).toBeInTheDocument()
     expect(heroe.getByText('7.22%')).toBeInTheDocument()
-    expect(heroe.getByText(/537 asignaciones contabilizadas/)).toBeInTheDocument()
-    expect(heroe.queryByText('23.85%')).not.toBeInTheDocument()
+    expect(heroe.getByText(/537 registros en la base histórica/)).toBeInTheDocument()
+    expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
     expect(screen.getAllByText('Cosecha del período').length).toBeGreaterThan(0)
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.getByText('17 cierres de 184')).toBeInTheDocument()
@@ -654,14 +654,19 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     const datos = metricasConversionesDemo('2026-09-01', '2026-09-03')
     datos.nucleo = {
       ...NUCLEO,
-      divisor: 289,
-      numerador: 10,
-      conversion_pct: 3.46,
-      cierres_no_referidos: 10,
+      base: 'llegada_unica',
+      llegadas: 185,
+      altas_manuales: 8,
+      referidos_recibidos: 1,
+      peso_renovacion: 0.15,
+      divisor: 176,
+      numerador: 7,
+      conversion_pct: 3.98,
+      cierres_no_referidos: 7,
       cierres_referidos: 0,
       operaciones_cartera: 0,
       mes_peso: '2026-09-01',
-      incluye_cartera: false,
+      incluye_cartera: true,
     }
     const mensual = conversionMensualInteligenciaDemo(AHORA)
     mensual.total = {
@@ -696,11 +701,13 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     const heroeRegion = screen.getByRole('region', { name: 'Conversión canónica del rango' })
     const heroe = within(heroeRegion)
     expect(heroe.getByText(/Conversión del rango · 01 set\. 2026 al 03 set\. 2026/)).toBeInTheDocument()
-    expect(heroe.getByText('3.46%')).toBeInTheDocument()
-    expect(heroe.getByText(/289 asignaciones contabilizadas/)).toBeInTheDocument()
+    expect(heroe.getByText('3.98%')).toBeInTheDocument()
+    expect(heroe.getByText(/176 llegadas automáticas en la base/)).toBeInTheDocument()
     expect(heroeRegion).not.toHaveTextContent('317')
     expect(heroeRegion).not.toHaveTextContent('3.79%')
-    expect(heroe.getByText('El rango parcial no incluye operaciones de cartera.')).toBeInTheDocument()
+    expect(heroe.queryByText(/no incluye operaciones de cartera/)).not.toBeInTheDocument()
+    expect(heroe.getByText(/185 llegadas únicas/)).toBeInTheDocument()
+    expect(heroe.queryByText(/asignaciones contabilizadas/)).not.toBeInTheDocument()
   })
 
   it('la paridad del núcleo ya no gobierna esta pantalla: el BRUTO se pinta igual', () => {

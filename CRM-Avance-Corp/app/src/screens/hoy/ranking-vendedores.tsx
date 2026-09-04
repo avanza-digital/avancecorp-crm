@@ -730,8 +730,10 @@ export function RankingVendedoresPanel({
       ? metaMensual.comparable && tc === undefined
       : cosechaCargando)
   const formulaConversion = conversionMensual == null
-    ? '(Cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes'
-    : `(Cierres no referidos + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes`
+    ? 'Conversión ponderada del núcleo comercial'
+    : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
+      ? `(Cierres Landing/Formulario + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ llegadas automáticas Landing/Formulario. La llegada queda en el primer analista; el cierre, en quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
+      : 'Base histórica del mes: conserva la definición anterior con la que se calculó; no equivale a llegadas únicas.'
 
   return (
     <section data-gi-panel className="gi-card overflow-hidden">

@@ -3,8 +3,8 @@
 // «El fixture se deriva» (§5 del plan) porque la alternativa es mantener a
 // mano un payload que diga otra cosa que la aritmética real: la demo enseñaría
 // otro negocio. Este módulo reimplementa LA MISMA regla que
-// `private.conversion_mensual_por_vendedor` (divisor = leads NO referidos
-// recibidos en el mes, un lead por analista; numerador = cierres del mes con
+// `private.conversion_mensual_por_vendedor` (divisor = llegadas automáticas
+// Landing/Formulario, una por lead y para su primer analista; numerador = cierres del mes con
 // los referidos al 15 %; NULL sin divisor; estados por el MISMO orden de
 // ramas) sobre episodios de asignación demo.
 //
@@ -42,6 +42,9 @@ export interface EpisodioConversionDemo {
   analistaId: string
   /** 0 = mes en curso · 1 = mes anterior (se resuelve contra periodoLima). */
   asignadoHaceMeses: 0 | 1
+  /** Alta original; si no se declara, la demo la sitúa en su primer episodio. */
+  llegadaHaceMeses?: 0 | 1
+  altaManual?: boolean
   origen: 'referido' | 'landing' | 'formulario' | 'web' | 'oficina' | 'otro'
   resultado?: 'convertido' | 'descartado'
   /** Mes del cierre; solo tiene sentido con `resultado`. */
@@ -92,11 +95,19 @@ function filaDe(
 ): ResponsableConversionMensual {
   const propios = episodios.filter((episodio) => episodio.analistaId === analista.analistaId)
 
-  // DIVISOR: leads NO referidos con episodio del mes en curso — contando el
-  // LEAD, no el episodio (un A→B→A pesaría uno). Los referidos, aparte.
-  const recibidosMes = propios.filter((episodio) => episodio.asignadoHaceMeses === 0)
+  // El mismo lead cuenta solo en el PRIMER analista de toda su historia.
+  // El orden original de la fixture desempata episodios del mismo mes.
+  const primeras = new Map<string, EpisodioConversionDemo>()
+  for (const episodio of [...episodios].sort((a, b) => b.asignadoHaceMeses - a.asignadoHaceMeses)) {
+    if (!primeras.has(episodio.leadId)) primeras.set(episodio.leadId, episodio)
+  }
+  const recibidosMes = [...primeras.values()].filter((episodio) => (
+    episodio.analistaId === analista.analistaId
+    && (episodio.llegadaHaceMeses ?? episodio.asignadoHaceMeses) === 0
+    && ['landing', 'formulario', 'referido'].includes(episodio.origen)
+  ))
   const divisor = new Set(
-    recibidosMes.filter((episodio) => episodio.origen !== 'referido').map((episodio) => episodio.leadId),
+    recibidosMes.filter((episodio) => episodio.origen !== 'referido' && !episodio.altaManual).map((episodio) => episodio.leadId),
   ).size
   const referidosRecibidos = new Set(
     recibidosMes.filter((episodio) => episodio.origen === 'referido').map((episodio) => episodio.leadId),
@@ -106,10 +117,14 @@ function filaDe(
   // episodio y la procedencia por el mes de SU asignación.
   const cierres = propios.filter((episodio) => (
     episodio.resultado === 'convertido' && episodio.resultadoHaceMeses === 0
+    && ['landing', 'formulario', 'referido'].includes(episodio.origen)
   ))
   const cierresNoReferidos = cierres.filter((episodio) => episodio.origen !== 'referido').length
   const cierresReferidos = cierres.filter((episodio) => episodio.origen === 'referido').length
-  const cierresDeArrastre = cierres.filter((episodio) => episodio.asignadoHaceMeses !== 0).length
+  const cierresDeArrastre = cierres.filter((episodio) => {
+    const primera = primeras.get(episodio.leadId) ?? episodio
+    return (primera.llegadaHaceMeses ?? primera.asignadoHaceMeses) !== 0
+  }).length
   const brutoNumerador = round2(cierresNoReferidos + PESO_REFERIDO_DEMO * cierresReferidos)
   // El arrastre rebaja el numerador con suelo en cero — la MISMA regla
   // (`private.conversion_con_ajuste`) que la lectura real aplica al servir.
@@ -127,10 +142,12 @@ function filaDe(
 
   const porMes = new Map<0 | 1, { cierres: number; referidos: number }>()
   for (const episodio of cierres) {
-    const cubo = porMes.get(episodio.asignadoHaceMeses) ?? { cierres: 0, referidos: 0 }
+    const primera = primeras.get(episodio.leadId) ?? episodio
+    const mesLlegada = primera.llegadaHaceMeses ?? primera.asignadoHaceMeses
+    const cubo = porMes.get(mesLlegada) ?? { cierres: 0, referidos: 0 }
     cubo.cierres += 1
     if (episodio.origen === 'referido') cubo.referidos += 1
-    porMes.set(episodio.asignadoHaceMeses, cubo)
+    porMes.set(mesLlegada, cubo)
   }
   const procedencia = [...porMes.entries()]
     .sort(([a], [b]) => a - b)
@@ -243,11 +260,11 @@ export function derivarConversionMensual(
       desde: desdePeriodo,
       hasta: hastaPeriodo,
     },
-    ponderacion: { referido: PESO_REFERIDO_DEMO, fuente: 'crm.conversion_pesos' },
+    ponderacion: { referido: PESO_REFERIDO_DEMO, renovacion: PESO_REFERIDO_DEMO, fuente: 'crm.conversion_pesos' },
     fuentes: {
-      divisor: 'crm.lead_asignaciones.asignado_en',
+      divisor: 'crm.leads.creado_en',
       numerador: 'crm.lead_asignaciones.resultado_en',
-      referido: 'crm.lead_asignaciones.origen',
+      referido: 'crm.leads.origen',
     },
     cobertura: {
       medible: true,

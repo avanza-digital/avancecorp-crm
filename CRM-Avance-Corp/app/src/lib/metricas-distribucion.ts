@@ -342,7 +342,7 @@ export const MetricasDistribucionLeadsV3Schema = v.strictObject({
     capacidad: v.literal('TODAS_LAS_MONEDAS'),
     montos: v.literal('SEPARADOS_SIN_CONVERSION'),
     conversion_punteria: v.literal('CERRADOS_ENTRE_RESUELTOS'),
-    conversion_nucleo: v.literal('COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS'),
+    conversion_nucleo: v.picklist(['COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS', 'LLEGADAS_UNICAS_PRIMER_ANALISTA']),
     conversion_incluye_cartera: v.boolean(),
   }),
   resumen: ResumenDistribucionV3Schema,

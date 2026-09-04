@@ -302,10 +302,26 @@ describe('ConversionMensualSchema — el contrato', () => {
     expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
   })
 
-  it('RECHAZA un divisor con otra definición (fail-closed del contrato)', () => {
+  it('RECHAZA una transición incompleta a llegadas únicas', () => {
     const p = payloadCanonico()
     p.fuentes.divisor = 'crm.leads.creado_en'
     expect(v.safeParse(ConversionMensualSchema, p).success).toBe(false)
+  })
+
+  it('admite el contrato de llegadas con renovación ponderada sin romper fotos históricas', () => {
+    const anterior = payloadCanonico()
+    expect(v.safeParse(ConversionMensualSchema, anterior).success).toBe(true)
+    const nuevo = {
+      ...anterior,
+      fuentes: { ...anterior.fuentes, divisor: 'crm.leads.creado_en', referido: 'crm.leads.origen' },
+      ponderacion: { ...anterior.ponderacion, renovacion: anterior.ponderacion.referido },
+    }
+    expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(true)
+    nuevo.ponderacion.renovacion = 1
+    expect(v.safeParse(ConversionMensualSchema, nuevo).success).toBe(false)
+    expect(v.safeParse(ConversionMensualSchema, {
+      ...anterior, fuentes: { ...anterior.fuentes, divisor: 'crm.leads.actualizado_en' },
+    }).success).toBe(false)
   })
 
   it('RECHAZA un estado desconocido del servidor', () => {

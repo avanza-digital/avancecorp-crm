@@ -33,6 +33,7 @@ Hay **tres capas**, complementarias:
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
 - [[Gestión comercial de clientes - renovaciones y upgrades]]
+- [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]]
 - [[Identidad unificada de inversionistas - plan pendiente]]
 - [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]]
 - [[Incidente y restauracion Ficha 360 2026-08-31]]

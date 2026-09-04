@@ -401,18 +401,21 @@ export function ResumenGerenciaPanel({
                 ? 'Todos los orígenes · consultando el núcleo del rango…'
                 : nucleoRango == null
                   ? 'Base canónica del rango no disponible'
-                  : `Todos los orígenes · ${numero(nucleoRango.divisor)} asignaciones contabilizadas · ${numero(nucleoRango.cierres_no_referidos)} cierres no referidos`
+                  : `${nucleoRango.base === 'llegada_unica' ? 'Landing/Formulario/Referido' : 'Base histórica'} · ${numero(nucleoRango.divisor)} ${nucleoRango.base === 'llegada_unica' ? 'llegadas automáticas en la base' : 'registros en la base histórica'} · ${numero(nucleoRango.cierres_no_referidos)} cierres no referidos`
                     + (nucleoRango.cierres_referidos > 0 ? ` · ${numero(nucleoRango.cierres_referidos)} cierres referidos` : '')
                     + (nucleoRango.operaciones_cartera > 0 ? ` · ${numero(nucleoRango.operaciones_cartera)} operaciones de cartera` : '')
               : mensualCargando
                 ? 'Consultando conversión, capital y meta del mes…'
                 : conversionMensual != null && !lecturaConversion.mostrar
-                  ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                  ? (lecturaConversion.aviso ?? 'Sin base comercial para este mes')
                   : totalMes == null
                     ? 'Conversión del mes no disponible'
                     : `${numero(cierresMes ?? 0)} cierres este mes`
                       + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
+          {usaNucleoRango && nucleoRango?.llegadas != null && (
+            <p className="mt-1 text-xs text-white/65">{numero(nucleoRango.llegadas)} llegadas únicas en total · {numero(nucleoRango.altas_manuales ?? 0)} altas manuales y {numero(nucleoRango.referidos_recibidos)} referidos fuera de la base. Reasignar no agrega llegadas.</p>
+          )}
           {usaNucleoRango && nucleoRango != null && !nucleoRango.incluye_cartera && (
             <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
           )}
@@ -447,7 +450,7 @@ export function ResumenGerenciaPanel({
           detalle={usaNucleoRango
             ? rangoEsperando
               ? 'Consultando el rango…'
-              : nucleoRango == null ? 'Dato no disponible' : `${numero(nucleoRango.divisor)} asignaciones contabilizadas`
+              : nucleoRango == null ? 'Dato no disponible' : `${numero(nucleoRango.divisor)} ${nucleoRango.base === 'llegada_unica' ? 'llegadas automáticas en la base' : 'registros en la base histórica'}`
             : mensualCargando ? 'Consultando el mes…' : cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`}
           Icon={TrendingUp}
           color={C.blue}

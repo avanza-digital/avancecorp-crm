@@ -460,8 +460,10 @@ function DetalleVendedor({
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-[var(--gi-muted)]">
                   {mensual == null
-                    ? 'Fórmula: (cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes.'
-                    : `Fórmula: (cierres no referidos + referidos ×${numero(mensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes.`}
+                    ? 'Fórmula servida por el núcleo comercial.'
+                    : mensual.fuentes.divisor === 'crm.leads.creado_en'
+                      ? `Fórmula: (cierres Landing/Formulario + referidos ×${numero(mensual.ponderacion.referido, 2)} + renovaciones ×${numero(mensual.ponderacion.renovacion ?? mensual.ponderacion.referido, 2)} + upgrades) ÷ llegadas automáticas Landing/Formulario. La llegada queda en el primer analista; las altas manuales no agregan base.`
+                      : 'Base histórica: conserva la definición con la que se calculó este mes; no equivale a llegadas únicas.'}
                 </p>
               </section>
             )}
@@ -765,14 +767,20 @@ export function InteligenciaComercialPanel({
                     ? 'Todos los orígenes · consultando el núcleo del rango…'
                     : nucleo == null
                       ? 'Base canónica del rango no disponible'
-                      : `Todos los orígenes · ${numero(nucleo.divisor)} asignaciones contabilizadas · ${numero(nucleo.cierres_no_referidos)} cierres no referidos`
+                      : `${nucleo.base === 'llegada_unica' ? 'Landing/Formulario/Referido' : 'Base histórica'} · ${numero(nucleo.divisor)} ${nucleo.base === 'llegada_unica' ? 'llegadas automáticas en la base' : 'registros en la base histórica'} · ${numero(nucleo.cierres_no_referidos)} cierres no referidos`
                         + (nucleo.cierres_referidos > 0 ? ` · ${numero(nucleo.cierres_referidos)} cierres referidos` : '')
                         + (nucleo.operaciones_cartera > 0 ? ` · ${numero(nucleo.operaciones_cartera)} operaciones de cartera` : '')
                   : mensualEsperando
                     ? 'Todos los orígenes · consultando el núcleo mensual…'
-                    : `Todos los orígenes · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} asignaciones contabilizadas · ${numero(cierresMes ?? 0)} cierres`}`
+                    : `${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'Landing/Formulario/Referido' : 'Base histórica'} · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} ${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'llegadas automáticas en la base' : 'registros históricos'} · ${numero(cierresMes ?? 0)} cierres`}`
                       + ((operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : '')}
               </p>
+              {usaNucleoRango && nucleo?.llegadas != null && (
+                <p className="mt-1 text-xs text-white/65">{numero(nucleo.llegadas)} llegadas únicas · {numero(nucleo.altas_manuales ?? 0)} altas manuales y {numero(nucleo.referidos_recibidos)} referidos fuera de la base. La llegada pertenece al primer analista; el cierre, a quien lo consigue.</p>
+              )}
+              {usaNucleoRango && nucleo?.peso_renovacion != null && (
+                <p className="mt-1 text-xs text-white/65">Referidos y renovaciones ×{numero(nucleo.peso_renovacion, 2)} · upgrades ×1. Solo operaciones dentro del rango.</p>
+              )}
               {usaNucleoRango && nucleo != null && !nucleo.incluye_cartera && (
                 <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
               )}

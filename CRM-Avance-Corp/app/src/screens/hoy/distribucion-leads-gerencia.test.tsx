@@ -306,11 +306,11 @@ describe('DistribucionLeadsGerencia', () => {
     expect(within(cierresPorMoneda).getByText('1 venta de 2 leads resueltos')).toBeInTheDocument()
 
     // La cifra del núcleo, SERVIDA y verificada por la sonda (cuadra=true).
-    expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
+    expect(screen.getByText('Conversión del rango')).toBeInTheDocument()
     expect(screen.getByText('44.44%')).toBeInTheDocument()
     // D8 + F2.6: la identidad con HOY volvió a ser verdad medida — el rótulo
     // la afirma (y la sonda `cuadra` es quien la vigila en vivo).
-    expect(screen.getByText(/La misma cifra que HOY, Metas, Conversiones y el Ranking/)).toBeInTheDocument()
+    expect(screen.getByText(/Base histórica con la definición anterior/)).toBeInTheDocument()
 
     expect(screen.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeInTheDocument()
     expect(

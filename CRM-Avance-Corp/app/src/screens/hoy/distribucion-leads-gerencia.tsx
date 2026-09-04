@@ -357,14 +357,17 @@ function ResumenDistribucion({
     <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Leads con analista
+          {mostrarOperacion ? 'Leads con analista' : 'Base comercial del rango'}
         </dt>
         <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-primary">
-          {ENTERO.format(datos.resumen.asignados_actuales)}
+          {ENTERO.format(mostrarOperacion ? datos.resumen.asignados_actuales : punteria.nucleo_divisor)}
         </dd>
         <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          {dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} en soles ·{' '}
-          {dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en dólares
+          {mostrarOperacion
+            ? `${dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} en soles · ${dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en dólares`
+            : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
+              ? 'Llegadas automáticas Landing/Formulario; una vez por lead, para su primer analista.'
+              : 'Base histórica; no equivale a llegadas únicas.'}
         </dd>
       </div>
 
@@ -387,7 +390,7 @@ function ResumenDistribucion({
 
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Conversión del mes
+          Conversión del rango
         </dt>
         {sondas.mostrarNucleo ? (
           <>
@@ -399,9 +402,10 @@ function ResumenDistribucion({
                   así que la identidad volvió a ser verdad MEDIDA (verificada
                   contra el servidor en el mismo snapshot antes de afirmarla
                   aquí). Si dejara de cuadrar, el aviso de sondas lo dice. */}
-              La misma cifra que HOY, Metas, Conversiones y el Ranking · cohorte por asignación,{' '}
-              {mesEnPalabras(datos.cohorte.desde_inclusivo)} · referidos ponderados y fuera de la
-              base
+              {datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
+                ? 'Núcleo comercial: llegadas únicas, referidos y renovaciones ponderados; upgrades ×1.'
+                : 'Base histórica con la definición anterior.'}
+              {' '}{mesEnPalabras(datos.cohorte.desde_inclusivo)}
             </dd>
           </>
         ) : (

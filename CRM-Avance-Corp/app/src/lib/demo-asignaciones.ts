@@ -9,7 +9,7 @@
 //
 // Trae los TRES casos que la ley obliga a poder enseñar (§5 del plan):
 //   · A→B: el lead 'l20' pasa por ANALISTA UNO (lo suelta) y lo cierra
-//     ANALISTA DOS — al divisor de LOS DOS, al numerador solo de quien cerró.
+//     ANALISTA DOS — llegada solo a UNO, cierre solo a DOS (regla 04/09).
 //   · ARRASTRE: 'la1' recibido el mes pasado y cerrado este mes — numerador de
 //     este mes, divisor del pasado. Y ANALISTA TRES vive entero de arrastre
 //     (divisor 0 + cierre): el estado `solo_arrastre` en pantalla.
@@ -27,7 +27,7 @@ export interface EpisodioDemo {
 }
 
 export const EPISODIOS_DEMO: readonly EpisodioDemo[] = [
-  // ── ANALISTA UNO (d-v1) · divisor 8 · cierra 2 no-ref (1 de arrastre) + 1 ref
+  // ── ANALISTA UNO (d-v1) · divisor 7 · cierra 2 no-ref (1 de arrastre) + 1 ref
   { leadId: 'l2', analistaId: 'd-v1', asignadoHaceMeses: 0, origen: 'landing' },
   { leadId: 'l8', analistaId: 'd-v1', asignadoHaceMeses: 0, origen: 'web', resultado: 'descartado', resultadoHaceMeses: 0 },
   { leadId: 'l9', analistaId: 'd-v1', asignadoHaceMeses: 0, origen: 'landing' },
@@ -43,14 +43,14 @@ export const EPISODIOS_DEMO: readonly EpisodioDemo[] = [
   { leadId: 'l1', analistaId: 'd-v1', asignadoHaceMeses: 0, origen: 'referido' },
   { leadId: 'l21', analistaId: 'd-v1', asignadoHaceMeses: 0, origen: 'referido', resultado: 'convertido', resultadoHaceMeses: 0 },
 
-  // ── ANALISTA DOS (d-v2) · divisor 6 · cierra el traspasado
+  // ── ANALISTA DOS (d-v2) · divisor 4 · cierra el traspasado sin sumar llegada
   { leadId: 'l3', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'landing' },
   { leadId: 'l6', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'formulario' },
   { leadId: 'l10', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'landing', resultado: 'descartado', resultadoHaceMeses: 0 },
   { leadId: 'l18', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'web' },
   { leadId: 'l19', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'landing' },
   // …la otra mitad del traspaso: DOS lo recibe y lo CIERRA. Mismo lead, mismo
-  // mes: divisor de ambos, numerador solo de DOS.
+  // mes: divisor solo de UNO, numerador solo de DOS.
   { leadId: 'l20', analistaId: 'd-v2', asignadoHaceMeses: 0, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
 
   // ── ANALISTA TRES (d-v3) · SOLO ARRASTRE: nada recibido este mes, un cierre

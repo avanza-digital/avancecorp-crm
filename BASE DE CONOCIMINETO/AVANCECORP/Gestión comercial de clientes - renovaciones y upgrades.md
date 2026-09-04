@@ -1,6 +1,6 @@
 ---
 tags: [crm, cartera, postventa, renovacion, upgrade, conversion]
-actualizado: 2026-08-25
+actualizado: 2026-09-04
 estado: gestion-implementada-ficha-360-pendiente-preview-y-aceptacion
 ---
 
@@ -88,11 +88,19 @@ misma cartera para vendedor, supervisor y Gerencia, siempre separado por PEN/USD
 
 ## Conversión
 
-- Renovación: suma **1 conversión** y **0 al divisor**.
+**Corrección de negocio confirmada por Miguel el 2026-09-04:** la renovación
+pondera igual que un referido. Implementada en el núcleo y frontend locales;
+su publicación sigue pendiente. En producción, la comprobación previa aún
+mostraba aporte 1.
+Ver [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]].
+
+- Renovación: aporta **el peso del referido del período (hoy 0,15)** al
+  numerador y **0 al divisor**. Sustituye la regla anterior de aporte 1.
 - Aumento de inversión: suma 1 conversión solo si ocurre en un mes posterior al
   mes del primer contrato del cliente.
-- Un cliente suma como máximo **una conversión por mes**, aunque renueve dos
-  inversiones o combine renovación + aumento de inversión.
+- Por cliente se admite como máximo **una operación de cartera elegible por
+  mes**, aunque renueve dos inversiones o combine renovación + aumento de
+  inversión. Su aporte depende del tipo de la operación elegida.
 - La conversión se acredita al vendedor responsable de la cartera en el instante
   de la operación.
 - El divisor conserva como única fuente los leads no referidos recibidos; ni el

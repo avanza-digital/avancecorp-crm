@@ -2,11 +2,12 @@
 // `crm.conversion_mensual_fn` (migración 20260811154434).
 //
 // La definición (vault: «Conversion mensual - definicion cerrada», 2026-08-10):
-//   divisor   = leads NO referidos que el analista RECIBIÓ en el mes (asignación,
-//               hora de Lima); entran abiertos y descartados, nada se cae.
+//   divisor   = llegadas únicas automáticas Landing/Formulario, por alta original
+//               en Lima y primer analista; reasignar o descartar no lo cambia.
 //   numerador = cierres DEL MES: no referidos al 100 % + referidos × el peso
 //               vigente (hoy 15 %). Un lead de julio cerrado en agosto suma
-//               arriba en agosto y NO abajo.
+//               arriba en agosto y NO abajo. Renovación pesa igual que Referido;
+//               Upgrade pesa 1. Altas manuales y cartera no amplían el divisor.
 //
 // Decisiones de contrato que NO son estilo:
 // - `v.object` (no strict) A PROPÓSITO: una clave nueva del servidor no debe
@@ -157,8 +158,8 @@ const AjusteConversionSchema = v.object({
 export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
 
 /**
- * Operaciones de cartera del mes acreditadas al analista — el sumando del
- * numerador que NO viene de leads (envoltorio de `20260824231133`; máx. una
+ * Conteo BRUTO de operaciones acreditadas, no su aporte ponderado al
+ * numerador (envoltorio de `20260824231133`; máx. una
  * operación elegible por cliente/mes). Es OBLIGATORIO en el contrato vigente:
  * si falta, no sabemos si hubo cero operaciones o si llegó el núcleo anterior,
  * y convertir esa ausencia en cero sería publicar una explicación falsa.
@@ -266,6 +267,7 @@ export const ConversionMensualSchema = v.pipe(
     }),
     ponderacion: v.object({
       referido: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1)),
+      renovacion: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
       fuente: v.literal('crm.conversion_pesos'),
     }),
     // Tokens de versión del contrato, no la fórmula (la migración documenta por
@@ -273,9 +275,11 @@ export const ConversionMensualSchema = v.pipe(
     // coalesce). Cambiarlos exige cambiar servidor y front en el MISMO deploy —
     // que es exactamente lo que este literal existe para impedir por accidente.
     fuentes: v.object({
-      divisor: v.literal('crm.lead_asignaciones.asignado_en'),
+      // Ambos contratos se admiten durante el despliegue; los meses cerrados
+      // conservan la fuente con la que fueron sellados. Nunca se reetiquetan.
+      divisor: v.picklist(['crm.lead_asignaciones.asignado_en', 'crm.leads.creado_en']),
       numerador: v.literal('crm.lead_asignaciones.resultado_en'),
-      referido: v.literal('crm.lead_asignaciones.origen'),
+      referido: v.picklist(['crm.lead_asignaciones.origen', 'crm.leads.origen']),
     }),
     cobertura: CoberturaConversionSchema,
     /** Estado del mismo snapshot mensual. Se conserva para impedir que una
@@ -286,6 +290,10 @@ export const ConversionMensualSchema = v.pipe(
     total: TotalConversionSchema,
     responsables: v.array(ResponsableConversionSchema),
   }),
+  v.check((payload) => payload.fuentes.divisor !== 'crm.leads.creado_en'
+    || (payload.fuentes.referido === 'crm.leads.origen'
+      && payload.ponderacion.renovacion === payload.ponderacion.referido),
+  'El núcleo de llegadas debe declarar renovación con el mismo peso que Referido'),
   v.check((payload) => {
     const [anio, mes] = payload.periodo.mes.split('-').map(Number)
     return payload.periodo.anio === anio

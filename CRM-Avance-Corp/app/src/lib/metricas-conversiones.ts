@@ -111,6 +111,13 @@ const DetalleConversionVendedorSchema = v.object({
 
 const NucleoConversionesSchema = v.object({
   base: v.string(),
+  atribucion: v.optional(v.literal('primer_analista')),
+  llegadas: v.optional(v.number()),
+  altas_manuales: v.optional(v.number()),
+  renovaciones: v.optional(v.number()),
+  upgrades: v.optional(v.number()),
+  aporte_cartera: v.optional(v.number()),
+  peso_renovacion: v.optional(v.number()),
   divisor: v.number(),
   numerador: v.number(),
   conversion_pct: PorcentajeSchema,

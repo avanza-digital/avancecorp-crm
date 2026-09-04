@@ -42,17 +42,17 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     )
 
     // Tarjetas por analista: recibidos/cierres del MES (identidad en cero no pisa nada).
-    expect(screen.getByText('12 recibidos · 5 cierres')).toBeInTheDocument()
-    expect(screen.getByText('10 recibidos · 2 cierres')).toBeInTheDocument()
+    expect(screen.getByText('10 recibidos · 4 cierres')).toBeInTheDocument()
+    expect(screen.getAllByText('9 recibidos · 2 cierres')).toHaveLength(2)
     // KPIs servidos: divisor y cierres de la empresa, sin divisiones en cliente.
     expect(screen.getByText('Recibidos del mes')).toBeInTheDocument()
-    expect(screen.getByText('39')).toBeInTheDocument()
+    expect(screen.getByText('36')).toBeInTheDocument()
     expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
     // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
     const grafico = screen.getByRole('img', { name: 'Conversión a clientes por analista' })
     expect(JSON.parse(grafico.getAttribute('data-series') ?? '[]')).toEqual([
-      34.58,
-      20,
+      31.5,
+      22.22,
       12.78,
       12.5,
     ])
@@ -61,8 +61,8 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     // grupo volverá el día que lo sirva el servidor, no antes.
     const maria = screen.getByText('María Salazar').closest('section')!
     expect(within(maria).queryByText('28%')).not.toBeInTheDocument()
-    expect(within(maria).getByText('7')).toBeInTheDocument()
-    expect(within(maria).getByText('cierres del mes · 22 recibidos')).toBeInTheDocument()
+    expect(within(maria).getByText('6')).toBeInTheDocument()
+    expect(within(maria).getByText('cierres del mes · 19 recibidos')).toBeInTheDocument()
     const jose = screen.getByText('José Rivas').closest('section')!
     expect(within(jose).queryByText('18.5%')).not.toBeInTheDocument()
     expect(within(jose).getByText('cierres del mes · 17 recibidos')).toBeInTheDocument()

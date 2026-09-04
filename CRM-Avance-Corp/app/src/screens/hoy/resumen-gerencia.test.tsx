@@ -299,14 +299,19 @@ describe('estados vacíos del resumen de Gerencia', () => {
     )
     conversiones.nucleo = {
       ...conversiones.nucleo!,
-      divisor: 289,
-      numerador: 10,
-      conversion_pct: 3.46,
-      cierres_no_referidos: 10,
+      base: 'llegada_unica',
+      llegadas: 185,
+      altas_manuales: 8,
+      referidos_recibidos: 1,
+      peso_renovacion: 0.15,
+      divisor: 176,
+      numerador: 7,
+      conversion_pct: 3.98,
+      cierres_no_referidos: 7,
       cierres_referidos: 0,
       operaciones_cartera: 0,
       mes_peso: '2026-09-01',
-      incluye_cartera: false,
+      incluye_cartera: true,
     }
     const mensual = conversionMensualInteligenciaDemo(AHORA)
     mensual.total = {
@@ -338,12 +343,12 @@ describe('estados vacíos del resumen de Gerencia', () => {
     const titulo = screen.getByText(/Conversión del rango · 01 set\. 2026 al 03 set\. 2026/)
     const heroe = titulo.closest('section')
     expect(heroe).not.toBeNull()
-    expect(heroe).toHaveTextContent('3.46%')
-    expect(heroe).toHaveTextContent('289 asignaciones contabilizadas')
+    expect(heroe).toHaveTextContent('3.98%')
+    expect(heroe).toHaveTextContent('176 llegadas automáticas en la base')
     expect(heroe).not.toHaveTextContent('317')
     expect(heroe).not.toHaveTextContent('3.79%')
     expect(screen.getByText('Conversión del rango', { selector: '.gi-label' }).closest('[data-gi-kpi]'))
-      .toHaveTextContent('289 asignaciones contabilizadas')
+      .toHaveTextContent('176 llegadas automáticas en la base')
   })
 
   it('no convierte una foto mensual pendiente en cero ni en ausencia de meta', () => {
@@ -528,7 +533,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // UN SOLO contador de leads a la vista (veto de Miguel 27/08 noche): el
     // héroe solo dice los cierres; los 607 del KPI son la única cuenta de
     // leads visible en el Resumen. La base del núcleo ya no se exhibe.
-    expect(screen.getByText('11 cierres este mes')).toBeInTheDocument()
+    expect(screen.getByText('10 cierres este mes')).toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.queryByText(/leads asignados/)).not.toBeInTheDocument()
     expect(screen.getByText(/leads del período/)).toBeInTheDocument()

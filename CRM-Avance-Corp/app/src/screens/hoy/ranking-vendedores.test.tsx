@@ -202,7 +202,7 @@ describe('ranking general de analistas', () => {
 
     expect(screen.getByText('7 analistas · sin límite fijo de participantes')).toBeInTheDocument()
     expect(screen.getByText('Mes calendario · agosto 2026')).toBeInTheDocument()
-    expect(screen.getByText('(Cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes')).toBeInTheDocument()
+    expect(screen.getByText(/renovaciones ×0.15.*llegadas automáticas Landing\/Formulario/)).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
     // rótulos del payload viejo (Leads/Clientes medían el rango completo).
@@ -213,10 +213,10 @@ describe('ranking general de analistas', () => {
     expect(filas).toHaveLength(6)
     const filaAna = filas[1]!
     expect(within(filaAna).getByText('Ana Torres')).toBeInTheDocument()
-    expect(within(filaAna).getByText('12')).toBeInTheDocument()
-    expect(within(filaAna).getByText('5')).toBeInTheDocument()
+    expect(within(filaAna).getByText('10')).toBeInTheDocument()
+    expect(within(filaAna).getByText('4')).toBeInTheDocument()
     // 4.15 ÷ 12 — el numerador pondera el referido al 15 %, no cuenta 5/12.
-    expect(within(filaAna).getByText('34.58%')).toBeInTheDocument()
+    expect(within(filaAna).getByText('31.50%')).toBeInTheDocument()
     // El descuento con su porqué, debajo del % que rebaja.
     expect(within(filaAna).getByText('arrastra 1 conversión de anulaciones · julio 2026')).toBeInTheDocument()
     expect(within(filaAna).getByTitle('julio 2026: Cierre anulado por gerencia (−1)')).toBeInTheDocument()
@@ -414,7 +414,7 @@ describe('ranking general de analistas', () => {
     expect(screen.queryByText('Nombre actual')).not.toBeInTheDocument()
     expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Ranking de conversión general' }))
-      .toHaveTextContent('34.58%')
+      .toHaveTextContent('31.50%')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
     expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
