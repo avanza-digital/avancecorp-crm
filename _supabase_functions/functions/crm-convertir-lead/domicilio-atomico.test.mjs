@@ -6,7 +6,9 @@ const fuente = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 
 test("el dedup no modifica perfiles con service_role antes de autorizar", () => {
   const inicioDedup = fuente.indexOf("// DEDUP:");
-  const inicioConversion = fuente.indexOf('.rpc("convertir_lead_con_domicilio"');
+  // La conversión REAL es la que sigue al dedup; antes del dedup existe el
+  // cortocircuito idempotente (Contrato-F2), que llama a la misma RPC.
+  const inicioConversion = fuente.indexOf('.rpc("convertir_lead_con_domicilio"', inicioDedup);
   assert.ok(inicioDedup >= 0 && inicioConversion > inicioDedup);
   const tramo = fuente.slice(inicioDedup, inicioConversion);
   assert.equal(tramo.includes('.update({ domicilio: domicilioLegal })'), false);

@@ -13,13 +13,14 @@ import {
 // puertas de alta de clientes no puedan divergir.
 import { validarBancarios } from "../_shared/bancarios.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
+import { resolverAutorizacionAltaCliente } from "./autorizacion.mjs";
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
   "https://www.miavance.com",
   // El alta de clientes también vive en el CRM (traspaso del panel analista,
   // 2026-07-16). El CORS solo decide desde qué páginas puede llamar un
-  // navegador; la autorización real sigue siendo el JWT + rol de abajo.
+  // navegador; la autorización real sigue siendo el JWT + capacidad de abajo.
   "https://crm.miavance.com",
   // localhost:5173 (desarrollo local) se RETIRÓ el 2026-07-27 (go-live del
   // equipo): en dev el alta real se prueba contra el mock de Playwright, no
@@ -52,9 +53,14 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { persistSession: false },
+    });
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
     });
 
@@ -67,23 +73,14 @@ Deno.serve(async (req: Request) => {
       .eq("id", userRes.user.id)
       .single();
 
-    // El portal conserva sus roles. Dos ampliaciones: Gerencia ACTIVA del CRM
-    // (da de alta desde crm.miavance.com sin volverse admin global) y el asiento
-    // 'operaciones' (gestiona la cartera del Portal: clientes, contratos, pagos
-    // y documentos; no administra personal ni comunica).
-    const portalPuedeCrear = perfil?.activo
-      && ["admin", "superadmin", "analista", "operaciones"].includes(perfil.rol);
-    let gerenciaCrm = false;
-    if (perfil?.activo && !portalPuedeCrear) {
-      const { data: miembro } = await adminClient
-        .schema("crm")
-        .from("equipo")
-        .select("rol_crm, activo")
-        .eq("perfil_id", userRes.user.id)
-        .maybeSingle();
-      gerenciaCrm = miembro?.activo === true && miembro.rol_crm === "gerencia";
-    }
-    if (!perfil || !perfil.activo || (!portalPuedeCrear && !gerenciaCrm)) {
+    // El Portal conserva sus roles históricos; los miembros CRM consumen la
+    // misma capacidad canónica que contratos y conversión. La consulta usa el
+    // JWT del caller para que auth.uid() y el estado revocado sigan mandando.
+    const callerId = userRes.user.id;
+    const { data: acceso, error: accesoErr } = await userClient
+      .schema("crm").rpc("mi_acceso_fn");
+    const autorizacion = resolverAutorizacionAltaCliente(perfil, acceso, callerId);
+    if (accesoErr || !autorizacion) {
       return json(cors, { error: "No autorizado" }, 403);
     }
 
@@ -197,9 +194,9 @@ Deno.serve(async (req: Request) => {
         activo: true,
         creado_por: userRes.user.id,
         debe_cambiar_password: claveTemporal,
-        // El analista se autoasigna. Gerencia y administradores crean al cliente
-        // sin asesor; la distribución comercial se mantiene como acto separado.
-        asesor_perfil_id: perfil.rol === "analista" ? userRes.user.id : null,
+        // Analista legacy o Vendedor CRM se autoasignan. Supervisión, Gerencia
+        // y administradores crean sin apropiarse de la cartera.
+        asesor_perfil_id: autorizacion.asesorId,
         // Vacío cuando el caller no manda el bloque (portal): el insert queda
         // EXACTAMENTE como antes.
         ...columnasBancarias,

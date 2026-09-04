@@ -1905,6 +1905,7 @@ export async function montarBackendReal(
           puede_administrar_usuarios: false,
           puede_organizar_jerarquia: false,
           puede_administrar_roles: true,
+          puede_contratar: false,
         })
       }
       return json(route, {
@@ -1917,6 +1918,7 @@ export async function montarBackendReal(
         puede_administrar_usuarios: esGerencia,
         puede_organizar_jerarquia: esGerencia,
         puede_administrar_roles: esSuperadmin,
+        puede_contratar: ['vendedor', 'supervisor', 'gerencia'].includes(estado.rolCrm),
       })
     }
     if (p === '/rest/v1/equipo') return json(route, [{ rol_crm: estado.rolCrm, activo: true }])

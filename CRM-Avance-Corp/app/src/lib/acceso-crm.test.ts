@@ -9,7 +9,7 @@ const SIN_ADMIN = {
 } as const
 
 describe('interpretarMiAcceso', () => {
-  it('acepta una membresía activa y conserva la capacidad del portal', () => {
+  it('acepta una membresía activa y consume la capacidad canónica', () => {
     expect(interpretarMiAcceso({
       estado: 'miembro',
       perfil_id: 'user-1',
@@ -17,6 +17,7 @@ describe('interpretarMiAcceso', () => {
       rol_portal: 'analista',
       nombre_completo: 'Ana Analista',
       ...SIN_ADMIN,
+      puede_contratar: true,
     })).toEqual({
       tipo: 'acceso',
       perfilId: 'user-1',
@@ -44,6 +45,7 @@ describe('interpretarMiAcceso', () => {
       puede_administrar_usuarios: true,
       puede_organizar_jerarquia: true,
       puede_administrar_roles: false,
+      puede_contratar: true,
     })).toMatchObject({ tipo: 'acceso', rol: 'gerencia', puedeContratar: true })
   })
 
@@ -58,6 +60,7 @@ describe('interpretarMiAcceso', () => {
       puede_administrar_usuarios: false,
       puede_organizar_jerarquia: false,
       puede_administrar_roles: false,
+      puede_contratar: false,
     })).toEqual({
       tipo: 'acceso',
       perfilId: 'user-2',
@@ -84,6 +87,7 @@ describe('interpretarMiAcceso', () => {
       puede_administrar_usuarios: false,
       puede_organizar_jerarquia: false,
       puede_administrar_roles: true,
+      puede_contratar: false,
     })).toEqual({
       tipo: 'acceso',
       perfilId: 'superadmin-1',
@@ -101,7 +105,7 @@ describe('interpretarMiAcceso', () => {
   })
 
   it.each(['revocado', 'no_enrolado'])('cierra el acceso para estado %s', (estado) => {
-    expect(interpretarMiAcceso({ estado, perfil_id: 'user-off' })).toEqual({
+    expect(interpretarMiAcceso({ estado, perfil_id: 'user-off', puede_contratar: false })).toEqual({
       tipo: 'sin_acceso',
       perfilId: 'user-off',
     })
@@ -111,15 +115,16 @@ describe('interpretarMiAcceso', () => {
     null,
     {},
     { estado: 'revocado' },
+    { estado: 'revocado', perfil_id: 'user-1', puede_contratar: true },
     { estado: 'otro', perfil_id: 'user-1' },
-    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'admin', nombre_completo: 'X', ...SIN_ADMIN },
-    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'gerencia', rol_portal: 'directorio', nombre_completo: 'X', ...SIN_ADMIN },
+    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'admin', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: false },
+    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'gerencia', rol_portal: 'directorio', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: true },
     { estado: 'global', perfil_id: 'user-1', rol_crm: 'gerencia', rol_portal: 'admin', nombre_completo: 'X' },
-    { estado: 'global', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN },
+    { estado: 'global', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: false },
     { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'vendedor', rol_portal: null, nombre_completo: 'X' },
-    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'vendedor', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN },
-    { estado: 'administrador_roles', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN },
-    { estado: 'administrador_roles', perfil_id: 'user-1', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN },
+    { estado: 'miembro', perfil_id: 'user-1', rol_crm: 'vendedor', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: true },
+    { estado: 'administrador_roles', perfil_id: 'user-1', rol_crm: 'directorio', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: false },
+    { estado: 'administrador_roles', perfil_id: 'user-1', rol_portal: 'superadmin', nombre_completo: 'X', ...SIN_ADMIN, puede_contratar: false },
   ])('rechaza un contrato remoto malformado: %j', (respuesta) => {
     expect(() => interpretarMiAcceso(respuesta)).toThrow(TypeError)
   })
@@ -133,6 +138,7 @@ describe('interpretarMiAcceso', () => {
       nombre_completo: 'Auditor',
       ...SIN_ADMIN,
       puede_listar_usuarios: true,
+      puede_contratar: false,
     })).toMatchObject({
       tipo: 'acceso',
       rol: 'directorio',
@@ -156,6 +162,7 @@ describe('interpretarMiAcceso', () => {
       puede_administrar_usuarios: true,
       puede_organizar_jerarquia: true,
       puede_administrar_roles: true,
+      puede_contratar: true,
     })).toMatchObject({
       tipo: 'acceso',
       rol: 'gerencia',
@@ -168,6 +175,25 @@ describe('interpretarMiAcceso', () => {
     expect(() => interpretarMiAccesoParaUsuario({
       estado: 'revocado',
       perfil_id: 'user-b',
+      puede_contratar: false,
     }, 'user-a')).toThrow('La identidad cambió')
+  })
+
+  it('acepta a un usuario Comercial del Portal cuando su membresía Vendedor puede contratar', () => {
+    expect(interpretarMiAcceso({
+      estado: 'miembro',
+      perfil_id: 'comercial-nuevo',
+      rol_crm: 'vendedor',
+      rol_portal: 'comercial',
+      nombre_completo: 'Analista Nuevo',
+      ...SIN_ADMIN,
+      puede_contratar: true,
+    })).toMatchObject({
+      tipo: 'acceso',
+      perfilId: 'comercial-nuevo',
+      rol: 'vendedor',
+      rolPortal: 'comercial',
+      puedeContratar: true,
+    })
   })
 })

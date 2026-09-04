@@ -1076,7 +1076,7 @@ function Datos({
               aria-describedby={invalido('nombre_completo') ? 'ld-datos-error' : undefined}
             />
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ld-telefono">Teléfono</Label>
               <Input
@@ -1099,24 +1099,28 @@ function Datos({
                 aria-describedby={invalido('telefono_alternativo') ? 'ld-datos-error' : undefined}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="ld-monto">Capital estimado *</Label>
               <div className="flex gap-2">
                 <Input id="ld-monto" className="min-w-0 flex-1 tabular-nums" type="number" min={0.01} max={MONTO_ESTIMADO_MAX} step="0.01" inputMode="decimal" required aria-required="true" aria-invalid={invalido('monto_estimado')} aria-describedby={invalido('monto_estimado') ? 'ld-datos-error' : undefined} value={form.monto} onChange={campo('monto')} placeholder="Ej. 5000" />
-                <Select
-                  aria-label="Moneda del capital estimado"
-                  className="w-24 shrink-0"
-                  value={form.moneda}
-                  onChange={(e) => {
-                    const moneda = e.target.value
-                    if (esMoneda(moneda)) {
-                      setForm((actual) => ({ ...actual, moneda }))
-                    }
-                  }}
-                >
-                  <option value="PEN">{SIMBOLO.PEN} PEN</option>
-                  <option value="USD">{SIMBOLO.USD} USD</option>
-                </Select>
+                {/* Select envuelve el <select> en un div w-full. El ancho debe
+                    fijarse en ESTE flex-item; aplicarlo al nodo interior deja
+                    que el wrapper reclame toda la fila y aplaste el monto. */}
+                <div className="w-24 shrink-0">
+                  <Select
+                    aria-label="Moneda del capital estimado"
+                    value={form.moneda}
+                    onChange={(e) => {
+                      const moneda = e.target.value
+                      if (esMoneda(moneda)) {
+                        setForm((actual) => ({ ...actual, moneda }))
+                      }
+                    }}
+                  >
+                    <option value="PEN">{SIMBOLO.PEN} PEN</option>
+                    <option value="USD">{SIMBOLO.USD} USD</option>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
@@ -1136,7 +1140,7 @@ function Datos({
               "Faltan …" de abajo, y sin ellos ese aviso era un callejón sin
               salida (el 100% de los leads importados llega sin DNI). El DNI
               además es lo que desbloquea la conversión a cliente del portal. */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ld-dni">DNI</Label>
               <Input

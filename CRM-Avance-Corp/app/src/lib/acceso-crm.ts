@@ -7,7 +7,6 @@ const ROLES_MIEMBRO = new Set<Rol>([
   'directorio',
   'coordinador',
 ])
-const ROLES_PORTAL_QUE_CONTRATAN = new Set(['analista', 'admin', 'superadmin'])
 
 type AccesoCrmInterpretado =
   | {
@@ -38,8 +37,14 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
   if (typeof valor.perfil_id !== 'string' || valor.perfil_id.length === 0) {
     throw new TypeError('Identidad de acceso CRM inválida')
   }
+  if (typeof valor.puede_contratar !== 'boolean') {
+    throw new TypeError('Capacidad de contratación inválida')
+  }
 
   if (valor.estado === 'revocado' || valor.estado === 'no_enrolado') {
+    if (valor.puede_contratar) {
+      throw new TypeError('Acceso revocado con capacidad operativa')
+    }
     return { tipo: 'sin_acceso', perfilId: valor.perfil_id }
   }
 
@@ -75,6 +80,7 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
       || valor.puede_administrar_usuarios !== false
       || valor.puede_organizar_jerarquia !== false
       || valor.puede_administrar_roles !== true
+      || valor.puede_contratar !== false
     ) {
       throw new TypeError('Autoridad de roles inválida')
     }
@@ -117,6 +123,9 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
   if (valor.estado === 'miembro' && valor.rol_portal === 'superadmin' && valor.rol_crm !== 'gerencia') {
     throw new TypeError('Superadmin operativo inválido')
   }
+  if (valor.estado !== 'miembro' && valor.puede_contratar) {
+    throw new TypeError('Acceso global con capacidad operativa')
+  }
 
   return {
     tipo: 'acceso',
@@ -132,10 +141,9 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
       puedeAdministrarRoles: valor.puede_administrar_roles as boolean,
     },
     nombre: valor.nombre_completo ?? '',
-    // Gerencia opera el CRM completo sin convertirse en admin del portal. Las
-    // edges/RPC vuelven a comprobar la membresía activa en el servidor.
-    puedeContratar:
-      valor.rol_crm === 'gerencia' || ROLES_PORTAL_QUE_CONTRATAN.has(valor.rol_portal),
+    // La base resuelve esta capacidad desde la membresía CRM activa. El
+    // navegador no vuelve a interpretar roles del Portal ni listas locales.
+    puedeContratar: valor.puede_contratar,
   }
 }
 

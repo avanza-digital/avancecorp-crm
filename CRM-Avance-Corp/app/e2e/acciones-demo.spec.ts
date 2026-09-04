@@ -44,6 +44,31 @@ test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page
   await expect(drawer.getByText(/99[.,]?999/).first()).toBeVisible()
 })
 
+test('editar lead: capital y moneda conservan espacio en un drawer estrecho', async ({ page }) => {
+  await entrarDemo(page, 'Analista')
+  await irAPipeline(page)
+  const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
+
+  await drawer.getByRole('button', { name: /editar/i }).click()
+  // Equivale al caso de la foto: pantalla angosta o zoom alto. Antes, el
+  // wrapper `w-full` del selector reclamaba la fila y dejaba el monto casi en 0.
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  const monto = drawer.locator('#ld-monto')
+  const moneda = drawer.getByLabel('Moneda del capital estimado')
+  const cajaMonto = await monto.boundingBox()
+  const cajaMoneda = await moneda.boundingBox()
+  const cajaDrawer = await drawer.boundingBox()
+
+  expect(cajaMonto).not.toBeNull()
+  expect(cajaMoneda).not.toBeNull()
+  expect(cajaDrawer).not.toBeNull()
+  expect(cajaMonto!.width).toBeGreaterThanOrEqual(120)
+  expect(cajaMoneda!.width).toBeGreaterThanOrEqual(80)
+  expect(cajaMonto!.x + cajaMonto!.width).toBeLessThanOrEqual(cajaMoneda!.x)
+  expect(cajaMoneda!.x + cajaMoneda!.width).toBeLessThanOrEqual(cajaDrawer!.x + cajaDrawer!.width)
+})
+
 test('mover etapa: el stepper avanza a Contactado (aria-current)', async ({ page }) => {
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
