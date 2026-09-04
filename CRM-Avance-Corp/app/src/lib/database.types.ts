@@ -2907,6 +2907,10 @@ export type Database = {
         Args: { p_lead: string; p_supervisor: string }
         Returns: Json
       }
+      reporte_derivaciones_coordinacion_fn: {
+        Args: { p_desde?: string; p_hasta?: string }
+        Returns: Json
+      }
       reporte_derivaciones_equipo_fn: {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json

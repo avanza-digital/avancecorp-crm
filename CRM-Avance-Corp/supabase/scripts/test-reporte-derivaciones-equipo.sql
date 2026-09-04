@@ -1,4 +1,5 @@
--- Oráculo transaccional del reporte y reparto de Supervisión.
+-- Oráculo transaccional del reporte y reparto de Supervisión, incluido el
+-- desglose diario que Coordinación usa para rendir las entregas a analistas.
 -- Requiere el fixture de `npm run seed:demo` en una branch Supabase.
 -- No deja datos: toda la prueba termina en ROLLBACK.
 
@@ -11,25 +12,31 @@ set local lock_timeout = '5s';
 do $estructura$
 declare
   v_reporte regprocedure := to_regprocedure('crm.reporte_derivaciones_equipo_fn(date,date)');
+  v_reporte_coordinacion regprocedure := to_regprocedure('crm.reporte_derivaciones_coordinacion_fn(date,date)');
   v_derivar regprocedure := to_regprocedure('crm.derivar_leads_equipo_fn(uuid[],uuid[])');
   v_revertir regprocedure := to_regprocedure('crm.revertir_derivacion_equipo_fn(uuid)');
 begin
-  if v_reporte is null or v_derivar is null or v_revertir is null then
+  if v_reporte is null or v_reporte_coordinacion is null
+     or v_derivar is null or v_revertir is null then
     raise exception 'D01 faltan una o más RPC del reporte de derivaciones';
   end if;
 
-  if (select count(*) from pg_proc p where p.oid in (v_reporte, v_derivar, v_revertir)
-        and p.prosecdef and p.proconfig @> array['search_path=""']) <> 3 then
-    raise exception 'D02 las tres RPC deben ser SECURITY DEFINER con search_path vacío';
+  if (select count(*) from pg_proc p
+      where p.oid in (v_reporte, v_reporte_coordinacion, v_derivar, v_revertir)
+        and p.prosecdef and p.proconfig @> array['search_path=""']) <> 4 then
+    raise exception 'D02 las cuatro RPC deben ser SECURITY DEFINER con search_path vacío';
   end if;
 
   if not has_function_privilege('authenticated', v_reporte, 'execute')
+     or not has_function_privilege('authenticated', v_reporte_coordinacion, 'execute')
      or not has_function_privilege('authenticated', v_derivar, 'execute')
      or not has_function_privilege('authenticated', v_revertir, 'execute')
      or has_function_privilege('anon', v_reporte, 'execute')
+     or has_function_privilege('anon', v_reporte_coordinacion, 'execute')
      or has_function_privilege('anon', v_derivar, 'execute')
      or has_function_privilege('anon', v_revertir, 'execute')
      or has_function_privilege('service_role', v_reporte, 'execute')
+     or has_function_privilege('service_role', v_reporte_coordinacion, 'execute')
      or has_function_privilege('service_role', v_derivar, 'execute')
      or has_function_privilege('service_role', v_revertir, 'execute') then
     raise exception 'D03 ACL incorrecta en las RPC de derivaciones';
@@ -57,6 +64,16 @@ select set_config(
   true
 );
 select set_config(
+  'test.derivaciones.coordinador',
+  (select p.id::text from public.perfiles p where p.nombre_completo = 'COORDINADOR DEMO'),
+  true
+);
+select set_config(
+  'test.derivaciones.gerencia',
+  (select p.id::text from public.perfiles p where p.nombre_completo = 'GERENCIA DEMO'),
+  true
+);
+select set_config(
   'test.derivaciones.lead',
   (select l.id::text from crm.leads l where l.nombre_completo = 'LUIS GARCIA DEMO'),
   true
@@ -72,6 +89,8 @@ begin
   if nullif(current_setting('test.derivaciones.supervisor', true), '') is null
      or nullif(current_setting('test.derivaciones.asesor', true), '') is null
      or nullif(current_setting('test.derivaciones.asesor_ajeno', true), '') is null
+     or nullif(current_setting('test.derivaciones.coordinador', true), '') is null
+     or nullif(current_setting('test.derivaciones.gerencia', true), '') is null
      or nullif(current_setting('test.derivaciones.lead', true), '') is null
      or nullif(current_setting('test.derivaciones.lead_ocupado', true), '') is null then
     raise exception 'D05 el fixture requerido no está sembrado';
@@ -89,6 +108,8 @@ set local role authenticated;
 do $comportamiento$
 declare
   v_supervisor uuid := current_setting('test.derivaciones.supervisor')::uuid;
+  v_coordinador uuid := current_setting('test.derivaciones.coordinador')::uuid;
+  v_gerencia uuid := current_setting('test.derivaciones.gerencia')::uuid;
   v_asesor uuid := current_setting('test.derivaciones.asesor')::uuid;
   v_asesor_ajeno uuid := current_setting('test.derivaciones.asesor_ajeno')::uuid;
   v_lead uuid := current_setting('test.derivaciones.lead')::uuid;
@@ -105,7 +126,46 @@ declare
   v_asesor_snapshot jsonb;
   v_capital_snapshot numeric;
   v_actividades_antes integer;
+  v_coord_antes jsonb;
+  v_gerencia_reporte jsonb;
+  v_coord_despues jsonb;
+  v_coord_final jsonb;
+  v_coord_asesor_antes integer;
+  v_coord_asesor_despues integer;
+  v_coord_asesor_final integer;
 begin
+  perform set_config('request.jwt.claim.sub', v_coordinador::text, true);
+  v_coord_antes := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+  if v_coord_antes->'periodo'->>'desde' <> v_hoy::text
+     or v_coord_antes->'periodo'->>'hasta' <> v_hoy::text
+     or (v_coord_antes->'periodo'->>'dias')::integer <> 1
+     or pg_catalog.jsonb_array_length(v_coord_antes->'dias') <> 1 then
+    raise exception 'D05b el reporte de Coordinación no certificó el día pedido: %', v_coord_antes;
+  end if;
+  select (analista->>'derivados')::integer into v_coord_asesor_antes
+  from pg_catalog.jsonb_array_elements(v_coord_antes->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
+  where dia->>'fecha' = v_hoy::text
+    and analista->>'analista_id' = v_asesor::text;
+  v_coord_asesor_antes := coalesce(v_coord_asesor_antes, 0);
+
+  perform set_config('request.jwt.claim.sub', v_gerencia::text, true);
+  v_gerencia_reporte := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+  if v_gerencia_reporte->'periodo' is distinct from v_coord_antes->'periodo'
+     or v_gerencia_reporte->'dias' is distinct from v_coord_antes->'dias'
+     or v_gerencia_reporte->'total_derivados' is distinct from v_coord_antes->'total_derivados' then
+    raise exception 'D05c Gerencia no recibió el mismo reporte agregado que Coordinación';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_coordinador::text, true);
+
+  begin
+    perform crm.reporte_derivaciones_coordinacion_fn(v_hoy + 1, v_hoy + 1);
+    raise exception 'D05d el reporte de Coordinación aceptó una fecha futura';
+  exception when sqlstate '22023' then null;
+  end;
+
+  perform set_config('request.jwt.claim.sub', v_supervisor::text, true);
   v_antes := crm.reporte_derivaciones_equipo_fn(v_hoy, v_hoy);
   select elemento into v_asesor_antes
   from jsonb_array_elements(v_antes->'asesores') elemento
@@ -188,6 +248,25 @@ begin
   if v_movimiento is null or (v_movimiento->>'reversible')::boolean is not true then
     raise exception 'D15 la derivación de hoy no aparece reversible';
   end if;
+
+  perform set_config('request.jwt.claim.sub', v_coordinador::text, true);
+  v_coord_despues := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+  select (analista->>'derivados')::integer into v_coord_asesor_despues
+  from pg_catalog.jsonb_array_elements(v_coord_despues->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
+  where dia->>'fecha' = v_hoy::text
+    and analista->>'analista_id' = v_asesor::text;
+  if v_coord_asesor_despues <> v_coord_asesor_antes + 1
+     or (v_coord_despues->>'total_derivados')::integer
+        <> (v_coord_antes->>'total_derivados')::integer + 1 then
+    raise exception 'D15b Coordinación no vio la nueva entrega: antes %, después %',
+      v_coord_antes, v_coord_despues;
+  end if;
+  if v_coord_despues::text ~ '"(lead_id|telefono|correo|dni|monto_estimado|nota)"' then
+    raise exception 'D15c el reporte agregado de Coordinación expone datos de lead o PII';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_supervisor::text, true);
   if v_movimiento ?| array['telefono', 'correo', 'dni', 'notas'] then
     raise exception 'D16 el movimiento expone PII de contacto o notas';
   end if;
@@ -274,10 +353,42 @@ begin
   ) then
     raise exception 'D22 el lead devuelto sigue apareciendo en movimientos de hoy';
   end if;
+
+  perform set_config('request.jwt.claim.sub', v_coordinador::text, true);
+  v_coord_final := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+  select (analista->>'derivados')::integer into v_coord_asesor_final
+  from pg_catalog.jsonb_array_elements(v_coord_final->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
+  where dia->>'fecha' = v_hoy::text
+    and analista->>'analista_id' = v_asesor::text;
+  v_coord_asesor_final := coalesce(v_coord_asesor_final, 0);
+  if v_coord_asesor_final <> v_coord_asesor_antes
+     or (v_coord_final->>'total_derivados')::integer
+        <> (v_coord_antes->>'total_derivados')::integer then
+    raise exception 'D22b la devolución no se descontó del reporte de Coordinación';
+  end if;
 end;
 $comportamiento$;
 
--- Un analista autenticado no puede usar ninguna de las tres superficies.
+-- Ni Supervisión ni un analista pueden abrir el reporte global de Coordinación.
+select set_config(
+  'request.jwt.claim.sub',
+  current_setting('test.derivaciones.supervisor'),
+  true
+);
+do $autorizacion_supervisor$
+declare
+  v_hoy date := (now() at time zone 'America/Lima')::date;
+begin
+  begin
+    perform crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+    raise exception 'D22c un supervisor consultó el reporte global de Coordinación';
+  exception when sqlstate '42501' then null;
+  end;
+end;
+$autorizacion_supervisor$;
+
+-- Un analista autenticado no puede usar ninguna de las cuatro superficies.
 select set_config(
   'request.jwt.claim.sub',
   current_setting('test.derivaciones.asesor'),
@@ -292,6 +403,11 @@ begin
   begin
     perform crm.reporte_derivaciones_equipo_fn(v_hoy, v_hoy);
     raise exception 'D23 un analista consultó el reporte de supervisión';
+  exception when sqlstate '42501' then null;
+  end;
+  begin
+    perform crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
+    raise exception 'D23b un analista consultó el reporte de Coordinación';
   exception when sqlstate '42501' then null;
   end;
   begin

@@ -7691,3 +7691,37 @@ CRM y portal, y login cargado visualmente. Se conservan el release anterior
 `crm-20260903T164522Z-f767a5f976f5.zip` y el respaldo privado ignorado
 `releases/p058-predeploy-crm-private-20260903.sql` (SHA-256
 `7d537830fe8754d0189dcf011ab2df8c023a6e9cecf5fc5053a83becc1f7cdf9`).
+
+## 20260904153431 · `reporte_diario_derivaciones_coordinacion`
+
+**Estado: IMPLEMENTADA Y VERIFICADA EN LOCAL; NO APLICADA A PRODUCCIÓN.**
+
+**Qué.** Añade `crm.reporte_derivaciones_coordinacion_fn(date,date)` para que
+Coordinación pueda rendir, por fecha de Lima, supervisor y analista, cuántos
+leads entregó Supervisión. El contrato incluye todos los días del rango —también
+los de total cero—, el total del período y únicamente identidades de equipo y
+conteos. No expone filas de leads, teléfono, correo, DNI, notas ni capital.
+
+**Semántica.** Consume el ledger inmutable `crm.lead_asignaciones` y replica la
+definición del reporte del supervisor: aperturas `asignado|reasignado` hechas
+por el supervisor de origen; una devolución `parqueado` a esa misma bandeja,
+antes de gestión, deja de sumar. El rango es inclusivo en `America/Lima`, no
+admite futuro y tiene máximo 366 días. Los responsables históricos permanecen
+en el reporte aunque luego salgan del roster.
+
+**Seguridad.** RPC `STABLE SECURITY DEFINER`, `search_path=''`, `EXECUTE` solo
+para `authenticated` y la puerta canónica de reparto, que admite Coordinación o
+Gerencia activas. El postflight fija propiedades y ACL; el oráculo compartido añade
+aislamiento frente a Supervisión/analistas, reconciliación tras derivar y
+devolver, y ausencia de PII.
+
+**Registro.** `supabase/scripts/registrar-20260904153431.sql` relee el
+postflight y conserva en `schema_migrations` el cuerpo literal completo; fue
+ensayado junto con la migración en una base desechable.
+
+**Verificación local.** Migración ejecutada completa sobre una base PostgreSQL
+16 desechable: cortes exactos de medianoche de Lima, agrupación, exclusiones,
+historia fuera de roster, ACL y denegación a Supervisor terminaron en
+`REPORTE_COORDINACION_SQL_OK`. Frontend: contrato Valibot, MSW e integración de
+la pantalla cubiertos por 61/61 pruebas dirigidas; falta el gate final antes de
+publicar.

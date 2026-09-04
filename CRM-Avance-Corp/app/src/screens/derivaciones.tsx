@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { ControlesPeriodoDerivaciones } from '@/components/common/controles-periodo-derivaciones'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { Paginacion } from '@/components/common/paginacion'
 import { SectionHead } from '@/components/common/section-head'
@@ -26,10 +27,9 @@ import { mensajeDeError } from '@/data/crm-api'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { fechaLima } from '@/lib/agenda-derivada'
 import { totalEnSoles } from '@/lib/capital-unificado'
 import { moneyK } from '@/lib/format'
-import { DIA_MS, diasDesdeReferencia, esAbierto, haceCortoTexto } from '@/lib/inteligencia'
+import { diasDesdeReferencia, esAbierto, haceCortoTexto } from '@/lib/inteligencia'
 import { paginar } from '@/lib/paginacion'
 import type {
   AsesorDerivaciones,
@@ -38,15 +38,10 @@ import type {
 import { SEMAFORO } from '@/lib/semaforo'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
-
-type ModoPeriodo = 'ayer' | 'semana' | 'rango'
+import { usePeriodoDerivaciones } from '@/lib/use-periodo-derivaciones'
 
 const DERIVAR_POR_PAGINA = 5
 const GUARDADAS_POR_PAGINA = 5
-
-function fechaDesplazada(fecha: string, dias: number): string {
-  return fechaLima(Date.parse(`${fecha}T12:00:00-05:00`) + dias * DIA_MS)
-}
 
 function MiniDato({
   label,
@@ -144,100 +139,6 @@ function TarjetaAsesor({
         <span className="font-bold tabular-nums">{contactabilidad}%</span>
       </div>
     </Card>
-  )
-}
-
-function ControlesPeriodo({
-  modo,
-  desde,
-  hasta,
-  hoy,
-  rangoInvalido,
-  onModo,
-  onDesde,
-  onHasta,
-}: {
-  modo: ModoPeriodo
-  desde: string
-  hasta: string
-  hoy: string
-  rangoInvalido: boolean
-  onModo: (modo: ModoPeriodo) => void
-  onDesde: (fecha: string) => void
-  onHasta: (fecha: string) => void
-}): JSX.Element {
-  return (
-    <div className="border-y border-border/70 bg-muted/20 px-5 py-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
-        <div className="mr-auto min-w-[190px]">
-          <p className="text-xs font-semibold">Período para comparar la carga</p>
-          <p className="text-[11px] text-muted-foreground">
-            Todas las tarjetas responden al mismo filtro.
-          </p>
-        </div>
-        <div
-          className="flex items-center gap-1"
-          role="group"
-          aria-label="Período del reporte de derivaciones"
-        >
-          <Button
-            type="button"
-            size="xs"
-            variant={modo === 'ayer' ? 'accent' : 'outline'}
-            onClick={() => onModo('ayer')}
-          >
-            Ayer
-          </Button>
-          <Button
-            type="button"
-            size="xs"
-            variant={modo === 'semana' ? 'accent' : 'outline'}
-            onClick={() => onModo('semana')}
-          >
-            Últimos 7 días
-          </Button>
-          <Button
-            type="button"
-            size="xs"
-            variant={modo === 'rango' ? 'accent' : 'outline'}
-            onClick={() => onModo('rango')}
-          >
-            Rango
-          </Button>
-        </div>
-        {modo === 'rango' && (
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              Desde
-              <input
-                type="date"
-                value={desde}
-                max={hoy}
-                aria-label="Fecha inicial del reporte de derivaciones"
-                onChange={(event) => onDesde(event.target.value)}
-                className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-medium text-foreground shadow-sm outline-none transition focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              />
-            </label>
-            <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              Hasta
-              <input
-                type="date"
-                value={hasta}
-                max={hoy}
-                aria-label="Fecha final del reporte de derivaciones"
-                onChange={(event) => onHasta(event.target.value)}
-                className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-medium text-foreground shadow-sm outline-none transition focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              />
-            </label>
-          </div>
-        )}
-      </div>
-      {rangoInvalido && (
-        <p role="status" className="mt-2 text-xs font-medium text-destructive">
-          Elige un rango válido, de hasta 366 días, que termine hoy o antes.
-        </p>
-      )}
-    </div>
   )
 }
 
@@ -504,29 +405,17 @@ export function Derivaciones(): JSX.Element {
     () => ambito.leads.filter((lead) => esAbierto(lead) && lead.vendedor_id == null),
     [ambito.leads],
   )
-  const hoy = fechaLima(ahora)
-  const ayer = fechaDesplazada(hoy, -1)
-  const [modo, setModo] = useState<ModoPeriodo>('ayer')
-  const [desdeRango, setDesdeRango] = useState(() => fechaLima(Date.now() - 7 * DIA_MS))
-  const [hastaRango, setHastaRango] = useState(() => fechaLima(Date.now() - DIA_MS))
-  const periodo = useMemo(() => {
-    if (modo === 'ayer') return { desde: ayer, hasta: ayer }
-    if (modo === 'semana') return { desde: fechaDesplazada(hoy, -7), hasta: ayer }
-    return { desde: desdeRango, hasta: hastaRango }
-  }, [ayer, desdeRango, hastaRango, hoy, modo])
-  const diferenciaDias = periodo.desde && periodo.hasta
-    ? Math.round(
-        (Date.parse(`${periodo.hasta}T12:00:00-05:00`)
-          - Date.parse(`${periodo.desde}T12:00:00-05:00`)) / DIA_MS,
-      )
-    : Number.POSITIVE_INFINITY
-  const rangoValido = Boolean(
-    periodo.desde
-    && periodo.hasta
-    && periodo.desde <= periodo.hasta
-    && periodo.hasta <= hoy
-    && diferenciaDias <= 365,
-  )
+  const {
+    modo,
+    setModo,
+    desdeRango,
+    setDesdeRango,
+    hastaRango,
+    setHastaRango,
+    periodo,
+    rangoValido,
+    hoy,
+  } = usePeriodoDerivaciones(ahora)
   const reporte = useReporteDerivacionesEquipo(
     !yo?.demo && rangoValido,
     periodo.desde,
@@ -658,7 +547,7 @@ export function Derivaciones(): JSX.Element {
             </span>
           )}
         />
-        <ControlesPeriodo
+        <ControlesPeriodoDerivaciones
           modo={modo}
           desde={desdeRango}
           hasta={hastaRango}
