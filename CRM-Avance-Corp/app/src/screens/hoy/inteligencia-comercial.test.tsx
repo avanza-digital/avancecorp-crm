@@ -632,19 +632,75 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     )
   }
 
-  it('el héroe muestra la conversión mensual canónica y deja Cosecha como lectura del rango', () => {
+  it('el héroe usa el núcleo canónico del rango y deja Cosecha como segunda lectura', () => {
     montarConNucleo({ ...SONDAS })
-    expect(screen.getByText('Conversión del mes · agosto 2026')).toBeInTheDocument()
-    expect(screen.getByText('23.85%')).toBeInTheDocument()
+    const heroeRegion = screen.getByRole('region', { name: 'Conversión canónica del rango' })
+    const heroe = within(heroeRegion)
+    expect(heroe.getByText(/Conversión del rango · 01 ago\. 2026 al 27 ago\. 2026/)).toBeInTheDocument()
+    expect(heroe.getByText('7.22%')).toBeInTheDocument()
+    expect(heroe.getByText(/537 asignaciones contabilizadas/)).toBeInTheDocument()
+    expect(heroe.queryByText('23.85%')).not.toBeInTheDocument()
     expect(screen.getAllByText('Cosecha del período').length).toBeGreaterThan(0)
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.getByText('17 cierres de 184')).toBeInTheDocument()
-    expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Cosecha del período por analista' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
+  })
+
+  it('01–03 no vuelve a mostrar la base mensual que ya incluye el día 04', () => {
+    const datos = metricasConversionesDemo('2026-09-01', '2026-09-03')
+    datos.nucleo = {
+      ...NUCLEO,
+      divisor: 289,
+      numerador: 10,
+      conversion_pct: 3.46,
+      cierres_no_referidos: 10,
+      cierres_referidos: 0,
+      operaciones_cartera: 0,
+      mes_peso: '2026-09-01',
+      incluye_cartera: false,
+    }
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    mensual.total = {
+      ...mensual.total,
+      divisor: 317,
+      conversion_pct: 3.79,
+    }
+
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={mensual}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
+        equipo={conversionEquipoDemo()}
+        metaConversion={15}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
+        modoDemo={false}
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
+      />,
+    )
+
+    const heroeRegion = screen.getByRole('region', { name: 'Conversión canónica del rango' })
+    const heroe = within(heroeRegion)
+    expect(heroe.getByText(/Conversión del rango · 01 set\. 2026 al 03 set\. 2026/)).toBeInTheDocument()
+    expect(heroe.getByText('3.46%')).toBeInTheDocument()
+    expect(heroe.getByText(/289 asignaciones contabilizadas/)).toBeInTheDocument()
+    expect(heroeRegion).not.toHaveTextContent('317')
+    expect(heroeRegion).not.toHaveTextContent('3.79%')
+    expect(heroe.getByText('El rango parcial no incluye operaciones de cartera.')).toBeInTheDocument()
   })
 
   it('la paridad del núcleo ya no gobierna esta pantalla: el BRUTO se pinta igual', () => {
@@ -660,7 +716,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
     montarConNucleo({ ...SONDAS }, true)
-    expect(screen.getByText(/queda fuera de la base de la conversión del mes/)).toBeInTheDocument()
+    expect(screen.getByText(/queda fuera de la base general de la conversión/)).toBeInTheDocument()
   })
 
   it('origen ficha≠ledger avisa sin ocultar la cifra', () => {

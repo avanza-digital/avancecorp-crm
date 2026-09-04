@@ -4,9 +4,10 @@
 // que ya salió de la cola (FUERA_DE_COLA) — que además fuerzan una relectura.
 // Se mockea la capa de datos (sin red).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AgendaRepartoDiaria, ColaLead, HistorialDerivacion, PanelDistribucionReparto, SupervisorReparto } from '@/lib/tipos'
+import type { ReporteDerivacionesCoordinacion } from '@/lib/reporte-derivaciones-coordinacion'
 
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
@@ -34,6 +35,32 @@ const parteHoyLima = (tipo: Intl.DateTimeFormatPartTypes) => (
   partesHoyLima.find((parte) => parte.type === tipo)?.value ?? ''
 )
 const fechaHoyLima = `${parteHoyLima('year')}-${parteHoyLima('month')}-${parteHoyLima('day')}`
+const fechaAyerLima = (() => {
+  const fecha = new Date(Date.UTC(
+    Number(parteHoyLima('year')),
+    Number(parteHoyLima('month')) - 1,
+    Number(parteHoyLima('day')) - 1,
+  ))
+  return fecha.toISOString().slice(0, 10)
+})()
+let REPORTE_DIARIO: ReporteDerivacionesCoordinacion = {
+  version: 1,
+  generado_en: '2026-09-04T15:00:00Z',
+  periodo: { desde: fechaAyerLima, hasta: fechaAyerLima, dias: 1, zona: 'America/Lima' },
+  total_derivados: 3,
+  dias: [{
+    fecha: fechaAyerLima,
+    total_derivados: 3,
+    analistas: [{
+      analista_id: '00000000-0000-4000-8000-000000000001',
+      analista_nombre: 'ANALISTA REPORTE',
+      supervisor_id: '00000000-0000-4000-8000-000000000002',
+      supervisor_nombre: 'SUPERVISOR REPORTE',
+      derivados: 3,
+    }],
+  }],
+}
+const reporteDiarioMock = vi.fn(async (_desde: string, _hasta: string) => REPORTE_DIARIO)
 let AGENDA: AgendaRepartoDiaria = {
   version: 1,
   fecha_desde: fechaHoyLima,
@@ -61,6 +88,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     repartirLead: (lead: string, sup: string) => repartirMock(lead, sup),
     historialDerivaciones: () => historialMock(),
     panelDistribucionReparto: () => panelMock(),
+    listarReporteDerivacionesCoordinacion: (desde: string, hasta: string) => reporteDiarioMock(desde, hasta),
     agendaRepartoDiaria: () => agendaMock(),
     guardarAgendaRepartoDiaria: (fecha: string, landing: string, formulario: string) => guardarAgendaMock(fecha, landing, formulario),
   }
@@ -133,6 +161,23 @@ beforeEach(() => {
     supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: 3 }],
     analistas: [{ perfil_id: 'vend-1', nombre: 'ANALISTA UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
   }
+  REPORTE_DIARIO = {
+    version: 1,
+    generado_en: '2026-09-04T15:00:00Z',
+    periodo: { desde: fechaAyerLima, hasta: fechaAyerLima, dias: 1, zona: 'America/Lima' },
+    total_derivados: 3,
+    dias: [{
+      fecha: fechaAyerLima,
+      total_derivados: 3,
+      analistas: [{
+        analista_id: '00000000-0000-4000-8000-000000000001',
+        analista_nombre: 'ANALISTA REPORTE',
+        supervisor_id: '00000000-0000-4000-8000-000000000002',
+        supervisor_nombre: 'SUPERVISOR REPORTE',
+        derivados: 3,
+      }],
+    }],
+  }
   RESUMEN_CAIDO = false
   recargarResumenMock.mockClear()
   repartirMock.mockReset().mockResolvedValue(undefined)
@@ -140,6 +185,7 @@ beforeEach(() => {
   supervisoresMock.mockClear()
   historialMock.mockClear()
   panelMock.mockClear()
+  reporteDiarioMock.mockClear()
   agendaMock.mockClear()
   guardarAgendaMock.mockReset().mockResolvedValue(undefined)
   toastSuccess.mockClear()
@@ -180,6 +226,28 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText('Leads por analista')).toBeInTheDocument()
     expect(screen.getByText(/Solo conteos · sin etapas ni capacidad/)).toBeInTheDocument()
     expect(panelMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('muestra a Coordinación el conteo diario por analista y aplica el rango elegido', async () => {
+    render(<Repartir />)
+
+    const tabla = await screen.findByRole('table', { name: 'Derivaciones diarias por analista' })
+    expect(within(tabla).getByText('ANALISTA REPORTE')).toBeInTheDocument()
+    expect(within(tabla).getByText('SUPERVISOR REPORTE')).toBeInTheDocument()
+    expect(within(tabla).getByText('3')).toBeInTheDocument()
+    expect(reporteDiarioMock).toHaveBeenCalledWith(fechaAyerLima, fechaAyerLima)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rango' }))
+    fireEvent.change(screen.getByLabelText('Fecha inicial del reporte de derivaciones'), {
+      target: { value: '2026-08-01' },
+    })
+    fireEvent.change(screen.getByLabelText('Fecha final del reporte de derivaciones'), {
+      target: { value: '2026-08-10' },
+    })
+
+    await waitFor(() => {
+      expect(reporteDiarioMock).toHaveBeenCalledWith('2026-08-01', '2026-08-10')
+    })
   })
 
   it('da a Coordinación el historial de distribución sin abrir la ficha del lead', async () => {

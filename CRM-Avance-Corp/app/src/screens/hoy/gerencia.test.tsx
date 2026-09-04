@@ -668,7 +668,9 @@ describe('Hoy · gerencia — período del tablero', () => {
   it('no promete que el origen filtre las citas globales del resumen', () => {
     montar({}, 'resumen')
 
-    expect(screen.getByText(/el rango recorta Cosecha, citas y embudo; el origen recorta Cosecha y embudo/))
+    expect(screen.getByText(/Conversión y citas: 01 jul\. 2026 al 15 jul\. 2026/))
+      .toBeInTheDocument()
+    expect(screen.getByText(/El origen recorta Cosecha y embudo; la conversión canónica sigue mostrando todos los orígenes/))
       .toBeInTheDocument()
     expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
       .not.toBeInTheDocument()

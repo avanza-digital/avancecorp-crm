@@ -23,6 +23,7 @@ const gs = new Function(
     "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonosDeFila, telefonoEnOtraCelda," +
     " pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo, ordenRevision," +
     " revisarPestana, huellaTexto, huellaCabeceras, anclaDeFilas, esDescartePorDiseno," +
+    " fechaDeCelda, marcaRetrocedida, TOPE_RETROCESO," +
     " fusionar, momentoDe, diasEntre, dentroDeVentana, decidirPasada, textoDelPanel," +
     " celdasTelefonicas, clasificarSegundoNumero, nuevoConteoSegundos," +
     " reconocerTelefono, telefonoContacto," +
@@ -141,6 +142,112 @@ test("el día DESPUÉS del corte → entra con su fecha, sin marca de sinFecha",
   assert.equal(l.motivo, "");
   assert.equal(l.sinFecha, false);
   assert.equal(l.capital, "50000");
+});
+
+// ── El origen cambió cómo escribe la fecha (2026-09-01) ─────────────────────
+//
+// A media mañana del 2026-09-01 el origen pasó de escribir DD/MM/AAAA a MM/DD/AAAA.
+// El puente leía siempre el primer número como el día, así que "09/01/2026" se
+// convirtió en el 9 de ENERO: anterior al corte, descartado en silencio. 34 leads
+// reales se quedaron fuera del CRM un día entero con el puente en verde.
+
+/** El día 1 del mes SIGUIENTE al corte: la forma exacta de las filas que se perdieron. */
+const MES_SIGUIENTE = (() => {
+  const t = Date.UTC(+CORTE.slice(0, 4), +CORTE.slice(5, 7), 1); // mes +1, día 1
+  return new Date(t).toISOString().slice(0, 10);
+})();
+const AL_DERECHO = latina(MES_SIGUIENTE);                                    // "01/09/2026"
+const AL_REVES = `${MES_SIGUIENTE.slice(5, 7)}/${MES_SIGUIENTE.slice(8, 10)}/${MES_SIGUIENTE.slice(0, 4)}`; // "09/01/2026"
+const FILA_NUEVA = 7443;   // la primera que se perdió
+const MARCA = FILA_NUEVA - 1;
+
+test("el caso existe: escrita al revés, la fecha es AMBIGUA y cruza el corte", () => {
+  // Si un día mueven el corte a un mes donde las dos lecturas caen del mismo lado,
+  // esto lo dice aquí en vez de dejar las pruebas de abajo midiendo otra cosa.
+  const f = gs.fechaDeCelda(AL_REVES);
+  assert.equal(f.ambigua, true);
+  const corte = Date.UTC(+CORTE.slice(0, 4), +CORTE.slice(5, 7) - 1, +CORTE.slice(8, 10));
+  assert.ok(f.ms < corte && f.msTarde >= corte,
+    `las dos lecturas de "${AL_REVES}" caen del mismo lado del corte ${CORTE}`);
+});
+
+test("la fila escrita AL REVÉS (MM/DD) ya no muere en el corte: entra por posición", () => {
+  const l = gs.normalizarFila(filaLanding(AL_REVES + " 10:20"), colLanding, "landing",
+    FILA_NUEVA, CAB_LANDING, MARCA);
+  assert.equal(l.motivo, "");
+  assert.equal(l.sinFecha, true);      // no se sabe el día → vale el del ingreso
+  assert.equal(l.fechaAmbigua, true);
+  assert.match(l.nota, /Fecha ambigua/);
+});
+
+test("la misma fila AL DERECHO (DD/MM) entra igual: el puente no elige formato", () => {
+  const l = gs.normalizarFila(filaLanding(AL_DERECHO + " 7:48"), colLanding, "landing",
+    FILA_NUEVA, CAB_LANDING, MARCA);
+  assert.equal(l.motivo, "");
+});
+
+test("lo que Sheets GUARDA manda sobre lo que dibuja: fecha nativa → sin ambigüedad", () => {
+  const l = gs.normalizarFila(filaLanding(AL_REVES + " 10:20"), colLanding, "landing",
+    FILA_NUEVA, CAB_LANDING, MARCA, [MES_SIGUIENTE]);
+  assert.equal(l.motivo, "");
+  assert.equal(l.sinFecha, false);
+  assert.equal(l.fechaAmbigua, false);
+  assert.equal(l.fecha.texto, AL_DERECHO);
+});
+
+test("la puerta de atrás sigue cerrada: una fila AMBIGUA que ya estaba es backlog", () => {
+  const l = gs.normalizarFila(filaLanding(AL_REVES + " 10:20"), colLanding, "landing",
+    671, CAB_LANDING, MARCA);
+  assert.equal(l.motivo, gs.MOTIVO_BACKLOG);
+});
+
+test("una fila NUEVA con fecha vieja ENTRA: la posición no puede mentir, la fecha sí", () => {
+  // El caso real: el origen guardó "09/01/2026" como 9 de enero. La fila es de hoy.
+  const l = gs.normalizarFila(filaLanding(latina(ANTES) + " 11:43"), colLanding, "landing",
+    FILA_NUEVA, CAB_LANDING, MARCA);
+  assert.equal(l.motivo, "");
+  assert.equal(l.fechaImposible, latina(ANTES));
+  assert.equal(l.sinFecha, true);          // vale la fecha del ingreso
+  assert.equal(l.fecha, null, "la fecha falsa contaminaría el desglose por mes");
+  assert.match(l.nota, /FECHA IMPOSIBLE|imposible/i);
+});
+
+test("y esa misma fecha, en una fila que ya estaba, se sigue descartando en silencio", () => {
+  const l = gs.normalizarFila(filaLanding(latina(ANTES) + " 11:43"), colLanding, "landing",
+    671, CAB_LANDING, MARCA);
+  assert.match(l.motivo, /^Anterior al corte/);
+  assert.equal(gs.esDescartePorDiseno(l.motivo), true);
+});
+
+test("una fila rota no arrastra a la de al lado (el lote sigue)", () => {
+  const filas = ["99/99/2026", AL_REVES + " 10:20", "", "no es una fecha"];
+  const motivos = filas.map((f, i) =>
+    gs.normalizarFila(filaLanding(f), colLanding, "landing", FILA_NUEVA + i, CAB_LANDING, MARCA).motivo);
+  assert.deepEqual(motivos, ["", "", "", ""]); // las cuatro entran, ninguna revienta
+});
+
+// El parseo de una celda suelta no depende del corte: aquí las fechas van literales.
+test("fechaDeCelda: un día > 12 desambigua solo, venga como venga", () => {
+  assert.equal(gs.fechaDeCelda("09/15/2026").texto, "15/09/2026"); // no hay mes 15
+  assert.equal(gs.fechaDeCelda("09/15/2026").ambigua, false);
+  assert.equal(gs.fechaDeCelda("31/08/2026").texto, "31/08/2026"); // ni mes 31
+  assert.equal(gs.fechaDeCelda("31/08/2026").ambigua, false);
+});
+
+test("fechaDeCelda: el mismo número dos veces no es ambiguo", () => {
+  assert.equal(gs.fechaDeCelda("05/05/2026").ambigua, false);
+});
+
+test("fechaDeCelda: la basura sigue sin ser un salvoconducto", () => {
+  assert.equal(gs.fechaDeCelda("99/99/2026"), null);
+  assert.equal(gs.fechaDeCelda("31/02/2026"), null); // febrero no tiene 31
+  assert.equal(gs.fechaDeCelda(""), null);
+  assert.equal(gs.fechaDeCelda("mañana"), null);
+});
+
+test("fechaDeCelda: una fecha nativa ilegible no tapa al texto", () => {
+  assert.equal(gs.fechaDeCelda("31/08/2026", "").texto, "31/08/2026");
+  assert.equal(gs.fechaDeCelda("31/08/2026", "2026-99-99").texto, "31/08/2026");
 });
 
 // ── Rescate de teléfono (casos reales de REVISAR del 2026-07-27) ─────────────
@@ -882,4 +989,54 @@ test("el informe dice el TECHO REAL, que es lo que decide la Fase 2", () => {
     "techo = los que ya llegan MÁS los que se están perdiendo");
   assert.match(texto, /HOY YA LLEGA/);
   assert.match(texto, /SE PIERDE/);
+});
+
+// ── Retroceder la marca de agua (el rescate) ────────────────────────────────
+//
+// La marca avanza aunque la pasada no acepte nada: es "hasta aquí he mirado". Cuando
+// el puente descarta mal, arreglar el descarte no basta —la frontera ya pasó por
+// encima—, y hay que desandarla. Es la única operación que mueve la frontera hacia
+// atrás, así que es también la única que puede volver a abrir la puerta al backlog.
+
+const filaOrigen = (i) => ["Persona" + i, "Apellido" + i, String(918000000 + i), "",
+  "Lima", "Surquillo", "Soles", "1,000", "No", "Si", "", ""];
+const DATOS = [CAB_LANDING].concat(
+  Array.from({ length: 60 }, (_, i) => filaOrigen(i + 1))); // cabecera + 60 filas
+const marcaEn = (fila) => ({
+  sheetId: "111", nombre: "landing", ultimaFila: fila, filas: DATOS.length,
+  cabeceras: gs.huellaCabeceras(DATOS[0]), ancla: gs.anclaDeFilas(DATOS, fila),
+  actualizado: "01/09/2026 09:00",
+});
+
+test("retroceder recalcula el ancla EN LA FILA NUEVA (si no, la pestaña se detendría)", () => {
+  const nueva = gs.marcaRetrocedida(marcaEn(61), DATOS, 50, "landing");
+
+  assert.equal(nueva.ultimaFila, 50);
+  assert.equal(nueva.filas, DATOS.length, "perder el total haría creer que el origen encogió");
+  assert.equal(nueva.ancla, gs.anclaDeFilas(DATOS, 50));
+  assert.notEqual(nueva.ancla, marcaEn(61).ancla);
+  // Lo que de verdad importa: la marca resultante convence a las cuatro
+  // comprobaciones de la próxima pasada.
+  const veredicto = gs.revisarPestana(nueva, DATOS.length,
+    gs.huellaCabeceras(DATOS[0]), gs.anclaDeFilas(DATOS, nueva.ultimaFila));
+  assert.equal(veredicto.ok, true, veredicto.motivo);
+});
+
+test("retroceder NO adelanta: la frontera solo se mueve hacia atrás", () => {
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(50), DATOS, 55, "landing"), /solo RETROCEDE/);
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(50), DATOS, 50, "landing"), /solo RETROCEDE/);
+});
+
+test("retroceder NO puede reprocesar el origen entero", () => {
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(61), DATOS, 1, "landing"), /encabezados/);
+  const lejos = { ...marcaEn(61), ultimaFila: gs.TOPE_RETROCESO + 62 };
+  assert.throws(() => gs.marcaRetrocedida(lejos, DATOS, 60, "landing"), /demasiado grande/);
+});
+
+test("retroceder rechaza lo que no es una fila", () => {
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(61), DATOS, "hola", "landing"), /no es un número/);
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(61), DATOS, "", "landing"), /no es un número/);
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(61), DATOS, 2.5, "landing"), /no es un número/);
+  assert.throws(() => gs.marcaRetrocedida(marcaEn(61), DATOS, -3, "landing"), /no es un número/);
+  assert.throws(() => gs.marcaRetrocedida(null, DATOS, 50, "landing"), /no tiene marca/);
 });

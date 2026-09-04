@@ -1,0 +1,349 @@
+{
+  "cosechado_en": "2026-09-04T17:55:10.774Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "dialecto": "bigquery",
+  "retencion_dias_medida": 7,
+  "ventana_pedida": {
+    "desde": "2026-08-28T17:55:10.774Z",
+    "hasta": "2026-09-04T17:55:10.774Z"
+  },
+  "ventana_cubierta_por_tramos": {
+    "desde": "2026-08-28T17:55:10.774Z",
+    "hasta": "2026-09-04T17:55:10.774Z"
+  },
+  "tramos": [
+    {
+      "pedido": {
+        "desde": "2026-08-28T17:55:10.774Z",
+        "hasta": "2026-08-29T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-08-28T17:55:12.354Z",
+        "hasta": "2026-08-29T17:53:11.461Z"
+      },
+      "filas": 11832,
+      "cobertura": 0.999
+    },
+    {
+      "pedido": {
+        "desde": "2026-08-29T17:55:10.774Z",
+        "hasta": "2026-08-30T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-08-29T17:56:42.106Z",
+        "hasta": "2026-08-30T17:10:12.789Z"
+      },
+      "filas": 2903,
+      "cobertura": 0.969
+    },
+    {
+      "pedido": {
+        "desde": "2026-08-30T17:55:10.774Z",
+        "hasta": "2026-08-31T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-08-30T18:10:24.621Z",
+        "hasta": "2026-08-31T17:55:10.599Z"
+      },
+      "filas": 10988,
+      "cobertura": 1
+    },
+    {
+      "pedido": {
+        "desde": "2026-08-31T17:55:10.774Z",
+        "hasta": "2026-09-01T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-08-31T17:55:18.567Z",
+        "hasta": "2026-09-01T17:55:03.572Z"
+      },
+      "filas": 21560,
+      "cobertura": 1
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-01T17:55:10.774Z",
+        "hasta": "2026-09-02T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-09-01T17:55:20.978Z",
+        "hasta": "2026-09-02T17:55:04.555Z"
+      },
+      "filas": 21145,
+      "cobertura": 1
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-02T17:55:10.774Z",
+        "hasta": "2026-09-03T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-09-02T17:55:21.610Z",
+        "hasta": "2026-09-03T17:55:08.347Z"
+      },
+      "filas": 22773,
+      "cobertura": 1
+    },
+    {
+      "pedido": {
+        "desde": "2026-09-03T17:55:10.774Z",
+        "hasta": "2026-09-04T17:55:10.774Z"
+      },
+      "observado": {
+        "desde": "2026-09-03T17:55:14.404Z",
+        "hasta": "2026-09-04T17:54:45.619Z"
+      },
+      "filas": 23821,
+      "cobertura": 1
+    }
+  ],
+  "nota_ambiguedad_esquema": true,
+  "hallazgos": [
+    {
+      "firma": "crm.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 3,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "P0001",
+          "event_message": "Puertas exentas cuyo cuerpo CAMBIO desde que se declararon (la razon ya no se puede dar por buena): funcion public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb), funcion public.crear_contrato_producto(uuid,jsonb,jsonb)",
+          "severidad": "ERROR",
+          "timestamp": 1788072494750000,
+          "ts": "2026-08-30T06:48:14.750Z"
+        },
+        {
+          "codigo": "P0001",
+          "event_message": "Puertas que preguntan por el rol del Portal a secas y NO estan declaradas: funcion private.puertas_analista_sin_vigencia(), funcion public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato(uuid,jsonb,jsonb), funcion public.bandeja_actividad(integer,integer), funcion public.crear_contrato_producto(uuid,jsonb,jsonb), funcion public.crear_contrato(jsonb,jsonb), funcion public.directorio_ranking_analistas(), funcion public.proteger_campos_inmutables(). O preguntan por private.es_analista_vigente(), o se declaran con su razon.",
+          "severidad": "ERROR",
+          "timestamp": 1788060383200000,
+          "ts": "2026-08-30T03:26:23.200Z"
+        },
+        {
+          "codigo": "P0001",
+          "event_message": "F7: public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb) SE REABRIO (ACL {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}, se esperaba {postgres=X/postgres})",
+          "severidad": "ERROR",
+          "timestamp": 1788290223476000,
+          "ts": "2026-09-01T19:17:03.476Z"
+        }
+      ]
+    },
+    {
+      "firma": "crm.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "42501",
+          "event_message": "F7: cambiar el estado de public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb) exige dejar RASTRO en nota (quien y por que)",
+          "severidad": "ERROR",
+          "timestamp": 1788290115995000,
+          "ts": "2026-09-01T19:15:15.995Z"
+        }
+      ]
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta_producto(uuid,jsonb,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "42501",
+          "event_message": "F7: cambiar el estado de public.crear_contrato_producto(uuid,jsonb,jsonb) exige dejar RASTRO en nota (quien y por que)",
+          "severidad": "ERROR",
+          "timestamp": 1788290078408000,
+          "ts": "2026-09-01T19:14:38.408Z"
+        }
+      ]
+    },
+    {
+      "firma": "public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_con_cuenta_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 3,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "P0001",
+          "event_message": "Puertas exentas cuyo cuerpo CAMBIO desde que se declararon (la razon ya no se puede dar por buena): funcion public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb), funcion public.crear_contrato_producto(uuid,jsonb,jsonb)",
+          "severidad": "ERROR",
+          "timestamp": 1788072494750000,
+          "ts": "2026-08-30T06:48:14.750Z"
+        },
+        {
+          "codigo": "P0001",
+          "event_message": "Puertas que preguntan por el rol del Portal a secas y NO estan declaradas: funcion private.puertas_analista_sin_vigencia(), funcion public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb), funcion public.actualizar_contrato(uuid,jsonb,jsonb), funcion public.bandeja_actividad(integer,integer), funcion public.crear_contrato_producto(uuid,jsonb,jsonb), funcion public.crear_contrato(jsonb,jsonb), funcion public.directorio_ranking_analistas(), funcion public.proteger_campos_inmutables(). O preguntan por private.es_analista_vigente(), o se declaran con su razon.",
+          "severidad": "ERROR",
+          "timestamp": 1788060383200000,
+          "ts": "2026-08-30T03:26:23.200Z"
+        },
+        {
+          "codigo": "P0001",
+          "event_message": "F7: public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb) SE REABRIO (ACL {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}, se esperaba {postgres=X/postgres})",
+          "severidad": "ERROR",
+          "timestamp": 1788290223476000,
+          "ts": "2026-09-01T19:17:03.476Z"
+        }
+      ]
+    },
+    {
+      "firma": "public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "actualizar_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "42501",
+          "event_message": "F7: cambiar el estado de public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb) exige dejar RASTRO en nota (quien y por que)",
+          "severidad": "ERROR",
+          "timestamp": 1788290115995000,
+          "ts": "2026-09-01T19:15:15.995Z"
+        }
+      ]
+    },
+    {
+      "firma": "public.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "ola": "F5.d",
+      "nombre_rpc": "crear_contrato_producto",
+      "cerrada_en": "2026-08-30",
+      "d7": "2026-09-06",
+      "d14": "2026-09-13",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "42501",
+          "event_message": "F7: cambiar el estado de public.crear_contrato_producto(uuid,jsonb,jsonb) exige dejar RASTRO en nota (quien y por que)",
+          "severidad": "ERROR",
+          "timestamp": 1788290078408000,
+          "ts": "2026-09-01T19:14:38.408Z"
+        }
+      ]
+    },
+    {
+      "firma": "crm.metricas_altas_analista_fn(integer)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_altas_analista_fn",
+      "cerrada_en": "2026-08-31",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_fn(date,date)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_distribucion_leads_fn",
+      "cerrada_en": "2026-08-31",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "P0001",
+          "event_message": "Registro F7.1: crm.metricas_distribucion_leads_fn(date,date) NO esta cerrada ({crm_metricas_bridge=X/crm_metricas_bridge,authenticated=X/crm_metricas_bridge}) — aplicar antes de registrar",
+          "severidad": "ERROR",
+          "timestamp": 1788129011136000,
+          "ts": "2026-08-30T22:30:11.136Z"
+        }
+      ]
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_v2_fn(date,date)",
+      "ola": "F7.1",
+      "nombre_rpc": "metricas_distribucion_leads_v2_fn",
+      "cerrada_en": "2026-08-31",
+      "d7": "2026-09-07",
+      "d14": "2026-09-14",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 0,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": []
+    },
+    {
+      "firma": "crm.cerrar_altas_legacy_productos(bigint)",
+      "ola": "F7.2",
+      "nombre_rpc": "cerrar_altas_legacy_productos",
+      "cerrada_en": "2026-09-01",
+      "d7": "2026-09-08",
+      "d14": "2026-09-15",
+      "intentos": 0,
+      "intentos_postgres": 0,
+      "menciones_en_errores": 1,
+      "muestras": [],
+      "muestras_postgres": [],
+      "muestras_menciones": [
+        {
+          "codigo": "P0001",
+          "event_message": "SONDA-OID >>> identidad OK (solo cerrar_altas_legacy_productos)",
+          "severidad": "ERROR",
+          "timestamp": 1788109631404000,
+          "ts": "2026-08-30T17:07:11.404Z"
+        }
+      ]
+    }
+  ]
+}

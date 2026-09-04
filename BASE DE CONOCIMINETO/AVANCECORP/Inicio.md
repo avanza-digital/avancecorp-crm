@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-07-22
+actualizado: 2026-09-04
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -40,6 +40,7 @@ Hay **tres capas**, complementarias:
 - [[Interés compuesto]]
 - [[Realtime de novedades]]
 - [[Bug de fechas UTC]]
+- [[Reporte diario de derivaciones para Coordinación]]
 - [[Auditorías del portal]]
 
 **Herramientas independientes:**

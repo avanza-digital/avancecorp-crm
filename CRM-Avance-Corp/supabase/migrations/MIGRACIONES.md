@@ -7722,3 +7722,58 @@ CRM y portal, y login cargado visualmente. Se conservan el release anterior
 Veredicto inicial NO-GO por dos bloqueantes de aterrizaje apagado, ambos reales y corregidos en el mismo pase: (1) **`rescatar_descartes` referenciaba `v_fila.id` y el cursor proyecta `lead_id`** → fallaba con la bandera OFF en cuanto hubiera candidatos; el oráculo lo dejó pasar porque «sin episodio» contaba como éxito — corregido (`v_fila.lead_id`) y el oráculo ahora siembra un episodio real y ejercita el rescate ON (P0429) y OFF (reabre). (2) `registrar_reingreso_lead_fn` escribía con la bandera apagada → gateada (P0409). También en este pase: orden identidad→**tareas**→leads en `marcar_no_contactar` (cerrar_tarea va tarea→lead: ciclo), revalidación del DNI del lead suelto tras el `FOR UPDATE` (40001), postflights md5 en las reversas, importador fail-closed si no lee la bandera y «reingreso registrado» solo tras el éxito de la RPC.
 **🔴 Bug PREEXISTENTE en producción hallado por el oráculo de b2 (rescate ejercitado de verdad):** `crm.rescatar_descartes` lleva `pg_catalog.coalesce(...)` desde `20260820181756` (centro de rescate, 20/08); `coalesce` es sintaxis, no función, y esa línea corre en TODA llamada → **el rescate de descartes falla siempre en producción con 42883 desde el 20/08** (censo de solo lectura en prod: es la única función con ese defecto). b2 lo corrige en la misma transformación (`coalesce(...)`); la reversa restaura el texto vivo (con el bug) byte a byte. Es un cambio de comportamiento con la bandera apagada, deliberado: de «error siempre» a «funciona».
 **Prerrequisitos de ACTIVACIÓN que Codex deja anotados (no bloquean aterrizar apagado):** (a) PATCH directo de `vendedor_id`/`asignado_supervisor_id`/`etapa` por supervisor/gerencia no mira el veto (trigger estrecho `BEFORE UPDATE OF …` con `persona_vetada`, exento bajo válvula para el offboarding); (b) `marcar` bloquea el lead objetivo antes que los demás en vez de todos por id ascendente (preexistente en 240000); (c) tareas y `actividades_cliente` por `perfil_id` no pasan por el gate (camino de cliente, E2); (d) marcar no cancela tareas de otros leads sueltos con el mismo documento (E3, cuando se enlacen); (e) `convertir_lead_externo` escribe `crm.inversiones` con `resolver_en_puertas` y debe ser `inversiones_escritura`; (f) el ciclo contacto→índice único vs lead→contacto del importador es preexistente (E2: importador por puerta SQL). Los oráculos bash no cambian de rol (`SET ROLE`): los grants los prueba la suite RLS.
+
+## 20260904153431 · `reporte_diario_derivaciones_coordinacion`
+
+**Estado: ✅ PRODUCCIÓN 2026-09-04.**
+
+**Qué.** Añade `crm.reporte_derivaciones_coordinacion_fn(date,date)` para que
+Coordinación pueda rendir, por fecha de Lima, supervisor y analista, cuántos
+leads entregó Supervisión. El contrato incluye todos los días del rango —también
+los de total cero—, el total del período y únicamente identidades de equipo y
+conteos. No expone filas de leads, teléfono, correo, DNI, notas ni capital.
+
+**Semántica.** Consume el ledger inmutable `crm.lead_asignaciones` y replica la
+definición del reporte del supervisor: aperturas `asignado|reasignado` hechas
+por el supervisor de origen; una devolución `parqueado` a esa misma bandeja,
+antes de gestión, deja de sumar. El rango es inclusivo en `America/Lima`, no
+admite futuro y tiene máximo 366 días. Los responsables históricos permanecen
+en el reporte aunque luego salgan del roster.
+
+**Seguridad.** RPC `STABLE SECURITY DEFINER`, `search_path=''`, `EXECUTE` solo
+para `authenticated` y la puerta canónica de reparto, que admite Coordinación o
+Gerencia activas. El postflight fija propiedades y ACL; el oráculo compartido añade
+aislamiento frente a Supervisión/analistas, reconciliación tras derivar y
+devolver, y ausencia de PII.
+
+**Registro.** `supabase/scripts/registrar-20260904153431.sql` relee el
+postflight y conserva en `schema_migrations` el cuerpo literal completo; fue
+ensayado junto con la migración en una base desechable.
+
+**Verificación local.** Migración ejecutada completa sobre una base PostgreSQL
+16 desechable: cortes exactos de medianoche de Lima, agrupación, exclusiones,
+historia fuera de roster, ACL y denegación a Supervisor terminaron en
+`REPORTE_COORDINACION_SQL_OK`. Frontend: contrato Valibot, MSW e integración de
+la pantalla cubiertos por 61/61 pruebas dirigidas; el gate completo terminó con
+189 archivos y 2.644/2.644 pruebas, además de lint, tipos y build.
+
+**Producción.** Aplicada y registrada por cuerpo completo con
+`db query --linked --file`; el registro remoto conserva un bloque de 7.202
+caracteres con MD5 `66341e88004c0c3b81bf91a3462e1f86`, idéntico al archivo.
+La sonda transaccional con identidades reales permitió Coordinación y Gerencia,
+denegó Supervisión con `42501`, validó el día de Lima y confirmó ausencia de
+claves PII. RPC viva: `STABLE SECURITY DEFINER`, `search_path=''`,
+`authenticated=true`, `anon=false`, `service_role=false`; advisors de
+seguridad y rendimiento sin errores. Respaldo previo privado:
+`releases/reporte-derivaciones-predeploy-20260904.sql`, SHA-256
+`dd86370aa674f056bc33f046ea5e93a57aeb75939b148c05ce3711588b4d109c`.
+
+Frontend publicado desde `dc6c83e5aa37`: release
+`crm-20260904T161303Z-dc6c83e5aa37`, build
+`build-20260904T161302294Z`, ZIP SHA-256
+`007e61bbd1204b286dfbb46155e1c8a4851703878e3e873a92ae3f284bc7eae6`.
+En vivo: 76/76 entradas verificadas (61 exactas, 14 imágenes HTTP 200 y
+`.htaccess` 403), tres lecturas consecutivas del build correctas, portada 200
+y ZIP 404 tanto en CRM como en el portal. El navegador integrado no estaba
+conectado, por lo que no hubo smoke visual autenticado; la interfaz quedó
+cubierta por las pruebas y por la identidad byte a byte del bundle publicado.

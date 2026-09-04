@@ -16,6 +16,7 @@ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
+import { ReporteDiarioDerivaciones } from '@/components/app/reporte-diario-derivaciones'
 
 const POR_PAGINA = 10
 
@@ -178,6 +179,8 @@ export function PanelDistribucionReparto() {
           Referidos y Walking están incluidos cuando el origen queda en «Todos».
         </p>
       </Card>
+
+      <ReporteDiarioDerivaciones />
 
       <Card className="overflow-hidden">
         <SectionHead

@@ -60,6 +60,19 @@ const HOJA_MARCAS = "_puente_marcas";   // oculta: hasta qué fila ya miró el p
 const TOPE_POR_PASADA = 500;
 
 /**
+ * Cuántas filas como mucho puede DESANDAR `retrocederMarca` de una vez.
+ *
+ * Retroceder la marca es rescatar; retrocederla de más es abrir la puerta al backlog:
+ * las filas viejas SIN fecha que quedan por debajo de la nueva frontera dejan de ser
+ * historia y entran al CRM con la fecha de hoy, falseando el divisor de la conversión
+ * (en el origen están DISPERSAS —landing 671-872, 2508-5288—, así que un retroceso
+ * grande las arrastra sin que se note). Un rescate real es de horas o días, nunca de
+ * miles de filas: si de verdad hiciera falta más, se cambia esta constante a
+ * conciencia y queda escrito por qué.
+ */
+const TOPE_RETROCESO = 500;
+
+/**
  * FECHA DE CORTE — el backlog viejo NO entra al CRM (decisión de Miguel, 2026-07-23).
  *
  * Frena SOLO las filas que traen fecha legible ANTERIOR a esta. Se descartan con
@@ -138,6 +151,31 @@ const ANCLA_FILAS = 3;
  */
 const MOTIVO_CORTE = "Anterior al corte";
 
+/**
+ * LO NUEVO POR POSICIÓN NO LO JUZGA EL CORTE (decisión de Miguel, 2026-09-02).
+ *
+ * El origen añade por abajo: una fila que aparece DESPUÉS de la marca de agua es nueva
+ * por construcción, y lo nuevo NO PUEDE ser anterior al corte. Cuando lo parece, la
+ * fecha es la que miente, no la posición.
+ *
+ * Pasó el 2026-09-01: el formulario empezó a escribir "09/01/2026" pensando en MM/DD,
+ * la hoja de origen está en es-PE y lo GUARDÓ como 9 de enero. No es un problema de
+ * cómo se dibuja la fecha —el valor quedó corrompido al escribirlo—, así que no hay
+ * forma de leerlo mejor: `getValues()` devuelve, fielmente, el 9 de enero. Lo único
+ * que sigue sabiendo la verdad es el número de fila. 34 leads reales pasaron un día
+ * entero fuera del CRM mientras el puente corría en verde.
+ *
+ * Así que la fecha imposible no descarta: el lead entra con la fecha del ingreso —la
+ * misma regla que Miguel fijó el 2026-07-27 para las filas sin fecha—, lo dice en su
+ * Nota, se cuenta en el reporte de cada pasada y levanta un aviso en el panel que no
+ * se apaga hasta que el origen deje de mandar fechas imposibles.
+ *
+ * ⚠️ El corte SIGUE INTACTO para todo lo demás: una fila que ya estaba (por encima de
+ * la marca) con fecha anterior al corte se descarta igual y en silencio. Lo que cambia
+ * es solo el caso en que la posición y la fecha se contradicen.
+ */
+const AVISO_FECHA_IMPOSIBLE = "fecha-imposible";
+
 /** Los dos descartes que son POLÍTICA, no incidencias: no van a REVISAR. */
 function esDescartePorDiseno(motivo) {
   const m = String(motivo || "");
@@ -185,6 +223,7 @@ function crearMenu() {
     .addItem("Traer leads del origen (ahora)", "traerLeadsDelOrigen")
     .addSeparator()
     .addItem("Ver estado del puente", "verEstado")
+    .addItem("Rescatar filas ya miradas (retroceder la marca)", "retrocederMarca")
     .addSeparator()
     .addItem("Encender el conector (sube al CRM cada 5 min)", "activarConector")
     .addItem("Apagar el conector", "apagarConector")
@@ -533,6 +572,24 @@ function corridaProgramada() {
       );
     } else {
       limpiarAviso("pestana-detenida");
+    }
+    // No frena nada —los leads entran—, pero el origen está corrompiendo un dato y
+    // eso no puede vivir solo en el reporte de una corrida que nadie abre.
+    if (r.fechasImposibles) {
+      anotarAviso(
+        AVISO_FECHA_IMPOSIBLE,
+        r.fechasImposibles + " lead(s) con FECHA IMPOSIBLE: el origen está guardando mal la fecha",
+        "Filas recién llegadas al origen vienen fechadas ANTES del corte (" + FECHA_CORTE +
+        "), lo que no puede ser: se añaden por abajo. Pasó el 2026-09-01, cuando el " +
+        "formulario empezó a escribir la fecha con el mes por delante (\"09/01/2026\") y " +
+        "la hoja de origen la guardó como 9 de enero.\n\n" +
+        "NO se pierde ningún lead: entran con la fecha del día en que llegan al CRM y " +
+        "su Nota lo dice. Lo que hay que arreglar está en el ORIGEN — que la columna " +
+        "\"Fecha de Registro\" vuelva a escribirse como la lee esa hoja.",
+        reloj
+      );
+    } else {
+      limpiarAviso(AVISO_FECHA_IMPOSIBLE);
     }
     return r;
   } catch (e) {
@@ -1090,6 +1147,11 @@ function resumen(r) {
     (sinMonto ? "\n   · " + sinMonto + " SIN MONTO → entran con " + MONTO_SI_NO_INDICA + " y aviso en la Nota" : "") +
     (sinMoneda ? "\n   · " + sinMoneda + " SIN MONEDA → entran como " + MONEDA_SI_NO_INDICA + " y aviso en la Nota" : "") +
     (sinFecha ? "\n   · " + sinFecha + " sin fecha en el origen → entran contando desde hoy" : "") +
+    (r.fechasImposibles
+      ? "\n   · ⚠️ " + r.fechasImposibles + " con FECHA IMPOSIBLE en el origen (filas recién " +
+        "llegadas fechadas antes del corte): entran con la fecha de hoy. El origen está " +
+        "guardando mal la fecha — revísalo allí"
+      : "") +
     (telRescatado ? "\n   · " + telRescatado + " con el teléfono fuera de su columna → número rescatado" : "") +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
     (r.backlogSinFecha
@@ -1182,6 +1244,9 @@ function procesarNucleo(escribir) {
   }
 
   const origen = SpreadsheetApp.openById(ORIGEN_ID); // ← solo lectura, ver cabecera
+  // La zona del ORIGEN es la que decide qué día muestra una celda de fecha suya; si no
+  // la declara, se supone la nuestra (ver `fechasNativas`).
+  const zonaOrigen = origen.getSpreadsheetTimeZone() || ZONA_DE_CORRIDA;
   const aceptados = [];
   const rechazados = [];
   const duplicados = []; // rechazados por duplicado: se huellán para no re-listarlos
@@ -1189,6 +1254,7 @@ function procesarNucleo(escribir) {
   let leidas = 0;
   let repetidosPasadas = 0;
   let backlogSinFecha = 0;
+  let fechasImposibles = 0;
 
   origen.getSheets().forEach(function (pestana) {
     // El tope es de la PASADA entera, no de cada pestaña: sin esto, el `break` de
@@ -1243,6 +1309,10 @@ function procesarNucleo(escribir) {
       return;
     }
 
+    // Lo que Sheets GUARDA en las columnas de fecha, no lo que dibuja: es lo que hace
+    // al puente inmune a que el origen cambie el formato (ver `fechasNativas`).
+    const nativas = fechasNativas(pestana, col.fechas, datos.length, zonaOrigen);
+
     const frontera = marca.ultimaFila;
     let ultimaFilaVista = frontera;
     console.log("   ↳ marca de agua: fila " + frontera + " (de ahí para abajo, leads nuevos)");
@@ -1254,7 +1324,10 @@ function procesarNucleo(escribir) {
       if (esFilaDeEncabezado(fila, datos[0])) continue;
       leidas++;
 
-      const lead = normalizarFila(fila, col, nombrePestana, i + 1, datos[0], frontera);
+      const lead = normalizarFila(fila, col, nombrePestana, i + 1, datos[0], frontera, nativas[i]);
+      // Se cuenta ANTES de cualquier rechazo: lo que el aviso vigila es que el origen
+      // esté mandando fechas imposibles, no si ese lead concreto acabó entrando.
+      if (lead.fechaImposible) fechasImposibles++;
 
       if (lead.motivo) {
         if (lead.motivo === MOTIVO_BACKLOG) backlogSinFecha++;
@@ -1329,6 +1402,7 @@ function procesarNucleo(escribir) {
     rechazados: rechazados,
     repetidosPasadas: repetidosPasadas,
     backlogSinFecha: backlogSinFecha,
+    fechasImposibles: fechasImposibles,
     incidencias: incidencias,
   };
 }
@@ -1472,10 +1546,13 @@ function describirColumnas(col, cabeceras) {
  * Convierte una fila del origen en una fila de nuestra hoja, o la rechaza con motivo.
  *
  * `marca` es la MARCA DE AGUA de la pestaña (última fila que el puente ya había mirado
- * en pasadas anteriores). Se pasa como último argumento y es opcional: sin ella el
- * guardia de backlog no actúa, que es el comportamiento de siempre.
+ * en pasadas anteriores). Es opcional: sin ella el guardia de backlog no actúa, que es
+ * el comportamiento de siempre.
+ *
+ * `nativas` son las fechas que Sheets GUARDA en esta fila, en el orden de `col.fechas`
+ * (ver `fechasNativas`). También opcional: sin ellas se lee el texto de la celda.
  */
-function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
+function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca, nativas) {
   const val = function (i) { return i >= 0 && i < fila.length ? String(fila[i]).trim() : ""; };
 
   const lead = {
@@ -1487,13 +1564,33 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
   // el lead ENTRA (decisión de Miguel, 2026-07-27): su fecha real es el día en que
   // ingresa; a un posible cliente no se le frena por un dato administrativo que el
   // origen olvidó llenar.
-  const fecha = fechaMasAntigua(fila, col.fechas);
+  //
+  // ⚠️ "VIEJA" ES "VIEJA SE LEA COMO SE LEA" (`msTarde`). Una fecha ambigua —"09/01"
+  // es el 9 de enero o el 1 de septiembre, según quién la haya escrito— no puede
+  // condenar a un lead: si sus dos lecturas caen a lados distintos del corte, esta
+  // función no sabe la fecha, y decirlo es más honesto que elegir una. El lead pasa a
+  // tratarse como SIN FECHA y decide la POSICIÓN, que es la señal que sí controlamos.
+  const fecha = fechaMasAntigua(fila, col.fechas, nativas);
   lead.fecha = fecha;
-  lead.sinFecha = !fecha;
   const corte = corteEnMs();
-  if (corte !== null && fecha && fecha.ms < corte) {
-    lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
-    return lead;
+  lead.fechaAmbigua = !!(fecha && fecha.ambigua);
+  // Ambigua Y a caballo del corte: las dos lecturas dicen cosas contrarias, así que
+  // esta fecha no puede decidir nada. Ambigua pero con las dos lecturas del mismo
+  // lado (dos días de septiembre, pongamos) sí sirve para pasar el corte.
+  lead.sinFecha = !fecha || (lead.fechaAmbigua &&
+    corte !== null && fecha.ms < corte && fecha.msTarde >= corte);
+  if (corte !== null && fecha && fecha.msTarde < corte) {
+    if (!(marca > 0 && numeroFila > marca)) {
+      lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
+      return lead;
+    }
+    // Nueva por posición y vieja por fecha: se contradicen, y la que no puede mentir
+    // es la posición (ver AVISO_FECHA_IMPOSIBLE). El lead entra con la fecha del
+    // ingreso, y la fecha del origen se guarda SOLO para poder decirlo.
+    lead.fechaImposible = fecha.texto;
+    lead.fecha = null;   // no puede contaminar el desglose por mes ni la huella
+    lead.sinFecha = true;
+    lead.fechaAmbigua = false;
   }
   // Y la otra mitad: sin fecha que juzgar, manda la POSICIÓN. Una fila sin fecha que
   // ya estaba cuando el puente miró la vez pasada es backlog, no un lead nuevo.
@@ -1575,7 +1672,13 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
     lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
     lead.telefonoRescatado ? "⚠️ Teléfono tomado de OTRA columna del origen — confirmar al contactar" : "",
     lead.telefonoEsFijo ? "☎️ El teléfono principal es un FIJO — no responde WhatsApp, hay que llamar" : "",
-    lead.sinFecha ? "Sin fecha en el origen (vale la del ingreso)" : "",
+    lead.fechaImposible
+      ? "⚠️ El origen lo fechó el " + lead.fechaImposible + ", imposible en una fila " +
+        "recién llegada — vale la del ingreso"
+      : lead.fechaAmbigua
+        ? "⚠️ Fecha ambigua en el origen (" + lead.fecha.texto + ")" +
+          (lead.sinFecha ? " — vale la del ingreso" : "")
+        : (lead.sinFecha ? "Sin fecha en el origen (vale la del ingreso)" : ""),
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
   ].filter(String).join(" · ");
@@ -1875,36 +1978,141 @@ function limpiarLugar(v) {
 /**
  * De todas las columnas de fecha de la fila, la MÁS ANTIGUA: esa es la fecha real
  * en que la persona dejó sus datos (las otras suelen ser marcas de exportación).
+ *
+ * `nativas` (opcional) trae, EN EL MISMO ORDEN que `indices`, lo que Sheets guarda de
+ * verdad en esa celda, ya pasado a "AAAA-MM-DD" (lo prepara `fechasNativas`). Cuando
+ * está, MANDA: es el único dato que no depende de cómo el origen decida DIBUJAR la
+ * fecha. El texto de la celda es el respaldo, para las columnas que el formulario
+ * escribe como texto plano.
+ *
+ * Devuelve { ms, msTarde, texto, mes, ambigua } | null. En una fecha cierta
+ * `ms === msTarde`; en una ambigua son las dos lecturas posibles (ver `fechaDeCelda`).
  */
-function fechaMasAntigua(fila, indices) {
+function fechaMasAntigua(fila, indices, nativas) {
   let mejor = null;
-  (indices || []).forEach(function (i) {
-    const t = String(fila[i] || "").trim();
-    let iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    let d = null;
-    if (iso) d = { a: +iso[1], m: +iso[2], dd: +iso[3] };
-    else {
-      const lat = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (lat) d = { a: +lat[3], m: +lat[2], dd: +lat[1] };
-    }
-    if (!d) return;
-    // LA FECHA TIENE QUE EXISTIR EN EL CALENDARIO. `Date.UTC` no valida: "99/99/2026"
-    // lo normaliza a una fecha FUTURA, con lo que supera el corte y, al tener fecha,
-    // tampoco lo frena la marca de agua por posición. Una fecha basura se convertía
-    // así en salvoconducto. Se comprueba con la vuelta: si el día o el mes cambiaron
-    // al construirla, no era una fecha (cubre también el 31 de febrero).
-    const ms = Date.UTC(d.a, d.m - 1, d.dd);
-    const vuelta = new Date(ms);
-    if (vuelta.getUTCMonth() !== d.m - 1 || vuelta.getUTCDate() !== d.dd) return;
-    if (mejor === null || ms < mejor.ms) {
-      mejor = {
-        ms: ms,
-        texto: pad(d.dd) + "/" + pad(d.m) + "/" + d.a,
-        mes: d.a + "-" + pad(d.m), // para el desglose del reporte
-      };
-    }
+  (indices || []).forEach(function (i, j) {
+    const cand = fechaDeCelda(String(fila[i] || "").trim(), (nativas || [])[j]);
+    if (!cand) return;
+    if (mejor === null || cand.ms < mejor.ms) mejor = cand;
   });
-  return mejor; // { ms, texto, mes } | null
+  return mejor;
+}
+
+/**
+ * Una celda de fecha → { ms, msTarde, texto, mes, ambigua } | null. Pura.
+ *
+ * ⚠️ "09/01/2026" NO DICE QUÉ DÍA ES. El 2026-09-01, a media mañana, el origen dejó de
+ * escribir DD/MM/AAAA y empezó a escribir MM/DD/AAAA, sin avisar. Esta función leía
+ * siempre el primer número como el día, así que ese "09/01/2026" pasó a significar el
+ * 9 de ENERO: anterior al corte, descartado en silencio. 34 leads reales se quedaron
+ * fuera del CRM durante un día entero mientras el puente corría en verde.
+ *
+ * La lección no es "ahora léelo al revés" —mañana puede volver a cambiar—, es que el
+ * texto de una fecha que escribe OTRO no es una fuente de verdad:
+ *
+ *   1. Si Sheets guardó una fecha DE VERDAD en la celda, esa manda (`nativas`): el
+ *      formato de pantalla ya no pinta nada.
+ *   2. Si no, se prueban LAS DOS LECTURAS del texto. Si solo una existe en el
+ *      calendario ("31/08" o "09/15"), no hay duda: esa es.
+ *   3. Si las dos existen y son días distintos, la fecha es AMBIGUA y se dice: se
+ *      devuelven las dos (`ms` la más antigua, `msTarde` la más reciente) para que
+ *      quien decide —el corte— pueda ser honesto sobre lo que sabe y lo que no.
+ */
+function fechaDeCelda(texto, nativa) {
+  // 1) Lo que Sheets GUARDA, no lo que dibuja.
+  const dn = piezasDeIso(String(nativa || ""));
+  if (dn) return fechaCierta(dn);
+
+  const t = String(texto || "");
+  // 2) El texto ya en ISO (así llega la pestaña de Facebook).
+  const di = piezasDeIso(t);
+  if (di) return fechaCierta(di);
+
+  // 3) "d1/d2/AAAA": las dos lecturas, y que el calendario descarte lo que pueda.
+  const lat = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (!lat) return null;
+  const anio = +lat[3];
+  const comoLatina = diaDelCalendario(anio, +lat[2], +lat[1]);  // DD/MM/AAAA
+  const comoInglesa = diaDelCalendario(anio, +lat[1], +lat[2]); // MM/DD/AAAA
+  if (!comoLatina && !comoInglesa) return null;
+  if (!comoInglesa) return fechaCierta(comoLatina);
+  if (!comoLatina) return fechaCierta(comoInglesa);
+  if (comoLatina.ms === comoInglesa.ms) return fechaCierta(comoLatina); // 05/05/2026
+  return {
+    ms: Math.min(comoLatina.ms, comoInglesa.ms),
+    msTarde: Math.max(comoLatina.ms, comoInglesa.ms),
+    texto: pad(+lat[1]) + "/" + pad(+lat[2]) + "/" + anio + " (ambigua)",
+    mes: "fecha ambigua", // en el desglose del reporte se ven de un vistazo
+    ambigua: true,
+  };
+}
+
+/** Una fecha sin dudas, en la forma que espera el resto del puente. */
+function fechaCierta(d) {
+  return {
+    ms: d.ms,
+    msTarde: d.ms,
+    texto: pad(d.dd) + "/" + pad(d.m) + "/" + d.a,
+    mes: d.a + "-" + pad(d.m), // para el desglose del reporte
+    ambigua: false,
+  };
+}
+
+/** "AAAA-MM-DD…" → sus piezas, o null. Pura. */
+function piezasDeIso(t) {
+  const m = String(t).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? diaDelCalendario(+m[1], +m[2], +m[3]) : null;
+}
+
+/**
+ * { a, m, dd, ms } si esa fecha EXISTE en el calendario; null si no.
+ *
+ * `Date.UTC` no valida: "99/99/2026" lo normaliza a una fecha FUTURA, con lo que
+ * superaba el corte y, al tener fecha, tampoco lo frenaba la marca de agua por
+ * posición — una fecha basura era un salvoconducto. Se comprueba con la vuelta: si el
+ * día o el mes cambiaron al construirla, no era una fecha (cubre el 31 de febrero).
+ * Y es además lo que desempata las dos lecturas de "31/08/2026": no hay mes 31.
+ */
+function diaDelCalendario(a, m, dd) {
+  if (!(a > 0) || !(m >= 1 && m <= 12) || !(dd >= 1)) return null;
+  const ms = Date.UTC(a, m - 1, dd);
+  const vuelta = new Date(ms);
+  if (vuelta.getUTCMonth() !== m - 1 || vuelta.getUTCDate() !== dd) return null;
+  return { a: a, m: m, dd: dd, ms: ms };
+}
+
+/**
+ * Las columnas de fecha del origen TAL Y COMO SHEETS LAS GUARDA, no como las dibuja.
+ *
+ * `getDisplayValues()` devuelve el texto ya pintado con el formato y el locale del
+ * DOCUMENTO DE ORIGEN, que no controlamos: el día que a alguien le da por cambiarlo,
+ * el mismo dato de siempre llega escrito al revés (pasó el 2026-09-01). `getValues()`
+ * sobre esas mismas celdas devuelve la fecha REAL cuando la celda es una fecha de
+ * verdad, y ahí no hay formato que valga.
+ *
+ * Se lee SOLO las columnas de fecha (una o dos), no la pestaña entera, y solo cuando
+ * ya se decidió que la pestaña se procesa: es una columna más sobre las once que la
+ * pasada ya se descarga, no una segunda pasada.
+ *
+ * Devuelve una matriz [fila][posición dentro de `indices`] con "AAAA-MM-DD", o "" si
+ * esa celda no era una fecha (el formulario la escribió como texto). Se formatea en la
+ * zona del ORIGEN, que es la que decide qué día muestra esa celda.
+ */
+function fechasNativas(pestana, indices, filas, zona) {
+  if (!indices || !indices.length || !(filas > 1)) return [];
+  const columnas = indices.map(function (i) {
+    return pestana.getRange(1, i + 1, filas, 1).getValues();
+  });
+  const salida = [];
+  for (let r = 0; r < filas; r++) {
+    salida.push(columnas.map(function (columna) {
+      const v = columna[r][0];
+      return Object.prototype.toString.call(v) === "[object Date]"
+        ? Utilities.formatDate(v, zona, "yyyy-MM-dd")
+        : "";
+    }));
+  }
+  return salida;
 }
 
 /** La fecha de corte como milisegundos, o null si no hay corte configurado. */
@@ -2283,6 +2491,164 @@ function inicializarMarcas() {
     informar(texto);
     return { puestas: puestas.length, respetadas: respetadas.length };
   });
+}
+
+/**
+ * RETROCEDER LA MARCA DE AGUA — el rescate de las filas que el puente YA MIRÓ y
+ * descartó por error.
+ *
+ * POR QUÉ EXISTE. La marca avanza en cada pasada aunque no acepte ni un lead: es
+ * "hasta aquí he mirado", no "hasta aquí he traído". Así que cuando el puente descarta
+ * mal —el 2026-09-01 el origen cambió el formato de fecha y 34 leads reales cayeron
+ * como "Anterior al corte"—, arreglar el descarte NO los rescata: para entonces la
+ * frontera ya pasó por encima y esas filas cuentan como historia. Hay que desandarla.
+ *
+ * NO IMPORTA NADA. Solo mueve la frontera hacia atrás; después hay que pasar la Vista
+ * previa y decidir. Y solo hacia ATRÁS: adelantarla a mano es la forma de hacer
+ * desaparecer leads sin dejar rastro, y para eso no hay atajo (se adelanta sola).
+ *
+ * Pregunta pestaña y fila, enseña las dos filas de la frontera (la última que se da
+ * por buena y la primera que se volverá a mirar) y cuántas de las que se recuperan NO
+ * traen fecha —que son las que entrarían por posición— antes de tocar nada.
+ */
+function retrocederMarca() {
+  let ui;
+  try {
+    ui = SpreadsheetApp.getUi();
+  } catch (e) {
+    throw new Error(
+      "Esto se ejecuta desde el menú AVANCE CORP con la hoja abierta, no desde el " +
+      "editor: necesita preguntarte la pestaña y la fila, y que confirmes."
+    );
+  }
+  const destino = SpreadsheetApp.getActiveSpreadsheet();
+  const marcas = leerMarcas(destino);
+  if (!Object.keys(marcas).length) {
+    throw new Error("El puente todavía no tiene marca de agua: no hay nada que retroceder.");
+  }
+
+  const origen = SpreadsheetApp.openById(ORIGEN_ID); // solo lectura
+  const nombres = origen.getSheets().map(function (h) { return h.getName(); });
+  const p1 = ui.prompt(
+    "Rescatar filas ya miradas (1 de 2)",
+    "¿De qué pestaña del origen?\n\nPestañas: " + nombres.join(", "),
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (p1.getSelectedButton() !== ui.Button.OK) return null;
+  const nombre = String(p1.getResponseText()).trim();
+  const pestana = origen.getSheets().filter(function (h) { return h.getName() === nombre; })[0];
+  if (!pestana) throw new Error("No hay ninguna pestaña \"" + nombre + "\" en el origen. Hay: " + nombres.join(", "));
+  const marca = marcas[String(pestana.getSheetId())];
+  if (!marca) throw new Error("La pestaña \"" + nombre + "\" no tiene marca de agua todavía.");
+
+  const p2 = ui.prompt(
+    "Rescatar filas ya miradas (2 de 2)",
+    "La marca de \"" + nombre + "\" está hoy en la fila " + marca.ultimaFila + ".\n\n" +
+    "¿Cuál es la ÚLTIMA fila que doy por buena? De la siguiente hacia abajo, el " +
+    "puente volverá a mirar.",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (p2.getSelectedButton() !== ui.Button.OK) return null;
+
+  const datos = pestana.getDataRange().getDisplayValues();
+  const nueva = marcaRetrocedida(marca, datos, p2.getResponseText(), nombre);
+  const recuperadas = datos.length - nueva.ultimaFila;
+
+  // Cuántas de las que vuelven NO traen fecha: esas entran por POSICIÓN, sin que el
+  // corte pueda decir nada. Es el número que hay que mirar antes de aceptar.
+  const col = ubicarColumnas(datos[0]);
+  let sinFecha = 0;
+  for (let r = nueva.ultimaFila + 1; r <= datos.length; r++) {
+    if (!fechaMasAntigua(datos[r - 1], col.fechas)) sinFecha++;
+  }
+
+  const confirmar = ui.alert(
+    "Confirma el retroceso",
+    "Pestaña \"" + nombre + "\": la marca pasa de la fila " + marca.ultimaFila +
+    " a la " + nueva.ultimaFila + ".\n" +
+    "Se volverán a mirar " + recuperadas + " filas, de las que " + sinFecha +
+    " no traen fecha (esas entrarían por posición).\n\n" +
+    "ÚLTIMA fila que se da por buena (" + nueva.ultimaFila + "):\n" +
+    filaLegible(datos[nueva.ultimaFila - 1] || [], datos[0]) + "\n\n" +
+    "PRIMERA que se volverá a mirar (" + (nueva.ultimaFila + 1) + "):\n" +
+    filaLegible(datos[nueva.ultimaFila] || [], datos[0]) + "\n\n" +
+    "No se importa nada ahora: después hay que pasar la Vista previa.",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (confirmar !== ui.Button.OK) return null;
+
+  return conCandado(function () {
+    // Se RELEEN las marcas dentro del candado: entre la pregunta y el OK ha podido
+    // correr una pasada y mover otras fronteras. Solo se pisa la de esta pestaña.
+    guardarMarcas(destino, fusionar(leerMarcas(destino), unaMarca(nueva)));
+    informar(
+      "Marca de agua retrocedida — NO se importó ningún lead\n\n" +
+      "Pestaña \"" + nombre + "\": fila " + marca.ultimaFila + " → " + nueva.ultimaFila + "\n" +
+      "Vuelven a mirarse " + recuperadas + " filas (" + sinFecha + " sin fecha).\n\n" +
+      "Ahora: \"Vista previa\" para ver qué entraría, y solo entonces \"Traer leads " +
+      "del origen\"."
+    );
+    return { pestana: nombre, de: marca.ultimaFila, a: nueva.ultimaFila, recuperadas: recuperadas };
+  });
+}
+
+/** Un mapa de marcas con una sola dentro, para `fusionar`. */
+function unaMarca(marca) {
+  const uno = {};
+  uno[marca.sheetId] = marca;
+  return uno;
+}
+
+/**
+ * La marca que quedaría al retroceder `marca` hasta la fila `hasta`. Pura: valida y
+ * devuelve, o LANZA con el motivo. Todo lo que puede salir mal se decide aquí.
+ *
+ * El ancla y la huella de cabeceras se recalculan EN LA FILA NUEVA: sin eso, la
+ * siguiente pasada compararía el ancla vieja (calculada al final de la pestaña) contra
+ * la nueva y detendría la pestaña por "se reordenó", que es justo lo contrario de
+ * rescatar. Por eso esto no se puede hacer editando `_puente_marcas` a mano.
+ */
+function marcaRetrocedida(marca, datos, hasta, nombre) {
+  if (!marca) throw new Error("La pestaña \"" + nombre + "\" no tiene marca de agua todavía.");
+  const n = Number(String(hasta).trim());
+  if (!isFinite(n) || n !== Math.floor(n) || n < 1) {
+    throw new Error("\"" + hasta + "\" no es un número de fila.");
+  }
+  if (n === 1) {
+    throw new Error(
+      "La fila 1 es la de los encabezados: dejar ahí la frontera es reprocesar el " +
+      "origen ENTERO. Si de verdad es lo que quieres, borra la fila de esta pestaña " +
+      "en \"" + HOJA_MARCAS + "\" a conciencia."
+    );
+  }
+  if (n >= Number(marca.ultimaFila)) {
+    throw new Error(
+      "Esto solo RETROCEDE. La marca de \"" + nombre + "\" está en la fila " +
+      marca.ultimaFila + " y has pedido la " + n + ". Adelantar la frontera a mano " +
+      "haría desaparecer leads sin dejar rastro; se adelanta sola al procesar."
+    );
+  }
+  if (n > datos.length) {
+    throw new Error("La pestaña \"" + nombre + "\" tiene " + datos.length +
+      " filas: la " + n + " no existe.");
+  }
+  if (Number(marca.ultimaFila) - n > TOPE_RETROCESO) {
+    throw new Error(
+      "Retroceso demasiado grande: " + (Number(marca.ultimaFila) - n) + " filas, y el " +
+      "tope son " + TOPE_RETROCESO + ". Por debajo de la frontera hay filas viejas SIN " +
+      "fecha que volverían a contar como leads nuevos y entrarían con la fecha de hoy. " +
+      "Retrocede hasta donde de verdad haga falta, o cambia TOPE_RETROCESO a conciencia."
+    );
+  }
+  return {
+    sheetId: marca.sheetId,
+    nombre: nombre,
+    ultimaFila: n,
+    filas: datos.length,
+    cabeceras: huellaCabeceras(datos[0] || []),
+    ancla: anclaDeFilas(datos, n),
+    actualizado: "", // lo sella `guardarMarcas` con la hora de ahora
+  };
 }
 
 function telefonosYaEnLaHoja(hoja) {

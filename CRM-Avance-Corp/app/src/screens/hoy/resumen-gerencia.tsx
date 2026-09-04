@@ -19,7 +19,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { fmtFecha, money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   capitalObjetivo,
@@ -45,11 +45,9 @@ import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
   /**
-   * La conversión mensual ponderada (`crm.conversion_mensual_fn`): alimenta el
-   * héroe, el KPI de conversión y «Mejores analistas». Tri-estado: `undefined`
-   * consultando · `null` no disponible (todo degrada a «—», jamás a la fórmula
-   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO;
-   * los porcentajes por origen solo se publican con núcleo y sondas verificados.
+   * La conversión mensual ponderada (`crm.conversion_mensual_fn`) alimenta
+   * metas, «Mejores analistas» y el fallback compatible si un servidor antiguo
+   * no trae `conversiones.nucleo`. El héroe real usa el núcleo del rango exacto.
    */
   conversionMensual: ConversionMensual | null | undefined
   reuniones: MetricasReuniones | null | undefined
@@ -61,11 +59,13 @@ interface ResumenGerenciaPanelProps {
   cumplimiento: CumplimientoAgregado | null
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
-  /** Origen del lote aplicado a las lecturas del PERÍODO (null = todos). El
-   * héroe (mes de la empresa) y «Avance de metas» no se filtran: el chip lo
-   * dice para que las dos aguas no se confundan. */
+  /** Origen del lote aplicado a Cosecha y embudo (null = todos). La conversión
+   * canónica del rango y «Avance de metas» permanecen a nivel empresa: el chip
+   * lo dice para que las dos aguas no se confundan. */
   origenFiltrado: string | null
   cargando: boolean
+  /** Estado exclusivo de `crm.metricas_conversiones_fn` (rango). */
+  rangoCargando?: boolean
   /** Carga inicial de conversión + meta/capital mensual; no bloquea el rango. */
   mensualCargando?: boolean
   error: string | null
@@ -141,6 +141,7 @@ export function ResumenGerenciaPanel({
   tc,
   origenFiltrado,
   cargando,
+  rangoCargando = false,
   mensualCargando = false,
   error,
   modoDemo,
@@ -148,14 +149,21 @@ export function ResumenGerenciaPanel({
 }: ResumenGerenciaPanelProps): JSX.Element {
   const clientes = conversiones?.cohorte.contratos ?? null
   const leads = conversiones?.cohorte.leads ?? null
-  // El número grande del resumen es LA conversión del MES (servida, jamás
-  // dividida aquí); «medible: false» del servidor degrada a «—» con rótulo.
-  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
-  // 2026-08-14). La regla es compartida: cuatro pantallas pintan esta cifra.
+  // El número grande obedece al rango visible y toma el porcentaje YA SERVIDO
+  // en `nucleo`; aquí no se divide ni se reconstruye ninguna conversión. La foto
+  // mensual sigue alimentando metas y el ranking, que sí son mensuales.
+  const nucleoRango = conversiones?.nucleo ?? null
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
   const totalMes = totalConversionPublicable(conversionMensual)
   const conversionMes = totalMes?.conversion_pct ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
+  const rangoEsperando = rangoCargando && conversiones === undefined
+  const usaNucleoRango = nucleoRango != null || rangoEsperando
+  const conversionPrincipal = usaNucleoRango ? nucleoRango?.conversion_pct ?? null : conversionMes
+  const conversionPrincipalCargando = usaNucleoRango ? rangoEsperando : mensualCargando
+  const etiquetaPeriodoRango = conversiones == null
+    ? ''
+    : `${fmtFecha(conversiones.periodo.desde)} al ${fmtFecha(conversiones.periodo.hasta)}`
   const reunionesRealizadas = reuniones?.resumen.realizadas ?? null
   const reunionesPactadas = reuniones?.resumen.pactadas ?? null
   const metasComparables = metaMensual.comparable && metaMensual.errorCarga !== true
@@ -348,6 +356,8 @@ export function ResumenGerenciaPanel({
     // cartera): el resumen tiene algo verdadero que enseñar, no es «vacío».
     || (cumplimientoCapitalPen ?? 0) > 0
     || (cumplimientoCapitalUsd ?? 0) > 0
+    || (conversiones?.nucleo?.divisor ?? 0) > 0
+    || (conversiones?.nucleo?.numerador ?? 0) > 0
     || (conversionMensual?.total.divisor ?? 0) > 0
     || (conversionMensual?.total.numerador ?? 0) > 0
     || metaMensual.errorCarga === true
@@ -376,30 +386,36 @@ export function ResumenGerenciaPanel({
       )}
       {origenFiltrado != null && (
         <p role="status" className="rounded-xl border border-[var(--gi-line)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--gi-navy)]">
-          Filtrando por origen: {etiquetaOrigen(origenFiltrado)} — aplica a la Cosecha y al embudo del período; las citas, la conversión del mes y las metas son de toda la empresa.
+          Filtrando por origen: {etiquetaOrigen(origenFiltrado)} — aplica a la Cosecha y al embudo del período; las citas, la conversión canónica y las metas siguen mostrando toda la empresa.
         </p>
       )}
       <section data-gi-hero className="gi-summary-hero">
         <div>
-          <p className="gi-label text-white/65">Conversión del mes</p>
-          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{mensualCargando ? 'Calculando…' : pct(conversionMes)}</p>
-          <p className="mt-2 text-xs text-white/65">
-            {mensualCargando
-              ? 'Consultando conversión, capital y meta del mes…'
-              : conversionMensual != null && !lecturaConversion.mostrar
-              ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-              // UN SOLO contador de leads a la vista (Miguel, 27/08 noche:
-              // «están mal las cantidades, debería jalar del mismo contador»):
-              // el Resumen ya no exhibe la base 599 del núcleo — todos los
-              // conteos visibles de leads son los del período (KPI y ritmo
-              // semanal, misma cohorte). El divisor del % sigue viajando en
-              // el payload para quien audite; aquí solo se dicen los cierres.
-              : totalMes == null
-                ? 'Conversión del mes no disponible'
-                : `${numero(cierresMes ?? 0)} cierres este mes`
-                  // El porqué acompaña a la cifra en vez de sustituirla.
-                  + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
+          <p className="gi-label text-white/65">
+            {usaNucleoRango ? `Conversión del rango${etiquetaPeriodoRango ? ` · ${etiquetaPeriodoRango}` : ''}` : 'Conversión del mes'}
           </p>
+          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{conversionPrincipalCargando ? 'Calculando…' : pct(conversionPrincipal)}</p>
+          <p className="mt-2 text-xs text-white/65">
+            {usaNucleoRango
+              ? rangoEsperando
+                ? 'Todos los orígenes · consultando el núcleo del rango…'
+                : nucleoRango == null
+                  ? 'Base canónica del rango no disponible'
+                  : `Todos los orígenes · ${numero(nucleoRango.divisor)} asignaciones contabilizadas · ${numero(nucleoRango.cierres_no_referidos)} cierres no referidos`
+                    + (nucleoRango.cierres_referidos > 0 ? ` · ${numero(nucleoRango.cierres_referidos)} cierres referidos` : '')
+                    + (nucleoRango.operaciones_cartera > 0 ? ` · ${numero(nucleoRango.operaciones_cartera)} operaciones de cartera` : '')
+              : mensualCargando
+                ? 'Consultando conversión, capital y meta del mes…'
+                : conversionMensual != null && !lecturaConversion.mostrar
+                  ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                  : totalMes == null
+                    ? 'Conversión del mes no disponible'
+                    : `${numero(cierresMes ?? 0)} cierres este mes`
+                      + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
+          </p>
+          {usaNucleoRango && nucleoRango != null && !nucleoRango.incluye_cartera && (
+            <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
+          )}
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
           {/* Pastilla ESTRECHA: monto compacto (el exacto vive en el KPI de
@@ -425,7 +441,17 @@ export function ResumenGerenciaPanel({
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Conversión del mes" valor={mensualCargando ? 'Calculando…' : pct(conversionMes)} detalle={mensualCargando ? 'Consultando el mes…' : cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
+        <Kpi
+          label={usaNucleoRango ? 'Conversión del rango' : 'Conversión del mes'}
+          valor={conversionPrincipalCargando ? 'Calculando…' : pct(conversionPrincipal)}
+          detalle={usaNucleoRango
+            ? rangoEsperando
+              ? 'Consultando el rango…'
+              : nucleoRango == null ? 'Dato no disponible' : `${numero(nucleoRango.divisor)} asignaciones contabilizadas`
+            : mensualCargando ? 'Consultando el mes…' : cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`}
+          Icon={TrendingUp}
+          color={C.blue}
+        />
         {/* «del período», sin más: Miguel vetó «dados de alta» (27/08). La
             distinción con el divisor la explica el héroe, no este detalle. */}
         <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del período`} Icon={UserRoundCheck} color={C.green} />
@@ -488,10 +514,10 @@ export function ResumenGerenciaPanel({
                   : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
               </div>}
           {origenesVerificados && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
-            // D6: el origen Referido queda fuera de la base de la conversión
-            // del mes — su barra mide cierres sobre SUS recibidos, no lo mismo.
+            // D6: el origen Referido queda fuera de la base general de la
+            // conversión — su barra mide cierres sobre SUS recibidos.
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">
-              {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}: de los recibidos por ese origen, cuánto cerró — queda fuera de la base de la conversión del mes.
+              {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}: de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.
             </p>
           )}
         </section>

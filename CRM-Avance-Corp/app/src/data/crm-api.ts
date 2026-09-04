@@ -113,6 +113,11 @@ import {
   type ResultadoDerivarLeadsEquipo,
   type ResultadoRevertirDerivacionEquipo,
 } from '@/lib/reporte-derivaciones-equipo'
+import {
+  ReporteDerivacionesCoordinacionSchema,
+  reporteDerivacionesCoordinacionConsistente,
+  type ReporteDerivacionesCoordinacion,
+} from '@/lib/reporte-derivaciones-coordinacion'
 import type { EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import { ResumenRepartoSchema, type ResumenReparto } from '@/lib/resumen-reparto'
 import { IngresosRepartoMesSchema, inicioDeMes, type IngresosRepartoMes } from '@/lib/ingresos-reparto'
@@ -3896,14 +3901,19 @@ export async function listarMetricasVendedores(
   return resultado.output
 }
 
-// ── Reporte de derivaciones de supervisión ───────────────────────────────────
+// ── Reportes históricos de derivaciones ──────────────────────────────────────
 
-function falloReporteDerivaciones(error: { code?: string | null }, evento: string, porDefecto: string): CrmApiError {
+function falloReporteDerivaciones(
+  error: { code?: string | null },
+  evento: string,
+  porDefecto: string,
+  sinPermiso = 'No tienes permiso para gestionar las derivaciones de este equipo.',
+): CrmApiError {
   const fallo = new CrmApiError(
     error.code === '22023'
       ? 'El rango de fechas de derivaciones no es válido.'
       : error.code === '42501' || error.code === 'PGRST301'
-        ? 'No tienes permiso para gestionar las derivaciones de este equipo.'
+        ? sinPermiso
         : error.code === 'P0429'
           ? 'El lead está marcado No Insista y no se puede derivar.'
           : porDefecto,
@@ -3911,6 +3921,50 @@ function falloReporteDerivaciones(error: { code?: string | null }, evento: strin
   )
   registrarError(evento, fallo, { pg: error.code ?? '' })
   return fallo
+}
+
+/**
+ * Desglose diario y agregado de las derivaciones que cada supervisor entregó
+ * a sus analistas. Coordinación recibe solo nombres, equipos y conteos; la RPC
+ * no expone filas de leads ni datos de contacto.
+ */
+export async function listarReporteDerivacionesCoordinacion(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<ReporteDerivacionesCoordinacion> {
+  if (!v.safeParse(FechaSchema, desde).success || !v.safeParse(FechaSchema, hasta).success) {
+    throw new CrmApiError('El rango de fechas de derivaciones no es válido.', 'RANGO_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('reporte_derivaciones_coordinacion_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    throw falloReporteDerivaciones(
+      error,
+      'crm.reparto.reporte_diario_fallido',
+      'No se pudo cargar el reporte diario de derivaciones.',
+      'No tienes permiso para consultar el reporte diario de derivaciones.',
+    )
+  }
+  const resultado = v.safeParse(ReporteDerivacionesCoordinacionSchema, data)
+  if (
+    !resultado.success
+    || !reporteDerivacionesCoordinacionConsistente(resultado.output, desde, hasta)
+  ) {
+    const fallo = new CrmApiError(
+      'El reporte diario de derivaciones no tiene el formato esperado.',
+      'REPORTE_DERIVACIONES_COORDINACION_CONTRACT',
+    )
+    registrarError('crm.reparto.reporte_diario_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
 }
 
 /**

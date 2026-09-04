@@ -255,15 +255,82 @@ const MUTANTES = [
   {
     nombre: "una fecha imposible (99/99/2026) vuelve a ser salvoconducto",
     archivo: PUENTE,
-    de: `    const vuelta = new Date(ms);
-    if (vuelta.getUTCMonth() !== d.m - 1 || vuelta.getUTCDate() !== d.dd) return;`,
-    a: `    const vuelta = ms;`,
+    de: `  const vuelta = new Date(ms);
+  if (vuelta.getUTCMonth() !== m - 1 || vuelta.getUTCDate() !== dd) return null;`,
+    a: ``,
+  },
+
+  // ── El origen cambió cómo escribe la fecha (2026-09-01) ───────────────────
+  {
+    nombre: "el corte vuelve a condenar una fecha AMBIGUA (el fallo del 2026-09-01)",
+    archivo: PUENTE,
+    de: `  if (corte !== null && fecha && fecha.msTarde < corte) {`,
+    a: `  if (corte !== null && fecha && fecha.ms < corte) {`,
+  },
+  {
+    nombre: "el texto de la celda vuelve a pisar a la fecha que Sheets GUARDA",
+    archivo: PUENTE,
+    de: `  const dn = piezasDeIso(String(nativa || ""));
+  if (dn) return fechaCierta(dn);`,
+    a: ``,
+  },
+  {
+    nombre: "solo se prueba la lectura DD/MM (la otra mitad del formato desaparece)",
+    archivo: PUENTE,
+    de: `  if (!comoInglesa) return fechaCierta(comoLatina);
+  if (!comoLatina) return fechaCierta(comoInglesa);`,
+    a: `  if (!comoInglesa) return fechaCierta(comoLatina);
+  if (!comoLatina) return null;`,
+  },
+  {
+    nombre: "el corte vuelve a condenar una fila NUEVA por una fecha imposible",
+    archivo: PUENTE,
+    de: `    if (!(marca > 0 && numeroFila > marca)) {`,
+    a: `    if (true) {`,
+  },
+  {
+    nombre: "la fecha falsa se cuela en el desglose por mes y en la huella",
+    archivo: PUENTE,
+    de: `    lead.fecha = null;   // no puede contaminar el desglose por mes ni la huella`,
+    a: ``,
+  },
+  {
+    nombre: "el origen corrompe fechas y el panel se queda mudo",
+    archivo: PUENTE,
+    de: `      if (lead.fechaImposible) fechasImposibles++;`,
+    a: ``,
   },
   {
     nombre: "el nombre del lead se escribe sin quitarle el = inicial (fórmula)",
     archivo: PUENTE,
     de: `      sinFormula(l.nombre),   // A Nombre completo *`,
     a: `      l.nombre,               // A Nombre completo *`,
+  },
+
+  // ── El rescate: retroceder la marca de agua ───────────────────────────────
+  {
+    nombre: "el rescate NO recalcula el ancla (la pestaña se detendría en la siguiente pasada)",
+    archivo: PUENTE,
+    de: `    ancla: anclaDeFilas(datos, n),`,
+    a: `    ancla: marca.ancla,`,
+  },
+  {
+    nombre: "el rescate acepta ADELANTAR la frontera (leads que desaparecen sin rastro)",
+    archivo: PUENTE,
+    de: `  if (n >= Number(marca.ultimaFila)) {`,
+    a: `  if (false) {`,
+  },
+  {
+    nombre: "el rescate deja desandar el origen entero",
+    archivo: PUENTE,
+    de: `  if (Number(marca.ultimaFila) - n > TOPE_RETROCESO) {`,
+    a: `  if (false) {`,
+  },
+  {
+    nombre: "el rescate mueve la frontera aunque quien mira CANCELE",
+    archivo: PUENTE,
+    de: `  if (confirmar !== ui.Button.OK) return null;`,
+    a: ``,
   },
 
   // ── El conector ───────────────────────────────────────────────────────────

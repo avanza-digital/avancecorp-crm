@@ -124,7 +124,7 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(12rem, 0.55fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(28rem, 0.85fr);
   gap: 1.25rem;
   overflow: hidden;
   border-radius: 1.15rem;
@@ -150,6 +150,7 @@
 
 .gerencia-inteligencia .gi-hero-metric {
   display: flex;
+  min-width: 0;
   min-height: 8rem;
   flex-direction: column;
   justify-content: center;
@@ -158,6 +159,7 @@
   background: rgb(255 255 255 / 10%);
   padding: 1rem;
   backdrop-filter: blur(10px);
+  overflow-wrap: anywhere;
 }
 
 .gerencia-inteligencia .gi-demo-badge {
@@ -200,11 +202,13 @@
   text-transform: uppercase;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1100px) {
   .gerencia-inteligencia .gi-summary-hero {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 760px) {
   .gerencia-inteligencia .gi-toolbar > * {
     flex: 1 1 auto;
   }

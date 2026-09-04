@@ -20,6 +20,7 @@ import {
   guardarAgendaRepartoDiaria,
   historialDerivaciones,
   leadsPorRepartir,
+  listarReporteDerivacionesCoordinacion,
   listarResumenReparto,
   panelDistribucionReparto,
   repartirLead,
@@ -91,6 +92,27 @@ const AGENDA_REPARTO = {
       { origen: 'formulario', supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO', supervisor_alias: 'Jor', derivados: 8 },
     ],
   }],
+}
+
+const REPORTE_DERIVACIONES_COORDINACION = {
+  version: 1,
+  generado_en: '2026-09-04T15:00:00Z',
+  periodo: { desde: '2026-09-02', hasta: '2026-09-03', dias: '2', zona: 'America/Lima' },
+  total_derivados: '3',
+  dias: [
+    {
+      fecha: '2026-09-03',
+      total_derivados: '3',
+      analistas: [{
+        analista_id: '00000000-0000-4000-8000-000000000001',
+        analista_nombre: 'ANALISTA UNO',
+        supervisor_id: '00000000-0000-4000-8000-000000000002',
+        supervisor_nombre: 'SUPERVISOR UNO',
+        derivados: '3',
+      }],
+    },
+    { fecha: '2026-09-02', total_derivados: 0, analistas: [] },
+  ],
 }
 
 describe('leadsPorRepartir (msw)', () => {
@@ -248,6 +270,56 @@ describe('panelDistribucionReparto (msw)', () => {
     )
 
     await expect(panelDistribucionReparto()).rejects.toMatchObject({ code: 'PANEL_DISTRIBUCION_CONTRACT' })
+  })
+})
+
+describe('listarReporteDerivacionesCoordinacion (msw)', () => {
+  it('envía el rango, normaliza conteos y conserva el desglose diario', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('reporte_derivaciones_coordinacion_fn'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json(REPORTE_DERIVACIONES_COORDINACION)
+      }),
+    )
+
+    await expect(
+      listarReporteDerivacionesCoordinacion('2026-09-02', '2026-09-03'),
+    ).resolves.toMatchObject({
+      total_derivados: 3,
+      dias: [
+        { fecha: '2026-09-03', total_derivados: 3, analistas: [{ derivados: 3 }] },
+        { fecha: '2026-09-02', total_derivados: 0, analistas: [] },
+      ],
+    })
+    expect(cuerpo).toEqual({ p_desde: '2026-09-02', p_hasta: '2026-09-03' })
+  })
+
+  it('rechaza un payload cuyos totales no reconcilian', async () => {
+    server.use(
+      http.post(RPC('reporte_derivaciones_coordinacion_fn'), () =>
+        HttpResponse.json({ ...REPORTE_DERIVACIONES_COORDINACION, total_derivados: 8 }),
+      ),
+    )
+
+    await expect(
+      listarReporteDerivacionesCoordinacion('2026-09-02', '2026-09-03'),
+    ).rejects.toMatchObject({ code: 'REPORTE_DERIVACIONES_COORDINACION_CONTRACT' })
+  })
+
+  it('explica el bloqueo de rol como permiso de consulta del reporte', async () => {
+    server.use(
+      http.post(RPC('reporte_derivaciones_coordinacion_fn'), () =>
+        HttpResponse.json({ code: '42501', message: 'Solo Coordinación activa' }, { status: 403 }),
+      ),
+    )
+
+    await expect(
+      listarReporteDerivacionesCoordinacion('2026-09-02', '2026-09-03'),
+    ).rejects.toMatchObject({
+      code: '42501',
+      message: 'No tienes permiso para consultar el reporte diario de derivaciones.',
+    })
   })
 })
 
