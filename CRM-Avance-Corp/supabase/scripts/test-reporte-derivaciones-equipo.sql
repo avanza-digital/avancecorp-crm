@@ -45,6 +45,9 @@ begin
   if to_regclass('crm.lead_asignaciones_reporte_supervisor_fecha_idx') is null then
     raise exception 'D04 falta el índice del reporte de derivaciones';
   end if;
+  if to_regclass('crm.lead_asignaciones_reporte_coordinacion_fecha_idx') is null then
+    raise exception 'D04b falta el índice por fecha del reporte de Coordinación';
+  end if;
 end;
 $estructura$;
 
@@ -133,7 +136,16 @@ declare
   v_coord_asesor_antes integer;
   v_coord_asesor_despues integer;
   v_coord_asesor_final integer;
+  v_coord_origen_antes integer;
+  v_coord_origen_despues integer;
+  v_coord_origen_final integer;
+  v_origen_lead text;
 begin
+  select lead.origen
+    into strict v_origen_lead
+  from crm.leads lead
+  where lead.id = v_lead;
+
   perform set_config('request.jwt.claim.sub', v_coordinador::text, true);
   v_coord_antes := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
   if v_coord_antes->'periodo'->>'desde' <> v_hoy::text
@@ -142,12 +154,32 @@ begin
      or pg_catalog.jsonb_array_length(v_coord_antes->'dias') <> 1 then
     raise exception 'D05b el reporte de Coordinación no certificó el día pedido: %', v_coord_antes;
   end if;
+  if exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(v_coord_antes->'dias') dia
+    where (dia->>'total_derivados')::integer is distinct from coalesce((
+      select pg_catalog.sum((entrega->>'derivados')::integer)::integer
+      from pg_catalog.jsonb_array_elements(dia->'entregas') entrega
+    ), 0)
+  ) then
+    raise exception 'D05b el desglose por origen no reconcilia con el total diario: %', v_coord_antes;
+  end if;
   select (analista->>'derivados')::integer into v_coord_asesor_antes
   from pg_catalog.jsonb_array_elements(v_coord_antes->'dias') dia
   cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
   where dia->>'fecha' = v_hoy::text
-    and analista->>'analista_id' = v_asesor::text;
+    and analista->>'analista_id' = v_asesor::text
+    and analista->>'supervisor_id' = v_supervisor::text;
   v_coord_asesor_antes := coalesce(v_coord_asesor_antes, 0);
+  select pg_catalog.sum((entrega->>'derivados')::integer)::integer
+    into v_coord_origen_antes
+  from pg_catalog.jsonb_array_elements(v_coord_antes->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'entregas') entrega
+  where dia->>'fecha' = v_hoy::text
+    and entrega->>'analista_id' = v_asesor::text
+    and entrega->>'supervisor_id' = v_supervisor::text
+    and entrega->>'origen' = v_origen_lead;
+  v_coord_origen_antes := coalesce(v_coord_origen_antes, 0);
 
   perform set_config('request.jwt.claim.sub', v_gerencia::text, true);
   v_gerencia_reporte := crm.reporte_derivaciones_coordinacion_fn(v_hoy, v_hoy);
@@ -255,15 +287,28 @@ begin
   from pg_catalog.jsonb_array_elements(v_coord_despues->'dias') dia
   cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
   where dia->>'fecha' = v_hoy::text
-    and analista->>'analista_id' = v_asesor::text;
+    and analista->>'analista_id' = v_asesor::text
+    and analista->>'supervisor_id' = v_supervisor::text;
   if v_coord_asesor_despues <> v_coord_asesor_antes + 1
      or (v_coord_despues->>'total_derivados')::integer
         <> (v_coord_antes->>'total_derivados')::integer + 1 then
     raise exception 'D15b Coordinación no vio la nueva entrega: antes %, después %',
       v_coord_antes, v_coord_despues;
   end if;
+  select pg_catalog.sum((entrega->>'derivados')::integer)::integer
+    into v_coord_origen_despues
+  from pg_catalog.jsonb_array_elements(v_coord_despues->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'entregas') entrega
+  where dia->>'fecha' = v_hoy::text
+    and entrega->>'analista_id' = v_asesor::text
+    and entrega->>'supervisor_id' = v_supervisor::text
+    and entrega->>'origen' = v_origen_lead;
+  if coalesce(v_coord_origen_despues, 0) <> v_coord_origen_antes + 1 then
+    raise exception 'D15c Coordinación no vio el origen histórico de la entrega: antes %, después %',
+      v_coord_origen_antes, v_coord_origen_despues;
+  end if;
   if v_coord_despues::text ~ '"(lead_id|telefono|correo|dni|monto_estimado|nota)"' then
-    raise exception 'D15c el reporte agregado de Coordinación expone datos de lead o PII';
+    raise exception 'D15d el reporte agregado de Coordinación expone datos de lead o PII de contacto';
   end if;
 
   perform set_config('request.jwt.claim.sub', v_supervisor::text, true);
@@ -360,9 +405,20 @@ begin
   from pg_catalog.jsonb_array_elements(v_coord_final->'dias') dia
   cross join lateral pg_catalog.jsonb_array_elements(dia->'analistas') analista
   where dia->>'fecha' = v_hoy::text
-    and analista->>'analista_id' = v_asesor::text;
+    and analista->>'analista_id' = v_asesor::text
+    and analista->>'supervisor_id' = v_supervisor::text;
   v_coord_asesor_final := coalesce(v_coord_asesor_final, 0);
+  select pg_catalog.sum((entrega->>'derivados')::integer)::integer
+    into v_coord_origen_final
+  from pg_catalog.jsonb_array_elements(v_coord_final->'dias') dia
+  cross join lateral pg_catalog.jsonb_array_elements(dia->'entregas') entrega
+  where dia->>'fecha' = v_hoy::text
+    and entrega->>'analista_id' = v_asesor::text
+    and entrega->>'supervisor_id' = v_supervisor::text
+    and entrega->>'origen' = v_origen_lead;
+  v_coord_origen_final := coalesce(v_coord_origen_final, 0);
   if v_coord_asesor_final <> v_coord_asesor_antes
+     or v_coord_origen_final <> v_coord_origen_antes
      or (v_coord_final->>'total_derivados')::integer
         <> (v_coord_antes->>'total_derivados')::integer then
     raise exception 'D22b la devolución no se descontó del reporte de Coordinación';

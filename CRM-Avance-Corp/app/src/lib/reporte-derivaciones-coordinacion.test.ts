@@ -29,8 +29,26 @@ const payload = () => ({
         supervisor_nombre: 'CARMEN JARAMILLO',
         derivados: '3',
       }],
+      entregas: [
+        {
+          analista_id: ANALISTA,
+          analista_nombre: 'ANA PAREDES',
+          supervisor_id: SUPERVISOR,
+          supervisor_nombre: 'CARMEN JARAMILLO',
+          origen: 'landing',
+          derivados: '2',
+        },
+        {
+          analista_id: ANALISTA,
+          analista_nombre: 'ANA PAREDES',
+          supervisor_id: SUPERVISOR,
+          supervisor_nombre: 'CARMEN JARAMILLO',
+          origen: 'referido',
+          derivados: '1',
+        },
+      ],
     },
-    { fecha: '2026-09-02', total_derivados: 0, analistas: [] },
+    { fecha: '2026-09-02', total_derivados: 0, analistas: [], entregas: [] },
   ],
 })
 
@@ -40,7 +58,13 @@ describe('contrato del reporte diario de derivaciones de Coordinación', () => {
 
     expect(resultado.total_derivados).toBe(3)
     expect(resultado.dias[0]?.analistas[0]?.derivados).toBe(3)
-    expect(resultado.dias[1]).toMatchObject({ fecha: '2026-09-02', total_derivados: 0, analistas: [] })
+    expect(resultado.dias[0]?.entregas).toMatchObject([
+      { origen: 'landing', derivados: 2 },
+      { origen: 'referido', derivados: 1 },
+    ])
+    expect(resultado.dias[1]).toMatchObject({
+      fecha: '2026-09-02', total_derivados: 0, analistas: [], entregas: [],
+    })
     expect(reporteDerivacionesCoordinacionConsistente(resultado, '2026-09-02', '2026-09-03')).toBe(true)
   })
 
@@ -73,6 +97,38 @@ describe('contrato del reporte diario de derivaciones de Coordinación', () => {
     })
     expect(reporteDerivacionesCoordinacionConsistente(
       duracionInconsistente,
+      '2026-09-02',
+      '2026-09-03',
+    )).toBe(false)
+  })
+
+  it('rechaza un desglose por origen que no reconcilia o repite una fila', () => {
+    const original = payload()
+    const diaConEntregas = original.dias[0]!
+    const diaVacio = original.dias[1]!
+    const primeraEntrega = diaConEntregas.entregas[0]!
+    const origenInconsistente = v.parse(ReporteDerivacionesCoordinacionSchema, {
+      ...original,
+      dias: [{
+        ...diaConEntregas,
+        entregas: [{ ...primeraEntrega, derivados: 1 }],
+      }, diaVacio],
+    })
+    expect(reporteDerivacionesCoordinacionConsistente(
+      origenInconsistente,
+      '2026-09-02',
+      '2026-09-03',
+    )).toBe(false)
+
+    const filaDuplicada = v.parse(ReporteDerivacionesCoordinacionSchema, {
+      ...original,
+      dias: [{
+        ...diaConEntregas,
+        entregas: [primeraEntrega, primeraEntrega],
+      }, diaVacio],
+    })
+    expect(reporteDerivacionesCoordinacionConsistente(
+      filaDuplicada,
       '2026-09-02',
       '2026-09-03',
     )).toBe(false)

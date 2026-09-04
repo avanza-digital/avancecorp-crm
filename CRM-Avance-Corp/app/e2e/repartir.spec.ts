@@ -55,8 +55,8 @@ const LEAD_CREDITO = {
   comentario: 'Necesito un préstamo urgente, mi número es [teléfono oculto]',
 }
 
-/** Monta el backend con rol coordinador y entra; devuelve el estado mutable. */
-async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
+/** Monta el backend con rol coordinador y aterriza en la vista inicial. */
+async function aterrizarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
   const backend = await montarBackendReal(page, {
     rolCrm: 'coordinador',
     rolPortal: 'comercial',
@@ -66,12 +66,107 @@ async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init
   })
   await loginReal(page)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
+  return backend
+}
+
+/** Aterriza y entra a la cola; los casos operativos no dependen de la pestaña inicial. */
+async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
+  const backend = await aterrizarComoCoordinador(page, init)
   // La pantalla vigente aterriza en la foto agregada de Distribución. Estos
   // casos ejercitan la operación de la cola, así que entran explícitamente a
   // su pestaña en vez de depender de cuál sea la vista inicial del módulo.
   await page.getByRole('tab', { name: 'Cola de nuevos' }).click()
   return backend
 }
+
+function fechaLimaConDesplazamiento(dias: number): string {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(Date.now() + dias * 86_400_000))
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) => (
+    partes.find((parte) => parte.type === tipo)?.value ?? ''
+  )
+  return `${valor('year')}-${valor('month')}-${valor('day')}`
+}
+
+test('Distribución permite auditar entregas por fecha, analista y origen con filtros combinables', async ({ page }) => {
+  const ayer = fechaLimaConDesplazamiento(-1)
+  await aterrizarComoCoordinador(page, {
+    entregasCoordinacion: [
+      {
+        fecha: ayer,
+        supervisor_id: '10000000-0000-4000-8000-000000000001',
+        supervisor_nombre: 'SUPERVISORA NORTE',
+        analista_id: '20000000-0000-4000-8000-000000000001',
+        analista_nombre: 'ANA TORRES',
+        origen: 'landing',
+        derivados: 4,
+      },
+      {
+        fecha: ayer,
+        supervisor_id: '10000000-0000-4000-8000-000000000001',
+        supervisor_nombre: 'SUPERVISORA NORTE',
+        analista_id: '20000000-0000-4000-8000-000000000001',
+        analista_nombre: 'ANA TORRES',
+        origen: 'referido',
+        derivados: 2,
+      },
+      {
+        fecha: ayer,
+        supervisor_id: '10000000-0000-4000-8000-000000000001',
+        supervisor_nombre: 'SUPERVISORA NORTE',
+        analista_id: '20000000-0000-4000-8000-000000000002',
+        analista_nombre: 'BRUNO LEÓN',
+        origen: 'landing',
+        derivados: 3,
+      },
+      {
+        fecha: ayer,
+        supervisor_id: '10000000-0000-4000-8000-000000000002',
+        supervisor_nombre: 'SUPERVISOR SUR',
+        analista_id: '20000000-0000-4000-8000-000000000003',
+        analista_nombre: 'CARLA RÍOS',
+        origen: 'formulario',
+        derivados: 5,
+      },
+    ],
+  })
+
+  await expect(page.getByRole('heading', { name: 'Entregas por fecha, analista y origen' }))
+    .toBeVisible()
+  const resumen = page.locator('[aria-label="Resumen de entregas con los filtros actuales"]')
+  const metrica = (etiqueta: string) => resumen.locator(':scope > div').filter({ hasText: etiqueta })
+  await expect(metrica('Leads entregados').getByText('14', { exact: true })).toBeVisible()
+
+  const supervisor = page.getByLabel('Filtrar entregas por supervisor')
+  const analista = page.getByLabel('Filtrar entregas por analista')
+  const origen = page.getByLabel('Filtrar entregas por origen')
+  await supervisor.selectOption('10000000-0000-4000-8000-000000000001')
+  await expect(metrica('Leads entregados').getByText('9', { exact: true })).toBeVisible()
+  await expect(analista).toContainText('ANA TORRES')
+  await expect(analista).toContainText('BRUNO LEÓN')
+  await expect(analista).not.toContainText('CARLA RÍOS')
+
+  await analista.selectOption('20000000-0000-4000-8000-000000000001')
+  await origen.selectOption('landing')
+  await expect(metrica('Leads entregados').getByText('4', { exact: true })).toBeVisible()
+  await expect(metrica('Analistas').getByText('1', { exact: true })).toBeVisible()
+  await expect(metrica('Orígenes').getByText('1', { exact: true })).toBeVisible()
+  const tabla = page.getByRole('table', { name: 'Entregas por fecha, analista y origen' })
+  const fila = tabla.getByRole('row').filter({ hasText: 'ANA TORRES' }).filter({ hasText: 'LANDING' })
+  await expect(fila).toContainText('4')
+  await expect(tabla.getByText('Referido')).toHaveCount(0)
+  await expect(tabla.getByText('CARLA RÍOS')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Restablecer', exact: true }).click()
+  await expect(metrica('Leads entregados').getByText('14', { exact: true })).toBeVisible()
+  await expect(supervisor).toHaveValue('')
+  await expect(analista).toHaveValue('')
+  await expect(origen).toHaveValue('')
+})
 
 test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo', async ({ page }) => {
   await entrarComoCoordinador(page)

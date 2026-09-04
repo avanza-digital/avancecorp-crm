@@ -49,6 +49,30 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-04 (~14:50 hora de Lima) — CRM: desglose de entregas por
+  fecha, analista y origen para Coordinación:** amplía el reporte de
+  **Repartir leads → Distribución** con filtros combinables de supervisor,
+  analista y origen, períodos Ayer/Últimos 7/Rango, resumen filtrado, tabla
+  paginada y separación explícita frente a la cartera actual. La base salió
+  primero: migración
+  `20260904174534_crm_reporte_derivaciones_origen_coordinacion`, registrada
+  con cuerpo exacto (MD5 `b2fa0249f50f64e4db72a08cd1b8968e`) después de
+  ensayar migración, oráculo y reversa en `banco-f7`; sonda autenticada de
+  producción confirmó contrato, conciliación, ACL, ausencia de PII de leads e
+  índice. Commit **`d75be7b5d8d3`**, release
+  **`crm-20260904T194458Z-d75be7b5d8d3`**, build
+  **`build-20260904T194456335Z`**, ZIP SHA-256
+  **`91dd6ee84d4225f74c948192aed50d800c66d7eb57c68066cd18e6e37b40d79a`**.
+  Gate: 189 archivos y **2.648/2.648 pruebas**, lint, tipos, build, bundle y
+  duplicación; Repartir **29/29** en Playwright. En vivo: **76/76** entradas
+  verificadas (63 exactas, 12 imágenes HTTP 200 y `.htaccess` 403), versión
+  estable, ZIP 404 en CRM y portal; login visual HTTP 200 sin errores de
+  consola, página ni red. Se purgó la caché y el entry anterior
+  `index-hhe_-52_.js` pasó a 404. **Rollback frontend inmediato:**
+  `crm-20260904T194617Z-41a24d3bb98a.zip`. Respaldo privado de BD:
+  `releases/rollback-20260904174534-predeploy.sql`, SHA-256
+  `0424d4b7f73e5d462606d3e40df8611064157f44b52718426d5a02147afe4750`.
+
 - **Deploy 2026-09-04 (~11:14 hora de Lima) — CRM: reporte diario de
   derivaciones para Coordinación:** en **Repartir leads → Distribución**, la
   coordinadora puede consultar cuántos leads entregó cada supervisor a cada

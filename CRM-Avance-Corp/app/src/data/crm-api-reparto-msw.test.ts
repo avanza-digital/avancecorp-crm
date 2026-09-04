@@ -110,8 +110,26 @@ const REPORTE_DERIVACIONES_COORDINACION = {
         supervisor_nombre: 'SUPERVISOR UNO',
         derivados: '3',
       }],
+      entregas: [
+        {
+          analista_id: '00000000-0000-4000-8000-000000000001',
+          analista_nombre: 'ANALISTA UNO',
+          supervisor_id: '00000000-0000-4000-8000-000000000002',
+          supervisor_nombre: 'SUPERVISOR UNO',
+          origen: 'landing',
+          derivados: '2',
+        },
+        {
+          analista_id: '00000000-0000-4000-8000-000000000001',
+          analista_nombre: 'ANALISTA UNO',
+          supervisor_id: '00000000-0000-4000-8000-000000000002',
+          supervisor_nombre: 'SUPERVISOR UNO',
+          origen: 'referido',
+          derivados: '1',
+        },
+      ],
     },
-    { fecha: '2026-09-02', total_derivados: 0, analistas: [] },
+    { fecha: '2026-09-02', total_derivados: 0, analistas: [], entregas: [] },
   ],
 }
 
@@ -288,8 +306,13 @@ describe('listarReporteDerivacionesCoordinacion (msw)', () => {
     ).resolves.toMatchObject({
       total_derivados: 3,
       dias: [
-        { fecha: '2026-09-03', total_derivados: 3, analistas: [{ derivados: 3 }] },
-        { fecha: '2026-09-02', total_derivados: 0, analistas: [] },
+        {
+          fecha: '2026-09-03',
+          total_derivados: 3,
+          analistas: [{ derivados: 3 }],
+          entregas: [{ origen: 'landing', derivados: 2 }, { origen: 'referido', derivados: 1 }],
+        },
+        { fecha: '2026-09-02', total_derivados: 0, analistas: [], entregas: [] },
       ],
     })
     expect(cuerpo).toEqual({ p_desde: '2026-09-02', p_hasta: '2026-09-03' })

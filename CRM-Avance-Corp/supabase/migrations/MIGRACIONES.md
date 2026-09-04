@@ -7777,3 +7777,66 @@ En vivo: 76/76 entradas verificadas (61 exactas, 14 imágenes HTTP 200 y
 y ZIP 404 tanto en CRM como en el portal. El navegador integrado no estaba
 conectado, por lo que no hubo smoke visual autenticado; la interfaz quedó
 cubierta por las pruebas y por la identidad byte a byte del bundle publicado.
+
+## 20260904174534 · `crm_reporte_derivaciones_origen_coordinacion`
+
+**Estado: ✅ EN PRODUCCIÓN 2026-09-04 (BASE DE DATOS + FRONTEND).**
+
+**Qué.** Extiende de forma aditiva
+`crm.reporte_derivaciones_coordinacion_fn(date,date)`: conserva la salida
+`dias[].analistas` ya publicada y añade `dias[].entregas`, con grano fecha +
+supervisor + analista + origen. El origen procede de la fotografía inmutable
+`crm.lead_asignaciones.origen`, no de la ficha viva del lead. Añade además un
+índice parcial por `asignado_en DESC` para el acceso global por fechas de
+Coordinación; el índice de Supervisión existente empieza por supervisor y no
+cubre ese recorrido.
+
+**UX y contrato.** La pestaña **Distribución** presenta primero el parte
+histórico de entregas, con período **Ayer / Últimos 7 días / Rango**, filtros
+combinables de supervisor, analista y origen, opciones de analista dependientes
+del supervisor, resumen de resultados, estados vacíos y restablecimiento. La
+tenencia actual queda debajo y rotulada como una fotografía distinta para no
+confundir «cuántos entregué» con «dónde están hoy».
+
+**Seguridad.** Mantiene `STABLE SECURITY DEFINER`, `search_path=''`, `EXECUTE`
+solo para `authenticated` y la puerta interna de Coordinación/Gerencia. No
+expone PII de leads; sí nombres e identificadores de colaboradores, necesarios
+para el parte y restringidos por la puerta. El preflight exige la columna de
+origen `NOT NULL` y el trigger inmutable activo. El postflight certifica ACL,
+propiedades de la RPC y la definición completa, validez y estado del índice.
+Revisión `auditor-rls`: **GO para branch**, sin hallazgos críticos, altos ni
+medios; despliegue obligatorio BD antes que frontend por el nuevo campo.
+
+**Verificación local.** PostgreSQL 16 descartable: migración completa en
+`COMMIT`; sonda verde para conteos por origen, reconciliación diaria, días sin
+movimiento, exclusiones de semántica y denegación interna. Frontend: contrato
+Valibot, API MSW, integración de pantalla y Playwright sobre la ruta real de
+Coordinación cubren los filtros combinables. Gate completo: 189 archivos y
+2.646/2.646 pruebas, lint, tipos, build, verificación de bundle y duplicación
+en verde; el spec integral de Repartir terminó 29/29. La base temporal de
+verificación se eliminó al terminar.
+
+**Publicación de base de datos.** Ensayada primero en `banco-f7`: migración,
+registrador, oráculo transaccional completo y reversa exacta en verde. El
+conteo productivo inmediatamente anterior fue **1.183 filas**, por debajo del
+umbral operativo aproximado de 10.000. Aplicada después con
+`db query --linked --file` y registrada mediante
+`supabase/scripts/registrar-20260904174534.sql`; la fila de
+`schema_migrations` coincide con el archivo local (MD5
+`b2fa0249f50f64e4db72a08cd1b8968e`). La sonda productiva autenticada confirmó
+contrato aditivo, conciliación por día/período, ausencia de PII de leads, ACL e
+índice. Advisors: sin error relacionado; el aviso `SECURITY DEFINER` es
+intencional y queda contenido por la puerta interna, y el índice figura sin uso
+antes del primer tráfico. Respaldo privado de reversión probado:
+`releases/rollback-20260904174534-predeploy.sql`, SHA-256
+`0424d4b7f73e5d462606d3e40df8611064157f44b52718426d5a02147afe4750`.
+
+**Publicación frontend.** Commit `d75be7b5d8d3`, release
+`crm-20260904T194458Z-d75be7b5d8d3`, build
+`build-20260904T194456335Z`, ZIP SHA-256
+`91dd6ee84d4225f74c948192aed50d800c66d7eb57c68066cd18e6e37b40d79a`.
+Gate final: 189 archivos y 2.648/2.648 pruebas, Repartir 29/29. En vivo:
+76/76 entradas verificadas (63 exactas, 12 imágenes HTTP 200 y `.htaccess`
+403), versión estable, ZIP 404 en CRM y portal, login HTTP 200 sin errores de
+consola/página/red. Caché purgada; el entry anterior pasó a 404. Rollback
+frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.
