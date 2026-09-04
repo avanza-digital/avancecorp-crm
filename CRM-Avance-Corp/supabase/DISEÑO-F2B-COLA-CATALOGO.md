@@ -1,4 +1,4 @@
-# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v3** (04/09/2026)
+# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v3** (04/09/2026) + E2 v2 + **E3 v1** (04/09 noche)
 
 **v1 → NO-GO de Codex (17 bloqueantes).** v2 incorporó cada arreglo (marcados `[Cx-n]`). **v2 → NO-GO de Codex (19 puntos).** v3 aplica
 los que tocan lo YA construido (b1/b2, marcados `[v2-n]`) y deja los de E2/E3 como diseño pendiente con su número. Estado real: **b1 y b2
@@ -251,6 +251,142 @@ declara b5 «cerrado» para ellas).
 - Conversión Avance con perfil enlazado: toma el advisory y revalida (transformación de `convertir_lead`) `[Cx-15]`.
 **Oráculos:** fusión con hash viejo → aborta; fusión↔conversión concurrentes → sin deadlock, resolver devuelve la canónica; perdedora nunca borrada;
 titulares coherentes; huella de episodios intacta; corrección a documento ajeno → `P0409`; dos leads → `P0409`; reasignación → dos tramos.
+
+## E3 = b5 — diseño concreto v1 (04/09/2026 noche), responde a `[Cx-15, Cx-16, Cx-17, v2-1, v2-4, v2-6, v2-15, v2-16]`
+
+**Regla de aterrizaje (igual que E1/E2):** todo detrás de `resolver_en_puertas`; las RPC nuevas devuelven `P0409` «Identidad unificada
+apagada» con OFF; la única función viva que se transforma (`crm.convertir_lead`, `[Cx-15]`) cambia SOLO dentro de su rama `if v_flag`.
+Autorización: **solo Gerencia** (`private.es_gerencia_crm_activa()`, `42501`), `authenticated` con la capacidad dentro; `service_role` sin EXECUTE.
+Alcance acotado hasta F5: **como máximo un lead y un perfil entre las dos identidades**; lo demás es `P0409` con diagnóstico y queda en la cola
+de reconciliación de clase E (la ficha lo dirá así; no se declara b5 «cerrado» para esos casos).
+
+### Orden de locks de b5 (extiende §0, no lo cambia)
+```
+fusión      documentos VIGENTES de ambas (advisory, ordenados por tipo||':'||norm) → identidades FOR UPDATE por id ascendente
+            → REVALIDAR estado/hash → perfil FOR SHARE (el único) → lead FOR UPDATE (el único) → reservas de la persona FOR UPDATE
+            → claim `auth_persona:<id>` FOR UPDATE (ambos) → válvula → hechos.  (Sin contactos: la fusión no toca teléfono/DNI del lead.)
+corrección  documento VIEJO y NUEVO (advisory, ordenados) → identidad FOR UPDATE → revalidar → perfil FOR UPDATE (escribe; NUNCA FOR SHARE
+            seguido de UPDATE: `asegurar_identidad_perfil` toma identidad→perfil, un upgrade SHARE→UPDATE aquí se abrazaría con ella)
+            → lead FOR UPDATE → (el trigger de disponibilidad toma los contactos al final, por el UPDATE de `dni`) → válvula.
+enlace      documento del lead (advisory) → identidad FOR UPDATE → revalidar → lead FOR UPDATE → válvula.
+reasignación jerarquía compartida (`crm.equipo.usuarios_jerarquia`, como derivar/enlazar) → identidad FOR UPDATE → revalidar.
+```
+La conversión Avance con perfil YA enlazado hoy salta el advisory documental y no revalida tras esperar (`210000`, viva
+`convertir_lead.sql:57-73`): con ON pasa a tomar `private.identidad_bloquear_documento(tipo, doc)` ANTES de buscar la identidad del perfil y,
+tras el `FOR UPDATE`, relee `estado`; si es `fusionado` lanza `40001` («la persona fue fusionada mientras se convertía; vuelve a intentarlo»)
+`[Cx-15]`. Guarda md5 del texto vivo de producción; rama OFF byte a byte.
+
+### Helper compartido: `private.fusion_estado_jsonb(p_a uuid, p_b uuid) → jsonb` (stable, sin lock)
+Foto canónica de las dos identidades **sin documentos en claro**: por identidad `estado`, `perfil_id`, `responsable_relacion_id`,
+`no_contactar`, identificadores (`id`, `tipo`, `estado`, `verificado`, `right(doc,3)` enmascarado), leads (`id`, `etapa`, `activo`,
+`no_contactar`, `vendedor_id`), puente (`id`, `rol`), tramos abiertos (`id`, `responsable_id`), cierres (`id`, `anulado_en is null`),
+inversiones (`id`, `estado`, `empresa_id`) y titulares (`id`, `rol`), reservas (`lead_id`, `viva`, `sellada`), claim (`estado`, `lease_hasta`).
+`hash := private.idem_hash(foto)`. La previsualización lo devuelve; la fusión lo RECALCULA bajo los locks y compara (`P0409` «la foto cambió»).
+
+### `crm.fusion_previsualizar_fn(p_perdedora uuid, p_canonica uuid) → jsonb` (Gerencia, solo lectura)
+Devuelve `{viable, bloqueos[], advertencias[], hash, foto, impacto}`:
+- **bloqueos** (cualquiera ⇒ `viable=false`, la fusión los repite bajo lock y lanza `P0409` con el mismo texto): misma identidad; alguna no
+  `activo` (`fusionado` → «usa la canónica X»; `bloqueado` → revisión); **dos leads** (uno por lado) `[F5]`; **dos perfiles** `[F5]`;
+  claim `auth_persona:` no terminal (≠ `enlazado`) en cualquiera de las dos, o reserva de conversión **viva** (`expira_en > now()`) o
+  **sellada con lead aún no convertido** de cualquiera de las dos (`«conversión en curso: termina o deja caducar»`).
+- **advertencias** (no bloquean): las dos tienen documento vigente del MISMO tipo (dos DNI distintos = una está mal: se sugiere corregir
+  después); vetos distintos (el resultado es OR); responsables distintos (gana la canónica); la perdedora tiene inversiones/cierres
+  (se reapuntan, el dinero no se toca); mes abierto: **la conversión mensual sigue siendo por lead/cliente hasta Contrato-F3, así que la
+  fusión NO altera hoy ninguna cifra ni mes sellado** `[Cx-17]` — el oráculo lo prueba con la huella de `private.conversion_episodios`
+  antes/después.
+- **impacto**: conteos por tabla (leads, puente, identificadores, tramos, cierres, inversiones, titulares, reservas) que se copiarán
+  a `inversionista_fusiones.impacto` (ids, nunca documentos).
+
+### `crm.fusionar_inversionistas_fn(p_perdedora uuid, p_canonica uuid, p_motivo text, p_hash text) → jsonb` (Gerencia)
+1. Gate ON, Gerencia, `p_motivo` 3..500, `p_hash` obligatorio.
+2. Advisory de TODOS los identificadores vigentes de ambas (lista ordenada por texto, `identidad_bloquear_documento` es reentrante) →
+   `select … from crm.inversionistas where id in (P,C) order by id for update` → revalida: ambas `activo`, distintas, hash igual.
+3. Perfil `FOR SHARE` (si hay), lead `FOR UPDATE` (si hay), reservas de ambas `FOR UPDATE`, claims de ambas `FOR UPDATE`; repite los
+   bloqueos de la previsualización (`P0409`).
+4. Matriz `[Cx-16, v2-16]`, bajo `crm.op_privilegiada='on'` y en este orden:
+   - **perdedora primero**: `estado='fusionado', inversionista_canonico_id=C, fusionado_en=now()` (trigger #7b comprueba que C está activa;
+     al salir del índice parcial `inversionistas_perfil_uidx` libera el `perfil_id` para C). `perfil_id`, `responsable_relacion_id` y
+     `no_contactar*` de la perdedora **se conservan** (historia, nunca se reescribe).
+   - **perfil**: si solo P lo tiene → `C.perfil_id := P.perfil_id`.
+   - **veto**: `C.no_contactar := C.no OR P.no`; si lo hereda, `no_contactar_en/por` de P.
+   - **responsable**: si C tiene tramo abierto → se cierra el de P (`hasta=now()`); si SOLO P lo tiene → se cierra el de P y se abre uno
+     en C con el mismo `responsable_id` (`motivo='fusion'`, `por=uid`) y `C.responsable_relacion_id` = ese; si ninguna → nada
+     (`revision_responsable` como en b3).
+   - **identificadores**: los vigentes de P → `historico`, `vigente_hasta=now()`; se REEMITEN en C (`estado='vigente'`, `verificado`
+     igual, `fuente='fusion'`, `creado_por=uid`, `documento_original` conservado) para que `inversionista_resolver` y
+     `inversionista_por_documento` devuelvan C **directamente**, no solo por `inversionista_canonico_id`.
+   - **lead** (si es de P): `leads.inversionista_id := C` (válvula: `#4` deja pasar, `zz` con `dni` sin cambio devuelve `new`);
+     `inversionista_leads.inversionista_id := C` (la canónica no tenía puente: ≤1 lead); si C queda vetada y el lead no →
+     `leads.no_contactar := true` (como `marcar`). Si el lead de P está vetado y C no → C hereda (veto = OR).
+   - **cierres**: `cierres_externos.inversionista_id := C` (el `lead_id` y la foto documental del cierre no cambian; `UNIQUE(lead_id)` intacto).
+   - **inversiones y titulares**: `inversiones.inversionista_id := C`; después `inversion_titulares`: fila de P con `rol='principal'`
+     → si C ya es titular de esa inversión, se ELIMINA la fila de P y la de C pasa a `principal`; si no, se reapunta a C. Cotitular de P
+     → si C ya es titular de esa inversión, se elimina la de P (duplicado exacto del par `inversion_titulares_par_uidx`); si no, se
+     reapunta. Trigger #6 (principal = `inversiones.inversionista_id`) y `principal_uidx` quedan satisfechos por el orden. Hoy hay 0 filas
+     (F4 apagada): la matriz existe para no dejar el hueco.
+   - **reservas** de P (ya no vivas ni pendientes por el bloqueo del paso 3): `inversionista_id := C` (enlace operativo que usa `reservar`
+     para reanudar una conversión consumada, Codex E2 #4). El claim terminal de P (`auth_persona:P`, `enlazado`) se queda como historia.
+   - **libro**: `insert into crm.inversionista_fusiones (canonico_id, fusionado_id, motivo, impacto, por)`; `impacto` = conteos + ids.
+   - **actividad** `nota` en el lead (si hay): «Fusión de identidades» con `metadata {evento:'fusion', fusion_id, canonico_id, fusionado_id}`
+     `[Cx-17]`. Auditoría: los triggers `trg_audit_*` de F1 (identificadores ENMASCARADOS) — sin `audit_log` a mano.
+5. Devuelve `{ok, fusion_id, canonico_id, fusionado_id, impacto}`.
+Post-condiciones que el oráculo prueba: P nunca borrada; `inversionista_por_documento(doc de P)` = C; `persona_vetada` del lead sigue el OR;
+un solo tramo abierto; huella de `conversion_episodios` idéntica; `convertir_lead` concurrente con la fusión → sin deadlock y termina en C
+(o `40001` si perdió la carrera); fusión con hash viejo → `P0409`; dos leads → `P0409`; dos perfiles → `P0409`; claim vivo → `P0409`.
+
+### `crm.corregir_documento_inversionista_fn(p_inversionista uuid, p_tipo text, p_documento text, p_motivo text, p_identificador_anterior uuid default null) → jsonb` (Gerencia)
+1. Gate ON, Gerencia, motivo, tipo/formato validados como el resolver (`22023`), normalización idéntica.
+2. `p_inversionista` debe estar `activo` (si es `fusionado` → `P0409` «corrige en la canónica X»).
+3. **Qué sale**: `p_identificador_anterior` si viene (debe ser vigente y de esta identidad, `P0409` si no); si no viene, el ÚNICO vigente
+   del mismo `p_tipo` (si hay dos → `22023` «indica cuál»); si no hay ninguno → es un ALTA de documento (sin histórico).
+4. Advisory de viejo y nuevo (ordenados) → identidad `FOR UPDATE` → revalidar `activo` → si el nuevo ya es vigente de OTRA identidad
+   (verificado o no) → `P0409` «pertenece a otra persona: fusiona»; si ya es el vigente de ESTA → `{estado:'sin_cambios'}`; si es un
+   histórico de esta → se reemite.
+5. Bajo válvula: viejo → `historico` (`vigente_hasta=now()`); nuevo → `vigente`, `verificado=true`, `fuente='correccion'`,
+   `documento_original=p_documento`.
+6. **Realineación SOLO de lo que llevaba el documento reemplazado** `[v2-16]`:
+   - perfil enlazado cuyo `(tipo_documento, dni normalizado)` = el viejo → `FOR UPDATE` + `update public.perfiles set dni=norm,
+     tipo_documento=p_tipo` (dato, no DDL; `actualizar_cliente_gerencia` ya escribe ahí). `23505` de `perfiles_dni_cliente_key` →
+     `P0409` «otro cliente del Portal ya tiene ese documento: revisión/fusión». `trg_perfiles_*` ajenos se respetan.
+   - lead enlazado cuyo `dni` = el viejo: si `p_tipo='DNI'` → `leads.dni := nuevo` (`uq_leads_dni_vivo` → `23505` → `P0409` «otro lead
+     vivo lleva ese DNI: fusiona o descarta»); si `p_tipo<>'DNI'` → `leads.dni := null` (`crm.leads` solo representa DNI; el enlace por
+     identidad gobierna) y se anota. **Lead vetado**: el trigger de disponibilidad congela `dni` con `P0481` para un actor humano →
+     el lead NO se toca y el resultado lo dice (`lead:'omitido_veto'`); el veto es de la persona y la identidad ya quedó corregida.
+   - cierres, contratos, inversiones, titulares, `documento` del cierre coop: **intactos** (fotos).
+7. Actividad `nota` en el lead si hay («Documento corregido», sin el número); auditoría por triggers (enmascarada).
+8. Devuelve `{ok, inversionista_id, identificador_nuevo_id, identificador_anterior_id, perfil:'actualizado'|'sin_cambio'|'ninguno', lead:…}`.
+
+### `crm.enlazar_lead_inversionista_fn(p_lead_id uuid, p_inversionista uuid, p_motivo text) → jsonb` (Gerencia) `[v2-1, v2-6]`
+La revisión humana de la clase E: un lead SUELTO (pre-F2, o con documento que no resolvía) se enlaza a una persona reconocida.
+Advisory del DNI del lead (si tiene) → identidad `FOR UPDATE` (activa) → lead `FOR UPDATE` (`activo=true`, `inversionista_id is null`).
+Rechazos `P0409`: la identidad ya tiene lead (un-solo-lead; ese par es la cola F5); el DNI del lead resuelve a OTRA identidad («fusiona o
+corrige primero»); el lead tiene DNI y NO coincide con ningún vigente de la identidad (Gerencia puede corregir el DNI del lead antes o
+pasar `p_motivo` — NO: sin coincidencia exacta o DNI nulo no se enlaza; regla #8, el enlace manual solo sustituye al automático cuando el
+documento es el mismo). Efectos bajo válvula: `leads.inversionista_id`, puente `canonico`, veto = OR (persona→lead y lead→persona, como
+`convertir_lead`), actividad `nota`. Sin responsable nuevo (`revision_responsable` si no hay tramo).
+
+### `crm.reasignar_responsable_relacion_fn(p_inversionista uuid, p_nuevo_responsable uuid, p_motivo text) → jsonb` (Gerencia) `[Cx-17, v2-4]`
+Jerarquía compartida → identidad `FOR UPDATE` (activa) → el nuevo debe ser miembro activo con `rol_crm in ('vendedor','supervisor','gerencia')`
+y perfil activo (`22023` si no). Mismo responsable que el tramo abierto → `{estado:'sin_cambios'}`. Cierra el tramo abierto (`hasta=now()`),
+abre uno nuevo (`motivo=p_motivo`, `por=uid`), `inversionistas.responsable_relacion_id := nuevo`. **No toca** `leads.vendedor_id`, contratos,
+cierres, atribuciones (contrato §6: responsable de relación ≠ analista de venta; «la siguiente oportunidad» la asigna el reparto de F5).
+Actividad `nota` en el lead si hay. Devuelve `{ok, tramo_anterior_id, tramo_nuevo_id}`.
+**Preflight de baja `[v2-4]`:** el offboarding NO se toca; nace `crm.personas_por_responsable_fn(p_responsable uuid) → jsonb` (Gerencia,
+solo lectura, ON): `{total, inversionista_ids[]}` de tramos abiertos — el front lo muestra al dar de baja cuando se active.
+
+### Reversa `scripts/rollback-f2b-b5.sql`
+Restaura `crm.convertir_lead` byte a byte (md5 de prod) y hace DROP de las 6 RPC + 1 helper. Se niega si la bandera está ON. **No deshace
+fusiones ni correcciones** (append-only y con rastro; el libro y los históricos quedan coherentes sin las funciones).
+
+### Oráculo `oraculo-f2b-b5.sh` (dos sesiones psql, `run_as`, RUN de 6 dígitos, banco-f7)
+Fusión: hash viejo → P0409 · dos leads → P0409 · dos perfiles → P0409 · claim/reserva viva → P0409 · fusión OK: P `fusionado`, no borrada,
+resolver y `por_documento` devuelven C, perfil/lead/cierre/reserva reapuntados, veto OR en persona y lead, un solo tramo abierto, libro con
+impacto sin documentos, actividad en el lead, `audit_log` sin documento en claro · huella de `conversion_episodios` (mes abierto) igual
+antes/después · **carrera** `convertir_lead`(perfil de P) ‖ fusión (P→C): sin deadlock; termina en C o `40001` · `marcar_no_contactar` en el lead
+tras la fusión actúa sobre C. Corrección: a documento ajeno → P0409 · a un histórico propio → reemite · DNI→DNI realinea perfil y lead ·
+DNI→CE deja `leads.dni` nulo · lead vetado → `omitido_veto` · `23505` del Portal → P0409. Enlace: DNI ajeno → P0409 · identidad con lead → P0409
+· OK → puente + veto OR. Reasignación: vendedor inactivo → 22023 · OK → dos tramos, `responsable_relacion_id` nuevo, `leads.vendedor_id` intacto ·
+mismo → `sin_cambios`. `personas_por_responsable_fn` cuenta. **OFF**: las 7 RPC → P0409 «apagada»; `convertir_lead` OFF byte a byte (md5).
 
 ## Entrega
 Tres entregas, cada una = migraciones + reversa + oráculos + auditor-rls + Codex + ensayo en `banco-f7` + suite RLS + reversa ×2 + `!` de Miguel
