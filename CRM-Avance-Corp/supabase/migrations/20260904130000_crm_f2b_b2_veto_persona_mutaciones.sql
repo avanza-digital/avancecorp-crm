@@ -1528,7 +1528,7 @@ begin
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
     raise exception 'POSTFLIGHT b2: la bandera quedó encendida';
   end if;
-  raise notice 'F2.b b2 OK: el veto de la persona bloquea reparto, derivación, reversión, toma, reapertura y seguimiento; marcar cancela tareas; offboarding reasigna al responsable. Bandera APAGADA.';
+  raise notice 'F2.b b2 OK: el veto de la persona bloquea reparto, derivación, reversión, toma, reapertura y seguimiento; marcar cancela tareas; marcar/levantar por persona en leads sueltos. Bandera APAGADA.';
 end
 $post$;
 
