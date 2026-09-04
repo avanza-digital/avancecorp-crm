@@ -22,4 +22,17 @@ Con el filtro visible del 01 al 03 de setiembre de 2026, el Resumen y la pantall
 
 Toda cifra principal debe responder al período que el usuario ve en el filtro. Las lecturas mensuales que convivan en la misma pantalla deben estar identificadas como mensuales y no pueden sustituir silenciosamente al rango seleccionado.
 
+## Publicación en producción
+
+Publicado en `https://crm.miavance.com` el 2026-09-04 mediante el flujo de [[Deploy a Hostinger]].
+
+- Release: `crm-20260904T194617Z-41a24d3bb98a`.
+- Build visible: `build-20260904T194616928Z`.
+- Commit desplegado: `41a24d3bb98ac35f8b1e413426b9b3f41b92d392`.
+- SHA-256 del ZIP: `0eb1c2ccc4928256f13802f57c32a25b441f9e2098e1653e055d1d86928ff332`.
+- El preflight confirmó la sucesión desde `dc6c83e5aa37`; el artefacto anterior queda disponible como rollback.
+- Los gates completos aprobaron: lint, tipos, 2.646 pruebas, configuración de release, build, bundle y duplicación.
+- La comprobación posterior confirmó raíz y activos con HTTP 200, hashes idénticos al manifiesto, el nuevo `version.json`, salud de Supabase Auth y ausencia de exposición pública del ZIP.
+- Una pestaña abierta antes de publicar puede conservar el índice anterior y debe recargarse una vez para tomar los chunks nuevos.
+
 Relacionado con [[Conversion mensual - definicion cerrada]], [[Contrato de la capa semantica - Leads y Citas (F6, 2026-08-30)]] y [[Inicio]].
