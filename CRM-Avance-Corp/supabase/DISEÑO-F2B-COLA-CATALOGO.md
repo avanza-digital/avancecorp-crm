@@ -122,49 +122,96 @@ alta(RPC)↔alta(directa)↔conversión mismo DNI → sin deadlock, un solo lead
 **Oráculos:** por cada mutación y por actividad/tarea: persona vetada (enlazada y por documento) → `P0429`; no vetada → igual; OFF → igual;
 marcar → tareas pendientes canceladas; offboarding → un solo tramo abierto por persona, al reemplazo.
 
-## Sub-lote b3 — El cliente creado sin lead es una persona, atómico `[Cx-8, Cx-9, Cx-10, Cx-11]`
-**Cómo:**
-- Una sola RPC SQL para el alta: `crm.alta_cliente_identidad_fn(p_paso, p_payload jsonb) returns jsonb` (DEFINER; `authenticated` con gate
-  `private.puede_gestionar_contratos_crm()` para `crear-cliente`, y `service_role` para `importar-clientes`), con **tres pasos** en el mismo
-  contrato de saga y clave durable en `crm.multiempresa_idempotencia` (`clave='alta_cliente:'||tipo||':'||norm`, `tipo='alta_cliente'`,
-  `resultado={auth_user_id, correo, hash_payload, estado, por}`):
-  1. `reclamar`: validación pura (con bandera ON el documento es OBLIGATORIO aunque venga contraseña `[Cx-8]`) → documento → resolver(verificado,
-     fuente `alta_cliente`) → identidad `FOR UPDATE` → si tiene perfil activo → `P0409`; si hay reclamo vivo (10 min) de OTRO actor → `P0409`
-     «alta en curso»; si es el mismo actor y ya tiene `auth_user_id` sin perfil → devuelve `{reanudar:true, auth_user_id}` → guarda el reclamo.
-  2. `registrar_auth`: escribe `auth_user_id` en el reclamo (el edge lo llama justo después de `createUser`).
-  3. `enlazar`: documento → identidad `FOR UPDATE` → perfil `FOR SHARE` (revalida documento) → `perfil_id`, tramo de responsable SOLO si no hay
-     tramo abierto (`asesor_perfil_id`, `motivo='alta_cliente'`) `[Cx-9]`, propagación de veto, cierra el reclamo. Idempotente.
-  El edge: `reclamar` → (`createUser` o reutilizar `auth_user_id`) → `registrar_auth` → insert perfil → `enlazar`. Un Auth hallado SOLO por
-  email nunca se adopta `[Cx-13]`: si `createUser` dice «ya registrado» y el reclamo no trae `auth_user_id` → 409 «revisión de Gerencia».
-  La compensación `deleteUser` existente se COMPRUEBA y se reporta. Con bandera OFF: el edge no llama a nada nuevo (rama explícita).
-- `public.crear_contrato` — **requiere OK de Miguel (tabla/función `public`)**: parche por ancla; llama `private.asegurar_identidad_perfil(v_cliente_id)`
-  ANTES de su `for share` `[Cx-11]`: lee documento sin lock → documento → identidad → perfil `FOR SHARE` con revalidación → enlaza si falta;
-  sin documento válido → `raise` de negocio (fail-closed). No escribe `crm.inversiones` (F4).
-- Documento del perfil `[Cx-10]` — **requiere OK de Miguel (`public.perfiles`)**: trigger `BEFORE UPDATE OF dni, tipo_documento` en
-  `public.perfiles`: con bandera ON, si el perfil está enlazado y no hay válvula → `P0409` «usar corrección de documento». Y
-  `crm.actualizar_cliente_gerencia[_con_domicilio]` deja de aceptar cambios de documento con bandera ON (los redirige a b5). El front se adapta en la activación.
-- `eliminar-cliente` (edge, ausente del catálogo): con perfil enlazado la FK ya impide el DELETE (23503) → el edge devuelve 409 con diagnóstico
-  «cliente con identidad: baja lógica». No se desenlaza.
-- Colaboradores (`registrar_*`, `crm-usuarios`): FUERA (rol `comercial`, no inversionistas).
-**Oráculos:** alta → identidad + perfil + tramo; dos altas concurrentes mismo documento → una gana antes de Auth, la otra `P0409`; muerte tras
-`createUser` → reanudación por `auth_user_id`; coop→Avance → misma identidad, tramo conservado; contrato sin enlace → enlaza; OFF → nada.
+## E2 = b3 + b4 — diseño concreto v1 (05/09/2026), responde a `[v2-9..13, 18]`
 
-## Sub-lote b4 — La conversión Avance reserva por la persona real y no deja huérfanos `[Cx-12, Cx-13]`
-**Cómo:**
-- `crm.conversion_reservas` gana columnas ADITIVAS: `tipo_documento`, `documento_normalizado`, `hash_payload`, `auth_user_id`, `correo`.
-- Nueva sobrecarga `crm.reservar_conversion_lead(p_lead_id, p_tipo_documento, p_documento, p_hash_payload)`: con bandera ON: validación pura →
-  documento → `inversionista_por_documento` → si existe: `FOR UPDATE` y revalidar: sin veto, sin OTRO lead (cualquier estado), perfil enlazado
-  compatible → lead `FOR UPDATE` → si existe reserva viva de OTRO lead con el MISMO documento → `P0409` → upsert de la reserva con el documento.
-  Es el preflight: revalida DESPUÉS de esperar el advisory. La antigua de 1 argumento queda para bandera OFF (paridad).
-- `crm.convertir_lead_externo` (transformación mínima): tras el advisory documental, si existe reserva viva de otro lead con ese documento →
-  `P0409` «conversión Avance en curso para esta persona» `[Cx-12]`. Cierra coop↔Avance entre leads distintos en ambos sentidos.
-- `crm.registrar_auth_conversion_fn(p_lead_id, p_auth_user_id, p_correo)`: el edge la llama tras `createUser`. Reintento: `reservar` devuelve
-  `auth_user_id` si está y no existe perfil → el edge reutiliza ese Auth (crea el perfil con ese `id`). Pasado `vence_absoluto_en`, solo
-  **Gerencia** puede retomar una reserva sellada con `auth_user_id` sin perfil (`crm.retomar_conversion_gerencia_fn`) `[Cx-13]`. Nunca se adopta
-  un Auth hallado solo por email.
-- El edge `crm-convertir-lead`: rama explícita por bandera; con ON usa la sobrecarga nueva y `registrar_auth`; con OFF idéntico a hoy.
-**Oráculos:** coop(A)↔Avance(B) misma persona en los dos órdenes → una gana, la otra `P0409` ANTES de Auth; Auth sembrado sin perfil con reserva →
-reintento lo reutiliza; Auth ajeno solo por email → 409; OFF → idéntico.
+### La SAGA de Auth, una sola máquina para el alta directa y la conversión Avance `[v2-9, v2-13, v2-18]`
+PostgreSQL y Auth no comparten transacción; la máquina vive en `crm.multiempresa_idempotencia` (PK `clave`, `version` = CAS,
+`resultado` jsonb = estado). **La clave es la IDENTIDAD, nunca el documento:** `clave = 'auth_persona:' || inversionista_id`
+(la identidad se resuelve ANTES con `private.inversionista_resolver(tipo, doc, true, fuente)`; la alta la teclea Gerencia y la
+conversión ya la trata como verificada). Cero documento en claves ni columnas auditadas.
+`resultado = {claim_id, token_hash (sha256 de un token aleatorio que solo ve el edge, rotado en cada reanudación), tipo
+('alta_cliente'|'conversion'), owner (auth.uid o null para service_role), estado ('reclamado'→'auth_creado'→'perfil_creado'→'enlazado'),
+auth_user_id, perfil_id, lead_id (conversión), lease_hasta (10 min), hash_payload (calculado en SQL con private.idem_hash sobre los
+campos canónicos), creado_en, actualizado_en}`.
+Helpers privados (sin EXECUTE para la API):
+- `private.saga_auth_reclamar(p_inv, p_tipo, p_payload jsonb, p_lead_id) → jsonb`: identidad ya bloqueada por el llamador. Si no hay claim →
+  lo crea (estado `reclamado`, devuelve `token`). Si hay claim vivo (lease vigente) de OTRO owner → `P0409` «alta en curso». Si el lease
+  venció o es el mismo owner → **reanuda**: devuelve estado, `auth_user_id`, `perfil_id` y un token NUEVO; si `hash_payload` difiere del
+  reclamo en `reclamado` → `P0409` «datos distintos» (tras `auth_creado` el payload ya no manda: manda el Auth creado).
+- `private.saga_auth_avanzar(p_claim_id, p_token, p_estado, p_auth_user_id, p_perfil_id, p_version) → jsonb`: verifica `sha256(token)`,
+  CAS por `version` (`40001` si cambió), transición válida (`reclamado→auth_creado→perfil_creado→enlazado`), renueva el lease.
+- El edge marca el Auth con `app_metadata.claim_id` al crearlo y **solo reutiliza un Auth si su `app_metadata.claim_id` coincide**; un Auth
+  hallado por email sin esa marca → 409 «revisión de Gerencia», nunca se adopta.
+- Ventanas de caída, todas reanudables: muerte tras `createUser` sin `registrar_auth` → el reclamo sigue en `reclamado`; el reintento
+  vuelve a `createUser`, recibe «ya registrado», busca por email y **solo adopta si trae el `claim_id`** → `registrar_auth` → sigue.
+  Muerte tras el perfil sin `enlazar` → `perfil_creado` (o perfil existente con `id = auth_user_id`) → `enlazar`. Muerte tras enlazar sin
+  respuesta → reanudar devuelve `enlazado` + `perfil_id` (idempotente).
+
+### Sub-lote b3 — El cliente creado sin lead es una persona, atómico
+- **`private.puede_alta_cliente() → jsonb {ok, asesor_id, via}`** `[v2-11]`: reproduce EXACTAMENTE `crear-cliente/autorizacion.mjs`
+  (perfil activo; `crm.mi_acceso_fn()` con `perfil_id = uid`, estado conocido y ≠ `revocado`, `puede_contratar` booleano; rol Portal en
+  `admin/superadmin/analista/operaciones` → vía `portal`, asesor = uid si `analista`; si no, `estado='miembro'`, `puede_contratar=true`,
+  `rol_crm` no vacío → vía `crm`, asesor = uid si `vendedor`). No se reutiliza `puede_gestionar_contratos_crm`.
+- **`crm.alta_cliente_identidad_fn(p_paso text, p_payload jsonb) → jsonb`** (DEFINER; `authenticated` con `puede_alta_cliente`, y
+  `service_role` para `importar-clientes`; con bandera OFF → `P0409` «apagada»: superficie inerte). Pasos:
+  1. `reclamar` `{tipo_documento, documento, correo, nombre, apellidos, nombres, asesor_id}`: **documento OBLIGATORIO** `[v2-8]` →
+     advisory documental → resolver(verificado, `alta_cliente`) → identidad `FOR UPDATE` → si `perfil_id` apunta a un cliente activo →
+     `P0409 {ya_existia, perfil_id}` (sin Auth); si existe un perfil cliente con ese documento SIN enlace (creado con la bandera apagada) →
+     se ENLAZA (documento exacto verificado, §4.2) y `P0409 {ya_existia}`; si no → `saga_auth_reclamar` → `{claim_id, token, estado, version, inversionista_id}`.
+  2. `registrar_auth` `{claim_id, token, auth_user_id, version}` → `auth_creado`.
+  3. `perfil_creado` `{claim_id, token, perfil_id, version}` (tras el INSERT del edge) → `perfil_creado`.
+  4. `enlazar` `{claim_id, token, version}`: documento → identidad `FOR UPDATE` → perfil `FOR SHARE` (revalida `rol='cliente'`, activo y que su
+     documento sea el vigente de la identidad) → `inversionistas.perfil_id` (si ya apunta a OTRO perfil → `P0409`) → **responsable de
+     relación** `[v2-12]`: abre tramo con `asesor_perfil_id` SOLO si no hay tramo abierto Y el asesor es miembro CRM activo y perfil activo
+     (interlock `pg_advisory_xact_lock_shared('crm.equipo.usuarios_jerarquia')` como derivar); si el asesor no está activo → no se abre tramo
+     y se marca `revision_responsable=true` en la respuesta → propaga `no_contactar` → `enlazado`. Idempotente.
+- **`private.asegurar_identidad_perfil(p_perfil_id) → uuid`** (para `crear_contrato` y para `enlazar`): lee el documento del perfil sin lock →
+  advisory → resolver(verificado, `contrato`) → identidad `FOR UPDATE` → perfil `FOR SHARE` con revalidación del documento → enlaza si falta;
+  identidad con OTRO perfil → `P0409`; sin documento válido → `raise` de negocio (fail-closed). `[v2-11]`
+- **`crm.cliente_eliminable_fn(p_perfil_id) → jsonb {eliminable, motivo}`** `[v2-13]`: `eliminar-cliente` lo llama ANTES de cualquier
+  borrado; perfil enlazado a una identidad → `{eliminable:false, motivo:'identidad'}` y el edge responde 409 «baja lógica» sin efectos.
+- **`crm.actualizar_cliente_gerencia`** (transformación anclada): con bandera ON, un `p_patch` con `dni` o `tipo_documento` sobre un perfil
+  ENLAZADO → `P0409` «corrección de documento (Gerencia, b5)`. `[v2-10]`
+- **Edges** (`crear-cliente`, `importar-clientes`): rama explícita por bandera (`crm.bandera_activa`; error al leerla → 500, fail-closed).
+  ON: `reclamar` → (reanudar o `createUser` con `app_metadata.claim_id`) → `registrar_auth` → INSERT perfil (`id = auth_user_id`) →
+  `perfil_creado` → `enlazar`. `deleteUser` de compensación solo si el perfil falló por datos (23514/23505) y se COMPRUEBA su resultado;
+  si falla, el reclamo queda en `auth_creado` (reanudable). OFF: código actual intacto.
+- **`public` (migración APARTE, requiere OK de Miguel):** `public.crear_contrato` llama `private.asegurar_identidad_perfil(v_cliente_id)`
+  ANTES de su `for share` (parche por ancla md5 como 181000/183000) con bandera ON; trigger `BEFORE UPDATE OF dni, tipo_documento` en
+  `public.perfiles`: perfil enlazado + bandera ON + sin válvula → `P0409`. Sin ese OK, E2 aterriza sin estas dos piezas y quedan como
+  prerrequisito de activación.
+- Colaboradores (`registrar_*_usuario_fn`, `crm-usuarios`) y registro Portal: **decisión de Miguel** `[v2-14]`; por defecto fuera (contrato §2:
+  no son inversionistas; el mismo DNI en dos roles ya está resuelto por índices parciales).
+**Oráculos b3:** alta → identidad + perfil enlazado + tramo; dos altas concurrentes mismo documento → una reclama, la otra `P0409` antes de
+Auth; muerte simulada tras `createUser` (Auth sembrado con `claim_id`) → reanudación adopta ese Auth; Auth sin marca → 409; asesor inactivo →
+sin tramo + `revision_responsable`; perfil suelto con el documento → se enlaza; contrato sobre perfil sin enlace → enlaza (si hay OK);
+`eliminar-cliente` sobre enlazado → 409 sin borrar comunicados; OFF → nada nuevo, RPC inerte.
+
+### Sub-lote b4 — La conversión Avance reserva por la PERSONA y no deja huérfanos `[v2-12 conversión, v2-13, v2-18]`
+- `crm.conversion_reservas` gana columnas ADITIVAS **sin documento**: `inversionista_id uuid`, `claim_id uuid`, `hash_payload text`.
+- Nueva sobrecarga `crm.reservar_conversion_lead(p_lead_id, p_tipo_documento, p_documento, p_payload jsonb)`: bandera ON obligatoria;
+  validación pura → advisory documental → resolver(verificado, `reserva_conversion`) → identidad `FOR UPDATE` → revalida: **sin veto**
+  (`P0429`), **sin OTRO lead** (cualquier estado; `P0409` con `lead_id`), perfil enlazado (si lo hay) → se reutilizará → lead `FOR UPDATE`
+  (ámbito, como hoy) → si hay reserva viva de OTRO lead con el mismo `inversionista_id` → `P0409` → upsert de la reserva (reglas de hoy)
+  con `inversionista_id`, `hash_payload` (SQL) → `saga_auth_reclamar(inv, 'conversion', payload, lead_id)` → devuelve `{ok, expira_en, claim_id,
+  token, estado, version, auth_user_id, perfil_id, inversionista_id}`. Es el preflight: revalida DESPUÉS de esperar el advisory.
+  La firma antigua de 1 argumento queda para la bandera OFF (paridad).
+- `crm.convertir_lead_externo` (transformación anclada): tras resolver e `inversionistas FOR UPDATE`, si existe reserva viva
+  (`efectos_iniciados_en is not null or expira_en > now()`) de OTRO lead con el mismo `inversionista_id` → `P0409` «conversión Avance en
+  curso para esta persona». Lectura sin lock, después del lock de identidad: no cambia el orden.
+- `crm.saga_conversion_fn(p_paso, p_payload)` (DEFINER, `authenticated` con `puede_gestionar_contratos_crm`): `registrar_auth`,
+  `perfil_creado`, `cerrar` (tras `convertir_lead_con_domicilio` OK → `enlazado`). Reintento del edge: `reservar` devuelve el estado y
+  `auth_user_id`; el edge reutiliza el Auth SOLO si `app_metadata.claim_id` coincide.
+- Pasado `vence_absoluto_en`, **solo Gerencia** retoma una reserva sellada con claim en `auth_creado`/`perfil_creado`
+  (`crm.retomar_conversion_gerencia_fn(p_lead_id)`: nuevo lease + token, `reservado_por` pasa a Gerencia). `[v2-13]`
+- Edge `crm-convertir-lead`: rama por bandera; ON → sobrecarga nueva; `PGRST202` con ON → **error, no degradación** `[v2-10]`; `createUser`
+  con `app_metadata.claim_id`; `registrar_auth` justo después; el correo sigue siendo el último paso. OFF → código actual intacto.
+- `[v2-17]` En la misma entrega: `convertir_lead_externo` escribe `crm.inversiones`/`inversion_titulares` solo con `inversiones_escritura`
+  (prerrequisito de activación; el arnés del lote anterior enciende ambas banderas en su ensayo).
+**Oráculos b4:** coop(A)↔Avance(B) misma persona en los dos órdenes → una gana, la otra `P0409` ANTES de Auth; Auth sembrado con `claim_id`
+sin perfil → reintento lo reutiliza; Auth ajeno por email → 409; reserva de persona vetada → `P0429`; Gerencia retoma tras el tope; OFF → idéntico.
+
+**Fuera de E2 (E3):** fusión/corrección/reasignación; `[v2-2]` importador por puerta SQL (candidato para E3 o activación).
 
 ## Sub-lote b5 — Fusión, corrección documental y reasignación (Gerencia) — **alcance acotado** `[Cx-15, Cx-16, Cx-17]`
 **Lo que SÍ cierra:** fusiones donde **como máximo una** de las dos identidades tiene lead y como máximo una tiene perfil. Las que tienen dos
