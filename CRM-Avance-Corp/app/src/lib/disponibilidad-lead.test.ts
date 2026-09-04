@@ -432,3 +432,12 @@ describe('el mensaje de reutilizable tras F2', () => {
     expect(p.mensaje).toMatch(/puede retomarse/i)
   })
 })
+
+describe('ya_es_cliente vía identidad (multiempresa)', () => {
+  it('acepta la clave opcional `via` y sigue rechazando claves desconocidas', () => {
+    expect(v.safeParse(DisponibilidadLeadSchema, { estado: 'ya_es_cliente', asesor: 'ROSA', via: 'identidad' }).success).toBe(true)
+    expect(v.safeParse(DisponibilidadLeadSchema, { estado: 'ya_es_cliente', asesor: 'ROSA' }).success).toBe(true)
+    expect(v.safeParse(DisponibilidadLeadSchema, { estado: 'ya_es_cliente', asesor: 'ROSA', via: 'otra' }).success).toBe(false)
+    expect(v.safeParse(DisponibilidadLeadSchema, { estado: 'ya_es_cliente', asesor: 'ROSA', lead_id: 'x' }).success).toBe(false)
+  })
+})

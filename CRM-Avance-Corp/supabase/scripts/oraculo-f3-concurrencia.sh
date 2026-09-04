@@ -93,7 +93,7 @@ run_as "$G" "select crm.levantar_no_contactar('$L5','cliente pidió reactivar po
 [[ "$(q "select i.no_contactar from crm.inversionistas i join crm.inversionista_identificadores d on d.inversionista_id=i.id where d.documento_normalizado='$DOC5'")" == "f" ]] && ok "veto levantado en la identidad" || rojo "veto sigue"
 run_as "$V" "select crm.marcar_no_contactar('$L5','prueba herencia')" >/dev/null
 # F2.b b1 (20260904120000): el lead nuevo de una persona vetada ya NO nace vetado: se RECHAZA (P0429, contrato §7.3).
-R6="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -c "begin; insert into crm.leads (id,nombre_completo,telefono,monto_estimado,origen,etapa,creado_por,vendedor_id,dni) values ('$L6','F3 LEAD SEIS (hereda) r$RUN','${T}06',1000,'landing','nuevo','$V','$V','$DOC5'); commit;" 2>&1)"
+R6="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; insert into crm.leads (id,nombre_completo,telefono,monto_estimado,origen,etapa,creado_por,vendedor_id,dni) values ('$L6','F3 LEAD SEIS (hereda) r$RUN','${T}06',1000,'landing','nuevo','$V','$V','$DOC5'); commit;" 2>&1)"
 if [[ "$(q "select to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is not null")" == "t" ]]; then
   echo "$R6" | grep -q "P0429" && ok "un lead NUEVO de la persona vetada se RECHAZA (P0429; b1 cierra el bypass de importación)" || rojo "el lead nuevo de la vetada no fue rechazado: $(echo "$R6"|tail -1|cut -c1-100)"
 else

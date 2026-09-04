@@ -48,7 +48,14 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
     descartado_por: v.nullable(v.string()),
     ultima_conversacion_en: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
   }),
-  v.strictObject({ estado: v.literal('ya_es_cliente'), asesor: v.string() }),
+  // `via: 'identidad'` (multiempresa, 20260903260000): la persona ya tiene lead
+  // reconocido por su documento aunque no tenga perfil. Opcional: con la bandera
+  // apagada el servidor no la manda y el veredicto se pinta igual.
+  v.strictObject({
+    estado: v.literal('ya_es_cliente'),
+    asesor: v.string(),
+    via: v.optional(v.literal('identidad')),
+  }),
   v.strictObject({ estado: v.literal('no_contactar') }),
   v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
 ])

@@ -18,7 +18,8 @@
 --   -> identidad FOR UPDATE (releer el veto tras esperar)
 --   -> contactos (bloquear_contactos_lead)  <- SIEMPRE el último
 --   * trg_leads_000_hereda_veto  (BEFORE INSERT OR UPDATE OF dni): documento -> identidad
---     FOR UPDATE -> P0429 si vetada; si no, copia el veto como hasta hoy.
+--     FOR UPDATE -> P0429 si vetada (ya NO copia el veto: la alta de una persona vetada
+--     se rechaza, contrato §7.3).
 --   * trg_leads_00_disponibilidad_* (sin cambios): toma contactos DESPUÉS (orden por nombre).
 --   * trg_leads_zz_enlaza_identidad (BEFORE INSERT OR UPDATE OF dni): corre DESPUÉS de
 --     trg_leads_protege_inversionista_id (orden alfabético, determinista) y por eso no
@@ -49,7 +50,9 @@ begin
      or to_regprocedure('private.inversionista_resolver(text,text,boolean,text)') is null
      or to_regprocedure('private.verificar_disponibilidad_lead_impl(text,text,uuid)') is null
      or to_regprocedure('crm.marcar_no_contactar(uuid,text)') is null
-     or to_regprocedure('crm.bandera_activa(text)') is null then
+     or to_regprocedure('crm.bandera_activa(text)') is null
+     or to_regprocedure('private.trg_leads_hereda_veto_persona()') is null
+     or to_regprocedure('crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)') is null then
     raise exception 'F2.b b1: falta F1 o el lote Contrato-F2 (190000-260000)';
   end if;
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
@@ -104,6 +107,29 @@ as $$
   limit 1
 $$;
 revoke all on function private.inversionista_por_documento(text, text) from public, anon, authenticated, service_role;
+
+-- Identidad FOR UPDATE por documento (el paso «identidad» del orden total) para las
+-- puertas que no lo dan por un trigger. Reentrante con el FOR UPDATE del trigger 000.
+create or replace function private.identidad_bloquear_persona(p_tipo text, p_documento text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+set lock_timeout = '5s'
+as $$
+declare v_inv uuid;
+begin
+  if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    return;
+  end if;
+  v_inv := private.inversionista_por_documento(p_tipo, p_documento);
+  if v_inv is null then
+    return;
+  end if;
+  perform 1 from crm.inversionistas i where i.id = v_inv for update;
+end;
+$$;
+revoke all on function private.identidad_bloquear_persona(text, text) from public, anon, authenticated, service_role;
 
 -- La bandera la leen también los edges que solo tienen service_role (importador).
 -- Es un booleano sin PII.
@@ -240,6 +266,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
+set lock_timeout = '5s'
 as $$
 declare
   v_priv boolean := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false);
@@ -303,7 +330,6 @@ declare
   -- documento normalizado IGUAL que el resolver (documento_normalizado es mayúsculas+alfanumérico)
   v_dni_norm text := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_dni,''), '[^A-Za-z0-9]', '', 'g')), '');
   v_asesor_identidad text;
-  v_lead_identidad uuid;
 begin
   if v_tel is null or pg_catalog.length(v_tel) = 0 then
     return pg_catalog.jsonb_build_object(
@@ -363,8 +389,8 @@ begin
   -- tenga perfil de portal), esa persona ya es cliente / ya tiene su lead: no se
   -- crea otro. Solo el documento vincula (contrato #8). Gateado por bandera.
   if v_flag and v_dni_norm is not null then
-    select coalesce(resp.nombre_completo, 'sin asesor asignado'), li.id
-      into v_asesor_identidad, v_lead_identidad
+    select coalesce(resp.nombre_completo, 'sin asesor asignado')
+      into v_asesor_identidad
     from crm.inversionista_identificadores idf
     join crm.inversionistas i on i.id = idf.inversionista_id
     -- Sin filtro li.activo: DELIBERADO. leads_inversionista_uidx es único por
@@ -381,7 +407,7 @@ begin
       and li.id is distinct from p_excluir_lead_id
     limit 1;
     if found then
-      return pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'asesor', v_asesor_identidad, 'via', 'identidad', 'lead_id', v_lead_identidad);
+      return pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'asesor', v_asesor_identidad, 'via', 'identidad');
     end if;
   end if;
 
@@ -655,6 +681,7 @@ begin
   -- F2.b (b1): orden total documento -> identidad -> contactos. Con la bandera
   -- apagada el helper no toma ningún lock (paridad exacta).
   perform private.identidad_bloquear_documento('DNI', v_dni);
+  perform private.identidad_bloquear_persona('DNI', v_dni);
   perform private.bloquear_contactos_lead(array[v_telefono], array[v_dni]);
 
   -- Un administrador puede desactivar la membresia mientras esta sesion
@@ -820,6 +847,7 @@ declare
   v_def text;
 begin
   if to_regprocedure('private.identidad_bloquear_documento(text,text)') is null
+     or to_regprocedure('private.identidad_bloquear_persona(text,text)') is null
      or to_regprocedure('private.inversionista_por_documento(text,text)') is null
      or to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is null
      or to_regprocedure('private.trg_leads_zz_puente_identidad()') is null
@@ -842,7 +870,8 @@ begin
     raise exception 'POSTFLIGHT b1: trg_leads_zz_puente_identidad mal definido (%)', v_def;
   end if;
   -- El orden por nombre es la garantía: protege < zz_enlaza (mismo timing BEFORE).
-  if 'trg_leads_protege_inversionista_id' >= 'trg_leads_zz_enlaza_identidad' then
+  if 'trg_leads_protege_inversionista_id' collate "C" >= 'trg_leads_zz_enlaza_identidad' collate "C"
+     or 'trg_leads_000_hereda_veto' collate "C" >= 'trg_leads_00_disponibilidad_insert' collate "C" then
     raise exception 'POSTFLIGHT b1: el orden alfabético de triggers no garantiza protege antes de zz';
   end if;
   if (select strpos(prosrc, 'idf.verificado = true') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -853,6 +882,18 @@ begin
   if (select strpos(prosrc, 'identidad_bloquear_documento') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='crm' and p.proname='crear_lead_si_disponible') = 0 then
     raise exception 'POSTFLIGHT b1: crear_lead_si_disponible no toma el documento';
+  end if;
+  -- CREATE OR REPLACE conserva la ACL; se comprueba igual (y PUBLIC = grantee 0, que
+  -- has_function_privilege enmascara).
+  if not has_function_privilege('authenticated', 'crm.crear_lead_si_disponible(text,text,text,numeric,text,uuid,text,text,text,date,text,text,text,uuid,text,text)', 'EXECUTE')
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a
+                where p.oid in ('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure,
+                                'private.inversionista_por_documento(text,text)'::regprocedure,
+                                'private.identidad_bloquear_documento(text,text)'::regprocedure,
+                                'private.identidad_bloquear_persona(text,text)'::regprocedure,
+                                'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)'::regprocedure)
+                  and a.grantee = 0) then
+    raise exception 'POSTFLIGHT b1: ACL inesperada (crear_lead sin authenticated o PUBLIC con EXECUTE)';
   end if;
   if not has_function_privilege('service_role', 'crm.bandera_activa(text)', 'EXECUTE')
      or has_function_privilege('anon', 'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)', 'EXECUTE')

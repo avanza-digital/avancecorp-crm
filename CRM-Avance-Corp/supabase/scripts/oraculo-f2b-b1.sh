@@ -81,7 +81,7 @@ cat "$S/b1_r1.out" "$S/b1_r2.out" | grep -qi deadlock && rojo "DEADLOCK entre do
 [[ "$(q "select count(*) from crm.leads where inversionista_id = private.inversionista_por_documento('DNI','$DOC9')")" == "1" ]] && ok "una sola fila enlazada a $DOC9" || rojo "leads enlazados a $DOC9 ≠ 1"
 # RPC humana con un DNI cuya persona ya tiene lead → veredicto sin insertar; con DNI de persona sin lead → inserta enlazado.
 R="$(run_as "$V" "select crm.crear_lead_si_disponible('B1 RPC OCUPADO','${T}20','landing',1000,'PEN',gen_random_uuid(),null,'$DOC9')")"
-echo "$R" | grep -q "ya_es_cliente" && echo "$R" | grep -q "identidad" && ok "crear_lead_si_disponible con DNI ocupado → veredicto ya_es_cliente/identidad (con lead_id)" || rojo "RPC no devolvió el veredicto: $(echo "$R"|tail -1|cut -c1-140)"
+echo "$R" | grep -q "ya_es_cliente" && echo "$R" | grep -q "identidad" && ! echo "$R" | grep -q "lead_id" && ok "crear_lead_si_disponible con DNI ocupado → veredicto ya_es_cliente/identidad (sin lead_id para humanos)" || rojo "RPC no devolvió el veredicto: $(echo "$R"|tail -1|cut -c1-140)"
 R="$(run_as "$V" "select crm.crear_lead_si_disponible('B1 RPC LIBRE','${T}21','landing',1000,'PEN',gen_random_uuid(),null,'$DOC0')")"
 [[ "$(q "select count(*) from crm.leads l where l.inversionista_id = private.inversionista_por_documento('DNI','$DOC0')")" == "1" ]] && ok "crear_lead_si_disponible con DNI de persona sin lead → lead enlazado" || rojo "RPC no enlazó: $(echo "$R"|tail -1|cut -c1-140)"
 # RPC ↔ coop concurrentes por el mismo documento nuevo (DOC2 tiene identidad sin lead): ninguna se abraza.

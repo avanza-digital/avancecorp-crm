@@ -541,6 +541,7 @@ $function$
 ;
 
 drop function if exists private.identidad_bloquear_documento(text, text);
+drop function if exists private.identidad_bloquear_persona(text, text);
 drop function if exists private.inversionista_por_documento(text, text);
 
 do $post$
