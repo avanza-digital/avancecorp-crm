@@ -24,7 +24,7 @@ const CONECTOR = readFileSync(join(aqui, "hoja-leads-apps-script.gs"), "utf8");
 const PUENTE = readFileSync(join(aqui, "puente-drive-origen.gs"), "utf8");
 
 const EXPUESTO =
-  "return { procesar, inicializarMarcas, leerMarcas, traerLeadsDelOrigen," +
+  "return { procesar, inicializarMarcas, retrocederMarca, leerMarcas, traerLeadsDelOrigen," +
   " vistaPreviaOrigen, prepararHoja, activarConector, apagarConector, importarLeads, configurar," +
   " corridaProgramada, instalarHorario, quitarHorario, verHorario, verEstado," +
   " leerEstado, medirOrigen, relojDeLima, contarEstadosDeLeads, crearMenu, onEdit," +
@@ -1195,4 +1195,98 @@ test("el conector NO se lleva por delante la pestaña equivocada", () => {
   const cuerpo = JSON.parse(mundo.espia.peticiones[0].opciones.payload);
   assert.equal(cuerpo.filas.length, 1);
   assert.equal(cuerpo.filas[0].telefono, "+51918000015", "importó de una pestaña que no es LEADS");
+});
+
+// ── El día que el origen cambió de formato de fecha (2026-09-01) ─────────────
+
+test("el origen empieza a escribir MM/DD a media mañana y los leads siguen entrando", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+
+  // El corte, y las dos formas de escribir el día 1 del mes siguiente.
+  const corte = mundo.gs.FECHA_CORTE;
+  const siguiente = new Date(Date.UTC(+corte.slice(0, 4), +corte.slice(5, 7), 1))
+    .toISOString().slice(0, 10);
+  const alReves = `${siguiente.slice(5, 7)}/${siguiente.slice(8, 10)}/${siguiente.slice(0, 4)}`;
+  const vieja = `23/07/${+corte.slice(0, 4) - 1}`; // backlog de verdad, del año pasado
+
+  // El origen se REESCRIBE en vez de usar appendRow: escribir por ahí haría que el
+  // simulador interpretara el texto con SU locale, y lo que aquí se prueba es
+  // justamente el texto que el origen dibuja cuando cambia de formato.
+  mundo.origen.hojas[0] = new Hoja("landing", 111, [
+    CAB_LANDING,
+    filaLanding(1),                        // la de siempre, por debajo de la marca
+    filaLanding(7, alReves + " 10:20"),     // llega nueva, con el mes por delante
+    filaLanding(8, vieja + " 09:00"),       // llega nueva, pero dice ser del año pasado
+  ]);
+
+  const r = mundo.gs.procesar(true);
+
+  // Las dos entran: una porque su fecha es ambigua y manda la posición, la otra
+  // porque su fecha es imposible (nueva y anterior al corte) y manda la posición.
+  const filas = leadsEscritos(mundo.hojaLeads);
+  assert.deepEqual(filas.map((f) => f[1]), ["+51918000007", "+51918000008"],
+    "algún lead nuevo murió en el corte, como en producción");
+  assert.equal(r.aceptados.length, 2);
+  assert.equal(r.fechasImposibles, 1, "no se contó la fecha imposible");
+  assert.match(filas[1][11], /imposible/i, "el lead no avisa de su fecha falsa en la Nota");
+});
+
+test("la fecha imposible levanta un aviso en el panel, y se apaga cuando deja de pasar", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  const corte = mundo.gs.FECHA_CORTE;
+  const vieja = `23/07/${+corte.slice(0, 4) - 1}`;
+  mundo.origen.hojas[0] = new Hoja("landing", 111, [
+    CAB_LANDING, filaLanding(1), filaLanding(9, vieja + " 09:00"),
+  ]);
+
+  mundo.gs.corridaProgramada();
+  const avisos = () => mundo.gs.leerEstado().avisos || {};
+  assert.ok(avisos()["fecha-imposible"], "el origen corrompió una fecha y el panel no dice nada");
+
+  // El origen se arregla: llega una fila normal y el aviso tiene que apagarse.
+  mundo.espia.ponerReloj("2026-08-18 09:20"); // otro día: la corrida vuelve a ser completa
+  mundo.origen.hojas[0].appendRow(filaLanding(10));
+  mundo.gs.corridaProgramada();
+  assert.equal(avisos()["fecha-imposible"], undefined, "el aviso no se apaga solo: enseña a ignorar el panel");
+});
+
+test("rescatar filas ya miradas: la marca desanda y los leads vuelven a entrar", () => {
+  // Tres filas SIN fecha ya estaban cuando se puso la frontera: son historia y ninguna
+  // entra. Es la forma exacta de las 34 del 2026-09-01 después de que la marca les
+  // pasara por encima.
+  const mundo = montar({ landing: [filaLanding(1), filaLanding(2), filaLanding(3)] });
+  mundo.gs.inicializarMarcas();
+  assert.equal(marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila, 4);
+  assert.equal(mundo.gs.procesar(true).aceptados.length, 0, "entró historia y no debía");
+
+  // Rosa desanda la frontera hasta la fila 2: las dos de abajo vuelven a mirarse.
+  mundo.espia.respuestas.push({ boton: "OK", texto: "landing" }); // ¿qué pestaña?
+  mundo.espia.respuestas.push({ boton: "OK", texto: "2" });       // ¿hasta qué fila?
+  mundo.espia.respuestas.push({ boton: "OK" });                   // confirma
+  const r = mundo.gs.retrocederMarca();
+
+  assert.deepEqual({ de: r.de, a: r.a, recuperadas: r.recuperadas }, { de: 4, a: 2, recuperadas: 2 });
+  assert.equal(leadsEscritos(mundo.hojaLeads).length, 0, "el rescate importó leads y no debía");
+
+  const despues = mundo.gs.procesar(true);
+  assert.equal(despues.incidencias.length, 0,
+    "la pestaña se detuvo: el ancla no se recalculó en la fila nueva");
+  assert.deepEqual(leadsEscritos(mundo.hojaLeads).map((f) => f[1]),
+    ["+51918000002", "+51918000003"]);
+});
+
+test("el rescate se echa atrás si quien mira cancela", () => {
+  const mundo = montar({ landing: [filaLanding(1), filaLanding(2)] });
+  mundo.gs.inicializarMarcas();
+  const antes = marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila;
+
+  mundo.espia.respuestas.push({ boton: "OK", texto: "landing" });
+  mundo.espia.respuestas.push({ boton: "OK", texto: "2" });
+  mundo.espia.respuestas.push({ boton: "CANCEL" }); // se lo piensa mejor
+  assert.equal(mundo.gs.retrocederMarca(), null);
+
+  assert.equal(marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila, antes,
+    "movió la frontera después de un CANCELAR");
 });

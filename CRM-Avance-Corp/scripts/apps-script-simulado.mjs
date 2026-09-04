@@ -297,6 +297,12 @@ class Libro {
     this.siguienteId = 9000;
   }
   getName() { return this.nombre; }
+  /**
+   * La zona del DOCUMENTO — la que decide qué día muestra una celda de fecha suya.
+   * El puente se la pide al ORIGEN para leer sus fechas nativas; aquí los dos
+   * documentos están en Lima, que es la única zona que este doble sabe formatear.
+   */
+  getSpreadsheetTimeZone() { return "America/Lima"; }
   getSheets() { return this.hojas.slice(); }
   getNumSheets() { return this.hojas.length; }
   getSheetByName(n) { return this.hojas.find((h) => h.getName() === n) || null; }
@@ -330,6 +336,7 @@ export function crearEntorno({
     candadoSoltado: 0,
     avisos: [],
     ventanas: [],   // lo que `informar()` habría enseñado en pantalla
+    respuestas: [], // el guion de lo que contesta quien mira: [{ boton, texto }, …]
     menu: [],       // los ítems del menú AVANCE CORP, en orden
     menuNombre: "",
     propiedades: { ...propiedades },
@@ -380,9 +387,34 @@ export function crearEntorno({
         addSeparator: () => menu,
         addToUi: () => menu,
       };
+      /**
+       * PREGUNTAR ES DISTINTO DE AVISAR. `alert(texto)` solo informa; `alert(título,
+       * texto, botones)` y `prompt(...)` PREGUNTAN, y su respuesta sale del guion
+       * (`respuestas`, en orden). Un guion agotado responde CANCELAR: una prueba que
+       * se olvide de guionizar una pregunta se para, en vez de aceptar a ciegas algo
+       * que el usuario nunca dijo.
+       */
+      const Button = { OK: "OK", CANCEL: "CANCEL", CLOSE: "CLOSE" };
+      const ButtonSet = { OK: "OK", OK_CANCEL: "OK_CANCEL" };
+      const responder = () =>
+        (espia.respuestas.length ? espia.respuestas.shift() : { boton: Button.CANCEL, texto: "" });
       return {
         createMenu: (nombre) => { espia.menu = []; espia.menuNombre = nombre; return menu; },
-        alert: (texto) => { espia.ventanas.push(texto); },
+        Button,
+        ButtonSet,
+        alert: (...args) => {
+          espia.ventanas.push(args.length > 1 ? args[1] : args[0]);
+          if (args.length < 3) return Button.OK; // solo informaba
+          return responder().boton;
+        },
+        prompt: (...args) => {
+          espia.ventanas.push(args.length > 2 ? args[1] : args[0]);
+          const r = responder();
+          return {
+            getResponseText: () => String(r.texto == null ? "" : r.texto),
+            getSelectedButton: () => r.boton || Button.OK,
+          };
+        },
       };
     },
   };
