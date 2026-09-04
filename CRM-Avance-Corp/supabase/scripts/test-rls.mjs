@@ -3134,7 +3134,7 @@ async function testOffboardingMatrix(sessions, seed) {
     // P058: la capacidad operativa sale del rol CRM efectivo, nunca del rol
     // Portal. Las tres cuentas positivas usan `portalRole=comercial`.
     await assertAccess(
-      sessions.gerencia,
+      sessions.gerencia.client,
       'miembro',
       'P058: Gerencia Comercial puede contratar',
       seed.profileIdByKey.gerencia,
@@ -3142,7 +3142,7 @@ async function testOffboardingMatrix(sessions, seed) {
       true,
     );
     await assertAccess(
-      sessions.sup1,
+      sessions.sup1.client,
       'miembro',
       'P058: Supervisor Comercial puede contratar',
       seed.profileIdByKey.sup1,
@@ -3150,7 +3150,7 @@ async function testOffboardingMatrix(sessions, seed) {
       true,
     );
     await assertAccess(
-      sessions.coordinador,
+      sessions.coordinador.client,
       'miembro',
       'P058: Coordinador Comercial no puede contratar',
       seed.profileIdByKey.coordinador,
@@ -9540,7 +9540,7 @@ async function testIdentidadMultiempresa(sessions, seed) {
     const altaRpc = await positive('#3 alta por RPC (crear_lead_si_disponible) con ese documento → responde ya_es_cliente',
       sessions.vend1.client.schema('crm').rpc('crear_lead_si_disponible', { p_id: randomUUID(), p_nombre_completo: 'IDENTIDAD ALTA RPC DENEGADA TRANSIENT', p_telefono: TEL_IDENTIDAD(54), p_origen: 'otro', p_monto_estimado: 1000, p_moneda: 'PEN', p_vendedor_id: vend1Id, p_dni: doc }));
     assertions += 1;
-    if (altaRpc?.data?.estado === 'ya_es_cliente' && cuenta('alta RPC no creó lead', `select count(*) from crm.leads where telefono=TEL_IDENTIDAD(54)`) === 0) console.log('  ✓ #3 alta por RPC → ya_es_cliente y NO creó lead (un solo lead total)');
+    if (altaRpc?.data?.estado === 'ya_es_cliente' && cuenta('alta RPC no creó lead', `select count(*) from crm.leads where telefono='${TEL_IDENTIDAD(54)}'`) === 0) console.log('  ✓ #3 alta por RPC → ya_es_cliente y NO creó lead (un solo lead total)');
     else fail(`#3: alta por RPC devolvió '${altaRpc?.data?.estado}' o creó lead`);
 
     // ── #5 · no_contactar de la PERSONA + oportunidad viva ────────────────
@@ -9758,7 +9758,7 @@ async function testIdentidadF2b(sessions, seed) {
       'b1 #2 el lead suelto sigue sin dni y sin enlace');
     // ── #2b · el enlace al NACER (alta sin sesión, como el importador) → enlazado + puente ─
     await requireAdmin('b1 #2b alta sin sesión con el dni de una persona sin lead',
-      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_F2B.naceInsert, nombre_completo: 'F2B NACE INSERT TRANSIENT', telefono: TEL_F2B(109), dni: DOCS_F2B.sinLead }));
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_F2B.naceInsert, nombre_completo: 'F2B NACE INSERT TRANSIENT', telefono: TEL_F2B(110), dni: DOCS_F2B.sinLead }));
     check(cuenta('nace enlazado', `select count(*) from crm.leads where id='${IDS_F2B.naceInsert}' and inversionista_id=${invDe(DOCS_F2B.sinLead)}`) === 1,
       'b1 #2b el lead NACIÓ enlazado (inversionista_id = identidad del documento)');
     check(cuenta('puente canónico', `select count(*) from crm.inversionista_leads where lead_id='${IDS_F2B.naceInsert}' and inversionista_id=${invDe(DOCS_F2B.sinLead)} and rol='canonico'`) === 1,
@@ -9840,8 +9840,10 @@ async function testIdentidadF2b(sessions, seed) {
     }
     {
       const { error } = await updDni('vend1', IDS_F2B.vetoUpdate, DOCS_F2B.vetada);
-      check(error?.code === 'P0429' && /No insistir/i.test(error?.message ?? '') && sinDocumento(error),
-        'b1 #7 UPDATE dni de vendedor con documento de persona vetada → P0429, sin documento en el DETAIL', errorText(error));
+      // Camino HUMANO: el trigger 00 (disponibilidad) responde antes que zz con el veredicto
+      // no_contactar (P0481); el P0429 del 000 es para el INSERT (importador). Ambos sin documento.
+      check(((error?.code === 'P0481' && /no_contactar/.test(String(error?.details ?? ''))) || (error?.code === 'P0429' && /No insistir/i.test(error?.message ?? ''))) && sinDocumento(error),
+        'b1 #7 UPDATE dni de vendedor con documento de persona vetada → P0481 no_contactar (00) o P0429, sin documento', errorText(error));
     }
     check(cuenta('veto insert no nació', `select count(*) from crm.leads where id='${IDS_F2B.vetoInsert}'`) === 0
       && cuenta('veto update intacto', `select count(*) from crm.leads where id='${IDS_F2B.vetoUpdate}' and dni is null and inversionista_id is null`) === 1,

@@ -236,3 +236,9 @@ revoke select on crm.periodos_cerrados from service_role; -- después (restaura 
 **Aislamiento (banco-f7 llevado a paridad con prod, 206 versiones):** falla IGUAL con el lote Contrato-F2 aplicado (1195/1196) y SIN él (banco revertido: 36/1223, de los cuales 35 son el bloque de identidad — control negativo — y el otro es este). **No imputable al lote.** El 01/09 (paridad 196) el mismo fixture sí encontraba sujeto; entre medio entraron las migraciones del 02/09 (`ranking_poblacion_mes_calendario`, `conversion_total_analistas_solo_ranking`, `ranking_foto_mensual_coherente`) que redefinen población/divisor.
 
 **Qué sigue:** quien mantenga la suite debe ajustar el fixture del «tercer estado» a la nueva semántica de población (o sembrar explícitamente un analista sin recibidos en el mes). No bloquea el lote. Referencia: `test-rls-f3b.log` / `test-rls-f3e-revertido.log` en el scratchpad de la sesión del 03/09.
+
+## 04/09/2026 — deriva ajena en la suite (P-058, `7f6e1d4`)
+El bloque «P04: matriz completa de offboarding» abortaba la suite entera con `client.schema is not a function`: las
+tres llamadas nuevas de P-058 a `assertAccess(...)` pasaban `sessions.X` en vez de `sessions.X.client`. Corregido en la
+rama `feat/multiempresa-f2b-cola` (`sessions.X.client`). Con el código de `main` tal cual, la suite no llega a los
+bloques posteriores (identidad incluida).
