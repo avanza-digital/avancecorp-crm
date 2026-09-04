@@ -1,5 +1,14 @@
 ## CodeGraph del proyecto
 
+## Main único y publicación
+
+- Main local debe seguir `avancecorp/main` (`avancecorp-crm`), no `avancecorp/tronco` ni `origin/main` (otro proyecto).
+- Antes de publicar, integrar los cambios remotos sin sobrescribirlos y comprobar que Main local y `avancecorp/main` apuntan al mismo commit.
+- Publicar únicamente un artefacto construido desde ese commit verificado. No crear ramas de release ni usar `push --force`.
+- Las menciones anteriores a `tronco` en el vault son historial; el destino vigente es `avancecorp/main`.
+
+## Navegación del código
+
 Este proyecto usa CodeGraph como herramienta principal para navegar, comprender y localizar código.
 
 Reglas:
