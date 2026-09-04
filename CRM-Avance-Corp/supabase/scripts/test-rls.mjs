@@ -9435,8 +9435,10 @@ async function testIdentidadMultiempresa(sessions, seed) {
   const vend1Id = seed.profileIdByKey.vend1;  // mismo patrón que `const ids = seed.profileIdByKey`
   const sufijo = randomUUID().slice(0, 8);
   const trx = (n) => `TRX-ID-${sufijo}-${n}`;
-  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas',
-    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  // F2.b b4 (20260905110000): los hechos de inversión de la conversión coop van con la bandera de
+  // F4 `inversiones_escritura`; este bloque cuenta inversiones y titulares, así que enciende las dos.
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas + inversiones_escritura',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre in ('resolver_en_puertas','inversiones_escritura');`);
   const coop = (clave, leadId, doc, n, monto = 1000) => sessions[clave].client.schema('crm')
     .rpc('convertir_lead_externo', {
       p_lead_id: leadId, p_cooperativa: 'qorilazo', p_monto: monto, p_moneda: 'PEN',
