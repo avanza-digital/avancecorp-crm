@@ -478,6 +478,14 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // F2.b b1: la bandera de identidad se lee UNA vez por lote (booleano sin
+    // PII; crm.bandera_activa admite service_role desde 20260904120000). Si la
+    // lectura falla, se asume apagada: nunca se registra un reingreso a ciegas.
+    const { data: banderaIdentidad } = await admin.rpc("bandera_activa", {
+      p_nombre: "resolver_en_puertas",
+    });
+    const identidadEnPuertas = banderaIdentidad === true;
+
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
     for (const v of validas) {
       if (yaEnCrm.has(v.telefono)) {
@@ -497,9 +505,49 @@ Deno.serve(async (req: Request) => {
         .insert(v.insert);
       if (errIns) {
         const clasificacion = clasificarErrorInsercion(errIns, statusIns);
+        // F2.b b1: con la bandera encendida, la persona que vuelve por la hoja
+        // queda como REINGRESO en su propio lead (señal de venta para su
+        // responsable). Con la bandera apagada la BD no emite este veredicto y
+        // esta rama no corre: idéntico a hoy.
+        if (
+          clasificacion.resultado === "ya_cliente" && identidadEnPuertas &&
+          clasificacion.lead_id
+        ) {
+          const { error: errRe } = await admin.rpc(
+            "registrar_reingreso_lead_fn",
+            {
+              p_lead_id: clasificacion.lead_id,
+              p_origen: "hoja",
+              p_datos: {
+                fila: v.fila,
+                nombre: v.insert.nombre_completo,
+                telefono: v.insert.telefono,
+                telefono_alternativo: v.insert.telefono_alternativo,
+                correo: v.insert.correo,
+                capital: v.insert.monto_estimado,
+                moneda: v.insert.moneda,
+                canal: v.insert.origen,
+                distrito: v.insert.distrito,
+                interes: v.insert.categoria_interes,
+                nota: v.insert.nota,
+              },
+            },
+          );
+          resultados.push({
+            fila: v.fila,
+            resultado: "ya_cliente",
+            estado: errRe
+              ? `${clasificacion.estado} — sin nota en la ficha (${
+                String(errRe.message).slice(0, 60)
+              })`
+              : clasificacion.estado,
+          });
+          continue;
+        }
         resultados.push({
           fila: v.fila,
-          ...clasificacion,
+          resultado: clasificacion.resultado,
+          estado: clasificacion.estado,
         });
         continue;
       }
@@ -516,12 +564,14 @@ Deno.serve(async (req: Request) => {
   const conteo = {
     importadas: 0,
     duplicadas: 0,
+    ya_clientes: 0,
     rechazadas: 0,
     errores_temporales: 0,
   };
   for (const r of resultados) {
     if (r.resultado === "importado") conteo.importadas++;
     else if (r.resultado === "duplicado") conteo.duplicadas++;
+    else if (r.resultado === "ya_cliente") conteo.ya_clientes++;
     else if (r.resultado === "rechazado") conteo.rechazadas++;
     else conteo.errores_temporales++;
   }
