@@ -58,6 +58,14 @@ let REPORTE_DIARIO: ReporteDerivacionesCoordinacion = {
       supervisor_nombre: 'SUPERVISOR REPORTE',
       derivados: 3,
     }],
+    entregas: [{
+      analista_id: '00000000-0000-4000-8000-000000000001',
+      analista_nombre: 'ANALISTA REPORTE',
+      supervisor_id: '00000000-0000-4000-8000-000000000002',
+      supervisor_nombre: 'SUPERVISOR REPORTE',
+      origen: 'landing',
+      derivados: 3,
+    }],
   }],
 }
 const reporteDiarioMock = vi.fn(async (_desde: string, _hasta: string) => REPORTE_DIARIO)
@@ -176,6 +184,14 @@ beforeEach(() => {
         supervisor_nombre: 'SUPERVISOR REPORTE',
         derivados: 3,
       }],
+      entregas: [{
+        analista_id: '00000000-0000-4000-8000-000000000001',
+        analista_nombre: 'ANALISTA REPORTE',
+        supervisor_id: '00000000-0000-4000-8000-000000000002',
+        supervisor_nombre: 'SUPERVISOR REPORTE',
+        origen: 'landing',
+        derivados: 3,
+      }],
     }],
   }
   RESUMEN_CAIDO = false
@@ -219,21 +235,24 @@ async function abrirCola(usuario = userEvent.setup()): Promise<void> {
 }
 
 describe('pantalla Repartir leads', () => {
-  it('abre con el panel compacto de distribución, sin etapas ni capacidad', async () => {
+  it('abre con el historial de entregas primero y separa la cartera activa actual', async () => {
     render(<Repartir />)
 
+    expect(await screen.findByRole('heading', { name: 'Entregas por fecha, analista y origen' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cartera activa actual' })).toBeInTheDocument()
     expect(await screen.findByText('Leads por supervisor')).toBeInTheDocument()
     expect(screen.getByText('Leads por analista')).toBeInTheDocument()
-    expect(screen.getByText(/Solo conteos · sin etapas ni capacidad/)).toBeInTheDocument()
+    expect(screen.getByText(/Esta foto no reemplaza el historial de entregas/)).toBeInTheDocument()
     expect(panelMock).toHaveBeenCalledTimes(1)
   })
 
   it('muestra a Coordinación el conteo diario por analista y aplica el rango elegido', async () => {
     render(<Repartir />)
 
-    const tabla = await screen.findByRole('table', { name: 'Derivaciones diarias por analista' })
+    const tabla = await screen.findByRole('table', { name: 'Entregas por fecha, analista y origen' })
     expect(within(tabla).getByText('ANALISTA REPORTE')).toBeInTheDocument()
     expect(within(tabla).getByText('SUPERVISOR REPORTE')).toBeInTheDocument()
+    expect(within(tabla).getByText('LANDING')).toBeInTheDocument()
     expect(within(tabla).getByText('3')).toBeInTheDocument()
     expect(reporteDiarioMock).toHaveBeenCalledWith(fechaAyerLima, fechaAyerLima)
 
@@ -248,6 +267,66 @@ describe('pantalla Repartir leads', () => {
     await waitFor(() => {
       expect(reporteDiarioMock).toHaveBeenCalledWith('2026-08-01', '2026-08-10')
     })
+  })
+
+  it('combina supervisor, analista y origen y restablece los filtros del reporte', async () => {
+    const SUPERVISOR_DOS = '00000000-0000-4000-8000-000000000003'
+    const ANALISTA_DOS = '00000000-0000-4000-8000-000000000004'
+    const dia = REPORTE_DIARIO.dias[0]!
+    REPORTE_DIARIO = {
+      ...REPORTE_DIARIO,
+      total_derivados: 7,
+      dias: [{
+        ...dia,
+        total_derivados: 7,
+        analistas: [
+          { ...dia.analistas[0]!, derivados: 3 },
+          {
+            analista_id: ANALISTA_DOS,
+            analista_nombre: 'BETO REPORTE',
+            supervisor_id: SUPERVISOR_DOS,
+            supervisor_nombre: 'SUPERVISOR DOS',
+            derivados: 4,
+          },
+        ],
+        entregas: [
+          { ...dia.entregas[0]!, origen: 'landing', derivados: 2 },
+          { ...dia.entregas[0]!, origen: 'referido', derivados: 1 },
+          {
+            analista_id: ANALISTA_DOS,
+            analista_nombre: 'BETO REPORTE',
+            supervisor_id: SUPERVISOR_DOS,
+            supervisor_nombre: 'SUPERVISOR DOS',
+            origen: 'formulario',
+            derivados: 4,
+          },
+        ],
+      }],
+    }
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+
+    const tabla = await screen.findByRole('table', { name: 'Entregas por fecha, analista y origen' })
+    const supervisor = screen.getByLabelText('Filtrar entregas por supervisor')
+    const analista = screen.getByLabelText('Filtrar entregas por analista')
+    const origen = screen.getByLabelText('Filtrar entregas por origen')
+
+    await usuario.selectOptions(supervisor, '00000000-0000-4000-8000-000000000002')
+    expect(within(analista).queryByRole('option', { name: 'BETO REPORTE' })).not.toBeInTheDocument()
+    await usuario.selectOptions(analista, '00000000-0000-4000-8000-000000000001')
+    await usuario.selectOptions(origen, 'landing')
+
+    expect(within(tabla).getByText('ANALISTA REPORTE')).toBeInTheDocument()
+    expect(within(tabla).getByText('LANDING')).toBeInTheDocument()
+    expect(within(tabla).getByText('2')).toBeInTheDocument()
+    expect(within(tabla).queryByText('Referido')).not.toBeInTheDocument()
+    expect(within(tabla).queryByText('BETO REPORTE')).not.toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Restablecer' }))
+    expect(supervisor).toHaveValue('')
+    expect(analista).toHaveValue('')
+    expect(origen).toHaveValue('')
+    expect(within(tabla).getByText('BETO REPORTE')).toBeInTheDocument()
   })
 
   it('da a Coordinación el historial de distribución sin abrir la ficha del lead', async () => {
@@ -287,6 +366,7 @@ describe('pantalla Repartir leads', () => {
     COLA = Array.from({ length: 21 }, (_, indice) => lead({
       id: `lead-${indice + 1}`,
       nombre_completo: `LEAD ${indice + 1}`,
+      creado_en: '2026-08-01T12:00:00Z',
     }))
     const usuario = userEvent.setup()
     render(<Repartir />)

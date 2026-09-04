@@ -3925,8 +3925,9 @@ function falloReporteDerivaciones(
 
 /**
  * Desglose diario y agregado de las derivaciones que cada supervisor entregó
- * a sus analistas. Coordinación recibe solo nombres, equipos y conteos; la RPC
- * no expone filas de leads ni datos de contacto.
+ * a sus analistas, incluido el origen histórico fotografiado en el ledger.
+ * Coordinación recibe solo nombres, equipos, orígenes y conteos; la RPC no
+ * expone filas de leads ni datos de contacto.
  */
 export async function listarReporteDerivacionesCoordinacion(
   desde: string,

@@ -1104,6 +1104,75 @@ function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
 }
 
 /**
+ * Contrato real de `crm.reporte_derivaciones_coordinacion_fn` para los E2E.
+ * Completa incluso los días sin movimiento y reconcilia el resumen legado por
+ * analista con el nuevo desglose por origen, igual que hace la RPC.
+ */
+function reporteDerivacionesCoordinacionReal(
+  filas: EntregaCoordinacionReal[],
+  desde: string,
+  hasta: string,
+): Record<string, unknown> {
+  const desdeMs = Date.parse(`${desde}T12:00:00Z`)
+  const hastaMs = Date.parse(`${hasta}T12:00:00Z`)
+  const fechas: string[] = []
+  if (Number.isFinite(desdeMs) && Number.isFinite(hastaMs) && desdeMs <= hastaMs) {
+    for (let cursor = hastaMs; cursor >= desdeMs; cursor -= 86_400_000) {
+      fechas.push(new Date(cursor).toISOString().slice(0, 10))
+    }
+  }
+
+  const dias = fechas.map((fecha) => {
+    const entregasAgrupadas = new Map<string, EntregaCoordinacionReal>()
+    for (const fila of filas.filter((item) => item.fecha === fecha)) {
+      const clave = `${fila.supervisor_id}:${fila.analista_id}:${fila.origen}`
+      const previa = entregasAgrupadas.get(clave)
+      entregasAgrupadas.set(clave, {
+        ...fila,
+        derivados: (previa?.derivados ?? 0) + fila.derivados,
+      })
+    }
+    const entregas = [...entregasAgrupadas.values()].sort((a, b) => (
+      a.analista_nombre.localeCompare(b.analista_nombre, 'es')
+      || a.origen.localeCompare(b.origen, 'es')
+    ))
+    const analistasAgrupados = new Map<
+      string,
+      Omit<EntregaCoordinacionReal, 'fecha' | 'origen'>
+    >()
+    for (const entrega of entregas) {
+      const clave = `${entrega.supervisor_id}:${entrega.analista_id}`
+      const previa = analistasAgrupados.get(clave)
+      analistasAgrupados.set(clave, {
+        analista_id: entrega.analista_id,
+        analista_nombre: entrega.analista_nombre,
+        supervisor_id: entrega.supervisor_id,
+        supervisor_nombre: entrega.supervisor_nombre,
+        derivados: (previa?.derivados ?? 0) + entrega.derivados,
+      })
+    }
+    const analistas = [...analistasAgrupados.values()].sort((a, b) => (
+      a.analista_nombre.localeCompare(b.analista_nombre, 'es')
+    ))
+    const totalDerivados = analistas.reduce((total, fila) => total + fila.derivados, 0)
+    return {
+      fecha,
+      total_derivados: totalDerivados,
+      analistas,
+      entregas,
+    }
+  })
+
+  return {
+    version: 1,
+    generado_en: new Date().toISOString(),
+    periodo: { desde, hasta, dias: fechas.length, zona: 'America/Lima' },
+    total_derivados: dias.reduce((total, dia) => total + dia.total_derivados, 0),
+    dias,
+  }
+}
+
+/**
  * crm.conversion_mensual_fn sin actividad: divisor 0, % NULL — el default del
  * mock, para que los specs de vacío sigan viendo su vacío honesto.
  */
@@ -1588,6 +1657,17 @@ export interface CierreEstadoReal {
   motivo: string | null
 }
 
+/** Fila agregada del ledger que alimenta el parte histórico de Coordinación. */
+export interface EntregaCoordinacionReal {
+  fecha: string
+  analista_id: string
+  analista_nombre: string
+  supervisor_id: string
+  supervisor_nombre: string
+  origen: string
+  derivados: number
+}
+
 export interface BackendReal {
   leads: LeadReal[]
   /** Estado del cierre por lead. VACÍO por defecto, que es el estado real de
@@ -1682,6 +1762,8 @@ export interface BackendReal {
   descartados: Record<string, unknown>[]
   /** C1 — destinos que devuelve crm.supervisores_para_reparto(). */
   supervisoresReparto: Record<string, unknown>[]
+  /** Entregas históricas ya agregadas por día, responsable y origen. */
+  entregasCoordinacion: EntregaCoordinacionReal[]
   /**
    * C1 — si está seteado, el próximo crm.repartir_lead responde ese SQLSTATE en
    * vez de repartir (P0429 = veto legal No Insista, P0002 = fuera de cola…).
@@ -1843,6 +1925,7 @@ export async function montarBackendReal(
     colaReparto: init.colaReparto ?? [],
     descartados: init.descartados ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
+    entregasCoordinacion: init.entregasCoordinacion ?? [],
     fallarProximoReparto: init.fallarProximoReparto ?? null,
     fallarProximoDescarte: init.fallarProximoDescarte ?? null,
     fallarProximoDeshacer: init.fallarProximoDeshacer ?? null,
@@ -2479,6 +2562,14 @@ export async function montarBackendReal(
     }
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
       return json(route, estado.supervisoresReparto)
+    }
+    if (p === '/rest/v1/rpc/reporte_derivaciones_coordinacion_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      return json(route, reporteDerivacionesCoordinacionReal(
+        estado.entregasCoordinacion,
+        String(body.p_desde ?? ''),
+        String(body.p_hasta ?? ''),
+      ))
     }
     if (p === '/rest/v1/rpc/panel_distribucion_reparto') {
       return json(route, {

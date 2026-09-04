@@ -20,7 +20,7 @@ de 366 días, no admite fechas futuras y se interpreta siempre en
 
 - Cuenta aperturas del ledger `crm.lead_asignaciones` con motivo `asignado` o
   `reasignado`, hechas por el mismo supervisor que entregó el lead.
-- Agrupa por fecha de Lima, analista y supervisor.
+- Agrupa por fecha de Lima, analista, supervisor y origen histórico.
 - Una devolución previa a la gestión, que regresa el lead a la misma bandeja
   del supervisor, deja de sumar. Es la misma regla de
   [[Derivar leads del supervisor - paginacion compacta]].
@@ -36,10 +36,25 @@ canónica del reparto: permite a Coordinación o Gerencia activas. Usa
 y una validación interna del rol. Un supervisor o analista autenticado recibe
 `42501`.
 
-El JSON no expone filas de leads, teléfonos, correos, DNI, notas ni capital:
-solo fechas, nombres/identificadores de responsables y conteos. La interfaz
-valida además que las fechas y los totales diarios reconcilien con el período
-pedido antes de mostrar la información.
+El JSON no expone PII de prospectos ni filas de leads: no contiene teléfonos,
+correos, DNI, notas ni capital. Sí incluye nombres/identificadores de
+colaboradores, fechas, orígenes y conteos, restringidos a
+Coordinación/Gerencia. La interfaz valida
+además que las fechas, el desglose por origen y los totales diarios reconcilien
+con el período pedido antes de mostrar la información.
+
+## Diseño operativo para la coordinadora
+
+La pestaña muestra primero el parte **Entregas por fecha, analista y origen**.
+Permite combinar filtros de supervisor, analista y origen; al elegir supervisor,
+el selector de analistas enseña únicamente su equipo. Cuatro indicadores
+resumen el resultado filtrado: leads entregados, analistas, orígenes y días con
+entregas. **Restablecer** vuelve a Ayer y limpia todos los filtros.
+
+La **Cartera activa actual** queda en un bloque separado debajo. Esa separación
+es deliberada: el primer bloque responde «qué entregó Coordinación en una
+fecha» usando el ledger; el segundo responde «dónde siguen los leads hoy» y
+puede cambiar con reasignaciones posteriores.
 
 ## Estado
 
@@ -59,6 +74,27 @@ en vivo (61 al byte, 14 imágenes HTTP 200 y `.htaccess` 403); el ZIP devuelve
 `dd86370aa674f056bc33f046ea5e93a57aeb75939b148c05ce3711588b4d109c`).
 No había un navegador conectado para el smoke visual autenticado; la interfaz
 sí quedó cubierta por 2.644 pruebas y por la identidad del bundle publicado.
+
+### Extensión por origen — base de datos en producción el 2026-09-04
+
+La migración
+`20260904174534_crm_reporte_derivaciones_origen_coordinacion` está aplicada y
+registrada en producción; conserva `dias[].analistas` por compatibilidad y
+añade `dias[].entregas` por origen. El registro guarda el cuerpo literal con
+MD5 `b2fa0249f50f64e4db72a08cd1b8968e`. Antes de aplicarla se ensayaron en
+`banco-f7` la migración, el oráculo transaccional y la reversa exacta; todos
+terminaron en verde. En producción se verificaron con una identidad autorizada
+el contrato aditivo, la conciliación diaria y total, la ausencia de PII de
+leads, las ACL y el índice. El único aviso relacionado de seguridad es el uso
+intencional de `SECURITY DEFINER` por `authenticated`, protegido dentro de la
+RPC por la puerta de Coordinación/Gerencia; el índice aparece como no usado
+antes de recibir tráfico, como corresponde. El respaldo privado previo es
+`releases/rollback-20260904174534-predeploy.sql` (SHA-256
+`0424d4b7f73e5d462606d3e40df8611064157f44b52718426d5a02147afe4750`).
+
+La nueva interfaz queda como el siguiente paso del mismo despliegue. Sus gates
+previos están verdes: 2.646/2.646 pruebas y flujo integral de Repartir 29/29 en
+Playwright.
 
 Relacionado con [[Acceso y roles del CRM]] y
 [[Distribución de leads por capital y trazabilidad CRM]].

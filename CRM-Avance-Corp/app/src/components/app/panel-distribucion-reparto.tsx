@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Network, UserRound, Users } from 'lucide-react'
 import { panelDistribucionReparto } from '@/data/crm-api'
 import {
+  etiquetaOrigen,
   ORIGENES_TODOS,
   type DistribucionAnalista,
   type DistribucionSupervisor,
@@ -11,7 +12,6 @@ import { paginar } from '@/lib/paginacion'
 import { Card } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
-import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
@@ -98,36 +98,33 @@ export function PanelDistribucionReparto() {
   )
   const supervisores = paginar(estado.datos?.supervisores ?? [], paginaSupervisores, POR_PAGINA)
   const analistas = paginar(estado.datos?.analistas ?? [], paginaAnalistas, POR_PAGINA)
-  const stats = useMemo<StatChipData[]>(() => [{
-    icon: Users,
-    label: 'Leads activos distribuidos',
-    value: estado.datos ? String(estado.datos.total_leads) : '—',
-    tone: estado.datos && estado.datos.total_leads > 0 ? 'primary' : 'default',
-    ...(estado.datos ? {} : { valorAccesible: estado.cargando ? 'cargando' : 'sin dato' }),
-    sub: 'Incluye todas las fuentes',
-  }], [estado.cargando, estado.datos])
-
   if (estado.cargando && !estado.datos) {
     return (
-      <Card className="overflow-hidden">
-        <SectionHead icon={Network} title="Panel de distribución" />
-        <PanelCargando filas={5} />
-      </Card>
+      <div className="space-y-4">
+        <ReporteDiarioDerivaciones />
+        <Card className="overflow-hidden">
+          <SectionHead icon={Network} title="Cartera activa actual" />
+          <PanelCargando filas={5} />
+        </Card>
+      </div>
     )
   }
 
   if (estado.error && !estado.datos) {
     return (
-      <Card className="overflow-hidden">
-        <SectionHead icon={Network} title="Panel de distribución" />
-        <PanelError mensaje={estado.error} onReintentar={() => void cargar()} reintentando={estado.cargando} />
-      </Card>
+      <div className="space-y-4">
+        <ReporteDiarioDerivaciones />
+        <Card className="overflow-hidden">
+          <SectionHead icon={Network} title="Cartera activa actual" />
+          <PanelError mensaje={estado.error} onReintentar={() => void cargar()} reintentando={estado.cargando} />
+        </Card>
+      </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <StatStrip stats={stats} />
+      <ReporteDiarioDerivaciones />
 
       <AvisoDegradacion
         activo={Boolean(estado.error)}
@@ -140,47 +137,63 @@ export function PanelDistribucionReparto() {
       <Card className="overflow-hidden">
         <SectionHead
           icon={Network}
-          title="Panel de distribución"
-          right={<span className="text-[11px] font-semibold text-muted-foreground">Solo conteos · sin etapas ni capacidad</span>}
+          title="Cartera activa actual"
+          right={(
+            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground" role="status">
+              {estado.cargando ? 'Actualizando…' : `${estado.datos?.total_leads ?? 0} activos`}
+            </span>
+          )}
         />
-        <div className="grid gap-2 border-t border-border px-5 py-3 sm:grid-cols-3">
-          <Select
-            value={filtros.supervisorId}
-            aria-label="Filtrar panel por supervisor"
-            onChange={(event) => cambiarFiltros({ supervisorId: event.target.value, analistaId: '' })}
-          >
-            <option value="">Todos los supervisores</option>
-            {(catalogo?.supervisores ?? []).map((supervisor) => (
-              <option key={supervisor.perfil_id} value={supervisor.perfil_id}>{supervisor.nombre}</option>
-            ))}
-          </Select>
-          <Select
-            value={filtros.analistaId}
-            aria-label="Filtrar panel por analista"
-            onChange={(event) => cambiarFiltros({ analistaId: event.target.value })}
-          >
-            <option value="">Todos los analistas</option>
-            {analistasElegibles.map((analista) => (
-              <option key={analista.perfil_id} value={analista.perfil_id}>{analista.nombre}</option>
-            ))}
-          </Select>
-          <Select
-            value={filtros.origen}
-            aria-label="Filtrar panel por origen"
-            onChange={(event) => cambiarFiltros({ origen: event.target.value })}
-          >
-            <option value="">Todos los orígenes</option>
-            {ORIGENES_TODOS.map((origen) => (
-              <option key={origen.k} value={origen.k}>{origen.label}</option>
-            ))}
-          </Select>
+        <p className="px-5 pb-3 text-xs text-muted-foreground">
+          Consulta dónde están hoy los leads que continúan activos. Esta foto no reemplaza el historial de entregas de arriba.
+        </p>
+        <div className="grid gap-3 border-t border-border bg-muted/15 px-5 py-4 sm:grid-cols-3">
+          <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+            Supervisor actual
+            <Select
+              value={filtros.supervisorId}
+              aria-label="Filtrar cartera actual por supervisor"
+              onChange={(event) => cambiarFiltros({ supervisorId: event.target.value, analistaId: '' })}
+            >
+              <option value="">Todos los supervisores</option>
+              {(catalogo?.supervisores ?? []).map((supervisor) => (
+                <option key={supervisor.perfil_id} value={supervisor.perfil_id}>{supervisor.nombre}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+            Analista actual
+            <Select
+              value={filtros.analistaId}
+              aria-label="Filtrar cartera actual por analista"
+              onChange={(event) => cambiarFiltros({ analistaId: event.target.value })}
+            >
+              <option value="">Todos los analistas</option>
+              {analistasElegibles.map((analista) => (
+                <option key={analista.perfil_id} value={analista.perfil_id}>{analista.nombre}</option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1.5 text-xs font-semibold text-foreground">
+            Origen
+            <Select
+              value={filtros.origen}
+              aria-label="Filtrar cartera actual por origen"
+              onChange={(event) => cambiarFiltros({ origen: event.target.value })}
+            >
+              <option value="">Todos los orígenes</option>
+              {ORIGENES_TODOS.map((origen) => (
+                <option key={origen.k} value={origen.k}>{origen.label}</option>
+              ))}
+            </Select>
+          </label>
         </div>
         <p className="border-t border-border px-5 py-2 text-xs text-muted-foreground">
-          Referidos y Walking están incluidos cuando el origen queda en «Todos».
+          {filtros.origen
+            ? `Mostrando únicamente el origen ${etiquetaOrigen(filtros.origen)}.`
+            : 'Incluye Referidos, LANDING, FORMULARIO, Walking y los orígenes históricos.'}
         </p>
       </Card>
-
-      <ReporteDiarioDerivaciones />
 
       <Card className="overflow-hidden">
         <SectionHead
