@@ -9569,11 +9569,11 @@ async function testIdentidadMultiempresa(sessions, seed) {
     // herencia al INSERT: se vuelve a vetar y un lead NUEVO del mismo documento nace vetado
     await positive('#5 re-marcar para probar herencia',
       sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'herencia' }));
-    await requireAdmin('#5 alta de un lead nuevo de la persona vetada (como el importador)',
-      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_IDENTIDAD.heredaVeto, nombre_completo: 'IDENTIDAD HEREDA VETO TRANSIENT', telefono: TEL_IDENTIDAD(47), dni: DOCS_IDENTIDAD.veto }));
-    assertions += 1;
-    if (cuenta('lead nuevo hereda', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.heredaVeto}' and no_contactar`) === 1) console.log('  ✓ #5 un lead nuevo de la persona vetada NACE vetado (cierra el bypass de importación)');
-    else fail('#5: el lead nuevo no heredó el veto');
+    // F2.b b1 (20260904120000): el lead nuevo de una persona vetada ya NO nace vetado: se RECHAZA (P0429, contrato §7.3).
+    await expectExpectedFailure('#5 alta de un lead nuevo de la persona vetada (como el importador) → P0429 (b1)',
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_IDENTIDAD.heredaVeto, nombre_completo: 'IDENTIDAD HEREDA VETO TRANSIENT', telefono: TEL_IDENTIDAD(47), dni: DOCS_IDENTIDAD.veto }),
+      ['P0429'], /No insistir/i);
+    check(cuenta('lead nuevo rechazado', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.heredaVeto}'`) === 0, '#5 el lead nuevo de la persona vetada no se insertó (b1 cierra el bypass de importación)');
     await positive('#5 limpieza: gerencia levanta', sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'limpieza gate' }));
 
     // ── Paridad con bandera APAGADA (aterrizaje aditivo) ─────────────────
@@ -9603,6 +9603,368 @@ async function testIdentidadMultiempresa(sessions, seed) {
       delete from public.perfiles where id='${IDS_IDENTIDAD.clienteNuevo}';
       delete from auth.users where id='${IDS_IDENTIDAD.clienteNuevo}';
       delete from crm.inversionistas where perfil_id='${bankProfileId}' or (id not in (select inversionista_id from crm.inversionista_identificadores) and not exists (select 1 from crm.leads l where l.inversionista_id=crm.inversionistas.id) and not exists (select 1 from crm.inversiones v where v.inversionista_id=crm.inversionistas.id));
+    `, { tolerante: true });
+  }
+}
+
+// ── Identidad multiempresa F2.b (sub-lotes b1 + b2) ──────────────────────────
+// Hermano de testIdentidadMultiempresa: mismos helpers, misma vía fuera de banda,
+// misma bandera. Corre justo después.
+//   b1 (20260904120000): con la bandera ENCENDIDA todo INSERT en crm.leads y todo
+//   cambio de dni pasan por el documento EXACTO (identificador vigente+verificado):
+//   persona vetada → P0429 (DETAIL sin documento) · persona con lead → P0481
+//   ya_es_cliente vía identidad · persona sin lead → el lead nace ENLAZADO (+ puente
+//   canónico) · dni de un lead enlazado → P0409 (solo Gerencia corrige) · un
+//   inversionista_id forjado nunca sobrevive · el reingreso del importador queda como
+//   actividad 'nota' SIN documento en claro.
+//   b2 (20260904130000): reparto, derivación, reversión, toma, reapertura y
+//   seguimiento respetan el veto de la PERSONA — también sobre leads SUELTOS que solo
+//   comparten el documento — y marcar_no_contactar cancela las tareas pendientes.
+//   Con la bandera APAGADA todo devuelve lo de hoy (paridad).
+// Las funciones privadas se acreditan por CATÁLOGO (has_function_privilege +
+// aclexplode): jamás se llama por SQL a una función sin EXECUTE (memoria 20/08).
+const IDS_F2B = Object.freeze({
+  // b1
+  conLead: randomUUID(),        // convertido por coop → persona CON lead
+  nace: randomUUID(),           // suelto → UPDATE dni hacia persona reconocida → P0409, sin enlace (#2, v3)
+  naceInsert: randomUUID(),     // INSERT sin sesión con dni de persona sin lead → nace ENLAZADO + puente (#2b); cambiar su dni → P0409 (#1)
+  ocupado: randomUUID(),        // suelto → UPDATE dni con doc de persona con lead → P0481 (#3)
+  forjadoSinDni: randomUUID(),  // INSERT con sesión + inversionista_id forjado, sin dni (#4a)
+  forjadoConDni: randomUUID(),  // INSERT con sesión + inversionista_id forjado + dni con identidad (#4b)
+  vetoUpdate: randomUUID(),     // suelto → UPDATE dni con doc de persona vetada → P0429 (#7) / pasa OFF (#8)
+  vetoInsert: randomUUID(),     // INSERT service_role con doc vetado → P0429 (#7) / pasa OFF (#8)
+  offEnlace: randomUUID(),      // OFF: UPDATE dni con doc de identidad sin lead → sin enlace (#8)
+  offOcupado: randomUUID(),     // OFF: UPDATE dni con doc de persona con lead → pasa (#8)
+  // b2
+  l1: randomUUID(), l2: randomUUID(), l3: randomUUID(), l4: randomUUID(),  // enlazados por coop → se vetan
+  lu1: randomUUID(),            // suelto en BOLSA (doc a): repartir / cola / tomar
+  lu2: randomUUID(),            // suelto en bandeja de sup1 (doc b): derivar
+  lu3: randomUUID(),            // suelto derivado a vend1 ANTES del veto (doc c): revertir / seguimiento
+  lu4: randomUUID(),            // suelto en BOLSA (doc d): descartar → deshacer
+  lu5: randomUUID(),            // enlazado al nacer (doc e): tarea pendiente → marcar la cancela
+});
+const TAREA_F2B = randomUUID();
+// Documentos POR CORRIDA con prefijo 8 (los del bloque hermano llevan 7): sin choques.
+const DOCS_F2B = Object.freeze({
+  conLead: `8${RUN_IDENTIDAD}001`, sinLead: `8${RUN_IDENTIDAD}002`, sinLead2: `8${RUN_IDENTIDAD}003`,
+  sinLeadOff: `8${RUN_IDENTIDAD}004`, vetada: `8${RUN_IDENTIDAD}005`,
+  a: `8${RUN_IDENTIDAD}011`, b: `8${RUN_IDENTIDAD}012`, c: `8${RUN_IDENTIDAD}013`, d: `8${RUN_IDENTIDAD}014`, e: `8${RUN_IDENTIDAD}015`,
+  libre: `8${RUN_IDENTIDAD}090`,   // sin identidad (captación): nunca resuelve
+});
+// 9 dígitos; n ≥ 100 para no pisar TEL_IDENTIDAD (que usa 00NN).
+const TEL_F2B = (n) => `9${RUN_IDENTIDAD}${String(n).padStart(4, '0')}`;
+const FIRMAS_F2B_B1 = Object.freeze([
+  'private.inversionista_por_documento(text,text)',
+  'private.identidad_bloquear_documento(text,text)',
+  'private.identidad_bloquear_persona(text,text)',
+]);
+const FIRMAS_F2B_B2 = Object.freeze([
+  'private.persona_vetada(uuid)',
+  'private.leads_vetados_persona(uuid[])',
+]);
+
+async function testIdentidadF2b(sessions, seed) {
+  console.log('\n— Identidad multiempresa F2.b: el alta reconoce a la persona (b1) y el veto de la persona bloquea mutaciones (b2) —');
+  const ids = seed.profileIdByKey;
+  const vend1Id = ids.vend1;
+  const sup1Id = ids.sup1;
+  const sufijo = randomUUID().slice(0, 8);
+  const trx = (n) => `TRX-F2B-${sufijo}-${n}`;
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const coop = (clave, leadId, doc, n) => sessions[clave].client.schema('crm')
+    .rpc('convertir_lead_externo', {
+      p_lead_id: leadId, p_cooperativa: 'qorilazo', p_monto: 1000, p_moneda: 'PEN',
+      p_documento_tipo: 'DNI', p_documento: doc, p_nombre: 'F2B TRANSIENT',
+      p_numero_transaccion: trx(n),
+    });
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b: ${etiqueta}`, sql);
+  const invDe = (doc) => `private.inversionista_por_documento('DNI','${doc}')`;
+  const lista = (arr) => `'${arr.join("','")}'`;
+  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
+  const bolsa = { ...leadBase, creado_por: null, vendedor_id: null };
+  const updDni = (clave, leadId, dni) => sessions[clave].client.schema('crm').from('leads').update({ dni }).eq('id', leadId).select('id');
+  const actividad = (leadId, detalle) => sessions.vend1.client.schema('crm').from('actividades')
+    .insert({ lead_id: leadId, tipo: 'llamada_realizada', detalle, creado_por: vend1Id }).select('id');
+  const tarea = (leadId, titulo, id) => sessions.vend1.client.schema('crm').from('tareas')
+    .insert({ ...(id ? { id } : {}), lead_id: leadId, tipo: 'llamada', titulo, vence_en: new Date(Date.now() + 86_400_000).toISOString(), creado_por: vend1Id }).select('id');
+  const sinDocumento = (error) => ![error?.message, error?.details, error?.hint]
+    .some((campo) => String(campo ?? '').includes(DOCS_F2B.vetada));
+  // EXECUTE residual sobre un juego de firmas para un juego de roles (+ PUBLIC, que
+  // has_function_privilege enmascara: se mira aclexplode con grantee = 0).
+  const ejecutablesResiduales = (firmas, roles) => cuenta('EXECUTE residual',
+    `select count(*) from unnest(array[${lista(firmas)}]) f(firma), unnest(array[${lista(roles)}]) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`)
+    + cuenta('PUBLIC residual',
+      `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${firmas.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`);
+  const leadIds = Object.values(IDS_F2B);
+  const sueltosB2 = [IDS_F2B.lu1, IDS_F2B.lu2, IDS_F2B.lu3, IDS_F2B.lu4];
+
+  // Precondición: b1 y b2 aplicados en el banco. Sin ellos no hay nada que medir.
+  if (cuenta('b1+b2 aplicados', `select (to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is not null)::int + (to_regprocedure('private.persona_vetada(uuid)') is not null)::int`) !== 2) {
+    fail('F2.b: faltan las migraciones 20260904120000 (b1) y/o 20260904130000 (b2) en el banco');
+    return;
+  }
+
+  try {
+    // ── 0 · fixtures ─────────────────────────────────────────────────────
+    // Leads b1 SIN dni (el documento entra por el UPDATE/INSERT que se mide) y los
+    // leads b2 SUELTOS con documento, nacidos con la bandera APAGADA (hoy no enlaza).
+    flag(false);
+    await requireAdmin('F2.b: sembrar los leads (bandera apagada)',
+      admin.schema('crm').from('leads').insert([
+        { ...leadBase, id: IDS_F2B.conLead,    nombre_completo: 'F2B CON LEAD TRANSIENT',    telefono: TEL_F2B(101) },
+        { ...leadBase, id: IDS_F2B.nace,       nombre_completo: 'F2B NACE TRANSIENT',        telefono: TEL_F2B(102) },
+        { ...leadBase, id: IDS_F2B.ocupado,    nombre_completo: 'F2B OCUPADO TRANSIENT',     telefono: TEL_F2B(103) },
+        { ...leadBase, id: IDS_F2B.vetoUpdate, nombre_completo: 'F2B VETO UPDATE TRANSIENT', telefono: TEL_F2B(104) },
+        { ...leadBase, id: IDS_F2B.offEnlace,  nombre_completo: 'F2B OFF ENLACE TRANSIENT',  telefono: TEL_F2B(105) },
+        { ...leadBase, id: IDS_F2B.offOcupado, nombre_completo: 'F2B OFF OCUPADO TRANSIENT', telefono: TEL_F2B(106) },
+        { ...leadBase, id: IDS_F2B.l1, nombre_completo: 'F2B L1 TRANSIENT', telefono: TEL_F2B(111) },
+        { ...leadBase, id: IDS_F2B.l2, nombre_completo: 'F2B L2 TRANSIENT', telefono: TEL_F2B(112) },
+        { ...leadBase, id: IDS_F2B.l3, nombre_completo: 'F2B L3 TRANSIENT', telefono: TEL_F2B(113) },
+        { ...leadBase, id: IDS_F2B.l4, nombre_completo: 'F2B L4 TRANSIENT', telefono: TEL_F2B(114) },
+        { ...bolsa, id: IDS_F2B.lu1, nombre_completo: 'F2B LU1 BOLSA TRANSIENT',    telefono: TEL_F2B(121), dni: DOCS_F2B.a },
+        { ...bolsa, id: IDS_F2B.lu2, nombre_completo: 'F2B LU2 BANDEJA TRANSIENT',  telefono: TEL_F2B(122), dni: DOCS_F2B.b, asignado_supervisor_id: sup1Id },
+        { ...bolsa, id: IDS_F2B.lu3, nombre_completo: 'F2B LU3 DERIVADO TRANSIENT', telefono: TEL_F2B(123), dni: DOCS_F2B.c, asignado_supervisor_id: sup1Id },
+        { ...bolsa, id: IDS_F2B.lu4, nombre_completo: 'F2B LU4 BOLSA TRANSIENT',    telefono: TEL_F2B(124), dni: DOCS_F2B.d },
+      ]));
+    check(cuenta('sueltos sin enlace', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and inversionista_id is null and no_contactar=false`) === 4,
+      'F2.b #0 los 4 leads sueltos nacen sin enlace ni veto con la bandera apagada');
+
+    flag(true);
+    // Identidades SIN lead (por el resolver, como el arnés) y una persona vetada SIN
+    // lead: el veto vive en la IDENTIDAD, no en un lead — así b1 mide el veto de la
+    // persona y no el veto del lead (que hoy ya frena por teléfono/dni).
+    ejecutarFueraDeBanda('F2.b: identidades sin lead', `
+      select private.inversionista_resolver('DNI','${DOCS_F2B.sinLead}',true,'gate_f2b');
+      select private.inversionista_resolver('DNI','${DOCS_F2B.sinLead2}',true,'gate_f2b');
+      select private.inversionista_resolver('DNI','${DOCS_F2B.sinLeadOff}',true,'gate_f2b');
+      select private.inversionista_resolver('DNI','${DOCS_F2B.vetada}',true,'gate_f2b');
+      select private.inversionista_resolver('DNI','${DOCS_F2B.e}',true,'gate_f2b');
+      select set_config('crm.op_privilegiada','on',true);
+      update crm.inversionistas set no_contactar=true, no_contactar_en=now(), no_contactar_por='${vend1Id}' where id=${invDe(DOCS_F2B.vetada)};`);
+    check(cuenta('identidades sembradas', `select count(*) from crm.inversionista_identificadores i where i.documento_normalizado in (${lista([DOCS_F2B.sinLead, DOCS_F2B.sinLead2, DOCS_F2B.sinLeadOff, DOCS_F2B.vetada, DOCS_F2B.e])}) and i.estado='vigente' and i.verificado`) === 5,
+      'F2.b #0 cinco identidades vigentes+verificadas sin lead');
+    check(cuenta('persona vetada sin lead', `select count(*) from crm.inversionistas where id=${invDe(DOCS_F2B.vetada)} and no_contactar`) === 1, 'F2.b #0 la persona vetada (sin lead) quedó vetada en la identidad');
+    // Persona CON lead: conLead convertido por coop (queda enlazado).
+    await positive('F2.b #0 vend1 convierte por coop → persona CON lead', coop('vend1', IDS_F2B.conLead, DOCS_F2B.conLead, 'C'));
+    check(cuenta('conLead enlazado', `select count(*) from crm.leads where id='${IDS_F2B.conLead}' and inversionista_id=${invDe(DOCS_F2B.conLead)}`) === 1, 'F2.b #0 la conversión enlazó el lead a su persona');
+
+    // ══ b1 ═══════════════════════════════════════════════════════════════
+    // ── #2 (v3) · UPDATE dni de un lead SUELTO hacia una persona reconocida → P0409, NUNCA enlaza ─
+    // (en UPDATE la fila ya está bloqueada: enlazar ahí sería lead→identidad; el enlace de un suelto es corrección/fusión de Gerencia, b5)
+    await expectExpectedFailure('b1 #2 vend1 no puede poner en su lead suelto el dni de una persona reconocida → P0409',
+      updDni('vend1', IDS_F2B.nace, DOCS_F2B.sinLead), ['P0409'], /Gerencia/i);
+    check(cuenta('nace sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.nace}' and dni is null and inversionista_id is null`) === 1,
+      'b1 #2 el lead suelto sigue sin dni y sin enlace');
+    // ── #2b · el enlace al NACER (alta sin sesión, como el importador) → enlazado + puente ─
+    await requireAdmin('b1 #2b alta sin sesión con el dni de una persona sin lead',
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_F2B.naceInsert, nombre_completo: 'F2B NACE INSERT TRANSIENT', telefono: TEL_F2B(109), dni: DOCS_F2B.sinLead }));
+    check(cuenta('nace enlazado', `select count(*) from crm.leads where id='${IDS_F2B.naceInsert}' and inversionista_id=${invDe(DOCS_F2B.sinLead)}`) === 1,
+      'b1 #2b el lead NACIÓ enlazado (inversionista_id = identidad del documento)');
+    check(cuenta('puente canónico', `select count(*) from crm.inversionista_leads where lead_id='${IDS_F2B.naceInsert}' and inversionista_id=${invDe(DOCS_F2B.sinLead)} and rol='canonico'`) === 1,
+      'b1 #2b apareció el puente canónico en crm.inversionista_leads');
+
+    // ── #1 · UPDATE dni de un lead ENLAZADO → P0409 (solo Gerencia corrige el documento) ─
+    await expectExpectedFailure('b1 #1 vend1 no cambia el dni de un lead enlazado → P0409',
+      updDni('vend1', IDS_F2B.naceInsert, DOCS_F2B.libre), ['P0409'], /Gerencia/i);
+    check(cuenta('enlazado intacto', `select count(*) from crm.leads where id='${IDS_F2B.naceInsert}' and dni='${DOCS_F2B.sinLead}' and inversionista_id=${invDe(DOCS_F2B.sinLead)}`) === 1,
+      'b1 #1 el lead enlazado conserva dni y enlace');
+
+    // ── #3 · UPDATE dni con el documento de una persona CON lead → P0481 ya_es_cliente, nada cambia ─
+    {
+      const { error } = await updDni('vend1', IDS_F2B.ocupado, DOCS_F2B.conLead);
+      check(error?.code === 'P0481' && /Contacto no disponible/i.test(error?.message ?? '') && /ya_es_cliente/.test(String(error?.details ?? '')),
+        'b1 #3 vendedor: dni de una persona que ya tiene lead → P0481 con veredicto ya_es_cliente', errorText(error));
+    }
+    await expectBlockedMutation('b1 #3 coordinador: dni de una persona que ya tiene lead → denegado',
+      updDni('coordinador', IDS_F2B.ocupado, DOCS_F2B.conLead), ['P0481']);
+    check(cuenta('ocupado intacto', `select count(*) from crm.leads where id='${IDS_F2B.ocupado}' and dni is null and inversionista_id is null`) === 1,
+      'b1 #3 nada cambió en el lead (sin dni, sin enlace)');
+    check(cuenta('un solo lead', `select count(*) from crm.leads where inversionista_id=${invDe(DOCS_F2B.conLead)}`) === 1,
+      'b1 #3 la persona sigue con UN solo lead');
+
+    // ── #4 · INSERT con sesión e inversionista_id FORJADO: NULL o recalculado por dni, nunca el forjado ─
+    // El forjado es un uuid al azar: si sobreviviera a los BEFORE (protege + zz) lo
+    // cazaría la FK (23503) — y eso sería un FALLO, no un candado.
+    const insertForjado = (id, tel, dni) => sessions.vend1.client.schema('crm').from('leads')
+      .insert({ ...leadBase, id, nombre_completo: 'F2B FORJADO TRANSIENT', telefono: tel, dni, inversionista_id: randomUUID() }).select('id');
+    {
+      const { error } = await insertForjado(IDS_F2B.forjadoSinDni, TEL_F2B(107), null);
+      if (error) {
+        check(isAuthorizationError(error), 'b1 #4a el INSERT directo con inversionista_id forjado (sin dni) se rechaza por permisos (RLS/grant por columna)', errorText(error));
+      } else {
+        check(cuenta('forjado sin dni', `select count(*) from crm.leads where id='${IDS_F2B.forjadoSinDni}' and inversionista_id is null`) === 1,
+          'b1 #4a el forjado se ignoró: nace con inversionista_id NULL (sin dni)');
+      }
+    }
+    {
+      const { error } = await insertForjado(IDS_F2B.forjadoConDni, TEL_F2B(108), DOCS_F2B.sinLead2);
+      if (error) {
+        check(isAuthorizationError(error), 'b1 #4b el INSERT directo con inversionista_id forjado (con dni) se rechaza por permisos (RLS/grant por columna)', errorText(error));
+      } else {
+        check(cuenta('forjado con dni', `select count(*) from crm.leads where id='${IDS_F2B.forjadoConDni}' and inversionista_id=${invDe(DOCS_F2B.sinLead2)}`) === 1,
+          'b1 #4b el forjado se ignoró: nace enlazado a la persona de SU dni (recalculado)');
+      }
+    }
+
+    // ── #5 · anon / authenticated no alcanzan la RPC de reingreso; los helpers privados no tienen EXECUTE ─
+    const anonF2b = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-f2b'));
+    const reingreso = (client) => client.schema('crm').rpc('registrar_reingreso_lead_fn', { p_lead_id: IDS_F2B.conLead, p_origen: 'hoja', p_datos: {} });
+    await expectExplicitAuthorizationDenied('b1 #5 anon no ejecuta registrar_reingreso_lead_fn', reingreso(anonF2b), ['42501', 'PGRST202']);
+    // El MENSAJE debe ser el del ACL: el cuerpo también lanza 42501 cuando hay sesión,
+    // y ese 42501 significaría que la puerta SÍ abrió (patrón F7.1).
+    for (const clave of ['vend1', 'sup1', 'gerencia', 'coordinador']) {
+      const { error } = await reingreso(sessions[clave].client);
+      check(error?.code === '42501' && /permission denied/i.test(error?.message ?? ''),
+        `b1 #5 ${clave} (authenticated) no ejecuta registrar_reingreso_lead_fn por ACL`, errorText(error));
+    }
+    check(ejecutablesResiduales([...FIRMAS_F2B_B1, 'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)'], ['anon', 'authenticated']) === 0,
+      'b1 #5 anon/authenticated (ni PUBLIC) sin EXECUTE sobre inversionista_por_documento / identidad_bloquear_documento / identidad_bloquear_persona / registrar_reingreso_lead_fn');
+    check(ejecutablesResiduales(FIRMAS_F2B_B1, ['service_role']) === 0, 'b1 #5 service_role sin EXECUTE sobre los helpers privados de b1');
+
+    // ── #6 · service_role: bandera_activa y el reingreso (actividad nota sin documento en claro) ─
+    const band = await positive('b1 #6 service_role lee crm.bandera_activa', admin.schema('crm').rpc('bandera_activa', { p_nombre: 'resolver_en_puertas' }));
+    check(band?.data === true, 'b1 #6 bandera_activa(resolver_en_puertas) = true con la bandera encendida', JSON.stringify(band?.data));
+    const rein = await positive('b1 #6 service_role registra el reingreso del cliente que vuelve por la hoja',
+      admin.schema('crm').rpc('registrar_reingreso_lead_fn', { p_lead_id: IDS_F2B.conLead, p_origen: 'hoja', p_datos: { nombre: 'F2B', telefono: TEL_F2B(101), dni: DOCS_F2B.conLead, capital: 5000 } }));
+    check(rein?.data?.ok === true, 'b1 #6 el reingreso devolvió ok', JSON.stringify(rein?.data));
+    check(cuenta('actividad de reingreso', `select count(*) from crm.actividades where lead_id='${IDS_F2B.conLead}' and tipo='nota' and metadata->>'evento'='reingreso' and not (metadata->'datos' ? 'dni') and (metadata->'datos' ? 'telefono')`) === 1,
+      'b1 #6 actividad nota evento=reingreso con teléfono y SIN clave dni en metadata.datos');
+
+    // ── #7 · persona VETADA: el alta directa (service_role) y el UPDATE de dni → P0429, DETAIL sin documento ─
+    {
+      const { error } = await admin.schema('crm').from('leads')
+        .insert({ ...leadBase, id: IDS_F2B.vetoInsert, nombre_completo: 'F2B VETO INSERT TRANSIENT', telefono: TEL_F2B(109), dni: DOCS_F2B.vetada }).select('id');
+      check(error?.code === 'P0429' && /No insistir/i.test(error?.message ?? '') && sinDocumento(error),
+        'b1 #7 INSERT service_role (importador) con documento de persona vetada → P0429, sin documento en el DETAIL', errorText(error));
+    }
+    {
+      const { error } = await updDni('vend1', IDS_F2B.vetoUpdate, DOCS_F2B.vetada);
+      check(error?.code === 'P0429' && /No insistir/i.test(error?.message ?? '') && sinDocumento(error),
+        'b1 #7 UPDATE dni de vendedor con documento de persona vetada → P0429, sin documento en el DETAIL', errorText(error));
+    }
+    check(cuenta('veto insert no nació', `select count(*) from crm.leads where id='${IDS_F2B.vetoInsert}'`) === 0
+      && cuenta('veto update intacto', `select count(*) from crm.leads where id='${IDS_F2B.vetoUpdate}' and dni is null and inversionista_id is null`) === 1,
+    'b1 #7 no nació el lead de la persona vetada y el suelto no cambió');
+
+    // ── #8 · paridad con la bandera APAGADA: 1, 2, 3 y 7 devuelven lo de hoy ─
+    flag(false);
+    await positive('b1 #8 OFF: cambiar el dni de un lead enlazado pasa como hoy (sin P0409)', updDni('vend1', IDS_F2B.naceInsert, DOCS_F2B.libre));
+    check(cuenta('OFF dni cambiado', `select count(*) from crm.leads where id='${IDS_F2B.naceInsert}' and dni='${DOCS_F2B.libre}'`) === 1, 'b1 #8 OFF (#1): el dni cambió sin puerta de identidad');
+    await positive('b1 #8 OFF: dni de una persona sin lead pasa sin enlazar', updDni('vend1', IDS_F2B.offEnlace, DOCS_F2B.sinLeadOff));
+    check(cuenta('OFF sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.offEnlace}' and dni='${DOCS_F2B.sinLeadOff}' and inversionista_id is null`) === 1
+      && cuenta('OFF sin puente', `select count(*) from crm.inversionista_leads where lead_id='${IDS_F2B.offEnlace}'`) === 0,
+    'b1 #8 OFF (#2): sin enlace y sin puente');
+    await positive('b1 #8 OFF: dni de una persona con lead pasa como hoy (sin P0481 por identidad)', updDni('vend1', IDS_F2B.offOcupado, DOCS_F2B.conLead));
+    check(cuenta('OFF ocupado sin enlace', `select count(*) from crm.leads where id='${IDS_F2B.offOcupado}' and dni='${DOCS_F2B.conLead}' and inversionista_id is null`) === 1, 'b1 #8 OFF (#3): el dni entró y no hubo enlace');
+    // (#7) primero el UPDATE y luego el INSERT: el índice único de dni entre vivos no
+    // admite los dos a la vez, así que el suelto suelta el documento antes del alta.
+    await positive('b1 #8 OFF: dni de una persona vetada en un UPDATE pasa como hoy (sin P0429)', updDni('vend1', IDS_F2B.vetoUpdate, DOCS_F2B.vetada));
+    check(cuenta('OFF veto update', `select count(*) from crm.leads where id='${IDS_F2B.vetoUpdate}' and dni='${DOCS_F2B.vetada}' and inversionista_id is null and no_contactar=false`) === 1, 'b1 #8 OFF (#7): el UPDATE pasó sin enlace ni veto heredado');
+    await positive('b1 #8 OFF: el suelto devuelve el documento', updDni('vend1', IDS_F2B.vetoUpdate, null));
+    await positive('b1 #8 OFF: INSERT service_role con documento de persona vetada pasa como hoy (sin P0429)',
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_F2B.vetoInsert, nombre_completo: 'F2B VETO INSERT TRANSIENT', telefono: TEL_F2B(109), dni: DOCS_F2B.vetada }).select('id'));
+    check(cuenta('OFF veto insert', `select count(*) from crm.leads where id='${IDS_F2B.vetoInsert}' and inversionista_id is null and no_contactar=false`) === 1
+      && cuenta('OFF veto insert sin puente', `select count(*) from crm.inversionista_leads where lead_id='${IDS_F2B.vetoInsert}'`) === 0,
+    'b1 #8 OFF (#7): el alta nació sin enlace y sin veto heredado');
+
+    // ══ b2 ═══════════════════════════════════════════════════════════════
+    flag(true);
+    // Personas a–d: su lead enlazado (coop) se veta con marcar_no_contactar → el veto sube
+    // a la IDENTIDAD; los sueltos lu1..lu4 solo comparten el documento (sin veto propio).
+    for (const [lead, doc, n] of [[IDS_F2B.l1, DOCS_F2B.a, '1'], [IDS_F2B.l2, DOCS_F2B.b, '2'], [IDS_F2B.l3, DOCS_F2B.c, '3'], [IDS_F2B.l4, DOCS_F2B.d, '4']]) {
+      await positive(`b2 #0 vend1 convierte por coop (persona ${n})`, coop('vend1', lead, doc, n));
+    }
+    // Antes del veto: sup1 deriva lu3 a vend1 (persona aún sin veto → pasa) y lu5 nace
+    // enlazado por b1 con una tarea pendiente de vend1.
+    await positive('b2 #0 sup1 deriva lu3 a vend1 antes del veto (pasa)',
+      sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', { p_lead_ids: [IDS_F2B.lu3], p_asesor_ids: [vend1Id] }));
+    check(cuenta('lu3 derivado', `select count(*) from crm.leads where id='${IDS_F2B.lu3}' and vendedor_id='${vend1Id}'`) === 1, 'b2 #0 lu3 quedó con vend1');
+    await requireAdmin('b2 #0 lu5 nace enlazado a la persona e (b1)',
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_F2B.lu5, nombre_completo: 'F2B LU5 ENLAZADO TRANSIENT', telefono: TEL_F2B(125), dni: DOCS_F2B.e }));
+    check(cuenta('lu5 enlazado', `select count(*) from crm.leads where id='${IDS_F2B.lu5}' and inversionista_id=${invDe(DOCS_F2B.e)}`) === 1, 'b2 #0 lu5 nació enlazado');
+    await positive('b2 #0 vend1 agenda una tarea pendiente en lu5', tarea(IDS_F2B.lu5, 'F2B TAREA TRANSIENT', TAREA_F2B));
+    check(cuenta('tarea pendiente', `select count(*) from crm.tareas where id='${TAREA_F2B}' and estado='pendiente'`) === 1, 'b2 #0 la tarea de lu5 está pendiente');
+    // El veto de las 5 personas, por su lead enlazado.
+    for (const [lead, n] of [[IDS_F2B.l1, '1'], [IDS_F2B.l2, '2'], [IDS_F2B.l3, '3'], [IDS_F2B.l4, '4'], [IDS_F2B.lu5, '5']]) {
+      await positive(`b2 #0 vend1 marca no_contactar (persona ${n})`, sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: lead, p_motivo: 'gate f2b' }));
+    }
+    check(cuenta('personas vetadas', `select count(*) from crm.inversionistas i where i.no_contactar and i.id in (${[DOCS_F2B.a, DOCS_F2B.b, DOCS_F2B.c, DOCS_F2B.d, DOCS_F2B.e].map(invDe).join(',')})`) === 5, 'b2 #0 las 5 personas quedaron vetadas');
+    check(cuenta('sueltos siguen sueltos', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and no_contactar=false and inversionista_id is null`) === 4,
+      'b2 #0 los 4 sueltos siguen SIN veto propio y SIN enlace (solo la persona los veta)');
+    check(cuenta('persona_vetada', `select private.persona_vetada('${IDS_F2B.lu1}')::int + private.persona_vetada('${IDS_F2B.lu5}')::int`) === 2,
+      'b2 #0 persona_vetada(): por documento (suelto) y por enlace');
+
+    // ── #9 · mutaciones sobre sueltos de personas vetadas → P0429 / veredicto ─
+    await expectExpectedFailure('b2 #9 gerencia no reparte un suelto de persona vetada → P0429',
+      sessions.gerencia.client.schema('crm').rpc('repartir_lead', { p_lead: IDS_F2B.lu1, p_supervisor: sup1Id }), ['P0429'], /No insistir/i);
+    const cola = await positive('b2 #9 coordinador lee la cola de reparto', sessions.coordinador.client.schema('crm').rpc('leads_por_repartir'));
+    check(Array.isArray(cola?.data) && !cola.data.some((f) => f.id === IDS_F2B.lu1 || f.id === IDS_F2B.lu4),
+      'b2 #9 la cola (leads_por_repartir_implementacion) no lista los sueltos de personas vetadas');
+    const resumen = await positive('b2 #9 coordinador lee el resumen de reparto', sessions.coordinador.client.schema('crm').rpc('resumen_reparto_fn'));
+    check(Number(resumen?.data?.cola?.total) === (cola?.data?.length ?? -1),
+      'b2 #9 resumen_reparto_fn cuenta lo mismo que la cola', `${resumen?.data?.cola?.total} vs ${cola?.data?.length}`);
+    const toma = await positive('b2 #9 vend1 intenta tomar el suelto de la bolsa por teléfono',
+      sessions.vend1.client.schema('crm').rpc('tomar_lead_libre', { p_telefono: TEL_F2B(121), p_dni: null }));
+    check(toma?.data?.estado === 'no_contactar'
+      && cuenta('lu1 sigue en bolsa', `select count(*) from crm.leads where id='${IDS_F2B.lu1}' and vendedor_id is null and asignado_supervisor_id is null`) === 1,
+    'b2 #9 tomar_lead_libre → veredicto no_contactar y el lead sigue en la bolsa', JSON.stringify(toma?.data));
+    await expectExpectedFailure('b2 #9 sup1 no deriva un suelto de persona vetada → P0429',
+      sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', { p_lead_ids: [IDS_F2B.lu2], p_asesor_ids: [vend1Id] }), ['P0429'], /No insistir/i);
+    await expectExpectedFailure('b2 #9 sup1 no devuelve a la bandeja (revertir) un suelto de persona vetada → P0429',
+      sessions.sup1.client.schema('crm').rpc('revertir_derivacion_equipo_fn', { p_lead_id: IDS_F2B.lu3 }), ['P0429'], /No insistir/i);
+    await expectExpectedFailure('b2 #9 vend1 no registra una actividad humana sobre lu3 → P0429',
+      actividad(IDS_F2B.lu3, 'F2B SEGUIMIENTO BLOQUEADO TRANSIENT'), ['P0429'], /No insistir/i);
+    await expectExpectedFailure('b2 #9 vend1 no agenda una tarea humana sobre lu3 → P0429',
+      tarea(IDS_F2B.lu3, 'F2B TAREA BLOQUEADA TRANSIENT'), ['P0429'], /No insistir/i);
+    await positive('b2 #9 coordinador descarta lu4 desde la cola (cerrar no es contactar)',
+      sessions.coordinador.client.schema('crm').rpc('descartar_lead', { p_lead: IDS_F2B.lu4, p_motivo: 'pide_credito', p_nota: 'gate f2b' }));
+    check(cuenta('lu4 descartado', `select count(*) from crm.leads where id='${IDS_F2B.lu4}' and etapa='descartado'`) === 1, 'b2 #9 lu4 quedó descartado');
+    await expectExpectedFailure('b2 #9 coordinador no deshace el descarte de una persona vetada → P0429',
+      sessions.coordinador.client.schema('crm').rpc('deshacer_descarte', { p_lead: IDS_F2B.lu4 }), ['P0429'], /No insistir/i);
+
+    // ── #10 · marcar cancela las tareas pendientes; levantar no las revive ─
+    check(cuenta('tarea cancelada por sistema', `select count(*) from crm.tareas where id='${TAREA_F2B}' and estado='cancelada' and cancelada_por='sistema'`) === 1,
+      'b2 #10 marcar_no_contactar canceló la tarea pendiente de la persona (cancelada_por = sistema)');
+    check(cuenta('nota del veto', `select count(*) from crm.actividades where lead_id='${IDS_F2B.lu5}' and metadata->>'evento'='no_contactar'`) === 1,
+      'b2 #10 la nota de marcar entró bajo la válvula (el trigger de gestión la exime)');
+    await positive('b2 #10 gerencia levanta el veto de la persona e',
+      sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_F2B.lu5, p_motivo: 'gate f2b' }));
+    check(cuenta('tarea sigue cancelada', `select count(*) from crm.tareas where id='${TAREA_F2B}' and estado='cancelada'`) === 1, 'b2 #10 levantar NO revive la tarea');
+    await positive('b2 #10 tras levantar, el seguimiento vuelve', actividad(IDS_F2B.lu5, 'F2B TRAS LEVANTAR TRANSIENT'));
+
+    // ── #12 · helpers privados de b2 sin EXECUTE para anon/authenticated/service_role ─
+    check(ejecutablesResiduales(FIRMAS_F2B_B2, ['anon', 'authenticated', 'service_role']) === 0,
+      'b2 #12 persona_vetada / leads_vetados_persona sin EXECUTE para anon, authenticated, service_role (ni PUBLIC)');
+
+    // ── #11 · paridad con la bandera APAGADA: repartir / derivar / actividad pasan como hoy ─
+    flag(false);
+    check(cuenta('OFF persona_vetada', `select private.persona_vetada('${IDS_F2B.lu1}')::int`) === 0, 'b2 #11 OFF: persona_vetada() = false');
+    await positive('b2 #11 OFF: gerencia reparte lu1 como hoy',
+      sessions.gerencia.client.schema('crm').rpc('repartir_lead', { p_lead: IDS_F2B.lu1, p_supervisor: sup1Id }));
+    check(cuenta('OFF lu1 repartido', `select count(*) from crm.leads where id='${IDS_F2B.lu1}' and asignado_supervisor_id='${sup1Id}'`) === 1, 'b2 #11 OFF: lu1 fue a la bandeja de sup1');
+    await positive('b2 #11 OFF: sup1 deriva lu2 a vend1 como hoy',
+      sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', { p_lead_ids: [IDS_F2B.lu2], p_asesor_ids: [vend1Id] }));
+    check(cuenta('OFF lu2 derivado', `select count(*) from crm.leads where id='${IDS_F2B.lu2}' and vendedor_id='${vend1Id}'`) === 1, 'b2 #11 OFF: lu2 quedó con vend1');
+    await positive('b2 #11 OFF: vend1 registra una actividad sobre lu3 como hoy', actividad(IDS_F2B.lu3, 'F2B OFF TRANSIENT'));
+  } finally {
+    flag(false);
+    const docs = Object.values(DOCS_F2B);
+    ejecutarFueraDeBanda('limpieza F2.b', `
+      delete from crm.inversion_titulares where inversion_id in (select id from crm.inversiones where cierre_externo_id in (select id from crm.cierres_externos where lead_id in (${lista(leadIds)})));
+      delete from crm.inversiones where cierre_externo_id in (select id from crm.cierres_externos where lead_id in (${lista(leadIds)}));
+      delete from crm.depositos_reclamados where numero_norm like 'TRX-F2B-${sufijo}-%';
+      delete from crm.cierres_externos where lead_id in (${lista(leadIds)});
+      delete from crm.inversionista_leads where lead_id in (${lista(leadIds)});
+      delete from crm.multiempresa_idempotencia where clave like 'conversion%:%' and split_part(clave, ':', 2) in (${lista(leadIds)});
+      delete from crm.tareas where lead_id in (${lista(leadIds)});
+      delete from crm.actividades where lead_id in (${lista(leadIds)});
+      delete from crm.lead_asignaciones where lead_id in (${lista(leadIds)});
+      delete from crm.leads where id in (${lista(leadIds)});
+      update crm.leads set activo=false where id in (${lista(leadIds)});
+      delete from crm.inversionista_responsables where inversionista_id in (select inversionista_id from crm.inversionista_identificadores where documento_normalizado in (${lista(docs)}));
+      delete from crm.inversionista_identificadores where documento_normalizado in (${lista(docs)});
+      delete from crm.inversionistas where id not in (select inversionista_id from crm.inversionista_identificadores) and not exists (select 1 from crm.leads l where l.inversionista_id=crm.inversionistas.id) and not exists (select 1 from crm.inversiones v where v.inversionista_id=crm.inversionistas.id);
     `, { tolerante: true });
   }
 }
@@ -10667,6 +11029,8 @@ async function main() {
       // la conversion absorbe en su LINEA BASE (sus aserciones son deltas).
       await testCierresExternos(sessions, verifiedSeed);
       await testIdentidadMultiempresa(sessions, verifiedSeed);
+      // F2.b (b1 + b2) justo después: comparte bandera, vía fuera de banda y estilo.
+      await testIdentidadF2b(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

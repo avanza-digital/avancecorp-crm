@@ -4,7 +4,8 @@
 --
 -- QUE (invariantes #6, #7, #8 del contrato F0): con la bandera resolver_en_puertas
 -- ENCENDIDA, todo INSERT en crm.leads y todo cambio de dni pasan por el documento
--- exacto (identificador VIGENTE y VERIFICADO de una identidad no fusionada):
+-- exacto (identificador VIGENTE y VERIFICADO de una identidad no fusionada) —
+-- el cambio de dni solo puede RECHAZARSE (nunca enlaza ni bloquea, ver zz):
 --   (a) persona vetada                       -> P0429 (no se abre oportunidad, §7.3)
 --   (b) persona que ya tiene un lead (vivo,
 --       convertido o descartado)             -> P0481 {estado:'ya_es_cliente', via:'identidad', lead_id}
@@ -17,13 +18,16 @@
 --   documento (advisory 'inv_resolver:tipo:norm', el mismo del resolver)
 --   -> identidad FOR UPDATE (releer el veto tras esperar)
 --   -> contactos (bloquear_contactos_lead)  <- SIEMPRE el último
---   * trg_leads_000_hereda_veto  (BEFORE INSERT OR UPDATE OF dni): documento -> identidad
---     FOR UPDATE -> P0429 si vetada (ya NO copia el veto: la alta de una persona vetada
---     se rechaza, contrato §7.3).
+--   * trg_leads_000_hereda_veto  (BEFORE INSERT): documento -> identidad FOR UPDATE ->
+--     P0429 si vetada (ya NO copia el veto: la alta de una persona vetada se rechaza,
+--     contrato §7.3).
 --   * trg_leads_00_disponibilidad_* (sin cambios): toma contactos DESPUÉS (orden por nombre).
 --   * trg_leads_zz_enlaza_identidad (BEFORE INSERT OR UPDATE OF dni): corre DESPUÉS de
 --     trg_leads_protege_inversionista_id (orden alfabético, determinista) y por eso no
---     necesita válvula: fija new.inversionista_id o levanta P0481/P0409.
+--     necesita válvula: en INSERT fija new.inversionista_id o levanta P0481; en UPDATE
+--     NUNCA enlaza ni toma locks (la fila ya está bloqueada: sería lead->identidad):
+--     RECHAZA (P0409) el cambio de DNI de un lead enlazado o hacia una persona
+--     reconocida — eso es la corrección de documento de Gerencia (b5).
 --   * trg_leads_zz_puente_identidad (AFTER INSERT OR UPDATE, comparando el valor: «UPDATE
 --     OF columna» no ve lo que fija un BEFORE): el puente crm.inversionista_leads se
 --     escribe cuando el lead YA existe (FK).
@@ -60,6 +64,31 @@ begin
   end if;
 end
 $guard$;
+
+
+-- Guarda del TEXTO VIVO (regla de la casa: una función viva no se reteclea): cada función
+-- transformada debe ser la que se transformó (md5 de pg_get_functiondef en prod, 04/09/2026)
+-- o estar ya transformada por este mismo lote (reaplicación en banco).
+do $vivo$
+declare v_h text;
+begin
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='private' and p.proname='trg_leads_hereda_veto_persona';
+  if v_h <> '4f774d77f7af8ee4f5f56c24d0090bcb' and (select strpos(prosrc,'inversionista_por_documento') from pg_proc where proname='trg_leads_hereda_veto_persona') = 0 then
+    raise exception 'F2.b b1: private.trg_leads_hereda_veto_persona no es el texto vivo esperado (%)', v_h;
+  end if;
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) = 'p_telefono text, p_dni text, p_excluir_lead_id uuid';
+  if v_h <> '63a474dbb99138a3e1a99c501acd1f82' and (select strpos(prosrc,'idf.verificado = true') from pg_proc p where p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) like '%uuid%') = 0 then
+    raise exception 'F2.b b1: verificar_disponibilidad_lead_impl(3) no es el texto vivo esperado (%)', v_h;
+  end if;
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='crm' and p.proname='crear_lead_si_disponible';
+  if v_h <> '3ca7ed2b0449c3223d7274b6ac8935ba' and (select strpos(prosrc,'identidad_bloquear_documento') from pg_proc where proname='crear_lead_si_disponible') = 0 then
+    raise exception 'F2.b b1: crm.crear_lead_si_disponible no es el texto vivo esperado (%)', v_h;
+  end if;
+end
+$vivo$;
 
 -- ============================================================================
 -- 1. Helpers de identidad (privados, sin EXECUTE para la API)
@@ -152,9 +181,6 @@ begin
   if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
     return new;
   end if;
-  if tg_op = 'UPDATE' and new.dni is not distinct from old.dni then
-    return new;
-  end if;
   -- Solo DNI: crm.leads.dni es siempre DNI de 8 dígitos (contrato §18). Se
   -- normaliza igual que el resolver (este trigger corre ANTES del btrim de 00).
   if nullif(pg_catalog.btrim(coalesce(new.dni,'')), '') is null then
@@ -183,7 +209,7 @@ revoke all on function private.trg_leads_hereda_veto_persona() from public, anon
 
 drop trigger if exists trg_leads_000_hereda_veto on crm.leads;
 create trigger trg_leads_000_hereda_veto
-  before insert or update of dni on crm.leads
+  before insert on crm.leads
   for each row execute function private.trg_leads_hereda_veto_persona();
 
 -- ============================================================================
@@ -205,18 +231,22 @@ begin
     return new;
   end if;
   if tg_op = 'UPDATE' then
-    if new.dni is not distinct from old.dni then
+    if new.dni is not distinct from old.dni or v_priv then
       return new;
     end if;
-    -- El documento de una persona ENLAZADA solo cambia por la corrección de
-    -- Gerencia (bajo válvula). PostgREST y service_role no pueden desalinearlo.
-    if old.inversionista_id is not null and not v_priv then
-      raise exception 'El documento de un lead enlazado a una persona solo se corrige por Gerencia (corrección de documento)'
+    -- En UPDATE la fila del lead YA está bloqueada: aquí no se toma ningún lock de
+    -- identidad (evitaría el orden documento->identidad->lead y podría abrazarse con
+    -- marcar/levantar y la conversión). Se RECHAZA, no se enlaza: el documento de una
+    -- persona enlazada, o un documento que resuelve a una persona reconocida, solo
+    -- cambia por la corrección de Gerencia (bajo válvula, b5). Un DNI que no resuelve
+    -- a nadie sigue editándose como hoy.
+    if old.inversionista_id is not null
+       or (nullif(pg_catalog.btrim(coalesce(new.dni,'')), '') is not null
+           and private.inversionista_por_documento('DNI', new.dni) is not null) then
+      raise exception 'El documento pertenece a una persona reconocida: solo Gerencia lo corrige (corrección de documento)'
         using errcode = 'P0409';
     end if;
-    if v_priv then
-      return new;
-    end if;
+    return new;
   elsif v_priv and new.inversionista_id is not null then
     -- Una RPC bajo válvula que ya trae el enlace (p. ej. una fusión futura) manda.
     return new;
@@ -856,8 +886,8 @@ begin
   end if;
   select pg_get_triggerdef(t.oid) into v_def from pg_trigger t join pg_class c on c.oid=t.tgrelid
    where t.tgname='trg_leads_000_hereda_veto' and c.relname='leads' and c.relnamespace='crm'::regnamespace;
-  if v_def is null or v_def not like '%BEFORE INSERT OR UPDATE OF dni ON crm.leads%' then
-    raise exception 'POSTFLIGHT b1: trg_leads_000_hereda_veto no es BEFORE INSERT OR UPDATE OF dni (%)', v_def;
+  if v_def is null or v_def not like '%BEFORE INSERT ON crm.leads%' or v_def like '%UPDATE%' then
+    raise exception 'POSTFLIGHT b1: trg_leads_000_hereda_veto no es BEFORE INSERT (%)', v_def;
   end if;
   select pg_get_triggerdef(t.oid) into v_def from pg_trigger t join pg_class c on c.oid=t.tgrelid
    where t.tgname='trg_leads_zz_enlaza_identidad' and c.relname='leads' and c.relnamespace='crm'::regnamespace;

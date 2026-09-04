@@ -1,7 +1,7 @@
 -- ============================================================================
 -- REVERSA de F2.b sub-lote b2 (20260904130000_crm_f2b_b2_veto_persona_mutaciones)
 -- ============================================================================
--- Restaura byte a byte (pg_get_functiondef de producción, 04/09/2026) las diez
+-- Restaura byte a byte (pg_get_functiondef de producción, 04/09/2026) las once
 -- funciones transformadas y suelta los dos helpers. Conserva tareas canceladas y
 -- tramos de responsable creados con la bandera encendida (hechos). Bandera APAGADA.
 -- Repetible dos veces.
@@ -1018,8 +1018,77 @@ end;
 $function$
 ;
 
--- crm.fijar_membresia_activa_fn: versión previa
-CREATE OR REPLACE FUNCTION crm.fijar_membresia_activa_fn(p_perfil_id uuid, p_activo boolean, p_reemplazo_id uuid, p_version_equipo timestamp with time zone, p_idempotencia uuid)
+-- crm.levantar_no_contactar: versión previa
+CREATE OR REPLACE FUNCTION crm.levantar_no_contactar(p_lead_id uuid, p_motivo text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_uid  uuid := (select auth.uid());
+  v_rol  text := private.rol_crm((select auth.uid()));
+  v_inv  uuid;
+  v_lead crm.leads%rowtype;
+  v_n    integer := 0;
+  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);
+begin
+  if v_uid is null or v_rol is distinct from 'gerencia' then
+    raise exception 'Solo Gerencia puede levantar No contactar' using errcode = '42501';
+  end if;
+  if p_motivo is null or pg_catalog.btrim(p_motivo) = '' then
+    raise exception 'Levantar No contactar exige un motivo' using errcode = '22023';
+  end if;
+
+  -- ORDEN: identidad PRIMERO, luego leads.
+  select inversionista_id into v_inv from crm.leads where id = p_lead_id;
+  if not v_flag then v_inv := null; end if;
+  if v_inv is not null then
+    perform 1 from crm.inversionistas where id = v_inv for update;
+  end if;
+  select * into v_lead from crm.leads where id = p_lead_id for update;
+  if not found then
+    raise exception 'Lead no encontrado' using errcode = 'P0002';
+  end if;
+  if v_flag and v_lead.inversionista_id is distinct from v_inv then
+    raise exception 'La persona cambió mientras se levantaba; vuelve a intentarlo'
+      using errcode = '40001';
+  end if;
+
+  perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);
+  if v_inv is not null then
+    update crm.inversionistas
+       set no_contactar = false, no_contactar_en = null, no_contactar_por = null
+     where id = v_inv and no_contactar = true;
+    for v_lead in
+      select * from crm.leads where inversionista_id = v_inv order by id for update
+    loop
+      if v_lead.no_contactar then
+        update crm.leads set no_contactar = false where id = v_lead.id;
+        v_n := v_n + 1;
+      end if;
+    end loop;
+  else
+    update crm.leads set no_contactar = false where id = p_lead_id and no_contactar = true;
+    get diagnostics v_n = row_count;
+  end if;
+  perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
+
+  insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por)
+  values (p_lead_id, 'nota', 'Levantado No contactar por Gerencia',
+          pg_catalog.jsonb_build_object('evento', 'no_contactar', 'accion', 'levantar',
+                                        'inversionista_id', v_inv, 'leads_afectados', v_n,
+                                        'motivo', pg_catalog.btrim(p_motivo)),
+          v_uid);
+
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id,
+                                       'inversionista_id', v_inv, 'leads_afectados', v_n);
+end;
+$function$
+;
+
+-- crm.rescatar_descartes: versión previa
+CREATE OR REPLACE FUNCTION crm.rescatar_descartes(p_episodios uuid[], p_analistas_destino uuid[], p_evitar_asesor_origen boolean DEFAULT true)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -1028,182 +1097,168 @@ AS $function$
 declare
   v_actor uuid := (select auth.uid());
   v_rol text;
-  v_activo_anterior boolean;
-  v_version timestamptz;
-  v_perfil_activo boolean;
-  v_rol_portal text;
-  v_rol_reemplazo text;
-  v_reemplazo_activo boolean;
-  v_reemplazo_portal_activo boolean;
-  v_impacto jsonb;
-  v_requiere_reemplazo boolean;
-  v_evento_objetivo uuid;
+  v_destinos_validos uuid[];
+  v_total_episodios integer;
+  v_total_destinos integer;
+  v_candidatos integer := 0;
+  v_orden integer := 0;
+  v_intento integer;
+  v_destino uuid;
+  v_fila record;
+  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);
 begin
-  if not private.es_gerencia_crm_activa() then
-    raise insufficient_privilege using message = 'Solo Gerencia puede activar o desactivar membresias CRM';
-  end if;
-  if p_activo is null or p_version_equipo is null or p_idempotencia is null then
-    raise exception 'Estado, version e idempotencia requeridos';
-  end if;
-  if p_activo is false and p_perfil_id = v_actor then
-    raise exception 'Gerencia no puede desactivar su propia membresia';
+  if p_episodios is null
+     or pg_catalog.array_length(p_episodios, 1) is null
+     or pg_catalog.array_length(p_episodios, 1) = 0
+     or pg_catalog.array_length(p_episodios, 1) > 100
+     or pg_catalog.array_position(p_episodios, null) is not null then
+    raise exception 'Selecciona entre 1 y 100 descartes válidos'
+      using errcode = '22023';
   end if;
 
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0)
-  );
+  if (select pg_catalog.count(*) from (
+    select distinct id from pg_catalog.unnest(p_episodios) as u(id)
+  ) episodios_unicos) <> pg_catalog.array_length(p_episodios, 1) then
+    raise exception 'Un descarte no se puede enviar dos veces en el mismo reparto'
+      using errcode = '22023';
+  end if;
 
-  select e.rol_crm, e.activo, e.actualizado_en, p.activo, p.rol
-    into v_rol, v_activo_anterior, v_version, v_perfil_activo, v_rol_portal
+  if p_analistas_destino is null
+     or pg_catalog.array_length(p_analistas_destino, 1) is null
+     or pg_catalog.array_length(p_analistas_destino, 1) = 0
+     or pg_catalog.array_length(p_analistas_destino, 1) > 30
+     or pg_catalog.array_position(p_analistas_destino, null) is not null then
+    raise exception 'Selecciona al menos un asesor destino'
+      using errcode = '22023';
+  end if;
+
+  if (select pg_catalog.count(*) from (
+    select distinct id from pg_catalog.unnest(p_analistas_destino) as u(id)
+  ) destinos_unicos) <> pg_catalog.array_length(p_analistas_destino, 1) then
+    raise exception 'No repitas un asesor destino'
+      using errcode = '22023';
+  end if;
+
+  select e.rol_crm
+    into v_rol
   from crm.equipo e
   join public.perfiles p on p.id = e.perfil_id
-  where e.perfil_id = p_perfil_id
-  for update of e;
-  if not found then
-    raise exception 'Membresia CRM no encontrada';
-  end if;
-  select ue.objetivo_id into v_evento_objetivo
-  from crm.usuario_eventos ue
-  where ue.actor_id = v_actor
-    and ue.accion in ('membresia_activada','membresia_desactivada')
-    and ue.idempotencia = p_idempotencia
-  limit 1;
-  if found then
-    if v_evento_objetivo is distinct from p_perfil_id then
-      raise exception 'La idempotencia ya fue usada para otro usuario';
-    end if;
-    return pg_catalog.jsonb_build_object(
-      'perfil_id', p_perfil_id, 'activo_crm', v_activo_anterior,
-      'version_equipo', v_version, 'idempotente', true
-    );
-  end if;
-  if v_version is distinct from p_version_equipo then
-    raise exception using errcode = '40001', message = 'La membresia fue modificada por otra sesion';
+  where e.perfil_id = v_actor
+    and e.activo = true
+    and p.activo = true
+    and e.rol_crm in ('supervisor', 'gerencia');
+
+  if v_actor is null or v_rol is null then
+    raise exception 'Solo supervisión puede rescatar descartes'
+      using errcode = '42501';
   end if;
 
-  if p_activo and v_rol_portal = 'superadmin' and v_rol <> 'gerencia' then
-    raise exception 'Superadmin Portal solo puede activarse en CRM como Gerencia';
-  end if;
-
-  if v_activo_anterior is not distinct from p_activo then
-    return pg_catalog.jsonb_build_object(
-      'perfil_id', p_perfil_id, 'activo_crm', v_activo_anterior,
-      'version_equipo', v_version, 'idempotente', true
-    );
-  end if;
-
-  if p_activo then
-    if v_perfil_activo is not true then
-      raise exception 'El perfil esta suspendido en Portal; Gerencia no puede reactivarlo';
-    end if;
-
-    update crm.equipo e set activo = true
-    where e.perfil_id = p_perfil_id;
-
-    perform private.registrar_evento_usuario(
-      'membresia_activada', p_perfil_id,
-      pg_catalog.jsonb_build_object('estado_nuevo', 'activo'),
-      p_idempotencia
-    );
-  else
-    v_impacto := crm.impacto_desactivacion_usuario_fn(p_perfil_id);
-    v_requiere_reemplazo := (v_impacto->>'requiere_reemplazo')::boolean;
-
-    if v_requiere_reemplazo and p_reemplazo_id is null then
-      raise exception 'La membresia conserva dependencias; selecciona un reemplazo activo del mismo rol';
-    end if;
-
-    if p_reemplazo_id is not null then
-      if p_reemplazo_id = p_perfil_id then
-        raise exception 'El reemplazo debe ser otro usuario';
-      end if;
-
-      select e.rol_crm, e.activo, p.activo
-        into v_rol_reemplazo, v_reemplazo_activo, v_reemplazo_portal_activo
-      from crm.equipo e
-      join public.perfiles p on p.id = e.perfil_id
-      where e.perfil_id = p_reemplazo_id
-      for update of e;
-
-      if not found
-         or v_reemplazo_activo is not true
-         or v_reemplazo_portal_activo is not true
-         or v_rol_reemplazo is distinct from v_rol then
-        raise exception 'El reemplazo no existe, no esta activo o no tiene el mismo rol CRM';
-      end if;
-
-      if exists (
-        with recursive descendientes as (
-          select e.perfil_id
-          from crm.equipo e
-          where e.supervisor_id = p_perfil_id
-          union
-          select e.perfil_id
-          from crm.equipo e
-          join descendientes d on e.supervisor_id = d.perfil_id
+  select pg_catalog.array_agg(destino.id order by destino.orden)
+    into v_destinos_validos
+  from (
+    select u.id, u.orden
+    from pg_catalog.unnest(p_analistas_destino) with ordinality as u(id, orden)
+    join crm.equipo e on e.perfil_id = u.id
+    join public.perfiles p on p.id = e.perfil_id
+    where e.activo = true
+      and p.activo = true
+      and e.rol_crm = 'vendedor'
+      and (
+        v_rol = 'gerencia'
+        or e.perfil_id in (
+          select private.vendedor_ids_visibles(v_actor)
         )
-        select 1 from descendientes where perfil_id = p_reemplazo_id
-      ) then
-        raise exception 'El reemplazo no puede pertenecer al subarbol del usuario saliente';
-      end if;
+      )
+  ) destino;
 
-      update crm.equipo e
-      set supervisor_id = p_reemplazo_id
-      where e.supervisor_id = p_perfil_id and e.activo is true;
-
-      update crm.leads l
-      set vendedor_id = p_reemplazo_id
-      where l.vendedor_id = p_perfil_id
-        and l.activo is true and l.etapa not in ('convertido','descartado');
-
-      update crm.leads l
-      set asignado_supervisor_id = p_reemplazo_id
-      where l.asignado_supervisor_id = p_perfil_id
-        and l.activo is true and l.etapa not in ('convertido','descartado');
-
-      -- Los triggers de leads sincronizan la agenda normal. Este barrido cubre
-      -- ademas tareas independientes y cualquier residuo historico pendiente.
-      update crm.tareas t
-      set vendedor_id = p_reemplazo_id
-      where t.vendedor_id = p_perfil_id
-        and t.activo is true and t.estado = 'pendiente';
-
-      update crm.tareas t
-      set asignado_supervisor_id = p_reemplazo_id
-      where t.asignado_supervisor_id = p_perfil_id
-        and t.activo is true and t.estado = 'pendiente';
-
-      update public.perfiles p
-      set asesor_perfil_id = p_reemplazo_id,
-          actualizado_en = pg_catalog.clock_timestamp()
-      where p.rol = 'cliente' and p.activo is true
-        and p.asesor_perfil_id = p_perfil_id;
-    end if;
-
-    update crm.equipo e set activo = false
-    where e.perfil_id = p_perfil_id;
-
-    perform private.registrar_evento_usuario(
-      'membresia_desactivada', p_perfil_id,
-      pg_catalog.jsonb_build_object(
-        'reemplazo_id', p_reemplazo_id,
-        'subordinados_transferidos', (v_impacto->>'subordinados_activos')::integer,
-        'leads_transferidos',
-          (v_impacto->>'leads_abiertos')::integer
-          + (v_impacto->>'leads_en_bandeja')::integer,
-        'tareas_transferidas', (v_impacto->>'tareas_pendientes')::integer,
-        'clientes_transferidos', (v_impacto->>'clientes_activos')::integer
-      ),
-      p_idempotencia
-    );
+  v_total_destinos := pg_catalog.coalesce(pg_catalog.array_length(v_destinos_validos, 1), 0);
+  if v_total_destinos <> pg_catalog.array_length(p_analistas_destino, 1) then
+    raise exception 'Uno de los asesores destino no está activo o no pertenece a tu equipo'
+      using errcode = '22023';
   end if;
 
-  select e.actualizado_en into v_version
-  from crm.equipo e where e.perfil_id = p_perfil_id;
+  -- Se bloquean los leads antes de modificar alguno. Si una carrera ya los
+  -- reabrió, toda la operación falla y no deja un reparto parcial.
+  for v_fila in
+    select
+      la.id as episodio_id,
+      la.lead_id,
+      la.analista_id as asesor_origen_id,
+      (l.no_contactar or (v_flag and coalesce(inv.no_contactar, false))) as no_contactar  -- veto de la PERSONA
+    from crm.lead_asignaciones la
+    join crm.leads l on l.id = la.lead_id
+  left join crm.inversionistas inv0 on inv0.id = l.inversionista_id
+    left join crm.inversionistas inv  on inv.id  = coalesce(inv0.inversionista_canonico_id, inv0.id)  -- sigue a la canónica si está fusionada
+    where la.id = any(p_episodios)
+      and la.resultado = 'descartado'
+      and la.resultado_en is not null
+      and l.activo = true
+      and l.etapa = 'descartado'
+      and l.descartado_en is not distinct from la.resultado_en
+      and la.motivo_descarte_cierre <> 'datos_invalidos'
+      and (
+        v_rol = 'gerencia'
+        or la.analista_id in (
+          select private.vendedor_ids_visibles(v_actor)
+        )
+      )
+    order by la.resultado_en, la.id
+    for update of l
+  loop
+    v_candidatos := v_candidatos + 1;
+    if v_fila.no_contactar then
+      raise exception 'Uno de los leads tiene la restricción «No insistir» y no puede reactivarse'
+        using errcode = 'P0429';
+    end if;
+  end loop;
+
+  v_total_episodios := pg_catalog.array_length(p_episodios, 1);
+  if v_candidatos <> v_total_episodios then
+    raise exception 'Uno de los descartes ya no está disponible para rescate'
+      using errcode = 'P0002';
+  end if;
+
+  -- Una segunda pasada usa los mismos locks. La vuelta redonda conserva el
+  -- orden seleccionado y, si se pidió, salta al asesor que lo descartó.
+  for v_fila in
+    select
+      la.id as episodio_id,
+      la.lead_id,
+      la.analista_id as asesor_origen_id
+    from crm.lead_asignaciones la
+    join crm.leads l on l.id = la.lead_id
+    where la.id = any(p_episodios)
+      and la.resultado = 'descartado'
+      and l.activo = true
+      and l.etapa = 'descartado'
+      and l.descartado_en is not distinct from la.resultado_en
+    order by la.resultado_en, la.id
+  loop
+    v_destino := null;
+    for v_intento in 0..(v_total_destinos - 1) loop
+      v_destino := v_destinos_validos[((v_orden + v_intento) % v_total_destinos) + 1];
+      exit when not p_evitar_asesor_origen or v_destino is distinct from v_fila.asesor_origen_id;
+    end loop;
+
+    if v_destino is null
+       or (p_evitar_asesor_origen and v_destino = v_fila.asesor_origen_id) then
+      raise exception 'No hay otro asesor destino para uno de los descartes seleccionados'
+        using errcode = '22023';
+    end if;
+
+    update crm.leads
+       set etapa = 'nuevo',
+           motivo_descarte = null,
+           vendedor_id = v_destino,
+           asignado_supervisor_id = null
+     where id = v_fila.lead_id;
+
+    v_orden := v_orden + 1;
+  end loop;
 
   return pg_catalog.jsonb_build_object(
-    'perfil_id', p_perfil_id, 'activo_crm', p_activo,
-    'version_equipo', v_version, 'idempotente', false
+    'rescatados', v_candidatos,
+    'asesores_destino', v_total_destinos
   );
 end;
 $function$
@@ -1217,11 +1272,12 @@ declare v_fn text; v_src text;
 begin
   foreach v_fn in array array['private.repartir_lead_implementacion','crm.derivar_leads_equipo_fn','crm.revertir_derivacion_equipo_fn',
                               'crm.tomar_lead_libre','private.deshacer_descarte_implementacion','crm.resumen_reparto_fn',
-                              'private.trg_gestion_lead_serializada','crm.marcar_no_contactar','crm.fijar_membresia_activa_fn',
-                              'private.leads_por_repartir_implementacion'] loop
+                              'private.trg_gestion_lead_serializada','crm.marcar_no_contactar','crm.levantar_no_contactar',
+                              'crm.rescatar_descartes','private.leads_por_repartir_implementacion'] loop
     select p.prosrc into v_src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname || '.' || p.proname = v_fn;
-    if v_src is null or strpos(v_src, 'persona_vetada') <> 0 or strpos(v_src, 'F2.b (b2)') <> 0 then
+    if v_src is null or strpos(v_src, 'persona_vetada') <> 0 or strpos(v_src, 'F2.b (b2)') <> 0
+       or (v_fn in ('crm.marcar_no_contactar','crm.levantar_no_contactar') and strpos(v_src, 'identidad_bloquear_documento') <> 0) then
       raise exception 'REVERSA b2: % sigue transformada', v_fn;
     end if;
   end loop;

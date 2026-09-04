@@ -52,12 +52,13 @@ LB="$(uuid)"; run_sys "$(ins "$LB" SIN-DNI "${T}14" "null")" >/dev/null
 LC="$(uuid)"; run_sys "$(ins "$LC" DNI-DESCONOCIDO "${T}15" "'6${RUN}1'")" >/dev/null
 [[ "$(q "select inversionista_id is null from crm.leads where id='$LC'")" == "t" && "$(q "select count(*) from crm.inversionista_identificadores where documento_normalizado='6${RUN}1'")" == "0" ]] && ok "DNI sin identidad: NULL y NO se creó identidad" || rojo "creó identidad desde el alta"
 
-echo "== UPDATE de dni: enlazado → P0409; suelto → enlaza; humano y sin sesión =="
+echo "== UPDATE de dni: nunca enlaza ni bloquea; rechaza hacia personas reconocidas =="
 R="$(run_as "$V" "update crm.leads set dni='$DOC8' where id='$LA'")"; echo "$R" | grep -q "P0409" && ok "cambiar el DNI de un lead ENLAZADO (vendedor) → P0409" || rojo "dejó cambiar el DNI enlazado: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_sys "update crm.leads set dni='$DOC8' where id='$LA'")"; echo "$R" | grep -q "P0409" && ok "… también sin sesión (service_role) → P0409" || rojo "service_role cambió el DNI enlazado"
 R="$(run_as "$V" "update crm.leads set dni='$DOC8' where id='$LB'")"
-[[ "$(q "select inversionista_id = private.inversionista_por_documento('DNI','$DOC8') from crm.leads where id='$LB'")" == "t" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LB'")" == "1" ]] && ok "lead suelto + DNI de persona sin lead (vendedor) → queda enlazado + puente" || rojo "UPDATE humano no enlazó: $(echo "$R"|tail -1|cut -c1-120)"
-R="$(run_sys "update crm.leads set dni='$DOC5' where id='$LC'")"; echo "$R" | grep -q "P0481" && ok "lead suelto + DNI de persona CON lead → P0481" || rojo "UPDATE a DNI ocupado no rechazado: $(echo "$R"|tail -1|cut -c1-120)"
+echo "$R" | grep -q "P0409" && [[ "$(q "select inversionista_id is null from crm.leads where id='$LB'")" == "t" ]] && ok "lead suelto + DNI de persona reconocida (vendedor) → P0409, NO se enlaza por edición (Gerencia corrige)" || rojo "UPDATE humano hacia persona reconocida no rechazado: $(echo "$R"|tail -1|cut -c1-120)"
+R="$(run_sys "update crm.leads set dni='$DOC5' where id='$LC'")"; echo "$R" | grep -q "P0409" && ok "lead suelto + DNI de persona CON lead (sin sesión) → P0409" || rojo "UPDATE a DNI ocupado no rechazado: $(echo "$R"|tail -1|cut -c1-120)"
+R="$(run_as "$V" "update crm.leads set dni='6${RUN}3' where id='$LB'")"; [[ -z "$(echo "$R"|grep -i "P04")" && "$(q "select dni from crm.leads where id='$LB'")" == "6${RUN}3" ]] && ok "DNI que no resuelve a nadie: se edita como hoy" || rojo "edición de DNI desconocido bloqueada: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_as "$V" "update crm.leads set nombre_completo='B1 renombrado' where id='$LA'")"; [[ -z "$(echo "$R" | grep -i error)" ]] && ok "UPDATE que no toca dni no dispara nada" || rojo "UPDATE ajeno al dni falló: $(echo "$R"|tail -1|cut -c1-100)"
 
 echo "== (a) Persona vetada → P0429 (y la carrera alta ↔ marcar) =="

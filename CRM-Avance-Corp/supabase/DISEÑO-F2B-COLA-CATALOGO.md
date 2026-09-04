@@ -1,6 +1,40 @@
-# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v2** (04/09/2026)
+# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v3** (04/09/2026)
 
-**v1 → NO-GO de Codex (17 bloqueantes).** v2 incorpora cada arreglo (marcados `[Cx-n]`) y declara lo que queda FUERA con nombre.
+**v1 → NO-GO de Codex (17 bloqueantes).** v2 incorporó cada arreglo (marcados `[Cx-n]`). **v2 → NO-GO de Codex (19 puntos).** v3 aplica
+los que tocan lo YA construido (b1/b2, marcados `[v2-n]`) y deja los de E2/E3 como diseño pendiente con su número. Estado real: **b1 y b2
+implementados y ensayados en `banco-f7`** (oráculos verdes, reversa ×2 byte a byte, auditor-rls sin bloqueantes); b3/b4/b5 sin escribir.
+
+## v3 — qué cambió respecto a v2 (por la refutación de Codex)
+- `[v2-1]` **El cambio de `dni` NUNCA enlaza ni toma locks.** Un `BEFORE UPDATE` corre con la fila del lead ya bloqueada: tomar la identidad
+  ahí es lead→identidad, al revés que marcar/levantar y la conversión. El trigger `000` vuelve a ser `BEFORE INSERT`; `zz` en UPDATE solo
+  RECHAZA (`P0409`) el cambio de DNI de un lead enlazado o hacia una persona reconocida (lookup sin lock). Desaparece el «enlace por edición»
+  (que el auditor había marcado como decisión de negocio, N8): enlazar un lead suelto es la corrección/fusión de Gerencia (b5).
+- `[v2-3]` `crm.rescatar_descartes` entra en b2 (`persona_vetada` por fila, también por documento).
+- `[v2-4]` **El offboarding NO se toca.** Reasignar el responsable de relación desde `fijar_membresia_activa_fn` metía identidades en una
+  puerta que empieza por `crm.equipo` (ciclo identidad↔equipo con contratos/toma). La reasignación es la puerta de Gerencia de b5, y el
+  preflight de baja mostrará el conteo de personas del saliente (E3).
+- `[v2-6]` `marcar/levantar_no_contactar` pasan a ser por PERSONA también sobre un lead suelto: documento exacto → advisory → canónica →
+  identidad `FOR UPDATE` → leads (mismo orden). El lead suelto no se enlaza (b5).
+- `[v2-7]` `cancelada_por='sistema'` (el CHECK solo admite `asesor|sistema`); la causa va en la nota de la RPC. (La implementación ya era así.)
+- `[v2-8]` El gate de seguimiento bloquea solo los tipos de CONTACTO (`llamada_*`, `whatsapp_*`, `reunion_realizada`) y las tareas; las
+  notas administrativas (corrección/anulación de cierre, fusión, reingreso) entran. La exención `auth.uid() is null` se conserva (writers
+  internos con sus propios gates; el importador ya no puede abrir leads a vetados por `000`).
+- `[v2-5]` Precisión: para un actor HUMANO, una persona con perfil cliente sigue dando `ya_es_cliente` por el perfil (regla vigente: un
+  cliente no es un lead nuevo); el enlace al nacer aplica al alta sin sesión (importador) y a personas sin perfil. Los leads sueltos
+  históricos con el mismo documento (pre-F2, convertidos/descartados) son la cola de clase E: no se tocan aquí.
+- `[v2-2]` El ciclo contacto→índice único vs lead→contacto del importador es PREEXISTENTE (no lo introduce b1): queda anotado; la vía
+  definitiva es que el importador entre por una puerta SQL (candidato para E2, no para E1).
+- `[v2-17]` **Antes de ACTIVAR la bandera:** `convertir_lead_externo` (220000, ya en prod) escribe `crm.inversiones`/`inversion_titulares`
+  gateado por `resolver_en_puertas` y no por `inversiones_escritura` (F4). Se corrige en una migración propia antes de la activación.
+- Diferidos a E2/E3 con su número: `[v2-9,10,18]` claim único por identidad con `claim_id`/token/lease/CAS y fingerprint HMAC (b3+b4
+  comparten la máquina; nada de documento crudo en claves ni columnas auditadas); `[v2-11]` capacidad `puede_alta_cliente` que reproduzca la
+  unión de roles vigente; `[v2-12]` responsable inicial revalidado bajo el interlock de jerarquía; `[v2-13]` `eliminar-cliente` con preflight
+  antes de cualquier borrado; `[v2-14]` colaboradores/`crm-usuarios`/registro Portal → se decide con Miguel si entran (el catálogo los
+  lista; el contrato §2 los excluye como inversionistas); `[v2-15,16]` fusión: orden total entre hechos (lead antes que cierre también en
+  corregir/anular cierre), huella revalidada tras bloquear TODO lo que la compone, matriz completa (puente, titulares principal/cotitular,
+  responsable cuando solo la perdedora tiene tramo, sagas activas, DNI del lead enlazado en la corrección); `[v2-19]` oráculos
+  diferenciales OFF por puerta (hoy: aserciones OFF en los tres oráculos, no golden por función).
+
 Punto de partida: lote `190000`–`260000` EN PRODUCCIÓN con `resolver_en_puertas=false`. Todo F2.b es aditivo, gateado por esa
 bandera (apagada = idéntico a hoy: mismas respuestas, SQLSTATE, locks y efectos `[Cx-14]`) y con reversa. Nada se activa aquí.
 Spec: Contrato F0 + Catálogo F0. Corrección al catálogo: `crm-importar-leads` inserta directo con service_role (`functions/crm-importar-leads/index.ts:496`),

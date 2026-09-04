@@ -28,8 +28,6 @@ inv_de() { q "select private.inversionista_por_documento('DNI','$1')"; }
 echo "== Preflight (RUN=$RUN) =="
 psql "$PG" -q -v ON_ERROR_STOP=1 -v run="$RUN" -c "set timezone='America/Lima';" -f "$AQUI/siembra-banco-f3.sql" 2>&1 | grep -E "SIEMBRA-F3-OK|ERROR" | head -2
 [[ "$(q "select to_regprocedure('private.persona_vetada(uuid)') is not null")" == "t" ]] || { echo "falta b2 en el banco" >&2; exit 2; }
-# V2: segundo vendedor bajo S (reemplazo del offboarding; mismo rol CRM que V).
-psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); insert into auth.users (id) values ('$V2') on conflict (id) do nothing; insert into public.perfiles (id, nombre_completo, rol, tipo_documento, dni) values ('$V2','F3 VENDEDOR DOS','comercial','DNI','70000094') on conflict (id) do update set activo=true; insert into crm.equipo (perfil_id, rol_crm, supervisor_id, activo, creado_por) values ('$V2','vendedor','$SU',true,'$SU') on conflict (perfil_id) do update set rol_crm='vendedor', supervisor_id='$SU', activo=true; commit;" >/dev/null 2>&1
 # Leads NO enlazados (nacen con la bandera APAGADA) con el documento de personas que luego se vetan:
 flag false
 LU1="$(uuid)"; LU2="$(uuid)"; LU3="$(uuid)"; LU4="$(uuid)"
@@ -85,17 +83,24 @@ R="$(run_as "$SU" "select crm.derivar_leads_equipo_fn(array['$LU2']::uuid[], arr
 R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por) values ('$LU3','llamada_realizada','B2 OFF','{}'::jsonb,'$V')")"; [[ -z "$(echo "$R"|grep P0429)" ]] && ok "OFF: actividad pasa como hoy" || rojo "OFF: actividad bloqueada"
 flag true
 
-echo "== Offboarding: el responsable de relación pasa al reemplazo (V2, mismo rol) =="
-VER="$(q "select actualizado_en::text from crm.equipo where perfil_id='$V'")"
-R="$(run_as "$G" "select crm.fijar_membresia_activa_fn('$V', false, '$V2', '$VER'::timestamptz, gen_random_uuid())")"
-echo "$R" | grep -q "perfil_id" && ok "offboarding de V ejecutado" || rojo "offboarding falló: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
-[[ "$(q "select count(*) from crm.inversionista_responsables r where r.responsable_id='$V' and r.hasta is null")" == "0" ]] && ok "V ya no tiene tramos abiertos" || rojo "V conserva tramos abiertos"
-[[ "$(q "select count(*) from crm.inversionista_responsables r where r.responsable_id='$V2' and r.hasta is null and r.motivo='offboarding' and r.inversionista_id in (select private.inversionista_por_documento('DNI',d) from unnest(array['$DA','$DB','$DC','$DD']) d)")" == "4" ]] && ok "4 tramos nuevos abiertos a V2 con motivo 'offboarding'" || rojo "tramos a V2 ≠ 4"
-[[ "$(q "select count(*) from crm.inversionistas i where i.responsable_relacion_id='$V2' and i.id in (select private.inversionista_por_documento('DNI',d) from unnest(array['$DA','$DB','$DC','$DD']) d)")" == "4" ]] && ok "responsable_relacion_id = V2 en las 4 personas" || rojo "responsable_relacion_id no cambió"
-[[ "$(q "select count(*) from crm.inversionista_responsables r where r.hasta is null and r.inversionista_id in (select private.inversionista_por_documento('DNI',d) from unnest(array['$DA','$DB','$DC','$DD']) d)")" == "4" ]] && ok "un solo tramo abierto por persona" || rojo "más de un tramo abierto"
-[[ "$(q "select vendedor_id='$V2' from crm.leads where id='$LU3'")" == "t" ]] && ok "el lead suelto de persona vetada (LU3) también se transfirió a V2 (custodia ≠ contacto)" || rojo "LU3 no se transfirió: $(q "select vendedor_id from crm.leads where id='$LU3'")"
+echo "== Marcar/levantar por PERSONA sobre un lead SUELTO (documento exacto) =="
+DF="7${RUN}0"; q "select private.inversionista_resolver('DNI','$DF',true,'ensayo_b2f')" >/dev/null
+flag false; LU6="$(uuid)"; run_sys "$(ins "$LU6" SUELTO-F "${T}36" "'$V'" null "$DF")" >/dev/null; flag true
+[[ "$(q "select inversionista_id is null from crm.leads where id='$LU6'")" == "t" ]] && ok "LU6 suelto (sin enlace) con el documento de la persona F (sin lead)" || rojo "LU6 nació enlazado"
+run_as "$V" "select crm.marcar_no_contactar('$LU6','ensayo suelto')" >/dev/null || rojo "marcar sobre suelto falló"
+[[ "$(q "select i.no_contactar from crm.inversionistas i where i.id = private.inversionista_por_documento('DNI','$DF')")" == "t" && "$(q "select no_contactar and inversionista_id is null from crm.leads where id='$LU6'")" == "t" ]] && ok "marcar sobre un lead suelto vetó a la PERSONA (por documento) y al lead, sin enlazarlo" || rojo "marcar sobre suelto no llegó a la persona"
+run_as "$G" "select crm.levantar_no_contactar('$LU6','ensayo suelto')" >/dev/null || rojo "levantar sobre suelto falló"
+[[ "$(q "select i.no_contactar from crm.inversionistas i where i.id = private.inversionista_por_documento('DNI','$DF')")" == "f" && "$(q "select no_contactar from crm.leads where id='$LU6'")" == "f" ]] && ok "levantar sobre el lead suelto levantó a la persona y al lead" || rojo "levantar sobre suelto incompleto"
+
+echo "== Rescate de descartes y notas administrativas =="
+EP="$(q "select la.id from crm.lead_asignaciones la where la.lead_id='$LU4' and la.resultado_en is not null order by la.resultado_en desc limit 1")"
+if [[ -n "$EP" ]]; then R="$(run_as "$G" "select crm.rescatar_descartes(array['$EP']::uuid[], array['$V']::uuid[], false)")"; echo "$R" | grep -q "P0429" && ok "rescatar_descartes sobre el descarte de LU4 (persona vetada, lead suelto) → P0429" || rojo "rescatar pasó: $(echo "$R"|tail -1|cut -c1-120)"; else ok "(rescatar: LU4 sin episodio de descarte en lead_asignaciones; cubierto por deshacer)"; fi
+R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por) values ('$LU3','nota','B2 nota administrativa','{}'::jsonb,'$V')")"; [[ -z "$(echo "$R"|grep P0429)" ]] && ok "una NOTA sobre persona vetada entra (no es contacto)" || rojo "nota bloqueada: $(echo "$R"|tail -1|cut -c1-100)"
+
+echo "== Offboarding: sin cambios en este lote (la reasignación del responsable es puerta de Gerencia, b5) =="
+[[ "$(q "select strpos(prosrc,'offboarding') from pg_proc where proname='fijar_membresia_activa_fn'")" == "0" ]] && ok "fijar_membresia_activa_fn intacta" || rojo "fijar_membresia_activa_fn transformada"
 
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1
 flag false
-echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b b2: VERDE — el veto de la persona bloquea reparto, derivación, reversión, toma, reapertura y seguimiento; marcar cancela tareas; offboarding reasigna; paridad apagada."; exit 0
+echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b b2: VERDE — el veto de la persona bloquea reparto, derivación, reversión, toma, reapertura y seguimiento; marcar cancela tareas; marcar/levantar por persona sobre leads sueltos; paridad apagada."; exit 0
 else echo "ORÁCULO F2.b b2: ROJO — $ROJO aserciones fallaron." >&2; exit 1; fi
