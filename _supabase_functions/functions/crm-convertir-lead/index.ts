@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { contextoContratacionDesdeAcceso } from "../_shared/acceso-crm.mjs";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
 import { validarBancarios } from "../_shared/bancarios.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
@@ -80,21 +81,15 @@ Deno.serve(async (req: Request) => {
     if (userErr || !userRes?.user) return json(cors, { error: "Sesión inválida" }, 401);
     const callerId = userRes.user.id;
 
-    // El que convierte debe ser miembro escritor del equipo CRM.
-    const { data: miembro } = await adminClient
-      .schema("crm").from("equipo")
-      .select("rol_crm, activo").eq("perfil_id", callerId).maybeSingle();
-    if (!miembro || !miembro.activo || !["vendedor", "supervisor", "gerencia"].includes(miembro.rol_crm)) {
+    // Fuente única de autorización: la RPC resuelve la membresía CRM activa con
+    // el JWT del caller. No se reinterpretan roles del Portal con service_role.
+    const { data: acceso, error: accesoErr } = await userClient
+      .schema("crm").rpc("mi_acceso_fn");
+    const contextoConversion = contextoContratacionDesdeAcceso(acceso, callerId);
+    if (accesoErr || !contextoConversion) {
       return json(cors, { error: "No autorizado para convertir leads" }, 403);
     }
-    const { data: perfilCaller } = await adminClient
-      .from("perfiles").select("rol, activo").eq("id", callerId).maybeSingle();
-    const gerenciaCrm = miembro.rol_crm === "gerencia";
-    if (!perfilCaller || !perfilCaller.activo || (
-      !gerenciaCrm && !["analista", "admin", "superadmin"].includes(perfilCaller.rol)
-    )) {
-      return json(cors, { error: "El alta de clientes la registra el analista" }, 403);
-    }
+    const rolCrm = contextoConversion.rolCrm;
 
     const body = await req.json().catch(() => ({}));
     const {
@@ -119,13 +114,42 @@ Deno.serve(async (req: Request) => {
       .eq("id", lead_id).maybeSingle();
     if (leadErr) return json(cors, { error: "No se pudo leer el lead" }, 400);
     if (!lead) return json(cors, { error: "Lead no encontrado o fuera de tu ámbito" }, 404);
+    // IDEMPOTENCIA (Contrato-F2 §8.2 / meta #4): un lead YA convertido a Avance
+    // (tiene perfil) en un REINTENTO no es error. Se cortocircuita a la puerta,
+    // que devuelve el MISMO resultado sin efectos — sin reserva (la rechazaría),
+    // sin Auth, sin marcar efectos y, sobre todo, SIN reenviar el correo.
+    // Solo con la bandera ENCENDIDA (paridad exacta con apagada: sigue el 409 de hoy).
+    // La respuesta respeta EXACTAMENTE el contrato del front (strictObject):
+    // { ok, perfil_id, ya_existia, domicilio_accion, email_enviado }.
+    const { data: banderaOn } = await userClient
+      .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
+    if (banderaOn === true && lead.activo && lead.etapa === "convertido" && lead.perfil_id) {
+      const { data: previo, error: previoErr } = await userClient
+        .schema("crm").rpc("convertir_lead_con_domicilio", {
+          p_lead_id: lead_id,
+          p_perfil_id: lead.perfil_id,
+          p_domicilio: domicilioLegal,
+        });
+      if (previoErr) return json(cors, { error: previoErr.message }, 409);
+      return json(cors, {
+        ok: true,
+        perfil_id: lead.perfil_id,
+        ya_existia: true,
+        domicilio_accion: previo && typeof previo === "object" && "domicilio_accion" in previo
+          ? (previo as { domicilio_accion: string }).domicilio_accion
+          : "conservado",
+        email_enviado: false,
+      }, 200);
+    }
+    // Cerrado de verdad: inactivo, descartado, o convertido en COOPERATIVA (sin
+    // perfil de portal): a Avance no se convierte.
     if (!lead.activo || lead.etapa === "convertido" || lead.etapa === "descartado") {
       return json(cors, { error: "El lead ya está cerrado" }, 409);
     }
     // 0C: el resultado ganado exige responsabilidad comercial PREVIA. Esta
     // frontera corre antes de deduplicar, crear Auth/perfiles o enviar correo:
     // un lead parqueado nunca puede dejar un cliente huérfano si el cierre falla.
-    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId, miembro.rol_crm);
+    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId, rolCrm);
     if (errorResponsabilidad) return json(cors, { error: errorResponsabilidad }, 409);
 
     // Documento (DNI/CE/Pasaporte). Se valida en la FRONTERA (el navegador es espejo).

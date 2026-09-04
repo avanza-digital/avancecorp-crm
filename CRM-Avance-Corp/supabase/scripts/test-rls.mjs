@@ -45,6 +45,26 @@ function contarFueraDeBanda(etiqueta, sql) {
   }
   return n;
 }
+// Ejecuta SQL de setup por la misma vía fuera de banda (una transacción). Lo
+// usa el gate de identidad multiempresa para togglear `crm.multiempresa_flags`
+// (sin grants API) y limpiar fixtures de identidad (RLS deny-by-default).
+function ejecutarFueraDeBanda(etiqueta, sql, { tolerante = false } = {}) {
+  const psqlBanco = process.env.CRM_BANCO_PSQL_URL ?? '';
+  if (!psqlBanco) {
+    throw new Error(`falta CRM_BANCO_PSQL_URL — ${etiqueta} exige la via fuera de banda del banco (LEEME-seed)`);
+  }
+  if (!tolerante) {
+    execFileSync('psql', [psqlBanco, '-v', 'ON_ERROR_STOP=1', '-q', '-c', `begin; ${sql} commit;`]);
+    return;
+  }
+  // Limpieza TOLERANTE: sentencia a sentencia. Varias tablas son append-only por
+  // diseño (depositos_reclamados, ledger, cierres): un candado no aborta el resto.
+  for (const stmt of sql.split(';').map((x) => x.trim()).filter(Boolean)) {
+    try {
+      execFileSync('psql', [psqlBanco, '-q', '-c', `begin; select set_config('crm.op_privilegiada','on',true); ${stmt}; commit;`], { stdio: ['ignore', 'ignore', 'ignore'] });
+    } catch { /* candado append-only: se deja la fila, es un banco */ }
+  }
+}
 import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
@@ -9347,6 +9367,202 @@ async function testCumplimientoMetas(sessions, seed) {
   );
 }
 
+
+// ── Identidad multiempresa: puertas canónicas (lote Contrato-F2, «F3» del plan) ─
+// Prueba los 5 invariantes de la meta por LAS PUERTAS reales (no por UPDATE
+// directo), con la bandera `resolver_en_puertas` ENCENDIDA, y la paridad con la
+// bandera APAGADA (aterrizaje aditivo). Las tablas de identidad son deny-by-default
+// incluso para service_role: sus aserciones van por la vía fuera de banda.
+const IDS_IDENTIDAD = Object.freeze({
+  carreraA: randomUUID(), carreraB: randomUUID(),
+  avanceUno: randomUUID(), avanceDos: randomUUID(),
+  paridadOff: randomUUID(), veto: randomUUID(), heredaVeto: randomUUID(),
+  clienteNuevo: randomUUID(),
+});
+// Documentos y teléfonos POR CORRIDA: varias tablas son append-only y la limpieza no puede
+// borrar leads convertidos ni perfiles enlazados; cada corrida vive en su espacio (como el arnés).
+const RUN_IDENTIDAD = String(Math.floor(1000 + Math.random() * 9000));
+const DOCS_IDENTIDAD = Object.freeze({ carrera: `7${RUN_IDENTIDAD}001`, clienteNuevo: `7${RUN_IDENTIDAD}002`, veto: `7${RUN_IDENTIDAD}003`, paridadOff: `7${RUN_IDENTIDAD}004` });
+const TEL_IDENTIDAD = (n) => `9${RUN_IDENTIDAD}00${String(n).padStart(2, '0')}`;  // 9 dígitos
+
+async function testIdentidadMultiempresa(sessions, seed) {
+  console.log('\n— Identidad multiempresa: puertas canónicas (lote Contrato-F2) —');
+  const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key];
+  const vend1Id = seed.profileIdByKey.vend1;  // mismo patrón que `const ids = seed.profileIdByKey`
+  const sufijo = randomUUID().slice(0, 8);
+  const trx = (n) => `TRX-ID-${sufijo}-${n}`;
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const coop = (clave, leadId, doc, n, monto = 1000) => sessions[clave].client.schema('crm')
+    .rpc('convertir_lead_externo', {
+      p_lead_id: leadId, p_cooperativa: 'qorilazo', p_monto: monto, p_moneda: 'PEN',
+      p_documento_tipo: 'DNI', p_documento: doc, p_nombre: 'IDENTIDAD TRANSIENT',
+      p_numero_transaccion: trx(n),
+    });
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`identidad: ${etiqueta}`, sql);
+  const idsPorDoc = (doc) => `(select i.inversionista_id from crm.inversionista_identificadores i where i.documento_normalizado='${doc}' and i.estado='vigente')`;
+  const leadBase = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000, creado_por: vend1Id, vendedor_id: vend1Id };
+
+  try {
+    // ── 0 · fixtures: leads SIN dni (el índice único de leads impide dos con el
+    // mismo DNI; el documento entra por el parámetro de la coop o por el perfil) ─
+    await requireAdmin('sembrar los leads de identidad',
+      admin.schema('crm').from('leads').insert([
+        { ...leadBase, id: IDS_IDENTIDAD.carreraA,   nombre_completo: 'IDENTIDAD CARRERA A TRANSIENT',  telefono: TEL_IDENTIDAD(41) },
+        { ...leadBase, id: IDS_IDENTIDAD.carreraB,   nombre_completo: 'IDENTIDAD CARRERA B TRANSIENT',  telefono: TEL_IDENTIDAD(42) },
+        { ...leadBase, id: IDS_IDENTIDAD.avanceUno,  nombre_completo: 'IDENTIDAD AVANCE UNO TRANSIENT', telefono: TEL_IDENTIDAD(43) },
+        { ...leadBase, id: IDS_IDENTIDAD.avanceDos,  nombre_completo: 'IDENTIDAD AVANCE DOS TRANSIENT', telefono: TEL_IDENTIDAD(44) },
+        { ...leadBase, id: IDS_IDENTIDAD.paridadOff, nombre_completo: 'IDENTIDAD PARIDAD OFF TRANSIENT', telefono: TEL_IDENTIDAD(45) },
+        { ...leadBase, id: IDS_IDENTIDAD.veto,       nombre_completo: 'IDENTIDAD VETO TRANSIENT',        telefono: TEL_IDENTIDAD(46) },
+      ]));
+    flag(true);
+
+    // ── #1 · dos conversiones SIMULTÁNEAS del MISMO documento → UNA identidad ─
+    const carrera = await Promise.allSettled([
+      coop('vend1', IDS_IDENTIDAD.carreraA, DOCS_IDENTIDAD.carrera, 'A'),
+      coop('vend1', IDS_IDENTIDAD.carreraB, DOCS_IDENTIDAD.carrera, 'B'),
+    ]);
+    const ok = carrera.filter((r) => r.status === 'fulfilled' && !r.value?.error);
+    const rechazos = carrera.filter((r) => r.status === 'fulfilled' && r.value?.error);
+    assertions += 1;
+    if (ok.length === 1 && rechazos.length === 1 && /ya tiene un lead/i.test(rechazos[0].value.error.message ?? '')) {
+      console.log('  ✓ #1 carrera: UNA conversión ganó y la otra fue P0409 «ya tiene un lead»');
+    } else {
+      fail(`#1 carrera: esperaba 1 éxito + 1 P0409, obtuve ${ok.length} éxitos / ${rechazos.length} rechazos (${rechazos.map((r) => errorText(r.value.error)).join(' | ')})`);
+    }
+    const doc = DOCS_IDENTIDAD.carrera;
+    if (cuenta('identidades del doc', `select count(distinct inversionista_id) from crm.inversionista_identificadores where documento_normalizado='${doc}' and estado='vigente'`) !== 1) fail('#1: más de una identidad para el mismo documento');
+    if (cuenta('leads con la identidad', `select count(*) from crm.leads where inversionista_id in ${idsPorDoc(doc)}`) !== 1) fail('#1: más de un lead con inversionista_id (un solo lead total)');
+    if (cuenta('inversiones', `select count(*) from crm.inversiones where inversionista_id in ${idsPorDoc(doc)}`) !== 1) fail('#1: la inversión del ganador no quedó (o se duplicó)');
+    if (cuenta('titular principal', `select count(*) from crm.inversion_titulares t join crm.inversiones i on i.id=t.inversion_id where i.inversionista_id in ${idsPorDoc(doc)} and t.rol='principal'`) !== 1) fail('#1: falta el titular principal (candado #6)');
+    const ganador = ok.length === 1 && carrera[0] === ok[0] ? IDS_IDENTIDAD.carreraA : IDS_IDENTIDAD.carreraB;
+    const trxGanador = ganador === IDS_IDENTIDAD.carreraA ? 'A' : 'B';
+    if (cuenta('cierre con identidad', `select count(*) from crm.cierres_externos where lead_id='${ganador}' and inversionista_id is not null`) !== 1) fail('#1: el cierre no nació con inversionista_id');
+    if (cuenta('responsable abierto', `select count(*) from crm.inversionista_responsables where inversionista_id in ${idsPorDoc(doc)} and hasta is null`) !== 1) fail('#1: tramo de responsable de relación ≠ 1');
+
+    // ── #4 · reintento IDÉNTICO tras éxito → mismo resultado, sin duplicar ──
+    const reintento = await positive('#4 reintento idéntico del ganador', coop('vend1', ganador, doc, trxGanador));
+    assertions += 1;
+    if (reintento?.data?.reintento === true) console.log('  ✓ #4 el reintento devolvió reintento=true');
+    else fail(`#4: el reintento no fue idempotente (${JSON.stringify(reintento?.data)})`);
+    if (cuenta('inversiones tras reintento', `select count(*) from crm.inversiones where inversionista_id in ${idsPorDoc(doc)}`) !== 1) fail('#4: el reintento duplicó la inversión');
+    await expectExpectedFailure('#4 misma clave con payload DISTINTO → P0409',
+      coop('vend1', ganador, doc, trxGanador, 2000), ['P0409'], /datos distintos/i);
+    for (const clave of ['coordinador', 'directorio', 'clientBank']) {
+      await expectExplicitAuthorizationDenied(`identidad: ${clave} no convierte por coop`,
+        coop(clave, IDS_IDENTIDAD.paridadOff, `7${RUN_IDENTIDAD}099`, `X${clave}`));
+    }
+
+    // ── #2 · la persona VUELVE (Avance): reutiliza su ÚNICO lead, no crea otro ─
+    // El cliente bancario del fixture YA tiene identidad y lead (el backfill del banco lo
+    // clasificó): convertirle OTRO lead es exactamente el caso «vuelve» → P0409.
+    await expectExpectedFailure('#2 el cliente bancario (ya con identidad y lead) no convierte un SEGUNDO lead → P0409',
+      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceDos, p_perfil_id: bankProfileId }), ['P0409'], /ya tiene un lead/i);
+    if (cuenta('avanceDos intacto', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.avanceDos}' and etapa='nuevo' and inversionista_id is null`) !== 1) fail('#2: el segundo lead quedó tocado');
+    // PRIMERA conversión por Avance: un cliente TRANSITORIO (fuera de banda, como la siembra),
+    // con DNI fresco y asesor vend1, para que el resolver cree la identidad desde el perfil.
+    ejecutarFueraDeBanda('cliente transitorio', `
+      insert into auth.users (id) values ('${IDS_IDENTIDAD.clienteNuevo}') on conflict (id) do nothing;
+      insert into public.perfiles (id, nombre_completo, rol, tipo_documento, dni, asesor_perfil_id, activo)
+      values ('${IDS_IDENTIDAD.clienteNuevo}', 'IDENTIDAD CLIENTE NUEVO TRANSIENT', 'cliente', 'DNI', '${DOCS_IDENTIDAD.clienteNuevo}', '${vend1Id}', true)
+      on conflict (id) do nothing;`);
+    const av = await positive('#2 vend1 convierte por Avance (primera vez: el resolver crea la identidad desde el perfil)',
+      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceUno, p_perfil_id: IDS_IDENTIDAD.clienteNuevo }));
+    assertions += 1;
+    if (av?.data?.inversionista_id) console.log('  ✓ #2 la conversión Avance devolvió inversionista_id');
+    else fail(`#2: convertir_lead no devolvió inversionista_id (${JSON.stringify(av?.data)})`);
+    if (cuenta('perfil enlazado', `select count(*) from crm.inversionistas where perfil_id='${IDS_IDENTIDAD.clienteNuevo}' and estado<>'fusionado'`) !== 1) fail('#2: el perfil no quedó enlazado a una identidad');
+    if (cuenta('lead canónico', `select count(*) from crm.inversionista_leads where lead_id='${IDS_IDENTIDAD.avanceUno}' and rol='canonico'`) !== 1) fail('#2: falta el registro de lead canónico');
+    if (cuenta('responsable Avance', `select count(*) from crm.inversionista_responsables r join crm.inversionistas i on i.id=r.inversionista_id where i.perfil_id='${IDS_IDENTIDAD.clienteNuevo}' and r.hasta is null and r.responsable_id='${vend1Id}'`) !== 1) fail('#2: el asesor no quedó como responsable de relación');
+    const reAv = await positive('#4 reintento idéntico de la conversión Avance',
+      sessions.vend1.client.schema('crm').rpc('convertir_lead', { p_lead_id: IDS_IDENTIDAD.avanceUno, p_perfil_id: IDS_IDENTIDAD.clienteNuevo }));
+    assertions += 1;
+    if (reAv?.data?.reintento === true) console.log('  ✓ #4 reintento Avance idempotente'); else fail('#4: reintento Avance no idempotente');
+
+    // ── #3 · ninguna puerta paralela crea un lead por fuera: disponibilidad ─
+    const disp = await positive('#3 disponibilidad por documento de una persona con lead (sin perfil)',
+      sessions.vend1.client.schema('crm').rpc('verificar_disponibilidad_lead', { p_telefono: TEL_IDENTIDAD(51), p_dni: doc }));
+    assertions += 1;
+    if (disp?.data?.estado === 'ya_es_cliente' && disp?.data?.via === 'identidad') console.log('  ✓ #3 disponibilidad → ya_es_cliente vía IDENTIDAD (un solo lead total)');
+    else fail(`#3: disponibilidad dijo '${disp?.data?.estado}'/'${disp?.data?.via}' (esperaba ya_es_cliente vía identidad)`);
+    // El caso DENEGADO (auditor A1): el ALTA de un 2.º lead para ese documento se
+    // bloquea en la puerta. Un INSERT con SESIÓN pasa por trg_leads_00_disponibilidad_insert,
+    // que consulta la disponibilidad por (teléfono, dni) → 'Contacto no disponible' (P0481).
+    await expectBlockedMutation('#3 alta (INSERT con sesión) de un 2.º lead por documento de persona con lead → denegada',
+      sessions.vend1.client.schema('crm').from('leads').insert({ ...leadBase, id: randomUUID(), nombre_completo: 'IDENTIDAD ALTA DENEGADA TRANSIENT', telefono: TEL_IDENTIDAD(53), dni: doc }),
+      ['P0481', '42501', '23505']);
+    // Contrato real de la puerta (Codex): con 'ya_es_cliente' NO lanza — devuelve el estado
+    // como éxito lógico y NO crea el lead. Se aserta eso.
+    const altaRpc = await positive('#3 alta por RPC (crear_lead_si_disponible) con ese documento → responde ya_es_cliente',
+      sessions.vend1.client.schema('crm').rpc('crear_lead_si_disponible', { p_id: randomUUID(), p_nombre_completo: 'IDENTIDAD ALTA RPC DENEGADA TRANSIENT', p_telefono: TEL_IDENTIDAD(54), p_origen: 'otro', p_monto_estimado: 1000, p_moneda: 'PEN', p_vendedor_id: vend1Id, p_dni: doc }));
+    assertions += 1;
+    if (altaRpc?.data?.estado === 'ya_es_cliente' && cuenta('alta RPC no creó lead', `select count(*) from crm.leads where telefono=TEL_IDENTIDAD(54)`) === 0) console.log('  ✓ #3 alta por RPC → ya_es_cliente y NO creó lead (un solo lead total)');
+    else fail(`#3: alta por RPC devolvió '${altaRpc?.data?.estado}' o creó lead`);
+
+    // ── #5 · no_contactar de la PERSONA + oportunidad viva ────────────────
+    await positive('#5 vend1 convierte el lead del veto por coop', coop('vend1', IDS_IDENTIDAD.veto, DOCS_IDENTIDAD.veto, 'V'));
+    for (const clave of ['coordinador', 'directorio', 'clientBank']) {
+      await expectExplicitAuthorizationDenied(`#5 ${clave} no marca no_contactar`,
+        sessions[clave].client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'x' }));
+    }
+    await positive('#5 vend1 marca no_contactar (sube a la persona)',
+      sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'gate' }));
+    if (cuenta('veto en la identidad', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and no_contactar and no_contactar_en is not null`) !== 1) fail('#5: el veto no llegó a la identidad (o sin no_contactar_en)');
+    const dispVeto = await positive('#5 disponibilidad por documento de persona vetada',
+      sessions.vend1.client.schema('crm').rpc('verificar_disponibilidad_lead', { p_telefono: TEL_IDENTIDAD(52), p_dni: DOCS_IDENTIDAD.veto }));
+    assertions += 1;
+    if (dispVeto?.data?.estado === 'no_contactar') console.log('  ✓ #5 disponibilidad → no_contactar aunque cambie el teléfono');
+    else fail(`#5: disponibilidad dijo '${dispVeto?.data?.estado}' (esperaba no_contactar)`);
+    await expectBlockedMutation('#5 UPDATE directo para BAJAR el veto → rechazado (bandera on)',
+      sessions.vend1.client.schema('crm').from('leads').update({ no_contactar: false }).eq('id', IDS_IDENTIDAD.veto), ['42501']);
+    await expectExplicitAuthorizationDenied('#5 vendedor no levanta',
+      sessions.vend1.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'intento' }));
+    await expectExpectedFailure('#5 gerencia sin motivo → 22023',
+      sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: '' }), ['22023'], /motivo/i);
+    await positive('#5 gerencia CON motivo levanta',
+      sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'cliente pidió reactivar' }));
+    if (cuenta('veto levantado', `select count(*) from crm.inversionistas where id in ${idsPorDoc(DOCS_IDENTIDAD.veto)} and not no_contactar`) !== 1) fail('#5: gerencia no pudo levantar el veto');
+    // herencia al INSERT: se vuelve a vetar y un lead NUEVO del mismo documento nace vetado
+    await positive('#5 re-marcar para probar herencia',
+      sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'herencia' }));
+    await requireAdmin('#5 alta de un lead nuevo de la persona vetada (como el importador)',
+      admin.schema('crm').from('leads').insert({ ...leadBase, id: IDS_IDENTIDAD.heredaVeto, nombre_completo: 'IDENTIDAD HEREDA VETO TRANSIENT', telefono: TEL_IDENTIDAD(47), dni: DOCS_IDENTIDAD.veto }));
+    assertions += 1;
+    if (cuenta('lead nuevo hereda', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.heredaVeto}' and no_contactar`) === 1) console.log('  ✓ #5 un lead nuevo de la persona vetada NACE vetado (cierra el bypass de importación)');
+    else fail('#5: el lead nuevo no heredó el veto');
+    await positive('#5 limpieza: gerencia levanta', sessions.gerencia.client.schema('crm').rpc('levantar_no_contactar', { p_lead_id: IDS_IDENTIDAD.veto, p_motivo: 'limpieza gate' }));
+
+    // ── Paridad con bandera APAGADA (aterrizaje aditivo) ─────────────────
+    flag(false);
+    await positive('OFF: conversión coop funciona como hoy', coop('vend1', IDS_IDENTIDAD.paridadOff, DOCS_IDENTIDAD.paridadOff, 'OFF'));
+    if (cuenta('OFF sin identidad', `select count(*) from crm.inversionista_identificadores where documento_normalizado='${DOCS_IDENTIDAD.paridadOff}'`) !== 0) fail('OFF: creó identidad con la bandera apagada');
+    if (cuenta('OFF lead sin puntero', `select count(*) from crm.leads where id='${IDS_IDENTIDAD.paridadOff}' and inversionista_id is null`) !== 1) fail('OFF: tocó inversionista_id con la bandera apagada');
+    await positive('OFF: UPDATE directo de no_contactar por el dueño sigue permitido (no regresión)',
+      sessions.vend1.client.schema('crm').from('leads').update({ no_contactar: true }).eq('id', IDS_IDENTIDAD.avanceDos));
+  } finally {
+    flag(false);
+    ejecutarFueraDeBanda('limpieza identidad', `
+      delete from crm.inversion_titulares where inversion_id in (select id from crm.inversiones where cierre_externo_id in (select id from crm.cierres_externos where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}')));
+      delete from crm.inversiones where cierre_externo_id in (select id from crm.cierres_externos where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}'));
+      delete from crm.depositos_reclamados where numero_norm like 'TRX-ID-${sufijo}-%';
+      delete from crm.cierres_externos where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.inversionista_leads where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.multiempresa_idempotencia where clave like 'conversion%:%' and split_part(clave, ':', 2) in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.actividades where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.lead_asignaciones where lead_id in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.leads where id in ('${Object.values(IDS_IDENTIDAD).join("','")}');
+      delete from crm.inversionista_responsables where inversionista_id in (select inversionista_id from crm.inversionista_identificadores where documento_normalizado in ('${Object.values(DOCS_IDENTIDAD).join("','")}')) or inversionista_id in (select id from crm.inversionistas where perfil_id='${bankProfileId}');
+      delete from crm.inversionista_identificadores where documento_normalizado in ('${Object.values(DOCS_IDENTIDAD).join("','")}') or inversionista_id in (select id from crm.inversionistas where perfil_id='${bankProfileId}');
+      delete from crm.inversionista_responsables where inversionista_id in (select id from crm.inversionistas where perfil_id='${IDS_IDENTIDAD.clienteNuevo}');
+      delete from crm.inversionista_identificadores where inversionista_id in (select id from crm.inversionistas where perfil_id='${IDS_IDENTIDAD.clienteNuevo}');
+      delete from crm.inversionistas where perfil_id='${IDS_IDENTIDAD.clienteNuevo}';
+      delete from public.perfiles where id='${IDS_IDENTIDAD.clienteNuevo}';
+      delete from auth.users where id='${IDS_IDENTIDAD.clienteNuevo}';
+      delete from crm.inversionistas where perfil_id='${bankProfileId}' or (id not in (select inversionista_id from crm.inversionista_identificadores) and not exists (select 1 from crm.leads l where l.inversionista_id=crm.inversionistas.id) and not exists (select 1 from crm.inversiones v where v.inversionista_id=crm.inversionistas.id));
+    `, { tolerante: true });
+  }
+}
+
 async function testCierresExternos(sessions, seed) {
   console.log('\n— Cierres externos en cooperativas (Qorilazo/Prodelco) —');
 
@@ -10406,6 +10622,7 @@ async function main() {
       // Cierres externos ANTES de la conversion: convierte un lead de vend1 que
       // la conversion absorbe en su LINEA BASE (sus aserciones son deltas).
       await testCierresExternos(sessions, verifiedSeed);
+      await testIdentidadMultiempresa(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

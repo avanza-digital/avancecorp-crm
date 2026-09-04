@@ -7458,3 +7458,158 @@ Un replay de paridad total (las 203) por el arnés `scripts/banco/` sigue dispon
 **Siguiente:** aplicar a producción es un paso aparte (gate G3: `!` de Miguel, `db query --linked --file`), NO cubierto por este ensayo.
 
 **Reversa:** `scripts/rollback-f2-backfill.sql`. **Oráculos:** `scripts/oraculo-f2-idempotencia.sql`, `scripts/oraculo-f2-acceso.sql`.
+
+## 20260903190000 · `crm_fix_resolver_unique_violation`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3` (rama `feat/multiempresa-f3-puertas`). SIN APLICAR.** Parte del lote Contrato-F2.
+
+**Qué.** Corrige `private.inversionista_resolver`: el handler `unique_violation` (relectura tras perder la carrera del índice único) releía con solo `estado='vigente'`, sin `verificado=true` ni el JOIN a `crm.inversionistas` (`inv.estado<>'fusionado'`) que SÍ exige la rama normal → podía devolver una identidad que la rama normal habría rechazado. CREATE OR REPLACE que copia el SELECT canónico también en el handler.
+
+**Por qué.** Bug latente hallado por Codex; sin efecto vivo (ninguna puerta llama al resolver hasta encender F3), pero hay que corregirlo antes.
+
+**Guardas.** `search_path=''`, definer, sin EXECUTE para la API (reafirmado + postflight). Reversa: reaplicar F1.
+
+## 20260903200000 · `crm_f3_puerta_unica_identidad`
+
+**Estado: SUPERADA — NO SE APLICA.** El enfoque de trigger único fue refutado por Codex (4 rondas). El reconocimiento de identidad se mueve DENTRO de las puertas (`convertir_lead` = 20260903210000; `convertir_lead_externo` = pendiente del lote); este trigger se RETIRA en el cierre del lote Contrato-F2. Ver `DISEÑO-F3-PUERTA-UNICA-COMPLETA.md`. (Estado histórico: ESCRITA en el worktree, EN REVISIÓN, SIN APLICAR.)
+
+**Qué.** F3 del plan multiempresa: al CONVERTIR un lead (Avance o cooperativa), el sistema reconoce o crea la persona por el PUNTO ÚNICO (`private.inversionista_resolver`) y la enlaza — SOLO si la bandera `crm.multiempresa_flags.resolver_en_puertas` está encendida. NO reescribe las puertas de conversión (`convertir_lead`, `convertir_lead_externo`): añade UN trigger BEFORE UPDATE en `crm.leads` (`private.leads_reconocer_identidad_al_convertir`) que actúa solo en la transición a `convertido`. Luego enciende la bandera. Con la bandera apagada, el trigger retorna de inmediato (comportamiento idéntico a hoy).
+
+**Por qué.** Es la primera fase que cambia el comportamiento: hace que toda conversión pase por el único punto que reconoce a la persona, para que no se cree dos veces.
+
+**Meta (invariantes):** dos conversiones simultáneas del mismo documento → una identidad; una persona que vuelve reutiliza identidad y su único lead vivo; el resolver es el único creador (sin EXECUTE a la API); un reintento reutiliza; `no_contactar` y la oportunidad viva se respetan.
+
+**Gate G3-comportamiento:** ensayo en banco con oráculo de comportamiento (bandera on reconoce, off idéntica) y arnés de concurrencia (`oraculo-f3-concurrencia.sh`). Reversa: `scripts/rollback-f3-puerta-unica.sql` (suelta trigger + función + apaga bandera; no deshace identidades ya enlazadas).
+
+
+## 20260903210000 · `crm_f2_convertir_lead_identidad`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`; auditada por auditor-rls (núcleo técnico correcto; fixes B1/M2/N1 aplicados). SIN APLICAR.** Lote Contrato-F2.
+
+**Qué.** Reescribe `crm.convertir_lead` (Avance) para resolver la identidad DENTRO de la puerta (contrato §8.2): documento del perfil → advisory documental + `inversionistas FOR UPDATE` (orden identidad→lead, mata el deadlock con la fusión) → lead FOR UPDATE → UPDATE bajo válvula fijando `inversionista_id` junto a etapa/perfil. Replica lo que el trigger 200000 hacía para Avance: enlaza perfil↔identidad, registra el lead canónico, abre el tramo de responsable-de-relación (asesor) y centraliza `no_contactar`. Un-solo-lead (invariante #6): convertir un 2.º lead de la misma persona se rechaza (P0409).
+
+**Por qué.** El reconocimiento de identidad va en las puertas, no en un trigger (Contrato-F2, decisión de Miguel 03/09). Reemplaza a 200000 para Avance.
+
+**Guardas.** TODO detrás de la bandera `resolver_en_puertas`: APAGADA = comportamiento equivalente a hoy (lectura del perfil tras el lock del lead, misma precedencia de errores; el JSON gana una clave aditiva). Grants idénticos a la versión previa. Conserva `UNIQUE(lead_id)` (N inversiones por persona = F5). Requiere F1, F2-backfill y 20260903190000.
+
+**Pendiente del lote (antes de banco):** reescribir `convertir_lead_externo`, RETIRAR el trigger 200000, cablear idempotencia (`crm.multiempresa_idempotencia`), `no_contactar` por RPC ordenada, puerta de fusión/corrección, y casos nuevos en `test-rls.mjs`.
+
+
+## 20260903220000 · `crm_f2_convertir_lead_externo_identidad`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`; auditada por auditor-rls (cuerpo correcto y fiel a §8.3; paridad off, carrera de reserva verbatim, candados #5/#6, válvula, `es_primera_conversion` computado — todo confirmado). SIN APLICAR.** Lote Contrato-F2.
+
+**Qué.** Reescribe `crm.convertir_lead_externo` (conversión cooperativa) para resolver la identidad DENTRO de la puerta (contrato §8.3): resolver (advisory) + `inversionistas FOR UPDATE` antes del lead; el cierre nace con `inversionista_id` en el INSERT (evita el UPDATE que chocaba con la inmutabilidad); crea la inversión colgada de la identidad + titular principal; el lead toma `inversionista_id` en el mismo UPDATE bajo la válvula; replica responsable (vendedor) y `no_contactar`. Un-solo-lead: 2.º lead de la persona → P0409. Generada transformando el texto real (carrera Avance↔coop y anti-doble-depósito quedan VERBATIM).
+
+**Por qué.** Reemplaza al trigger 200000 para el camino cooperativo (Contrato-F2).
+
+**Guardas.** Detrás de la bandera `resolver_en_puertas`: APAGADA = idéntico a hoy (`inversionista_id` NULL, sin inversión/titular/responsable). Conserva `UNIQUE(lead_id)`. Grants idénticos. Requiere F1, F2-backfill y 20260903190000.
+
+## 20260903230000 · `crm_f2_cierre_lote_retira_trigger`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`. SIN APLICAR.** Cierre del lote Contrato-F2.
+
+**Qué.** Retira el trigger `trg_leads_reconocer_identidad` y su función (200000), ya reemplazados por las dos puertas (210000/220000), y deja la bandera `resolver_en_puertas` en estado EXPLÍCITO = **APAGADA**. Neutraliza el encendido que hacía 200000 se aplique o no (DROP y UPDATE idempotentes). Resuelve el bloqueante de lote que marcó el auditor (200000 era lo único que encendía la bandera y creaba el trigger).
+
+**Por qué.** F2 aterriza ADITIVA (sin cambio visible), como F1 y el backfill; el reconocimiento en las puertas queda dormido hasta una ACTIVACIÓN deliberada (paso aparte, tras ensayo + visto de Miguel + F5 para «N inversiones por persona»).
+
+**Guardas.** Postflight verifica trigger retirado, función ausente y bandera apagada. Reversa: `scripts/rollback-f2-cierre-lote.sql` (no recrea el trigger).
+
+**Pendiente del lote (antes de banco):** cablear idempotencia (`crm.multiempresa_idempotencia`), `no_contactar` por RPC ordenada, puerta de fusión/corrección, casos en `test-rls.mjs` y oráculos que ejerciten LAS PUERTAS (no el trigger) con la bandera encendida, en transacciones concurrentes reales.
+
+
+## 20260903240000 · `crm_f2_no_contactar_por_persona`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`, EN AUDITORÍA (auditor-rls). SIN APLICAR.** Lote Contrato-F2 (invariante #7 del contrato / meta #5 de F3).
+
+**Qué.** El veto «No contactar» se eleva a la PERSONA (`crm.inversionistas.no_contactar`) y los leads lo heredan (contrato §7.3). Dos RPC ORDENADAS identidad→leads: `crm.marcar_no_contactar(lead, motivo)` (cualquier rol CRM en su ámbito) y `crm.levantar_no_contactar(lead, motivo)` (SOLO Gerencia, motivo obligatorio, auditada). Trigger `trg_leads_000_no_contactar_puerta` que RECHAZA el UPDATE directo de `leads.no_contactar` salvo bajo la válvula (monotonía: nadie baja el veto por fuera de Gerencia). Trigger `trg_leads_000_hereda_veto` BEFORE INSERT: un lead nuevo cuyo DNI pertenece a una persona vetada nace vetado — cierra el bypass de `crm-importar-leads` en la capa de datos. Helper `private.persona_no_contactar(lead)` = veto del lead OR de su identidad, para que reparto/rescate/disponibilidad consulten a la PERSONA (siguiente migración).
+
+**Por qué.** Codex #4: propagar desde un trigger de UPDATE directo iría lead→identidad y podría abrazarse con la fusión (identidad→leads); por eso el trigger NO propaga, solo rechaza, y todo cambio pasa por la RPC ordenada.
+
+**Guardas.** TODO tras la bandera `resolver_en_puertas` (apagada = hoy). Revalidación 40001 si la identidad cambia entre la lectura y el lock. Grants: RPC a authenticated; helper y triggers sin EXECUTE. Postflight verifica funciones, triggers y grants.
+
+**Corregida tras auditoría (B1):** las RPC insertaban `tipo='no_contactar'` en `actividades`, que el CHECK rechaza → fallaban siempre; ahora `tipo='nota'` con el evento en metadata. También: helper por fila eliminado (250000 usa JOIN directo), `dni` normalizado en la herencia, RPC gateadas por bandera (apagada = solo el lead), `activo=true` en el ámbito. **Pendiente:** que el front llame a las RPC en vez del UPDATE directo (parte de la ACTIVACIÓN); casos en `test-rls.mjs`.
+
+## 20260903250000 · `crm_f2_lecturas_veto_persona`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`. SIN APLICAR.** Lote Contrato-F2 (invariante #7 / meta #5).
+
+**Qué.** Las tres rutas que hoy consultan SOLO `leads.no_contactar` pasan a respetar el veto de la PERSONA (`inversionistas.no_contactar`): `private.leads_por_repartir_implementacion` (la IMPLEMENTACIÓN del reparto — el wrapper `crm.leads_por_repartir` de 20260807203740 no se toca), `crm.rescatar_descartes` (rescate) y `private.verificar_disponibilidad_lead_impl` (disponibilidad/alta/toma). El join sigue a la identidad CANÓNICA. En disponibilidad, el DOCUMENTO EXACTO (normalizado como el resolver) de una persona vetada la bloquea aunque no exista lead con ese teléfono. **Corregida tras auditoría:** la 1.ª versión transformó el reparto desde la versión de julio (8 columnas) en vez de la viva (wrapper de 10 + implementación) y habría abortado con 42P13; ahora se transforma la implementación viva. Generada transformando el texto VIVO; lo demás VERBATIM; CREATE OR REPLACE con firma idéntica conserva las ACL.
+
+**Por qué.** Contrato §7.3: el veto «bloquea toda oportunidad nueva y todo seguimiento»; Codex #4/#6: reparto y rescate seguían leyendo solo el lead.
+
+**Guardas.** Cada condición nueva va gateada por la bandera `resolver_en_puertas`: APAGADA = idéntico a hoy. Requiere F1 y 240000.
+
+## 20260903205000 · `crm_f2_idempotencia_helpers`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`. SIN APLICAR.** Lote Contrato-F2 (meta #4: «un reintento reutiliza, no duplica»).
+
+**Qué.** Cablea `crm.multiempresa_idempotencia` (creada en F1, nunca usada — Codex #5): `private.idem_hash(jsonb)` (sha256 canónico), `private.idem_leer(clave,hash)` (resultado previo; misma clave con otro hash = P0409) y `private.idem_guardar(...)` (el primer resultado gana). Las puertas 210000/220000 los usan: chequeo a la entrada, retorno idempotente si el lead ya se convirtió al MISMO destino (mismo perfil / mismo número de operación), y guardado al éxito. Va ANTES de las puertas en el orden de migración.
+
+**Por qué.** Hoy un reintento tras éxito daba «lead ya cerrado»/409 en vez del mismo resultado; el edge ya dedup-ea Auth/perfil por documento, faltaba la formalidad clave+hash+resultado.
+
+**Guardas.** Helpers privados sin EXECUTE para la API; postflight lo verifica. Nota: 210000/220000 se editaron tras su auditoría para cablear esto — re-revisar en el pase de Codex sobre el set.
+
+## 20260903260000 · `crm_f2_disponibilidad_un_lead_total`
+
+**Estado: ESCRITA en el worktree `AVANCECORP-f3`. SIN APLICAR.** Lote Contrato-F2 (invariante #6 / meta #3).
+
+**Qué.** `private.verificar_disponibilidad_lead_impl` (sobre la versión de 250000): si el DNI exacto ya pertenece a una identidad que TIENE lead (Avance o cooperativa, aunque sin perfil de portal), devuelve `ya_es_cliente` (con el responsable de relación como asesor, `via: identidad`) → el alta humana y las RPC de disponibilidad/toma no abren un segundo lead (el importador sin sesión sale del trigger antes de verificar — ese bypass NO lo cierra este lote; su veto sí lo hereda `trg_leads_000_hereda_veto`). Cierra, para el alta humana, el hueco donde una persona convertida en cooperativa caía a `libre`. Sin filtro `activo` a propósito (alineado con `leads_inversionista_uidx`). Auditada: sin bloqueantes.
+
+**Por qué.** «Ninguna puerta paralela crea un lead por fuera del punto único» (meta #3) y un solo lead total (contrato #6). El edge `crm-convertir-lead` también recibió el cortocircuito idempotente (reintento tras éxito → mismo resultado, sin reserva/Auth/correo) — es un artefacto aparte (deploy de edge).
+
+**Guardas.** Gateado por bandera (apagada = idéntico). CREATE OR REPLACE conserva ACL. Requiere F1 y 250000.
+
+### Pruebas del lote Contrato-F2 (190000–260000) — estado 03/09 noche
+
+- **Suite `scripts/test-rls.mjs` → bloque `testIdentidadMultiempresa`** (registrado tras `testCierresExternos`): los 5 invariantes por LAS PUERTAS con sesiones reales, permitido Y denegado por rol (vend1/gerencia/coordinador/directorio/clientBank), bandera ENCENDIDA y paridad APAGADA. Carrera con `Promise.allSettled`; aserciones de identidad por la vía fuera de banda (`contarFueraDeBanda`; nuevo `ejecutarFueraDeBanda` para togglear `crm.multiempresa_flags` y limpiar). Limpieza en `finally` bajo la válvula.
+- **Arnés `scripts/oraculo-f3-concurrencia.sh` + `scripts/siembra-banco-f3.sql`**: dos sesiones `psql` concurrentes, cada una en UNA transacción (claims vía `set_config(..., true)`), contra el banco. Cubre carrera, reintento idéntico, payload distinto (P0409), «vuelve por Avance» (P0409), disponibilidad por documento, no_contactar por persona (marcar/levantar/rechazo directo/herencia al INSERT) y paridad con bandera apagada. `oraculo-f3-comportamiento.sql` queda SUPERSEDIDO.
+- **Pendiente de correr** en un banco con F1 + backfill + el lote (branch efímero: confirmación de costo de Miguel). Ambos artefactos aún NO se han ejecutado; su primera corrida puede requerir ajustes (p. ej. la limpieza de leads convertidos si un candado de DELETE lo impide).
+
+### Alcance REAL del lote 190000–260000 frente al Catálogo de puertas F0 (Codex, 03/09 noche)
+
+**Validado (GO de Codex, invariante #1):** dos conversiones simultáneas del mismo documento → UNA identidad, por `convertir_lead` y `convertir_lead_externo` (advisory + índice único + `inversionistas FOR UPDATE`; `READ COMMITTED`). Coherentes entre sí y con las RPC de veto: orden identidad→lead→reserva.
+
+**Cubierto por este lote:** las dos puertas de conversión (+ wrapper de domicilio); un-solo-lead al convertir (P0409); idempotencia por clave+tipo+hash en ambas puertas (gateada por bandera) y cortocircuito del edge (gateado); `no_contactar` por persona: RPC ordenadas, rechazo de UPDATE directo, herencia al INSERT, y las LECTURAS de reparto/rescate/disponibilidad; disponibilidad un-solo-lead para el alta humana y las RPC.
+
+**NO cubierto — cola del catálogo F0, pendiente (lote F2.b):** `crm-importar-leads` (inserta con service_role y sale del trigger sin verificar: puede abrir un 2.º lead a una persona convertida); `crear-cliente`, `importar-clientes`, `registrar_candidato/vendedor_*` (crean Auth/perfil sin enlazar identidad); `public.crear_contrato` (no verifica identidad); las MUTACIONES `private.repartir_lead_implementacion`, `derivar_leads_equipo_fn`, `revertir_derivacion_equipo_fn`, `tomar_lead_libre` (solo miran `leads.no_contactar`); la herencia al INSERT no bloquea ni enlaza; reserva de Portal por lead (no por identidad) → carrera Avance/coop entre leads distintos de la misma persona puede dejar un perfil huérfano; la saga Auth/perfil/correo del edge no recupera un Auth huérfano; posible inversión de locks importador(contacto→índice) vs conversión(lead→contacto); fusión, corrección documental y reasignación canónica sin implementar.
+
+**Paridad con bandera apagada:** exacta en efectos (sin identidad, sin idempotencia, «lead ya cerrado» en reintento, cortocircuito del edge inactivo). Diferencias observables admitidas: clave ADITIVA `inversionista_id:null` en el JSON de `convertir_lead`; existencia de las RPC `marcar/levantar_no_contactar` (con bandera apagada actúan solo sobre el lead, como el UPDATE directo de hoy, y dejan una actividad `nota`).
+
+**Reversa:** restaura puertas y lecturas previas (incl. la implementación de reparto de 10 columnas), retira RPC/triggers/helpers, bandera apagada. Conserva a propósito el fix 190000, las identidades/hechos/idempotencias creados, y exige redeploy previo del edge.
+
+### Rebase del lote sobre P-058 (`20260903215149_crm_capacidad_conversion_unica`) — 03/09 noche
+
+Otra sesión aplicó hoy a producción P-058: la autorización de las 4 puertas de conversión (`convertir_lead`, `convertir_lead_externo`, `reservar_conversion_lead`, `marcar_efectos_conversion`) pasa a `if not private.puede_gestionar_contratos_crm() then` (fuente única; arregla usuarios comercial+vendedor bloqueados). La migración no estaba en el worktree y **210000/220000 traían el `if` viejo → la habrían revertido**. Corregido: ambas puertas y la reversa parten ahora del cuerpo post-P-058 (mismo texto del predicado y del comentario). `reservar_conversion_lead`/`marcar_efectos_conversion` no las toca este lote. Lección reforzada: antes de reescribir una función, listar TODAS sus definiciones — incluidas las que llegan por `replace()+execute` dentro de un `DO`, invisibles a un grep de `create`.
+
+### ENSAYO EN BANCO del lote Contrato-F2 — 03/09 noche (banco-f7, ref cwkiejoaqadcnaieghnf)
+
+**Base:** `banco-f7` (el banco a paridad del 01/09) llevado a paridad con producción: replay de las 8 versiones posteriores (070052…**215149 P-058**) → **206 versiones, última = la de prod**. El lote (190000…260000) aplicó **8/8 con postflights en verde**; aterrizaje verificado: bandera APAGADA, trigger 200000 ausente, rechazo+herencia presentes, helpers e `bandera_activa` presentes, **P-058 intacto** en `convertir_lead`.
+
+**Oráculo `oraculo-f3-concurrencia.sh` → VERDE 33/33.** Por las PUERTAS, dos sesiones `psql` concurrentes en una transacción cada una: (#1) carrera del mismo documento → 1 identidad, 1 lead con puntero, 1 inversión, titular, cierre con `inversionista_id`, responsable; la otra P0409 con SQLSTATE. (#4) reintento idéntico → `reintento=true` sin duplicar; clave guardada; payload distinto → P0409. (#2) «vuelve» por Avance → P0409, lead intacto. (#3) disponibilidad: persona con perfil → `ya_es_cliente` por perfil; persona sin perfil → `ya_es_cliente` vía identidad; `p_excluir` no se bloquea a sí mismo; alta con sesión → P0481. (#5) veto por persona: marcar, identidad, disponibilidad, UPDATE directo rechazado, vendedor no levanta, gerencia sin motivo no, gerencia con motivo sí, herencia al INSERT. Paridad OFF: conversión funciona como hoy, sin puntero ni identidad.
+
+**Lecciones del ensayo:** la siembra/arnés viven **por corrida (RUN)** sin borrar nada — `depositos_reclamados` es append-only por diseño y no se desmonta; los teléfonos son de 9 dígitos; `LIKE` sobre UUID exige `::text`. Suite RLS: en curso (`test-rls-f3.log`). Reversa: pendiente de probar tras la suite.
+
+### Verificación final de Codex pre-producción (03/09 noche) y cierre de sus bloqueantes
+
+**Veredicto textual:** «ocho migraciones SQL solamente, Edge/frontend P-058 intactos y bandera comprobada OFF: **GO técnico de comportamiento vivo**. Set completo tal como está: NO-GO» — por cinco bloqueantes, todos cerrados en el worktree:
+1. **Edge `crm-convertir-lead`:** el archivo del worktree era la versión pre-P-058 (P-058 también cambió el edge: `mi_acceso_fn` + `contextoContratacionDesdeAcceso`). Reconstruido = archivo de main + el cortocircuito idempotente gateado por `crm.bandera_activa`; diff con main = solo ese bloque. El deploy del edge sigue perteneciendo a la ACTIVACIÓN, no a este lote SQL.
+2. **`convertir_lead` (210000):** la revalidación de idempotencia tras el lock pasa a ser INCONDICIONAL cuando el lead ya está convertido (dos llamadas concurrentes con distinto perfil → P0409 de clave+payload, no «lead ya cerrado»).
+3. **Arnés:** `WTRX` corregido (el reintento idéntico es idéntico gane quien gane) y `RUN` de 6 dígitos (día+hora+minuto) en el 5.º grupo del UUID; siembra alineada.
+4. **Reversa:** retira `crm.bandera_activa(text)` (residuo de 205000) y lo comprueba en su postflight. Probada dos veces en banco-f7: OK.
+5. **Respuesta de reintento del edge:** forma exacta del `strictObject` del front (`ok, perfil_id, ya_existia, domicilio_accion, email_enviado`), sin claves extra.
+Diferencias observables con bandera OFF, admitidas y documentadas: lectura de la bandera en triggers/lecturas (misma salida), `inversionista_id:null` interno (la edge no lo propaga), RPC de veto existentes, helpers privados, el fix del resolver (no gateado; sin EXECUTE para la API), `crm.bandera_activa`.
+
+**Suite RLS con el lote (banco-f7): 1195/1196; bloque `testIdentidadMultiempresa` 21/21.** El único rojo («tercer estado», conversión mensual) **está aislado: falla igual en el banco REVERTIDO** (36/1223 = 35 del bloque de identidad como control negativo + este) → deriva suite↔migraciones de prod del 02/09, no imputable al lote; registrado en `scripts/banco/HALLAZGOS-SUITE.md`. **Regresiones nuevas del lote: cero.** Control negativo obtenido de paso: sin el lote, la carrera dio «2 éxitos, más de una identidad» — el lote es lo que impone los invariantes.
+
+### CIERRE DEL ENSAYO (04/09 madrugada) — lote LISTO para el `!` de Miguel (bandera APAGADA)
+- Reversa probada ×2 → lote **re-aplicado 8/8** (reconstruíble) → arnés **VERDE** de nuevo con `WTRX` corregido (ganó L1: el reintento idéntico es idéntico gane quien gane). Bandera apagada; actores del ensayo fuera del roster.
+- Evidencia: arnés 33/33 (×2 corridas verdes, RUN 1912 y 031943); suite 1195/1196 con el lote, único rojo aislado como deriva ajena (falla igual sin el lote); control negativo: sin el lote la carrera crea >1 identidad; Codex final: «8 SQL + edge/front intactos + bandera OFF = GO técnico», 5 bloqueantes cerrados; auditor-rls en 210000/220000/240000/250000/260000.
+- **Cómo aplicar (Miguel):** las 8 migraciones en orden con `npx supabase db query --linked --file <migración>` desde `CRM-Avance-Corp`, y después `scripts/registrar-lote-f2.sql` (registra las 8 en `schema_migrations`; idempotente). NO desplegar el edge ni tocar el front: eso es la ACTIVACIÓN (paso aparte, tras F2.b).
+- `banco-f7` queda vivo a paridad+lote (US$0.013/h) como banco reutilizable; borrarlo es decisión de Miguel.
+
+### ⏸️ ESTADO AL CERRAR — 04/09/2026 madrugada (retomar mañana)
+
+- **`20260903190000` (fix resolver): EN PRODUCCIÓN** — Miguel la aplicó con `db query --linked --file` (1 de 8). Verificar mañana en solo lectura (el handler `unique_violation` con JOIN).
+- **`205000`, `210000`, `220000`, `230000`, `240000`, `250000`, `260000`: NO APLICADAS** — pero **YA REGISTRADAS** en `schema_migrations` (Miguel corrió `registrar-lote-f2.sql` antes del bucle). ⚠️ El registro va 7 por delante de la realidad. Producción es funcionalmente la de P-058 + el fix del resolver; bandera apagada. **Mañana:** aplicar 2→8 en orden con los comandos por separado (`cd …/AVANCECORP-desktop/CRM-Avance-Corp && npx supabase db query --linked --file …/AVANCECORP-f3/…/2026090320xxxx.sql`), luego verificar producción, luego fusionar el worktree a `main` y `push avancecorp main:tronco`. Si se decidiera NO seguir: `scripts/desregistrar-lote-f2.sql` (borra solo esas 7 del registro).
+- Worktree `AVANCECORP-f3` (rama `feat/multiempresa-f3-puertas`) COMMITEADO con todo el lote, reversa, siembra, arnés, suite, edge rebasado sobre P-058 y `_shared/acceso-crm.mjs`. `banco-f7` sigue vivo a paridad + lote (US$0.013/h).
