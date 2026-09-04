@@ -7749,7 +7749,7 @@ cubierta por las pruebas y por la identidad byte a byte del bundle publicado.
 
 ## 20260904174534 · `crm_reporte_derivaciones_origen_coordinacion`
 
-**Estado: ✅ BASE DE DATOS EN PRODUCCIÓN 2026-09-04; FRONTEND EN PUBLICACIÓN.**
+**Estado: ✅ EN PRODUCCIÓN 2026-09-04 (BASE DE DATOS + FRONTEND).**
 
 **Qué.** Extiende de forma aditiva
 `crm.reporte_derivaciones_coordinacion_fn(date,date)`: conserva la salida
@@ -7799,3 +7799,13 @@ intencional y queda contenido por la puerta interna, y el índice figura sin uso
 antes del primer tráfico. Respaldo privado de reversión probado:
 `releases/rollback-20260904174534-predeploy.sql`, SHA-256
 `0424d4b7f73e5d462606d3e40df8611064157f44b52718426d5a02147afe4750`.
+
+**Publicación frontend.** Commit `d75be7b5d8d3`, release
+`crm-20260904T194458Z-d75be7b5d8d3`, build
+`build-20260904T194456335Z`, ZIP SHA-256
+`91dd6ee84d4225f74c948192aed50d800c66d7eb57c68066cd18e6e37b40d79a`.
+Gate final: 189 archivos y 2.648/2.648 pruebas, Repartir 29/29. En vivo:
+76/76 entradas verificadas (63 exactas, 12 imágenes HTTP 200 y `.htaccess`
+403), versión estable, ZIP 404 en CRM y portal, login HTTP 200 sin errores de
+consola/página/red. Caché purgada; el entry anterior pasó a 404. Rollback
+frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.

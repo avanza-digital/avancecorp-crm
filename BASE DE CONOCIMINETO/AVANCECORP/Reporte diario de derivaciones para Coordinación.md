@@ -75,7 +75,7 @@ en vivo (61 al byte, 14 imágenes HTTP 200 y `.htaccess` 403); el ZIP devuelve
 No había un navegador conectado para el smoke visual autenticado; la interfaz
 sí quedó cubierta por 2.644 pruebas y por la identidad del bundle publicado.
 
-### Extensión por origen — base de datos en producción el 2026-09-04
+### Extensión por origen — publicada el 2026-09-04
 
 La migración
 `20260904174534_crm_reporte_derivaciones_origen_coordinacion` está aplicada y
@@ -92,9 +92,16 @@ antes de recibir tráfico, como corresponde. El respaldo privado previo es
 `releases/rollback-20260904174534-predeploy.sql` (SHA-256
 `0424d4b7f73e5d462606d3e40df8611064157f44b52718426d5a02147afe4750`).
 
-La nueva interfaz queda como el siguiente paso del mismo despliegue. Sus gates
-previos están verdes: 2.646/2.646 pruebas y flujo integral de Repartir 29/29 en
-Playwright.
+La interfaz está publicada desde el commit `d75be7b5d8d3`: release
+`crm-20260904T194458Z-d75be7b5d8d3`, build
+`build-20260904T194456335Z`, ZIP SHA-256
+`91dd6ee84d4225f74c948192aed50d800c66d7eb57c68066cd18e6e37b40d79a`.
+El gate final quedó en 2.648/2.648 pruebas y Repartir 29/29 en Playwright. En
+vivo se verificaron 76/76 archivos (63 exactos, 12 imágenes disponibles y
+`.htaccess` protegido), versión estable, ZIP 404 en CRM y portal, y login sin
+errores de consola/página/red. Después de purgar la caché, el entry anterior
+quedó en 404. Rollback frontend inmediato:
+`releases/crm-20260904T194617Z-41a24d3bb98a.zip`.
 
 Relacionado con [[Acceso y roles del CRM]] y
 [[Distribución de leads por capital y trazabilidad CRM]].
