@@ -225,7 +225,6 @@ Deno.serve(async (req: Request) => {
 
         resultados.push({ fila: f.fila, ok: true, user_id: newUserId });
         creados++;
-      }
         continue;
       }
 
