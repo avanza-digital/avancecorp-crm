@@ -43,8 +43,22 @@ pedido antes de mostrar la información.
 
 ## Estado
 
-Implementado y probado localmente el 2026-09-04. La migración y el frontend
-quedan pendientes de publicación; no se aplicó ningún cambio a producción.
+En producción desde el 2026-09-04. La migración
+`20260904153431_reporte_diario_derivaciones_coordinacion` quedó aplicada y
+registrada con su cuerpo completo. Una sonda transaccional usando identidades
+reales permitió Coordinación y Gerencia, denegó Supervisión con `42501` y
+confirmó que el JSON no contiene claves de PII. Los advisors de seguridad y
+rendimiento terminaron sin errores.
+
+Frontend publicado desde el commit `dc6c83e5aa37`: release
+`crm-20260904T161303Z-dc6c83e5aa37`, build
+`build-20260904T161302294Z`. Las 76 entradas del paquete quedaron verificadas
+en vivo (61 al byte, 14 imágenes HTTP 200 y `.htaccess` 403); el ZIP devuelve
+404 tanto en CRM como en el portal. El respaldo privado previo del esquema es
+`releases/reporte-derivaciones-predeploy-20260904.sql` (SHA-256
+`dd86370aa674f056bc33f046ea5e93a57aeb75939b148c05ce3711588b4d109c`).
+No había un navegador conectado para el smoke visual autenticado; la interfaz
+sí quedó cubierta por 2.644 pruebas y por la identidad del bundle publicado.
 
 Relacionado con [[Acceso y roles del CRM]] y
 [[Distribución de leads por capital y trazabilidad CRM]].

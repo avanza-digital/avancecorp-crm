@@ -7694,7 +7694,7 @@ CRM y portal, y login cargado visualmente. Se conservan el release anterior
 
 ## 20260904153431 · `reporte_diario_derivaciones_coordinacion`
 
-**Estado: IMPLEMENTADA Y VERIFICADA EN LOCAL; NO APLICADA A PRODUCCIÓN.**
+**Estado: ✅ PRODUCCIÓN 2026-09-04.**
 
 **Qué.** Añade `crm.reporte_derivaciones_coordinacion_fn(date,date)` para que
 Coordinación pueda rendir, por fecha de Lima, supervisor y analista, cuántos
@@ -7723,5 +7723,26 @@ ensayado junto con la migración en una base desechable.
 16 desechable: cortes exactos de medianoche de Lima, agrupación, exclusiones,
 historia fuera de roster, ACL y denegación a Supervisor terminaron en
 `REPORTE_COORDINACION_SQL_OK`. Frontend: contrato Valibot, MSW e integración de
-la pantalla cubiertos por 61/61 pruebas dirigidas; falta el gate final antes de
-publicar.
+la pantalla cubiertos por 61/61 pruebas dirigidas; el gate completo terminó con
+189 archivos y 2.644/2.644 pruebas, además de lint, tipos y build.
+
+**Producción.** Aplicada y registrada por cuerpo completo con
+`db query --linked --file`; el registro remoto conserva un bloque de 7.202
+caracteres con MD5 `66341e88004c0c3b81bf91a3462e1f86`, idéntico al archivo.
+La sonda transaccional con identidades reales permitió Coordinación y Gerencia,
+denegó Supervisión con `42501`, validó el día de Lima y confirmó ausencia de
+claves PII. RPC viva: `STABLE SECURITY DEFINER`, `search_path=''`,
+`authenticated=true`, `anon=false`, `service_role=false`; advisors de
+seguridad y rendimiento sin errores. Respaldo previo privado:
+`releases/reporte-derivaciones-predeploy-20260904.sql`, SHA-256
+`dd86370aa674f056bc33f046ea5e93a57aeb75939b148c05ce3711588b4d109c`.
+
+Frontend publicado desde `dc6c83e5aa37`: release
+`crm-20260904T161303Z-dc6c83e5aa37`, build
+`build-20260904T161302294Z`, ZIP SHA-256
+`007e61bbd1204b286dfbb46155e1c8a4851703878e3e873a92ae3f284bc7eae6`.
+En vivo: 76/76 entradas verificadas (61 exactas, 14 imágenes HTTP 200 y
+`.htaccess` 403), tres lecturas consecutivas del build correctas, portada 200
+y ZIP 404 tanto en CRM como en el portal. El navegador integrado no estaba
+conectado, por lo que no hubo smoke visual autenticado; la interfaz quedó
+cubierta por las pruebas y por la identidad byte a byte del bundle publicado.

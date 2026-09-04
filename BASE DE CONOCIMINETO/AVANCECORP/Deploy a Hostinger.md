@@ -49,6 +49,26 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-09-04 (~11:14 hora de Lima) — CRM: reporte diario de
+  derivaciones para Coordinación:** en **Repartir leads → Distribución**, la
+  coordinadora puede consultar cuántos leads entregó cada supervisor a cada
+  analista por día, con Ayer, Últimos 7 días o rango manual. Backend agregado
+  sin PII y basado en el ledger; Coordinación/Gerencia permitidas y Supervisión
+  denegada. Migración `20260904153431_reporte_diario_derivaciones_coordinacion`
+  aplicada y registrada por cuerpo completo; advisors sin errores. Commit
+  `dc6c83e5aa37`; release
+  **`crm-20260904T161303Z-dc6c83e5aa37`**, build
+  **`build-20260904T161302294Z`**, ZIP SHA-256
+  **`007e61bbd1204b286dfbb46155e1c8a4851703878e3e873a92ae3f284bc7eae6`**.
+  En vivo: 76/76 entradas verificadas (61 exactas, 14 imágenes 200 y
+  `.htaccess` 403), tres lecturas consecutivas del build, portada 200 y ZIP
+  404 en CRM y portal. No había navegador conectado para el smoke visual;
+  2.644/2.644 pruebas y el bundle vivo byte a byte cubren la entrega.
+  **Rollback frontend:** `crm-20260903T230001Z-4b18f42edfa0.zip`. Respaldo
+  privado previo: `releases/reporte-derivaciones-predeploy-20260904.sql`,
+  SHA-256
+  `dd86370aa674f056bc33f046ea5e93a57aeb75939b148c05ce3711588b4d109c`.
+
 - **Deploy 2026-09-03 (~18:00 hora de Lima) — CRM: el capital estimado deja de
   colapsar en la ficha del lead:** hotfix exclusivamente de frontend. El
   wrapper `w-full` del selector de moneda reclamaba toda la fila flexible y
