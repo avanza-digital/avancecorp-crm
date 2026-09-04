@@ -405,6 +405,16 @@ end;
 $function$
 ;
 
+do $vuelo$
+declare v_n integer;
+begin
+  select count(*) into v_n from crm.conversion_reservas r
+   where r.claim_id is not null and r.efectos_iniciados_en is not null and r.vence_absoluto_en > now();
+  if v_n > 0 then
+    raise exception 'REVERSA b4: hay % conversiones por persona en vuelo (selladas y vigentes); espera a que terminen o caduquen', v_n;
+  end if;
+end
+$vuelo$;
 drop index if exists crm.conversion_reservas_inv_idx;
 alter table crm.conversion_reservas
   drop column if exists hash_payload,
@@ -414,7 +424,13 @@ alter table crm.conversion_reservas
 do $post$
 begin
   if to_regprocedure('crm.saga_conversion_fn(text,jsonb)') is not null
-     or to_regprocedure('crm.reservar_conversion_lead(uuid,text,text,jsonb)') is not null then
+     or to_regprocedure('crm.reservar_conversion_lead(uuid,text,text,jsonb)') is not null
+     or to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)') is not null
+     or to_regprocedure('crm.retomar_conversion_gerencia_fn(uuid)') is not null
+     or to_regprocedure('crm.auth_usuario_por_correo_fn(text)') is not null
+     or to_regprocedure('crm.eliminar_cliente_fn(uuid)') is not null
+     or exists (select 1 from information_schema.columns where table_schema='crm' and table_name='conversion_reservas'
+                and column_name in ('inversionista_id','claim_id','hash_payload')) then
     raise exception 'REVERSA b4: quedó algo del lote';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo') <> 'e168d7012fc395d3ccae78ba829b97db'

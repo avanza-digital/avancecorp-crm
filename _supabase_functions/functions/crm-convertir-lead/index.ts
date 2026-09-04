@@ -388,6 +388,17 @@ Deno.serve(async (req: Request) => {
         // Conversión ya consumada (respuesta perdida): idempotente, sin correo.
         return json(cors, { ok: true, perfil_id: saga.perfilId, ya_existia: true, domicilio_accion: "conservado", email_enviado: false }, 200);
       }
+      if (saga.paso === "ya_existia" && typeof rr.perfil_id === "string") {
+        // La persona YA es cliente del portal (dedup por identidad): sin Auth, sin saga, sin correo.
+        // Se cierra el lead con la frontera de siempre (el servidor ya reservó por persona).
+        perfilId = rr.perfil_id;
+        yaExistia = true;
+        const { data: conversionYa, error: convYaErr } = await rpc("convertir_lead_con_domicilio", {
+          p_lead_id: lead_id, p_perfil_id: perfilId, p_domicilio: domicilioLegal,
+        });
+        if (convYaErr) return json(cors, { error: convYaErr.message, perfil_id: perfilId, cliente_creado: false }, 409);
+        conversion = conversionYa;
+      } else {
       if (!saga.claimId || !saga.token || saga.version === null) {
         return json(cors, { error: "El servidor no devolvió un claim válido" }, 500);
       }
@@ -399,11 +410,7 @@ Deno.serve(async (req: Request) => {
         return { error: null, data };
       };
 
-      if (typeof rr.perfil_id === "string" && rr.ya_existia === true && saga.paso === "crear_auth") {
-        // La persona ya es cliente del portal (dedup por IDENTIDAD): se enlaza, sin Auth ni correo.
-        perfilId = rr.perfil_id;
-        yaExistia = true;
-      } else {
+      {
         // Punto de no retorno: sellar la reserva con claim + token (identidad bloqueada antes).
         const { error: sellarErr } = await rpc("marcar_efectos_conversion", { p_lead_id: lead_id, p_claim_id: saga.claimId, p_token: saga.token });
         if (sellarErr) return json(cors, { error: sellarErr.message }, statusDeErrorSaga(sellarErr));
@@ -476,6 +483,7 @@ Deno.serve(async (req: Request) => {
         }, statusDeErrorSaga(cierre.error));
       }
       conversion = cierre.data;
+      }
     }
 
     // ── CORREO DE BIENVENIDA — el último paso, y a propósito ─────────────────

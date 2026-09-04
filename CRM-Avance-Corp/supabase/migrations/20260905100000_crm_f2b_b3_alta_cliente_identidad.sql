@@ -170,7 +170,10 @@ begin
   if v_est->>'token_hash' is distinct from private.saga_token_hash(p_token) then
     raise exception 'Saga: token inválido' using errcode = '42501';
   end if;
-  if v_row.version <> p_version then
+  if p_version is null then
+    raise exception 'Saga: falta la versión del claim (CAS)' using errcode = '22023';
+  end if;
+  if v_row.version is distinct from p_version then
     raise exception 'Saga: el claim cambió (versión % ≠ %); vuelve a reclamar', v_row.version, p_version
       using errcode = '40001';
   end if;
@@ -349,7 +352,8 @@ begin
 
   if p_paso = 'reclamar' then
     v_tipo := coalesce(nullif(pg_catalog.upper(pg_catalog.btrim(p_payload->>'tipo_documento')), ''), 'DNI');
-    v_doc  := nullif(pg_catalog.btrim(coalesce(p_payload->>'documento', '')), '');
+    -- Misma normalización que el resolver (el lookup del perfil por documento la necesita igual).
+    v_doc  := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_payload->>'documento', ''), '[^A-Za-z0-9]', '', 'g')), '');
     if v_doc is null then
       raise exception 'El documento es obligatorio para crear un cliente (identidad unificada)' using errcode = '22023';
     end if;

@@ -89,7 +89,7 @@ declare
   v_ventana  interval := interval '5 minutes';
   v_tope     interval := interval '30 minutes';
   v_tipo     text := coalesce(nullif(pg_catalog.upper(pg_catalog.btrim(p_tipo_documento)), ''), 'DNI');
-  v_doc      text := nullif(pg_catalog.btrim(coalesce(p_documento, '')), '');
+  v_doc      text := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_documento, ''), '[^A-Za-z0-9]', '', 'g')), '');
   v_inv      uuid; v_veto boolean; v_otro uuid; v_perfil uuid; v_perfil_activo boolean;
   v_hash     text; v_hash_payload jsonb; v_saga jsonb; v_claim uuid;
 begin
@@ -107,33 +107,12 @@ begin
     raise exception 'Payload inválido' using errcode = '22023';
   end if;
 
-  -- documento -> identidad
+  -- documento -> identidad -> lead (ámbito, VERBATIM de la viva) -> revalidaciones de la persona.
+  -- El ámbito va ANTES de cualquier lectura sobre la persona: un vendedor no puede sondear
+  -- documentos ajenos con un lead que no es suyo (auditor b4 A1).
   perform private.identidad_bloquear_documento(v_tipo, v_doc);
   v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'reserva_conversion');
   select i.no_contactar, i.perfil_id into v_veto, v_perfil from crm.inversionistas i where i.id = v_inv for update;
-  if coalesce(v_veto, false) then
-    raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
-  end if;
-  -- un solo lead TOTAL (invariante #6): la persona no puede tener OTRO lead.
-  select l.id into v_otro from crm.leads l where l.inversionista_id = v_inv and l.id <> p_lead_id limit 1;
-  if v_otro is not null then
-    raise exception 'Esta persona ya tiene su lead: la nueva inversión sobre un cliente existente no es una conversión'
-      using errcode = 'P0409', detail = pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'via', 'identidad', 'lead_id', v_otro)::text;
-  end if;
-  if v_perfil is null then
-    -- Perfil cliente con ese documento creado antes de la identidad: se reutiliza (dedup de hoy, por identidad).
-    select p.id into v_perfil from public.perfiles p
-     where p.rol = 'cliente' and p.dni = v_doc and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
-     limit 1;
-  end if;
-  if v_perfil is not null then
-    select p.activo into v_perfil_activo from public.perfiles p where p.id = v_perfil;
-    if v_perfil_activo is distinct from true then
-      raise exception 'Ese cliente existe pero está inactivo en el portal' using errcode = 'P0409';
-    end if;
-  end if;
-
-  -- lead FOR UPDATE (ámbito verbatim de la viva)
   select *
     into v_lead
   from crm.leads
@@ -156,6 +135,35 @@ begin
     raise exception 'Lead no encontrado o fuera de tu ambito';
   end if;
 
+
+  -- El documento tecleado debe ser el de la persona de ESTE lead (misma regla que convertir_lead, adelantada a antes de Auth).
+  if v_lead.inversionista_id is not null and v_lead.inversionista_id <> v_inv then
+    raise exception 'El documento no es el de la persona de este lead' using errcode = 'P0409';
+  end if;
+  if v_tipo = 'DNI' and v_lead.dni is not null and v_lead.dni <> v_doc then
+    raise exception 'El documento no coincide con el del lead' using errcode = 'P0409';
+  end if;
+  if coalesce(v_veto, false) then
+    raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
+  end if;
+  -- un solo lead TOTAL (invariante #6): la persona no puede tener OTRO lead.
+  select l.id into v_otro from crm.leads l where l.inversionista_id = v_inv and l.id <> p_lead_id limit 1;
+  if v_otro is not null then
+    raise exception 'Esta persona ya tiene su lead: la nueva inversión sobre un cliente existente no es una conversión'
+      using errcode = 'P0409', detail = pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'via', 'identidad', 'lead_id', v_otro)::text;
+  end if;
+  if v_perfil is null then
+    -- Perfil cliente con ese documento creado antes de la identidad: se reutiliza (dedup de hoy, por identidad).
+    select p.id into v_perfil from public.perfiles p
+     where p.rol = 'cliente' and p.dni = v_doc and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
+     limit 1;
+  end if;
+  if v_perfil is not null then
+    select p.activo into v_perfil_activo from public.perfiles p where p.id = v_perfil;
+    if v_perfil_activo is distinct from true then
+      raise exception 'Ese cliente existe pero está inactivo en el portal' using errcode = 'P0409';
+    end if;
+  end if;
 
   -- Conversión ya consumada cuya respuesta se perdió (Codex E2 #4): la saga manda.
   if v_lead.etapa = 'convertido' and v_lead.perfil_id is not null
@@ -230,13 +238,20 @@ begin
   end if;
 
 
+  -- Persona YA cliente del portal (identidad enlazada o perfil con el documento exacto): sin Auth y
+  -- sin saga; el edge convierte con convertir_lead_con_domicilio como hoy (auditor b4 A2).
+  if v_perfil is not null then
+    update crm.conversion_reservas r set claim_id = null where r.lead_id = p_lead_id;
+    return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'expira_en', v_expira,
+      'inversionista_id', v_inv, 'perfil_id', v_perfil, 'ya_existia', true, 'estado', 'ya_existia', 'reanudar', false);
+  end if;
   -- Claim de la saga (o reanudación con token / lease vencido).
   v_saga := private.saga_auth_reclamar(v_inv, 'conversion', v_hash_payload, p_lead_id, p_payload->>'token');
   v_claim := (v_saga->>'claim_id')::uuid;
   update crm.conversion_reservas r set claim_id = v_claim where r.lead_id = p_lead_id;
 
   return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'expira_en', v_expira,
-    'inversionista_id', v_inv, 'perfil_id', coalesce((v_saga->>'perfil_id')::uuid, v_perfil), 'ya_existia', v_perfil is not null)
+    'inversionista_id', v_inv, 'perfil_id', (v_saga->>'perfil_id')::uuid, 'ya_existia', false)
     || (v_saga - 'inversionista_id' - 'perfil_id');
 end;
 $$;
@@ -298,6 +313,9 @@ set search_path = ''
 as $$
 declare v_loc record;
 begin
+  if not private.puede_gestionar_contratos_crm() then
+    raise exception 'No autorizado para convertir leads' using errcode = '42501';
+  end if;
   if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'Identidad unificada apagada' using errcode = 'P0409';
   end if;
@@ -336,6 +354,7 @@ begin
   end if;
   v_claim := (p_payload->>'claim_id')::uuid;
   if v_claim is null then raise exception 'Falta claim_id' using errcode = '22023'; end if;
+  if (p_payload->>'version') is null then raise exception 'Falta version (CAS)' using errcode = '22023'; end if;
 
   if p_paso = 'registrar_auth' then
     return private.saga_auth_avanzar(v_claim, p_payload->>'token', 'auth_creado', (p_payload->>'auth_user_id')::uuid, null, (p_payload->>'version')::integer);
@@ -358,6 +377,10 @@ begin
     end if;
     if (v_loc.estado->>'lead_id')::uuid is distinct from v_lead then
       raise exception 'Saga: el lead no es el reservado en este claim' using errcode = 'P0409';
+    end if;
+    -- El perfil de un claim con Auth es ese Auth: no se cierra con otro perfil (auditor b4 M1).
+    if (v_loc.estado->>'auth_user_id') is not null and v_perfil is distinct from (v_loc.estado->>'auth_user_id')::uuid then
+      raise exception 'Saga: el perfil no corresponde al usuario de Auth de este claim' using errcode = 'P0409';
     end if;
     v_res := crm.convertir_lead_con_domicilio(v_lead, v_perfil, p_payload->>'domicilio');
     v_inv_conv := (v_res->>'inversionista_id')::uuid;
@@ -405,6 +428,9 @@ begin
   select i.resultado into v_est from crm.multiempresa_idempotencia i where i.clave = v_clave for update;
   if v_est is null or v_est->>'estado' = 'enlazado' then
     raise exception 'No hay una conversión a medias que retomar' using errcode = 'P0409';
+  end if;
+  if (v_est->>'lead_id')::uuid is distinct from p_lead_id or v_r.claim_id is distinct from (v_est->>'claim_id')::uuid then
+    raise exception 'La reserva y el claim de esta persona no corresponden a este lead' using errcode = 'P0409';
   end if;
   v_token := pg_catalog.encode(extensions.gen_random_bytes(24), 'hex');
   v_est := v_est || pg_catalog.jsonb_build_object('token_hash', private.saga_token_hash(v_token), 'owner', v_uid,
