@@ -36,7 +36,8 @@
     "release:crm": "npm --prefix app run test:release-config && npm --prefix app run build && npm --prefix app run verify:release && node scripts/crear-artefacto-release.mjs create",
     "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify",
     "gate:f7": "node supabase/scripts/gate-f7-observacion.mjs",
-    "evidencia:f7": "node supabase/scripts/evidencia-f7-accesos.mjs"
+    "evidencia:f7": "node supabase/scripts/evidencia-f7-accesos.mjs",
+    "evidencia:f7:gate": "node supabase/scripts/evidencia-f7-accesos.mjs --gate"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"
