@@ -803,7 +803,9 @@ describe('LeadNuevo — Tomar lead (F2)', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument(),
     )
-    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeEnabled()
+    // Retirar «Tomar» y terminar de validar el alta son renders distintos.
+    // Esperar el estado operable, no un fotograma intermedio de la transición.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Crear lead' })).toBeEnabled())
     // a11y F2-M1: era el único desenlace mudo (todo se desvanecía en
     // silencio) — sonner tiene aria-live, el cambio se anuncia.
     expect(toast.info).toHaveBeenCalled()
