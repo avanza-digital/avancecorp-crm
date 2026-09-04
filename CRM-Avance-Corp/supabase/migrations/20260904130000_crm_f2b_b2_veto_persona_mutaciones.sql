@@ -1400,7 +1400,7 @@ begin
       )
   ) destino;
 
-  v_total_destinos := pg_catalog.coalesce(pg_catalog.array_length(v_destinos_validos, 1), 0);
+  v_total_destinos := coalesce(pg_catalog.array_length(v_destinos_validos, 1), 0);  -- F2.b (b2): pg_catalog.coalesce no existe (bug desde 20/08)
   if v_total_destinos <> pg_catalog.array_length(p_analistas_destino, 1) then
     raise exception 'Uno de los asesores destino no está activo o no pertenece a tu equipo'
       using errcode = '22023';
