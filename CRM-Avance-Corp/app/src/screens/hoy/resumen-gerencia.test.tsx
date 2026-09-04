@@ -293,6 +293,59 @@ describe('ranking general de analistas', () => {
 })
 
 describe('estados vacíos del resumen de Gerencia', () => {
+  it('usa la base canónica del rango en lugar de la base mensual adelantada', () => {
+    const conversiones = conOrigenesVerificados(
+      metricasConversionesDemo('2026-09-01', '2026-09-03'),
+    )
+    conversiones.nucleo = {
+      ...conversiones.nucleo!,
+      divisor: 289,
+      numerador: 10,
+      conversion_pct: 3.46,
+      cierres_no_referidos: 10,
+      cierres_referidos: 0,
+      operaciones_cartera: 0,
+      mes_peso: '2026-09-01',
+      incluye_cartera: false,
+    }
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    mensual.total = {
+      ...mensual.total,
+      divisor: 317,
+      conversion_pct: 3.79,
+    }
+
+    render(
+      <ResumenGerenciaPanel
+        conversiones={conversiones}
+        conversionMensual={mensual}
+        reuniones={metricasReunionesDemo('2026-09-01', '2026-09-03')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'setiembre 2026', comparable: true }}
+        cargando={false}
+        rangoCargando={false}
+        mensualCargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    const titulo = screen.getByText(/Conversión del rango · 01 set\. 2026 al 03 set\. 2026/)
+    const heroe = titulo.closest('section')
+    expect(heroe).not.toBeNull()
+    expect(heroe).toHaveTextContent('3.46%')
+    expect(heroe).toHaveTextContent('289 asignaciones contabilizadas')
+    expect(heroe).not.toHaveTextContent('317')
+    expect(heroe).not.toHaveTextContent('3.79%')
+    expect(screen.getByText('Conversión del rango', { selector: '.gi-label' }).closest('[data-gi-kpi]'))
+      .toHaveTextContent('289 asignaciones contabilizadas')
+  })
+
   it('no convierte una foto mensual pendiente en cero ni en ausencia de meta', () => {
     render(
       <ResumenGerenciaPanel
@@ -530,7 +583,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(
       screen.getByText(
-        /aplica a la Cosecha y al embudo del período; las citas, la conversión del mes y las metas son de toda la empresa/,
+        /aplica a la Cosecha y al embudo del período; las citas, la conversión canónica y las metas siguen mostrando toda la empresa/,
       ),
     ).toBeInTheDocument()
   })

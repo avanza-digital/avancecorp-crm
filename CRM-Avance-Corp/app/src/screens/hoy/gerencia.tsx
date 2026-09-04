@@ -16,7 +16,7 @@ import {
 import { useCRMData } from '@/lib/store-context'
 import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { fmtFecha, money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   capitalObjetivo,
@@ -119,6 +119,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, ori
   const sinCambios = borrador.desde === periodo.desde && borrador.hasta === periodo.hasta
   const hoyLima = periodoInicialGerencia().hasta
   const maximoDesde = borrador.hasta && borrador.hasta < hoyLima ? borrador.hasta : hoyLima
+  const etiquetaRango = `${fmtFecha(periodo.desde)} al ${fmtFecha(periodo.hasta)}`
   if (modo === 'mes') {
     return (
       <div data-gi-toolbar className="gi-toolbar">
@@ -166,7 +167,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, ori
           <p role="status" className="mt-1.5 text-[11px] font-medium text-[var(--gi-muted)]">
             {origenDeshabilitado
               ? `Conversión, metas y capital: ${etiquetaMes} completo · el rango recorta Cosecha, citas y embudo. Los datos de ejemplo no se filtran por origen.`
-              : `Conversión, metas y capital: ${etiquetaMes} completo · el rango recorta Cosecha, citas y embudo; el origen recorta Cosecha y embudo.`}
+              : `Conversión y citas: ${etiquetaRango} · metas y capital: ${etiquetaMes}. El origen recorta Cosecha y embudo; la conversión canónica sigue mostrando todos los orígenes.`}
           </p>
         )}
         {!validacion.valido && (
@@ -507,9 +508,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
         : null
     : null
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de citas.')
-  // La MENSUAL también alimenta al Resumen (su bloque de conversión): su fallo
-  // es un error del panel, con reintento — la tercera pantalla del mismo hueco
-  // (inteligencia y ranking ya lo tenían cerrado).
+  // La foto MENSUAL alimenta metas, capital, ranking y el fallback compatible
+  // del Resumen. Su fallo sigue siendo un error reintentable del panel, pero la
+  // cifra principal toma el núcleo canónico del rango cuando está disponible.
   const errorResumen = [errorConversiones, errorConversionMensual, errorFotoMensualRanking, errorReuniones].filter(Boolean).join(' ') || null
   const capitalActualPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalActualUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
@@ -567,7 +568,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={modoDemo ? null : origenActivo} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={modoDemo ? null : origenActivo} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}

@@ -26,7 +26,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
+import { fmtFecha, money, moneyCompacta, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   descuentoArrastre,
@@ -58,11 +58,11 @@ import {
 interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
   /**
-   * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — alimenta
-   * el héroe y el bloque «del mes» de la ficha del analista. Tri-estado:
+   * La conversión mensual ponderada (`crm.conversion_mensual_fn`) alimenta el
+   * bloque «del mes» de la ficha del analista, metas y el fallback compatible
+   * cuando un servidor antiguo no trae `datos.nucleo`. Tri-estado:
    * `undefined` consultando · `null` no disponible (fail-closed, «—»/rótulo).
-   * Los análisis del RANGO (embudo, orígenes, tendencia) siguen en `datos`:
-   * miden otra pregunta y conservan su rótulo de periodo.
+   * El héroe real usa `datos.nucleo`, servido para el rango exacto.
    */
   conversionMensual: ConversionMensual | null | undefined
   /**
@@ -165,13 +165,9 @@ function iniciales(nombre: string): string {
 
 function etiquetaPeriodo(periodo: MetricasConversiones['periodo'] | null): string {
   if (!periodo) return ''
-  const fecha = (iso: string): Date => new Date(`${iso}T12:00:00Z`)
-  if (periodo.desde.slice(0, 7) === periodo.hasta.slice(0, 7)) {
-    const texto = new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(fecha(periodo.desde))
-    return texto.charAt(0).toUpperCase() + texto.slice(1)
-  }
-  const formato = new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-  return `${formato.format(fecha(periodo.desde))} – ${formato.format(fecha(periodo.hasta))}`
+  return periodo.desde === periodo.hasta
+    ? fmtFecha(periodo.desde)
+    : `${fmtFecha(periodo.desde)} al ${fmtFecha(periodo.hasta)}`
 }
 
 function progreso(actual: number | null, objetivo: number): number | null {
@@ -683,9 +679,9 @@ export function InteligenciaComercialPanel({
   const cosechaLeads = datos?.cohorte.leads ?? 0
   const cosechaCierres = datos?.cohorte.contratos ?? 0
   const cosechaPct = datos?.cohorte.conversion_contratos_pct ?? null
-  // El nombre «Conversiones» muestra como cifra principal la misma conversión
-  // mensual canónica que HOY, Metas y Ranking. La Cosecha permanece visible,
-  // pero siempre rotulada como lectura del rango/origen: son dos preguntas.
+  // La cifra principal obedece al filtro visible: `nucleo` ya viene calculado
+  // por la RPC canónica para el rango exacto. No se divide ni se reconstruye en
+  // el navegador. La mensual sigue aparte para metas y detalle del analista.
   const lecturaMensual = lecturaCobertura(conversionMensual?.cobertura)
   const totalMensual = totalConversionPublicable(conversionMensual)
   const conversionMensualPublicable = lecturaMensual.mostrar
@@ -717,6 +713,16 @@ export function InteligenciaComercialPanel({
     kpiCapital,
   ]
   const mensualEsperando = mensualCargando && conversionMensual === undefined
+  const rangoEsperando = rangoCargando && datos === undefined
+  // Compatibilidad con respuestas antiguas y el mundo demo: si el payload no
+  // trae `nucleo`, se conserva la cifra mensual, pero con su rótulo mensual. En
+  // producción el contrato vigente sí trae el núcleo y por eso manda el rango.
+  const usaNucleoRango = nucleo != null || rangoEsperando
+  const conversionPrincipal = usaNucleoRango ? nucleo?.conversion_pct ?? null : conversionMesPct
+  const conversionPrincipalEsperando = usaNucleoRango ? rangoEsperando : mensualEsperando
+  const etiquetaConversionPrincipal = usaNucleoRango
+    ? `Conversión del rango${datos == null ? '' : ` · ${etiquetaPeriodo(datos.periodo)}`}`
+    : `Conversión del mes · ${metaMensual.etiqueta}`
   const cosechaHero = datos != null
     ? pct(cosechaPct)
     : rangoCargando
@@ -745,21 +751,32 @@ export function InteligenciaComercialPanel({
           <section
             data-gi-hero
             className="gi-summary-hero"
-            aria-label="Conversión mensual canónica"
-            aria-busy={mensualEsperando}
+            aria-label={usaNucleoRango ? 'Conversión canónica del rango' : 'Conversión mensual canónica'}
+            aria-busy={conversionPrincipalEsperando}
           >
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">Conversión del mes · {metaMensual.etiqueta}</p>
+              <p className="gi-label text-white/65">{etiquetaConversionPrincipal}</p>
               <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">
-                {mensualEsperando ? 'Calculando…' : porcentajeConversionCanonica(conversionMesPct)}
+                {conversionPrincipalEsperando ? 'Calculando…' : porcentajeConversionCanonica(conversionPrincipal)}
               </p>
               <p className="mt-2 text-xs text-white/65">
-                {mensualEsperando
-                  ? 'Todos los orígenes · consultando el núcleo mensual…'
-                  : `Todos los orígenes · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} recibidos · ${numero(cierresMes ?? 0)} cierres`}`}
-                {!mensualEsperando && (operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : ''}
+                {usaNucleoRango
+                  ? rangoEsperando
+                    ? 'Todos los orígenes · consultando el núcleo del rango…'
+                    : nucleo == null
+                      ? 'Base canónica del rango no disponible'
+                      : `Todos los orígenes · ${numero(nucleo.divisor)} asignaciones contabilizadas · ${numero(nucleo.cierres_no_referidos)} cierres no referidos`
+                        + (nucleo.cierres_referidos > 0 ? ` · ${numero(nucleo.cierres_referidos)} cierres referidos` : '')
+                        + (nucleo.operaciones_cartera > 0 ? ` · ${numero(nucleo.operaciones_cartera)} operaciones de cartera` : '')
+                  : mensualEsperando
+                    ? 'Todos los orígenes · consultando el núcleo mensual…'
+                    : `Todos los orígenes · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} asignaciones contabilizadas · ${numero(cierresMes ?? 0)} cierres`}`
+                      + ((operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : '')}
               </p>
-              {!mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
+              {usaNucleoRango && nucleo != null && !nucleo.incluye_cartera && (
+                <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
+              )}
+              {!usaNucleoRango && !mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Cosecha del rango{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
@@ -832,10 +849,10 @@ export function InteligenciaComercialPanel({
           <div className="grid gap-4 xl:grid-cols-2">
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Avance comercial</h3><GerenciaEChart tipo="barras" option={opcionRecorrido} ariaLabel="Avance de los leads hasta convertirse en clientes" className="mt-3 h-[330px] w-full" /></section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} />{origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
-              // D6: los referidos quedan FUERA de la base general del mes y sus
+              // D6: los referidos quedan FUERA de la base general del rango y sus
               // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
-                {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
+                {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base general de la conversión (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
               </p>
             )}
             </section>
