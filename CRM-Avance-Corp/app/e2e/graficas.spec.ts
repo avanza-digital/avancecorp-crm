@@ -32,6 +32,7 @@ test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase',
 
 test.describe('resumen de Gerencia en sesión real', () => {
   test('muestra conversiones y reuniones provenientes de las RPC mockeadas', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-09-04T15:00:00.000Z'))
     await montarBackendReal(page, {
       metricas: {
         conversiones: metricasConversionesReal(),
@@ -42,9 +43,14 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await loginReal(page)
 
     await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
-    // El héroe dice LA conversión del MES (RPC mensual), no la cohorte del rango;
-    // el único contador visible de leads queda en el KPI del período.
-    await expect(page.getByText('2 cierres este mes')).toBeVisible()
+    // El héroe obedece al núcleo del RANGO visible. Este fixture conserva el
+    // contrato anterior: debe identificarlo como histórico, nunca inventar
+    // llegadas ni volver a presentar asignaciones como captación.
+    await expect(page.getByText('Base histórica · 20 registros en la base histórica · 2 cierres no referidos')).toBeVisible()
+    const conversion = page.locator('[data-gi-kpi]').filter({ hasText: 'Conversión del rango' })
+    await expect(conversion).toContainText('10.00%')
+    await expect(conversion).toContainText('20 registros en la base histórica')
+    await expect(page.getByText(/asignaciones contabilizadas/)).toHaveCount(0)
     // El capital confirmado viene de Cumplimiento/Metas, no se recompone desde
     // la RPC histórica de conversiones. Sin esa fuente, el vacío es explícito.
     const capital = page.locator('[data-gi-kpi]').filter({ hasText: 'Capital confirmado del mes' })

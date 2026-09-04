@@ -293,7 +293,19 @@ function cumplimientoSupervisor(
   }
 }
 
+// Cada prueba empieza sin visitas anteriores, también en Node 24/CI, donde
+// localStorage sí está disponible. El historial se siembra solo al probarlo.
+function instalarAlmacen(inicial: Record<string, string> = {}) {
+  const datos = new Map(Object.entries(inicial))
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => datos.get(k) ?? null,
+    setItem: (k: string, v: string) => { datos.set(k, v) },
+  })
+  return datos
+}
+
 beforeEach(() => {
+  instalarAlmacen()
   METRICAS_AGENDA = undefined
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
@@ -310,6 +322,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 it('recarga una sola vez si la foto del store quedó en el mes anterior', () => {
@@ -853,18 +866,6 @@ describe('Hoy · supervisor — novedades de la visita (F4.3)', () => {
   const recienEstancado = lead({ id: 'recien', nombre_completo: 'RECIEN ESTANCADO', creado_en: '2026-07-09T15:00:00Z' })
   const sinResponder = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
   const CLAVE = 'crm:sin-movimiento:visita:s-1'
-
-  function instalarAlmacen(inicial: Record<string, string> = {}) {
-    const datos = new Map(Object.entries(inicial))
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      value: {
-        getItem: (k: string) => datos.get(k) ?? null,
-        setItem: (k: string, v: string) => { datos.set(k, v) },
-      },
-    })
-    return datos
-  }
 
   it('la PRIMERA visita no marca nada y deja la foto anotada (ids y días, sin nombres)', () => {
     const datos = instalarAlmacen()
