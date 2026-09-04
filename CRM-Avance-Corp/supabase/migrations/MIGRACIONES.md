@@ -7851,7 +7851,9 @@ frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.
 
 **Fuera (requiere OK de Miguel, `public`):** parche de `public.crear_contrato` (`asegurar_identidad_perfil` antes de su `for share`) y trigger en `public.perfiles` (documento de un perfil enlazado). Colaboradores/registro Portal: decisión de Miguel (por defecto fuera).
 
-**Reversa:** `scripts/rollback-f2b-b3.sql` (md5 de prod; se niega si b4 sigue instalada).
+**Auditor-rls (05/09):** sin bloqueantes; A1 (la repetición idempotente del mismo estado reescribía `auth_user_id`/`perfil_id` sin verificar) y A2 (un claim varado en `reclamado` con datos distintos bloqueaba a la persona para siempre) CORREGIDOS: la repetición nunca cambia Auth/perfil; en `reclamado` (nada externo aún) un payload distinto REEMPLAZA la huella y desde `auth_creado` se compara. También M1 (`enlazar` usa el perfil del claim y rechaza otro), M2 (`{"dni": null}` ya no esquiva la protección), M3 mínimo (un vendedor no recibe ids en `ya_existia`), M4 (documento normalizado en el lookup del perfil y en la revalidación), `responsable_relacion_id` coherente con el tramo, y la reversa se niega si `public.crear_contrato` ya llama a `asegurar_identidad_perfil`. Desviación aceptada y documentada: `hash_payload` es sha256 sin secreto (no hay almacén de secretos; la huella no autoriza, el token sí y va hasheado). Pendiente para la activación: registro anti-pesca completo en `reclamar` y casos de b3/b4 en `test-rls.mjs`.
+
+**Reversa:** `scripts/rollback-f2b-b3.sql` (md5 de prod; se niega si b4 sigue instalada o si `crear_contrato` ya usa el helper).
 
 ## 20260905110000 · `crm_f2b_b4_conversion_por_persona`
 

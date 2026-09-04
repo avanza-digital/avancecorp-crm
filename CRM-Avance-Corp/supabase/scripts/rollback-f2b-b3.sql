@@ -12,6 +12,9 @@ begin
   if to_regprocedure('crm.saga_conversion_fn(text,jsonb)') is not null then
     raise exception 'REVERSA b3: b4 (20260905110000) sigue instalada y usa la saga de b3; revierte b4 primero';
   end if;
+  if strpos(pg_get_functiondef('public.crear_contrato(jsonb,jsonb)'::regprocedure), 'asegurar_identidad_perfil') > 0 then
+    raise exception 'REVERSA b3: public.crear_contrato llama a asegurar_identidad_perfil; revierte ese parche primero';
+  end if;
 end
 $pre$;
 update crm.multiempresa_flags set activo = false, actualizado_en = now()

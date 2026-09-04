@@ -114,15 +114,20 @@ begin
     raise exception 'Esta persona tiene un alta en curso; espera unos minutos'
       using errcode = 'P0409';
   end if;
-  -- El payload canónico manda hasta completar la operación (Codex E2 #10).
-  if v_row.hash_payload <> v_hash then
+  -- En 'reclamado' aún no existe nada externo: un payload distinto (correo corregido, etc.)
+  -- REEMPLAZA la huella en vez de varar a la persona (auditor b3 A2). Desde 'auth_creado' el
+  -- Auth y el perfil ya llevan los datos: un payload distinto es otra intención → P0409.
+  if v_est->>'estado' <> 'reclamado' and v_row.hash_payload <> v_hash then
     raise exception 'La misma persona llegó con datos distintos; no se puede reintentar así'
       using errcode = 'P0409';
   end if;
   v_est := v_est || pg_catalog.jsonb_build_object('token_hash', private.saga_token_hash(v_token), 'owner', v_uid,
+    'tipo', p_tipo, 'lead_id', coalesce(p_lead_id, (v_est->>'lead_id')::uuid),
     'lease_hasta', pg_catalog.now() + interval '10 minutes', 'actualizado_en', pg_catalog.now());
   update crm.multiempresa_idempotencia
-     set resultado = v_est, version = version + 1
+     set resultado = v_est, version = version + 1,
+         hash_payload = case when v_est->>'estado' = 'reclamado' then v_hash else hash_payload end,
+         tipo = p_tipo
    where clave = v_clave;
   return pg_catalog.jsonb_build_object('claim_id', (v_est->>'claim_id')::uuid, 'token', v_token, 'estado', v_est->>'estado',
     'version', v_row.version + 1, 'reanudar', true, 'inversionista_id', p_inv,
@@ -182,7 +187,9 @@ begin
        or (v_prev = 'auth_creado' and p_estado = 'perfil_creado' and p_perfil_id is not null and p_perfil_id = (v_est->>'auth_user_id')::uuid)
        or (v_prev in ('auth_creado','perfil_creado') and p_estado = 'enlazado')
        or (v_prev = 'auth_creado' and p_estado = 'reclamado')   -- compensación: el Auth se borró tras fallar el perfil
-       or (v_prev = p_estado)) then
+       or (v_prev = p_estado                                      -- repetición idempotente: NUNCA reescribe auth/perfil (auditor b3 A1)
+           and coalesce(p_auth_user_id, (v_est->>'auth_user_id')::uuid) is not distinct from (v_est->>'auth_user_id')::uuid
+           and coalesce(p_perfil_id, (v_est->>'perfil_id')::uuid) is not distinct from (v_est->>'perfil_id')::uuid)) then
     raise exception 'Saga: transición inválida % -> %', v_prev, p_estado using errcode = 'P0409';
   end if;
   -- Procedencia verificada EN SERVIDOR (Codex E2 #2): el Auth declarado debe existir y llevar la
@@ -197,6 +204,10 @@ begin
     if not exists (select 1 from public.perfiles p where p.id = p_perfil_id and p.rol = 'cliente') then
       raise exception 'Saga: el perfil declarado no existe' using errcode = 'P0409';
     end if;
+  end if;
+  if p_estado = 'enlazado' and (v_est->>'auth_user_id') is not null
+     and coalesce(p_perfil_id, (v_est->>'perfil_id')::uuid) is distinct from (v_est->>'auth_user_id')::uuid then
+    raise exception 'Saga: el perfil enlazado debe ser el usuario de Auth de este claim' using errcode = 'P0409';
   end if;
   if p_estado = 'reclamado' then
     if exists (select 1 from auth.users u where u.id = (v_est->>'auth_user_id')::uuid) then
@@ -236,7 +247,7 @@ begin
   v_acc := crm.mi_acceso_fn();
   if v_acc is null or pg_catalog.jsonb_typeof(v_acc) <> 'object'
      or (v_acc->>'perfil_id') is distinct from v_uid::text
-     or (v_acc->>'estado') not in ('miembro','global','administrador_roles','revocado','no_enrolado')
+     or coalesce(v_acc->>'estado', '') not in ('miembro','global','administrador_roles','revocado','no_enrolado')
      or pg_catalog.jsonb_typeof(v_acc->'puede_contratar') is distinct from 'boolean'
      or (v_acc->>'estado') = 'revocado' then
     return pg_catalog.jsonb_build_object('ok', false);
@@ -275,7 +286,7 @@ begin
     raise exception 'El perfil no es un cliente' using errcode = 'P0409';
   end if;
   v_tipo := coalesce(nullif(pg_catalog.btrim(v_p.tipo_documento), ''), 'DNI');
-  v_doc  := nullif(pg_catalog.btrim(coalesce(v_p.dni, '')), '');
+  v_doc  := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(v_p.dni, ''), '[^A-Za-z0-9]', '', 'g')), '');
   if v_doc is null then
     raise exception 'El cliente no tiene documento: no se puede reconocer a la persona (identidad unificada)'
       using errcode = 'P0409';
@@ -286,7 +297,7 @@ begin
   perform 1 from crm.inversionistas i where i.id = v_inv for update;
   perform 1 from public.perfiles p where p.id = p_perfil_id
      and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
-     and nullif(pg_catalog.btrim(coalesce(p.dni, '')), '') = v_doc
+     and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p.dni, ''), '[^A-Za-z0-9]', '', 'g')) = v_doc
    for share;
   if not found then
     raise exception 'El documento del cliente cambió mientras se enlazaba; vuelve a intentarlo' using errcode = '40001';
@@ -310,7 +321,7 @@ begin
                    where e.perfil_id = v_asesor and e.activo and pp.activo) then
       insert into crm.inversionista_responsables (inversionista_id, responsable_id, motivo, por)
       values (v_inv, v_asesor, p_fuente, (select auth.uid()));
-      update crm.inversionistas set responsable_relacion_id = v_asesor where id = v_inv and responsable_relacion_id is null;
+      update crm.inversionistas set responsable_relacion_id = v_asesor where id = v_inv;
       v_tramo := true;
     else
       v_revision := true;
@@ -378,7 +389,9 @@ begin
     select i.perfil_id into v_perfil from crm.inversionistas i where i.id = v_inv;
     if v_perfil is null then
       select p.id into v_perfil from public.perfiles p
-       where p.rol = 'cliente' and p.dni = v_doc and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
+       where p.rol = 'cliente'
+         and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p.dni,''), '[^A-Za-z0-9]', '', 'g')) = v_doc
+         and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
        limit 1;
       if v_perfil is not null then
         perform private.asegurar_identidad_perfil(v_perfil, 'alta_cliente');
@@ -386,6 +399,10 @@ begin
     end if;
     if v_perfil is not null then
       select p.activo into v_activo from public.perfiles p where p.id = v_perfil;
+      -- Un vendedor (vía crm) solo sabe que existe y si está activo: sin ids (anti-pesca, auditor b3 M3).
+      if coalesce(v_cap->>'via', '') = 'crm' and coalesce(v_cap->>'asesor_id', '') <> '' then
+        return pg_catalog.jsonb_build_object('estado', 'ya_existia', 'activo', coalesce(v_activo, false), 'reanudar', false);
+      end if;
       return pg_catalog.jsonb_build_object('estado', 'ya_existia', 'perfil_id', v_perfil, 'activo', coalesce(v_activo, false),
         'inversionista_id', v_inv, 'reanudar', false);
     end if;
@@ -411,8 +428,11 @@ begin
     if v_loc.estado->>'token_hash' is distinct from private.saga_token_hash(p_payload->>'token') then
       raise exception 'Saga: token inválido' using errcode = '42501';
     end if;
-    v_perfil := coalesce((p_payload->>'perfil_id')::uuid, (v_loc.estado->>'perfil_id')::uuid, (v_loc.estado->>'auth_user_id')::uuid);
+    v_perfil := coalesce((v_loc.estado->>'perfil_id')::uuid, (v_loc.estado->>'auth_user_id')::uuid);
     if v_perfil is null then raise exception 'Saga: sin perfil que enlazar' using errcode = 'P0409'; end if;
+    if (p_payload->>'perfil_id') is not null and (p_payload->>'perfil_id')::uuid is distinct from v_perfil then
+      raise exception 'Saga: el perfil a enlazar es el del claim, no el del payload' using errcode = 'P0409';
+    end if;
     v_r := private.asegurar_identidad_perfil(v_perfil, 'alta_cliente');
     if (v_r->>'inversionista_id')::uuid <> v_loc.inversionista_id then
       raise exception 'El perfil creado no corresponde a la persona reclamada' using errcode = 'P0409';
@@ -506,8 +526,8 @@ begin
   if (p_patch ? 'dni' or p_patch ? 'tipo_documento')
      and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
      and exists (select 1 from crm.inversionistas i where i.perfil_id = p_cliente_id and i.estado <> 'fusionado')
-     and (coalesce(p_patch->>'dni', v_cliente.dni) is distinct from v_cliente.dni
-          or coalesce(p_patch->>'tipo_documento', v_cliente.tipo_documento) is distinct from v_cliente.tipo_documento) then
+     and ((p_patch ? 'dni' and p_patch->>'dni' is distinct from v_cliente.dni)
+          or (p_patch ? 'tipo_documento' and p_patch->>'tipo_documento' is distinct from v_cliente.tipo_documento)) then
     raise exception 'El documento de un cliente reconocido como persona solo se corrige por la corrección de documento (Gerencia)'
       using errcode = 'P0409';
   end if;
