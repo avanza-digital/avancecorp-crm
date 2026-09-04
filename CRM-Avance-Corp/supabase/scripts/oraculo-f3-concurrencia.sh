@@ -23,7 +23,9 @@ ok()   { echo "  ✅ $*"; }
 rojo() { echo "  ❌ $*" >&2; ROJO=$((ROJO+1)); }
 run_as() { psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; set timezone='America/Lima'; select set_config('request.jwt.claims', '{\"sub\":\"$1\",\"role\":\"authenticated\"}', true); $2; commit;" 2>&1; }
 q()    { psql "$PG" -qtA -c "set timezone='America/Lima';" -c "$1" 2>/dev/null; }
-flag() { psql "$PG" -q -c "update crm.multiempresa_flags set activo=$1, actualizado_en=now() where nombre='resolver_en_puertas';" >/dev/null; }
+# F2.b b4 (20260905110000): los hechos de inversión van con la bandera de F4 `inversiones_escritura`;
+# el arnés enciende/apaga las dos juntas (sus aserciones cuentan inversiones y titulares).
+flag() { psql "$PG" -q -c "update crm.multiempresa_flags set activo=$1, actualizado_en=now() where nombre in ('resolver_en_puertas','inversiones_escritura');" >/dev/null; }
 coop() { echo "select crm.convertir_lead_externo('$1','qorilazo',1000,'PEN','DNI','$DOC','F3 PERSONA UNO','TRX-F3-${RUN}-$2')"; }
 
 echo "== Preflight (RUN=$RUN) =="

@@ -211,6 +211,22 @@ sin tramo + `revision_responsable`; perfil suelto con el documento → se enlaza
 **Oráculos b4:** coop(A)↔Avance(B) misma persona en los dos órdenes → una gana, la otra `P0409` ANTES de Auth; Auth sembrado con `claim_id`
 sin perfil → reintento lo reutiliza; Auth ajeno por email → 409; reserva de persona vetada → `P0429`; Gerencia retoma tras el tope; OFF → idéntico.
 
+### E2 v2 — qué cambió tras la refutación de Codex (13 puntos, 05/09) y qué queda
+- `[E2-1]` Reanudar exige el TOKEN vigente o el lease vencido; compartir actor no expulsa a la ejecución activa; `owner=null` (service_role) nunca cuenta como «mismo actor».
+- `[E2-2]` `registrar_auth` verifica EN SERVIDOR que el Auth exista y lleve `app_metadata.claim_id` de este claim; `perfil_creado` exige `perfiles.id = auth_user_id`.
+- `[E2-3]` Paso `compensar_auth` (solo si el Auth ya no existe): el claim vuelve a `reclamado`. Los edges compensan SOLO por datos inválidos (23514); un 23505 por `id` es el perfil de la misma saga y se sigue; un 23505 por documento va a revisión.
+- `[E2-4]` La saga manda antes que la existencia: `reclamar`/`reservar` devuelven `enlazado` con `perfil_id` cuando la respuesta se perdió; una conversión ya consumada cierra el claim al reservar de nuevo. Reutilizar un perfil PREEXISTENTE por documento (dedup) no requiere marca de Auth: el perfil existe (`id = auth`), y no se adopta ningún Auth.
+- `[E2-5]` Gerencia retoma una reserva sellada con claim en `reclamado`, `auth_creado` o `perfil_creado`.
+- `[E2-6]` `marcar_efectos_conversion` bloquea la IDENTIDAD antes de sellar (+ sobrecarga con claim/token); la coop lee las reservas de la persona bajo ese lock.
+- `[E2-7]` `saga_conversion_fn('cerrar')` es transaccional: convierte y comprueba que la identidad convertida es la reservada; si no, revierte.
+- `[E2-8]` `crm.eliminar_cliente_fn` (service_role) comprueba y borra comunicados + perfil en UNA transacción; el edge borra el Auth después. Protege también perfiles de sagas sin enlazar.
+- `[E2-9]` «Ya existe» es un RESULTADO (`estado='ya_existia'`), nunca excepción.
+- `[E2-10]` Huella canónica completa y versionada (`v:1`, correo, nombre, apellidos, nombres, teléfono, domicilio, banca) SIN documento y con el uuid de la identidad como sal; se compara en toda reanudación. No hay HMAC con secreto de servidor: no existe un almacén de secretos en la base y la huella no autoriza nada (el token sí, y va hasheado); el auditor genérico solo ve `resultado` con ids y hashes.
+- `[E2-11]` `revision_responsable` queda persistido como «sin responsable» (`responsable_relacion_id` null, sin tramo); bloquear operaciones comerciales a personas sin responsable es de F4/activación (ficha).
+- `[E2-12]` Seguimiento por perfil (tareas de cliente, `actividades_cliente`): prerrequisito de activación, sin cambio en E2.
+- `[E2-13]` Guard OFF en TODAS las RPC nuevas (`P0409` «apagada»); `cliente_eliminable_fn` no mira la identidad con OFF. Los edges se despliegan con la activación (ninguna llamada nueva mientras OFF en producción).
+- Abierto para E3/activación: `[E2-11]`, `[E2-12]`, `public.crear_contrato` y trigger en `public.perfiles` (OK de Miguel), colaboradores/registro Portal, importador por puerta SQL.
+
 **Fuera de E2 (E3):** fusión/corrección/reasignación; `[v2-2]` importador por puerta SQL (candidato para E3 o activación).
 
 ## Sub-lote b5 — Fusión, corrección documental y reasignación (Gerencia) — **alcance acotado** `[Cx-15, Cx-16, Cx-17]`

@@ -12,6 +12,8 @@ update crm.multiempresa_flags set activo = false, actualizado_en = now()
 
 drop function if exists crm.saga_conversion_fn(text, jsonb);
 drop function if exists crm.retomar_conversion_gerencia_fn(uuid);
+drop function if exists crm.auth_usuario_por_correo_fn(text);
+drop function if exists crm.eliminar_cliente_fn(uuid);
 drop function if exists crm.marcar_efectos_conversion(uuid, uuid, text);
 drop function if exists crm.reservar_conversion_lead(uuid, text, text, jsonb);
 

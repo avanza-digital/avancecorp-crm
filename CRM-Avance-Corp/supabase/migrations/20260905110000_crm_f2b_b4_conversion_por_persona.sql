@@ -424,6 +424,66 @@ revoke all on function crm.retomar_conversion_gerencia_fn(uuid) from public, ano
 grant execute on function crm.retomar_conversion_gerencia_fn(uuid) to authenticated;
 
 -- ============================================================================
+-- 5b. Ayudantes de los edges (service_role): Auth por correo con su marca; eliminar cliente en UNA transacción
+-- ============================================================================
+-- El edge no puede buscar en auth.users por PostgREST. Devuelve solo id y la marca del claim.
+create or replace function crm.auth_usuario_por_correo_fn(p_correo text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce((
+    select pg_catalog.jsonb_build_object('id', u.id, 'claim_id', u.raw_app_meta_data->>'claim_id',
+                                         'tiene_perfil', exists (select 1 from public.perfiles p where p.id = u.id))
+    from auth.users u
+    where pg_catalog.lower(u.email) = pg_catalog.lower(pg_catalog.btrim(p_correo))
+    limit 1), pg_catalog.jsonb_build_object('id', null))
+$$;
+revoke all on function crm.auth_usuario_por_correo_fn(text) from public, anon, authenticated;
+grant execute on function crm.auth_usuario_por_correo_fn(text) to service_role;
+
+-- eliminar-cliente (Codex E2 #8): comprobar y borrar en la MISMA transacción (comunicados + perfil);
+-- el Auth lo borra el edge después. Con la bandera apagada: mismas reglas que hoy (contratos y FK).
+create or replace function crm.eliminar_cliente_fn(p_perfil_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set lock_timeout = '5s'
+as $$
+declare v_pre jsonb; v_nombre text; v_n integer;
+begin
+  if (select auth.uid()) is not null then
+    raise exception 'Solo el servicio elimina clientes' using errcode = '42501';
+  end if;
+  select p.nombre_completo into v_nombre from public.perfiles p where p.id = p_perfil_id and p.rol = 'cliente' for update;
+  if not found then
+    raise exception 'El cliente no existe o ya fue eliminado' using errcode = 'P0002';
+  end if;
+  v_pre := crm.cliente_eliminable_fn(p_perfil_id);
+  if coalesce((v_pre->>'eliminable')::boolean, false) is not true then
+    raise exception '%', coalesce(v_pre->>'mensaje', 'El cliente no se puede eliminar')
+      using errcode = 'P0409', detail = v_pre::text;
+  end if;
+  -- Un perfil de una saga aún sin enlazar tampoco se borra por aquí.
+  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and exists (select 1 from crm.multiempresa_idempotencia i
+                 where i.clave like 'auth\_persona:%' and i.resultado->>'perfil_id' = p_perfil_id::text
+                   and i.resultado->>'estado' <> 'enlazado') then
+    raise exception 'Este cliente tiene un alta en curso (identidad unificada): espera a que termine' using errcode = 'P0409';
+  end if;
+  delete from public.novedades n where n.destinatario_id = p_perfil_id;
+  get diagnostics v_n = row_count;
+  delete from public.perfiles p where p.id = p_perfil_id;
+  return pg_catalog.jsonb_build_object('ok', true, 'nombre', v_nombre, 'comunicados_borrados', v_n);
+end;
+$$;
+revoke all on function crm.eliminar_cliente_fn(uuid) from public, anon, authenticated;
+grant execute on function crm.eliminar_cliente_fn(uuid) to service_role;
+
+-- ============================================================================
 -- 6. Conversión cooperativa: reserva viva de OTRO lead de la persona + inversiones con la bandera de F4
 -- ============================================================================
 CREATE OR REPLACE FUNCTION crm.convertir_lead_externo(p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text DEFAULT NULL::text, p_vence_en date DEFAULT NULL::date, p_nota text DEFAULT NULL::text)
@@ -798,7 +858,9 @@ begin
      or to_regprocedure('crm.reservar_conversion_lead(uuid)') is null
      or to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)') is null
      or to_regprocedure('crm.saga_conversion_fn(text,jsonb)') is null
-     or to_regprocedure('crm.retomar_conversion_gerencia_fn(uuid)') is null then
+     or to_regprocedure('crm.retomar_conversion_gerencia_fn(uuid)') is null
+     or to_regprocedure('crm.auth_usuario_por_correo_fn(text)') is null
+     or to_regprocedure('crm.eliminar_cliente_fn(uuid)') is null then
     raise exception 'POSTFLIGHT b4: falta alguna función';
   end if;
   if (select count(*) from information_schema.columns where table_schema='crm' and table_name='conversion_reservas'
@@ -817,6 +879,9 @@ begin
      or not has_function_privilege('authenticated', 'crm.reservar_conversion_lead(uuid)', 'EXECUTE')
      or not has_function_privilege('authenticated', 'crm.retomar_conversion_gerencia_fn(uuid)', 'EXECUTE')
      or has_function_privilege('service_role', 'crm.reservar_conversion_lead(uuid,text,text,jsonb)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'crm.auth_usuario_por_correo_fn(text)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'crm.eliminar_cliente_fn(uuid)', 'EXECUTE')
+     or not has_function_privilege('service_role', 'crm.eliminar_cliente_fn(uuid)', 'EXECUTE')
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a
                 where p.oid in ('crm.saga_conversion_fn(text,jsonb)'::regprocedure, 'crm.reservar_conversion_lead(uuid,text,text,jsonb)'::regprocedure,
                                 'crm.retomar_conversion_gerencia_fn(uuid)'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure)

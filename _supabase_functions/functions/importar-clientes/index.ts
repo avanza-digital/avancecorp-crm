@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  authTieneMarca,
+  correoYaRegistrado,
+  decidirTrasFalloPerfil,
+  interpretarReclamo,
+} from "../_shared/saga-auth.mjs";
 // Reglas de documento (DNI/CE/Pasaporte): única fuente compartida con
 // `crear-cliente` y espejo del frontend (js/admin/documento-core.js).
 import {
@@ -138,8 +144,18 @@ Deno.serve(async (req: Request) => {
       if (existingCorreos.has(f.correo)) { f.ok = false; f.error = "El correo ya está registrado"; }
     }
 
+    // F2.b b3: bandera de identidad (service_role; fail-closed: si no se lee, el lote no entra).
+    const { data: banderaIdentidad, error: errBandera } = await adminClient
+      .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
+    if (errBandera) {
+      return json(cors, { error: `No se pudo leer la bandera de identidad: ${errBandera.message}` }, 500);
+    }
+    const identidadOn = banderaIdentidad === true;
+    const rpcAlta = (paso: string, payload: Record<string, unknown>) =>
+      adminClient.schema("crm").rpc("alta_cliente_identidad_fn", { p_paso: paso, p_payload: payload });
+
     // 4) Procesar (secuencial: rollback limpio por fila, sin condiciones de carrera).
-    const resultados: Array<{ fila: number; ok: boolean; error?: string; user_id?: string }> = [];
+    const resultados: Array<{ fila: number; ok: boolean; error?: string; user_id?: string; revision_responsable?: boolean }> = [];
     let creados = 0;
     let errores = 0;
 
@@ -157,26 +173,116 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
-        email: f.correo,
-        // Clave temporal = documento, garantizando el mínimo de 8 de Supabase
-        // (misma regla que crear-cliente: única fuente en _shared/documento.ts).
-        password: claveTemporalDesdeDocumento(f.dni),
-        email_confirm: true,
-        user_metadata: { nombre: f.nombre_completo },
-      });
+      if (!identidadOn) {
+        const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+          email: f.correo,
+          // Clave temporal = documento, garantizando el mínimo de 8 de Supabase
+          // (misma regla que crear-cliente: única fuente en _shared/documento.ts).
+          password: claveTemporalDesdeDocumento(f.dni),
+          email_confirm: true,
+          user_metadata: { nombre: f.nombre_completo },
+        });
 
-      if (createErr || !created?.user) {
-        const msg = createErr?.message || "No se pudo crear el usuario";
-        resultados.push({ fila: f.fila, ok: false, error: traducirError(msg) });
-        errores++;
+        if (createErr || !created?.user) {
+          const msg = createErr?.message || "No se pudo crear el usuario";
+          resultados.push({ fila: f.fila, ok: false, error: traducirError(msg) });
+          errores++;
+          continue;
+        }
+
+        const newUserId = created.user.id;
+
+        const { error: perfilErr } = await adminClient.from("perfiles").insert({
+          id: newUserId,
+          nombre_completo: f.nombre_completo,
+          apellidos: f.apellidos,
+          nombres: f.nombres,
+          tipo_documento: f.tipo_documento,
+          dni: f.dni,
+          telefono: f.telefono,
+          correo: f.correo,
+          rol: "cliente",
+          activo: true,
+          banco: f.banco,
+          numero_cuenta: f.numero_cuenta,
+          tipo_cuenta: f.tipo_cuenta,
+          cci: f.cci,
+          titular_distinto: f.titular_distinto,
+          beneficiario_nombre: f.beneficiario_nombre,
+          beneficiario_dni: f.beneficiario_dni,
+          asesor_perfil_id: f.asesor_perfil_id,
+          creado_por: userRes.user.id,
+          debe_cambiar_password: true,
+        });
+
+        if (perfilErr) {
+          // Rollback: borrar el auth.user para no dejar huérfanos.
+          await adminClient.auth.admin.deleteUser(newUserId);
+          resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) });
+          errores++;
+          continue;
+        }
+
+        resultados.push({ fila: f.fila, ok: true, user_id: newUserId });
+        creados++;
+      }
         continue;
       }
 
-      const newUserId = created.user.id;
-
-      const { error: perfilErr } = await adminClient.from("perfiles").insert({
-        id: newUserId,
+      // ── F2.b b3 · con IDENTIDAD: reclamar → Auth (marcado) → perfil → enlazar ──
+      const { data: reclamo, error: errReclamo } = await rpcAlta("reclamar", {
+        tipo_documento: f.tipo_documento, documento: f.dni, correo: f.correo,
+        nombre_completo: f.nombre_completo, apellidos: f.apellidos, nombres: f.nombres,
+        telefono: f.telefono, asesor_id: f.asesor_perfil_id,
+      });
+      if (errReclamo) { resultados.push({ fila: f.fila, ok: false, error: traducirError(errReclamo.message) }); errores++; continue; }
+      let saga = interpretarReclamo(reclamo);
+      if (saga.paso === "ya_existia") { resultados.push({ fila: f.fila, ok: false, error: "El documento ya está registrado" }); errores++; continue; }
+      if (saga.paso === "listo") { resultados.push({ fila: f.fila, ok: true, user_id: saga.perfilId ?? undefined }); creados++; continue; }
+      if (!saga.claimId || !saga.token || saga.version === null) { resultados.push({ fila: f.fila, ok: false, error: "El servidor no devolvió un claim válido" }); errores++; continue; }
+      const avanzar = async (paso: string, extra: Record<string, unknown>) => {
+        const { data, error } = await rpcAlta(paso, { claim_id: saga.claimId, token: saga.token, version: saga.version, ...extra });
+        if (error) return { error };
+        const r = interpretarReclamo(data);
+        saga = { ...saga, estado: r.estado, version: r.version ?? saga.version, authUserId: r.authUserId ?? saga.authUserId, perfilId: r.perfilId ?? saga.perfilId, paso: r.paso };
+        return { data };
+      };
+      let newUserId = "";
+      if (saga.paso === "crear_auth") {
+        const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+          email: f.correo,
+          password: claveTemporalDesdeDocumento(f.dni),
+          email_confirm: true,
+          user_metadata: { nombre: f.nombre_completo },
+          app_metadata: { claim_id: saga.claimId },
+        });
+        if (createErr || !created?.user) {
+          if (correoYaRegistrado(createErr?.message)) {
+            const { data: existenteAuth } = await adminClient.schema("crm").rpc("auth_usuario_por_correo_fn", { p_correo: f.correo });
+            if (existenteAuth && authTieneMarca(existenteAuth, saga.claimId) && typeof existenteAuth.id === "string") {
+              newUserId = existenteAuth.id;
+            } else {
+              resultados.push({ fila: f.fila, ok: false, error: "El correo ya está registrado con otra cuenta (revisión de Gerencia)" }); errores++; continue;
+            }
+          } else {
+            resultados.push({ fila: f.fila, ok: false, error: traducirError(createErr?.message || "No se pudo crear el usuario") }); errores++; continue;
+          }
+        } else {
+          newUserId = created.user.id;
+        }
+        const r = await avanzar("registrar_auth", { auth_user_id: newUserId });
+        if (r.error) { resultados.push({ fila: f.fila, ok: false, error: traducirError(r.error.message) }); errores++; continue; }
+      } else {
+        if (!saga.authUserId) { resultados.push({ fila: f.fila, ok: false, error: "La saga no tiene usuario de Auth" }); errores++; continue; }
+        const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
+        if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+          resultados.push({ fila: f.fila, ok: false, error: "El usuario de Auth de esta alta no lleva la marca del claim (revisión de Gerencia)" }); errores++; continue;
+        }
+        newUserId = saga.authUserId;
+      }
+      if (saga.paso !== "enlazar") {
+        const { error: perfilErr } = await adminClient.from("perfiles").insert({
+          id: newUserId,
         nombre_completo: f.nombre_completo,
         apellidos: f.apellidos,
         nombres: f.nombres,
@@ -196,17 +302,25 @@ Deno.serve(async (req: Request) => {
         asesor_perfil_id: f.asesor_perfil_id,
         creado_por: userRes.user.id,
         debe_cambiar_password: true,
-      });
-
-      if (perfilErr) {
-        // Rollback: borrar el auth.user para no dejar huérfanos.
-        await adminClient.auth.admin.deleteUser(newUserId);
-        resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) });
-        errores++;
-        continue;
+        });
+        if (perfilErr) {
+          const decision = decidirTrasFalloPerfil(perfilErr);
+          if (decision === "compensar") {
+            const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
+            if (!delErr) await avanzar("compensar_auth", {});
+            resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) }); errores++; continue;
+          }
+          if (decision !== "perfil_ya_existia") {
+            resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) }); errores++; continue;
+          }
+        }
+        const r = await avanzar("perfil_creado", { perfil_id: newUserId });
+        if (r.error) { resultados.push({ fila: f.fila, ok: false, error: traducirError(r.error.message) }); errores++; continue; }
       }
-
-      resultados.push({ fila: f.fila, ok: true, user_id: newUserId });
+      const r = await avanzar("enlazar", { perfil_id: newUserId });
+      if (r.error) { resultados.push({ fila: f.fila, ok: false, error: traducirError(r.error.message) }); errores++; continue; }
+      const d = (r.data && typeof r.data === "object") ? r.data as Record<string, unknown> : {};
+      resultados.push({ fila: f.fila, ok: true, user_id: newUserId, revision_responsable: d.revision_responsable === true });
       creados++;
     }
 

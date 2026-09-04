@@ -14,6 +14,13 @@ import {
 import { validarBancarios } from "../_shared/bancarios.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
 import { resolverAutorizacionAltaCliente } from "./autorizacion.mjs";
+import {
+  authTieneMarca,
+  correoYaRegistrado,
+  decidirTrasFalloPerfil,
+  interpretarReclamo,
+  statusDeErrorSaga,
+} from "../_shared/saga-auth.mjs";
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
@@ -165,23 +172,149 @@ Deno.serve(async (req: Request) => {
       claveTemporal = true;
     }
 
-    const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
-      email: emailNormalizado,
-      password: passwordFinal,
-      email_confirm: true,
-      user_metadata: { nombre: nombreNormalizado },
-    });
-
-    if (createErr || !created?.user) {
-      return json(cors, { error: createErr?.message || "No se pudo crear el usuario" }, 400);
+    // ── F2.b b3 · IDENTIDAD UNIFICADA ─────────────────────────────────────────
+    // La bandera se lee con la sesión del caller (crm.bandera_activa). Fail-closed:
+    // si no se puede leer, no se crea nada. Con la bandera APAGADA el flujo de abajo
+    // es EXACTAMENTE el de siempre.
+    const { data: banderaIdentidad, error: errBandera } = await userClient
+      .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
+    if (errBandera) {
+      return json(cors, { error: `No se pudo leer la bandera de identidad: ${errBandera.message}` }, 500);
     }
+    const identidadOn = banderaIdentidad === true;
 
-    const newUserId = created.user.id;
+    let newUserId = "";
+    let respuestaIdentidad: Record<string, unknown> = {};
 
-    const { error: perfilErr } = await adminClient
-      .from("perfiles")
-      .insert({
-        id: newUserId,
+    if (!identidadOn) {
+      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+        email: emailNormalizado,
+        password: passwordFinal,
+        email_confirm: true,
+        user_metadata: { nombre: nombreNormalizado },
+      });
+
+      if (createErr || !created?.user) {
+        return json(cors, { error: createErr?.message || "No se pudo crear el usuario" }, 400);
+      }
+
+      newUserId = created.user.id;
+
+      const { error: perfilErr } = await adminClient
+        .from("perfiles")
+        .insert({
+          id: newUserId,
+          nombre_completo: nombreNormalizado,
+          apellidos: apellidosNorm,
+          nombres: nombresNorm,
+          tipo_documento: tipoDoc,
+          dni: dniLimpio || null,
+          telefono: telefono?.trim() || null,
+          domicilio: domicilioLegal,
+          correo: emailNormalizado,
+          rol: "cliente",
+          activo: true,
+          creado_por: userRes.user.id,
+          debe_cambiar_password: claveTemporal,
+          // Analista legacy o Vendedor CRM se autoasignan. Supervisión, Gerencia
+          // y administradores crean sin apropiarse de la cartera.
+          asesor_perfil_id: autorizacion.asesorId,
+          // Vacío cuando el caller no manda el bloque (portal): el insert queda
+          // EXACTAMENTE como antes.
+          ...columnasBancarias,
+        });
+
+      if (perfilErr) {
+        await adminClient.auth.admin.deleteUser(newUserId);
+        // El disparador sigue anclado al NOMBRE del constraint (perfiles_dni_key),
+        // no al texto visible: la columna no se renombró.
+        if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
+          return json(cors, { error: "Este documento ya está registrado" }, 409);
+        }
+        // Violación de CHECK (23514): mensaje limpio, sin filtrar el valor del
+        // documento (PII) ni la definición del constraint en la respuesta.
+        if (perfilErr.code === "23514") {
+          return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
+        }
+        return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
+      }
+    } else {
+      // Con identidad: documento OBLIGATORIO (la persona se reconoce por él).
+      if (!dniLimpio) {
+        return json(cors, { error: "Con identidad unificada el número de documento es obligatorio para crear un cliente" }, 400);
+      }
+      const rpc = (paso: string, payload: Record<string, unknown>) =>
+        userClient.schema("crm").rpc("alta_cliente_identidad_fn", { p_paso: paso, p_payload: payload });
+
+      // 1) RECLAMAR la persona (identidad + claim). Antes de tocar Auth.
+      const { data: reclamo, error: errReclamo } = await rpc("reclamar", {
+        tipo_documento: tipoDoc, documento: dniLimpio, correo: emailNormalizado,
+        nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
+        telefono: telefono?.trim() || null, domicilio: domicilioLegal,
+        bancarios: bancarios ?? null, asesor_id: autorizacion.asesorId,
+      });
+      if (errReclamo) return json(cors, { error: errReclamo.message }, statusDeErrorSaga(errReclamo));
+      let saga = interpretarReclamo(reclamo);
+      if (saga.paso === "ya_existia") {
+        return json(cors, { error: "Este documento ya está registrado", perfil_id: saga.perfilId, ya_existia: true }, 409);
+      }
+      if (saga.paso === "listo") {
+        // Respuesta perdida de un alta ya terminada: idempotente, sin correo nuevo.
+        return json(cors, { ok: true, user_id: saga.perfilId, ya_existia: true, email_enviado: false }, 200);
+      }
+      if (!saga.claimId || !saga.token || saga.version === null) {
+        return json(cors, { error: "El servidor no devolvió un claim válido" }, 500);
+      }
+      const avanzar = async (paso: string, extra: Record<string, unknown>) => {
+        const { data, error } = await rpc(paso, { claim_id: saga.claimId, token: saga.token, version: saga.version, ...extra });
+        if (error) return { error };
+        const r = interpretarReclamo(data);
+        saga = { ...saga, estado: r.estado, version: r.version ?? saga.version, authUserId: r.authUserId ?? saga.authUserId, perfilId: r.perfilId ?? saga.perfilId, paso: r.paso };
+        return { data };
+      };
+
+      // 2) AUTH: crear (marcado con el claim) o reutilizar SOLO el Auth marcado con este claim.
+      if (saga.paso === "crear_auth") {
+        const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+          email: emailNormalizado,
+          password: passwordFinal,
+          email_confirm: true,
+          user_metadata: { nombre: nombreNormalizado },
+          app_metadata: { claim_id: saga.claimId },
+        });
+        if (createErr || !created?.user) {
+          if (correoYaRegistrado(createErr?.message)) {
+            // Muerte previa entre createUser y registrar_auth: solo se adopta si lleva la marca.
+            const { data: existenteAuth } = await adminClient.schema("crm")
+              .rpc("auth_usuario_por_correo_fn", { p_correo: emailNormalizado });
+            if (existenteAuth && authTieneMarca(existenteAuth, saga.claimId) && typeof existenteAuth.id === "string") {
+              newUserId = existenteAuth.id;
+            } else {
+              return json(cors, { error: "Ese correo ya está registrado en el portal con otra cuenta: revisión de Gerencia" }, 409);
+            }
+          } else {
+            return json(cors, { error: createErr?.message || "No se pudo crear el usuario" }, 400);
+          }
+        } else {
+          newUserId = created.user.id;
+        }
+        const r = await avanzar("registrar_auth", { auth_user_id: newUserId });
+        if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
+      } else if (saga.paso === "crear_perfil" || saga.paso === "enlazar") {
+        if (!saga.authUserId) return json(cors, { error: "La saga no tiene usuario de Auth" }, 500);
+        const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
+        if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+          return json(cors, { error: "El usuario de Auth de esta alta no lleva la marca del claim: revisión de Gerencia" }, 409);
+        }
+        newUserId = saga.authUserId;
+      }
+
+      // 3) PERFIL (mismas columnas de siempre), salvo que ya exista de esta misma saga.
+      if (saga.paso !== "enlazar") {
+        const { error: perfilErr } = await adminClient
+          .from("perfiles")
+          .insert({
+            id: newUserId,
         nombre_completo: nombreNormalizado,
         apellidos: apellidosNorm,
         nombres: nombresNorm,
@@ -200,21 +333,35 @@ Deno.serve(async (req: Request) => {
         // Vacío cuando el caller no manda el bloque (portal): el insert queda
         // EXACTAMENTE como antes.
         ...columnasBancarias,
-      });
+          });
+        if (perfilErr) {
+          const decision = decidirTrasFalloPerfil(perfilErr);
+          if (decision === "compensar") {
+            // Datos inválidos: se borra el Auth (comprobando el resultado) y el claim vuelve a 'reclamado'.
+            const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
+            if (!delErr) await avanzar("compensar_auth", {});
+            return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
+          }
+          if (decision === "revision") {
+            return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia: la saga quedó a medias)" }, 409);
+          }
+          if (decision === "error") {
+            return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
+          }
+          // perfil_ya_existia: el INSERT de un intento anterior sí llegó; se sigue.
+        }
+        const r = await avanzar("perfil_creado", { perfil_id: newUserId });
+        if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
+      }
 
-    if (perfilErr) {
-      await adminClient.auth.admin.deleteUser(newUserId);
-      // El disparador sigue anclado al NOMBRE del constraint (perfiles_dni_key),
-      // no al texto visible: la columna no se renombró.
-      if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
-        return json(cors, { error: "Este documento ya está registrado" }, 409);
-      }
-      // Violación de CHECK (23514): mensaje limpio, sin filtrar el valor del
-      // documento (PII) ni la definición del constraint en la respuesta.
-      if (perfilErr.code === "23514") {
-        return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
-      }
-      return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
+      // 4) ENLAZAR (identidad.perfil_id + responsable de relación) — cierra la saga.
+      const r = await avanzar("enlazar", { perfil_id: newUserId });
+      if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
+      const d = (r.data && typeof r.data === "object") ? r.data as Record<string, unknown> : {};
+      respuestaIdentidad = {
+        inversionista_id: d.inversionista_id ?? null,
+        revision_responsable: d.revision_responsable === true,
+      };
     }
 
     // === Envío de email de bienvenida (background, no bloqueante) ===
@@ -266,9 +413,10 @@ Deno.serve(async (req: Request) => {
     return json(cors, {
       ok: true,
       user_id: newUserId,
-      email: created.user.email,
+      email: emailNormalizado,
       email_enviado: emailEnviado,
       ...(emailError ? { email_error: emailError } : {}),
+      ...respuestaIdentidad,
     }, 200);
 
   } catch (e) {

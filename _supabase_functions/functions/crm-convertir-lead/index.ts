@@ -4,6 +4,13 @@ import { contextoContratacionDesdeAcceso } from "../_shared/acceso-crm.mjs";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
 import { validarBancarios } from "../_shared/bancarios.mjs";
 import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
+import {
+  authTieneMarca,
+  correoYaRegistrado,
+  decidirTrasFalloPerfil,
+  interpretarReclamo,
+  statusDeErrorSaga,
+} from "../_shared/saga-auth.mjs";
 
 // Reglas de documento (DNI/CE/Pasaporte) — ESPEJO de ../_shared/documento.ts y del
 // frontend documento-core.js. Inlineado a propósito (edge autocontenido): si se
@@ -187,52 +194,7 @@ Deno.serve(async (req: Request) => {
     if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
     const columnasBancarias = valBancarios.columnas;
 
-    // RESERVA DURABLE — la última frontera antes de los efectos irreversibles.
-    //
-    // Esta función NO es una transacción: crea el usuario de Auth, inserta el
-    // perfil y MANDA EL CORREO DE BIENVENIDA, y recién al final llama a
-    // `crm.convertir_lead`, que es la única que toma el `FOR UPDATE` del lead.
-    // En esa ventana —segundos, con Resend de por medio— alguien puede confirmar
-    // un cierre en cooperativa sobre el mismo lead: `convertir_lead` moriría con
-    // «El lead ya está cerrado», pero el inversionista de la coop ya tendría
-    // cuenta de portal, contraseña y correo enviado. Un lock de fila no puede
-    // cubrir eso porque no sobrevive entre llamadas HTTP.
-    //
-    // La reserva sí: es durable, la respeta `crm.convertir_lead_externo` y
-    // caduca sola a los pocos minutos (una edge que muera a medias no deja el
-    // lead incerrable). Va AQUÍ, después de todas las validaciones y ANTES del
-    // dedup, porque éste es el último punto del flujo sin efectos secundarios.
-    //
-    // Se toma con la sesión del que llama: la reserva no puede ser una puerta
-    // más ancha que la conversión (mismos gates de rol y de ámbito).
-    const { error: reservaErr } = await userClient
-      .schema("crm").rpc("reservar_conversion_lead", { p_lead_id: lead_id });
-    if (reservaErr) {
-      // PGRST202 = la función no existe todavía: la migración aún no se mergeó.
-      // Es la ventana de despliegue (servidor primero, edge después) y NO puede
-      // matar la conversión Avance de todo el mundo con un error de PostgREST
-      // en crudo. Se degrada: sin reserva no hay protección de carrera, que es
-      // exactamente como funcionaba hasta hoy.
-      if (reservaErr.code === "PGRST202") {
-        console.warn("crm-convertir-lead: reservar_conversion_lead no desplegada aún; se continúa sin reserva");
-      } else {
-        // 409: o el lead se cerró mientras tanto, o hay otra conversión en
-        // vuelo. El mensaje del servidor ya está en idioma de negocio.
-        return json(cors, { error: reservaErr.message }, 409);
-      }
-    }
-
-    // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
-    // anterior elimina el fallback al caller y conserva la atribución comercial.
-    const asesorId = lead.vendedor_id;
-
-    // DEDUP: ¿ese documento ya es un cliente del portal? Entonces se ENLAZA (no se
-    // duplica ni se reenvía correo) — cubre el caso "colaborador que ya es cliente".
-    const { data: existente } = await adminClient
-      .from("perfiles").select("id, activo")
-      .eq("dni", dniLimpio).eq("rol", "cliente").maybeSingle();
-
-    let perfilId: string;
+    let perfilId = "";
     let yaExistia = false;
     let emailEnviado = false;
     let emailError: string | undefined;
@@ -241,16 +203,168 @@ Deno.serve(async (req: Request) => {
     let passwordParaBienvenida: string | null = null;
     let nombreParaBienvenida = "";
     let nombreCortoBienvenida = "";
+    let conversion: unknown = null;
 
-    if (existente) {
-      if (!existente.activo) return json(cors, { error: "Ese cliente existe pero está inactivo en el portal" }, 409);
-      // El domicilio NO se escribe aquí con service_role. La RPC transaccional
-      // de abajo primero autoriza/cierra el lead y recién después completa un
-      // NULL legacy; si la conversión falla, PostgreSQL revierte ambos efectos.
-      perfilId = existente.id;
-      yaExistia = true;
+    if (banderaOn !== true) {
+      // RESERVA DURABLE — la última frontera antes de los efectos irreversibles.
+      //
+      // Esta función NO es una transacción: crea el usuario de Auth, inserta el
+      // perfil y MANDA EL CORREO DE BIENVENIDA, y recién al final llama a
+      // `crm.convertir_lead`, que es la única que toma el `FOR UPDATE` del lead.
+      // En esa ventana —segundos, con Resend de por medio— alguien puede confirmar
+      // un cierre en cooperativa sobre el mismo lead: `convertir_lead` moriría con
+      // «El lead ya está cerrado», pero el inversionista de la coop ya tendría
+      // cuenta de portal, contraseña y correo enviado. Un lock de fila no puede
+      // cubrir eso porque no sobrevive entre llamadas HTTP.
+      //
+      // La reserva sí: es durable, la respeta `crm.convertir_lead_externo` y
+      // caduca sola a los pocos minutos (una edge que muera a medias no deja el
+      // lead incerrable). Va AQUÍ, después de todas las validaciones y ANTES del
+      // dedup, porque éste es el último punto del flujo sin efectos secundarios.
+      //
+      // Se toma con la sesión del que llama: la reserva no puede ser una puerta
+      // más ancha que la conversión (mismos gates de rol y de ámbito).
+      const { error: reservaErr } = await userClient
+        .schema("crm").rpc("reservar_conversion_lead", { p_lead_id: lead_id });
+      if (reservaErr) {
+        // PGRST202 = la función no existe todavía: la migración aún no se mergeó.
+        // Es la ventana de despliegue (servidor primero, edge después) y NO puede
+        // matar la conversión Avance de todo el mundo con un error de PostgREST
+        // en crudo. Se degrada: sin reserva no hay protección de carrera, que es
+        // exactamente como funcionaba hasta hoy.
+        if (reservaErr.code === "PGRST202") {
+          console.warn("crm-convertir-lead: reservar_conversion_lead no desplegada aún; se continúa sin reserva");
+        } else {
+          // 409: o el lead se cerró mientras tanto, o hay otra conversión en
+          // vuelo. El mensaje del servidor ya está en idioma de negocio.
+          return json(cors, { error: reservaErr.message }, 409);
+        }
+      }
+
+      // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
+      // anterior elimina el fallback al caller y conserva la atribución comercial.
+      const asesorId = lead.vendedor_id;
+
+      // DEDUP: ¿ese documento ya es un cliente del portal? Entonces se ENLAZA (no se
+      // duplica ni se reenvía correo) — cubre el caso "colaborador que ya es cliente".
+      const { data: existente } = await adminClient
+        .from("perfiles").select("id, activo")
+        .eq("dni", dniLimpio).eq("rol", "cliente").maybeSingle();
+
+
+      if (existente) {
+        if (!existente.activo) return json(cors, { error: "Ese cliente existe pero está inactivo en el portal" }, 409);
+        // El domicilio NO se escribe aquí con service_role. La RPC transaccional
+        // de abajo primero autoriza/cierra el lead y recién después completa un
+        // NULL legacy; si la conversión falla, PostgreSQL revierte ambos efectos.
+        perfilId = existente.id;
+        yaExistia = true;
+      } else {
+        // Nombre canónico. Si vienen apellidos+nombres se respeta el orden del portal.
+        const apellidosNorm = (apellidos ?? "").toString().trim() || null;
+        const nombresNorm = (nombres ?? "").toString().trim() || null;
+        if ((apellidosNorm && !nombresNorm) || (!apellidosNorm && nombresNorm)) {
+          return json(cors, { error: "apellidos y nombres deben venir juntos (ambos o ninguno)" }, 400);
+        }
+        const nombreNormalizado = apellidosNorm && nombresNorm
+          ? `${apellidosNorm} ${nombresNorm}`.replace(/\s+/g, " ").trim()
+          : String(nombre_completo).trim();
+
+        // Clave temporal = documento (regla del portal). Cambio obligatorio al ingresar.
+        const passwordFinal = claveTemporalDesdeDocumento(dniLimpio);
+        passwordParaBienvenida = passwordFinal;
+        nombreParaBienvenida = nombreNormalizado;
+        nombreCortoBienvenida = nombresNorm || nombreNormalizado;
+
+        // ── EL PUNTO DE NO RETORNO ────────────────────────────────────────────
+        // A partir de la línea siguiente existe una cuenta de portal a nombre de
+        // esta persona. Se sella la reserva para que DEJE DE CADUCAR: si caducara,
+        // una muerte de esta función a mitad devolvería el lead al cierre en
+        // cooperativa cinco minutos después y quedaría un inversionista de coop
+        // con acceso al portal — el agujero exacto que la reserva vino a tapar.
+        const { error: sellarErr } = await userClient
+          .schema("crm").rpc("marcar_efectos_conversion", { p_lead_id: lead_id });
+        if (sellarErr && sellarErr.code !== "PGRST202") {
+          return json(cors, { error: sellarErr.message }, 409);
+        }
+
+        const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+          email: emailNormalizado,
+          password: passwordFinal,
+          email_confirm: true,
+          user_metadata: { nombre: nombreNormalizado },
+        });
+        if (createErr || !created?.user) {
+          const msg = createErr?.message || "";
+          if (/already been registered|already exists/i.test(msg)) {
+            return json(cors, { error: "Ese correo ya está registrado en el portal" }, 409);
+          }
+          return json(cors, { error: msg || "No se pudo crear el usuario" }, 400);
+        }
+        perfilId = created.user.id;
+
+        const { error: perfilErr } = await adminClient.from("perfiles").insert({
+          id: perfilId,
+          nombre_completo: nombreNormalizado,
+          apellidos: apellidosNorm,
+          nombres: nombresNorm,
+          tipo_documento: tipoDoc,
+          dni: dniLimpio,
+          telefono: (telefono ?? lead.telefono ?? "").toString().trim() || null,
+          domicilio: domicilioLegal,
+          correo: emailNormalizado,
+          rol: "cliente",
+          activo: true,
+          creado_por: callerId,
+          debe_cambiar_password: true,
+          asesor_perfil_id: asesorId,
+          // Las 14 columnas bancarias, ya validadas arriba: el cliente NACE con su
+          // cuenta. Si este insert falla, no queda cliente a medias (se borra el
+          // usuario de Auth justo debajo).
+          ...columnasBancarias,
+        });
+        if (perfilErr) {
+          await adminClient.auth.admin.deleteUser(perfilId);
+          if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
+            return json(cors, { error: "Este documento ya está registrado" }, 409);
+          }
+          if (perfilErr.code === "23514") return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
+          return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
+        }
+
+        // EL CORREO YA NO SE MANDA AQUÍ. Ver el bloque de abajo, tras cerrar el
+        // lead: es el único efecto de toda esta función que NO se puede deshacer,
+        // y mandarlo antes de saber si el lead se cierra es lo que dejaba a un
+        // inversionista de cooperativa con una bienvenida al portal en la bandeja.
+      }
+
+      // ENLACE + cierre + eventual domicilio legacy, dentro de UNA transacción.
+      // La RPC llama primero a convertir_lead (misma autorización/locks) y solo
+      // después completa perfiles.domicilio cuando sigue NULL.
+      const { data: conversionOff, error: convErr } = await userClient
+        .schema("crm").rpc("convertir_lead_con_domicilio", {
+          p_lead_id: lead_id,
+          p_perfil_id: perfilId,
+          p_domicilio: domicilioLegal,
+        });
+      if (convErr) {
+        // El cliente pudo haberse creado; NO se borra (el documento ya quedó registrado
+        // y un reintento lo detecta por dedup y solo enlaza). Se reporta el fallo del enlace.
+        // Y NO se manda el correo: si el lead no se cerró, esta persona todavía
+        // podría acabar cerrándose en una cooperativa, y una bienvenida al portal
+        // en su bandeja no se puede retirar.
+        return json(cors, {
+          error: `El cliente quedó creado, pero no se pudo cerrar el lead: ${convErr.message}. Reintenta la conversión.`,
+          perfil_id: perfilId, cliente_creado: !yaExistia,
+        }, 409);
+      }
+      conversion = conversionOff;
     } else {
-      // Nombre canónico. Si vienen apellidos+nombres se respeta el orden del portal.
+      // ── F2.b b4 · IDENTIDAD UNIFICADA: reserva por PERSONA + saga de Auth ──────
+      // Con la bandera encendida el servidor va primero: una RPC ausente (PGRST202)
+      // NO degrada a la reserva por lead (Codex E2 #10). Cero efectos antes de que
+      // la persona esté reservada y revalidada.
+      const rpc = (fn: string, args: Record<string, unknown>) => userClient.schema("crm").rpc(fn, args);
       const apellidosNorm = (apellidos ?? "").toString().trim() || null;
       const nombresNorm = (nombres ?? "").toString().trim() || null;
       if ((apellidosNorm && !nombresNorm) || (!apellidosNorm && nombresNorm)) {
@@ -259,94 +373,109 @@ Deno.serve(async (req: Request) => {
       const nombreNormalizado = apellidosNorm && nombresNorm
         ? `${apellidosNorm} ${nombresNorm}`.replace(/\s+/g, " ").trim()
         : String(nombre_completo).trim();
-
-      // Clave temporal = documento (regla del portal). Cambio obligatorio al ingresar.
-      const passwordFinal = claveTemporalDesdeDocumento(dniLimpio);
-      passwordParaBienvenida = passwordFinal;
-      nombreParaBienvenida = nombreNormalizado;
-      nombreCortoBienvenida = nombresNorm || nombreNormalizado;
-
-      // ── EL PUNTO DE NO RETORNO ────────────────────────────────────────────
-      // A partir de la línea siguiente existe una cuenta de portal a nombre de
-      // esta persona. Se sella la reserva para que DEJE DE CADUCAR: si caducara,
-      // una muerte de esta función a mitad devolvería el lead al cierre en
-      // cooperativa cinco minutos después y quedaría un inversionista de coop
-      // con acceso al portal — el agujero exacto que la reserva vino a tapar.
-      const { error: sellarErr } = await userClient
-        .schema("crm").rpc("marcar_efectos_conversion", { p_lead_id: lead_id });
-      if (sellarErr && sellarErr.code !== "PGRST202") {
-        return json(cors, { error: sellarErr.message }, 409);
-      }
-
-      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
-        email: emailNormalizado,
-        password: passwordFinal,
-        email_confirm: true,
-        user_metadata: { nombre: nombreNormalizado },
+      const telefonoNorm = (telefono ?? lead.telefono ?? "").toString().trim() || null;
+      const payloadSaga = {
+        correo: emailNormalizado, nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
+        telefono: telefonoNorm, domicilio: domicilioLegal, bancarios,
+      };
+      const { data: reserva, error: reservaErr } = await rpc("reservar_conversion_lead", {
+        p_lead_id: lead_id, p_tipo_documento: tipoDoc, p_documento: dniLimpio, p_payload: payloadSaga,
       });
-      if (createErr || !created?.user) {
-        const msg = createErr?.message || "";
-        if (/already been registered|already exists/i.test(msg)) {
-          return json(cors, { error: "Ese correo ya está registrado en el portal" }, 409);
+      if (reservaErr) return json(cors, { error: reservaErr.message }, statusDeErrorSaga(reservaErr));
+      const rr = (reserva && typeof reserva === "object") ? reserva as Record<string, unknown> : {};
+      let saga = interpretarReclamo(reserva);
+      if (saga.paso === "listo") {
+        // Conversión ya consumada (respuesta perdida): idempotente, sin correo.
+        return json(cors, { ok: true, perfil_id: saga.perfilId, ya_existia: true, domicilio_accion: "conservado", email_enviado: false }, 200);
+      }
+      if (!saga.claimId || !saga.token || saga.version === null) {
+        return json(cors, { error: "El servidor no devolvió un claim válido" }, 500);
+      }
+      const avanzar = async (paso: string, extra: Record<string, unknown>) => {
+        const { data, error } = await rpc("saga_conversion_fn", { p_paso: paso, p_payload: { claim_id: saga.claimId, token: saga.token, version: saga.version, ...extra } });
+        if (error) return { error, data: null as unknown };
+        const r = interpretarReclamo(data);
+        saga = { ...saga, estado: r.estado, version: r.version ?? saga.version, authUserId: r.authUserId ?? saga.authUserId, perfilId: r.perfilId ?? saga.perfilId, paso: r.paso };
+        return { error: null, data };
+      };
+
+      if (typeof rr.perfil_id === "string" && rr.ya_existia === true && saga.paso === "crear_auth") {
+        // La persona ya es cliente del portal (dedup por IDENTIDAD): se enlaza, sin Auth ni correo.
+        perfilId = rr.perfil_id;
+        yaExistia = true;
+      } else {
+        // Punto de no retorno: sellar la reserva con claim + token (identidad bloqueada antes).
+        const { error: sellarErr } = await rpc("marcar_efectos_conversion", { p_lead_id: lead_id, p_claim_id: saga.claimId, p_token: saga.token });
+        if (sellarErr) return json(cors, { error: sellarErr.message }, statusDeErrorSaga(sellarErr));
+        const passwordFinal = claveTemporalDesdeDocumento(dniLimpio);
+        let newUserId = "";
+        if (saga.paso === "crear_auth") {
+          const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+            email: emailNormalizado, password: passwordFinal, email_confirm: true,
+            user_metadata: { nombre: nombreNormalizado }, app_metadata: { claim_id: saga.claimId },
+          });
+          if (createErr || !created?.user) {
+            if (correoYaRegistrado(createErr?.message)) {
+              const { data: existenteAuth } = await adminClient.schema("crm").rpc("auth_usuario_por_correo_fn", { p_correo: emailNormalizado });
+              if (existenteAuth && authTieneMarca(existenteAuth, saga.claimId) && typeof existenteAuth.id === "string") {
+                newUserId = existenteAuth.id;
+              } else {
+                return json(cors, { error: "Ese correo ya está registrado en el portal con otra cuenta: revisión de Gerencia" }, 409);
+              }
+            } else {
+              return json(cors, { error: createErr?.message || "No se pudo crear el usuario" }, 400);
+            }
+          } else {
+            newUserId = created.user.id;
+          }
+          const r = await avanzar("registrar_auth", { auth_user_id: newUserId });
+          if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
+          passwordParaBienvenida = passwordFinal;
+        } else {
+          if (!saga.authUserId) return json(cors, { error: "La saga no tiene usuario de Auth" }, 500);
+          const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
+          if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+            return json(cors, { error: "El usuario de Auth de esta conversión no lleva la marca del claim: revisión de Gerencia" }, 409);
+          }
+          newUserId = saga.authUserId;
+          // Reanudación: la contraseña temporal es el documento (regla del portal); se reenvía la bienvenida al cerrar.
+          passwordParaBienvenida = passwordFinal;
         }
-        return json(cors, { error: msg || "No se pudo crear el usuario" }, 400);
-      }
-      perfilId = created.user.id;
-
-      const { error: perfilErr } = await adminClient.from("perfiles").insert({
-        id: perfilId,
-        nombre_completo: nombreNormalizado,
-        apellidos: apellidosNorm,
-        nombres: nombresNorm,
-        tipo_documento: tipoDoc,
-        dni: dniLimpio,
-        telefono: (telefono ?? lead.telefono ?? "").toString().trim() || null,
-        domicilio: domicilioLegal,
-        correo: emailNormalizado,
-        rol: "cliente",
-        activo: true,
-        creado_por: callerId,
-        debe_cambiar_password: true,
-        asesor_perfil_id: asesorId,
-        // Las 14 columnas bancarias, ya validadas arriba: el cliente NACE con su
-        // cuenta. Si este insert falla, no queda cliente a medias (se borra el
-        // usuario de Auth justo debajo).
-        ...columnasBancarias,
-      });
-      if (perfilErr) {
-        await adminClient.auth.admin.deleteUser(perfilId);
-        if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
-          return json(cors, { error: "Este documento ya está registrado" }, 409);
+        nombreParaBienvenida = nombreNormalizado;
+        nombreCortoBienvenida = nombresNorm || nombreNormalizado;
+        if (saga.paso !== "enlazar") {
+          const { error: perfilErr } = await adminClient.from("perfiles").insert({
+            id: newUserId, nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
+            tipo_documento: tipoDoc, dni: dniLimpio, telefono: telefonoNorm, domicilio: domicilioLegal,
+            correo: emailNormalizado, rol: "cliente", activo: true, creado_por: callerId,
+            debe_cambiar_password: true, asesor_perfil_id: lead.vendedor_id, ...columnasBancarias,
+          });
+          if (perfilErr) {
+            const decision = decidirTrasFalloPerfil(perfilErr);
+            if (decision === "compensar") {
+              const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
+              if (!delErr) await avanzar("compensar_auth", {});
+              return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
+            }
+            if (decision === "revision") return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia)" }, 409);
+            if (decision === "error") return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
+          }
+          const r = await avanzar("perfil_creado", { perfil_id: newUserId });
+          if (r.error) return json(cors, { error: r.error.message }, statusDeErrorSaga(r.error));
         }
-        if (perfilErr.code === "23514") return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
-        return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
+        perfilId = newUserId;
       }
 
-      // EL CORREO YA NO SE MANDA AQUÍ. Ver el bloque de abajo, tras cerrar el
-      // lead: es el único efecto de toda esta función que NO se puede deshacer,
-      // y mandarlo antes de saber si el lead se cierra es lo que dejaba a un
-      // inversionista de cooperativa con una bienvenida al portal en la bandeja.
-    }
-
-    // ENLACE + cierre + eventual domicilio legacy, dentro de UNA transacción.
-    // La RPC llama primero a convertir_lead (misma autorización/locks) y solo
-    // después completa perfiles.domicilio cuando sigue NULL.
-    const { data: conversion, error: convErr } = await userClient
-      .schema("crm").rpc("convertir_lead_con_domicilio", {
-        p_lead_id: lead_id,
-        p_perfil_id: perfilId,
-        p_domicilio: domicilioLegal,
-      });
-    if (convErr) {
-      // El cliente pudo haberse creado; NO se borra (el documento ya quedó registrado
-      // y un reintento lo detecta por dedup y solo enlaza). Se reporta el fallo del enlace.
-      // Y NO se manda el correo: si el lead no se cerró, esta persona todavía
-      // podría acabar cerrándose en una cooperativa, y una bienvenida al portal
-      // en su bandeja no se puede retirar.
-      return json(cors, {
-        error: `El cliente quedó creado, pero no se pudo cerrar el lead: ${convErr.message}. Reintenta la conversión.`,
-        perfil_id: perfilId, cliente_creado: !yaExistia,
-      }, 409);
+      // CIERRE TRANSACCIONAL: convierte y comprueba que la persona convertida es la reservada.
+      const cierre = await avanzar("cerrar", { lead_id, perfil_id: perfilId, domicilio: domicilioLegal });
+      if (cierre.error) {
+        // NO se manda el correo: el lead no se cerró. El cliente (si se creó) es reanudable por la saga.
+        return json(cors, {
+          error: `No se pudo cerrar el lead: ${cierre.error.message}. Reintenta la conversión.`,
+          perfil_id: perfilId, cliente_creado: !yaExistia,
+        }, statusDeErrorSaga(cierre.error));
+      }
+      conversion = cierre.data;
     }
 
     // ── CORREO DE BIENVENIDA — el último paso, y a propósito ─────────────────
@@ -391,7 +520,7 @@ Deno.serve(async (req: Request) => {
       perfil_id: perfilId,
       ya_existia: yaExistia,
       domicilio_accion: conversion && typeof conversion === "object" && "domicilio_accion" in conversion
-        ? conversion.domicilio_accion
+        ? (conversion as { domicilio_accion: string }).domicilio_accion
         : yaExistia ? "conservado" : "completado",
       email_enviado: emailEnviado,
       ...(emailError ? { email_error: emailError } : {}),
