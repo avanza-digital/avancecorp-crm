@@ -93,8 +93,21 @@ run_as "$G" "select crm.levantar_no_contactar('$LU6','ensayo suelto')" >/dev/nul
 [[ "$(q "select i.no_contactar from crm.inversionistas i where i.id = private.inversionista_por_documento('DNI','$DF')")" == "f" && "$(q "select no_contactar from crm.leads where id='$LU6'")" == "f" ]] && ok "levantar sobre el lead suelto levantó a la persona y al lead" || rojo "levantar sobre suelto incompleto"
 
 echo "== Rescate de descartes y notas administrativas =="
-EP="$(q "select la.id from crm.lead_asignaciones la where la.lead_id='$LU4' and la.resultado_en is not null order by la.resultado_en desc limit 1")"
-if [[ -n "$EP" ]]; then R="$(run_as "$G" "select crm.rescatar_descartes(array['$EP']::uuid[], array['$V']::uuid[], false)")"; echo "$R" | grep -q "P0429" && ok "rescatar_descartes sobre el descarte de LU4 (persona vetada, lead suelto) → P0429" || rojo "rescatar pasó: $(echo "$R"|tail -1|cut -c1-120)"; else ok "(rescatar: LU4 sin episodio de descarte en lead_asignaciones; cubierto por deshacer)"; fi
+# Episodio rescatable REAL: lead con asignación a V, descartado por V (PATCH del front) → lead_asignaciones.resultado='descartado'.
+LU7="$(uuid)"; DG="7${RUN}1"
+flag false; run_sys "$(ins "$LU7" DESCARTE-V "${T}37" "'$V'" null "$DD")" >/dev/null; flag true
+run_as "$V" "update crm.leads set etapa='descartado', motivo_descarte='sin_interes' where id='$LU7'" >/dev/null
+EP="$(q "select la.id from crm.lead_asignaciones la where la.lead_id='$LU7' and la.resultado='descartado' order by la.resultado_en desc limit 1")"
+[[ -n "$EP" ]] && ok "episodio de descarte real para LU7 (persona vetada D, lead suelto)" || rojo "sin episodio de descarte para LU7: el rescate no se puede ejercitar"
+R="$(run_as "$G" "select crm.rescatar_descartes(array['$EP']::uuid[], array['$V']::uuid[], false)")"; echo "$R" | grep -q "P0429" && ok "rescatar_descartes (persona vetada, lead suelto) → P0429" || rojo "rescatar pasó o falló distinto: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-140)"
+# OFF: el rescate de un descarte de persona NO vetada debe EJECUTARSE (código real, no saltado).
+q "select private.inversionista_resolver('DNI','$DG',true,'ensayo_b2g')" >/dev/null
+LU8="$(uuid)"; flag false; run_sys "$(ins "$LU8" DESCARTE-OFF "${T}38" "'$V'" null "$DG")" >/dev/null
+run_as "$V" "update crm.leads set etapa='descartado', motivo_descarte='sin_interes' where id='$LU8'" >/dev/null
+EP8="$(q "select la.id from crm.lead_asignaciones la where la.lead_id='$LU8' and la.resultado='descartado' order by la.resultado_en desc limit 1")"
+R="$(run_as "$G" "select crm.rescatar_descartes(array['$EP8']::uuid[], array['$V']::uuid[], false)")"
+[[ "$(q "select etapa from crm.leads where id='$LU8'")" != "descartado" ]] && ok "OFF: rescatar_descartes ejecuta y reabre (la rama transformada corre sin error)" || rojo "OFF: rescatar no reabrió: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-140)"
+flag true
 R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por) values ('$LU3','nota','B2 nota administrativa','{}'::jsonb,'$V')")"; [[ -z "$(echo "$R"|grep P0429)" ]] && ok "una NOTA sobre persona vetada entra (no es contacto)" || rojo "nota bloqueada: $(echo "$R"|tail -1|cut -c1-100)"
 
 echo "== Offboarding: sin cambios en este lote (la reasignación del responsable es puerta de Gerencia, b5) =="

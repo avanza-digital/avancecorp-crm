@@ -74,17 +74,17 @@ declare v_h text;
 begin
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='private' and p.proname='trg_leads_hereda_veto_persona';
-  if v_h <> '4f774d77f7af8ee4f5f56c24d0090bcb' and (select strpos(prosrc,'inversionista_por_documento') from pg_proc where proname='trg_leads_hereda_veto_persona') = 0 then
+  if v_h <> '1a4483fc758555d861e211978035eaa3' and (select strpos(prosrc,'inversionista_por_documento') from pg_proc where proname='trg_leads_hereda_veto_persona') = 0 then
     raise exception 'F2.b b1: private.trg_leads_hereda_veto_persona no es el texto vivo esperado (%)', v_h;
   end if;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) = 'p_telefono text, p_dni text, p_excluir_lead_id uuid';
-  if v_h <> '63a474dbb99138a3e1a99c501acd1f82' and (select strpos(prosrc,'idf.verificado = true') from pg_proc p where p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) like '%uuid%') = 0 then
+  if v_h <> '63e775094796e564ae04c088d0642bec' and (select strpos(prosrc,'idf.verificado = true') from pg_proc p where p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) like '%uuid%') = 0 then
     raise exception 'F2.b b1: verificar_disponibilidad_lead_impl(3) no es el texto vivo esperado (%)', v_h;
   end if;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='crear_lead_si_disponible';
-  if v_h <> '3ca7ed2b0449c3223d7274b6ac8935ba' and (select strpos(prosrc,'identidad_bloquear_documento') from pg_proc where proname='crear_lead_si_disponible') = 0 then
+  if v_h <> '9c86f9f748a375f75ee7731981c32d02' and (select strpos(prosrc,'identidad_bloquear_documento') from pg_proc where proname='crear_lead_si_disponible') = 0 then
     raise exception 'F2.b b1: crm.crear_lead_si_disponible no es el texto vivo esperado (%)', v_h;
   end if;
 end
@@ -843,6 +843,10 @@ declare
 begin
   if (select auth.uid()) is not null then
     raise exception 'Solo el importador (service_role) registra reingresos' using errcode = '42501';
+  end if;
+  -- Paridad apagada: superficie inerte mientras la identidad no esté activa (Codex E1).
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada: el reingreso no se registra' using errcode = 'P0409';
   end if;
   if p_lead_id is null or not exists (select 1 from crm.leads l where l.id = p_lead_id) then
     raise exception 'Lead inexistente' using errcode = 'P0002';

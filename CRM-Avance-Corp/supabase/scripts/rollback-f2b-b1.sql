@@ -8,6 +8,13 @@
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_b1_reversa'));
+do $pre$
+begin
+  if to_regprocedure('private.persona_vetada(uuid)') is not null then
+    raise exception 'REVERSA b1: b2 (20260904130000) sigue instalada y usa los helpers de b1; revierte b2 primero';
+  end if;
+end
+$pre$;
 
 update crm.multiempresa_flags set activo = false, actualizado_en = now()
   where nombre = 'resolver_en_puertas' and activo = true;
@@ -560,6 +567,12 @@ begin
   if (select strpos(prosrc, 'identidad_bloquear_documento') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='crm' and p.proname='crear_lead_si_disponible') <> 0 then
     raise exception 'REVERSA b1: crear_lead_si_disponible sigue transformada';
+  end if;
+  -- El texto restaurado debe ser el VIVO de producción (md5 de pg_get_functiondef, 04/09/2026).
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_hereda_veto_persona') <> '1a4483fc758555d861e211978035eaa3'
+     or (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='crear_lead_si_disponible') <> '9c86f9f748a375f75ee7731981c32d02'
+     or (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid) = 'p_telefono text, p_dni text, p_excluir_lead_id uuid') <> '63e775094796e564ae04c088d0642bec' then
+    raise exception 'REVERSA b1: el texto restaurado no coincide byte a byte con el vivo de producción';
   end if;
   raise notice 'REVERSA F2.b b1 OK';
 end

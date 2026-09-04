@@ -105,7 +105,7 @@ LG="$(uuid)"; R="$(run_sys "$(ins "$LG" OFF-DUP "${T}24" "'$DOC5'")")"
 [[ "$(q "select inversionista_id is null from crm.leads where id='$LG'")" == "t" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LG'")" == "0" ]] && ok "OFF: el importador inserta como hoy (2.º lead, sin enlace, sin puente)" || rojo "OFF: comportamiento distinto: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_as "$V" "update crm.leads set dni='6${RUN}2' where id='$LG'")"; [[ -z "$(echo "$R" | grep -i "P04")" && "$(q "select inversionista_id is null from crm.leads where id='$LG'")" == "t" ]] && ok "OFF: UPDATE de dni sin veredicto de identidad ni enlace" || rojo "OFF: el UPDATE de dni levantó $(echo "$R"|grep -o 'P0[0-9]*'|head -1)"
 [[ "$(q "select r->>'estado' from private.verificar_disponibilidad_lead_impl('${T}25','$DOC7',null) r")" != "ya_es_cliente" ]] && ok "OFF: disponibilidad no consulta identidad" || rojo "OFF: disponibilidad consultó identidad"
-R="$(run_sys "select crm.registrar_reingreso_lead_fn('$L5','hoja','{}'::jsonb)")"; echo "$R" | grep -q '"ok": *true' && ok "OFF: la RPC de reingreso existe y funciona (el edge no la llama con OFF)" || rojo "reingreso OFF falló"
+R="$(run_sys "select crm.registrar_reingreso_lead_fn('$L5','hoja','{}'::jsonb)")"; echo "$R" | grep -q "P0409" && ok "OFF: la RPC de reingreso está inerte (P0409, superficie sin efectos con la bandera apagada)" || rojo "reingreso OFF escribió: $(echo "$R"|tail -1|cut -c1-100)"
 flag true
 
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1

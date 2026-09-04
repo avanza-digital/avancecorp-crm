@@ -1268,7 +1268,7 @@ drop function if exists private.persona_vetada(uuid);
 drop function if exists private.leads_vetados_persona(uuid[]);
 
 do $post$
-declare v_fn text; v_src text;
+declare v_fn text; v_src text; r record; v_h text;
 begin
   foreach v_fn in array array['private.repartir_lead_implementacion','crm.derivar_leads_equipo_fn','crm.revertir_derivacion_equipo_fn',
                               'crm.tomar_lead_libre','private.deshacer_descarte_implementacion','crm.resumen_reparto_fn',
@@ -1284,6 +1284,26 @@ begin
   if to_regprocedure('private.persona_vetada(uuid)') is not null then
     raise exception 'REVERSA b2: queda el helper';
   end if;
+  -- El texto restaurado debe ser el VIVO de producción (md5 de pg_get_functiondef, 04/09/2026).
+  for r in select * from (values
+    ('private.repartir_lead_implementacion','306e51ce145aae695f932b936199242e'),
+    ('crm.derivar_leads_equipo_fn','9a4eae7eb21bbe0080139a0cf3686e3b'),
+    ('crm.revertir_derivacion_equipo_fn','43699042a1b300a960a0696977f08b35'),
+    ('crm.tomar_lead_libre','b0a3a3d185ff90504489fe9313023a13'),
+    ('private.deshacer_descarte_implementacion','a386c107d7a7f04a9b369d5e152d8093'),
+    ('crm.resumen_reparto_fn','51bdcdc6ed9849370a071d42e1a3600a'),
+    ('private.leads_por_repartir_implementacion','6c6d2e57f7dd9a4c182e2513bab2c941'),
+    ('private.trg_gestion_lead_serializada','03f171cc19acecb744b040bd7435a2a7'),
+    ('crm.marcar_no_contactar','9807431e2b8511ea81395b037fe31c7a'),
+    ('crm.levantar_no_contactar','6ec378121ea1736a0915be1d7e59213c'),
+    ('crm.rescatar_descartes','7ecc2d7173578815d1d878ebfd7e11cb')
+  ) as v(fn, h) loop
+    select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname || '.' || p.proname = r.fn;
+    if v_h is distinct from r.h then
+      raise exception 'REVERSA b2: % no volvió byte a byte al vivo de producción (%)', r.fn, v_h;
+    end if;
+  end loop;
   raise notice 'REVERSA F2.b b2 OK';
 end
 $post$;

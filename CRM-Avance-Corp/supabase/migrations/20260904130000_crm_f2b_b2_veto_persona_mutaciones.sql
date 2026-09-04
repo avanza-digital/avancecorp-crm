@@ -49,17 +49,17 @@ do $vivo$
 declare r record; v_h text; v_src text;
 begin
   for r in select * from (values
-    ('private.repartir_lead_implementacion','07a1071d1f96b2b3d211d68cf3b5aec1'),
-    ('crm.derivar_leads_equipo_fn','f104841c86d219e6480a4108083b8e6b'),
-    ('crm.revertir_derivacion_equipo_fn','594aa7eb299ca43d035c7cb00f1b5044'),
-    ('crm.tomar_lead_libre','155d9168ce54143d40b09bd00ddda5d7'),
-    ('private.deshacer_descarte_implementacion','cfc4ae3905e65f51072b9932a38f09cc'),
-    ('crm.resumen_reparto_fn','4080cc240cb31bfcd23d05852028e346'),
-    ('private.leads_por_repartir_implementacion','39fc161ebb0110b7a960dc7a9f0d5d32'),
-    ('private.trg_gestion_lead_serializada','1288eac0d393f468ef7929b84fc4eaca'),
-    ('crm.marcar_no_contactar','aa393955e36a8e467c56e0ebfa4be3ad'),
-    ('crm.levantar_no_contactar','96f7878948a851af6fb13c8427133522'),
-    ('crm.rescatar_descartes','ae85ff7871654075817cc03236d998dd')
+    ('private.repartir_lead_implementacion','306e51ce145aae695f932b936199242e'),
+    ('crm.derivar_leads_equipo_fn','9a4eae7eb21bbe0080139a0cf3686e3b'),
+    ('crm.revertir_derivacion_equipo_fn','43699042a1b300a960a0696977f08b35'),
+    ('crm.tomar_lead_libre','b0a3a3d185ff90504489fe9313023a13'),
+    ('private.deshacer_descarte_implementacion','a386c107d7a7f04a9b369d5e152d8093'),
+    ('crm.resumen_reparto_fn','51bdcdc6ed9849370a071d42e1a3600a'),
+    ('private.leads_por_repartir_implementacion','6c6d2e57f7dd9a4c182e2513bab2c941'),
+    ('private.trg_gestion_lead_serializada','03f171cc19acecb744b040bd7435a2a7'),
+    ('crm.marcar_no_contactar','9807431e2b8511ea81395b037fe31c7a'),
+    ('crm.levantar_no_contactar','6ec378121ea1736a0915be1d7e59213c'),
+    ('crm.rescatar_descartes','7ecc2d7173578815d1d878ebfd7e11cb')
   ) as v(fn, h) loop
     select md5(pg_get_functiondef(p.oid)), p.prosrc into v_h, v_src
       from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -1137,6 +1137,17 @@ begin
     perform 1 from crm.inversionistas where id = v_inv for update;
   end if;
 
+  -- F2.b (b2) [Codex E1 #2]: orden identidad -> TAREAS -> leads. crm.cerrar_tarea va
+  -- tarea -> lead; cancelar las pendientes después de bloquear los leads formaría un ciclo.
+  if v_flag then
+    perform 1 from crm.tareas t
+     where t.estado = 'pendiente'
+       and t.lead_id in (select l.id from crm.leads l
+                          where l.id = p_lead_id or (v_inv is not null and l.inversionista_id = v_inv))
+     order by t.id
+     for update;
+  end if;
+
   select * into v_lead
   from crm.leads
   where id = p_lead_id
@@ -1153,6 +1164,12 @@ begin
   -- Revalidar tras esperar: si la identidad cambió (fusión/corrección), reintentar.
   if v_flag and not v_suelto and v_lead.inversionista_id is distinct from v_inv then
     raise exception 'La persona cambió mientras se marcaba; vuelve a intentarlo'
+      using errcode = '40001';
+  end if;
+  if v_flag and v_suelto
+     and (v_lead.inversionista_id is not null
+          or private.inversionista_por_documento('DNI', v_lead.dni) is distinct from v_inv) then
+    raise exception 'El documento del lead cambió mientras se marcaba; vuelve a intentarlo'
       using errcode = '40001';
   end if;
 
@@ -1253,6 +1270,12 @@ begin
   end if;
   if v_flag and not v_suelto and v_lead.inversionista_id is distinct from v_inv then
     raise exception 'La persona cambió mientras se levantaba; vuelve a intentarlo'
+      using errcode = '40001';
+  end if;
+  if v_flag and v_suelto
+     and (v_lead.inversionista_id is not null
+          or private.inversionista_por_documento('DNI', v_lead.dni) is distinct from v_inv) then
+    raise exception 'El documento del lead cambió mientras se levantaba; vuelve a intentarlo'
       using errcode = '40001';
   end if;
 
@@ -1417,7 +1440,7 @@ begin
         using errcode = 'P0429';
     end if;
     -- F2.b (b2): también por documento exacto (lead suelto de una persona vetada).
-    if private.persona_vetada(v_fila.id) then
+    if private.persona_vetada(v_fila.lead_id) then
       raise exception 'Uno de los leads pertenece a una persona con la restricción «No insistir» y no puede reactivarse'
         using errcode = 'P0429';
     end if;

@@ -480,10 +480,17 @@ Deno.serve(async (req: Request) => {
 
     // F2.b b1: la bandera de identidad se lee UNA vez por lote (booleano sin
     // PII; crm.bandera_activa admite service_role desde 20260904120000). Si la
-    // lectura falla, se asume apagada: nunca se registra un reingreso a ciegas.
-    const { data: banderaIdentidad } = await admin.rpc("bandera_activa", {
-      p_nombre: "resolver_en_puertas",
-    });
+    // lectura falla, el lote NO se importa (fail-closed: el Apps Script lo
+    // reintenta como error temporal), nunca se adivina el estado.
+    const { data: banderaIdentidad, error: errBandera } = await admin.rpc(
+      "bandera_activa",
+      { p_nombre: "resolver_en_puertas" },
+    );
+    if (errBandera) {
+      return json({
+        error: `Error leyendo la bandera de identidad: ${errBandera.message}`,
+      }, 500);
+    }
     const identidadEnPuertas = banderaIdentidad === true;
 
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
@@ -537,10 +544,10 @@ Deno.serve(async (req: Request) => {
             fila: v.fila,
             resultado: "ya_cliente",
             estado: errRe
-              ? `${clasificacion.estado} — sin nota en la ficha (${
+              ? `${clasificacion.estado}: NO se pudo anotar el reingreso en su ficha (${
                 String(errRe.message).slice(0, 60)
               })`
-              : clasificacion.estado,
+              : `${clasificacion.estado}: reingreso registrado en su ficha`,
           });
           continue;
         }

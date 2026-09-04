@@ -71,11 +71,11 @@ export function clasificarErrorInsercion(
     const v = veredictoDeError(error);
     if (v?.estado === "ya_es_cliente" && v?.via === "identidad") {
       const asesor = typeof v.asesor === "string" ? v.asesor : "";
+      // El estado NO afirma todavía «registrado»: eso lo compone el edge solo
+      // después de que la RPC de reingreso haya tenido éxito.
       return {
         resultado: "ya_cliente",
-        estado: `YA ES CLIENTE: reingreso registrado en su ficha${
-          asesor ? ` (asesor: ${asesor})` : ""
-        }`,
+        estado: `YA ES CLIENTE${asesor ? ` (asesor: ${asesor})` : ""}`,
         lead_id: typeof v.lead_id === "string" ? v.lead_id : undefined,
         asesor: asesor || undefined,
       };

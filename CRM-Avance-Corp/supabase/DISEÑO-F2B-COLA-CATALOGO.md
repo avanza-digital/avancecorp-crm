@@ -64,6 +64,11 @@ perfil YA enlazado hoy salta el advisory (`210000:107-123`): pasa a tomarlo siem
 - `private.persona_vetada(p_lead_id) returns boolean` y `private.leads_vetados_persona(uuid[]) returns setof uuid` (stable): veto del lead
   OR veto de la persona por `inversionista_id`→canónica OR por documento exacto (verificado) del lead sin enlace. Es el helper que 250000 anunció.
 
+## Prerrequisitos de ACTIVACIÓN (de Codex sobre lo construido, 04/09) — no bloquean aterrizar apagado
+(a) trigger estrecho para el PATCH directo de asignación/reapertura; (b) marcar: bloquear TODOS los leads por id ascendente (preexistente en 240000);
+(c) seguimiento por `perfil_id` (tareas de cliente, `actividades_cliente`) → E2; (d) tareas de leads sueltos con el mismo documento → E3;
+(e) `[v2-17]` inversiones con `inversiones_escritura`; (f) `[v2-2]` importador por puerta SQL → E2.
+
 ## Sub-lote b1 — El alta reconoce a la persona (hoja, formulario, alta manual, edición de DNI)
 **Problema:** la hoja inserta sin veredicto → puede abrir un 2.º lead a una persona convertida y no ve el veto de la persona.
 **Meta (#6, #7, #8):** con bandera ON, en TODO INSERT de `crm.leads` y en TODO cambio de `dni`: documento exacto (verificado) → (a) persona vetada → `P0429`;

@@ -101,6 +101,7 @@ Deno.test("F2.b: P0481 ya_es_cliente vía identidad es un REINGRESO con lead_id"
   assert(r.lead_id === "11111111-1111-1111-1111-111111111111", "lleva el lead canónico");
   assert(r.estado.startsWith("YA ES CLIENTE"), "estado legible para la hoja");
   assert(r.estado.includes("ROSA"), "nombra al asesor");
+  assert(!/registrado/i.test(r.estado), "no afirma «registrado» antes de que la RPC ocurra");
 });
 
 Deno.test("F2.b: P0481 por otro motivo sigue siendo un rechazo definitivo", () => {
