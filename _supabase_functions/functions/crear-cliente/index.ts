@@ -303,7 +303,13 @@ Deno.serve(async (req: Request) => {
       } else if (saga.paso === "crear_perfil" || saga.paso === "enlazar") {
         if (!saga.authUserId) return json(cors, { error: "La saga no tiene usuario de Auth" }, 500);
         const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
-        if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+        if (!authRes?.user) {
+          // Compensación a medias (Auth borrado, claim en auth_creado): se registra y se pide reintentar.
+          const rc = await avanzar("compensar_auth", {});
+          if (rc.error) return json(cors, { error: rc.error.message }, statusDeErrorSaga(rc.error));
+          return json(cors, { error: "El usuario de Auth de un intento anterior ya no existe; el alta se reinició. Reintenta." }, 409);
+        }
+        if (!authTieneMarca(authRes.user, saga.claimId)) {
           return json(cors, { error: "El usuario de Auth de esta alta no lleva la marca del claim: revisión de Gerencia" }, 409);
         }
         newUserId = saga.authUserId;
@@ -339,7 +345,10 @@ Deno.serve(async (req: Request) => {
           if (decision === "compensar") {
             // Datos inválidos: se borra el Auth (comprobando el resultado) y el claim vuelve a 'reclamado'.
             const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-            if (!delErr) await avanzar("compensar_auth", {});
+            if (!delErr) {
+              const rc = await avanzar("compensar_auth", {});
+              if (rc.error) console.warn("crear-cliente: compensar_auth pendiente:", rc.error.message);
+            }
             return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
           }
           if (decision === "revision") {

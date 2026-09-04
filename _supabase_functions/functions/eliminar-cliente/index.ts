@@ -85,30 +85,72 @@ Deno.serve(async (req: Request) => {
       return json(cors, { error: "Esta función solo elimina clientes, no administradores" }, 403);
     }
 
-    // 5-7) F2.b b3/b4: comprobar y borrar en UNA transacción (crm.eliminar_cliente_fn):
-    // contratos, identidad unificada (con la bandera encendida), altas en curso, comunicados
-    // y perfil. Antes, los comunicados se borraban en otra llamada y un rechazo posterior
-    // los dejaba perdidos (Codex E2 #8). Con la bandera apagada las reglas son las de hoy.
-    const { data: borrado, error: borradoErr } = await adminClient
-      .schema("crm").rpc("eliminar_cliente_fn", { p_perfil_id: userId });
-    if (borradoErr) {
-      let detalle: Record<string, unknown> = {};
-      try { detalle = JSON.parse(String((borradoErr as { details?: string }).details ?? "{}")); } catch { detalle = {}; }
-      const motivo = String(detalle?.motivo ?? "");
-      if (borradoErr.code === "P0409") {
+    // F2.b: bandera de identidad (fail-closed). Con OFF, el flujo de siempre; con ON, la RPC
+    // transaccional crm.eliminar_cliente_fn (contratos, identidad, altas en curso, comunicados y
+    // perfil en UNA transacción: antes un rechazo tardío dejaba los comunicados ya borrados).
+    const { data: banderaIdentidad, error: errBandera } = await adminClient
+      .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
+    if (errBandera) {
+      return json(cors, { error: `No se pudo leer la bandera de identidad: ${errBandera.message}` }, 500);
+    }
+    if (banderaIdentidad !== true) {
+      // 5) Bloquear si tiene contratos (protege historial financiero/legal)
+      const { count: nContratos, error: contErr } = await adminClient
+        .from("contratos")
+        .select("id", { count: "exact", head: true })
+        .eq("cliente_id", userId);
+
+      if (contErr) {
+        return json(cors, { error: `No se pudo verificar contratos: ${contErr.message}` }, 500);
+      }
+      if ((nContratos ?? 0) > 0) {
         return json(cors, {
-          error: borradoErr.message,
-          code: motivo === "contratos" ? "HAS_CONTRACTS" : motivo === "identidad" ? "HAS_IDENTITY" : "NOT_DELETABLE",
+          error: `Este cliente tiene ${nContratos} contrato(s) asociado(s). Desactívalo en vez de eliminarlo para conservar el historial.`,
+          code: "HAS_CONTRACTS",
         }, 409);
       }
-      if (borradoErr.code === "P0002") {
-        return json(cors, { error: "El cliente no existe o ya fue eliminado" }, 404);
+
+      // 6) Limpiar comunicados dirigidos a este cliente (FK NO ACTION en novedades.destinatario_id)
+      const { error: novErr } = await adminClient
+        .from("novedades")
+        .delete()
+        .eq("destinatario_id", userId);
+      if (novErr) {
+        return json(cors, { error: `No se pudieron limpiar los comunicados del cliente: ${novErr.message}` }, 500);
       }
-      return json(cors, {
-        error: `No se pudo eliminar el perfil: ${borradoErr.message}. Si el cliente tiene registros asociados, desactívalo en su lugar.`,
-      }, 409);
+
+      // 7) Borrar el perfil (cascada: novedades_leidas, suscripciones_push; audit_log → SET NULL)
+      const { error: perfilErr } = await adminClient
+        .from("perfiles")
+        .delete()
+        .eq("id", userId);
+      if (perfilErr) {
+        return json(cors, {
+          error: `No se pudo eliminar el perfil: ${perfilErr.message}. Si el cliente tiene registros asociados, desactívalo en su lugar.`,
+        }, 409);
+      }
+    } else {
+      const { data: borrado, error: borradoErr } = await adminClient
+        .schema("crm").rpc("eliminar_cliente_fn", { p_perfil_id: userId });
+      if (borradoErr) {
+        let detalle: Record<string, unknown> = {};
+        try { detalle = JSON.parse(String((borradoErr as { details?: string }).details ?? "{}")); } catch { detalle = {}; }
+        const motivo = String(detalle?.motivo ?? "");
+        if (borradoErr.code === "P0409") {
+          return json(cors, {
+            error: borradoErr.message,
+            code: motivo === "contratos" ? "HAS_CONTRACTS" : motivo === "identidad" ? "HAS_IDENTITY" : "NOT_DELETABLE",
+          }, 409);
+        }
+        if (borradoErr.code === "P0002") {
+          return json(cors, { error: "El cliente no existe o ya fue eliminado" }, 404);
+        }
+        return json(cors, {
+          error: `No se pudo eliminar el perfil: ${borradoErr.message}. Si el cliente tiene registros asociados, desactívalo en su lugar.`,
+        }, 409);
+      }
+      void borrado;
     }
-    void borrado;
 
     // 8) Borrar el usuario de auth (no hay FK que lo cascade; debe ser explícito)
     const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);

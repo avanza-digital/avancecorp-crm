@@ -128,8 +128,12 @@ Deno.serve(async (req: Request) => {
     // Solo con la bandera ENCENDIDA (paridad exacta con apagada: sigue el 409 de hoy).
     // La respuesta respeta EXACTAMENTE el contrato del front (strictObject):
     // { ok, perfil_id, ya_existia, domicilio_accion, email_enviado }.
-    const { data: banderaOn } = await userClient
+    const { data: banderaOn, error: errBanderaOn } = await userClient
       .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
+    // F2.b: fail-closed. Si la bandera no se puede leer, no se decide ninguna rama (Codex E2).
+    if (errBanderaOn) {
+      return json(cors, { error: `No se pudo leer la bandera de identidad: ${errBanderaOn.message}` }, 500);
+    }
     if (banderaOn === true && lead.activo && lead.etapa === "convertido" && lead.perfil_id) {
       const { data: previo, error: previoErr } = await userClient
         .schema("crm").rpc("convertir_lead_con_domicilio", {
@@ -388,6 +392,9 @@ Deno.serve(async (req: Request) => {
         // Conversión ya consumada (respuesta perdida): idempotente, sin correo.
         return json(cors, { ok: true, perfil_id: saga.perfilId, ya_existia: true, domicilio_accion: "conservado", email_enviado: false }, 200);
       }
+      if (saga.paso === "desconocido") {
+        return json(cors, { error: "El servidor devolvió un estado de reserva desconocido" }, 500);
+      }
       if (saga.paso === "ya_existia" && typeof rr.perfil_id === "string") {
         // La persona YA es cliente del portal (dedup por identidad): sin Auth, sin saga, sin correo.
         // Se cierra el lead con la frontera de siempre (el servidor ya reservó por persona).
@@ -441,7 +448,13 @@ Deno.serve(async (req: Request) => {
         } else {
           if (!saga.authUserId) return json(cors, { error: "La saga no tiene usuario de Auth" }, 500);
           const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
-          if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+          if (!authRes?.user) {
+            // Compensación que quedó a medias (Auth borrado, claim en auth_creado): se registra y se reintenta.
+            const rc = await avanzar("compensar_auth", {});
+            if (rc.error) return json(cors, { error: rc.error.message }, statusDeErrorSaga(rc.error));
+            return json(cors, { error: "El usuario de Auth de un intento anterior ya no existe; el alta se reinició. Reintenta la conversión." }, 409);
+          }
+          if (!authTieneMarca(authRes.user, saga.claimId)) {
             return json(cors, { error: "El usuario de Auth de esta conversión no lleva la marca del claim: revisión de Gerencia" }, 409);
           }
           newUserId = saga.authUserId;
@@ -461,7 +474,10 @@ Deno.serve(async (req: Request) => {
             const decision = decidirTrasFalloPerfil(perfilErr);
             if (decision === "compensar") {
               const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-              if (!delErr) await avanzar("compensar_auth", {});
+              if (!delErr) {
+                const rc = await avanzar("compensar_auth", {});
+                if (rc.error) console.warn("crm-convertir-lead: compensar_auth pendiente:", rc.error.message);
+              }
               return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
             }
             if (decision === "revision") return json(cors, { error: "Este documento ya está registrado (revisión de Gerencia)" }, 409);

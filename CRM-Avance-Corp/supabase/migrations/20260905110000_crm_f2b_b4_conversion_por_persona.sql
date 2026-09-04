@@ -166,9 +166,11 @@ begin
   end if;
 
   -- Conversión ya consumada cuya respuesta se perdió (Codex E2 #4): la saga manda.
-  if v_lead.etapa = 'convertido' and v_lead.perfil_id is not null
+  if v_lead.etapa = 'convertido' and v_lead.perfil_id is not null and v_lead.inversionista_id = v_inv
      and exists (select 1 from crm.multiempresa_idempotencia i where i.clave = 'auth_persona:' || v_inv::text
-                 and i.resultado->>'estado' <> 'enlazado') then
+                 and i.resultado->>'estado' <> 'enlazado' and i.resultado->>'tipo' = 'conversion'
+                 and (i.resultado->>'lead_id')::uuid = p_lead_id
+                 and coalesce((i.resultado->>'auth_user_id')::uuid, v_lead.perfil_id) = v_lead.perfil_id) then
     update crm.multiempresa_idempotencia
        set resultado = resultado || pg_catalog.jsonb_build_object('estado', 'enlazado', 'perfil_id', v_lead.perfil_id, 'actualizado_en', pg_catalog.now()),
            version = version + 1
@@ -190,6 +192,14 @@ begin
       hint    = 'Quien la empezo tiene que terminarla o dejar que caduque.';
   end if;
 
+  -- Una reserva viva o sellada de este lead pertenece a UNA persona: no se cambia de identidad
+  -- sin compensar (Codex E2 #5).
+  if exists (select 1 from crm.conversion_reservas r
+              where r.lead_id = p_lead_id and r.inversionista_id is not null and r.inversionista_id <> v_inv
+                and (r.efectos_iniciados_en is not null or r.expira_en > v_ahora)) then
+    raise exception 'Este lead ya está reservado para otra persona; espera a que caduque o pide a Gerencia que lo retome'
+      using errcode = 'P0409';
+  end if;
   -- Huella canónica SIN documento (Codex E2 #10).
   v_hash_payload := pg_catalog.jsonb_build_object('v', 1, 'inv', v_inv,
     'correo', pg_catalog.lower(coalesce(p_payload->>'correo','')), 'nombre', coalesce(p_payload->>'nombre_completo',''),
@@ -324,6 +334,16 @@ begin
      or (v_loc.estado->>'lead_id')::uuid is distinct from p_lead_id then
     raise exception 'Saga: claim o token inválidos para este lead' using errcode = '42501';
   end if;
+  -- La reserva de este lead debe ser de este claim y de su identidad (Codex E2 #5).
+  if not exists (select 1 from crm.conversion_reservas r
+                  where r.lead_id = p_lead_id and r.claim_id = p_claim_id and r.inversionista_id = v_loc.inversionista_id) then
+    raise exception 'La reserva de este lead no corresponde a este claim' using errcode = 'P0409';
+  end if;
+  -- Veto revalidado bajo el lock de la identidad, ANTES del punto de no retorno (Codex E2 #11).
+  perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+  if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.no_contactar) then
+    raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
+  end if;
   return crm.marcar_efectos_conversion(p_lead_id);
 end;
 $$;
@@ -382,6 +402,11 @@ begin
     if (v_loc.estado->>'auth_user_id') is not null and v_perfil is distinct from (v_loc.estado->>'auth_user_id')::uuid then
       raise exception 'Saga: el perfil no corresponde al usuario de Auth de este claim' using errcode = 'P0409';
     end if;
+    -- Veto revalidado también al cerrar (Codex E2 #11): con veto, la conversión no se consuma.
+    perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+    if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.no_contactar) then
+      raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
+    end if;
     v_res := crm.convertir_lead_con_domicilio(v_lead, v_perfil, p_payload->>'domicilio');
     v_inv_conv := (v_res->>'inversionista_id')::uuid;
     if v_inv_conv is distinct from v_loc.inversionista_id then
@@ -432,6 +457,10 @@ begin
   if (v_est->>'lead_id')::uuid is distinct from p_lead_id or v_r.claim_id is distinct from (v_est->>'claim_id')::uuid then
     raise exception 'La reserva y el claim de esta persona no corresponden a este lead' using errcode = 'P0409';
   end if;
+  -- Nunca expulsa a una ejecución viva: solo pasado el tope de la reserva o con el lease del claim vencido (Codex E2 #10).
+  if v_r.vence_absoluto_en > pg_catalog.now() and (v_est->>'lease_hasta')::timestamptz > pg_catalog.now() then
+    raise exception 'La conversión sigue viva (reserva y claim vigentes): no hay nada que retomar todavía' using errcode = 'P0409';
+  end if;
   v_token := pg_catalog.encode(extensions.gen_random_bytes(24), 'hex');
   v_est := v_est || pg_catalog.jsonb_build_object('token_hash', private.saga_token_hash(v_token), 'owner', v_uid,
     'lease_hasta', pg_catalog.now() + interval '10 minutes', 'actualizado_en', pg_catalog.now(), 'retomado_por_gerencia', true);
@@ -460,12 +489,14 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((
+  select case when not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+    then pg_catalog.jsonb_build_object('id', null, 'apagada', true)
+    else coalesce((
     select pg_catalog.jsonb_build_object('id', u.id, 'claim_id', u.raw_app_meta_data->>'claim_id',
                                          'tiene_perfil', exists (select 1 from public.perfiles p where p.id = u.id))
     from auth.users u
     where pg_catalog.lower(u.email) = pg_catalog.lower(pg_catalog.btrim(p_correo))
-    limit 1), pg_catalog.jsonb_build_object('id', null))
+    limit 1), pg_catalog.jsonb_build_object('id', null)) end
 $$;
 revoke all on function crm.auth_usuario_por_correo_fn(text) from public, anon, authenticated;
 grant execute on function crm.auth_usuario_por_correo_fn(text) to service_role;
@@ -484,6 +515,9 @@ begin
   if (select auth.uid()) is not null then
     raise exception 'Solo el servicio elimina clientes' using errcode = '42501';
   end if;
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada: el edge usa su ruta de siempre' using errcode = 'P0409';
+  end if;
   select p.nombre_completo into v_nombre from public.perfiles p where p.id = p_perfil_id and p.rol = 'cliente' for update;
   if not found then
     raise exception 'El cliente no existe o ya fue eliminado' using errcode = 'P0002';
@@ -494,8 +528,7 @@ begin
       using errcode = 'P0409', detail = v_pre::text;
   end if;
   -- Un perfil de una saga aún sin enlazar tampoco se borra por aquí.
-  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
-     and exists (select 1 from crm.multiempresa_idempotencia i
+  if exists (select 1 from crm.multiempresa_idempotencia i
                  where i.clave like 'auth\_persona:%' and i.resultado->>'perfil_id' = p_perfil_id::text
                    and i.resultado->>'estado' <> 'enlazado') then
     raise exception 'Este cliente tiene un alta en curso (identidad unificada): espera a que termine' using errcode = 'P0409';

@@ -291,7 +291,9 @@ begin
     raise exception 'El cliente no tiene documento: no se puede reconocer a la persona (identidad unificada)'
       using errcode = 'P0409';
   end if;
-  -- documento -> identidad -> perfil (orden total)
+  -- jerarquía (compartida, como derivar) -> documento -> identidad -> perfil. La jerarquía va
+  -- PRIMERO: el offboarding la toma exclusiva y luego actualiza perfiles (Codex E2 #9).
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
   perform private.identidad_bloquear_documento(v_tipo, v_doc);
   v_inv := private.inversionista_resolver(v_tipo, v_doc, true, p_fuente);
   perform 1 from crm.inversionistas i where i.id = v_inv for update;
@@ -314,8 +316,8 @@ begin
   end if;
   -- Responsable de relación (contrato §6): solo si no hay tramo abierto y el asesor está activo.
   if not exists (select 1 from crm.inversionista_responsables r where r.inversionista_id = v_inv and r.hasta is null) then
-    v_asesor := v_p.asesor_perfil_id;
-    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+    -- Asesor releído bajo el perfil FOR SHARE (el offboarding no pudo cambiarlo: sostiene la jerarquía exclusiva).
+    select p.asesor_perfil_id into v_asesor from public.perfiles p where p.id = p_perfil_id;
     if v_asesor is not null
        and exists (select 1 from crm.equipo e join public.perfiles pp on pp.id = e.perfil_id
                    where e.perfil_id = v_asesor and e.activo and pp.activo) then
@@ -460,9 +462,10 @@ begin
   if (select auth.uid()) is not null then
     raise exception 'Solo el servicio consulta si un cliente es eliminable' using errcode = '42501';
   end if;
-  -- Solo con la bandera encendida (paridad: hoy el edge decide por contratos y la FK).
-  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
-     and exists (select 1 from crm.inversionistas i where i.perfil_id = p_perfil_id and i.estado <> 'fusionado') then
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada' using errcode = 'P0409';
+  end if;
+  if exists (select 1 from crm.inversionistas i where i.perfil_id = p_perfil_id and i.estado <> 'fusionado') then
     return pg_catalog.jsonb_build_object('eliminable', false, 'motivo', 'identidad',
       'mensaje', 'Este cliente está reconocido como persona (identidad unificada): desactívalo en vez de eliminarlo');
   end if;

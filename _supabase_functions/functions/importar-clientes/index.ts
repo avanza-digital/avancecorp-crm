@@ -138,19 +138,21 @@ Deno.serve(async (req: Request) => {
       for (const r of data || []) if (r.correo) existingCorreos.add(String(r.correo).toLowerCase());
     }
 
-    for (const f of filas) {
-      if (!f.ok || f.error) continue;
-      if (existingDnis.has(f.dni)) { f.ok = false; f.error = "El documento ya está registrado"; continue; }
-      if (existingCorreos.has(f.correo)) { f.ok = false; f.error = "El correo ya está registrado"; }
-    }
-
-    // F2.b b3: bandera de identidad (service_role; fail-closed: si no se lee, el lote no entra).
+    // F2.b b3: la bandera se lee ANTES de decidir por existencia. Con ON, la SAGA manda: una fila
+    // cuyo perfil ya existe puede ser un alta a medias que hay que reanudar (Codex E2 #7).
     const { data: banderaIdentidad, error: errBandera } = await adminClient
       .schema("crm").rpc("bandera_activa", { p_nombre: "resolver_en_puertas" });
     if (errBandera) {
       return json(cors, { error: `No se pudo leer la bandera de identidad: ${errBandera.message}` }, 500);
     }
     const identidadOn = banderaIdentidad === true;
+    for (const f of filas) {
+      if (!f.ok || f.error) continue;
+      if (identidadOn) continue;
+      if (existingDnis.has(f.dni)) { f.ok = false; f.error = "El documento ya está registrado"; continue; }
+      if (existingCorreos.has(f.correo)) { f.ok = false; f.error = "El correo ya está registrado"; }
+    }
+
     const rpcAlta = (paso: string, payload: Record<string, unknown>) =>
       adminClient.schema("crm").rpc("alta_cliente_identidad_fn", { p_paso: paso, p_payload: payload });
 
@@ -233,6 +235,11 @@ Deno.serve(async (req: Request) => {
         tipo_documento: f.tipo_documento, documento: f.dni, correo: f.correo,
         nombre_completo: f.nombre_completo, apellidos: f.apellidos, nombres: f.nombres,
         telefono: f.telefono, asesor_id: f.asesor_perfil_id,
+        // Proyección bancaria canónica completa en la huella (Codex E2 #7).
+        bancarios: {
+          banco: f.banco, numero_cuenta: f.numero_cuenta, tipo_cuenta: f.tipo_cuenta, cci: f.cci,
+          titular_distinto: f.titular_distinto, beneficiario_nombre: f.beneficiario_nombre, beneficiario_dni: f.beneficiario_dni,
+        },
       });
       if (errReclamo) { resultados.push({ fila: f.fila, ok: false, error: traducirError(errReclamo.message) }); errores++; continue; }
       let saga = interpretarReclamo(reclamo);
@@ -274,7 +281,11 @@ Deno.serve(async (req: Request) => {
       } else {
         if (!saga.authUserId) { resultados.push({ fila: f.fila, ok: false, error: "La saga no tiene usuario de Auth" }); errores++; continue; }
         const { data: authRes } = await adminClient.auth.admin.getUserById(saga.authUserId);
-        if (!authRes?.user || !authTieneMarca(authRes.user, saga.claimId)) {
+        if (!authRes?.user) {
+          const rc = await avanzar("compensar_auth", {});
+          resultados.push({ fila: f.fila, ok: false, error: rc.error ? traducirError(rc.error.message) : "El usuario de Auth de un intento anterior ya no existe; el alta se reinició. Reintenta el lote." }); errores++; continue;
+        }
+        if (!authTieneMarca(authRes.user, saga.claimId)) {
           resultados.push({ fila: f.fila, ok: false, error: "El usuario de Auth de esta alta no lleva la marca del claim (revisión de Gerencia)" }); errores++; continue;
         }
         newUserId = saga.authUserId;
@@ -306,7 +317,7 @@ Deno.serve(async (req: Request) => {
           const decision = decidirTrasFalloPerfil(perfilErr);
           if (decision === "compensar") {
             const { error: delErr } = await adminClient.auth.admin.deleteUser(newUserId);
-            if (!delErr) await avanzar("compensar_auth", {});
+            if (!delErr) { const rc = await avanzar("compensar_auth", {}); if (rc.error) console.warn("importar-clientes: compensar_auth pendiente:", rc.error.message); }
             resultados.push({ fila: f.fila, ok: false, error: traducirError(perfilErr.message) }); errores++; continue;
           }
           if (decision !== "perfil_ya_existia") {

@@ -110,7 +110,7 @@ R="$(run_as "$G" "select crm.actualizar_cliente_gerencia_con_domicilio('$AU', '{
 echo "== Paridad con bandera APAGADA =="
 flag false
 R="$(alta "$G" reclamar "{\"tipo_documento\":\"DNI\",\"documento\":\"6${RUN}1\",\"correo\":\"z@x.pe\",\"nombre_completo\":\"Z\"}")"; echo "$R" | grep -q "P0409" && echo "$R" | grep -qi "apagada" && ok "OFF: alta_cliente_identidad_fn inerte (P0409 apagada)" || rojo "OFF: RPC actuó: $R"
-R="$(run_sys "select crm.cliente_eliminable_fn('$AU')" | tail -1)"; [[ "$(j "$R" eliminable)" == "True" ]] && ok "OFF: cliente_eliminable_fn no mira la identidad (como hoy: contratos y FK)" || rojo "OFF: preflight miró identidad: $R"
+R="$(run_sys "select crm.cliente_eliminable_fn('$AU')")"; echo "$R" | grep -qi "apagada" && ok "OFF: cliente_eliminable_fn inerte (el edge usa su ruta de siempre)" || rojo "OFF: preflight actuó: $R"
 R="$(run_as "$G" "select crm.actualizar_cliente_gerencia_con_domicilio('$AU', '{\"dni\":\"6${RUN}8\",\"domicilio\":\"Av. Prueba 123, Lima\"}'::jsonb)")"; [[ -z "$(echo "$R"|grep -E 'P0409')" ]] && ok "OFF: el DNI de un cliente enlazado se edita como hoy" || rojo "OFF: DNI bloqueado"
 run_as "$G" "select crm.actualizar_cliente_gerencia_con_domicilio('$AU', '{\"dni\":\"$DA\",\"domicilio\":\"Av. Prueba 123, Lima\"}'::jsonb)" >/dev/null
 flag true
