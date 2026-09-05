@@ -12,6 +12,7 @@ Enlaza con: [[Contrato arquitectonico consolidado - identidad unificada de inver
 | F2.b E1 = b1 + b2 | `20260904120000`, `20260904130000` | ✅ EN PROD 04/09 |
 | F2.b E2 = b3 + b4 | `20260905100000`, `20260905110000` | ✅ EN PROD 05/09 |
 | F2.b **E3 = b5** (fusión, corrección documental, enlace de lead suelto, reasignación) | `20260905120000` | ✅ **EN PROD 05/09**, registrada con `registrar-f2b-e3.sql`, verificada en solo lectura |
+| F2.b **E4** (crear_contrato reconoce a la persona + candado del documento en `public.perfiles`; colaboradores fuera) | `20260905140000` | 🧪 **CONSTRUIDA Y ENSAYADA, pendiente del `!`** (oráculo 22/22, b5 92/92 encima, reversa ×2, auditor y Codex GO apagada, suite **1369/1370** con el bloque E4 (9 aserciones nuevas verdes: grants del candado, OFF inerte, P0409 al propio cliente reconocido incluso con `id`+`dni`, 42501 uniforme de no autorizados con ON, sin identidad fantasma; el único rojo sigue siendo el «tercer estado» conocido)) |
 
 Banderas en producción: las tres en `false`. Todo aterriza apagado: con la bandera OFF las 5 RPC nuevas responden `P0409` antes de leer argumentos y las 7 funciones vivas transformadas son byte a byte las de hoy (reversa real ×2 con md5 de producción).
 
@@ -43,9 +44,16 @@ Git: fusionada a `main` (`2742bf8`) y subida el mismo día a `avancecorp/tronco`
 
 Aplicada y registrada por Miguel con los dos `!`; verificada en solo lectura: 7 funciones con el md5 exacto de b5, 5 RPC + 10 helpers, tabla con RLS y sin grants, banderas en `false`, registro con el texto íntegro. Ledger «✅ PRODUCCIÓN».
 
-## 6. Después de E3
+## 6. Después de E3 y E4
 
-F2.b queda COMPLETA. Sigue la lista de prerrequisitos de ACTIVACIÓN `[D-1..D-11]` (ledger de b3/b4/b5) y encender `resolver_en_puertas` como paso aparte, con edges y front.
+**Publicar E4 (solo con el `!`, en la ventana muerta 22:00–07:00 Lima):**
+```
+cd /Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp && npx supabase db query --linked --file supabase/migrations/20260905140000_crm_f2b_e4_contrato_reconoce_persona_y_candado_documento.sql
+cd /Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp && npx supabase db query --linked --file supabase/scripts/registrar-f2b-e4.sql
+```
+Después: verificar en solo lectura (md5 de `crear_contrato` = E4, wrapper = E4, trigger habilitado, banderas false), ledger ✅, merge + push, HTML, memoria.
+
+F2.b queda COMPLETA (incluidas las piezas de `public`). Sigue la lista de prerrequisitos de ACTIVACIÓN `[D-1..D-12]` (ledger de b3/b4/b5) y encender `resolver_en_puertas` como paso aparte, con edges y front.
 
 ## 7. Recursos
 
