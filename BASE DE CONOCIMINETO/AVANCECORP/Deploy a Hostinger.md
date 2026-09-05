@@ -32,6 +32,10 @@ mezcladas hasta la purga) y verificar con 3 lecturas consecutivas del sha.
 
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
+Fuente vigente desde el 04/09/2026: Main local sigue **`avancecorp/main`**.
+Antes de publicar deben coincidir sus commits; ver
+[[Main unico - sincronizacion y publicacion 2026-09-04]]. `tronco` es histórico.
+
 1. Desde `CRM-Avance-Corp/`, ejecutar `npm run release:crm`. Construye la app y genera en `releases/` un ZIP del **contenido** de `dist/`, su manifiesto, hashes por archivo y SHA-256 del paquete. Por defecto exige un commit limpio.
    - Un worktree limpio **no trae los archivos ignorados**, incluido
      `app/.env`. Antes de construir, comprobar que existen
@@ -48,6 +52,46 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 - El CRM **no usa service worker**: no hay `CACHE_VERSION` que bumpear; el cache-busting lo hacen los hashes de Vite.
 
 ## Notas
+
+- **Deploy 2026-09-04 (~18:04–18:12 hora de Lima) — CRM: conversión por
+  llegadas únicas y renovación ponderada como Referido.** Main local y
+  `avancecorp/main` coincidían, con árbol limpio, en
+  **`ff21967acd193c9b4d9de0b9dc4843f31280fb26`** antes del build y deploy.
+  Release **`crm-20260904T225440Z-ff21967acd19`**, build
+  **`build-20260904T225440168Z`**, ZIP SHA-256
+  **`bbe8dfe0291571220f5d53fdd568b4ccdbec4356bdddca68ed207985e6cf5839`**.
+  Entry **`assets/index-DsFe4xin.js`**. El conector de la sesión no reconoció
+  el dominio y no modificó el sitio; se verificó la cuenta correcta y se usó
+  la vía MCP oficial documentada con la credencial local, sin mostrarla.
+  Solo se publicó en `crm.miavance.com`; no se desplegó el portal.
+  **Orden frontend → purga/validación → SQL** por el cambio de literal de
+  respuesta: el frontend nuevo acepta tanto asignaciones históricas como
+  llegadas. Configuración pública del ZIP y acceso habilitado comprobados
+  antes de publicar; Ficha 360 y ascendencia del release vivo verificadas.
+  En vivo: **76/76 archivos** (63 hashes exactos, 12 imágenes HTTP 200 y
+  `.htaccess` 403), más **ZIP 404 en CRM y portal: 78/78 comprobaciones**.
+  Tres lecturas de versión estables, login visual HTTP 200, campos/botón
+  habilitados y sin errores de consola/página. No se hizo login con
+  credenciales de un usuario. Se repitió la verificación de archivos tras
+  la pausa, sin deriva.
+  Migración **`20260904210831_crm_conversion_llegadas_unicas`**, cuerpo exacto
+  MD5 **`a880b7ba0db22090577dff4b906df5ab`**. Sustituye siete funciones
+  existentes, sin modificar Auth, firmas, permisos, tablas de negocio ni
+  fotos cerradas. Sondas productivas y contratos frontend: **176 de base,
+  9 de numerador, 5,11 % para el 1–3 de septiembre**, paridad con Distribución
+  y equipo; Renovación y Referido ponderan ambos 0,15. Pruebas: 2.650 Vitest,
+  Playwright 115 aprobadas/26 omisiones previas/0 fallos, 7 contratos reales,
+  9 denegaciones por rol; CI calidad/E2E verde (`33926827372`). Advisors de
+  seguridad sin cambios frente al baseline y 0 ERROR; rendimiento 0 ERROR.
+  **Rollback: SQL primero, frontend después.** SQL probado en banco aislado:
+  `releases/conversion-llegadas-predeploy-20260904.sql`, SHA-256
+  **`16f720fe5b056e98c1ba5ddb37ed523bbc4f8ffc3356455c2f0d279da14fcb7d`**.
+  Frontend anterior conservado: `crm-20260904T194458Z-d75be7b5d8d3`.
+  Detalle de negocio y límites de verificación en
+  [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]].
+  El commit paralelo `a59f868` se conserva en Main, pero su migración de altas
+  por analista sigue pendiente de aprobación y **no forma parte de este
+  despliegue**. No modifica el código de `app/` publicado.
 
 - **Deploy 2026-09-04 (~14:50 hora de Lima) — CRM: desglose de entregas por
   fecha, analista y origen para Coordinación:** amplía el reporte de

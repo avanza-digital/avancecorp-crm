@@ -6547,6 +6547,68 @@ async function testLentesAtribucion(sessions, seed) {
   }
 }
 
+// P-055 F7 — el SUSTITUTO de metricas_altas_analista_fn (altas de contratos NUEVOS
+// por el analista que cierra). Es una VERJA de visibilidad, NO un cierre: el no
+// autorizado recibe 0 filas, no un 42501. (auditor-rls 04/09, hallazgo M-1.)
+async function testAltasNuevasPorAnalista(sessions) {
+  console.log('\n— Altas nuevas por analista (sustituto F7) —');
+  const FN = 'altas_nuevas_por_analista_fn';
+
+  // Si la funcion aun no esta desplegada en esta base (suite corrida sin esta
+  // migracion, p. ej. otra sesion en su branch), SALTAR limpio en vez de tumbar
+  // la matriz entera con PGRST202.
+  {
+    const probe = await sessions.gerencia.client.schema('crm').rpc(FN, { p_meses: 1 });
+    if (probe.error?.code === 'PGRST202') {
+      console.log(`  (saltado: ${FN} no desplegada en esta base)`);
+      return;
+    }
+  }
+
+  // A. Gerencia (global): lee sin error, forma de array. No se fija la CUENTA: el
+  //    fixture de seed puede ser escaso y la seguridad no depende del volumen.
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_meses: 12 });
+    check(!error && Array.isArray(data),
+      `gerencia lee ${FN} (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // B. Un vendedor: lee sin error y NUNCA ve la fila "Sin analista" (analista_id
+  //    null SOLO la ve un global; para un no-global `null = any(ids)` da NULL).
+  {
+    const { data, error } = await sessions.vend1.client
+      .schema('crm').rpc(FN, { p_meses: 12 });
+    const veSinAnalista = (data ?? []).some(
+      (f) => f.analista_id === null || f.analista_nombre === 'Sin analista');
+    check(!error && Array.isArray(data) && !veSinAnalista,
+      `vend1 lee ${FN} sin ver "Sin analista" (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // C. Coordinador: NO esta en la allowlist ni es lector global -> 0 filas.
+  {
+    const { data, error } = await sessions.coordinador.client
+      .schema('crm').rpc(FN, { p_meses: 12 });
+    check(!error && Array.isArray(data) && data.length === 0,
+      `coordinador recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // D. Cliente sin membresia CRM: 0 filas.
+  {
+    const { data, error } = await sessions.clientBank.client
+      .schema('crm').rpc(FN, { p_meses: 12 });
+    check(!error && Array.isArray(data) && data.length === 0,
+      `clientBank (sin membresia) recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // E. anon: sin EXECUTE -> error (no accede).
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-altas'));
+    const { error } = await anon.schema('crm').rpc(FN, { p_meses: 12 });
+    check(!!error, `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+}
+
 // P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
 // incluida public.actualizar_numero_contrato (sus argumentos son los mismos
 // p_id/p_numero/p_notas/p_categoria de las sondas P04 — Codex 30/08) y el
@@ -11048,6 +11110,7 @@ async function main() {
       await testAtribucionCadena(sessions);
       await testLentesAtribucion(sessions, verifiedSeed);
       await testF7Ola1(sessions);
+      await testAltasNuevasPorAnalista(sessions);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {

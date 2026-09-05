@@ -7841,6 +7841,73 @@ Gate final: 189 archivos y 2.648/2.648 pruebas, Repartir 29/29. En vivo:
 consola/página/red. Caché purgada; el entry anterior pasó a 404. Rollback
 frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.
 
+## 20260904210831 · `crm_conversion_llegadas_unicas`
+
+**Estado: ✅ PRODUCCIÓN 04/09/2026, 18:12 Lima; frontend publicado primero.**
+Miguel aprobó las reglas de negocio y pidió publicar y sincronizar Main sin
+crear ramas. Para esta entrega se ensayaron migración, regresión y reversa
+en PostgreSQL 16 aislado `crm_llegadas_20260904` (funciones reales de conversión,
+stubs para capital/Auth), antes de aplicar a producción mediante MCP. Es una
+excepción de este despliegue al ciclo general con rama: no se creó ninguna
+rama de Supabase ni se afirma que el banco local equivalga al gate RLS
+integral de producción. No altera objetos de `public` ni Auth.
+
+**Qué.** Reemplaza siete funciones existentes: `private.conversion_episodios`,
+`private.conversion_mensual_por_vendedor`,
+`crm.conversion_mensual_sin_cartera_fn`, `crm.metricas_conversiones_equipo_fn`,
+`private.metricas_conversiones_implementacion`,
+`private.metricas_distribucion_leads_v3_core` y `crm.cerrar_periodo`.
+Unidad comercial: lead único, fecha de alta original en Lima, solo
+Landing/Formulario/Referido. La llegada pertenece al primer analista de todo
+el historial, aunque después se reasigne; sin analista cuenta en el total.
+Divisor: solo Landing/Formulario automáticos. Los agregadores suman los
+aportes del núcleo; no se agrega otra calculadora. Renovación elegible usa
+el peso del Referido (0,15); Upgrade elegible aporta 1, ambos con divisor 0.
+Cartera limitada por fecha real y máximo una operación por cliente/mes.
+Fotos existentes se preservan; nuevas fotos usan `llegadas_v2`. Los ajustes
+mensuales por anulación y la lectura distinta de cosecha se conservan.
+
+**Registro y perímetro.** El MCP generó inicialmente la versión
+`20260904231247`. Se normalizó únicamente esa fila a **`20260904210831`**,
+comprobando nombre único, ausencia de la versión destino y cuerpo exacto;
+no se reescribió el SQL ni se tocaron otras migraciones. Lectura posterior:
+una fila, un statement, MD5 **`a880b7ba0db22090577dff4b906df5ab`**, idéntico al
+archivo. Guardas transaccionales pre/post de las siete funciones, con
+`lock_timeout=10s`; propietario, ACL, firmas, volatilidad y `search_path`
+conservados. Las mismas siete huellas permanecieron sin deriva tras la pausa.
+
+**Verificación.** Banco aislado con fixtures: reasignación, manuales,
+exclusiones, atribución, referido/renovación/upgrade, anulaciones, fechas Lima,
+rango parcial, deduplicación cliente/mes, sin analista y fotos antiguas/nuevas.
+Producción, consultas de solo lectura con rol/claims y rollback: mensual
+propio/equipo/global; rango y Distribución **176/9/5,11 %** para el 1–3 de
+septiembre (185 llegadas comerciales, 7 cierres elegibles y 2 upgrades de
+02/09 y 03/09), sondas `cuadra=true`, `paridad_nucleo=0`. **9 denegaciones**
+de acceso esperadas verificadas. **7 pruebas con las respuestas reales**
+contra los contratos Valibot del frontend publicado, todas aprobadas.
+No hubo login con credenciales reales ni perfil Directorio activo para esa
+sonda; la pantalla de acceso se verificó visualmente y los recorridos por rol
+están cubiertos en demo. `periodos_cerrados`: cero filas antes y después.
+Advisors de seguridad: 174 antes/después, sin altas/bajas (135 WARN, 39 INFO,
+0 ERROR); rendimiento: 5 WARN, 72 INFO, 0 ERROR. Últimas 100 entradas de API
+y 100 de Postgres recuperadas tras publicar, sin 5xx ni ERROR/FATAL/PANIC.
+
+**Frontend.** Commit `ff21967acd193c9b4d9de0b9dc4843f31280fb26`, idéntico en
+Main local y `avancecorp/main` antes de construir/publicar. Release
+`crm-20260904T225440Z-ff21967acd19`, build `build-20260904T225440168Z`, ZIP
+SHA-256 `bbe8dfe0291571220f5d53fdd568b4ccdbec4356bdddca68ed207985e6cf5839`.
+Gate: 2.650 Vitest; Playwright 115 aprobadas, 26 omisiones previas, 0 fallos;
+calidad y E2E de CI aprobados. Todos los archivos vivos comprobados y caché
+purgada antes del SQL. Las pestañas antiguas deben guardar y actualizar;
+no se forzó su recarga.
+
+**Reversa probada.** Restaurar **primero** las siete definiciones/comentarios
+de `releases/conversion-llegadas-predeploy-20260904.sql` (SHA-256
+`16f720fe5b056e98c1ba5ddb37ed523bbc4f8ffc3356455c2f0d279da14fcb7d`), y solo
+entonces volver al frontend `crm-20260904T194458Z-d75be7b5d8d3`. El cliente
+anterior no admite el literal nuevo del divisor. No se ha ejecutado esta
+reversa en producción.
+
 ## 20260905100000 · `crm_f2b_b3_alta_cliente_identidad`
 
 **Estado: ✅ PRODUCCIÓN 2026-09-05 (E2 de F2.b, 1/2), bandera APAGADA.** Miguel la aplicó con `db query --linked --file` (guarda md5 del texto vivo) y la registró con `scripts/registrar-f2b-e2.sql`; verificada en solo lectura (saga, capacidad, puertas, grants, privados sin EXECUTE para la API, banderas en `false`). Ensayo previo: oráculo VERDE en su forma final, reversa real b4→b3 con md5 de prod, suite RLS 1272/1273 con E1+E2 (rojo = «tercer estado»), auditor-rls y Codex sobre lo construido (SQL GO). Requiere E1.
@@ -7867,3 +7934,19 @@ frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.
 Sobre `ebd3bc6` (antes de los arreglos de los auditores). Bloqueantes de los edges: la llave de `importar-clientes` (ya corregida en `15ba986`) y `eliminar-cliente` usando la RPC nueva también con la bandera apagada (→ ahora OFF = ruta de siempre, ON = `crm.eliminar_cliente_fn`; los ayudantes de servicio quedan inertes con OFF). Defectos detrás de la bandera, corregidos en este pase: reparación de una conversión consumada solo si el lead es de esa identidad y el claim de ese lead (#4); una reserva viva o sellada de un lead no cambia de persona (#5) y el sellado comprueba reserva↔claim↔identidad; retoma de Gerencia solo pasado el tope o con el lease vencido (#10); veto revalidado al sellar y al cerrar (#11); jerarquía compartida ANTES de documento/identidad/perfil en el enlace (#9, ciclo con el offboarding); importador sin rechazar por existencia antes de la saga y con la banca en la huella (#7); compensación pendiente recuperable en los tres edges (#8); lectura de bandera fail-closed y estado desconocido → 500 en la conversión. Ya cerrados por los auditores: repetición sin reescribir Auth/perfil y versión obligatoria (#3), `dni:null` (#12), cliente existente sin saga (#6). Codex confirma: el cierre revierte de verdad, el correo va al final, `PGRST202` no degrada, sin PII nueva en `resultado`, reversas con los md5 de producción. Queda anotado: los oráculos bash no cambian de rol (los grants los cubre la suite RLS) y faltan casos de b3/b4 en `test-rls.mjs` (activación).
 
 **Reversa:** `scripts/rollback-f2b-b4.sql` (md5 de prod; **retira las columnas aditivas** — pérdida aceptada porque nunca hubo tráfico con la bandera encendida; se niega si hay conversiones por persona selladas y vigentes).
+
+## 20260905130000 · `crm_altas_nuevas_por_analista` — ❌ RETIRADA sin aplicar (ver v2 abajo)
+
+La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at time zone 'America/Lima'` sobre `fecha_cierre_comercial`, que es un `date` → en un servidor UTC el día 1 se cae al mes anterior (footgun documentado del proyecto, [[prueba-de-fechas-en-tu-propia-zona]]). La seguridad estaba limpia; solo el conteo. Retirada del árbol y reemplazada por la v2. **Los números del ensayo v1 (jul 99 / ago 76 / jun 75) estaban CORRIDOS, no eran válidos.**
+
+## 20260905131000 · `crm_altas_nuevas_por_analista_v2`
+
+**Estado: 🟡 CONSTRUIDA, pendiente del `!` de Miguel.** Sustituto de `crm.metricas_altas_analista_fn`, que F7 Ola 2b demuele el 14/09; Miguel pidió construirlo ANTES de borrar. **v2 corrige el bucket/ventana de fecha del NO-GO** (espacio de FECHA, sin `at time zone`, como `private.capital_episodios`). Ensayo en transacción (create + postflight + rollback): compila con `search_path` vacío, postflight VERDE —ahora con **guarda anti-footgun** (el bucket mensual debe caer en el mes calendario del cierre)—, y como admin el gate cierra a 0 filas (fail-closed). Números RE-validados en solo lectura: **sep 12 (el bug daba 8) / ago 76 / jul 109 / jun 67**; total 302; 0 excluidas por anulación hoy; 3 sin analista.
+
+**Qué (Miguel 04/09, «solo contratos nuevos, por el que cierra»).** El viejo contaba PERFILES nuevos (`rol='cliente'`) por el ASESOR de la ficha y por mes de creación. El nuevo cuenta CONTRATOS NUEVOS (`categoria='nuevo'`) por el analista que CIERRA, por mes de CIERRE comercial (Lima), EXCLUYENDO cierres anulados (ATR-4: anular es sanción). Los números NO calcan al viejo, a propósito: otra unidad, otra fecha, otra atribución.
+
+**Cómo.** `crm.altas_nuevas_por_analista_fn(p_meses int default 12)` → `(mes, analista_id, analista_nombre, altas)`; STABLE SECURITY DEFINER, `search_path=''`; `authenticated` con verja interna fail-closed (rol CRM o lector global; global ve todo, el resto por `private.vendedor_ids_visibles`). Atribución = `coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id)` — para un `nuevo` no hay cadena de upgrade, así que cae a `analista_cierre_id`: «el que cierra» ES la política ATR canónica para los nuevos, no una regla nueva ni divergente. Anulados excluidos REUSANDO `private.contratos_afectados_por_anulacion` (no reinventado). Conteo VIVO, sin sellado de mes (como el viejo). NO cuelga de `conversion_episodios` (en refactor). Lee `public.contratos`/`public.perfiles` pero **no los ALTERA** → sin excepción a `public`.
+
+**Auditor-rls (04/09):** seguridad LIMPIA (verja fail-closed probada, sin fuga cross-rol, sin PII de cliente, grants = patrón `metricas_vencimientos_fn`). Bloqueante ÚNICO = el bug de fecha, corregido en v2. Medio pendiente: casos en `test-rls.mjs` (permitido + denegado + aislamiento de vendedor + «Sin analista» invisible a no-globales).
+
+**Pendiente:** casos de `test-rls.mjs`; tras aplicar (`!`), `gen:types` + pantalla en gerencia (Miguel la pidió 04/09). Reversa trivial: `drop function crm.altas_nuevas_por_analista_fn(integer)` (aditiva, nada depende de ella).
