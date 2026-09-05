@@ -1,7 +1,7 @@
 ---
 tags: [crm, git, main, deploy]
 actualizado: 2026-09-04
-estado: sincronizacion-en-curso
+estado: publicado-verificado
 ---
 
 # Main único — sincronización y publicación
@@ -41,3 +41,32 @@ Respaldo completo y verificado previo a la unión:
 La entrega de métricas se documenta en
 [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]].
 Su frontend compatible se publica antes de la migración del núcleo.
+
+## Publicación realizada y cierre
+
+Antes de construir y publicar, Main local y `avancecorp/main` coincidían en
+`ff21967acd193c9b4d9de0b9dc4843f31280fb26`, con el árbol limpio. GitHub Actions
+aprobó calidad y E2E en el run `33926827372`. Se construyó desde un checkout
+detached de ese commit, sin crear una rama y con la configuración pública de
+producción verificada dentro del ZIP y en la pantalla de acceso.
+
+Publicado en Hostinger: `crm-20260904T225440Z-ff21967acd19`, build
+`build-20260904T225440168Z`. El frontend compatible salió primero; después se
+aplicó `20260904210831_crm_conversion_llegadas_unicas`, con cuerpo idéntico al
+archivo versionado. Los hashes, respaldo y verificaciones están en
+[[Deploy a Hostinger]] y en el ledger `supabase/migrations/MIGRACIONES.md`.
+
+Durante la publicación apareció el commit paralelo `a59f868`: contiene una
+migración de altas nuevas por analista y su documentación, marcada pendiente
+de aprobación. Se conserva en Main, **sin aplicarla**. No cambia `app/`; el
+código de la aplicación sigue siendo idéntico al del artefacto publicado.
+Los cambios posteriores de esta entrega solo documentan el despliegue; no
+requieren reconstruir ni volver a publicar la misma aplicación.
+
+Tras la pausa solicitada por Miguel, la verificación de solo lectura confirmó
+el mismo build, las siete funciones sin deriva y el registro de migración
+exacto. Para el 1–3 de septiembre: base automática **176**, numerador **9** y
+conversión **5,11 %**. La migración de altas por analista sigue sin instalar.
+
+La sincronización final se entrega en `avancecorp/main`, sin forzar historia;
+`avancecorp/tronco` queda como referencia histórica, no como destino operativo.

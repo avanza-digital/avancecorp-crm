@@ -7841,6 +7841,73 @@ Gate final: 189 archivos y 2.648/2.648 pruebas, Repartir 29/29. En vivo:
 consola/página/red. Caché purgada; el entry anterior pasó a 404. Rollback
 frontend inmediato: `crm-20260904T194617Z-41a24d3bb98a.zip`.
 
+## 20260904210831 · `crm_conversion_llegadas_unicas`
+
+**Estado: ✅ PRODUCCIÓN 04/09/2026, 18:12 Lima; frontend publicado primero.**
+Miguel aprobó las reglas de negocio y pidió publicar y sincronizar Main sin
+crear ramas. Para esta entrega se ensayaron migración, regresión y reversa
+en PostgreSQL 16 aislado `crm_llegadas_20260904` (funciones reales de conversión,
+stubs para capital/Auth), antes de aplicar a producción mediante MCP. Es una
+excepción de este despliegue al ciclo general con rama: no se creó ninguna
+rama de Supabase ni se afirma que el banco local equivalga al gate RLS
+integral de producción. No altera objetos de `public` ni Auth.
+
+**Qué.** Reemplaza siete funciones existentes: `private.conversion_episodios`,
+`private.conversion_mensual_por_vendedor`,
+`crm.conversion_mensual_sin_cartera_fn`, `crm.metricas_conversiones_equipo_fn`,
+`private.metricas_conversiones_implementacion`,
+`private.metricas_distribucion_leads_v3_core` y `crm.cerrar_periodo`.
+Unidad comercial: lead único, fecha de alta original en Lima, solo
+Landing/Formulario/Referido. La llegada pertenece al primer analista de todo
+el historial, aunque después se reasigne; sin analista cuenta en el total.
+Divisor: solo Landing/Formulario automáticos. Los agregadores suman los
+aportes del núcleo; no se agrega otra calculadora. Renovación elegible usa
+el peso del Referido (0,15); Upgrade elegible aporta 1, ambos con divisor 0.
+Cartera limitada por fecha real y máximo una operación por cliente/mes.
+Fotos existentes se preservan; nuevas fotos usan `llegadas_v2`. Los ajustes
+mensuales por anulación y la lectura distinta de cosecha se conservan.
+
+**Registro y perímetro.** El MCP generó inicialmente la versión
+`20260904231247`. Se normalizó únicamente esa fila a **`20260904210831`**,
+comprobando nombre único, ausencia de la versión destino y cuerpo exacto;
+no se reescribió el SQL ni se tocaron otras migraciones. Lectura posterior:
+una fila, un statement, MD5 **`a880b7ba0db22090577dff4b906df5ab`**, idéntico al
+archivo. Guardas transaccionales pre/post de las siete funciones, con
+`lock_timeout=10s`; propietario, ACL, firmas, volatilidad y `search_path`
+conservados. Las mismas siete huellas permanecieron sin deriva tras la pausa.
+
+**Verificación.** Banco aislado con fixtures: reasignación, manuales,
+exclusiones, atribución, referido/renovación/upgrade, anulaciones, fechas Lima,
+rango parcial, deduplicación cliente/mes, sin analista y fotos antiguas/nuevas.
+Producción, consultas de solo lectura con rol/claims y rollback: mensual
+propio/equipo/global; rango y Distribución **176/9/5,11 %** para el 1–3 de
+septiembre (185 llegadas comerciales, 7 cierres elegibles y 2 upgrades de
+02/09 y 03/09), sondas `cuadra=true`, `paridad_nucleo=0`. **9 denegaciones**
+de acceso esperadas verificadas. **7 pruebas con las respuestas reales**
+contra los contratos Valibot del frontend publicado, todas aprobadas.
+No hubo login con credenciales reales ni perfil Directorio activo para esa
+sonda; la pantalla de acceso se verificó visualmente y los recorridos por rol
+están cubiertos en demo. `periodos_cerrados`: cero filas antes y después.
+Advisors de seguridad: 174 antes/después, sin altas/bajas (135 WARN, 39 INFO,
+0 ERROR); rendimiento: 5 WARN, 72 INFO, 0 ERROR. Últimas 100 entradas de API
+y 100 de Postgres recuperadas tras publicar, sin 5xx ni ERROR/FATAL/PANIC.
+
+**Frontend.** Commit `ff21967acd193c9b4d9de0b9dc4843f31280fb26`, idéntico en
+Main local y `avancecorp/main` antes de construir/publicar. Release
+`crm-20260904T225440Z-ff21967acd19`, build `build-20260904T225440168Z`, ZIP
+SHA-256 `bbe8dfe0291571220f5d53fdd568b4ccdbec4356bdddca68ed207985e6cf5839`.
+Gate: 2.650 Vitest; Playwright 115 aprobadas, 26 omisiones previas, 0 fallos;
+calidad y E2E de CI aprobados. Todos los archivos vivos comprobados y caché
+purgada antes del SQL. Las pestañas antiguas deben guardar y actualizar;
+no se forzó su recarga.
+
+**Reversa probada.** Restaurar **primero** las siete definiciones/comentarios
+de `releases/conversion-llegadas-predeploy-20260904.sql` (SHA-256
+`16f720fe5b056e98c1ba5ddb37ed523bbc4f8ffc3356455c2f0d279da14fcb7d`), y solo
+entonces volver al frontend `crm-20260904T194458Z-d75be7b5d8d3`. El cliente
+anterior no admite el literal nuevo del divisor. No se ha ejecutado esta
+reversa en producción.
+
 ## 20260905100000 · `crm_f2b_b3_alta_cliente_identidad`
 
 **Estado: ✅ PRODUCCIÓN 2026-09-05 (E2 de F2.b, 1/2), bandera APAGADA.** Miguel la aplicó con `db query --linked --file` (guarda md5 del texto vivo) y la registró con `scripts/registrar-f2b-e2.sql`; verificada en solo lectura (saga, capacidad, puertas, grants, privados sin EXECUTE para la API, banderas en `false`). Ensayo previo: oráculo VERDE en su forma final, reversa real b4→b3 con md5 de prod, suite RLS 1272/1273 con E1+E2 (rojo = «tercer estado»), auditor-rls y Codex sobre lo construido (SQL GO). Requiere E1.

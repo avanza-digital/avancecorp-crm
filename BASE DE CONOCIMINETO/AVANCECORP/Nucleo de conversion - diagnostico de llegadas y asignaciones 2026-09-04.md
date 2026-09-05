@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, nucleo, diagnostico, origenes]
 actualizado: 2026-09-04
-estado: implementado-local-publicacion-pendiente
+estado: publicado-y-verificado
 ---
 
 # Núcleo de conversión — llegadas vs. asignaciones (2026-09-04)
@@ -36,9 +36,11 @@ el máximo de una operación de cartera elegible por cliente/mes y el criterio
 existente de elección de la primera operación; el cambio de peso no autoriza
 a sumar una renovación y un upgrade del mismo cliente dos veces.
 
-**Estado:** implementado en backend y frontend locales mediante la migración
-`20260904210831_crm_conversion_llegadas_unicas.sql`. Publicación pendiente;
-producción todavía conserva el comportamiento documentado en el diagnóstico.
+**Estado:** backend y frontend publicados y verificados el 04/09/2026.
+Migración `20260904210831_crm_conversion_llegadas_unicas.sql`, aplicada a las
+18:12 hora de Lima. Su versión y cuerpo registrados coinciden con el archivo
+local (MD5 `a880b7ba0db22090577dff4b906df5ab`). El diagnóstico de asignaciones
+que sigue describe el comportamiento anterior, no el actualmente publicado.
 
 La fórmula comercial acordada, para un mismo período y ámbito, es:
 
@@ -59,7 +61,7 @@ Consulta agregada de solo lectura, ventana Lima
 - Referido: 1 alta manual; por la regla vigente no entra al divisor.
 - Fuera del núcleo comercial: 1 Oficina + 12 Otro.
 
-El agregador publicado devolvió divisor **289**, compuesto por:
+Antes del cambio, el agregador publicado devolvía divisor **289**, compuesto por:
 
 - 177 pares analista/lead correspondientes a las 176 llegadas del período
   (un lead pasó por dos analistas);
@@ -76,15 +78,19 @@ En la ventana 1–4 de septiembre el mismo defecto explica exactamente el texto
 de **345 asignaciones contabilizadas**: 178 Formulario + 154 Landing + 12 Otro
 + 1 Oficina; el Referido queda fuera del divisor.
 
-El diagnóstico anterior presentó **9 / 176 = 5,11 %** usando siete cierres de
-lead y dos upgrades. La corrección del peso de renovaciones no cambia esa
-aritmética, porque esas dos operaciones son upgrades. Sin embargo, el 5,11 %
-debe tratarse como cálculo preliminar: la consulta de operaciones usó todo
-septiembre (`p_periodo`) y aún debe verificarse su fecha dentro del rango 1–3.
-No había ajustes pendientes por anulaciones de meses cerrados en la
-verificación. Ese índice tampoco significa que nueve de las 176 llegadas se
-convirtieron: incluye operaciones de clientes existentes y puede incluir
-cierres de leads que llegaron antes.
+El diagnóstico preliminar quedó confirmado contra las RPC reales después de
+publicar: **9 / 176 = 5,11 %**, con siete cierres elegibles de lead y dos
+upgrades. Las operaciones tienen fecha efectiva **02/09 y 03/09**: ambas
+pertenecen al rango, sin incluir operaciones del día 4. No hay renovaciones ni
+cierres de Referido en ese rango y no había ajustes pendientes por anulaciones
+de meses cerrados en la verificación. Las llegadas comerciales suman **185**:
+176 automáticas, 8 altas manuales Landing/Formulario y 1 Referido.
+
+Ese índice no significa que nueve de las 176 llegadas se convirtieron:
+incluye operaciones de clientes existentes y cierres de leads que llegaron
+antes. La lectura independiente de cosecha del mismo lote devuelve 6 cierres
+entre 185 llegadas comerciales (**3,2 %**) al momento de la consulta; es una
+medida distinta y no sustituye la conversión ponderada.
 
 ## Cómo estaba construido en producción antes del cambio
 
@@ -99,7 +105,7 @@ marca con divisor cero los Referidos y las altas manuales Landing/Formulario.
 Sin embargo, los consumidores no suman esas columnas: vuelven a reconstruir la
 fórmula con `tipo` y `fue_referido`.
 
-Verificado en producción el 2026-09-04:
+Verificado en producción el 2026-09-04 antes de la migración:
 
 - `private.conversion_mensual_por_vendedor` ignora ambos aportes;
 - `private.metricas_conversiones_implementacion` los ignora;
@@ -110,9 +116,9 @@ Consecuencia directa: la exclusión manual publicada el 01/09 existe en la
 tabla-base, pero se pierde al agregar. Para el 1–3 de septiembre, la suma de
 `aporte_divisor` del núcleo da 281 y el agregador publicado vuelve a 289.
 
-Además, `conversion_episodios` no limita los orígenes: `Oficina` y `Otro`
-reciben aporte 1 en divisor y cierre. Por eso el núcleo actual todavía no
-cumple la aclaración Landing/Formulario/Referido.
+Además, `conversion_episodios` no limitaba los orígenes: `Oficina` y `Otro`
+recibían aporte 1 en divisor y cierre. Por eso el núcleo anterior no cumplía
+la aclaración Landing/Formulario/Referido. La migración publicada lo corrige.
 
 ## Arquitectura que debe conservarse
 
@@ -173,7 +179,7 @@ la primera asignación que encuentre cada analista dentro del período.
 Sin analista todavía, el lead sí cuenta en el total empresarial, sin inventar
 una persona. También se guarda ese agregado en futuras fotografías mensuales.
 
-## Implementación local por etapas
+## Implementación publicada por etapas
 
 1. Núcleo existente: alta original, llegada única y primera atribución;
    exclusión de manuales y canales ajenos en el divisor; cierre a su autor;
@@ -203,17 +209,52 @@ También se verificaron la lectura de fotos anteriores y nuevas. El banco usa
 funciones reales de conversión y stubs para servicios ajenos (capital/Auth).
 No equivale a una prueba integral contra producción.
 
-Verificación final local: **2.650 pruebas Vitest aprobadas**, cuatro recorridos
-Playwright en modo demo (Analista/Supervisor/Gerencia/Directorio), typecheck,
+Verificación final local: **2.650 pruebas Vitest aprobadas**, suite Playwright
+completa en modo demo (**115 aprobadas, 26 omisiones previas, cero fallos**), typecheck,
 build, verificación del bundle, cuatro pruebas de configuración de release,
 control de duplicación y `git diff --check` aprobados. Lint sin errores, con
 cuatro advertencias previas del carrusel; el build conserva avisos de tamaño
-de chunks e importación demo. No se ejecutó un despliegue ni un login real.
+de chunks e importación demo. Calidad y E2E también aprobados en GitHub Actions
+para el commit publicado `ff21967acd193c9b4d9de0b9dc4843f31280fb26`.
 
-Antes de publicar: conservar respaldo de las siete definiciones, publicar
-primero el frontend compatible, comprobar el bundle nuevo y la recarga de
-clientes existentes, aplicar la migración y contrastar los tres roles contra
-el mismo rango. No se debe publicar SQL nuevo con un cliente viejo que exige
-el literal de asignaciones. Los meses cerrados y ajustes de anulaciones
-conservan su tratamiento; el reporte de rango muestra flujo bruto y la RPC
-mensual aplica los ajustes ya existentes.
+## Verificación de producción y reversión
+
+Se conservó un respaldo probado de las siete definiciones y comentarios,
+se publicó primero el frontend compatible, se purgó la caché de Hostinger y
+se verificaron sus archivos antes de aplicar el SQL. Release
+`crm-20260904T225440Z-ff21967acd19`; trazabilidad completa en
+[[Deploy a Hostinger]] y [[Main unico - sincronizacion y publicacion 2026-09-04]].
+
+Las respuestas reales pasan **7 pruebas adicionales contra los contratos
+Valibot del frontend publicado**: mensual de Analista/Supervisor/Gerencia,
+equipo de Supervisor/Gerencia, rango global y Distribución V3. Rango y
+Distribución concilian 176/9/5,11; sus sondas y las de equipo devuelven
+`cuadra=true` y `paridad_nucleo=0`.
+
+Las pruebas de rol en producción fueron consultas de solo lectura con
+`authenticated` y claims del actor dentro de transacciones revertidas:
+Analista ve una fila propia; Supervisor, su equipo; Gerencia, el global.
+**9 denegaciones esperadas** comprobadas para accesos de Vendedor,
+Coordinación, sin sesión y `anon`. No se usaron contraseñas ni se hizo un
+login con credenciales reales: se verificó visualmente la pantalla de acceso
+pública, HTTP 200, campos y botón habilitados, sin errores de consola/página.
+No había un perfil Directorio activo para una sonda productiva de ese rol;
+su recorrido está cubierto en modo demo.
+
+Las siete funciones conservan propietario, ACL, firmas, volatilidad y
+`search_path`. Seguridad: **174 avisos antes y después, sin altas ni bajas**
+(135 WARN, 39 INFO, 0 ERROR). Rendimiento: 5 WARN, 72 INFO, 0 ERROR.
+En las 100 entradas recientes recuperadas de API y las 100 de Postgres tras
+la publicación no hubo errores 5xx ni ERROR/FATAL/PANIC, respectivamente.
+`crm.periodos_cerrados` mantuvo sus cero filas; las fotos anteriores y nuevas
+se ejercitaron en el banco aislado, no cerrando un mes real.
+
+Los meses cerrados y ajustes de anulaciones conservan su tratamiento: el
+reporte de rango muestra flujo bruto y la RPC mensual aplica los ajustes
+existentes. Las pestañas antiguas deben guardar el trabajo y usar el aviso de
+actualización; no se forzó una recarga que pudiera perder una edición.
+
+Si se requiere reversión, restaurar **primero el SQL anterior** desde
+`releases/conversion-llegadas-predeploy-20260904.sql` y solo después volver al
+frontend `crm-20260904T194458Z-d75be7b5d8d3`. El cliente viejo rechaza la nueva
+fuente de llegadas: no debe revertirse únicamente el frontend.
