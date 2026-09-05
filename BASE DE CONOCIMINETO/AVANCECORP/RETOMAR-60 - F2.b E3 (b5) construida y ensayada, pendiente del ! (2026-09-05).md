@@ -1,4 +1,4 @@
-# RETOMAR-60 — F2.b «cola del catálogo F0»: E3 (b5) CONSTRUIDA Y ENSAYADA, pendiente del `!` de Miguel
+# RETOMAR-60 — F2.b «cola del catálogo F0»: E3 (b5) EN PRODUCCIÓN (apagada). F2.b COMPLETA
 
 **Fecha del checkpoint:** 2026-09-05. **Para retomar en otra sesión:** decir «retomemos RETOMAR-60». Sustituye a [[RETOMAR-59 - F2.b cola del catalogo F0, E1+E2 en produccion, sigue E3 (2026-09-05)]].
 
@@ -11,11 +11,11 @@ Enlaza con: [[Contrato arquitectonico consolidado - identidad unificada de inver
 | Lote Contrato-F2 (F3) | `20260903190000` … `20260903260000` | ✅ EN PROD 04/09 |
 | F2.b E1 = b1 + b2 | `20260904120000`, `20260904130000` | ✅ EN PROD 04/09 |
 | F2.b E2 = b3 + b4 | `20260905100000`, `20260905110000` | ✅ EN PROD 05/09 |
-| F2.b **E3 = b5** (fusión, corrección documental, enlace de lead suelto, reasignación) | `20260905120000` | 🧪 **CONSTRUIDA Y ENSAYADA en banco-f7, pendiente del `!`** |
+| F2.b **E3 = b5** (fusión, corrección documental, enlace de lead suelto, reasignación) | `20260905120000` | ✅ **EN PROD 05/09**, registrada con `registrar-f2b-e3.sql`, verificada en solo lectura |
 
 Banderas en producción: las tres en `false`. Todo aterriza apagado: con la bandera OFF las 5 RPC nuevas responden `P0409` antes de leer argumentos y las 7 funciones vivas transformadas son byte a byte las de hoy (reversa real ×2 con md5 de producción).
 
-Git: rama `feat/multiempresa-f2b-cola` en el worktree `../AVANCECORP-f3` (main ya fusionado dentro). **Al publicar:** `git checkout main && git merge --ff-only feat/multiempresa-f2b-cola` (o merge normal) y `git push avancecorp main:tronco` el mismo día. Ojo: otra sesión unificó `main` local con `avancecorp/main` el 04/09 (nota [[Main unico - sincronizacion y publicacion 2026-09-04]]); CLAUDE.md sigue diciendo «tronco»: Miguel decide cuál manda.
+Git: fusionada a `main` (`2742bf8`) y subida el mismo día a `avancecorp/tronco` y a `avancecorp/main` (`ecbb7b9`). El worktree `../AVANCECORP-f3` puede borrarse (`git worktree remove`). Ojo: otra sesión unificó `main` local con `avancecorp/main` el 04/09 (nota [[Main unico - sincronizacion y publicacion 2026-09-04]]); CLAUDE.md sigue diciendo «tronco»: Miguel decide cuál manda.
 
 ## 2. Qué hace b5 (idioma de negocio)
 
@@ -39,13 +39,9 @@ Git: rama `feat/multiempresa-f2b-cola` en el worktree `../AVANCECORP-f3` (main y
 2. Las dos de E2: parche de `public.crear_contrato` + trigger en `public.perfiles`; colaboradores/registro del Portal fuera.
 3. ¿Qué manda: CLAUDE.md (tronco = `avancecorp/tronco`) o la nota «Main único» (upstream `avancecorp/main`)?
 
-## 5. Publicar (solo con el `!` de Miguel)
+## 5. Publicado el 05/09
 
-```
-cd CRM-Avance-Corp && npx supabase db query --linked --file supabase/migrations/20260905120000_crm_f2b_b5_fusion_correccion_reasignacion.sql
-cd CRM-Avance-Corp && npx supabase db query --linked --file supabase/scripts/registrar-f2b-e3.sql
-```
-Después: verificar en solo lectura (5 RPC, tabla con RLS y sin grants, 7 md5 con `F2.b (b5)`, banderas en `false`), ledger «✅ PRODUCCIÓN», merge a `main` + push el mismo día, HTML, memoria.
+Aplicada y registrada por Miguel con los dos `!`; verificada en solo lectura: 7 funciones con el md5 exacto de b5, 5 RPC + 10 helpers, tabla con RLS y sin grants, banderas en `false`, registro con el texto íntegro. Ledger «✅ PRODUCCIÓN».
 
 ## 6. Después de E3
 
