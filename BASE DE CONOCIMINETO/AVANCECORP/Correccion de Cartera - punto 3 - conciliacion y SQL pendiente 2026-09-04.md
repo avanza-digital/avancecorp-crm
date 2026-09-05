@@ -4,13 +4,15 @@ requerimiento: REQ-GER-MET-001
 punto: 3
 fecha: 2026-09-04
 corte_datos: "2026-09-04 22:30:08 America/Lima"
-estado: completado-sql-aplicado-frontend-local-verificado-sin-deploy
+estado: completado-sql-aplicado-frontend-publicado-verificado
 verificado: "2026-09-04 23:23 America/Lima"
 ---
 
-# Corrección de Cartera — punto 3: SQL aplicado y frontend local
+# Corrección de Cartera — punto 3: SQL aplicado y frontend publicado
 
 Relacionado con [[Inicio]], [[Plan de correccion de metricas de Gerencia - requerimiento vigente]], [[Correccion de pantallas de Gerencia - punto 2 - 2026-09-04]], [[Inventario de indicadores de Gerencia - Cartera y configuracion]], [[Auditoria de metricas de Gerencia - hallazgos y plan 2026-09-04]] y [[Gestión comercial de clientes - renovaciones y upgrades]].
+
+**Publicación posterior — 4 de septiembre, 23:49 Lima:** autorizado por Miguel, frontend publicado desde `50f33a5`, Main sincronizado antes del build/deploy y Cartera verificada con sesión de Gerencia: 420 clientes, saldos globales finales coherentes con la conciliación y 3 por vencer. No se reaplicó SQL. Evidencia, observación de transición visual para el punto 5 y reversión en [[Publicacion frontend metricas Gerencia 2026-09-04]]. Los apartados siguientes conservan el corte histórico de implementación local y de aplicación SQL; «sin deploy» describe ese momento anterior.
 
 ## Mandato y estado real
 

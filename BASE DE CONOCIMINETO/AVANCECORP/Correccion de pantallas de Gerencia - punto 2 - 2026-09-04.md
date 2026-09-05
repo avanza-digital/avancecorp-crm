@@ -3,12 +3,14 @@ tags: [crm, gerencia, metricas, implementacion, verificacion]
 requerimiento: REQ-GER-MET-001
 punto: 2
 fecha: 2026-09-04
-estado: punto-2-completo-local-sin-publicar
+estado: punto-2-completo-publicado
 ---
 
 # Corrección de pantallas de Gerencia — punto 2
 
 Continuidad de [[Plan de correccion de metricas de Gerencia - requerimiento vigente]], [[Inventario de indicadores de Gerencia - Contrato de lectura]] y [[Auditoria de metricas de Gerencia - hallazgos y plan 2026-09-04]]. Esta nota registra la implementación posterior al inventario: sus etiquetas describían la línea base, no las pantallas ahora corregidas.
+
+**Actualización posterior — 4 de septiembre, 23:49 Lima:** Miguel autorizó guardar todo y publicar; frontend publicado desde `50f33a5`, con Main sincronizado antes del build/deploy, pruebas y acceso de Gerencia verificados. El punto 3 también se completó y publicó. Evidencia vigente en [[Publicacion frontend metricas Gerencia 2026-09-04]] y [[Plan de correccion de metricas de Gerencia - requerimiento vigente]]. El resto de esta nota conserva el registro histórico de la implementación local de las 22:05, no el estado actual de publicación.
 
 ## Autorización y límites
 

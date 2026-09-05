@@ -2,7 +2,7 @@
 tags: [crm, gerencia, requerimiento, plan, metricas]
 identificador: REQ-GER-MET-001
 fecha_acuerdo: 2026-09-04
-estado: puntos-1-a-3-completados-frontend-local-sin-publicar
+estado: puntos-1-a-3-completados-frontend-publicado
 ---
 
 # Plan de corrección de métricas de Gerencia — requerimiento vigente
@@ -21,7 +21,7 @@ Avance siguiente: el objetivo posterior autorizó la implementación local del p
 
 Punto 3: Miguel autorizó continuar con «ok hazlo» y confirmó el SQL exacto con «sí», condicionado a probarlo aisladamente. Aplicado y verificado el 4 de septiembre, 22:50 America/Lima: se excluyeron de la lectura dos contratos de prueba (PEN 100.000 y USD 100.000), sin borrar datos; los 517 contratos reales concilian con el resumen. **Completado a las 23:23 Lima: frontend implementado y verificado localmente, sin deploy.** 2.741 pruebas y 120 E2E aprobadas (26 omisiones previas). Alcance, pruebas y reversión en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]].
 
-**Autorización posterior:** Miguel pidió guardar todo y publicar el frontend. Ejecución y resultado en [[Publicacion frontend metricas Gerencia 2026-09-04]]. No incluye SQL adicional ni los puntos 4–5; no confundir autorización con publicación concluida.
+**Publicación posterior concluida:** Miguel pidió guardar todo y publicar el frontend. Commit de implementación `50f33a59b92b2263296863c857e4ef3e39619450`, Main local/remoto sincronizados antes de construir y publicar; build `build-20260905T043211512Z` verificado en producción el 4 de septiembre, 23:49 Lima. Ejecución, pruebas, acceso con sesión de Gerencia y reversión en [[Publicacion frontend metricas Gerencia 2026-09-04]]. No se aplicó SQL adicional ni se cerraron los puntos 4–5.
 
 ## Objetivo general
 
@@ -38,14 +38,14 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ### 2. Corregir pantallas y conexiones existentes
 
-- [x] Completado localmente y verificado; sin publicación. Los puntos 3 y 4 no se implementaron por esta autorización. Evidencia en la nota del punto 2 enlazada arriba.
+- [x] Completado y verificado; publicado posteriormente con autorización expresa en el release `crm-20260905T043212Z-50f33a59b92b`. Evidencia de implementación en la nota del punto 2 y de publicación en la nota de despliegue enlazadas arriba.
 - Objetivo: presentar el dato correcto bajo el nombre y período correctos, reutilizando las salidas y componentes existentes.
 - Alcance: retirar asignaciones presentadas como captación; distinguir base automática y llegadas; no afirmar asistencia a partir de etapas inferidas; corregir fechas de Rendimiento, estados de citas, alcance de filtros y tratamiento de errores/verificación.
 - Criterio de cierre: los números conservan el significado del servidor; error, ausencia de verificación y cero real no se confunden. No hay nuevas calculadoras independientes.
 
 ### 3. Corregir la lectura de Cartera
 
-- [x] Completado: SQL confirmado por Miguel, probado aisladamente y aplicado como `20260905034917`; lectura productiva conciliada y núcleos/permisos intactos. Conexión frontend y completitud implementadas y verificadas localmente, sin publicar. Ver la nota del punto 3 enlazada arriba.
+- [x] Completado: SQL confirmado por Miguel, probado aisladamente y aplicado como `20260905034917`; lectura productiva conciliada y núcleos/permisos intactos. Conexión frontend y completitud implementadas, verificadas y publicadas posteriormente en `crm-20260905T043212Z-50f33a59b92b`. Ver las notas del punto 3 y de publicación enlazadas arriba.
 - Objetivo: que los indicadores reales de Cartera se apoyen en las lecturas existentes del servidor y no incluyan contratos de prueba ni dependan de listas incompletas.
 - Alcance: conciliar los resúmenes existentes campo por campo antes de conectarlos; corregir la exclusión de pruebas en la fachada existente del listado; respetar saldo vigente, producción mensual, monedas y atribución.
 - Criterio de cierre: exclusiones y alcance concilian entre indicadores y listado; ningún dato de prueba aporta al indicador real. No se borran contratos ni perfiles, ni se modifica el núcleo de capital.
@@ -63,6 +63,7 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 - [ ] Pendiente; pruebas durante el desarrollo y cierre integral al final.
 - Objetivo: demostrar que las pantallas coinciden con el servidor cuando miden lo mismo y explican las diferencias cuando miden cosas distintas.
 - Alcance: reasignaciones, llegada a Ana/cierre de Luis, manuales/referidos, citas y cancelaciones, operaciones repetidas, capital de prueba, PEN/USD, filtros, rangos parciales, meses sellados, errores, respuestas parciales y metas superiores al 100 %.
+- Observación adicional del smoke productivo: revisar los importes transitorios al cambiar de mes a «Todos los meses» en Cartera. Una lectura inmediata fue negativa y la posterior quedó en los saldos positivos conciliados; distinguir transición visual de dato final, sin modificar el núcleo ni asumir la causa. Evidencia en la nota de publicación.
 - Criterio de cierre: pruebas de contrato e interfaz aprobadas, discrepancias justificadas y núcleos/permisos intactos. No usar producción para semillas, mutantes ni pruebas de escritura.
 
 ## Restricciones obligatorias
@@ -77,10 +78,10 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ## Punto de reanudación
 
-**Último punto terminado:** 3, lectura de Cartera; SQL en producción y frontend verificado localmente, sin deploy. El punto 2 sigue corregido en local. El punto 1 se conserva como inventario documental de 336 registros en las 20 rutas de Gerencia; sus etiquetas son la línea base anterior a estas correcciones.
+**Último punto terminado:** 3, lectura de Cartera; SQL y frontend en producción. El frontend del punto 2 también está publicado. El punto 1 se conserva como inventario documental de 336 registros en las 20 rutas de Gerencia; sus etiquetas son la línea base anterior a estas correcciones.
 
-**Siguiente punto:** 4, justificar comercial y técnicamente los datos faltantes y presentar alternativas antes de ampliar nada. El punto 3 está cerrado en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]]. **No volver a aplicar la migración** ni esperar una confirmación ya recibida. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios: no admiten sustitución directa por el resumen global. No modificar el núcleo de capital ni crear calculadoras independientes. No publicar por esta continuidad.
+**Siguiente punto:** 4, justificar comercial y técnicamente los datos faltantes y presentar alternativas antes de ampliar nada. El punto 3 está cerrado en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]]. **No volver a aplicar la migración** ni esperar una confirmación ya recibida. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios: no admiten sustitución directa por el resumen global. No modificar el núcleo de capital ni crear calculadoras independientes. La publicación autorizada ya se completó; no repetirla ni ampliar su alcance por esta continuidad.
 
-Los puntos 4–5 siguen pendientes; las pruebas locales de estas correcciones no cierran todavía la conciliación integral del punto 5. No inferir autorización de SQL adicional ni funciones nuevas. Línea base al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Estas correcciones siguen locales sin commit/publicación. Los commits concurrentes de documentación y altas nuevas se preservaron; HEAD observado durante el punto 3 llegó a `ed2b7ea`. Verificar nuevamente el estado antes de cualquier publicación, no asumir Main sincronizado por esta nota.
+Los puntos 4–5 siguen pendientes; las pruebas de estas correcciones y el smoke productivo no cierran todavía la conciliación integral del punto 5. No inferir autorización de SQL adicional ni funciones nuevas. Línea base histórica al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Los commits concurrentes de documentación y altas nuevas se preservaron; HEAD observado durante el punto 3 llegó a `ed2b7ea`. Las correcciones quedaron guardadas y publicadas desde `50f33a5`; el cierre documental posterior no cambia ese artefacto. Verificar nuevamente el estado antes de cualquier publicación futura, no asumir Main sincronizado por esta nota.
 
 Al retomar: leer este requerimiento, la ejecución de los puntos 2 y 3, el inventario y el informe enlazado; verificar el estado actual y actualizar aquí el avance de cada punto. No repetir los puntos 1–3 salvo cambios posteriores que exijan actualizarlos. No marcar los demás completos por tener sus objetivos descritos.

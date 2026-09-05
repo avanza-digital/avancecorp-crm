@@ -53,6 +53,29 @@ Antes de publicar deben coincidir sus commits; ver
 
 ## Notas
 
+- **Deploy 2026-09-04 (verificado hasta 23:49 hora de Lima) — CRM: métricas de
+  Gerencia y lectura de Cartera, puntos 2–3.** Todo el trabajo local quedó
+  guardado en **`50f33a59b92b2263296863c857e4ef3e39619450`**, con Main local y
+  `avancecorp/main` iguales y limpios antes de construir/publicar. Release
+  **`crm-20260905T043212Z-50f33a59b92b`**, build
+  **`build-20260905T043211512Z`**, ZIP SHA-256
+  **`131f17db0f2cf1fe1d0dc33d57cea1cd5209269e5a13c329b457469a83e1ef67`**,
+  entry `assets/index-CzsdYbLC.js`. Artefacto de checkout limpio separado,
+  sin ramas nuevas; configuración pública, acceso habilitado, Ficha 360,
+  ascendencia y manifiesto verificados. CI `33944726961`: calidad y E2E
+  aprobados; 2.741 pruebas, 120 E2E aprobadas/26 omisiones previas. Preflight
+  offline `33944726978` aprobado. MCP oficial de Hostinger con la credencial
+  local validada, raíz exclusiva del CRM y purga de caché. **79/79 controles
+  remotos** aprobados, tres versiones estables y portal sin cambio de build.
+  Resumen, Conversiones y Cartera cargan con la sesión existente de Gerencia,
+  sin errores de consola. No se ejecutó SQL adicional ni se alteraron datos,
+  autenticación o permisos en esta publicación. **Rollback sólo frontend:**
+  `crm-20260905T011158Z-b8108ae3f4dc.zip`; no revertir el SQL de exclusión de
+  pruebas ya aplicado en el punto 3. Detalle, alcance de la verificación y
+  observación visual pendiente para el punto 5 en
+  [[Publicacion frontend metricas Gerencia 2026-09-04]]. Los puntos 4–5 no
+  quedan cerrados por este despliegue.
+
 - **Deploy 2026-09-04 (~20:17–20:19 hora de Lima) — CRM: textos de gestión
   simplificados.** Main local y `avancecorp/main` coincidían, con árbol limpio,
   en **`b8108ae3f4dca59be3c833ed039ca819235da6dd`**. El paquete se construyó

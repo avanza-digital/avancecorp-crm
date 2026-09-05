@@ -36,10 +36,10 @@ Hay **tres capas**, complementarias:
 - [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]]
 - [[Plan de correccion de metricas de Gerencia - requerimiento vigente]] — cinco puntos acordados, restricciones y punto de reanudación.
 - [[Inventario de indicadores de Gerencia - Contrato de lectura]] — significado, fuente, período y límites de cada indicador; entregable documental del punto 1.
-- [[Correccion de pantallas de Gerencia - punto 2 - 2026-09-04]] — implementación local, verificaciones y límites; sin publicación.
-- [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]] — punto 3 completado: SQL aplicado y frontend verificado localmente, sin deploy. Cifras conciliadas, pruebas y reversión.
+- [[Correccion de pantallas de Gerencia - punto 2 - 2026-09-04]] — correcciones implementadas, verificadas y publicadas; alcance y límites.
+- [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]] — punto 3 completado: SQL aplicado y frontend publicado. Cifras conciliadas, pruebas y reversión.
 - [[Main unico - sincronizacion y publicacion 2026-09-04]]
-- [[Publicacion frontend metricas Gerencia 2026-09-04]] — commit de todo y publicación del frontend autorizados; seguimiento y reversión.
+- [[Publicacion frontend metricas Gerencia 2026-09-04]] — todo guardado; frontend publicado desde `50f33a5`, archivos y acceso de Gerencia verificados. Los puntos 4–5 siguen pendientes.
 - [[Identidad unificada de inversionistas - plan pendiente]]
 - [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]]
 - [[Incidente y restauracion Ficha 360 2026-08-31]]
