@@ -63,7 +63,7 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
-import type { FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
+import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
 import {
   MetricasDistribucionLeadsV3Schema,
   type MetricasDistribucionLeadsV3,
@@ -3455,6 +3455,46 @@ export async function listarMetricasCapitalMes(pMeses = 12, signal?: AbortSignal
     })
   }
   registrarFilasMetricasInvalidas('capital_mes', descartadas)
+  return items
+}
+
+// Altas de contratos NUEVOS por el analista que cierra (crm.altas_nuevas_por_analista_fn,
+// F7: sustituye a metricas_altas_analista_fn). El servidor ya resolvió el ámbito
+// (gerencia ve todo; un vendedor, lo suyo) y excluyó los cierres anulados.
+const AltasNuevasRowSchema = v.object({
+  mes: v.string(),
+  // Puede venir NULL: contratos sin analista de cierre ("Sin analista"), que solo
+  // ve gerencia. Se mapea a un id centinela para que el ranking los agrupe.
+  analista_id: v.nullable(v.string()),
+  analista_nombre: v.string(),
+  altas: NumericoRpc,
+})
+
+export const SIN_ANALISTA_ID = 'sin-analista'
+
+/** Altas nuevas por analista y mes (default: últimos 12 meses; el servidor acota 1..60). */
+export async function listarAltasNuevasPorAnalista(pMeses = 12, signal?: AbortSignal): Promise<FilaAltasAnalista[]> {
+  let consulta = cliente().schema('crm').rpc('altas_nuevas_por_analista_fn', { p_meses: pMeses })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.altas_nuevas_fallido')
+  const items: FilaAltasAnalista[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(AltasNuevasRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      mes: r.output.mes,
+      analista_id: r.output.analista_id ?? SIN_ANALISTA_ID,
+      analista_nombre: r.output.analista_nombre,
+      altas: aNumero(r.output.altas) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('altas_nuevas', descartadas)
   return items
 }
 

@@ -2119,6 +2119,15 @@ export type Database = {
         Args: { p_desde?: string; p_dias?: number }
         Returns: Json
       }
+      altas_nuevas_por_analista_fn: {
+        Args: { p_meses?: number }
+        Returns: {
+          altas: number
+          analista_id: string
+          analista_nombre: string
+          mes: string
+        }[]
+      }
       anular_cierre_avance: {
         Args: { p_lead_id: string; p_motivo: string }
         Returns: Json

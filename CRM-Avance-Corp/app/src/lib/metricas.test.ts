@@ -10,6 +10,7 @@ import {
   pivotPagosPorMes,
   pivotVencimientosPorMes,
   topAltasPorAnalista,
+  inicioHorizonte,
   SIN_CATEGORIA,
   type FilaAltasAnalista,
   type FilaCapitalMes,
@@ -239,5 +240,27 @@ describe('pivotVencimientosPorMes', () => {
     const usd = pivotVencimientosPorMes(filas, 'USD')
     expect(usd).toHaveLength(1)
     expect(usd[0]).toMatchObject({ mes: '2026-09', capital: 50_000, contratos: 1 })
+  })
+})
+
+describe('inicioHorizonte', () => {
+  // Texto + aritmética entera: el resultado no depende de la zona horaria.
+  const hoy = new Date(2026, 8, 15) // 15 sep 2026 (mes 0-based)
+
+  it('1 mes = el mes actual; N meses retrocede N-1', () => {
+    expect(inicioHorizonte(1, hoy)).toBe('2026-09-01')
+    expect(inicioHorizonte(3, hoy)).toBe('2026-07-01')
+    expect(inicioHorizonte(6, hoy)).toBe('2026-04-01')
+  })
+
+  it('cruza el año hacia atrás sin perder el mes', () => {
+    expect(inicioHorizonte(12, hoy)).toBe('2025-10-01')
+    expect(inicioHorizonte(3, new Date(2026, 0, 10))).toBe('2025-11-01')
+  })
+
+  it('un horizonte inválido (0, negativo, decimal) se acota a 1 mes / se trunca', () => {
+    expect(inicioHorizonte(0, hoy)).toBe('2026-09-01')
+    expect(inicioHorizonte(-4, hoy)).toBe('2026-09-01')
+    expect(inicioHorizonte(2.9, hoy)).toBe('2026-08-01')
   })
 })

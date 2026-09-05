@@ -52,6 +52,7 @@ import { EquipoGerenciaPanel } from './equipo-gerencia'
 import { InteligenciaComercialPanel } from './inteligencia-comercial'
 import { MetasEditor } from './metas-editor'
 import { RankingVendedoresPanel } from './ranking-vendedores'
+import { AltasNuevasAnalistaPanel } from './altas-nuevas-analista'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
@@ -651,6 +652,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           etiquetaAlcance={modoDemo ? 'Demo · mes vigente' : 'Equipo completo'}
         />
       )}
+
+      {/* F7: sustituto del reporte viejo «altas por analista» (Miguel 04/09).
+          Autocontenido (fuente real/demo dentro), vive junto al ranking porque
+          responde la misma pregunta: quién trae negocio NUEVO. */}
+      {seccion === 'ranking-vendedores' && <AltasNuevasAnalistaPanel />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 

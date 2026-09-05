@@ -36,6 +36,7 @@ import {
   obtenerConversionMensual,
   obtenerCumplimientoMetas,
   listarMetricasReuniones,
+  listarAltasNuevasPorAnalista,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeadsV3,
   listarMetricasPagosMes,
@@ -101,7 +102,7 @@ export const crmQueryKeys = {
   metricas: () => [...crmQueryKeys.raiz, 'metricas'] as const,
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
   metricasPagos: (meses: number) => [...crmQueryKeys.metricas(), 'pagos', meses] as const,
-  metricasAltas: (meses: number) => [...crmQueryKeys.metricas(), 'altas', meses] as const,
+  altasNuevas: (meses: number) => [...crmQueryKeys.metricas(), 'altas-nuevas', meses] as const,
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
   metricasDistribucionLeads: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
@@ -486,6 +487,15 @@ export function useMetricasCapitalMes(habilitada: boolean, meses = 12) {
   return useQuery({
     queryKey: crmQueryKeys.metricasCapital(meses),
     queryFn: ({ signal }) => listarMetricasCapitalMes(meses, signal),
+    enabled: habilitada,
+  })
+}
+
+/** Altas de contratos NUEVOS por analista que cierra (F7: sustituto del reporte viejo). */
+export function useAltasNuevasPorAnalista(habilitada: boolean, meses = 12) {
+  return useQuery({
+    queryKey: crmQueryKeys.altasNuevas(meses),
+    queryFn: ({ signal }) => listarAltasNuevasPorAnalista(meses, signal),
     enabled: habilitada,
   })
 }

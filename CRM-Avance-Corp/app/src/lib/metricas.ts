@@ -210,6 +210,16 @@ export function topAltasPorAnalista(filas: readonly FilaAltasAnalista[], topN = 
     .slice(0, Math.max(0, topN))
 }
 
+/** Primer mes de un horizonte de `meses` como 'YYYY-MM-01' (texto + aritmética
+ *  entera sobre año*12+mes; sin zona horaria). Lo usa la DEMO del panel de altas
+ *  nuevas para acotar como acota el servidor. `hoy` inyectable para tests. */
+export function inicioHorizonte(meses: number, hoy = new Date()): string {
+  const indice = hoy.getFullYear() * 12 + hoy.getMonth() - (Math.max(1, Math.trunc(meses)) - 1)
+  const anio = Math.floor(indice / 12)
+  const mes = (indice % 12) + 1
+  return `${anio}-${String(mes).padStart(2, '0')}-01`
+}
+
 // ── (d) Vencimientos próximos por mes ──────────────────────────────────────────
 
 export interface PuntoVencimientosMes {

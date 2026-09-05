@@ -109,6 +109,37 @@ export function demoMetricasAltasAnalista(): FilaAltasAnalista[] {
   return [...buckets.values()]
 }
 
+// ── (c2) Altas de contratos NUEVOS por el analista que cierra (espejo de
+//    crm.altas_nuevas_por_analista_fn, F7). A diferencia de (c), cuenta CONTRATOS
+//    con categoria 'nuevo' por mes de CIERRE comercial — renovaciones y upgrades
+//    NO cuentan. El fixture no lleva analista_cierre_id (ContratoRow del front),
+//    así que el "que cierra" es el asesor del cliente, si no quien lo registró. ──
+export function demoAltasNuevasPorAnalista(): FilaAltasAnalista[] {
+  const nombrePorId = new Map(EQUIPO_DEMO.map((m) => [m.perfil_id, m.nombre_completo]))
+  const asesorPorCliente = new Map(
+    CLIENTES_DEMO.map((c) => [c.id, c.asesor_perfil_id ?? c.creado_por ?? null]),
+  )
+  const buckets = new Map<string, FilaAltasAnalista>()
+  for (const contrato of CONTRATOS_DEMO) {
+    if (contrato.categoria !== 'nuevo' || !contrato.fecha_cierre_comercial) continue
+    const analistaId = asesorPorCliente.get(contrato.cliente_id) ?? contrato.creado_por
+    if (!analistaId) continue
+    // fecha_cierre_comercial es un DATE ('YYYY-MM-DD'): el mes sale del texto,
+    // sin Date ni zona horaria (el footgun que tumbó la v1 del servidor).
+    const mes = `${contrato.fecha_cierre_comercial.slice(0, 7)}-01`
+    const clave = `${mes}|${analistaId}`
+    const fila = buckets.get(clave) ?? {
+      mes,
+      analista_id: analistaId,
+      analista_nombre: nombrePorId.get(analistaId) ?? analistaId,
+      altas: 0,
+    }
+    fila.altas += 1
+    buckets.set(clave, fila)
+  }
+  return [...buckets.values()]
+}
+
 // ── (d) Vencimientos dentro de p_dias por mes/moneda (espejo de la RPC) ────────
 export function demoMetricasVencimientos(pDias = 90): FilaVencimientos[] {
   const hoy = new Date()

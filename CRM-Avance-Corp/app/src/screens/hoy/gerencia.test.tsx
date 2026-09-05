@@ -266,6 +266,9 @@ vi.mock('@/data/crm-queries', () => ({
     CONSULTAS.reuniones(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
   },
+  // Altas nuevas por analista (F7, sustituto del reporte viejo): tiene su
+  // propio test; aquí un vacío honesto para que el panel monte sin red.
+  useAltasNuevasPorAnalista: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
   useActualizarCapacidadLeadsObjetivo: () => ({ mutateAsync: async () => {} }),
   // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
   useCierresExternos: () => ({
