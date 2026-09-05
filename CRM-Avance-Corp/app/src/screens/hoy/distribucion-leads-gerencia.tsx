@@ -8,10 +8,10 @@
 //                          por rangos como respaldo.
 //
 // Reglas congeladas que la interfaz respeta (vault "Distribución de leads por
-// capital y trazabilidad CRM"): PEN y USD jamás se suman; conversión =
-// ventas ÷ (ventas + descartes) y sin denominador se dice "sin resultados"
-// (jamás un 0% inventado); recibidos del período y cartera actual se muestran
-// juntos; ninguna pieza emite "Priorizar/Pausar" — orden con criterio visible.
+// capital y trazabilidad CRM"): PEN y USD jamás se suman. La puntería operativa
+// de asignaciones no equivale a conversión comercial y sólo se muestra en
+// Repartir; Rendimiento usa el núcleo servido y capacidad actual. Ninguna
+// pieza emite "Priorizar/Pausar" — orden con criterio visible.
 import {
   useEffect,
   useId,
@@ -354,17 +354,23 @@ function ResumenDistribucion({
   const sondas = estadoSondasDistribucion(datos)
 
   return (
-    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : ''}`}>
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {mostrarOperacion ? 'Leads con analista' : 'Base comercial del rango'}
+          {mostrarOperacion
+            ? 'Leads con analista'
+            : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
+              ? 'Base automática del rango'
+              : 'Base histórica del rango'}
         </dt>
         <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-primary">
-          {ENTERO.format(mostrarOperacion ? datos.resumen.asignados_actuales : punteria.nucleo_divisor)}
+          {mostrarOperacion
+            ? ENTERO.format(datos.resumen.asignados_actuales)
+            : sondas.mostrarNucleo ? ENTERO.format(punteria.nucleo_divisor) : '—'}
         </dd>
         <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {mostrarOperacion
-            ? `${dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} en soles · ${dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en dólares`
+            ? `Capital estimado: ${dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} en soles · ${dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en dólares`
             : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
               ? 'Llegadas automáticas Landing/Formulario; una vez por lead, para su primer analista.'
               : 'Base histórica; no equivale a llegadas únicas.'}
@@ -422,13 +428,13 @@ function ResumenDistribucion({
         )}
       </div>
 
-      <div className={TARJETA_RESUMEN_CLASS}>
+      {mostrarOperacion && <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Puntería del período
+          Cierres de asignaciones
         </dt>
         <dd
           role="group"
-          aria-label="Cierres sobre leads resueltos, por moneda"
+          aria-label="Asignaciones cerradas sobre asignaciones resueltas, por moneda"
           className="mt-2 grid grid-cols-2 divide-x divide-border"
         >
           <div className="min-w-0 pr-3">
@@ -438,8 +444,8 @@ function ResumenDistribucion({
             </span>
             <span className="mt-1 block text-xs leading-snug text-muted-foreground">
               {punteria.pen.resueltos > 0
-                ? `${punteria.pen.convertidos} ${plural(punteria.pen.convertidos, 'venta', 'ventas')} de ${punteria.pen.resueltos} leads resueltos`
-                : 'Aún sin leads resueltos'}
+                ? `${punteria.pen.convertidos} ${plural(punteria.pen.convertidos, 'cierre', 'cierres')} de ${punteria.pen.resueltos} asignaciones resueltas`
+                : 'Aún sin asignaciones resueltas'}
             </span>
           </div>
           <div className="min-w-0 pl-3">
@@ -449,15 +455,15 @@ function ResumenDistribucion({
             </span>
             <span className="mt-1 block text-xs leading-snug text-muted-foreground">
               {punteria.usd.resueltos > 0
-                ? `${punteria.usd.convertidos} ${plural(punteria.usd.convertidos, 'venta', 'ventas')} de ${punteria.usd.resueltos} leads resueltos`
-                : 'Aún sin leads resueltos'}
+                ? `${punteria.usd.convertidos} ${plural(punteria.usd.convertidos, 'cierre', 'cierres')} de ${punteria.usd.resueltos} asignaciones resueltas`
+                : 'Aún sin asignaciones resueltas'}
             </span>
           </div>
         </dd>
         <dd className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          De lo que cada quien terminó de trabajar en el período, cuánto ganó.
+          Seguimiento operativo de asignaciones del período, no conversión comercial ni llegadas únicas.
         </dd>
-      </div>
+      </div>}
     </dl>
   )
 }
@@ -481,8 +487,8 @@ function AvisoSondas({ datos }: { datos: MetricasDistribucionLeads }): JSX.Eleme
         <div className="mt-0.5 space-y-0.5 text-xs leading-relaxed text-muted-foreground">
           {descuadre && (
             <p>
-              La verificación interna del mes no cuadró y la conversión del mes se oculta hasta
-              revisarla. El resto del tablero sigue siendo confiable.
+              La verificación interna no cuadró y la conversión se oculta hasta revisarla.
+              Los datos operativos restantes son otra lectura; este aviso no certifica su completitud.
             </p>
           )}
           {sondas.avisos.map((aviso) => (
@@ -562,6 +568,7 @@ interface EdicionCapacidad {
 function TarjetaAnalista({
   ficha,
   mostrarEquipo,
+  mostrarOperacion,
   edicion,
   guardando,
   errorCapacidad,
@@ -572,6 +579,7 @@ function TarjetaAnalista({
 }: {
   ficha: FichaAnalista
   mostrarEquipo: boolean
+  mostrarOperacion: boolean
   edicion: EdicionCapacidad | null
   guardando: boolean
   errorCapacidad: string | null
@@ -703,21 +711,21 @@ function TarjetaAnalista({
         )}
       </div>
 
-      <div className="space-y-1 border-t border-border/70 pt-2.5 text-sm leading-relaxed text-foreground">
+      {mostrarOperacion && <div className="space-y-1 border-t border-border/70 pt-2.5 text-sm leading-relaxed text-foreground">
         <p>
-          Recibió <strong className="tabular-nums">{ficha.recibidosPeriodo}</strong>{' '}
-          {plural(ficha.recibidosPeriodo, 'lead', 'leads')} en el período.
+          <strong className="tabular-nums">{ficha.recibidosPeriodo}</strong>{' '}
+          {plural(ficha.recibidosPeriodo, 'asignación', 'asignaciones')} en el período.
         </p>
         <p>
           {ficha.conversionPen
             ? (
                 <>
-                  Cierra el <strong className="tabular-nums">{ficha.conversionPen.pct}</strong> de lo
-                  que resuelve en soles ({ficha.conversionPen.convertidos} de{' '}
+                  Cierres de asignaciones en soles: <strong className="tabular-nums">{ficha.conversionPen.pct}</strong>{' '}
+                  ({ficha.conversionPen.convertidos} de{' '}
                   {ficha.conversionPen.resueltos})
                 </>
               )
-            : 'Aún sin ventas ni descartes en soles'}
+            : 'Aún sin asignaciones resueltas en soles'}
           {ficha.conUsd && (
             <span className="text-muted-foreground">
               {' · '}en dólares:{' '}
@@ -727,7 +735,7 @@ function TarjetaAnalista({
             </span>
           )}
         </p>
-      </div>
+      </div>}
 
       {ficha.sinAtender > 0 && (
         <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
@@ -745,10 +753,10 @@ function TarjetaAnalista({
 
       <div className="mt-auto border-t border-border/70 pt-2.5 text-xs leading-relaxed text-muted-foreground">
         <p className="tabular-nums">
-          {dinero(ficha.capitalPen, 'PEN')} en soles
+          Capital estimado actual: {dinero(ficha.capitalPen, 'PEN')} en soles
           {ficha.conUsd ? ` · ${dinero(ficha.capitalUsd, 'USD')} en dólares` : ''}
         </p>
-        {ficha.transferidos + ficha.parqueados > 0 && (
+        {mostrarOperacion && ficha.transferidos + ficha.parqueados > 0 && (
           <p className="mt-0.5">
             Salidas del período: {ficha.transferidos}{' '}
             {plural(ficha.transferidos, 'transferido', 'transferidos')} · {ficha.parqueados}{' '}
@@ -814,12 +822,14 @@ function TarjetaEquipoFiltro({
 function EquipoPorPersona({
   fichas,
   equipos,
+  mostrarOperacion,
   filtroEquipoId,
   onFiltrarEquipo,
   onEditarCapacidad,
 }: {
   fichas: FichaAnalista[]
   equipos: EquipoDistribucion[]
+  mostrarOperacion: boolean
   filtroEquipoId: string | null
   onFiltrarEquipo: (equipoId: string | null) => void
   onEditarCapacidad: DistribucionLeadsGerenciaProps['onEditarCapacidad']
@@ -838,8 +848,8 @@ function EquipoPorPersona({
 
   const visibles = useMemo(() => {
     const filtradas = filtrarFichasPorEquipo(fichas, filtroEquipoId)
-    return ordenarFichas(filtradas, orden)
-  }, [fichas, filtroEquipoId, orden])
+    return ordenarFichas(filtradas, !mostrarOperacion && orden === 'cierres' ? 'cupos' : orden)
+  }, [fichas, filtroEquipoId, orden, mostrarOperacion])
 
   // Recorte con margen: jamás esconder solo 1-2 tarjetas detrás de un botón.
   const { elementos: recortadas, ocultos: ocultas } = recortarConMargen(
@@ -899,8 +909,9 @@ function EquipoPorPersona({
             Tu equipo, persona por persona
           </h4>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Carga, resultados y alertas de cada analista. El límite de cartera lo fija Gerencia con
-            el lápiz de cada tarjeta.
+            {mostrarOperacion
+              ? 'Carga actual y seguimiento de asignaciones. El límite de cartera lo fija Gerencia con el lápiz de cada tarjeta.'
+              : 'Carga y capacidad actuales; no dependen del mes elegido. El límite de cartera lo fija Gerencia con el lápiz de cada tarjeta.'}
           </p>
         </div>
         <label
@@ -910,13 +921,13 @@ function EquipoPorPersona({
           Ordenar por
           <select
             id={ordenSelectId}
-            value={orden}
+            value={!mostrarOperacion && orden === 'cierres' ? 'cupos' : orden}
             onChange={(evento) => setOrden(evento.target.value as OrdenFichas)}
             className="h-9 rounded-md border border-input bg-card px-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
-            {Object.entries(ORDEN_FICHAS_ETIQUETAS).map(([valor, etiqueta]) => (
+            {Object.entries(ORDEN_FICHAS_ETIQUETAS).filter(([valor]) => mostrarOperacion || valor !== 'cierres').map(([valor, etiqueta]) => (
               <option key={valor} value={valor}>
-                {etiqueta}
+                {valor === 'cierres' ? 'Cierres de asignaciones en soles' : etiqueta}
               </option>
             ))}
           </select>
@@ -959,7 +970,9 @@ function EquipoPorPersona({
       )}
 
       <p className="text-[11px] font-medium text-muted-foreground">
-        Ordenado por {ORDEN_FICHAS_ETIQUETAS[orden].toLowerCase()}; quien no recibe leads va al
+        Ordenado por {orden === 'cierres'
+          ? mostrarOperacion ? 'cierres de asignaciones en soles' : 'cupos libres'
+          : ORDEN_FICHAS_ETIQUETAS[orden].toLowerCase()}; quien no recibe leads va al
         final. Es un criterio de lectura, no una recomendación.
       </p>
 
@@ -969,6 +982,7 @@ function EquipoPorPersona({
             key={ficha.analista.analista_id}
             ficha={ficha}
             mostrarEquipo={filtroEquipoId == null}
+            mostrarOperacion={mostrarOperacion}
             edicion={edicion}
             guardando={guardando}
             errorCapacidad={edicion ? errorCapacidad : null}
@@ -1191,9 +1205,11 @@ function AsistenteReparto({ datos }: { datos: MetricasDistribucionLeads }): JSX.
 function CeldaRangoAnalista({
   dato,
   modo,
+  mostrarOperacion,
 }: {
   dato: RangoAnalistaDistribucion
   modo: ModoTablaRangos
+  mostrarOperacion: boolean
 }): JSX.Element {
   // Servido por la RPC V3: convertidos, resueltos y % ya calculados por rango.
   const decisiones = dato.conversion.resueltos
@@ -1212,9 +1228,9 @@ function CeldaRangoAnalista({
           title={`${dato.cartera_actual.episodios} leads activos · ${dinero(dato.cartera_actual.capital, 'PEN')}`}
         >
           <p className="text-sm font-extrabold">{dato.cartera_actual.episodios}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
-            recibió {dato.cohorte.episodios_recibidos}
-          </p>
+          {mostrarOperacion && <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            {dato.cohorte.episodios_recibidos} asignaciones
+          </p>}
         </div>
       ) : (
         <div
@@ -1236,12 +1252,15 @@ function CeldaRangoAnalista({
 function TablaRangos({
   datos,
   fichas,
+  mostrarOperacion,
 }: {
   datos: MetricasDistribucionLeads
   fichas: FichaAnalista[]
+  mostrarOperacion: boolean
 }): JSX.Element {
   const [abierta, setAbierta] = useState(false)
-  const [modo, setModo] = useState<ModoTablaRangos>('carga')
+  const [modoSeleccionado, setModo] = useState<ModoTablaRangos>('carga')
+  const modo = mostrarOperacion ? modoSeleccionado : 'carga'
   const rangos = rangosPen(datos)
   const analistas = useMemo(
     () => ordenarFichas(fichas, 'nombre').map((ficha) => ficha.analista),
@@ -1257,8 +1276,9 @@ function TablaRangos({
           </p>
           <h4 className="mt-1 text-base font-extrabold text-primary">Tabla por rangos de monto</h4>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Todos los analistas contra los 7 rangos en soles: cartera de hoy, recibidos del período
-            y cierres.
+            {mostrarOperacion
+              ? 'Cartera de hoy y seguimiento de asignaciones del período, por monto en soles.'
+              : 'Cartera actual por monto en soles; no depende del mes elegido.'}
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => setAbierta((estado) => !estado)}>
@@ -1272,8 +1292,10 @@ function TablaRangos({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
               {modo === 'carga'
-                ? 'Cada celda: leads activos hoy y, debajo, los recibidos del período en ese rango.'
-                : 'Cada celda: ventas cerradas ÷ leads resueltos (ventas + descartes) del período en ese rango.'}
+                ? mostrarOperacion
+                  ? 'Cada celda: leads activos hoy y, debajo, asignaciones del período en ese rango.'
+                  : 'Cada celda muestra leads activos hoy, no llegadas del mes.'
+                : 'Cada celda: cierres sobre asignaciones resueltas del período. No es conversión comercial.'}
             </p>
             <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Lectura de la tabla">
               <Button
@@ -1284,14 +1306,14 @@ function TablaRangos({
               >
                 Carga actual
               </Button>
-              <Button
+              {mostrarOperacion && <Button
                 type="button"
                 size="sm"
                 variant={modo === 'conversion' ? 'default' : 'ghost'}
                 onClick={() => setModo('conversion')}
               >
-                Conversión por monto
-              </Button>
+                Cierres de asignaciones por monto
+              </Button>}
             </div>
           </div>
 
@@ -1304,7 +1326,7 @@ function TablaRangos({
               <caption className="sr-only">
                 {modo === 'carga'
                   ? 'Carga actual por analista y rango de monto en soles.'
-                  : 'Conversión por analista y rango de monto en soles.'}
+                  : 'Cierres de asignaciones por analista y rango de monto en soles.'}
               </caption>
               <thead>
                 <tr className="bg-muted/55 text-left">
@@ -1352,6 +1374,7 @@ function TablaRangos({
                           key={rango.id}
                           dato={rangoDeAnalista(analista, rango.id)}
                           modo={modo}
+                          mostrarOperacion={mostrarOperacion}
                         />
                       ))}
                       {modo === 'carga' ? (
@@ -1655,25 +1678,25 @@ export function DistribucionLeadsGerencia({
           <EquipoPorPersona
             fichas={fichas}
             equipos={equipos}
+            mostrarOperacion={mostrarOperacion}
             filtroEquipoId={filtroEquipoId}
             onFiltrarEquipo={setFiltroEquipoId}
             onEditarCapacidad={onEditarCapacidad}
           />
 
           {mostrarOperacion && <AsistenteReparto datos={datos} />}
-          <TablaRangos datos={datos} fichas={fichasFiltradas} />
+          <TablaRangos datos={datos} fichas={fichasFiltradas} mostrarOperacion={mostrarOperacion} />
           {mostrarOperacion && <PorRepartir datos={datos} />}
           <AvisoSondas datos={datos} />
           <AlertaCalidad datos={datos} />
 
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Período: {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}. «Recibió»
-            cuenta cada vez que un lead entró a la cartera de una persona durante el período; la
-            cartera actual es la foto de hoy. La puntería mide, de lo que cada quien terminó de
-            trabajar (ventas + descartes), cuánto ganó; la «Conversión del mes» es la cifra única
-            del núcleo — la misma de HOY, Metas, Conversiones y el Ranking — y todos estos
-            porcentajes los calcula el servidor. Los tiempos de atención se consultan en las
-            métricas SLA versionadas, fuera de este tablero de distribución.
+            Período comercial: {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}.
+            {' '}{mostrarOperacion
+              ? 'Las asignaciones cuentan cada entrada a la cartera de una persona; un lead puede aparecer varias veces. Sus cierres son seguimiento operativo, no conversión comercial.'
+              : 'La base y la conversión provienen del núcleo comercial. Carga, capacidad y capital estimado son la foto actual, no resultados de captación del mes.'}
+            {' '}El filtro de equipo sólo cambia las tarjetas y la tabla, no los indicadores globales.
+            Los tiempos de atención se consultan en las métricas SLA versionadas.
           </p>
         </CardContent>
       )}

@@ -52,6 +52,29 @@ function fuentesRankingSinError() {
 }
 
 describe('ranking general de analistas', () => {
+  it('rotula la base legacy como histórica sin cambiar la foto ni los números del ranking', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.fuentes.divisor = 'crm.lead_asignaciones.asignado_en'
+    const original = structuredClone(mensual)
+    render(<RankingVendedoresPanel
+      conversionMensual={mensual}
+      equipo={conversionEquipoDemo()}
+      metasVendedores={metasConversionEquipoDemo()}
+      cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+      metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+      estadoFotoMensual="sellada"
+      tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+      {...fuentesRankingSinError()}
+    />)
+
+    expect(screen.getByRole('columnheader', { name: 'Base histórica' })).toBeInTheDocument()
+    expect(screen.getByText('Base histórica: 10')).toBeInTheDocument()
+    expect(screen.getByText(/no equivale a llegadas únicas/i)).toBeInTheDocument()
+    expect(screen.getByText('Foto sellada')).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Recibidos' })).not.toBeInTheDocument()
+    expect(mensual).toEqual(original)
+  })
+
   it('muestra la producción no analista aparte sin concederle puesto', () => {
     const cumplimiento = cumplimientoMetasConversionEquipoDemo()
     const base = cumplimiento.porVendedor['demo-v1']!
@@ -204,9 +227,10 @@ describe('ranking general de analistas', () => {
     expect(screen.getByText('Mes calendario · agosto 2026')).toBeInTheDocument()
     expect(screen.getByText(/renovaciones ×0.15.*llegadas automáticas Landing\/Formulario/)).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
-    // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
+    // Columnas de la conversión MENSUAL: base automática y cierres — no los
     // rótulos del payload viejo (Leads/Clientes medían el rango completo).
-    expect(within(tabla).getByRole('columnheader', { name: 'Recibidos' })).toBeInTheDocument()
+    expect(within(tabla).getByRole('columnheader', { name: 'Base automática' })).toBeInTheDocument()
+    expect(within(tabla).queryByRole('columnheader', { name: 'Recibidos' })).not.toBeInTheDocument()
     expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toBeInTheDocument()
     const filas = within(tabla).getAllByRole('row')
     // 1 cabecera + 4 medibles + Fabio (solo arrastre: compite al fondo, sin %).

@@ -230,13 +230,13 @@ test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ 
   await expect(drawer.getByText('1 pendiente')).toBeVisible()
 })
 
-test('crear lead mueve el tile "Leads activos" al instante (espejo demo VIVO, F1)', async ({ page }) => {
+test('crear lead mueve el tile "Leads abiertos con analista" al instante (espejo demo VIVO, F1)', async ({ page }) => {
   // El bloqueante del plan F1: los tiles demo se calculan del estado vivo del
   // store, no de la semilla estática — crear un lead debe moverlos sin reload.
   await entrarDemo(page, 'Analista')
   await irAPipeline(page)
 
-  const chip = page.locator('[data-slot="card"]').filter({ hasText: 'Leads activos' }).first()
+  const chip = page.locator('[data-slot="card"]').filter({ hasText: 'Leads abiertos con analista' }).first()
   const antes = Number(/\d+/.exec(await chip.innerText())?.[0])
   expect(Number.isFinite(antes)).toBe(true)
 

@@ -70,7 +70,7 @@ export function Cartera() {
         { icon: Users, label: 'Total leads', value: '—', tone: 'primary' },
         { icon: TrendingUp, label: 'Capital en juego', value: '—', tone: 'accent' },
         { icon: Activity, label: 'Activos', value: '—', tone: 'default', sub: 'Sin convertir ni descartar' },
-        { icon: CheckCircle2, label: 'Convertidos', value: '—', tone: 'primary' },
+        { icon: CheckCircle2, label: 'Cierres de leads del mes', value: '—', tone: 'primary', sub: 'Mes calendario actual' },
       ]
       return { stats, segmentos: [] as Segment[] }
     }
@@ -93,7 +93,7 @@ export function Cartera() {
         sub: capital.sub,
       },
       { icon: Activity, label: 'Activos', value: String(resumen.totales.abiertos), tone: 'default', sub: 'Sin convertir ni descartar' },
-      { icon: CheckCircle2, label: 'Convertidos', value: String(resumen.totales.convertidos), tone: 'primary' },
+      { icon: CheckCircle2, label: 'Cierres de leads del mes', value: String(resumen.totales.convertidos), tone: 'primary', sub: 'Mes calendario actual' },
     ]
     const porEtapa = new Map(resumen.embudo.map((p) => [p.etapa, p.n]))
     const segmentos: Segment[] = [...ETAPAS, ...TERMINALES].map((e) => ({
@@ -140,6 +140,9 @@ export function Cartera() {
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
       {/* Mini-KPIs de la cartera */}
       <StatStrip stats={stats} />
+      <p className="text-xs text-muted-foreground">
+        {ambito.esGlobal ? 'Indicadores de toda la empresa.' : 'Indicadores de tu ámbito.'} La búsqueda y los filtros sólo cambian el listado, no los indicadores ni la distribución.
+      </p>
 
       {/* Degradación honesta (precedente objetivosError): la pantalla vive con
           aviso y «—», sin bloquear la tabla, que tiene su propia fuente. */}
@@ -164,6 +167,7 @@ export function Cartera() {
         />
         <CardContent className="pt-1">
           <SegmentBar segments={segmentos} />
+          <p className="mt-3 text-xs text-muted-foreground">Inventario actual por etapa. Los convertidos permanecen aquí durante 45 días desde su conversión; no equivalen a los cierres del mes.</p>
         </CardContent>
       </Card>
 

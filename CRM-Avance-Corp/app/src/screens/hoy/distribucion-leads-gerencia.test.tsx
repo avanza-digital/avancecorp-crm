@@ -290,20 +290,70 @@ function fichaDe(nombre: string): HTMLElement {
 }
 
 describe('DistribucionLeadsGerencia', () => {
+  it('Rendimiento muestra base canónica y capacidad actual sin episodios, puntería ni salidas', async () => {
+    const user = userEvent.setup()
+    const datos: MetricasDistribucionLeads = {
+      ...DATOS,
+      alcances: { ...DATOS.alcances, conversion_nucleo: 'LLEGADAS_UNICAS_PRIMER_ANALISTA' },
+      analistas: [{
+        ...ANA,
+        pen: { ...ANA.pen, cohorte: { ...ANA.pen.cohorte, episodios_recibidos: 99 } },
+      }, BRUNO],
+    }
+    montar({ datos, mostrarOperacion: false, mostrarPeriodo: false })
+
+    const base = screen.getByText('Base automática del rango').parentElement!
+    expect(within(base).getByText(String(DATOS.resumen.conversion.nucleo_divisor))).toBeInTheDocument()
+    expect(screen.getByText('44.44%')).toBeInTheDocument()
+    const ana = fichaDe('Ana Torres')
+    expect(ana).toHaveTextContent('5 de 20 leads')
+    expect(ana).toHaveTextContent('Capital estimado actual')
+    expect(ana).not.toHaveTextContent(/99|Recibió|asignaciones|Cierra el|Salidas del período/)
+    expect(screen.queryByText('Cierres de asignaciones')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /cierres/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('75%')).not.toBeInTheDocument()
+    expect(screen.getByText(/Carga y capacidad actuales; no dependen del mes elegido/)).toBeInTheDocument()
+    expect(screen.getByText(/El filtro de equipo sólo cambia las tarjetas y la tabla/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver tabla completa por rangos' }))
+    const tabla = screen.getByRole('table', { name: /Carga actual por analista/ })
+    expect(within(tabla).getByTitle(/2 leads activos · S\/\s?1[,.]800/)).toBeInTheDocument()
+    expect(tabla).not.toHaveTextContent(/asignaciones|recibió|1 de 2|50%/)
+    expect(screen.queryByRole('button', { name: /Cierres de asignaciones por monto/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /repartir este lead/i })).not.toBeInTheDocument()
+  })
+
+  it('Rendimiento conserva el nombre histórico y no publica la base sin verificar', () => {
+    const { rerender } = montar({ mostrarOperacion: false })
+    expect(screen.getByText('Base histórica del rango')).toBeInTheDocument()
+    expect(screen.queryByText('Base automática del rango')).not.toBeInTheDocument()
+
+    rerender(<DistribucionLeadsGerencia
+      {...BASE_PROPS}
+      mostrarOperacion={false}
+      datos={{ ...DATOS, sondas: { ...DATOS.sondas, cuadra: false } }}
+    />)
+    const base = screen.getByText('Base histórica del rango').parentElement!
+    expect(within(base).getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
+    expect(screen.queryByText(/El resto del tablero sigue siendo confiable/)).not.toBeInTheDocument()
+    expect(fichaDe('Ana Torres')).toHaveTextContent('5 de 20 leads')
+  })
+
   it('nivel 1: resumen en lenguaje natural con monedas separadas y avisos de atención', () => {
     montar()
 
     expect(screen.getByRole('heading', { name: 'Distribución de leads' })).toBeInTheDocument()
 
     const cierresPorMoneda = screen.getByRole('group', {
-      name: 'Cierres sobre leads resueltos, por moneda',
+      name: 'Asignaciones cerradas sobre asignaciones resueltas, por moneda',
     })
     expect(within(cierresPorMoneda).getByText('Soles')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('75%')).toBeInTheDocument()
-    expect(within(cierresPorMoneda).getByText('3 ventas de 4 leads resueltos')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('3 cierres de 4 asignaciones resueltas')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('Dólares')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('50%')).toBeInTheDocument()
-    expect(within(cierresPorMoneda).getByText('1 venta de 2 leads resueltos')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('1 cierre de 2 asignaciones resueltas')).toBeInTheDocument()
 
     // La cifra del núcleo, SERVIDA y verificada por la sonda (cuadra=true).
     expect(screen.getByText('Conversión del rango')).toBeInTheDocument()
@@ -328,8 +378,8 @@ describe('DistribucionLeadsGerencia', () => {
     const ana = fichaDe('Ana Torres')
     expect(ana).toHaveTextContent('5 de 20 leads')
     expect(ana).toHaveTextContent('15 cupos libres')
-    expect(ana).toHaveTextContent('Recibió 9 leads en el período')
-    expect(ana).toHaveTextContent('Cierra el 75% de lo que resuelve en soles (3 de 4)')
+    expect(ana).toHaveTextContent('9 asignaciones en el período')
+    expect(ana).toHaveTextContent('Cierres de asignaciones en soles: 75% (3 de 4)')
     expect(ana).toHaveTextContent('en dólares: 50% (1 de 2)')
     expect(ana).toHaveTextContent('1 sin atender')
     expect(ana).toHaveTextContent('S/ 12,000 en soles · US$ 8,000 en dólares')
@@ -338,7 +388,7 @@ describe('DistribucionLeadsGerencia', () => {
     const bruno = fichaDe('Bruno Díaz')
     expect(bruno).toHaveTextContent('No recibe por ahora')
     expect(bruno).toHaveTextContent('sin límite definido')
-    expect(bruno).toHaveTextContent('Aún sin ventas ni descartes en soles')
+    expect(bruno).toHaveTextContent('Aún sin asignaciones resueltas en soles')
 
     // Orden por cupos: quien no recibe va al final, con el criterio declarado.
     const fichas = screen.getAllByRole('article', { name: /^Ficha de/ })
@@ -459,7 +509,7 @@ describe('DistribucionLeadsGerencia', () => {
     expect(within(asistente).getByText(/Cierra el 50% en dólares \(1 de 2\)/)).toBeInTheDocument()
   })
 
-  it('tabla por rangos bajo demanda: cartera y recibidos juntos, y conversión por monto', async () => {
+  it('tabla operativa por rangos: cartera y asignaciones, sin rotular puntería como conversión', async () => {
     const user = userEvent.setup()
     montar()
 
@@ -477,11 +527,11 @@ describe('DistribucionLeadsGerencia', () => {
     }
     expect(within(tablaCarga).getByTitle(/2 leads activos · S\/\s?1[,.]800/)).toBeInTheDocument()
     const filaAna = within(tablaCarga).getByRole('row', { name: /Ana Torres/ })
-    expect(filaAna).toHaveTextContent('recibió 3')
+    expect(filaAna).toHaveTextContent('3 asignaciones')
 
-    await user.click(screen.getByRole('button', { name: 'Conversión por monto' }))
+    await user.click(screen.getByRole('button', { name: 'Cierres de asignaciones por monto' }))
     const tablaConversion = within(region).getByRole('table', {
-      name: /conversión por analista/i,
+      name: /cierres de asignaciones por analista/i,
     })
     const filaConversion = within(tablaConversion).getByRole('row', { name: /Ana Torres/ })
     expect(within(filaConversion).getByText('1 de 2')).toBeInTheDocument()
@@ -543,7 +593,7 @@ describe('DistribucionLeadsGerencia', () => {
     expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
     expect(screen.getByText('Cifras en revisión')).toBeInTheDocument()
     expect(
-      screen.getByText(/la conversión del mes se oculta hasta revisarla/i),
+      screen.getByText(/la conversión se oculta hasta revisarla/i),
     ).toBeInTheDocument()
   })
 
@@ -556,7 +606,7 @@ describe('DistribucionLeadsGerencia', () => {
     })
 
     expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
-    expect(screen.getByText(/la conversión del mes se oculta hasta revisarla/i)).toBeInTheDocument()
+    expect(screen.getByText(/la conversión se oculta hasta revisarla/i)).toBeInTheDocument()
   })
 
   it('F3.4: con un rango que no es mes (cuadra null) la cifra se oculta SIN alarma', () => {

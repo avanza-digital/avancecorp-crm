@@ -73,6 +73,7 @@ function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Ele
           <tbody className="divide-y divide-[var(--gi-line)]">{datos.responsables.map((fila) => <tr key={fila.responsable_id ?? fila.nombre}><td className="px-5 py-3 font-semibold">{fila.nombre}</td><td className="px-3 py-3 text-[var(--gi-muted)]">{fila.supervisor_nombre}</td><td className="px-3 py-3 text-right tabular-nums">{numero(fila.pactadas)}</td><td className="px-3 py-3 text-right tabular-nums">{numero(fila.realizadas)}</td><td className="px-3 py-3 text-right font-semibold tabular-nums">{numero(fila.pendientes_cierre)}</td><td className="px-5 py-3 text-right font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</td></tr>)}</tbody>
         </table>
       </div>
+      <p className="border-t border-[var(--gi-line)] px-5 py-3 text-xs text-[var(--gi-muted)]">La efectividad usa las citas vencidas, sin reprogramadas ni canceladas por el sistema. Por analista también excluye las canceladas por otro asesor.</p>
     </section>
   )
 }
@@ -98,7 +99,7 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
     yAxis: { type: 'category', inverse: true, data: origenes.map((fila) => fila.origen), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
-    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contrato_pct ?? 0), barMaxWidth: 18, itemStyle: { color: C.green, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
+    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contrato_pct), barMaxWidth: 18, itemStyle: { color: C.green, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
   }), [origenes])
 
   return (
@@ -113,21 +114,25 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <p className="gi-caption">Citas por fecha prevista. Un lead puede tener varias citas; las pactadas incluyen las canceladas.</p>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Kpi label="Pactadas" value={numero(datos.resumen.pactadas)} detail={`${numero(datos.resumen.programadas_futuras)} próximas`} Icon={CalendarCheck} color={C.blue} />
-            <Kpi label="Realizadas" value={numero(datos.resumen.realizadas)} detail={pct(datos.resumen.pct_realizacion)} Icon={UserRoundCheck} color={C.teal} />
-            <Kpi label="No concretadas" value={numero(datos.resumen.no_concretadas)} detail={`${numero(datos.resumen.no_show)} no asistieron`} Icon={UserRoundX} color={C.red} />
-            <Kpi label="Reprogramadas" value={numero(datos.resumen.reprogramadas)} detail={`${numero(datos.resumen.pendientes_cierre)} sin resultado`} Icon={CalendarClock} color={C.amber} />
+            <Kpi label="Realizadas" value={numero(datos.resumen.realizadas)} detail={`${pct(datos.resumen.pct_realizacion)} de realización`} Icon={UserRoundCheck} color={C.teal} />
+            <Kpi label="No concretadas" value={numero(datos.resumen.no_concretadas)} detail={`${numero(datos.resumen.no_show)} no asistieron · canceladas por asesor: ${numero(datos.resumen.canceladas)}`} Icon={UserRoundX} color={C.red} />
+            <Kpi label="Canceladas por sistema" value={numero(datos.resumen.canceladas_sistema)} detail="Incluidas en pactadas, no en realización" Icon={CalendarClock} color={C.muted} />
+            <Kpi label="Reprogramadas" value={numero(datos.resumen.reprogramadas)} detail={`${numero(datos.resumen.pendientes_cierre)} vencidas sin resultado registrado`} Icon={CalendarClock} color={C.amber} />
             <Kpi label="Terminan en cliente" value={pct(datos.conversion.conversion_contrato_pct)} detail={`${numero(datos.conversion.contratos)} clientes`} Icon={UserRoundCheck} color={C.green} />
           </div>
+          <p className="gi-caption">Realización: realizadas sobre citas vencidas, excluyendo las reprogramadas y canceladas por el sistema. Asistencia: realizadas sobre realizadas y no asistidas.</p>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,.85fr)]">
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de citas pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /></section>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => <section key={fila.modalidad} data-gi-panel className="gi-card p-5"><div className="flex items-start justify-between gap-3"><div><p className="gi-label">{fila.nombre}</p><p className="mt-2 text-4xl font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</p><p className="gi-caption mt-1">{numero(fila.realizadas)} de {numero(fila.debieron_ocurrir)}</p></div><div className="text-right"><p className="gi-caption">A clientes</p><strong className="mt-1 block text-xl tabular-nums text-[var(--gi-green)]">{pct(fila.conversion_contrato_pct)}</strong></div></div><div className="mt-4 border-t border-[var(--gi-line)] pt-3"><p className="gi-caption">Capital invertido</p><strong className="mt-1 block text-sm">{money(fila.capital_pen, 'PEN')}</strong>{fila.capital_usd > 0 && <span className="gi-caption">{money(fila.capital_usd, 'USD')}</span>}</div></section>)}</div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => <section key={fila.modalidad} data-gi-panel className="gi-card p-5"><div className="flex items-start justify-between gap-3"><div><p className="gi-label">{fila.nombre}</p><p className="gi-caption mt-1">Realización</p><p className="mt-2 text-4xl font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</p><p className="gi-caption mt-1">{numero(fila.realizadas)} realizadas</p></div><div className="text-right"><p className="gi-caption">A clientes</p><strong className="mt-1 block text-xl tabular-nums text-[var(--gi-green)]">{pct(fila.conversion_contrato_pct)}</strong></div></div><div className="mt-4 border-t border-[var(--gi-line)] pt-3"><p className="gi-caption">Capital invertido</p><strong className="mt-1 block text-sm">{money(fila.capital_pen, 'PEN')}</strong>{fila.capital_usd > 0 && <span className="gi-caption">{money(fila.capital_usd, 'USD')}</span>}</div></section>)}</div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Citas que terminan en cliente</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión de citas a clientes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 50) }} /></section>
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Citas que terminan en cliente</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión de citas a clientes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 50) }} />{origenes.filter((fila) => fila.conversion_contrato_pct == null).map((fila) => <p key={fila.origen} className="gi-caption">{fila.origen}: — (sin base para calcular)</p>)}</section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultado final</h3><div className="mt-4 flex flex-wrap gap-2">{datos.resultados.map((fila) => <span key={fila.resultado} className="rounded-full border border-[var(--gi-line)] bg-[var(--gi-soft)] px-3 py-1.5 text-xs"><strong>{numero(fila.cantidad)}</strong> · {textoResultado(fila.resultado)}</span>)}</div></section>
           </div>
 

@@ -17,6 +17,7 @@ import {
   useCierreMesEstado,
   useMetricasConversionesEquipo,
   useMetricasVendedores,
+  useResumenCarteraClientes,
 } from './crm-queries'
 
 /** QueryClient limpio por test + wrapper del provider (sin red: ver abajo). */
@@ -28,6 +29,16 @@ function arnes() {
 }
 
 describe('claves de la caché de cartera (contrato con las invalidaciones)', () => {
+  it('el resumen financiero separa actor, no consulta en demo y caduca con métricas', async () => {
+    const { cliente, wrapper } = arnes()
+    renderHook(() => useResumenCarteraClientes(false, 'gerencia-1'), { wrapper })
+    const clave = crmQueryKeys.resumenCarteraClientes('gerencia-1')
+    expect(clave).not.toEqual(crmQueryKeys.resumenCarteraClientes('gerencia-2'))
+    expect(clave).toEqual(['crm', 'metricas', 'cartera-clientes', 'gerencia-1'])
+    expect(cliente.getQueryState(clave)?.fetchStatus).toBe('idle')
+    await cliente.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+    expect(cliente.getQueryState(clave)?.isInvalidated).toBe(true)
+  })
   it('crmQueryKeys.contratos()/clientes() son las claves literales pactadas', () => {
     // Literales A PROPÓSITO: cambiar la forma de la clave rompe a quien invalida.
     expect(crmQueryKeys.contratos()).toEqual(['crm', 'contratos'])

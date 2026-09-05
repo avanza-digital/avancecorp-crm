@@ -257,9 +257,11 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
   const [mesActivo, setMesActivo] = useState<string | null>(parametrosRuta.current.mes)
   const [inicioFranja, setInicioFranja] = useState(0)
   const [episodios, setEpisodios] = useState<EpisodioRescateDescarte[]>([])
+  const [mesEpisodios, setMesEpisodios] = useState<string | null>(null)
   const [cargandoMeses, setCargandoMeses] = useState(true)
   const [cargandoEpisodios, setCargandoEpisodios] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [errorMeses, setErrorMeses] = useState<string | null>(null)
+  const [errorEpisodios, setErrorEpisodios] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
   const [carpetaActiva, setCarpetaActiva] = useState<MotivoDescarte | null>(parametrosRuta.current.carpeta)
   const [filtroCarpeta, setFiltroCarpeta] = useState<FiltroCarpeta>('todos')
@@ -280,14 +282,14 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
     const control = new AbortController()
     abortMeses.current = control
     setCargandoMeses(true)
-    setError(null)
+    setErrorMeses(null)
     try {
       const respuesta = await mesesRescateDescartes(control.signal)
       if (control.signal.aborted) return
       setMesesCrudos(respuesta)
       setMesActivo((actual) => actual ?? respuesta[0]?.mes ?? mesActualLima())
     } catch (causa) {
-      if (!control.signal.aborted) setError(causa instanceof Error ? causa.message : 'No se pudo cargar el historial de descartes.')
+      if (!control.signal.aborted) setErrorMeses(causa instanceof Error ? causa.message : 'No se pudo cargar el historial de descartes.')
     } finally {
       if (!control.signal.aborted) setCargandoMeses(false)
     }
@@ -298,12 +300,15 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
     const control = new AbortController()
     abortEpisodios.current = control
     setCargandoEpisodios(true)
-    setError(null)
+    setErrorEpisodios(null)
     try {
       const respuesta = await descartesRescateDelMes(mes, control.signal)
-      if (!control.signal.aborted) setEpisodios(respuesta)
+      if (!control.signal.aborted) {
+        setEpisodios(respuesta)
+        setMesEpisodios(mes)
+      }
     } catch (causa) {
-      if (!control.signal.aborted) setError(causa instanceof Error ? causa.message : 'No se pudo cargar este mes de descartes.')
+      if (!control.signal.aborted) setErrorEpisodios(causa instanceof Error ? causa.message : 'No se pudo cargar este mes de descartes.')
     } finally {
       if (!control.signal.aborted) setCargandoEpisodios(false)
     }
@@ -462,8 +467,8 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
   if (cargandoMeses && mesesCrudos.length === 0) {
     return <Card className="mx-auto max-w-[1240px]"><PanelCargando filas={8} /></Card>
   }
-  if (error && mesesCrudos.length === 0) {
-    return <Card className="mx-auto max-w-[1240px]"><PanelError mensaje={error} onReintentar={reintentar} reintentando={cargandoMeses} /></Card>
+  if (errorMeses) {
+    return <Card className="mx-auto max-w-[1240px]"><PanelError mensaje={errorMeses} onReintentar={reintentar} reintentando={cargandoMeses} /></Card>
   }
 
   if (modoCarpeta && !carpetaActiva) {
@@ -484,6 +489,25 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
   if (carpetaActiva) {
     const etiqueta = etiquetaMotivo(carpetaActiva)
     const tono = TONO_MOTIVO[carpetaActiva]
+    // Una carpeta sólo presenta contadores del mes que terminó de cargar.
+    // Una lectura fallida o en curso no es una carpeta con cero registros.
+    if (errorEpisodios || cargandoMeses || cargandoEpisodios || mesEpisodios !== mesActivo) {
+      return (
+        <div className="mx-auto max-w-[1240px] space-y-4">
+          <button type="button" onClick={cerrarCarpeta} className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-accent">
+            <ArrowLeft className="size-3.5" aria-hidden /> Ir a Base para gestión
+          </button>
+          <Card>
+            <div className="px-5 py-4"><h1 className="text-lg font-bold">{etiqueta}</h1><p className="text-xs text-muted-foreground">{mesActivo ? etiquetaMes(mesActivo) : 'Carpeta de descartes'}</p></div>
+            {errorEpisodios ? (
+              <PanelError mensaje={errorEpisodios} onReintentar={reintentar} reintentando={cargandoMeses || cargandoEpisodios} />
+            ) : (
+              <><p role="status" className="px-5 pb-3 text-sm text-muted-foreground">Cargando los registros de esta carpeta…</p><PanelCargando filas={6} onReintentar={reintentar} reintentando={cargandoMeses || cargandoEpisodios} /></>
+            )}
+          </Card>
+        </div>
+      )
+    }
     const recuperables = episodiosCarpeta.filter((episodio) => episodio.puede_rescatar).length
     const rescatados = episodiosCarpeta.filter((episodio) => episodio.estado === 'rescatado').length
     const soloHistorial = episodiosCarpeta.length - recuperables - rescatados
@@ -508,7 +532,7 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Carpeta de descartes · {mesActivo ? etiquetaMes(mesActivo) : '—'}</p>
                   <h1 className="mt-1 truncate text-2xl font-extrabold tracking-[-0.035em] text-primary">{etiqueta}</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">{episodiosCarpeta.length} leads guardados · {recuperables} recuperables para una nueva gestión</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{episodiosCarpeta.length} registros de descarte · {recuperables} recuperables para una nueva gestión</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -757,10 +781,10 @@ export function RescateDescartados({ modoCarpeta = false }: { modoCarpeta?: bool
               </div>
             )}
           </div>
-          {cargandoEpisodios ? (
+          {errorEpisodios ? (
+            <PanelError mensaje={errorEpisodios} onReintentar={reintentar} reintentando={cargandoEpisodios} />
+          ) : cargandoEpisodios || mesEpisodios !== mesActivo ? (
             <PanelCargando filas={6} />
-          ) : error ? (
-            <PanelError mensaje={error} onReintentar={reintentar} reintentando={cargandoEpisodios} />
           ) : episodios.length === 0 ? (
             <PanelVacio icono={CalendarDays} titulo="No hubo descartes este mes" detalle="Selecciona otro mes en el historial para revisar los descartes de tu equipo." />
           ) : (

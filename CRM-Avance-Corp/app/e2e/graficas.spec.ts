@@ -19,19 +19,19 @@ test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase',
   await entrarDemo(page, 'Gerencia')
 
   await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Ritmo semanal del equipo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Resultados por semana de llegada' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Mejores analistas' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Conversión por origen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Resultados por origen' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Avance de metas' })).toBeVisible()
   await expect(
-    page.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' }),
+    page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
   ).toBeVisible()
   await expect(page.getByText('Datos de ejemplo').first()).toBeVisible()
   expect(requestsSupabase()).toBe(0)
 })
 
 test.describe('resumen de Gerencia en sesión real', () => {
-  test('muestra conversiones y reuniones provenientes de las RPC mockeadas', async ({ page }) => {
+  test('distingue base, llegadas, avance inferido y citas en las lecturas simuladas', async ({ page }, testInfo) => {
     await page.clock.setFixedTime(new Date('2026-09-04T15:00:00.000Z'))
     await montarBackendReal(page, {
       metricas: {
@@ -58,21 +58,98 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(capital).toContainText('Cumplimiento confirmado no disponible')
     await expect(page.getByText('8 pactadas')).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' }),
+      page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
     ).toBeVisible()
-    const origenes = page.getByRole('heading', { name: 'Conversión por origen' }).locator('..')
+    const origenes = page.getByRole('heading', { name: 'Resultados por origen' }).locator('..')
     await expect(origenes.getByText('Referido', { exact: true })).toBeVisible()
+    await expect(origenes).toContainText('No es la conversión ponderada.')
+    await expect(page.getByText('de 20 llegadas del rango · hasta hoy')).toBeVisible()
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('resumen-desktop.png'), fullPage: true, animations: 'disabled' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.mouse.move(380, 70)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('resumen-mobile.png'), fullPage: true, animations: 'disabled' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+
+    await page.getByRole('button', { name: 'Conversiones', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Conversión del equipo' })).toBeVisible()
+    const avance = page.locator('[data-gi-kpi]').filter({ hasText: 'Reunión o avance posterior' })
+    await expect(avance).toContainText('6')
+    await expect(avance).toContainText('8 con señal de agenda o avance posterior · no confirma asistencia')
+    await expect(page.getByText('Leads que llegaron a cita', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Avance comercial inferido' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Resultados por semana de llegada' })).toBeVisible()
+    await expect(page.getByText(/no cierres ocurridos esa semana/)).toBeVisible()
+    await page.mouse.move(1200, 70)
+    await expect(page.getByRole('button', { name: 'Conversiones', exact: true })).toHaveAttribute('title', 'Conversiones')
+    await page.screenshot({ path: testInfo.outputPath('conversiones-desktop.png'), fullPage: true, animations: 'disabled' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.mouse.move(380, 70)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+    const graficoAnalista = page.getByRole('region', { name: 'Gráfico de resultados por analista', exact: true })
+    const graficoAvance = page.getByRole('region', { name: 'Gráfico de avance inferido', exact: true })
+    for (const grafico of [graficoAnalista, graficoAvance]) {
+      await expect(grafico).toHaveAttribute('tabindex', '0')
+      expect(await grafico.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+      expect(await grafico.getByRole('img').evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(430)
+      await grafico.focus()
+      await page.keyboard.press('ArrowRight')
+      await expect.poll(() => grafico.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+    }
+    await page.screenshot({ path: testInfo.outputPath('conversiones-mobile.png'), fullPage: true, animations: 'disabled' })
+    await page.getByRole('heading', { name: 'Avance comercial inferido' }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath('conversiones-mobile-avance.png'), fullPage: true, animations: 'disabled' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+
+    await page.getByRole('button', { name: 'Citas', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Citas del equipo' })).toBeVisible()
+    await expect(page.getByText('Citas por fecha prevista. Un lead puede tener varias citas; las pactadas incluyen las canceladas.')).toBeVisible()
+    await expect(page.locator('[data-gi-kpi]').filter({ hasText: 'Canceladas por sistema' })).toContainText('Incluidas en pactadas, no en realización')
+    await expect(page.locator('[data-gi-kpi]').filter({ hasText: 'Reprogramadas' })).toContainText('0 vencidas sin resultado registrado')
+    await expect(page.getByRole('img', { name: 'Comparación de citas pactadas y realizadas por modalidad' })).toBeVisible()
+    await expect(page.getByText('Reunión o avance posterior', { exact: true })).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('citas-desktop.png'), fullPage: true, animations: 'disabled' })
   })
 
-  test('sin actividad muestra un único vacío honesto y no inventa series demo', async ({ page }) => {
+  test('sin paridad del rango no publica su conversión ni la reemplaza con el mes', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-09-04T15:00:00.000Z'))
+    const conversiones = metricasConversionesReal()
+    // Mutación exclusivamente local de la respuesta de esta prueba. Se conserva
+    // el contrato y se simula una comprobación ejecutada que NO concilia.
+    conversiones.sondas = {
+      ...(conversiones.sondas as Record<string, unknown>),
+      cuadra: false,
+      paridad_nucleo: 2,
+    }
+    await montarBackendReal(page, {
+      metricas: {
+        conversiones,
+        reuniones: metricasReunionesReal(),
+        conversionMensual: conversionMensualReal(),
+      },
+    })
+    await loginReal(page)
+    const heroe = page.locator('[data-gi-hero]')
+    await expect(heroe).toContainText('Cifras en revisión: falta verificar la conversión del rango.')
+    await expect(heroe).not.toContainText('10.00%')
+    await expect(heroe).not.toContainText('Base histórica · 20')
+    const origenes = page.getByRole('heading', { name: 'Resultados por origen' }).locator('..')
+    await expect(origenes).toContainText('Cifras en revisión: los resultados por origen permanecen ocultos.')
+    await expect(origenes.getByText('Referido', { exact: true })).toHaveCount(0)
+    // La lectura de eventos de citas sigue disponible: no comparte la sonda.
+    await expect(page.locator('[data-gi-kpi]').filter({ hasText: 'Citas realizadas' })).toContainText('8 pactadas')
+  })
+
+  test('un rango vacío con foto mensual ausente no inventa metas ni series demo', async ({ page }) => {
     await montarBackendReal(page)
     await loginReal(page)
 
     await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
-    await expect(page.getByText('Aún no hay actividad comercial en este período')).toBeVisible()
+    await expect(page.getByText(/No pudimos cargar las metas mensuales de/)).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' }),
+      page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
     ).toHaveCount(0)
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
   })

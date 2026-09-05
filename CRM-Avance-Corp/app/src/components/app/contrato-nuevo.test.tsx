@@ -717,6 +717,8 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
     expect(
       screen.getByText(/Esta renovación cuenta al analista del upgrade: MARIA UPGRADE/),
     ).toBeInTheDocument()
+    expect(screen.getByText(/El núcleo determina el aporte de la renovación/)).toBeInTheDocument()
+    expect(screen.queryByText(/La renovación suma una conversión/)).not.toBeInTheDocument()
   })
 
   it('NEGATIVO: sin cadena en el origen, el aviso no existe', () => {

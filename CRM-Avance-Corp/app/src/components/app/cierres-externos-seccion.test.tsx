@@ -265,13 +265,40 @@ describe('DesglosePorEmpresa', () => {
     expect(screen.getByText('2 cierres')).toBeInTheDocument()
   })
 
-  it('sin la foto del cumplimiento no inventa Avance: clampa y muestra la coop', () => {
+  it('sin la foto del cumplimiento muestra Avance no disponible, nunca cero', () => {
     consultaCierres.mockReturnValue(q(PAYLOAD_REAL))
     montar(<DesglosePorEmpresa demo={false} porVendedor={null} />)
-    // Sin cumplimiento el total es 0 → Avance clampa a 0 y no se pinta monto
-    // negativo; la parte coop se muestra igual.
+    expect(screen.getByRole('status')).toHaveTextContent('Capital de Avance no disponible')
+    const avance = screen.getByText('Avance Corp').parentElement!
+    expect(avance).toHaveTextContent('—')
+    expect(avance).not.toHaveTextContent('S/')
     expect(screen.getByText('QORILAZO')).toBeInTheDocument()
     expect(screen.queryByText(/-3,500/)).not.toBeInTheDocument()
+  })
+
+  it('consulta cooperativas con el mismo mes recibido del reporte histórico', () => {
+    consultaCierres.mockReturnValue(q(PAYLOAD_REAL))
+    montar(<DesglosePorEmpresa demo={false} periodo="2026-08-01" porVendedor={{ 'v-a': CUMPLIMIENTO_A }} />)
+    expect(consultaCierres).toHaveBeenLastCalledWith(true, '2026-08-01')
+    expect(screen.getByText(/Mes de cierre: 2026-08/)).toBeInTheDocument()
+  })
+
+  it('una fila de cumplimiento ausente tampoco se convierte en capital cero', () => {
+    consultaCierres.mockReturnValue(q(PAYLOAD_REAL))
+    montar(<DesglosePorEmpresa demo={false} porVendedor={{}} />)
+    expect(screen.getByRole('status')).toHaveTextContent('falta su foto de cumplimiento')
+    expect(screen.getByText('Avance Corp').parentElement).toHaveTextContent('—')
+    expect(screen.getByText(/3,500/)).toBeInTheDocument()
+  })
+
+  it('demo respeta el mes Lima y conserva el capital de cooperativas anuladas', () => {
+    montar(<DesglosePorEmpresa demo periodo="2026-08-01" porVendedor={null} />, [
+      cierreDemo({ creadoEn: '2026-09-01T02:00:00Z', monto: 8000, anuladoEn: '2026-09-02T12:00:00Z' }),
+      cierreDemo({ cierreId: 'otro-mes', creadoEn: '2026-09-01T05:00:00Z', monto: 7777 }),
+    ])
+    expect(screen.getByText(/8,000/)).toBeInTheDocument()
+    expect(screen.queryByText(/7,777/)).not.toBeInTheDocument()
+    expect(screen.getByText('1 cierre')).toBeInTheDocument()
   })
 })
 

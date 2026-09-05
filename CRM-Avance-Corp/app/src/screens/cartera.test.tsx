@@ -8,8 +8,8 @@
 //     en la otra cartera, duplicado).
 // Se mockean auth y store (sin red, sin providers): aquí se prueba la pantalla.
 // Los asserts se acotan al CHIP (la tabla repite los mismos montos por fila).
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
 import type { Lead } from '@/lib/tipos'
 import type { CierreEstado } from '@/lib/cierre-estado'
@@ -17,11 +17,14 @@ import type { CierreEstado } from '@/lib/cierre-estado'
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
 let ESTADO_CIERRES: CierreEstado[] = []
+let CIERRES_MES: number | null = null
+
+beforeEach(() => { CIERRES_MES = null })
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: LEADS, vendedores: [], esGlobal: false },
+    ambito: { leads: LEADS, vendedores: [], esGlobal: YO?.rol === 'gerencia' },
     actividadesDelAmbito: [],
     // Espejo demo del estado de los cierres, leído en cada render igual que
     // LEADS: los dos mundos sirven la MISMA forma.
@@ -42,7 +45,11 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
   const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
   return {
     useResumenCarteraOperativo: (leads: Lead[]) => ({
-      resumen: resumenCarteraDesdeAmbito(leads, [], Date.now()),
+      resumen: (() => {
+        const resumen = resumenCarteraDesdeAmbito(leads, [], Date.now())
+        if (CIERRES_MES != null) resumen.totales.convertidos = CIERRES_MES
+        return resumen
+      })(),
       cargando: false,
       error: null,
       recargar: vi.fn(),
@@ -103,6 +110,23 @@ function chipDe(label: string): HTMLElement {
 }
 
 describe('Cartera · chip de capital', () => {
+  it('distingue cierres del mes e inventario de 45 días, sin filtrar las tarjetas con la tabla', () => {
+    YO = { id: 'g-1', rol: 'gerencia', demo: false }
+    LEADS = [lead(), lead({ id: 'l-conv', nombre_completo: 'LEAD CONVERTIDO', etapa: 'convertido' })]
+    ESTADO_CIERRES = []
+    CIERRES_MES = 8
+    render(<Cartera />)
+    expect(within(chipDe('Cierres de leads del mes')).getByText('8')).toBeInTheDocument()
+    expect(screen.getByText(/Inventario actual por etapa/)).toHaveTextContent('45 días desde su conversión')
+    expect(screen.getByText(/Indicadores de toda la empresa/)).toHaveTextContent('sólo cambian el listado')
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por etapa' }), { target: { value: 'nuevo' } })
+
+    expect(screen.queryByText('LEAD CONVERTIDO')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('2')).toBeInTheDocument()
+    expect(within(chipDe('Cierres de leads del mes')).getByText('8')).toBeInTheDocument()
+  })
+
   it('con la cartera en dólares la cifra principal es USD, no "S/ 0"', () => {
     montar([lead({ monto_estimado: 30000, moneda: 'USD' })])
 
@@ -141,7 +165,7 @@ describe('Cartera · chip de capital', () => {
     // Los conteos siguen contando TODO el ámbito (lo acotado es el capital).
     expect(within(chipDe('Total leads')).getByText('3')).toBeInTheDocument()
     expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
-    expect(within(chipDe('Convertidos')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Cierres de leads del mes')).getByText('1')).toBeInTheDocument()
   })
 
   it('un lead inactivo (activo=false) tampoco suma capital', () => {

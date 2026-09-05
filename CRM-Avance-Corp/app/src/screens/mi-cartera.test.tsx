@@ -8,6 +8,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fechaLima } from '../lib/agenda-derivada'
 import { MES_TODOS } from '../lib/cartera-meses'
+import { agruparCartera, resumenCartera } from '../lib/cartera-vista'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type {
   ClienteBasico,
@@ -16,6 +17,7 @@ import type {
   ContratoRow,
   CuentaBancariaSeleccionable,
   OperacionCartera,
+  ResumenCarteraClientes,
 } from '@/lib/clientes-tipos'
 
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
@@ -32,6 +34,10 @@ let YO: {
 let CLIENTES: ClienteBasico[] | null = []
 let CONTRATOS: ContratoRow[] | null = []
 let OPERACIONES: OperacionCartera[] = []
+let RESUMEN: ResumenCarteraClientes | undefined
+let ERROR_RESUMEN: Error | null = null
+let REFETCH_RESUMEN = vi.fn()
+const lecturaResumen = vi.hoisted(() => vi.fn())
 let EQUIPO: Array<{
   perfil_id: string
   nombre_completo: string
@@ -166,6 +172,10 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useCierresExternos: () => q(undefined),
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useOperacionesCartera: () => q(OPERACIONES, ERROR_OPERACIONES, REFETCH_OPERACIONES),
+    useResumenCarteraClientes: (habilitada: boolean, actor: string) => {
+      lecturaResumen(habilitada, actor)
+      return q(RESUMEN, ERROR_RESUMEN, REFETCH_RESUMEN)
+    },
     useClienteDetalle: vi.fn(() => q(DETALLE)),
     useClienteFichaComercial: vi.fn(() => q(FICHA_COMERCIAL)),
     useActividadesCliente: () => q([]),
@@ -194,6 +204,82 @@ vi.mock('@/data/crm-queries', async (importActual) => {
 const { crmQueryKeys, useClienteDetalle } = await import('@/data/crm-queries')
 const useClienteDetalleMock = vi.mocked(useClienteDetalle)
 const { MiCartera } = await import('./mi-cartera')
+
+describe('Gerencia — indicadores del resumen existente del servidor', () => {
+  const yo = { id: 'g-1', rol: 'gerencia', puede_contratar: true, demo: false }
+  const resumen: ResumenCarteraClientes = {
+    version: 1, generado_en: new Date().toISOString(), zona: 'America/Lima', dias_alarma_renovacion: 30,
+    clientes: { en_gestion: 20, de_baja: 0, con_capital: 13, sin_asesor: 4 },
+    capital_activo: { pen: 777000, usd: 7000 },
+    contratos: { por_estado: { activo: 17 }, por_vencer_30: 3, por_vencer_30_de_baja: 0 },
+  }
+  it('saldo viene del servidor; el mes sigue usando cierres y filtros, no ese saldo', async () => {
+    const user = userEvent.setup()
+    montar({ yo, resumen })
+    expect(screen.queryByText('S/ 777k')).not.toBeInTheDocument()
+    await verTodosLosMeses(user)
+    expect(screen.getByText('S/ 777k')).toBeInTheDocument()
+    expect(screen.getByText('US$ 7k')).toBeInTheDocument()
+    expect(screen.getByText('20 clientes')).toBeInTheDocument()
+    const sinAnalista = screen.getByText('Sin analista', { selector: 'span' }).closest('.ac-lift')!
+    expect(within(sinAnalista as HTMLElement).getByText('1')).toBeInTheDocument()
+    expect(within(sinAnalista as HTMLElement).queryByText('4')).not.toBeInTheDocument()
+    expect(lecturaResumen).toHaveBeenLastCalledWith(true, 'g-1')
+  })
+  it('error sin resumen no muestra ceros ni bloquea la lista confirmada', () => {
+    montar({ yo, resumen: null, errorResumen: new Error('sin red') })
+    expect(screen.getByText(/Los indicadores de Cartera no están disponibles/)).toBeInTheDocument()
+    expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.queryByText('sin capital vigente aún')).not.toBeInTheDocument()
+    expect(screen.queryByText('Clientes que cerraron')).not.toBeInTheDocument()
+  })
+  it('carga sin resumen es espera, no un saldo cero', () => {
+    montar({ yo, resumen: null })
+    expect(screen.getByText('Consultando los indicadores de Cartera…')).toHaveAttribute('role', 'status')
+    expect(screen.queryByText('Clientes que cerraron')).not.toBeInTheDocument()
+  })
+  it('fallo de refresco conserva el último resumen, avisa y ofrece reintento', async () => {
+    const user = userEvent.setup()
+    montar({ yo, resumen, errorResumen: new Error('falló refresco') })
+    await verTodosLosMeses(user)
+    expect(screen.getByText('S/ 777k')).toBeInTheDocument()
+    expect(screen.getByText(/Se muestra el último resumen confirmado/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /indicadores de Cartera/i }))
+    expect(REFETCH_RESUMEN).toHaveBeenCalledOnce()
+  })
+  it('no oculta contratos cuyo cliente no llegó en la otra lectura', () => {
+    montar({ yo, resumen, clientes: [], contratos: [contrato()] })
+    expect(screen.getByText(/Los clientes y contratos no forman una lectura completa/)).toBeInTheDocument()
+    expect(screen.queryByText('Clientes que cerraron')).not.toBeInTheDocument()
+  })
+  it('no conecta el resumen global a la cartera de un analista', () => {
+    montar()
+    expect(lecturaResumen).toHaveBeenLastCalledWith(false, 'yo')
+  })
+  it('un resumen confirmado vacío sí muestra cero clientes', () => {
+    montar({ yo, clientes: [], contratos: [], resumen: {
+      ...resumen, clientes: { en_gestion: 0, de_baja: 0, con_capital: 0, sin_asesor: 0 },
+      capital_activo: { pen: 0, usd: 0 },
+      contratos: { por_estado: {}, por_vencer_30: 0, por_vencer_30_de_baja: 0 },
+    } })
+    expect(screen.getByText('0 clientes')).toBeInTheDocument()
+    expect(screen.getByText('Aún no hay clientes en la cartera.')).toBeInTheDocument()
+    expect(screen.queryByText(/no están disponibles/)).not.toBeInTheDocument()
+  })
+  it('si desaparece el resumen, el filtro de vencimientos no inventa cero y permite salir', async () => {
+    const user = userEvent.setup()
+    const vista = montar({ yo, resumen })
+    const filtro = screen.getByRole('button', { name: 'Por vencer ≤30 d (3)' })
+    await user.click(filtro)
+    RESUMEN = undefined
+    vista.rerender(<QueryClientProvider client={vista.queryClient}><MiCartera /></QueryClientProvider>)
+    expect(filtro).toHaveTextContent('Por vencer ≤30 d (—)')
+    expect(filtro).toBeEnabled()
+    await user.click(filtro)
+    expect(filtro).toHaveAttribute('aria-pressed', 'false')
+    expect(filtro).toBeDisabled()
+  })
+})
 
 function cliente(over: Partial<ClienteBasico> = {}): ClienteBasico {
   return {
@@ -327,6 +413,8 @@ function montar(
     errorClientes?: Error | null
     errorContratos?: Error | null
     errorOperaciones?: Error | null
+    resumen?: ResumenCarteraClientes | null
+    errorResumen?: Error | null
   } = {},
 ) {
   YO = over.yo ?? {
@@ -341,6 +429,18 @@ function montar(
   ERROR_CLIENTES = over.errorClientes ?? null
   ERROR_CONTRATOS = over.errorContratos ?? null
   ERROR_OPERACIONES = over.errorOperaciones ?? null
+  ERROR_RESUMEN = over.errorResumen ?? null
+  // Sólo fixture del servidor para las pruebas heredadas; producción no usa
+  // este cálculo. Los casos nuevos inyectan respuestas distintas del listado.
+  const base = resumenCartera(agruparCartera(CLIENTES ?? [], CONTRATOS ?? []))
+  RESUMEN = over.resumen === null ? undefined : over.resumen ?? {
+    version: 1, generado_en: new Date().toISOString(), zona: 'America/Lima', dias_alarma_renovacion: 30,
+    clientes: { en_gestion: base.totalClientes, de_baja: (CLIENTES?.length ?? 0) - base.totalClientes,
+      con_capital: base.clientesConCapital, sin_asesor: 0 },
+    capital_activo: { pen: base.capitalActivoPen, usd: base.capitalActivoUsd },
+    contratos: { por_estado: {}, por_vencer_30: base.porVencer30, por_vencer_30_de_baja: base.porVencer30DeBaja },
+  }
+  REFETCH_RESUMEN = vi.fn()
   REFETCH_CLIENTES = vi.fn()
   REFETCH_CONTRATOS = vi.fn()
   REFETCH_OPERACIONES = vi.fn()
@@ -550,7 +650,7 @@ describe('MiCartera (pantalla)', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('muestra renovado + adicional y aclara que la operación suma una sola conversión', async () => {
+  it('muestra renovado + adicional sin prometer una conversión por cada registro', async () => {
     const user = userEvent.setup()
     montar({
       contratos: [
@@ -578,7 +678,36 @@ describe('MiCartera (pantalla)', () => {
     const fila = subFilaDe('2026-01-000011')
     expect(within(fila).getByText(/renovado/)).toBeInTheDocument()
     expect(within(fila).getByText(/adicional/)).toBeInTheDocument()
-    expect(within(fila).getByText(/1 conversión/)).toBeInTheDocument()
+    expect(within(fila).getByText(/renovación registrada/)).toBeInTheDocument()
+    expect(within(fila).queryByText(/1 conversión/)).not.toBeInTheDocument()
+  })
+
+  it.each([true, false])('un upgrade elegible=%s informa elegibilidad sin certificar aporte efectivo', async (elegible) => {
+    const user = userEvent.setup()
+    montar({
+      contratos: [contrato({ id: 'k-upgrade' })],
+      operaciones: [operacion({
+        tipo: 'upgrade',
+        contrato_nuevo_id: 'k-upgrade',
+        elegible_conversion: elegible,
+      })],
+    })
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    const fila = subFilaDe('2026-01-000001')
+    expect(within(fila).getByText(elegible
+      ? 'Upgrade · elegible para conversión · aporte sujeto al núcleo'
+      : 'Upgrade · no elegible para conversión')).toBeInTheDocument()
+    expect(within(fila).queryByText(/suma conversión|1 conversión/)).not.toBeInTheDocument()
+  })
+
+  it('explica a Gerencia qué indicadores siguen los filtros y cuáles mantienen toda la cartera', async () => {
+    const user = userEvent.setup()
+    montar({ yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false } })
+    expect(screen.getByText('Capital y clientes que cerraron: mes y filtros seleccionados. Por vencer y Sin analista: toda la cartera.')).toBeInTheDocument()
+
+    await verTodosLosMeses(user)
+    expect(screen.getByText('Los indicadores muestran toda la cartera. Los filtros sólo cambian el listado.')).toBeInTheDocument()
+    expect(screen.queryByText(/Capital y clientes que cerraron: mes y filtros/)).not.toBeInTheDocument()
   })
 
   it('no inventa el desglose de una renovación histórica', async () => {

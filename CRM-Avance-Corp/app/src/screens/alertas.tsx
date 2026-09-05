@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PanelError, PanelVacio } from '@/components/common/estado-panel'
+import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import { useAlertasCRM } from '@/lib/alertas-context'
 import { hashDe } from '@/lib/router'
 import { SEMAFORO } from '@/lib/semaforo'
@@ -85,8 +86,8 @@ const COPY_ROL: Record<'vendedor' | 'supervisor' | 'gerencia', {
   gerencia: {
     alcance: 'Tu decisión',
     titulo: 'Señales de gestión',
-    detalle: 'Solo aparecen desviaciones estratégicas con muestra suficiente.',
-    vacio: 'No hay desviaciones estratégicas que requieran una decisión.',
+    detalle: 'Señales del mes en curso con datos verificables y muestra suficiente.',
+    vacio: 'No se generaron avisos con los datos evaluables. Esto no confirma que todo esté dentro de la meta: puede faltar el corte de revisión, una meta, muestra suficiente o verificación.',
   },
 }
 
@@ -401,6 +402,7 @@ function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element
 }
 
 function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string }): JSX.Element {
+  const { setPeriodo, setOrigenFiltrado } = usePeriodoGerencia()
   const Icono = ICONO_TIPO[alerta.tipo]
   // Una fila reconocida se ATENÚA de verdad: tira y badge en gris neutro (el
   // rojo dormido no gasta presupuesto de color) y la traza dice el contrato
@@ -461,6 +463,11 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
         <div className="ml-12 flex flex-col items-start gap-2 sm:ml-0 sm:items-end">
           <a
             href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
+            onClick={() => {
+              if (!alerta.destino.periodo) return
+              setPeriodo(alerta.destino.periodo)
+              setOrigenFiltrado(null)
+            }}
             aria-label={`${alerta.destino.etiqueta}: ${presentarCitas(alerta.titulo)}`}
             className="inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none"
           >
@@ -565,7 +572,7 @@ export function Alertas(): JSX.Element {
         </div>
       ) : alertas.length === 0 && pospuestas === 0 ? (
         <div className="rounded-2xl border border-border bg-card">
-          <PanelVacio icono={CheckCircle2} titulo="Nada pendiente" detalle={copy.vacio} />
+          <PanelVacio icono={CheckCircle2} titulo={rol === 'gerencia' ? 'Sin avisos generados' : 'Nada pendiente'} detalle={copy.vacio} />
         </div>
       ) : (
         <>
@@ -630,7 +637,7 @@ export function Alertas(): JSX.Element {
             {activas.length === 0 ? (
               <PanelVacio
                 icono={CheckCircle2}
-                titulo="Nada pendiente ahora"
+                titulo={rol === 'gerencia' ? 'Sin avisos activos' : 'Nada pendiente ahora'}
                 detalle={`${copy.vacio}${notaPospuestas ? `${notaPospuestas}; reaparecerán solas.` : ''}`}
               />
             ) : filtradas.length === 0 ? (

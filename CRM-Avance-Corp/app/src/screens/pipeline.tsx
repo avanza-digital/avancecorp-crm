@@ -317,7 +317,7 @@ export function Pipeline() {
     : null
   const propuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n
   const stats: StatChipData[] = [
-    { icon: Users, label: 'Leads activos', value: resumen ? String(resumen.totales.asignados) : '—', tone: 'primary' },
+    { icon: Users, label: 'Leads abiertos con analista', value: resumen ? String(resumen.totales.asignados) : '—', tone: 'primary' },
     {
       icon: TrendingUp,
       label: 'Capital en proceso',
@@ -327,12 +327,15 @@ export function Pipeline() {
       ...(capital ? { sub: capital.sub } : {}),
     },
     { icon: FileText, label: 'Propuestas', value: propuestas != null ? String(propuestas) : '—' },
-    { icon: Target, label: 'Convertidos', value: resumen ? String(resumen.totales.convertidos) : '—', tone: 'primary' },
+    { icon: Target, label: 'Cierres de leads del mes', value: resumen ? String(resumen.totales.convertidos) : '—', tone: 'primary', sub: 'Mes calendario actual' },
   ]
 
   return (
     <div className="mx-auto flex min-h-0 max-w-[1440px] flex-col gap-5 ac-rise md:h-full">
       <StatStrip stats={stats} />
+      <p className="shrink-0 text-xs text-muted-foreground">
+        {ambito.esGlobal ? 'Indicadores de toda la empresa.' : 'Indicadores de tu ámbito.'} Los filtros sólo cambian las columnas; no estos totales. Las columnas muestran los leads cargados.
+      </p>
 
       <AvisoDegradacion
         activo={Boolean(estadoSla.error) && !yo?.demo}
@@ -538,7 +541,7 @@ export function Pipeline() {
               : resumen.totales.descartados
           return (
             <div key={t.k} className="ac-chip flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold" style={{ '--c': t.color } as CSSProperties}>
-              {t.label}
+              {t.k === 'convertido' ? 'Cierres de leads del mes' : 'Descartados actuales'}
               <span className="tabular-nums">{n == null ? '—' : n}</span>
             </div>
           )

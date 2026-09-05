@@ -8,14 +8,16 @@
 //  2) el chip de capital cantaba "S/ 0" cuando la cartera está en dólares.
 // Se mockean auth y store (sin red, sin providers): aquí se prueba la pantalla.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import type { EtapaActiva, Lead } from '@/lib/tipos'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import type { EtapaActiva, Lead, Miembro } from '@/lib/tipos'
 
 const abrirLead = vi.fn()
 const abrirNuevoLead = vi.fn()
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
+let VENDEDORES: Miembro[] = []
+let CIERRES_MES: number | null = null
 
 // Espejo mínimo de `cambiarEtapa`: mueve el lead de columna como haría el store
 // real, que es lo que provoca el desmontaje de la card en el drop.
@@ -36,7 +38,7 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: LEADS, vendedores: [], esGlobal: false },
+    ambito: { leads: LEADS, vendedores: VENDEDORES, esGlobal: YO?.rol === 'gerencia' },
     actividadesDelAmbito: [],
     cambiarEtapa,
   }),
@@ -49,7 +51,11 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
   const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
   return {
     useResumenCarteraOperativo: (leads: Lead[]) => ({
-      resumen: resumenCarteraDesdeAmbito(leads, [], Date.now()),
+      resumen: (() => {
+        const resumen = resumenCarteraDesdeAmbito(leads, [], Date.now())
+        if (CIERRES_MES != null) resumen.totales.convertidos = CIERRES_MES
+        return resumen
+      })(),
       cargando: false,
       error: null,
       recargar: vi.fn(),
@@ -109,11 +115,38 @@ function transferencia() {
 }
 
 beforeEach(() => {
+  VENDEDORES = []
+  CIERRES_MES = null
   abrirLead.mockReset()
   abrirNuevoLead.mockReset()
   cambiarEtapa.mockReset().mockImplementation((id: string, etapa: EtapaActiva) => {
     LEADS = LEADS.map((l) => (l.id === id ? { ...l, etapa } : l))
     return { ok: true }
+  })
+})
+
+describe('Pipeline · alcance y período de los indicadores', () => {
+  it('conserva los cierres mensuales servidos y los totales globales al filtrar columnas', () => {
+    YO = { id: 'g-1', rol: 'gerencia', demo: false }
+    VENDEDORES = [
+      { perfil_id: 'v-1', nombre_completo: 'ANA TORRES', rol_crm: 'vendedor', activo: true, supervisor_id: null },
+      { perfil_id: 'v-2', nombre_completo: 'LUIS LOPEZ', rol_crm: 'vendedor', activo: true, supervisor_id: null },
+    ]
+    LEADS = [lead(), lead({ id: 'l-2', nombre_completo: 'LEAD LUIS', vendedor_id: 'v-2', vendedor_nombre: 'LUIS LOPEZ' })]
+    CIERRES_MES = 8
+    render(<Pipeline />)
+    const abiertos = screen.getByText('Leads abiertos con analista').closest('[data-slot="card"]') as HTMLElement
+    const cierres = screen.getAllByText('Cierres de leads del mes')[0]!.closest('[data-slot="card"]') as HTMLElement
+
+    expect(within(abiertos).getByText('2')).toBeInTheDocument()
+    expect(within(cierres).getByText('8')).toBeInTheDocument()
+    expect(screen.getByText(/Indicadores de toda la empresa/)).toHaveTextContent('Los filtros sólo cambian las columnas')
+    fireEvent.click(screen.getByRole('button', { name: 'ANA' }))
+
+    expect(screen.queryByText('LEAD LUIS')).not.toBeInTheDocument()
+    expect(within(abiertos).getByText('2')).toBeInTheDocument()
+    expect(within(cierres).getByText('8')).toBeInTheDocument()
+    expect(screen.getByText('Mes calendario actual')).toBeInTheDocument()
   })
 })
 

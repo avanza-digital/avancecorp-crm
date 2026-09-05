@@ -2,7 +2,7 @@
 // supervisor vea una bandeja compacta, pueda escoger un bloque y que el CRM
 // preserve la regla de no devolverlo al analista que lo descartó.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EpisodioRescateDescarte, MesRescateDescartes, Miembro } from '@/lib/tipos'
 
@@ -81,6 +81,56 @@ afterEach(() => {
 })
 
 describe('Base para gestión', () => {
+  it('una carpeta en carga no presenta cero registros ni un vacío confirmado', async () => {
+    let resolver!: (filas: EpisodioRescateDescarte[]) => void
+    episodiosMock.mockImplementation(() => new Promise((resolve) => { resolver = resolve }))
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Cargando los registros de esta carpeta')
+    expect(screen.queryByText('Registros')).not.toBeInTheDocument()
+    expect(screen.queryByText('0 resultados')).not.toBeInTheDocument()
+    expect(screen.queryByText('No hay coincidencias en esta carpeta')).not.toBeInTheDocument()
+
+    await act(async () => { resolver([episodio(1)]) })
+    expect(await screen.findByText('LEAD RESCATE 1')).toBeInTheDocument()
+  })
+
+  it('muestra el fallo de carpeta y recupera registros con Reintentar', async () => {
+    const usuario = userEvent.setup()
+    episodiosMock.mockRejectedValueOnce(new Error('No se pudo consultar la carpeta.'))
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    expect(await screen.findByText('No se pudo consultar la carpeta.')).toBeInTheDocument()
+    expect(screen.queryByText('Registros')).not.toBeInTheDocument()
+    expect(screen.queryByText('No hay coincidencias en esta carpeta')).not.toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('LEAD RESCATE 1')).toBeInTheDocument()
+    expect(episodiosMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('no borra un fallo de meses cuando la consulta de episodios termina bien', async () => {
+    mesesMock.mockRejectedValue(new Error('No se pudo cargar el índice de meses.'))
+    episodiosMock.mockResolvedValue([episodio(1)])
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    expect(await screen.findByText('No se pudo cargar el índice de meses.')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD RESCATE 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('No hay coincidencias en esta carpeta')).not.toBeInTheDocument()
+  })
+
+  it('sólo presenta el vacío de carpeta después de una respuesta válida vacía', async () => {
+    episodiosMock.mockResolvedValue([])
+    window.history.replaceState(null, '', `/?rescate_carpeta=sin_interes&rescate_mes=${mesActualLima()}#/rescate-carpeta`)
+    render(<RescateCarpeta />)
+
+    expect(await screen.findByText('No hay coincidencias en esta carpeta')).toBeInTheDocument()
+    expect(screen.getByText('0 resultados')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+  })
+
   it('abre una carpeta en otra pestaña y conserva el mosaico en la actual', async () => {
     const usuario = userEvent.setup()
     const pestana = { opener: window } as unknown as Window

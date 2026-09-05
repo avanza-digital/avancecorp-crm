@@ -55,6 +55,7 @@ import {
   type CuentaPagoContratoInput,
   type Cuota,
   type OperacionCartera,
+  type ResumenCarteraClientes,
   type Titular,
   type TitularInput,
 } from '@/lib/clientes-tipos'
@@ -2408,9 +2409,84 @@ const TIPOS_INTERES = ['simple', 'compuesto'] as const
 const CATEGORIAS_CONTRATO = ['nuevo', 'renovacion', 'upgrade'] as const
 const TIPOS_CUOTA = ['cuota', 'retorno', 'devolucion'] as const
 
-// Salvaguarda de payload (no seguridad — la vista/RLS ya recortan el ámbito).
-const MAX_CLIENTES_CARTERA = 2000
-const MAX_CONTRATOS_CARTERA = 2000
+// Transporte, NO métrica: el total exacto y los IDs verifican la descarga.
+// Un límite remoto menor que la página no prueba fin de lista. Se avanza por
+// filas recibidas; un total cambiante, duplicado o página ausente invalida TODO.
+async function leerListadoCarteraCompleto(
+  tabla: 'clientes_basicos' | 'contratos_cartera' | 'operaciones_cartera',
+  columnas: string,
+  signal?: AbortSignal,
+): Promise<unknown[]> {
+  const filas: unknown[] = []
+  const ids = new Set<string>()
+  let total: number | null = null
+  // Fusible de tráfico, no un total admisible: al alcanzarlo se informa error.
+  for (let pagina = 0; pagina < 1000; pagina += 1) {
+    lanzarAbortSiCorresponde(signal)
+    // Separa las sobrecargas tipadas de tabla (ledger) y vistas; misma lectura.
+    let consulta = tabla === 'operaciones_cartera'
+      ? cliente().schema('crm').from(tabla).select(columnas, { count: 'exact' })
+      : cliente().schema('crm').from(tabla).select(columnas, { count: 'exact' })
+    if (tabla === 'operaciones_cartera') consulta = consulta.order('fecha_operacion', { ascending: false })
+    consulta = consulta.order('creado_en', { ascending: false }).order('id', { ascending: true })
+      .range(filas.length, filas.length + 199)
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data, error, count } = await consulta
+    lanzarAbortSiCorresponde(signal)
+    if (error) throw aErrorApi(error, `crm.${tabla}.listado_fallido`)
+    if (!Number.isSafeInteger(count) || count == null || count < 0 || !Array.isArray(data)
+      || (total != null && count !== total) || filas.length + data.length > count
+      || (data.length === 0 && filas.length !== count)) {
+      throw new CrmApiError('No se pudo confirmar el listado completo de Cartera. Vuelve a cargarlo.', 'CARTERA_INCOMPLETA')
+    }
+    total = count
+    for (const fila of data as unknown[]) {
+      const id = fila != null && typeof fila === 'object' && 'id' in fila ? fila.id : null
+      if (typeof id !== 'string' || id === '' || ids.has(id)) {
+        throw new CrmApiError('El listado de Cartera contiene filas inválidas o repetidas. Vuelve a cargarlo.', 'ROW_CONTRACT')
+      }
+      ids.add(id)
+      filas.push(fila)
+    }
+    if (filas.length === total) return filas
+  }
+  throw new CrmApiError('No se pudo completar la descarga de Cartera. Vuelve a cargarla.', 'CARTERA_INCOMPLETA')
+}
+
+const ConteoCarteraSchema = v.pipe(v.number(), v.safeInteger(), v.minValue(0))
+const ImporteCarteraSchema = v.pipe(v.number(), v.finite(), v.minValue(0))
+const NumericCarteraSchema = v.pipe(
+  v.union([v.number(), v.pipe(v.string(), v.regex(/^\d+(\.\d+)?$/))]),
+  v.transform(Number), v.finite(), v.minValue(0),
+)
+const ResumenCarteraClientesSchema = v.object({
+  version: v.literal(1),
+  generado_en: v.pipe(v.string(), v.check((s) => Number.isFinite(Date.parse(s)))),
+  zona: v.literal('America/Lima'),
+  dias_alarma_renovacion: v.literal(30),
+  clientes: v.object({ en_gestion: ConteoCarteraSchema, de_baja: ConteoCarteraSchema,
+    con_capital: ConteoCarteraSchema, sin_asesor: ConteoCarteraSchema }),
+  capital_activo: v.object({ pen: ImporteCarteraSchema, usd: ImporteCarteraSchema }),
+  contratos: v.object({ por_estado: v.record(v.string(), ConteoCarteraSchema),
+    por_vencer_30: ConteoCarteraSchema, por_vencer_30_de_baja: ConteoCarteraSchema }),
+})
+
+/** Sólo valida y transporta la salida existente; no suma la lista ni altera reglas. */
+export async function obtenerResumenCarteraClientes(signal?: AbortSignal): Promise<ResumenCarteraClientes> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('resumen_cartera_clientes_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.cartera.resumen_fallido')
+  const r = v.safeParse(ResumenCarteraClientesSchema, data)
+  if (!r.success || r.output.clientes.con_capital > r.output.clientes.en_gestion
+    || r.output.clientes.sin_asesor > r.output.clientes.en_gestion
+    || r.output.contratos.por_vencer_30_de_baja > r.output.contratos.por_vencer_30) {
+    throw new CrmApiError('El resumen de Cartera no tiene el formato esperado.', 'RESUMEN_CARTERA_CLIENTES_CONTRACT')
+  }
+  return r.output
+}
 
 // ── Clientes: lista (vista crm.clientes_basicos, ya scopeada por rol) ──────────
 const COLUMNAS_CLIENTE_BASICO = [
@@ -2450,26 +2526,9 @@ const ClienteBasicoRowSchema = v.object({
 })
 
 export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasico[]> {
-  let consulta = cliente()
-    .schema('crm')
-    .from('clientes_basicos')
-    .select(COLUMNAS_CLIENTE_BASICO)
-    .order('creado_en', { ascending: false })
-    .order('id', { ascending: true })
-    .limit(MAX_CLIENTES_CARTERA)
-  if (signal) consulta = consulta.abortSignal(signal)
-
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudo cargar tu cartera de clientes.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.clientes.listado_fallido', fallo)
-    throw fallo
-  }
-  avisarTopeAlcanzado('clientes_cartera', MAX_CLIENTES_CARTERA, (data ?? []).length)
+  const data = await leerListadoCarteraCompleto('clientes_basicos', COLUMNAS_CLIENTE_BASICO, signal)
   const items: ClienteBasico[] = []
-  let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of data) {
     const r = v.safeParse(ClienteBasicoRowSchema, cruda)
     if (r.success) {
       items.push({
@@ -2477,15 +2536,8 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
         nombre_completo: r.output.nombre_completo ?? '',
       })
     } else {
-      descartadas += 1
+      throw new CrmApiError('La cartera de clientes contiene una fila con formato inesperado.', 'ROW_CONTRACT')
     }
-  }
-  if (descartadas > 0) {
-    registrarError(
-      'crm.clientes.filas_invalidas',
-      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
-      { descartadas },
-    )
   }
   return items
 }
@@ -2924,19 +2976,19 @@ const ContratoRowSchema = v.object({
   numero_contrato: v.string(),
   cliente_id: v.string(),
   // numeric(12,2): PostgREST puede serializarlo como string
-  capital: v.union([v.number(), v.string()]),
+  capital: NumericCarteraSchema,
   moneda: v.picklist(['PEN', 'USD']),
-  tasa_anual: v.union([v.number(), v.string()]),
+  tasa_anual: NumericCarteraSchema,
   modalidad: v.picklist(MODALIDADES_CONTRATO),
   tipo_interes: v.picklist(TIPOS_INTERES),
   categoria: v.nullable(v.picklist(CATEGORIAS_CONTRATO)),
   estado: v.picklist(ESTADOS_CONTRATO),
-  fecha_inicio: v.string(),
-  fecha_vencimiento: v.string(),
+  fecha_inicio: v.pipe(v.string(), v.isoDate()),
+  fecha_vencimiento: v.pipe(v.string(), v.isoDate()),
   // El mes con el que se le mide la cuota al analista. Va REQUERIDA a
   // propósito: si el servidor dejara de mandarla, es mejor que la fila se
-  // descarte con ruido a que la cartera se reparta por un mes inventado.
-  fecha_cierre_comercial: v.string(),
+  // rechace la lectura a que la cartera se reparta por un mes inventado.
+  fecha_cierre_comercial: v.pipe(v.string(), v.isoDate()),
   notas_internas: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
@@ -2954,30 +3006,12 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
   // Vista con ámbito del esquema crm (molde clientes_basicos): gerencia ve
   // todo, supervisor su subárbol, analista su cartera. La RLS directa de
   // public.contratos dejaba a gerencia en 0 filas y al supervisor sin su equipo.
-  let consulta = cliente()
-    .schema('crm')
-    .from('contratos_cartera')
-    .select(COLUMNAS_CONTRATO)
-    .order('creado_en', { ascending: false })
-    .order('id', { ascending: true })
-    .limit(MAX_CONTRATOS_CARTERA)
-  if (signal) consulta = consulta.abortSignal(signal)
-
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudieron cargar tus contratos.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.contratos.listado_fallido', fallo)
-    throw fallo
-  }
-  avisarTopeAlcanzado('contratos_cartera', MAX_CONTRATOS_CARTERA, (data ?? []).length)
+  const data = await leerListadoCarteraCompleto('contratos_cartera', COLUMNAS_CONTRATO, signal)
   const items: ContratoRow[] = []
-  let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of data) {
     const r = v.safeParse(ContratoRowSchema, cruda)
     if (!r.success) {
-      descartadas += 1
-      continue
+      throw new CrmApiError('La cartera contiene un contrato con formato inesperado.', 'ROW_CONTRACT')
     }
     const fila = r.output
     items.push({
@@ -3007,18 +3041,10 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
       producto_version_estado: fila.producto_version_estado,
     })
   }
-  if (descartadas > 0) {
-    registrarError(
-      'crm.contratos.filas_invalidas',
-      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
-      { descartadas },
-    )
-  }
   return items
 }
 
 // ── Operaciones postventa: renovaciones + upgrades, ledger de solo lectura ───
-const MAX_OPERACIONES_CARTERA = 2000
 const COLUMNAS_OPERACION_CARTERA = [
   'id',
   'cliente_id',
@@ -3048,8 +3074,8 @@ const OperacionCarteraRowSchema = v.object({
   fecha_operacion: v.string(),
   periodo: v.string(),
   moneda: v.picklist(['PEN', 'USD']),
-  capital_renovado: v.nullable(v.union([v.number(), v.string()])),
-  capital_adicional: v.nullable(v.union([v.number(), v.string()])),
+  capital_renovado: v.nullable(NumericCarteraSchema),
+  capital_adicional: v.nullable(NumericCarteraSchema),
   elegible_conversion: v.boolean(),
   desglose_completo: v.boolean(),
   fuente: v.picklist(['flujo_cartera', 'backfill_agosto_2026']),
@@ -3058,27 +3084,7 @@ const OperacionCarteraRowSchema = v.object({
 })
 
 export async function listarOperacionesCartera(signal?: AbortSignal): Promise<OperacionCartera[]> {
-  let consulta = cliente()
-    .schema('crm')
-    .from('operaciones_cartera')
-    .select(COLUMNAS_OPERACION_CARTERA)
-    .order('fecha_operacion', { ascending: false })
-    .order('creado_en', { ascending: false })
-    .order('id', { ascending: true })
-    .limit(MAX_OPERACIONES_CARTERA)
-  if (signal) consulta = consulta.abortSignal(signal)
-
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError(
-      'No se pudo cargar el desglose de renovaciones y upgrades.',
-      error.code || 'POSTGREST_ERROR',
-    )
-    registrarError('crm.operaciones_cartera.listado_fallido', fallo)
-    throw fallo
-  }
-  avisarTopeAlcanzado('operaciones_cartera', MAX_OPERACIONES_CARTERA, (data ?? []).length)
+  const data = await leerListadoCarteraCompleto('operaciones_cartera', COLUMNAS_OPERACION_CARTERA, signal)
   const items: OperacionCartera[] = []
   for (const cruda of data ?? []) {
     const r = v.safeParse(OperacionCarteraRowSchema, cruda)

@@ -114,6 +114,38 @@ antes. La lectura independiente de cosecha del mismo lote devuelve 6 cierres
 entre 185 llegadas comerciales (**3,2 %**) al momento de la consulta; es una
 medida distinta y no sustituye la conversión ponderada.
 
+### Hallazgo posterior: «25 llegaron a cita / 48 con cita pactada»
+
+Diagnóstico de solo lectura del 04/09/2026, solicitado por Miguel después
+del ajuste de textos. **Pendiente de corrección; no se modificó ni publicó
+código por esta consulta.**
+
+La tarjeta lee `cohorte.reuniones_realizadas` y
+`cohorte.reuniones_agendadas` de la implementación existente. Son conteos
+de leads del lote de llegada, no conteos de citas por fecha de realización.
+El embudo infiere etapas anteriores: una propuesta o un cierre también
+activa `reunion_realizada`, aun sin registro de una reunión; ese resultado
+activa a su vez `reunion_agendada`.
+
+Reproducción agregada en producción, llegadas del **1 al 4 de septiembre**
+en Lima, sin filtro de origen adicional y reutilizando `conversion_episodios`:
+
+- **243 leads únicos** en el lote.
+- **25** «llegaron a cita»: 8 con la señal de realización que acepta el
+  código (tarea completada o actividad `reunion_realizada`) y **17 sin esa
+  señal**, inferidos por propuesta (12) o solo por cierre (5).
+- **48** «con cita pactada»: 38 con señal de agendamiento (tarea de reunión
+  o cambio a la etapa correspondiente) y **10 inferidos sin esa señal**.
+  Solo 17 leads del lote tienen una tarea de reunión registrada.
+
+No afirmar «25 asistieron de 48 citas reales», ni que los 23 restantes sean
+inasistencias o pendientes. Tampoco llamar a los 8 «asistencias confirmadas»:
+esta comprobación reproduce las señales del código, no una validación de
+sus resultados/anulaciones. Las señales se buscan en todo el historial del
+lead, sin recortar la fecha de la cita al rango de llegada. Corregir requiere
+separar evidencia de citas y avance inferido dentro de las piezas existentes,
+sin crear otra calculadora; todavía no hay autorización de implementación.
+
 ## Cómo estaba construido en producción antes del cambio
 
 `private.conversion_episodios` emite tres clases de fila:

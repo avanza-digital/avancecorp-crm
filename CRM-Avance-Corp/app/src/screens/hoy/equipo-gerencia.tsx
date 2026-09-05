@@ -57,7 +57,12 @@ export function EquipoGerenciaPanel({
   const medibles = ranking.conPuesto.filter((fila) => fila.detalle.conversion_pct != null)
   // Los agregados del equipo los sirve la RPC — aquí no se divide nada global.
   const total = totalConversionPublicable(conversionMensual)
-  const recibidos = total?.divisor ?? null
+  const base = total?.divisor ?? null
+  const etiquetaBase = conversionMensual == null
+    ? 'Base del mes'
+    : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
+      ? 'Base automática'
+      : 'Base histórica'
   const cierres = total == null ? null : total.cierres_no_referidos + total.cierres_referidos
   const conversion = total?.conversion_pct ?? null
   const vendedores = adaptada.vendedores.length
@@ -73,7 +78,7 @@ export function EquipoGerenciaPanel({
   const kpis = [
     { label: 'Analistas', valor: numero(vendedores), icon: UsersRound, color: C.blue },
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
-    { label: 'Recibidos del mes', valor: recibidos == null ? '—' : numero(recibidos), icon: Inbox, color: C.navy },
+    { label: etiquetaBase, valor: base == null ? '—' : numero(base), icon: Inbox, color: C.navy },
     { label: 'Cierres del mes', valor: cierres == null ? '—' : numero(cierres), icon: UserRoundCheck, color: C.green },
     { label: 'Conversión del mes', valor: pct(conversion), icon: Target, color: C.teal },
   ]
@@ -146,6 +151,14 @@ export function EquipoGerenciaPanel({
         })}
       </div>
 
+      <p className="gi-caption">
+        {conversionMensual == null
+          ? 'La base mensual no está disponible.'
+          : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
+            ? 'Base automática: llegadas de Landing/Formulario. No incluye altas manuales ni referidos.'
+            : 'Base histórica: conserva la definición de la foto mensual; no equivale a llegadas únicas.'}
+      </p>
+
       {medibles.length > 0 && (
         <section data-gi-panel className="gi-card p-5">
           <div className="flex items-center justify-between"><h2 className="gi-title">Conversión por analista</h2><span className="gi-caption">{numero(medibles.length)} {medibles.length === 1 ? 'analista medible' : 'analistas medibles'} este mes</span></div>
@@ -159,9 +172,9 @@ export function EquipoGerenciaPanel({
           // F3: el navegador ya no divide el % del grupo (era la última
           // aritmética de conversión que quedaba aquí). El servidor no sirve
           // todavía una cifra por supervisor con el núcleo — hasta que exista,
-          // la cabecera enseña los enteros SERVIDOS (cierres y recibidos son
+          // la cabecera enseña los enteros SERVIDOS (cierres y base son
           // sumas de lo que manda la RPC), no un % fabricado.
-          const totalRecibidos = grupoDisponible
+          const totalBase = grupoDisponible
             ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.divisor ?? 0), 0)
             : null
           const totalCierres = grupoDisponible
@@ -172,14 +185,14 @@ export function EquipoGerenciaPanel({
             <section key={supervisorId} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
                 <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} {vendedoresGrupo.length === 1 ? 'analista' : 'analistas'}</p></div>
-                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalRecibidos == null ? 'Datos no disponibles' : `cierres del mes · ${numero(totalRecibidos)} recibidos`}</p></div>
+                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalBase == null ? 'Datos no disponibles' : `cierres del mes · ${etiquetaBase.toLowerCase()}: ${numero(totalBase)}`}</p></div>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {vendedoresGrupo.map((fila) => {
                   const conversionFila = fila.detalle?.conversion_pct ?? null
                   return (
                     <div key={fila.vendedorId} className="rounded-xl border border-[var(--gi-line)] bg-white p-4">
-                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${numero(fila.detalle.leads)} recibidos · ${numero(fila.detalle.clientes)} cierres`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
+                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${etiquetaBase}: ${numero(fila.detalle.divisor)} · ${numero(fila.detalle.clientes)} cierres`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
                       {/* Barra RELATIVA al máximo del grupo: un 120 % no se disfraza de 100. */}
                       <div className="gi-track mt-3"><div className="gi-fill" style={{ width: `${conversionFila == null ? 0 : (conversionFila / maximoGrupo) * 100}%`, background: C.teal }} /></div>
                     </div>

@@ -88,6 +88,14 @@ beforeEach(() => {
 })
 
 describe('ConfigSla', () => {
+  it('consulta hasta hoy en Lima, sin pedir días futuros del mes al servidor', () => {
+    render(<ConfigSla />)
+    expect(dobles.periodoMetricas).toEqual({ desde: '2026-08-01', hasta: '2026-08-07' })
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-07')
+    expect(screen.getByLabelText('Hasta')).toHaveAttribute('max', '2026-08-07')
+    expect(screen.getByLabelText('Desde')).toHaveAttribute('max', '2026-08-07')
+  })
+
   it('representa carga, error seguro y métricas vacías con reintento', async () => {
     dobles.consulta = consultaCon(undefined, { isPending: true })
     dobles.metricas = consultaCon(metricasVacias())

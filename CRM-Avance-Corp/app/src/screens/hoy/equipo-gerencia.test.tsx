@@ -41,11 +41,12 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       />,
     )
 
-    // Tarjetas por analista: recibidos/cierres del MES (identidad en cero no pisa nada).
-    expect(screen.getByText('10 recibidos · 4 cierres')).toBeInTheDocument()
-    expect(screen.getAllByText('9 recibidos · 2 cierres')).toHaveLength(2)
+    // Tarjetas por analista: base automática/cierres del MES, no todas las llegadas.
+    expect(screen.getByText('Base automática: 10 · 4 cierres')).toBeInTheDocument()
+    expect(screen.getAllByText('Base automática: 9 · 2 cierres')).toHaveLength(2)
     // KPIs servidos: divisor y cierres de la empresa, sin divisiones en cliente.
-    expect(screen.getByText('Recibidos del mes')).toBeInTheDocument()
+    expect(screen.getByText('Base automática')).toBeInTheDocument()
+    expect(screen.queryByText(/recibidos/i)).not.toBeInTheDocument()
     expect(screen.getByText('36')).toBeInTheDocument()
     expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
     // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
@@ -62,10 +63,10 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     const maria = screen.getByText('María Salazar').closest('section')!
     expect(within(maria).queryByText('28%')).not.toBeInTheDocument()
     expect(within(maria).getByText('6')).toBeInTheDocument()
-    expect(within(maria).getByText('cierres del mes · 19 recibidos')).toBeInTheDocument()
+    expect(within(maria).getByText('cierres del mes · base automática: 19')).toBeInTheDocument()
     const jose = screen.getByText('José Rivas').closest('section')!
     expect(within(jose).queryByText('18.5%')).not.toBeInTheDocument()
-    expect(within(jose).getByText('cierres del mes · 17 recibidos')).toBeInTheDocument()
+    expect(within(jose).getByText('cierres del mes · base automática: 17')).toBeInTheDocument()
     // Los estados sin % llevan rótulo, jamás un «0 %» inventado.
     expect(within(maria).getByText('Solo referidos')).toBeInTheDocument()
     expect(within(jose).getByText('Solo arrastre')).toBeInTheDocument()
@@ -126,7 +127,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     )
 
     for (const etiqueta of [
-      'Recibidos del mes',
+      'Base automática',
       'Cierres del mes',
       'Conversión del mes',
     ]) {
@@ -138,5 +139,18 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       .not.toBeInTheDocument()
     expect(screen.getAllByText('No disponible'))
       .toHaveLength(conversionEquipoDemo().length)
+  })
+
+  it('conserva la base de una foto legacy sin presentarla como llegadas automáticas', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.fuentes.divisor = 'crm.lead_asignaciones.asignado_en'
+    const original = structuredClone(mensual)
+    render(<EquipoGerenciaPanel conversionMensual={mensual} conversiones={identidadSinMetricas()} />)
+
+    expect(screen.getByText('Base histórica')).toBeInTheDocument()
+    expect(screen.getByText('Base histórica: 10 · 4 cierres')).toBeInTheDocument()
+    expect(screen.getByText(/no equivale a llegadas únicas/i)).toBeInTheDocument()
+    expect(screen.queryByText('Base automática')).not.toBeInTheDocument()
+    expect(mensual).toEqual(original)
   })
 })

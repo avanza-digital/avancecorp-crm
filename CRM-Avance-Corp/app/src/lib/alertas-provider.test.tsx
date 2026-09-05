@@ -348,6 +348,8 @@ describe('AlertasCRMProvider', () => {
     expect(derivarSupervisor).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('bajo_meta_conversion:v1')
     expect(screen.getByRole('status')).toHaveTextContent('ranking-vendedores')
+    const estado = JSON.parse(screen.getByRole('status').textContent!)
+    expect(estado.alertas[0].destino.periodo).toEqual({ desde: '2026-08-01', hasta: '2026-08-06' })
   })
 
   it('F4: el libro se consulta SOLO para el supervisor, reconocer firma con su identidad y REFRESCA', async () => {

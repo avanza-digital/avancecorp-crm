@@ -230,6 +230,53 @@ export type Database = {
         }
         Relationships: []
       }
+      backfill_multiempresa_mapa: {
+        Row: {
+          actualizado_en: string
+          clase: string
+          confianza: string
+          creado_en: string
+          fila_id: string
+          fuente: string
+          id: string
+          inversionista_id: string | null
+          regla: string
+          revisor: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          clase: string
+          confianza?: string
+          creado_en?: string
+          fila_id: string
+          fuente: string
+          id?: string
+          inversionista_id?: string | null
+          regla: string
+          revisor?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          clase?: string
+          confianza?: string
+          creado_en?: string
+          fila_id?: string
+          fuente?: string
+          id?: string
+          inversionista_id?: string | null
+          regla?: string
+          revisor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backfill_multiempresa_mapa_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cierre_mes_vendedor: {
         Row: {
           ajuste_numerador: number
@@ -364,6 +411,7 @@ export type Database = {
           documento: string
           documento_tipo: string
           id: string
+          inversionista_id: string | null
           lead_id: string
           moneda: string
           monto: number
@@ -384,6 +432,7 @@ export type Database = {
           documento: string
           documento_tipo: string
           id?: string
+          inversionista_id?: string | null
           lead_id: string
           moneda: string
           monto: number
@@ -404,6 +453,7 @@ export type Database = {
           documento?: string
           documento_tipo?: string
           id?: string
+          inversionista_id?: string | null
           lead_id?: string
           moneda?: string
           monto?: number
@@ -416,6 +466,13 @@ export type Database = {
           vendedor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cierres_externos_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cierres_externos_lead_id_fkey"
             columns: ["lead_id"]
@@ -487,33 +544,49 @@ export type Database = {
       }
       conversion_reservas: {
         Row: {
+          claim_id: string | null
           efectos_iniciados_en: string | null
           expira_en: string
+          hash_payload: string | null
           id: string
+          inversionista_id: string | null
           lead_id: string
           reservado_en: string
           reservado_por: string
           vence_absoluto_en: string
         }
         Insert: {
+          claim_id?: string | null
           efectos_iniciados_en?: string | null
           expira_en: string
+          hash_payload?: string | null
           id?: string
+          inversionista_id?: string | null
           lead_id: string
           reservado_en?: string
           reservado_por: string
           vence_absoluto_en: string
         }
         Update: {
+          claim_id?: string | null
           efectos_iniciados_en?: string | null
           expira_en?: string
+          hash_payload?: string | null
           id?: string
+          inversionista_id?: string | null
           lead_id?: string
           reservado_en?: string
           reservado_por?: string
           vence_absoluto_en?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversion_reservas_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversion_reservas_lead_id_fkey"
             columns: ["lead_id"]
@@ -612,6 +685,54 @@ export type Database = {
           },
         ]
       }
+      empresas: {
+        Row: {
+          activa: boolean
+          actualizado_en: string
+          clave: string
+          crea_contrato_avance: boolean
+          creado_en: string
+          creado_por: string | null
+          exige_numero_transaccion: boolean
+          fuente_capital: string
+          id: string
+          monedas: string[]
+          nombre_legal: string
+          nombre_visible: string
+          requiere_portal: boolean
+        }
+        Insert: {
+          activa?: boolean
+          actualizado_en?: string
+          clave: string
+          crea_contrato_avance?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          exige_numero_transaccion?: boolean
+          fuente_capital: string
+          id?: string
+          monedas?: string[]
+          nombre_legal: string
+          nombre_visible: string
+          requiere_portal?: boolean
+        }
+        Update: {
+          activa?: boolean
+          actualizado_en?: string
+          clave?: string
+          crea_contrato_avance?: boolean
+          creado_en?: string
+          creado_por?: string | null
+          exige_numero_transaccion?: boolean
+          fuente_capital?: string
+          id?: string
+          monedas?: string[]
+          nombre_legal?: string
+          nombre_visible?: string
+          requiere_portal?: boolean
+        }
+        Relationships: []
+      }
       enfriamiento_politica: {
         Row: {
           actualizado_en: string
@@ -671,6 +792,420 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipo"
             referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
+      inversion_titulares: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          id: string
+          inversion_id: string
+          inversionista_id: string
+          rol: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          inversion_id: string
+          inversionista_id: string
+          rol?: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          inversion_id?: string
+          inversionista_id?: string
+          rol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_titulares_inversion_id_fkey"
+            columns: ["inversion_id"]
+            isOneToOne: false
+            referencedRelation: "inversiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_titulares_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversiones: {
+        Row: {
+          actualizado_en: string
+          cierre_externo_id: string | null
+          contrato_id: string | null
+          creado_en: string
+          creado_por: string | null
+          empresa_id: string
+          es_primera_conversion: boolean
+          estado: string
+          fecha_comercial: string | null
+          id: string
+          inversionista_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cierre_externo_id?: string | null
+          contrato_id?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          empresa_id: string
+          es_primera_conversion?: boolean
+          estado?: string
+          fecha_comercial?: string | null
+          id?: string
+          inversionista_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          cierre_externo_id?: string | null
+          contrato_id?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          empresa_id?: string
+          es_primera_conversion?: boolean
+          estado?: string
+          fecha_comercial?: string | null
+          id?: string
+          inversionista_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversiones_cierre_externo_id_fkey"
+            columns: ["cierre_externo_id"]
+            isOneToOne: false
+            referencedRelation: "cierres_externos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversiones_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversiones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_fusiones: {
+        Row: {
+          canonico_id: string
+          creado_en: string
+          fusionado_id: string
+          id: string
+          impacto: Json | null
+          motivo: string
+          por: string | null
+        }
+        Insert: {
+          canonico_id: string
+          creado_en?: string
+          fusionado_id: string
+          id?: string
+          impacto?: Json | null
+          motivo: string
+          por?: string | null
+        }
+        Update: {
+          canonico_id?: string
+          creado_en?: string
+          fusionado_id?: string
+          id?: string
+          impacto?: Json | null
+          motivo?: string
+          por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_fusiones_canonico_id_fkey"
+            columns: ["canonico_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_fusiones_fusionado_id_fkey"
+            columns: ["fusionado_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_identificadores: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          documento_normalizado: string
+          documento_original: string | null
+          estado: string
+          fuente: string | null
+          id: string
+          inversionista_id: string
+          tipo_documento: string
+          verificado: boolean
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          documento_normalizado: string
+          documento_original?: string | null
+          estado?: string
+          fuente?: string | null
+          id?: string
+          inversionista_id: string
+          tipo_documento: string
+          verificado?: boolean
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          documento_normalizado?: string
+          documento_original?: string | null
+          estado?: string
+          fuente?: string | null
+          id?: string
+          inversionista_id?: string
+          tipo_documento?: string
+          verificado?: boolean
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_identificadores_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_leads: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          desde: string
+          hasta: string | null
+          id: string
+          inversionista_id: string
+          lead_id: string
+          rol: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          desde?: string
+          hasta?: string | null
+          id?: string
+          inversionista_id: string
+          lead_id: string
+          rol?: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          desde?: string
+          hasta?: string | null
+          id?: string
+          inversionista_id?: string
+          lead_id?: string
+          rol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_leads_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_operaciones: {
+        Row: {
+          creado_en: string
+          detalle: Json | null
+          id: string
+          identificador_anterior_id: string | null
+          identificador_nuevo_id: string | null
+          inversionista_id: string
+          lead_id: string | null
+          motivo: string
+          por: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          detalle?: Json | null
+          id?: string
+          identificador_anterior_id?: string | null
+          identificador_nuevo_id?: string | null
+          inversionista_id: string
+          lead_id?: string | null
+          motivo: string
+          por?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          detalle?: Json | null
+          id?: string
+          identificador_anterior_id?: string | null
+          identificador_nuevo_id?: string | null
+          inversionista_id?: string
+          lead_id?: string | null
+          motivo?: string
+          por?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_operaciones_identificador_anterior_id_fkey"
+            columns: ["identificador_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "inversionista_identificadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_operaciones_identificador_nuevo_id_fkey"
+            columns: ["identificador_nuevo_id"]
+            isOneToOne: false
+            referencedRelation: "inversionista_identificadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_operaciones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_operaciones_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionista_responsables: {
+        Row: {
+          creado_en: string
+          desde: string
+          hasta: string | null
+          id: string
+          inversionista_id: string
+          motivo: string | null
+          por: string | null
+          responsable_id: string
+        }
+        Insert: {
+          creado_en?: string
+          desde?: string
+          hasta?: string | null
+          id?: string
+          inversionista_id: string
+          motivo?: string | null
+          por?: string | null
+          responsable_id: string
+        }
+        Update: {
+          creado_en?: string
+          desde?: string
+          hasta?: string | null
+          id?: string
+          inversionista_id?: string
+          motivo?: string | null
+          por?: string | null
+          responsable_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_responsables_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversionistas: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          creado_por: string | null
+          estado: string
+          fusionado_en: string | null
+          id: string
+          inversionista_canonico_id: string | null
+          no_contactar: boolean
+          no_contactar_en: string | null
+          no_contactar_por: string | null
+          perfil_id: string | null
+          responsable_relacion_id: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fusionado_en?: string | null
+          id?: string
+          inversionista_canonico_id?: string | null
+          no_contactar?: boolean
+          no_contactar_en?: string | null
+          no_contactar_por?: string | null
+          perfil_id?: string | null
+          responsable_relacion_id?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fusionado_en?: string | null
+          id?: string
+          inversionista_canonico_id?: string | null
+          no_contactar?: boolean
+          no_contactar_en?: string | null
+          no_contactar_por?: string | null
+          perfil_id?: string | null
+          responsable_relacion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionistas_inversionista_canonico_id_fkey"
+            columns: ["inversionista_canonico_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -990,6 +1525,7 @@ export type Database = {
           fecha_nacimiento: string | null
           genero: string | null
           id: string
+          inversionista_id: string | null
           moneda: string
           monto_estimado: number
           motivo_descarte: string | null
@@ -1029,6 +1565,7 @@ export type Database = {
           fecha_nacimiento?: string | null
           genero?: string | null
           id?: string
+          inversionista_id?: string | null
           moneda?: string
           monto_estimado: number
           motivo_descarte?: string | null
@@ -1068,6 +1605,7 @@ export type Database = {
           fecha_nacimiento?: string | null
           genero?: string | null
           id?: string
+          inversionista_id?: string | null
           moneda?: string
           monto_estimado?: number
           motivo_descarte?: string | null
@@ -1091,6 +1629,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipo"
             referencedColumns: ["perfil_id"]
+          },
+          {
+            foreignKeyName: "leads_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "leads_vendedor_id_fkey"
@@ -1222,6 +1767,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      multiempresa_flags: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          actualizado_por: string | null
+          descripcion: string | null
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          descripcion?: string | null
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          actualizado_por?: string | null
+          descripcion?: string | null
+          nombre?: string
+        }
+        Relationships: []
+      }
+      multiempresa_idempotencia: {
+        Row: {
+          clave: string
+          creado_en: string
+          creado_por: string | null
+          hash_payload: string
+          resultado: Json | null
+          tipo: string
+          version: number
+        }
+        Insert: {
+          clave: string
+          creado_en?: string
+          creado_por?: string | null
+          hash_payload: string
+          resultado?: Json | null
+          tipo: string
+          version?: number
+        }
+        Update: {
+          clave?: string
+          creado_en?: string
+          creado_por?: string | null
+          hash_payload?: string
+          resultado?: Json | null
+          tipo?: string
+          version?: number
+        }
+        Relationships: []
       }
       objetivos_legacy_archivo: {
         Row: {
@@ -2119,6 +2718,10 @@ export type Database = {
         Args: { p_desde?: string; p_dias?: number }
         Returns: Json
       }
+      alta_cliente_identidad_fn: {
+        Args: { p_paso: string; p_payload: Json }
+        Returns: Json
+      }
       altas_nuevas_por_analista_fn: {
         Args: { p_meses?: number }
         Returns: {
@@ -2150,7 +2753,9 @@ export type Database = {
         Returns: Json
       }
       atribucion_contrato_fn: { Args: { p_contrato_id: string }; Returns: Json }
+      auth_usuario_por_correo_fn: { Args: { p_correo: string }; Returns: Json }
       ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
+      bandera_activa: { Args: { p_nombre: string }; Returns: boolean }
       buscar_candidato_por_correo_fn: {
         Args: { p_correo: string }
         Returns: string
@@ -2260,6 +2865,7 @@ export type Database = {
           titular_distinto_usd: boolean
         }[]
       }
+      cliente_eliminable_fn: { Args: { p_perfil_id: string }; Returns: Json }
       cliente_ficha_fn: {
         Args: { p_cliente_id: string }
         Returns: {
@@ -2461,6 +3067,16 @@ export type Database = {
         }
         Returns: Json
       }
+      corregir_documento_inversionista_fn: {
+        Args: {
+          p_documento: string
+          p_identificador_anterior?: string
+          p_inversionista: string
+          p_motivo: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       corregir_fecha_cierre_comercial: {
         Args: { p_contrato_id: string; p_fecha: string; p_motivo: string }
         Returns: Json
@@ -2604,6 +3220,11 @@ export type Database = {
           perfil_id: string
         }[]
       }
+      eliminar_cliente_fn: { Args: { p_perfil_id: string }; Returns: Json }
+      enlazar_lead_inversionista_fn: {
+        Args: { p_inversionista: string; p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
       equipo_visible_fn: {
         Args: never
         Returns: {
@@ -2649,6 +3270,19 @@ export type Database = {
           p_perfil_id: string
           p_reemplazo_id: string
           p_version_equipo: string
+        }
+        Returns: Json
+      }
+      fusion_previsualizar_fn: {
+        Args: { p_canonica: string; p_perdedora: string }
+        Returns: Json
+      }
+      fusionar_inversionistas_fn: {
+        Args: {
+          p_canonica: string
+          p_hash: string
+          p_motivo: string
+          p_perdedora: string
         }
         Returns: Json
       }
@@ -2719,7 +3353,20 @@ export type Database = {
           origen: string
         }[]
       }
-      marcar_efectos_conversion: { Args: { p_lead_id: string }; Returns: Json }
+      levantar_no_contactar: {
+        Args: { p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
+      marcar_efectos_conversion:
+        | { Args: { p_lead_id: string }; Returns: Json }
+        | {
+            Args: { p_claim_id: string; p_lead_id: string; p_token: string }
+            Returns: Json
+          }
+      marcar_no_contactar: {
+        Args: { p_lead_id: string; p_motivo?: string }
+        Returns: Json
+      }
       metricas_agenda_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
@@ -2883,6 +3530,14 @@ export type Database = {
         Args: { p_motivo: string; p_perfil_id: string }
         Returns: undefined
       }
+      reasignar_responsable_relacion_fn: {
+        Args: {
+          p_inversionista: string
+          p_motivo: string
+          p_nuevo_responsable: string
+        }
+        Returns: Json
+      }
       registrar_candidato_usuario_fn: {
         Args: {
           p_cargo: string
@@ -2895,6 +3550,10 @@ export type Database = {
           p_tipo_documento: string
           p_whatsapp: string
         }
+        Returns: Json
+      }
+      registrar_reingreso_lead_fn: {
+        Args: { p_datos?: Json; p_lead_id: string; p_origen: string }
         Returns: Json
       }
       registrar_vendedor_usuario_fn: {
@@ -2963,13 +3622,31 @@ export type Database = {
           total: number
         }[]
       }
-      reservar_conversion_lead: { Args: { p_lead_id: string }; Returns: Json }
+      reservar_conversion_lead:
+        | { Args: { p_lead_id: string }; Returns: Json }
+        | {
+            Args: {
+              p_documento: string
+              p_lead_id: string
+              p_payload: Json
+              p_tipo_documento: string
+            }
+            Returns: Json
+          }
       resumen_cartera_clientes_fn: { Args: never; Returns: Json }
       resumen_cartera_fn: { Args: never; Returns: Json }
       resumen_reparto_fn: { Args: never; Returns: Json }
       resumen_tareas_fn: { Args: never; Returns: Json }
+      retomar_conversion_gerencia_fn: {
+        Args: { p_lead_id: string }
+        Returns: Json
+      }
       revertir_derivacion_equipo_fn: {
         Args: { p_lead_id: string }
+        Returns: Json
+      }
+      saga_conversion_fn: {
+        Args: { p_paso: string; p_payload: Json }
         Returns: Json
       }
       series_comerciales_fn: { Args: { p_meses?: number }; Returns: Json }

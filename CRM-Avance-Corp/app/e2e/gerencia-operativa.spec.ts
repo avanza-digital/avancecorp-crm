@@ -2,7 +2,7 @@
 // este caso no depende del gate general de la fuerza de ventas: Gerencia ya
 // tiene aprobadas las vistas de leads y debe poder operar un lead ajeno.
 import { expect, test } from '@playwright/test'
-import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal } from './_helpers'
+import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, resumenCarteraReal } from './_helpers'
 import type { Page } from '@playwright/test'
 
 /** La tabla de LEADS. Ojo: su botón de nav se llama «Leads»; «Cartera» es la
@@ -49,8 +49,47 @@ test('los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn', 
   await irAPipeline(page)
 
   const chips = page.locator('[data-slot="card"]')
-  await expect(chips.filter({ hasText: 'Leads activos' }).first()).toContainText('1')
+  await expect(chips.filter({ hasText: 'Leads abiertos con analista' }).first()).toContainText('1')
   await expect(chips.filter({ hasText: 'Capital en proceso' }).first()).toContainText('S/ 10,000')
+  await expect(chips.filter({ hasText: 'Cierres de leads del mes' }).first()).toContainText('Mes calendario actual')
+  await expect(page.getByText(/Indicadores de toda la empresa/)).toContainText('Los filtros sólo cambian las columnas')
+})
+
+test('Leads distingue cierres del mes del inventario y conserva totales al filtrar la tabla', async ({ page }) => {
+  const leads = [
+    leadReal({ vendedor_id: 'vend-1', nombre_completo: 'LEAD ABIERTO' }),
+    leadReal({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', vendedor_id: 'vend-1', nombre_completo: 'LEAD CONVERTIDO', etapa: 'convertido', convertido_en: new Date().toISOString() }),
+  ]
+  await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'comercial', leads })
+  // La respuesta de esta prueba separa expresamente las dos poblaciones:
+  // ocho cierres del mes y sólo un convertido en el inventario actual.
+  // Se reutiliza el fixture existente sin cambiar su semántica compartida.
+  const resumen = resumenCarteraReal(leads)
+  resumen.totales = { ...(resumen.totales as Record<string, unknown>), convertidos: 8 }
+  await page.route('**/rest/v1/rpc/resumen_cartera_fn', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(resumen),
+  }))
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+
+  const chips = page.locator('[data-slot="card"]')
+  const total = chips.filter({ hasText: 'Total leads' }).first()
+  const cierres = chips.filter({ hasText: 'Cierres de leads del mes' }).first()
+  await expect(total).toContainText('2')
+  await expect(cierres).toContainText('8')
+  await expect(cierres).toContainText('Mes calendario actual')
+  await expect(page.getByText(/Inventario actual por etapa/)).toContainText('45 días desde su conversión')
+  await expect(page.getByText(/Indicadores de toda la empresa/)).toContainText('sólo cambian el listado')
+  await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD CONVERTIDO' })).toBeVisible()
+
+  await page.getByRole('combobox', { name: 'Filtrar por etapa' }).selectOption('nuevo')
+
+  await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD CONVERTIDO' })).toHaveCount(0)
+  await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD ABIERTO' })).toBeVisible()
+  await expect(total).toContainText('2')
+  await expect(cierres).toContainText('8')
 })
 
 test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue operable', async ({ page }) => {
@@ -66,7 +105,7 @@ test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue oper
   // Degradación honesta: aviso visible + «—» en los chips, sin inventar cifras.
   await expect(page.getByText(/No se pudieron cargar los indicadores del tablero/)).toBeVisible()
   await expect(
-    page.locator('[data-slot="card"]').filter({ hasText: 'Leads activos' }).first(),
+    page.locator('[data-slot="card"]').filter({ hasText: 'Leads abiertos con analista' }).first(),
   ).toContainText('—')
 
   // …y el tablero sigue operable: la card del lead abre su ficha igual.

@@ -570,13 +570,16 @@ interface FilaPorEmpresa {
 export function DesglosePorEmpresa({
   demo,
   porVendedor,
+  periodo = periodoLima(Date.now()),
 }: {
   demo: boolean
+  /** Mismo mes que la foto de cumplimiento recibida, no el reloj del montaje. */
+  periodo?: string
   /** `porVendedor` del cumplimiento de metas (store); null = aún sin foto. */
   porVendedor: Record<string, CumplimientoVendedor> | null
 }) {
   const { cierresExternos: cierresDemo = [] } = useCRMData()
-  const consulta = useCierresExternos(!demo, periodoLima(Date.now()))
+  const consulta = useCierresExternos(!demo, periodo)
   const { yo } = useAuth()
   const esGerencia = yo?.rol === 'gerencia'
   const [revisando, setRevisando] = useState(false)
@@ -585,9 +588,8 @@ export function DesglosePorEmpresa({
   // (`cierres_mes`); en demo se derivan del store, que ya es completo.
   const filasMes = useMemo<CierreExterno[]>(() => {
     if (!demo) return consulta.data?.cierres_mes ?? []
-    const desde = periodoLima(Date.now())
     return cierresDemo
-      .filter((c) => c.creadoEn.slice(0, 7) === desde.slice(0, 7))
+      .filter((c) => periodoLima(Date.parse(c.creadoEn)) === periodo)
       .map((c) => ({
         cierre_id: c.cierreId,
         lead_id: c.leadId,
@@ -608,15 +610,14 @@ export function DesglosePorEmpresa({
         anulado_en: c.anuladoEn,
         motivo_anulacion: c.motivoAnulacion,
       }))
-  }, [demo, cierresDemo, consulta.data])
+  }, [demo, cierresDemo, consulta.data, periodo])
 
   const filasEmpresa = useMemo<EmpresaVendedor[]>(() => {
     if (!demo) return consulta.data?.por_empresa ?? []
     const mapa = new Map<string, EmpresaVendedor>()
     for (const c of cierresDemo) {
-      // Espejo del servidor: `por_empresa` es una vista de DINERO y los cierres
-      // anulados no son dinero.
-      if (c.anuladoEn) continue
+      // Mismo mes y regla ATR-4 del servidor: anular conversión no retira capital.
+      if (periodoLima(Date.parse(c.creadoEn)) !== periodo) continue
       const k = `${c.vendedorId}|${c.cooperativa}|${c.moneda}`
       const previo = mapa.get(k)
       if (previo) {
@@ -634,7 +635,7 @@ export function DesglosePorEmpresa({
       }
     }
     return [...mapa.values()]
-  }, [demo, consulta.data, cierresDemo])
+  }, [demo, consulta.data, cierresDemo, periodo])
 
   const filas = useMemo<FilaPorEmpresa[]>(() => {
     const porId = new Map<string, FilaPorEmpresa>()
@@ -655,8 +656,10 @@ export function DesglosePorEmpresa({
     }
     for (const fila of porId.values()) {
       const cumplimiento = porVendedor?.[fila.vendedorId]
+      // Sin foto no se puede deducir Avance=0 restando coops de un cero ficticio.
+      if (!cumplimiento || cumplimiento.detalles.length === 0) continue
       for (const moneda of ['PEN', 'USD'] as const) {
-        const total = (cumplimiento?.detalles ?? [])
+        const total = cumplimiento.detalles
           .filter((d) => d.moneda === moneda)
           .reduce((suma, d) => suma + d.capitalReal, 0)
         const enCoops = fila.coops
@@ -701,6 +704,12 @@ export function DesglosePorEmpresa({
         }
       />
       <CardContent className="pb-5 pt-0">
+        <p className="mb-3 text-[11px] text-muted-foreground">Mes de cierre: {periodo.slice(0, 7)} · Todos los orígenes.</p>
+        {filas.some((fila) => !porVendedor?.[fila.vendedorId]?.detalles.length) && (
+          <p role="status" className="mb-3 text-xs font-semibold text-warning-text">
+            Capital de Avance no disponible para algunos analistas: falta su foto de cumplimiento. No se interpreta como cero.
+          </p>
+        )}
         <ul className="space-y-3">
         {filas.map((f) => (
           <li key={f.vendedorId} className="space-y-1">
@@ -733,7 +742,7 @@ export function DesglosePorEmpresa({
         </ul>
         <p className="mt-3 text-[10.5px] text-muted-foreground">
           El total contra la cuota sigue siendo uno solo; aquí se ve de dónde vino cada sol.
-          Solo aparecen analistas con cierres en cooperativas este mes.
+          Solo aparecen analistas con cierres en cooperativas en el mes indicado.
         </p>
       </CardContent>
       {revisando && (

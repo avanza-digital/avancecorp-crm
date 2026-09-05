@@ -1028,8 +1028,8 @@ export function ContratoNuevo({
               </span>
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              La renovación suma una conversión por cliente en el mes. El adicional queda separado para su pago y no
-              crea otra conversión.
+              El núcleo determina el aporte de la renovación a la conversión del mes. El adicional queda separado
+              para su pago y no crea otra conversión.
             </p>
           </section>
         ) : (

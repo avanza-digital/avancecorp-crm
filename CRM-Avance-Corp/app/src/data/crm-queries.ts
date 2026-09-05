@@ -43,6 +43,7 @@ import {
   listarMetricasVencimientos,
   listarMisContratos,
   listarOperacionesCartera,
+  obtenerResumenCarteraClientes,
   listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
@@ -100,6 +101,8 @@ export const crmQueryKeys = {
     [...crmQueryKeys.clientes(), clienteId, 'cuentas-bancarias', moneda] as const,
   // Métricas de gerencia (RPCs crm.metricas_*_fn): misma raíz por lo mismo.
   metricas: () => [...crmQueryKeys.raiz, 'metricas'] as const,
+  resumenCarteraClientes: (actorId?: string | null) =>
+    [...crmQueryKeys.metricas(), 'cartera-clientes', actorId ?? null] as const,
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
   metricasPagos: (meses: number) => [...crmQueryKeys.metricas(), 'pagos', meses] as const,
   altasNuevas: (meses: number) => [...crmQueryKeys.metricas(), 'altas-nuevas', meses] as const,
@@ -262,6 +265,16 @@ export function useOperacionesCartera(habilitada = true) {
     queryKey: crmQueryKeys.operacionesCartera(),
     queryFn: ({ signal }) => listarOperacionesCartera(signal),
     enabled: habilitada,
+  })
+}
+
+/** Sólo se conecta en ámbitos globales conciliados; no sustituye el fallback de otros roles. */
+export function useResumenCarteraClientes(habilitada: boolean, actorId?: string | null) {
+  return useQuery({
+    queryKey: crmQueryKeys.resumenCarteraClientes(actorId),
+    queryFn: ({ signal }) => obtenerResumenCarteraClientes(signal),
+    enabled: habilitada,
+    refetchInterval: 60_000,
   })
 }
 

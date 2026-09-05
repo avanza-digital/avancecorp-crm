@@ -21,6 +21,8 @@ import {
   listarClientes,
   listarCuentasBancariasCliente,
   listarMisContratos,
+  listarOperacionesCartera,
+  obtenerResumenCarteraClientes,
   obtenerClienteDetalle,
   obtenerClienteFichaComercial,
   obtenerCronograma,
@@ -28,6 +30,12 @@ import {
 } from './crm-api'
 
 const BASE = 'http://supabase.test'
+
+function lista(filas: unknown[], total = filas.length, desde = 0) {
+  return HttpResponse.json(filas, { headers: {
+    'content-range': filas.length ? `${desde}-${desde + filas.length - 1}/${total}` : `*/${total}`,
+  } })
+}
 
 const META_PRODUCTO = {
   producto_condicion_id: '30000000-0000-4000-8000-000000000001',
@@ -158,16 +166,16 @@ beforeEach(() => {
 })
 
 describe('listarClientes (vista crm.clientes_basicos)', () => {
-  it('viaja al esquema crm (Accept-Profile) y descarta la fila fuera de contrato', async () => {
+  it('viaja al esquema crm (Accept-Profile) y exige total exacto', async () => {
     let perfil: string | null = null
     let select: string | null = null
     server.use(
       http.get(`${BASE}/rest/v1/clientes_basicos`, ({ request }) => {
         perfil = request.headers.get('accept-profile')
         select = new URL(request.url).searchParams.get('select')
-        return HttpResponse.json([
+        expect(request.headers.get('prefer')).toContain('count=exact')
+        return lista([
           filaBasica({ id: 'cli-1' }),
-          filaBasica({ id: 'cli-zombie', activo: 'yes' }), // boolean corrupto
           filaBasica({ id: 'cli-2', nombre_completo: null }),
         ])
       }),
@@ -187,7 +195,7 @@ describe('listarClientes (vista crm.clientes_basicos)', () => {
   it('un tipo_documento NUEVO no tira la fila: degrada tolerante a DNI', async () => {
     server.use(
       http.get(`${BASE}/rest/v1/clientes_basicos`, () =>
-        HttpResponse.json([
+        lista([
           filaBasica({ id: 'cli-ce', tipo_documento: 'CE' }),
           // Si el portal estrena un tipo (o llega null), la LISTA no pierde al
           // cliente — cae al default histórico DNI (el detalle sí es estricto).
@@ -585,16 +593,8 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
         // La pide EXPLÍCITA: es la fecha por la que Mi cartera reparte sus
         // bloques, y sin ella la fila se descarta (abajo se comprueba).
         expect(select).toContain('fecha_cierre_comercial')
-        return HttpResponse.json([
+        return lista([
           filaContrato({ capital: '10000.50', tasa_anual: '15.5' }),
-          filaContrato({ id: 'ct-2', estado: 'zombie' }), // fuera de contrato → se descarta
-          filaContrato({
-            id: 'ct-3',
-            producto_condicion_id: 'snapshot-sin-uuid',
-          }),
-          // Sin fecha de cierre la fila NO pasa: mejor perderla con ruido que
-          // repartir la cartera por un mes inventado.
-          { ...filaContrato({ id: 'ct-4' }), fecha_cierre_comercial: undefined },
         ])
       }),
     )
@@ -612,6 +612,119 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
       producto_version: 2,
       producto_nombre: 'Plan Base 2026',
     })
+  })
+})
+
+describe('Cartera: completitud del transporte, nunca éxito parcial', () => {
+  it('recorre más de 2.000 clientes aunque el servidor recorte cada página a 73', async () => {
+    const filas = Array.from({ length: 2105 }, (_, i) => filaBasica({ id: `cli-${i}` }))
+    const offsets: number[] = []
+    server.use(http.get(`${BASE}/rest/v1/clientes_basicos`, ({ request }) => {
+      const p = new URL(request.url).searchParams
+      expect(p.get('order')).toBe('creado_en.desc,id.asc')
+      const offset = Number(p.get('offset'))
+      offsets.push(offset)
+      return lista(filas.slice(offset, offset + 73), filas.length, offset)
+    }))
+    const recibidos = await listarClientes()
+    expect(recibidos).toHaveLength(2105)
+    expect(offsets.slice(0, 3)).toEqual([0, 73, 146])
+    expect(new Set(recibidos.map((c) => c.id)).size).toBe(2105)
+  })
+
+  it.each([
+    { activo: 'yes' }, { id: null },
+  ])('rechaza todo el listado si una fila de cliente es inválida: %j', async (sobre) => {
+    server.use(http.get(`${BASE}/rest/v1/clientes_basicos`, () => lista([
+      filaBasica(), filaBasica({ id: 'invalido', ...sobre }),
+    ])))
+    await expect(listarClientes()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it.each([
+    { estado: 'zombie' }, { producto_condicion_id: 'sin-uuid' },
+    { fecha_cierre_comercial: undefined }, { capital: 'dinero' }, { capital: '' }, { capital: null },
+  ])('no descarta silenciosamente el contrato inválido: %j', async (sobre) => {
+    server.use(http.get(`${BASE}/rest/v1/contratos_cartera`, () => lista([
+      filaContrato(), filaContrato({ id: 'invalido', ...sobre }),
+    ])))
+    await expect(listarMisContratos()).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it.each(['sin-total', 'total-cambia', 'pagina-vacia', 'fila-repetida'] as const)(
+    'rechaza la lectura %s y no entrega la primera página como resultado', async (caso) => {
+      let peticiones = 0
+      server.use(http.get(`${BASE}/rest/v1/contratos_cartera`, () => {
+        peticiones += 1
+        if (caso === 'sin-total') return HttpResponse.json([filaContrato()])
+        if (peticiones === 1) return lista([filaContrato()], 2)
+        if (caso === 'total-cambia') return lista([filaContrato({ id: 'ct-2' })], 3, 1)
+        if (caso === 'pagina-vacia') return lista([], 2, 1)
+        return lista([filaContrato()], 2, 1)
+      }))
+      await expect(listarMisContratos()).rejects.toMatchObject({
+        code: caso === 'fila-repetida' ? 'ROW_CONTRACT' : 'CARTERA_INCOMPLETA',
+      })
+    },
+  )
+
+  it('una cartera vacía necesita confirmar total cero', async () => {
+    server.use(http.get(`${BASE}/rest/v1/clientes_basicos`, () => lista([])))
+    await expect(listarClientes()).resolves.toEqual([])
+  })
+
+  it('pagina también el ledger de operaciones sin alterar orden ni importes', async () => {
+    const operacion = {
+      id: 'op-1', cliente_id: 'cli-1', vendedor_id: 'v-1', tipo: 'renovacion',
+      contrato_origen_id: 'ct-1', contrato_nuevo_id: 'ct-2', fecha_operacion: '2026-09-01',
+      periodo: '2026-09-01', moneda: 'PEN', capital_renovado: '3000', capital_adicional: '1000',
+      elegible_conversion: true, desglose_completo: true, fuente: 'flujo_cartera',
+      creado_por: 'v-1', creado_en: '2026-09-01T12:00:00Z',
+    }
+    server.use(http.get(`${BASE}/rest/v1/operaciones_cartera`, ({ request }) => {
+      const p = new URL(request.url).searchParams
+      expect(p.get('order')).toBe('fecha_operacion.desc,creado_en.desc,id.asc')
+      const offset = Number(p.get('offset'))
+      return lista([{ ...operacion, id: `op-${offset}` }], 2, offset)
+    }))
+    const r = await listarOperacionesCartera()
+    expect(r).toHaveLength(2)
+    expect(r[1]).toMatchObject({ capital_renovado: 3000, capital_adicional: 1000 })
+  })
+
+  it('respeta la cancelación antes de iniciar otra descarga', async () => {
+    const c = new AbortController()
+    c.abort()
+    await expect(listarClientes(c.signal)).rejects.toMatchObject({ name: 'AbortError' })
+  })
+})
+
+describe('resumen de Cartera: salida existente sin calculadora local', () => {
+  const respuesta = {
+    version: 1, generado_en: '2026-09-04T22:00:00-05:00', zona: 'America/Lima', dias_alarma_renovacion: 30,
+    clientes: { en_gestion: 420, de_baja: 0, con_capital: 393, sin_asesor: 4 },
+    capital_activo: { pen: 19485413.12, usd: 1075193.33 },
+    contratos: { por_estado: { activo: 516, vencido: 1 }, por_vencer_30: 3, por_vencer_30_de_baja: 0 },
+  }
+  it('devuelve los campos del servidor sin consultar las listas', async () => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/resumen_cartera_clientes_fn`, ({ request }) => {
+      expect(request.headers.get('content-profile')).toBe('crm')
+      return HttpResponse.json(respuesta)
+    }))
+    await expect(obtenerResumenCarteraClientes()).resolves.toEqual(respuesta)
+  })
+  it.each([
+    null, {}, { ...respuesta, version: 2 }, { ...respuesta, capital_activo: { pen: null, usd: 0 } },
+    { ...respuesta, clientes: { ...respuesta.clientes, con_capital: 421 } },
+    { ...respuesta, contratos: { ...respuesta.contratos, por_vencer_30_de_baja: 4 } },
+  ])('rechaza respuesta no confirmada, sin convertirla en cero: %j', async (body) => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/resumen_cartera_clientes_fn`, () => HttpResponse.json(body)))
+    await expect(obtenerResumenCarteraClientes()).rejects.toMatchObject({ code: 'RESUMEN_CARTERA_CLIENTES_CONTRACT' })
+  })
+  it('conserva el fallo de permisos del servidor', async () => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/resumen_cartera_clientes_fn`, () =>
+      HttpResponse.json({ code: '42501', message: 'No autorizado' }, { status: 403 })))
+    await expect(obtenerResumenCarteraClientes()).rejects.toMatchObject({ code: 'SIN_PERMISO' })
   })
 })
 

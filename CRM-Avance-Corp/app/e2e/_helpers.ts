@@ -3,6 +3,8 @@
 //  - REAL: sesión autenticada (yo.demo=false) con TODO el backend Supabase
 //    interceptado (fail-closed) → prueba la ruta real sin tocar prod.
 import { expect, type Locator, type Page, type Route } from '@playwright/test'
+import { agruparCartera, resumenCartera } from '../src/lib/cartera-vista'
+import type { ClienteBasico, ContratoRow } from '../src/lib/clientes-tipos'
 
 export const ROLES_DEMO = ['Analista', 'Supervisor', 'Gerencia', 'Directorio'] as const
 export type RolDemo = (typeof ROLES_DEMO)[number]
@@ -1958,8 +1960,18 @@ export async function montarBackendReal(
     'access-control-allow-methods': '*',
     'access-control-expose-headers': 'content-range',
   }
-  const json = (route: Route, obj: unknown, status = 200) =>
-    route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(obj) })
+  const json = (route: Route, obj: unknown, status = 200) => {
+    const url = new URL(route.request().url())
+    if (status === 200 && Array.isArray(obj) && /\/rest\/v1\/(clientes_basicos|contratos_cartera|operaciones_cartera)$/.test(url.pathname)) {
+      const desde = Number(url.searchParams.get('offset') ?? 0)
+      const limite = Number(url.searchParams.get('limit') ?? obj.length)
+      const filas = obj.slice(desde, desde + limite)
+      return route.fulfill({ status, headers: { ...cors,
+        'content-range': filas.length ? `${desde}-${desde + filas.length - 1}/${obj.length}` : `*/${obj.length}`,
+      }, contentType: 'application/json', body: JSON.stringify(filas) })
+    }
+    return route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(obj) })
+  }
 
   await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     const req = route.request()
@@ -2089,6 +2101,20 @@ export async function montarBackendReal(
         estado.clientes = estado.clientes.map((c) => (c.id === idFiltro ? { ...c, ...cambios } : c))
         return json(route, [{ id: idFiltro }])
       }
+    }
+
+    if (p === '/rest/v1/rpc/resumen_cartera_clientes_fn' && method === 'POST') {
+      // Fixture del endpoint existente; nunca interviene en el bundle real.
+      const r = resumenCartera(agruparCartera(
+        estado.clientes as unknown as ClienteBasico[], estado.contratos as unknown as ContratoRow[],
+      ))
+      return json(route, {
+        version: 1, generado_en: new Date().toISOString(), zona: 'America/Lima', dias_alarma_renovacion: 30,
+        clientes: { en_gestion: r.totalClientes, de_baja: estado.clientes.length - r.totalClientes,
+          con_capital: r.clientesConCapital, sin_asesor: 0 },
+        capital_activo: { pen: r.capitalActivoPen, usd: r.capitalActivoUsd },
+        contratos: { por_estado: {}, por_vencer_30: r.porVencer30, por_vencer_30_de_baja: r.porVencer30DeBaja },
+      })
     }
 
     // ── vista crm.clientes_basicos (cartera scopeada; sin bancarios) ──
@@ -2964,7 +2990,7 @@ export async function montarBackendReal(
     }
     if (p === '/rest/v1/rpc/metricas_capital_mes_fn') return json(route, estado.metricas.capital)
     if (p === '/rest/v1/rpc/metricas_pagos_mes_fn') return json(route, estado.metricas.pagos)
-    if (p === '/rest/v1/rpc/metricas_altas_analista_fn') return json(route, estado.metricas.altas)
+    if (p === '/rest/v1/rpc/altas_nuevas_por_analista_fn') return json(route, estado.metricas.altas)
     if (p === '/rest/v1/rpc/metricas_vencimientos_fn') return json(route, estado.metricas.vencimientos)
     if (p === '/rest/v1/rpc/metricas_agenda_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }

@@ -294,8 +294,9 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
   )
 }
 
-function RankingConversion({ ranking }: {
+function RankingConversion({ ranking, etiquetaBase }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
+  etiquetaBase: string
 }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
@@ -308,7 +309,7 @@ function RankingConversion({ ranking }: {
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
               <th className="px-3 py-3" scope="col">Analista</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
-              <th className="px-3 py-3 text-right" scope="col">Recibidos</th>
+              <th className="px-3 py-3 text-right" scope="col">{etiquetaBase}</th>
               <th className="px-3 py-3 text-right" scope="col">Cierres</th>
               <th className="px-3 py-3 text-right" scope="col">Conversión</th>
               <th className="min-w-56 px-5 py-3" scope="col">Nivel de conversión</th>
@@ -371,7 +372,7 @@ function RankingConversion({ ranking }: {
                 <div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--gi-navy)]">{fila.nombre}</p><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--gi-muted)]">{fila.supervisorNombre}</p></div>
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
-              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{etiquetaBase}: {numero(fila.detalle.divisor)}</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
               {fila.detalle.operacionesCartera > 0 && (
                 <p className="ml-12 mt-1 text-[10px] font-semibold text-[var(--muted-foreground-strong)]">
                   {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
@@ -805,7 +806,12 @@ export function RankingVendedoresPanel({
           <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay analistas para mostrar</p></div></div>
         </TabpanelMarco>
       ) : tipo === 'conversion' ? (
-        <RankingConversion ranking={rankingConversion} />
+        <RankingConversion
+          ranking={rankingConversion}
+          etiquetaBase={conversionMensual?.fuentes.divisor === 'crm.leads.creado_en'
+            ? 'Base automática'
+            : conversionMensual == null ? 'Base del mes' : 'Base histórica'}
+        />
       ) : tipo === 'cosecha' ? (
         <TabpanelMarco tab="cosecha">
           <CosechaLote cosecha={cosecha} equipo={equipoRanking} enRevision={cosechaEnRevision} />

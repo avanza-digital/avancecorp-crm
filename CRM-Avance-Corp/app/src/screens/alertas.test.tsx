@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import type { AlertaCRM } from '@/lib/alertas'
 import type { EstadoAlertasCRM } from '@/lib/alertas-context'
 import type { Rol } from '@/lib/roles'
+import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
+import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 
 const reintentar = vi.fn()
 const reconocer = vi.fn<EstadoAlertasCRM['reconocer']>().mockResolvedValue(undefined)
@@ -55,12 +57,14 @@ function montar({
   cargando = false,
   errores = [],
   pospuestas = 0,
+  conSondaPeriodo = false,
 }: {
   rol?: Rol
   alertas?: AlertaCRM[]
   cargando?: boolean
   errores?: string[]
   pospuestas?: number
+  conSondaPeriodo?: boolean
 } = {}) {
   reintentar.mockReset()
   reconocer.mockClear()
@@ -76,7 +80,12 @@ function montar({
     reintentar,
     reconocer,
   }
-  return render(<Alertas />)
+  return render(<PeriodoGerenciaProvider><Alertas />{conSondaPeriodo && <SondaPeriodo />}</PeriodoGerenciaProvider>)
+}
+
+function SondaPeriodo() {
+  const { periodo, setPeriodo, origenFiltrado, setOrigenFiltrado } = usePeriodoGerencia()
+  return <><button onClick={() => { setPeriodo({ desde: '2026-07-01', hasta: '2026-07-15' }); setOrigenFiltrado('landing') }}>Elegir período anterior de prueba</button><output data-testid="periodo-de-prueba">{JSON.stringify({ periodo, origenFiltrado })}</output></>
 }
 
 describe('Alertas — responsabilidad por rol', () => {
@@ -146,6 +155,42 @@ describe('Alertas — responsabilidad por rol', () => {
     expect(screen.getByText('Nada pendiente')).toBeVisible()
     expect(screen.getByText('Tu equipo no tiene excepciones que requieran intervención.')).toBeVisible()
   })
+
+  it('Gerencia no interpreta ausencia de avisos como evaluación completa', () => {
+    montar({ rol: 'gerencia' })
+
+    expect(screen.getByText('Sin avisos generados')).toBeVisible()
+    expect(screen.getByText(/puede faltar el corte de revisión, una meta, muestra suficiente o verificación/)).toBeVisible()
+    expect(screen.queryByText('Nada pendiente')).not.toBeInTheDocument()
+    expect(screen.queryByText('No hay desviaciones estratégicas que requieran una decisión.')).not.toBeInTheDocument()
+    expect(screen.getByText(/Señales del mes en curso/)).toBeVisible()
+  })
+
+  it('abre la señal de Gerencia con su rango consultado y sin un filtro de origen anterior', async () => {
+    const usuario = userEvent.setup()
+    const periodo = { desde: '2026-09-01', hasta: '2026-09-04' }
+    montar({ rol: 'gerencia', conSondaPeriodo: true, alertas: [alerta({
+      id: 'caida_conversion:global', tipo: 'caida_conversion', alcance: 'empresa',
+      titulo: 'Caída de conversión', destino: { vista: 'ranking-vendedores', etiqueta: 'Ver ranking', periodo },
+    })] })
+    await usuario.click(screen.getByRole('button', { name: 'Elegir período anterior de prueba' }))
+    expect(screen.getByTestId('periodo-de-prueba')).toHaveTextContent('2026-07-01')
+    expect(screen.getByTestId('periodo-de-prueba')).toHaveTextContent('landing')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Ver ranking: Caída de conversión' }))
+
+    expect(screen.getByTestId('periodo-de-prueba')).toHaveTextContent(JSON.stringify({ periodo, origenFiltrado: null }))
+  })
+
+  it('un enlace operativo sin rango no altera el período de Gerencia', async () => {
+    const usuario = userEvent.setup()
+    montar({ conSondaPeriodo: true, alertas: [alerta()] })
+    await usuario.click(screen.getByRole('button', { name: 'Elegir período anterior de prueba' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Abrir en Agenda: Tarea vencida' }))
+
+    expect(screen.getByTestId('periodo-de-prueba')).toHaveTextContent('2026-07-01')
+    expect(screen.getByTestId('periodo-de-prueba')).toHaveTextContent('landing')
+  })
 })
 
 // ── F3 «Recordar»: la alerta de contacto verifica BAJO DEMANDA ───────────────
@@ -187,11 +232,11 @@ describe('Alertas — revisar contacto (F3)', () => {
       reconocer,
     }
     render(
-      <QueryClientProvider client={clienteConsultas}>
+      <PeriodoGerenciaProvider><QueryClientProvider client={clienteConsultas}>
         <PanelActionsContext.Provider value={actions}>
           <Alertas />
         </PanelActionsContext.Provider>
-      </QueryClientProvider>,
+      </QueryClientProvider></PeriodoGerenciaProvider>,
     )
     return { abrirNuevoLead, invalidar, clienteConsultas }
   }

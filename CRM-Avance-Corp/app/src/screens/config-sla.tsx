@@ -41,13 +41,6 @@ function inicioMes(fecha: string): string {
   return `${fecha.slice(0, 7)}-01`
 }
 
-function finMes(fecha: string): string {
-  const anio = Number(fecha.slice(0, 4))
-  const mes = Number(fecha.slice(5, 7))
-  const fin = new Date(Date.UTC(anio, mes, 0))
-  return `${fin.getUTCFullYear()}-${String(fin.getUTCMonth() + 1).padStart(2, '0')}-${String(fin.getUTCDate()).padStart(2, '0')}`
-}
-
 function payload(config: ConfiguracionSla): PublicacionSla {
   return {
     zona_horaria: config.politica.zona_horaria,
@@ -190,7 +183,7 @@ function Cumplimiento({
 export function ConfigSla() {
   const hoy = fechaLima(Date.now())
   const [desde, setDesde] = useState(() => inicioMes(hoy))
-  const [hasta, setHasta] = useState(() => finMes(hoy))
+  const [hasta, setHasta] = useState(hoy)
   const consulta = useConfiguracionSla()
   const metricas = useMetricasSla(desde, hasta)
   const publicar = usePublicarPoliticaSla()
@@ -364,8 +357,8 @@ export function ConfigSla() {
               <p className="mt-1 text-xs text-muted-foreground">Agrupado por la versión realmente aplicada a cada caso.</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><Label htmlFor="sla-desde">Desde</Label><Input id="sla-desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="mt-1" /></div>
-              <div><Label htmlFor="sla-hasta">Hasta</Label><Input id="sla-hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="mt-1" /></div>
+              <div><Label htmlFor="sla-desde">Desde</Label><Input id="sla-desde" type="date" value={desde} max={hasta && hasta < hoy ? hasta : hoy} onChange={(e) => setDesde(e.target.value)} className="mt-1" /></div>
+              <div><Label htmlFor="sla-hasta">Hasta</Label><Input id="sla-hasta" type="date" value={hasta} min={desde} max={hoy} onChange={(e) => setHasta(e.target.value)} className="mt-1" /></div>
             </div>
           </div>
         </CardHeader>

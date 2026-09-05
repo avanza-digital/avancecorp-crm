@@ -31,6 +31,8 @@ export interface DestinoAlerta {
   vista: Vista
   leadId?: string | null
   etiqueta: string
+  /** Rango ya consultado para una alerta gerencial; se conserva al navegar. */
+  periodo?: { desde: string; hasta: string }
 }
 
 export interface AlertaCRM {

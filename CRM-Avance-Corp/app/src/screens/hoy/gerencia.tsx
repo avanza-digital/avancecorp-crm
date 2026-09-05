@@ -34,7 +34,7 @@ import {
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { ORIGENES_TODOS } from '@/lib/tipos'
+import { ORIGENES } from '@/lib/tipos'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
@@ -79,8 +79,11 @@ function estaCargando(sesionReal: boolean, consulta: ConsultaCargable): boolean 
   return sesionReal && consulta.isPending && consulta.data === undefined
 }
 
-function errorConsulta(sesionReal: boolean, error: unknown, mensajeSeguro: string): string | null {
-  return sesionReal && error ? mensajeDeError(error, mensajeSeguro) : null
+function errorConsulta(sesionReal: boolean, error: unknown, mensajeSeguro: string, datos?: unknown): string | null {
+  return sesionReal && error
+    ? mensajeDeError(error, mensajeSeguro)
+      + (datos == null ? '' : ' Se muestran los últimos datos disponibles, sin actualizar.')
+    : null
 }
 
 function DesgloseMonedas({
@@ -158,17 +161,17 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, ori
               className="gi-date"
               title={origenDeshabilitado ? 'Los datos de ejemplo no se filtran' : undefined}
             >
-              <option value="">Todos los orígenes</option>
-              {ORIGENES_TODOS.map((o) => <option key={o.k} value={o.k}>{o.label}</option>)}
-              <option value="sin_origen">Sin origen registrado</option>
+              <option value="">Todos los orígenes comerciales</option>
+              {ORIGENES.filter((o) => o.k === 'landing' || o.k === 'formulario' || o.k === 'referido')
+                .map((o) => <option key={o.k} value={o.k}>{o.label}</option>)}
             </select>
           )}
         </div>
         {modo === 'mixto' && (
           <p role="status" className="mt-1.5 text-[11px] font-medium text-[var(--gi-muted)]">
             {origenDeshabilitado
-              ? `Conversión, metas y capital: ${etiquetaMes} completo · el rango recorta Cosecha, citas y embudo. Los datos de ejemplo no se filtran por origen.`
-              : `Conversión y citas: ${etiquetaRango} · metas y capital: ${etiquetaMes}. El origen recorta Cosecha y embudo; la conversión canónica sigue mostrando todos los orígenes.`}
+              ? `Ejemplo: conversión mensual, metas y capital de ${etiquetaMes}; llegadas, avance y citas del ${etiquetaRango}. Sin filtro de origen.`
+              : `Rango: ${etiquetaRango} · Metas y capital mensual: ${etiquetaMes}. El origen filtra las llegadas y sus resultados, no la conversión general ni las citas registradas.`}
           </p>
         )}
         {!validacion.valido && (
@@ -272,7 +275,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // El filtro de origen SOLO gobierna las lecturas del LOTE (Resumen y
   // Conversiones); las demas secciones piden sin filtro.
   const origenActivo = seccion === 'completo' || seccion === 'resumen' || seccion === 'conversiones'
-    ? origenFiltrado
+    ? origenFiltrado === 'landing' || origenFiltrado === 'formulario' || origenFiltrado === 'referido'
+      ? origenFiltrado
+      : null
     : null
   const conversiones = useMetricasConversiones(
     sesionReal && necesitaConversiones,
@@ -285,7 +290,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     periodoMetricas.desde,
     periodoMetricas.hasta,
   )
-  const distribucion = useMetricasDistribucionLeadsV3(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
+  const distribucion = useMetricasDistribucionLeadsV3(sesionReal && necesitaDistribucion, periodoRanking.desde, periodoRanking.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
   // LA CONVERSIÓN DEL MES de la empresa (crm.conversion_mensual_fn). La RPC es
   // MENSUAL por contrato y este panel se gobierna con un rango LIBRE: se pide
@@ -326,113 +331,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       || (rankingHistorico && qCosechaRanking.isFetching))
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones
-  const conversionMensualCargando = consultaMensualRealActiva
-    && !conversionesDeEjemplo
-    && ((qConversionMensual.isPending && qConversionMensual.data === undefined)
-      || (rankingHistorico && qConversionMensual.isFetching))
-  // El mundo demo de gerencia es `demo-v*` (el de inteligencia comercial): el
-  // tile héroe y los paneles de la familia beben del MISMO payload derivado —
-  // un total en el héroe y otro en el ranking sería la demo enseñando dos
-  // negocios distintos.
-  const conversionMensualDemoIntel = useMemo(
-    () => (conversionesDeEjemplo
-      ? conversionMensualInteligenciaDemo(Date.parse(`${periodoRanking.desde}T12:00:00-05:00`))
-      : null),
-    [conversionesDeEjemplo, periodoRanking.desde],
-  )
-  const conversionMensual = modoDemo
-    ? conversionMensualDemoIntel
-    : (qConversionMensual.data ?? null)
-  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
-  // 2026-08-14): la regla compartida decide, no cada pantalla por su cuenta.
-  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const conversionMensualMedible = lecturaConversion.mostrar
-  // Para los paneles: tri-estado como el TC — `undefined` mientras consulta
-  // (skeleton), `null` cuando no está (fail-closed: jamás ceros ni fórmulas
-  // viejas bajo el rótulo nuevo).
-  const conversionMensualPaneles = conversionesDeEjemplo
-    ? conversionMensualDemoIntel
-    : conversionMensualCargando
-      ? undefined
-      : (qConversionMensual.data ?? null)
-  const equipoConversionVigente = useMemo(
-    () => identidadesEquipoConversion(ambito.vendedores, equipo),
-    [ambito.vendedores, equipo],
-  )
-  // Nombres del roster completo para la traza de compromisos (F4.4).
-  const nombresEquipo = useMemo(
-    () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
-    [equipo],
-  )
-  const cumplimientoDemo = useMemo(
-    () => {
-      if (!conversionesDeEjemplo) return null
-      return { ...cumplimientoMetasConversionEquipoDemo(), periodo: periodoRanking.desde }
-    },
-    [conversionesDeEjemplo, periodoRanking.desde],
-  )
-  const cumplimientoRankingCargando = consultaMensualRealActiva && !conversionesDeEjemplo
-    && ((qCumplimientoRanking.isPending && qCumplimientoRanking.data === undefined)
-      || (rankingHistorico && qCumplimientoRanking.isFetching))
-  const cumplimientoRanking = conversionesDeEjemplo
-    ? cumplimientoDemo
-    : sesionReal
-      ? cumplimientoRankingCargando
-        ? undefined
-        : (qCumplimientoRanking.data ?? null)
-      : cumplimientoMetas
-  // Meta, capital e identidad salen de la MISMA foto mensual. Si la foto no
-  // llegó, se falla cerrado con ceros de objetivo y capital «—»: nunca se
-  // recicla el store del mes vigente dentro de un histórico.
-  const cumplimiento = cumplimientoRanking?.gerencia ?? null
-  const metaBase = useMemo(
-    () => objetivosCero(periodoRanking.desde).gerencia,
-    [periodoRanking.desde],
-  )
-  const meta = metaVigente(sesionReal ? metaBase : objetivos.gerencia, cumplimiento)
-  const equipoConversionHistorico = useMemo(
-    () => Object.values(cumplimientoRanking?.porVendedor ?? {}).map((fila) => ({
-      vendedorId: fila.vendedorId,
-      nombre: fila.nombre,
-      supervisorId: fila.supervisorId,
-      supervisorNombre: fila.supervisorNombre,
-      leads: 0,
-      contactados: 0,
-      reunionesPactadas: 0,
-      reunionesRealizadas: 0,
-      clientes: 0,
-      descartados: 0,
-      conversionPct: null,
-    })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || (a.vendedorId ?? '').localeCompare(b.vendedorId ?? '')),
-    [cumplimientoRanking?.porVendedor],
-  )
-  const datosConversion = conversionesDeEjemplo ? metricasConversionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : conversiones.data
-  const datosEquipoConversionRango = conversionesDeEjemplo
-    ? conversionEquipoDemo()
-    : equipoConversionVigente
-  const datosEquipoConversion = conversionesDeEjemplo
-    ? conversionEquipoDemo()
-    : rankingHistorico ? equipoConversionHistorico : equipoConversionVigente
-  const metasVendedoresVisuales = conversionesDeEjemplo
-    ? metasConversionEquipoDemo()
-    : (cumplimientoRanking?.porVendedor ?? {})
-  // `CumplimientoVendedor` contiene la meta de la misma revisión que el capital.
-  // La identidad/población se decide aparte en el panel: roster vivo hoy y foto
-  // congelada únicamente para históricos.
-  const metasVendedoresRanking = cumplimientoRanking?.porVendedor ?? {}
-  const metaMensualRanking = useMemo(() => {
-    const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
-    const errorCarga = !conversionesDeEjemplo
-      && (sesionReal ? qCumplimientoRanking.isError : objetivosError)
-    return errorCarga
-      ? { ...semantica, comparable: false, errorCarga: true }
-      : semantica
-  }, [ahoraPeriodo, conversionesDeEjemplo, objetivosError, periodoRanking, qCumplimientoRanking.isError, sesionReal])
-  const metaConversionVisual = meta.conversionObjetivo
-  const metaMensualConversion = metaMensualRanking
-  const datosReuniones = reunionesDeEjemplo ? metricasReunionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : reuniones.data
-  const datosDistribucion = modoDemo ? metricasDistribucionDemo(periodo.desde, periodo.hasta) : distribucion.data
-  const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.')
   const mesFotoMensualEsperado = periodoRanking.desde.slice(0, 7)
   const mesConversionMensual = qConversionMensual.data?.periodo.mes
   const mesCumplimientoMensual = qCumplimientoRanking.data?.periodo.slice(0, 7)
@@ -490,6 +388,116 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       ))
     ))
   const mensajeFotoMensualDesalineada = 'Las fuentes de la foto mensual no corresponden al mismo mes, revisión o estado de cierre. Reintenta para completar la actualización.'
+  const conversionMensualCargando = consultaMensualRealActiva
+    && !conversionesDeEjemplo
+    && ((qConversionMensual.isPending && qConversionMensual.data === undefined)
+      || (rankingHistorico && qConversionMensual.isFetching))
+  // El mundo demo de gerencia es `demo-v*` (el de inteligencia comercial): el
+  // tile héroe y los paneles de la familia beben del MISMO payload derivado —
+  // un total en el héroe y otro en el ranking sería la demo enseñando dos
+  // negocios distintos.
+  const conversionMensualDemoIntel = useMemo(
+    () => (conversionesDeEjemplo
+      ? conversionMensualInteligenciaDemo(Date.parse(`${periodoRanking.desde}T12:00:00-05:00`))
+      : null),
+    [conversionesDeEjemplo, periodoRanking.desde],
+  )
+  const conversionMensual = modoDemo
+    ? conversionMensualDemoIntel
+    : fotoMensualBaseDesalineada ? null : (qConversionMensual.data ?? null)
+  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
+  // 2026-08-14): la regla compartida decide, no cada pantalla por su cuenta.
+  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+  const conversionMensualMedible = lecturaConversion.mostrar
+  // Para los paneles: tri-estado como el TC — `undefined` mientras consulta
+  // (skeleton), `null` cuando no está (fail-closed: jamás ceros ni fórmulas
+  // viejas bajo el rótulo nuevo).
+  const conversionMensualPaneles = conversionesDeEjemplo
+    ? conversionMensualDemoIntel
+    : conversionMensualCargando
+      ? undefined
+      : fotoMensualBaseDesalineada ? null : (qConversionMensual.data ?? null)
+  const equipoConversionVigente = useMemo(
+    () => identidadesEquipoConversion(ambito.vendedores, equipo),
+    [ambito.vendedores, equipo],
+  )
+  // Nombres del roster completo para la traza de compromisos (F4.4).
+  const nombresEquipo = useMemo(
+    () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
+    [equipo],
+  )
+  const cumplimientoDemo = useMemo(
+    () => {
+      if (!conversionesDeEjemplo) return null
+      return { ...cumplimientoMetasConversionEquipoDemo(), periodo: periodoRanking.desde }
+    },
+    [conversionesDeEjemplo, periodoRanking.desde],
+  )
+  const cumplimientoRankingCargando = consultaMensualRealActiva && !conversionesDeEjemplo
+    && ((qCumplimientoRanking.isPending && qCumplimientoRanking.data === undefined)
+      || (rankingHistorico && qCumplimientoRanking.isFetching))
+  const cumplimientoRanking = conversionesDeEjemplo
+    ? cumplimientoDemo
+    : sesionReal
+      ? cumplimientoRankingCargando
+        ? undefined
+        : fotoMensualBaseDesalineada ? null : (qCumplimientoRanking.data ?? null)
+      : cumplimientoMetas
+  // Meta, capital e identidad salen de la MISMA foto mensual. Si la foto no
+  // llegó, se falla cerrado con ceros de objetivo y capital «—»: nunca se
+  // recicla el store del mes vigente dentro de un histórico.
+  const cumplimiento = cumplimientoRanking?.gerencia ?? null
+  const metaBase = useMemo(
+    () => objetivosCero(periodoRanking.desde).gerencia,
+    [periodoRanking.desde],
+  )
+  const meta = metaVigente(sesionReal ? metaBase : objetivos.gerencia, cumplimiento)
+  const equipoConversionHistorico = useMemo(
+    () => Object.values(cumplimientoRanking?.porVendedor ?? {}).map((fila) => ({
+      vendedorId: fila.vendedorId,
+      nombre: fila.nombre,
+      supervisorId: fila.supervisorId,
+      supervisorNombre: fila.supervisorNombre,
+      leads: 0,
+      contactados: 0,
+      reunionesPactadas: 0,
+      reunionesRealizadas: 0,
+      clientes: 0,
+      descartados: 0,
+      conversionPct: null,
+    })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es') || (a.vendedorId ?? '').localeCompare(b.vendedorId ?? '')),
+    [cumplimientoRanking?.porVendedor],
+  )
+  const datosConversion = conversionesDeEjemplo ? metricasConversionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : conversiones.data
+  const datosEquipoConversionRango = conversionesDeEjemplo
+    ? conversionEquipoDemo()
+    : equipoConversionVigente
+  const datosEquipoConversion = conversionesDeEjemplo
+    ? conversionEquipoDemo()
+    : rankingHistorico ? equipoConversionHistorico : equipoConversionVigente
+  const metasVendedoresVisuales = conversionesDeEjemplo
+    ? metasConversionEquipoDemo()
+    : (cumplimientoRanking?.porVendedor ?? {})
+  // `CumplimientoVendedor` contiene la meta de la misma revisión que el capital.
+  // La identidad/población se decide aparte en el panel: roster vivo hoy y foto
+  // congelada únicamente para históricos.
+  const metasVendedoresRanking = cumplimientoRanking?.porVendedor ?? {}
+  const metaMensualRanking = useMemo(() => {
+    const semantica = semanticaMetaMensual(periodoRanking, ahoraPeriodo, periodoRanking)
+    const errorCarga = !conversionesDeEjemplo
+      && (fotoMensualBaseDesalineada || (sesionReal
+        ? qCumplimientoRanking.isError
+          || (consultaMensualRealActiva && qCumplimientoRanking.data?.gerencia == null && !qCumplimientoRanking.isPending)
+        : objetivosError))
+    return errorCarga
+      ? { ...semantica, comparable: false, errorCarga: true }
+      : semantica
+  }, [ahoraPeriodo, consultaMensualRealActiva, conversionesDeEjemplo, fotoMensualBaseDesalineada, objetivosError, periodoRanking, qCumplimientoRanking.data, qCumplimientoRanking.isError, qCumplimientoRanking.isPending, sesionReal])
+  const metaConversionVisual = meta.conversionObjetivo
+  const metaMensualConversion = metaMensualRanking
+  const datosReuniones = reunionesDeEjemplo ? metricasReunionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : reuniones.data
+  const datosDistribucion = modoDemo ? metricasDistribucionDemo(periodoRanking.desde, periodoRanking.hasta) : distribucion.data
+  const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.', conversiones.data)
   // La MENSUAL es LA fuente del tab de conversión del ranking: si falla, el
   // panel lo dice con Reintentar — no degrada mudo a «indisponible» (exigencia
   // pre-release de Miguel, 2026-08-15).
@@ -497,18 +505,19 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     ? null
     : fotoMensualBaseDesalineada
       ? mensajeFotoMensualDesalineada
-      : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.')
+      : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.', qConversionMensual.data)
   const errorCosechaRanking = modoDemo
     ? null
-    : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudo calcular la cosecha del lote.')
+    : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudieron cargar los resultados de las llegadas.', qCosechaRanking.data)
   const errorFotoMensualRanking = !conversionesDeEjemplo && consultaMensualRealActiva
     ? qCumplimientoRanking.isError
       ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'
+        + (cumplimientoRanking == null ? '' : ' Se muestran los últimos datos disponibles, sin actualizar.')
       : fotoMensualRankingDesalineada
         ? mensajeFotoMensualDesalineada
         : null
     : null
-  const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de citas.')
+  const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de citas.', reuniones.data)
   // La foto MENSUAL alimenta metas, capital, ranking y el fallback compatible
   // del Resumen. Su fallo sigue siendo un error reintentable del panel, pero la
   // cifra principal toma el núcleo canónico del rango cuando está disponible.
@@ -551,7 +560,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
         borrador={borrador}
         onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))}
         onAplicar={() => setPeriodo(borrador)}
-        origen={conversionesDeEjemplo ? null : origenFiltrado}
+        origen={conversionesDeEjemplo ? null : origenActivo}
         onCambiarOrigen={setOrigenFiltrado}
         origenDeshabilitado={conversionesDeEjemplo}
         modo={modoCabecera}
@@ -574,7 +583,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
       {esResumen && (
-        <DesglosePorEmpresa demo={modoDemo} porVendedor={cumplimientoRanking?.porVendedor ?? null} />
+        <DesglosePorEmpresa demo={modoDemo} periodo={periodoRanking.desde} porVendedor={errorFotoMensualRanking ? null : cumplimientoRanking?.porVendedor ?? null} />
       )}
 
       {/* F4.4: la trazabilidad de los reconocimientos — qué alertas atenuaron
@@ -764,13 +773,15 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                     ? pctMeta(conversionActual, meta.conversionObjetivo)
                     : null}
                   mensajeSinProgreso={!conversionMensualMedible && conversionMensual != null
-                    ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                    ? (lecturaConversion.aviso ?? 'Base de conversión no disponible para este mes')
                     : metaMensualRanking.errorCarga
                         ? 'No pudimos cargar la meta mensual'
                         : meta.conversionObjetivo <= 0
                             ? undefined
                             : conversionActual == null
-                                ? 'Todavía no hay leads recibidos este mes'
+                                ? conversionMensual == null
+                                  ? 'Conversión mensual no disponible'
+                                  : 'Sin base para medir la conversión este mes'
                                 : undefined}
                 />
             </div>}
@@ -862,7 +873,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               ? <EquipoGerenciaPanel conversionMensual={conversionMensualPaneles} conversiones={datosEquipoConversion} />
               : null}
           <div data-gi-panel>
-            <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.')} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} desde={periodo.desde} hasta={periodo.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />
+            <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.', distribucion.data)} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} desde={periodoRanking.desde} hasta={periodoRanking.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />
           </div>
         </>
       )}
@@ -872,7 +883,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           ? 'Datos de ejemplo. No modifican información real.'
           // En el ranking el capital SÍ se unifica (US$ convertido al TC rotulado);
           // repetir aquí «por separado» contradiría el total (hallazgo Codex).
-          : seccion === 'ranking-vendedores'
+          : seccion === 'ranking-vendedores' || seccion === 'metas' || esResumen
             ? `${periodoPie.desde} al ${periodoPie.hasta} · Capital total: US$ convertido a S/ al TC rotulado; desglose por moneda en cada fila.`
             : `${periodoPie.desde} al ${periodoPie.hasta} · PEN y USD se muestran por separado.`}
       </p>

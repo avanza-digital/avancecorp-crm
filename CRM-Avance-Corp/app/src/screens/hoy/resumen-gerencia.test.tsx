@@ -260,7 +260,7 @@ describe('ranking general de analistas', () => {
 
     const enlace = screen.getByRole('link', { name: 'Ver ranking general de analistas' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
-    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
   })
 
@@ -345,7 +345,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(heroe).not.toBeNull()
     expect(heroe).toHaveTextContent('3.98%')
     expect(heroe).toHaveTextContent('Base: 176 leads automáticos · 7 cierres')
-    expect(heroe).toHaveTextContent('185 leads recibidos: 176 automáticos · 8 manuales · 1 referido')
+    expect(heroe).toHaveTextContent('185 llegadas únicas: 176 automáticas · 8 manuales · 1 referido')
     expect(heroe).not.toHaveTextContent('fuera de la base')
     expect(heroe).not.toHaveTextContent('317')
     expect(heroe).not.toHaveTextContent('3.79%')
@@ -538,8 +538,8 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getByText('10 cierres este mes')).toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.queryByText(/leads asignados/)).not.toBeInTheDocument()
-    expect(screen.getByText(/leads del período/)).toBeInTheDocument()
-    const tarjetaReuniones = screen.getByText('Citas realizadas').closest('[data-gi-kpi]')
+    expect(screen.getByText(/llegadas del rango · hasta hoy/)).toBeInTheDocument()
+    const tarjetaReuniones = screen.getByText('Citas realizadas', { selector: '.gi-label' }).closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')
     expect(tarjetaReuniones).toHaveTextContent('Dato no disponible')
   })
@@ -566,6 +566,31 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getByText('Aún no hay actividad comercial en este período')).toBeInTheDocument()
     expect(screen.queryByText('Avance de metas')).not.toBeInTheDocument()
   })
+
+  it.each([null, undefined])('una respuesta ausente (%s) no demuestra un rango sin actividad', (conversiones) => {
+    const reintentar = vi.fn()
+    render(
+      <ResumenGerenciaPanel
+        conversiones={conversiones}
+        conversionMensual={null}
+        reuniones={reunionesSinActividad()}
+        equipo={[]}
+        meta={META_VACIA}
+        cumplimiento={null}
+        tc={TC_TEST}
+        origenFiltrado={null}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={reintentar}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('Datos del resumen no disponibles')
+    expect(screen.queryByText('Aún no hay actividad comercial en este período')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reintentar).toHaveBeenCalledOnce()
+  })
 })
 
 describe('meta publicada de conversión en el resumen de Gerencia', () => {
@@ -590,7 +615,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(
       screen.getByText(
-        /aplica a la Cosecha y al embudo del período; las citas, la conversión canónica y las metas siguen mostrando toda la empresa/,
+        /filtra las llegadas y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa/,
       ),
     ).toBeInTheDocument()
   })
@@ -618,7 +643,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     expect(screen.queryByText('15%', { selector: '.gi-hero-metric strong' })).not.toBeInTheDocument()
     // F3: la meta mensual ya no se dibuja sobre la curva semanal (H12) — la
     // ausencia del 15 % se vigila en el héroe; la serie 1 ahora son cierres.
-    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
     expect(evolucion).toBeInTheDocument()
   })
 
@@ -643,7 +668,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(screen.getByText('No disponible', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
-    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
     expect(evolucion).toBeInTheDocument()
   })
 })
@@ -670,7 +695,7 @@ describe('gráfica por origen — publicación fail-closed', () => {
   }
 
   function panelOrigenes(): HTMLElement {
-    const panel = screen.getByRole('heading', { name: 'Conversión por origen' }).closest('section')
+    const panel = screen.getByRole('heading', { name: 'Resultados por origen' }).closest('section')
     if (!(panel instanceof HTMLElement)) throw new Error('no se encontró el panel por origen')
     return panel
   }
@@ -697,11 +722,28 @@ describe('gráfica por origen — publicación fail-closed', () => {
 
     const panel = panelOrigenes()
     expect(within(panel).getByRole('status')).toHaveTextContent(
-      'Cifras en revisión: la conversión por origen permanece oculta.',
+      'Cifras en revisión: los resultados por origen permanecen ocultos.',
     )
     expect(within(panel).queryByText('13.16%')).not.toBeInTheDocument()
     expect(within(panel).queryByText('11.63%')).not.toBeInTheDocument()
     expect(panel.querySelector('.gi-fill')).toBeNull()
+    if (datos.nucleo != null) {
+      const heroe = screen.getByText(/Conversión del rango ·/).closest('section')
+      expect(heroe).toHaveTextContent('Cifras en revisión: falta verificar la conversión del rango.')
+      expect(heroe).not.toHaveTextContent('23.06%')
+      expect(heroe).not.toHaveTextContent('registros en la base histórica')
+    }
+  })
+
+  it('una cantidad opcional de altas manuales ausente no se transforma en cero', () => {
+    const datos = conOrigenesVerificados(metricasConversionesDemo('2026-08-01', '2026-08-31'))
+    datos.nucleo = { ...datos.nucleo!, base: 'llegada_unica', llegadas: 185 }
+    delete datos.nucleo.altas_manuales
+    montar(datos)
+    const heroe = screen.getByText(/Conversión del rango ·/).closest('section')
+    expect(heroe).toHaveTextContent('185 llegadas únicas')
+    expect(heroe).toHaveTextContent('altas manuales no disponibles')
+    expect(heroe).not.toHaveTextContent('0 manuales')
   })
 })
 
@@ -711,7 +753,7 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
   // convertidos/RESUELTOS, sin ponderar referidos ni arrastre). Con meta 40 %,
   // el avance es 50 % si la barra mide el número que la pantalla ENSEÑA, y
   // 100 % si vuelve a medir el del cumplimiento. Esa diferencia es el test.
-  function panelConFuentesDiscrepantes(): void {
+  function panelConFuentesDiscrepantes(conversionPct = 20, capitalMeta?: number): void {
     const mensual = conversionMensualInteligenciaDemo(AHORA)
     render(
       <ResumenGerenciaPanel
@@ -719,11 +761,11 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
         conversionMensual={{
           ...mensual,
           cobertura: { ...mensual.cobertura, medible: true },
-          total: { ...mensual.total, conversion_pct: 20 },
+          total: { ...mensual.total, conversion_pct: conversionPct },
         }}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
-        meta={{ ...META_EQUIPO, conversionObjetivo: 40 }}
+        meta={{ ...META_EQUIPO, conversionObjetivo: 40, ...(capitalMeta == null ? {} : { detalles: [{ ...META_EQUIPO.detalles[0]!, moneda: 'PEN', capitalObjetivo: capitalMeta }] }) }}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
         origenFiltrado={null}
@@ -743,6 +785,16 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
     expect(barra).not.toBeNull()
     expect(within(barra as HTMLElement).getByText('50%')).toBeInTheDocument()
     expect(within(barra as HTMLElement).queryByText('100%')).not.toBeInTheDocument()
+  })
+
+  it('conserva 150% de conversión y 200% de capital; sólo las barras terminan en100', () => {
+    panelConFuentesDiscrepantes(60, 908_000)
+    const conversion = screen.getByText('Conversión').parentElement
+    const capital = screen.getByText('Capital').parentElement
+    expect(conversion).toHaveTextContent('150%')
+    expect(capital).toHaveTextContent('200%')
+    expect(conversion?.parentElement?.querySelector('.gi-fill')).toHaveStyle({ width: '100%' })
+    expect(capital?.parentElement?.querySelector('.gi-fill')).toHaveStyle({ width: '100%' })
   })
 
   it('mes no medible: la barra se calla en vez de avanzar con el otro número', () => {
@@ -771,7 +823,7 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
 
     const barra = screen.getByText('Conversión').closest('div')
     expect(barra).not.toBeNull()
-    expect(within(barra as HTMLElement).getByText('Sin meta')).toBeInTheDocument()
+    expect(within(barra as HTMLElement).getByText('Dato no disponible')).toBeInTheDocument()
     expect(within(barra as HTMLElement).queryByText('100%')).not.toBeInTheDocument()
   })
 })

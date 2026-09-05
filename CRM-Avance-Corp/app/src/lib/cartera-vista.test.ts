@@ -296,6 +296,16 @@ describe('resumenCartera — cliente dado de baja: fuera del dinero, DENTRO de l
 describe('esPorVencer / idsPorVencer — el radar de renovación', () => {
   const HOY = new Date(2026, 6, 20)
 
+  it('usa el día de Lima aunque el navegador tenga otro día local', () => {
+    const instante = new Date('2026-09-05T02:00:00Z') // todavía 4 de septiembre en Lima
+    // Simula getters del navegador en otra zona: el resultado no debe depender de ellos.
+    instante.getFullYear = () => 2026
+    instante.getMonth = () => 8
+    instante.getDate = () => 5
+    expect(esPorVencer(contrato({ fecha_vencimiento: '2026-09-04' }), instante)).toBe(true)
+    expect(esPorVencer(contrato({ fecha_vencimiento: '2026-10-05' }), instante)).toBe(false)
+  })
+
   it('activo dentro de la ventana sí; vencido/renovado/retirado no', () => {
     expect(esPorVencer(contrato({ fecha_vencimiento: '2026-08-04' }), HOY)).toBe(true)
     expect(esPorVencer(contrato({ estado: 'vencido', fecha_vencimiento: '2026-08-04' }), HOY)).toBe(false)

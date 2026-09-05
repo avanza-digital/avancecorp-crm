@@ -18,10 +18,8 @@ import {
   CrmApiError,
   cerrarTarea,
   listarActividadesDelAmbito,
-  listarClientes,
   listarLeads,
   listarLeadsDelAmbito,
-  listarMisContratos,
   listarResumenCartera,
   listarTareasDelAmbito,
   reprogramarReunion,
@@ -397,8 +395,6 @@ describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
   // call-site pasa su constante correcta.
   it.each([
     ['tareas_del_ambito', 2000, 'GET', 'http://supabase.test/rest/v1/tareas', () => listarTareasDelAmbito()],
-    ['clientes_cartera', 2000, 'GET', 'http://supabase.test/rest/v1/clientes_basicos', () => listarClientes()],
-    ['contratos_cartera', 2000, 'GET', 'http://supabase.test/rest/v1/contratos_cartera', () => listarMisContratos()],
     ['actividades_del_ambito', 10000, 'POST', 'http://supabase.test/rest/v1/rpc/actividades_del_ambito_fn', () => listarActividadesDelAmbito()],
   ] as const)('avisa cuando %s llena su tope de %i', async (lectura, tope, metodo, ruta, invocar) => {
     const filasVacias = Array.from({ length: tope }, () => ({}))

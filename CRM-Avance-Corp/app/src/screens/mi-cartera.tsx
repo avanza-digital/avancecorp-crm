@@ -80,7 +80,7 @@ import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
-import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera } from '@/data/crm-queries'
+import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera, useResumenCarteraClientes } from '@/data/crm-queries'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { resolverContextoFichaCliente } from '@/lib/cliente-ficha-modelo'
 import type {
@@ -90,6 +90,7 @@ import type {
   CuentaBancariaSeleccionable,
   Cuota,
   OperacionCartera,
+  ResumenCarteraClientes,
   Titular,
 } from '@/lib/clientes-tipos'
 
@@ -213,7 +214,7 @@ function DetalleOperacionCapital({
   if (operacion.tipo === 'upgrade') {
     return (
       <span className="mt-1 block text-[10px] font-semibold text-muted-foreground">
-        Upgrade · {operacion.elegible_conversion ? 'suma conversión' : 'mes inicial · no suma conversión'}
+        Upgrade · {operacion.elegible_conversion ? 'elegible para conversión · aporte sujeto al núcleo' : 'no elegible para conversión'}
       </span>
     )
   }
@@ -246,7 +247,7 @@ function DetalleOperacionCapital({
       <span className="font-semibold text-primary">
         {money(operacion.capital_adicional, operacion.moneda)} adicional
       </span>{' '}
-      = {money(contrato.capital, contrato.moneda)} · 1 conversión
+      = {money(contrato.capital, contrato.moneda)} · renovación registrada
     </span>
   )
 }
@@ -879,6 +880,7 @@ function TarjetaGrupoCliente({
  *  datos y las acciones vienen del caller — esta capa solo decide QUÉ se ve. */
 function VistaMiCartera({
   grupos,
+  resumenServidor,
   operaciones,
   desgloseNoDisponible,
   demo,
@@ -898,6 +900,11 @@ function VistaMiCartera({
 }: {
   /** null = cargando. */
   grupos: GrupoCartera[] | null
+  resumenServidor?: {
+    data: ResumenCarteraClientes | undefined
+    error: boolean
+    reintentar: () => void
+  } | undefined
   operaciones: OperacionCartera[]
   desgloseNoDisponible: { reintentar: () => void } | null
   demo: boolean
@@ -982,13 +989,26 @@ function VistaMiCartera({
   // renovarlo aunque el titular esté dado de baja, y este chip es el único
   // radar de renovación del CRM — excluirlo lo borraba del negocio en silencio.
   const enGestion = useMemo(() => bases.filter((g) => g.cliente.activo), [bases])
-  const inactivos = bases.length - enGestion.length
+  const usarResumenServidor = resumenServidor !== undefined
+  const datosResumen = resumenServidor?.data
+  const inactivos = usarResumenServidor ? (datosResumen?.clientes.de_baja ?? 0) : bases.length - enGestion.length
   // resumenCartera separa por dentro los dos conceptos: dinero sobre lo
   // gestionable, alarma sobre TODO (+ desglose porVencer30DeBaja).
-  const resumen = useMemo(() => resumenCartera(bases), [bases])
+  const resumenConfirmado = !usarResumenServidor || datosResumen != null
+  // Sólo alias de campos servidos. Si falta la respuesta, sus ceros internos
+  // NO se presentan: resumenConfirmado protege tarjetas, cabecera y controles.
+  const resumen = useMemo(() => !usarResumenServidor ? resumenCartera(bases) : ({
+    capitalActivoPen: datosResumen?.capital_activo.pen ?? 0,
+    capitalActivoUsd: datosResumen?.capital_activo.usd ?? 0,
+    clientesConCapital: datosResumen?.clientes.con_capital ?? 0,
+    totalClientes: datosResumen?.clientes.en_gestion ?? 0,
+    porVencer30: datosResumen?.contratos.por_vencer_30 ?? 0,
+    porVencer30DeBaja: datosResumen?.contratos.por_vencer_30_de_baja ?? 0,
+  }), [bases, datosResumen, usarResumenServidor])
   // ids de contratos por vencer de TODA la cartera: alimentan el filtro de
   // renovación Y la marca «renovar» de cada sub-fila (una sola fuente).
-  const porVencer = useMemo(() => idsPorVencer(bases), [bases])
+  const fechaResumen = datosResumen?.generado_en
+  const porVencer = useMemo(() => idsPorVencer(bases, fechaResumen ? new Date(fechaResumen) : new Date()), [bases, fechaResumen])
   const contratosActivosTotal = useMemo(() => enGestion.reduce((n, g) => n + g.contratosActivos, 0), [enGestion])
   // Pestillo del toggle «Por vencer»: una vez que hubo algo que renovar, el
   // control se queda montado aunque el conteo baje a 0 (dirá «(0)», que es la
@@ -1314,9 +1334,9 @@ function VistaMiCartera({
     stats.push({
       icon: UserX,
       label: 'Sin analista',
-      value: String(sinAsesor),
+      value: grupos == null ? '—' : String(sinAsesor),
       tone: sinAsesor > 0 ? 'warn' : 'default',
-      sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin analista”' : 'Toda la cartera tiene dueño',
+      sub: grupos == null ? 'listado no disponible' : sinAsesor > 0 ? 'Repártelos: filtro “Sin analista”' : 'Toda la cartera tiene dueño',
     })
   } else if (stats.length < 4) {
     // El hueco que deja una moneda ausente. Sigue siendo un número GLOBAL, y con
@@ -1349,7 +1369,26 @@ function VistaMiCartera({
         La cartera sigue operativa, pero el desglose renovado/adicional y el efecto de los upgrades no están
         disponibles.
       </AvisoDegradacion>
-      {bases.length > 0 && <StatStrip stats={stats} />}
+      <AvisoDegradacion
+        activo={resumenServidor?.error === true}
+        queReintenta="de los indicadores de Cartera"
+        onReintentar={() => resumenServidor?.reintentar()}
+      >
+        {resumenServidor?.data
+          ? 'No se pudieron actualizar los indicadores de Cartera. Se muestra el último resumen confirmado.'
+          : 'Los indicadores de Cartera no están disponibles. El listado sigue operativo si su lectura está completa.'}
+      </AvisoDegradacion>
+      {resumenServidor && !resumenServidor.data && !resumenServidor.error && (
+        <p role="status" className="text-sm text-muted-foreground">Consultando los indicadores de Cartera…</p>
+      )}
+      {resumenConfirmado && (resumenServidor ? !modoMes || grupos != null : bases.length > 0) && <StatStrip stats={stats} />}
+      {verEquipo && resumenConfirmado && bases.length > 0 && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {modoMes
+            ? 'Capital y clientes que cerraron: mes y filtros seleccionados. Por vencer y Sin analista: toda la cartera.'
+            : 'Los indicadores muestran toda la cartera. Los filtros sólo cambian el listado.'}
+        </p>
+      )}
       <Card className="overflow-hidden">
         <SectionHead
           icon={Wallet}
@@ -1361,7 +1400,7 @@ function VistaMiCartera({
                   visibles (si no, el usuario ve N+1 filas y lee N sin
                   explicación). */}
               <span className="text-xs tabular-nums text-muted-foreground">
-                {grupos
+                {resumenConfirmado && (grupos || resumenServidor?.data)
                   ? `${resumen.totalClientes} cliente${resumen.totalClientes === 1 ? '' : 's'}${
                       inactivos > 0 ? ` · ${inactivos} inactivo${inactivos === 1 ? '' : 's'}` : ''
                     }`
@@ -1466,6 +1505,7 @@ function VistaMiCartera({
                 <button
                   type="button"
                   aria-pressed={soloPorVencer}
+                  disabled={!resumenConfirmado && !soloPorVencer}
                   // Al encender el aviso, el mes se quita: es el ÚNICO radar de
                   // renovación del CRM, y con un mes puesto el contador diría 3
                   // y la lista enseñaría 1 — las otras dos renovaciones no las
@@ -1483,7 +1523,7 @@ function VistaMiCartera({
                   }`}
                 >
                   <AlarmClock className="size-3" aria-hidden />
-                  Por vencer ≤{DIAS_ALARMA_RENOVACION} d ({resumen.porVencer30})
+                  Por vencer ≤{DIAS_ALARMA_RENOVACION} d ({resumenConfirmado ? resumen.porVencer30 : '—'})
                 </button>
               )}
               {hayFiltro && (
@@ -1706,11 +1746,21 @@ export function MiCartera() {
   const clientesQ = useClientes(!esDemo)
   const contratosQ = useContratos(!esDemo)
   const operacionesQ = useOperacionesCartera(!esDemo)
+  const usarResumenServidor = !esDemo && can(yo?.rol, 'verTodo')
+  const resumenQ = useResumenCarteraClientes(usarResumenServidor, yo?.id)
+
+  // Las listas se verifican por separado; si no se pueden unir sin perder
+  // contratos, no entregar al agrupador una cartera aparentemente completa.
+  const carteraIncompleta = useMemo(() => {
+    if (clientesQ.data == null || contratosQ.data == null) return false
+    const idsClientes = new Set(clientesQ.data.map((c) => c.id))
+    return contratosQ.data.some((c) => !idsClientes.has(c.cliente_id))
+  }, [clientesQ.data, contratosQ.data])
 
   const grupos = useMemo(() => {
-    if (clientesQ.data == null || contratosQ.data == null) return null
+    if (clientesQ.data == null || contratosQ.data == null || carteraIncompleta) return null
     return agruparCartera(clientesQ.data, contratosQ.data)
-  }, [clientesQ.data, contratosQ.data])
+  }, [clientesQ.data, contratosQ.data, carteraIncompleta])
 
   const grupoFicha =
     overlay?.tipo === 'cliente-detalle'
@@ -1750,6 +1800,7 @@ export function MiCartera() {
     cerrar()
     void clientesQ.refetch()
     void contratosQ.refetch()
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenCarteraClientes(yo?.id) })
   }
 
   const abrirNuevoContrato = (
@@ -1816,6 +1867,7 @@ export function MiCartera() {
   // Alta exitosa → refrescar cartera y encadenar el contrato (flujo del portal).
   const alClienteCreado = async (id: string) => {
     setOverlay(null)
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenCarteraClientes(yo?.id) })
     const r = await clientesQ.refetch()
     void contratosQ.refetch()
     const nuevo = r.data?.find((c) => c.id === id)
@@ -1832,6 +1884,7 @@ export function MiCartera() {
       queryKey: crmQueryKeys.clienteDetalle(id),
     })
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenCarteraClientes(yo?.id) })
   }
 
   // Crear/corregir contrato → refrescar tanto la cartera como los núcleos de
@@ -1853,8 +1906,8 @@ export function MiCartera() {
     })
   }
 
-  const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
-  const hayError = (clientesQ.isError || contratosQ.isError) && grupos == null
+  const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError || carteraIncompleta)
+  const hayError = (clientesQ.isError || contratosQ.isError || carteraIncompleta) && grupos == null
   // Falló la recarga PERO seguimos con datos: la pantalla es plenamente operable,
   // así que no se bloquea con PanelError — se avisa de que lo que se ve puede
   // estar rancio. Sin esto la cartera se veía idéntica a una recién cargada.
@@ -1863,19 +1916,27 @@ export function MiCartera() {
     void clientesQ.refetch()
     void contratosQ.refetch()
     void operacionesQ.refetch()
+    if (usarResumenServidor) void resumenQ.refetch()
   }
 
   return (
     <>
       <VistaMiCartera
         grupos={cargando ? null : grupos}
+        resumenServidor={usarResumenServidor ? {
+          data: resumenQ.data,
+          error: resumenQ.isError,
+          reintentar: () => void resumenQ.refetch(),
+        } : undefined}
         operaciones={operacionesQ.data ?? []}
         desgloseNoDisponible={operacionesQ.isError ? { reintentar: () => void operacionesQ.refetch() } : null}
         demo={false}
         error={
           hayError
             ? {
-                mensaje: mensajeDeError(clientesQ.error ?? contratosQ.error, 'No se pudo cargar tu cartera.'),
+                mensaje: carteraIncompleta
+                  ? 'Los clientes y contratos no forman una lectura completa. Vuelve a cargar la cartera.'
+                  : mensajeDeError(clientesQ.error ?? contratosQ.error, 'No se pudo cargar tu cartera.'),
                 reintentando: clientesQ.isFetching || contratosQ.isFetching,
                 reintentar: reintentarCarga,
               }
@@ -1948,8 +2009,7 @@ export function MiCartera() {
             datosCarteraDesactualizados={recargaFallida ? { reintentar: reintentarCarga } : null}
             onAccesoRevocado={() => {
               cerrar()
-              void clientesQ.refetch()
-              void contratosQ.refetch()
+              reintentarCarga()
             }}
             onAsignacionDesactualizada={() => void clientesQ.refetch()}
             onCerrar={cerrar}

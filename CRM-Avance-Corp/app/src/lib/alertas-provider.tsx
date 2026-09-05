@@ -50,7 +50,7 @@ import { useCRMData } from '@/lib/store-context'
 import { administraSoloRolesCrm, type Rol } from '@/lib/roles'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
-function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
+function adaptarAlertaGerencial(alerta: AlertaGerencia, periodo: { desde: string; hasta: string }): AlertaCRM {
   if (alerta.tipo === 'bajo_meta_conversion') {
     // H10/H21 (F3): el aviso dice su VENTANA (mes en curso — la misma cifra
     // ponderada que pinta el ranking al que manda) y su UMBRAL de muestra;
@@ -58,7 +58,7 @@ function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
     // y sospechosa la que no.
     const muestra = alerta.muestra == null
       ? ''
-      : ` · sobre ${alerta.muestra} recibidos (se avisa desde ${MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR})`
+      : ` · base de conversión: ${alerta.muestra} (se avisa desde ${MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR})`
     return {
       id: alerta.id,
       tipo: alerta.tipo,
@@ -72,6 +72,7 @@ function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
       destino: {
         vista: 'ranking-vendedores',
         etiqueta: 'Ver ranking',
+        periodo,
       },
     }
   }
@@ -80,7 +81,7 @@ function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
   // su vecina individual), comparada contra el mismo corte del mes anterior.
   const muestra = alerta.muestra == null
     ? ''
-    : ` · sobre ${alerta.muestra} recibidos (se compara desde ${LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL})`
+    : ` · base de conversión: ${alerta.muestra} (se compara desde ${LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL})`
   return {
     id: alerta.id,
     tipo: alerta.tipo,
@@ -94,6 +95,7 @@ function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
     destino: {
       vista: 'conversiones',
       etiqueta: 'Ver conversión',
+      periodo,
     },
   }
 }
@@ -231,7 +233,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         Number(diaLima.slice(5, 7)),
         0,
       ).getDate(),
-    }).map(adaptarAlertaGerencial)
+    }).map((alerta) => adaptarAlertaGerencial(alerta, periodoActual))
   }, [
     actividadesDelAmbito,
     ambito.leads,
@@ -245,6 +247,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     cumplimientoMetasError,
     metasGerencia,
     objetivosError,
+    periodoActual,
     recordatorios.data,
     rol,
     tareas,

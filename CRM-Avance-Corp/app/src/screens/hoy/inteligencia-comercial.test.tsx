@@ -40,6 +40,38 @@ const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
 const CUMPLIMIENTO_PANEL = cumplimientoMetasConversionEquipoDemo().gerencia
 
 describe('detalle de conversión por analista', () => {
+  it.each([null, undefined])('una lectura ausente (%s) no se presenta como cero leads', (datos) => {
+    const reintentar = vi.fn()
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
+        equipo={conversionEquipoDemo()}
+        metaConversion={15}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
+        modoDemo={false}
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={reintentar}
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('Resultados del rango no disponibles')
+    expect(screen.queryByText('Aún no hay leads para analizar')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Conversión mensual canónica' })).getByText('23.06%')).toBeInTheDocument()
+    expect(screen.getByText('Capital del mes').closest('.gi-hero-metric')).not.toHaveTextContent('—')
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reintentar).toHaveBeenCalledOnce()
+  })
+
   it('mantiene el héroe mensual cuando falla la lectura secundaria del rango', () => {
     const onReintentarMensual = vi.fn()
     const onReintentarRango = vi.fn()
@@ -78,6 +110,46 @@ describe('detalle de conversión por analista', () => {
     expect(onReintentarMensual).not.toHaveBeenCalled()
   })
 
+  it('una cohorte válida vacía conserva su vacío sin ocultar el capital y el índice mensual', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
+    datos.cohorte = {
+      leads: 0, asignados: 0, contactados: 0, reuniones_agendadas: 0,
+      reuniones_realizadas: 0, propuestas: 0, clientes: 0, contratos: 0,
+      descartados: 0, conversion_clientes_pct: null,
+      conversion_contratos_pct: null, conversion_resueltos_pct: null,
+    }
+    datos.embudo = []
+    datos.origenes = []
+    datos.responsables = []
+    datos.produccion = { clientes: 0, contratos: 0, capital_pen: 0, capital_usd: 0 }
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
+        equipo={[]}
+        metaConversion={15}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        mensualCargando={false}
+        mensualError={null}
+        rangoCargando={false}
+        rangoError={null}
+        modoDemo={false}
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentarMensual={vi.fn()}
+        onReintentarRango={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Aún no hay leads para analizar')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Conversión mensual canónica' })).getByText('23.06%')).toBeInTheDocument()
+    expect(screen.getByText('Capital del mes').closest('.gi-hero-metric')).not.toHaveTextContent('—')
+  })
+
   it('mantiene los paneles del rango cuando falla el núcleo mensual', () => {
     const onReintentarMensual = vi.fn()
     const onReintentarRango = vi.fn()
@@ -107,7 +179,8 @@ describe('detalle de conversión por analista', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular la conversión mensual.')
     expect(screen.getByRole('region', { name: 'Conversión mensual canónica' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Resultados de los leads recibidos por analista' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados hasta hoy de las llegadas por origen' })).not.toBeInTheDocument()
+    expect(screen.getByText('Cifras en revisión: los resultados por origen permanecen ocultos.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(onReintentarMensual).toHaveBeenCalledTimes(1)
     expect(onReintentarRango).not.toHaveBeenCalled()
@@ -185,7 +258,12 @@ describe('detalle de conversión por analista', () => {
     // El número grande es LA conversión del MES (4.15÷12), no la del rango.
     expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
     expect(contenido.getByText('31.50%')).toBeInTheDocument()
-    expect(contenido.getByText('Recibidos 10 · cierres 4')).toBeInTheDocument()
+    expect(contenido.getByText('Base automática 10 · cierres del mes 4')).toBeInTheDocument()
+    const semanal = contenido.getByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })
+    expect(semanal).toHaveAttribute('data-meta-series', '[]')
+    expect(contenido.getByText(/No se compara con la meta mensual ponderada/)).toBeInTheDocument()
+    expect(contenido.queryByText('Citas')).not.toBeInTheDocument()
+    expect(contenido.getByText(/no confirma asistencia/)).toBeInTheDocument()
     // Procedencia y referidos con la letra corregida del plan.
     expect(contenido.getByText('de agosto 3, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
@@ -193,8 +271,8 @@ describe('detalle de conversión por analista', () => {
     // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
     // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
     // fuente vieja lo dejaba en S/ 0 eterno).
-    expect(contenido.getByText('Capital por sus leads (PEN)')).toBeInTheDocument()
-    expect(contenido.getByText('Capital por sus leads (USD)')).toBeInTheDocument()
+    expect(contenido.getByText('Capital atribuido (PEN)')).toBeInTheDocument()
+    expect(contenido.getByText('Capital atribuido (USD)')).toBeInTheDocument()
     expect(contenido.queryByText('Capital confirmado PEN')).not.toBeInTheDocument()
     expect(contenido.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(contenido.getByText(money(20_000, 'USD'))).toBeInTheDocument()
@@ -358,7 +436,7 @@ describe('detalle de conversión por analista', () => {
       />,
     )
 
-    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
     expect(JSON.parse(evolucion.getAttribute('data-x-axis') ?? '[]')).toEqual([
       '2026-06-03 – 2026-06-09',
       '2026-06-10 – 2026-06-16',
@@ -370,7 +448,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const tendencia = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-      .getByRole('img', { name: 'Tendencia semanal de conversión de Ana Torres' })
+      .getByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })
     expect(JSON.parse(tendencia.getAttribute('data-x-axis') ?? '[]')).toEqual([
       '2026-06-03 – 2026-06-09',
       '2026-06-10 – 2026-06-16',
@@ -474,8 +552,8 @@ describe('detalle de conversión por analista', () => {
     expect(detalle.getByText('Conversión del mes no disponible')).toBeInTheDocument()
     expect(detalle.getByText(/1 cierre no tiene episodio verificable/)).toBeInTheDocument()
     expect(detalle.queryByText('31.50%')).not.toBeInTheDocument()
-    expect(detalle.queryByText('Recibidos 10 · cierres 4')).not.toBeInTheDocument()
-    expect(detalle.queryByRole('img', { name: 'Tendencia semanal de conversión de Ana Torres' })).not.toBeInTheDocument()
+    expect(detalle.queryByText('Base automática 10 · cierres del mes 4')).not.toBeInTheDocument()
+    expect(detalle.queryByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })).not.toBeInTheDocument()
     expect(detalle.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(detalle.getByText(money(20_000, 'USD'))).toBeInTheDocument()
   })
@@ -596,9 +674,10 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     origenReferido = false,
     incluirNucleo = true,
     modoDemo = true,
+    nucleoExtra: Partial<NonNullable<MetricasConversiones['nucleo']>> = {},
   ) {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
-    if (incluirNucleo) datos.nucleo = { ...NUCLEO }
+    if (incluirNucleo) datos.nucleo = { ...NUCLEO, ...nucleoExtra }
     datos.cosecha = { ...COSECHA }
     if (sondas !== undefined) datos.sondas = sondas
     if (origenReferido) {
@@ -640,18 +719,19 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(heroe.getByText('7.22%')).toBeInTheDocument()
     expect(heroe.getByText(/537 registros en la base histórica/)).toBeInTheDocument()
     expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
-    expect(screen.getAllByText('Resultados de los leads recibidos').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Resultados de las llegadas').length).toBeGreaterThan(0)
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.getByText('17 cierres de 184')).toBeInTheDocument()
+    expect(screen.getByText('17 cerrados de 184 llegadas · hasta hoy')).toBeInTheDocument()
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Resultados de los leads recibidos por analista' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Resultados hasta hoy de las llegadas por origen' })).toBeInTheDocument()
   })
 
   it('01–03 no vuelve a mostrar la base mensual que ya incluye el día 04', () => {
     const datos = metricasConversionesDemo('2026-09-01', '2026-09-03')
+    datos.sondas = { ...SONDAS }
     datos.nucleo = {
       ...NUCLEO,
       base: 'llegada_unica',
@@ -706,27 +786,67 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(heroeRegion).not.toHaveTextContent('317')
     expect(heroeRegion).not.toHaveTextContent('3.79%')
     expect(heroe.queryByText(/no incluye operaciones de cartera/)).not.toBeInTheDocument()
-    expect(heroe.getByText('185 leads recibidos: 176 automáticos · 8 manuales · 1 referido')).toBeInTheDocument()
+    expect(heroe.getByText('185 llegadas únicas: 176 automáticas · 8 manuales · 1 referido')).toBeInTheDocument()
     expect(heroe.getByText(/Peso: referidos y renovaciones ×0.15 · Upgrades ×1/)).toBeInTheDocument()
     expect(heroeRegion).not.toHaveTextContent('fuera de la base')
     expect(heroeRegion).not.toHaveTextContent('Cosecha del rango')
     expect(heroe.queryByText(/asignaciones contabilizadas/)).not.toBeInTheDocument()
   })
 
-  it('la paridad del núcleo ya no gobierna esta pantalla: el BRUTO se pinta igual', () => {
-    // Antes (F3.4) el descuadre ocultaba la cifra del mes. La cifra de aquí
-    // es la cosecha bruta y la paridad no la toca — sin cifra oculta y sin
-    // banner de «Cifras en revisión» (HOY/Metas/Ranking conservan el suyo).
+  it('el descuadre oculta núcleo y resultados por origen sin disfrazarlos con el mensual', () => {
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
-    expect(screen.queryByText(/Cifras en revisión/)).not.toBeInTheDocument()
+    const heroe = within(screen.getByRole('region', { name: 'Conversión canónica del rango' }))
+    expect(heroe.getByText('Cifras en revisión: falta verificar la conversión del rango.')).toBeInTheDocument()
+    expect(heroe.queryByText('7.22%')).not.toBeInTheDocument()
+    expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Resultados de los leads recibidos por analista' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados hasta hoy de las llegadas por origen' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['sondas ausentes', undefined],
+    ['verificación no ejecutada', { ...SONDAS, cuadra: null, paridad_nucleo: null }],
+    ['sin filas verificadas', { ...SONDAS, paridad_filas: 0 }],
+  ])('no publica el núcleo con %s', (_caso, sondas) => {
+    montarConNucleo(sondas)
+    const heroe = within(screen.getByRole('region', { name: 'Conversión canónica del rango' }))
+    expect(heroe.getByText('Cifras en revisión: falta verificar la conversión del rango.')).toBeInTheDocument()
+    expect(heroe.queryByText('7.22%')).not.toBeInTheDocument()
+    expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados hasta hoy de las llegadas por origen' })).not.toBeInTheDocument()
+  })
+
+  it('mantiene el avance inferido sin presentarlo como citas o asistencia real', () => {
+    montarConNucleo({ ...SONDAS })
+    const tarjeta = screen.getByText('Reunión o avance posterior').closest('[data-gi-kpi]')
+    expect(tarjeta).toHaveTextContent('58')
+    expect(tarjeta).toHaveTextContent('82 con señal de agenda o avance posterior · no confirma asistencia')
+    expect(screen.getByRole('heading', { name: 'Avance comercial inferido' })).toBeInTheDocument()
+    expect(screen.queryByText('Leads que llegaron a cita')).not.toBeInTheDocument()
+    expect(screen.queryByText('Citas realizadas')).not.toBeInTheDocument()
+    const avance = screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })
+    expect(JSON.parse(avance.getAttribute('data-series') ?? '[]')).toEqual([184, 139, 82, 58, 37, 17])
+  })
+
+  it('preserva null sin base y no lo sustituye por cero ni por el porcentaje mensual', () => {
+    montarConNucleo({ ...SONDAS }, false, true, false, { divisor: 0, numerador: 0, conversion_pct: null })
+    const heroe = within(screen.getByRole('region', { name: 'Conversión canónica del rango' }))
+    expect(heroe.getByText('—')).toBeInTheDocument()
+    expect(heroe.queryByText('0.00%')).not.toBeInTheDocument()
+    expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
+  })
+
+  it('mantiene el porcentaje canónico servido por encima de100', () => {
+    montarConNucleo({ ...SONDAS }, false, true, false, { divisor: 10, numerador: 15, conversion_pct: 150 })
+    const heroe = within(screen.getByRole('region', { name: 'Conversión canónica del rango' }))
+    expect(heroe.getByText('150.00%')).toBeInTheDocument()
+    expect(heroe.queryByText('100.00%')).not.toBeInTheDocument()
   })
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
     montarConNucleo({ ...SONDAS }, true)
-    expect(screen.getByText(/queda fuera de la base general de la conversión/)).toBeInTheDocument()
+    expect(screen.getByText(/sus llegadas no aumentan la base automática/)).toBeInTheDocument()
   })
 
   it('origen ficha≠ledger avisa sin ocultar la cifra', () => {
@@ -832,7 +952,7 @@ describe('F1.3b: capital producido por origen', () => {
       />,
     )
 
-    expect(screen.getByText(/Capital producido por origen/)).toBeInTheDocument()
+    expect(screen.getByText(/Capital vinculado por origen/)).toBeInTheDocument()
     const bloque = screen.getByRole('region', { name: 'Capital producido por origen' })
     expect(within(bloque as HTMLElement).getByText('Meta Ads')).toBeInTheDocument()
     // PEN y USD por separado, jamás sumados (no hay TC en este panel).
@@ -867,7 +987,7 @@ describe('F1.3b: capital producido por origen', () => {
       />,
     )
 
-    expect(screen.queryByText(/Capital producido por origen/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Capital vinculado por origen/)).not.toBeInTheDocument()
   })
 })
 
@@ -905,12 +1025,12 @@ describe('filtro de origen en Conversiones (27/08)', () => {
   it('con filtro, las cifras de EMPRESA se retiran y entra el capital del LOTE', () => {
     montarConOrigen('referido')
     // El héroe rotula el origen y el lote reemplaza al capital/meta de empresa.
-    expect(screen.getByText(/Resultados de los leads recibidos · Referido/)).toBeInTheDocument()
+    expect(screen.getByText(/Resultados de las llegadas · Referido/)).toBeInTheDocument()
     expect(screen.queryByText('Capital del mes')).not.toBeInTheDocument()
     expect(screen.queryByText(/Meta mensual ·/)).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado del mes')).not.toBeInTheDocument()
     // Capital del lote = origenes[] (Referido demo: 460.000 PEN + 60.000 USD).
-    expect(screen.getByText('Capital del lote (hasta hoy)')).toBeInTheDocument()
+    expect(screen.getAllByText('Capital vinculado a las llegadas')[0]).toBeInTheDocument()
     expect(screen.getAllByText(money(460_000, 'PEN')).length).toBeGreaterThan(0)
     expect(screen.getByText(money(60_000, 'USD'))).toBeInTheDocument()
   })
@@ -919,7 +1039,7 @@ describe('filtro de origen en Conversiones (27/08)', () => {
     montarConOrigen(null)
     expect(screen.getByText('Capital del mes')).toBeInTheDocument()
     expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
-    expect(screen.queryByText(/Capital del lote/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Capital vinculado a las llegadas/)).not.toBeInTheDocument()
     expect(screen.queryByText(/origen: /)).not.toBeInTheDocument()
   })
 })

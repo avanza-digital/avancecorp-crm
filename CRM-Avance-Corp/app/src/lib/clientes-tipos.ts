@@ -7,6 +7,17 @@ import type { Moneda } from './format'
 import type { CategoriaContrato, ModalidadContrato, TipoCuota, TipoInteres } from './cronograma'
 import type { TipoDocumento } from './documento'
 
+/** Respuesta existente de crm.resumen_cartera_clientes_fn, sin fórmulas UI. */
+export interface ResumenCarteraClientes {
+  version: 1
+  generado_en: string
+  zona: 'America/Lima'
+  dias_alarma_renovacion: 30
+  clientes: { en_gestion: number; de_baja: number; con_capital: number; sin_asesor: number }
+  capital_activo: { pen: number; usd: number }
+  contratos: { por_estado: Record<string, number>; por_vencer_30: number; por_vencer_30_de_baja: number }
+}
+
 /** Fila de la vista crm.clientes_basicos (ya scopeada por rol del CRM). */
 export interface ClienteBasico {
   id: string

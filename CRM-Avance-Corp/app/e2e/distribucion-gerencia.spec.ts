@@ -8,9 +8,9 @@ import {
   montarBackendReal,
 } from './_helpers'
 
-// Panel de rendimiento: resumen + evidencia, tarjetas por analista (con edición
-// del límite) y tabla completa por rangos bajo demanda. Los tiempos/SLA viven
-// exclusivamente en su módulo versionado, no en este tablero.
+// Rendimiento: conversión comercial del mes y capacidad actual. Las asignaciones
+// repetidas y su puntería se conservan en Repartir, no como captación comercial.
+// Los tiempos/SLA viven exclusivamente en su módulo versionado.
 test.describe('distribución de leads en Hoy > Gerencia', () => {
   test('sesión real: resumen, tarjetas y tabla bajo demanda con edición del límite', async ({ page }) => {
     const estado = await montarBackendReal(page, {
@@ -23,6 +23,11 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
 
     await expect(page.getByRole('heading', { name: 'Rendimiento y capacidad comercial' })).toBeVisible()
     await expect(page.getByText('Altas por analista', { exact: true })).toHaveCount(0)
+    // Este fixture conserva el contrato histórico; no se presenta como llegadas nuevas.
+    await expect(page.getByText('Base histórica del rango', { exact: true })).toBeVisible()
+    await expect(page.getByText('Puntería del período', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Cierres de asignaciones', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('option', { name: /cierres/i })).toHaveCount(0)
 
     // Nivel 1: avisos de evidencia en lenguaje comercial.
     await expect(page.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeVisible()
@@ -35,6 +40,9 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     await expect(fichaAna).toBeVisible()
     await expect(fichaAna).toContainText('8 de 20 leads')
     await expect(fichaAna).toContainText('12 cupos libres')
+    await expect(fichaAna).toContainText('Capital estimado actual')
+    await expect(fichaAna).not.toContainText(/Recibió|asignaciones en el período|Cierra el|Salidas del período/)
+    await expect(page.getByText(/Carga y capacidad actuales; no dependen del mes elegido/)).toBeVisible()
 
     // La tabla completa vive bajo demanda.
     await expect(
@@ -46,12 +54,10 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
 
     const filaAna = tabla.getByRole('row', { name: /Ana Capital/ })
     await expect(filaAna).toBeVisible()
-    await expect(filaAna).toContainText('recibió 3') // cartera Y recibidos, juntos
-
-    await page.getByRole('button', { name: 'Conversión por monto' }).click()
-    await expect(filaAna).toContainText('50%')
-    await expect(filaAna).toContainText('3 de 6')
-    await page.getByRole('button', { name: 'Carga actual' }).click()
+    await expect(tabla.getByRole('table', { name: /Carga actual por analista/ })).toBeVisible()
+    await expect(filaAna).toContainText('8')
+    await expect(filaAna).not.toContainText(/recibió|asignaciones|50%|3 de 6/)
+    await expect(page.getByRole('button', { name: /Conversión por monto|Cierres de asignaciones por monto/ })).toHaveCount(0)
 
     // Edición del límite de cartera, ahora desde la tarjeta del analista.
     await fichaAna.getByRole('button', { name: 'Editar límite de cartera de Ana Capital' }).click()
@@ -77,6 +83,11 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     await entrarDemo(page, 'Gerencia')
     await page.getByRole('button', { name: 'Rendimiento' }).click()
     await expect(page.getByRole('heading', { name: 'Rendimiento y capacidad comercial' })).toBeVisible()
+    const primeraFicha = page.getByRole('article', { name: /^Ficha de/ }).first()
+    await expect(primeraFicha).toBeVisible()
+    await expect(primeraFicha).toContainText('Cartera actual')
+    await expect(primeraFicha).not.toContainText(/Recibió|asignaciones en el período|Cierra el|Salidas del período/)
+    await expect(page.getByText('Cierres de asignaciones', { exact: true })).toHaveCount(0)
 
     const desborde = () =>
       page.evaluate(
@@ -90,6 +101,9 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
     await expect(
       page.getByRole('region', { name: 'Analistas por rango de monto en soles' }),
     ).toBeVisible()
+    const tabla = page.getByRole('table', { name: /Carga actual por analista/ })
+    await expect(tabla).not.toContainText(/recibió|asignaciones|%/)
+    await expect(page.getByRole('button', { name: /Conversión por monto|Cierres de asignaciones por monto/ })).toHaveCount(0)
     expect(await desborde()).toBeLessThanOrEqual(1)
   })
 
@@ -105,6 +119,8 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
       page.getByText('No representan información real de la empresa', { exact: false }),
     ).toBeVisible()
     await expect(page.getByText('Altas por analista', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Puntería del período', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('Cierres de asignaciones', { exact: true })).toHaveCount(0)
     expect(requestsSupabase()).toBe(0)
   })
 })

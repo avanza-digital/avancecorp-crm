@@ -7,6 +7,7 @@
 // unen. El chip del StatStrip lo arma la pantalla (patrón de equipo.tsx), no este
 // módulo, para no acoplar lib con componentes.
 import type { ClienteBasico, ContratoRow } from './clientes-tipos'
+import { fechaLima } from './agenda-derivada'
 
 /** Un cliente con sus contratos y el capital activo por moneda (separado). */
 export interface GrupoCartera {
@@ -101,13 +102,15 @@ export function ordenDeCartera(a: GrupoCartera, b: GrupoCartera): number {
 
 /**
  * Días de calendario entre `hoy` y una fecha YYYY-MM-DD. Extrae el año/mes/día
- * LOCAL de `hoy` (= Lima en prod y en los tests, TZ fijada en vitest.config) y
+ * de Lima de `hoy` (también fuera de Perú), igual que el resumen del servidor, y
  * compara medianoches UTC → conteo de días estable, sin deriva por zona horaria.
  */
 function diasHasta(fecha: string, hoy: Date): number {
   const [y, m, d] = fecha.split('-').map(Number)
   if (!y || !m || !d) return Number.NaN
-  const base = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  if (!Number.isFinite(hoy.getTime())) return Number.NaN
+  const [hy, hm, hd] = fechaLima(hoy.getTime()).split('-').map(Number)
+  const base = Date.UTC(hy!, hm! - 1, hd!)
   const objetivo = Date.UTC(y, m - 1, d)
   return Math.round((objetivo - base) / 86_400_000)
 }
