@@ -64,9 +64,13 @@ no contaban en ningún sentido. No cambian el divisor, la elegibilidad de los
 cierres, los pesos, los filtros ni la atribución. El peso se rotula en una
 sola línea: «Peso: referidos y renovaciones ×0,15 · Upgrades ×1».
 
-Este ajuste de textos queda separado del despliegue documentado arriba:
-**implementado y verificado, pendiente de publicar**. La base de datos no
-requiere otra migración.
+Este ajuste de textos se **publicó y verificó el 04/09/2026, ~20:19 Lima**,
+separado del despliegue del núcleo: commit `b8108ae3f4dc`, release
+`crm-20260905T011158Z-b8108ae3f4dc`, build `build-20260905T011157779Z`.
+Se comprobaron los rótulos y el desglose en Resumen y Conversiones de
+producción con una sesión de Gerencia existente, sin errores de consola.
+La base de datos no requirió ni recibió otra migración. Evidencia completa
+y rollback exclusivo de frontend en [[Deploy a Hostinger]].
 
 ### Conteos verificados del rango
 

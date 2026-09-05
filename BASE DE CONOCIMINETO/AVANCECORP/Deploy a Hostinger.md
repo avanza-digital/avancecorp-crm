@@ -53,6 +53,33 @@ Antes de publicar deben coincidir sus commits; ver
 
 ## Notas
 
+- **Deploy 2026-09-04 (~20:17–20:19 hora de Lima) — CRM: textos de gestión
+  simplificados.** Main local y `avancecorp/main` coincidían, con árbol limpio,
+  en **`b8108ae3f4dca59be3c833ed039ca819235da6dd`**. El paquete se construyó
+  desde ese commit en un checkout separado y sin crear ramas.
+  Release **`crm-20260905T011158Z-b8108ae3f4dc`**, build
+  **`build-20260905T011157779Z`**, ZIP SHA-256
+  **`c9fdcb382438a9f7d0eac3415942c16cd4075d82d2fcb15b171f6158f151a8a2`**.
+  Entry **`assets/index-s-vr6rQc.js`**. Solo frontend del CRM; no se publicó
+  el portal ni se aplicaron migraciones pendientes. No cambian cálculos,
+  filtros, fuentes del núcleo, pesos, permisos ni autenticación.
+  La preview confirmó campos de acceso y botón habilitados, sin errores de
+  consola. Configuración pública, Ficha 360, integridad del ZIP y ascendencia
+  respecto del release vivo aprobadas antes de publicar por el MCP oficial
+  de Hostinger, con la credencial local sin exponerla. CI de Main
+  **`33935185254`** verde: calidad/build y E2E; **2.650 pruebas unitarias**,
+  **115 E2E aprobadas, 26 omitidas y 0 fallos**.
+  Después de purgar caché: **78/78 comprobaciones** (63 hashes exactos,
+  12 imágenes HTTP 200, `.htaccess` 403 y ZIP 404 tanto en CRM como portal),
+  y tres lecturas estables del build. Se abrieron **Resumen y Conversiones
+  en producción con la sesión de Gerencia ya existente**: títulos nuevos,
+  desglose de 243 leads (231 automáticos, 11 manuales y 1 referido) y pesos
+  correctos, sin errores de consola. No se introdujeron credenciales ni se
+  modificaron datos comerciales. **Rollback de este ajuste: solo frontend**,
+  al paquete conservado `crm-20260904T225440Z-ff21967acd19.zip`; no revertir
+  el núcleo SQL por un cambio de textos. Decisión de presentación en
+  [[Nucleo de conversion - diagnostico de llegadas y asignaciones 2026-09-04]].
+
 - **Deploy 2026-09-04 (~18:04–18:12 hora de Lima) — CRM: conversión por
   llegadas únicas y renovación ponderada como Referido.** Main local y
   `avancecorp/main` coincidían, con árbol limpio, en
