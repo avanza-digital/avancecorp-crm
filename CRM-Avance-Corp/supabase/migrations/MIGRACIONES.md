@@ -7868,12 +7868,18 @@ Sobre `ebd3bc6` (antes de los arreglos de los auditores). Bloqueantes de los edg
 
 **Reversa:** `scripts/rollback-f2b-b4.sql` (md5 de prod; **retira las columnas aditivas** — pérdida aceptada porque nunca hubo tráfico con la bandera encendida; se niega si hay conversiones por persona selladas y vigentes).
 
-## 20260905130000 · `crm_altas_nuevas_por_analista`
+## 20260905130000 · `crm_altas_nuevas_por_analista` — ❌ RETIRADA sin aplicar (ver v2 abajo)
 
-**Estado: 🟡 CONSTRUIDA, pendiente del `!` de Miguel.** Sustituto de `crm.metricas_altas_analista_fn`, que F7 Ola 2b demuele el 14/09; Miguel pidió construirlo ANTES de borrar (no perder el reporte de gerencia). Ensayo en transacción (create + postflight + rollback): compila con `search_path` vacío, postflight VERDE (SECURITY DEFINER, dueño `postgres`, sin EXECUTE para PUBLIC), y como admin el gate cierra a 0 filas (fail-closed). Números validados en solo lectura contra prod (jul 99 / ago 76 / jun 75 altas nuevas; 0 excluidas por anulación hoy; 3 sin analista).
+La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at time zone 'America/Lima'` sobre `fecha_cierre_comercial`, que es un `date` → en un servidor UTC el día 1 se cae al mes anterior (footgun documentado del proyecto, [[prueba-de-fechas-en-tu-propia-zona]]). La seguridad estaba limpia; solo el conteo. Retirada del árbol y reemplazada por la v2. **Los números del ensayo v1 (jul 99 / ago 76 / jun 75) estaban CORRIDOS, no eran válidos.**
+
+## 20260905131000 · `crm_altas_nuevas_por_analista_v2`
+
+**Estado: 🟡 CONSTRUIDA, pendiente del `!` de Miguel.** Sustituto de `crm.metricas_altas_analista_fn`, que F7 Ola 2b demuele el 14/09; Miguel pidió construirlo ANTES de borrar. **v2 corrige el bucket/ventana de fecha del NO-GO** (espacio de FECHA, sin `at time zone`, como `private.capital_episodios`). Ensayo en transacción (create + postflight + rollback): compila con `search_path` vacío, postflight VERDE —ahora con **guarda anti-footgun** (el bucket mensual debe caer en el mes calendario del cierre)—, y como admin el gate cierra a 0 filas (fail-closed). Números RE-validados en solo lectura: **sep 12 (el bug daba 8) / ago 76 / jul 109 / jun 67**; total 302; 0 excluidas por anulación hoy; 3 sin analista.
 
 **Qué (Miguel 04/09, «solo contratos nuevos, por el que cierra»).** El viejo contaba PERFILES nuevos (`rol='cliente'`) por el ASESOR de la ficha y por mes de creación. El nuevo cuenta CONTRATOS NUEVOS (`categoria='nuevo'`) por el analista que CIERRA, por mes de CIERRE comercial (Lima), EXCLUYENDO cierres anulados (ATR-4: anular es sanción). Los números NO calcan al viejo, a propósito: otra unidad, otra fecha, otra atribución.
 
 **Cómo.** `crm.altas_nuevas_por_analista_fn(p_meses int default 12)` → `(mes, analista_id, analista_nombre, altas)`; STABLE SECURITY DEFINER, `search_path=''`; `authenticated` con verja interna fail-closed (rol CRM o lector global; global ve todo, el resto por `private.vendedor_ids_visibles`). Atribución = `coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id)` — para un `nuevo` no hay cadena de upgrade, así que cae a `analista_cierre_id`: «el que cierra» ES la política ATR canónica para los nuevos, no una regla nueva ni divergente. Anulados excluidos REUSANDO `private.contratos_afectados_por_anulacion` (no reinventado). Conteo VIVO, sin sellado de mes (como el viejo). NO cuelga de `conversion_episodios` (en refactor). Lee `public.contratos`/`public.perfiles` pero **no los ALTERA** → sin excepción a `public`.
 
-**Pendiente:** revisión `auditor-rls` antes del `!`; tras aplicar, `gen:types` + pantalla en gerencia (Miguel la pidió 04/09). Reversa trivial: `drop function crm.altas_nuevas_por_analista_fn(integer)` (aditiva, nada depende de ella).
+**Auditor-rls (04/09):** seguridad LIMPIA (verja fail-closed probada, sin fuga cross-rol, sin PII de cliente, grants = patrón `metricas_vencimientos_fn`). Bloqueante ÚNICO = el bug de fecha, corregido en v2. Medio pendiente: casos en `test-rls.mjs` (permitido + denegado + aislamiento de vendedor + «Sin analista» invisible a no-globales).
+
+**Pendiente:** casos de `test-rls.mjs`; tras aplicar (`!`), `gen:types` + pantalla en gerencia (Miguel la pidió 04/09). Reversa trivial: `drop function crm.altas_nuevas_por_analista_fn(integer)` (aditiva, nada depende de ella).

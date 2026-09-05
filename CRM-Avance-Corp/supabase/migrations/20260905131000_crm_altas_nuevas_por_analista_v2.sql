@@ -1,34 +1,36 @@
 -- Sustituto de crm.metricas_altas_analista_fn, que F7 Ola 2b demuele el 14/09.
 -- Miguel lo pidio ANTES de borrar el viejo (no perder el reporte de gerencia).
 --
+-- v2: la v1 (20260905130000) se RETIRO sin aplicar. auditor-rls (04/09) la cazo con
+--     un NO-GO: usaba `at time zone 'America/Lima'` sobre `fecha_cierre_comercial`,
+--     que es un `date` -> en un servidor UTC el dia 1 se cae al mes anterior (footgun
+--     documentado del proyecto). La seguridad estaba limpia; solo el conteo. v2 bucketea
+--     y acota en espacio de FECHA, como private.capital_episodios.
+--
 -- QUE CAMBIA respecto al viejo (decidido por Miguel el 04/09):
---   Viejo: contaba PERFILES nuevos (rol='cliente') por el ASESOR anotado en la ficha,
---          por mes de creacion del perfil.
---   Nuevo: cuenta CONTRATOS NUEVOS (categoria='nuevo') por el analista que CIERRA,
---          por mes de CIERRE comercial (hora Lima), EXCLUYENDO cierres anulados.
---   => Los numeros NO calcaran al viejo, a proposito: otra unidad (contrato, no ficha),
---      otra fecha (cierre, no creacion) y otra atribucion (el que cierra, no el asesor).
+--   Viejo: contaba PERFILES nuevos (rol='cliente') por el ASESOR de la ficha, por mes
+--          de creacion.
+--   Nuevo: cuenta CONTRATOS NUEVOS (categoria='nuevo') por el analista que CIERRA, por
+--          mes de CIERRE comercial, EXCLUYENDO cierres anulados.
+--   => Los numeros NO calcaran al viejo, a proposito: otra unidad, otra fecha, otra
+--      atribucion.
 --
 -- POR QUE "el que cierra" == la politica ATR para un contrato NUEVO:
---   La atribucion canonica de una conversion es
---     coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id).
---   El resolutor de cadena SOLO sobre-escribe en UPGRADES (camina la cadena y gana el
---   ancestro 'upgrade'); para un contrato 'nuevo' no hay cadena, asi que cae a
---   analista_cierre_id. => "el que cierra" coincide con la politica del sistema para los
---   nuevos; no es una regla nueva ni divergente.
+--   La atribucion canonica es coalesce(private.analista_atribuido_cadena(c.id),
+--   c.analista_cierre_id); el resolutor de cadena SOLO sobre-escribe en UPGRADES, asi
+--   que para un 'nuevo' cae a analista_cierre_id. No es una regla nueva ni divergente.
 --
--- POR QUE anular NO cuenta (ATR-4, "solo la conversion, siempre"): anular es una SANCION,
---   asi que un contrato cuyo cierre fue anulado NO es un alta. La anulacion vive en un
---   ledger aparte (crm.cierres_avance_anulados / crm.cierres_externos.anulado_en) mapeado
---   por lead; aqui se REUSA el mapeo canonico private.contratos_afectados_por_anulacion,
---   no se reinventa.
+-- POR QUE anular NO cuenta (ATR-4, "solo la conversion, siempre"): anular es SANCION.
+--   La anulacion vive en un ledger aparte (crm.cierres_avance_anulados /
+--   crm.cierres_externos.anulado_en) mapeado por lead; aqui se REUSA el mapeo canonico
+--   private.contratos_afectados_por_anulacion, no se reinventa.
 --
 -- FIDELIDAD: conteo VIVO (se recalcula al preguntar), igual que el viejo. NO usa el
 --   sellado de meses de la cuota ni conversion_episodios (en refactor): solo helpers
 --   estables. Es un reporte de gestion, no la foto congelada de la cuota.
 --
 -- Aditiva y sin efecto sobre lo vivo: crea UNA funcion nueva con nombre nuevo. No toca el
---   viejo (que sigue cerrado, en observacion) ni ningun objeto de public.
+--   viejo (que sigue cerrado, en observacion) ni ALTERA ningun objeto de public (solo lo LEE).
 
 begin;
 set local lock_timeout = '10s';
@@ -57,6 +59,9 @@ as $fn$
   ),
   anulados as (
     -- Contratos cuyo cierre fue anulado, por el mapeo CANONICO (no reinventado).
+    -- Rama 2 (cierres_externos = cooperativa): las coop NO viven en public.contratos,
+    -- asi que el mapeo devuelve contratos Avance solo si el MISMO lead ligo un 'nuevo'
+    -- Avance al mismo acreditado; hoy 0 impacto (unica coop anulada -> 0 'nuevo').
     select x as contrato_id
     from crm.cierres_avance_anulados ca
     cross join lateral private.contratos_afectados_por_anulacion(ca.lead_id) x
@@ -67,8 +72,12 @@ as $fn$
     where ce.anulado_en is not null
   ),
   base as (
+    -- 🔴 fecha_cierre_comercial ES `date` (el dia comercial de Lima). NUNCA
+    --    `at time zone` sobre un date: en un servidor UTC el dia 1 se cae al mes
+    --    anterior (footgun del proyecto). Se bucketea y se acota en espacio de FECHA,
+    --    igual que private.capital_episodios.
     select
-      (date_trunc('month', c.fecha_cierre_comercial at time zone 'America/Lima'))::date as mes,
+      (date_trunc('month', c.fecha_cierre_comercial))::date as mes,
       coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id) as analista_id
     from public.contratos c
     where c.categoria = 'nuevo'
@@ -76,9 +85,8 @@ as $fn$
       and c.fecha_cierre_comercial is not null
       and not exists (select 1 from anulados an where an.contrato_id = c.id)
       and c.fecha_cierre_comercial >=
-        ((date_trunc('month', now() at time zone 'America/Lima')
-          - make_interval(months => least(greatest(p_meses, 1), 60) - 1))
-          at time zone 'America/Lima')
+        (date_trunc('month', now() at time zone 'America/Lima')
+          - make_interval(months => least(greatest(p_meses, 1), 60) - 1))::date
   )
   select
     b.mes,
@@ -101,11 +109,10 @@ grant execute on function crm.altas_nuevas_por_analista_fn(integer) to authentic
 comment on function crm.altas_nuevas_por_analista_fn(integer) is
   'Altas de CONTRATOS NUEVOS (categoria=nuevo) por el analista que cierra '
   '(ATR: coalesce(analista_atribuido_cadena, analista_cierre_id)), por mes de cierre '
-  'comercial en Lima, excluyendo cierres anulados. Sustituye a metricas_altas_analista_fn '
-  '(F7 Ola 2b). Conteo VIVO, sin sellado de mes. Miguel 04/09.';
+  'comercial (espacio de fecha, sin tz), excluyendo cierres anulados. Sustituye a '
+  'metricas_altas_analista_fn (F7 Ola 2b). Conteo VIVO, sin sellado de mes. Miguel 04/09.';
 
--- Postflight: la funcion existe, es SECURITY DEFINER, dueño postgres, y NO la puede
--- ejecutar el mundo (solo authenticated + postgres).
+-- Postflight: seguridad + una GUARDA anti-regresion del footgun de fecha.
 do $post$
 declare v_oid regprocedure := 'crm.altas_nuevas_por_analista_fn(integer)'::regprocedure;
 begin
@@ -121,6 +128,18 @@ begin
     where a.grantee = 0  -- PUBLIC
   ) then
     raise exception 'POSTFLIGHT: PUBLIC no debe tener EXECUTE';
+  end if;
+  -- Anti-footgun: el bucket en espacio de fecha DEBE caer en el mes calendario del
+  -- cierre. Un `at time zone` sobre el date (la regresion de la v1) lo violaria.
+  if exists (
+    select 1 from public.contratos c
+    where c.categoria = 'nuevo' and c.fecha_cierre_comercial is not null
+      and (date_trunc('month', c.fecha_cierre_comercial))::date
+          <> make_date(
+               extract(year  from c.fecha_cierre_comercial)::int,
+               extract(month from c.fecha_cierre_comercial)::int, 1)
+  ) then
+    raise exception 'POSTFLIGHT: el bucket mensual no cae en el mes del cierre (¿tz sobre un date?)';
   end if;
 end;
 $post$;
