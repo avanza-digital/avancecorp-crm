@@ -35,7 +35,7 @@ Git: fusionada a `main` (`2742bf8`) y subida el mismo día a `avancecorp/tronco`
 
 ## 4. Decisiones que esperan a Miguel
 
-1. **OK (auditor A2, `[Cx-10]`)** para que la corrección de documento ESCRIBA `public.perfiles.dni/tipo_documento` del perfil enlazado (DML desde `crm`, con precedentes). Sin OK, el perfil queda intacto y se anota.
+1. ✅ **Decidido por Miguel el 05/09: OK** a que la corrección de documento ESCRIBA `public.perfiles.dni/tipo_documento` del perfil enlazado (es lo que ya hace el código en producción). Riesgos aceptados y anotados: clave temporal derivada del documento viejo (avisar o resetear), conciliación de depósitos por el DNI nuevo, «Ver PDF» regenera con el dato actual, puerta trasera del Portal hasta el candado de la decisión 2.
 2. Las dos de E2: parche de `public.crear_contrato` + trigger en `public.perfiles`; colaboradores/registro del Portal fuera.
 3. ¿Qué manda: CLAUDE.md (tronco = `avancecorp/tronco`) o la nota «Main único» (upstream `avancecorp/main`)?
 
