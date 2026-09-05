@@ -2,7 +2,7 @@
 tags: [crm, gerencia, metricas, plan, aprobacion]
 requerimiento: REQ-GER-MET-001
 fecha: 2026-09-05
-estado: sql-productivo-verificado-publicacion-frontend-en-curso
+estado: publicado-verificacion-visual-autenticada-pendiente
 ---
 
 # Plan por fases — cuatro datos de Gerencia
@@ -20,8 +20,8 @@ Estas fases desarrollan las necesidades del punto 4 y la validación del punto 5
 ## Estado de ejecución al 5 de septiembre
 
 - Fases 1–4: completadas localmente. Se ampliaron los dos agregadores existentes, sin cambiar núcleos, fachadas, propietarios ni ACL, y el frontend consume las nuevas proyecciones sin recalcular reglas comerciales.
-- Fase 5: versión candidata guardada en `5ada0c5`, sincronizada y empaquetada; faltan revisar las ediciones concurrentes posteriores y cerrar la versión final. Evidencia actual en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
-- Fase 6: SQL exacto confirmado y aplicado como `20260905175342`, con respuestas reales, núcleos, permisos y advisors comprobados. Publicación del frontend autorizada y en curso; ver la evidencia vigente de ejecución.
+- Fase 5: versión final `e9cccb2` guardada, sincronizada y empaquetada desde un checkout limpio; cambios concurrentes revisados y CI completo aprobado. Evidencia en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
+- Fase 6: SQL `20260905175342` y frontend `build-20260905T180507302Z` publicados y verificados técnicamente. Respuestas reales, núcleos, permisos, advisors, archivos y formulario de acceso comprobados. Sólo queda la comprobación visual autenticada al reconectar el navegador de Gerencia.
 - Nombre visible acordado para esta lectura: **«Resultados de los leads del mes»**; no usar «Cosecha del lote» ni añadir «hasta hoy» al título.
 
 ## Objetivo final
@@ -109,7 +109,7 @@ El 100 % corresponde a **este requerimiento de métricas de Gerencia**, no a una
 - [x] Las cifras de pantalla concilian localmente con el servidor cuando miden lo mismo; las diferencias de significado están explicadas.
 - [x] Núcleos, pesos, atribuciones, deduplicación, fotos selladas y permisos protegidos permanecen intactos; no hay calculadoras independientes.
 - [x] Pruebas de backend, frontend y regresión aprobadas; ningún hallazgo local o dato requerido queda oculto como cero, descartado sin acuerdo o pendiente sin declarar.
-- [ ] Evidencia guardada, commit final realizado y Main local/remoto sincronizados.
+- [x] Evidencia técnica guardada, versión final `e9cccb2` realizada y Main local/remoto sincronizados antes de construir/publicar; el registro posterior no cambia el código de aplicación publicado.
 - [ ] Si se afirma «100 % operativo»: SQL y frontend publicados con autorización, versión comprobada, acceso de Gerencia y cuatro lecturas verificadas en producción.
 
-La siguiente puerta es presentar y confirmar el SQL exacto ya auditado; **no falta otra aprobación conceptual de N1–N4**. El desarrollo local y la auditoría están terminados, pero todavía no equivalen a versión sincronizada ni operativa en producción.
+La siguiente y única comprobación pendiente es visual y autenticada: reconectar Gerencia y contrastar las pantallas con las respuestas reales ya verificadas. **SQL y frontend ya están publicados; no falta otra aprobación ni hay que reaplicar o desplegar por inercia.** No afirmar 100 % operativo hasta dejar evidencia de esa comprobación.

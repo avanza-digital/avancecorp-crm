@@ -141,10 +141,15 @@ echo "== K) el replay pasa por la autorización VIGENTE: vendedor revocado no re
 KW="$(uuid)"; NK="IDEM-$RUN-K"
 O10="$(alta "$W" "$KW" "$NK" 20000 "$PB")"; W1="$(j "$O10" id)"
 [[ -n "$W1" ]] && ok "W (activo, asesor de PB) crea $NK → ${W1:0:8}…" || rojo "W no pudo crear: ${O10:0:160}"
-# Revocar a W pasa por trg_equipo_validar_usuarios_jerarquia, que exige a SU supervisor activo: si otro oráculo del
-# banco compartido dejó a SUP inactivo en este instante, se reactiva antes (es un actor F3 sembrado, no un dato global).
+# Revocar a W: el guard trg_equipo_validar_usuarios_jerarquia prohíbe (con razón) desactivar una membresía que conserve
+# cartera/contratos, y exige a SU supervisor activo. El estado que K mide es justamente «revocado que aún posee», y se
+# construye como lo construye la suite RLS (revocarEquipoFueraDeBanda en test-rls.mjs): solo ese guard apagado, en UNA
+# transacción; la rotación ICS y la auditoría siguen corriendo, como en una baja real. SUP se reactiva antes por si otro
+# oráculo del banco compartido lo dejó inactivo (es un actor F3 sembrado, no un dato global).
 sys "update crm.equipo set activo=true where perfil_id='$SUP' and not activo"
-sys "update crm.equipo set activo=false where perfil_id='$W'"
+sys "alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia;
+     update crm.equipo set activo=false where perfil_id='$W';
+     alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia"
 [[ "$(q "select activo from crm.equipo where perfil_id='$W'")" == "f" ]] || rojo "no se pudo revocar a W (¿SUP inactivo por otro oráculo?)"
 O11="$(alta "$W" "$KW" "$NK" 20000 "$PB")"
 echo "$O11" | grep -qE "42501|fuera de tu cartera|No autorizado|permission" && ok "W revocado: el replay se rechaza (42501), no devuelve el contrato" || rojo "W revocado recuperó el alta: ${O11:0:160}"

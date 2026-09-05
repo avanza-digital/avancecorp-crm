@@ -2,7 +2,7 @@
 tags: [crm, gerencia, requerimiento, plan, metricas]
 identificador: REQ-GER-MET-001
 fecha_acuerdo: 2026-09-04
-estado: puntos-1-a-4-completados-sql-productivo-verificado-frontend-en-curso
+estado: publicado-verificacion-visual-autenticada-pendiente
 ---
 
 # Plan de corrección de métricas de Gerencia — requerimiento vigente
@@ -61,11 +61,11 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ### 5. Probar y conciliar
 
-- [ ] Auditoría local completada y versión candidata guardada/sincronizada; cierre productivo y publicación pendientes. Ver [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] para los cambios concurrentes posteriores.
+- [ ] SQL y frontend publicados; auditoría, CI, conciliación real del servidor/esquemas, versión pública, archivos y formulario de acceso comprobados. Falta únicamente revisar las pantallas con una sesión real de Gerencia: el navegador integrado quedó desconectado. Evidencia en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
 - Avance 5 de septiembre: N1–N4 y la regresión visual de `AnimatedValue` quedaron verificadas. `npm run check` aprobó 194 archivos y 2.819 pruebas; el recorrido E2E aprobó 121 y omitió 26 por configuración, sin fallos; los bancos SQL N1–N4/ACL/rollback y la revisión independiente quedaron en GO técnico. Catálogo, núcleos, fachadas, propietarios y permisos protegidos permanecen intactos. Evidencia en [[Auditoria final de Gerencia - punto 5 - avance 2026-09-05]] y [[Contrato tecnico de ampliaciones N1-N4 de Gerencia - 2026-09-05]]. Aún sin SQL productivo, commit final ni nuevo deploy.
 - Objetivo: demostrar que las pantallas coinciden con el servidor cuando miden lo mismo y explican las diferencias cuando miden cosas distintas.
 - Alcance: reasignaciones, llegada a Ana/cierre de Luis, manuales/referidos, citas y cancelaciones, operaciones repetidas, capital de prueba, PEN/USD, filtros, rangos parciales, meses sellados, errores, respuestas parciales y metas superiores al 100 %.
-- Observación resuelta localmente: el importe negativo transitorio de Cartera provenía del reloj de animación y no del servidor. La corrección conserva el valor final y los negativos reales; falta incluirla en la próxima publicación autorizada.
+- Observación resuelta y publicada: el importe negativo transitorio de Cartera provenía del reloj de animación y no del servidor. La corrección conserva el valor final y los negativos reales, y viajó en `build-20260905T180507302Z`; su recorrido E2E aprobó.
 - Criterio de cierre: pruebas de contrato e interfaz aprobadas, discrepancias justificadas y núcleos/permisos intactos. No usar producción para semillas, mutantes ni pruebas de escritura.
 
 ## Restricciones obligatorias
@@ -86,7 +86,7 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 **Último punto terminado:** 4, ampliaciones N1–N4 justificadas, aprobadas e implementadas localmente. El punto 5 está cerrado en local y conserva abierta su comprobación productiva. Los puntos 1–3 ya estaban publicados.
 
-**Siguiente acción:** terminar las pruebas de la versión final, guardar y sincronizar `avancecorp/main`, construir desde ese commit y publicar exclusivamente el CRM. Comprobar acceso y conciliación pública; SQL y deploy ya están autorizados. No reaplicar Gerencia ni la migración cerrada del punto 3. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios. No modificar núcleos ni crear calculadoras independientes.
+**Siguiente acción única:** reconectar el navegador con una sesión real de Gerencia y verificar las pantallas contra los períodos/filtros conciliados. SQL aplicado `20260905175342` y frontend público `build-20260905T180507302Z`, desde Main sincronizado `e9cccb2`, ya están comprobados técnicamente. No repetir commit de implementación, SQL ni deploy por retomar el chat. Sólo después de la comprobación autenticada completar el punto 5 y el objetivo al 100 % operativo.
 
 El punto 4 está completo; el punto 5 sólo conserva pendientes las puertas productivas. No inferir autorización de SQL adicional, funciones nuevas, commit ni deploy. Línea base histórica al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Los commits concurrentes y las correcciones publicadas desde `50f33a5` se deben preservar. Verificar nuevamente el estado y el remoto antes de cualquier publicación futura.
 

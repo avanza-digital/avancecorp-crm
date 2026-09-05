@@ -2,7 +2,7 @@
 tags: [crm, gerencia, metricas, deploy, main, seguimiento]
 requerimiento: REQ-GER-MET-001
 fecha: 2026-09-05
-estado: sql-productivo-verificado-publicacion-frontend-en-curso
+estado: publicado-verificacion-visual-autenticada-pendiente
 ---
 
 # Cierre productivo de métricas de Gerencia — ejecución
@@ -23,7 +23,18 @@ Miguel pidió ejecutar los seis pasos hasta publicar las mejoras, conservar el a
 - La conexión anterior del navegador integrado dejó de estar disponible antes de la comprobación visual posterior. Se pidió reconectarla mientras continúan las pruebas y el deploy; no afirmar acceso visual posterior todavía.
 - Las 113 pruebas focales de los cambios concurrentes del frontend aprobaron. La primera ejecución falló por el `localStorage` nativo de Node 26, no por la lógica; se repitió con `NODE_OPTIONS=--no-experimental-webstorage` para que los procesos de prueba usen el almacenamiento de jsdom. No se modificó la aplicación por ese conflicto del entorno.
 
-## Preparación comprobada el 5 de septiembre
+## Publicación comprobada — 13:15 Lima
+
+- CI final [33982852952](https://github.com/avanzadigitald/avancecorp-crm/actions/runs/33982852952) terminó **success**: calidad 7m37s y E2E 10m13s; 121 aprobados y 26 omisiones configuradas. RLS [33982852941](https://github.com/avanzadigitald/avancecorp-crm/actions/runs/33982852941) también success. Se esperó el estado terminal antes de publicar.
+- Se volvió a comprobar Main local/remoto y remoto vivo en `e9cccb294b85884ba74f1aa30700038077b59e6c`, sin diferencias en `app/`. Se publicó únicamente el ZIP final documentado, mediante el MCP oficial de Hostinger y su credencial local. Raíz exclusiva del CRM; ninguna migración adicional ni cambios de Auth/portal/Edge Functions.
+- Tras observar la nueva versión se purgó exclusivamente la caché de `crm.miavance.com`. Verificación pública: **63 archivos con SHA-256 idéntico**, 12 imágenes servidas correctamente con la transformación habitual de Hostinger y `.htaccess` protegido con HTTP 403. Ningún archivo falló.
+- CRM HTTP 200 con `assets/index-DF6NsBK4.js`; **tres lecturas consecutivas** de `version.json` devuelven `build-20260905T180507302Z`. Asset principal anterior HTTP 404. ZIP HTTP 404 tanto en CRM como en portal; portal HTTP 200 y no publicado por esta tarea.
+- Prueba automatizada de sólo lectura del formulario de acceso sobre el **artefacto exacto local y el CRM público**: ambas aprobadas; título, correo, contraseña y Entrar habilitado, sin excepciones de página. Bloquea métodos de escritura y no introduce credenciales. No equivale a un nuevo login ni a una revisión de las pantallas autenticadas.
+- **Único pendiente de este cierre:** volver a conectar el navegador con una sesión real de Gerencia y comprobar allí Resumen, Conversiones, Citas, Ranking/Rendimiento y Cartera con el mismo período/filtros. La conexión integrada devuelve cero navegadores. Se pidió reconectarla; no se extrajeron sesiones, no se inventaron credenciales ni se alteró Auth para suplirla.
+- El SQL y frontend están publicados y verificados técnicamente. **No marcar todavía el punto 5 ni el objetivo como 100 % operativo.** Al reanudar, hacer sólo la comprobación autenticada pendiente; no reaplicar SQL ni volver a publicar por inercia.
+- Reversión frontend preparada: `crm-20260905T043212Z-50f33a59b92b.zip`, huella indicada abajo. Rollback SQL acotado: archivo auditado `rollback-gerencia-contrato-cuatro-datos.sql`; usar sólo si el diagnóstico lo requiere, preservando cualquier cambio posterior y revalidando preflight. No se ejecutó ninguna reversión.
+
+## Preparación comprobada antes de la confirmación — historial
 
 - `git fetch avancecorp main`: remoto actualizado sin divergencia; al comenzar, Main local `6a0d839` estaba un commit por delante de `avancecorp/main`. `origin` es otro proyecto y no se usa.
 - Migración de Gerencia: `CRM-Avance-Corp/supabase/migrations/20260905155129_gerencia_contrato_cuatro_datos.sql`, SHA-256 `2b8430679c77219fd3de8df8fe3c23ee3a4c8b24147d34363473d9959d902bd0`. Coincide con el artefacto auditado; no se editó ni aplicó.
@@ -52,7 +63,21 @@ Después de guardar y construir aparecieron nuevas ediciones concurrentes de con
 
 Revisión de continuidad: la v2 de contratos conserva la RPC y añade persistencia de la clave de reintento y mensajes de confirmación; su propio handoff declara pruebas adicionales pendientes. No se la certifica por el CI de `5ada0c5` ni se implementa/aplica su SQL dentro de Gerencia. Las referencias a `main:tronco` de ese handoff no son el destino vigente: prevalece `AGENTS.md`, exclusivamente `avancecorp/main`. La migración y rollback de Gerencia conservan sus huellas exactas. Sigue sin existir una confirmación humana del SQL de Gerencia; una continuación automática del objetivo no la sustituye.
 
-## Trabajo concurrente y alcance de publicación
+## Versión final y conciliación adicional — 13:09 Lima
+
+- Commit `e9cccb294b85884ba74f1aa30700038077b59e6c` guardó 32 archivos, incluida la migración renombrada sin cambios de contenido y los borradores concurrentes. Main local, `avancecorp/main` y `git ls-remote` coincidieron antes del build. El contenido de `app/` sigue coincidiendo con ese commit.
+- Se retiró de una nota concurrente una referencia que exponía credenciales del banco aislado; la nota remite al scratchpad/entorno privado. Revisión de los 32 archivos preparados: sin tokens privilegiados, JWT service_role, llaves privadas ni conexiones con contraseña. Las coincidencias genéricas restantes eran referencias a variables, no credenciales. No se alteró SQL ajeno por esta revisión.
+- El trabajo concurrente añadió un respaldo de almacenamiento sólo al arnés de pruebas. Los hooks habituales aprobaron lint, tipos y **194 archivos / 2.831 pruebas** sin omitirlos ni necesitar flags especiales. El recorrido completo posterior aprobó **121 E2E / 26 omisiones configuradas**, sin fallos. `npm run check` anterior también aprobó cobertura, build, configuración pública, bundle y duplicación.
+- Candidato final `crm-20260905T180507Z-e9cccb294b85`; build `build-20260905T180507302Z`; ZIP 1.879.398 bytes; SHA-256 `f4f47d6b6b1deff695077a4731ccc8ba231623fd3c4d1de485e8c3a61f66e512`. Construcción limpia desde el mismo checkout detached actualizado al commit final; dependencias/lockfile sin cambios. Verificación **76/76 hashes/tamaños**, sin archivos extra (cuatro entradas de directorio padre normales), `.htaccess` idéntico al vivo, Supabase público exacto y demo deshabilitada. Preflight confirma que contiene el release vivo `50f33a5` y Ficha 360.
+- Las tres respuestas reales completas de septiembre pasan los esquemas existentes de frontend (Conversión 1–3 y 1–5; Citas 1–5), sin datos sintéticos ni calculadoras nuevas.
+- Conciliación directa con los núcleos: N1 leads/eventos, N2 divisor/exclusiones/porcentaje, N3 identidad/aporte de operaciones, numerador/divisor y N4 concilian. El diagnóstico inicial que contó 10 cierres sin filtrar incluía 1 de oficina y 2 de otro, todos con aporte cero; el alcance autorizado Landing/Formulario/Referido da 7, exactamente como N4. No se cambió una regla para forzar coincidencia.
+- Rangos reales adicionales: día 3, cada origen permitido y agosto completo; base N1, suma semanal y analistas más residual concilian en los cinco casos. Agosto devuelve 809 llegadas, 8 con cita real, 12 cierres y 39 operaciones. Son cifras al momento de consultar.
+- Rendimiento productivo de sólo lectura (`EXPLAIN ANALYZE`, rol authenticated de Gerencia): agosto 438,754 ms; máximo de 365 días entre extremos 945,119 ms; sin uso de temporales. No equivale a una prueba de carga ni incluye latencia de navegador.
+- Endpoint público de configuración Auth: HTTP 200, proyecto esperado; no se modificó Auth ni se inició sesión con credenciales de prueba.
+- CI final: RLS `33982852941` success; calidad/E2E `33982852952` aún en ejecución en este corte. Se espera su estado terminal antes de publicar.
+- Hostinger, con credencial local fuera del repositorio: dominio habilitado y raíz confirmada `/home/u318796122/domains/crm.miavance.com/public_html`. La conexión Hostinger integrada devolvió lista vacía; se conserva la vía oficial MCP documentada que sí reconoce el CRM. No se tocó el portal.
+
+## Límites del trabajo concurrente
 
 Se preserva el trabajo de contratos/idempotencia y F2.b encontrado en Main. Guardar sus archivos no autoriza ejecutar sus migraciones, reparar duplicados, activar banderas ni modificar datos comerciales. El frontend de contratos transporta la clave opcional dentro del JSON existente y es compatible con el servidor anterior; su respuesta tolerante también conserva ese contrato. La idempotencia productiva no se afirmará como instalada por esta entrega.
 
@@ -61,10 +86,10 @@ La única migración candidata a aplicar en este requerimiento es `2026090515512
 ## Estado de los seis pasos
 
 1. Preparación y confirmación: completadas; confirmación humana del SQL recibida.
-2. Main y artefacto: versión candidata guardada, sincronizada, construida y comprobada, con CI completo aprobado; falta revisar los cambios concurrentes posteriores antes de la versión final.
+2. Main y artefacto: versión final guardada/sincronizada en `e9cccb2`, construida desde ese commit y con CI completo aprobado. La evidencia posterior no cambia el código publicado; los borradores concurrentes de SQL no se aplican.
 3. Servidor: SQL aprobado aplicado y respuestas, núcleos, permisos y advisors comprobados.
-4. Frontend público: pendiente de verificar el servidor; no hubo deploy nuevo.
-5. Conciliación real de N1–N4: pendiente de las versiones nuevas en producción.
-6. Cierre: evidencia de preparación guardada; el requerimiento sigue abierto.
+4. Frontend público: publicado, caché purgada, versión/archivos/formulario de acceso comprobados.
+5. Conciliación real de N1–N4: consultas canónicas, filtros, períodos, esquemas frontend y rendimiento aprobados; queda contrastar las pantallas autenticadas al reconectar Gerencia.
+6. Cierre: evidencia de publicación guardada; requerimiento abierto únicamente por la comprobación autenticada, sin nuevo SQL o deploy pendientes.
 
 El objetivo permanece completo: no marcar 100 % por aprobar pruebas locales o guardar el código. Antes de aplicar se vuelve a leer el estado externo, porque hay trabajo concurrente.

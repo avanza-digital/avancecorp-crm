@@ -2,7 +2,7 @@
 tags: [crm, gerencia, metricas, contrato, n1, n2, n3, n4]
 requerimiento: REQ-GER-MET-001
 fecha: 2026-09-05
-estado: sql-productivo-aplicado-y-verificado-frontend-pendiente
+estado: sql-y-frontend-publicados-verificacion-visual-autenticada-pendiente
 ---
 
 # Contrato técnico de ampliaciones N1–N4 de Gerencia
@@ -15,7 +15,7 @@ Se ampliaron exclusivamente las respuestas existentes de Conversión y Citas. No
 
 La terminología visible acordada por Miguel es **«Resultados de los leads del mes»**. Se retiraron «Resultados de las llegadas · hasta hoy» y «Cosecha del lote» de Resumen, Conversiones y Ranking. Es sólo un cambio de presentación: la población sigue siendo los leads recibidos en el mes y el servidor conserva su corte y atribución canónicos.
 
-SQL exacto confirmado por Miguel y aplicado en producción el 5 de septiembre, 12:53 Lima: `CRM-Avance-Corp/supabase/migrations/20260905175342_gerencia_contrato_cuatro_datos.sql`. El archivo se renombró desde el identificador preparado `20260905155129` al registrado por Supabase, sin cambiar un byte del contenido aprobado. Reversión exacta: `CRM-Avance-Corp/supabase/scripts/rollback-gerencia-contrato-cuatro-datos.sql`. Huellas, permisos y respuestas reales comprobados en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]]. La publicación del frontend ya está autorizada y sigue en curso.
+SQL exacto confirmado por Miguel y aplicado en producción el 5 de septiembre, 12:53 Lima: `CRM-Avance-Corp/supabase/migrations/20260905175342_gerencia_contrato_cuatro_datos.sql`. El archivo se renombró desde el identificador preparado `20260905155129` al registrado por Supabase, sin cambiar un byte del contenido aprobado. Reversión exacta: `CRM-Avance-Corp/supabase/scripts/rollback-gerencia-contrato-cuatro-datos.sql`. Frontend publicado y comprobado a las 13:15 Lima en `build-20260905T180507302Z`, desde Main sincronizado `e9cccb2`. Huellas, permisos, respuestas reales, esquemas, CI, artefacto y formulario público comprobados en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]]. Sólo falta la comprobación visual autenticada porque el navegador de Gerencia quedó desconectado.
 
 ## N1 · Llegadas con cita registrada como realizada
 
