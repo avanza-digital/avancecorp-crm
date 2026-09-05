@@ -1,6 +1,6 @@
 # Contrato duplicado: el alta sin PDF se leía como error (2026-09-05)
 
-**Estado (05/09, 13:30): arreglo v2.1 construido, revisado de forma adversaria (Codex + 7 revisores, 39 hallazgos, todo lo mayor atendido) y ensayado en el banco (oráculo TODO VERDE, suite RLS del bloque 8/8, front `npm run check` verde); **duplicado remediado en producción el 05/09 17:12 Lima** (se conservó 000253, el número del contrato físico); pendiente del `!` de Miguel para aplicar la migración y publicar el front.** Retomado en [[RETOMAR-61 - Contrato duplicado e idempotencia del alta (2026-09-05)]].
+**Estado (05/09, 13:30): arreglo v2.1 construido, revisado de forma adversaria (Codex + 7 revisores, 39 hallazgos, todo lo mayor atendido) y ensayado en el banco (oráculo TODO VERDE, suite RLS del bloque 8/8, front `npm run check` verde); **duplicado remediado en producción el 05/09 17:12 Lima** (se conservó 000253, el número del contrato físico); **migración aplicada en producción el 05/09 17:20 Lima**; pendiente solo publicar el front con `/release-crm`.** Retomado en [[RETOMAR-61 - Contrato duplicado e idempotencia del alta (2026-09-05)]].
 
 ## El problema, en idioma de negocio
 
@@ -24,7 +24,7 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 
 ## Qué falta (decisiones de Miguel)
 
-- **Aplicar en producción** la migración `20260905190000_crm_alta_contrato_idempotente` (`db query --linked --file`), registrarla con `scripts/registrar-alta-idempotente.sql` (se niega si no está aplicada) y después **publicar el front**. Hacen falta los dos: el front nuevo deja de leer como error el alta antigua, y la migración es la que impide el duplicado cuando llega la clave (sin front nuevo nadie la manda: es inerte). Servidor primero, recomendado.
+- ~~Aplicar en producción la migración~~ **HECHO (05/09 17:20 Lima)**: aplicada y registrada, verificada. Falta **publicar el front** con `/release-crm`: es lo que hace que la pantalla deje de leer como error el alta antigua y que empiece a viajar la clave. Hasta entonces el servidor se comporta exactamente como antes.
 - ~~Resolver el duplicado~~ **HECHO (05/09 17:12 Lima)**: se eliminó 000025 y se conservó 000253, que es el número del contrato físico firmado. Por la puerta oficial, con el SQL §3, comparando los dos contratos completos bajo candado; el borrado quedó auditado a nombre del administrador (lo que el botón de Gerencia no consigue). La clienta tiene ahora un solo contrato.
 - **Segunda pasada de Codex** sobre la versión final (v2.1) antes de aplicar: la sesión que la pidió se cortó por límite de uso.
 - Avisar al equipo: las 33 altas antiguas están bien creadas; el error que vieron era falso.
