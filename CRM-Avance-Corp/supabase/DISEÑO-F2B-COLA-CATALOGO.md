@@ -479,6 +479,33 @@ OK → dos tramos (`hasta >= desde`), `leads.vendedor_id` intacto · mismo → `
 **OFF**: 5 RPC → P0409 «apagada» sin leer parámetros; las 4 vivas OFF → mismas respuestas/SQLSTATE que hoy (casos diferenciales: conversión
 Avance y coop, saga apagada, UPDATE de `dni` por Gerencia sin válvula → P0481 como hoy) + md5 de las reversas = prod.
 
+## E4 = las dos piezas de `public` (OK de Miguel 05/09) — diseño concreto v1 `[D-1]`
+**Qué.** (a) **Crear un contrato reconoce a la persona:** `public.crear_contrato` (texto vivo, md5 de prod `a538aa6f…`), SOLO con
+`resolver_en_puertas` encendida y SOLO si el cliente existe activo, llama a `private.asegurar_identidad_perfil(cliente, 'contrato')`
+ANTES de su `for share` del perfil: jerarquía compartida → documento → identidad `FOR UPDATE` → perfil `FOR SHARE` (reentrante con el
+`for share` de siempre) → resto de la función intacto (equipo `FOR SHARE` → contrato → advisory de cartera). Sin documento válido o con
+documento de otra persona reconocida → `P0409` (contrato §4.3, fail-closed). Con OFF, byte a byte. **Colaboradores y registros del Portal
+fuera** (decisión de Miguel): la identidad es de inversionistas; el equipo y los registrados sin invertir no tienen ficha de persona.
+(b) **Candado del documento en el Portal:** trigger `trg_perfiles_zz_documento_protegido` (`BEFORE UPDATE OF dni, tipo_documento ON
+public.perfiles`, función `private.trg_perfiles_documento_protegido()` definer, `search_path=''`): con la bandera encendida, si el perfil
+está enlazado a una identidad no fusionada y el documento normalizado cambia, rechaza `P0409` «solo se corrige desde el CRM (Gerencia)»,
+salvo que la GUC `crm.correccion_documento='on'` esté fijada (solo la fija `crm.corregir_documento_inversionista_fn`, b5). Con OFF o sin
+cambio real (mismo documento con otro formato) devuelve `new`. No toca `public.proteger_campos_inmutables` (que congela otras columnas).
+**Orden de locks:** el parche añade jerarquía→documento→identidad→perfil al PRINCIPIO de `crear_contrato`; ninguna puerta viva toma
+equipo/contrato/cartera antes de la jerarquía (el offboarding la toma exclusiva primero; `derivar` jerarquía/equipo→lead), así que no
+aparece un orden inverso. El trigger no toma locks.
+**Censo de activación (prod, 05/09):** 420 clientes activos, 413 con identidad, 1 sin documento y 1 con documento inválido: con ON no
+podrían firmar contratos nuevos hasta corregirlos (Gerencia, b5); los 5 restantes sin identidad la recibirían al primer contrato
+(o `P0409` si su documento colisiona → fusión/corrección).
+**Efectos ON que cambian respecto a hoy (solo con la bandera):** un contrato a un cliente sin documento válido se rechaza; el primer
+contrato de un cliente sin identidad lo enlaza (y le abre tramo de responsable con su asesor activo); la administración del Portal no puede cambiar el DNI de un cliente reconocido (mensaje `P0409`; el Portal lo mostrará tal cual
+hasta que se mapee → nota de activación `[D-12]`); `crear-cliente` e `importar-clientes` solo insertan y no se ven afectados.
+**Reversa** `rollback-f2b-e4.sql`: restaura `crear_contrato` byte a byte (md5 de prod), suelta trigger y función; se niega con bandera ON.
+**Oráculo** `oraculo-f2b-e4.sh`: ON: contrato a cliente con documento → contrato creado + identidad enlazada + tramo; cliente SIN documento →
+`P0409` y sin contrato; cliente ya reconocido → mismo contrato de siempre; UPDATE de `dni` de un perfil enlazado sin GUC (como el Portal)
+→ `P0409`; mismo DNI con otro formato → pasa; perfil no enlazado → pasa; `corregir_documento_inversionista_fn` (b5) sigue realineando el
+perfil (GUC) → el oráculo b5 completo se repite encima. OFF: `crear_contrato` md5 = prod y un UPDATE de `dni` de perfil enlazado pasa.
+
 ## Entrega
 Tres entregas, cada una = migraciones + reversa + oráculos + auditor-rls + Codex + ensayo en `banco-f7` + suite RLS + reversa ×2 + `!` de Miguel
 (bandera OFF): **E1 = b1+b2**, **E2 = b3+b4** (con los dos OK de `public`), **E3 = b5**. Edges con la activación.
