@@ -8596,6 +8596,59 @@ async function testIdentidadF2bB5(sessions) {
   }
 }
 
+// ── F2.b E4 (public, OK de Miguel 05/09): crear_contrato reconoce a la persona (ON) + candado del documento en perfiles ──
+// Solo grants, gates y paridad apagada (el negocio lo cubre scripts/oraculo-f2b-e4.sh). Estado de producción = bandera OFF.
+async function testIdentidadF2bE4(sessions, seed) {
+  console.log('\n— Identidad multiempresa F2.b E4: contrato reconoce a la persona + candado del documento (Portal) —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b E4)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b E4: ${etiqueta}`, sql);
+  const FN_TRG = 'private.trg_perfiles_documento_protegido()';
+  if (cuenta('E4 aplicada', `select count(*) from pg_trigger where tgrelid='public.perfiles'::regclass and tgname='trg_perfiles_zz_documento_protegido'`) !== 1) {
+    console.log('  (saltado: E4 (20260905140000) no está en esta base)');
+    return;
+  }
+  const bankProfileId = seed.profileIdByKey.clientBank;
+  const dniActual = ejecutarFueraDeBanda('E4: leer dni del cliente de banca', `select dni from public.perfiles where id='${bankProfileId}'`, { tolerante: true });
+  try {
+    check(cuenta('grants trigger', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, '${FN_TRG}', 'EXECUTE')`)
+          + cuenta('PUBLIC trigger', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FN_TRG}'::regprocedure and a.grantee = 0`) === 0,
+      'E4 la función del candado no tiene EXECUTE para anon/authenticated/service_role ni PUBLIC');
+    check(cuenta('trigger habilitado', `select count(*) from pg_trigger where tgrelid='public.perfiles'::regclass and tgname='trg_perfiles_zz_documento_protegido' and tgenabled='O'`) === 1,
+      'E4 el candado está habilitado sobre public.perfiles');
+    // OFF (producción): el candado es inerte aunque el perfil esté enlazado; nada cambia para el Portal.
+    flag(false);
+    {
+      const { error } = await sessions.clientBank.client.from('perfiles').update({ dni: '00000099' }).eq('id', bankProfileId).select('id');
+      check(!error || error.code !== 'P0409', 'E4 OFF: un cambio de DNI del propio cliente no tropieza con el candado (inerte)', errorText(error));
+      await requireAdmin('E4 OFF: restaurar el dni del cliente de banca', admin.from('perfiles').update({ dni: dniActual ?? null }).eq('id', bankProfileId));
+    }
+    // ON: si el perfil está enlazado a una persona, el cambio real de documento se rechaza; el mismo documento con otro formato pasa.
+    flag(true);
+    const enlazado = cuenta('perfil de banca enlazado', `select count(*) from crm.inversionistas i where i.perfil_id='${bankProfileId}' and i.estado <> 'fusionado'`) === 1;
+    if (enlazado) {
+      await expectExpectedFailure('E4 ON: el propio cliente reconocido cambia su DNI → P0409 (solo Gerencia lo corrige)',
+        sessions.clientBank.client.from('perfiles').update({ dni: '00000098' }).eq('id', bankProfileId).select('id'), ['P0409'], /solo se corrige desde el CRM/i);
+      await expectExpectedFailure('E4 ON: el propio cliente reconocido envía id+dni juntos → P0409 (candado por OLD.id)',
+        sessions.clientBank.client.from('perfiles').update({ id: '00000000-0000-4000-8000-0000000000e4', dni: '00000097' }).eq('id', bankProfileId).select('id'), ['P0409'], /solo se corrige desde el CRM/i);
+      check(cuenta('dni intacto', `select count(*) from public.perfiles where id='${bankProfileId}' and dni is not distinct from ${dniActual ? `'${dniActual}'` : 'null'}`) === 1, 'E4 ON: el dni del cliente reconocido quedó intacto');
+    } else {
+      console.log('  (el cliente de banca del seed no está enlazado a una persona en esta base: se omiten los casos ON del candado)');
+    }
+    // ON: crear_contrato de un no autorizado sigue muriendo en el 42501 uniforme (la autoridad va ANTES del reconocimiento — auditor A1).
+    await expectExpectedFailure('E4 ON: un cliente no registra ventas → 42501 uniforme, sin código documental',
+      sessions.clientBank.client.rpc('crear_contrato', { p_contrato: { cliente_id: bankProfileId, moneda: 'PEN', capital: 1000, tasa_anual: 10, categoria: 'nuevo' }, p_cronograma: [] }),
+      ['42501'], /cliente no encontrado o fuera de tu cartera/i);
+    await expectExpectedFailure('E4 ON: un vendedor inactivo no registra ventas → 42501 uniforme',
+      sessions.vendInactive.client.rpc('crear_contrato', { p_contrato: { cliente_id: bankProfileId, moneda: 'PEN', capital: 1000, tasa_anual: 10, categoria: 'nuevo' }, p_cronograma: [] }),
+      ['42501'], /cliente no encontrado o fuera de tu cartera/i);
+    check(cuenta('sin identidad fantasma', `select count(*) from crm.inversionistas i where i.perfil_id='${bankProfileId}' and i.estado <> 'fusionado'`) === (enlazado ? 1 : 0),
+      'E4 ON: los rechazos no dejaron identidad nueva (sin efectos laterales persistentes)');
+  } finally {
+    flag(false);
+  }
+}
+
 async function testConversionMensual(sessions, seed) {
   console.log('\n— Conversion mensual ponderada (migracion A) —');
 
@@ -11245,6 +11298,7 @@ async function main() {
       // F2.b (b1 + b2) justo después: comparte bandera, vía fuera de banda y estilo.
       await testIdentidadF2b(sessions, verifiedSeed);
       await testIdentidadF2bB5(sessions);
+      await testIdentidadF2bE4(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

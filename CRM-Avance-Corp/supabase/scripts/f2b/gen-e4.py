@@ -22,7 +22,10 @@ cc = rep(cc_prev, """  select p.asesor_perfil_id into v_asesor_id
   -- a la persona ANTES del FOR SHARE de abajo (jerarquía -> documento -> identidad -> perfil, reentrante).
   -- Solo si el cliente existe activo (así un id inexistente sigue muriendo en el 42501 de siempre).
   -- Sin documento válido o con documento de otra persona reconocida -> P0409 (contrato §4.3, fail-closed).
+  -- [auditor A1] la AUTORIDAD se pregunta antes de reconocer: un no autorizado sigue muriendo en el 42501 uniforme
+  -- de abajo (sin aprender nada del documento), con ON igual que con OFF.
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and (select private.puede_registrar_ventas())
      and exists (select 1 from public.perfiles p where p.id = v_cliente_id and p.rol = 'cliente' and p.activo) then
     perform private.asegurar_identidad_perfil(v_cliente_id, 'contrato');
   end if;
@@ -36,6 +39,32 @@ cc = rep(cc_prev, """  select p.asesor_perfil_id into v_asesor_id
   end if;
 """)
 H_NEW = hashlib.md5((cc + '\n').encode('utf-8')).hexdigest()
+ccc_prev = viv('crm.crear_contrato_con_cuenta')
+assert hashlib.md5((ccc_prev + '\n').encode('utf-8')).hexdigest() == prod['crm.crear_contrato_con_cuenta']
+H_PROD_CCC = prod['crm.crear_contrato_con_cuenta']
+ccc = rep(ccc_prev, """  v_tipo_seleccion := lower(btrim(coalesce(p_cuenta->>'tipo', '')));
+""", """  -- F2.b (E4) [Codex B-2]: la prepuerta de reconocimiento (jerarquía -> documento -> identidad -> perfil) va ANTES
+  -- de los locks de cuenta/perfil de este wrapper, con el mismo orden que public.crear_contrato (reentrante allí).
+  -- Después del 42501 de arriba: la precedencia para un no autorizado no cambia.
+  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and exists (select 1 from public.perfiles p where p.id = v_cliente_id and p.rol = 'cliente' and p.activo) then
+    perform private.asegurar_identidad_perfil(v_cliente_id, 'contrato');
+  end if;
+  v_tipo_seleccion := lower(btrim(coalesce(p_cuenta->>'tipo', '')));
+""")
+H_NEW_CCC = hashlib.md5((ccc + '\n').encode('utf-8')).hexdigest()
+def guard(schema, name, args, hp, hn, etiqueta):
+    return f"""  v_h := null;
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid) = '{args}';
+  if v_h is null then
+    raise exception 'F2.b E4: falta {etiqueta}';
+  end if;
+  if v_h is distinct from '{hp}' and v_h is distinct from '{hn}' then
+    raise exception 'F2.b E4: {etiqueta} no es ni el texto vivo de producción ni el de E4 (%)', v_h;
+  end if;
+"""
+GUARDS = guard('public','crear_contrato','p_contrato jsonb, p_cronograma jsonb',H_PROD,H_NEW,'public.crear_contrato(jsonb,jsonb)') + guard('crm','crear_contrato_con_cuenta','p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb',H_PROD_CCC,H_NEW_CCC,'crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)')
 
 TRIGGER = r"""-- ============================================================================
 -- 2. Candado del documento en el Portal: el DNI/tipo de un cliente RECONOCIDO solo cambia por la corrección de Gerencia
@@ -55,14 +84,17 @@ begin
   if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     return new;
   end if;
-  -- La corrección de Gerencia (crm.corregir_documento_inversionista_fn, b5) fija esta GUC alrededor de sus hechos.
-  if coalesce(pg_catalog.current_setting('crm.correccion_documento', true) = 'on', false) then
+  -- La corrección de Gerencia (crm.corregir_documento_inversionista_fn, b5) fija AMBAS marcas alrededor de sus hechos
+  -- (válvula + GUC propia, como el candado de leads) [auditor N2]. SECURITY DEFINER porque los roles del Portal no leen crm.* [N1].
+  if coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false)
+     and coalesce(pg_catalog.current_setting('crm.correccion_documento', true) = 'on', false) then
     return new;
   end if;
   if v_old = v_new and v_told = v_tnew then
     return new;   -- mismo documento con otro formato: no es un cambio
   end if;
-  if exists (select 1 from crm.inversionistas i where i.perfil_id = new.id and i.estado <> 'fusionado') then
+  -- [Codex B-1] por OLD.id: un UPDATE que envía id+dni no puede esquivar el candado (proteger_campos_inmutables restaura el id DESPUÉS).
+  if exists (select 1 from crm.inversionistas i where i.perfil_id = old.id and i.estado <> 'fusionado') then
     raise exception 'El documento de un cliente reconocido como persona solo se corrige desde el CRM (corrección de documento de Gerencia)'
       using errcode = 'P0409';
   end if;
@@ -87,7 +119,8 @@ mig = f"""-- ===================================================================
 -- (2) trigger nuevo en public.perfiles. TODO detrás de la bandera resolver_en_puertas: apagada = byte a byte / inerte.
 --
 -- QUE:
---   * public.crear_contrato: con la bandera ENCENDIDA y el cliente activo, reconoce a la persona
+--   * public.crear_contrato y crm.crear_contrato_con_cuenta (antes de sus locks de cuenta/perfil): con la bandera
+--     ENCENDIDA y el cliente activo, reconocen a la persona
 --     (private.asegurar_identidad_perfil) ANTES de su FOR SHARE: jerarquía -> documento -> identidad -> perfil.
 --     Sin documento válido o con documento de otra persona reconocida -> P0409 (fail-closed). OFF: idéntica.
 --   * trg_perfiles_zz_documento_protegido (BEFORE UPDATE OF dni, tipo_documento): con la bandera encendida, el
@@ -110,15 +143,7 @@ begin
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
     raise exception 'F2.b E4: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
   end if;
-  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-   where n.nspname='public' and p.proname='crear_contrato' and pg_get_function_identity_arguments(p.oid) = 'p_contrato jsonb, p_cronograma jsonb';
-  if v_h is null then
-    raise exception 'F2.b E4: falta public.crear_contrato(jsonb,jsonb)';
-  end if;
-  if v_h is distinct from '{H_PROD}' and v_h is distinct from '{H_NEW}' then
-    raise exception 'F2.b E4: public.crear_contrato no es ni el texto vivo de producción ni el de E4 (%)', v_h;
-  end if;
-end
+{GUARDS}end
 $guard$;
 
 -- ============================================================================
@@ -127,14 +152,22 @@ $guard$;
 {cc}
 ;
 
+-- crm.crear_contrato_con_cuenta: la prepuerta ANTES de sus locks de cuenta/perfil [Codex B-2]
+{ccc}
+;
+
 {TRIGGER}
 do $post$
 begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='crear_contrato' and pg_get_function_identity_arguments(p.oid)='p_contrato jsonb, p_cronograma jsonb') is distinct from '{H_NEW}' then
     raise exception 'POSTFLIGHT E4: public.crear_contrato no quedó byte a byte como la genera gen-e4.py';
   end if;
-  if not exists (select 1 from pg_trigger where tgrelid='public.perfiles'::regclass and tgname='trg_perfiles_zz_documento_protegido' and not tgisinternal) then
-    raise exception 'POSTFLIGHT E4: falta el trigger del candado';
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='crear_contrato_con_cuenta' and pg_get_function_identity_arguments(p.oid)='p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb') is distinct from '{H_NEW_CCC}' then
+    raise exception 'POSTFLIGHT E4: crm.crear_contrato_con_cuenta no quedó byte a byte como la genera gen-e4.py';
+  end if;
+  if not exists (select 1 from pg_trigger where tgrelid='public.perfiles'::regclass and tgname='trg_perfiles_zz_documento_protegido' and not tgisinternal and tgenabled = 'O'
+                   and pg_get_triggerdef(oid) = 'CREATE TRIGGER trg_perfiles_zz_documento_protegido BEFORE UPDATE OF dni, tipo_documento ON public.perfiles FOR EACH ROW EXECUTE FUNCTION private.trg_perfiles_documento_protegido()') then
+    raise exception 'POSTFLIGHT E4: el trigger del candado falta, está deshabilitado o no tiene la definición esperada';
   end if;
   if has_function_privilege('anon', 'private.trg_perfiles_documento_protegido()', 'EXECUTE')
      or has_function_privilege('authenticated', 'private.trg_perfiles_documento_protegido()', 'EXECUTE')
@@ -166,16 +199,27 @@ begin
   end if;
 end
 $flags$;
+do $guard$
+declare v_h text;
+begin
+{GUARDS}end
+$guard$;
 drop trigger if exists trg_perfiles_zz_documento_protegido on public.perfiles;
 drop function if exists private.trg_perfiles_documento_protegido();
 
 {cc_prev}
 ;
 
+{ccc_prev}
+;
+
 do $post$
 begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='crear_contrato' and pg_get_function_identity_arguments(p.oid)='p_contrato jsonb, p_cronograma jsonb') is distinct from '{H_PROD}' then
     raise exception 'REVERSA E4: public.crear_contrato no volvió byte a byte al vivo de producción';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='crear_contrato_con_cuenta' and pg_get_function_identity_arguments(p.oid)='p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb') is distinct from '{H_PROD_CCC}' then
+    raise exception 'REVERSA E4: crm.crear_contrato_con_cuenta no volvió byte a byte al vivo de producción';
   end if;
   if exists (select 1 from pg_trigger where tgrelid='public.perfiles'::regclass and tgname='trg_perfiles_zz_documento_protegido')
      or to_regprocedure('private.trg_perfiles_documento_protegido()') is not null then
@@ -187,6 +231,7 @@ $post$;
 commit;
 """
 (W/'scripts'/'rollback-f2b-e4.sql').write_text(rb, encoding='utf-8')
-reg = "-- REGISTRO en supabase_migrations.schema_migrations de F2.b E4. `db query --linked --file` NO registra: correr DESPUÉS de aplicar. Idempotente.\nbegin;\ninsert into supabase_migrations.schema_migrations (version, name, statements)\nvalues ('20260905140000', 'crm_f2b_e4_contrato_reconoce_persona_y_candado_documento', array[$m$" + mig + "$m$])\non conflict (version) do nothing;\ncommit;\n"
+H_MIG = hashlib.md5(mig.encode('utf-8')).hexdigest()
+reg = "-- REGISTRO en supabase_migrations.schema_migrations de F2.b E4. `db query --linked --file` NO registra: correr DESPUÉS de aplicar. Idempotente;\n-- se niega si la versión ya está registrada con OTRO contenido.\nbegin;\ndo $chk$\nbegin\n  if exists (select 1 from supabase_migrations.schema_migrations where version='20260905140000' and md5(statements[1]) <> '" + H_MIG + "') then\n    raise exception 'REGISTRO E4: la versión 20260905140000 ya está registrada con otro contenido';\n  end if;\nend\n$chk$;\ninsert into supabase_migrations.schema_migrations (version, name, statements)\nvalues ('20260905140000', 'crm_f2b_e4_contrato_reconoce_persona_y_candado_documento', array[$m$" + mig + "$m$])\non conflict (version) do nothing;\ncommit;\n"
 (W/'scripts'/'registrar-f2b-e4.sql').write_text(reg, encoding='utf-8')
-print('E4 migración', len(mig.splitlines()), 'líneas; reversa', len(rb.splitlines()), '; md5 prod', H_PROD, 'md5 E4', H_NEW)
+print('E4 migración', len(mig.splitlines()), 'líneas; reversa', len(rb.splitlines()), '; crear_contrato prod', H_PROD, 'E4', H_NEW, '; con_cuenta prod', H_PROD_CCC, 'E4', H_NEW_CCC)

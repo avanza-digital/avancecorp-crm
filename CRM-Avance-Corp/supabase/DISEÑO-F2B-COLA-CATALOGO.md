@@ -498,9 +498,8 @@ aparece un orden inverso. El trigger no toma locks.
 podrían firmar contratos nuevos hasta corregirlos (Gerencia, b5); los 5 restantes sin identidad la recibirían al primer contrato
 (o `P0409` si su documento colisiona → fusión/corrección).
 **Efectos ON que cambian respecto a hoy (solo con la bandera):** un contrato a un cliente sin documento válido se rechaza; el primer
-contrato de un cliente sin identidad lo enlaza (y le abre tramo de responsable con su asesor activo); la administración del Portal y
-`importar-clientes` no pueden cambiar el DNI de un cliente reconocido (mensaje `P0409`; el Portal lo mostrará tal cual hasta que se
-mapee → nota de activación `[D-12]`).
+contrato de un cliente sin identidad lo enlaza (y le abre tramo de responsable con su asesor activo); la administración del Portal no puede cambiar el DNI de un cliente reconocido (mensaje `P0409`; el Portal lo mostrará tal cual
+hasta que se mapee → nota de activación `[D-12]`); `crear-cliente` e `importar-clientes` solo insertan y no se ven afectados.
 **Reversa** `rollback-f2b-e4.sql`: restaura `crear_contrato` byte a byte (md5 de prod), suelta trigger y función; se niega con bandera ON.
 **Oráculo** `oraculo-f2b-e4.sh`: ON: contrato a cliente con documento → contrato creado + identidad enlazada + tramo; cliente SIN documento →
 `P0409` y sin contrato; cliente ya reconocido → mismo contrato de siempre; UPDATE de `dni` de un perfil enlazado sin GUC (como el Portal)
