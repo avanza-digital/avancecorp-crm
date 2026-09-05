@@ -13,6 +13,10 @@
 --   misma cuenta de pago 470bfde6-aa80-41ff-904a-705b523cca5c, mismo creado_por/analista, ambos 'activo'.
 --   Ninguno tiene: pagos, job/PDF (régimen documental anterior), documentos, operación de cartera,
 --   inversión F1, lead enlazado, reasignación ni preparación de eliminación (todo medido = 0).
+--   El mismo día hubo OTRO ciclo igual (otro analista, cliente distinto): 16:56:34Z alta de 2026-01-000247
+--   leída como error → 17:03:24Z eliminado por el botón de Gerencia (audit_log.usuario_id NULL) → 17:06:04Z
+--   recreado con el mismo número para otro registro de cliente. De ese ciclo NO queda duplicado; la
+--   consulta 1.e devuelve hoy UNA sola pareja: la de este archivo.
 --   Sí tienen, cada uno: 13 filas en cronograma_pagos, 1 en crm.contrato_cuentas_pago y una condición
 --   legacy propia en crm.producto_condiciones (es_legacy, legacy_contrato_id = él mismo; versiones
 --   retiradas 603 y 604). Esa condición NO se puede borrar (trigger: «las condiciones se retiran; no se
@@ -31,12 +35,14 @@
 -- todo salvo el número, así que la decisión es cuál NÚMERO quieres que sobreviva. Cambia las dos
 -- constantes de la sección 3 en ese caso.
 --
--- CAMINO RECOMENDADO, SIN SQL: entrar al CRM como Gerencia → cliente → contrato 2026-01-000253 →
--- «Eliminar contrato» → confirmar. Es la misma puerta, con tu sesión real: la auditoría queda a tu
--- nombre sin ningún truco. Usa la sección 3 solo si prefieres verlo pasar en SQL: allí se fija
--- `request.jwt.claim.sub` a tu perfil durante todo el bloque para que `auth.uid()` (lo que leen
--- `log_audit_change` y los auditores del CRM) te atribuya el borrado; sin eso, desde el SQL editor
--- el rastro quedaría con usuario NULL (hallazgo de Codex, 05/09).
+-- CAMINO RECOMENDADO: la sección 3 (este SQL). El botón «Eliminar contrato» de Gerencia usa la MISMA
+-- puerta, pero su edge la llama con service role: `auth.uid()` es NULL dentro de `log_audit_change` y el
+-- DELETE queda en public.audit_log SIN actor (medido en prod el 05/09: el contrato eliminado a las
+-- 17:03:24Z por el botón tiene usuario_id NULL; el actor solo queda en la fila efímera de
+-- private.contrato_eliminaciones, que la propia puerta borra al finalizar). La sección 3 fija
+-- `request.jwt.claim.sub` a tu perfil durante todo el bloque para que el borrado quede a tu nombre y lo
+-- comprueba como postcondición (hallazgo de Codex, 05/09). Desde el SQL editor sin esa claim el rastro
+-- también quedaría con usuario NULL.
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 1) DIAGNÓSTICO (solo lectura)

@@ -1,6 +1,6 @@
 # Contrato duplicado: el alta sin PDF se leía como error (2026-09-05)
 
-**Estado: arreglo construido y ensayado en el banco; pendiente del `!` de Miguel para producción y de la remediación manual del duplicado.**
+**Estado (05/09, 13:30): arreglo v2.1 construido, revisado de forma adversaria (Codex + 7 revisores, 39 hallazgos, todo lo mayor atendido) y ensayado en el banco (oráculo TODO VERDE, suite RLS del bloque 8/8, front `npm run check` verde); pendiente del `!` de Miguel para producción y de la remediación del duplicado.** Retomado en [[RETOMAR-61 - Contrato duplicado e idempotencia del alta (2026-09-05)]].
 
 ## El problema, en idioma de negocio
 
@@ -10,8 +10,9 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 
 - Los contratos **firmados antes del 19/08/2026** no llevan el documento que emite el sistema (decisión de Miguel del 20/08: ya tienen su contrato en el formato anterior). Para ellos el servidor responde «sin reserva de PDF».
 - El CRM, al crear un contrato, exigía que la respuesta trajera **una reserva de PDF en curso**. Como para estos contratos no la hay, el navegador rechazaba la respuesta y pintaba un error **sobre un alta que ya estaba hecha**.
-- El servidor no tenía culpa: la cadena de creación es una sola transacción y respondió bien las dos veces. El error vivía en cómo el navegador leía la respuesta.
-- **No fue un caso aislado**: desde el 21/08, **33 altas** de contratos antiguos pasaron por ese error falso. El 04/09 hubo dos ciclos iguales. Solo hoy hubo duplicado porque la analista cambió el número; hasta ahora el chequeo de «número repetido» había frenado los reintentos por casualidad.
+- El servidor creó bien las dos veces: la cadena de creación es una sola transacción. El error vivía en cómo el navegador leía la respuesta. **Matiz** (revisión adversaria): la forma de esa respuesta la cambió el propio servidor el 20/08 (los contratos antiguos pasaron a responder «sin reserva») y su registro de cambios afirmó que el navegador no dependía de ella; nadie actualizó el navegador. El arreglo es del navegador y de la puerta, pero la lección es del registro: no se declara «el front no depende» sin una prueba.
+- **No fue un caso aislado**: desde el 21/08, **33 altas** de contratos antiguos pasaron por ese error falso (16 avisos en Sentry desde el 31/08). El 04/09 hubo dos ciclos iguales (contratos distintos del mismo cliente: no duplicaron). Solo hoy hubo duplicado porque la analista cambió el número; hasta ahora el chequeo de «número repetido» había frenado los reintentos por casualidad.
+- **Hubo un segundo ciclo el mismo día**, por otro analista: a las 11:56 (hora Lima) creó el contrato 2026-01-000247 (10 000 USD, firmado el 10/03/2026) y la pantalla dijo error; a las 12:03 alguien lo eliminó con el botón de Gerencia (la auditoría quedó **sin actor**: ese botón borra con la cuenta de servicio); a las 12:06 lo volvió a crear con el mismo número para otro registro de cliente y la pantalla volvió a decir error. De ese ciclo no queda duplicado; la búsqueda de parejas sospechosas en producción devuelve hoy una sola: 000025/000253.
 - Que los dos contratos tengan «condición de producto» distinta es normal: el registro de condiciones acuña una entrada por contrato (ver [[Auditoria servidor Supabase - duplicacion y deuda (2026-08-28)]]: el «catálogo» es el registro de condiciones de cada contrato).
 
 ## Qué se arregló
@@ -22,8 +23,9 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 
 ## Qué falta (decisiones de Miguel)
 
-- **Aplicar en producción** la migración `20260905190000_crm_alta_contrato_idempotente` (`db query --linked --file`) y registrarla; después, **publicar el front**. El orden no importa aquí: la clave viaja dentro del JSON y el servidor viejo la ignora; el front nuevo tolera «sin reserva» con o sin migración.
-- **Resolver el duplicado**: eliminar uno de los dos por la puerta oficial (botón «Eliminar contrato» de Gerencia o el SQL `scripts/remediacion-duplicado-2026-01-000253.sql`, revisado y no ejecutado). Por defecto se elimina el reintento (000253); **si el contrato físico firmado dice 000253, se elimina 000025**. Los dos son idénticos en todo salvo el número.
+- **Aplicar en producción** la migración `20260905190000_crm_alta_contrato_idempotente` (`db query --linked --file`), registrarla con `scripts/registrar-alta-idempotente.sql` (se niega si no está aplicada) y después **publicar el front**. Hacen falta los dos: el front nuevo deja de leer como error el alta antigua, y la migración es la que impide el duplicado cuando llega la clave (sin front nuevo nadie la manda: es inerte). Servidor primero, recomendado.
+- **Resolver el duplicado**: eliminar uno de los dos por la puerta oficial con el SQL `scripts/remediacion-duplicado-2026-01-000253.sql` (revisado y no ejecutado; compara los dos contratos completos bajo candado y deja el borrado auditado a nombre de Miguel). El botón «Eliminar contrato» de Gerencia usa la misma puerta pero deja la auditoría sin actor (medido hoy). Por defecto se elimina el reintento (000253); **si el contrato físico firmado dice 000253, se elimina 000025**. Los dos son idénticos en todo salvo el número.
+- **Segunda pasada de Codex** sobre la versión final (v2.1) antes de aplicar: la sesión que la pidió se cortó por límite de uso.
 - Avisar al equipo: las 33 altas antiguas están bien creadas; el error que vieron era falso.
 
 ## Lecciones
@@ -31,5 +33,7 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 - **Después de una escritura irreversible no se falla cerrado.** Rechazar la respuesta de un alta ya hecha no protege nada: fabrica duplicados. Ya había pasado el 19/08 con la plantilla v5.
 - **Una defensa accidental no es una defensa.** El chequeo de número repetido frenaba los reintentos sin querer; en cuanto alguien cambió el número, se acabó.
 - **Toda escritura que un humano puede reintentar lleva clave de idempotencia.** Es la única forma de que «reintentar» sea seguro.
+- **Cuando el servidor cambia la forma de una respuesta, el navegador cambia en el mismo commit**, y el registro de cambios no afirma «el front no depende» sin una prueba que lo demuestre.
+- **Un borrado desde un botón debe quedar a nombre de quien lo pulsó.** El de Gerencia hoy no lo hace (auditoría sin actor); queda anotado como deuda.
 
 Relacionadas: [[Ciclo de vida de contratos]] · [[Número de contrato]] · [[Cuentas bancarias por contrato]] · [[PDF de contrato (generador) — plan]] · [[Bug de plazo contractual en PDF por fin de mes (2026-09-01)]]
