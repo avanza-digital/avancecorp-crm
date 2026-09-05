@@ -2,8 +2,17 @@
 -- REMEDIACIÓN DEL CONTRATO DUPLICADO DEL 05/09/2026 — SOLO LECTURA + PUERTA OFICIAL
 -- ============================================================================
 --
--- NO EJECUTADO. Lo revisa y lo corre Miguel desde el SQL editor del dashboard
--- (project dctqcbznekcyxhjujuci), como `postgres`. Cada sección es independiente.
+-- ✅ EJECUTADO el 05/09/2026 a las 22:12:03 UTC (17:12 Lima) contra producción (dctqcbznekcyxhjujuci) por
+-- `db query --linked --file` como `postgres`, con una copia rellena de la sección 3. DECISIÓN DE MIGUEL: el
+-- contrato físico firmado lleva 000253, así que se ELIMINÓ 2026-01-000025 (74b5694f, el primer alta) y se
+-- CONSERVÓ 2026-01-000253 (9597d503). Atribuido a ADMINISTRADOR AVANCE CORP (bf1c562e…): el DELETE quedó
+-- en public.audit_log con ese usuario_id (la postcondición 3.3 lo exigió y pasó). Verificado después: el
+-- cliente tiene UN contrato (000253, 13 cuotas, 1 cuenta), de 000025 no queda nada (0/0/0), y la consulta
+-- de vigilancia 1.e devuelve 0 parejas. Este archivo queda como plantilla y registro; las constantes de
+-- la sección 3 conservan el valor por defecto (eliminar 000253) por si hace falta otro caso.
+--
+-- (Original: lo revisa y lo corre Miguel desde el SQL editor del dashboard, como `postgres`. Cada sección
+-- es independiente.)
 --
 -- LOS HECHOS (leídos en producción el 05/09/2026):
 --   cliente  4e0c11bc-3fec-492b-a90e-93fd75b36ad4

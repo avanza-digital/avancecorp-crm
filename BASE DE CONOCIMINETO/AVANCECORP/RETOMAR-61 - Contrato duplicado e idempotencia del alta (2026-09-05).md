@@ -18,7 +18,7 @@ Ver [[Contrato duplicado - el alta sin PDF se leia como error (2026-09-05)]]. En
 **Front (`CRM-Avance-Corp/app/`)**
 - Sin cambios de código respecto a la nota anterior (`crm-api.ts`, `lib/idempotencia.ts`, `contrato-nuevo.tsx`). Arnés: Node ≥ 25 expone `globalThis.localStorage = undefined` sin `--localstorage-file` y tapa al de jsdom; `src/test/setup.ts` instala un almacenamiento en memoria cuando eso pasa; quitado el pragma jsdom de `lib/idempotencia.test.ts`. **`npm run check` verde: 194 archivos / 2831 pruebas, oxlint y typecheck OK.**
 
-**Remediación (NO ejecutar; Miguel decide)**: `scripts/remediacion-duplicado-2026-01-000253.sql`. Cabecera corregida: el camino recomendado es la sección 3 (fija `request.jwt.claim.sub`), NO el botón de Gerencia, que deja el DELETE sin actor en `public.audit_log` (medido en prod). Se eliminó `2026-01-000253` por defecto; si el papel firmado dice 000253, se elimina 000025.
+**Remediación ✅ EJECUTADA (05/09 22:12Z)**: `scripts/remediacion-duplicado-2026-01-000253.sql` §3 por `db query --linked --file`. Decisión de Miguel: el papel firmado lleva 000253, así que se **eliminó 000025** (74b5694f) y se **conservó 000253** (9597d503); actor `bf1c562e…` (ADMINISTRADOR AVANCE CORP). Verificado en prod: el cliente tiene UN contrato (000253, 13 cuotas, 1 cuenta), de 000025 no queda nada, el DELETE quedó auditado a ese usuario (la atribución que el botón de Gerencia no logra), y la vigilancia §1.e devuelve 0 parejas.
 
 **Docs**: `MIGRACIONES.md` actualizado a v2.1 (huellas, semántica, revisión adversaria, segundo ciclo, orden de despliegue: ambos hacen falta, servidor primero). Nota del incidente actualizada. Memoria `alta-confirmada-nunca-es-error` (en `~/.claude/projects/…/memory/`) actualizada.
 
@@ -44,7 +44,7 @@ Ver [[Contrato duplicado - el alta sin PDF se leia como error (2026-09-05)]]. En
 ## 4. Siguiente paso, en orden
 
 1. ~~Segunda pasada de Codex~~ HECHA (05/09 ~16:10): 1 hallazgo alto (hueco entre pestañas de la clave) corregido en el front, con regresiones. m2/m3 quedan como deuda para una migración posterior (regla: no se edita una migración commiteada).
-2. Enseñar a Miguel el diff final y el SQL de remediación. Con su `!`: aplicar `20260905190000` en prod (`db query --linked --file`), correr `registrar-alta-idempotente.sql`, release del front (`/release-crm` con preflight), y remediar el duplicado por la sección 3 del SQL.
+2. Con el `!` de Miguel: aplicar `20260905190000` en prod (`db query --linked --file`; preflight de solo lectura ya confirmó que aplica limpio: puerta `68cc6c91`, sin tabla, versión no registrada), correr `registrar-alta-idempotente.sql`, y release del front (`/release-crm` con preflight; solo Miguel lo invoca). ~~Remediar el duplicado~~ HECHO.
 3. Deuda anotada: el botón «Eliminar contrato» de Gerencia deja `audit_log.usuario_id` NULL (la edge llama a la puerta con service role); y `git push avancecorp main:tronco` (main va 3+ commits por delante de tronco).
 
 Relacionadas: [[Contrato duplicado - el alta sin PDF se leia como error (2026-09-05)]] · [[RETOMAR-60 - F2.b E3 (b5) construida y ensayada, pendiente del ! (2026-09-05)]] · [[Ciclo de vida de contratos]] · [[Número de contrato]]
