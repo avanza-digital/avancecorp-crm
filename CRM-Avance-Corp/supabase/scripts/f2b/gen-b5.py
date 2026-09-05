@@ -1,0 +1,446 @@
+# gen-b5.py — F2.b E3 = b5. Genera la migración 20260905120000, su reversa y el registro
+# TRANSFORMANDO el texto VIVO de producción (vivas/e3/*.sql, md5 en huellas-e3-prod.txt).
+# Uso: python3 gen-b5.py <dir scripts/f2b> <dir supabase>   (nuevos.sql al lado de este archivo)
+import sys, pathlib, hashlib
+S = pathlib.Path(sys.argv[1]); W = pathlib.Path(sys.argv[2])
+viv = lambda n: (S/'vivas'/'e3'/f'{n}.sql').read_text(encoding='utf-8').rstrip('\n')
+def rep(s, old, new, n=1):
+    assert s.count(old) == n, (old[:80], s.count(old)); return s.replace(old, new)
+prod = {}
+for line in open(S/'huellas-e3-prod.txt', encoding='utf-8'):
+    if line.strip():
+        k, v = line.rsplit(' ', 1); prod[k.strip()] = v.strip()
+def h(name):
+    calc = hashlib.md5(open(S/'vivas'/'e3'/f'{name}.sql','rb').read()[:-1]).hexdigest()
+    assert prod[name] == calc, (name, prod[name], calc); return prod[name]
+for n in ('crm.convertir_lead','crm.convertir_lead_externo','crm.saga_conversion_fn','private.trg_leads_disponibilidad_atomica','crm.marcar_efectos_conversion','crm.marcar_efectos_conversion.3','crm.alta_cliente_identidad_fn'):
+    h(n)
+
+# ── T1 crm.convertir_lead ─────────────────────────────────────────────────────────────────
+cl_prev = viv('crm.convertir_lead')
+cl = rep(cl_prev, """    perform 1 from crm.inversionistas where id = v_inv for update;
+  end if;
+""", """    perform 1 from crm.inversionistas where id = v_inv for update;
+    -- F2.b (b5) [Cx-15, E3-1]: una fusión pudo ganar mientras se esperaba este lock: la
+    -- perdedora ya no convierte. Sin advisory documental AQUÍ a propósito: tomarlo después
+    -- de la identidad invertiría el orden documento -> identidad que sigue la fusión.
+    if exists (select 1 from crm.inversionistas i where i.id = v_inv and i.estado = 'fusionado') then
+      raise exception 'La persona fue fusionada mientras se convertía; vuelve a intentarlo'
+        using errcode = '40001';
+    end if;
+  end if;
+""")
+cl = rep(cl, """    if v_prev is not null then
+      return v_prev || pg_catalog.jsonb_build_object('reintento', true);
+    end if;
+""", """    if v_prev is not null then
+      -- F2.b (b5) [E3-12]: el resultado guardado se conserva; la identidad se proyecta por su canónica.
+      return v_prev || pg_catalog.jsonb_build_object('reintento', true,
+        'inversionista_id', private.inversionista_canonica((v_prev->>'inversionista_id')::uuid));
+    end if;
+""", n=2)
+cl = rep(cl, """      v_res := pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'perfil_id', p_perfil_id,
+                                             'inversionista_id', v_lead.inversionista_id);""",
+"""      v_res := pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'perfil_id', p_perfil_id,
+                                             'inversionista_id', private.inversionista_canonica(v_lead.inversionista_id));""")
+cl = rep(cl, """    if v_lead_canon is not null then
+      raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+        using errcode = 'P0409';
+    end if;
+  end if;
+""", """    if v_lead_canon is not null then
+      raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+        using errcode = 'P0409';
+    end if;
+  end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
+  end if;
+  -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento de un perfil
+  -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
+  if v_flag and v_lead.inversionista_id is not null and v_lead.inversionista_id is distinct from v_inv then
+    raise exception 'La persona de este lead no es la del documento del cliente: corrección o fusión de Gerencia'
+      using errcode = 'P0409';
+  end if;
+""")
+
+# ── T2 crm.convertir_lead_externo (texto de b4) ───────────────────────────────────────────
+cle_prev = viv('crm.convertir_lead_externo')
+cle = rep(cle_prev, """    if v_lead_canon is not null then
+      raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+        using errcode = 'P0409';
+    end if;
+  end if;
+""", """    if v_lead_canon is not null then
+      raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+        using errcode = 'P0409';
+    end if;
+  end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
+  end if;
+  -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento del cierre
+  -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
+  if v_flag and v_lead.inversionista_id is not null and v_lead.inversionista_id is distinct from v_inv then
+    raise exception 'La persona de este lead no es la del documento del cierre: corrección o fusión de Gerencia'
+      using errcode = 'P0409';
+  end if;
+""")
+
+# ── T3 crm.saga_conversion_fn (texto de b4): documento ANTES de identidad en 'cerrar' ─────
+saga_prev = viv('crm.saga_conversion_fn')
+saga = rep(saga_prev, "  v_claim uuid; v_loc record; v_res jsonb; v_perfil uuid; v_lead uuid; v_inv_conv uuid;\n",
+                      "  v_claim uuid; v_loc record; v_res jsonb; v_perfil uuid; v_lead uuid; v_inv_conv uuid; v_tipo text; v_doc text;\n")
+saga = rep(saga, """    -- Veto revalidado también al cerrar (Codex E2 #11): con veto, la conversión no se consuma.
+    perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+""", """    -- F2.b (b5) [E3-1]: documento ANTES de identidad (la fusión toma documento -> identidad;
+    -- convertir_lead resolverá este mismo documento, reentrante).
+    select coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI'), p.dni into v_tipo, v_doc
+      from public.perfiles p where p.id = v_perfil;
+    if v_doc is null then
+      raise exception 'Saga: el perfil del claim no existe o no tiene documento' using errcode = 'P0409';
+    end if;
+    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    -- Veto revalidado también al cerrar (Codex E2 #11): con veto, la conversión no se consuma.
+    perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+""")
+
+saga = rep(saga, """    v_inv_conv := (v_res->>'inversionista_id')::uuid;
+    if v_inv_conv is distinct from v_loc.inversionista_id then
+      raise exception 'La persona convertida no es la persona reservada (el documento cambió): se revierte la conversión'
+        using errcode = 'P0409';
+    end if;
+    return v_res || private.saga_auth_avanzar(v_claim, p_payload->>'token', 'enlazado', null, v_perfil, (p_payload->>'version')::integer);
+""", """    v_inv_conv := (v_res->>'inversionista_id')::uuid;
+    -- F2.b (b5) [E3-12]: comparación por la CANÓNICA (una fusión posterior no invalida el reintento de un cierre ya consumado).
+    if private.inversionista_canonica(v_inv_conv) is distinct from private.inversionista_canonica(v_loc.inversionista_id) then
+      raise exception 'La persona convertida no es la persona reservada (el documento cambió): se revierte la conversión'
+        using errcode = 'P0409';
+    end if;
+    return v_res || private.saga_auth_avanzar(v_claim, p_payload->>'token', 'enlazado', null, v_perfil, (p_payload->>'version')::integer)
+           || pg_catalog.jsonb_build_object('inversionista_id', private.inversionista_canonica(v_inv_conv));
+""")
+
+# ── T5/T6 crm.marcar_efectos_conversion (1 y 3 argumentos): revalidar la identidad tras esperar [E3-12] ──
+mec_prev = viv('crm.marcar_efectos_conversion')
+mec = rep(mec_prev, """  v_ok  boolean;
+begin""", """  v_ok  boolean;
+  v_inv0 uuid; v_inv1 uuid;
+begin""")
+mec = rep(mec, """  perform 1 from crm.inversionistas i
+   where i.id = (select r.inversionista_id from crm.conversion_reservas r where r.lead_id = p_lead_id)
+     and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+   for update;
+""", """  select r.inversionista_id into v_inv0 from crm.conversion_reservas r where r.lead_id = p_lead_id;
+  perform 1 from crm.inversionistas i
+   where i.id = v_inv0
+     and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+   for update;
+  -- F2.b (b5) [E3-12]: tras esperar, la persona reservada pudo fusionarse (la reserva ya apunta a la canónica): reintentar.
+  if v_inv0 is not null and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    select r.inversionista_id into v_inv1 from crm.conversion_reservas r where r.lead_id = p_lead_id;
+    if v_inv1 is distinct from v_inv0 or exists (select 1 from crm.inversionistas i where i.id = v_inv0 and i.estado = 'fusionado') then
+      raise exception 'La persona de esta reserva fue fusionada mientras se sellaba; vuelve a intentarlo' using errcode = '40001';
+    end if;
+  end if;
+""")
+mec3_prev = viv('crm.marcar_efectos_conversion.3')
+mec3 = rep(mec3_prev, """  perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+  if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.no_contactar) then""",
+"""  perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+  -- F2.b (b5) [E3-12]: tras esperar, la persona del claim pudo fusionarse: reintentar (la fusión exige claims terminales).
+  if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.estado = 'fusionado') then
+    raise exception 'La persona de este claim fue fusionada mientras se sellaba; vuelve a intentarlo' using errcode = '40001';
+  end if;
+  if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.no_contactar) then""")
+
+# ── T7 crm.alta_cliente_identidad_fn: 'enlazar' compara por la canónica [E3-12] ──
+alta_prev = viv('crm.alta_cliente_identidad_fn')
+alta = rep(alta_prev, """    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
+    perform 1 from crm.inversionistas i where i.id = v_inv for update;
+""", """    -- F2.b (b5) [Codex N2]: jerarquía compartida ANTES del documento (asegurar_identidad_perfil la toma después;
+    -- el offboarding la toma exclusiva): nunca documento/identidad -> jerarquía.
+    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
+    perform 1 from crm.inversionistas i where i.id = v_inv for update;
+""")
+alta = rep(alta, """    if (v_r->>'inversionista_id')::uuid <> v_loc.inversionista_id then
+      raise exception 'El perfil creado no corresponde a la persona reclamada' using errcode = 'P0409';
+    end if;""", """    -- F2.b (b5) [E3-12]: comparación por la CANÓNICA (un enlace ya consumado se puede reintentar tras una fusión).
+    if private.inversionista_canonica((v_r->>'inversionista_id')::uuid) is distinct from private.inversionista_canonica(v_loc.inversionista_id) then
+      raise exception 'El perfil creado no corresponde a la persona reclamada' using errcode = 'P0409';
+    end if;""")
+
+# ── T4 private.trg_leads_disponibilidad_atomica: excepción estrecha bajo válvula ─────────
+trg_prev = viv('private.trg_leads_disponibilidad_atomica')
+trg = rep(trg_prev, "  v_descartado_por text;\nbegin\n",
+                    "  v_descartado_por text;\n  v_priv boolean := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false);\nbegin\n")
+trg = rep(trg, """    if not v_cambio_identidad or v_actor is null then
+      return new;
+    end if;
+""", """    -- F2.b (b5) [E3-6]: la corrección de documento de Gerencia (RPC definer bajo válvula Y con su
+    -- GUC propia crm.correccion_documento) cambia SOLO el DNI de un lead que conserva su persona; los terceros (otra identidad,
+    -- otro cliente del Portal, otro lead vivo) ya los comprobó la RPC bajo sus locks. Ningún
+    -- otro escritor bajo válvula cambia el DNI; fuera de esta forma exacta nada cambia.
+    if v_priv and coalesce(pg_catalog.current_setting('crm.correccion_documento', true) = 'on', false)
+       and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+       and new.dni is distinct from old.dni and new.telefono is not distinct from old.telefono
+       and new.no_contactar = old.no_contactar and new.etapa = old.etapa and new.activo = old.activo
+       and new.motivo_descarte is not distinct from old.motivo_descarte
+       and old.inversionista_id is not null and new.inversionista_id = old.inversionista_id then
+      return new;
+    end if;
+    if not v_cambio_identidad or v_actor is null then
+      return new;
+    end if;
+""")
+
+NUEVOS = (S/'b5-nuevos.sql').read_text(encoding='utf-8') if (S/'b5-nuevos.sql').exists() else '-- {{NUEVOS pendientes}}\n'
+NUEVAS_FN = [  # (regprocedure, grant authenticated?) — se sueltan en la reversa
+  ('private.inversionista_canonica(uuid)', False),
+  ('private.fusion_estado_jsonb(uuid,uuid)', False),
+  ('private.fusion_bloqueos(uuid,uuid)', False),
+  ('private.identidad_bloquear_documentos_de(uuid[])', False),
+  ('private.cancelar_tareas_pendientes_lead(uuid)', False),
+  ('private.motivo_sin_documento(text,text[])', False),
+  ('private.leads_de_identidades(uuid[])', False),
+  ('private.bloquear_leads_nowait(uuid[])', False),
+  ('private.documento_es_de_identidad(uuid,text,text)', False),
+  ('crm.fusion_previsualizar_fn(uuid,uuid)', True),
+  ('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)', True),
+  ('crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)', True),
+  ('crm.enlazar_lead_inversionista_fn(uuid,uuid,text)', True),
+  ('crm.reasignar_responsable_relacion_fn(uuid,uuid,text)', True),
+]
+def guard_md5(fn_sql_name, ident_args, hkey):
+    schema, name = fn_sql_name.split('.')[:2]
+    return f"""  v_h := null;
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+   where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid) = '{ident_args}';
+  if v_h is null then
+    raise exception 'F2.b b5: falta {fn_sql_name}';
+  end if;
+  if v_h is distinct from '{h(hkey)}' and v_h is distinct from '{NEW_MD5[hkey]}' then
+    raise exception 'F2.b b5: {fn_sql_name} no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+"""
+IA = {
+ 'crm.convertir_lead': 'p_lead_id uuid, p_perfil_id uuid',
+ 'crm.convertir_lead_externo': 'p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text',
+ 'crm.saga_conversion_fn': 'p_paso text, p_payload jsonb',
+ 'private.trg_leads_disponibilidad_atomica': '',
+ 'crm.marcar_efectos_conversion': 'p_lead_id uuid',
+ 'crm.marcar_efectos_conversion.3': 'p_lead_id uuid, p_claim_id uuid, p_token text',
+ 'crm.alta_cliente_identidad_fn': 'p_paso text, p_payload jsonb',
+}
+NEW_TEXT = {'crm.convertir_lead': cl, 'crm.convertir_lead_externo': cle, 'crm.saga_conversion_fn': saga,
+            'private.trg_leads_disponibilidad_atomica': trg, 'crm.marcar_efectos_conversion': mec,
+            'crm.marcar_efectos_conversion.3': mec3, 'crm.alta_cliente_identidad_fn': alta}
+# pg_get_functiondef termina en UN salto de línea (viv() lo recorta): la huella esperada se calcula sobre texto + '\n'.
+NEW_MD5 = {k: hashlib.md5((v + '\n').encode('utf-8')).hexdigest() for k, v in NEW_TEXT.items()}
+(S/'transformadas').mkdir(exist_ok=True)
+for k, v in NEW_TEXT.items():
+    (S/'transformadas'/f'{k}.sql').write_text(v + '\n', encoding='utf-8')
+guards = ''.join(guard_md5(k, IA[k], k) for k in IA)
+def post_md5_exacto(k):
+    schema, name = k.split('.')[:2]
+    return f"""  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid)='{IA[k]}') is distinct from '{NEW_MD5[k]}' then
+    raise exception 'POSTFLIGHT b5: {k} no quedó byte a byte como la genera gen-b5.py';
+  end if;
+"""
+post_exacto = ''.join(post_md5_exacto(k) for k in IA)
+
+mig = r"""-- ============================================================================
+-- P-055 · MULTIEMPRESA Contrato-F2 · F2.b sub-lote b5 (E3) — FUSIÓN DE IDENTIDADES, CORRECCIÓN
+-- DOCUMENTAL, ENLACE DE LEAD SUELTO Y REASIGNACIÓN DEL RESPONSABLE (solo Gerencia)
+-- ============================================================================
+--
+-- QUE (contrato §4.4, §6, invariantes #6/#8/#9/#19): las puertas de Gerencia que hoy no existen.
+--   * crm.fusion_previsualizar_fn(perdedora, canonica): foto + huella + bloqueos/advertencias (solo lectura).
+--   * crm.fusionar_inversionistas_fn(perdedora, canonica, motivo, hash): matriz de colisiones completa
+--     (perfil, veto OR con tareas, responsable, identificadores reemitidos, lead y puente, cierres,
+--     inversiones y titulares, reservas, predecesoras aplanadas), libro append-only, perdedora NUNCA borrada.
+--     Alcance acotado hasta F5: como máximo un lead y un perfil entre las dos.
+--   * crm.corregir_documento_inversionista_fn(...): el vigente pasa a histórico, nuevo vigente verificado,
+--     realinea perfil y lead SOLO si llevaban el documento reemplazado; motivo en crm.inversionista_operaciones.
+--   * crm.enlazar_lead_inversionista_fn(lead, inversionista, motivo): la revisión humana de la clase E.
+--   * crm.reasignar_responsable_relacion_fn(inversionista, nuevo, motivo): cierra/abre tramo; no mueve atribuciones.
+-- Y siete funciones VIVAS transformadas SOLO en su rama ON (guarda md5 del texto de producción):
+--   convertir_lead (revalida fusión tras el lock [E3-1]; persona del lead manda [E3-11]; proyección canónica
+--   en reintentos [E3-12]), convertir_lead_externo ([E3-11]), saga_conversion_fn ('cerrar': documento antes de
+--   identidad [E3-1]; comparación canónica y proyección [E3-12]), trg_leads_disponibilidad_atomica (excepción estrecha
+--   bajo válvula para la corrección [E3-6]), marcar_efectos_conversion x2 (revalidan la persona tras esperar [E3-12]) y
+--   alta_cliente_identidad_fn ('enlazar' compara por la canónica [E3-12]).
+-- Orden total de b5: jerarquía -> documentos -> identidades -> perfil -> cierres -> inversiones/titulares ->
+-- tramos -> tareas -> lead -> reservas -> claims -> contactos (por trigger).
+-- TODO detrás de la bandera; RPC nuevas inertes (P0409) con la bandera apagada.
+-- Reversa: scripts/rollback-f2b-b5.sql.
+
+begin;
+set local lock_timeout = '5s';
+select pg_advisory_xact_lock(hashtext('crm_f2b_b5_fusion_correccion_reasignacion'));
+
+do $guard$
+declare v_h text;
+begin
+  if to_regprocedure('crm.saga_conversion_fn(text,jsonb)') is null
+     or to_regprocedure('crm.alta_cliente_identidad_fn(text,jsonb)') is null
+     or to_regprocedure('private.identidad_bloquear_documento(text,text)') is null
+     or to_regprocedure('private.inversionista_por_documento(text,text)') is null
+     or to_regprocedure('private.persona_vetada(uuid)') is null
+     or to_regclass('crm.inversionista_fusiones') is null then
+    raise exception 'F2.b b5: falta E1 o E2 (20260904120000..20260905110000)';
+  end if;
+  if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false)
+     or coalesce((select activo from crm.multiempresa_flags where nombre='inversiones_escritura'), false) then
+    raise exception 'F2.b b5: alguna bandera está ENCENDIDA; este lote aterriza apagado';
+  end if;
+{{GUARDS}}end
+$guard$;
+
+-- ============================================================================
+-- 1. Funciones VIVAS transformadas (rama ON; OFF byte a byte)
+-- ============================================================================
+{{CL}}
+;
+
+{{CLE}}
+;
+
+{{SAGA}}
+;
+
+{{TRG}}
+;
+
+{{MEC}}
+;
+
+{{MEC3}}
+;
+
+{{ALTA}}
+;
+
+-- ============================================================================
+-- 2. Objetos nuevos: tabla de correcciones, helpers privados y las 5 puertas de Gerencia
+-- ============================================================================
+{{NUEVOS}}
+
+do $post$
+begin
+{{POST_EXISTS}}
+{{POST_EXACTO}}  if (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead') = 0
+     or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo') = 0
+     or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='saga_conversion_fn') = 0
+     or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica') = 0
+     or (select min(strpos(p.prosrc, 'F2.b (b5)')) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion') = 0
+     or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='alta_cliente_identidad_fn') = 0 then
+    raise exception 'POSTFLIGHT b5: transformaciones ausentes';
+  end if;
+{{POST_GRANTS}}
+  if to_regclass('crm.inversionista_operaciones') is null
+     or not (select relrowsecurity from pg_class where oid = 'crm.inversionista_operaciones'::regclass)
+     or has_table_privilege('anon', 'crm.inversionista_operaciones', 'SELECT')
+     or has_table_privilege('authenticated', 'crm.inversionista_operaciones', 'SELECT')
+     or has_table_privilege('service_role', 'crm.inversionista_operaciones', 'SELECT')
+     or exists (select 1 from pg_class c, aclexplode(c.relacl) a where c.oid = 'crm.inversionista_operaciones'::regclass and a.grantee = 0)
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'private.inversionista_operaciones_append_only()'::regprocedure and a.grantee = 0)
+     or has_function_privilege('authenticated', 'private.inversionista_operaciones_append_only()', 'EXECUTE') then
+    raise exception 'POSTFLIGHT b5: tabla de correcciones sin RLS o con grants';
+  end if;
+  if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    raise exception 'POSTFLIGHT b5: la bandera quedó encendida';
+  end if;
+  raise notice 'F2.b b5 OK: fusión, corrección documental, enlace de lead suelto y reasignación (Gerencia); 7 vivas transformadas en su rama ON. Bandera APAGADA.';
+end
+$post$;
+commit;
+"""
+post_exists = "  if " + "\n     or ".join(f"to_regprocedure('{r}') is null" for r,_ in NUEVAS_FN + [('private.inversionista_operaciones_append_only()', False)]) + " then\n    raise exception 'POSTFLIGHT b5: falta alguna función nueva';\n  end if;\n"
+post_grants = "  if " + "\n     or ".join(
+    ([f"has_function_privilege('anon', '{r}', 'EXECUTE')", f"has_function_privilege('service_role', '{r}', 'EXECUTE')"] +
+     ([f"not has_function_privilege('authenticated', '{r}', 'EXECUTE')"] if g else [f"has_function_privilege('authenticated', '{r}', 'EXECUTE')"]))[0]
+    for r,g in NUEVAS_FN) + "\n     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in (" + ", ".join(f"'{r}'::regprocedure" for r,_ in NUEVAS_FN) + ") and a.grantee = 0) then\n    raise exception 'POSTFLIGHT b5: grants incorrectos';\n  end if;\n"
+# grants: cada función nueva se comprueba completa (anon/service_role fuera; authenticated según corresponda; nunca PUBLIC)
+post_grants = "  if " + "\n     or ".join(
+    f"has_function_privilege('anon', '{r}', 'EXECUTE') or has_function_privilege('service_role', '{r}', 'EXECUTE') or " +
+    (f"not has_function_privilege('authenticated', '{r}', 'EXECUTE')" if g else f"has_function_privilege('authenticated', '{r}', 'EXECUTE')")
+    for r,g in NUEVAS_FN) + "\n     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in (" + ", ".join(f"'{r}'::regprocedure" for r,_ in NUEVAS_FN) + ") and a.grantee = 0) then\n    raise exception 'POSTFLIGHT b5: grants incorrectos';\n  end if;\n"
+mig = mig.replace("{{GUARDS}}", guards).replace("{{CL}}", cl).replace("{{CLE}}", cle).replace("{{SAGA}}", saga).replace("{{TRG}}", trg).replace("{{MEC}}", mec).replace("{{MEC3}}", mec3).replace("{{ALTA}}", alta).replace("{{NUEVOS}}", NUEVOS).replace("{{POST_EXISTS}}", post_exists).replace("{{POST_EXACTO}}", post_exacto).replace("{{POST_GRANTS}}", post_grants)
+(W/'migrations'/'20260905120000_crm_f2b_b5_fusion_correccion_reasignacion.sql').write_text(mig, encoding='utf-8')
+
+rb = r"""-- ============================================================================
+-- REVERSA de F2.b sub-lote b5 (20260905120000_crm_f2b_b5_fusion_correccion_reasignacion)
+-- ============================================================================
+-- Suelta las 5 RPC de Gerencia y los helpers, restaura byte a byte las 7 funciones vivas (md5
+-- contra el vivo de producción). CONSERVA crm.inversionista_operaciones (tabla aditiva con hechos) y no
+-- deshace fusiones/correcciones/enlaces/tramos (append-only con rastro; coherentes sin las funciones).
+-- Se NIEGA si alguna bandera está encendida. Repetible dos veces.
+begin;
+set local lock_timeout = '5s';
+select pg_advisory_xact_lock(hashtext('crm_f2b_b5_reversa'));
+do $flags$
+begin
+  if exists (select 1 from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura') and activo) then
+    raise exception 'REVERSA b5: alguna bandera está ENCENDIDA; apágala a propósito antes de revertir';
+  end if;
+end
+$flags$;
+
+{{DROPS}}
+{{CL_PREV}}
+;
+
+{{CLE_PREV}}
+;
+
+{{SAGA_PREV}}
+;
+
+{{TRG_PREV}}
+;
+
+{{MEC_PREV}}
+;
+
+{{MEC3_PREV}}
+;
+
+{{ALTA_PREV}}
+;
+
+do $post$
+begin
+  if {{POST_GONE}} then
+    raise exception 'REVERSA b5: quedó alguna función del lote';
+  end if;
+{{POST_MD5}}
+  raise notice 'REVERSA F2.b b5 OK (crm.inversionista_operaciones se conserva)';
+end
+$post$;
+commit;
+"""
+drops = "\n".join(f"drop function if exists {r};" for r,_ in reversed(NUEVAS_FN)) + "\n"
+post_gone = "\n     or ".join(f"to_regprocedure('{r}') is not null" for r,_ in NUEVAS_FN)
+def md5_check(k):
+    schema, name = k.split('.')[:2]
+    return f"""  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid)='{IA[k]}') <> '{h(k)}' then
+    raise exception 'REVERSA b5: {k} no volvió byte a byte al vivo de producción';
+  end if;
+"""
+post_md5 = ''.join(md5_check(k) for k in IA)
+rb = rb.replace("{{DROPS}}", drops).replace("{{CL_PREV}}", cl_prev).replace("{{CLE_PREV}}", cle_prev).replace("{{SAGA_PREV}}", saga_prev).replace("{{TRG_PREV}}", trg_prev).replace("{{MEC_PREV}}", mec_prev).replace("{{MEC3_PREV}}", mec3_prev).replace("{{ALTA_PREV}}", alta_prev).replace("{{POST_GONE}}", post_gone).replace("{{POST_MD5}}", post_md5)
+(W/'scripts'/'rollback-f2b-b5.sql').write_text(rb, encoding='utf-8')
+
+reg = "-- REGISTRO en supabase_migrations.schema_migrations de F2.b E3 (b5). `db query --linked --file` NO registra:\n-- correr ESTE archivo DESPUÉS de aplicar la migración. Un elemento = el fichero entero. Idempotente.\nbegin;\ninsert into supabase_migrations.schema_migrations (version, name, statements)\nvalues ('20260905120000', 'crm_f2b_b5_fusion_correccion_reasignacion', array[$m$" + mig + "$m$])\non conflict (version) do nothing;\ncommit;\n"
+(W/'scripts'/'registrar-f2b-e3.sql').write_text(reg, encoding='utf-8')
+print('b5 migración', len(mig.splitlines()), 'líneas; reversa', len(rb.splitlines()), '; registro', len(reg.splitlines()))
