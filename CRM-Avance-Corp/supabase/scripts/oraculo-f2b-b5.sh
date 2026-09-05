@@ -150,7 +150,7 @@ DF2="8${RUN}6"; R="$(corr "$IF" "DNI" "$DF2" "DNI mal tecleado en la cooperativa
 [[ "$(q "select count(*) from crm.inversionista_operaciones where inversionista_id='$IF' and tipo='correccion' and detalle->>'lead'='dni'")" == "1" ]] && ok "libro de operaciones (corrección)" || rojo "sin fila de corrección"
 R="$(run_as "$V" "select crm.convertir_lead('$LE','$PB_PERFIL')")"; echo "$R" | grep -q "ya esta cerrado\|corrección o fusión" && ok "convertir el lead de IF a un perfil de OTRA persona → rechazado" || rojo "E3-11: $R"
 IDF="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IF' and tipo_documento='DNI' and estado='vigente'")"
-R="$(corr "$IF" "CE" "00${RUN}55" "es extranjero: carné de extranjería" "$IDF")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" lead)" == "nulo" && "$(q "select dni is null from crm.leads where id='$LE'")" == "t" ]] && ok "DNI→CE: lead.dni queda nulo (crm.leads solo representa DNI)" || rojo "corr CE: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
+R="$(corr "$IF" "CE" "00${RUN}55" "es extranjero: carné de extranjería" "$IDF")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" lead)" == "nulo" && "$(q "select dni is null and inversionista_id='$IF' from crm.leads where id='$LE'")" == "t" ]] && ok "DNI→CE: lead.dni queda nulo y el enlace a la persona se conserva" || rojo "corr CE: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 R="$(corr "$IF" "CE" "00${RUN}55" "repetir")"; [[ "$(j "$R" estado)" == "sin_cambios" ]] && ok "misma corrección repetida → sin_cambios" || rojo "repetida: $R"
 # [E3-15] IX tiene DOS DNI vigentes (DX propio y DA reemitido): corregir DX→DA indicando cuál sale reutiliza DA y realinea LX
 IDX="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DX' and estado='vigente'")"
@@ -185,6 +185,9 @@ DK="6${RUN}2"; LK="$(uuid)"; lead_dni "$LK" "'$DK'" 65 >/dev/null; IK="$(q "sele
 psql "$PG" -q -c "update crm.leads set activo=false where id='$LK'" >/dev/null
 R="$(enl "$LK" "$IK" "lead inactivo de la clase E")"; [[ "$(j "$R" ok)" == "True" && "$(q "select count(*) from crm.inversionista_operaciones where tipo='enlace' and lead_id='$LK'")" == "1" && "$(q "select count(*) from crm.actividades where lead_id='$LK' and metadata->>'evento'='enlace_identidad'")" == "0" ]] && ok "[E3-16] lead inactivo: enlazado, sin nota de actividad, con motivo en el libro" || rojo "E3-16: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 
+R="$(run_as "$V" "select crm.fusionar_inversionistas_fn('$PB','$IX','x','$(printf '%064d' 0)')")"; echo "$R" | grep -q "42501" && ok "vendedor fusiona → 42501" || rojo "vendedor fusionó: $R"
+R="$(run_as "$V" "select crm.corregir_documento_inversionista_fn('$IX','DNI','$DE2','x')")"; echo "$R" | grep -q "42501" && ok "vendedor corrige → 42501" || rojo "vendedor corrigió: $R"
+R="$(run_as "$V" "select crm.enlazar_lead_inversionista_fn('$L4','$IX','x')")"; echo "$R" | grep -q "42501" && ok "vendedor enlaza → 42501" || rojo "vendedor enlazó: $R"
 echo "== Reasignación =="
 R="$(reas "$V" "$IB" "$SUP" "vendedor intenta")"; echo "$R" | grep -q "42501" && ok "vendedor reasigna → 42501" || rojo "vendedor reasignó: $R"
 R="$(reas "$G" "$IB" "$(uuid)" "a nadie")"; echo "$R" | grep -q "22023" && ok "responsable inexistente → 22023" || rojo "inexistente: $R"

@@ -4,12 +4,17 @@
 -- Suelta las 5 RPC de Gerencia y los helpers, restaura byte a byte las 7 funciones vivas (md5
 -- contra el vivo de producción). CONSERVA crm.inversionista_operaciones (tabla aditiva con hechos) y no
 -- deshace fusiones/correcciones/enlaces/tramos (append-only con rastro; coherentes sin las funciones).
--- Bandera APAGADA. Repetible dos veces.
+-- Se NIEGA si alguna bandera está encendida. Repetible dos veces.
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_b5_reversa'));
-update crm.multiempresa_flags set activo = false, actualizado_en = now()
-  where nombre in ('resolver_en_puertas','inversiones_escritura') and activo = true;
+do $flags$
+begin
+  if exists (select 1 from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura') and activo) then
+    raise exception 'REVERSA b5: alguna bandera está ENCENDIDA; apágala a propósito antes de revertir';
+  end if;
+end
+$flags$;
 
 drop function if exists crm.reasignar_responsable_relacion_fn(uuid,uuid,text);
 drop function if exists crm.enlazar_lead_inversionista_fn(uuid,uuid,text);

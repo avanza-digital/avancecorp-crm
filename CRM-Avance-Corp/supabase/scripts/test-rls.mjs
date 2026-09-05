@@ -8449,6 +8449,87 @@ const IDS_CONVERSION = Object.freeze({
   leadFueraDeRoster: randomUUID(),
 });
 
+// ── F2.b b5 (E3): fusión, corrección, enlace y reasignación — puertas de GERENCIA ──
+// Solo grants, gates y paridad apagada (el negocio lo cubre scripts/oraculo-f2b-b5.sh).
+// Sin fixtures: argumentos con uuid inexistentes; los guards (bandera → Gerencia →
+// argumentos) deben disparar ANTES de tocar nada. Estado de producción = bandera OFF.
+async function testIdentidadF2bB5(sessions) {
+  console.log('\n— Identidad multiempresa F2.b b5: puertas de Gerencia (fusión, corrección, enlace, reasignación) —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b b5)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b b5: ${etiqueta}`, sql);
+  const lista = (arr) => `'${arr.join("','")}'`;
+  const ejecutablesResiduales = (firmas, roles) => cuenta('EXECUTE residual',
+    `select count(*) from unnest(array[${lista(firmas)}]) f(firma), unnest(array[${lista(roles)}]) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`)
+    + cuenta('PUBLIC residual',
+      `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${firmas.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`);
+  const Z1 = '00000000-0000-4000-8000-0000000000b5';
+  const Z2 = '00000000-0000-4000-8000-0000000000b6';
+  const ARGS = {
+    fusion_previsualizar_fn: { p_perdedora: Z1, p_canonica: Z2 },
+    fusionar_inversionistas_fn: { p_perdedora: Z1, p_canonica: Z2, p_motivo: 'suite b5', p_hash: 'no-es-una-huella' },
+    corregir_documento_inversionista_fn: { p_inversionista: Z1, p_tipo: 'DNI', p_documento: '00000001', p_motivo: 'suite b5' },
+    enlazar_lead_inversionista_fn: { p_lead_id: Z1, p_inversionista: Z2, p_motivo: 'suite b5' },
+    reasignar_responsable_relacion_fn: { p_inversionista: Z1, p_nuevo_responsable: Z2, p_motivo: 'suite b5' },
+  };
+  const RPC = Object.keys(ARGS);
+  const FIRMAS_RPC = ['crm.fusion_previsualizar_fn(uuid,uuid)', 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)',
+    'crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)', 'crm.enlazar_lead_inversionista_fn(uuid,uuid,text)',
+    'crm.reasignar_responsable_relacion_fn(uuid,uuid,text)'];
+  const HELPERS = ['private.inversionista_canonica(uuid)', 'private.fusion_estado_jsonb(uuid,uuid)', 'private.fusion_bloqueos(uuid,uuid)',
+    'private.identidad_bloquear_documentos_de(uuid[])', 'private.cancelar_tareas_pendientes_lead(uuid)', 'private.motivo_sin_documento(text,text[])',
+    'private.leads_de_identidades(uuid[])', 'private.bloquear_leads_nowait(uuid[])', 'private.documento_es_de_identidad(uuid,text,text)',
+    'private.inversionista_operaciones_append_only()'];
+  const llamar = (cliente, fn) => cliente.schema('crm').rpc(fn, ARGS[fn]);
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-b5'));
+  const NO_GERENCIA = ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank'];
+
+  if (cuenta('b5 aplicada', `select (to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)') is not null)::int`) !== 1) {
+    console.log('  (saltado: b5 (20260905120000) no está en esta base)');
+    return;
+  }
+  try {
+    // ── OFF (estado de producción): las 5 son inertes para TODO authenticated; anon y service_role ni entran ──
+    flag(false);
+    for (const fn of RPC) {
+      await expectExpectedFailure(`b5 OFF gerencia ${fn} → P0409 apagada`, llamar(sessions.gerencia.client, fn), ['P0409'], /apagada/i);
+      for (const clave of NO_GERENCIA) {
+        // La bandera se evalúa ANTES del rol, a propósito (con OFF nadie sondea nada): asertado.
+        await expectExpectedFailure(`b5 OFF ${clave} ${fn} → P0409 apagada`, llamar(sessions[clave].client, fn), ['P0409'], /apagada/i);
+      }
+      await expectExpectedFailure(`b5 anon ${fn} → 42501 (sin EXECUTE)`, llamar(anon, fn), ['42501'], /permission denied|denegado/i);
+      await expectExpectedFailure(`b5 service_role ${fn} → 42501 (sin EXECUTE)`, llamar(admin, fn), ['42501'], /permission denied|denegado/i);
+    }
+    for (const [clave, cliente] of [['gerencia', sessions.gerencia.client], ['vend1', sessions.vend1.client], ['anon', anon], ['service_role', admin]]) {
+      await expectExpectedFailure(`b5 ${clave} no lee crm.inversionista_operaciones (sin grants)`,
+        cliente.schema('crm').from('inversionista_operaciones').select('id').limit(1), ['42501'], /permission denied|denegado/i);
+    }
+    check(ejecutablesResiduales(HELPERS, ['anon', 'authenticated', 'service_role']) === 0, 'b5 helpers privados sin EXECUTE (anon/authenticated/service_role/PUBLIC)');
+    check(ejecutablesResiduales(FIRMAS_RPC, ['anon', 'service_role']) === 0, 'b5 las 5 RPC sin EXECUTE para anon/service_role ni PUBLIC');
+    check(cuenta('RLS tabla', `select (relrowsecurity)::int from pg_class where oid='crm.inversionista_operaciones'::regclass`) === 1, 'b5 crm.inversionista_operaciones con RLS activa');
+    check(cuenta('policy DELETE', `select count(*) from pg_policies where schemaname='crm' and tablename='inversionista_operaciones' and cmd in ('DELETE','UPDATE','INSERT')`) === 0, 'b5 sin policies de escritura en el libro de operaciones');
+
+    // ── ON: el gate de Gerencia manda antes de leer argumentos; Gerencia muere en el argumento, no en 42501 ──
+    flag(true);
+    for (const fn of RPC) {
+      for (const clave of NO_GERENCIA) {
+        await expectExpectedFailure(`b5 ON ${clave} ${fn} → 42501 (solo Gerencia)`, llamar(sessions[clave].client, fn), ['42501'], /Gerencia/i);
+      }
+    }
+    {
+      const { data, error } = await llamar(sessions.gerencia.client, 'fusion_previsualizar_fn');
+      check(!error && data?.viable === false && Array.isArray(data?.bloqueos) && data.bloqueos.length > 0,
+        'b5 ON gerencia previsualiza dos uuid inexistentes → viable=false con bloqueos (sin excepción)', errorText(error));
+    }
+    await expectExpectedFailure('b5 ON gerencia fusionar con huella mal formada → 22023', llamar(sessions.gerencia.client, 'fusionar_inversionistas_fn'), ['22023'], /huella/i);
+    await expectExpectedFailure('b5 ON gerencia corregir una persona inexistente → P0002', llamar(sessions.gerencia.client, 'corregir_documento_inversionista_fn'), ['P0002'], /no existe/i);
+    await expectExpectedFailure('b5 ON gerencia enlazar a una persona inexistente → P0002', llamar(sessions.gerencia.client, 'enlazar_lead_inversionista_fn'), ['P0002'], /no existe/i);
+    await expectExpectedFailure('b5 ON gerencia reasignar a alguien que no es del equipo → 22023 (rol efectivo)', llamar(sessions.gerencia.client, 'reasignar_responsable_relacion_fn'), ['22023'], /equipo/i);
+  } finally {
+    flag(false);
+  }
+}
+
 async function testConversionMensual(sessions, seed) {
   console.log('\n— Conversion mensual ponderada (migracion A) —');
 
@@ -11097,6 +11178,7 @@ async function main() {
       await testIdentidadMultiempresa(sessions, verifiedSeed);
       // F2.b (b1 + b2) justo después: comparte bandera, vía fuera de banda y estilo.
       await testIdentidadF2b(sessions, verifiedSeed);
+      await testIdentidadF2bB5(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

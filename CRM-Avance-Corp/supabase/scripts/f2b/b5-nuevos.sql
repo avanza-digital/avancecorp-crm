@@ -17,6 +17,10 @@ create table if not exists crm.inversionista_operaciones (
 comment on table crm.inversionista_operaciones is
   'F2.b b5: libro append-only de operaciones de Gerencia sobre identidades (correccion de documento, enlace de lead suelto). Guarda ids y motivo; NUNCA el documento en claro. RLS activa, sin grants a la Data API. Se conserva en la reversa.';
 create index if not exists inv_operaciones_inv_idx on crm.inversionista_operaciones (inversionista_id);
+create index if not exists inv_operaciones_lead_idx on crm.inversionista_operaciones (lead_id);
+create index if not exists inv_operaciones_ident_ant_idx on crm.inversionista_operaciones (identificador_anterior_id);
+create index if not exists inv_operaciones_ident_nuevo_idx on crm.inversionista_operaciones (identificador_nuevo_id);
+create index if not exists inv_operaciones_por_idx on crm.inversionista_operaciones (por);
 alter table crm.inversionista_operaciones enable row level security;
 revoke all on crm.inversionista_operaciones from public, anon, authenticated, service_role;
 drop policy if exists inversionista_operaciones_select_gerencia on crm.inversionista_operaciones;
@@ -91,7 +95,7 @@ as $$
       'no_contactar', i.no_contactar, 'canonico', i.inversionista_canonico_id,
       'identificadores', coalesce((select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
           'id', d.id, 'tipo', d.tipo_documento, 'estado', d.estado, 'verificado', d.verificado,
-          'fin', pg_catalog.right(d.documento_normalizado, 3)) order by d.id)
+          'fin', pg_catalog.right(d.documento_normalizado, 2)) order by d.id)
         from crm.inversionista_identificadores d where d.inversionista_id = i.id), '[]'::jsonb),
       'leads', coalesce((select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
           'id', l.id, 'etapa', l.etapa, 'activo', l.activo, 'no_contactar', l.no_contactar,
@@ -396,7 +400,7 @@ begin
     raise exception 'Solo Gerencia fusiona identidades (membresía revalidada)' using errcode = '42501';
   end if;
   v_docs := private.identidad_bloquear_documentos_de(array[p_perdedora, p_canonica]);
-  perform private.motivo_sin_documento(p_motivo, (select pg_catalog.array_agg(split_part(k, ':', 2)) from unnest(v_docs) k));
+  perform private.motivo_sin_documento(p_motivo, (select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id in (p_perdedora, p_canonica)));
   -- 3. identidades FOR UPDATE por id ascendente (P, C y las predecesoras de P: el aplanado no espera después de las reservas [E3-12])
   for v_row in select * from crm.inversionistas where id in (p_perdedora, p_canonica) order by id for update loop
     if v_row.id = p_perdedora then v_p := v_row; else v_c := v_row; end if;
@@ -687,8 +691,21 @@ begin
                                   and l.inversionista_id <> p_inversionista) then
     raise exception 'Otro lead enlazado a otra persona lleva ese DNI: fusiona o corrige ese lead primero' using errcode = 'P0409';
   end if;
+  -- [auditor M2] lo que la excepción del trigger deja de comprobar: OTRO lead con ese DNI vetado o en enfriamiento congela el
+  -- documento (el veto de la PROPIA persona no cuenta: corregir su documento es justamente lo que Gerencia está haciendo).
+  if v_tipo = 'DNI' and exists (
+       select 1 from crm.leads l
+       left join crm.enfriamiento_politica ep on ep.motivo = l.motivo_descarte
+       where l.dni = v_norm and l.id is distinct from v_lead.id
+         and (l.inversionista_id is null or l.inversionista_id <> p_inversionista)
+         and (l.no_contactar
+              or (l.etapa = 'descartado' and l.descartado_en is not null and coalesce(ep.dias, 0) > 0
+                  and l.descartado_en + pg_catalog.make_interval(days => ep.dias) > pg_catalog.now()))) then
+    raise exception 'Ese DNI está congelado por un veto o un enfriamiento vigente en otro lead: revisión de Gerencia' using errcode = 'P0409';
+  end if;
 
   perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);
+  perform pg_catalog.set_config('crm.correccion_documento', 'on', true);   -- [auditor M1] la excepción del trigger la exige
   if v_old_id is not null then
     update crm.inversionista_identificadores set estado = 'historico', vigente_hasta = v_ahora where id = v_old_id;
   end if;
@@ -735,6 +752,7 @@ begin
                                           'inversionista_id', p_inversionista, 'lead', v_lead_res),
             v_uid);
   end if;
+  perform pg_catalog.set_config('crm.correccion_documento', 'off', true);
   perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
   return pg_catalog.jsonb_build_object('ok', true, 'estado', 'corregido', 'inversionista_id', p_inversionista,
     'operacion_id', v_op_id, 'identificador_nuevo_id', v_new_id, 'identificador_anterior_id', v_old_id,

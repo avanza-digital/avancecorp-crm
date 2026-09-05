@@ -382,9 +382,9 @@ válvula     crm.op_privilegiada='on' → hechos; los triggers del lead toman lo
    not null and new.inversionista_id = old.inversionista_id then return new; end if;` (`v_priv` = válvula, declarado en la función).
 
 ### Objetos nuevos
-- Tabla `crm.inversionista_correcciones` (append-only, patrón F1: RLS ON, SELECT Gerencia, sin grants a la API, `trg_audit_*` con
-  `log_audit_crm`, trigger que rechaza UPDATE/DELETE): `id, inversionista_id, identificador_anterior_id (null en alta), identificador_nuevo_id,
-  motivo (3..500, sin documento), perfil_realineado boolean, lead_realineado text ('dni','nulo','sin_lead','sin_cambio'), por, creado_en`.
+- Tabla `crm.inversionista_operaciones` (v3; append-only, patrón F1: RLS ON, SELECT Gerencia, sin grants a la API, `trg_audit_*` con
+  `log_audit_crm`, trigger que rechaza UPDATE/DELETE, índices en todas las FK): `id, tipo ('correccion'|'enlace'), inversionista_id, lead_id,
+  identificador_anterior_id, identificador_nuevo_id, motivo (3..500, sin documento), detalle jsonb, por, creado_en`.
 - `private.inversionista_canonica(p uuid) → uuid` (stable, sin lock): raíz de la cadena de `inversionista_canonico_id` (máx. 16 saltos).
 - `private.fusion_estado_jsonb(p_a uuid, p_b uuid) → jsonb` (stable, sin lock; se llama bajo los locks): por identidad, ordenado por id:
   `estado, perfil_id, responsable_relacion_id, no_contactar, inversionista_canonico_id`; identificadores `(id, tipo, estado, verificado, right(doc,3))`

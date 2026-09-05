@@ -164,11 +164,12 @@ trg = rep(trg_prev, "  v_descartado_por text;\nbegin\n",
 trg = rep(trg, """    if not v_cambio_identidad or v_actor is null then
       return new;
     end if;
-""", """    -- F2.b (b5) [E3-6]: la corrección de documento de Gerencia (RPC definer bajo válvula)
-    -- cambia SOLO el DNI de un lead que conserva su persona; los terceros (otra identidad,
+""", """    -- F2.b (b5) [E3-6]: la corrección de documento de Gerencia (RPC definer bajo válvula Y con su
+    -- GUC propia crm.correccion_documento) cambia SOLO el DNI de un lead que conserva su persona; los terceros (otra identidad,
     -- otro cliente del Portal, otro lead vivo) ya los comprobó la RPC bajo sus locks. Ningún
     -- otro escritor bajo válvula cambia el DNI; fuera de esta forma exacta nada cambia.
-    if v_priv and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+    if v_priv and coalesce(pg_catalog.current_setting('crm.correccion_documento', true) = 'on', false)
+       and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
        and new.dni is distinct from old.dni and new.telefono is not distinct from old.telefono
        and new.no_contactar = old.no_contactar and new.etapa = old.etapa and new.activo = old.activo
        and new.motivo_descarte is not distinct from old.motivo_descarte
@@ -308,8 +309,12 @@ begin
 {{POST_GRANTS}}
   if to_regclass('crm.inversionista_operaciones') is null
      or not (select relrowsecurity from pg_class where oid = 'crm.inversionista_operaciones'::regclass)
+     or has_table_privilege('anon', 'crm.inversionista_operaciones', 'SELECT')
      or has_table_privilege('authenticated', 'crm.inversionista_operaciones', 'SELECT')
-     or has_table_privilege('service_role', 'crm.inversionista_operaciones', 'SELECT') then
+     or has_table_privilege('service_role', 'crm.inversionista_operaciones', 'SELECT')
+     or exists (select 1 from pg_class c, aclexplode(c.relacl) a where c.oid = 'crm.inversionista_operaciones'::regclass and a.grantee = 0)
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'private.inversionista_operaciones_append_only()'::regprocedure and a.grantee = 0)
+     or has_function_privilege('authenticated', 'private.inversionista_operaciones_append_only()', 'EXECUTE') then
     raise exception 'POSTFLIGHT b5: tabla de correcciones sin RLS o con grants';
   end if;
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
@@ -339,12 +344,17 @@ rb = r"""-- ====================================================================
 -- Suelta las 5 RPC de Gerencia y los helpers, restaura byte a byte las 7 funciones vivas (md5
 -- contra el vivo de producción). CONSERVA crm.inversionista_operaciones (tabla aditiva con hechos) y no
 -- deshace fusiones/correcciones/enlaces/tramos (append-only con rastro; coherentes sin las funciones).
--- Bandera APAGADA. Repetible dos veces.
+-- Se NIEGA si alguna bandera está encendida. Repetible dos veces.
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_b5_reversa'));
-update crm.multiempresa_flags set activo = false, actualizado_en = now()
-  where nombre in ('resolver_en_puertas','inversiones_escritura') and activo = true;
+do $flags$
+begin
+  if exists (select 1 from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura') and activo) then
+    raise exception 'REVERSA b5: alguna bandera está ENCENDIDA; apágala a propósito antes de revertir';
+  end if;
+end
+$flags$;
 
 {{DROPS}}
 {{CL_PREV}}
