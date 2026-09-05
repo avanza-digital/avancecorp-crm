@@ -1,4 +1,4 @@
-# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v3** (04/09/2026) + E2 v2 + **E3 v2** (04/09 noche)
+# F2.b — la cola del Catálogo F0 (Contrato-F2, parte 2) — diseño **v3** (04/09/2026) + E2 v2 + **E3 v3** (05/09)
 
 **v1 → NO-GO de Codex (17 bloqueantes).** v2 incorporó cada arreglo (marcados `[Cx-n]`). **v2 → NO-GO de Codex (19 puntos).** v3 aplica
 los que tocan lo YA construido (b1/b2, marcados `[v2-n]`) y deja los de E2/E3 como diseño pendiente con su número. Estado real: **b1 y b2
@@ -252,7 +252,42 @@ declara b5 «cerrado» para ellas).
 **Oráculos:** fusión con hash viejo → aborta; fusión↔conversión concurrentes → sin deadlock, resolver devuelve la canónica; perdedora nunca borrada;
 titulares coherentes; huella de episodios intacta; corrección a documento ajeno → `P0409`; dos leads → `P0409`; reasignación → dos tramos.
 
-## E3 = b5 — diseño concreto **v2** (04/09/2026 noche) — responde a los 14 bloqueantes `[E3-1..14]` de Codex sobre la v1
+## E3 = b5 — diseño concreto **v3** (05/09/2026) — v2 respondió a `[E3-1..14]`; v3 a la segunda refutación (10 puntos) y ES lo implementado
+
+### v2 → v3, qué cambió (segunda refutación de Codex, 10 puntos; aplicado en el CÓDIGO, no solo en el diseño)
+- `[E3-2]` Las cuatro mutaciones REVALIDAN `es_gerencia_crm_activa()` DESPUÉS de tomar el interlock de jerarquía (el offboarding lo toma
+  exclusivo y luego desactiva la membresía); la reasignación valida además el rol EFECTIVO del destinatario (`private.rol_crm`) bajo ese lock.
+- `[E3-4]` La foto (`fusion_estado_jsonb`, `v:2`) incluye las **tareas pendientes** de los leads de ambas identidades; se recalcula bajo TODOS los
+  locks (tareas y leads incluidos) y se compara; el impacto de la previsualización cuenta `tareas_pendientes`.
+- `[E3-6]/[E3-8]` La corrección toma los **contactos** (`bloquear_contactos_lead` con el teléfono del lead y los DNI viejo/nuevo) DESPUÉS del
+  lead y ANTES de comprobar terceros (otra identidad, otro cliente del Portal, otro lead vivo, otro lead enlazado a otra persona); el trigger
+  los retoma reentrante. La excepción del trigger exige además la bandera y «solo DNI» (teléfono, veto, etapa, activo y motivo iguales).
+- `[E3-7]` El conjunto de reservas es «por identidad **o** por lead asociado» (las de la RPC de un argumento no llevan identidad): se bloquea y
+  se rechaza igual en fusión, corrección y enlace (viva, o sellada con lead aún no convertido, aunque `inversionista_id` sea nulo).
+- `[E3-9]` Los leads se toman con **`FOR UPDATE NOWAIT`** cuando ya se retienen sus tareas (`private.bloquear_leads_nowait`): un conflicto con
+  `derivar` (lead→tareas por el trigger de sincronización) o `cerrar_tarea` (tarea→lead) se traduce a `40001`, nunca se espera dentro del ciclo.
+  La cancelación sella `crm.cancela_sistema='on'` (`private.cancelar_tareas_pendientes_lead`).
+- `[E3-10]` El enlace valida por **documento** lo que completa: el cierre con `inversionista_id` nulo debe llevar un documento vigente y verificado
+  de la identidad; el perfil sin identidad, también (`private.documento_es_de_identidad`). Discrepancia → `P0409` «reconciliación documental».
+  El límite «un solo lead» cuenta la UNIÓN del enlace vivo y del puente (`private.leads_de_identidades`, históricos del backfill incluidos), y la
+  fusión reapunta TODO el puente de P.
+- `[E3-12]` Perímetro ampliado a **7 funciones vivas**: `saga_conversion_fn('cerrar')` y `alta_cliente_identidad_fn('enlazar')` comparan por la
+  **canónica** (`private.inversionista_canonica`) y el cierre proyecta `inversionista_id`; `marcar_efectos_conversion` (1 y 3 argumentos)
+  revalidan tras esperar que la persona no se fusionó (`40001`). La fusión bloquea las **predecesoras** de P junto con P y C (antes de las
+  reservas): el aplanado ya no espera detrás de un sellador.
+- `[E3-13]` Promesa acotada y explícita: **b5 garantiza que ninguno de SUS payloads** (libros, foto, impacto, `resultado`, `metadata`, mensajes)
+  lleva el documento en claro. Los auditores genéricos de `leads` y `cierres_externos` (`log_audit_crm`, `to_jsonb(old/new)`) siguen copiando la
+  fila entera como hoy; una corrección de DNI o un reapunte de cierre genera esas copias. Enmascararlos es deuda propia: `[D-9]`.
+- `[E3-15]` La unicidad «único de su tipo» solo se exige cuando NO se indica cuál sale; si el destino ya es un vigente PROPIO (p. ej. dos DNI tras
+  una fusión) y se indica el anterior, sale el anterior y se **reutiliza** el destino (`reutilizado=true`) realineando perfil/lead;
+  `sin_cambios` solo cuando no hay nada que hacer.
+- `[E3-16]` La tabla pasa a ser el **libro de operaciones** `crm.inversionista_operaciones` (`tipo in ('correccion','enlace')`, `lead_id`,
+  identificadores, `motivo`, `detalle`, `por`): el enlace SIEMPRE escribe su fila (también con lead inactivo); la reasignación deja el motivo en
+  el tramo; la fusión en su libro.
+- No bloqueantes: `v_uid` y toda lectura de argumentos van después de los guards; cotitularidades de P en inversiones de terceros se reapuntan;
+  OFF probado también con la válvula encendida (la excepción exige la bandera). Inventario final: 5 RPC de Gerencia + 10 helpers privados +
+  1 tabla + 7 funciones vivas transformadas. Diferible nuevo: `[D-9]` enmascarar `dni`/`documento` en los auditores genéricos de leads/cierres.
+
 
 ### v1 → v2, qué cambió (por número de Codex)
 - `[E3-1]` **Perímetro ampliado y orden documento→identidad en la saga**: `convertir_lead` en la rama «perfil ya enlazado» NO toma el advisory
@@ -301,8 +336,7 @@ titulares coherentes; huella de episodios intacta; corrección a documento ajeno
   huella de sellados = `periodos_cerrados` y `cierre_mes_vendedor` (conteo + md5 agregado) además de `conversion_episodios` del mes abierto;
   el guard OFF va ANTES de cualquier lectura dependiente de parámetros; `run_as` del oráculo hace `set local role authenticated` para probar
   los grants; frontera de reversibilidad: `rollback-f2-backfill.sql` se niega con `fuente in ('fusion','correccion')` (se documenta);
-  `crm.personas_por_responsable_fn` se RETIRA (un conteo no es un interlock → `[D-2]`). Inventario: 5 RPC de Gerencia + 2 helpers privados +
-  1 tabla + 4 funciones vivas transformadas.
+  `crm.personas_por_responsable_fn` se RETIRA (un conteo no es un interlock → `[D-2]`). Inventario (v2; ver v3 arriba): 5 RPC de Gerencia + helpers privados + 1 tabla + funciones vivas transformadas.
 
 ### Diferibles con número (de Codex; ninguno bloquea aterrizar apagado)
 `[D-1]` `public.crear_contrato` + guarda de `public.perfiles` (OK de Miguel) · `[D-2]` offboarding con interlock atómico sobre tramos abiertos y
@@ -312,9 +346,9 @@ documento · `[D-4]` importador por puerta SQL · `[D-5]` edges/Auth con la acti
 
 ### Regla de aterrizaje (igual que E1/E2)
 Todo detrás de `resolver_en_puertas`; las 5 RPC nuevas devuelven `P0409` «Identidad unificada apagada» ANTES de leer nada dependiente de
-parámetros; las 4 funciones vivas transformadas cambian SOLO dentro de su rama ON (guardas md5 del texto de PRODUCCIÓN, verificadas hoy
+parámetros; las 7 funciones vivas transformadas cambian SOLO dentro de su rama ON (guardas md5 del texto de PRODUCCIÓN, verificadas
 iguales en banco: `convertir_lead 0327c4d7…`, `convertir_lead_externo 190b75eb…`, `saga_conversion_fn e1750c3d…`,
-`trg_leads_disponibilidad_atomica 782e65d7…`). Autorización: **solo Gerencia** (`private.es_gerencia_crm_activa()`, `42501`); `authenticated`
+`trg_leads_disponibilidad_atomica 782e65d7…`, `marcar_efectos_conversion 48c4cb30…`/`c3914738…`, `alta_cliente_identidad_fn 952f1842…`). Autorización: **solo Gerencia** (`private.es_gerencia_crm_activa()`, `42501`); `authenticated`
 con la capacidad dentro; `service_role`/`anon` sin EXECUTE. Alcance acotado hasta F5: **como máximo un lead y un perfil entre las dos
 identidades**; lo demás es `P0409` con diagnóstico y queda en la cola de reconciliación de clase E.
 

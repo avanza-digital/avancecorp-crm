@@ -92,7 +92,7 @@ R="$(prev "$PA" "$PA")"; [[ "$(j "$R" viable)" == "False" ]] && ok "misma identi
 R="$(prev "$Z" "$IX")"; echo "$R" | grep -q "ya está fusionada" && ok "perdedora ya fusionada → «usa su canónica»" || rojo "fusionada: $R"
 R="$(run_as "$V" "select crm.fusion_previsualizar_fn('$PA','$IX')")"; echo "$R" | grep -q "42501" && ok "vendedor previsualiza → 42501 (rol SQL authenticated + claims)" || rojo "vendedor previsualizó: $R"
 R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"; [[ "$(j "$R" viable)" == "True" && -n "$H" ]] && ok "PA→IX viable con huella" || rojo "PA→IX: $R"
-echo "$R" | grep -q "Vetos distintos" && echo "$R" | grep -q "hereda\|Responsables" && echo "$R" | grep -q "inversiones o cierres" && echo "$R" | grep -q "aplanan" && ok "advertencias: veto OR, responsable, inversiones/cierres, predecesoras" || rojo "advertencias: $R"
+echo "$R" | grep -q "Vetos distintos" && echo "$R" | grep -q "hereda\|Responsables" && echo "$R" | grep -q "titularidades o cierres" && echo "$R" | grep -q "aplanan" && ok "advertencias: veto OR, responsable, inversiones/cierres, predecesoras" || rojo "advertencias: $R"
 echo "$R" | grep -q "$DA" && rojo "la foto lleva el documento en claro" || ok "la foto no lleva el documento en claro"
 
 echo "== Fusión: huella caducada; motivo con documento; intercalados; fusión OK y matriz =="
@@ -100,6 +100,14 @@ R="$(fus "$PA" "$IX" "motivo con $DA dentro" "$H")"; echo "$R" | grep -q "22023"
 R="$(reas "$G" "$IX" "$SUP" "ensayo b5: cambio de responsable antes de fusionar")"; [[ "$(j "$R" estado)" == "reasignado" ]] && ok "reasignar IX → supervisor (tramo nuevo)" || rojo "reasignar: $R"
 R="$(fus "$PA" "$IX" "fusión de prueba r$RUN" "$H")"; echo "$R" | grep -q "caducó" && ok "fusión con huella vieja (tramo cambió) → P0409 «caducó»" || rojo "huella vieja pasó: $R"
 R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"
+run_as "$V" "insert into crm.tareas (lead_id, vendedor_id, tipo, titulo, vence_en, creado_por) values ('$LX','$V','tarea','B5 tarea tardía r$RUN', now() + interval '2 day', '$V')" >/dev/null
+R="$(fus "$PA" "$IX" "fusión r$RUN" "$H")"; echo "$R" | grep -q "caducó" && ok "[E3-4] una tarea agendada tras previsualizar cambia la huella → P0409 «caducó»" || rojo "E3-4: $R"
+R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"; [[ "$(jj "$R" impacto.tareas_pendientes)" == "2" ]] && ok "la foto y el impacto cuentan las 2 tareas pendientes" || rojo "tareas en impacto: $(jj "$R" impacto.tareas_pendientes)"
+# [E3-9] otra sesión retiene el lead LX (como derivar): la fusión no espera dentro del ciclo → 40001
+psql "$PG" -qtA -c "begin; select id from crm.leads where id='$LX' for update; select pg_sleep(4); commit;" > "$S/b5_nowait_a.out" 2>&1 &
+NW_PID=$!; sleep 1
+R="$(fus "$PA" "$IX" "fusión r$RUN" "$H")"; echo "$R" | grep -q "40001" && ok "[E3-9] lead retenido por otra sesión → la fusión responde 40001 (NOWAIT), sin esperar en el ciclo tareas↔lead" || rojo "E3-9: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
+wait $NW_PID
 H_EP0="$(huella_episodios)"; H_SE0="$(huella_sellados)"
 # intercalado 1: fusión (sin commit 3 s) ‖ convertir_lead(L5, perfil de PA) → espera y termina en 40001 (PA fusionada), L5 intacto
 psql "$PG" -qtA -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$G\",\"role\":\"authenticated\"}',true); select crm.fusionar_inversionistas_fn('$PA','$IX','fusión r$RUN (intercalada)','$H'); select pg_sleep(3); commit;" > "$S/b5_race_a.out" 2>&1 &
@@ -113,7 +121,7 @@ echo "$R" | grep -q "40001" && [[ "$(q "select etapa from crm.leads where id='$L
 [[ "$(q "select count(*) from crm.inversionista_identificadores where inversionista_id='$PA' and estado='vigente'")" == "0" && "$(q "select count(*) from crm.inversionista_identificadores where inversionista_id='$IX' and estado='vigente' and fuente='fusion'")" == "1" ]] && ok "identificadores: P históricos, reemitidos en C con fuente=fusion" || rojo "identificadores"
 [[ "$(q "select perfil_id from crm.inversionistas where id='$IX'")" == "$PA_PERFIL" ]] && ok "C heredó el perfil de P" || rojo "perfil no heredado"
 [[ "$(q "select no_contactar from crm.inversionistas where id='$IX'")" == "t" && "$(q "select no_contactar from crm.leads where id='$LX'")" == "t" ]] && ok "veto OR: C y su lead LX vetados" || rojo "veto OR"
-[[ "$(q "select count(*) from crm.tareas where lead_id='$LX' and estado='pendiente'")" == "0" && "$(q "select count(*) from crm.tareas where lead_id='$LX' and estado='cancelada' and cancelada_por='sistema'")" == "1" ]] && ok "tareas pendientes del lead canceladas como sistema" || rojo "tareas: $(q "select estado||'/'||coalesce(cancelada_por,'-') from crm.tareas where lead_id='$LX'")"
+[[ "$(q "select count(*) from crm.tareas where lead_id='$LX' and estado='pendiente'")" == "0" && "$(q "select count(*) from crm.tareas where lead_id='$LX' and estado='cancelada' and cancelada_por='sistema'")" == "2" ]] && ok "tareas pendientes del lead canceladas como sistema" || rojo "tareas: $(q "select estado||'/'||coalesce(cancelada_por,'-') from crm.tareas where lead_id='$LX'")"
 [[ "$(q "select count(*) from crm.inversionista_responsables where inversionista_id='$IX' and hasta is null")" == "1" && "$(q "select count(*) from crm.inversionista_responsables where inversionista_id='$PA' and hasta is null")" == "0" ]] && ok "un solo tramo abierto (C); el de P cerrado" || rojo "tramos"
 [[ "$(q "select inversionista_canonico_id from crm.inversionistas where id='$Z'")" == "$IX" ]] && ok "predecesora Z aplanada a IX" || rojo "Z no aplanada"
 [[ "$(q "select private.inversionista_canonica('$Z')")" == "$IX" ]] && ok "inversionista_canonica(Z) = IX" || rojo "canonica(Z)"
@@ -139,11 +147,14 @@ R="$(corr "$IF" "DNI" "$DE2" "motivo con $DF")"; echo "$R" | grep -q "22023" && 
 R="$(corr "$IC" "DNI" "$DE2" "corrección con reserva viva")"; echo "$R" | grep -q "P0409\|ok" && ok "IC (sin claim) acepta o rechaza con diagnóstico" || rojo "IC corr: $R"
 DF2="8${RUN}6"; R="$(corr "$IF" "DNI" "$DF2" "DNI mal tecleado en la cooperativa")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" lead)" == "dni" ]] && ok "DNI→DNI: corregido; lead realineado (lead VETADO incluido, excepción estrecha del trigger)" || rojo "corr DNI: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 [[ "$(q "select dni from crm.leads where id='$LE'")" == "$DF2" && "$(inv_de "$DF2")" == "$IF" && "$(inv_de "$DF")" == "" ]] && ok "lead con el DNI nuevo; el viejo ya no resuelve; el nuevo resuelve a IF" || rojo "estado tras corrección"
-[[ "$(q "select count(*) from crm.inversionista_correcciones where inversionista_id='$IF' and lead_realineado='dni'")" == "1" ]] && ok "libro de correcciones" || rojo "sin fila de corrección"
+[[ "$(q "select count(*) from crm.inversionista_operaciones where inversionista_id='$IF' and tipo='correccion' and detalle->>'lead'='dni'")" == "1" ]] && ok "libro de operaciones (corrección)" || rojo "sin fila de corrección"
 R="$(run_as "$V" "select crm.convertir_lead('$LE','$PB_PERFIL')")"; echo "$R" | grep -q "ya esta cerrado\|corrección o fusión" && ok "convertir el lead de IF a un perfil de OTRA persona → rechazado" || rojo "E3-11: $R"
 IDF="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IF' and tipo_documento='DNI' and estado='vigente'")"
 R="$(corr "$IF" "CE" "00${RUN}55" "es extranjero: carné de extranjería" "$IDF")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" lead)" == "nulo" && "$(q "select dni is null from crm.leads where id='$LE'")" == "t" ]] && ok "DNI→CE: lead.dni queda nulo (crm.leads solo representa DNI)" || rojo "corr CE: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 R="$(corr "$IF" "CE" "00${RUN}55" "repetir")"; [[ "$(j "$R" estado)" == "sin_cambios" ]] && ok "misma corrección repetida → sin_cambios" || rojo "repetida: $R"
+# [E3-15] IX tiene DOS DNI vigentes (DX propio y DA reemitido): corregir DX→DA indicando cuál sale reutiliza DA y realinea LX
+IDX="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DX' and estado='vigente'")"
+R="$(corr "$IX" "DNI" "$DA" "el DNI correcto es el del Portal" "$IDX")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" reutilizado)" == "True" && "$(j "$R" lead)" == "dni" && "$(q "select dni from crm.leads where id='$LX'")" == "$DA" && "$(q "select count(*) from crm.inversionista_identificadores where inversionista_id='$IX' and estado='vigente'")" == "1" ]] && ok "[E3-15] destino ya vigente propio: sale el anterior, se reutiliza el destino, el lead se realinea; queda UN vigente" || rojo "E3-15: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-220)"
 # perfil realineado: IX (canónica) tiene el perfil de PA (dni DA) y el identificador DA reemitido
 IDA="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DA' and estado='vigente'")"
 R="$(corr "$IX" "DNI" "$DA2" "DNI del Portal mal tecleado" "$IDA")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" perfil)" == "actualizado" && "$(q "select dni from public.perfiles where id='$PA_PERFIL'")" == "$DA2" ]] && ok "perfil del Portal realineado (dni=$DA2)" || rojo "perfil: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
@@ -158,8 +169,21 @@ read -r PH PH_PERFIL <<<"$(alta_completa "$DH" "h$RUN@x.pe" "B5 H")"; [[ -n "$PH
 R="$(enl "$LF" "$IE" "enlace a otra persona")"; echo "$R" | grep -q "otra persona" && ok "enlazar LF a IE (DNI de otra persona reconocida) → P0409" || rojo "ajeno enl: $R"
 R="$(enl "$L4" "$PH" "lead sin DNI")"; echo "$R" | grep -q "no tiene DNI" && ok "lead sin DNI → P0409 (regla #8)" || rojo "sin dni: $R"
 R="$(enl "$LF" "$IB" "persona con lead")"; echo "$R" | grep -q "otra persona\|ya tiene su lead" && ok "enlazar a una persona con lead o DNI ajeno → P0409" || rojo "con lead: $R"
+R="$(run_as "$V" "select crm.reservar_conversion_lead('$LF')")"; [[ "$(j "$R" ok)" == "True" ]] || rojo "reserva 1-arg: $R"
+R="$(enl "$LF" "$PH" "con reserva viva sin persona")"; echo "$R" | grep -q "reserva de conversión viva" && ok "[E3-7] reserva viva de 1 argumento (sin identidad) sobre el lead → enlace P0409" || rojo "E3-7 enl: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
+psql "$PG" -q -c "update crm.conversion_reservas set expira_en = now() - interval '1 minute', vence_absoluto_en = now() - interval '1 minute' where lead_id='$LF'" >/dev/null
 R="$(enl "$LF" "$PH" "revisión clase E r$RUN")"; [[ "$(j "$R" ok)" == "True" && "$(q "select inversionista_id from crm.leads where id='$LF'")" == "$PH" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LF' and inversionista_id='$PH' and rol='canonico'")" == "1" ]] && ok "enlace OK: lead + puente canónico" || rojo "enlace: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 R="$(enl "$LF" "$PH" "otra vez")"; echo "$R" | grep -q "ya está enlazado" && ok "enlazar de nuevo → P0409" || rojo "re-enlace: $R"
+[[ "$(q "select count(*) from crm.inversionista_operaciones where tipo='enlace' and lead_id='$LF' and inversionista_id='$PH'")" == "1" ]] && ok "[E3-16] libro de operaciones: fila de enlace con motivo" || rojo "sin fila de enlace"
+# [E3-10] lead suelto con DNI A cuyo cierre coop (hecho con la bandera APAGADA) lleva documento B → enlazar por A → P0409
+DI="5${RUN}0"; DJ="6${RUN}1"; LI="$(uuid)"; lead_dni "$LI" "'$DI'" 64 >/dev/null; flag false; R="$(coop "$LI" "$DJ" 9)"; flag true
+[[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LI'")" == "convertido -" ]] && ok "fixture E3-10: lead LI (DNI $DI) convertido en coop con documento $DJ, sin identidad" || rojo "fixture E3-10: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
+II="$(q "select private.inversionista_resolver('DNI','$DI',true,'ensayo-b5')")"
+R="$(enl "$LI" "$II" "enlace con cierre de otro documento")"; echo "$R" | grep -q "documento del cierre" && ok "[E3-10] el cierre lleva otro documento → enlace P0409 (reconciliación documental primero)" || rojo "E3-10: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
+# [E3-16] lead INACTIVO con DNI de una persona reconocida → enlace sin actividad, con fila en el libro
+DK="6${RUN}2"; LK="$(uuid)"; lead_dni "$LK" "'$DK'" 65 >/dev/null; IK="$(q "select private.inversionista_resolver('DNI','$DK',true,'ensayo-b5')")"
+psql "$PG" -q -c "update crm.leads set activo=false where id='$LK'" >/dev/null
+R="$(enl "$LK" "$IK" "lead inactivo de la clase E")"; [[ "$(j "$R" ok)" == "True" && "$(q "select count(*) from crm.inversionista_operaciones where tipo='enlace' and lead_id='$LK'")" == "1" && "$(q "select count(*) from crm.actividades where lead_id='$LK' and metadata->>'evento'='enlace_identidad'")" == "0" ]] && ok "[E3-16] lead inactivo: enlazado, sin nota de actividad, con motivo en el libro" || rojo "E3-16: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
 
 echo "== Reasignación =="
 R="$(reas "$V" "$IB" "$SUP" "vendedor intenta")"; echo "$R" | grep -q "42501" && ok "vendedor reasigna → 42501" || rojo "vendedor reasignó: $R"
@@ -174,6 +198,7 @@ for f in "crm.fusion_previsualizar_fn('$PA','$IX')" "crm.fusionar_inversionistas
   R="$(run_as "$G" "select $f")"; echo "$R" | grep -qi "apagada" && ok "OFF: ${f%%(*} → P0409 apagada" || rojo "OFF: $f: $(echo "$R"|head -1|cut -c1-120)"
 done
 R="$(run_as "$G" "update crm.leads set dni='$DE2' where id='$LE'")"; echo "$R" | grep -q "P0481" && ok "OFF: Gerencia cambia el DNI de un lead vetado sin válvula → P0481 como hoy (la excepción del trigger no aplica)" || rojo "OFF trigger: $R"
+R="$(run_as "$G" "select set_config('crm.op_privilegiada','on',true); update crm.leads set dni='$DE2' where id='$LE'")"; echo "$R" | grep -q "P0481" && ok "OFF + válvula encendida: la excepción del trigger exige la bandera → P0481 como hoy" || rojo "OFF+válvula: $R"
 LZ="$(uuid)"; lead_dni "$LZ" "null" 63 >/dev/null; R="$(coop "$LZ" "6${RUN}5" Z)"; [[ "$(q "select etapa from crm.leads where id='$LZ'")" == "convertido" && "$(q "select count(*) from crm.inversionista_identificadores where documento_normalizado='6${RUN}5'")" == "0" ]] && ok "OFF: conversión coop como hoy (sin identidad)" || rojo "OFF coop: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-120)"
 R="$(run_as "$V" "select crm.convertir_lead('$L5','$PB_PERFIL')")"; [[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$L5'")" == "convertido -" ]] && ok "OFF: conversión Avance como hoy (sin identidad)" || rojo "OFF avance: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-120)"
 flag true; flag_inv false

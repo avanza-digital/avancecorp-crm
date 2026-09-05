@@ -1,8 +1,8 @@
 -- ============================================================================
 -- REVERSA de F2.b sub-lote b5 (20260905120000_crm_f2b_b5_fusion_correccion_reasignacion)
 -- ============================================================================
--- Suelta las 5 RPC de Gerencia y los 2 helpers, restaura byte a byte las 4 funciones vivas (md5
--- contra el vivo de producción). CONSERVA crm.inversionista_correcciones (tabla aditiva con hechos) y no
+-- Suelta las 5 RPC de Gerencia y los helpers, restaura byte a byte las 7 funciones vivas (md5
+-- contra el vivo de producción). CONSERVA crm.inversionista_operaciones (tabla aditiva con hechos) y no
 -- deshace fusiones/correcciones/enlaces/tramos (append-only con rastro; coherentes sin las funciones).
 -- Bandera APAGADA. Repetible dos veces.
 begin;
@@ -16,6 +16,9 @@ drop function if exists crm.enlazar_lead_inversionista_fn(uuid,uuid,text);
 drop function if exists crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid);
 drop function if exists crm.fusionar_inversionistas_fn(uuid,uuid,text,text);
 drop function if exists crm.fusion_previsualizar_fn(uuid,uuid);
+drop function if exists private.documento_es_de_identidad(uuid,text,text);
+drop function if exists private.bloquear_leads_nowait(uuid[]);
+drop function if exists private.leads_de_identidades(uuid[]);
 drop function if exists private.motivo_sin_documento(text,text[]);
 drop function if exists private.cancelar_tareas_pendientes_lead(uuid);
 drop function if exists private.identidad_bloquear_documentos_de(uuid[]);
@@ -835,6 +838,192 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION crm.marcar_efectos_conversion(p_lead_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_uid uuid := (select auth.uid());
+  v_rol text := private.rol_crm((select auth.uid()));
+  v_ok  boolean;
+begin
+  if not private.puede_gestionar_contratos_crm() then
+    raise exception 'No autorizado para convertir leads'
+      using errcode = '42501';
+  end if;
+
+  -- El tope absoluto también manda AQUÍ: si ya pasó, esta reserva no vale para
+  -- sellar nada, y la edge muere antes de crear la cuenta.
+  -- F2.b (b4): si la reserva es por PERSONA, se bloquea la identidad antes de sellar
+  -- (orden identidad -> reserva; la conversión coop lee las reservas bajo ese mismo lock).
+  perform 1 from crm.inversionistas i
+   where i.id = (select r.inversionista_id from crm.conversion_reservas r where r.lead_id = p_lead_id)
+     and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+   for update;
+  update crm.conversion_reservas r
+     set efectos_iniciados_en = coalesce(r.efectos_iniciados_en, now())
+   where r.lead_id = p_lead_id
+     and r.reservado_por = v_uid
+     and r.vence_absoluto_en > now()
+     and (r.expira_en > now() or r.efectos_iniciados_en is not null)
+  returning true into v_ok;
+
+  if not coalesce(v_ok, false) then
+    raise exception using
+      errcode = 'P0409',
+      message = 'La reserva de esta conversion ya no esta viva',
+      hint    = 'Vuelve a empezar la conversion desde la ficha del lead.';
+  end if;
+
+  return jsonb_build_object('ok', true, 'lead_id', p_lead_id);
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION crm.marcar_efectos_conversion(p_lead_id uuid, p_claim_id uuid, p_token text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_loc record;
+begin
+  if not private.puede_gestionar_contratos_crm() then
+    raise exception 'No autorizado para convertir leads' using errcode = '42501';
+  end if;
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada' using errcode = 'P0409';
+  end if;
+  select * into v_loc from private.saga_auth_localizar(p_claim_id);
+  if not found or v_loc.estado->>'token_hash' is distinct from private.saga_token_hash(p_token)
+     or (v_loc.estado->>'lead_id')::uuid is distinct from p_lead_id then
+    raise exception 'Saga: claim o token inválidos para este lead' using errcode = '42501';
+  end if;
+  -- La reserva de este lead debe ser de este claim y de su identidad (Codex E2 #5).
+  if not exists (select 1 from crm.conversion_reservas r
+                  where r.lead_id = p_lead_id and r.claim_id = p_claim_id and r.inversionista_id = v_loc.inversionista_id) then
+    raise exception 'La reserva de este lead no corresponde a este claim' using errcode = 'P0409';
+  end if;
+  -- Veto revalidado bajo el lock de la identidad, ANTES del punto de no retorno (Codex E2 #11).
+  perform 1 from crm.inversionistas i where i.id = v_loc.inversionista_id for update;
+  if exists (select 1 from crm.inversionistas i where i.id = v_loc.inversionista_id and i.no_contactar) then
+    raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
+  end if;
+  return crm.marcar_efectos_conversion(p_lead_id);
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION crm.alta_cliente_identidad_fn(p_paso text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare
+  v_uid uuid := (select auth.uid());
+  v_cap jsonb; v_tipo text; v_doc text; v_inv uuid; v_perfil uuid; v_activo boolean;
+  v_claim uuid; v_loc record; v_r jsonb; v_hash_payload jsonb;
+begin
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada: el alta con identidad no está activa' using errcode = 'P0409';
+  end if;
+  if v_uid is not null then
+    v_cap := private.puede_alta_cliente();
+    if coalesce((v_cap->>'ok')::boolean, false) is not true then
+      raise exception 'No autorizado para crear clientes' using errcode = '42501';
+    end if;
+  end if;
+  if p_payload is null or pg_catalog.jsonb_typeof(p_payload) <> 'object' then
+    raise exception 'Payload inválido' using errcode = '22023';
+  end if;
+
+  if p_paso = 'reclamar' then
+    v_tipo := coalesce(nullif(pg_catalog.upper(pg_catalog.btrim(p_payload->>'tipo_documento')), ''), 'DNI');
+    -- Misma normalización que el resolver (el lookup del perfil por documento la necesita igual).
+    v_doc  := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_payload->>'documento', ''), '[^A-Za-z0-9]', '', 'g')), '');
+    if v_doc is null then
+      raise exception 'El documento es obligatorio para crear un cliente (identidad unificada)' using errcode = '22023';
+    end if;
+    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
+    perform 1 from crm.inversionistas i where i.id = v_inv for update;
+    -- Proyección canónica COMPLETA del alta (Codex E2 #10), sin documento (la identidad, uuid, ya lo aporta):
+    v_hash_payload := pg_catalog.jsonb_build_object('v', 1, 'inv', v_inv,
+      'correo', pg_catalog.lower(coalesce(p_payload->>'correo','')), 'nombre', coalesce(p_payload->>'nombre_completo',''),
+      'apellidos', coalesce(p_payload->>'apellidos',''), 'nombres', coalesce(p_payload->>'nombres',''),
+      'telefono', coalesce(p_payload->>'telefono',''), 'domicilio', coalesce(p_payload->'domicilio', 'null'::jsonb),
+      'bancarios', coalesce(p_payload->'bancarios', 'null'::jsonb), 'asesor', coalesce(p_payload->>'asesor_id', ''));
+    -- (El asesor DERIVADO del que llama no entra en la huella: otra sesión puede reanudar tras el lease.)
+    -- 1) La SAGA manda antes que la existencia (Codex E2 #4): un enlace confirmado cuya respuesta se
+    --    perdió se reanuda como 'enlazado' con su perfil_id, no como un rechazo.
+    if exists (select 1 from crm.multiempresa_idempotencia i where i.clave = 'auth_persona:' || v_inv::text) then
+      v_r := private.saga_auth_reclamar(v_inv, 'alta_cliente', v_hash_payload, null, p_payload->>'token');
+      return v_r || pg_catalog.jsonb_build_object('asesor_id', coalesce(v_cap->>'asesor_id', p_payload->>'asesor_id'), 'via', coalesce(v_cap->>'via', 'service_role'));
+    end if;
+    -- 2) Persona ya cliente (identidad con perfil, o perfil suelto con el documento exacto creado con la
+    --    bandera apagada, que se ENLAZA): resultado normal, NUNCA excepción (una excepción desharía el enlace).
+    select i.perfil_id into v_perfil from crm.inversionistas i where i.id = v_inv;
+    if v_perfil is null then
+      select p.id into v_perfil from public.perfiles p
+       where p.rol = 'cliente'
+         and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p.dni,''), '[^A-Za-z0-9]', '', 'g')) = v_doc
+         and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
+       limit 1;
+      if v_perfil is not null then
+        perform private.asegurar_identidad_perfil(v_perfil, 'alta_cliente');
+      end if;
+    end if;
+    if v_perfil is not null then
+      select p.activo into v_activo from public.perfiles p where p.id = v_perfil;
+      -- Un vendedor (vía crm) solo sabe que existe y si está activo: sin ids (anti-pesca, auditor b3 M3).
+      if coalesce(v_cap->>'via', '') = 'crm' and coalesce(v_cap->>'asesor_id', '') <> '' then
+        return pg_catalog.jsonb_build_object('estado', 'ya_existia', 'activo', coalesce(v_activo, false), 'reanudar', false);
+      end if;
+      return pg_catalog.jsonb_build_object('estado', 'ya_existia', 'perfil_id', v_perfil, 'activo', coalesce(v_activo, false),
+        'inversionista_id', v_inv, 'reanudar', false);
+    end if;
+    -- 3) Claim nuevo.
+    v_r := private.saga_auth_reclamar(v_inv, 'alta_cliente', v_hash_payload, null, p_payload->>'token');
+    return v_r || pg_catalog.jsonb_build_object('asesor_id', coalesce(v_cap->>'asesor_id', p_payload->>'asesor_id'), 'via', coalesce(v_cap->>'via', 'service_role'));
+  end if;
+
+  v_claim := (p_payload->>'claim_id')::uuid;
+  if v_claim is null then raise exception 'Falta claim_id' using errcode = '22023'; end if;
+
+  if p_paso = 'registrar_auth' then
+    return private.saga_auth_avanzar(v_claim, p_payload->>'token', 'auth_creado', (p_payload->>'auth_user_id')::uuid, null, (p_payload->>'version')::integer);
+  elsif p_paso = 'compensar_auth' then
+    -- El edge borró el Auth (perfil rechazado por datos): el claim vuelve a 'reclamado'.
+    return private.saga_auth_avanzar(v_claim, p_payload->>'token', 'reclamado', null, null, (p_payload->>'version')::integer);
+  elsif p_paso = 'perfil_creado' then
+    return private.saga_auth_avanzar(v_claim, p_payload->>'token', 'perfil_creado', null, (p_payload->>'perfil_id')::uuid, (p_payload->>'version')::integer);
+  elsif p_paso = 'enlazar' then
+    -- Sin lock del claim aquí: documento -> identidad -> perfil (asegurar) -> claim (avanzar).
+    select * into v_loc from private.saga_auth_localizar(v_claim);
+    if not found then raise exception 'Saga: claim inexistente' using errcode = 'P0002'; end if;
+    if v_loc.estado->>'token_hash' is distinct from private.saga_token_hash(p_payload->>'token') then
+      raise exception 'Saga: token inválido' using errcode = '42501';
+    end if;
+    v_perfil := coalesce((v_loc.estado->>'perfil_id')::uuid, (v_loc.estado->>'auth_user_id')::uuid);
+    if v_perfil is null then raise exception 'Saga: sin perfil que enlazar' using errcode = 'P0409'; end if;
+    if (p_payload->>'perfil_id') is not null and (p_payload->>'perfil_id')::uuid is distinct from v_perfil then
+      raise exception 'Saga: el perfil a enlazar es el del claim, no el del payload' using errcode = 'P0409';
+    end if;
+    v_r := private.asegurar_identidad_perfil(v_perfil, 'alta_cliente');
+    if (v_r->>'inversionista_id')::uuid <> v_loc.inversionista_id then
+      raise exception 'El perfil creado no corresponde a la persona reclamada' using errcode = 'P0409';
+    end if;
+    return private.saga_auth_avanzar(v_claim, p_payload->>'token', 'enlazado', null, v_perfil, (p_payload->>'version')::integer) || v_r;
+  end if;
+  raise exception 'Paso desconocido: %', p_paso using errcode = '22023';
+end;
+$function$
+;
+
 do $post$
 begin
   if to_regprocedure('private.inversionista_canonica(uuid)') is not null
@@ -843,6 +1032,9 @@ begin
      or to_regprocedure('private.identidad_bloquear_documentos_de(uuid[])') is not null
      or to_regprocedure('private.cancelar_tareas_pendientes_lead(uuid)') is not null
      or to_regprocedure('private.motivo_sin_documento(text,text[])') is not null
+     or to_regprocedure('private.leads_de_identidades(uuid[])') is not null
+     or to_regprocedure('private.bloquear_leads_nowait(uuid[])') is not null
+     or to_regprocedure('private.documento_es_de_identidad(uuid,text,text)') is not null
      or to_regprocedure('crm.fusion_previsualizar_fn(uuid,uuid)') is not null
      or to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)') is not null
      or to_regprocedure('crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)') is not null
@@ -862,8 +1054,17 @@ begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica' and pg_get_function_identity_arguments(p.oid)='') <> '782e65d744ae497139f9cafd09a53778' then
     raise exception 'REVERSA b5: private.trg_leads_disponibilidad_atomica no volvió byte a byte al vivo de producción';
   end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid') <> '48c4cb305060483999dc53040eddaf5e' then
+    raise exception 'REVERSA b5: crm.marcar_efectos_conversion no volvió byte a byte al vivo de producción';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_claim_id uuid, p_token text') <> 'c39147385e0d793742e8fc940ba0dbba' then
+    raise exception 'REVERSA b5: crm.marcar_efectos_conversion.3 no volvió byte a byte al vivo de producción';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='alta_cliente_identidad_fn' and pg_get_function_identity_arguments(p.oid)='p_paso text, p_payload jsonb') <> '952f18420935bb63e8a35e2287077b52' then
+    raise exception 'REVERSA b5: crm.alta_cliente_identidad_fn no volvió byte a byte al vivo de producción';
+  end if;
 
-  raise notice 'REVERSA F2.b b5 OK (crm.inversionista_correcciones se conserva)';
+  raise notice 'REVERSA F2.b b5 OK (crm.inversionista_operaciones se conserva)';
 end
 $post$;
 commit;
