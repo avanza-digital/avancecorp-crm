@@ -1,7 +1,12 @@
 -- REGISTRO en supabase_migrations.schema_migrations de «el alta de contrato es idempotente por clave».
 -- `db query --linked --file` NO registra: correr DESPUÉS de aplicar la migración.
 -- Idempotente; se niega si la versión ya está registrada con OTRO contenido.
+-- Toma el MISMO candado que la migración y la reversa: si alguien lanza a la vez un registro y una
+-- reversa sobre esta base, se serializan (sin él, el registro podría reinsertar la versión que la
+-- reversa acaba de borrar y dejarla marcada como aplicada tras revertir).
 begin;
+set local lock_timeout = '5s';
+select pg_advisory_xact_lock(hashtext('crm_alta_contrato_idempotente'));
 do $chk$
 begin
   if (select md5(p.prosrc) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
