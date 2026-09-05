@@ -27,3 +27,11 @@ Estado al 05/09 (E2): 1272/1273 (el rojo conocido «tercer estado», en `banco/H
 
 Oráculo de E3: `scripts/oraculo-f2b-b5.sh` (dos sesiones psql; `run_as` cambia el ROL SQL a `authenticated` además
 de las claims, así que prueba también los grants). Retomar: nota del vault **RETOMAR-59** y `DISEÑO-F2B-COLA-CATALOGO.md`.
+
+## Bloque 1 de activación: [D-10] + [D-11] (05/09)
+
+- `gen-d10.py` + `vivas/d10/crm.reservar_conversion_lead.4.sql` + `huellas-d10-prod.txt` → migración `20260905150000`
+  (la reserva por persona cuenta el PUENTE en «un solo lead»), `scripts/rollback-f2b-d10.sql` y `scripts/registrar-f2b-d10.sql`.
+  `python3 gen-d10.py <esta carpeta> <dir supabase>`. El texto vivo se sacó del banco (md5 = producción, `6242dfc9…`).
+- Oráculo: `scripts/oraculo-f2b-d10-d11.sh` (D-10 + el ensayo D-11 del replay de un claim terminal tras una fusión).
+  Corrido ANTES de aplicar D-10, la sección D-10 debe salir ROJA (mutante); después, 41/41 (v3: espejo de b5 —auditor M1— y el puente del propio lead manda —Codex #2—; el preflight del oráculo reconoce los md5 de v1/v2 y dice qué debe salir rojo).

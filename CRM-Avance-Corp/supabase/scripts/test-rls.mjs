@@ -5252,6 +5252,99 @@ async function testContractBankAccounts(sessions, seed) {
       'rollback atomico: no quedo ningun enlace cuenta-contrato',
       `antes=${linksBefore.count}, despues=${linksAfter.count}`);
 
+    // ── 05/09/2026: el alta es IDEMPOTENTE por clave (migracion 20260905190000) ──
+    // Reproduce el incidente por la puerta VIVA: misma clave, el analista cambia el
+    // numero y reintenta → el servidor devuelve el MISMO contrato en vez de crear
+    // otro. Contratos del regimen documental ANTERIOR (firmados antes del 19/08),
+    // que es el caso real y ademas no exige la fotografia legal del PDF.
+    {
+      const claveIdem = randomUUID();
+      const idemToken = randomUUID().replaceAll('-', '').toUpperCase().slice(0, 10);
+      const idemCci = randomUUID().replace(/\D/g, '').padEnd(20, '0').slice(0, 20);
+      const altaIdem = (numero, extra = {}) => sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
+        p_contrato: {
+          cliente_id: bankProfileId,
+          numero_contrato: numero,
+          capital: 20000,
+          moneda: 'PEN',
+          tasa_anual: 15,
+          modalidad: 'mensual',
+          tipo_interes: 'simple',
+          categoria: 'nuevo',
+          fecha_inicio: '2026-03-11',
+          fecha_vencimiento: '2027-03-11',
+          notas_internas: 'RLS IDEMPOTENCIA DEL ALTA',
+          titulares: [],
+          ...extra,
+        },
+        p_cronograma: [
+          { numero_cuota: 1, fecha_programada: '2026-04-11', monto_programado: 250, tipo: 'cuota' },
+          { numero_cuota: 2, fecha_programada: '2027-03-11', monto_programado: 20000, tipo: 'retorno' },
+        ],
+        p_cuenta: {
+          tipo: 'nueva',
+          banco: 'BANCO RLS IDEM',
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: `IDEM-${idemToken}`,
+          cci: idemCci,
+          titular_distinto: false,
+          beneficiario_nombre: null,
+          beneficiario_dni: null,
+        },
+      });
+      const primera = await positive(
+        'idempotencia: el primer alta con clave se crea (regimen anterior → sin_reserva)',
+        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+      );
+      const idPrimera = typeof primera?.data?.id === 'string' ? primera.data.id : null;
+      check(
+        idPrimera !== null
+          && primera?.data?.pdf?.estado === 'sin_reserva'
+          && primera?.data?.pdf?.job_id === null
+          && primera?.data?.idempotente === undefined,
+        'idempotencia: la respuesta trae id, pdf.estado=sin_reserva, job_id=null y SIN marca idempotente',
+        JSON.stringify(primera?.data ?? null).slice(0, 240),
+      );
+      const repetida = await positive(
+        'idempotencia: el reintento con la MISMA clave y OTRO numero no crea otro contrato',
+        altaIdem(`RLS-IDEM-${idemToken}-2`, { clave_idempotencia: claveIdem }),
+      );
+      check(
+        repetida?.data?.id === idPrimera
+          && repetida?.data?.idempotente === true
+          && repetida?.data?.numero_contrato === `RLS-IDEM-${idemToken}-1`
+          && repetida?.data?.pdf?.contrato_id === idPrimera,
+        'idempotencia: el reintento devuelve el MISMO contrato, idempotente=true y el numero del alta registrada',
+        JSON.stringify(repetida?.data ?? null).slice(0, 240),
+      );
+      const contratosIdem = await requireAdmin(
+        'contar contratos del ensayo de idempotencia',
+        admin.from('contratos').select('id', { count: 'exact', head: true })
+          .like('numero_contrato', `RLS-IDEM-${idemToken}-%`),
+      );
+      check(contratosIdem.count === 1,
+        'idempotencia: hay UN solo contrato para las dos llamadas (el duplicado del 05/09 no nace)',
+        `count=${contratosIdem.count}`);
+      await expectExpectedFailure(
+        'idempotencia: una clave que no es uuid se rechaza (22023) sin escribir',
+        altaIdem(`RLS-IDEM-${idemToken}-3`, { clave_idempotencia: 'no-es-un-uuid' }),
+        ['22023'],
+        /clave de idempotencia/i,
+      );
+      const rechazada = await requireAdmin(
+        'verificar que la clave invalida no escribio',
+        admin.from('contratos').select('id', { count: 'exact', head: true })
+          .eq('numero_contrato', `RLS-IDEM-${idemToken}-3`),
+      );
+      check(rechazada.count === 0, 'idempotencia: la clave invalida no dejo contrato');
+      const otraClave = await positive(
+        'idempotencia: otra clave crea otro contrato',
+        altaIdem(`RLS-IDEM-${idemToken}-4`, { clave_idempotencia: randomUUID() }),
+      );
+      check(typeof otraClave?.data?.id === 'string' && otraClave.data.id !== idPrimera,
+        'idempotencia: la clave distinta produce un contrato distinto');
+    }
+
     // El cronograma deliberadamente invalido evita una mutacion aun si hubiera
     // una regresion de autorizacion; la asercion solo acepta un error de scope.
     for (const key of ['vend3', 'directorio']) {
@@ -8609,7 +8702,10 @@ async function testIdentidadF2bE4(sessions, seed) {
     return;
   }
   const bankProfileId = seed.profileIdByKey.clientBank;
-  const dniActual = ejecutarFueraDeBanda('E4: leer dni del cliente de banca', `select dni from public.perfiles where id='${bankProfileId}'`, { tolerante: true });
+  // El DNI del cliente de banca es el del fixture (lo escribe el seed). NO se lee con la vía tolerante:
+  // esa vía no devuelve valor, y la restauración de abajo dejaba el dni en NULL —el siguiente ciclo del banco
+  // ya no encontraba la sonda del domicilio (reset-gate busca por dni) y «dni intacto» comparaba contra null.
+  const dniActual = BANK_CLIENT.dni;
   try {
     check(cuenta('grants trigger', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, '${FN_TRG}', 'EXECUTE')`)
           + cuenta('PUBLIC trigger', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FN_TRG}'::regprocedure and a.grantee = 0`) === 0,
@@ -8621,7 +8717,9 @@ async function testIdentidadF2bE4(sessions, seed) {
     {
       const { error } = await sessions.clientBank.client.from('perfiles').update({ dni: '00000099' }).eq('id', bankProfileId).select('id');
       check(!error || error.code !== 'P0409', 'E4 OFF: un cambio de DNI del propio cliente no tropieza con el candado (inerte)', errorText(error));
-      await requireAdmin('E4 OFF: restaurar el dni del cliente de banca', admin.from('perfiles').update({ dni: dniActual ?? null }).eq('id', bankProfileId));
+      await requireAdmin('E4 OFF: restaurar el dni del cliente de banca', admin.from('perfiles').update({ dni: dniActual }).eq('id', bankProfileId));
+      check(cuenta('dni restaurado', `select count(*) from public.perfiles where id='${bankProfileId}' and dni = '${dniActual}'`) === 1,
+        'E4 OFF: el dni del cliente de banca volvió al del fixture (la sonda de domicilio del siguiente ciclo depende de él)');
     }
     // ON: si el perfil está enlazado a una persona, el cambio real de documento se rechaza; el mismo documento con otro formato pasa.
     flag(true);
@@ -8644,6 +8742,50 @@ async function testIdentidadF2bE4(sessions, seed) {
       ['42501'], /cliente no encontrado o fuera de tu cartera/i);
     check(cuenta('sin identidad fantasma', `select count(*) from crm.inversionistas i where i.perfil_id='${bankProfileId}' and i.estado <> 'fusionado'`) === (enlazado ? 1 : 0),
       'E4 ON: los rechazos no dejaron identidad nueva (sin efectos laterales persistentes)');
+  } finally {
+    flag(false);
+  }
+}
+
+// ── F2.b [D-10] (20260905150000): la reserva por persona cuenta el PUENTE en «un solo lead» ──
+// Solo grants, paridad apagada y que la rama ON sea alcanzable sin efectos (el negocio —puente, replay
+// tras fusión [D-11]— lo cubre scripts/oraculo-f2b-d10-d11.sh).
+async function testIdentidadF2bD10(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-10]: la reserva por persona cuenta el puente —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-10)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-10: ${etiqueta}`, sql);
+  const FIRMA = 'crm.reservar_conversion_lead(uuid,text,text,jsonb)';
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-00000000d010';
+  const reservar = (cliente, documento) => cliente.schema('crm').rpc('reservar_conversion_lead',
+    { p_lead_id: LEAD_INEXISTENTE, p_tipo_documento: 'DNI', p_documento: documento, p_payload: { correo: 'd10@x.pe' } });
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d10'));
+
+  if (cuenta('D-10 aplicada', `select (strpos(p.prosrc, 'F2.b [D-10]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb'`) !== 1) {
+    console.log('  (saltado: D-10 (20260905150000) no está en esta base)');
+    return;
+  }
+  try {
+    check(cuenta('grants', `select (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
+      'D-10 la reserva por persona conserva sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) = 'a067183bfe986cf7bd5f82b4ed6674d7')::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
+      'D-10 la reserva de 1 argumento (camino de hoy) sigue byte a byte');
+    check(cuenta('leads_de_identidades sin EXECUTE', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.leads_de_identidades(uuid[])', 'EXECUTE')`) === 0,
+      'D-10 private.leads_de_identidades sigue sin EXECUTE para la API (solo la llama la definer)');
+    // OFF (estado de producción): la sobrecarga es inerte antes de leer argumentos.
+    flag(false);
+    await expectExpectedFailure('D-10 OFF vend1 reserva por persona → P0409 apagada', reservar(sessions.vend1.client, '00000001'), ['P0409'], /apagada/i);
+    await expectExpectedFailure('D-10 anon reserva por persona → 42501 (sin EXECUTE)', reservar(anon, '00000001'), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure('D-10 service_role reserva por persona → 42501 (sin EXECUTE)', reservar(admin, '00000001'), ['42501'], /permission denied|denegado/i);
+    for (const clave of ['coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+      await expectExpectedFailure(`D-10 OFF ${clave} reserva por persona → 42501 (no gestiona contratos; muere ANTES de la bandera)`, reservar(sessions[clave].client, '00000001'), ['42501'], /no autorizado/i);
+    }
+    // ON: la rama transformada es alcanzable y muere ANTES de tocar nada (documento vacío → 22023); el cliente no convierte.
+    flag(true);
+    await expectExpectedFailure('D-10 ON vend1 sin documento → 22023 (rama ON alcanzable, sin efectos)', reservar(sessions.vend1.client, ''), ['22023'], /documento es obligatorio/i);
+    await expectExpectedFailure('D-10 ON cliente de banca → 42501 (no gestiona contratos)', reservar(sessions.clientBank.client, '00000001'), ['42501'], /no autorizado/i);
+    check(cuenta('sin identidad fantasma', `select count(*) from crm.inversionista_identificadores where documento_normalizado='00000001' and tipo_documento='DNI'`) === 0,
+      'D-10 ON: los rechazos no dejaron identidad nueva');
   } finally {
     flag(false);
   }
@@ -11299,6 +11441,7 @@ async function main() {
       await testIdentidadF2b(sessions, verifiedSeed);
       await testIdentidadF2bB5(sessions);
       await testIdentidadF2bE4(sessions, verifiedSeed);
+      await testIdentidadF2bD10(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

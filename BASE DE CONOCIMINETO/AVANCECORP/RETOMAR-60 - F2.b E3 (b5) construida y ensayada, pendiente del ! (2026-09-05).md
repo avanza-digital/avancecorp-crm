@@ -53,3 +53,22 @@ F2.b queda COMPLETA (incluidas las piezas de `public`). Sigue la lista de prerre
 ## 7. Recursos
 
 banco-f7 `cwkiejoaqadcnaieghnf` vivo con E1+E2+E3 (credenciales en el scratchpad de la sesión `b415a35b`, `banco-pooler.txt`/`banco.json`; nunca imprimirlas). Ciclo de la suite: `scripts/f2b/LEEME.md`.
+
+## 8. Plan de activación: orden de los prerrequisitos `[D-1..D-12]` (acordado con Miguel el 05/09)
+
+`[D-1]` quedó cerrado con E4. Quedan 11, en este orden (cada bloque: oráculo en banco-f7 → `auditor-rls` → Codex refuta → ledger → `!` de Miguel; todo aterriza APAGADO):
+
+| Bloque | Ítems | Qué resuelve (negocio) |
+|---|---|---|
+| **1. Servidor, apagado** | `[D-10]`, `[D-11]` | La reserva por persona (`reservar_conversion_lead` de 4 argumentos) cuenta el PUENTE en «un solo lead», como ya hacen las dos conversiones (hueco B2 de Codex). Se ensaya que un claim terminal (`enlazar`/`cerrar`) se repite bien tras una fusión (N5). Pequeños; cierran deuda de b5. |
+| **2. Servidor, apagado** | `[D-2]`, `[D-3]`, `[D-9]`, **`[D-13]`** | Salida de un analista sin dejar tramos abiertos ni persona sin responsable (y capacidad operativa del nuevo); veto coherente en tareas / `actividades_cliente` / leads sueltos; documento enmascarado en los auditores genéricos de `leads`/`cierres`; **`[D-13]` (nuevo, auditor + Codex 05/09): «un solo lead» y «el puente manda» en TODAS las puertas con la bandera encendida** — las puertas de alta de lead y `tomar_lead_libre` cuentan el puente; la alta ve la reserva/claim viva por persona (o la reserva enlaza el lead), para que una conversión en curso no deje cuenta de portal huérfana; las dos conversiones respetan el puente del propio lead. Sin D-13 no se enciende. |
+| **3. Servidor, apagado** | `[D-4]` | El importador entra por la puerta SQL: los importados también quedan reconocidos. |
+| **4. Edges y front** | `[D-5]`, `[D-12]` | Edges/Auth alineadas y, con la bandera encendida, las RPC viejas de 1 argumento (reserva y sellado sin persona) se cierran (b4 M3); el Portal (`clientes.js`) explica el `P0409` «solo se corrige desde el CRM» en vez de un error crudo. |
+| **5. Datos, ANTES del ON** | los 2 clientes del censo | El cliente sin documento y el de documento inválido se corrigen en el Portal mientras el candado sigue apagado; con ON ya no podrían firmar contratos nuevos. |
+| **Aparte (decide Miguel)** | `[D-6]`, `[D-7]`, `[D-8]` | Son fases enteras (métrica por inversionista/mes, F4, F5). Lectura de la sesión: gatean el valor completo, no la seguridad del encendido. Pendiente: ¿bloquean el ON o van después? |
+
+Encender `resolver_en_puertas` es un paso APARTE, con fecha propia, cuando los bloques 1–5 estén en producción.
+
+**Pendientes de Miguel (sin prisa):** regla operativa de la clave temporal tras corregir un DNI (resetear o avisar) · régimen documental con su abogado ([[La frontera del 19-08 - regimen documental]]) · mantener o borrar banco-f7 (~10 USD/mes; hoy a paridad con producción) · si D-6/7/8 bloquean el encendido.
+
+**Bloque 1 — estado 05/09 (tarde): CONSTRUIDO Y ENSAYADO, pendiente del `!`.** `[D-10]` = migración `20260905150000_crm_f2b_d10_reserva_por_persona_cuenta_puente.sql` (una sentencia: «un solo lead» de la reserva por persona lee la unión enlace vivo ∪ puente vía `private.leads_de_identidades`; generada desde el texto vivo, md5 de prod `6242dfc9…` → D-10 v3 `b6c1863e…` (la v1 reemplazaba el chequeo vivo, la tumbó el auditor; la v2 no miraba el puente del propio lead, lo tumbó Codex; ninguna salió del banco); reversa `rollback-f2b-d10.sql`; registro `registrar-f2b-d10.sql`). `[D-11]` = ensayo `scripts/oraculo-f2b-d10-d11.sh` (replay de `enlazar`/`cerrar` con claim terminal tras fusión: idempotente, canónica, 40001 con versión vieja, 42501 con token malo; sin código nuevo). Evidencia: oráculo 32/32; mutante ROJO (3) antes de D-10; reversa ×2; b4 30/30, b5 92/92, E4 22/22 encima; bloque D-10 en `test-rls.mjs`. Ledger `## 20260905150000`. Observación: una reserva sellada bloquea la fusión hasta que vence su ventana de 5 min. Para publicar: `db query --linked --file` de la migración + `registrar-f2b-d10.sql`, en ventana muerta, y verificar en solo lectura que el md5 de la sobrecarga sea `b6c1863e…` y las banderas sigan en `false`.

@@ -56,7 +56,7 @@ update crm.tareas
 alter table public.perfiles disable trigger perfiles_domicilio_legal_no_borrar;
 update public.perfiles
    set domicilio = null
- where dni = '90000001'  -- BANK_CLIENT del fixture (clientBank)
+ where (dni = '90000001' or correo = 'cliente-bancario.crm@demo.avancecorp.pe')  -- BANK_CLIENT del fixture (clientBank); por correo también: un bloque dejó el dni en NULL el 05/09
    and domicilio is not null;
 alter table public.perfiles enable trigger perfiles_domicilio_legal_no_borrar;
 
@@ -65,8 +65,9 @@ do $recibo$
 declare v_leads int; v_dom int;
 begin
   select count(*) into v_leads from crm.leads where activo;
-  select count(*) into v_dom from public.perfiles where dni = '90000001' and domicilio is not null;
-  raise notice 'RESET-GATE: % leads vivos (esperados 7 tras seed) · domicilio sonda escrito: %', v_leads, v_dom;
+  select count(*) into v_dom from public.perfiles where (dni = '90000001' or correo = 'cliente-bancario.crm@demo.avancecorp.pe') and domicilio is not null;
+  raise notice 'RESET-GATE: % leads vivos (esperados 7 tras seed) · domicilio sonda escrito: % · sonda hallada: %', v_leads, v_dom,
+    (select count(*) from public.perfiles where dni = '90000001' or correo = 'cliente-bancario.crm@demo.avancecorp.pe');
 end $recibo$;
 
 commit;
