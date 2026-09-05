@@ -778,6 +778,76 @@ describe('ContratoNuevo — idempotencia del alta', () => {
     crearContrato.mockReset()
     archivoPdf.archivar.mockReset()
     vi.mocked(toast.success).mockReset()
+    // La clave pendiente vive en localStorage por cliente: cada prueba arranca limpia.
+    localStorage.clear()
+  })
+
+  it('si el modal se desmonta con la llamada en vuelo (Esc desde el drawer del lead), al reabrirlo la clave es la MISMA', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockImplementation(() => new Promise<typeof ALTA_OK>(() => undefined)) // nunca responde
+    const primera = montar()
+    await llenarBase(user)
+    await user.click(boton())
+    expect(crearContrato).toHaveBeenCalledTimes(1)
+    const clave1 = crearContrato.mock.calls[0]![0].clave_idempotencia
+    primera.unmount()
+
+    crearContrato.mockReset()
+    crearContrato.mockResolvedValue(ALTA_OK)
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    await waitFor(() => expect(crearContrato).toHaveBeenCalledTimes(1))
+    expect(crearContrato.mock.calls[0]![0].clave_idempotencia).toBe(clave1)
+    // Y solo tras la confirmación se libera.
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+    expect(localStorage.getItem('crm.idempotencia.alta_contrato:cli-1')).toBeNull()
+  })
+
+  it('«ya creó el contrato … con otros datos»: se explica con el número, se libera la clave y el siguiente clic es otro intento', async () => {
+    const user = userEvent.setup()
+    crearContrato
+      .mockRejectedValueOnce(
+        new crmApi.CrmApiError(
+          'Este intento ya creó el contrato 2026-01-000025 con otros datos; no se creó otro. Revísalo antes de registrar uno nuevo',
+          'ALTA_YA_CREADA',
+        ),
+      )
+      .mockResolvedValueOnce(ALTA_OK)
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    expect(screen.getByRole('alert')).toHaveTextContent(/ya creó el contrato 2026-01-000025 con otros datos/)
+    expect(screen.getByRole('alert')).toHaveTextContent(/vuelve a pulsar/)
+    expect(localStorage.getItem('crm.idempotencia.alta_contrato:cli-1')).toBeNull()
+    await user.click(boton())
+    await waitFor(() => expect(crearContrato).toHaveBeenCalledTimes(2))
+    const clave1 = crearContrato.mock.calls[0]![0].clave_idempotencia
+    const clave2 = crearContrato.mock.calls[1]![0].clave_idempotencia
+    expect(clave2).toMatch(RE_UUID)
+    expect(clave2).not.toBe(clave1)
+  })
+
+  it('«el contrato de este intento fue eliminado después»: se libera la clave y se pide volver a pulsar', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockRejectedValueOnce(
+      new crmApi.CrmApiError('El contrato de este intento fue eliminado después; vuelve a registrar el alta', 'ALTA_ELIMINADA'),
+    )
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    expect(screen.getByRole('alert')).toHaveTextContent(/fue eliminado después/)
+    expect(localStorage.getItem('crm.idempotencia.alta_contrato:cli-1')).toBeNull()
+  })
+
+  it('si la respuesta no confirmó la cuenta de pago, el alta se muestra creada Y con el aviso de verificarla', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockResolvedValue({ ...ALTA_OK, cuenta_bancaria_id: null })
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+    expect(screen.getByRole('alert')).toHaveTextContent(/no confirmó la cuenta de pago/)
   })
 
   it('doble clic en «Crear contrato»: UNA sola llamada al servidor mientras la primera sigue en vuelo', async () => {

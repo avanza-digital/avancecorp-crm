@@ -2,7 +2,7 @@
 tags: [crm, gerencia, metricas, plan, aprobacion]
 requerimiento: REQ-GER-MET-001
 fecha: 2026-09-05
-estado: implementado-y-auditado-local-sql-productivo-y-publicacion-pendientes
+estado: sql-productivo-verificado-publicacion-frontend-en-curso
 ---
 
 # Plan por fases — cuatro datos de Gerencia
@@ -20,8 +20,8 @@ Estas fases desarrollan las necesidades del punto 4 y la validación del punto 5
 ## Estado de ejecución al 5 de septiembre
 
 - Fases 1–4: completadas localmente. Se ampliaron los dos agregadores existentes, sin cambiar núcleos, fachadas, propietarios ni ACL, y el frontend consume las nuevas proyecciones sin recalcular reglas comerciales.
-- Fase 5: evidencia y memoria actualizadas; faltan el commit final y la sincronización de Main.
-- Fase 6: no iniciada. La migración productiva, el deploy y la comprobación pública siguen sujetos a sus confirmaciones expresas.
+- Fase 5: versión candidata guardada en `5ada0c5`, sincronizada y empaquetada; faltan revisar las ediciones concurrentes posteriores y cerrar la versión final. Evidencia actual en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
+- Fase 6: SQL exacto confirmado y aplicado como `20260905175342`, con respuestas reales, núcleos, permisos y advisors comprobados. Publicación del frontend autorizada y en curso; ver la evidencia vigente de ejecución.
 - Nombre visible acordado para esta lectura: **«Resultados de los leads del mes»**; no usar «Cosecha del lote» ni añadir «hasta hoy» al título.
 
 ## Objetivo final
@@ -32,7 +32,7 @@ Que Gerencia pueda conocer, desde los datos canónicos del servidor, cuántos le
 
 Miguel pidió un plan por fases para todo lo que falta. Esta ruta desglosa únicamente el cierre de las fases 5–6; no reinicia el desarrollo terminado ni autoriza por sí misma SQL o deploy.
 
-**Orden posterior:** Miguel pidió ejecutar los seis pasos hasta el 100 % operativo. Autoriza el guardado, la sincronización y la publicación del frontend. La confirmación del SQL exacto sigue pendiente de presentarlo. El avance comprobado de esta ejecución se registra en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
+**Orden posterior:** Miguel pidió ejecutar los seis pasos hasta el 100 % operativo. Autoriza el guardado, la sincronización y la publicación del frontend. Después confirmó expresamente el SQL exacto con «si»: aplicado y comprobado. El avance actual se registra en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]]; las puertas descritas abajo no vuelven a exigir aprobaciones ya recibidas.
 
 1. **Preparar y confirmar el cambio productivo.** Presentar el SQL exacto de Gerencia, su alcance, pruebas y rollback; recibir la confirmación pendiente y la autorización de publicación. Identificar las migraciones ajenas para no aplicarlas. **Cierre:** artefacto exacto confirmado, alcance delimitado y reversión preparada.
 2. **Guardar y unificar Main.** Revisar el árbol actual y el trabajo concurrente, preservar los cambios ajenos, hacer el commit final solicitado e integrar el remoto sin sobrescribirlo. Repetir las pruebas pertinentes si cambió lo auditado. Comprobar que Main local y `avancecorp/main` apuntan al mismo commit y construir desde ese contenido exacto. **Cierre:** versión única, verificable y lista para publicar, sin ramas nuevas ni force push.

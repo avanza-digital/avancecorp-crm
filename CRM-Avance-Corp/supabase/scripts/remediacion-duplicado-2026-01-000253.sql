@@ -31,8 +31,12 @@
 -- todo salvo el número, así que la decisión es cuál NÚMERO quieres que sobreviva. Cambia las dos
 -- constantes de la sección 3 en ese caso.
 --
--- ALTERNATIVA SIN SQL: entrar al CRM como Gerencia → cliente → contrato 2026-01-000253 → «Eliminar
--- contrato» → confirmar. Hace exactamente lo mismo (misma puerta) y deja el mismo rastro.
+-- CAMINO RECOMENDADO, SIN SQL: entrar al CRM como Gerencia → cliente → contrato 2026-01-000253 →
+-- «Eliminar contrato» → confirmar. Es la misma puerta, con tu sesión real: la auditoría queda a tu
+-- nombre sin ningún truco. Usa la sección 3 solo si prefieres verlo pasar en SQL: allí se fija
+-- `request.jwt.claim.sub` a tu perfil durante todo el bloque para que `auth.uid()` (lo que leen
+-- `log_audit_change` y los auditores del CRM) te atribuya el borrado; sin eso, desde el SQL editor
+-- el rastro quedaría con usuario NULL (hallazgo de Codex, 05/09).
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 1) DIAGNÓSTICO (solo lectura)
@@ -106,35 +110,82 @@ order by p.rol, p.id;
 -- ────────────────────────────────────────────────────────────────────────────
 -- Rellena v_actor con TU perfil (sección 2). Si el número firmado es 000253, intercambia v_eliminar /
 -- v_conservar. Cualquier comprobación que falle aborta el bloque entero y NO se borra nada.
+-- Las comprobaciones de 3.1 se hacen DENTRO del bloque y bajo lock (no dependen de haber mirado la
+-- sección 1): si alguien tocó uno de los dos entre medias (cuenta, cuota, cotitular, nota), aborta.
 do $remediacion$
 declare
   v_actor      uuid := '00000000-0000-0000-0000-000000000000';               -- ← TU perfil (sección 2)
   v_eliminar   uuid := '9597d503-1bff-4853-9c47-1eef5b5d3dfe';               -- B · 2026-01-000253 (el reintento)
+  v_num_elim   text := '2026-01-000253';                                       -- su número: doble candado contra el uuid equivocado
   v_conservar  uuid := '74b5694f-843d-4b88-be13-5f8fc8e82404';               -- A · 2026-01-000025 (el primer alta)
+  v_num_cons   text := '2026-01-000025';
   v_cliente    uuid := '4e0c11bc-3fec-492b-a90e-93fd75b36ad4';
   v_e public.contratos%rowtype;
   v_c public.contratos%rowtype;
   v_prep jsonb; v_fin jsonb; v_n int;
+  v_crono_e text; v_crono_c text; v_cta_e uuid; v_cta_c uuid; v_tit_e int; v_tit_c int;
+  v_audit_actor uuid;
 begin
   if v_actor = '00000000-0000-0000-0000-000000000000' then
     raise exception 'Rellena v_actor con tu perfil de admin/superadmin (sección 2)';
   end if;
+  if not exists (select 1 from public.perfiles p where p.id = v_actor and p.activo and p.rol in ('admin', 'superadmin')) then
+    raise exception 'v_actor no es un perfil admin/superadmin activo';
+  end if;
+  -- Quién borra, para la auditoría: auth.uid() lee esta claim. Local a la transacción.
+  perform set_config('request.jwt.claim.sub', v_actor::text, true);
 
-  -- 3.1 Precondiciones: los dos existen, son del cliente, están activos y son idénticos en lo económico.
+  -- 3.1 Precondiciones bajo lock: existen, son del cliente, activos y DUPLICADOS COMPLETOS.
+  if v_eliminar = v_conservar then raise exception 'v_eliminar y v_conservar son el mismo contrato'; end if;
   select * into v_e from public.contratos where id = v_eliminar for update;
   if not found then raise exception 'No existe el contrato a eliminar %', v_eliminar; end if;
   select * into v_c from public.contratos where id = v_conservar for update;
   if not found then raise exception 'No existe el contrato a conservar %', v_conservar; end if;
+  if v_e.numero_contrato <> v_num_elim or v_c.numero_contrato <> v_num_cons then
+    raise exception 'Los números no cuadran con los uuid (eliminar=% esperado %, conservar=% esperado %): revisa las constantes',
+      v_e.numero_contrato, v_num_elim, v_c.numero_contrato, v_num_cons;
+  end if;
+  -- Una preparación de eliminación PENDIENTE de otro admin haría fallar la finalización con un
+  -- mensaje engañoso (token ajeno): se detecta antes.
+  if exists (select 1 from private.contrato_eliminaciones e where e.contrato_id in (v_eliminar, v_conservar)) then
+    raise exception 'Hay una preparación de eliminación pendiente sobre uno de los dos contratos (private.contrato_eliminaciones): revísala antes';
+  end if;
   if v_e.cliente_id <> v_cliente or v_c.cliente_id <> v_cliente then
     raise exception 'Los contratos no son del cliente esperado';
   end if;
   if v_e.estado <> 'activo' or v_c.estado <> 'activo' then
     raise exception 'Se esperaban ambos en estado activo (eliminar=%, conservar=%)', v_e.estado, v_c.estado;
   end if;
-  if row(v_e.capital, v_e.moneda, v_e.tasa_anual, v_e.modalidad, v_e.tipo_interes, v_e.fecha_inicio, v_e.fecha_vencimiento, v_e.categoria)
+  -- Todo lo que define el contrato, no solo lo económico: autoría, analista, fecha comercial, notas.
+  if row(v_e.capital, v_e.moneda, v_e.tasa_anual, v_e.modalidad, v_e.tipo_interes, v_e.fecha_inicio,
+         v_e.fecha_vencimiento, v_e.categoria, v_e.creado_por, v_e.analista_cierre_id, v_e.fecha_cierre_comercial,
+         v_e.notas_internas)
      is distinct from
-     row(v_c.capital, v_c.moneda, v_c.tasa_anual, v_c.modalidad, v_c.tipo_interes, v_c.fecha_inicio, v_c.fecha_vencimiento, v_c.categoria) then
-    raise exception 'Los dos contratos NO son idénticos en lo económico: revisa antes de borrar';
+     row(v_c.capital, v_c.moneda, v_c.tasa_anual, v_c.modalidad, v_c.tipo_interes, v_c.fecha_inicio,
+         v_c.fecha_vencimiento, v_c.categoria, v_c.creado_por, v_c.analista_cierre_id, v_c.fecha_cierre_comercial,
+         v_c.notas_internas) then
+    raise exception 'Los dos contratos NO son idénticos (cabecera, autoría, analista, fecha comercial o notas): PARA';
+  end if;
+  -- El cronograma, cuota a cuota (número, fecha, monto, tipo, estado).
+  select md5(string_agg(cp.numero_cuota || '|' || cp.fecha_programada || '|' || cp.monto_programado || '|' || cp.tipo || '|' || cp.estado, ',' order by cp.numero_cuota))
+    into v_crono_e from public.cronograma_pagos cp where cp.contrato_id = v_eliminar;
+  select md5(string_agg(cp.numero_cuota || '|' || cp.fecha_programada || '|' || cp.monto_programado || '|' || cp.tipo || '|' || cp.estado, ',' order by cp.numero_cuota))
+    into v_crono_c from public.cronograma_pagos cp where cp.contrato_id = v_conservar;
+  if v_crono_e is null or v_crono_e is distinct from v_crono_c then
+    raise exception 'Los cronogramas NO son idénticos: PARA';
+  end if;
+  -- La cuenta de pago: exactamente una en cada uno, y la misma.
+  select ccp.cuenta_bancaria_id into v_cta_e from crm.contrato_cuentas_pago ccp where ccp.contrato_id = v_eliminar;
+  select ccp.cuenta_bancaria_id into v_cta_c from crm.contrato_cuentas_pago ccp where ccp.contrato_id = v_conservar;
+  select count(*) into v_n from crm.contrato_cuentas_pago ccp where ccp.contrato_id in (v_eliminar, v_conservar);
+  if v_n <> 2 or v_cta_e is null or v_cta_e is distinct from v_cta_c then
+    raise exception 'Las cuentas de pago NO coinciden (eliminar=%, conservar=%, filas=%): PARA', v_cta_e, v_cta_c, v_n;
+  end if;
+  -- Co-titulares: ninguno en los dos (así nacieron).
+  select count(*) into v_tit_e from public.contrato_titulares t where t.contrato_id = v_eliminar;
+  select count(*) into v_tit_c from public.contrato_titulares t where t.contrato_id = v_conservar;
+  if v_tit_e <> 0 or v_tit_c <> 0 then
+    raise exception 'Hay co-titulares (eliminar=%, conservar=%): revisa antes de borrar', v_tit_e, v_tit_c;
   end if;
   if exists (select 1 from public.cronograma_pagos cp where cp.contrato_id = v_eliminar
              and (cp.estado = 'pagado' or cp.monto_pagado is not null)) then
@@ -179,11 +230,20 @@ begin
   if not exists (select 1 from public.contratos where id = v_conservar and estado = 'activo') then
     raise exception 'El conservado no está activo';
   end if;
-  if not exists (select 1 from public.audit_log a where a.fila_id = v_eliminar::text and a.operacion ilike 'DELETE%') then
+  -- El rastro: un DELETE de public.contratos para el eliminado, atribuido a TI (log_audit_change
+  -- guarda 'DELETE' y auth.uid(); la claim fijada arriba es lo que auth.uid() lee).
+  select a.usuario_id into v_audit_actor
+  from public.audit_log a
+  where a.tabla = 'contratos' and a.fila_id = v_eliminar::text and a.operacion = 'DELETE'
+  order by a.ts desc limit 1;
+  if not found then
     raise exception 'No quedó rastro de auditoría del DELETE';
   end if;
-  raise notice 'REMEDIACIÓN OK: eliminado % (N° %), conservado % (N° %), archivos borrados: %',
-    v_eliminar, v_e.numero_contrato, v_conservar, v_c.numero_contrato, v_fin->>'objetos_eliminados';
+  if v_audit_actor is distinct from v_actor then
+    raise exception 'El rastro del DELETE no quedó a tu nombre (usuario_id=%): PARA y revisa', v_audit_actor;
+  end if;
+  raise notice 'REMEDIACIÓN OK: eliminado % (N° %), conservado % (N° %), archivos borrados: %, auditado por %',
+    v_eliminar, v_e.numero_contrato, v_conservar, v_c.numero_contrato, v_fin->>'objetos_eliminados', v_audit_actor;
 end
 $remediacion$;
 

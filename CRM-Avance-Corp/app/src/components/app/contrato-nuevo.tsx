@@ -22,7 +22,7 @@ import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/component
 import { money, fmtFecha, type Moneda } from '@/lib/format'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import { completarDomicilioCliente, crearContrato, CrmApiError, type CrearContratoInput } from '@/data/crm-api'
-import { nuevaClaveIdempotencia } from '@/lib/idempotencia'
+import { claveIdempotenciaPendiente, liberarClaveIdempotencia } from '@/lib/idempotencia'
 import {
   esCuotaDeInteres,
   formatDateLocal,
@@ -96,6 +96,8 @@ interface ContratoCreado {
   estadoPdf: EstadoContratoPdf
   archivando: boolean
   errorArchivo: string | null
+  /** La respuesta del alta no confirmó la cuenta de pago: el alta es real, pero hay que mirar. */
+  avisoCuentaPago: string | null
   local: ContratoCreadoLocal | null
 }
 
@@ -237,13 +239,17 @@ export function ContratoNuevo({
   const [campoCuentaInvalido, setCampoCuentaInvalido] = useState<CampoSeccionBancaria | null>(null)
   const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
-  // Clave de idempotencia del alta: UNA por intento de formulario, la MISMA en cada
-  // reintento, renovada solo tras un éxito. Si el servidor confirmó el alta pero el
-  // front no lo supo (red, timeout, o una respuesta válida mal leída, como el
-  // 05/09/2026 con los contratos del régimen anterior), el reintento devuelve el
-  // MISMO contrato en vez de crear otro. El `disabled` del botón y el guard de
-  // `enviando` frenan el doble clic; esta clave frena el reintento humano.
-  const claveIdempotencia = useRef<string | null>(null)
+  // Clave de idempotencia del alta: UNA por intento, la MISMA en cada reintento,
+  // liberada solo cuando el servidor confirmó (o descartó) el intento. Vive en
+  // localStorage por CLIENTE (lib/idempotencia), así que sobrevive a que este
+  // modal se desmonte con la llamada en vuelo (Esc, clic fuera desde el drawer
+  // del lead), a una recarga y a dos pestañas. Si el servidor confirmó el alta
+  // pero el front no lo supo (red, timeout, o una respuesta válida mal leída,
+  // como el 05/09/2026 con los contratos del régimen anterior), el reintento con
+  // los mismos datos devuelve el MISMO contrato; con otros datos, el servidor
+  // avisa con el número del que ya existe. El `disabled` del botón y el guard de
+  // `enviando` frenan el doble clic; la clave frena el reintento humano.
+  const ambitoIdempotencia = `alta_contrato:${clienteId}`
   // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
   // alta y lo exige literalmente, así que sin él el contrato entero se revierte.
   // Se pregunta ANTES para convertir ese muro sin nombre en un campo.
@@ -565,9 +571,8 @@ export function ContratoNuevo({
       reportarError(tit.error)
       return
     }
-    claveIdempotencia.current ??= nuevaClaveIdempotencia()
     const input: CrearContratoInput = {
-      clave_idempotencia: claveIdempotencia.current,
+      clave_idempotencia: claveIdempotenciaPendiente(ambitoIdempotencia),
       cliente_id: clienteId,
       capital: capitalNum,
       moneda,
@@ -621,8 +626,6 @@ export function ContratoNuevo({
             idempotente: false,
           }
         : await crearContrato(input, cronograma)
-      // El alta quedó escrita: la siguiente (si la hay) es OTRO intento, con otra clave.
-      claveIdempotencia.current = null
       toast.success(
         r.idempotente
           ? `Contrato ${r.numero_contrato} ya estaba creado para ${clienteNombre}: se recuperó el alta anterior`
@@ -662,10 +665,19 @@ export function ContratoNuevo({
         estadoPdf: r.pdf.estado,
         archivando: !regimenDocumentalAnterior,
         errorArchivo: null,
+        // Sin demo, la respuesta debe traer la cuenta de pago (misma transacción).
+        // Si no la trajo, el alta es real igual, pero se le dice al analista dónde mirar.
+        avisoCuentaPago:
+          !pdfDatosDemo && r.cuenta_bancaria_id === null
+            ? 'La respuesta no confirmó la cuenta de pago del contrato. Verifícala en el detalle del contrato antes de cerrar.'
+            : null,
         local,
       })
       if (local) onConfirmado?.(r.numero_contrato, local)
       else onConfirmado?.(r.numero_contrato)
+      // El alta quedó escrita y la pantalla ya lo sabe: la siguiente (si la hay)
+      // es OTRO intento, con otra clave. Se libera al final, no antes del toast.
+      liberarClaveIdempotencia(ambitoIdempotencia)
       // Régimen anterior: no hay documento que archivar. Intentarlo devolvería
       // `sin_reserva` y pintaría un error rojo sobre un alta que salió perfecta.
       if (regimenDocumentalAnterior) return
@@ -702,7 +714,20 @@ export function ContratoNuevo({
         )
       }
     } catch (e) {
-      reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
+      if (e instanceof CrmApiError && e.code === 'ALTA_YA_CREADA') {
+        // El intento anterior SÍ creó un contrato (con otros datos). Ya se lo
+        // dijimos con el número; si de verdad quiere otro, el siguiente clic es
+        // un intento NUEVO, a conciencia.
+        liberarClaveIdempotencia(ambitoIdempotencia)
+        reportarError(`${e.message}. Si de verdad es otro contrato, vuelve a pulsar «Crear contrato».`)
+      } else if (e instanceof CrmApiError && e.code === 'ALTA_ELIMINADA') {
+        liberarClaveIdempotencia(ambitoIdempotencia)
+        reportarError(
+          'El contrato de tu intento anterior fue eliminado después. Vuelve a pulsar «Crear contrato» para registrarlo de nuevo.',
+        )
+      } else {
+        reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
+      }
     } finally {
       setEnviando(false)
       onEnviandoCambio?.(false)
@@ -789,6 +814,11 @@ export function ContratoNuevo({
             {creado.errorArchivo && (
               <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
                 {creado.errorArchivo}
+              </p>
+            )}
+            {creado.avisoCuentaPago && (
+              <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
+                {creado.avisoCuentaPago}
               </p>
             )}
           </div>

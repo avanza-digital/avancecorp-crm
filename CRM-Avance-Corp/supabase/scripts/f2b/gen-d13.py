@@ -1,5 +1,5 @@
 # gen-d13.py — F2.b prerrequisito de activación [D-13]: «un solo lead» y «el puente manda» en TODAS las puertas
-# con la bandera encendida (bloque 2). v1 (05/09). Transforma 5 funciones VIVAS de producción (vivas/d13/*.sql,
+# con la bandera encendida (bloque 2). v2 (05/09, tras auditor M1/M2/N1/N3/N5 y Codex #1-#9). Transforma 8 funciones VIVAS de producción (vivas/d13/*.sql,
 # md5 en huellas-d13-prod.txt) y crea el helper private.persona_en_conversion. Genera la migración 20260905160000,
 # su reversa (restaura byte a byte, suelta el helper, desregistra) y el registro (exige las 5 vivas = D-13).
 # Uso: python3 gen-d13.py <dir scripts/f2b> <dir supabase>
@@ -17,6 +17,9 @@ FN = {  # clave -> (schema, nombre, args identidad, etiqueta)
   'crm.tomar_lead_libre': ('crm','tomar_lead_libre','p_telefono text, p_dni text','crm.tomar_lead_libre(text,text)'),
   'crm.convertir_lead': ('crm','convertir_lead','p_lead_id uuid, p_perfil_id uuid','crm.convertir_lead(uuid,uuid)'),
   'crm.convertir_lead_externo': ('crm','convertir_lead_externo','p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text','crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'),
+  'crm.marcar_efectos_conversion.3': ('crm','marcar_efectos_conversion','p_lead_id uuid, p_claim_id uuid, p_token text','crm.marcar_efectos_conversion(uuid,uuid,text)'),
+  'crm.rescatar_descartes': ('crm','rescatar_descartes','p_episodios uuid[], p_analistas_destino uuid[], p_evitar_asesor_origen boolean','crm.rescatar_descartes(uuid[],uuid[],boolean)'),
+  'private.deshacer_descarte_implementacion': ('private','deshacer_descarte_implementacion','p_lead uuid','private.deshacer_descarte_implementacion(uuid)'),
 }
 prev = {k: viv(k) for k in FN}
 for k in FN: assert md5(prev[k]) == prod[k], (k, md5(prev[k]))
@@ -81,7 +84,9 @@ t1 = rep(prev['private.verificar_disponibilidad_lead_impl.3'], """    select coa
       select p.nombre_completo
       from crm.conversion_reservas r
       join public.perfiles p on p.id = r.reservado_por
+      left join crm.leads lr on lr.id = r.lead_id
       where r.inversionista_id = i.id and r.lead_id is distinct from p_excluir_lead_id
+        and (r.expira_en > pg_catalog.now() or (r.efectos_iniciados_en is not null and coalesce(lr.etapa, '') <> 'convertido'))
       order by r.reservado_en desc
       limit 1
     ) res on true
@@ -139,13 +144,38 @@ t2 = rep(prev['private.trg_leads_zz_enlaza_identidad'], """  -- Un solo lead TOT
                                     join public.perfiles p on p.id = r.reservado_por
                                    where r.inversionista_id = v_inv and r.lead_id is distinct from new.id
                                    order by r.reservado_en desc limit 1), 'sin asesor asignado'),
-              'via', 'identidad')::text;
+              'via', 'identidad',
+              'lead_id', (select r.lead_id from crm.conversion_reservas r
+                           where r.inversionista_id = v_inv and r.lead_id is distinct from new.id
+                           order by r.reservado_en desc limit 1))::text;
   end if;
+""")
+t2 = rep(t2, """    if old.inversionista_id is not null
+       or (nullif(pg_catalog.btrim(coalesce(new.dni,'')), '') is not null
+           and private.inversionista_por_documento('DNI', new.dni) is not null) then
+""", """    -- F2.b [D-13] (Codex #7): un lead que está en el PUENTE de una persona (aunque no lleve enlace vivo) también es de
+    -- una persona reconocida: su documento solo lo corrige Gerencia.
+    if old.inversionista_id is not null
+       or exists (select 1 from crm.inversionista_leads il where il.lead_id = new.id)
+       or (nullif(pg_catalog.btrim(coalesce(new.dni,'')), '') is not null
+           and private.inversionista_por_documento('DNI', new.dni) is not null) then
 """)
 
 # ── T3 tomar_lead_libre ─────────────────────────────────────────────────────────────────
 t3 = rep(prev['crm.tomar_lead_libre'], "  v_dni text := nullif(pg_catalog.btrim(p_dni), '');\n",
-         "  v_dni text := nullif(pg_catalog.btrim(p_dni), '');\n  v_veredicto_identidad jsonb;\n")
+         "  v_dni text := nullif(pg_catalog.btrim(p_dni), '');\n  v_veredicto_identidad jsonb;\n  v_flag_d13 boolean := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);\n  v_inv_reabre uuid;\n")
+t3 = rep(t3, """  if v_dni is not null and v_dni !~ '^[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'El DNI debe tener exactamente 8 digitos';
+  end if;
+""", """  if v_dni is not null and v_dni !~ '^[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'El DNI debe tener exactamente 8 digitos';
+  end if;
+  -- F2.b [D-13]: el candado documental del DNI TECLEADO va ANTES de bloquear filas (orden documento -> lead, el de la
+  -- reserva por persona y el de marcar/levantar): así la toma lee las reservas DESPUÉS de que una reserva en vuelo por
+  -- ese documento confirme o aborte. (Inerte con la bandera apagada.) El DNI del blanco solo se conoce tras su lock:
+  -- ese brazo lee sin candado; el sellado de la conversión revalida «un solo lead» bajo el lock de la persona.
+  perform private.identidad_bloquear_documento('DNI', v_dni);
+""")
 t3 = rep(t3, """     or not private.es_destino_crm_activo(v_actor, array['vendedor']::text[]) then
     raise exception using errcode = '42501', message = 'Acceso CRM revocado';
   end if;
@@ -155,18 +185,51 @@ t3 = rep(t3, """     or not private.es_destino_crm_activo(v_actor, array['vended
     raise exception using errcode = '42501', message = 'Acceso CRM revocado';
   end if;
 
-  -- F2.b [D-13]: con la identidad encendida, si el documento (el tecleado o el del blanco) resuelve a una
-  -- persona que ya tiene OTRO lead (enlace vivo o puente) o está en conversión, no se toma: manda el veredicto
-  -- fresco (solo lecturas bajo el lock del blanco; el blanco queda excluido del juicio).
-  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
-     and coalesce(v_dni, v_lead.dni) is not null then
-    v_veredicto_identidad := private.verificar_disponibilidad_lead_impl(v_tel, coalesce(v_dni, v_lead.dni), v_lead.id);
-    if v_veredicto_identidad->>'via' = 'identidad' then
+  -- F2.b [D-13]: con la identidad encendida se juzgan los DOS documentos (el tecleado y el del blanco, si difieren):
+  -- si alguno resuelve a una persona que ya es cliente, ya tiene OTRO lead (enlace vivo o puente) o está en
+  -- conversión, no se toma: manda el veredicto fresco, sea cual sea su vía (solo lecturas bajo el lock del blanco;
+  -- el blanco queda excluido del juicio).
+  if v_flag_d13 and (v_dni is not null or v_lead.dni is not null) then
+    v_veredicto_identidad := null;
+    if v_dni is not null then
+      v_veredicto_identidad := private.verificar_disponibilidad_lead_impl(v_tel, v_dni, v_lead.id);
+    end if;
+    if coalesce(v_veredicto_identidad->>'estado', '') <> 'ya_es_cliente'
+       and v_lead.dni is not null and v_lead.dni is distinct from v_dni then
+      v_veredicto_identidad := private.verificar_disponibilidad_lead_impl(v_tel, v_lead.dni, v_lead.id);
+    end if;
+    if v_veredicto_identidad->>'estado' = 'ya_es_cliente' then
       return private.toma_asienta_y_devuelve(v_actor, p_telefono, v_tel, v_dni, v_veredicto_identidad);
     end if;
   end if;
 
   -- Si OTRO lead vivo del mismo contacto tiene DUEÑO, el contacto está tomado
+""")
+t3 = rep(t3, """  if not found then
+    -- CAS en 0 filas: el estado cambió entre el veredicto y la escritura.
+    return private.toma_asienta_y_devuelve(v_actor, p_telefono, v_tel, v_dni,
+      private.verificar_disponibilidad_lead_impl(v_tel, v_dni));
+  end if;
+""", """  if not found then
+    -- CAS en 0 filas: el estado cambió entre el veredicto y la escritura.
+    return private.toma_asienta_y_devuelve(v_actor, p_telefono, v_tel, v_dni,
+      private.verificar_disponibilidad_lead_impl(v_tel, v_dni));
+  end if;
+  -- F2.b [D-13] (Codex #5): un lead vivo con el DNI de una persona reconocida queda ENLAZADO al tomarse (como al
+  -- nacer): así la reserva, el sellado y las conversiones lo ven por identidad. Solo inversionista_id, bajo válvula
+  -- (el trigger zz escribe el puente canónico). Si el lead ya está en el puente de OTRA persona, no se toma.
+  if v_flag_d13 and v_lead.dni is not null and v_lead.inversionista_id is null then
+    v_inv_reabre := private.inversionista_por_documento('DNI', v_lead.dni);
+    if v_inv_reabre is not null then
+      if exists (select 1 from crm.inversionista_leads il
+                  where il.lead_id = v_lead.id and private.inversionista_canonica(il.inversionista_id) is distinct from v_inv_reabre) then
+        raise exception 'Este lead pertenece a otra persona según su puente: corrección o fusión de Gerencia' using errcode = 'P0409';
+      end if;
+      perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);
+      update crm.leads set inversionista_id = v_inv_reabre where id = v_lead.id and inversionista_id is null;
+      perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
+    end if;
+  end if;
 """)
 
 # ── T4/T5 conversiones: el puente del propio lead manda ─────────────────────────────────
@@ -189,10 +252,138 @@ def puente(s, que):
   end if;
 """)
 t4 = puente(prev['crm.convertir_lead'], 'del cliente')
+t4 = rep(t4, """    raise exception 'La persona de este lead (según su puente) no es la del documento del cliente: corrección o fusión de Gerencia'
+      using errcode = 'P0409';
+  end if;
+""", """    raise exception 'La persona de este lead (según su puente) no es la del documento del cliente: corrección o fusión de Gerencia'
+      using errcode = 'P0409';
+  end if;
+  -- F2.b [D-13] (Codex #2): una reserva viva o sellada de ESTE lead pertenece a UNA persona (b4): no se convierte para
+  -- otra por la puerta directa; el cierre de la saga trae la misma persona y pasa.
+  if v_flag and exists (select 1 from crm.conversion_reservas r
+                         where r.lead_id = p_lead_id and r.inversionista_id is not null
+                           and r.inversionista_id is distinct from v_inv
+                           and (r.efectos_iniciados_en is not null or r.expira_en > pg_catalog.now())) then
+    raise exception 'Este lead está reservado para otra persona: espera a que caduque o pide a Gerencia que lo retome'
+      using errcode = 'P0409';
+  end if;
+""")
 t5 = puente(prev['crm.convertir_lead_externo'], 'del cierre')
 
+t6 = rep(prev['crm.marcar_efectos_conversion.3'], """  return crm.marcar_efectos_conversion(p_lead_id);
+""", """  -- F2.b [D-13] (Codex #1): «un solo lead» revalidado bajo el lock de la persona ANTES del punto de no retorno:
+  -- un lead de esta persona nacido, reabierto o tomado mientras la reserva esperaba (o ya vencida) no deja cuentas
+  -- de portal huérfanas: no se sella, y Gerencia revisa o fusiona.
+  if exists (select 1 from private.leads_de_identidades(array[v_loc.inversionista_id]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene otro lead: no se sella la conversión (revisión o fusión de Gerencia)'
+      using errcode = 'P0409';
+  end if;
+  return crm.marcar_efectos_conversion(p_lead_id);
+""")
+
+REABRE = lambda lead, dni, inv_old: f"""  -- F2.b [D-13] (auditor M1 / Codex #6): un lead vivo con el DNI de una persona reconocida queda ENLAZADO al reabrirse
+  -- (como al nacer). Solo inversionista_id, bajo válvula (el trigger zz escribe el puente canónico).
+  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and {dni} is not null and {inv_old} is null then
+    v_inv_reabre := private.inversionista_por_documento('DNI', {dni});
+    if v_inv_reabre is not null then
+      perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);
+      update crm.leads set inversionista_id = v_inv_reabre where id = {lead} and inversionista_id is null;
+      perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
+    end if;
+  end if;
+"""
+t7 = rep(prev['crm.rescatar_descartes'], "  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);\n",
+         "  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);\n  v_veredicto jsonb;\n  v_inv_reabre uuid;\n")
+t7 = rep(t7, """      (l.no_contactar or (v_flag and coalesce(inv.no_contactar, false))) as no_contactar  -- veto de la PERSONA
+    from crm.lead_asignaciones la""", """      (l.no_contactar or (v_flag and coalesce(inv.no_contactar, false))) as no_contactar,  -- veto de la PERSONA
+      l.telefono, l.dni, l.inversionista_id
+    from crm.lead_asignaciones la""")
+t7 = rep(t7, """    if private.persona_vetada(v_fila.lead_id) then
+      raise exception 'Uno de los leads pertenece a una persona con la restricción «No insistir» y no puede reactivarse'
+        using errcode = 'P0429';
+    end if;
+  end loop;
+""", """    if private.persona_vetada(v_fila.lead_id) then
+      raise exception 'Uno de los leads pertenece a una persona con la restricción «No insistir» y no puede reactivarse'
+        using errcode = 'P0429';
+    end if;
+    -- F2.b [D-13] (auditor M1 / Codex #6): con la identidad encendida, un descartado cuyo documento pertenece a una
+    -- persona que ya es cliente, ya tiene OTRO lead (enlace vivo o puente) o está en conversión no se reactiva
+    -- (todo el lote falla, como con el veto). Si el lead ya está en el puente de OTRA persona, tampoco.
+    if v_flag and v_fila.dni is not null then
+      v_veredicto := private.verificar_disponibilidad_lead_impl(v_fila.telefono, v_fila.dni, v_fila.lead_id);
+      if v_veredicto->>'estado' = 'ya_es_cliente' then
+        raise exception 'Uno de los leads pertenece a una persona que ya es cliente o ya tiene su lead y no puede reactivarse'
+          using errcode = 'P0409', detail = pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'via', v_veredicto->>'via', 'lead_id', v_fila.lead_id)::text;
+      end if;
+      if v_fila.inversionista_id is null
+         and exists (select 1 from crm.inversionista_leads il
+                      where il.lead_id = v_fila.lead_id
+                        and private.inversionista_canonica(il.inversionista_id) is distinct from private.inversionista_por_documento('DNI', v_fila.dni)) then
+        raise exception 'Uno de los leads pertenece a otra persona según su puente: corrección o fusión de Gerencia'
+          using errcode = 'P0409';
+      end if;
+    end if;
+  end loop;
+""")
+t7 = rep(t7, """      la.analista_id as asesor_origen_id
+    from crm.lead_asignaciones la
+    join crm.leads l on l.id = la.lead_id
+    where la.id = any(p_episodios)
+      and la.resultado = 'descartado'
+      and l.activo = true""", """      la.analista_id as asesor_origen_id,
+      l.dni, l.inversionista_id
+    from crm.lead_asignaciones la
+    join crm.leads l on l.id = la.lead_id
+    where la.id = any(p_episodios)
+      and la.resultado = 'descartado'
+      and l.activo = true""")
+t7 = rep(t7, """     where id = v_fila.lead_id;
+
+    v_orden := v_orden + 1;
+""", """     where id = v_fila.lead_id;
+""" + REABRE('v_fila.lead_id', 'v_fila.dni', 'v_fila.inversionista_id') + """
+    v_orden := v_orden + 1;
+""")
+
+t8 = rep(prev['private.deshacer_descarte_implementacion'], "  v_lead    crm.leads%rowtype;\n",
+         "  v_lead    crm.leads%rowtype;\n  v_veredicto jsonb;\n  v_inv_reabre uuid;\n")
+t8 = rep(t8, """  if private.persona_vetada(v_lead.id) then
+    raise exception '%: no se puede reabrir', 'La persona tiene la restricción «No insistir»'
+      using errcode = 'P0429';
+  end if;
+""", """  if private.persona_vetada(v_lead.id) then
+    raise exception '%: no se puede reabrir', 'La persona tiene la restricción «No insistir»'
+      using errcode = 'P0429';
+  end if;
+  -- F2.b [D-13] (auditor M1 / Codex #6): gemela de rescatar_descartes: con la identidad encendida, un descartado
+  -- cuyo documento pertenece a una persona que ya es cliente, ya tiene OTRO lead o está en conversión no se reabre.
+  if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and v_lead.dni is not null then
+    v_veredicto := private.verificar_disponibilidad_lead_impl(v_lead.telefono, v_lead.dni, v_lead.id);
+    if v_veredicto->>'estado' = 'ya_es_cliente' then
+      raise exception 'La persona ya es cliente o ya tiene su lead: no se puede reabrir'
+        using errcode = 'P0409', detail = pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'via', v_veredicto->>'via', 'lead_id', v_lead.id)::text;
+    end if;
+    if v_lead.inversionista_id is null
+       and exists (select 1 from crm.inversionista_leads il
+                    where il.lead_id = v_lead.id
+                      and private.inversionista_canonica(il.inversionista_id) is distinct from private.inversionista_por_documento('DNI', v_lead.dni)) then
+      raise exception 'Este lead pertenece a otra persona según su puente: corrección o fusión de Gerencia' using errcode = 'P0409';
+    end if;
+  end if;
+""")
+t8 = rep(t8, """  select * into v_lead from crm.leads where id = p_lead;
+
+  return jsonb_build_object(""", REABRE('p_lead', 'v_lead.dni', 'v_lead.inversionista_id') + """
+  select * into v_lead from crm.leads where id = p_lead;
+
+  return jsonb_build_object(""")
+
 new = {'private.verificar_disponibilidad_lead_impl.3': t1, 'private.trg_leads_zz_enlaza_identidad': t2,
-       'crm.tomar_lead_libre': t3, 'crm.convertir_lead': t4, 'crm.convertir_lead_externo': t5}
+       'crm.tomar_lead_libre': t3, 'crm.convertir_lead': t4, 'crm.convertir_lead_externo': t5,
+       'crm.marcar_efectos_conversion.3': t6, 'crm.rescatar_descartes': t7, 'private.deshacer_descarte_implementacion': t8}
 H_NEW = {k: md5(v) for k, v in new.items()}
 for k in FN: assert H_NEW[k] != prod[k]
 
@@ -207,6 +398,13 @@ GUARDS = ''.join(f"""  v_h := {md5sel(k)};
     raise exception 'F2.b D-13: {FN[k][3]} no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
   end if;
 """ for k in FN)
+GUARD_000 = """  if not exists (select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
+                   where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_hereda_veto' and not t.tgisinternal and t.tgenabled = 'O'
+                     and pg_get_triggerdef(t.oid) like '%BEFORE INSERT ON crm.leads%'
+                     and strpos(p.prosrc, 'identidad_bloquear_documento') > 0) then
+    raise exception 'F2.b D-13: falta la premisa de serialización: trg_leads_000_hereda_veto (BEFORE INSERT, habilitado) tomando private.identidad_bloquear_documento (b1)';
+  end if;
+"""
 GUARD_LDI = f"""  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='leads_de_identidades' and pg_get_function_identity_arguments(p.oid)='p_ids uuid[]') is distinct from '{H_LDI}' then
     raise exception 'F2.b D-13: private.leads_de_identidades(uuid[]) no es el texto vivo de producción (b5)';
   end if;
@@ -226,10 +424,14 @@ GRANTS = f"""  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure,'private.verificar_disponibilidad_lead_impl(text,text)'::regprocedure,'private.trg_leads_zz_enlaza_identidad()'::regprocedure) and a.grantee = 0) then
     raise exception 'D-13: las funciones privadas del verificador/trigger no pueden tener EXECUTE para la API ni PUBLIC';
   end if;
-  if exists (select 1 from unnest(array['crm.tomar_lead_libre(text,text)','crm.convertir_lead(uuid,uuid)','crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)']) f(firma)
+  if exists (select 1 from unnest(array['crm.tomar_lead_libre(text,text)','crm.convertir_lead(uuid,uuid)','crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)','crm.marcar_efectos_conversion(uuid,uuid,text)','crm.rescatar_descartes(uuid[],uuid[],boolean)']) f(firma)
               where not has_function_privilege('authenticated', f.firma, 'EXECUTE') or has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE'))
-     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.tomar_lead_libre(text,text)'::regprocedure,'crm.convertir_lead(uuid,uuid)'::regprocedure,'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'::regprocedure) and a.grantee = 0) then
-    raise exception 'D-13: los grants de tomar_lead_libre / convertir_lead / convertir_lead_externo cambiaron (solo authenticated)';
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.tomar_lead_libre(text,text)'::regprocedure,'crm.convertir_lead(uuid,uuid)'::regprocedure,'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'::regprocedure,'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure,'crm.rescatar_descartes(uuid[],uuid[],boolean)'::regprocedure) and a.grantee = 0) then
+    raise exception 'D-13: los grants de las RPC transformadas cambiaron (solo authenticated)';
+  end if;
+  if exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.deshacer_descarte_implementacion(uuid)', 'EXECUTE'))
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'private.deshacer_descarte_implementacion(uuid)'::regprocedure and a.grantee = 0) then
+    raise exception 'D-13: private.deshacer_descarte_implementacion no puede tener EXECUTE para la API ni PUBLIC';
   end if;
 """
 HELPER_POST = """  if to_regprocedure('private.persona_en_conversion(uuid,uuid)') is null
@@ -249,7 +451,7 @@ mig = f"""-- ===================================================================
 -- MANDA» EN TODAS LAS PUERTAS CON LA BANDERA ENCENDIDA (bloque 2; auditor D-10 M2, Codex D-10 #2/#3/#5)
 -- ============================================================================
 --
--- QUE (todo dentro de la rama ON; con la bandera APAGADA las cinco funciones responden como hoy):
+-- QUE (todo dentro de la rama ON; con la bandera APAGADA las ocho funciones responden como hoy):
 --   * private.verificar_disponibilidad_lead_impl(tel, dni, excluir): la persona del DNI «ya es cliente» (via identidad)
 --     si tiene OTRO lead por enlace vivo o por PUENTE (private.leads_de_identidades, b5) o si está EN CONVERSIÓN
 --     (reserva por persona viva o sellada de otro lead, helper nuevo private.persona_en_conversion). `asesor` =
@@ -260,7 +462,13 @@ mig = f"""-- ===================================================================
 --   * crm.tomar_lead_libre: tras el lock del blanco y la membresía, si el documento (tecleado o del blanco) resuelve
 --     a una persona con otro lead o en conversión → devuelve el veredicto fresco sin tomar (Codex D-10 #5).
 --   * crm.convertir_lead y crm.convertir_lead_externo: «el puente del propio lead manda» (por la canónica), como ya
---     hace la reserva por persona desde D-10 (Codex D-10 #2).
+--     hace la reserva por persona desde D-10 (Codex D-10 #2); convertir_lead además rechaza convertir un lead reservado
+--     para OTRA persona por la puerta directa (Codex D-13 #2).
+--   * crm.marcar_efectos_conversion(lead, claim, token): «un solo lead» revalidado bajo el lock de la persona ANTES del
+--     punto de no retorno (Codex D-13 #1): sin cuentas de portal huérfanas por un lead nacido/reabierto en medio.
+--   * crm.rescatar_descartes y private.deshacer_descarte_implementacion: mismo juicio de identidad que la toma; y al
+--     reabrir (o tomar) un lead con DNI de una persona reconocida, el lead queda ENLAZADO (como al nacer), para que la
+--     reserva, el sellado y las conversiones lo vean por identidad (Codex D-13 #5/#6; auditor M1).
 -- Generada desde el texto VIVO de producción (scripts/f2b/gen-d13.py, vivas/d13, huellas-d13-prod.txt): guardas
 -- md5 EXACTAS, postflight byte a byte, grants comprobados. Independiente de D-10 (no comparten función).
 -- Ensayo: scripts/oraculo-f2b-d13.sh. Reversa: scripts/rollback-f2b-d13.sql (restaura, suelta el helper, desregistra).
@@ -278,7 +486,7 @@ begin
      or to_regprocedure('private.trg_leads_hereda_veto_persona()') is null then
     raise exception 'F2.b D-13: faltan b2 (20260904130000) o b5 (20260905120000)';
   end if;
-{FLAG_OFF('F2.b D-13')}{GUARD_LDI}{GUARDS}end
+{FLAG_OFF('F2.b D-13')}{GUARD_000}{GUARD_LDI}{GUARDS}end
 $guard$;
 
 {HELPER}
@@ -309,9 +517,24 @@ $guard$;
 {t5}
 ;
 
+-- ============================================================================
+-- 5. Sellado de la conversión: «un solo lead» bajo el lock de la persona, antes del punto de no retorno
+-- ============================================================================
+{t6}
+;
+
+-- ============================================================================
+-- 6. Reactivaciones (rescate de supervisión y deshacer descarte): juicio de identidad + enlazar al reabrir
+-- ============================================================================
+{t7}
+;
+
+{t8}
+;
+
 do $post$
 begin
-{POST_MD5}{GRANTS}{HELPER_POST}{FLAG_OFF('POSTFLIGHT D-13')}  raise notice 'F2.b D-13 OK: un solo lead (enlace vivo ∪ puente) y persona en conversión en el verificador, el nacimiento del lead y la toma; el puente del propio lead manda en las conversiones (rama ON). Bandera APAGADA.';
+{POST_MD5}{GRANTS}{HELPER_POST}{GUARD_000}{FLAG_OFF('POSTFLIGHT D-13')}  raise notice 'F2.b D-13 OK: un solo lead (enlace vivo ∪ puente) y persona en conversión en el verificador, el nacimiento del lead y la toma; el puente del propio lead manda en las conversiones (rama ON). Bandera APAGADA.';
 end
 $post$;
 commit;
@@ -346,6 +569,15 @@ $guard$;
 {prev['crm.convertir_lead_externo']}
 ;
 
+{prev['crm.marcar_efectos_conversion.3']}
+;
+
+{prev['crm.rescatar_descartes']}
+;
+
+{prev['private.deshacer_descarte_implementacion']}
+;
+
 drop function if exists private.persona_en_conversion(uuid, uuid);
 
 do $post$
@@ -367,7 +599,7 @@ reg_checks = ''.join(f"""  if {md5sel(k)} is distinct from '{H_NEW[k]}' then
 """ for k in FN)
 reg = ("-- REGISTRO en supabase_migrations.schema_migrations de F2.b [D-13]. `db query --linked --file` NO registra: correr DESPUÉS de aplicar.\n"
        "-- Se niega si alguna de las 5 funciones vivas no es la de D-13, si la bandera está encendida o si la versión está registrada con OTRO contenido.\n"
-       "begin;\ndo $chk$\nbegin\n" + reg_checks + FLAG_OFF('REGISTRO D-13') +
+       "begin;\nselect pg_advisory_xact_lock(hashtext('crm_f2b_d13_un_solo_lead_todas_las_puertas'));\ndo $chk$\nbegin\n" + reg_checks + FLAG_OFF('REGISTRO D-13') +
        "  if exists (select 1 from supabase_migrations.schema_migrations where version='20260905160000' and md5(statements[1]) <> '" + H_MIG + "') then\n"
        "    raise exception 'REGISTRO D-13: la versión 20260905160000 ya está registrada con otro contenido';\n  end if;\nend\n$chk$;\n"
        "insert into supabase_migrations.schema_migrations (version, name, statements)\nvalues ('20260905160000', 'crm_f2b_d13_un_solo_lead_en_todas_las_puertas', array[$m$" + mig + "$m$])\non conflict (version) do nothing;\ncommit;\n")

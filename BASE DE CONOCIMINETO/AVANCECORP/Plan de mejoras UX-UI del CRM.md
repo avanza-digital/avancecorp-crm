@@ -2,6 +2,8 @@
 
 Plan por fases para aplicar los fundamentos UX/UI (más allá de Gestalt y color) al CRM. Cada fase entrega algo visible y sirve de base para la siguiente. Pantallas de referencia: Hoy, Agenda, Pipeline, Mi Cartera, Repartir, Derivaciones, Gerencia y los flujos de lead-drawer / contrato-nuevo.
 
+**Plan específico de Gerencia:** [[Plan de mejora UX de Gerencia - revision 2026-09-05]] recupera su PDF por rol y actualiza prioridades, fases y validación. Es el seguimiento de experiencia del usuario de Gerencia; el plan de corrección de métricas conserva su propio alcance.
+
 ## Lo que ya está a favor
 
 - **Role-Based UX ya existe**: vistas por rol (vendedor, supervisor, gerencia, config de admin).

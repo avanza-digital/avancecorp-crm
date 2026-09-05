@@ -5305,17 +5305,31 @@ async function testContractBankAccounts(sessions, seed) {
         'idempotencia: la respuesta trae id, pdf.estado=sin_reserva, job_id=null y SIN marca idempotente',
         JSON.stringify(primera?.data ?? null).slice(0, 240),
       );
-      const repetida = await positive(
-        'idempotencia: el reintento con la MISMA clave y OTRO numero no crea otro contrato',
+      // El incidente: el analista cree que fallo, CAMBIA el numero y reintenta. La
+      // misma clave con otros datos no hace replay ni crea otro: P0409 con el numero.
+      await expectExpectedFailure(
+        'idempotencia: la MISMA clave con OTRO numero se rechaza nombrando el contrato ya creado (el incidente)',
         altaIdem(`RLS-IDEM-${idemToken}-2`, { clave_idempotencia: claveIdem }),
+        ['P0409'],
+        new RegExp(`ya creó el contrato RLS-IDEM-${idemToken}-1 con otros datos`),
+      );
+      const repetida = await positive(
+        'idempotencia: el reintento con la MISMA clave y los MISMOS datos devuelve el mismo contrato',
+        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
       );
       check(
         repetida?.data?.id === idPrimera
           && repetida?.data?.idempotente === true
           && repetida?.data?.numero_contrato === `RLS-IDEM-${idemToken}-1`
           && repetida?.data?.pdf?.contrato_id === idPrimera,
-        'idempotencia: el reintento devuelve el MISMO contrato, idempotente=true y el numero del alta registrada',
+        'idempotencia: el replay devuelve el MISMO contrato, idempotente=true y el pdf recalculado del mismo contrato',
         JSON.stringify(repetida?.data ?? null).slice(0, 240),
+      );
+      await expectExpectedFailure(
+        'idempotencia: la MISMA clave con OTRO capital tampoco hace replay (P0409)',
+        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem, capital: 25000 }),
+        ['P0409'],
+        /ya creó el contrato .* con otros datos/,
       );
       const contratosIdem = await requireAdmin(
         'contar contratos del ensayo de idempotencia',
@@ -5323,7 +5337,7 @@ async function testContractBankAccounts(sessions, seed) {
           .like('numero_contrato', `RLS-IDEM-${idemToken}-%`),
       );
       check(contratosIdem.count === 1,
-        'idempotencia: hay UN solo contrato para las dos llamadas (el duplicado del 05/09 no nace)',
+        'idempotencia: hay UN solo contrato tras las cuatro llamadas (el duplicado del 05/09 no nace)',
         `count=${contratosIdem.count}`);
       await expectExpectedFailure(
         'idempotencia: una clave que no es uuid se rechaza (22023) sin escribir',

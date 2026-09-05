@@ -2,7 +2,7 @@
 tags: [crm, gerencia, metricas, contrato, n1, n2, n3, n4]
 requerimiento: REQ-GER-MET-001
 fecha: 2026-09-05
-estado: implementado-local-sql-exacto-probado-confirmacion-productiva-pendiente
+estado: sql-productivo-aplicado-y-verificado-frontend-pendiente
 ---
 
 # Contrato técnico de ampliaciones N1–N4 de Gerencia
@@ -15,7 +15,7 @@ Se ampliaron exclusivamente las respuestas existentes de Conversión y Citas. No
 
 La terminología visible acordada por Miguel es **«Resultados de los leads del mes»**. Se retiraron «Resultados de las llegadas · hasta hoy» y «Cosecha del lote» de Resumen, Conversiones y Ranking. Es sólo un cambio de presentación: la población sigue siendo los leads recibidos en el mes y el servidor conserva su corte y atribución canónicos.
 
-SQL exacto preparado: `CRM-Avance-Corp/supabase/migrations/20260905155129_gerencia_contrato_cuatro_datos.sql`. Reversión exacta: `CRM-Avance-Corp/supabase/scripts/rollback-gerencia-contrato-cuatro-datos.sql`. **No se aplicó en producción.** Falta mostrarlo y recibir confirmación expresa antes de cualquier cambio de base de datos; una publicación requiere además autorización propia.
+SQL exacto confirmado por Miguel y aplicado en producción el 5 de septiembre, 12:53 Lima: `CRM-Avance-Corp/supabase/migrations/20260905175342_gerencia_contrato_cuatro_datos.sql`. El archivo se renombró desde el identificador preparado `20260905155129` al registrado por Supabase, sin cambiar un byte del contenido aprobado. Reversión exacta: `CRM-Avance-Corp/supabase/scripts/rollback-gerencia-contrato-cuatro-datos.sql`. Huellas, permisos y respuestas reales comprobados en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]]. La publicación del frontend ya está autorizada y sigue en curso.
 
 ## N1 · Llegadas con cita registrada como realizada
 
@@ -94,6 +94,8 @@ Lectura de sólo lectura del 5 de septiembre: el censo global ya estaba rojo ant
 REQ-GER-MET-001 no obtiene permiso para reparar esos objetos ajenos. La migración bloquea las dos filas afectadas, toma una fotografía del resto del censo y exige igualdad exacta al terminar. Sólo actualiza y re-sella los dos agregadores que cambia; no convierte el rojo heredado en un falso verde. El rollback restaura incluso la declaración caduca anterior de conversión para ser una reversión fiel.
 
 ## Puertas pendientes
+
+Actualización de ejecución: el SQL exacto ya se presentó; aún falta su confirmación. Candidato `5ada0c5` guardado, sincronizado y empaquetado, con cambios concurrentes posteriores por revisar antes de publicar. La publicación del frontend ya está autorizada. Evidencia vigente en [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]].
 
 - [x] Contrato N1–N4 implementado localmente.
 - [x] SQL, rollback y prueba aislada focal aprobados.

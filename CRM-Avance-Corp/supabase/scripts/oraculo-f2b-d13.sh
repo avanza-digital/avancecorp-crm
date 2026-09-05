@@ -8,7 +8,7 @@ PG="$(cat "$S/banco-pooler.txt")"
 RUN="${RUN:-$(date +%d%H%M)}"
 V='f3000000-0000-0000-0000-000000000001'; G='f3000000-0000-0000-0000-000000000002'
 L1="f31ead00-0000-0000-0000-${RUN}000001"; L2="f31ead00-0000-0000-0000-${RUN}000002"; L3="f31ead00-0000-0000-0000-${RUN}000003"
-DZ="2${RUN}1"; DY="2${RUN}2"; DB="2${RUN}3"; DC="2${RUN}4"; DL="2${RUN}5"; DZ2="2${RUN}6"; DW2="2${RUN}7"
+DZ="2${RUN}1"; DY="2${RUN}2"; DB="2${RUN}3"; DC="2${RUN}4"; DL="2${RUN}5"; DZ2="2${RUN}6"; DW2="2${RUN}7"; DX="2${RUN}8"; DL2="2${RUN}9"; DE="1${RUN}1"; DR="1${RUN}2"; DD="1${RUN}3"; DU="1${RUN}4"
 ROJO=0; AQUI="$(cd "$(dirname "$0")" && pwd)"
 ok()   { echo "  ✅ $*"; }
 rojo() { echo "  ❌ $*" >&2; ROJO=$((ROJO+1)); }
@@ -36,10 +36,14 @@ sim_perfil(){ psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','
 inv_de() { q "select private.inversionista_por_documento('DNI','$1')"; }
 resolver() { q "select private.inversionista_resolver('DNI','$1',true,'ensayo-d13')"; }
 puente() { sys "insert into crm.inversionista_leads (inversionista_id, lead_id, rol) values ('$1','$2','$3')"; }
+sellar() { run_as "$V" "select crm.marcar_efectos_conversion('$1','$2','$3')"; }
+rescatar() { run_as "$G" "select crm.rescatar_descartes(array['$1']::uuid[], array['$V']::uuid[], false)"; }
+deshacer() { run_as "$G" "select crm.deshacer_descarte('$1')"; }
+lead_off() { flag false; sys "insert into crm.leads (id,nombre_completo,telefono,dni,monto_estimado,origen,etapa,creado_por,vendedor_id) values ('$1','D13 $3 r$RUN','9${RUN}$2','$4',1000,'landing','nuevo',null,${5:-null})"; flag true; }
 
 echo "== Preflight (RUN=$RUN) =="
 psql "$PG" -q -v ON_ERROR_STOP=1 -v run="$RUN" -c "set timezone='America/Lima';" -f "$AQUI/siembra-banco-f3.sql" 2>&1 | grep -E "SIEMBRA-F3-OK|ERROR" | head -2
-[[ "$(q "select to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null")" == "t" ]] || { echo "falta D-13" >&2; exit 2; }
+if [[ "$(q "select to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null")" == "t" ]]; then echo "  D-13 instalada (todo debe salir VERDE)"; else echo "  ⚠️ D-13 NO instalada: corrida MUTANTE (T1..T5 deben salir ROJOS)"; fi
 flag true; flag_inv false
 VNOM="$(q "select nombre_completo from public.perfiles where id='$V'")"
 
@@ -65,6 +69,8 @@ R="$(crear "9${RUN}96" "$DB" B)"; [[ "$(j "$R" estado)" == "ya_es_cliente" ]] &&
 sys "update crm.conversion_reservas set expira_en = now() - interval '1 minute' where lead_id='$L2'"
 R="$(verificar "9${RUN}96" "$DB")"; [[ "$(j "$R" estado)" == "libre" ]] && ok "reserva caducada y NO sellada → la persona vuelve a estar libre (verificar → libre)" || rojo "caducada: $R"
 R="$(insertar "$LI3" "9${RUN}96" B "'$DB'")"; [[ "$(q "select inversionista_id from crm.leads where id='$LI3'")" == "$IB" ]] && ok "reserva caducada → el INSERT pasa y el lead nace enlazado a IB" || rojo "caducada INSERT: $(echo "$R" | head -c 200)"
+R="$(sellar "$L2" "$CLB" "$TKB")"; echo "$R" | grep -q "no se sella" && [[ "$(q "select efectos_iniciados_en is null from crm.conversion_reservas where lead_id='$L2'")" == "t" ]] && ok "[T6 Codex #1] sellar la reserva de L2 después de que naciera otro lead de IB → P0409 «no se sella» (sin cuenta de portal huérfana)" || rojo "T6 sellado: $(echo "$R" | head -c 200)"
+R="$(verificar "9${RUN}96" "$DB")"; [[ "$(j "$R" estado)" == "ya_es_cliente" && "$(j "$R" asesor)" != "$VNOM" ]] && ok "[T1 auditor N3] con la reserva caducada, «asesor» ya no es quien reservó (es el responsable o el centinela)" || rojo "N3: $R"
 R="$(reservar "$V" "$L3" "$DC" "$(pay "c$RUN@x.pe" C 3)")"; IC="$(j "$R" inversionista_id)"; CLC="$(j "$R" claim_id)"; TKC="$(j "$R" token)"
 R="$(run_as "$V" "select crm.marcar_efectos_conversion('$L3','$CLC','$TKC')")"; [[ "$(j "$R" ok)" == "True" ]] && ok "fixture: reserva de L3 para IC SELLADA (efectos iniciados)" || rojo "sellar L3: $(echo "$R" | head -c 200)"
 sys "update crm.conversion_reservas set expira_en = now() - interval '1 minute' where lead_id='$L3'"
@@ -84,8 +90,13 @@ IL="$(resolver "$DL")"; H="$(uuid)"; lead_nuevo "$H" 89 >/dev/null; puente "$IL"
 R="$(tomar "9${RUN}88" "'$DL'")"; [[ "$(j "$R" estado)" == "ya_es_cliente" && "$(j "$R" via)" == "identidad" ]] && ok "[T3] tomar_lead_libre(tel de LL, DNI) → veredicto ya_es_cliente vía identidad (no se toma)" || rojo "T3 tomar: $(echo "$R" | head -c 200)"
 [[ "$(q "select etapa||' '||coalesce(vendedor_id::text,'-') from crm.leads where id='$LL'")" == "descartado -" ]] && ok "[T3] LL intacto (sigue descartado y sin dueño)" || rojo "T3 LL cambió"
 R="$(tomar "9${RUN}88")"; [[ "$(j "$R" estado)" == "ya_es_cliente" ]] && ok "[T3] toma por TELÉFONO solo: el DNI del blanco también juzga → ya_es_cliente" || rojo "T3 por teléfono: $(echo "$R" | head -c 200)"
+R="$(tomar "9${RUN}88" "'$DX'")"; [[ "$(j "$R" estado)" == "ya_es_cliente" ]] && ok "[T3 Codex #3] DNI tecleado DISTINTO y sin dueño: el DNI del blanco también se juzga → ya_es_cliente" || rojo "T3 dos documentos: $(echo "$R" | head -c 200)"
 sys "delete from crm.inversionista_leads where inversionista_id='$IL' and lead_id='$H'"
 R="$(tomar "9${RUN}88" "'$DL'")"; [[ "$(j "$R" estado)" == "tomado_ok" && "$(q "select etapa||' '||coalesce(vendedor_id::text,'-') from crm.leads where id='$LL'")" == "nuevo $V" ]] && ok "[T3] sin el puente, la misma toma → tomado_ok (LL nuevo, de V): el veredicto era por el puente (par mutante)" || rojo "T3 sin puente: $(echo "$R" | head -c 200) · $(q "select etapa, vendedor_id from crm.leads where id='$LL'")"
+[[ "$(q "select inversionista_id from crm.leads where id='$LL'")" == "$IL" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LL' and inversionista_id='$IL' and rol='canonico'")" == "1" ]] && ok "[T3 Codex #5] al tomarse, LL quedó ENLAZADO a IL con puente canónico (visible a reserva, sellado y conversiones)" || rojo "T3 enlace al tomar: $(q "select inversionista_id from crm.leads where id='$LL'")"
+LL2="$(uuid)"; lead_off "$LL2" 87 LEGADO2 "$DL2"; sys "update crm.leads set etapa='descartado', motivo_descarte='sin_interes' where id='$LL2'"; psql "$PG" -q -c "begin; alter table crm.leads disable trigger trg_leads_zz_sello_descarte; update crm.leads set descartado_en = now() - interval '400 days' where id='$LL2'; alter table crm.leads enable trigger trg_leads_zz_sello_descarte; commit;" >/dev/null 2>&1
+AUL="$(uuid)"; sim_perfil "$AUL" "$DL2" "l2$RUN@x.pe"
+R="$(tomar "9${RUN}87")"; [[ "$(j "$R" estado)" == "ya_es_cliente" && "$(q "select etapa from crm.leads where id='$LL2'")" == "descartado" ]] && ok "[T3 Codex #4] blanco cuyo DNI es de un CLIENTE del Portal (ya_es_cliente sin vía) → no se toma" || rojo "T3 sin vía: $(echo "$R" | head -c 200)"
 
 echo "== (5) Conversiones: el puente del propio lead manda =="
 IZ2="$(resolver "$DZ2")"; LH2="$(uuid)"; lead_nuevo "$LH2" 82 >/dev/null; puente "$IZ2" "$LH2" historico
@@ -93,6 +104,22 @@ R="$(coop "$LH2" "$DW2" 5)"; echo "$R" | grep -q "según su puente" && [[ "$(q "
 AUW="$(uuid)"; sim_perfil "$AUW" "$DW2" "w$RUN@x.pe"
 R="$(run_as "$V" "select crm.convertir_lead('$LH2','$AUW')")"; echo "$R" | grep -q "según su puente" && [[ "$(q "select etapa from crm.leads where id='$LH2'")" == "nuevo" ]] && ok "[T4] convertir_lead(LH2, perfil con documento de OTRA persona) → P0409 «según su puente», LH2 intacto" || rojo "T4: $(echo "$R" | head -c 220)"
 R="$(coop "$LH2" "$DZ2" 6)"; [[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LH2'")" == "convertido $IZ2" ]] && ok "[T5] con el documento de SU persona (la del puente) → convierte y enlaza a IZ2" || rojo "T5 positivo: $(echo "$R" | head -c 220)"
+L4="f31ead00-0000-0000-0000-${RUN}000004"; R="$(reservar "$V" "$L4" "$DE" "$(pay "e$RUN@x.pe" E 4)")"; [[ "$(j "$R" estado)" == "reclamado" ]] && ok "fixture: reserva viva de L4 (sin DNI) para la persona de $DE" || rojo "reserva L4: $(echo "$R" | head -c 160)"
+R="$(run_as "$V" "select crm.convertir_lead('$L4','$AUW')")"; echo "$R" | grep -q "reservado para otra persona" && [[ "$(q "select etapa from crm.leads where id='$L4'")" == "nuevo" ]] && ok "[T4 Codex #2] convertir_lead directo de un lead reservado para OTRA persona → P0409, L4 intacto" || rojo "T4 reserva ajena: $(echo "$R" | head -c 220)"
+echo "== (7) Reactivaciones: rescate de supervisión y deshacer descarte =="
+LR="$(uuid)"; lead_off "$LR" 86 RESCATE "$DR" "'$V'"; run_as "$V" "update crm.leads set etapa='descartado', motivo_descarte='sin_interes' where id='$LR'" >/dev/null
+EP="$(q "select la.id from crm.lead_asignaciones la where la.lead_id='$LR' and la.resultado='descartado' order by la.resultado_en desc limit 1")"; IR="$(resolver "$DR")"; HR="$(uuid)"; lead_nuevo "$HR" 79 >/dev/null; puente "$IR" "$HR" historico
+[[ -n "$EP" && "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LR'")" == "descartado -" ]] && ok "fixture: LR descartado con episodio (DNI $DR, sin enlace); IR con HR solo en el puente" || rojo "fixture LR/EP: EP=$EP"
+R="$(rescatar "$EP")"; echo "$R" | grep -q "ya es cliente o ya tiene su lead" && [[ "$(q "select etapa from crm.leads where id='$LR'")" == "descartado" ]] && ok "[T7 auditor M1] rescatar_descartes → P0409 (persona con lead en el puente), LR sigue descartado" || rojo "T7 rescatar: $(echo "$R" | head -c 220)"
+sys "delete from crm.inversionista_leads where inversionista_id='$IR' and lead_id='$HR'"
+R="$(rescatar "$EP")"; [[ "$(j "$R" rescatados)" == "1" && "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LR'")" == "nuevo $IR" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LR' and rol='canonico'")" == "1" ]] && ok "[T7] sin el puente, el rescate reabre LR y lo ENLAZA a IR (puente canónico)" || rojo "T7 rescate positivo: $(echo "$R" | head -c 200) · $(q "select etapa, inversionista_id from crm.leads where id='$LR'")"
+LD="$(uuid)"; lead_off "$LD" 85 DESHACER "$DD"; R="$(run_as "$G" "update crm.leads set etapa='descartado', motivo_descarte='sin_interes' where id='$LD'")"; ID="$(resolver "$DD")"; HD="$(uuid)"; lead_nuevo "$HD" 78 >/dev/null; puente "$ID" "$HD" historico
+[[ "$(q "select etapa||' '||coalesce(descartado_por::text,'-') from crm.leads where id='$LD'")" == "descartado $G" ]] && ok "fixture: LD descartado por G hace un instante (DNI $DD, sin enlace); ID con HD solo en el puente" || rojo "fixture LD: $(q "select etapa, descartado_por from crm.leads where id='$LD'") $(echo "$R" | head -c 120)"
+R="$(deshacer "$LD")"; echo "$R" | grep -q "ya es cliente o ya tiene su lead" && [[ "$(q "select etapa from crm.leads where id='$LD'")" == "descartado" ]] && ok "[T8 auditor M1] deshacer_descarte → P0409 (persona con lead en el puente), LD sigue descartado" || rojo "T8 deshacer: $(echo "$R" | head -c 220)"
+sys "delete from crm.inversionista_leads where inversionista_id='$ID' and lead_id='$HD'"
+R="$(deshacer "$LD")"; [[ "$(j "$R" etapa)" == "nuevo" && "$(q "select inversionista_id from crm.leads where id='$LD'")" == "$ID" ]] && ok "[T8] sin el puente, deshacer reabre LD y lo ENLAZA a ID" || rojo "T8 deshacer positivo: $(echo "$R" | head -c 200)"
+echo "== (8) UPDATE de DNI de un lead solo-puente =="
+R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; update crm.leads set dni='$DU' where id='$LH'; commit;" 2>&1)"; echo "$R" | grep -q "P0409" && [[ "$(q "select dni is null from crm.leads where id='$LH'")" == "t" ]] && ok "[T2 Codex #7] cambiar el DNI de un lead que está en un puente → P0409 «solo Gerencia lo corrige», DNI intacto" || rojo "UPDATE dni solo-puente: $(echo "$R" | head -c 200)"
 
 echo "== (6) Paridad con la bandera APAGADA =="
 flag false
@@ -102,5 +129,5 @@ R="$(coop "$LI5" "$DW2" 7)"; [[ "$(q "select etapa||' '||coalesce(inversionista_
 
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1
 flag false; flag_inv false
-echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b D-13: VERDE — un solo lead (enlace vivo ∪ puente) y persona en conversión en el verificador, el nacimiento del lead y la toma; el puente del propio lead manda en las conversiones; paridad apagada."; exit 0
+echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b D-13: VERDE — un solo lead (enlace vivo ∪ puente) y persona en conversión en el verificador, el nacimiento, la toma, el rescate y el deshacer; reabrir/tomar enlaza; el sellado revalida; el puente del propio lead manda en las conversiones; paridad apagada."; exit 0
 else echo "ORÁCULO F2.b D-13: ROJO — $ROJO aserciones fallaron." >&2; exit 1; fi

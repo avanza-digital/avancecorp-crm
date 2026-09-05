@@ -1685,6 +1685,17 @@ function aErrorApi(
   } else if (codigoPg === 'P0481') {
     code = 'CONTACTO_NO_DISPONIBLE'
     mensaje = 'Ese teléfono o DNI no está disponible para este lead.'
+  } else if (codigoPg === 'P0409' && texto.includes('ya creó el contrato')) {
+    // Idempotencia del alta: la misma clave llegó con OTROS datos y el intento
+    // anterior SÍ creó el contrato. El servidor no creó otro ni devolvió el viejo
+    // como si fuera el nuevo: lo dice, con el número, y el modal decide qué hacer.
+    code = 'ALTA_YA_CREADA'
+    mensaje = error.message ?? mensaje
+  } else if (codigoPg === 'P0409' && texto.includes('fue eliminado después')) {
+    // Lápida: el contrato de ese intento fue eliminado a propósito; el reintento
+    // tardío no lo recrea. El modal libera la clave y pide volver a pulsar.
+    code = 'ALTA_ELIMINADA'
+    mensaje = error.message ?? mensaje
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
     // 22023 = validaciones de parámetros de las RPC operativas.

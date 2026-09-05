@@ -16,8 +16,12 @@
 -- QUÉ HACE. El front manda dentro de p_contrato una `clave_idempotencia` (uuid por
 -- intento de formulario, la misma en cada reintento). Este wrapper —la puerta VIVA del
 -- alta— la lee, serializa por (actor, clave) con un lock advisory, y si ya registró
--- un alta con esa clave devuelve el MISMO contrato (con el estado documental de hoy y
--- `idempotente: true`); si no, quita la clave del JSON, corre la cadena EXACTAMENTE
+-- un alta con esa clave y LOS MISMOS DATOS devuelve el MISMO contrato (con el estado
+-- documental de hoy e `idempotente: true`), pasando por la misma autorización que el alta
+-- y con la fila del contrato bloqueada (serializa con la puerta de eliminación); con la
+-- misma clave y OTROS datos avisa con P0409 nombrando el contrato ya creado, sin crear ni
+-- devolver nada; si el contrato fue eliminado después, P0409 «eliminado» (lápida, no
+-- recrea). Si no hay memoria, quita la clave del JSON, corre la cadena EXACTAMENTE
 -- como hoy (crm.crear_contrato_con_cuenta → public.crear_contrato → reserva PDF) y
 -- guarda la respuesta en private.contrato_altas_idempotentes dentro de la misma transacción.
 -- Sin clave, el comportamiento es byte a byte el de producción: los clientes viejos
@@ -28,11 +32,11 @@
 -- altera ni borra ningún objeto de `public` (la FK referencia public.contratos, como
 -- ya hace private.contrato_eliminaciones). La tabla vive en `private`: sin grants para
 -- la API, RLS forzada, solo la escribe este DEFINER. Una fila por alta (~15/día).
--- Borrar el contrato (puerta oficial) borra su fila en cascada: un replay posterior
--- crea uno nuevo, que es lo correcto tras una eliminación deliberada.
+-- Borrar el contrato (puerta oficial) deja la fila como LÁPIDA (contrato_id NULL): un
+-- replay tardío no recrea lo que Gerencia borró a propósito (Codex 05/09).
 --
 -- Transformada desde el texto VIVO (scripts/idempotencia/gen-alta-idempotente.py):
--- guarda md5 EXACTA del vivo (68cc6c91e84061c0bdf6a62306085c14), postflight byte a byte (079d047f00d6355929615b1c49060b47).
+-- guarda md5 EXACTA del vivo (68cc6c91e84061c0bdf6a62306085c14), postflight byte a byte (1876ea59e10d48743390fb2059267d23).
 -- Ensayo: scripts/oraculo-alta-idempotente.sh (banco). Reversa: scripts/rollback-alta-idempotente.sql.
 
 begin;
@@ -51,10 +55,10 @@ begin
   if v_h is null then
     raise exception 'ALTA IDEMPOTENTE: falta crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)';
   end if;
-  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '1876ea59e10d48743390fb2059267d23' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) no es ni el texto vivo de producción ni el de esta migración (%)', v_h;
   end if;
-  if v_owner <> 'postgres' or not v_definer or v_config is null or not (v_config @> array['search_path=""']) then
+  if v_owner <> 'postgres' or not v_definer or v_config is null or v_config <> array['search_path=""'] then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) perdió dueño postgres, DEFINER o search_path vacío (%, %, %)', v_owner, v_definer, v_config;
   end if;
   if not has_function_privilege('authenticated', 'crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)', 'EXECUTE')
@@ -62,6 +66,17 @@ begin
      or has_function_privilege('service_role', 'crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)', 'EXECUTE')
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)'::regprocedure and a.grantee = 0) then
     raise exception 'ALTA IDEMPOTENTE: los grants de crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) no son los vivos (solo postgres y authenticated; ni anon, ni service_role, ni PUBLIC)';
+  end if;
+  if to_regclass('private.contrato_altas_idempotentes') is not null
+     and not exists (select 1 from information_schema.columns
+                     where table_schema = 'private' and table_name = 'contrato_altas_idempotentes'
+                       and column_name = 'huella') then
+    raise exception 'ALTA IDEMPOTENTE: existe una versión previa de private.contrato_altas_idempotentes sin la columna huella; corre scripts/rollback-alta-idempotente.sql antes';
+  end if;
+  if to_regprocedure('private.puede_registrar_ventas()') is null
+     or to_regprocedure('private.puede_leer_contrato_pdf_como(uuid,uuid)') is null
+     or to_regprocedure('private.bloquear_fila_contrato_pdf(uuid)') is null then
+    raise exception 'ALTA IDEMPOTENTE: faltan las guardas vivas (puede_registrar_ventas, puede_leer_contrato_pdf_como, bloquear_fila_contrato_pdf)';
   end if;
   if to_regprocedure('private.contrato_pdf_estado_base(uuid)') is null
      or to_regprocedure('private.crear_job_contrato_pdf_base(uuid,uuid)') is null
@@ -77,8 +92,15 @@ create table if not exists private.contrato_altas_idempotentes (
   -- el alta que acompaña (regla de la auditoría F1.4), y el actor ya pasó la puerta.
   actor_id uuid not null,
   clave uuid not null,
-  contrato_id uuid not null
-    references public.contratos(id) on delete cascade,
+  -- NULL = LÁPIDA: el contrato de este intento fue eliminado después (puerta oficial).
+  -- Un replay tardío recibe P0409 «eliminado», nunca recrea lo borrado a propósito.
+  contrato_id uuid
+    references public.contratos(id) on delete set null,
+  -- md5 de lo pedido (p_contrato sin la clave | p_cronograma | p_cuenta): la misma
+  -- clave con OTROS datos no hace replay, avisa con el número del contrato creado.
+  huella text not null
+    constraint contrato_altas_idempotentes_huella_md5
+      check (huella ~ '^[0-9a-f]{32}$'),
   respuesta jsonb not null
     constraint contrato_altas_idempotentes_respuesta_objeto
       check (jsonb_typeof(respuesta) = 'object'),
@@ -89,10 +111,11 @@ create index if not exists contrato_altas_idempotentes_contrato_idx
   on private.contrato_altas_idempotentes (contrato_id);
 comment on table private.contrato_altas_idempotentes is
   'Memoria de idempotencia del alta de contrato (crm.crear_contrato_con_cuenta_pdf_v2): '
-  'por (actor, clave) guarda el contrato creado y la respuesta devuelta. Un reintento '
-  'con la misma clave devuelve el mismo contrato en vez de crear otro (incidente del '
-  '05/09/2026: dos contratos idénticos por un error falso del front). Solo la escribe '
-  'el wrapper DEFINER; sin grants para la API; se limpia en cascada al borrar el contrato.';
+  'por (actor, clave) guarda el contrato creado, la huella de lo pedido y la respuesta. Un '
+  'reintento con la misma clave y los mismos datos devuelve el mismo contrato en vez de crear '
+  'otro (incidente del 05/09/2026: dos contratos idénticos por un error falso del front); con '
+  'otros datos avisa (P0409) sin crear ni devolver nada. Solo la escribe el wrapper DEFINER; sin '
+  'grants para la API. Al borrar el contrato la fila queda como lápida (contrato_id NULL).';
 alter table private.contrato_altas_idempotentes enable row level security;
 alter table private.contrato_altas_idempotentes force row level security;
 revoke all on table private.contrato_altas_idempotentes from public, anon, authenticated, service_role;
@@ -112,6 +135,8 @@ declare
   v_pdf jsonb;
   v_clave_texto text := nullif(btrim(coalesce(p_contrato->>'clave_idempotencia', '')), '');
   v_clave uuid;
+  v_huella text;
+  v_huella_previa text;
 begin
   if v_actor_id is null then
     raise insufficient_privilege using message = 'Sesión no válida';
@@ -137,10 +162,56 @@ begin
         'crm.alta_contrato_idempotente|' || v_actor_id::text || '|' || v_clave::text, 0
       )
     );
-    select a.respuesta, a.contrato_id into v_resultado, v_contrato_id
+    -- La huella de LO QUE SE PIDE (sin la clave): la misma clave solo vale para la
+    -- misma solicitud. jsonb::text es canónico (claves ordenadas), así que dos
+    -- envíos iguales dan la misma huella.
+    v_huella := md5(
+      (p_contrato - 'clave_idempotencia')::text || '|'
+      || coalesce(p_cronograma::text, '') || '|'
+      || coalesce(p_cuenta::text, '')
+    );
+    select a.respuesta, a.contrato_id, a.huella
+      into v_resultado, v_contrato_id, v_huella_previa
     from private.contrato_altas_idempotentes a
     where a.actor_id = v_actor_id and a.clave = v_clave;
     if found then
+      -- El replay pasa por la MISMA autorización que el alta (Codex 05/09): una
+      -- membresía revocada o un contrato fuera de cartera no recuperan nada.
+      if not (select private.puede_registrar_ventas()) then
+        raise insufficient_privilege using
+          message = 'Cliente no encontrado o fuera de tu cartera';
+      end if;
+      -- Lápida: el contrato de este intento fue eliminado después (FK SET NULL).
+      -- Un reintento tardío NO recrea lo que Gerencia borró a propósito.
+      if v_contrato_id is null then
+        raise exception 'El contrato de este intento fue eliminado después; vuelve a registrar el alta'
+          using errcode = 'P0409', hint = 'ALTA_ELIMINADA';
+      end if;
+      -- Misma fila que bloquea la puerta de eliminación: replay y borrado se
+      -- serializan. Si el contrato desaparece mientras esperamos, es lápida.
+      begin
+        perform private.bloquear_fila_contrato_pdf(v_contrato_id);
+      exception when sqlstate 'P0002' then
+        raise exception 'El contrato de este intento fue eliminado después; vuelve a registrar el alta'
+          using errcode = 'P0409', hint = 'ALTA_ELIMINADA';
+      end;
+      if not private.puede_leer_contrato_pdf_como(v_contrato_id, v_actor_id) then
+        raise insufficient_privilege using
+          message = 'Contrato no encontrado o fuera de tu cartera';
+      end if;
+      -- Misma clave pero OTROS datos (el analista editó el formulario tras un
+      -- intento que SÍ creó el contrato): no se devuelve el viejo como si fuera
+      -- el nuevo ni se crea otro. Se le dice la verdad, con el número.
+      if v_huella_previa is distinct from v_huella then
+        raise exception 'Este intento ya creó el contrato % con otros datos; no se creó otro. Revísalo antes de registrar uno nuevo',
+          coalesce(v_resultado->>'numero_contrato', v_contrato_id::text)
+          using errcode = 'P0409',
+                hint = 'ALTA_YA_CREADA_CON_OTROS_DATOS',
+                detail = jsonb_build_object(
+                  'contrato_id', v_contrato_id,
+                  'numero_contrato', v_resultado->>'numero_contrato'
+                )::text;
+      end if;
       -- El MISMO contrato, con el estado documental de HOY (la reserva pudo avanzar
       -- desde el primer intento) y la marca de que es un alta ya registrada.
       return (v_resultado - 'pdf')
@@ -172,8 +243,8 @@ begin
   v_resultado := v_resultado || jsonb_build_object('pdf', v_pdf);
   if v_clave is not null then
     -- Misma transacción que el alta: o quedan los dos, o ninguno.
-    insert into private.contrato_altas_idempotentes (actor_id, clave, contrato_id, respuesta)
-    values (v_actor_id, v_clave, v_contrato_id, v_resultado);
+    insert into private.contrato_altas_idempotentes (actor_id, clave, contrato_id, huella, respuesta)
+    values (v_actor_id, v_clave, v_contrato_id, v_huella, v_resultado);
   end if;
   return v_resultado;
 end;
@@ -190,13 +261,13 @@ begin
   if v_h is null then
     raise exception 'ALTA IDEMPOTENTE: falta crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)';
   end if;
-  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '1876ea59e10d48743390fb2059267d23' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) no es ni el texto vivo de producción ni el de esta migración (%)', v_h;
   end if;
-  if v_owner <> 'postgres' or not v_definer or v_config is null or not (v_config @> array['search_path=""']) then
+  if v_owner <> 'postgres' or not v_definer or v_config is null or v_config <> array['search_path=""'] then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) perdió dueño postgres, DEFINER o search_path vacío (%, %, %)', v_owner, v_definer, v_config;
   end if;
-  if v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '1876ea59e10d48743390fb2059267d23' then
     raise exception 'POSTFLIGHT ALTA IDEMPOTENTE: el texto instalado no es el esperado (%)', v_h;
   end if;
   if not has_function_privilege('authenticated', 'crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)', 'EXECUTE')
@@ -215,13 +286,24 @@ begin
                and g.grantee in ('anon', 'authenticated', 'service_role', 'PUBLIC')) then
     raise exception 'ALTA IDEMPOTENTE: private.contrato_altas_idempotentes tiene grants para roles de la API';
   end if;
+  -- Sin policies, la RLS forzada solo deja escribir al wrapper porque su dueño (postgres) tiene
+  -- BYPASSRLS. Si eso cambiara, el alta con clave moriría en el INSERT de memoria.
+  if not exists (select 1 from pg_roles r join pg_class c on c.relowner = r.oid
+                 where c.oid = 'private.contrato_altas_idempotentes'::regclass and r.rolbypassrls) then
+    raise exception 'ALTA IDEMPOTENTE: el dueño de private.contrato_altas_idempotentes no tiene BYPASSRLS; el DEFINER no podría escribirla';
+  end if;
   if not exists (select 1 from pg_constraint k where k.conrelid = 'private.contrato_altas_idempotentes'::regclass and k.contype = 'p'
                  and pg_get_constraintdef(k.oid) = 'PRIMARY KEY (actor_id, clave)') then
     raise exception 'ALTA IDEMPOTENTE: private.contrato_altas_idempotentes sin la clave primaria (actor_id, clave)';
   end if;
   if not exists (select 1 from pg_constraint k where k.conrelid = 'private.contrato_altas_idempotentes'::regclass and k.contype = 'f'
-                 and k.confrelid = 'public.contratos'::regclass and k.confdeltype = 'c') then
-    raise exception 'ALTA IDEMPOTENTE: private.contrato_altas_idempotentes sin la FK ON DELETE CASCADE a public.contratos';
+                 and k.confrelid = 'public.contratos'::regclass and k.confdeltype = 'n') then
+    raise exception 'ALTA IDEMPOTENTE: private.contrato_altas_idempotentes sin la FK ON DELETE SET NULL (lápida) a public.contratos';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'private' and table_name = 'contrato_altas_idempotentes'
+                   and column_name = 'huella' and is_nullable = 'NO') then
+    raise exception 'ALTA IDEMPOTENTE: private.contrato_altas_idempotentes sin la columna huella NOT NULL';
   end if;
 end
 $post$;

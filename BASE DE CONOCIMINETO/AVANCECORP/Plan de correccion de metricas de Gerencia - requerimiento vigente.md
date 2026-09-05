@@ -2,7 +2,7 @@
 tags: [crm, gerencia, requerimiento, plan, metricas]
 identificador: REQ-GER-MET-001
 fecha_acuerdo: 2026-09-04
-estado: puntos-1-a-4-completados-punto-5-auditado-local-produccion-pendiente
+estado: puntos-1-a-4-completados-sql-productivo-verificado-frontend-en-curso
 ---
 
 # Plan de corrección de métricas de Gerencia — requerimiento vigente
@@ -61,7 +61,7 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ### 5. Probar y conciliar
 
-- [ ] Auditoría local completada; cierre productivo, commit y publicación pendientes.
+- [ ] Auditoría local completada y versión candidata guardada/sincronizada; cierre productivo y publicación pendientes. Ver [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] para los cambios concurrentes posteriores.
 - Avance 5 de septiembre: N1–N4 y la regresión visual de `AnimatedValue` quedaron verificadas. `npm run check` aprobó 194 archivos y 2.819 pruebas; el recorrido E2E aprobó 121 y omitió 26 por configuración, sin fallos; los bancos SQL N1–N4/ACL/rollback y la revisión independiente quedaron en GO técnico. Catálogo, núcleos, fachadas, propietarios y permisos protegidos permanecen intactos. Evidencia en [[Auditoria final de Gerencia - punto 5 - avance 2026-09-05]] y [[Contrato tecnico de ampliaciones N1-N4 de Gerencia - 2026-09-05]]. Aún sin SQL productivo, commit final ni nuevo deploy.
 - Objetivo: demostrar que las pantallas coinciden con el servidor cuando miden lo mismo y explican las diferencias cuando miden cosas distintas.
 - Alcance: reasignaciones, llegada a Ana/cierre de Luis, manuales/referidos, citas y cancelaciones, operaciones repetidas, capital de prueba, PEN/USD, filtros, rangos parciales, meses sellados, errores, respuestas parciales y metas superiores al 100 %.
@@ -80,11 +80,13 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ## Punto de reanudación
 
-**Orden posterior vigente (5 de septiembre):** Miguel pidió ejecutar los seis pasos del cierre hasta publicar y verificar estas mejoras. Guardado, sincronización y publicación de frontend autorizados; sigue pendiente la confirmación del SQL exacto. Seguir [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] para el estado actual; no volver a pedir autorización conceptual o de publicación ya concedida.
+**Orden posterior vigente (5 de septiembre):** Miguel pidió ejecutar los seis pasos del cierre hasta publicar y verificar estas mejoras. Guardado, sincronización y publicación de frontend autorizados. Después confirmó el SQL exacto con «si»; ya se aplicó y comprobó. Seguir [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] para el estado actual; no volver a pedir ninguna de esas autorizaciones.
+
+**Avance de ejecución:** SQL de Gerencia aplicado como `20260905175342` con el mismo contenido aprobado, núcleos y permisos intactos y cifras reales verificadas. Candidato inicial `5ada0c5` guardado, sincronizado, probado y empaquetado; se prepara la versión final con los cambios concurrentes del frontend ya revisados. Los párrafos históricos siguientes no invalidan este estado actual.
 
 **Último punto terminado:** 4, ampliaciones N1–N4 justificadas, aprobadas e implementadas localmente. El punto 5 está cerrado en local y conserva abierta su comprobación productiva. Los puntos 1–3 ya estaban publicados.
 
-**Siguiente acción:** mostrar y confirmar la migración exacta `20260905155129_gerencia_contrato_cuatro_datos.sql`. Miguel ya aprobó el alcance: **no volver a preguntar si desea esos cuatro datos**. La confirmación pendiente es sólo para aplicar ese SQL exacto; una publicación nueva requiere autorización propia. Después: lectura productiva, commit final, integración no destructiva con `avancecorp/main`, construcción desde el commit sincronizado, deploy y comprobación pública. El punto 3 está cerrado en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]]: **no volver a aplicar su migración**. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios. No modificar núcleos ni crear calculadoras independientes.
+**Siguiente acción:** terminar las pruebas de la versión final, guardar y sincronizar `avancecorp/main`, construir desde ese commit y publicar exclusivamente el CRM. Comprobar acceso y conciliación pública; SQL y deploy ya están autorizados. No reaplicar Gerencia ni la migración cerrada del punto 3. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios. No modificar núcleos ni crear calculadoras independientes.
 
 El punto 4 está completo; el punto 5 sólo conserva pendientes las puertas productivas. No inferir autorización de SQL adicional, funciones nuevas, commit ni deploy. Línea base histórica al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Los commits concurrentes y las correcciones publicadas desde `50f33a5` se deben preservar. Verificar nuevamente el estado y el remoto antes de cualquier publicación futura.
 

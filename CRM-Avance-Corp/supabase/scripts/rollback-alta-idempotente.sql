@@ -1,7 +1,7 @@
 -- ============================================================================
 -- REVERSA de «el alta de contrato es idempotente por clave» (20260905190000):
 -- restaura crm.crear_contrato_con_cuenta_pdf_v2 byte a byte al texto VIVO de producción
--- (md5(prosrc) 68cc6c91e84061c0bdf6a62306085c14) y retira private.contrato_altas_idempotentes. Repetible.
+-- (md5(prosrc) 68cc6c91e84061c0bdf6a62306085c14) y retira private.contrato_altas_idempotentes (incluida la v1 sin huella, que solo vivió en el banco). Repetible.
 -- Tras la reversa, una clave que viaje en p_contrato baja hasta public.crear_contrato,
 -- que la ignora (solo lee sus propias claves): los clientes nuevos siguen funcionando,
 -- sin la protección.
@@ -21,10 +21,10 @@ begin
   if v_h is null then
     raise exception 'ALTA IDEMPOTENTE: falta crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)';
   end if;
-  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '1876ea59e10d48743390fb2059267d23' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) no es ni el texto vivo de producción ni el de esta migración (%)', v_h;
   end if;
-  if v_owner <> 'postgres' or not v_definer or v_config is null or not (v_config @> array['search_path=""']) then
+  if v_owner <> 'postgres' or not v_definer or v_config is null or v_config <> array['search_path=""'] then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) perdió dueño postgres, DEFINER o search_path vacío (%, %, %)', v_owner, v_definer, v_config;
   end if;
 end
@@ -70,6 +70,8 @@ end;
 $function$;
 
 drop table if exists private.contrato_altas_idempotentes;
+-- El registro también vuelve atrás: la versión deja de figurar como aplicada.
+delete from supabase_migrations.schema_migrations where version = '20260905190000';
 
 do $post$
 declare v_h text; v_owner text; v_definer boolean; v_config text[];
@@ -82,10 +84,10 @@ begin
   if v_h is null then
     raise exception 'ALTA IDEMPOTENTE: falta crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)';
   end if;
-  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' and v_h is distinct from '1876ea59e10d48743390fb2059267d23' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) no es ni el texto vivo de producción ni el de esta migración (%)', v_h;
   end if;
-  if v_owner <> 'postgres' or not v_definer or v_config is null or not (v_config @> array['search_path=""']) then
+  if v_owner <> 'postgres' or not v_definer or v_config is null or v_config <> array['search_path=""'] then
     raise exception 'ALTA IDEMPOTENTE: crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb) perdió dueño postgres, DEFINER o search_path vacío (%, %, %)', v_owner, v_definer, v_config;
   end if;
   if v_h is distinct from '68cc6c91e84061c0bdf6a62306085c14' then
@@ -99,6 +101,9 @@ begin
   end if;
   if to_regclass('private.contrato_altas_idempotentes') is not null then
     raise exception 'POSTFLIGHT REVERSA: private.contrato_altas_idempotentes sigue existiendo';
+  end if;
+  if exists (select 1 from supabase_migrations.schema_migrations where version = '20260905190000') then
+    raise exception 'POSTFLIGHT REVERSA: la versión 20260905190000 sigue registrada';
   end if;
 end
 $post$;

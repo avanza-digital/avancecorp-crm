@@ -1350,3 +1350,49 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)
     })
   })
 })
+
+describe('crearContrato — los rechazos de idempotencia del servidor llegan con su código propio', () => {
+  const ALTA = {
+    cliente_id: '4e0c11bc-3fec-492b-a90e-93fd75b36ad4',
+    capital: 20000,
+    moneda: 'PEN' as const,
+    tasa_anual: 15,
+    modalidad: 'mensual' as const,
+    tipo_interes: 'simple' as const,
+    categoria: 'nuevo' as const,
+    fecha_inicio: '2026-03-11',
+    fecha_vencimiento: '2027-03-11',
+    numero_contrato: '2026-01-000253',
+    notas_internas: null,
+    cuenta_pago: { tipo: 'existente' as const, cuenta_id: '470bfde6-aa80-41ff-904a-705b523cca5c' },
+    clave_idempotencia: 'f6a1c2d4-3b5e-4f70-8a91-b2c3d4e5f607',
+  }
+  function rechazar(message: string, hint: string) {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
+        HttpResponse.json({ code: 'P0409', message, details: null, hint }, { status: 400 }),
+      ),
+    )
+  }
+
+  it('misma clave con otros datos → ALTA_YA_CREADA, con el mensaje del servidor (nombra el contrato)', async () => {
+    rechazar(
+      'Este intento ya creó el contrato 2026-01-000025 con otros datos; no se creó otro. Revísalo antes de registrar uno nuevo',
+      'ALTA_YA_CREADA_CON_OTROS_DATOS',
+    )
+    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({
+      code: 'ALTA_YA_CREADA',
+      message: expect.stringContaining('2026-01-000025'),
+    })
+  })
+
+  it('el contrato del intento fue eliminado después → ALTA_ELIMINADA', async () => {
+    rechazar('El contrato de este intento fue eliminado después; vuelve a registrar el alta', 'ALTA_ELIMINADA')
+    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({ code: 'ALTA_ELIMINADA' })
+  })
+
+  it('cualquier otro P0409 sigue siendo el error genérico (no se cuela como idempotencia)', async () => {
+    rechazar('Otro conflicto cualquiera', '')
+    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({ code: 'POSTGREST_ERROR' })
+  })
+})

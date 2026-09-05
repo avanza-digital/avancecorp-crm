@@ -29,6 +29,32 @@ if (typeof window !== 'undefined') {
   })
 }
 
+// Node ≥ 25 define `globalThis.localStorage` (experimental) y vale `undefined` sin
+// `--localstorage-file`; como la propiedad ya existe en el global, jsdom NO la
+// pisa y `localStorage.clear()` rompe con «Cannot read properties of undefined».
+// Se instala un almacenamiento en memoria con la misma superficie (Storage). Los
+// tests que stubean localStorage por su cuenta (vi.stubGlobal) lo siguen pudiendo pisar.
+if (typeof window !== 'undefined' && globalThis.localStorage == null) {
+  const datos = new Map<string, string>()
+  const memoria = {
+    get length() {
+      return datos.size
+    },
+    key: (i: number) => [...datos.keys()][i] ?? null,
+    getItem: (k: string) => datos.get(String(k)) ?? null,
+    setItem: (k: string, v: string) => {
+      datos.set(String(k), String(v))
+    },
+    removeItem: (k: string) => {
+      datos.delete(String(k))
+    },
+    clear: () => {
+      datos.clear()
+    },
+  }
+  Object.defineProperty(globalThis, 'localStorage', { value: memoria, writable: true, configurable: true })
+}
+
 afterEach(() => {
   cleanup()
 })
