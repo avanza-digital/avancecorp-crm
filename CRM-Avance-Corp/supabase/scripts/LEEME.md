@@ -309,7 +309,19 @@ seguridad apruebe por accidente solo porque la tabla o un camino estaban vacios.
   (upsert parcial sin pisar otros roles; validacion 22023; sin escritura
   directa ni DELETE para nadie del API; usuario inactivo 0 filas). El gate
   usa el periodo sentinela 2099-12 y lo limpia al inicio y al final;
-- anon sin lectura de `crm` ni de datos bancarios.
+- anon sin lectura de `crm` ni de datos bancarios;
+- alta de contrato idempotente por clave (`crm.crear_contrato_con_cuenta_pdf_v2`,
+  migracion 20260905190000): el incidente del 05/09 (misma clave, numero cambiado
+  → P0409 con el numero), replay con `idempotente=true`, misma clave + otros
+  datos → P0409, clave no uuid → 22023 sin escribir, memoria por (actor, clave)
+  —gerencia con la misma clave crea la suya y no hereda—, vendedor REVOCADO no
+  recupera nada por replay (42501) y reactivado si, carrera real de dos envios
+  simultaneos = un solo contrato, y `private.contrato_altas_idempotentes`
+  inalcanzable por la API para anon/authenticated/service_role. La LAPIDA
+  (contrato eliminado → el replay avisa P0409 y no recrea) exige un hard-delete
+  por la puerta oficial y NO cabe en el gate: la cubre solo el oraculo
+  `oraculo-alta-idempotente.sh` (seccion L), como el resto de casos con la
+  puerta VIVA vs. el texto de produccion (mutante).
 
 Cada query comprueba su objeto `error`. En negativas, solo cuentan como bloqueo
 un error de autorizacion/RLS (o cero filas cuando esa es la semantica normal de

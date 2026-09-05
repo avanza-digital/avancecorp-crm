@@ -9,7 +9,7 @@ begin
      or to_regclass('private.contrato_altas_idempotentes') is null then
     raise exception 'REGISTRO ALTA IDEMPOTENTE: la migración 20260905190000 NO está aplicada (la puerta no lleva el texto nuevo o falta la tabla); aplica primero';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260905190000' and md5(statements[1]) <> '13b0a63e71729a978e80df61e3cb0e66') then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260905190000' and coalesce(md5(statements[1]), '') <> '13b0a63e71729a978e80df61e3cb0e66') then
     raise exception 'REGISTRO ALTA IDEMPOTENTE: la versión 20260905190000 ya está registrada con otro contenido';
   end if;
 end

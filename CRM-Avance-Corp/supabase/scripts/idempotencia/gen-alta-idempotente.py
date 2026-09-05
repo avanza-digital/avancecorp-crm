@@ -15,6 +15,9 @@ def rep(s, old, new, n=1):
     assert s.count(old) == n, (old[:80], s.count(old)); return s.replace(old, new)
 
 prod = {l.split()[0]: l.split()[1] for l in (S / 'huellas-prod.txt').read_text().splitlines() if l.strip()}
+# v1 SIN huella de payload: solo vivió en banco-f7 (nunca en prod). Las guardas la aceptan como punto de
+# partida para poder revertirla/reaplicar allí; retirar esta constante cuando el banco quede limpio (auditor-rls m1).
+H_V1_BANCO = '079d047f00d6355929615b1c49060b47'
 H_PROD = prod['crm.crear_contrato_con_cuenta_pdf_v2']
 viva = (S / 'vivas' / 'crm.crear_contrato_con_cuenta_pdf_v2.prosrc.txt').read_text(encoding='utf-8')
 assert md5(viva) == H_PROD, md5(viva)          # prosrc EXACTO de producción (incluye el \n inicial y final)
@@ -172,7 +175,7 @@ GUARD_FN = f"""  select md5(p.prosrc), p.proowner::regrole::text, p.prosecdef, p
   if v_h is null then
     raise exception 'ALTA IDEMPOTENTE: falta {SIG}';
   end if;
-  if v_h is distinct from '{H_PROD}' and v_h is distinct from '{H_NEW}' and v_h is distinct from '079d047f00d6355929615b1c49060b47' then
+  if v_h is distinct from '{H_PROD}' and v_h is distinct from '{H_NEW}' and v_h is distinct from '{H_V1_BANCO}' then
     raise exception 'ALTA IDEMPOTENTE: {SIG} no es ni el texto vivo de producción ni el de esta migración (%)', v_h;
   end if;
   if v_owner <> 'postgres' or not v_definer or v_config is null or v_config <> array['search_path=""'] then
@@ -399,7 +402,7 @@ begin
      or to_regclass('{TABLA}') is null then
     raise exception 'REGISTRO ALTA IDEMPOTENTE: la migración {VERSION} NO está aplicada (la puerta no lleva el texto nuevo o falta la tabla); aplica primero';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='{VERSION}' and md5(statements[1]) <> '{md5(mig)}') then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='{VERSION}' and coalesce(md5(statements[1]), '') <> '{md5(mig)}') then
     raise exception 'REGISTRO ALTA IDEMPOTENTE: la versión {VERSION} ya está registrada con otro contenido';
   end if;
 end

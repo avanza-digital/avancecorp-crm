@@ -5261,7 +5261,7 @@ async function testContractBankAccounts(sessions, seed) {
       const claveIdem = randomUUID();
       const idemToken = randomUUID().replaceAll('-', '').toUpperCase().slice(0, 10);
       const idemCci = randomUUID().replace(/\D/g, '').padEnd(20, '0').slice(0, 20);
-      const altaIdem = (numero, extra = {}) => sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
+      const payloadIdem = (numero, extra = {}) => ({
         p_contrato: {
           cliente_id: bankProfileId,
           numero_contrato: numero,
@@ -5292,6 +5292,9 @@ async function testContractBankAccounts(sessions, seed) {
           beneficiario_dni: null,
         },
       });
+      const altaIdemComo = (cliente, numero, extra = {}) => cliente.schema('crm')
+        .rpc('crear_contrato_con_cuenta_pdf_v2', payloadIdem(numero, extra));
+      const altaIdem = (numero, extra = {}) => altaIdemComo(sessions.vend1.client, numero, extra);
       const primera = await positive(
         'idempotencia: el primer alta con clave se crea (regimen anterior → sin_reserva)',
         altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
@@ -5357,6 +5360,83 @@ async function testContractBankAccounts(sessions, seed) {
       );
       check(typeof otraClave?.data?.id === 'string' && otraClave.data.id !== idPrimera,
         'idempotencia: la clave distinta produce un contrato distinto');
+
+      // ── Seguridad del replay (auditor-rls M2, 05/09/2026) ──
+      // (a) La memoria es por (actor, clave): OTRO actor con la MISMA clave no
+      // encuentra fila, no hereda el contrato de vend1 y crea el SUYO bajo sus gates.
+      const ajena = await positive(
+        'idempotencia: OTRO actor (gerencia) con la MISMA clave no recibe el alta de vend1: crea la suya',
+        altaIdemComo(sessions.gerencia.client, `RLS-IDEM-${idemToken}-5`, { clave_idempotencia: claveIdem }),
+      );
+      check(typeof ajena?.data?.id === 'string' && ajena.data.id !== idPrimera && ajena?.data?.idempotente === undefined,
+        'idempotencia: gerencia no hereda ni el contrato de vend1 ni la marca idempotente',
+        JSON.stringify(ajena?.data ?? null).slice(0, 200));
+      const ajenaReplay = await positive(
+        'idempotencia: gerencia repite SU clave y recupera SU contrato',
+        altaIdemComo(sessions.gerencia.client, `RLS-IDEM-${idemToken}-5`, { clave_idempotencia: claveIdem }),
+      );
+      check(ajenaReplay?.data?.id === ajena?.data?.id && ajenaReplay?.data?.idempotente === true,
+        'idempotencia: el replay de gerencia devuelve su contrato (no el de vend1) con idempotente=true');
+
+      // (b) El replay pasa por la autorizacion VIGENTE: vend1 revocado no recupera
+      // nada (42501) ni recrea; reactivado, vuelve a recibir el mismo contrato. La
+      // revocacion va fuera de banda como en P04 (vend1 posee cartera y el guard, con
+      // razon, no deja el UPDATE normal).
+      await setVend1State({ portalActive: true, crmActive: false });
+      await expectExplicitAuthorizationDenied(
+        'idempotencia: vend1 REVOCADO no recupera el alta por replay',
+        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+        ['42501'],
+      );
+      await setVend1State({ portalActive: true, crmActive: true });
+      const trasReactivar = await positive(
+        'idempotencia: vend1 reactivado vuelve a recuperar el mismo contrato',
+        altaIdem(`RLS-IDEM-${idemToken}-1`, { clave_idempotencia: claveIdem }),
+      );
+      check(trasReactivar?.data?.id === idPrimera && trasReactivar?.data?.idempotente === true,
+        'idempotencia: tras reactivar, el replay devuelve el contrato original con idempotente=true');
+      const soloUno = await requireAdmin(
+        'contar el contrato -1 tras el ciclo revocado/reactivado',
+        admin.from('contratos').select('id', { count: 'exact', head: true })
+          .eq('numero_contrato', `RLS-IDEM-${idemToken}-1`),
+      );
+      check(soloUno.count === 1, 'idempotencia: el revocado no recreo el contrato', `count=${soloUno.count}`);
+
+      // (c) La memoria NO es alcanzable por PostgREST para nadie: vive en private,
+      // RLS forzada y sin grants (ni service_role).
+      const anonIdem = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-idem'));
+      for (const [quien, cli] of [
+        ['anon', anonIdem], ['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['service_role', admin],
+      ]) {
+        const { error } = await cli.schema('private').from('contrato_altas_idempotentes').select('clave').limit(1);
+        check(Boolean(error),
+          `idempotencia: ${quien} NO alcanza private.contrato_altas_idempotentes por la API (${error?.code ?? 'sin error'})`);
+      }
+
+      // (d) CARRERA REAL: dos envios simultaneos con la misma clave y los mismos datos
+      // (doble clic, dos pestañas). El lock advisory por (actor, clave) serializa: uno
+      // crea, el otro espera y hace replay; UN solo contrato y el MISMO id para ambos.
+      const claveCarrera = randomUUID();
+      const [c1, c2] = await Promise.allSettled([
+        altaIdem(`RLS-IDEM-${idemToken}-6`, { clave_idempotencia: claveCarrera }),
+        altaIdem(`RLS-IDEM-${idemToken}-6`, { clave_idempotencia: claveCarrera }),
+      ]);
+      const carreraOk = [c1, c2]
+        .filter((r) => r.status === 'fulfilled' && !r.value.error)
+        .map((r) => r.value.data);
+      check(carreraOk.length === 2 && typeof carreraOk[0]?.id === 'string' && carreraOk[0].id === carreraOk[1]?.id,
+        'idempotencia: dos envios simultaneos con la misma clave devuelven el MISMO contrato',
+        JSON.stringify([c1, c2].map((r) => (r.status === 'fulfilled'
+          ? (r.value.error?.code ?? r.value.data?.id)
+          : String(r.reason)))).slice(0, 200));
+      check(carreraOk.filter((d) => d?.idempotente === true).length === 1,
+        'idempotencia: en la carrera exactamente uno de los dos es el replay (idempotente=true)');
+      const carreraCount = await requireAdmin(
+        'contar contratos de la carrera de idempotencia',
+        admin.from('contratos').select('id', { count: 'exact', head: true })
+          .eq('numero_contrato', `RLS-IDEM-${idemToken}-6`),
+      );
+      check(carreraCount.count === 1, 'idempotencia: la carrera dejo UN solo contrato', `count=${carreraCount.count}`);
     }
 
     // El cronograma deliberadamente invalido evita una mutacion aun si hubiera
@@ -8815,10 +8895,13 @@ async function testIdentidadF2bD13(sessions) {
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-13: ${etiqueta}`, sql);
   const lista = (arr) => `'${arr.join("','")}'`;
   const PRIVADAS = ['private.persona_en_conversion(uuid,uuid)', 'private.verificar_disponibilidad_lead_impl(text,text,uuid)',
-    'private.verificar_disponibilidad_lead_impl(text,text)', 'private.trg_leads_zz_enlaza_identidad()', 'private.leads_de_identidades(uuid[])'];
-  const RPC = ['crm.tomar_lead_libre(text,text)', 'crm.convertir_lead(uuid,uuid)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'];
+    'private.verificar_disponibilidad_lead_impl(text,text)', 'private.trg_leads_zz_enlaza_identidad()', 'private.leads_de_identidades(uuid[])',
+    'private.deshacer_descarte_implementacion(uuid)'];
+  const RPC = ['crm.tomar_lead_libre(text,text)', 'crm.convertir_lead(uuid,uuid)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)',
+    'crm.marcar_efectos_conversion(uuid,uuid,text)', 'crm.rescatar_descartes(uuid[],uuid[],boolean)'];
   const marcador = (nombre, args) => cuenta(`marcador ${nombre}`, `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname || '.' || p.proname = '${nombre}' and pg_get_function_identity_arguments(p.oid) = '${args}'`);
   const DNI_SIN_DUENO = '00000013';
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d13'));
 
   if (cuenta('D-13 aplicada', `select (to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null)::int`) !== 1) {
     console.log('  (saltado: D-13 (20260905160000) no está en esta base)');
@@ -8830,12 +8913,26 @@ async function testIdentidadF2bD13(sessions) {
       'D-13 helper y funciones privadas (verificador, trigger, puente) sin EXECUTE para la API ni PUBLIC');
     check(cuenta('grants RPC', `select count(*) from unnest(array[${lista(RPC)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === RPC.length
         && cuenta('PUBLIC residual RPC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${RPC.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`) === 0,
-      'D-13 tomar_lead_libre / convertir_lead / convertir_lead_externo conservan sus grants (solo authenticated)');
+      'D-13 las cinco RPC transformadas conservan sus grants (solo authenticated)');
     check(marcador('private.verificar_disponibilidad_lead_impl', 'p_telefono text, p_dni text, p_excluir_lead_id uuid') + marcador('private.trg_leads_zz_enlaza_identidad', '') + marcador('crm.tomar_lead_libre', 'p_telefono text, p_dni text') + marcador('crm.convertir_lead', 'p_lead_id uuid, p_perfil_id uuid') === 4
         && cuenta('marcador externo', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo'`) === 1,
       'D-13 las cinco puertas llevan la transformación (marcador en el cuerpo)');
     check(cuenta('trigger zz vigente', `select count(*) from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_enlaza_identidad' and tgenabled='O' and pg_get_triggerdef(oid) like '%BEFORE INSERT OR UPDATE OF dni%'`) === 1,
       'D-13 el trigger de nacimiento sigue BEFORE INSERT OR UPDATE OF dni y habilitado');
+    // La premisa de serialización de D-13 (auditor N1): todo INSERT con DNI toma el candado documental en el trigger 000 (b1).
+    check(cuenta('trigger 000', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid='crm.leads'::regclass and t.tgname='trg_leads_000_hereda_veto' and not t.tgisinternal and t.tgenabled='O' and pg_get_triggerdef(t.oid) like '%BEFORE INSERT ON crm.leads%' and strpos(p.prosrc, 'identidad_bloquear_documento') > 0`) === 1,
+      'D-13 trg_leads_000_hereda_veto sigue BEFORE INSERT, habilitado y tomando el candado documental (la reserva y el alta se serializan)');
+    check(cuenta('marcador sellado', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_claim_id uuid, p_token text'`)
+        + cuenta('marcador rescate', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='rescatar_descartes'`)
+        + cuenta('marcador deshacer', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='deshacer_descarte_implementacion'`) === 3,
+      'D-13 v2: el sellado, el rescate y el deshacer llevan la transformación');
+    // Denegados ejercitados, no solo contados (auditor N7): la toma directa es de vendedores activos.
+    const tomarComo = (cliente) => cliente.schema('crm').rpc('tomar_lead_libre', { p_telefono: '900000013', p_dni: DNI_SIN_DUENO });
+    await expectExpectedFailure('D-13 anon tomar_lead_libre → 42501 (sin EXECUTE)', tomarComo(anon), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure('D-13 service_role tomar_lead_libre → 42501 (sin EXECUTE)', tomarComo(admin), ['42501'], /permission denied|denegado/i);
+    for (const clave of ['coordinador', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`D-13 ${clave} tomar_lead_libre → 42501 (no es vendedor activo; muere antes de la bandera)`, tomarComo(sessions[clave].client), ['42501'], /revocado|solo para vendedores/i);
+    }
     // OFF (producción): el verificador responde como hoy para un DNI sin dueño; ON: idem (sin identidad ni reserva no hay rama que actúe).
     for (const on of [false, true]) {
       flag(on);
