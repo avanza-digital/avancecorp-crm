@@ -4777,6 +4777,23 @@ async function testContractBankAccounts(sessions, seed) {
   // Durante la sonda cambia a los dos perfiles con rol CRM legacy `vendedor`
   // al rol Portal `analista`: reproduce la identidad
   // real que autoriza crear contratos y restaura ambos roles en `finally`.
+  //
+  // La bandera de identidad F2.b `resolver_en_puertas` tiene que estar APAGADA
+  // durante este bloque, como aterriza en produccion: encendida,
+  // `private.asegurar_identidad_perfil` rechaza al fixture bancario (P0409 «este
+  // perfil ya pertenece a otra persona reconocida») y TODA alta de contrato muere
+  // antes de probar nada (05/09/2026: 65 rojos que no eran del codigo). Otros
+  // ensayos del banco compartido la encienden para lo suyo; aqui se fija y se
+  // restaura en el `finally`, igual que hace `oraculo-alta-idempotente.sh`.
+  const resolverEnPuertasOriginal = contarFueraDeBanda(
+    'bloque bancario: leer resolver_en_puertas',
+    "select count(*) from crm.multiempresa_flags where nombre='resolver_en_puertas' and activo",
+  ) === 1;
+  const fijarResolverEnPuertas = (on, etiqueta) => ejecutarFueraDeBanda(
+    `bloque bancario: ${etiqueta}`,
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`,
+  );
+  fijarResolverEnPuertas(false, 'apagar resolver_en_puertas (estado de produccion)');
   try {
     await requireAdmin(
       'activar temporalmente el rol portal analista para las sondas bancarias',
@@ -5253,6 +5270,9 @@ async function testContractBankAccounts(sessions, seed) {
       `antes=${linksBefore.count}, despues=${linksAfter.count}`);
 
     // ── 05/09/2026: el alta es IDEMPOTENTE por clave (migracion 20260905190000) ──
+    // Re-pin defensivo: el bloque lleva minutos y otra sesion del banco compartido
+    // puede haber vuelto a encender la bandera entre medias.
+    fijarResolverEnPuertas(false, 'reafirmar resolver_en_puertas apagada antes de idempotencia');
     // Reproduce el incidente por la puerta VIVA: misma clave, el analista cambia el
     // numero y reintenta → el servidor devuelve el MISMO contrato en vez de crear
     // otro. Contratos del regimen documental ANTERIOR (firmados antes del 19/08),
@@ -5462,6 +5482,13 @@ async function testContractBankAccounts(sessions, seed) {
       );
     }
   } finally {
+    // Devolver la bandera de identidad al valor que tenia al entrar (otra sesion
+    // puede estar contando con ella encendida).
+    try {
+      fijarResolverEnPuertas(resolverEnPuertasOriginal, `restaurar resolver_en_puertas=${resolverEnPuertasOriginal}`);
+    } catch (errorFlag) {
+      console.warn(`  ⚠ no se pudo restaurar resolver_en_puertas: ${errorFlag?.message ?? errorFlag}`);
+    }
     if (directorMembershipFabricated) {
       await requireAdmin(
         'retirar la membresia CRM fabricada para directorio tras sondas bancarias',
