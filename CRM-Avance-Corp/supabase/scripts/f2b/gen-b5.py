@@ -53,6 +53,12 @@ cl = rep(cl, """    if v_lead_canon is not null then
         using errcode = 'P0409';
     end if;
   end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
+  end if;
   -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento de un perfil
   -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
   if v_flag and v_lead.inversionista_id is not null and v_lead.inversionista_id is distinct from v_inv then
@@ -72,6 +78,12 @@ cle = rep(cle_prev, """    if v_lead_canon is not null then
       raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
         using errcode = 'P0409';
     end if;
+  end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
   end if;
   -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento del cierre
   -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
@@ -150,7 +162,17 @@ mec3 = rep(mec3_prev, """  perform 1 from crm.inversionistas i where i.id = v_lo
 
 # ── T7 crm.alta_cliente_identidad_fn: 'enlazar' compara por la canónica [E3-12] ──
 alta_prev = viv('crm.alta_cliente_identidad_fn')
-alta = rep(alta_prev, """    if (v_r->>'inversionista_id')::uuid <> v_loc.inversionista_id then
+alta = rep(alta_prev, """    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
+    perform 1 from crm.inversionistas i where i.id = v_inv for update;
+""", """    -- F2.b (b5) [Codex N2]: jerarquía compartida ANTES del documento (asegurar_identidad_perfil la toma después;
+    -- el offboarding la toma exclusiva): nunca documento/identidad -> jerarquía.
+    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+    perform private.identidad_bloquear_documento(v_tipo, v_doc);
+    v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
+    perform 1 from crm.inversionistas i where i.id = v_inv for update;
+""")
+alta = rep(alta, """    if (v_r->>'inversionista_id')::uuid <> v_loc.inversionista_id then
       raise exception 'El perfil creado no corresponde a la persona reclamada' using errcode = 'P0409';
     end if;""", """    -- F2.b (b5) [E3-12]: comparación por la CANÓNICA (un enlace ya consumado se puede reintentar tras una fusión).
     if private.inversionista_canonica((v_r->>'inversionista_id')::uuid) is distinct from private.inversionista_canonica(v_loc.inversionista_id) then
@@ -200,11 +222,14 @@ NUEVAS_FN = [  # (regprocedure, grant authenticated?) — se sueltan en la rever
 ]
 def guard_md5(fn_sql_name, ident_args, hkey):
     schema, name = fn_sql_name.split('.')[:2]
-    return f"""  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    return f"""  v_h := null;
+  select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid) = '{ident_args}';
-  if v_h <> '{h(hkey)}' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid) = '{ident_args}') = 0 then
-    raise exception 'F2.b b5: {fn_sql_name} no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta {fn_sql_name}';
+  end if;
+  if v_h is distinct from '{h(hkey)}' and v_h is distinct from '{NEW_MD5[hkey]}' then
+    raise exception 'F2.b b5: {fn_sql_name} no es ni el texto vivo de producción ni el de b5 (%)', v_h;
   end if;
 """
 IA = {
@@ -216,7 +241,22 @@ IA = {
  'crm.marcar_efectos_conversion.3': 'p_lead_id uuid, p_claim_id uuid, p_token text',
  'crm.alta_cliente_identidad_fn': 'p_paso text, p_payload jsonb',
 }
+NEW_TEXT = {'crm.convertir_lead': cl, 'crm.convertir_lead_externo': cle, 'crm.saga_conversion_fn': saga,
+            'private.trg_leads_disponibilidad_atomica': trg, 'crm.marcar_efectos_conversion': mec,
+            'crm.marcar_efectos_conversion.3': mec3, 'crm.alta_cliente_identidad_fn': alta}
+# pg_get_functiondef termina en UN salto de línea (viv() lo recorta): la huella esperada se calcula sobre texto + '\n'.
+NEW_MD5 = {k: hashlib.md5((v + '\n').encode('utf-8')).hexdigest() for k, v in NEW_TEXT.items()}
+(S/'transformadas').mkdir(exist_ok=True)
+for k, v in NEW_TEXT.items():
+    (S/'transformadas'/f'{k}.sql').write_text(v + '\n', encoding='utf-8')
 guards = ''.join(guard_md5(k, IA[k], k) for k in IA)
+def post_md5_exacto(k):
+    schema, name = k.split('.')[:2]
+    return f"""  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='{schema}' and p.proname='{name}' and pg_get_function_identity_arguments(p.oid)='{IA[k]}') is distinct from '{NEW_MD5[k]}' then
+    raise exception 'POSTFLIGHT b5: {k} no quedó byte a byte como la genera gen-b5.py';
+  end if;
+"""
+post_exacto = ''.join(post_md5_exacto(k) for k in IA)
 
 mig = r"""-- ============================================================================
 -- P-055 · MULTIEMPRESA Contrato-F2 · F2.b sub-lote b5 (E3) — FUSIÓN DE IDENTIDADES, CORRECCIÓN
@@ -298,7 +338,7 @@ $guard$;
 do $post$
 begin
 {{POST_EXISTS}}
-  if (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead') = 0
+{{POST_EXACTO}}  if (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead') = 0
      or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo') = 0
      or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='saga_conversion_fn') = 0
      or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica') = 0
@@ -335,7 +375,7 @@ post_grants = "  if " + "\n     or ".join(
     f"has_function_privilege('anon', '{r}', 'EXECUTE') or has_function_privilege('service_role', '{r}', 'EXECUTE') or " +
     (f"not has_function_privilege('authenticated', '{r}', 'EXECUTE')" if g else f"has_function_privilege('authenticated', '{r}', 'EXECUTE')")
     for r,g in NUEVAS_FN) + "\n     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in (" + ", ".join(f"'{r}'::regprocedure" for r,_ in NUEVAS_FN) + ") and a.grantee = 0) then\n    raise exception 'POSTFLIGHT b5: grants incorrectos';\n  end if;\n"
-mig = mig.replace("{{GUARDS}}", guards).replace("{{CL}}", cl).replace("{{CLE}}", cle).replace("{{SAGA}}", saga).replace("{{TRG}}", trg).replace("{{MEC}}", mec).replace("{{MEC3}}", mec3).replace("{{ALTA}}", alta).replace("{{NUEVOS}}", NUEVOS).replace("{{POST_EXISTS}}", post_exists).replace("{{POST_GRANTS}}", post_grants)
+mig = mig.replace("{{GUARDS}}", guards).replace("{{CL}}", cl).replace("{{CLE}}", cle).replace("{{SAGA}}", saga).replace("{{TRG}}", trg).replace("{{MEC}}", mec).replace("{{MEC3}}", mec3).replace("{{ALTA}}", alta).replace("{{NUEVOS}}", NUEVOS).replace("{{POST_EXISTS}}", post_exists).replace("{{POST_EXACTO}}", post_exacto).replace("{{POST_GRANTS}}", post_grants)
 (W/'migrations'/'20260905120000_crm_f2b_b5_fusion_correccion_reasignacion.sql').write_text(mig, encoding='utf-8')
 
 rb = r"""-- ============================================================================

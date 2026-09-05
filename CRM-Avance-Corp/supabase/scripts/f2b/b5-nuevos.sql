@@ -162,8 +162,20 @@ begin
   if v_n > 1 then
     v_b := pg_catalog.array_append(v_b, 'Las dos identidades tienen lead (enlace vivo o puente): reconciliación de clase E hasta F5 (dos leads)'::text);
   end if;
-  if v_p.perfil_id is not null and v_c.perfil_id is not null and v_p.perfil_id <> v_c.perfil_id then
-    v_b := pg_catalog.array_append(v_b, 'Las dos identidades tienen perfil de cliente: reconciliación de clase E hasta F5 (dos perfiles)'::text);
+  select count(distinct pf) into v_n from (
+    select v_p.perfil_id as pf union select v_c.perfil_id
+    union select l.perfil_id from crm.leads l where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))) s
+  where pf is not null;
+  if v_n > 1 then
+    v_b := pg_catalog.array_append(v_b, 'Hay más de un perfil de cliente entre las dos identidades y su lead: reconciliación de clase E hasta F5 (dos perfiles)'::text);
+  end if;
+  -- [Codex B1] el perfil del lead aún no reconocido debe llevar un documento de P o de C
+  if exists (select 1 from crm.leads l join public.perfiles pp on pp.id = l.perfil_id
+              where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))
+                and not exists (select 1 from crm.inversionistas i where i.perfil_id = pp.id and i.estado <> 'fusionado')
+                and not (private.documento_es_de_identidad(p_perdedora, pp.tipo_documento, pp.dni)
+                         or private.documento_es_de_identidad(p_canonica, pp.tipo_documento, pp.dni))) then
+    v_b := pg_catalog.array_append(v_b, 'El perfil de cliente del lead no está reconocido y su documento no es de estas personas: reconciliación documental primero'::text);
   end if;
   if exists (select 1 from crm.multiempresa_idempotencia m
               where m.clave in ('auth_persona:' || p_perdedora::text, 'auth_persona:' || p_canonica::text)
@@ -415,9 +427,11 @@ begin
   if coalesce(v_docs2, '{}') is distinct from v_docs then
     raise exception 'Los documentos de la persona cambiaron mientras se esperaba; vuelve a previsualizar' using errcode = '40001';
   end if;
-  -- 4. perfil FOR SHARE -> 5. cierres -> 6. inversiones/titulares -> 7. tramos -> 8. tareas -> 9. leads (NOWAIT) -> 10. reservas -> 11. claims
-  perform 1 from public.perfiles p where p.id in (v_p.perfil_id, v_c.perfil_id) order by p.id for share;
+  -- 4. perfiles FOR SHARE (directos y de los leads [Codex B1]) -> 5. cierres -> 6. inversiones/titulares -> 7. tramos -> 8. tareas -> 9. leads (NOWAIT) -> 10. reservas -> 11. claims
   v_leads := coalesce((select pg_catalog.array_agg(x order by x) from private.leads_de_identidades(array[p_perdedora, p_canonica]) x), '{}');
+  perform 1 from public.perfiles p
+   where p.id in (v_p.perfil_id, v_c.perfil_id) or p.id in (select l.perfil_id from crm.leads l where l.id = any(v_leads))
+   order by p.id for share;
   perform 1 from crm.cierres_externos ce
    where ce.inversionista_id in (p_perdedora, p_canonica) or ce.lead_id = any(v_leads)
    order by ce.id for update;
@@ -602,7 +616,7 @@ begin
   if v_old_tipo = v_tipo and v_old_norm = v_norm then
     return pg_catalog.jsonb_build_object('ok', true, 'estado', 'sin_cambios', 'inversionista_id', p_inversionista);
   end if;
-  perform private.motivo_sin_documento(p_motivo, array[v_norm, v_old_norm]);
+  perform private.motivo_sin_documento(p_motivo, array[v_norm, v_old_norm] || coalesce((select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = p_inversionista), '{}'));
 
   -- jerarquía [E3-2] + Gerencia revalidada -> advisories de viejo y nuevo, ordenados -> identidad FOR UPDATE
   perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
@@ -714,6 +728,9 @@ begin
       (inversionista_id, tipo_documento, documento_normalizado, documento_original, estado, verificado, fuente, vigente_desde, creado_por)
     values (p_inversionista, v_tipo, v_norm, p_documento, 'vigente', true, 'correccion', v_ahora, v_uid)
     returning id into v_new_id;
+  else
+    -- [Codex B3] el destino reutilizado queda VERIFICADO con la misma política de la corrección
+    update crm.inversionista_identificadores set verificado = true, fuente = coalesce(fuente, 'correccion') where id = v_new_id and verificado = false;
   end if;
   v_perfil_res := case when v_inv.perfil_id is null then 'ninguno' else 'sin_cambio' end;
   if v_perfil_id is not null and v_old_id is not null
@@ -805,7 +822,7 @@ begin
   if v_lead0.dni is null then
     raise exception 'El lead no tiene DNI: solo el documento exacto enlaza (corrige el DNI del lead primero)' using errcode = 'P0409';
   end if;
-  perform private.motivo_sin_documento(p_motivo, array[v_lead0.dni]);
+  perform private.motivo_sin_documento(p_motivo, array[v_lead0.dni] || coalesce((select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = p_inversionista), '{}'));
 
   -- jerarquía + Gerencia revalidada -> documento del lead -> identidad FOR UPDATE
   perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
@@ -823,7 +840,7 @@ begin
     end if;
     raise exception 'El DNI del lead no es un documento vigente y verificado de esta persona: corrige el documento primero' using errcode = 'P0409';
   end if;
-  if exists (select 1 from private.leads_de_identidades(array[p_inversionista])) then
+  if exists (select 1 from private.leads_de_identidades(array[p_inversionista]) x where x <> p_lead_id) then
     raise exception 'La persona ya tiene su lead (enlace vivo o puente, activo o no): reconciliación de clase E hasta F5' using errcode = 'P0409';
   end if;
   -- unión de enlaces del lead [E3-10]: perfil (FOR SHARE, por DOCUMENTO) -> cierre (por DOCUMENTO) -> puente -> tareas -> lead -> reservas -> claim

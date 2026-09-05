@@ -43,47 +43,68 @@ begin
      or coalesce((select activo from crm.multiempresa_flags where nombre='inversiones_escritura'), false) then
     raise exception 'F2.b b5: alguna bandera está ENCENDIDA; este lote aterriza apagado';
   end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='convertir_lead' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_perfil_id uuid';
-  if v_h <> '0327c4d75a515a292973fed3d2577cd0' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='convertir_lead' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_perfil_id uuid') = 0 then
-    raise exception 'F2.b b5: crm.convertir_lead no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.convertir_lead';
   end if;
+  if v_h is distinct from '0327c4d75a515a292973fed3d2577cd0' and v_h is distinct from 'c30a0ac9be5f44bc1caa129bc90a2ea7' then
+    raise exception 'F2.b b5: crm.convertir_lead no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='convertir_lead_externo' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text';
-  if v_h <> '190b75ebcd5ac0a5f7f43a59bda5295d' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='convertir_lead_externo' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text') = 0 then
-    raise exception 'F2.b b5: crm.convertir_lead_externo no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.convertir_lead_externo';
   end if;
+  if v_h is distinct from '190b75ebcd5ac0a5f7f43a59bda5295d' and v_h is distinct from '0272febed241415d7c1cfcdf70bed37b' then
+    raise exception 'F2.b b5: crm.convertir_lead_externo no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='saga_conversion_fn' and pg_get_function_identity_arguments(p.oid) = 'p_paso text, p_payload jsonb';
-  if v_h <> 'e1750c3d2def2d611b60fb5cf281f3c8' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='saga_conversion_fn' and pg_get_function_identity_arguments(p.oid) = 'p_paso text, p_payload jsonb') = 0 then
-    raise exception 'F2.b b5: crm.saga_conversion_fn no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.saga_conversion_fn';
   end if;
+  if v_h is distinct from 'e1750c3d2def2d611b60fb5cf281f3c8' and v_h is distinct from 'b3897a5f307aaebbfa932a4ad83bdb21' then
+    raise exception 'F2.b b5: crm.saga_conversion_fn no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica' and pg_get_function_identity_arguments(p.oid) = '';
-  if v_h <> '782e65d744ae497139f9cafd09a53778' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica' and pg_get_function_identity_arguments(p.oid) = '') = 0 then
-    raise exception 'F2.b b5: private.trg_leads_disponibilidad_atomica no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta private.trg_leads_disponibilidad_atomica';
   end if;
+  if v_h is distinct from '782e65d744ae497139f9cafd09a53778' and v_h is distinct from 'fdae5787cde84c41d05553a9d87b1abe' then
+    raise exception 'F2.b b5: private.trg_leads_disponibilidad_atomica no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid';
-  if v_h <> '48c4cb305060483999dc53040eddaf5e' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid') = 0 then
-    raise exception 'F2.b b5: crm.marcar_efectos_conversion no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.marcar_efectos_conversion';
   end if;
+  if v_h is distinct from '48c4cb305060483999dc53040eddaf5e' and v_h is distinct from 'd505da488a943730cfa2a09aca79a049' then
+    raise exception 'F2.b b5: crm.marcar_efectos_conversion no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_claim_id uuid, p_token text';
-  if v_h <> 'c39147385e0d793742e8fc940ba0dbba' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid) = 'p_lead_id uuid, p_claim_id uuid, p_token text') = 0 then
-    raise exception 'F2.b b5: crm.marcar_efectos_conversion.3 no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.marcar_efectos_conversion.3';
   end if;
+  if v_h is distinct from 'c39147385e0d793742e8fc940ba0dbba' and v_h is distinct from '8ab20f7fb4842caaed5ad705db5e91b2' then
+    raise exception 'F2.b b5: crm.marcar_efectos_conversion.3 no es ni el texto vivo de producción ni el de b5 (%)', v_h;
+  end if;
+  v_h := null;
   select md5(pg_get_functiondef(p.oid)) into v_h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='crm' and p.proname='alta_cliente_identidad_fn' and pg_get_function_identity_arguments(p.oid) = 'p_paso text, p_payload jsonb';
-  if v_h <> '952f18420935bb63e8a35e2287077b52' and (select strpos(p.prosrc,'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-       where n.nspname='crm' and p.proname='alta_cliente_identidad_fn' and pg_get_function_identity_arguments(p.oid) = 'p_paso text, p_payload jsonb') = 0 then
-    raise exception 'F2.b b5: crm.alta_cliente_identidad_fn no es el texto vivo esperado (%)', v_h;
+  if v_h is null then
+    raise exception 'F2.b b5: falta crm.alta_cliente_identidad_fn';
+  end if;
+  if v_h is distinct from '952f18420935bb63e8a35e2287077b52' and v_h is distinct from 'ada6b3e4b1ef21cde7febcfee6f09334' then
+    raise exception 'F2.b b5: crm.alta_cliente_identidad_fn no es ni el texto vivo de producción ni el de b5 (%)', v_h;
   end if;
 end
 $guard$;
@@ -274,6 +295,12 @@ begin
       raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
         using errcode = 'P0409';
     end if;
+  end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
   end if;
   -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento de un perfil
   -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
@@ -548,6 +575,12 @@ begin
       raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
         using errcode = 'P0409';
     end if;
+  end if;
+  -- F2.b (b5) [Codex B2]: «un solo lead» cuenta también el PUENTE (históricos del backfill sin enlace vivo).
+  if v_flag and v_inv is not null
+     and exists (select 1 from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id) then
+    raise exception 'Esta persona ya tiene un lead; registra la nueva inversion sobre ese lead, no conviertas otro'
+      using errcode = 'P0409';
   end if;
   -- F2.b (b5) [E3-11]: la persona YA reconocida de este lead manda; el documento del cierre
   -- no se lo lleva a otra identidad (eso es corrección o fusión de Gerencia).
@@ -1072,6 +1105,9 @@ begin
     if v_doc is null then
       raise exception 'El documento es obligatorio para crear un cliente (identidad unificada)' using errcode = '22023';
     end if;
+    -- F2.b (b5) [Codex N2]: jerarquía compartida ANTES del documento (asegurar_identidad_perfil la toma después;
+    -- el offboarding la toma exclusiva): nunca documento/identidad -> jerarquía.
+    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
     perform private.identidad_bloquear_documento(v_tipo, v_doc);
     v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'alta_cliente');
     perform 1 from crm.inversionistas i where i.id = v_inv for update;
@@ -1316,8 +1352,20 @@ begin
   if v_n > 1 then
     v_b := pg_catalog.array_append(v_b, 'Las dos identidades tienen lead (enlace vivo o puente): reconciliación de clase E hasta F5 (dos leads)'::text);
   end if;
-  if v_p.perfil_id is not null and v_c.perfil_id is not null and v_p.perfil_id <> v_c.perfil_id then
-    v_b := pg_catalog.array_append(v_b, 'Las dos identidades tienen perfil de cliente: reconciliación de clase E hasta F5 (dos perfiles)'::text);
+  select count(distinct pf) into v_n from (
+    select v_p.perfil_id as pf union select v_c.perfil_id
+    union select l.perfil_id from crm.leads l where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))) s
+  where pf is not null;
+  if v_n > 1 then
+    v_b := pg_catalog.array_append(v_b, 'Hay más de un perfil de cliente entre las dos identidades y su lead: reconciliación de clase E hasta F5 (dos perfiles)'::text);
+  end if;
+  -- [Codex B1] el perfil del lead aún no reconocido debe llevar un documento de P o de C
+  if exists (select 1 from crm.leads l join public.perfiles pp on pp.id = l.perfil_id
+              where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))
+                and not exists (select 1 from crm.inversionistas i where i.perfil_id = pp.id and i.estado <> 'fusionado')
+                and not (private.documento_es_de_identidad(p_perdedora, pp.tipo_documento, pp.dni)
+                         or private.documento_es_de_identidad(p_canonica, pp.tipo_documento, pp.dni))) then
+    v_b := pg_catalog.array_append(v_b, 'El perfil de cliente del lead no está reconocido y su documento no es de estas personas: reconciliación documental primero'::text);
   end if;
   if exists (select 1 from crm.multiempresa_idempotencia m
               where m.clave in ('auth_persona:' || p_perdedora::text, 'auth_persona:' || p_canonica::text)
@@ -1569,9 +1617,11 @@ begin
   if coalesce(v_docs2, '{}') is distinct from v_docs then
     raise exception 'Los documentos de la persona cambiaron mientras se esperaba; vuelve a previsualizar' using errcode = '40001';
   end if;
-  -- 4. perfil FOR SHARE -> 5. cierres -> 6. inversiones/titulares -> 7. tramos -> 8. tareas -> 9. leads (NOWAIT) -> 10. reservas -> 11. claims
-  perform 1 from public.perfiles p where p.id in (v_p.perfil_id, v_c.perfil_id) order by p.id for share;
+  -- 4. perfiles FOR SHARE (directos y de los leads [Codex B1]) -> 5. cierres -> 6. inversiones/titulares -> 7. tramos -> 8. tareas -> 9. leads (NOWAIT) -> 10. reservas -> 11. claims
   v_leads := coalesce((select pg_catalog.array_agg(x order by x) from private.leads_de_identidades(array[p_perdedora, p_canonica]) x), '{}');
+  perform 1 from public.perfiles p
+   where p.id in (v_p.perfil_id, v_c.perfil_id) or p.id in (select l.perfil_id from crm.leads l where l.id = any(v_leads))
+   order by p.id for share;
   perform 1 from crm.cierres_externos ce
    where ce.inversionista_id in (p_perdedora, p_canonica) or ce.lead_id = any(v_leads)
    order by ce.id for update;
@@ -1756,7 +1806,7 @@ begin
   if v_old_tipo = v_tipo and v_old_norm = v_norm then
     return pg_catalog.jsonb_build_object('ok', true, 'estado', 'sin_cambios', 'inversionista_id', p_inversionista);
   end if;
-  perform private.motivo_sin_documento(p_motivo, array[v_norm, v_old_norm]);
+  perform private.motivo_sin_documento(p_motivo, array[v_norm, v_old_norm] || coalesce((select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = p_inversionista), '{}'));
 
   -- jerarquía [E3-2] + Gerencia revalidada -> advisories de viejo y nuevo, ordenados -> identidad FOR UPDATE
   perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
@@ -1868,6 +1918,9 @@ begin
       (inversionista_id, tipo_documento, documento_normalizado, documento_original, estado, verificado, fuente, vigente_desde, creado_por)
     values (p_inversionista, v_tipo, v_norm, p_documento, 'vigente', true, 'correccion', v_ahora, v_uid)
     returning id into v_new_id;
+  else
+    -- [Codex B3] el destino reutilizado queda VERIFICADO con la misma política de la corrección
+    update crm.inversionista_identificadores set verificado = true, fuente = coalesce(fuente, 'correccion') where id = v_new_id and verificado = false;
   end if;
   v_perfil_res := case when v_inv.perfil_id is null then 'ninguno' else 'sin_cambio' end;
   if v_perfil_id is not null and v_old_id is not null
@@ -1959,7 +2012,7 @@ begin
   if v_lead0.dni is null then
     raise exception 'El lead no tiene DNI: solo el documento exacto enlaza (corrige el DNI del lead primero)' using errcode = 'P0409';
   end if;
-  perform private.motivo_sin_documento(p_motivo, array[v_lead0.dni]);
+  perform private.motivo_sin_documento(p_motivo, array[v_lead0.dni] || coalesce((select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = p_inversionista), '{}'));
 
   -- jerarquía + Gerencia revalidada -> documento del lead -> identidad FOR UPDATE
   perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
@@ -1977,7 +2030,7 @@ begin
     end if;
     raise exception 'El DNI del lead no es un documento vigente y verificado de esta persona: corrige el documento primero' using errcode = 'P0409';
   end if;
-  if exists (select 1 from private.leads_de_identidades(array[p_inversionista])) then
+  if exists (select 1 from private.leads_de_identidades(array[p_inversionista]) x where x <> p_lead_id) then
     raise exception 'La persona ya tiene su lead (enlace vivo o puente, activo o no): reconciliación de clase E hasta F5' using errcode = 'P0409';
   end if;
   -- unión de enlaces del lead [E3-10]: perfil (FOR SHARE, por DOCUMENTO) -> cierre (por DOCUMENTO) -> puente -> tareas -> lead -> reservas -> claim
@@ -2155,6 +2208,27 @@ begin
     raise exception 'POSTFLIGHT b5: falta alguna función nueva';
   end if;
 
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_perfil_id uuid') is distinct from 'c30a0ac9be5f44bc1caa129bc90a2ea7' then
+    raise exception 'POSTFLIGHT b5: crm.convertir_lead no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text') is distinct from '0272febed241415d7c1cfcdf70bed37b' then
+    raise exception 'POSTFLIGHT b5: crm.convertir_lead_externo no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='saga_conversion_fn' and pg_get_function_identity_arguments(p.oid)='p_paso text, p_payload jsonb') is distinct from 'b3897a5f307aaebbfa932a4ad83bdb21' then
+    raise exception 'POSTFLIGHT b5: crm.saga_conversion_fn no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_disponibilidad_atomica' and pg_get_function_identity_arguments(p.oid)='') is distinct from 'fdae5787cde84c41d05553a9d87b1abe' then
+    raise exception 'POSTFLIGHT b5: private.trg_leads_disponibilidad_atomica no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid') is distinct from 'd505da488a943730cfa2a09aca79a049' then
+    raise exception 'POSTFLIGHT b5: crm.marcar_efectos_conversion no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_claim_id uuid, p_token text') is distinct from '8ab20f7fb4842caaed5ad705db5e91b2' then
+    raise exception 'POSTFLIGHT b5: crm.marcar_efectos_conversion.3 no quedó byte a byte como la genera gen-b5.py';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='alta_cliente_identidad_fn' and pg_get_function_identity_arguments(p.oid)='p_paso text, p_payload jsonb') is distinct from 'ada6b3e4b1ef21cde7febcfee6f09334' then
+    raise exception 'POSTFLIGHT b5: crm.alta_cliente_identidad_fn no quedó byte a byte como la genera gen-b5.py';
+  end if;
   if (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead') = 0
      or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo') = 0
      or (select strpos(p.prosrc, 'F2.b (b5)') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='saga_conversion_fn') = 0

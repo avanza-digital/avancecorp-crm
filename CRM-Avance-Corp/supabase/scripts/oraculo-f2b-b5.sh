@@ -10,7 +10,7 @@ RUN="${RUN:-$(date +%d%H%M)}"
 V='f3000000-0000-0000-0000-000000000001'; G='f3000000-0000-0000-0000-000000000002'; SUP='f3000000-0000-0000-0000-000000000003'
 L1="f31ead00-0000-0000-0000-${RUN}000001"; L2="f31ead00-0000-0000-0000-${RUN}000002"; L3="f31ead00-0000-0000-0000-${RUN}000003"
 L4="f31ead00-0000-0000-0000-${RUN}000004"; L5="f31ead00-0000-0000-0000-${RUN}000005"
-DA="5${RUN}1"; DB="5${RUN}2"; DC="5${RUN}3"; DD="5${RUN}4"; DE="5${RUN}5"; DF="5${RUN}6"; DG="5${RUN}7"; DH="5${RUN}8"; DX="5${RUN}9"; DA2="8${RUN}1"; DE2="8${RUN}5"
+DA="5${RUN}1"; DB="5${RUN}2"; DC="5${RUN}3"; DD="5${RUN}4"; DE="5${RUN}5"; DF="5${RUN}6"; DG="5${RUN}7"; DH="5${RUN}8"; DX="5${RUN}9"; DA2="8${RUN}1"; DE2="8${RUN}5"; DP="4${RUN}1"; DQ="4${RUN}2"; DV="4${RUN}3"; DN="4${RUN}4"; DM="4${RUN}5"
 ROJO=0; AQUI="$(cd "$(dirname "$0")" && pwd)"
 ok()   { echo "  ✅ $*"; }
 rojo() { echo "  ❌ $*" >&2; ROJO=$((ROJO+1)); }
@@ -89,6 +89,10 @@ echo "== Previsualización: bloqueos y advertencias =="
 R="$(prev "$IC" "$IB")"; [[ "$(j "$R" viable)" == "False" ]] && echo "$R" | grep -q "dos leads" && ok "IC→IB: dos leads → no viable (bloqueo con diagnóstico)" || rojo "dos leads: $R"
 R="$(prev "$PB" "$PA")"; [[ "$(j "$R" viable)" == "False" ]] && echo "$R" | grep -q "dos perfiles" && ok "PB→PA: dos perfiles → no viable" || rojo "dos perfiles: $R"
 R="$(prev "$PA" "$PA")"; [[ "$(j "$R" viable)" == "False" ]] && ok "misma identidad → no viable" || rojo "misma: $R"
+IP="$(q "select private.inversionista_resolver('DNI','$DP',true,'ensayo-b5')")"; LP="$(uuid)"; lead_dni "$LP" "'$DP'" 66 >/dev/null
+PQ="$(uuid)"; sim_auth "$PQ" "q$RUN@x.pe" "sin-claim"; flag false; sim_perfil "$PQ" "$DQ" "q$RUN@x.pe"; flag true
+sys "update crm.leads set perfil_id='$PQ' where id='$LP'"
+R="$(prev "$IP" "$PB")"; [[ "$(j "$R" viable)" == "False" ]] && echo "$R" | grep -q "perfil" && ok "[Codex B1] el perfil del lead de P (no reconocido, otro documento) + el perfil de C → no viable" || rojo "B1: $R"
 R="$(prev "$Z" "$IX")"; echo "$R" | grep -q "ya está fusionada" && ok "perdedora ya fusionada → «usa su canónica»" || rojo "fusionada: $R"
 R="$(run_as "$V" "select crm.fusion_previsualizar_fn('$PA','$IX')")"; echo "$R" | grep -q "42501" && ok "vendedor previsualiza → 42501 (rol SQL authenticated + claims)" || rojo "vendedor previsualizó: $R"
 R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"; [[ "$(j "$R" viable)" == "True" && -n "$H" ]] && ok "PA→IX viable con huella" || rojo "PA→IX: $R"
@@ -158,6 +162,10 @@ R="$(corr "$IX" "DNI" "$DA" "el DNI correcto es el del Portal" "$IDX")"; [[ "$(j
 # perfil realineado: IX (canónica) tiene el perfil de PA (dni DA) y el identificador DA reemitido
 IDA="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DA' and estado='vigente'")"
 R="$(corr "$IX" "DNI" "$DA2" "DNI del Portal mal tecleado" "$IDA")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" perfil)" == "actualizado" && "$(q "select dni from public.perfiles where id='$PA_PERFIL'")" == "$DA2" ]] && ok "perfil del Portal realineado (dni=$DA2)" || rojo "perfil: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|head -1|cut -c1-200)"
+sys "insert into crm.inversionista_identificadores (inversionista_id, tipo_documento, documento_normalizado, estado, verificado, fuente) values ('$IX','DNI','$DV','vigente',false,'ensayo-b5')"
+IDA2="$(q "select id from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DA2' and estado='vigente'")"
+R="$(corr "$IX" "DNI" "$DV" "el DNI bueno es el que faltaba por verificar" "$IDA2")"; [[ "$(j "$R" estado)" == "corregido" && "$(j "$R" reutilizado)" == "True" && "$(q "select verificado from crm.inversionista_identificadores where inversionista_id='$IX' and documento_normalizado='$DV' and estado='vigente'")" == "t" && "$(inv_de "$DV")" == "$IX" ]] && ok "[Codex B3] reutilizar un vigente propio NO verificado lo deja verificado (el resolver lo reconoce)" || rojo "B3: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|tail -1|cut -c1-200)"
+R="$(corr "$IF" "DNI" "6${RUN}9" "motivo con el histórico $DF2 de la persona")"; echo "$R" | grep -q "22023" && ok "[Codex B4] motivo con un documento HISTÓRICO de la persona → 22023" || rojo "B4: $R"
 PG2="$(uuid)"; sim_auth "$PG2" "g$RUN@x.pe" "sin-claim"; flag false; sim_perfil "$PG2" "$DG" "g$RUN@x.pe"; flag true
 R="$(corr "$IB" "DNI" "$DG" "cambio al DNI de otro cliente del Portal")"; echo "$R" | grep -qi "otro cliente del Portal" && ok "documento de OTRO cliente del Portal (sin identidad) → P0409" || rojo "portal: $R"
 LF="$(uuid)"; lead_dni "$LF" "'$DH'" 62 >/dev/null
@@ -180,6 +188,14 @@ DI="5${RUN}0"; DJ="6${RUN}1"; LI="$(uuid)"; lead_dni "$LI" "'$DI'" 64 >/dev/null
 [[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LI'")" == "convertido -" ]] && ok "fixture E3-10: lead LI (DNI $DI) convertido en coop con documento $DJ, sin identidad" || rojo "fixture E3-10: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
 II="$(q "select private.inversionista_resolver('DNI','$DI',true,'ensayo-b5')")"
 R="$(enl "$LI" "$II" "enlace con cierre de otro documento")"; echo "$R" | grep -q "documento del cierre" && ok "[E3-10] el cierre lleva otro documento → enlace P0409 (reconciliación documental primero)" || rojo "E3-10: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
+# [Codex N4] lead suelto cuyo ÚNICO puente es histórico hacia la misma persona → se enlaza (su propio puente no cuenta como «otro lead»)
+LN="$(uuid)"; flag false; lead_dni "$LN" "'$DN'" 67 >/dev/null; flag true; IN="$(q "select private.inversionista_resolver('DNI','$DN',true,'ensayo-b5')")"
+sys "insert into crm.inversionista_leads (inversionista_id, lead_id, rol, hasta) values ('$IN','$LN','historico', now())"
+R="$(enl "$LN" "$IN" "puente histórico propio (backfill)")"; [[ "$(j "$R" ok)" == "True" && "$(q "select inversionista_id from crm.leads where id='$LN'")" == "$IN" && "$(q "select count(*) from crm.inversionista_leads where lead_id='$LN'")" == "1" ]] && ok "[Codex N4] lead con su propio puente histórico → enlazado; el puente no se duplica" || rojo "N4: $(echo "$R"|grep -E 'ERROR|MESSAGE|\{'|tail -1|cut -c1-200)"
+# [Codex B2] convertir_lead con el perfil de una persona que solo tiene un lead HISTÓRICO en el puente → P0409 un-solo-lead
+PM="$(uuid)"; sim_auth "$PM" "m$RUN@x.pe" "sin-claim"; flag false; sim_perfil "$PM" "$DM" "m$RUN@x.pe"; LM="$(uuid)"; lead_dni "$LM" "null" 68 >/dev/null; LN2="$(uuid)"; lead_dni "$LN2" "null" 69 >/dev/null; flag true
+IM="$(q "select private.inversionista_resolver('DNI','$DM',true,'ensayo-b5')")"; sys "insert into crm.inversionista_leads (inversionista_id, lead_id, rol, hasta) values ('$IM','$LN2','historico', now())"
+R="$(run_as "$V" "select crm.convertir_lead('$LM','$PM')")"; echo "$R" | grep -q "ya tiene un lead" && [[ "$(q "select etapa from crm.leads where id='$LM'")" == "nuevo" ]] && ok "[Codex B2] conversión Avance de otro lead para una persona con lead histórico en el puente → P0409 (un solo lead cuenta el puente)" || rojo "B2: $(echo "$R"|grep -E 'ERROR|MESSAGE'|head -1|cut -c1-160)"
 # [E3-16] lead INACTIVO con DNI de una persona reconocida → enlace sin actividad, con fila en el libro
 DK="6${RUN}2"; LK="$(uuid)"; lead_dni "$LK" "'$DK'" 65 >/dev/null; IK="$(q "select private.inversionista_resolver('DNI','$DK',true,'ensayo-b5')")"
 psql "$PG" -q -c "update crm.leads set activo=false where id='$LK'" >/dev/null
