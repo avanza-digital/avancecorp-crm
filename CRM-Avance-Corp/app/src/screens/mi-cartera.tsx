@@ -70,6 +70,7 @@ import {
   MES_TODOS,
   agruparPorMes,
   etiquetaDeMes,
+  mesDeCierre,
   mesLima,
   ordenDeBloque,
 } from '@/lib/cartera-meses'
@@ -80,8 +81,16 @@ import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
-import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera, useResumenCarteraClientes } from '@/data/crm-queries'
+import {
+  crmQueryKeys,
+  useClientes,
+  useContratos,
+  useMetricasConversiones,
+  useOperacionesCartera,
+  useResumenCarteraClientes,
+} from '@/data/crm-queries'
 import { fechaLima } from '@/lib/agenda-derivada'
+import { periodoMesCalendario, validarPeriodoGerencia } from '@/components/gerencia/periodo'
 import { resolverContextoFichaCliente } from '@/lib/cliente-ficha-modelo'
 import type {
   ClienteBasico,
@@ -100,6 +109,14 @@ import type {
  * (mismo criterio que FilaCliente/FilaContrato: cerrada es estado normal).
  */
 const AVISO_VENTANA_MS = 30 * 60_000
+
+/** Lectura local del resultado N3. Ausente = el núcleo no pudo confirmar nada;
+ *  `no_aportada` sólo existe cuando su mapa completo sí descartó la operación. */
+type OperacionCarteraVista = OperacionCartera & {
+  efecto_nucleo?:
+    | { estado: 'aportada'; aporte_numerador: number }
+    | { estado: 'no_aportada' }
+}
 
 /** Fecha corta es-PE de un YYYY-MM-DD (vencimiento) sin deriva de zona. */
 function fechaCorta(iso: string): string {
@@ -206,15 +223,23 @@ function DetalleOperacionCapital({
   contratoOrigen,
 }: {
   contrato: ContratoRow
-  operacion: OperacionCartera | null
+  operacion: OperacionCarteraVista | null
   contratoOrigen: ContratoRow | null
 }) {
   if (!operacion) return null
 
+  const efectoNucleo = operacion.efecto_nucleo
+  const rotuloNucleo = efectoNucleo?.estado === 'aportada'
+    ? `Aportó ×${String(efectoNucleo.aporte_numerador)} al núcleo vivo`
+    : efectoNucleo?.estado === 'no_aportada'
+      ? 'No aportó: el núcleo no la seleccionó'
+      : null
+
   if (operacion.tipo === 'upgrade') {
     return (
       <span className="mt-1 block text-[10px] font-semibold text-muted-foreground">
-        Upgrade · {operacion.elegible_conversion ? 'elegible para conversión · aporte sujeto al núcleo' : 'no elegible para conversión'}
+        Upgrade · {rotuloNucleo
+          ?? (operacion.elegible_conversion ? 'elegible para conversión · aporte sujeto al núcleo' : 'no elegible para conversión')}
       </span>
     )
   }
@@ -223,6 +248,7 @@ function DetalleOperacionCapital({
     return (
       <span className="mt-1 block text-[10px] font-semibold text-warning-text">
         Renovación histórica · desglose pendiente
+        {rotuloNucleo && <span className="mt-0.5 block">{rotuloNucleo}</span>}
       </span>
     )
   }
@@ -248,6 +274,11 @@ function DetalleOperacionCapital({
         {money(operacion.capital_adicional, operacion.moneda)} adicional
       </span>{' '}
       = {money(contrato.capital, contrato.moneda)} · renovación registrada
+      {rotuloNucleo && (
+        <span className={`mt-0.5 block font-semibold ${efectoNucleo?.estado === 'aportada' ? 'text-primary' : ''}`}>
+          {rotuloNucleo}
+        </span>
+      )}
     </span>
   )
 }
@@ -278,7 +309,7 @@ interface PropsFilaGrupo {
   contratosVisibles: ContratoRow[]
   /** ids de contratos que vencen en ≤30 d: se marcan «renovar» en su sub-fila. */
   porVencer: ReadonlySet<string>
-  operacionesPorContrato: ReadonlyMap<string, OperacionCartera>
+  operacionesPorContrato: ReadonlyMap<string, OperacionCarteraVista>
   contratosPorId: ReadonlyMap<string, ContratoRow>
   onNuevoContrato: () => void
   onGestionarCliente: () => void
@@ -316,7 +347,7 @@ function FilaContratoSub({
    *  — el color solo no es información accesible. */
   porVencer: boolean
   renovable: boolean
-  operacion: OperacionCartera | null
+  operacion: OperacionCarteraVista | null
   contratoOrigen: ContratoRow | null
   onDetalle: () => void
   onCorregir: () => void
@@ -654,7 +685,7 @@ function TarjetaContratoSub({
   /** Vence en ≤30 d — misma marca con PALABRA que en la tabla (no solo color). */
   porVencer: boolean
   renovable: boolean
-  operacion: OperacionCartera | null
+  operacion: OperacionCarteraVista | null
   contratoOrigen: ContratoRow | null
   onDetalle: () => void
   onCorregir: () => void
@@ -962,6 +993,24 @@ function VistaMiCartera({
   const [ahora] = useState(() => new Date().toISOString())
   const [fMes, setFMes] = useState<string>(() => mesLima(new Date().toISOString()) ?? MES_TODOS)
 
+  // N3 no crea otra cuenta: consulta la ampliación del mismo núcleo de
+  // conversión. Sólo Gerencia real y un mes de calendario aceptado por el
+  // contrato pueden pedirla; los cubos/todos/futuro quedan fail-closed.
+  const mesConversionValido = mesDeCierre(`${fMes}-01`) === fMes
+  const periodoConversion = useMemo(
+    () => mesConversionValido ? periodoMesCalendario(fMes, Date.parse(ahora)) : null,
+    [ahora, fMes, mesConversionValido],
+  )
+  const consultarAportesNucleo = yo?.rol === 'gerencia'
+    && !demo
+    && periodoConversion != null
+    && validarPeriodoGerencia(periodoConversion, Date.parse(ahora)).valido
+  const aportesNucleoQ = useMetricasConversiones(
+    consultarAportesNucleo,
+    periodoConversion?.desde ?? '',
+    periodoConversion?.hasta ?? '',
+  )
+
   const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
   // Roster visible para el filtro «Sin analista»: un dueño fuera de este Set (o null)
   // cuenta como sin analista — mismo criterio que la columna Analista pinta «—».
@@ -971,9 +1020,49 @@ function VistaMiCartera({
     () => new Map(bases.flatMap((grupo) => grupo.contratos).map((contrato) => [contrato.id, contrato])),
     [bases],
   )
+  const operacionesConNucleo = useMemo<OperacionCarteraVista[]>(() => {
+    const lectura = aportesNucleoQ.data?.conversion_operaciones
+    const lecturaConfirmada = consultarAportesNucleo
+      && !aportesNucleoQ.isError
+      && periodoConversion != null
+      && lectura?.lectura === 'viva'
+      && lectura.completo === true
+      && lectura.desde === periodoConversion.desde
+      && lectura.hasta === periodoConversion.hasta
+
+    // Sin contrato completo y exactamente alineado al filtro, no se infiere ni
+    // siquiera un cero: se conserva el texto neutral que ya tenía la cartera.
+    if (!lecturaConfirmada || lectura == null || periodoConversion == null) return operaciones
+
+    const aportesPorOperacion = new Map(
+      lectura.detalle.map((detalle) => [detalle.operacion_id, detalle.aporte_numerador]),
+    )
+    return operaciones.map((operacion) => {
+      // El mapa responde exclusivamente por el mes pedido. Una operación de
+      // otro periodo visible por razones históricas no se marca con esa foto.
+      if (operacion.periodo !== periodoConversion.desde) return operacion
+      const aporte = aportesPorOperacion.get(operacion.id)
+      // El mapa completo permite concluir que una operación elegible no fue
+      // seleccionada, pero no inventar la causa. Una no elegible conserva su
+      // causa explícita anterior.
+      if (aporte === undefined && !operacion.elegible_conversion) return operacion
+      return {
+        ...operacion,
+        efecto_nucleo: aporte === undefined
+          ? { estado: 'no_aportada' as const }
+          : { estado: 'aportada' as const, aporte_numerador: aporte },
+      }
+    })
+  }, [
+    aportesNucleoQ.data,
+    aportesNucleoQ.isError,
+    consultarAportesNucleo,
+    operaciones,
+    periodoConversion,
+  ])
   const operacionesPorContrato = useMemo(
-    () => new Map(operaciones.map((operacion) => [operacion.contrato_nuevo_id, operacion])),
-    [operaciones],
+    () => new Map(operacionesConNucleo.map((operacion) => [operacion.contrato_nuevo_id, operacion])),
+    [operacionesConNucleo],
   )
   // ── Clientes DADOS DE BAJA en el portal (perfiles.activo=false) ────────────
   // Decisión (2026-07-25): se MUESTRAN marcados, pero salen de los TOTALES de

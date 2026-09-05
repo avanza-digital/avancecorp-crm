@@ -260,7 +260,7 @@ describe('ranking general de analistas', () => {
 
     const enlace = screen.getByRole('link', { name: 'Ver ranking general de analistas' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
-    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
+    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
   })
 
@@ -538,7 +538,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getByText('10 cierres este mes')).toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.queryByText(/leads asignados/)).not.toBeInTheDocument()
-    expect(screen.getByText(/llegadas del rango · hasta hoy/)).toBeInTheDocument()
+    expect(screen.getByText('de 184 leads del mes')).toBeInTheDocument()
     const tarjetaReuniones = screen.getByText('Citas realizadas', { selector: '.gi-label' }).closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')
     expect(tarjetaReuniones).toHaveTextContent('Dato no disponible')
@@ -643,7 +643,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     expect(screen.queryByText('15%', { selector: '.gi-hero-metric strong' })).not.toBeInTheDocument()
     // F3: la meta mensual ya no se dibuja sobre la curva semanal (H12) — la
     // ausencia del 15 % se vigila en el héroe; la serie 1 ahora son cierres.
-    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
+    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
     expect(evolucion).toBeInTheDocument()
   })
 
@@ -668,7 +668,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(screen.getByText('No disponible', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
-    const evolucion = screen.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' })
+    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
     expect(evolucion).toBeInTheDocument()
   })
 })

@@ -155,9 +155,9 @@ describe('ranking general de analistas', () => {
     )
 
     expect(screen.getByText('Foto sellada')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
     expect(screen.queryByText('Foto sellada')).not.toBeInTheDocument()
-    expect(screen.getByText('Cosecha en maduración')).toHaveAttribute(
+    expect(screen.getByText('Leads del mes')).toHaveAttribute(
       'title',
       expect.stringContaining('pueden convertirse después'),
     )
@@ -345,7 +345,7 @@ describe('ranking general de analistas', () => {
     expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
     expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
     expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
     expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
   })
@@ -366,7 +366,7 @@ describe('ranking general de analistas', () => {
       />,
     )
 
-    for (const tab of ['Conversión general', 'Capital total', 'Cosecha del lote']) {
+    for (const tab of ['Conversión general', 'Capital total', 'Resultados de los leads del mes']) {
       fireEvent.click(screen.getByRole('tab', { name: tab }))
       expect(screen.getByRole('alert')).toHaveTextContent('No se pudo cargar la foto mensual.')
       fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -443,8 +443,8 @@ describe('ranking general de analistas', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
     expect(screen.queryByText('Alta de setiembre')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
-    const listaCosecha = screen.getByRole('list', { name: 'Cosecha del lote por analista' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
+    const listaCosecha = screen.getByRole('list', { name: 'Resultados de los leads del mes por analista' })
     expect(within(listaCosecha).getAllByRole('listitem')).toHaveLength(Object.keys(cumplimiento).length)
     expect(within(listaCosecha).getByText('Ana Torres')).toBeInTheDocument()
     expect(within(listaCosecha).queryByText('Nombre actual')).not.toBeInTheDocument()
@@ -562,8 +562,8 @@ describe('ranking general de analistas', () => {
     expect(within(altaCapital!).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
     expect(screen.queryByText('Bruno Díaz')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
-    const listaCosecha = screen.getByRole('list', { name: 'Cosecha del lote por analista' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
+    const listaCosecha = screen.getByRole('list', { name: 'Resultados de los leads del mes por analista' })
     expect(within(listaCosecha).getAllByRole('listitem')).toHaveLength(2)
     expect(within(listaCosecha).getByText('Ana Torres')).toBeInTheDocument()
     expect(within(listaCosecha).getByText('Alta vigente sin foto')).toBeInTheDocument()
@@ -755,7 +755,7 @@ describe('aislamiento de las fuentes del ranking', () => {
         onReintentarConversion={reintentarConversion}
         cosecha={undefined}
         cosechaCargando={false}
-        cosechaError="No se pudo calcular la cosecha del lote."
+        cosechaError="No se pudieron cargar los resultados de los leads del mes."
         onReintentarCosecha={reintentarCosecha}
         equipo={conversionEquipoDemo()}
         metasVendedores={metasConversionEquipoDemo()}
@@ -770,8 +770,8 @@ describe('aislamiento de las fuentes del ranking', () => {
     expect(screen.getByRole('table', { name: 'Ranking de conversión general' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo calcular la cosecha del lote.')
+    fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar los resultados de los leads del mes.')
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(reintentarCosecha).toHaveBeenCalledTimes(1)
     expect(reintentarConversion).not.toHaveBeenCalled()
@@ -853,12 +853,12 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     )
   }
 
-  const abrirCosecha = () => fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+  const abrirCosecha = () => fireEvent.click(screen.getByRole('tab', { name: 'Resultados de los leads del mes' }))
 
   it('vive en SU pestaña, no en las filas del ranking (pedido de Miguel: dos relojes juntos eran ruido)', () => {
     montar(cosechaDemo())
     // En el tab de conversión NO hay ni rastro de la cosecha…
-    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel')).queryByText(/De sus \d+ leads del mes/)).not.toBeInTheDocument()
     // …y en su pestaña sí, en idioma de negocio, SOLO para quien tiene fila.
     abrirCosecha()
     const panel = screen.getByRole('tabpanel')
@@ -877,22 +877,22 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
   it('sin payload la pestaña lo DICE («no disponible por ahora») — jamás un cero fabricado', () => {
     montar(undefined)
     abrirCosecha()
-    expect(screen.getByText('Seguimiento del lote no disponible por ahora.')).toBeInTheDocument()
-    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+    expect(screen.getByText('Resultados de los leads del mes no disponibles por ahora.')).toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel')).queryByText(/De sus \d+ leads del mes/)).not.toBeInTheDocument()
   })
 
   it('mientras consulta la cosecha mantiene carga y no afirma que está indisponible', () => {
     montar(undefined, true)
     abrirCosecha()
-    expect(screen.getByText('Consultando la cosecha del lote…')).toBeInTheDocument()
-    expect(screen.queryByText('Seguimiento del lote no disponible por ahora.')).not.toBeInTheDocument()
+    expect(screen.getByText('Consultando los resultados de los leads del mes…')).toBeInTheDocument()
+    expect(screen.queryByText('Resultados de los leads del mes no disponibles por ahora.')).not.toBeInTheDocument()
   })
 
   it('F3.4: con la sonda en falso la pestaña entera se OCULTA y se avisa', () => {
     montar(cosechaDemo(false))
     abrirCosecha()
-    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
+    expect(within(screen.getByRole('tabpanel')).queryByText(/De sus \d+ leads del mes/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Resultados de los leads del mes en revisión')
   })
 
   it.each([
@@ -906,7 +906,7 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
   ])('F3.4 fail-closed: %s no deja publicar la cosecha', (_caso, crear) => {
     montar(crear())
     abrirCosecha()
-    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel')).queryByText(/De sus \d+ leads del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('verificación interna no está confirmada')
   })
 })

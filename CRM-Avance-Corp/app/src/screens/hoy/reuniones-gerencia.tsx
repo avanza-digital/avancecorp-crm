@@ -128,7 +128,35 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,.85fr)]">
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de citas pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /></section>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => <section key={fila.modalidad} data-gi-panel className="gi-card p-5"><div className="flex items-start justify-between gap-3"><div><p className="gi-label">{fila.nombre}</p><p className="gi-caption mt-1">Realización</p><p className="mt-2 text-4xl font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</p><p className="gi-caption mt-1">{numero(fila.realizadas)} realizadas</p></div><div className="text-right"><p className="gi-caption">A clientes</p><strong className="mt-1 block text-xl tabular-nums text-[var(--gi-green)]">{pct(fila.conversion_contrato_pct)}</strong></div></div><div className="mt-4 border-t border-[var(--gi-line)] pt-3"><p className="gi-caption">Capital invertido</p><strong className="mt-1 block text-sm">{money(fila.capital_pen, 'PEN')}</strong>{fila.capital_usd > 0 && <span className="gi-caption">{money(fila.capital_usd, 'USD')}</span>}</div></section>)}</div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => {
+              const detalleRealizacionDisponible = fila.divisor_realizacion != null
+                && fila.canceladas_sistema_vencidas != null
+                && fila.reprogramadas_vencidas != null
+              return (
+                <section key={fila.modalidad} data-gi-panel className="gi-card p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="gi-label">{fila.nombre}</p>
+                      <p className="gi-caption mt-1">Realización</p>
+                      <p className="mt-2 text-4xl font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</p>
+                      {detalleRealizacionDisponible ? (
+                        <>
+                          <p className="gi-caption mt-1">{numero(fila.realizadas)} realizadas{fila.divisor_realizacion === 0 ? ' · sin citas computables' : ` de ${numero(fila.divisor_realizacion)} computables`}</p>
+                          <p className="gi-caption mt-1">Excluidas: {numero(fila.canceladas_sistema_vencidas)} canceladas por sistema · {numero(fila.reprogramadas_vencidas)} reprogramadas</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="gi-caption mt-1">{numero(fila.realizadas)} realizadas</p>
+                          <p className="gi-caption mt-1">Base y exclusiones no disponibles.</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-right"><p className="gi-caption">A clientes</p><strong className="mt-1 block text-xl tabular-nums text-[var(--gi-green)]">{pct(fila.conversion_contrato_pct)}</strong></div>
+                  </div>
+                  <div className="mt-4 border-t border-[var(--gi-line)] pt-3"><p className="gi-caption">Capital invertido</p><strong className="mt-1 block text-sm">{money(fila.capital_pen, 'PEN')}</strong>{fila.capital_usd > 0 && <span className="gi-caption">{money(fila.capital_usd, 'USD')}</span>}</div>
+                </section>
+              )
+            })}</div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

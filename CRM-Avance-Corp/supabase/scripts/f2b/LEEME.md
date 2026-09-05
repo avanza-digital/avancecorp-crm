@@ -35,3 +35,11 @@ de las claims, así que prueba también los grants). Retomar: nota del vault **R
   `python3 gen-d10.py <esta carpeta> <dir supabase>`. El texto vivo se sacó del banco (md5 = producción, `6242dfc9…`).
 - Oráculo: `scripts/oraculo-f2b-d10-d11.sh` (D-10 + el ensayo D-11 del replay de un claim terminal tras una fusión).
   Corrido ANTES de aplicar D-10, la sección D-10 debe salir ROJA (mutante); después, 41/41 (v3: espejo de b5 —auditor M1— y el puente del propio lead manda —Codex #2—; el preflight del oráculo reconoce los md5 de v1/v2 y dice qué debe salir rojo).
+
+## Bloque 2 de activación: [D-13] (05/09)
+
+- `gen-d13.py` + `vivas/d13/*.sql` (5 funciones vivas: verificador 3-args, trigger de nacimiento, `tomar_lead_libre`,
+  `convertir_lead`, `convertir_lead_externo`) + `huellas-d13-prod.txt` → migración `20260905160000`, `scripts/rollback-f2b-d13.sql`
+  y `scripts/registrar-f2b-d13.sql`. `python3 gen-d13.py <esta carpeta> <dir supabase>`.
+- Oráculo: `scripts/oraculo-f2b-d13.sh` (28 asertos; sin D-13 debe salir ROJO). Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § [D-13].
+

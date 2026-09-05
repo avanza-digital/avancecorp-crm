@@ -508,7 +508,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.', qConversionMensual.data)
   const errorCosechaRanking = modoDemo
     ? null
-    : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudieron cargar los resultados de las llegadas.', qCosechaRanking.data)
+    : errorConsulta(sesionReal, qCosechaRanking.error, 'No se pudieron cargar los resultados de los leads del mes.', qCosechaRanking.data)
   const errorFotoMensualRanking = !conversionesDeEjemplo && consultaMensualRealActiva
     ? qCumplimientoRanking.isError
       ? 'No se pudieron cargar la identidad, las metas y el capital del mes elegido.'

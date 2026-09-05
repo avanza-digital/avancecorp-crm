@@ -24,7 +24,7 @@ test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase',
   await expect(page.getByRole('heading', { name: 'Resultados por origen' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Avance de metas' })).toBeVisible()
   await expect(
-    page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
+    page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
   ).toBeVisible()
   await expect(page.getByText('Datos de ejemplo').first()).toBeVisible()
   expect(requestsSupabase()).toBe(0)
@@ -58,12 +58,12 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(capital).toContainText('Cumplimiento confirmado no disponible')
     await expect(page.getByText('8 pactadas')).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
+      page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
     ).toBeVisible()
     const origenes = page.getByRole('heading', { name: 'Resultados por origen' }).locator('..')
     await expect(origenes.getByText('Referido', { exact: true })).toBeVisible()
     await expect(origenes).toContainText('No es la conversión ponderada.')
-    await expect(page.getByText('de 20 llegadas del rango · hasta hoy')).toBeVisible()
+    await expect(page.getByText('de 20 leads del mes')).toBeVisible()
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('resumen-desktop.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 390, height: 844 })
@@ -149,7 +149,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
     await expect(page.getByText(/No pudimos cargar las metas mensuales de/)).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Llegadas por semana y resultados de esas llegadas hasta hoy' }),
+      page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
     ).toHaveCount(0)
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
   })
@@ -209,8 +209,8 @@ test.describe('resumen de Gerencia en sesión real', () => {
         .getByRole('row', { name: /ANA AGOSTO/ }),
     ).toContainText('S/ 43,530')
 
-    await page.getByRole('tab', { name: 'Cosecha del lote' }).click()
-    const cosecha = page.getByRole('list', { name: 'Cosecha del lote por analista' })
+    await page.getByRole('tab', { name: 'Resultados de los leads del mes' }).click()
+    const cosecha = page.getByRole('list', { name: 'Resultados de los leads del mes por analista' })
     await expect(cosecha.getByText('ANA AGOSTO')).toBeVisible()
     await expect(cosecha.getByText('De sus 12 leads del mes, 1 ya es cliente (8.33%)')).toBeVisible()
 

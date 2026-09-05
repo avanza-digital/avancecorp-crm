@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { fechaLima } from '../lib/agenda-derivada'
 import { MES_TODOS } from '../lib/cartera-meses'
 import { agruparCartera, resumenCartera } from '../lib/cartera-vista'
+import { periodoMesCalendario } from '../components/gerencia/periodo'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type {
   ClienteBasico,
@@ -104,6 +105,32 @@ let REFETCH_CLIENTES = vi.fn()
 let REFETCH_CONTRATOS = vi.fn()
 let REFETCH_OPERACIONES = vi.fn()
 
+type FotoOperacionesNucleo = {
+  conversion_operaciones?: {
+    version: 1
+    lectura: 'viva'
+    completo: boolean
+    desde: string
+    hasta: string
+    zona: 'America/Lima'
+    origen_filtrado: null
+    cantidad: number
+    aporte_total: number
+    detalle: Array<{
+      operacion_id: string
+      analista_id: string | null
+      categoria: 'renovacion' | 'upgrade'
+      periodo: string
+      fecha_numerador: string
+      aporte_numerador: number
+    }>
+  } | null
+}
+
+let METRICAS_CONVERSIONES: FotoOperacionesNucleo | undefined
+let ERROR_METRICAS_CONVERSIONES: Error | null = null
+const lecturaMetricasConversiones = vi.hoisted(() => vi.fn())
+
 const cuentasHook = vi.hoisted(() => ({ llamadas: vi.fn() }))
 const archivoPdf = vi.hoisted(() => ({
   abrir: vi.fn(() => ({ close: vi.fn() })),
@@ -172,6 +199,10 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useCierresExternos: () => q(undefined),
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useOperacionesCartera: () => q(OPERACIONES, ERROR_OPERACIONES, REFETCH_OPERACIONES),
+    useMetricasConversiones: (habilitada: boolean, desde: string, hasta: string, origen?: string | null) => {
+      lecturaMetricasConversiones(habilitada, desde, hasta, origen)
+      return q(METRICAS_CONVERSIONES, ERROR_METRICAS_CONVERSIONES)
+    },
     useResumenCarteraClientes: (habilitada: boolean, actor: string) => {
       lecturaResumen(habilitada, actor)
       return q(RESUMEN, ERROR_RESUMEN, REFETCH_RESUMEN)
@@ -413,6 +444,8 @@ function montar(
     errorClientes?: Error | null
     errorContratos?: Error | null
     errorOperaciones?: Error | null
+    metricasConversiones?: FotoOperacionesNucleo | null
+    errorMetricasConversiones?: Error | null
     resumen?: ResumenCarteraClientes | null
     errorResumen?: Error | null
   } = {},
@@ -429,6 +462,9 @@ function montar(
   ERROR_CLIENTES = over.errorClientes ?? null
   ERROR_CONTRATOS = over.errorContratos ?? null
   ERROR_OPERACIONES = over.errorOperaciones ?? null
+  METRICAS_CONVERSIONES = over.metricasConversiones === null ? undefined : over.metricasConversiones
+  ERROR_METRICAS_CONVERSIONES = over.errorMetricasConversiones ?? null
+  lecturaMetricasConversiones.mockClear()
   ERROR_RESUMEN = over.errorResumen ?? null
   // Sólo fixture del servidor para las pruebas heredadas; producción no usa
   // este cálculo. Los casos nuevos inyectan respuestas distintas del listado.
@@ -698,7 +734,205 @@ describe('MiCartera (pantalla)', () => {
       ? 'Upgrade · elegible para conversión · aporte sujeto al núcleo'
       : 'Upgrade · no elegible para conversión')).toBeInTheDocument()
     expect(within(fila).queryByText(/suma conversión|1 conversión/)).not.toBeInTheDocument()
+    expect(lecturaMetricasConversiones).toHaveBeenLastCalledWith(false, expect.any(String), expect.any(String), undefined)
   })
+
+  it('Gerencia muestra el aporte exacto de una renovación seleccionada por el núcleo vivo', async () => {
+    const user = userEvent.setup()
+    const hoy = fechaLima(Date.now())
+    const mes = hoy.slice(0, 7)
+    const periodo = periodoMesCalendario(mes, Date.now())
+    montar({
+      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+      contratos: [contrato({
+        id: 'k-renovado',
+        numero_contrato: '2026-09-000015',
+        categoria: 'renovacion',
+        capital: 60_000,
+        fecha_cierre_comercial: hoy,
+      })],
+      operaciones: [operacion({
+        id: 'op-renovacion-seleccionada',
+        contrato_nuevo_id: 'k-renovado',
+        periodo: periodo.desde,
+        fecha_operacion: hoy,
+      })],
+      metricasConversiones: {
+        conversion_operaciones: {
+          version: 1,
+          lectura: 'viva',
+          completo: true,
+          desde: periodo.desde,
+          hasta: periodo.hasta,
+          zona: 'America/Lima',
+          origen_filtrado: null,
+          cantidad: 1,
+          aporte_total: 0.15,
+          detalle: [{
+            operacion_id: 'op-renovacion-seleccionada',
+            analista_id: 'yo',
+            categoria: 'renovacion',
+            periodo: periodo.desde,
+            fecha_numerador: hoy,
+            aporte_numerador: 0.15,
+          }],
+        },
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+
+    expect(within(subFilaDe('2026-09-000015')).getByText('Aportó ×0.15 al núcleo vivo')).toBeInTheDocument()
+    expect(lecturaMetricasConversiones).toHaveBeenLastCalledWith(
+      true,
+      periodo.desde,
+      periodo.hasta,
+      undefined,
+    )
+  })
+
+  it('Gerencia distingue una operación ausente de un mapa N3 completo', async () => {
+    const user = userEvent.setup()
+    const hoy = fechaLima(Date.now())
+    const mes = hoy.slice(0, 7)
+    const periodo = periodoMesCalendario(mes, Date.now())
+    montar({
+      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+      contratos: [contrato({
+        id: 'k-upgrade-no-seleccionado',
+        numero_contrato: '2026-09-000016',
+        fecha_cierre_comercial: hoy,
+      })],
+      operaciones: [operacion({
+        id: 'op-upgrade-no-seleccionado',
+        tipo: 'upgrade',
+        contrato_origen_id: null,
+        contrato_nuevo_id: 'k-upgrade-no-seleccionado',
+        periodo: periodo.desde,
+        fecha_operacion: hoy,
+      })],
+      metricasConversiones: {
+        conversion_operaciones: {
+          version: 1,
+          lectura: 'viva',
+          completo: true,
+          desde: periodo.desde,
+          hasta: periodo.hasta,
+          zona: 'America/Lima',
+          origen_filtrado: null,
+          cantidad: 0,
+          aporte_total: 0,
+          detalle: [],
+        },
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+
+    expect(within(subFilaDe('2026-09-000016')).getByText(
+      'Upgrade · No aportó: el núcleo no la seleccionó',
+    )).toBeInTheDocument()
+  })
+
+  it('un mapa N3 completo conserva la causa explícita de una operación no elegible', async () => {
+    const user = userEvent.setup()
+    const hoy = fechaLima(Date.now())
+    const mes = hoy.slice(0, 7)
+    const periodo = periodoMesCalendario(mes, Date.now())
+    montar({
+      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+      contratos: [contrato({
+        id: 'k-upgrade-no-elegible',
+        numero_contrato: '2026-09-000018',
+        fecha_cierre_comercial: hoy,
+      })],
+      operaciones: [operacion({
+        id: 'op-upgrade-no-elegible',
+        tipo: 'upgrade',
+        contrato_origen_id: null,
+        contrato_nuevo_id: 'k-upgrade-no-elegible',
+        periodo: periodo.desde,
+        fecha_operacion: hoy,
+        elegible_conversion: false,
+      })],
+      metricasConversiones: {
+        conversion_operaciones: {
+          version: 1,
+          lectura: 'viva',
+          completo: true,
+          desde: periodo.desde,
+          hasta: periodo.hasta,
+          zona: 'America/Lima',
+          origen_filtrado: null,
+          cantidad: 0,
+          aporte_total: 0,
+          detalle: [],
+        },
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+
+    const fila = subFilaDe('2026-09-000018')
+    expect(within(fila).getByText('Upgrade · no elegible para conversión')).toBeInTheDocument()
+    expect(within(fila).queryByText(/No aportó:/)).not.toBeInTheDocument()
+  })
+
+  it.each(['sin_bloque', 'error', 'rango_distinto', 'incompleto', 'otro_periodo'] as const)(
+    'Gerencia conserva el estado neutral cuando N3 queda desconocido: %s',
+    async (caso) => {
+      const user = userEvent.setup()
+      const hoy = fechaLima(Date.now())
+      const mes = hoy.slice(0, 7)
+      const periodo = periodoMesCalendario(mes, Date.now())
+      const operacionId = `op-neutral-${caso}`
+      const foto: FotoOperacionesNucleo = {
+        conversion_operaciones: {
+          version: 1,
+          lectura: 'viva',
+          completo: caso !== 'incompleto',
+          desde: periodo.desde,
+          hasta: caso === 'rango_distinto' ? '1999-01-31' : periodo.hasta,
+          zona: 'America/Lima',
+          origen_filtrado: null,
+          cantidad: 1,
+          aporte_total: 1,
+          detalle: [{
+            operacion_id: operacionId,
+            analista_id: 'yo',
+            categoria: 'upgrade',
+            periodo: periodo.desde,
+            fecha_numerador: hoy,
+            aporte_numerador: 1,
+          }],
+        },
+      }
+      montar({
+        yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+        contratos: [contrato({
+          id: `k-${caso}`,
+          numero_contrato: '2026-09-000017',
+          fecha_cierre_comercial: hoy,
+        })],
+        operaciones: [operacion({
+          id: operacionId,
+          tipo: 'upgrade',
+          contrato_origen_id: null,
+          contrato_nuevo_id: `k-${caso}`,
+          periodo: caso === 'otro_periodo' ? '2000-01-01' : periodo.desde,
+          fecha_operacion: hoy,
+        })],
+        metricasConversiones: caso === 'sin_bloque' ? null : foto,
+        errorMetricasConversiones: caso === 'error' ? new Error('sin red') : null,
+      })
+
+      await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+
+      const fila = subFilaDe('2026-09-000017')
+      expect(within(fila).getByText('Upgrade · elegible para conversión · aporte sujeto al núcleo')).toBeInTheDocument()
+      expect(within(fila).queryByText(/Aportó ×|No aportó:/)).not.toBeInTheDocument()
+    },
+  )
 
   it('explica a Gerencia qué indicadores siguen los filtros y cuáles mantienen toda la cartera', async () => {
     const user = userEvent.setup()

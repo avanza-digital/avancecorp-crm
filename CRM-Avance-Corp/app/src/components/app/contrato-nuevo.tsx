@@ -22,6 +22,7 @@ import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/component
 import { money, fmtFecha, type Moneda } from '@/lib/format'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import { completarDomicilioCliente, crearContrato, CrmApiError, type CrearContratoInput } from '@/data/crm-api'
+import { nuevaClaveIdempotencia } from '@/lib/idempotencia'
 import {
   esCuotaDeInteres,
   formatDateLocal,
@@ -236,6 +237,13 @@ export function ContratoNuevo({
   const [campoCuentaInvalido, setCampoCuentaInvalido] = useState<CampoSeccionBancaria | null>(null)
   const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
+  // Clave de idempotencia del alta: UNA por intento de formulario, la MISMA en cada
+  // reintento, renovada solo tras un éxito. Si el servidor confirmó el alta pero el
+  // front no lo supo (red, timeout, o una respuesta válida mal leída, como el
+  // 05/09/2026 con los contratos del régimen anterior), el reintento devuelve el
+  // MISMO contrato en vez de crear otro. El `disabled` del botón y el guard de
+  // `enviando` frenan el doble clic; esta clave frena el reintento humano.
+  const claveIdempotencia = useRef<string | null>(null)
   // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
   // alta y lo exige literalmente, así que sin él el contrato entero se revierte.
   // Se pregunta ANTES para convertir ese muro sin nombre en un campo.
@@ -557,7 +565,9 @@ export function ContratoNuevo({
       reportarError(tit.error)
       return
     }
+    claveIdempotencia.current ??= nuevaClaveIdempotencia()
     const input: CrearContratoInput = {
+      clave_idempotencia: claveIdempotencia.current,
       cliente_id: clienteId,
       capital: capitalNum,
       moneda,
@@ -608,9 +618,16 @@ export function ContratoNuevo({
             numero_contrato: numeroContrato,
             cuenta_bancaria_id: null,
             pdf: { estado: 'pendiente' as const },
+            idempotente: false,
           }
         : await crearContrato(input, cronograma)
-      toast.success(`Contrato ${r.numero_contrato} creado para ${clienteNombre}`)
+      // El alta quedó escrita: la siguiente (si la hay) es OTRO intento, con otra clave.
+      claveIdempotencia.current = null
+      toast.success(
+        r.idempotente
+          ? `Contrato ${r.numero_contrato} ya estaba creado para ${clienteNombre}: se recuperó el alta anterior`
+          : `Contrato ${r.numero_contrato} creado para ${clienteNombre}`,
+      )
       const local: ContratoCreadoLocal | null = pdfDatosConfirmados
         ? {
             id: r.id,

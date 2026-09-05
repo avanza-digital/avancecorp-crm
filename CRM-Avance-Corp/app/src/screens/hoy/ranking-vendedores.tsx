@@ -240,7 +240,7 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
       <div className="grid min-h-64 place-items-center px-5 text-center">
         <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
           <p role="status" className="text-xs font-medium text-amber-900">
-            Lectura por cosecha en revisión: su verificación interna no está confirmada y se oculta hasta revisarla.
+            Resultados de los leads del mes en revisión: su verificación interna no está confirmada y se ocultan hasta revisarla.
           </p>
         </div>
       </div>
@@ -249,7 +249,7 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
   if (cosecha == null) {
     return (
       <div className="grid min-h-64 place-items-center px-5 text-center">
-        <p className="text-sm font-semibold text-[var(--gi-muted)]">Seguimiento del lote no disponible por ahora.</p>
+        <p className="text-sm font-semibold text-[var(--gi-muted)]">Resultados de los leads del mes no disponibles por ahora.</p>
       </div>
     )
   }
@@ -277,7 +277,7 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
       <p className="border-b border-[var(--gi-line)] bg-[#faf9f6] px-4 py-2.5 text-[11px] font-medium text-[var(--gi-muted)] sm:px-5" title={TITLE_COSECHA}>
         Un cierre tardío sube esta lista, pero a la conversión le cuenta en el mes en que cerró — el mes sellado no se mueve.
       </p>
-      <ol aria-label="Cosecha del lote por analista" className="divide-y divide-[var(--gi-line)]">
+      <ol aria-label="Resultados de los leads del mes por analista" className="divide-y divide-[var(--gi-line)]">
         {filas.map(({ identidad, detalle }) => (
           <li key={identidad.vendedorId} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
             <span className="min-w-0">
@@ -760,7 +760,7 @@ export function RankingVendedoresPanel({
                 : undefined}
             >
               {tipo === 'cosecha'
-                ? 'Cosecha en maduración'
+                ? 'Leads del mes'
                 : estadoFotoMensual === 'sellada' ? 'Foto sellada' : 'Mes aún abierto'}
             </div>
           )}
@@ -771,7 +771,7 @@ export function RankingVendedoresPanel({
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
           <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
           <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
-          <button id="tab-ranking-cosecha" type="button" role="tab" aria-selected={tipo === 'cosecha'} aria-controls="panel-ranking-cosecha" onClick={() => setTipo('cosecha')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'cosecha' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Cosecha del lote</button>
+          <button id="tab-ranking-cosecha" type="button" role="tab" aria-selected={tipo === 'cosecha'} aria-controls="panel-ranking-cosecha" onClick={() => setTipo('cosecha')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'cosecha' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Resultados de los leads del mes</button>
         </div>
         <p className="text-[11px] font-medium text-[var(--gi-muted)]">
           {tipo === 'conversion'
@@ -799,7 +799,7 @@ export function RankingVendedoresPanel({
               ? 'Consultando la conversión del mes…'
               : tipo === 'capital-total'
                 ? 'Consultando tipo de cambio…'
-                : 'Consultando la cosecha del lote…'}
+                : 'Consultando los resultados de los leads del mes…'}
         />
       ) : totalVendedores === 0 ? (
         <TabpanelMarco tab={tipo}>

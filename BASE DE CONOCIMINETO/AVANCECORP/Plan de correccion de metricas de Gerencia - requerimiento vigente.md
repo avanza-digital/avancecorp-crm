@@ -2,7 +2,7 @@
 tags: [crm, gerencia, requerimiento, plan, metricas]
 identificador: REQ-GER-MET-001
 fecha_acuerdo: 2026-09-04
-estado: puntos-1-a-3-completados-frontend-publicado
+estado: puntos-1-a-4-completados-punto-5-auditado-local-produccion-pendiente
 ---
 
 # Plan de corrección de métricas de Gerencia — requerimiento vigente
@@ -52,7 +52,8 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ### 4. Justificar los datos que falten
 
-- [ ] Pendiente; sólo si un requerimiento no puede resolverse con salidas existentes.
+- [x] Justificación, alcance comercial y ampliación compatible local de N1–N4 completados.
+- Avance 5 de septiembre: fuentes reales y propuestas N1–N4 justificadas en [[Datos faltantes de Gerencia - punto 4 - decision pendiente 2026-09-05]]. Miguel respondió «ok GO». Las ampliaciones quedaron implementadas exclusivamente en dos respuestas existentes y documentadas en [[Contrato tecnico de ampliaciones N1-N4 de Gerencia - 2026-09-05]]. **No falta otra aprobación conceptual.** El SQL exacto aún requiere confirmación antes de producción.
 - Objetivo: explicar y acordar cada necesidad adicional antes de ampliarla, sin duplicar reglas de negocio.
 - Entregable por necesidad: pregunta comercial, dato existente insuficiente, motivo técnico, alternativa sin ampliación, impacto y aprobación requerida.
 - Casos ya identificados: leads únicos del lote con cita real; divisor ajustado de citas por modalidad; aporte efectivo de cada operación; cierres por semana real de cierre.
@@ -60,10 +61,11 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ### 5. Probar y conciliar
 
-- [ ] Pendiente; pruebas durante el desarrollo y cierre integral al final.
+- [ ] Auditoría local completada; cierre productivo, commit y publicación pendientes.
+- Avance 5 de septiembre: N1–N4 y la regresión visual de `AnimatedValue` quedaron verificadas. `npm run check` aprobó 194 archivos y 2.819 pruebas; el recorrido E2E aprobó 121 y omitió 26 por configuración, sin fallos; los bancos SQL N1–N4/ACL/rollback y la revisión independiente quedaron en GO técnico. Catálogo, núcleos, fachadas, propietarios y permisos protegidos permanecen intactos. Evidencia en [[Auditoria final de Gerencia - punto 5 - avance 2026-09-05]] y [[Contrato tecnico de ampliaciones N1-N4 de Gerencia - 2026-09-05]]. Aún sin SQL productivo, commit final ni nuevo deploy.
 - Objetivo: demostrar que las pantallas coinciden con el servidor cuando miden lo mismo y explican las diferencias cuando miden cosas distintas.
 - Alcance: reasignaciones, llegada a Ana/cierre de Luis, manuales/referidos, citas y cancelaciones, operaciones repetidas, capital de prueba, PEN/USD, filtros, rangos parciales, meses sellados, errores, respuestas parciales y metas superiores al 100 %.
-- Observación adicional del smoke productivo: revisar los importes transitorios al cambiar de mes a «Todos los meses» en Cartera. Una lectura inmediata fue negativa y la posterior quedó en los saldos positivos conciliados; distinguir transición visual de dato final, sin modificar el núcleo ni asumir la causa. Evidencia en la nota de publicación.
+- Observación resuelta localmente: el importe negativo transitorio de Cartera provenía del reloj de animación y no del servidor. La corrección conserva el valor final y los negativos reales; falta incluirla en la próxima publicación autorizada.
 - Criterio de cierre: pruebas de contrato e interfaz aprobadas, discrepancias justificadas y núcleos/permisos intactos. No usar producción para semillas, mutantes ni pruebas de escritura.
 
 ## Restricciones obligatorias
@@ -78,10 +80,12 @@ Que Gerencia vea métricas confiables, comprensibles y coherentes con el servido
 
 ## Punto de reanudación
 
-**Último punto terminado:** 3, lectura de Cartera; SQL y frontend en producción. El frontend del punto 2 también está publicado. El punto 1 se conserva como inventario documental de 336 registros en las 20 rutas de Gerencia; sus etiquetas son la línea base anterior a estas correcciones.
+**Orden posterior vigente (5 de septiembre):** Miguel pidió ejecutar los seis pasos del cierre hasta publicar y verificar estas mejoras. Guardado, sincronización y publicación de frontend autorizados; sigue pendiente la confirmación del SQL exacto. Seguir [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] para el estado actual; no volver a pedir autorización conceptual o de publicación ya concedida.
 
-**Siguiente punto:** 4, justificar comercial y técnicamente los datos faltantes y presentar alternativas antes de ampliar nada. El punto 3 está cerrado en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]]. **No volver a aplicar la migración** ni esperar una confirmación ya recibida. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios: no admiten sustitución directa por el resumen global. No modificar el núcleo de capital ni crear calculadoras independientes. La publicación autorizada ya se completó; no repetirla ni ampliar su alcance por esta continuidad.
+**Último punto terminado:** 4, ampliaciones N1–N4 justificadas, aprobadas e implementadas localmente. El punto 5 está cerrado en local y conserva abierta su comprobación productiva. Los puntos 1–3 ya estaban publicados.
 
-Los puntos 4–5 siguen pendientes; las pruebas de estas correcciones y el smoke productivo no cierran todavía la conciliación integral del punto 5. No inferir autorización de SQL adicional ni funciones nuevas. Línea base histórica al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Los commits concurrentes de documentación y altas nuevas se preservaron; HEAD observado durante el punto 3 llegó a `ed2b7ea`. Las correcciones quedaron guardadas y publicadas desde `50f33a5`; el cierre documental posterior no cambia ese artefacto. Verificar nuevamente el estado antes de cualquier publicación futura, no asumir Main sincronizado por esta nota.
+**Siguiente acción:** mostrar y confirmar la migración exacta `20260905155129_gerencia_contrato_cuatro_datos.sql`. Miguel ya aprobó el alcance: **no volver a preguntar si desea esos cuatro datos**. La confirmación pendiente es sólo para aplicar ese SQL exacto; una publicación nueva requiere autorización propia. Después: lectura productiva, commit final, integración no destructiva con `avancecorp/main`, construcción desde el commit sincronizado, deploy y comprobación pública. El punto 3 está cerrado en [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]]: **no volver a aplicar su migración**. «Sin analista», capital mensual filtrado y ámbitos no globales conservan sus criterios. No modificar núcleos ni crear calculadoras independientes.
+
+El punto 4 está completo; el punto 5 sólo conserva pendientes las puertas productivas. No inferir autorización de SQL adicional, funciones nuevas, commit ni deploy. Línea base histórica al comenzar el punto 2: HEAD `ecbb7b97ad79124e34f1a924227d27dd8585c737`, árbol de aplicación `ed23ef494093755055f1b236a37d9830fe3220f9`, inicialmente limpio. Los commits concurrentes y las correcciones publicadas desde `50f33a5` se deben preservar. Verificar nuevamente el estado y el remoto antes de cualquier publicación futura.
 
 Al retomar: leer este requerimiento, la ejecución de los puntos 2 y 3, el inventario y el informe enlazado; verificar el estado actual y actualizar aquí el avance de cada punto. No repetir los puntos 1–3 salvo cambios posteriores que exijan actualizarlos. No marcar los demás completos por tener sus objetivos descritos.

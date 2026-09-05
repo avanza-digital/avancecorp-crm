@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { EnteroNoNegativoRpcSchema } from './esquemas-rpc'
 
 const PorcentajeSchema = v.nullable(v.number())
 const PeriodoMetricasSchema = v.object({
@@ -33,11 +34,16 @@ const ResumenReunionesSchema = v.object({
   pct_asistencia: PorcentajeSchema,
 })
 
-const ModalidadReunionesSchema = v.intersect([
+const ModalidadReunionesSchema = v.pipe(v.intersect([
   v.object({
     modalidad: v.picklist(['presencial', 'virtual', 'sin_clasificar']),
     pactadas: v.number(),
     debieron_ocurrir: v.number(),
+    // N2: proyección del divisor y las exclusiones ya usados por el servidor.
+    // Opcionales para payloads anteriores; ausencia nunca equivale a cero.
+    divisor_realizacion: v.optional(EnteroNoNegativoRpcSchema),
+    canceladas_sistema_vencidas: v.optional(EnteroNoNegativoRpcSchema),
+    reprogramadas_vencidas: v.optional(EnteroNoNegativoRpcSchema),
     realizadas: v.number(),
     no_concretadas: v.number(),
     no_show: v.number(),
@@ -48,7 +54,16 @@ const ModalidadReunionesSchema = v.intersect([
     pct_asistencia: PorcentajeSchema,
   }),
   CapitalConversionSchema,
-])
+]), v.check((fila) => {
+  if (fila.divisor_realizacion == null
+      || fila.canceladas_sistema_vencidas == null
+      || fila.reprogramadas_vencidas == null) return true
+  return fila.canceladas_sistema_vencidas + fila.reprogramadas_vencidas <= fila.debieron_ocurrir
+    && fila.reprogramadas_vencidas <= fila.reprogramadas
+    && fila.divisor_realizacion
+      === fila.debieron_ocurrir - fila.canceladas_sistema_vencidas - fila.reprogramadas_vencidas
+    && fila.realizadas <= fila.divisor_realizacion
+}, 'Divisor o exclusiones incompatibles con los estados de la modalidad'))
 
 const ReunionesPorOrigenSchema = v.object({
   origen: v.string(),

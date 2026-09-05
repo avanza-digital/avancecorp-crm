@@ -119,7 +119,7 @@ import {
   reporteDerivacionesCoordinacionConsistente,
   type ReporteDerivacionesCoordinacion,
 } from '@/lib/reporte-derivaciones-coordinacion'
-import type { EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
+import { ESTADOS_CONTRATO_PDF, type EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import { ResumenRepartoSchema, type ResumenReparto } from '@/lib/resumen-reparto'
 import { IngresosRepartoMesSchema, inicioDeMes, type IngresosRepartoMes } from '@/lib/ingresos-reparto'
 import {
@@ -2278,18 +2278,38 @@ export interface CrearContratoInput {
    * misma decisión: «si no corresponde a nadie, lo pone a su nombre».
    */
   analista_cierre_id?: string | null
+  /**
+   * Clave de idempotencia del alta: un uuid por INTENTO de formulario, el mismo en
+   * cada reintento. Viaja DENTRO de `p_contrato` (la firma del RPC no cambia). El
+   * wrapper `crear_contrato_con_cuenta_pdf_v2` que la conoce devuelve el MISMO
+   * contrato si ya registró un alta con esa clave para este actor; el que no la
+   * conoce la ignora (`public.crear_contrato` solo lee sus propias claves).
+   */
+  clave_idempotencia?: string
 }
 
 export interface CrearContratoResultado {
   id: string
   numero_contrato: string
-  cuenta_bancaria_id: string
+  /**
+   * null = la respuesta no trajo un id de cuenta válido. El alta SÍ ocurrió (se
+   * registra el rastro); la cuenta se relee desde el ledger, nunca de esta copia.
+   */
+  cuenta_bancaria_id: string | null
+  /**
+   * Estado documental al crear: `pendiente` con reserva (régimen nuevo),
+   * `sin_reserva` (firmado antes del 19/08: el sistema no emite documento) o el
+   * mejor esfuerzo «pendiente y reintentable» si el servidor mandó una forma que
+   * el front no reconoce. La fuente de verdad del documento es la edge, no esto.
+   */
   pdf: {
     contrato_id: string
-    job_id: string
+    job_id: string | null
     estado: EstadoContratoPdf
     reintentable: boolean
   }
+  /** true = el servidor devolvió un alta YA registrada con la misma clave (reintento). */
+  idempotente: boolean
   /** Los wrappers catalogados antiguos podían devolver esta fotografía. */
   producto_condicion_id?: string
   producto_id?: string
@@ -2303,35 +2323,45 @@ export interface CrearContratoResultado {
 
 const EnteroProductoSchema = v.pipe(v.union([v.number(), v.string()]), v.transform(Number), v.integer(), v.minValue(1))
 
-const CrearContratoResultadoSchema = v.object({
+// ── La respuesta del alta se lee en DOS niveles, y solo el primero puede fallar ──
+//
+// 1. La PRUEBA del alta: `id` + `numero_contrato`. `public.crear_contrato` solo los
+//    devuelve si el contrato quedó escrito (en cualquier otro caso levanta
+//    excepción y PostgREST responde 4xx). Sin ellos la respuesta no es un alta.
+// 2. Lo accesorio: `cuenta_bancaria_id` y el bloque `pdf`. Se leen con tolerancia
+//    y, si no encajan, se DEGRADAN con rastro. Jamás se lanzan.
+//
+// Por qué así (dos incidentes, misma raíz). Fallar cerrado sobre lo accesorio
+// «protege» DESPUÉS de una escritura irreversible: el contrato ya existe en el
+// servidor, el front dice «error» y el analista lo crea otra vez.
+//   · 19/08: el bundle exigía plantilla v3 y producción emitía v5 → todo alta
+//     moría con «El servidor no confirmó completamente el contrato».
+//   · 05/09: el esquema exigía la reserva `pendiente` y los contratos firmados
+//     antes del 19/08 (régimen documental ANTERIOR: el servidor no emite
+//     documento) vuelven con `sin_reserva` y `job_id = null` → 33 altas del
+//     régimen anterior desde el 21/08 pasaron por el error falso, y el 05/09 un
+//     analista cambió el número y creó el mismo contrato dos veces
+//     (2026-01-000025 y 2026-01-000253, 61 s de diferencia).
+// La fuente de verdad del documento es la edge (`contrato-pdf-archivo`), que se
+// vuelve a consultar al archivar y en el detalle: esta copia solo pinta el primer
+// estado, así que degradarla no esconde nada.
+const ContratoConfirmadoSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   numero_contrato: v.pipe(v.string(), v.minLength(1)),
-  cuenta_bancaria_id: v.pipe(v.string(), v.uuid()),
-  pdf: v.strictObject({
-    contrato_id: v.pipe(v.string(), v.uuid()),
-    job_id: v.pipe(v.string(), v.uuid()),
-    estado: v.literal('pendiente'),
-    storage_bucket: v.literal('contratos-generados'),
-    storage_path: v.pipe(v.string(), v.minLength(1)),
-    nombre_archivo: v.pipe(v.string(), v.minLength(5)),
-    // Durante un despliegue escalonado el frontend puede convivir unos minutos
-    // con reservas v3/v4 o con la v5 vigente. Todas representan jobs durables;
-    // cualquier otra versión sigue fallando cerrado.
-    //
-    // ⚠️ Esta tolerancia YA existía en el bundle vivo del 33.º release, aplicada
-    // sobre el commit SIN commitear. Al reconstruir desde ese commit se perdió,
-    // y el front volvió a exigir v3 mientras producción emite v5: TODA creación
-    // de contrato moría con «El servidor no confirmó completamente el contrato»
-    // aunque el contrato SÍ se había creado. Un parche que solo vive en el
-    // artefacto no existe: si no está en un commit, el siguiente release lo pisa.
-    template_version: v.picklist(['contrato-aep-17-v3', 'contrato-aep-17-v4', 'contrato-aep-17-v5', 'contrato-aep-17-v6', 'contrato-aep-17-v7']),
-    intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
-    lease_expira_en: v.nullable(v.string()),
-    reintentable: v.boolean(),
-    sha256: v.nullable(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))),
-    bytes: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1))),
-    archivo: v.nullable(v.unknown()),
-  }),
+  cuenta_bancaria_id: v.optional(v.unknown()),
+  pdf: v.optional(v.unknown()),
+  idempotente: v.optional(v.unknown()),
+})
+const CuentaBancariaIdSchema = v.pipe(v.string(), v.uuid())
+// La forma que emite `private.contrato_pdf_estado_base` en TODAS sus ramas:
+// reserva `pendiente`, `sin_reserva`, sellado… `looseObject` porque la rama de
+// integridad añade `ok`/`codigo`, y porque una clave nueva del servidor no puede
+// volver a convertir un alta en error.
+const PdfAltaSchema = v.looseObject({
+  contrato_id: v.pipe(v.string(), v.uuid()),
+  job_id: v.nullable(v.pipe(v.string(), v.uuid())),
+  estado: v.picklist(ESTADOS_CONTRATO_PDF),
+  reintentable: v.boolean(),
 })
 
 export async function crearContrato(
@@ -2362,6 +2392,8 @@ export async function crearContrato(
   // que el servidor aplique «lo pone a su nombre»; mandar null sería pedirle
   // explícitamente un contrato sin dueño, que no es lo que hace este formulario.
   if (input.analista_cierre_id) p_contrato.analista_cierre_id = input.analista_cierre_id
+  // Transporte, no dato del contrato: el wrapper la lee y la quita antes de bajar.
+  if (input.clave_idempotencia) p_contrato.clave_idempotencia = input.clave_idempotencia
   const p_cronograma = cronograma as unknown as Json[]
   const { data, error } = await cliente()
     .schema('crm')
@@ -2371,29 +2403,49 @@ export async function crearContrato(
       p_cuenta: input.cuenta_pago as unknown as Json,
     })
   if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
-  const r = v.safeParse(CrearContratoResultadoSchema, data)
-  if (!r.success) {
-    const fallo = new CrmApiError(
-      'El servidor no confirmó completamente el contrato y su cuenta de pago.',
-      'ROW_CONTRACT',
+  const confirmado = v.safeParse(ContratoConfirmadoSchema, data)
+  if (!confirmado.success) {
+    // Sin `id` no hay prueba de escritura: esta respuesta NO es un alta.
+    const fallo = new CrmApiError('El servidor no confirmó el contrato.', 'ROW_CONTRACT')
+    registrarError('crm.contrato.respuesta_invalida', fallo, { respuesta: data })
+    throw fallo
+  }
+  const { id, numero_contrato } = confirmado.output
+  // ── De aquí en adelante el contrato EXISTE en el servidor. La única salida es éxito. ──
+  const cuenta = v.safeParse(CuentaBancariaIdSchema, confirmado.output.cuenta_bancaria_id)
+  if (!cuenta.success) {
+    registrarError(
+      'crm.contrato.cuenta_no_confirmada',
+      new CrmApiError('El servidor no devolvió el id de la cuenta de pago del contrato.', 'ROW_CONTRACT'),
+      { id, numero_contrato, cuenta_bancaria_id: confirmado.output.cuenta_bancaria_id },
     )
-    registrarError('crm.contrato.respuesta_invalida', fallo)
-    throw fallo
   }
-  if (
-    r.output.pdf.contrato_id !== r.output.id ||
-    r.output.pdf.estado !== 'pendiente' ||
-    r.output.pdf.intentos !== 0 ||
-    r.output.pdf.sha256 !== null ||
-    r.output.pdf.bytes !== null ||
-    r.output.pdf.archivo !== null ||
-    r.output.pdf.storage_path !== `${r.output.id}/v2/${r.output.pdf.job_id}/contrato.pdf`
-  ) {
-    const fallo = new CrmApiError('El servidor no reservó correctamente el PDF contractual.', 'ROW_CONTRACT')
-    registrarError('crm.contrato.pdf_reserva_invalida', fallo)
-    throw fallo
+  const pdfLeido = v.safeParse(PdfAltaSchema, confirmado.output.pdf)
+  let pdf: CrearContratoResultado['pdf']
+  if (pdfLeido.success && pdfLeido.output.contrato_id === id) {
+    pdf = {
+      contrato_id: id,
+      job_id: pdfLeido.output.job_id,
+      estado: pdfLeido.output.estado,
+      reintentable: pdfLeido.output.reintentable,
+    }
+  } else {
+    // Mejor esfuerzo honesto: «pendiente y reintentable» hace que la pantalla vuelva
+    // a preguntar a la edge. Nunca se inventa un sellado ni un job.
+    registrarError(
+      'crm.contrato.pdf_respuesta_invalida',
+      new CrmApiError('El servidor no describió el estado documental del contrato.', 'ROW_CONTRACT'),
+      { id, numero_contrato, pdf: confirmado.output.pdf },
+    )
+    pdf = { contrato_id: id, job_id: null, estado: 'pendiente', reintentable: true }
   }
-  return r.output
+  return {
+    id,
+    numero_contrato,
+    cuenta_bancaria_id: cuenta.success ? cuenta.output : null,
+    pdf,
+    idempotente: confirmado.output.idempotente === true,
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

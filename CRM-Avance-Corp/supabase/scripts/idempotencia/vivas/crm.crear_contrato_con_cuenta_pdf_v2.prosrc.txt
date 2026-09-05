@@ -1,0 +1,32 @@
+
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_resultado jsonb;
+  v_contrato_id uuid;
+  v_pdf jsonb;
+begin
+  if v_actor_id is null then
+    raise insufficient_privilege using message = 'Sesión no válida';
+  end if;
+
+  -- El contrato, cronograma, cuenta, vínculo, snapshot y job se confirman o
+  -- revierten juntos porque toda la cadena corre en esta transacción RPC.
+  v_resultado := crm.crear_contrato_con_cuenta(
+    p_contrato,
+    p_cronograma,
+    p_cuenta
+  );
+  begin
+    v_contrato_id := (v_resultado->>'id')::uuid;
+  exception when invalid_text_representation then
+    raise exception 'El alta no devolvió un contrato válido'
+      using errcode = 'P0001';
+  end;
+  if v_contrato_id is null then
+    raise exception 'El alta no devolvió un contrato válido'
+      using errcode = 'P0001';
+  end if;
+
+  v_pdf := private.crear_job_contrato_pdf_base(v_contrato_id, v_actor_id);
+  return v_resultado || jsonb_build_object('pdf', v_pdf);
+end;

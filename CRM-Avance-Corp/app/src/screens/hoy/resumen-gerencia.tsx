@@ -278,7 +278,7 @@ export function ResumenGerenciaPanel({
         lineStyle: { width: 1.5, type: 'dashed' },
       },
       {
-        name: 'Cerrados hasta hoy',
+        name: 'Cerrados',
         type: 'line',
         smooth: true,
         data: valoresEvolucion,
@@ -460,18 +460,18 @@ export function ResumenGerenciaPanel({
         />
         {/* «del período», sin más: Miguel vetó «dados de alta» (27/08). La
             distinción con el divisor la explica el héroe, no este detalle. */}
-        <Kpi label="Leads que ya cerraron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} llegadas del rango · hasta hoy`} Icon={UserRoundCheck} color={C.green} />
+        <Kpi label="Leads del mes que cerraron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del mes`} Icon={UserRoundCheck} color={C.green} />
         <Kpi label="Capital confirmado del mes" valor={mensualCargando ? 'Calculando…' : capitalMesTexto} detalle={mensualCargando ? 'Consultando capital y meta…' : capitalMesDetalle} Icon={WalletCards} color={C.teal} />
         <Kpi label="Citas realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando citas…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]">
         <section data-gi-panel className="gi-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de llegada</h2><span className="gi-caption">Llegadas del rango y cuántas cerraron hasta hoy; no cierres ocurridos esa semana</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de llegada</h2><span className="gi-caption">Leads del mes y cuántos cerraron, agrupados por su semana de llegada</span></div>
           {tendenciaEquipo == null
             ? <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div>
             : valoresEvolucion.length > 0
-              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Llegadas por semana y resultados de esas llegadas hasta hoy" className="mt-3 h-[260px] w-full" />
+              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads por semana de llegada y resultados" className="mt-3 h-[260px] w-full" />
               : <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para mostrar</div>}
         </section>
         <section
@@ -507,7 +507,7 @@ export function ResumenGerenciaPanel({
       <div className="grid gap-4 lg:grid-cols-3">
         <section data-gi-panel className="gi-card p-5 lg:col-span-2">
           <h2 className="gi-title">Resultados por origen</h2>
-          <p className="gi-caption mt-1">De las llegadas de cada origen, qué porcentaje cerró hasta hoy. No es la conversión ponderada.</p>
+          <p className="gi-caption mt-1">De los leads del mes en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>
           {!origenesVerificados
             ? <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>
             : <div className="mt-4 grid gap-3 sm:grid-cols-2">

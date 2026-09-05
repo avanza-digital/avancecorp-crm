@@ -673,7 +673,7 @@ function EquipoSupervisor(): JSX.Element {
     ? 'No se pudo calcular la conversión mensual del equipo.'
     : null
   const errorCosechaRanking = !yo?.demo && qCosechaEquipo.isError
-    ? 'No se pudo calcular la cosecha del lote del equipo.'
+    ? 'No se pudieron cargar los resultados mensuales del equipo.'
     : null
   const errorFotoMensualRanking = rankingRealActivo
     ? qCumplimientoRanking.isError

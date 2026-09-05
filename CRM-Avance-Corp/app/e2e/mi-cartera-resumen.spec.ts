@@ -29,6 +29,45 @@ test('Gerencia conserva cierres mensuales y usa el saldo del resumen en Todos lo
   await expect(page.getByText('CLIENTE PORTAL UNO', { exact: true })).toBeVisible()
 })
 
+test('Cartera con movimiento habilitado no invierte el signo durante el cambio de mes', async ({ page }) => {
+  await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'comercial',
+    clientes: [clienteReal()], contratos: [contratoReal({ capital: 10000, creado_en: new Date().toISOString() })],
+  })
+  await page.route('**/rest/v1/rpc/resumen_cartera_clientes_fn', route => route.fulfill({
+    json: resumenServidor, headers: { 'access-control-allow-origin': '*' },
+  }))
+  await loginReal(page)
+  // loginReal reduce movimiento para las pruebas generales. Aquí se recarga
+  // expresamente sin esa preferencia: deben observarse fotogramas reales.
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.reload()
+  await irAMiCartera(page)
+  await expect(page.getByText(/^Cerrado en .* · Soles$/)).toBeVisible()
+  const lectura = await page.evaluateHandle(() => {
+    const valores: string[] = []
+    const observador = new MutationObserver(() => {
+      for (const card of document.querySelectorAll('main [data-slot="card"]')) {
+        const texto = card.textContent ?? ''
+        if (texto.includes('Capital invertido ·')) valores.push(texto)
+      }
+    })
+    observador.observe(document.querySelector('main')!, { subtree: true, childList: true, characterData: true })
+    return { valores, observador }
+  })
+  try {
+    await page.getByRole('combobox', { name: /Filtrar por mes/ }).selectOption('todos')
+    await expect.poll(() => lectura.evaluate(x => x.valores.length)).toBeGreaterThan(3)
+    await expect(page.getByText('S/ 777k', { exact: true })).toBeVisible()
+    await expect(page.getByText('US$ 7k', { exact: true })).toBeVisible()
+    const valores = await lectura.evaluate(x => x.valores)
+    expect(valores.some(texto => /(?:S\/|US\$)\s*-/.test(texto))).toBe(false)
+    expect(valores.some(texto => /NaN|Infinity/.test(texto))).toBe(false)
+  } finally {
+    await lectura.evaluate(x => x.observador.disconnect())
+    await lectura.dispose()
+  }
+})
+
 test('un resumen inválido avisa sin inventar cero; reintentar recupera el indicador', async ({ page }) => {
   await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'comercial',
     clientes: [clienteReal()], contratos: [contratoReal({ creado_en: new Date().toISOString() })],

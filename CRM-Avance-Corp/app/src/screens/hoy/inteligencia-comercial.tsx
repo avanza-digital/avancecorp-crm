@@ -218,6 +218,8 @@ function DetalleVendedor({
   periodo,
   metaMensual,
   mensualCargando,
+  citasRealesDisponibles,
+  cierresSemanalesDisponibles,
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
@@ -231,6 +233,8 @@ function DetalleVendedor({
   periodo: MetricasConversiones['periodo'] | null
   metaMensual: MetaMensualGerencia
   mensualCargando: boolean
+  citasRealesDisponibles: boolean
+  cierresSemanalesDisponibles: boolean
   onCerrar: () => void
 }): JSX.Element {
   const detalle = fila?.detalle ?? null
@@ -316,7 +320,7 @@ function DetalleVendedor({
         axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans', fontSize: 10 },
       },
       series: [{
-        name: 'Cerrados hasta hoy',
+        name: 'Cerrados',
         type: 'line',
         data: puntosTendencia.map((punto) => punto.conversion_pct),
         connectNulls: false,
@@ -356,6 +360,17 @@ function DetalleVendedor({
             </div>
           </SheetHeader>
           <SheetBody className="space-y-3.5 px-4 pb-5 pt-0 sm:px-5">
+            <section aria-label="Citas reales del analista" className="rounded-2xl border border-[var(--gi-line)] bg-white p-4">
+              <h3 className="text-sm font-bold">Llegadas con cita registrada como realizada</h3>
+              <p className="mt-1 text-xs text-[var(--gi-muted)]">Llegada atribuida al primer analista, no al autor de la cita.</p>
+              <p className="mt-2 text-sm font-semibold">{numeroDisponible(citasRealesDisponibles ? detalle?.leads_con_cita_real ?? null : null)} leads · {numeroDisponible(citasRealesDisponibles ? detalle?.citas_realizadas ?? null : null)} citas registradas como realizadas</p>
+              {(!citasRealesDisponibles || detalle?.leads_con_cita_real == null || detalle.citas_realizadas == null) && <p role="status" className="mt-1 text-xs">Detalle de citas reales no disponible.</p>}
+            </section>
+            <section aria-label="Cierres semanales del analista" className="rounded-2xl border border-[var(--gi-line)] bg-white p-4">
+              <h3 className="text-sm font-bold">Cierres por semana de cierre</h3>
+              <p className="mt-1 text-xs text-[var(--gi-muted)]">Cierres conseguidos por este analista, aunque la llegada pertenezca a otro. Sin operaciones de Cartera.</p>
+              {!cierresSemanalesDisponibles || detalle?.cierres_por_semana == null ? <p role="status" className="mt-2 text-xs">Semanas de cierre del analista no disponibles.</p> : detalle.cierres_por_semana.length === 0 ? <p className="mt-2 text-xs">No se recibieron bloques semanales.</p> : <div className="mt-2 overflow-x-auto"><table className="w-full text-left text-xs"><caption className="sr-only">Cierres del analista por fecha real de cierre</caption><thead><tr><th className="p-2">Semana (Lima)</th><th className="p-2">Cierres</th><th className="p-2">Aporte</th></tr></thead><tbody>{detalle.cierres_por_semana.map((semana) => <tr key={semana.semana} className="border-t border-[var(--gi-line)]"><td className="p-2">{etiquetaSemana(semana)}</td><td className="p-2">{numero(semana.cierres)}</td><td className="p-2">{numero(semana.aporte_cierres, 20)}</td></tr>)}</tbody></table></div>}
+            </section>
             {mensualCargando ? (
               <>
                 <section
@@ -415,7 +430,7 @@ function DetalleVendedor({
                 <DatoDetalle label="Leads ya cerrados" valor={numeroDisponible(clientes)} />
                 <DatoDetalle label="Reunión o avance posterior" valor={numeroDisponible(reuniones)} />
               </dl>
-              <p className="px-4 py-2 text-[11px] text-[var(--gi-muted)]">Resultados hasta hoy, atribuidos al primer analista. La señal de reunión puede inferirse de una propuesta o cierre; no confirma asistencia.</p>
+              <p className="px-4 py-2 text-[11px] text-[var(--gi-muted)]">Resultados de los leads del mes, atribuidos al primer analista. La señal de reunión puede inferirse de una propuesta o cierre; no confirma asistencia.</p>
               {/* La atribución de capital del rango usa la cartera actual y
                   los episodios económicos; no comparte la atribución al
                   primer analista de las llegadas mostradas arriba. */}
@@ -499,7 +514,7 @@ function DetalleVendedor({
             <section>
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-sm font-bold tracking-[-.015em]">Resultados por semana de llegada</h3>
-                <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">Porcentaje cerrado hasta hoy</span>
+                <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">Porcentaje de leads cerrados</span>
               </div>
               <p className="mt-1 text-[11px] font-medium text-[var(--gi-muted)]">Agrupa por llegada, no por fecha del cierre. No se compara con la meta mensual ponderada.</p>
               {tendencia == null ? (
@@ -651,13 +666,45 @@ export function InteligenciaComercialPanel({
     yAxis: { type: 'value', min: 0, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: C.grid } }, axisLabel: { color: C.muted, fontFamily: 'IBM Plex Sans' } },
     series: [
       { name: 'Llegadas', type: 'line', data: valoresRecibidos, smooth: true, symbolSize: 6, lineStyle: { width: 1.5, type: 'dashed' } },
-      { name: 'Cerrados hasta hoy', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } },
+      { name: 'Cerrados', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } },
     ],
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const clientes = datos?.cohorte.contratos ?? null
   const nucleoVerificado = datos?.nucleo != null && sondasNucleoVerificadas(datos.sondas)
   const nucleo = nucleoVerificado ? datos.nucleo ?? null : null
+  const lecturaAmpliadaVerificada = nucleoVerificado
+    || (modoDemo && datos?.nucleo == null && datos?.sondas == null)
+  const citasReales = datos?.citas_reales != null
+    && datos.citas_reales.leads_base === datos.cohorte.leads
+    && datos.citas_reales.origen_filtrado === (origenFiltrado ?? null)
+    && Number.isFinite(Date.parse(datos.citas_reales.seguimiento_hasta))
+    && Date.parse(datos.citas_reales.seguimiento_hasta) === Date.parse(datos.generado_en)
+      ? datos.citas_reales : null
+  const operacionesConversion = datos?.conversion_operaciones != null
+    && lecturaAmpliadaVerificada
+    && datos.conversion_operaciones.completo
+    && datos.conversion_operaciones.desde === datos.periodo.desde
+    && datos.conversion_operaciones.hasta === datos.periodo.hasta
+    && datos.conversion_operaciones.cantidad === datos.conversion_operaciones.detalle.length
+      ? datos.conversion_operaciones : null
+  const cierresSemanales = datos?.cierres_por_semana != null
+    && lecturaAmpliadaVerificada
+    && datos.cierres_por_semana.desde === datos.periodo.desde
+    && datos.cierres_por_semana.hasta === datos.periodo.hasta
+    && datos.cierres_por_semana.origen_filtrado === (origenFiltrado ?? null)
+      ? datos.cierres_por_semana : null
+  const hayCierresFueraDelRoster = cierresSemanales != null
+    && (cierresSemanales.cierres_fuera_del_roster > 0
+      || cierresSemanales.aporte_cierres_fuera_del_roster > 0)
+  const opcionCierres = useMemo<EChartsOption>(() => ({
+    color: [C.blue],
+    grid: { left: 42, right: 18, top: 12, bottom: 40 },
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: (cierresSemanales?.semanas ?? []).map(etiquetaSemana), axisLabel: { color: C.muted, fontSize: 10 } },
+    yAxis: { type: 'value', min: 0, minInterval: 1, splitLine: { lineStyle: { color: C.grid } } },
+    series: [{ name: 'Cierres ocurridos', type: 'bar', data: (cierresSemanales?.semanas ?? []).map((semana) => semana.cierres), barMaxWidth: 30 }],
+  }), [cierresSemanales])
   const sondasConv = datos?.sondas ?? null
   const cosechaLeads = datos?.cohorte.leads ?? null
   const cosechaCierres = datos?.cohorte.contratos ?? null
@@ -687,9 +734,11 @@ export function InteligenciaComercialPanel({
     ? { label: 'Capital vinculado a las llegadas', valor: capitalDisponible(capitalLotePen, 'PEN'), detalle: capitalLoteUsd == null ? 'Dato no disponible' : capitalLoteUsd > 0 ? money(capitalLoteUsd, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
     : { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
   const kpis = [
-    { label: 'Resultados de las llegadas', valor: pct(cosechaPct), detalle: `${numeroDisponible(cosechaCierres)} cerrados de ${numeroDisponible(cosechaLeads)} llegadas · hasta hoy`, icon: UserRoundCheck, color: C.blue },
-    { label: 'Leads que ya cerraron', valor: numeroDisponible(clientes), detalle: `de ${numeroDisponible(cosechaLeads)} llegadas del rango · hasta hoy`, icon: UserRoundCheck, color: C.green },
-    { label: 'Reunión o avance posterior', valor: numeroDisponible(datos?.cohorte.reuniones_realizadas ?? null), detalle: `${numeroDisponible(datos?.cohorte.reuniones_agendadas ?? null)} con señal de agenda o avance posterior · no confirma asistencia`, icon: CalendarCheck, color: C.teal },
+    { label: 'Resultados de los leads del mes', valor: pct(cosechaPct), detalle: `${numeroDisponible(cosechaCierres)} cerrados de ${numeroDisponible(cosechaLeads)} leads`, icon: UserRoundCheck, color: C.blue },
+    { label: 'Leads del mes que cerraron', valor: numeroDisponible(clientes), detalle: `de ${numeroDisponible(cosechaLeads)} leads del mes`, icon: UserRoundCheck, color: C.green },
+    citasReales != null
+      ? { label: 'Llegadas con cita realizada', valor: numero(citasReales.leads_con_cita_real), detalle: `${numero(citasReales.citas_realizadas)} citas registradas como realizadas · de ${numero(citasReales.leads_base)} llegadas`, icon: CalendarCheck, color: C.teal }
+      : { label: 'Reunión o avance posterior', valor: numeroDisponible(datos?.cohorte.reuniones_realizadas ?? null), detalle: `${numeroDisponible(datos?.cohorte.reuniones_agendadas ?? null)} con señal de agenda o avance posterior · no confirma asistencia`, icon: CalendarCheck, color: C.teal },
     kpiCapital,
   ]
   const mensualEsperando = mensualCargando && conversionMensual === undefined
@@ -765,7 +814,7 @@ export function InteligenciaComercialPanel({
               {!usaNucleoRango && !mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <div className="gi-hero-metric"><span>Resultados de las llegadas{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''} · hasta hoy</span><strong>{cosechaHero}</strong></div>
+              <div className="gi-hero-metric"><span>Resultados de los leads del mes{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
               {/* Con filtro de origen, las cifras de EMPRESA se retiran del
                   héroe: capital del mes y meta al lado de un lote recortado
                   eran la contradicción vetada. */}
@@ -780,6 +829,65 @@ export function InteligenciaComercialPanel({
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
+      </CardContent>
+
+      {/* Estas lecturas no dependen de que haya llegadas nuevas: puede haber
+          cierres de leads anteriores u operaciones de Cartera en el rango. */}
+      <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
+        {rangoError && datos != null && <p role="status" className="gi-caption">Última lectura disponible; no se pudo actualizar el rango.</p>}
+        <section data-gi-panel className="gi-card p-5" aria-label="Llegadas con cita realizada">
+          <h3 className="gi-title">Llegadas con cita realizada</h3>
+          <p className="gi-caption mt-1">Leads únicos con al menos una cita registrada como realizada. No es el avance inferido ni un conteo de personas entre varios leads.</p>
+          {citasReales == null ? <p role="status" className="mt-3 text-xs">{rangoEsperando ? 'Consultando citas de las llegadas…' : 'Citas reales de las llegadas no disponibles.'}</p> : <>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+              <DatoDetalle label="Leads con cita registrada como realizada" valor={numero(citasReales.leads_con_cita_real)} />
+              <DatoDetalle label="Citas registradas como realizadas" valor={numero(citasReales.citas_realizadas)} />
+              <DatoDetalle label="Porcentaje de las llegadas" valor={pct(citasReales.pct_llegadas_con_cita_real)} />
+            </dl>
+            <p className="gi-caption">De {numero(citasReales.leads_base)} llegadas · {etiquetaPeriodo(datos?.periodo ?? null)} · {origenFiltrado == null ? 'Todos los orígenes comerciales' : etiquetaOrigen(origenFiltrado)}. Seguimiento hasta {new Date(citasReales.seguimiento_hasta).toLocaleString('es-PE', { timeZone: 'America/Lima' })} (Lima).</p>
+            <p className="gi-caption mt-1">La fecha de la cita es la prevista; se lee su estado registrado actual. La llegada pertenece al primer analista, aunque otra persona registre la cita.</p>
+            {citasReales.citas_anteriores_al_alta > 0 && <p role="status" className="mt-2 text-xs text-amber-800">Hay {numero(citasReales.citas_anteriores_al_alta)} citas realizadas con fecha prevista anterior al alta del lead; se excluyeron del indicador y requieren revisión.</p>}
+            <dl className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Citas reales por origen">
+              {origenes.map((origen) => <div key={origen.origen} className="text-xs"><dt className="font-semibold">{nombreOrigen(origen.origen)}</dt><dd>{numeroDisponible(origen.leads_con_cita_real ?? null)} leads · {numeroDisponible(origen.citas_realizadas ?? null)} citas registradas como realizadas</dd></div>)}
+            </dl>
+          </>}
+        </section>
+        <section data-gi-panel className="gi-card min-w-0 p-5" aria-label="Operaciones elegidas para conversión">
+          <h3 className="gi-title">Operaciones elegidas para conversión</h3>
+          <p className="gi-caption mt-1">Selección y aporte servidos por el núcleo. Lectura viva del rango de toda la empresa, sin filtro de origen; no reconstruye fotos mensuales cerradas.</p>
+          {operacionesConversion == null ? <p role="status" className="mt-3 text-xs">{rangoEsperando ? 'Consultando operaciones elegidas…' : 'Detalle de operaciones elegidas no disponible o no verificable.'}</p> : <>
+            <p className="mt-3 text-sm font-semibold">{numero(operacionesConversion.cantidad)} operaciones elegidas · aporte total {numero(operacionesConversion.aporte_total, 20)}</p>
+            <p className="gi-caption">{fmtFecha(operacionesConversion.desde)} al {fmtFecha(operacionesConversion.hasta)} · Lima. Elegible no significa elegida; una operación seleccionada puede aportar 0.</p>
+            {operacionesConversion.detalle.length === 0 ? <p className="mt-3 text-xs">No hay operaciones elegidas en este rango.</p> : /* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Tabla desplazable accesible con teclado. */ <div className="mt-3 overflow-x-auto" role="region" aria-label="Desglose desplazable de operaciones" tabIndex={0}>
+              <table className="w-full min-w-[430px] text-left text-xs">
+                <caption className="sr-only">Operaciones seleccionadas por el núcleo y su aporte exacto</caption>
+                <thead><tr><th className="p-2">Operación</th><th className="p-2">Analista atribuido</th><th className="p-2">Fecha</th><th className="p-2">Aporte</th></tr></thead>
+                <tbody>{operacionesConversion.detalle.map((operacion) => <tr key={operacion.operacion_id} className="border-t border-[var(--gi-line)]">
+                  <td className="p-2">{operacion.categoria === 'renovacion' ? 'Renovación' : 'Upgrade'}<span className="block break-all text-[10px] text-[var(--gi-muted)]">{operacion.operacion_id}</span></td>
+                  <td className="p-2">{equipo.find((persona) => persona.vendedorId === operacion.analista_id)?.nombre ?? 'Sin nombre disponible'}</td>
+                  <td className="p-2">{new Date(operacion.fecha_numerador).toLocaleDateString('es-PE', { timeZone: 'America/Lima' })}</td>
+                  <td className="p-2 font-semibold tabular-nums">{numero(operacion.aporte_numerador, 20)}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>}
+          </>}
+        </section>
+        <section data-gi-panel className="gi-card min-w-0 p-5" aria-label="Cierres por fecha de cierre">
+          <h3 className="gi-title">Cierres por semana de cierre</h3>
+          <p className="gi-caption mt-1">Cierres ocurridos en el rango, aunque los leads hayan llegado antes. Atribuidos a quien cierra; sin operaciones de Cartera.</p>
+          {cierresSemanales == null ? <p role="status" className="mt-3 text-xs">{rangoEsperando ? 'Consultando semanas de cierre…' : 'Semanas por fecha de cierre no disponibles o no verificables.'}</p> : <>
+            <p className="mt-3 text-sm font-semibold">{numero(cierresSemanales.cierres)} {cierresSemanales.cierres === 1 ? 'cierre' : 'cierres'} · aporte de cierres {numero(cierresSemanales.aporte_cierres, 20)}</p>
+            <p className="gi-caption">{fmtFecha(cierresSemanales.desde)} al {fmtFecha(cierresSemanales.hasta)} · {origenFiltrado == null ? 'Todos los orígenes comerciales' : etiquetaOrigen(origenFiltrado)} · bloques de 7 días desde el inicio, en Lima.</p>
+            {hayCierresFueraDelRoster && <p role="status" className="mt-2 text-xs text-amber-800">Fuera del roster activo: {numero(cierresSemanales.cierres_fuera_del_roster)} {cierresSemanales.cierres_fuera_del_roster === 1 ? 'cierre' : 'cierres'} · aporte {numero(cierresSemanales.aporte_cierres_fuera_del_roster, 20)}. El total los conserva y no los reasigna.</p>}
+            {cierresSemanales.semanas.length === 0 ? <p className="mt-3 text-xs">No se recibieron bloques semanales.</p> : <>
+              {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Gráfico desplazable accesible con teclado. */}
+              <div className="mt-3 overflow-x-auto" role="region" aria-label="Gráfico desplazable de cierres por fecha" tabIndex={0}>
+                <GerenciaEChart tipo="barras" option={opcionCierres} ariaLabel="Cierres ocurridos por semana de cierre" className="h-[240px] w-full min-w-[430px]" />
+              </div>
+              <div className="overflow-x-auto"><table className="w-full text-left text-xs"><caption className="sr-only">Cantidad y aporte de los cierres por semana</caption><thead><tr><th className="p-2">Semana (Lima)</th><th className="p-2">Cierres</th><th className="p-2">Aporte</th>{hayCierresFueraDelRoster && <th className="p-2">Fuera del roster</th>}</tr></thead><tbody>{cierresSemanales.semanas.map((semana) => <tr key={semana.semana} className="border-t border-[var(--gi-line)]"><td className="p-2">{etiquetaSemana(semana)}</td><td className="p-2">{numero(semana.cierres)}</td><td className="p-2">{numero(semana.aporte_cierres, 20)}</td>{hayCierresFueraDelRoster && <td className="p-2">{numero(semana.cierres_fuera_del_roster)} · aporte {numero(semana.aporte_cierres_fuera_del_roster, 20)}</td>}</tr>)}</tbody></table></div>
+            </>}
+          </>}
+        </section>
       </CardContent>
 
       <section
@@ -818,7 +926,7 @@ export function InteligenciaComercialPanel({
           )}
 
           <p role="status" className="text-xs leading-relaxed text-[var(--gi-muted)]">
-            {hayFiltroOrigen ? `Origen: ${etiquetaOrigen(origenFiltrado ?? '')} · ` : ''}Las llegadas y sus resultados siguen el rango{hayFiltroOrigen ? ' y el origen elegido' : ''}, hasta hoy. La conversión principal incluye toda la empresa; el detalle de metas es mensual.
+            {hayFiltroOrigen ? `Origen: ${etiquetaOrigen(origenFiltrado ?? '')} · ` : ''}Los leads y sus resultados siguen el período seleccionado{hayFiltroOrigen ? ' y el origen elegido' : ''}. La conversión principal incluye toda la empresa; el detalle de metas es mensual.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -829,12 +937,12 @@ export function InteligenciaComercialPanel({
 
           <section data-gi-panel className="gi-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Resultados por analista</h3><p className="gi-caption mt-1">Porcentaje de sus llegadas que cerró hasta hoy · atribuido al primer analista, no al autor del cierre</p></div>
+              <div><h3 className="gi-title">Resultados por analista</h3><p className="gi-caption mt-1">Porcentaje de los leads del mes que cerraron · atribuido al primer analista, no al autor del cierre</p></div>
               {vendedor && <div className="flex items-center gap-2"><select aria-label="Analista para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
             </div>
             {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- El contenedor desplazable debe poder recorrerse con teclado. */}
             <div className="mt-3 overflow-x-auto" role="region" aria-label="Gráfico de resultados por analista" tabIndex={0}>
-              <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Resultados de los leads recibidos por analista" className="w-full min-w-[430px]" style={{ height: Math.max(300, vendedores.length * 38) }} />
+              <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Resultados de los leads del mes por analista" className="w-full min-w-[430px]" style={{ height: Math.max(300, vendedores.length * 38) }} />
             </div>
             <p className="gi-caption mt-1 sm:hidden">Desliza el gráfico para ver todas las cifras.</p>
           </section>
@@ -849,7 +957,7 @@ export function InteligenciaComercialPanel({
               </div>
               <p className="gi-caption mt-1 sm:hidden">Desliza el gráfico para ver todas las cifras.</p>
             </section>
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultados por origen</h3><p className="gi-caption mt-1">De las llegadas de cada origen, qué porcentaje cerró hasta hoy. No es la conversión ponderada.</p>{nucleoVerificado ? <GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Resultados hasta hoy de las llegadas por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /> : <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>}{nucleoVerificado && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultados por origen</h3><p className="gi-caption mt-1">De los leads del mes en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>{nucleoVerificado ? <GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Resultados de los leads del mes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /> : <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>}{nucleoVerificado && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
               // D6: los referidos quedan FUERA de la base general del rango y sus
               // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
@@ -881,11 +989,11 @@ export function InteligenciaComercialPanel({
             </section>
           )}
 
-          <section data-gi-panel className="gi-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="gi-title">Resultados por semana de llegada</h3><span className="gi-caption">Llegadas del rango y cuántas cerraron hasta hoy; no cierres ocurridos esa semana</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Llegadas por semana y resultados de esas llegadas hasta hoy" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
+          <section data-gi-panel className="gi-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="gi-title">Resultados por semana de llegada</h3><span className="gi-caption">Leads del período y cuántos cerraron; no cierres ocurridos esa semana</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads por semana de llegada y resultados" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
       </section>
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={conversionMensualPublicable} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} mensualCargando={mensualEsperando} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={conversionMensualPublicable} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} mensualCargando={mensualEsperando} citasRealesDisponibles={citasReales != null} cierresSemanalesDisponibles={cierresSemanales != null} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

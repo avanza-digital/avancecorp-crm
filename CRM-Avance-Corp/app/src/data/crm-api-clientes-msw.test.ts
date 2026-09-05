@@ -1030,7 +1030,13 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
     })
   })
 
-  it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
+  // Hasta el 05/09 estas dos pruebas exigían fallar cerrado si faltaba la cuenta o
+  // la reserva PDF. Eso «protegía» DESPUÉS de una escritura irreversible: el
+  // contrato ya existía en el servidor y el front decía error, así que el analista
+  // lo volvía a crear. Ahora el alta se confirma y lo accesorio se degrada con rastro
+  // (ver el bloque «un alta que el servidor confirmó NUNCA se lee como error»).
+  it('si la RPC omite el id de la cuenta, el alta se confirma con cuenta_bancaria_id = null', async () => {
+    const silencio = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     server.use(
       http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
         HttpResponse.json({
@@ -1040,8 +1046,8 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
         }),
       ),
     )
-    await expect(
-      crearContrato(
+    try {
+      const r = await crearContrato(
         {
           cliente_id: 'cli-1',
           capital: 10000,
@@ -1056,11 +1062,17 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
           cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
         },
         [],
-      ),
-    ).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+      )
+      expect(r.id).toBe('10000000-0000-4000-8000-000000000001')
+      expect(r.cuenta_bancaria_id).toBeNull()
+      expect(silencio).toHaveBeenCalled()
+    } finally {
+      silencio.mockRestore()
+    }
   })
 
-  it('no confirma el contrato si la respuesta omite la reserva PDF', async () => {
+  it('si la respuesta omite la reserva PDF, el alta se confirma con el documento «pendiente» y reintentable', async () => {
+    const silencio = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     server.use(
       http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
         HttpResponse.json({
@@ -1070,8 +1082,8 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
         }),
       ),
     )
-    await expect(
-      crearContrato(
+    try {
+      const r = await crearContrato(
         {
           cliente_id: 'cli-1',
           capital: 10000,
@@ -1086,8 +1098,187 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
           cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
         },
         [],
+      )
+      expect(r.pdf).toEqual({
+        contrato_id: '10000000-0000-4000-8000-000000000001',
+        job_id: null,
+        estado: 'pendiente',
+        reintentable: true,
+      })
+      expect(silencio).toHaveBeenCalled()
+    } finally {
+      silencio.mockRestore()
+    }
+  })
+})
+
+describe('crearContrato — un alta que el servidor confirmó NUNCA se lee como error', () => {
+  // 05/09/2026: DIAZ VILLANUEVA quedó con DOS contratos idénticos (2026-01-000025 y
+  // 2026-01-000253, 61 s de diferencia). El primer alta salió 200, pero la respuesta
+  // traía `pdf.estado = 'sin_reserva'` (contrato firmado el 11/03/2026, régimen
+  // documental ANTERIOR: el servidor no emite documento) y el esquema exigía la
+  // reserva `pendiente`: el front dijo «El servidor no confirmó completamente el
+  // contrato…», el analista cambió el número y lo creó otra vez. Desde el 21/08,
+  // 33 altas del régimen anterior pasaron por ese error falso. Regla que fija este
+  // bloque: la PRUEBA del alta es `id` + `numero_contrato`; todo lo demás se degrada
+  // con rastro, jamás se convierte en error después de una escritura irreversible.
+  const ALTA = {
+    cliente_id: '4e0c11bc-3fec-492b-a90e-93fd75b36ad4',
+    capital: 20000,
+    moneda: 'PEN' as const,
+    tasa_anual: 15,
+    modalidad: 'mensual' as const,
+    tipo_interes: 'simple' as const,
+    categoria: 'nuevo' as const,
+    fecha_inicio: '2026-03-11',
+    fecha_vencimiento: '2027-03-11',
+    numero_contrato: '2026-01-000025',
+    notas_internas: null,
+    cuenta_pago: { tipo: 'existente' as const, cuenta_id: '470bfde6-aa80-41ff-904a-705b523cca5c' },
+  }
+  const CUOTA = [{ numero_cuota: 1, fecha_programada: '2026-04-11', monto_programado: 250, tipo: 'cuota' }] as never
+
+  // Respuesta REAL de producción para un contrato del régimen anterior: lo que
+  // devuelve `private.contrato_pdf_estado_base` cuando no hay job (rama
+  // `sin_reserva`), unido a lo que devuelve `public.crear_contrato`.
+  const RESPUESTA_REGIMEN_ANTERIOR = {
+    id: '74b5694f-843d-4b88-be13-5f8fc8e82404',
+    numero_contrato: '2026-01-000025',
+    operacion_id: null,
+    conversion_elegible: null,
+    cuenta_bancaria_id: '470bfde6-aa80-41ff-904a-705b523cca5c',
+    pdf: {
+      contrato_id: '74b5694f-843d-4b88-be13-5f8fc8e82404',
+      job_id: null,
+      estado: 'sin_reserva',
+      storage_bucket: 'contratos-generados',
+      storage_path: null,
+      nombre_archivo: null,
+      template_version: null,
+      intentos: 0,
+      lease_expira_en: null,
+      reintentable: false,
+      sha256: null,
+      bytes: null,
+      archivo: null,
+    },
+  }
+
+  let consolaError: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    consolaError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    consolaError.mockRestore()
+  })
+
+  function responder(cuerpo: Record<string, unknown>) {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () => HttpResponse.json(cuerpo)),
+    )
+  }
+
+  it('acepta el alta del régimen anterior tal como la emite producción HOY (sin_reserva): el caso de los duplicados del 05/09', async () => {
+    responder(RESPUESTA_REGIMEN_ANTERIOR)
+    const r = await crearContrato(ALTA, CUOTA)
+    expect(r.id).toBe('74b5694f-843d-4b88-be13-5f8fc8e82404')
+    expect(r.numero_contrato).toBe('2026-01-000025')
+    expect(r.cuenta_bancaria_id).toBe('470bfde6-aa80-41ff-904a-705b523cca5c')
+    expect(r.pdf).toEqual({
+      contrato_id: '74b5694f-843d-4b88-be13-5f8fc8e82404',
+      job_id: null,
+      estado: 'sin_reserva',
+      reintentable: false,
+    })
+    expect(r.idempotente).toBe(false)
+    // Es la respuesta esperada del servidor, no una degradación: sin rastro de error.
+    expect(consolaError).not.toHaveBeenCalled()
+  })
+
+  it('una forma DESCONOCIDA del bloque pdf degrada el estado documental con rastro, no el alta', async () => {
+    responder({
+      id: '74b5694f-843d-4b88-be13-5f8fc8e82404',
+      numero_contrato: '2026-01-000025',
+      cuenta_bancaria_id: '470bfde6-aa80-41ff-904a-705b523cca5c',
+      pdf: { estado: 'plantilla-v9-que-aun-no-existe', job_id: 7 },
+    })
+    const r = await crearContrato(ALTA, CUOTA)
+    expect(r.id).toBe('74b5694f-843d-4b88-be13-5f8fc8e82404')
+    // Estado «pendiente y reintentable»: la pantalla vuelve a preguntar a la edge,
+    // que es la fuente de verdad del documento. Nunca se inventa un sellado.
+    expect(r.pdf).toEqual({
+      contrato_id: '74b5694f-843d-4b88-be13-5f8fc8e82404',
+      job_id: null,
+      estado: 'pendiente',
+      reintentable: true,
+    })
+    expect(consolaError).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(consolaError.mock.calls[0])).toContain('crm.contrato.pdf_respuesta_invalida')
+  })
+
+  it('un pdf de OTRO contrato no se acepta como propio: se degrada igual que una forma desconocida', async () => {
+    responder({
+      ...RESPUESTA_REGIMEN_ANTERIOR,
+      pdf: { ...RESPUESTA_REGIMEN_ANTERIOR.pdf, contrato_id: '9597d503-1bff-4853-9c47-1eef5b5d3dfe' },
+    })
+    const r = await crearContrato(ALTA, CUOTA)
+    expect(r.id).toBe('74b5694f-843d-4b88-be13-5f8fc8e82404')
+    expect(r.pdf.contrato_id).toBe('74b5694f-843d-4b88-be13-5f8fc8e82404')
+    expect(r.pdf.estado).toBe('pendiente')
+    expect(consolaError).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin cuenta_bancaria_id el alta sigue confirmada: la cuenta queda como no confirmada (null) y con rastro', async () => {
+    const { cuenta_bancaria_id: _omitida, ...sinCuenta } = RESPUESTA_REGIMEN_ANTERIOR
+    void _omitida
+    responder(sinCuenta)
+    const r = await crearContrato(ALTA, CUOTA)
+    expect(r.id).toBe('74b5694f-843d-4b88-be13-5f8fc8e82404')
+    expect(r.cuenta_bancaria_id).toBeNull()
+    expect(consolaError).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(consolaError.mock.calls[0])).toContain('crm.contrato.cuenta_no_confirmada')
+  })
+
+  it('sin `id` la respuesta NO es un alta: sigue fallando cerrado (no hay prueba de escritura)', async () => {
+    responder({ numero_contrato: '2026-01-000025', cuenta_bancaria_id: '470bfde6-aa80-41ff-904a-705b523cca5c' })
+    await expect(crearContrato(ALTA, CUOTA)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    responder({})
+    await expect(crearContrato(ALTA, CUOTA)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('un error del servidor (400) sigue siendo error: el 400 de las 16:04:22 fue «El N de contrato ya existe»', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
+        HttpResponse.json(
+          { code: 'P0001', message: 'El N de contrato 2026-01-000025 ya existe', details: null, hint: null },
+          { status: 400 },
+        ),
       ),
-    ).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    )
+    await expect(crearContrato(ALTA, CUOTA)).rejects.toBeInstanceOf(CrmApiError)
+  })
+
+  it('la clave de idempotencia viaja DENTRO de p_contrato y solo si el caller la mandó', async () => {
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(RESPUESTA_REGIMEN_ANTERIOR)
+      }),
+    )
+    await crearContrato({ ...ALTA, clave_idempotencia: 'f6a1c2d4-3b5e-4f70-8a91-b2c3d4e5f607' }, CUOTA)
+    expect((body.p_contrato as Record<string, unknown>).clave_idempotencia).toBe('f6a1c2d4-3b5e-4f70-8a91-b2c3d4e5f607')
+    expect(body).not.toHaveProperty('p_clave_idempotencia')
+
+    await crearContrato(ALTA, CUOTA)
+    expect(body.p_contrato).not.toHaveProperty('clave_idempotencia')
+  })
+
+  it('un alta repetida por la misma clave se reporta como idempotente (el servidor devolvió la anterior)', async () => {
+    responder({ ...RESPUESTA_REGIMEN_ANTERIOR, idempotente: true })
+    const r = await crearContrato({ ...ALTA, clave_idempotencia: 'f6a1c2d4-3b5e-4f70-8a91-b2c3d4e5f607' }, CUOTA)
+    expect(r.idempotente).toBe(true)
+    expect(r.numero_contrato).toBe('2026-01-000025')
   })
 })
 

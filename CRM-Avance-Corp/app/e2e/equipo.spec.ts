@@ -104,8 +104,8 @@ test('supervisor real: el selector mensual recupera la foto completa de agosto',
       .getByRole('row', { name: /BRUNO AGOSTO/ }),
   ).toContainText('S/ 21,765')
 
-  await page.getByRole('tab', { name: 'Cosecha del lote' }).click()
-  const cosecha = page.getByRole('list', { name: 'Cosecha del lote por analista' })
+  await page.getByRole('tab', { name: 'Resultados de los leads del mes' }).click()
+  const cosecha = page.getByRole('list', { name: 'Resultados de los leads del mes por analista' })
   await expect(cosecha.getByText('BRUNO AGOSTO')).toBeVisible()
   await expect(cosecha.getByText('De sus 8 leads del mes, 1 ya es cliente (12.50%)')).toBeVisible()
 

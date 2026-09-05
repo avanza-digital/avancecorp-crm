@@ -8791,6 +8791,50 @@ async function testIdentidadF2bD10(sessions) {
   }
 }
 
+// ── F2.b [D-13] (20260905160000): «un solo lead» y «el puente manda» en todas las puertas con la bandera ON ──
+// Solo grants, marcadores y paridad apagada (el negocio —puente, conversión en curso, toma, conversiones— lo
+// cubre scripts/oraculo-f2b-d13.sh en el banco, con fixtures que la suite no puede sembrar sin válvula).
+async function testIdentidadF2bD13(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-13]: un solo lead y el puente manda en todas las puertas —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-13)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-13: ${etiqueta}`, sql);
+  const lista = (arr) => `'${arr.join("','")}'`;
+  const PRIVADAS = ['private.persona_en_conversion(uuid,uuid)', 'private.verificar_disponibilidad_lead_impl(text,text,uuid)',
+    'private.verificar_disponibilidad_lead_impl(text,text)', 'private.trg_leads_zz_enlaza_identidad()', 'private.leads_de_identidades(uuid[])'];
+  const RPC = ['crm.tomar_lead_libre(text,text)', 'crm.convertir_lead(uuid,uuid)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'];
+  const marcador = (nombre, args) => cuenta(`marcador ${nombre}`, `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname || '.' || p.proname = '${nombre}' and pg_get_function_identity_arguments(p.oid) = '${args}'`);
+  const DNI_SIN_DUENO = '00000013';
+
+  if (cuenta('D-13 aplicada', `select (to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-13 (20260905160000) no está en esta base)');
+    return;
+  }
+  try {
+    check(cuenta('EXECUTE residual privadas', `select count(*) from unnest(array[${lista(PRIVADAS)}]) f(firma), unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`)
+        + cuenta('PUBLIC residual privadas', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${PRIVADAS.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`) === 0,
+      'D-13 helper y funciones privadas (verificador, trigger, puente) sin EXECUTE para la API ni PUBLIC');
+    check(cuenta('grants RPC', `select count(*) from unnest(array[${lista(RPC)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === RPC.length
+        && cuenta('PUBLIC residual RPC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${RPC.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`) === 0,
+      'D-13 tomar_lead_libre / convertir_lead / convertir_lead_externo conservan sus grants (solo authenticated)');
+    check(marcador('private.verificar_disponibilidad_lead_impl', 'p_telefono text, p_dni text, p_excluir_lead_id uuid') + marcador('private.trg_leads_zz_enlaza_identidad', '') + marcador('crm.tomar_lead_libre', 'p_telefono text, p_dni text') + marcador('crm.convertir_lead', 'p_lead_id uuid, p_perfil_id uuid') === 4
+        && cuenta('marcador externo', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo'`) === 1,
+      'D-13 las cinco puertas llevan la transformación (marcador en el cuerpo)');
+    check(cuenta('trigger zz vigente', `select count(*) from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_enlaza_identidad' and tgenabled='O' and pg_get_triggerdef(oid) like '%BEFORE INSERT OR UPDATE OF dni%'`) === 1,
+      'D-13 el trigger de nacimiento sigue BEFORE INSERT OR UPDATE OF dni y habilitado');
+    // OFF (producción): el verificador responde como hoy para un DNI sin dueño; ON: idem (sin identidad ni reserva no hay rama que actúe).
+    for (const on of [false, true]) {
+      flag(on);
+      const { data, error } = await sessions.vend1.client.schema('crm').rpc('verificar_disponibilidad_lead', { p_telefono: '900000013', p_dni: DNI_SIN_DUENO });
+      check(!error && data?.estado === 'libre', `D-13 ${on ? 'ON' : 'OFF'}: un DNI sin persona ni reserva sigue «libre» en el verificador`, errorText(error) || JSON.stringify(data));
+    }
+    check(cuenta('sin identidad fantasma', `select count(*) from crm.inversionista_identificadores where documento_normalizado='${DNI_SIN_DUENO}'`) === 0,
+      'D-13: verificar no crea identidades');
+  } finally {
+    flag(false);
+  }
+}
+
 async function testConversionMensual(sessions, seed) {
   console.log('\n— Conversion mensual ponderada (migracion A) —');
 
@@ -11442,6 +11486,7 @@ async function main() {
       await testIdentidadF2bB5(sessions);
       await testIdentidadF2bE4(sessions, verifiedSeed);
       await testIdentidadF2bD10(sessions);
+      await testIdentidadF2bD13(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

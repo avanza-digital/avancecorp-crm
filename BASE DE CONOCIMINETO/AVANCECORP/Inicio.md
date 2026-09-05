@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-04
+actualizado: 2026-09-05
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -40,6 +40,11 @@ Hay **tres capas**, complementarias:
 - [[Correccion de Cartera - punto 3 - conciliacion y SQL pendiente 2026-09-04]] — punto 3 completado: SQL aplicado y frontend publicado. Cifras conciliadas, pruebas y reversión.
 - [[Main unico - sincronizacion y publicacion 2026-09-04]]
 - [[Publicacion frontend metricas Gerencia 2026-09-04]] — todo guardado; frontend publicado desde `50f33a5`, archivos y acceso de Gerencia verificados. Los puntos 4–5 siguen pendientes.
+- [[Datos faltantes de Gerencia - punto 4 - decision pendiente 2026-09-05]] — justificación histórica de las cuatro necesidades; alcance aprobado e implementación local completada después.
+- [[Plan por fases - cuatro datos de Gerencia - aprobado 2026-09-05]] — N1–N4 implementados y auditados localmente; falta confirmar/aplicar SQL, versionar, sincronizar y publicar.
+- [[Contrato tecnico de ampliaciones N1-N4 de Gerencia - 2026-09-05]] — contrato, huellas, migración, rollback y evidencia final. Título comercial acordado: «Resultados de los leads del mes».
+- [[Auditoria final de Gerencia - punto 5 - avance 2026-09-05]] — ampliaciones y animación verificadas localmente con núcleos intactos; faltan las puertas productivas y el commit final.
+- [[Cierre productivo de metricas de Gerencia - ejecucion 2026-09-05]] — ejecución autorizada de los seis pasos; preflight actual comprobado, SQL exacto pendiente de confirmación y publicación todavía no realizada.
 - [[Identidad unificada de inversionistas - plan pendiente]]
 - [[Handoff plan maestro multiempresa aprobado para firma F0 (2026-09-01)]]
 - [[Incidente y restauracion Ficha 360 2026-08-31]]

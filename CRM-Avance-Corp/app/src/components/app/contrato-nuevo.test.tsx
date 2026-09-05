@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { Dialog } from '@/components/ui/dialog'
 import * as crmApi from '@/data/crm-api'
 import { CUENTAS_CLIENTES_DEMO, DATOS_PDF_DEMO } from '@/lib/demo-clientes'
@@ -204,6 +205,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-1',
       pdf: { contrato_id: 'ctr-1', job_id: 'job-1', estado: 'pendiente', reintentable: true },
+      idempotente: false,
     })
     const { onCreado } = montar()
     await llenarBase(user)
@@ -401,6 +403,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-enter',
       pdf: { contrato_id: 'ctr-enter', job_id: 'job-enter', estado: 'pendiente', reintentable: true },
+      idempotente: false,
     })
     montar()
     await llenarBase(user)
@@ -451,6 +454,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-2',
       pdf: { contrato_id: 'ctr-2', job_id: 'job-2', estado: 'pendiente', reintentable: true },
+      idempotente: false,
     })
     montar()
     await llenarBase(user)
@@ -743,5 +747,121 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
       </Dialog>,
     )
     expect(screen.queryByText(/cuenta al analista del upgrade/)).not.toBeInTheDocument()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 05/09/2026: un analista creó el mismo contrato dos veces porque el front leyó
+// como error un alta que el servidor SÍ había confirmado. Estas pruebas fijan las
+// dos defensas del modal: el doble clic no sale dos veces, y el reintento humano
+// viaja con la MISMA clave de idempotencia (el servidor devuelve el mismo alta).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('ContratoNuevo — idempotencia del alta', () => {
+  const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+  const ALTA_OK = {
+    id: 'ctr-idem',
+    numero_contrato: '2026-01-000777',
+    cuenta_bancaria_id: 'cb-idem',
+    pdf: { contrato_id: 'ctr-idem', job_id: null, estado: 'sin_reserva' as const, reintentable: false },
+    idempotente: false,
+  }
+
+  beforeEach(() => {
+    cuentasEstado.error = false
+    cuentasEstado.pending = false
+    cuentasEstado.fetching = false
+    cuentasEstado.ocultarPen = false
+    legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []
+    legalesEstado.faltanAnalista = []
+    legalesEstado.error = false
+    crearContrato.mockReset()
+    archivoPdf.archivar.mockReset()
+    vi.mocked(toast.success).mockReset()
+  })
+
+  it('doble clic en «Crear contrato»: UNA sola llamada al servidor mientras la primera sigue en vuelo', async () => {
+    const user = userEvent.setup()
+    let liberar: (r: typeof ALTA_OK) => void = () => undefined
+    crearContrato.mockImplementation(
+      () => new Promise<typeof ALTA_OK>((resolve) => { liberar = resolve }),
+    )
+    montar()
+    await llenarBase(user)
+
+    const b = boton()
+    await user.click(b)
+    await user.click(b)
+    fireEvent.submit(b.closest('form')!)
+    expect(crearContrato).toHaveBeenCalledTimes(1)
+    expect(b).toBeDisabled()
+
+    liberar(ALTA_OK)
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+  })
+
+  it('el reintento tras un fallo del servidor reutiliza la MISMA clave de idempotencia (uuid canónico)', async () => {
+    const user = userEvent.setup()
+    crearContrato
+      .mockRejectedValueOnce(new crmApi.CrmApiError('No se pudo confirmar el alta', 'RED'))
+      .mockResolvedValueOnce(ALTA_OK)
+    montar()
+    await llenarBase(user)
+
+    await user.click(boton())
+    expect(screen.getByRole('alert')).toHaveTextContent(/No se pudo confirmar el alta/)
+    await user.click(boton())
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+
+    expect(crearContrato).toHaveBeenCalledTimes(2)
+    const clave1 = crearContrato.mock.calls[0]![0].clave_idempotencia
+    const clave2 = crearContrato.mock.calls[1]![0].clave_idempotencia
+    expect(clave1).toMatch(RE_UUID)
+    expect(clave2).toBe(clave1)
+  })
+
+  it('cada alta CONFIRMADA renueva la clave: dos altas seguidas nunca comparten clave', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockResolvedValue(ALTA_OK)
+    const primera = montar()
+    await llenarBase(user)
+    await user.click(boton())
+    await waitFor(() => expect(crearContrato).toHaveBeenCalledTimes(1))
+    primera.unmount()
+
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    await waitFor(() => expect(crearContrato).toHaveBeenCalledTimes(2))
+    const clave1 = crearContrato.mock.calls[0]![0].clave_idempotencia
+    const clave2 = crearContrato.mock.calls[1]![0].clave_idempotencia
+    expect(clave1).toMatch(RE_UUID)
+    expect(clave2).toMatch(RE_UUID)
+    expect(clave2).not.toBe(clave1)
+  })
+
+  it('si el servidor devolvió un alta YA registrada (idempotente), el aviso lo dice sin fingir un alta nueva', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockResolvedValue({ ...ALTA_OK, idempotente: true })
+    montar()
+    await llenarBase(user)
+    await user.click(boton())
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith(
+      expect.stringMatching(/ya estaba creado .* se recuperó el alta anterior/),
+    )
+  })
+
+  it('un alta del régimen anterior (sin_reserva) se muestra como creada y NO intenta archivar PDF', async () => {
+    const user = userEvent.setup()
+    crearContrato.mockResolvedValue(ALTA_OK)
+    montar()
+    await llenarBase(user)
+    // Firmado antes del 19/08/2026: régimen documental anterior.
+    fireEvent.change(screen.getByLabelText('Fecha de inicio'), { target: { value: '2026-03-11' } })
+    await user.click(boton())
+    await waitFor(() => expect(screen.getByText(/Contrato 2026-01-000777 creado/)).toBeInTheDocument())
+    expect(screen.getByText(/sigue siendo el del formato anterior/)).toBeInTheDocument()
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
   })
 })

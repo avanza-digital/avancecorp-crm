@@ -1,6 +1,120 @@
 import * as v from 'valibot'
+import { FechaHoraSchema, FechaSchema } from './esquemas-rpc'
 
 const PorcentajeSchema = v.nullable(v.number())
+const ConteoAmpliacionSchema = v.pipe(v.number(), v.integer(), v.minValue(0))
+const AporteAmpliacionSchema = v.pipe(v.number(), v.finite(), v.minValue(0))
+const FechaAmpliacionSchema = v.pipe(
+  FechaSchema,
+  v.check(
+    (fecha) => new Date(`${fecha}T00:00:00.000Z`).toISOString().slice(0, 10) === fecha,
+    'Fecha de calendario inválida',
+  ),
+)
+const InstanteAmpliacionSchema = FechaHoraSchema
+
+// Ampliaciones aditivas: faltar o venir null significa no disponible, nunca
+// cero. Los aportes y porcentajes son valores servidos; aquí sólo se valida.
+const CitasRealesSchema = v.pipe(v.object({
+  version: v.literal(1),
+  unidad: v.literal('lead_id'),
+  base: v.literal('llegadas_unicas'),
+  fecha_cita: v.literal('vence_en'),
+  seguimiento_hasta: InstanteAmpliacionSchema,
+  origen_filtrado: v.nullable(v.string()),
+  atribucion: v.literal('primer_analista'),
+  leads_base: ConteoAmpliacionSchema,
+  leads_con_cita_real: ConteoAmpliacionSchema,
+  citas_realizadas: ConteoAmpliacionSchema,
+  citas_anteriores_al_alta: ConteoAmpliacionSchema,
+  pct_llegadas_con_cita_real: v.nullable(AporteAmpliacionSchema),
+}), v.check((dato) => dato.leads_con_cita_real <= dato.leads_base
+  && dato.leads_con_cita_real <= dato.citas_realizadas
+  && (dato.pct_llegadas_con_cita_real == null || dato.pct_llegadas_con_cita_real <= 100)))
+
+const ConversionOperacionesSchema = v.pipe(v.object({
+  version: v.literal(1),
+  lectura: v.literal('viva'),
+  completo: v.boolean(),
+  desde: FechaAmpliacionSchema,
+  hasta: FechaAmpliacionSchema,
+  zona: v.literal('America/Lima'),
+  origen_filtrado: v.null(),
+  cantidad: ConteoAmpliacionSchema,
+  aporte_total: AporteAmpliacionSchema,
+  detalle: v.array(v.object({
+    operacion_id: v.string(),
+    analista_id: v.nullable(v.string()),
+    categoria: v.picklist(['renovacion', 'upgrade']),
+    periodo: FechaAmpliacionSchema,
+    fecha_numerador: InstanteAmpliacionSchema,
+    aporte_numerador: AporteAmpliacionSchema,
+  })),
+}), v.check((dato) => dato.cantidad === dato.detalle.length
+  && new Set(dato.detalle.map((operacion) => operacion.operacion_id)).size === dato.detalle.length))
+
+const SemanaCierresSchema = v.object({
+  semana: v.pipe(ConteoAmpliacionSchema, v.minValue(1)),
+  desde: FechaAmpliacionSchema,
+  hasta: FechaAmpliacionSchema,
+  cierres: ConteoAmpliacionSchema,
+  aporte_cierres: AporteAmpliacionSchema,
+})
+
+const SemanaCierresGlobalSchema = v.intersect([
+  SemanaCierresSchema,
+  v.object({
+    cierres_fuera_del_roster: ConteoAmpliacionSchema,
+    aporte_cierres_fuera_del_roster: AporteAmpliacionSchema,
+  }),
+])
+
+type SemanaCierreValidable = v.InferOutput<typeof SemanaCierresSchema>
+const DIA_MS = 86_400_000
+
+/** Valida la geometría temporal servida; no calcula ni sustituye métricas. */
+function semanasCubrenPeriodo(
+  semanas: readonly SemanaCierreValidable[],
+  desde: string,
+  hasta: string,
+): boolean {
+  const inicio = Date.parse(`${desde}T00:00:00.000Z`)
+  const fin = Date.parse(`${hasta}T00:00:00.000Z`)
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin) || inicio > fin) return false
+  if (semanas.length !== Math.floor((fin - inicio) / (7 * DIA_MS)) + 1) return false
+
+  return semanas.every((semana, indice) => {
+    const esperadoDesdeMs = inicio + indice * 7 * DIA_MS
+    const esperadoHastaMs = Math.min(fin, esperadoDesdeMs + 6 * DIA_MS)
+    return semana.semana === indice + 1
+      && semana.desde === new Date(esperadoDesdeMs).toISOString().slice(0, 10)
+      && semana.hasta === new Date(esperadoHastaMs).toISOString().slice(0, 10)
+  })
+}
+
+const CierresPorSemanaSchema = v.pipe(v.object({
+  version: v.literal(1),
+  base: v.literal('fecha_numerador'),
+  atribucion: v.literal('autor_cierre'),
+  agrupacion: v.literal('bloques_7_dias_desde_inicio'),
+  desde: FechaAmpliacionSchema,
+  hasta: FechaAmpliacionSchema,
+  zona: v.literal('America/Lima'),
+  origen_filtrado: v.nullable(v.string()),
+  incluye_operaciones_cartera: v.literal(false),
+  cierres: ConteoAmpliacionSchema,
+  aporte_cierres: AporteAmpliacionSchema,
+  cierres_fuera_del_roster: ConteoAmpliacionSchema,
+  aporte_cierres_fuera_del_roster: AporteAmpliacionSchema,
+  semanas: v.array(SemanaCierresGlobalSchema),
+}), v.check((dato) => semanasCubrenPeriodo(dato.semanas, dato.desde, dato.hasta)
+  && dato.cierres_fuera_del_roster <= dato.cierres
+  && dato.aporte_cierres_fuera_del_roster <= dato.aporte_cierres + Number.EPSILON
+  && dato.semanas.reduce((total, semana) => total + semana.cierres, 0) === dato.cierres
+  && Math.abs(dato.semanas.reduce((total, semana) => total + semana.aporte_cierres, 0) - dato.aporte_cierres) < 1e-9
+  && dato.semanas.reduce((total, semana) => total + semana.cierres_fuera_del_roster, 0) === dato.cierres_fuera_del_roster
+  && Math.abs(dato.semanas.reduce((total, semana) => total + semana.aporte_cierres_fuera_del_roster, 0) - dato.aporte_cierres_fuera_del_roster) < 1e-9,
+'Semanas de cierre incompatibles con el período o sus totales'))
 const PeriodoMetricasSchema = v.object({
   desde: v.string(),
   hasta: v.string(),
@@ -68,6 +182,8 @@ const ConversionPorOrigenSchema = v.object({
   // el espejo demo no las emite.
   peso_en_nucleo: v.optional(v.number()),
   fuera_del_divisor_del_nucleo: v.optional(v.boolean()),
+  leads_con_cita_real: v.optional(v.nullable(ConteoAmpliacionSchema)),
+  citas_realizadas: v.optional(v.nullable(ConteoAmpliacionSchema)),
 })
 
 const ConversionPorCategoriaSchema = v.object({
@@ -102,6 +218,9 @@ const DetalleConversionVendedorSchema = v.object({
   nucleo_divisor: v.optional(v.number()),
   nucleo_numerador: v.optional(v.number()),
   nucleo_conversion_pct: v.optional(PorcentajeSchema),
+  leads_con_cita_real: v.optional(v.nullable(ConteoAmpliacionSchema)),
+  citas_realizadas: v.optional(v.nullable(ConteoAmpliacionSchema)),
+  cierres_por_semana: v.optional(v.nullable(v.array(SemanaCierresSchema))),
 })
 
 // ── F2.1 («Conversión única», decisión D2): la cifra principal y sus sondas ──
@@ -158,7 +277,7 @@ const SondasConversionesSchema = v.object({
   perfiles_con_leads_de_varios_vendedores: v.optional(v.number()),
 })
 
-export const MetricasConversionesSchema = v.object({
+export const MetricasConversionesSchema = v.pipe(v.object({
   // Filtro de origen aplicado por el servidor (null/ausente = todos). Se
   // declara SIEMPRE desde la migración del 28/08; opcional por servidores previos.
   origen_filtrado: v.optional(v.nullable(v.string())),
@@ -174,7 +293,17 @@ export const MetricasConversionesSchema = v.object({
   nucleo: v.optional(NucleoConversionesSchema),
   cosecha: v.optional(CosechaConversionesSchema),
   sondas: v.optional(SondasConversionesSchema),
-})
+  citas_reales: v.optional(v.nullable(CitasRealesSchema)),
+  conversion_operaciones: v.optional(v.nullable(ConversionOperacionesSchema)),
+  cierres_por_semana: v.optional(v.nullable(CierresPorSemanaSchema)),
+}), v.check((dato) => dato.responsables?.every((responsable) => (
+  responsable.cierres_por_semana == null
+    || semanasCubrenPeriodo(
+      responsable.cierres_por_semana,
+      dato.periodo.desde,
+      dato.periodo.hasta,
+    )
+)) ?? true, 'Semanas por responsable incompatibles con el período'))
 
 export type NucleoConversiones = v.InferOutput<typeof NucleoConversionesSchema>
 export type CosechaConversiones = v.InferOutput<typeof CosechaConversionesSchema>

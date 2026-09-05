@@ -55,10 +55,44 @@ export function metricasConversionesDemo(
   hasta: string,
 ): MetricasConversiones {
   const periodo = crearPeriodoDemo(desde, hasta)
+  const generadoEn = new Date().toISOString()
+  // Fixture explícito, no otra calculadora: los 21 cierres de ejemplo ocurren
+  // el primer día. Los bloques siguientes conservan ceros y límites reales.
+  const semanasCierre = Array.from({ length: Math.ceil(periodo.dias / 7) }, (_, indice) => ({
+    semana: indice + 1,
+    desde: new Date(Date.parse(`${desde}T00:00:00Z`) + indice * 7 * MILISEGUNDOS_POR_DIA).toISOString().slice(0, 10),
+    hasta: new Date(Date.parse(`${desde}T00:00:00Z`) + Math.min(periodo.dias - 1, indice * 7 + 6) * MILISEGUNDOS_POR_DIA).toISOString().slice(0, 10),
+    cierres: indice === 0 ? 21 : 0,
+    aporte_cierres: indice === 0 ? 21 : 0,
+    cierres_fuera_del_roster: 0,
+    aporte_cierres_fuera_del_roster: 0,
+  }))
   return {
     version: 1,
-    generado_en: new Date().toISOString(),
+    generado_en: generadoEn,
     periodo,
+    citas_reales: {
+      version: 1, unidad: 'lead_id', base: 'llegadas_unicas', fecha_cita: 'vence_en',
+      seguimiento_hasta: generadoEn, origen_filtrado: null, atribucion: 'primer_analista',
+      leads_base: 184, leads_con_cita_real: 38, citas_realizadas: 46,
+      citas_anteriores_al_alta: 0, pct_llegadas_con_cita_real: 20.7,
+    },
+    conversion_operaciones: {
+      version: 1, lectura: 'viva', completo: true, desde, hasta, zona: ZONA_LIMA,
+      origen_filtrado: null, cantidad: 2, aporte_total: 1.15,
+      detalle: [
+        { operacion_id: 'demo-operacion-renovacion', analista_id: 'demo-v1', categoria: 'renovacion', periodo: `${desde.slice(0, 7)}-01`, fecha_numerador: `${desde}T00:00:00-05:00`, aporte_numerador: 0.15 },
+        { operacion_id: 'demo-operacion-upgrade', analista_id: 'demo-v2', categoria: 'upgrade', periodo: `${desde.slice(0, 7)}-01`, fecha_numerador: `${desde}T00:00:00-05:00`, aporte_numerador: 1 },
+      ],
+    },
+    cierres_por_semana: {
+      version: 1, base: 'fecha_numerador', atribucion: 'autor_cierre',
+      agrupacion: 'bloques_7_dias_desde_inicio', desde, hasta, zona: ZONA_LIMA,
+      origen_filtrado: null, incluye_operaciones_cartera: false,
+      cierres: 21, aporte_cierres: 21,
+      cierres_fuera_del_roster: 0, aporte_cierres_fuera_del_roster: 0,
+      semanas: semanasCierre,
+    },
     cohorte: {
       leads: 184,
       asignados: 176,
@@ -87,7 +121,7 @@ export function metricasConversionesDemo(
       { origen: 'Meta Ads', leads: 76, contactados: 61, reuniones_agendadas: 38, reuniones_realizadas: 28, clientes: 10, contratos: 10, descartados: 24, conversion_clientes_pct: 13.16, conversion_contratos_pct: 13.16, conversion_resueltos_pct: 35.14, capital_pen: 720_000, capital_usd: 36_000 },
       { origen: 'Referido', leads: 43, contactados: 37, reuniones_agendadas: 24, reuniones_realizadas: 19, clientes: 5, contratos: 5, descartados: 12, conversion_clientes_pct: 11.63, conversion_contratos_pct: 11.63, conversion_resueltos_pct: 40, capital_pen: 460_000, capital_usd: 60_000 },
       { origen: 'Web', leads: 65, contactados: 41, reuniones_agendadas: 20, reuniones_realizadas: 11, clientes: 2, contratos: 2, descartados: 27, conversion_clientes_pct: 3.08, conversion_contratos_pct: 3.08, conversion_resueltos_pct: 10, capital_pen: 300_000, capital_usd: 0 },
-    ],
+    ].map((fila, indice) => ({ ...fila, leads_con_cita_real: [20, 10, 8][indice], citas_realizadas: [24, 13, 9][indice] })),
     categorias: [
       { categoria: 'Capital de trabajo', leads: 92, clientes: 10, contratos: 10, descartados: 31, conversion_pct: 10.87 },
       { categoria: 'Inversión', leads: 58, clientes: 6, contratos: 6, descartados: 19, conversion_pct: 10.34 },
@@ -100,7 +134,18 @@ export function metricasConversionesDemo(
       { vendedor_id: 'demo-v4', leads: 29, contactados: 20, reuniones_realizadas: 7, clientes: 2, conversion_pct: 6.9, capital_pen: 210_000, capital_usd: 14_000, tendencia_semanal: tendenciaDemo(desde, hasta, [[8, 0], [7, 1], [7, 0], [7, 1]]) },
       { vendedor_id: 'demo-v5', leads: 24, contactados: 17, reuniones_realizadas: 5, clientes: 2, conversion_pct: 8.3, capital_pen: 200_000, capital_usd: 16_000, tendencia_semanal: tendenciaDemo(desde, hasta, [[6, 0], [6, 1], [6, 0], [6, 1]]) },
       { vendedor_id: 'demo-v6', leads: 18, contactados: 10, reuniones_realizadas: 2, clientes: 1, conversion_pct: 5.6, capital_pen: 170_000, capital_usd: 12_000, tendencia_semanal: tendenciaDemo(desde, hasta, [[5, 0], [4, 0], [5, 1], [4, 0]]) },
-    ],
+    ].map((fila, indice) => ({
+      ...fila,
+      leads_con_cita_real: [11, 9, 8, 5, 3, 2][indice],
+      citas_realizadas: [13, 11, 10, 6, 4, 2][indice],
+      cierres_por_semana: semanasCierre.map((semana) => ({
+        semana: semana.semana,
+        desde: semana.desde,
+        hasta: semana.hasta,
+        cierres: semana.semana === 1 ? 6 - indice : 0,
+        aporte_cierres: semana.semana === 1 ? 6 - indice : 0,
+      })),
+    })),
   }
 }
 
@@ -330,7 +375,7 @@ export function metricasReunionesDemo(desde: string, hasta: string): MetricasReu
       no_show: 8,
       canceladas: 7,
       canceladas_sistema: 2,
-      reprogramadas: 11,
+      reprogramadas: 4,
       pendientes_cierre: 3,
       programadas_futuras: 9,
       pct_realizacion: 79.45,
@@ -338,8 +383,8 @@ export function metricasReunionesDemo(desde: string, hasta: string): MetricasReu
     },
     conversion: { leads_reunidos: 58, clientes: 17, contratos: 17, conversion_cliente_pct: 29.31, conversion_contrato_pct: 29.31, capital_pen: 1_180_000, capital_usd: 76_000 },
     modalidades: [
-      { modalidad: 'virtual', pactadas: 49, debieron_ocurrir: 44, realizadas: 37, no_concretadas: 7, no_show: 4, canceladas: 3, reprogramadas: 6, pendientes_cierre: 1, pct_realizacion: 84.09, pct_asistencia: 90.24, leads_reunidos: 37, clientes: 11, contratos: 11, conversion_cliente_pct: 29.73, conversion_contrato_pct: 29.73, capital_pen: 690_000, capital_usd: 46_000 },
-      { modalidad: 'presencial', pactadas: 33, debieron_ocurrir: 29, realizadas: 21, no_concretadas: 8, no_show: 4, canceladas: 4, reprogramadas: 5, pendientes_cierre: 2, pct_realizacion: 72.41, pct_asistencia: 84, leads_reunidos: 21, clientes: 6, contratos: 6, conversion_cliente_pct: 28.57, conversion_contrato_pct: 28.57, capital_pen: 490_000, capital_usd: 30_000 },
+      { modalidad: 'virtual', pactadas: 49, debieron_ocurrir: 44, divisor_realizacion: 44, canceladas_sistema_vencidas: 0, reprogramadas_vencidas: 0, realizadas: 37, no_concretadas: 7, no_show: 4, canceladas: 3, reprogramadas: 2, pendientes_cierre: 2, pct_realizacion: 84.09, pct_asistencia: 90.24, leads_reunidos: 37, clientes: 11, contratos: 11, conversion_cliente_pct: 29.73, conversion_contrato_pct: 29.73, capital_pen: 690_000, capital_usd: 46_000 },
+      { modalidad: 'presencial', pactadas: 33, debieron_ocurrir: 29, divisor_realizacion: 29, canceladas_sistema_vencidas: 0, reprogramadas_vencidas: 0, realizadas: 21, no_concretadas: 8, no_show: 4, canceladas: 4, reprogramadas: 2, pendientes_cierre: 1, pct_realizacion: 72.41, pct_asistencia: 84, leads_reunidos: 21, clientes: 6, contratos: 6, conversion_cliente_pct: 28.57, conversion_contrato_pct: 28.57, capital_pen: 490_000, capital_usd: 30_000 },
     ],
     origenes: [
       { origen: 'Meta Ads', pactadas: 38, realizadas: 28, no_show: 5, canceladas: 3, pct_realizacion: 77.78, leads_reunidos: 28, clientes: 10, contratos: 10, conversion_contrato_pct: 35.71 },
@@ -347,9 +392,9 @@ export function metricasReunionesDemo(desde: string, hasta: string): MetricasReu
       { origen: 'Web', pactadas: 20, realizadas: 11, no_show: 2, canceladas: 2, pct_realizacion: 73.33, leads_reunidos: 11, clientes: 2, contratos: 2, conversion_contrato_pct: 18.18 },
     ],
     responsables: [
-      { responsable_id: 'demo-1', nombre: 'Andrea Salas', rol: 'vendedor', supervisor_id: 'demo-s1', supervisor_nombre: 'Equipo Norte', pactadas: 29, realizadas: 23, no_show: 3, canceladas: 2, reprogramadas: 4, pendientes_cierre: 1, pct_realizacion: 82.14 },
-      { responsable_id: 'demo-2', nombre: 'Luis Mendoza', rol: 'vendedor', supervisor_id: 'demo-s1', supervisor_nombre: 'Equipo Norte', pactadas: 27, realizadas: 20, no_show: 2, canceladas: 3, reprogramadas: 3, pendientes_cierre: 1, pct_realizacion: 80 },
-      { responsable_id: 'demo-3', nombre: 'Camila Rojas', rol: 'vendedor', supervisor_id: 'demo-s2', supervisor_nombre: 'Equipo Sur', pactadas: 26, realizadas: 15, no_show: 3, canceladas: 2, reprogramadas: 4, pendientes_cierre: 1, pct_realizacion: 68.18 },
+      { responsable_id: 'demo-1', nombre: 'Andrea Salas', rol: 'vendedor', supervisor_id: 'demo-s1', supervisor_nombre: 'Equipo Norte', pactadas: 29, realizadas: 23, no_show: 3, canceladas: 2, reprogramadas: 2, pendientes_cierre: 1, pct_realizacion: 82.14 },
+      { responsable_id: 'demo-2', nombre: 'Luis Mendoza', rol: 'vendedor', supervisor_id: 'demo-s1', supervisor_nombre: 'Equipo Norte', pactadas: 27, realizadas: 20, no_show: 2, canceladas: 3, reprogramadas: 1, pendientes_cierre: 1, pct_realizacion: 80 },
+      { responsable_id: 'demo-3', nombre: 'Camila Rojas', rol: 'vendedor', supervisor_id: 'demo-s2', supervisor_nombre: 'Equipo Sur', pactadas: 26, realizadas: 15, no_show: 3, canceladas: 2, reprogramadas: 1, pendientes_cierre: 1, pct_realizacion: 68.18 },
     ],
     resultados: [
       { resultado: 'Interesado', cantidad: 18 },
