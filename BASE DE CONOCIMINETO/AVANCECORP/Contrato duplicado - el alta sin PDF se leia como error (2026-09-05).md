@@ -20,6 +20,7 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 1. **El navegador ya no convierte un alta hecha en error.** La prueba de que el contrato existe son su identificador y su número; lo demás (cuenta, estado del documento) se lee con tolerancia y, si no encaja, se anota como rastro técnico sin asustar a la analista. El estado real del documento lo manda siempre el servidor cuando se consulta después.
 2. **El alta es idempotente.** Cada intento del formulario lleva una clave única; si la analista reintenta (por red, por timeout o por un error falso), el servidor devuelve **el mismo contrato** en vez de crear otro, y la pantalla avisa «se recuperó el alta anterior». Dos envíos simultáneos con la misma clave también producen un solo contrato (ensayado en el banco). Sin clave, todo sigue exactamente como hoy. No se tocó el núcleo de creación (`crear_contrato`), solo la puerta del CRM.
 3. **Reproducido antes de arreglar**: la respuesta real de producción hacía fallar el código viejo (prueba roja → verde). En el banco, el ensayo con el texto vivo reprodujo el duplicado (misma clave, número cambiado → 2 contratos) y con el arreglo dio 1.
+4. **El mismo peligro entre dos pestañas, cerrado** (revisión de Codex, 05/09): la clave de un intento se comparte por cliente entre pestañas; se corrigió para que la pestaña que reintenta conserve su clave aunque otra confirme y limpie el almacenamiento, y para que una respuesta tardía no borre la clave de un intento posterior.
 
 ## Qué falta (decisiones de Miguel)
 

@@ -250,6 +250,11 @@ export function ContratoNuevo({
   // avisa con el número del que ya existe. El `disabled` del botón y el guard de
   // `enviando` frenan el doble clic; la clave frena el reintento humano.
   const ambitoIdempotencia = `alta_contrato:${clienteId}`
+  // La clave del intento EN CURSO, fijada por esta instancia. Se conserva entre
+  // reintentos aunque otra pestaña del mismo ámbito libere el almacenamiento
+  // compartido; se suelta (y se compara al liberar) solo cuando el intento se
+  // resuelve de forma definitiva.
+  const claveIntento = useRef<string | null>(null)
   // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
   // alta y lo exige literalmente, así que sin él el contrato entero se revierte.
   // Se pregunta ANTES para convertir ese muro sin nombre en un campo.
@@ -571,8 +576,9 @@ export function ContratoNuevo({
       reportarError(tit.error)
       return
     }
+    const claveIdempotencia = (claveIntento.current ??= claveIdempotenciaPendiente(ambitoIdempotencia))
     const input: CrearContratoInput = {
-      clave_idempotencia: claveIdempotenciaPendiente(ambitoIdempotencia),
+      clave_idempotencia: claveIdempotencia,
       cliente_id: clienteId,
       capital: capitalNum,
       moneda,
@@ -677,7 +683,8 @@ export function ContratoNuevo({
       else onConfirmado?.(r.numero_contrato)
       // El alta quedó escrita y la pantalla ya lo sabe: la siguiente (si la hay)
       // es OTRO intento, con otra clave. Se libera al final, no antes del toast.
-      liberarClaveIdempotencia(ambitoIdempotencia)
+      liberarClaveIdempotencia(ambitoIdempotencia, claveIntento.current ?? undefined)
+      claveIntento.current = null
       // Régimen anterior: no hay documento que archivar. Intentarlo devolvería
       // `sin_reserva` y pintaría un error rojo sobre un alta que salió perfecta.
       if (regimenDocumentalAnterior) return
@@ -718,10 +725,12 @@ export function ContratoNuevo({
         // El intento anterior SÍ creó un contrato (con otros datos). Ya se lo
         // dijimos con el número; si de verdad quiere otro, el siguiente clic es
         // un intento NUEVO, a conciencia.
-        liberarClaveIdempotencia(ambitoIdempotencia)
+        liberarClaveIdempotencia(ambitoIdempotencia, claveIntento.current ?? undefined)
+        claveIntento.current = null
         reportarError(`${e.message}. Si de verdad es otro contrato, vuelve a pulsar «Crear contrato».`)
       } else if (e instanceof CrmApiError && e.code === 'ALTA_ELIMINADA') {
-        liberarClaveIdempotencia(ambitoIdempotencia)
+        liberarClaveIdempotencia(ambitoIdempotencia, claveIntento.current ?? undefined)
+        claveIntento.current = null
         reportarError(
           'El contrato de tu intento anterior fue eliminado después. Vuelve a pulsar «Crear contrato» para registrarlo de nuevo.',
         )

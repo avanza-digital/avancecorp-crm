@@ -83,3 +83,66 @@ describe('la clave pendiente por ámbito (sobrevive al componente, a la recarga 
     expect(claveIdempotenciaPendiente('alta_contrato:cli-1')).not.toBe(a)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dos pestañas del MISMO ámbito comparten el almacenamiento pero NO la memoria de
+// proceso. La regresión que motiva estas pruebas (Codex, revisión adversaria del
+// 05/09/2026): si la pestaña que confirma libera el almacenamiento, la otra, al
+// reintentar, no debe nacer con una clave nueva —eso reabre el duplicado del 05/09
+// entre pestañas—. Se modelan dos instancias reales del módulo con vi.resetModules.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('dos pestañas del mismo ámbito (almacenamiento compartido, memoria separada)', () => {
+  const CLAVE = 'crm.idempotencia.alta_contrato:cli-tabs'
+  beforeEach(() => {
+    localStorage.clear()
+  })
+  afterEach(() => {
+    vi.resetModules()
+    localStorage.clear()
+  })
+
+  it('la pestaña que reintenta conserva SU clave aunque la otra libere el almacenamiento', async () => {
+    vi.resetModules()
+    const A = await import('./idempotencia')
+    vi.resetModules()
+    const B = await import('./idempotencia')
+    const ambito = 'alta_contrato:cli-tabs'
+    const claveA = A.claveIdempotenciaPendiente(ambito) // A acuña K y la guarda en el almacenamiento
+    const claveB = B.claveIdempotenciaPendiente(ambito) // B lee K y la respalda en SU memoria de proceso
+    expect(claveB).toBe(claveA)
+    A.liberarClaveIdempotencia(ambito, claveA) // A confirma su alta y libera el almacenamiento compartido
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+    // B reintenta (su respuesta se perdió): sin el respaldo en memoria nacería K2 y
+    // un cambio de número crearía un segundo contrato. Con el respaldo, sigue siendo K.
+    expect(B.claveIdempotenciaPendiente(ambito)).toBe(claveA)
+  })
+})
+
+// El compare-and-clear evita que la respuesta TARDÍA de un intento borre la clave de
+// un intento POSTERIOR ya en curso.
+describe('liberar por clave (compare-and-clear)', () => {
+  const CLAVE = 'crm.idempotencia.alta_contrato:cli-tardio'
+  beforeEach(() => {
+    localStorage.clear()
+    liberarClaveIdempotencia('alta_contrato:cli-tardio')
+  })
+
+  it('la respuesta tardía de un intento no borra la clave de un intento posterior', () => {
+    const ambito = 'alta_contrato:cli-tardio'
+    const claveVieja = claveIdempotenciaPendiente(ambito) // intento 1 → K
+    liberarClaveIdempotencia(ambito, claveVieja) // intento 1 se resuelve y libera
+    const claveNueva = claveIdempotenciaPendiente(ambito) // intento 2 → K2, guardada
+    expect(claveNueva).not.toBe(claveVieja)
+    liberarClaveIdempotencia(ambito, claveVieja) // respuesta TARDÍA del intento 1: la vigente es K2 ≠ K
+    expect(localStorage.getItem(CLAVE)).toBe(claveNueva) // no se borró
+    expect(claveIdempotenciaPendiente(ambito)).toBe(claveNueva) // K2 sigue vigente
+  })
+
+  it('liberar SIN clave sigue limpiando de forma incondicional (comportamiento anterior)', () => {
+    const ambito = 'alta_contrato:cli-tardio'
+    const clave = claveIdempotenciaPendiente(ambito)
+    expect(localStorage.getItem(CLAVE)).toBe(clave)
+    liberarClaveIdempotencia(ambito)
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+  })
+})

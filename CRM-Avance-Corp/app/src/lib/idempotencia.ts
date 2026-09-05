@@ -63,17 +63,37 @@ function guardar(ambito: string, clave: string): void {
 /**
  * La clave del intento PENDIENTE de este ámbito: la que quedó guardada si hubo un
  * intento sin confirmar, o una nueva (que queda guardada) si no la hay.
+ *
+ * Al leer una clave del almacenamiento COMPARTIDO se respalda además en la memoria
+ * de ESTE proceso. Sin ese respaldo, si otra pestaña del mismo ámbito confirma su
+ * intento y libera el almacenamiento, el reintento de esta pestaña ya no encontraría
+ * la clave y nacería con una NUEVA: el servidor no la reconocería y —si además cambia
+ * el número— crearía un segundo contrato (el duplicado del 05/09, ahora entre pestañas).
  */
 export function claveIdempotenciaPendiente(ambito: string): string {
   const guardada = leerGuardada(ambito)
-  if (guardada) return guardada
+  if (guardada) {
+    memoria.set(ambito, guardada)
+    return guardada
+  }
   const clave = nuevaClaveIdempotencia()
   guardar(ambito, clave)
   return clave
 }
 
-/** El servidor confirmó (o descartó) el intento: la siguiente escritura es OTRO intento. */
-export function liberarClaveIdempotencia(ambito: string): void {
+/**
+ * El servidor confirmó (o descartó) el intento: la siguiente escritura es OTRO intento.
+ *
+ * Si se indica `clave`, se libera de forma condicional (compare-and-clear): solo cuando
+ * la que sigue guardada es esa misma. Así la respuesta TARDÍA de un intento no borra la
+ * clave de un intento POSTERIOR ya en curso (dos pestañas, o un intento nuevo tras uno
+ * resuelto). Sin `clave`, se libera incondicionalmente (comportamiento anterior).
+ */
+export function liberarClaveIdempotencia(ambito: string, clave?: string): void {
+  if (clave != null) {
+    const vigente = leerGuardada(ambito)
+    if (vigente !== null && vigente !== clave) return
+  }
   memoria.delete(ambito)
   try {
     globalThis.localStorage?.removeItem(PREFIJO + ambito)
