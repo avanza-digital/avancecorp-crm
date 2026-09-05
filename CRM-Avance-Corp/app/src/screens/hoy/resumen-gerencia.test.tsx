@@ -344,11 +344,13 @@ describe('estados vacíos del resumen de Gerencia', () => {
     const heroe = titulo.closest('section')
     expect(heroe).not.toBeNull()
     expect(heroe).toHaveTextContent('3.98%')
-    expect(heroe).toHaveTextContent('176 llegadas automáticas en la base')
+    expect(heroe).toHaveTextContent('Base: 176 leads automáticos · 7 cierres')
+    expect(heroe).toHaveTextContent('185 leads recibidos: 176 automáticos · 8 manuales · 1 referido')
+    expect(heroe).not.toHaveTextContent('fuera de la base')
     expect(heroe).not.toHaveTextContent('317')
     expect(heroe).not.toHaveTextContent('3.79%')
     expect(screen.getByText('Conversión del rango', { selector: '.gi-label' }).closest('[data-gi-kpi]'))
-      .toHaveTextContent('176 llegadas automáticas en la base')
+      .toHaveTextContent('176 leads automáticos')
   })
 
   it('no convierte una foto mensual pendiente en cero ni en ausencia de meta', () => {

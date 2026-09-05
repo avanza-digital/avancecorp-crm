@@ -706,7 +706,7 @@ export function InteligenciaComercialPanel({
     ? { label: 'Capital del lote (hasta hoy)', valor: money(capitalLotePen, 'PEN'), detalle: capitalLoteUsd > 0 ? money(capitalLoteUsd, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
     : { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
   const kpis = [
-    { label: 'Cosecha del período', valor: pct(cosechaPct), detalle: `${numero(cosechaCierres)} cierres de ${numero(cosechaLeads)}`, icon: UserRoundCheck, color: C.blue },
+    { label: 'Resultados de los leads recibidos', valor: pct(cosechaPct), detalle: `${numero(cosechaCierres)} cierres de ${numero(cosechaLeads)}`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     // F6.b: esta cifra cuenta LEADS de la cohorte que llegaron a cita, no citas
     // (la pantalla de Citas cuenta citas por vencimiento y daba otro numero
@@ -767,19 +767,19 @@ export function InteligenciaComercialPanel({
                     ? 'Todos los orígenes · consultando el núcleo del rango…'
                     : nucleo == null
                       ? 'Base canónica del rango no disponible'
-                      : `${nucleo.base === 'llegada_unica' ? 'Landing/Formulario/Referido' : 'Base histórica'} · ${numero(nucleo.divisor)} ${nucleo.base === 'llegada_unica' ? 'llegadas automáticas en la base' : 'registros en la base histórica'} · ${numero(nucleo.cierres_no_referidos)} cierres no referidos`
+                      : `${nucleo.base === 'llegada_unica' ? 'Base:' : 'Base histórica ·'} ${numero(nucleo.divisor)} ${nucleo.base === 'llegada_unica' ? 'leads automáticos' : 'registros en la base histórica'} · ${numero(nucleo.cierres_no_referidos)} ${nucleo.base === 'llegada_unica' && nucleo.cierres_referidos === 0 ? 'cierres' : 'cierres no referidos'}`
                         + (nucleo.cierres_referidos > 0 ? ` · ${numero(nucleo.cierres_referidos)} cierres referidos` : '')
                         + (nucleo.operaciones_cartera > 0 ? ` · ${numero(nucleo.operaciones_cartera)} operaciones de cartera` : '')
                   : mensualEsperando
                     ? 'Todos los orígenes · consultando el núcleo mensual…'
-                    : `${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'Landing/Formulario/Referido' : 'Base histórica'} · ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} ${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'llegadas automáticas en la base' : 'registros históricos'} · ${numero(cierresMes ?? 0)} cierres`}`
+                    : `${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'Base:' : 'Base histórica ·'} ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} ${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'leads automáticos' : 'registros históricos'} · ${numero(cierresMes ?? 0)} cierres`}`
                       + ((operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : '')}
               </p>
-              {usaNucleoRango && nucleo?.llegadas != null && (
-                <p className="mt-1 text-xs text-white/65">{numero(nucleo.llegadas)} llegadas únicas · {numero(nucleo.altas_manuales ?? 0)} altas manuales y {numero(nucleo.referidos_recibidos)} referidos fuera de la base. La llegada pertenece al primer analista; el cierre, a quien lo consigue.</p>
+              {usaNucleoRango && nucleo?.base === 'llegada_unica' && nucleo.llegadas != null && (
+                <p className="mt-1 text-xs text-white/65">{numero(nucleo.llegadas)} leads recibidos: {numero(nucleo.divisor)} automáticos · {numero(nucleo.altas_manuales ?? 0)} manuales · {numero(nucleo.referidos_recibidos)} {nucleo.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
               )}
               {usaNucleoRango && nucleo?.peso_renovacion != null && (
-                <p className="mt-1 text-xs text-white/65">Referidos y renovaciones ×{numero(nucleo.peso_renovacion, 2)} · upgrades ×1. Solo operaciones dentro del rango.</p>
+                <p className="mt-1 text-xs text-white/65">Peso: referidos y renovaciones ×{numero(nucleo.peso_renovacion, 2)} · Upgrades ×1</p>
               )}
               {usaNucleoRango && nucleo != null && !nucleo.incluye_cartera && (
                 <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
@@ -787,7 +787,7 @@ export function InteligenciaComercialPanel({
               {!usaNucleoRango && !mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <div className="gi-hero-metric"><span>Cosecha del rango{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
+              <div className="gi-hero-metric"><span>Resultados de los leads recibidos{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
               {/* Con filtro de origen, las cifras de EMPRESA se retiran del
                   héroe: capital del mes y meta al lado de un lote recortado
                   eran la contradicción vetada. */}
@@ -805,7 +805,7 @@ export function InteligenciaComercialPanel({
       </CardContent>
 
       <section
-        aria-label="Análisis de Cosecha del rango"
+        aria-label="Análisis de resultados de los leads recibidos"
         aria-busy={rangoCargando && datos === undefined}
         className="border-t border-[var(--gi-line)] bg-[var(--gi-canvas)]"
       >
@@ -848,10 +848,10 @@ export function InteligenciaComercialPanel({
 
           <section data-gi-panel className="gi-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Cosecha por analista</h3><p className="gi-caption mt-1">Leads del período que cerraron · equipo completo</p></div>
+              <div><h3 className="gi-title">Resultados por analista</h3><p className="gi-caption mt-1">Leads del período que cerraron · equipo completo</p></div>
               {vendedor && <div className="flex items-center gap-2"><select aria-label="Analista para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
             </div>
-            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Cosecha del período por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
+            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Resultados de los leads recibidos por analista" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
           </section>
 
           <div className="grid gap-4 xl:grid-cols-2">

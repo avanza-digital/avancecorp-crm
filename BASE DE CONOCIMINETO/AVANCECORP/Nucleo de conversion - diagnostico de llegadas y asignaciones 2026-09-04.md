@@ -52,6 +52,24 @@ los cierres y las operaciones siguen mostrándose en sus propios conteos.
 
 ## Evidencia de producción — 1 al 3 de septiembre de 2026
 
+### Textos de gestión acordados después de publicar
+
+Miguel pidió rótulos breves, sin explicaciones largas en el resumen. La
+lectura «Cosecha del rango» se presenta como **Resultados de los leads
+recibidos**. En Resumen y Conversiones, el desglose se expresa como
+**243 leads recibidos: 231 automáticos · 11 manuales · 1 referido** (ejemplo;
+los cuatro valores siguen viniendo del núcleo, no están fijados en pantalla).
+Se retira «fuera de la base» del resumen, que inducía a pensar que esos leads
+no contaban en ningún sentido. No cambian el divisor, la elegibilidad de los
+cierres, los pesos, los filtros ni la atribución. El peso se rotula en una
+sola línea: «Peso: referidos y renovaciones ×0,15 · Upgrades ×1».
+
+Este ajuste de textos queda separado del despliegue documentado arriba:
+**implementado y verificado, pendiente de publicar**. La base de datos no
+requiere otra migración.
+
+### Conteos verificados del rango
+
 Consulta agregada de solo lectura, ventana Lima
 `[2026-09-01 00:00, 2026-09-04 00:00)`:
 
