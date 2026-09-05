@@ -6550,20 +6550,28 @@ async function testLentesAtribucion(sessions, seed) {
 // P-055 F7 — el SUSTITUTO de metricas_altas_analista_fn (altas de contratos NUEVOS
 // por el analista que cierra). Es una VERJA de visibilidad, NO un cierre: el no
 // autorizado recibe 0 filas, no un 42501. (auditor-rls 04/09, hallazgo M-1.)
-async function testAltasNuevasPorAnalista(sessions) {
+async function testAltasNuevasPorAnalista(sessions, seed) {
   console.log('\n— Altas nuevas por analista (sustituto F7) —');
   const FN = 'altas_nuevas_por_analista_fn';
 
   // Si la funcion aun no esta desplegada en esta base (suite corrida sin esta
-  // migracion, p. ej. otra sesion en su branch), SALTAR limpio en vez de tumbar
-  // la matriz entera con PGRST202.
+  // migracion, p. ej. otra sesion en su branch), saltar — pero RUIDOSO: un salto
+  // silencioso pintaria de verde lo no probado (auditor-rls M-C). Con
+  // CRM_RLS_EXIGE_ALTAS=1 el salto es un FALLO (para el ciclo del `!` de esta
+  // migracion, donde el bloque TIENE que haber corrido).
   {
     const probe = await sessions.gerencia.client.schema('crm').rpc(FN, { p_meses: 1 });
     if (probe.error?.code === 'PGRST202') {
-      console.log(`  (saltado: ${FN} no desplegada en esta base)`);
+      const msg = `⚠ ${FN} NO desplegada en esta base: bloque de altas SALTADO (no probado)`;
+      if (process.env.CRM_RLS_EXIGE_ALTAS === '1') fail(msg);
+      else console.log(`  ${msg}`);
       return;
     }
   }
+  const ids = seed.profileIdByKey;
+  // Subarbol de sup1 (fixtures.mjs): sup1, vend1, vend2, sup1Nested, vendNested.
+  const SUBARBOL_SUP1 = new Set([ids.sup1, ids.vend1, ids.vend2, ids.sup1Nested, ids.vendNested]);
+  const FUERA_SUP1 = new Set([ids.sup2, ids.vend3, ids.vend4, ids.vendInactive]);
 
   // A. Gerencia (global): lee sin error, forma de array. No se fija la CUENTA: el
   //    fixture de seed puede ser escaso y la seguridad no depende del volumen.
@@ -6574,15 +6582,17 @@ async function testAltasNuevasPorAnalista(sessions) {
       `gerencia lee ${FN} (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
   }
 
-  // B. Un vendedor: lee sin error y NUNCA ve la fila "Sin analista" (analista_id
-  //    null SOLO la ve un global; para un no-global `null = any(ids)` da NULL).
+  // B. AISLAMIENTO del vendedor: TODO lo que ve es SUYO (analista_id == vend1) y
+  //    nunca la fila "Sin analista" (null solo la ve un global). Una regresion
+  //    donde `es_global` diera true a todos NO pasaria esto (auditor-rls M-B).
+  let filasVend1 = [];
   {
     const { data, error } = await sessions.vend1.client
-      .schema('crm').rpc(FN, { p_meses: 12 });
-    const veSinAnalista = (data ?? []).some(
-      (f) => f.analista_id === null || f.analista_nombre === 'Sin analista');
-    check(!error && Array.isArray(data) && !veSinAnalista,
-      `vend1 lee ${FN} sin ver "Sin analista" (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+      .schema('crm').rpc(FN, { p_meses: 60 });
+    filasVend1 = data ?? [];
+    const soloSuyo = filasVend1.every((f) => f.analista_id === ids.vend1);
+    check(!error && Array.isArray(data) && soloSuyo,
+      `vend1 solo ve SUS altas en ${FN} (${error?.code ?? filasVend1.length + ' filas'})`);
   }
 
   // C. Coordinador: NO esta en la allowlist ni es lector global -> 0 filas.
@@ -6601,11 +6611,67 @@ async function testAltasNuevasPorAnalista(sessions) {
       `clientBank (sin membresia) recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
   }
 
-  // E. anon: sin EXECUTE -> error (no accede).
+  // E. anon: sin EXECUTE (ni USAGE de crm) -> error de AUTORIZACION, no cualquiera.
   {
     const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-altas'));
     const { error } = await anon.schema('crm').rpc(FN, { p_meses: 12 });
-    check(!!error, `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+    check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+
+  // G. AISLAMIENTO del supervisor: sup1 ve SOLO su subarbol y NADA de sup2.
+  {
+    const { data, error } = await sessions.sup1.client
+      .schema('crm').rpc(FN, { p_meses: 60 });
+    const filas = data ?? [];
+    const dentro = filas.every((f) => f.analista_id !== null && SUBARBOL_SUP1.has(f.analista_id));
+    const fuga = filas.some((f) => FUERA_SUP1.has(f.analista_id));
+    check(!error && Array.isArray(data) && dentro && !fuga,
+      `sup1 ve solo su subarbol en ${FN} (${error?.code ?? filas.length + ' filas'}${fuga ? ' — FUGA a sup2' : ''})`);
+  }
+
+  // H. Miembro INACTIVO (activo=false): la verja no le abre -> 0 filas.
+  {
+    const { data, error } = await sessions.vendInactive.client
+      .schema('crm').rpc(FN, { p_meses: 60 });
+    check(!error && Array.isArray(data) && data.length === 0,
+      `vendInactive recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // I. PARIDAD: la fila (mes, vend1) que ve vend1 es LA MISMA que ve gerencia.
+  //    Si difieren, uno de los dos miente (distinto conteo por rol = falso).
+  let filasGerencia = [];
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_meses: 60 });
+    filasGerencia = data ?? [];
+    const clave = (f) => `${f.mes}|${f.analista_id}`;
+    const deGerencia = new Map(filasGerencia.map((f) => [clave(f), Number(f.altas)]));
+    const paridad = filasVend1.every((f) => deGerencia.get(clave(f)) === Number(f.altas));
+    check(!error && paridad,
+      `paridad vend1 == gerencia por (mes, analista) en ${FN} (${filasVend1.length} filas comparadas)`);
+  }
+
+  // J. ORACULO DE FECHA (la defensa REAL contra el footgun de la v1, que la guarda
+  //    del postflight NO da: aquella evalua su propia expresion, no la funcion).
+  //    Cada `mes` que devuelve la funcion DEBE ser el mes calendario de algun
+  //    cierre real, y la suma de altas no puede superar los contratos nuevos.
+  //    Robusto a un seed escaso: el fixture cierra el dia 1 (fecha_inicio
+  //    2026-01-01 / 2026-02-01), justo el dia que un `at time zone` sobre un
+  //    date manda al mes ANTERIOR — la v1 habria devuelto 2025-12-01/2026-01-01
+  //    y este oraculo lo habria cazado.
+  {
+    const { data: contratos, error } = await admin.from('contratos')
+      .select('fecha_cierre_comercial')
+      .eq('categoria', 'nuevo').eq('es_demo', false);
+    const mesesReales = new Set((contratos ?? [])
+      .filter((c) => c.fecha_cierre_comercial)
+      .map((c) => `${String(c.fecha_cierre_comercial).slice(0, 7)}-01`));
+    const mesesDevueltos = [...new Set(filasGerencia.map((f) => String(f.mes)))];
+    const fantasma = mesesDevueltos.filter((m) => !mesesReales.has(m));
+    const sumaAltas = filasGerencia.reduce((a, f) => a + Number(f.altas), 0);
+    check(!error && fantasma.length === 0 && sumaAltas <= (contratos ?? []).length,
+      `oraculo de fecha: cada mes devuelto es el mes calendario de un cierre real (${mesesDevueltos.length} meses, ${sumaAltas} altas <= ${(contratos ?? []).length} contratos nuevos)`,
+      fantasma.length ? `meses FANTASMA (bucket corrido): ${fantasma.join(', ')}` : '');
   }
 }
 
@@ -11192,7 +11258,7 @@ async function main() {
       await testAtribucionCadena(sessions);
       await testLentesAtribucion(sessions, verifiedSeed);
       await testF7Ola1(sessions);
-      await testAltasNuevasPorAnalista(sessions);
+      await testAltasNuevasPorAnalista(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
     }
   } catch (error) {
