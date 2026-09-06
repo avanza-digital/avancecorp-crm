@@ -6,7 +6,7 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d4_importador_por_puerta'));
 do $chk$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '91815c3c1d0e6ab6d31b699423d47292') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3ba66a37f66f6b9eae6f4c913e1a838') then
     raise exception 'REGISTRO D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
@@ -42,9 +42,6 @@ begin
   if to_regprocedure('private.inversionista_por_documento(text,text)') is null then
     raise exception 'REGISTRO D-4: falta private.inversionista_por_documento(text,text)';
   end if;
-  if to_regprocedure('private.normalizar_telefono(text)') is null or left(md5(pg_get_functiondef('private.normalizar_telefono(text)'::regprocedure)), 8) <> '00c30277' then
-    raise exception 'REGISTRO D-4: private.normalizar_telefono(text) falta o no es el texto vivo de producción (esperado 00c30277…)';
-  end if;
   if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_telefono_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '9fab4b46') then
     raise exception 'REGISTRO D-4: el índice único crm.leads.uq_leads_telefono_vivo falta o no es el de producción (esperado 9fab4b46…)';
   end if;
@@ -60,7 +57,7 @@ begin
   if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_enlaza_identidad' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
     raise exception 'REGISTRO D-4: el trigger de nacimiento crm.leads.trg_leads_zz_enlaza_identidad falta, está deshabilitado o no es BEFORE INSERT';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '412d1c8cac363b0e742497c3e62e150e')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'b48bc6b9f9a94ef638568ca97dd8caf7')) then
     raise exception 'REGISTRO D-4: la versión 20260906130000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -73,6 +70,8 @@ values ('20260906130000', 'crm_f2b_d4_importador_por_puerta_sql', array[$m$-- ==
 --
 -- QUE: el edge crm-importar-leads (las filas de la hoja de Google, cada 5 minutos, con service_role) INSERTA hoy directo
 -- en crm.leads y adivina el veredicto parseando los errores del INSERT (P0481 con el veredicto en DETAIL, P0429, 23505).
+-- La puerta no valida nada que la fila al nacer no valide ya (misma prioridad que el INSERT directo) y el reingreso es
+-- idempotente 24 h (la misma fila reenviada por la hoja no se anota dos veces).
 -- Los leads del front entran por crm.crear_lead_si_disponible: candados en el orden TOTAL (documento → persona →
 -- contactos → fila) y un veredicto único. Esta puerta hace el MISMO INSERT del edge bajo ese mismo orden (los de
 -- identidad explícitos; los de contacto los toma el trigger 00 tras el veto 000, como hoy) y devuelve un veredicto:
@@ -122,9 +121,6 @@ begin
   if to_regprocedure('private.inversionista_por_documento(text,text)') is null then
     raise exception 'F2.b D-4: falta private.inversionista_por_documento(text,text)';
   end if;
-  if to_regprocedure('private.normalizar_telefono(text)') is null or left(md5(pg_get_functiondef('private.normalizar_telefono(text)'::regprocedure)), 8) <> '00c30277' then
-    raise exception 'F2.b D-4: private.normalizar_telefono(text) falta o no es el texto vivo de producción (esperado 00c30277…)';
-  end if;
   if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_telefono_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '9fab4b46') then
     raise exception 'F2.b D-4: el índice único crm.leads.uq_leads_telefono_vivo falta o no es el de producción (esperado 9fab4b46…)';
   end if;
@@ -156,7 +152,7 @@ as $function$
 declare
   v_id         uuid := pg_catalog.gen_random_uuid();
   v_nombre     text := nullif(pg_catalog.btrim(p_fila->>'nombre_completo'), '');
-  v_telefono   text;
+  v_telefono   text := nullif(pg_catalog.btrim(p_fila->>'telefono'), '');
   v_alt        text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo'), '');
   v_alt_crudo  text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo_crudo'), '');
   v_correo     text := nullif(pg_catalog.btrim(p_fila->>'correo'), '');
@@ -178,6 +174,8 @@ declare
   v_resultado  text;
   v_lead       uuid;
   v_reingreso  jsonb;
+  v_datos      jsonb;
+  v_prev       uuid;
 begin
   -- F2.b [D-4]: solo el importador (service_role, sin sesión de usuario), la misma regla que registrar_reingreso_lead_fn.
   if (select auth.uid()) is not null then
@@ -189,30 +187,13 @@ begin
     raise exception 'Fila invalida' using errcode = '22023';
   end if;
   -- Los casts van DESPUÉS de la autorización (Codex v3 #6): un payload malformado no cambia el 42501 por un 22xxx.
-  v_telefono := private.normalizar_telefono(p_fila->>'telefono');
   v_fecha    := nullif(pg_catalog.btrim(p_fila->>'fecha_nacimiento'), '')::date;
   v_monto    := nullif(pg_catalog.btrim(p_fila->>'monto_estimado'), '')::numeric;
   v_cons_en  := nullif(pg_catalog.btrim(p_fila->>'consentimiento_en'), '')::timestamptz;
   v_vendedor := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
-  -- Lo mismo que hoy exige la fila al nacer (trigger de disponibilidad, CHECKs), dicho antes y con el mismo texto.
-  if v_nombre is null then
-    raise exception 'El nombre es obligatorio' using errcode = '22023';
-  end if;
-  if v_telefono is null or v_telefono !~ '^\+519[0-9]{8}$' then
-    raise exception 'Telefono invalido' using errcode = '22023';
-  end if;
-  if v_dni is not null and v_dni !~ '^[0-9]{8}$' then
-    raise exception 'DNI invalido' using errcode = '22023';
-  end if;
-  if v_origen is null then
-    raise exception 'Origen invalido' using errcode = '22023';
-  end if;
-  if v_monto is null or v_monto <= 0 then
-    raise exception 'Capital estimado invalido' using errcode = '22023';
-  end if;
-  if v_moneda is null or v_moneda not in ('PEN', 'USD') then
-    raise exception 'Moneda invalida' using errcode = '22023';
-  end if;
+  -- La puerta NO valida el formato: lo hace la fila al nacer (trigger 00: teléfono y DNI → 22023 con el mismo texto de
+  -- hoy; NOT NULL y CHECKs de la tabla), con la MISMA prioridad que el INSERT directo —el veto de la persona (000) va
+  -- antes que el formato— (Codex v4 #9). El teléfono viaja crudo, como lo manda el edge; lo normaliza el trigger de la tabla.
 
   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
   -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice). Aquí
@@ -274,19 +255,38 @@ begin
   if v_resultado = 'ya_cliente' and v_lead is not null then
     -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
     -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
-    begin
-      v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', pg_catalog.jsonb_build_object(
-        'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
-        'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
-        'interes', v_categoria, 'nota', v_nota));
-    exception when others then
-      -- Un fallo TRANSITORIO (serialización, recursos, candado, cancelación) sube entero: el edge lo trata como temporal y
-      -- la fila se reintenta en el siguiente lote (auditor M4). Solo lo definitivo queda anotado en la respuesta.
-      if pg_catalog.left(sqlstate, 2) in ('40', '53', '55', '57') then
-        raise;
-      end if;
-      v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
-    end;
+    v_datos := pg_catalog.jsonb_build_object(
+      'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
+      'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
+      'interes', v_categoria, 'nota', v_nota);
+    -- IDEMPOTENCIA (Codex v4 #7): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló después),
+    -- el reingreso ya anotado en las últimas 24 h vale: no se escribe una segunda nota. Misma persona, mismo origen y
+    -- los mismos datos (lo que registrar_reingreso_lead_fn guarda en metadata.datos).
+    select a.id into v_prev
+      from crm.actividades a
+     where a.lead_id = v_lead
+       and a.metadata->>'evento' = 'reingreso'
+       and a.metadata->>'origen' = 'hoja'
+       and a.metadata->'datos' = v_datos
+       and a.creado_en > pg_catalog.now() - interval '24 hours'
+     order by a.creado_en desc
+     limit 1;
+    if v_prev is not null then
+      v_reingreso := pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_prev, 'repetido', true);
+    else
+      begin
+        v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', v_datos);
+      exception when others then
+        -- Un fallo TRANSITORIO sube entero: el edge lo trata como temporal y la fila se reintenta en el siguiente lote
+        -- (auditor M4). Las clases son LAS MISMAS que el edge considera temporales (Codex v4 #8): conexión (08),
+        -- transacción (40), recursos (53), candado (55), operador/cancelación (57), E/S (58) e internos (XX).
+        -- Solo lo definitivo queda anotado en la respuesta.
+        if pg_catalog.left(sqlstate, 2) in ('08', '40', '53', '55', '57', '58', 'XX') then
+          raise;
+        end if;
+        v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
+      end;
+    end if;
   end if;
 
   return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso);
@@ -298,7 +298,7 @@ comment on function crm.importar_lead_fn(jsonb) is 'F2.b [D-4]: puerta SQL del i
 
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '91815c3c1d0e6ab6d31b699423d47292') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3ba66a37f66f6b9eae6f4c913e1a838') then
     raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')

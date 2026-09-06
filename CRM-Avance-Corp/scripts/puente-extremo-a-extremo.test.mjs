@@ -1160,6 +1160,20 @@ test("F2.b D-4: «YA ES CLIENTE» es una categoría propia (ya_cliente), no un e
     "estado y resultado contradictorios = respuesta ambigua (se reintenta)");
 });
 
+test("F2.b D-4: el contador del panel cuenta «YA ES CLIENTE» aparte, no como «otros»", () => {
+  const { gs, hojaLeads } = montar({
+    filasLeads: [
+      filaConEstado("YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha"),
+      filaConEstado("IMPORTADO ✓"),
+    ],
+  });
+  const cuenta = gs.contarEstadosDeLeads(hojaLeads);
+  assert.deepEqual(
+    { total: cuenta.total, ya_clientes: cuenta.ya_clientes, importados: cuenta.importados, otros: cuenta.otros },
+    { total: 2, ya_clientes: 1, importados: 1, otros: 0 },
+  );
+});
+
 test("onEdit CONSERVA «YA ES CLIENTE»: reenviar esa fila anotaría OTRO reingreso en la ficha", () => {
   const ESTADO = "YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha";
   const { gs, hojaLeads } = montar({ filasLeads: [filaConEstado(ESTADO)] });

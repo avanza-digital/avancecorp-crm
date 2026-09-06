@@ -147,6 +147,7 @@ export function clasificarErrorPuerta(
 
 export type ReingresoPuerta = {
   ok?: boolean;
+  repetido?: boolean;
   actividad_id?: string;
   error?: string;
 } | null;
@@ -216,7 +217,11 @@ export function clasificarRespuestaPuerta(
     const lead_id = typeof r.lead_id === "string" ? r.lead_id : undefined;
     let estado = base;
     if (r.reingreso && r.reingreso.ok === true) {
-      estado = `${base}: reingreso registrado en su ficha`;
+      // `repetido`: la hoja reenvió la misma fila (perdió la confirmación) y la
+      // puerta reconoció el reingreso ya anotado en las últimas 24 h (v5).
+      estado = r.reingreso.repetido === true
+        ? `${base}: reingreso ya anotado en su ficha`
+        : `${base}: reingreso registrado en su ficha`;
     } else if (r.reingreso && typeof r.reingreso.error === "string") {
       estado = `${base}: NO se pudo anotar el reingreso en su ficha (${
         r.reingreso.error.slice(0, 60)

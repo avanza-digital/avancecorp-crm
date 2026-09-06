@@ -336,3 +336,18 @@ Deno.test("D-4 v4: una categoría que este edge no conoce es TEMPORAL, nunca un 
   );
   assert(r.resultado === "error_temporal", "categoría desconocida → temporal");
 });
+
+Deno.test("D-4 v5: la misma fila reenviada → reingreso ya anotado (idempotente), sigue siendo YA ES CLIENTE", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    lead_id: "11111111-1111-4111-8111-111111111111",
+    veredicto: { estado: "ya_es_cliente", via: "identidad", asesor: "Ana" },
+    reingreso: { ok: true, actividad_id: "x", repetido: true },
+  });
+  assert(r.resultado === "ya_cliente", "sigue siendo ya_cliente");
+  assert(
+    r.estado ===
+      "YA ES CLIENTE (asesor: Ana): reingreso ya anotado en su ficha",
+    `texto: ${r.estado}`,
+  );
+});

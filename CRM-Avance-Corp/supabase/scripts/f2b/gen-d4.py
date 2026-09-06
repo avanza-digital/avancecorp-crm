@@ -18,6 +18,11 @@
 # v4 (Codex 06/09): los candados de CONTACTO ya no se toman explícitos —los toma el trigger 00 del INSERT, después del veto de
 # la persona (000), como el INSERT directo: una persona vetada no espera por un teléfono retenido—; los casts del payload van
 # después de la autorización (un payload malformado no cambia el 42501 por un 22xxx).
+# v5 (Codex 2ª ronda 06/09): la puerta NO valida el formato (lo hace la fila al nacer: trigger 00 → 22023 con el mismo texto,
+# CHECKs) con la misma prioridad que el INSERT directo (el veto 000 va antes); el teléfono viaja crudo (lo normaliza el trigger de
+# la tabla, como hoy); el reingreso es IDEMPOTENTE 24 h (misma fila de la hoja reenviada tras perder la confirmación → no se anota
+# dos veces: reingreso {ok, repetido}); suben las clases 08/40/53/55/57/58/XX (las mismas que el edge trata como temporales);
+# la reversa se niega a soltar una puerta cuyo cuerpo no sea el de este generador.
 # Uso: python3 gen-d4.py <dir scripts/f2b> <dir supabase>
 import sys, pathlib, hashlib
 S = pathlib.Path(sys.argv[1]); W = pathlib.Path(sys.argv[2])
@@ -36,7 +41,6 @@ H = {
   'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)': '7acc82d8',
   'private.leads_de_personas(uuid[])': '6eded477',
   'private.inversionista_por_documento(text,text)': None,               # solo existencia
-  'private.normalizar_telefono(text)': '00c30277',
 }
 # Índices únicos de crm.leads (el ÚNICO dedup del importador) y triggers de nacimiento que deben seguir habilitados BEFORE INSERT.
 IDX = {'uq_leads_telefono_vivo': '9fab4b46', 'uq_leads_dni_vivo': '28351eeb'}
@@ -46,7 +50,7 @@ BODY = """
 declare
   v_id         uuid := pg_catalog.gen_random_uuid();
   v_nombre     text := nullif(pg_catalog.btrim(p_fila->>'nombre_completo'), '');
-  v_telefono   text;
+  v_telefono   text := nullif(pg_catalog.btrim(p_fila->>'telefono'), '');
   v_alt        text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo'), '');
   v_alt_crudo  text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo_crudo'), '');
   v_correo     text := nullif(pg_catalog.btrim(p_fila->>'correo'), '');
@@ -68,6 +72,8 @@ declare
   v_resultado  text;
   v_lead       uuid;
   v_reingreso  jsonb;
+  v_datos      jsonb;
+  v_prev       uuid;
 begin
   -- F2.b [D-4]: solo el importador (service_role, sin sesión de usuario), la misma regla que registrar_reingreso_lead_fn.
   if (select auth.uid()) is not null then
@@ -79,30 +85,13 @@ begin
     raise exception 'Fila invalida' using errcode = '22023';
   end if;
   -- Los casts van DESPUÉS de la autorización (Codex v3 #6): un payload malformado no cambia el 42501 por un 22xxx.
-  v_telefono := private.normalizar_telefono(p_fila->>'telefono');
   v_fecha    := nullif(pg_catalog.btrim(p_fila->>'fecha_nacimiento'), '')::date;
   v_monto    := nullif(pg_catalog.btrim(p_fila->>'monto_estimado'), '')::numeric;
   v_cons_en  := nullif(pg_catalog.btrim(p_fila->>'consentimiento_en'), '')::timestamptz;
   v_vendedor := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
-  -- Lo mismo que hoy exige la fila al nacer (trigger de disponibilidad, CHECKs), dicho antes y con el mismo texto.
-  if v_nombre is null then
-    raise exception 'El nombre es obligatorio' using errcode = '22023';
-  end if;
-  if v_telefono is null or v_telefono !~ '^\\+519[0-9]{8}$' then
-    raise exception 'Telefono invalido' using errcode = '22023';
-  end if;
-  if v_dni is not null and v_dni !~ '^[0-9]{8}$' then
-    raise exception 'DNI invalido' using errcode = '22023';
-  end if;
-  if v_origen is null then
-    raise exception 'Origen invalido' using errcode = '22023';
-  end if;
-  if v_monto is null or v_monto <= 0 then
-    raise exception 'Capital estimado invalido' using errcode = '22023';
-  end if;
-  if v_moneda is null or v_moneda not in ('PEN', 'USD') then
-    raise exception 'Moneda invalida' using errcode = '22023';
-  end if;
+  -- La puerta NO valida el formato: lo hace la fila al nacer (trigger 00: teléfono y DNI → 22023 con el mismo texto de
+  -- hoy; NOT NULL y CHECKs de la tabla), con la MISMA prioridad que el INSERT directo —el veto de la persona (000) va
+  -- antes que el formato— (Codex v4 #9). El teléfono viaja crudo, como lo manda el edge; lo normaliza el trigger de la tabla.
 
   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
   -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice). Aquí
@@ -164,19 +153,38 @@ begin
   if v_resultado = 'ya_cliente' and v_lead is not null then
     -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
     -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
-    begin
-      v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', pg_catalog.jsonb_build_object(
-        'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
-        'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
-        'interes', v_categoria, 'nota', v_nota));
-    exception when others then
-      -- Un fallo TRANSITORIO (serialización, recursos, candado, cancelación) sube entero: el edge lo trata como temporal y
-      -- la fila se reintenta en el siguiente lote (auditor M4). Solo lo definitivo queda anotado en la respuesta.
-      if pg_catalog.left(sqlstate, 2) in ('40', '53', '55', '57') then
-        raise;
-      end if;
-      v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
-    end;
+    v_datos := pg_catalog.jsonb_build_object(
+      'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
+      'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
+      'interes', v_categoria, 'nota', v_nota);
+    -- IDEMPOTENCIA (Codex v4 #7): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló después),
+    -- el reingreso ya anotado en las últimas 24 h vale: no se escribe una segunda nota. Misma persona, mismo origen y
+    -- los mismos datos (lo que registrar_reingreso_lead_fn guarda en metadata.datos).
+    select a.id into v_prev
+      from crm.actividades a
+     where a.lead_id = v_lead
+       and a.metadata->>'evento' = 'reingreso'
+       and a.metadata->>'origen' = 'hoja'
+       and a.metadata->'datos' = v_datos
+       and a.creado_en > pg_catalog.now() - interval '24 hours'
+     order by a.creado_en desc
+     limit 1;
+    if v_prev is not null then
+      v_reingreso := pg_catalog.jsonb_build_object('ok', true, 'actividad_id', v_prev, 'repetido', true);
+    else
+      begin
+        v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', v_datos);
+      exception when others then
+        -- Un fallo TRANSITORIO sube entero: el edge lo trata como temporal y la fila se reintenta en el siguiente lote
+        -- (auditor M4). Las clases son LAS MISMAS que el edge considera temporales (Codex v4 #8): conexión (08),
+        -- transacción (40), recursos (53), candado (55), operador/cancelación (57), E/S (58) e internos (XX).
+        -- Solo lo definitivo queda anotado en la respuesta.
+        if pg_catalog.left(sqlstate, 2) in ('08', '40', '53', '55', '57', '58', 'XX') then
+          raise;
+        end if;
+        v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
+      end;
+    end if;
   end if;
 
   return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso);
@@ -227,6 +235,8 @@ mig = f"""-- ===================================================================
 --
 -- QUE: el edge crm-importar-leads (las filas de la hoja de Google, cada 5 minutos, con service_role) INSERTA hoy directo
 -- en crm.leads y adivina el veredicto parseando los errores del INSERT (P0481 con el veredicto en DETAIL, P0429, 23505).
+-- La puerta no valida nada que la fila al nacer no valide ya (misma prioridad que el INSERT directo) y el reingreso es
+-- idempotente 24 h (la misma fila reenviada por la hoja no se anota dos veces).
 -- Los leads del front entran por crm.crear_lead_si_disponible: candados en el orden TOTAL (documento → persona →
 -- contactos → fila) y un veredicto único. Esta puerta hace el MISMO INSERT del edge bajo ese mismo orden (los de
 -- identidad explícitos; los de contacto los toma el trigger 00 tras el veto 000, como hoy) y devuelve un veredicto:
@@ -273,6 +283,14 @@ rb = f"""-- ====================================================================
 begin;
 set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('{ADV}'));
+do $pre$
+begin
+  -- No se suelta a ciegas: solo la puerta que genera gen-d4.py (cuerpo {H_BODY[:8]}…). Otro cuerpo = otra versión: revisar antes.
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('{FIRMA}') and md5(p.prosrc) <> '{H_BODY}') then
+    raise exception 'REVERSA D-4: la puerta viva no tiene el cuerpo de gen-d4.py ({H_BODY[:8]}…); no se suelta a ciegas';
+  end if;
+end
+$pre$;
 drop function if exists crm.importar_lead_fn(jsonb);
 do $post$
 begin

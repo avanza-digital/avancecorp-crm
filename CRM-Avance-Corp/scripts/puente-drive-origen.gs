@@ -873,13 +873,14 @@ function textoDelPanel(d) {
   t += "   · " + (h.total || 0) + " filas con datos · " + (h.pendientes || 0) +
     " esperando subir al CRM · " + (h.importados || 0) + " subidas · " +
     (h.duplicados || 0) + " duplicadas · " + (h.rechazados || 0) + " rechazadas" +
+    (h.ya_clientes ? " · " + h.ya_clientes + " ya clientes (reingreso en su ficha)" : "") +
     (h.errores ? " · " + h.errores + " con error temporal" : "") + "\n";
   return t;
 }
 
 /** Cuenta la columna de estado de nuestra hoja. Dos columnas, no la hoja entera. */
 function contarEstadosDeLeads(hoja) {
-  const cuenta = { total: 0, pendientes: 0, importados: 0, duplicados: 0, rechazados: 0, errores: 0, otros: 0 };
+  const cuenta = { total: 0, pendientes: 0, importados: 0, duplicados: 0, ya_clientes: 0, rechazados: 0, errores: 0, otros: 0 };
   const ultima = hoja.getLastRow();
   if (ultima < 2) return cuenta;
   const telefonos = hoja.getRange(2, 2, ultima - 1, 1).getDisplayValues();
@@ -893,6 +894,7 @@ function contarEstadosDeLeads(hoja) {
     else if (e.indexOf("RECHAZADO") === 0) cuenta.rechazados++;
     else if (e.indexOf("ERROR") === 0) cuenta.errores++;
     else if (e.indexOf("DUPLICADO") === 0) cuenta.duplicados++;
+    else if (e.indexOf("YA ES CLIENTE") === 0) cuenta.ya_clientes++;
     else cuenta.otros++;
   }
   return cuenta;

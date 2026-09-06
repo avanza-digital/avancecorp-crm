@@ -341,6 +341,12 @@ const MUTANTES = [
     a: ``,
   },
   {
+    nombre: "el panel cuenta «YA ES CLIENTE» como «otros» (invisible)",
+    archivo: PUENTE,
+    de: `    else if (e.indexOf("YA ES CLIENTE") === 0) cuenta.ya_clientes++;\n`,
+    a: ``,
+  },
+  {
     nombre: "onEdit limpia «YA ES CLIENTE» como si fuera un rechazo",
     archivo: CONECTOR,
     de: `    if (estado.indexOf("IMPORTADO") === 0 || estado.indexOf("YA ES CLIENTE") === 0) continue;`,
