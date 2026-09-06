@@ -9330,10 +9330,154 @@ async function testIdentidadF2bD15(sessions, seed) {
     await requireAdmin('D-15: vend1 vuelve a descartar el suyo', sessions.vend1.client.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', L_V1));
     const { data: r3, error: e3 } = await sessions.sup1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 });
     check(!e3 && r3?.ok === true && r3?.etapa === 'nuevo' && r3?.reabierto_por === seed.profileIdByKey.sup1, 'D-15 OFF sup1 reabre el lead de su analista vend1 (ámbito jerárquico), atribuido a sup1', e3?.message ?? JSON.stringify(r3));
+    // crm.editar_lead_fn (v3, Codex bloque 4 #1): INVOKER — el UPDATE de hoy con la RLS de quien edita, en UNA transacción.
+    const FE = 'crm.editar_lead_fn(uuid,jsonb)';
+    check(cuenta('editar grants', `select (has_function_privilege('authenticated', '${FE}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FE}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FE}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FE}'::regprocedure and a.grantee = 0)`) === 1
+        && cuenta('editar invoker', `select count(*) from pg_proc p where p.oid = '${FE}'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
+      'D-15 editar_lead_fn: solo authenticated, SECURITY INVOKER (la RLS y los grants por columna mandan), search_path vacío, lock_timeout 5 s');
+    await expectExpectedFailure('D-15 anon editar_lead_fn → 42501 (sin EXECUTE)', anon.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'x' } }), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure('D-15 vend1 edita un lead de vend2 → P0002 (la RLS no lo ve; nada escrito)', sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V2, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
+    await expectExpectedFailure('D-15 vend1 manda una clave fuera de la lista blanca (etapa) → 22023', sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { etapa: 'convertido' } }), ['22023'], /no editable/i);
+    const { data: r4, error: e4 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'editada por su analista', dni: null, distrito: 'Lima' } });
+    check(!e4 && r4?.ok === true && r4?.dni_por_puerta === false && cuenta('editada', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por su analista' and distrito = 'Lima' and dni is null`) === 1,
+      'D-15 OFF vend1 edita el suyo por editar_lead_fn → escrito (nota, distrito, dni null), dni_por_puerta=false (el UPDATE de hoy)', e4?.message ?? JSON.stringify(r4));
+    check(cuenta('flag trigger', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.multiempresa_flags'::regclass and t.tgname = 'trg_multiempresa_flags_00_serializa_puertas' and t.tgenabled = 'O' and pg_get_triggerdef(t.oid) like 'CREATE TRIGGER trg_multiempresa_flags_00_serializa_puertas BEFORE UPDATE OF activo ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.trg_multiempresa_flags_serializa_puertas()' and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+      'D-5 el trigger que serializa el cambio de bandera está exactamente como lo genera gen-d5.py (BEFORE UPDATE OF activo, FOR EACH ROW) y su función sin EXECUTE para la API');
+    check(cuenta('flags sin privilegios API', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, 'crm.multiempresa_flags', 'UPDATE') or has_table_privilege(r.rol, 'crm.multiempresa_flags', 'INSERT') or has_table_privilege(r.rol, 'crm.multiempresa_flags', 'DELETE')`) === 0,
+      'D-5 ningún rol de la API escribe crm.multiempresa_flags (el cambio de bandera es solo de postgres)');
+    await expectExpectedFailure('D-5 gerencia intenta encender la bandera por PostgREST → 42501', sessions.gerencia.client.schema('crm').from('multiempresa_flags').update({ activo: true }).eq('nombre', 'resolver_en_puertas'), ['42501'], /permission denied|denegado/i);
     // Los caminos ENCENDIDOS de abandonar_conversion_gerencia_fn (borrado, auth_creado → retoma, enlazado, «no corresponden», Auth con la
     // marca del claim) y de reabrir (enlace, veto, otro lead, conversión en curso) viven en scripts/oraculo-f2b-d5.sh y oraculo-f2b-d15.sh.
   } finally {
     ejecutarFueraDeBanda('D-15 limpieza', `update crm.leads set activo = false where id in ('${L_V1}','${L_V2}');`, { tolerante: true });
+  }
+}
+
+// ── RENTABILIDAD R1 (20260906170000): política versionada, núcleo private.resolver_tasa por su puerta, solicitudes de tasa y ledger ──
+// Grants, definer, RLS estructural, superficie 42501 y D3. El flujo de negocio completo (pedir → aprobar/rechazar/aprobar hasta X →
+// aceptar/declinar, herencia en renovación/upgrade, vencimiento, política) vive en scripts/oraculo-rentabilidad-r1.sh (115 aserciones).
+async function testRentabilidadR1(sessions, seed) {
+  console.log('\n— Rentabilidad R1: núcleo de tasa, solicitudes y ledger —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R1: ${etiqueta}`, sql);
+  const PUERTAS = ['crm.resolver_tasa_fn(uuid,text,uuid)', 'crm.solicitar_tasa_fn(jsonb)', 'crm.resolver_solicitud_tasa_fn(uuid,text,numeric,text)',
+    'crm.responder_tope_tasa_fn(uuid,boolean,text)', 'crm.publicar_politica_rentabilidad_fn(integer,jsonb)'];
+  const PRIVADAS = ['private.resolver_tasa(uuid,text,uuid,timestamptz)', 'private.politica_rentabilidad_vigente(timestamptz)', 'private.puede_operar_tasa_cliente(uuid)',
+    'private.huella_solicitud_tasa(uuid,text,uuid,uuid,numeric,text,text,text,date,date)', 'private.vencer_solicitudes_tasa(uuid)'];
+  if (cuenta('R1 aplicada', `select (to_regprocedure('${PUERTAS[0]}') is not null)::int`) !== 1) {
+    console.log('  (saltado: Rentabilidad R1 (20260906170000) no está en esta base)');
+    return;
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-r1'));
+  const clienteId = seed.profileIdByKey.clientBank;
+  const gerenciaId = seed.profileIdByKey.gerencia;
+  const vend1Id = seed.profileIdByKey.vend1;
+  let solicitudId = null;
+  let solicitudV1 = null;
+  try {
+    for (const f of PUERTAS) {
+      check(cuenta(`grants ${f}`, `select (has_function_privilege('authenticated', '${f}', 'EXECUTE'))::int - (has_function_privilege('anon', '${f}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${f}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::int`) === 1,
+        `R1 ${f} solo tiene EXECUTE para authenticated (ni anon, ni service_role, ni PUBLIC)`);
+      check(cuenta(`definer ${f}`, `select count(*) from pg_proc p where p.oid = '${f}'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""']`) === 1,
+        `R1 ${f} es DEFINER de postgres con search_path vacío`);
+    }
+    for (const f of PRIVADAS) {
+      check(cuenta(`privada ${f}`, `select (has_function_privilege('authenticated', '${f}', 'EXECUTE'))::int + (has_function_privilege('anon', '${f}', 'EXECUTE'))::int + (has_function_privilege('service_role', '${f}', 'EXECUTE'))::int + (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::int`) === 0,
+        `R1 ${f} no es llamable por la API ni por PUBLIC`);
+    }
+    check(cuenta('RLS tablas', `select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'crm' and c.relname in ('politica_rentabilidad','solicitudes_tasa','ledger_rentabilidad') and c.relrowsecurity`) === 3,
+      'R1 las tres tablas tienen RLS encendida');
+    check(cuenta('policies', `select count(*) from pg_policies where schemaname = 'crm' and tablename in ('politica_rentabilidad','solicitudes_tasa','ledger_rentabilidad') and cmd = 'SELECT'`) === 3
+      && cuenta('policies no-select', `select count(*) from pg_policies where schemaname = 'crm' and tablename in ('politica_rentabilidad','solicitudes_tasa','ledger_rentabilidad') and cmd <> 'SELECT'`) === 0,
+      'R1 exactamente una policy SELECT por tabla y ninguna de escritura');
+    check(cuenta('privilegios tabla', `select (has_table_privilege('authenticated','crm.solicitudes_tasa','INSERT'))::int + (has_table_privilege('authenticated','crm.solicitudes_tasa','UPDATE'))::int + (has_table_privilege('authenticated','crm.ledger_rentabilidad','INSERT'))::int + (has_table_privilege('authenticated','crm.politica_rentabilidad','INSERT'))::int + (has_table_privilege('anon','crm.solicitudes_tasa','SELECT'))::int + (has_table_privilege('anon','crm.ledger_rentabilidad','SELECT'))::int`) === 0,
+      'R1 authenticated no escribe en las tablas y anon no lee nada');
+    check(cuenta('política v1', `select count(*) from crm.politica_rentabilidad where version = 1 and modo = 'observacion'`) === 1, 'R1 la política v1 existe en modo observación');
+    check(cuenta('legacy coherente', `select count(*) from crm.ledger_rentabilidad l join public.contratos c on c.id = l.contrato_id where l.origen = 'backfill_legacy' and (l.tasa_final <> c.tasa_anual or l.divergente or l.regla <> 'historica_legacy')`) === 0,
+      'R1 cada fila legacy del ledger coincide con la tasa del contrato y no es divergente');
+    check(cuenta('triggers', `select count(*) from pg_trigger t where not t.tgisinternal and t.tgenabled = 'O' and t.tgname in ('trg_politica_rentabilidad_inmutable','trg_audit_politica_rentabilidad','trg_solicitudes_tasa_00_solo_por_puerta','trg_audit_solicitudes_tasa','trg_ledger_rentabilidad_00_append_only','trg_audit_ledger_rentabilidad')`) === 6,
+      'R1 los seis triggers (inmutable, auditoría, solo-por-puerta, append-only) están habilitados');
+    // Superficie: sin sesión y sin la autoridad del alta → 42501 uniforme.
+    await expectExpectedFailure('R1 anon resolver_tasa_fn → 42501', anon.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'nuevo' }), ['42501'], /permission denied|denegado|fuera de tu cartera/i);
+    for (const clave of ['coordinador', 'directorio', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`R1 ${clave} resolver_tasa_fn → 42501 (sin la autoridad del alta o sin ámbito)`, sessions[clave].client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'nuevo' }), ['42501'], /fuera de tu cartera/i);
+    }
+    await expectExpectedFailure('R1 gerencia resolver_tasa_fn con cliente inexistente → 42501 uniforme (no P0002)', sessions.gerencia.client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: '00000000-0000-4000-8000-0000000000a1', p_categoria: 'nuevo' }), ['42501'], /fuera de tu cartera/i);
+    const { data: r1, error: e1 } = await sessions.gerencia.client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'nuevo' });
+    check(!e1 && r1?.regla === 'primera_inversion' && Number(r1?.tasa_base) > 0 && r1?.politica?.modo === 'observacion',
+      'R1 gerencia resuelve la tasa de un cliente: primera_inversion, base de la política vigente (observación)', e1?.message ?? JSON.stringify(r1));
+    // Decisión B (la del alta): cualquier analista/supervisor vigente resuelve la tasa de cualquier cliente ACTIVO.
+    for (const clave of ['vend1', 'sup1']) {
+      const { data: rr, error: ee } = await sessions[clave].client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'nuevo' });
+      check(!ee && rr?.regla === 'primera_inversion' && Number(rr?.tasa_base) === Number(r1?.tasa_base),
+        `R1 ${clave} resuelve la tasa del cliente (la autoridad del alta, sin ámbito de cartera) con la misma base`, ee?.message ?? JSON.stringify(rr));
+    }
+    await expectExpectedFailure('R1 gerencia nuevo con contrato origen → 22023', sessions.gerencia.client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'nuevo', p_contrato_origen_id: '00000000-0000-4000-8000-0000000000a2' }), ['22023'], /primera inversión no lleva/i);
+    await expectExpectedFailure('R1 gerencia renovación sin origen → 22023', sessions.gerencia.client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'renovacion' }), ['22023'], /contrato origen/i);
+    // Solicitud: gerencia pide (tiene la autoridad del alta) y NO puede resolver la suya (D3); el resto no resuelve (42501).
+    const base = Number(r1?.tasa_base ?? 15);
+    const cuerpo = { cliente_id: clienteId, categoria: 'nuevo', capital: 12345.67, moneda: 'PEN', modalidad: 'mensual', tipo_interes: 'simple', fecha_inicio: '2026-11-01', fecha_vencimiento: '2027-11-01', tasa_solicitada: base + 1.5, motivo: 'Suite RLS R1 TRANSIENT: prueba de solicitud' };
+    const { data: s1, error: es1 } = await sessions.gerencia.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpo });
+    solicitudId = s1?.id ?? null;
+    check(!es1 && s1?.estado === 'pendiente' && Number(s1?.tasa_base) === base && s1?.solicitada_por === gerenciaId,
+      'R1 gerencia crea una solicitud pendiente con la base del núcleo', es1?.message ?? JSON.stringify(s1));
+    if (solicitudId) {
+      await expectExpectedFailure('R1 misma huella otra vez → P0409', sessions.gerencia.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpo }), ['P0409'], /solicitud viva/i);
+      await expectExpectedFailure('R1 D6: vend1 tampoco abre otra sobre la MISMA intención (una viva por huella) → P0409', sessions.vend1.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: { ...cuerpo, tasa_solicitada: base + 2 } }), ['P0409'], /solicitud viva/i);
+      await expectExpectedFailure('R1 D3: gerencia no resuelve su propia solicitud → 42501', sessions.gerencia.client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudId, p_decision: 'aprobar' }), ['42501'], /propia solicitud/i);
+      for (const clave of ['vend1', 'sup1', 'coordinador', 'directorio']) {
+        await expectExpectedFailure(`R1 ${clave} no resuelve → 42501`, sessions[clave].client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudId, p_decision: 'aprobar' }), ['42501'], /Solo Gerencia/i);
+      }
+      await expectExpectedFailure('R1 vend1 no responde una solicitud ajena → 42501', sessions.vend1.client.schema('crm').rpc('responder_tope_tasa_fn', { p_solicitud_id: solicitudId, p_acepta: true }), ['42501'], /fuera de tu ámbito/i);
+      await expectExpectedFailure('R1 vend1 no publica la política → 42501', sessions.vend1.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: 1, p_config: { tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion' } }), ['42501'], /Solo Gerencia/i);
+      // RLS de lectura: gerencia ve la suya; vend1/sup1 no ven la de gerencia; anon nada.
+      const [vG, vV, vS] = await Promise.all([
+        sessions.gerencia.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudId),
+        sessions.vend1.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudId),
+        sessions.sup1.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudId),
+      ]);
+      check(!vG.error && vG.data?.length === 1, 'R1 gerencia lee su solicitud', vG.error?.message);
+      check(!vV.error && vV.data?.length === 0 && !vS.error && vS.data?.length === 0, 'R1 vend1 y sup1 no ven la solicitud de gerencia (RLS)', vV.error?.message ?? vS.error?.message);
+      await expectHidden('R1 anon no lee solicitudes', anon.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudId));
+      await expectBlockedMutation('R1 gerencia no edita una solicitud por la tabla (sin UPDATE)', sessions.gerencia.client.schema('crm').from('solicitudes_tasa').update({ tasa_solicitada: 40 }).eq('id', solicitudId), ['42501']);
+    }
+    // Flujo positivo con dos actores: vend1 pide, Gerencia (otra persona) decide con tope, vend1 acepta. Supervisor y Gerencia ven la de vend1.
+    const cuerpoV1 = { ...cuerpo, capital: 23456.78, tasa_solicitada: base + 3, motivo: 'Suite RLS R1 TRANSIENT: solicitud de vend1' };
+    const { data: sv, error: esv } = await sessions.vend1.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpoV1 });
+    solicitudV1 = sv?.id ?? null;
+    check(!esv && sv?.estado === 'pendiente' && sv?.solicitada_por === vend1Id, 'R1 vend1 crea su solicitud (pendiente)', esv?.message ?? JSON.stringify(sv));
+    if (solicitudV1) {
+      const [vS, vG, vV2] = await Promise.all([
+        sessions.sup1.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudV1),
+        sessions.gerencia.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudV1),
+        sessions.vend2.client.schema('crm').from('solicitudes_tasa').select('id').eq('id', solicitudV1),
+      ]);
+      check(!vS.error && vS.data?.length === 1 && !vG.error && vG.data?.length === 1, 'R1 sup1 (su supervisor) y gerencia ven la solicitud de vend1', vS.error?.message ?? vG.error?.message);
+      check(!vV2.error && vV2.data?.length === 0, 'R1 vend2 no ve la solicitud de vend1', vV2.error?.message);
+      await expectExpectedFailure('R1 gerencia aprobar_hasta con tope ≤ base → 22023 (D4)', sessions.gerencia.client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudV1, p_decision: 'aprobar_hasta', p_tasa_maxima: base }), ['22023'], /superar la tasa base/i);
+      await expectExpectedFailure('R1 gerencia aprobar_hasta con tope > pedida → 22023', sessions.gerencia.client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudV1, p_decision: 'aprobar_hasta', p_tasa_maxima: base + 4 }), ['22023'], /superar la tasa pedida/i);
+      await expectExpectedFailure('R1 vend1 no responde antes de que Gerencia decida → P0409', sessions.vend1.client.schema('crm').rpc('responder_tope_tasa_fn', { p_solicitud_id: solicitudV1, p_acepta: true }), ['P0409'], /autorización con tope/i);
+      const { data: d1, error: ed1 } = await sessions.gerencia.client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudV1, p_decision: 'aprobar_hasta', p_tasa_maxima: base + 1, p_motivo: 'Suite: hasta base+1' });
+      check(!ed1 && d1?.estado === 'aprobada_con_tope' && Number(d1?.tasa_maxima_autorizada) === base + 1 && d1?.resuelta_por === gerenciaId,
+        'R1 D6: gerencia aprueba HASTA base+1 la solicitud de vend1 → aprobada_con_tope', ed1?.message ?? JSON.stringify(d1));
+      await expectExpectedFailure('R1 gerencia no resuelve dos veces → P0409', sessions.gerencia.client.schema('crm').rpc('resolver_solicitud_tasa_fn', { p_solicitud_id: solicitudV1, p_decision: 'rechazar' }), ['P0409'], /ya no está pendiente/i);
+      await expectExpectedFailure('R1 gerencia no acepta el tope en nombre de vend1 → 42501', sessions.gerencia.client.schema('crm').rpc('responder_tope_tasa_fn', { p_solicitud_id: solicitudV1, p_acepta: true }), ['42501'], /fuera de tu ámbito/i);
+      const { data: a1, error: ea1 } = await sessions.vend1.client.schema('crm').rpc('responder_tope_tasa_fn', { p_solicitud_id: solicitudV1, p_acepta: true });
+      check(!ea1 && a1?.estado === 'aceptada_por_analista' && Number(a1?.tasa_maxima_autorizada) === base + 1, 'R1 vend1 acepta el tope → aceptada_por_analista', ea1?.message ?? JSON.stringify(a1));
+    }
+    // Publicar: solo Gerencia; control optimista; enforcement rechazado en R1 (0A000, evaluado antes que la versión).
+    const versionActual = cuenta('versión vigente', 'select max(version) from crm.politica_rentabilidad');
+    const { data: p1, error: ep1 } = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion', nota: 'Suite RLS R1 TRANSIENT (misma base)' } });
+    check(!ep1 && p1?.version === versionActual + 1 && p1?.publicada_por === gerenciaId && p1?.modo === 'observacion', 'R1 gerencia publica una revisión de la política (misma base) con control de versión', ep1?.message ?? JSON.stringify(p1));
+    await expectExpectedFailure('R1 publicar con la versión vieja → 40001', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion' } }), ['40001'], /Conflicto de versi/i);
+    await expectExpectedFailure('R1 gerencia no publica en modo enforcement (R4) → 0A000', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual + 1, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'enforcement' } }), ['0A000'], /enforcement/i);
+    await expectBlockedMutation('R1 gerencia no inserta en el ledger por la tabla', sessions.gerencia.client.schema('crm').from('ledger_rentabilidad').insert({ contrato_id: '00000000-0000-4000-8000-0000000000a3', numero_contrato: 'X', cliente_id: clienteId, tasa_base: 15, tasa_final: 15, regla: 'sin_regla', origen: 'observacion' }), ['42501']);
+    await expectBlockedMutation('R1 gerencia no inserta en la política por la tabla', sessions.gerencia.client.schema('crm').from('politica_rentabilidad').insert({ version: 999, vigente_desde: new Date().toISOString(), tasa_base_nueva: 1 }), ['42501']);
+  } finally {
+    // Las solicitudes no se borran (historia): se dejan caducadas por la vía fuera de banda, bajo el GUC de la puerta.
+    const ids = [solicitudId, solicitudV1].filter((x) => typeof x === 'string');
+    if (ids.length) {
+      ejecutarFueraDeBanda('R1 limpieza', `select set_config('crm.solicitud_tasa_por_puerta','on',true); update crm.solicitudes_tasa set estado = 'vencida' where id in (${ids.map((x) => `'${x}'`).join(',')}) and estado in ('pendiente','aprobada','aprobada_con_tope','aceptada_por_analista');`, { tolerante: true });
+    }
   }
 }
 
@@ -9383,6 +9527,9 @@ async function testIdentidadF2bD5(sessions, seed) {
     check(cuenta('sin reserva con ON', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}'`) === 0, 'D-5 ON la firma vieja no dejó reserva');
     await expectExpectedFailure('D-5 ON gerencia abandonar un lead sin reserva por persona → P0002', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: L_V1, p_motivo: 'motivo largo' }), ['P0002'], /reserva por persona/i);
     await expectExpectedFailure('D-5 ON gerencia abandonar con motivo corto → 22023', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: L_V1, p_motivo: 'abc' }), ['22023'], /motivo/i);
+    // Con ON, un UPDATE directo que lleva el DNI SIN cambiarlo pasa (auditor v4 #3c): es de lo que depende la fila completa que manda la ficha.
+    const { error: eDni } = await sessions.vend1.client.schema('crm').from('leads').update({ dni: null, nota: 'dni igual con ON' }).eq('id', L_V1).select('id');
+    check(!eDni && cuenta('dni igual con ON', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'dni igual con ON' and dni is null`) === 1, 'D-5 ON: un UPDATE con el DNI sin cambiar (y otra columna) pasa el trigger de D-13', eDni?.message ?? '');
     flag(false);
     const { data: r3, error: e3 } = await sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 });
     check(!e3 && r3?.ok === true, 'D-5 OFF otra vez: la firma vieja vuelve a servir', e3?.message ?? JSON.stringify(r3));
@@ -9413,7 +9560,7 @@ async function testIdentidadF2bD10(sessions) {
   try {
     check(cuenta('grants', `select (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
       'D-10 la reserva por persona conserva sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
-    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) in ('a067183bfe986cf7bd5f82b4ed6674d7', 'a52395c226058387caac9134f14b84ca'))::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
+    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) in ('a067183bfe986cf7bd5f82b4ed6674d7', 'dd646949c7e0ea73a0acad30e2748a42'))::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
       'D-10 la reserva de 1 argumento (camino de hoy) sigue byte a byte (texto de producción o el de D-5, que solo añade la guarda con ON)');
     check(cuenta('leads_de_identidades sin EXECUTE', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.leads_de_identidades(uuid[])', 'EXECUTE')`) === 0,
       'D-10 private.leads_de_identidades sigue sin EXECUTE para la API (solo la llama la definer)');
@@ -12249,6 +12396,7 @@ async function main() {
       await testIdentidadF2bD4(sessions);
       await testIdentidadF2bD15(sessions, verifiedSeed);
       await testIdentidadF2bD5(sessions, verifiedSeed);
+      await testRentabilidadR1(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

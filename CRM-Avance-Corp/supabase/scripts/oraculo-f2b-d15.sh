@@ -55,7 +55,7 @@ soltado() { wait $BG 2>/dev/null; grep -q "exit=0" "$LOCKF" && return 0; rojo "l
 
 echo "== Preflight (RUN=$RUN) =="
 psql "$PG" -q -v ON_ERROR_STOP=1 -v run="$RUN" -c "set timezone='America/Lima';" -f "$AQUI/siembra-banco-f3.sql" 2>&1 | grep -E "SIEMBRA-F3-OK|ERROR" | head -2
-if [[ "$(q "select to_regprocedure('crm.reabrir_lead_fn(uuid)') is not null")" == "t" ]]; then echo "  D-15 instalada (todo debe salir VERDE)"; else echo "  ⚠️ D-15 NO instalada: corrida MUTANTE (todo lo de la puerta sale ROJO)"; fi
+if [[ "$(q "select to_regprocedure('crm.reabrir_lead_fn(uuid)') is not null and to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') is not null")" == "t" ]]; then echo "  D-15 instalada (todo debe salir VERDE)"; else echo "  ⚠️ D-15 NO instalada: corrida MUTANTE (todo lo de las puertas sale ROJO)"; fi
 [[ "$(q "select to_regprocedure('private.juicio_reapertura(uuid,text,text)') is not null")" == "t" ]] && ok "premisa: D-13 instalada" || rojo "falta D-13"
 flag false
 
@@ -93,9 +93,34 @@ echo "== (1b) El cambio de bandera se serializa con la puerta (Codex v3 #4) =="
 LS="$(uuid)"; lead_de "$LS" 41 SERIAL; descartar "$LS"
 retener_as "$V" "select crm.reabrir_lead_fn('$LS')" 6 && { T0="$(ms)"; flag true; T1="$(ms)"; (( T1 - T0 >= 4500 )) && ok "[S1] con una reapertura en vuelo (entró apagada), ENCENDER espera a que termine ($((T1-T0)) ms)" || rojo "S1: el encendido no esperó ($((T1-T0)) ms)"; soltado; }
 [[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LS'")" == "nuevo -" ]] && ok "[S1] la reapertura que entró apagada terminó apagada (nuevo, sin enlace), con la bandera encendida después" || rojo "S1 foto: $(q "select etapa, inversionista_id from crm.leads where id='$LS'")"
-LS2="$(uuid)"; lead_de "$LS2" 42 SERIAL2; descartar "$LS2"
+DS2="5${RUN}9"; IS2="$(resolver "$DS2")"; flag false; LS2="$(uuid)"; lead_de "$LS2" 42 SERIAL2 "'$DS2'"; descartar "$LS2"; flag true
 retener_as "$V" "select crm.reabrir_lead_fn('$LS2')" 6 && { T0="$(ms)"; flag false; T1="$(ms)"; (( T1 - T0 >= 4500 )) && ok "[S2] con una reapertura en vuelo (entró encendida), APAGAR espera a que termine ($((T1-T0)) ms)" || rojo "S2: el apagado no esperó ($((T1-T0)) ms)"; soltado; }
-[[ "$(q "select etapa from crm.leads where id='$LS2'")" == "nuevo" ]] && ok "[S2] la reapertura que entró encendida terminó (nuevo) y la bandera quedó apagada después" || rojo "S2 foto: $(q "select etapa from crm.leads where id='$LS2'")"
+[[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LS2'")" == "nuevo $IS2" ]] && ok "[S2] la reapertura que entró encendida terminó ENLAZADA a su persona (nuevo) y la bandera quedó apagada después" || rojo "S2 foto: $(q "select etapa, inversionista_id from crm.leads where id='$LS2'")"
+flag false
+R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin isolation level repeatable read; set local role authenticated; select set_config('request.jwt.claims', '{\"sub\":\"$V\",\"role\":\"authenticated\"}', true); select crm.reabrir_lead_fn('$LS2'); rollback;" 2>&1)"; echo "$R" | grep -q "0A000" && ok "[Codex v4 #2] REPEATABLE READ → 0A000 también APAGADA" || rojo "RR apagada: $(echo "$R" | head -c 200)"
+
+echo "== (3) crm.editar_lead_fn: la edición de la ficha en UNA transacción (Codex bloque 4 #1) =="
+editar() { run_as "${3:-$V}" "select crm.editar_lead_fn('$1', '$2'::jsonb)"; }
+foto_e() { q "select nombre_completo||'|'||coalesce(correo,'-')||'|'||coalesce(nota,'-')||'|'||(dni is not null)||'|'||coalesce(distrito,'-')||'|'||monto_estimado||'|'||coalesce(inversionista_id::text,'-') from crm.leads where id='$1'"; }
+flag false
+LE1="$(uuid)"; lead_de "$LE1" 51 E1; LE2="$(uuid)"; lead_de "$LE2" 52 E2
+# (DNIs distintos: el índice de DNI vivo no admite dos leads vivos con el mismo documento; la foto compara «tiene DNI», no el valor)
+R="$(editar "$LE1" "{\"nombre_completo\":\"D15 EDITADO r$RUN\",\"correo\":\"e1$RUN@x.pe\",\"nota\":\"nota e1\",\"dni\":\"5${RUN}6\",\"distrito\":\"Lima\",\"monto_estimado\":7000}")"; R2="$(run_as "$V" "update crm.leads set nombre_completo='D15 EDITADO r$RUN', correo='e1$RUN@x.pe', nota='nota e1', dni='4${RUN}5', distrito='Lima', monto_estimado=7000 where id='$LE2'")"
+[[ "$(j "$R" ok)" == "True" && "$(j "$R" dni_por_puerta)" == "False" && "$(foto_e "$LE1")" == "$(foto_e "$LE2")" && "$(q "select dni from crm.leads where id='$LE1'")" == "5${RUN}6" ]] && ok "[E1] OFF: editar_lead_fn deja la MISMA foto que el UPDATE directo del front (paridad; dni_por_puerta=false)" || rojo "E1: $(echo "$R" | head -c 160) · $(foto_e "$LE1") vs $(foto_e "$LE2") · $(echo "$R2" | head -c 120)"
+[[ "$(q "select count(*) from public.audit_log where tabla like '%leads' and operacion='UPDATE' and fila_id='$LE1'")" == "$(q "select count(*) from public.audit_log where tabla like '%leads' and operacion='UPDATE' and fila_id='$LE2'")" ]] && ok "[E1] OFF: mismas filas de bitácora que el UPDATE directo (una escritura)" || rojo "E1 audit: $(q "select count(*) from public.audit_log where tabla like '%leads' and operacion='UPDATE' and fila_id='$LE1'") vs $(q "select count(*) from public.audit_log where tabla like '%leads' and operacion='UPDATE' and fila_id='$LE2'")"
+R="$(editar "$LE1" "{\"nota\":\"x\",\"etapa\":\"convertido\"}")"; echo "$R" | grep -q "22023" && echo "$R" | grep -q "no editable" && ok "[E2] una clave fuera de la lista blanca (etapa) → 22023, nada escrito" || rojo "E2: $(echo "$R" | head -c 200)"
+R="$(editar "$LE1" "{\"nota\":\"ajena\"}" "$AJENO")"; echo "$R" | grep -q "P0002" && [[ "$(q "select nota from crm.leads where id='$LE1'")" == "nota e1" ]] && ok "[E3] una sesión sin rol CRM no ve ningún lead (RLS) → P0002, nada escrito" || rojo "E3: $(echo "$R" | head -c 200)"
+LE3="$(uuid)"; lead_de "$LE3" 53 E3 null "$SUP"; R="$(editar "$LE3" "{\"nota\":\"ajena\"}" "$V")"; echo "$R" | grep -q "P0002" && [[ "$(q "select coalesce(nota,'-') from crm.leads where id='$LE3'")" == "-" ]] && ok "[E4] lead fuera del ámbito (RLS del que edita) → P0002, nada escrito" || rojo "E4: $(echo "$R" | head -c 200)"
+R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; set local role anon; select crm.editar_lead_fn('$LE1','{}'::jsonb); rollback;" 2>&1)"; echo "$R" | grep -q "42501" && ok "[E5] anon sin EXECUTE → 42501" || rojo "E5: $(echo "$R" | head -c 200)"
+flag true
+DE="5${RUN}7"; IE="$(resolver "$DE")"; LE4="$(uuid)"; lead_de "$LE4" 54 E4
+R="$(editar "$LE4" "{\"dni\":\"$DE\",\"nota\":\"con documento\"}")"; [[ "$(j "$R" ok)" == "True" && "$(j "$R" dni_por_puerta)" == "True" && "$(q "select dni||' '||coalesce(inversionista_id::text,'-')||' '||coalesce(nota,'-') from crm.leads where id='$LE4'")" == "$DE $IE con documento" ]] && ok "[E6] ON: DNI de persona reconocida + nota → el DNI por su puerta (ENLAZADO) y la nota en la misma transacción" || rojo "E6: $(echo "$R" | head -c 200) · $(q "select dni, inversionista_id, nota from crm.leads where id='$LE4'")"
+LE5="$(uuid)"; lead_de "$LE5" 55 E5; DE5="5${RUN}8"; LE6="$(uuid)"; lead_de "$LE6" 56 E6
+R="$(editar "$LE5" "{\"dni\":\"$DE5\",\"telefono\":\"9${RUN}56\"}")"; echo "$R" | grep -qE "P0481|uq_leads_telefono_vivo" && [[ "$(q "select dni is null from crm.leads where id='$LE5'")" == "t" ]] && ok "[E7 Codex v4 #1] ON: el DNI pasa por su puerta pero el resto choca (teléfono de otro lead vivo: veredicto de disponibilidad o índice) → TODO se deshace: el DNI tampoco queda" || rojo "E7: $(echo "$R" | head -c 200) · dni=$(q "select dni from crm.leads where id='$LE5'")"
+R="$(editar "$LE5" "{\"dni\":\"$DE\"}")"; echo "$R" | grep -q "ya es cliente o ya tiene su lead" && ok "[E8] ON: el DNI de una persona que ya tiene su lead → P0409 de la puerta (el texto del servidor)" || rojo "E8: $(echo "$R" | head -c 200)"
+R="$(editar "$LE5" "{\"dni\":\"$DE5\"}")"; [[ "$(j "$R" ok)" == "True" && "$(j "$R" dni_por_puerta)" == "True" && "$(q "select dni from crm.leads where id='$LE5'")" == "$DE5" ]] && ok "[E9] ON: solo cambia el DNI → la puerta y ningún UPDATE aparte" || rojo "E9: $(echo "$R" | head -c 200)"
+R="$(editar "$LE5" "{\"dni\":\"$DE5\",\"nota\":\"mismo dni\"}")"; [[ "$(j "$R" ok)" == "True" && "$(j "$R" dni_por_puerta)" == "False" && "$(q "select nota from crm.leads where id='$LE5'")" == "mismo dni" ]] && ok "[E10] ON: el DNI viaja sin cambiar → el UPDATE de hoy lo lleva y el trigger lo deja pasar (dni_por_puerta=false)" || rojo "E10: $(echo "$R" | head -c 200)"
+R="$(editar "$LE5" "{\"dni\":null,\"nota\":\"sin dni\"}")"; [[ "$(j "$R" ok)" == "True" && "$(q "select dni is null and nota='sin dni' from crm.leads where id='$LE5'")" == "t" ]] && ok "[E11] ON: borrar el DNI (null) va por la puerta y el resto en la misma transacción" || rojo "E11: $(echo "$R" | head -c 200)"
 flag false
 
 echo "== (2) Bandera ENCENDIDA: reabrir juzga a la persona y enlaza =="
@@ -109,7 +134,7 @@ R="$(reabrir "$LJ")"; [[ "$(j "$R" etapa)" == "nuevo" && "$(j "$R" enlazado)" ==
 DK="5${RUN}2"; IK="$(resolver "$DK")"; flag false; LK="$(uuid)"; lead_de "$LK" 23 K "'$DK'"; descartar "$LK"; LK2="$(uuid)"; lead_de "$LK2" 24 K2 "'$DK'"; flag true
 R="$(reabrir "$LK")"; echo "$R" | grep -q "ya es cliente o ya tiene su lead" && [[ "$(q "select etapa from crm.leads where id='$LK'")" == "descartado" ]] && ok "[T3] la persona ya tiene OTRO lead vivo (suelto por documento) → P0409, sigue descartado" || rojo "T3: $(echo "$R" | head -c 220)"
 sys "update crm.leads set activo=false where id='$LK2'"
-R="$(reabrir "$LK")"; [[ "$(j "$R" etapa)" == "nuevo" && "$(j "$R" inversionista_id)" == "$IK" ]] && ok "[T3] sin el otro lead, la misma reapertura pasa y enlaza (par mutante)" || rojo "T3 par: $(echo "$R" | head -c 200)"
+R="$(reabrir "$LK")"; [[ "$(j "$R" etapa)" == "nuevo" && "$(j "$R" inversionista_id)" == "$IK" ]] && ok "[T3] sin el otro lead, la misma reapertura pasa y enlaza (par mutante)" || rojo "T3 par: $(echo "$R" | head -c 300) · persona_reabrir=$(q "select private.lead_persona_reabrir('$LK')") · IK=$IK · flag=$(q "select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'") · lead=$(q "select etapa||' '||coalesce(inversionista_id::text,'-')||' '||dni from crm.leads where id='$LK'")"
 DL="5${RUN}3"; IL="$(resolver "$DL")"; flag false; LL="$(uuid)"; lead_de "$LL" 25 L "'$DL'"; descartar "$LL"; flag true; sys "update crm.inversionistas set no_contactar=true, no_contactar_en=now(), no_contactar_por='$G' where id='$IL'"
 R="$(reabrir "$LL")"; echo "$R" | grep -q "P0429" && [[ "$(q "select etapa from crm.leads where id='$LL'")" == "descartado" ]] && ok "[T4] la PERSONA tiene «No insistir» (suelto por documento) → P0429, sigue descartado" || rojo "T4: $(echo "$R" | head -c 200)"
 LL2="$(uuid)"; lead_de "$LL2" 31 L2; sys "update crm.leads set no_contactar=true where id='$LL2'"; descartar "$LL2"

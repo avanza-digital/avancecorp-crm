@@ -54,7 +54,7 @@ import {
   actualizarTarea,
   cerrarReunion,
   cerrarTarea,
-  fijarDniLead,
+  editarLeadFn,
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
@@ -1316,14 +1316,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             invalidarAgenda,
           }).then((restaurado) => {
             if (!notificarError) return
-            // GUARDADO_PARCIAL: una parte sí se escribió; «se restauró el estado
-            // anterior» sería falso, la ficha muestra lo que quedó en el servidor.
-            const parcial = resultado.codigo === 'GUARDADO_PARCIAL'
             toast.error(
               restaurado
-                ? parcial
-                  ? `${mensaje} — la ficha muestra lo que sí quedó guardado`
-                  : `${mensaje} — se restauró el estado anterior`
+                ? `${mensaje} — se restauró el estado anterior`
                 : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
             )
           })
@@ -2137,35 +2132,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (choque) return choque
         }
         aplicar(id, parche)
-        // F2.b [D-13/D-15]: el DNI va por SU puerta (candados documento → persona →
-        // fila; con la identidad encendida un UPDATE directo de dni está cerrado) y
-        // ANTES del resto: si ese documento ya es de otra persona con lead/ficha, no
-        // se guarda nada. El UPDATE del resto lleva la FILA COMPLETA, DNI incluido,
-        // como hoy (Codex bloque 4 #1): así dos ediciones simultáneas no se mezclan
-        // —gana la última entera, o falla entera—; con la identidad encendida el
-        // trigger deja pasar un DNI que no cambia y cierra (P0409) el que sí.
-        const { dni: dniNuevo, ...resto } = parche
-        const cambiaDni = dniNuevo !== undefined && dniNuevo !== (actual.dni ?? null)
-        const restoTieneCambios = Object.keys(resto).length > 0
+        // F2.b [D-15]: UNA RPC transaccional con la fila completa que manda la ficha
+        // (crm.editar_lead_fn, INVOKER: el UPDATE de hoy con la RLS de quien edita).
+        // Con la identidad encendida el servidor pasa el DNI por su puerta dentro de
+        // la misma transacción: todo o nada, y dos ediciones no se mezclan.
         persistir(
-          async () => {
-            if (cambiaDni) await fijarDniLead(id, dniNuevo ?? null)
-            if (!restoTieneCambios) return
-            try {
-              await actualizarLead(id, parche)
-            } catch (causa: unknown) {
-              // Dos escrituras donde antes había una: si el DNI YA quedó guardado y el
-              // resto falla, el toast no puede prometer «se restauró el estado
-              // anterior» (auditor bloque 4 #2). Se dice lo que pasó, con la causa.
-              if (cambiaDni && causa instanceof CrmApiError) {
-                throw new CrmApiError(
-                  `El documento sí quedó guardado; el resto de los cambios no se aplicó: ${causa.message}`,
-                  'GUARDADO_PARCIAL',
-                )
-              }
-              throw causa
-            }
-          },
+          () => editarLeadFn(id, parche),
           {
             invalidarNucleosConversion:
               parche.origen !== undefined && parche.origen !== actual.origen,

@@ -6,7 +6,7 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d15_reabrir_lead_por_puerta'));
 do $chk$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '704fecf995c0300d2dc2ef064c6d6490') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '65b4b0924da38eaa2c6b7dc42f44ee79') then
     raise exception 'REGISTRO D-15: crm.reabrir_lead_fn no quedó como la genera gen-d15.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('authenticated', 'crm.reabrir_lead_fn(uuid)', 'EXECUTE')
@@ -14,6 +14,18 @@ begin
      or has_function_privilege('service_role', 'crm.reabrir_lead_fn(uuid)', 'EXECUTE')
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and a.grantee = 0) then
     raise exception 'REGISTRO D-15: los grants de la puerta no son «solo authenticated»';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '55224774b94c1d429f1b0d52a185a303') then
+    raise exception 'REGISTRO D-15: crm.editar_lead_fn no quedó como la genera gen-d15.py (cuerpo, INVOKER, dueño postgres, search_path, lock_timeout)';
+  end if;
+  if not has_function_privilege('authenticated', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or has_function_privilege('service_role', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and a.grantee = 0) then
+    raise exception 'REGISTRO D-15: los grants de crm.editar_lead_fn no son «solo authenticated»';
+  end if;
+  if to_regprocedure('crm.bandera_activa(text)') is null or to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)') is null then
+    raise exception 'REGISTRO D-15: faltan crm.bandera_activa(text) o crm.fijar_dni_lead_fn(uuid,text)';
   end if;
   if to_regprocedure('private.bloquear_personas_de_leads(uuid[],text)') is null or left(md5(pg_get_functiondef('private.bloquear_personas_de_leads(uuid[],text)'::regprocedure)), 8) <> '781496f9' then
     raise exception 'REGISTRO D-15: private.bloquear_personas_de_leads(uuid[],text) falta o no es el texto vivo de producción (esperado 781496f9…)';
@@ -58,7 +70,7 @@ begin
                    and strpos(pg_get_expr(polqual, polrelid), 'vendedor_ids_visibles') > 0 and strpos(pg_get_expr(polqual, polrelid), '''gerencia''') > 0) then
     raise exception 'REGISTRO D-15: la policy crm.leads.leads_update no es la esperada (ámbito por vendedor_ids_visibles / gerencia)';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906150000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '66ddbf46f5b8c24dc01fb2a328fcb23d')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906150000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '5eebbc1e165e8214ff258c6fc1f4e164')) then
     raise exception 'REGISTRO D-15: la versión 20260906150000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -83,8 +95,9 @@ values ('20260906150000', 'crm_f2b_d15_reabrir_lead_por_puerta', array[$m$-- ===
 --     y «lead dentro de lo bloqueado» (40001), el JUICIO único de reapertura (D-13: P0429 veto; P0409 otro lead de la
 --     persona / conversión en curso / ya cliente, activo o no) y, tras el UPDATE bajo crm.reapertura_identidad, el lead
 --     queda ENLAZADO a su persona (enlazar_lead_reabierto). Todo helper es el de D-13 (huellas de producción como guardas).
--- El front (store.reabrir) llama esta puerta en vez de actualizar la fila; la edición del DNI del lead va por
--- crm.fijar_dni_lead_fn (D-13). La bandera se lee bajo el advisory compartido crm_flag_resolver_en_puertas (D-5 pone el exclusivo
+-- El front (store.reabrir) llama esta puerta en vez de actualizar la fila. Y la EDICIÓN de la ficha va por
+-- crm.editar_lead_fn(lead, cambios) (INVOKER: el UPDATE de hoy con la RLS de quien edita, solo las columnas que manda la
+-- ficha; con ON el DNI pasa antes por crm.fijar_dni_lead_fn en la MISMA transacción: todo o nada, dos ediciones no se mezclan). La bandera se lee bajo el advisory compartido crm_flag_resolver_en_puertas (D-5 pone el exclusivo
 -- en el cambio de bandera): la llamada termina con la bandera que leyó. Ensayo: scripts/oraculo-f2b-d15.sh (UPDATE directo vs puerta, OFF y ON, mutante sin D-15).
 -- Reversa: scripts/rollback-f2b-d15.sql (DROP). Registro: scripts/registrar-f2b-d15.sql.
 
@@ -173,10 +186,6 @@ begin
   if p_lead_id is null then
     raise exception 'El lead es obligatorio' using errcode = '22023';
   end if;
-  -- Codex v3 #4: la bandera se lee bajo el candado COMPARTIDO por bandera (el cambio de bandera toma el exclusivo en su
-  -- trigger, D-5): una llamada que entró apagada termina apagada aunque espere por el lead, y viceversa.
-  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
-  v_flag := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);
   -- Ámbito ANTES de cualquier candado (auditor D-13 v4 M1): un lead ajeno o inexistente muere aquí sin sondear a nadie.
   -- Mismo predicado que la policy leads_update (el UPDATE que hacía el front).
   if not exists (select 1 from crm.leads l
@@ -186,9 +195,15 @@ begin
                          or (l.vendedor_id is null and l.asignado_supervisor_id in (select private.vendedor_ids_visibles(v_uid))))) then
     raise exception 'Lead no encontrado o fuera de tu ambito' using errcode = 'P0002';
   end if;
-  if v_flag and pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
-    raise exception 'La identidad unificada requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
+  -- Codex v4 #2: READ COMMITTED SIEMPRE antes de leer la bandera (una foto REPEATABLE READ anterior al encendido seguiría
+  -- viendo la bandera vieja aunque tome el candado). Codex v3 #4 / auditor v4 #6: la bandera se lee bajo el candado
+  -- COMPARTIDO por bandera (el cambio de bandera toma el exclusivo en su trigger, D-5) y DESPUÉS del ámbito: una llamada
+  -- que entró apagada termina apagada aunque espere por el lead, y viceversa; un lead ajeno no espera por nada.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'La reapertura requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
   end if;
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
+  v_flag := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);
   -- Candados de PERSONA antes de la fila (documento → persona → lead), como tomar/rescatar/deshacer (D-13); inertes con la bandera apagada.
   v_bloqueo := private.bloquear_personas_de_leads(array[p_lead_id], null);
   select * into v_lead
@@ -254,9 +269,87 @@ revoke all on function crm.reabrir_lead_fn(uuid) from public, anon, service_role
 grant execute on function crm.reabrir_lead_fn(uuid) to authenticated;
 comment on function crm.reabrir_lead_fn(uuid) is 'F2.b [D-15]: la puerta del botón «Reabrir» (descartado → nuevo) para analista/supervisor/Gerencia sobre su ámbito. Apagada la identidad: el UPDATE de hoy. Encendida: candados documento → persona → lead, juicio de reapertura (veto P0429; otro lead/conversión/ya cliente P0409) y enlace a la persona.';
 
+-- ============================================================================
+-- 2. crm.editar_lead_fn(uuid, jsonb): la edición de la ficha en UNA transacción (INVOKER; el DNI por su puerta con ON)
+-- ============================================================================
+create or replace function crm.editar_lead_fn(p_lead_id uuid, p_cambios jsonb)
+ returns jsonb
+ language plpgsql
+ security invoker
+ set search_path to ''
+ set lock_timeout to '5s'
+as $function$
+declare
+  v_uid       uuid := (select auth.uid());
+  v_flag      boolean;
+  v_dni       text;
+  v_dni_cambia boolean := false;
+  v_por_puerta boolean := false;
+  v_k         text;
+  v_sets      text[] := '{}';
+  v_n         integer;
+  v_claves    constant text[] := array['nombre_completo','telefono','telefono_alternativo','correo','monto_estimado','moneda',
+                                       'categoria_interes','origen','nota','dni','distrito','genero','fecha_nacimiento'];
+begin
+  -- F2.b [D-15] (Codex bloque 4 #1): la edición de la ficha del lead es UNA transacción. SECURITY INVOKER a propósito: el
+  -- UPDATE corre con el rol y la RLS de quien edita (policy leads_update, grants por columna) y con EXACTAMENTE las
+  -- columnas que manda la ficha, como el UPDATE directo de hoy. Con la identidad ENCENDIDA y el DNI cambiado, el documento
+  -- pasa antes por su puerta (crm.fijar_dni_lead_fn, DEFINER: candados documento → persona → fila, juicio y enlace) DENTRO
+  -- de la misma transacción: si el resto falla (teléfono duplicado, fila retenida, red), el DNI tampoco queda; dos ediciones
+  -- simultáneas no se mezclan (gana la última entera, o falla entera). Apagada: un solo UPDATE, byte a byte el de hoy.
+  if v_uid is null then
+    raise exception 'Sesión requerida' using errcode = '42501';
+  end if;
+  if p_lead_id is null or p_cambios is null or pg_catalog.jsonb_typeof(p_cambios) <> 'object' then
+    raise exception 'Cambios inválidos' using errcode = '22023';
+  end if;
+  for v_k in select k from pg_catalog.jsonb_object_keys(p_cambios) k loop
+    if not (v_k = any(v_claves)) then
+      raise exception 'Campo no editable desde la ficha: %', v_k using errcode = '22023';
+    end if;
+  end loop;
+  -- READ COMMITTED siempre y la bandera bajo el candado COMPARTIDO (D-5): la edición termina con la bandera que leyó.
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'La edición requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
+  v_flag := crm.bandera_activa('resolver_en_puertas');
+  if p_cambios ? 'dni' then
+    v_dni := nullif(pg_catalog.btrim(p_cambios->>'dni'), '');
+    -- Bajo RLS: un lead ajeno no se ve → no «cambia» → el UPDATE de abajo no toca ninguna fila → P0002 sin sondear a nadie.
+    v_dni_cambia := exists (select 1 from crm.leads l where l.id = p_lead_id and l.dni is distinct from v_dni);
+  end if;
+  if v_flag and v_dni_cambia then
+    perform crm.fijar_dni_lead_fn(p_lead_id, v_dni);
+    v_por_puerta := true;
+  end if;
+  -- El UPDATE de hoy: SOLO las columnas que manda la ficha (SET dinámico con la lista blanca), bajo la RLS del que edita.
+  for v_k in select k from pg_catalog.jsonb_object_keys(p_cambios) k order by k loop
+    if v_k = 'dni' and v_por_puerta then
+      continue;   -- ya escrito por su puerta en esta misma transacción
+    end if;
+    v_sets := pg_catalog.array_append(v_sets, pg_catalog.format('%I = %L', v_k,
+      case when v_k = 'dni' then v_dni else p_cambios->>v_k end));
+  end loop;
+  if pg_catalog.array_length(v_sets, 1) is null then
+    -- Solo cambió el DNI (por su puerta): la puerta ya comprobó ámbito y existencia.
+    return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'dni_por_puerta', v_por_puerta);
+  end if;
+  execute pg_catalog.format('update crm.leads set %s where id = $1', pg_catalog.array_to_string(v_sets, ', ')) using p_lead_id;
+  get diagnostics v_n = row_count;
+  if v_n = 0 then
+    raise exception 'Lead no encontrado o fuera de tu ambito' using errcode = 'P0002';
+  end if;
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'dni_por_puerta', v_por_puerta);
+end;
+$function$;
+revoke all on function crm.editar_lead_fn(uuid,jsonb) from public, anon, service_role;
+grant execute on function crm.editar_lead_fn(uuid,jsonb) to authenticated;
+comment on function crm.editar_lead_fn(uuid,jsonb) is 'F2.b [D-15]: la edición de la ficha del lead en UNA transacción (INVOKER: el UPDATE va con la RLS y los grants por columna de quien edita, solo las columnas que manda la ficha). Con la identidad encendida el DNI pasa antes por fijar_dni_lead_fn dentro de la misma transacción: si el resto falla, el DNI tampoco queda. Apagada: el UPDATE de hoy.';
+
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '704fecf995c0300d2dc2ef064c6d6490') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '65b4b0924da38eaa2c6b7dc42f44ee79') then
     raise exception 'POSTFLIGHT D-15: crm.reabrir_lead_fn no quedó como la genera gen-d15.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('authenticated', 'crm.reabrir_lead_fn(uuid)', 'EXECUTE')
@@ -265,7 +358,19 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and a.grantee = 0) then
     raise exception 'POSTFLIGHT D-15: los grants de la puerta no son «solo authenticated»';
   end if;
-  raise notice 'F2.b D-15 OK: crm.reabrir_lead_fn creada (solo authenticated); apagada = el UPDATE de hoy.';
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '55224774b94c1d429f1b0d52a185a303') then
+    raise exception 'POSTFLIGHT D-15: crm.editar_lead_fn no quedó como la genera gen-d15.py (cuerpo, INVOKER, dueño postgres, search_path, lock_timeout)';
+  end if;
+  if not has_function_privilege('authenticated', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or has_function_privilege('service_role', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and a.grantee = 0) then
+    raise exception 'POSTFLIGHT D-15: los grants de crm.editar_lead_fn no son «solo authenticated»';
+  end if;
+  if to_regprocedure('crm.bandera_activa(text)') is null or to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)') is null then
+    raise exception 'POSTFLIGHT D-15: faltan crm.bandera_activa(text) o crm.fijar_dni_lead_fn(uuid,text)';
+  end if;
+  raise notice 'F2.b D-15 OK: crm.reabrir_lead_fn y crm.editar_lead_fn creadas (solo authenticated); apagadas = el UPDATE de hoy.';
 end
 $post$;
 commit;

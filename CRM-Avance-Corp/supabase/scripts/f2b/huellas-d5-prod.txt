@@ -6,3 +6,7 @@ crm.marcar_efectos_conversion.3 511c059250774b625c8bc3274523e61a
 private.es_gerencia_crm_activa() ca6f82ba
 private.persona_en_conversion(uuid,uuid) cc7e1e04
 crm.retomar_conversion_gerencia_fn(uuid) c6aa6301
+crm.fijar_dni_lead_fn.d13 b1becd942a15110c3c9db0a919bc1657
+crm.tomar_lead_libre.d13 cf1c6d953df901c3373304206a3560ab
+crm.rescatar_descartes.d13 38d5869195a00c82437cbfb3298df8e7
+private.deshacer_descarte_implementacion.d13 5e343627436b8532215501d38aecafeb

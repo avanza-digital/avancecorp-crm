@@ -1703,6 +1703,12 @@ function aErrorApi(
     // reintento cae solo en la lápida P0409; si Gerencia se arrepiente, en el replay.
     code = 'CONTRATO_EN_ELIMINACION'
     mensaje = 'Gerencia está eliminando el contrato de tu intento anterior; no se creó otro. Espera a que termine o consúltalo antes de volver a intentar.'
+  } else if (codigoPg === 'P0409' && texto.includes('se fija por su puerta')) {
+    // Con la identidad encendida, la fila completa que manda la ficha lleva el DNI
+    // que el analista VE; si otro usuario lo cambió mientras tanto, el servidor
+    // rechaza el UPDATE directo del documento. No editó el DNI: la ficha está vieja.
+    code = 'CONFLICTO'
+    mensaje = 'La ficha cambió en otra sesión (el documento ya no es el que ves): recarga y vuelve a intentarlo'
   } else if (codigoPg === 'P0409') {
     // Conflicto de ESTADO que levantan nuestras puertas (F2.b: «la persona ya es
     // cliente o ya tiene su lead», «solo lo corrige Gerencia», «conversión en
@@ -1828,17 +1834,20 @@ export async function reabrirLead(leadId: string): Promise<void> {
 }
 
 /**
- * F2.b [D-13/D-15]: el DNI de un lead vivo se FIJA por su puerta (candados
- * documento → persona → fila). Apagada la identidad es el UPDATE de hoy; encendida,
- * un lead ya reconocido solo lo corrige Gerencia (P0409), y un documento de una
- * persona que ya es cliente o ya tiene su lead no se asigna (P0409 / P0429 veto).
- * `null` borra el DNI (el parámetro no tiene default: el null viaja explícito).
+ * F2.b [D-15]: la edición de la ficha del lead va por UNA RPC transaccional
+ * (`crm.editar_lead_fn`, SECURITY INVOKER: el UPDATE corre con la RLS y los grants
+ * por columna de quien edita, solo con las columnas que manda la ficha, como el
+ * UPDATE directo de hoy). Con la identidad encendida el DNI pasa antes por su
+ * puerta (`fijar_dni_lead_fn`: candados documento → persona → fila, juicio y
+ * enlace) DENTRO de la misma transacción: si el resto falla, el DNI tampoco queda
+ * y dos ediciones simultáneas no se mezclan (Codex bloque 4 #1). Los rechazos de
+ * la puerta llegan con el texto del servidor (P0409 → CONFLICTO, P0429 → NO_INSISTA).
  */
-export async function fijarDniLead(leadId: string, dni: string | null): Promise<void> {
+export async function editarLeadFn(leadId: string, cambios: LeadUpdate): Promise<void> {
   const { error } = await cliente()
     .schema('crm')
-    .rpc('fijar_dni_lead_fn', { p_lead_id: leadId, p_dni: nuloExplicito(dni) })
-  if (error) throw aErrorApi(error, 'crm.leads.fijar_dni_fallido')
+    .rpc('editar_lead_fn', { p_lead_id: leadId, p_cambios: cambios as Json })
+  if (error) throw aErrorApi(error, 'crm.leads.editar_fallido')
 }
 
 export async function insertarActividad(fila: ActividadInsert): Promise<void> {

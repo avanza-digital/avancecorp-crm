@@ -43,7 +43,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     actualizarTarea: vi.fn(),
     insertarActividad: vi.fn(),
     reabrirLead: vi.fn(),
-    fijarDniLead: vi.fn(),
+    editarLeadFn: vi.fn(),
   }
 })
 
@@ -56,7 +56,7 @@ const listarActs = vi.mocked(crmApi.listarActividadesDelAmbito)
 const insertarLead = vi.mocked(crmApi.insertarLead)
 const actualizarLead = vi.mocked(crmApi.actualizarLead)
 const reabrirLead = vi.mocked(crmApi.reabrirLead)
-const fijarDniLead = vi.mocked(crmApi.fijarDniLead)
+const editarLeadFn = vi.mocked(crmApi.editarLeadFn)
 const actualizarTarea = vi.mocked(crmApi.actualizarTarea)
 const insertarActividad = vi.mocked(crmApi.insertarActividad)
 const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
@@ -296,7 +296,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     }))
     actualizarLead.mockResolvedValue(undefined)
     reabrirLead.mockResolvedValue(undefined)
-    fijarDniLead.mockResolvedValue(undefined)
+    editarLeadFn.mockResolvedValue(undefined)
     actualizarTarea.mockResolvedValue(undefined)
     insertarActividad.mockResolvedValue(undefined)
   })
@@ -561,7 +561,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: true })
     expect(api().lead(leadBase().id)?.telefono).toBe('+51999111222')
-    expect(actualizarLead).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
+    expect(editarLeadFn).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
   })
 
   it('cambiar etapa y registrar actividad caducan las dos fotos de conversión por rango', async () => {
@@ -642,7 +642,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     invalidarQueriesMock.mockClear()
     const edicionComun = mutar((a) => a.editarLead(id, { nota: 'Dato que no cambia atribución' }))
     expect(edicionComun).toMatchObject({ ok: true })
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, expect.objectContaining({ nota: 'Dato que no cambia atribución' })))
+    await waitFor(() => expect(editarLeadFn).toHaveBeenCalledWith(id, expect.objectContaining({ nota: 'Dato que no cambia atribución' })))
     expect(invalidarQueriesMock).not.toHaveBeenCalledWith({
       queryKey: crmQueryKeys.conversionMensualPrefijo(),
     })
@@ -659,7 +659,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     invalidarQueriesMock.mockClear()
     const cambioOrigen = mutar((a) => a.editarLead(id, { origen: 'referido' }))
     expect(cambioOrigen).toMatchObject({ ok: true })
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, expect.objectContaining({ origen: 'referido' })))
+    await waitFor(() => expect(editarLeadFn).toHaveBeenCalledWith(id, expect.objectContaining({ origen: 'referido' })))
     for (const queryKey of [
       crmQueryKeys.conversionMensualPrefijo(),
       crmQueryKeys.metricasConversionesPrefijo(),
@@ -1408,87 +1408,25 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
   })
 
-  // F2.b [D-13/D-15]: el DNI de un lead se FIJA por su puerta (candados documento →
-  // persona → fila) ANTES del resto, y nunca viaja en el UPDATE cuando no cambia.
-  it('editar el DNI va por su puerta ANTES del resto; el resto sin el dni', async () => {
-    const { api, mutar } = montar('supervisor')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
-    const id = api().leads[0]!.id
-    const orden: string[] = []
-    fijarDniLead.mockImplementationOnce(async () => {
-      orden.push('dni')
-    })
-    actualizarLead.mockImplementationOnce(async () => {
-      orden.push('resto')
-    })
-
-    const res = mutar((a) => a.editarLead(id, { dni: '45678901', nota: 'con documento' }))
-
-    expect(res).toMatchObject({ ok: true })
-    // El UPDATE lleva la fila completa (DNI incluido): dos ediciones no se mezclan (Codex bloque 4 #1).
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { dni: '45678901', nota: 'con documento' }))
-    expect(fijarDniLead).toHaveBeenCalledWith(id, '45678901')
-    expect(orden).toEqual(['dni', 'resto'])
-  })
-
-  it('sin cambio de DNI no se llama a la puerta; el dni viaja igual en el UPDATE (como hoy)', async () => {
-    const { api, mutar } = montar('supervisor')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
-    const id = api().leads[0]!.id
-    const dniActual = api().lead(id)?.dni ?? null
-
-    // La ficha manda SIEMPRE el dni (el valor del formulario).
-    const res = mutar((a) => a.editarLead(id, { dni: dniActual, telefono: '+51999111333' }))
-
-    expect(res).toMatchObject({ ok: true })
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { dni: dniActual, telefono: '+51999111333' }))
-    expect(fijarDniLead).not.toHaveBeenCalled()
-  })
-
-  it('solo el DNI cambia: la puerta y ningún UPDATE', async () => {
+  // F2.b [D-15]: la edición de la ficha va por UNA RPC transaccional con la fila
+  // completa que manda la ficha (el servidor pasa el DNI por su puerta con ON).
+  it('editar la ficha va por editar_lead_fn con el parche completo (DNI incluido) y NUNCA por UPDATE directo', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
 
-    const res = mutar((a) => a.editarLead(id, { dni: '45678902' }))
+    const res = mutar((a) => a.editarLead(id, { dni: '45678901', nota: 'con documento', telefono: '+51999111222' }))
 
     expect(res).toMatchObject({ ok: true })
-    await waitFor(() => expect(fijarDniLead).toHaveBeenCalledWith(id, '45678902'))
+    await waitFor(() => expect(editarLeadFn).toHaveBeenCalledWith(id, { dni: '45678901', nota: 'con documento', telefono: '+51999111222' }))
     expect(actualizarLead).not.toHaveBeenCalled()
   })
 
-  it('borrar el DNI (null) también va por la puerta', async () => {
-    listarLeads.mockResolvedValueOnce([{ ...leadBase(), dni: '45678903' }])
-    const { api, mutar } = montar('supervisor')
-    await waitFor(() => expect(api().leads[0]?.dni).toBe('45678903'))
-    const id = api().leads[0]!.id
-
-    const res = mutar((a) => a.editarLead(id, { dni: null, nota: 'sin documento' }))
-
-    expect(res).toMatchObject({ ok: true })
-    await waitFor(() => expect(fijarDniLead).toHaveBeenCalledWith(id, null))
-    expect(actualizarLead).toHaveBeenCalledWith(id, { dni: null, nota: 'sin documento' })
-  })
-
-  it('DNI guardado y el resto falla: el toast es honesto (no dice «se restauró»)', async () => {
+  it('la puerta del DNI rechaza (P0409 «ya tiene su lead»): rollback con el texto del servidor', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
-    actualizarLead.mockRejectedValueOnce(new CrmApiError('Ese teléfono ya pertenece a otro lead abierto de la empresa', 'DUP_TELEFONO'))
-
-    mutar((a) => a.editarLead(id, { dni: '45678905', telefono: '+51999111444' }))
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('El documento sí quedó guardado')))
-    expect(fijarDniLead).toHaveBeenCalledWith(id, '45678905')
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('la ficha muestra lo que sí quedó guardado'))
-    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior'))
-  })
-
-  it('la puerta del DNI rechaza (P0409 «ya tiene su lead»): rollback y el resto NO se guarda', async () => {
-    const { api, mutar } = montar('supervisor')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
-    const id = api().leads[0]!.id
-    fijarDniLead.mockRejectedValueOnce(
+    editarLeadFn.mockRejectedValueOnce(
       new CrmApiError('La persona de ese documento ya es cliente o ya tiene su lead: no se puede asignar a este', 'CONFLICTO'),
     )
 
@@ -1497,7 +1435,6 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('ya es cliente o ya tiene su lead')),
     )
-    expect(actualizarLead).not.toHaveBeenCalled()
   })
 
   it('editar capital real persiste monto y moneda juntos', async () => {
@@ -1509,7 +1446,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: true })
     await waitFor(() =>
-      expect(actualizarLead).toHaveBeenCalledWith(id, {
+      expect(editarLeadFn).toHaveBeenCalledWith(id, {
         monto_estimado: 25_000,
         moneda: 'USD',
       }),
@@ -1532,7 +1469,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
-    actualizarLead.mockRejectedValueOnce(new CrmApiError('Ese teléfono ya existe', 'DUP_TELEFONO'))
+    editarLeadFn.mockRejectedValueOnce(new CrmApiError('Ese teléfono ya existe', 'DUP_TELEFONO'))
 
     mutar((a) => a.editarLead(id, { correo: 'nuevo@correo.com' }))
 
@@ -1545,7 +1482,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
-    actualizarLead.mockRejectedValueOnce(new CrmApiError('No se pudo guardar el cambio', 'POSTGREST_ERROR'))
+    editarLeadFn.mockRejectedValueOnce(new CrmApiError('No se pudo guardar el cambio', 'POSTGREST_ERROR'))
     // El resync de rollback también falla (offline).
     listarLeads.mockRejectedValueOnce(new CrmApiError('sin red', 'POSTGREST_ERROR'))
 
