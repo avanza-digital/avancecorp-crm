@@ -681,13 +681,6 @@ export function InteligenciaComercialPanel({
     && Number.isFinite(Date.parse(datos.citas_reales.seguimiento_hasta))
     && Date.parse(datos.citas_reales.seguimiento_hasta) === Date.parse(datos.generado_en)
       ? datos.citas_reales : null
-  const operacionesConversion = datos?.conversion_operaciones != null
-    && lecturaAmpliadaVerificada
-    && datos.conversion_operaciones.completo
-    && datos.conversion_operaciones.desde === datos.periodo.desde
-    && datos.conversion_operaciones.hasta === datos.periodo.hasta
-    && datos.conversion_operaciones.cantidad === datos.conversion_operaciones.detalle.length
-      ? datos.conversion_operaciones : null
   const cierresSemanales = datos?.cierres_por_semana != null
     && lecturaAmpliadaVerificada
     && datos.cierres_por_semana.desde === datos.periodo.desde
@@ -831,47 +824,9 @@ export function InteligenciaComercialPanel({
           </section>
       </CardContent>
 
-      {/* Estas lecturas no dependen de que haya llegadas nuevas: puede haber
-          cierres de leads anteriores u operaciones de Cartera en el rango. */}
+      {/* Puede haber cierres de leads anteriores aunque no haya llegadas nuevas. */}
       <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
         {rangoError && datos != null && <p role="status" className="gi-caption">Última lectura disponible; no se pudo actualizar el rango.</p>}
-        <section data-gi-panel className="gi-card p-5" aria-label="Llegadas con cita realizada">
-          <h3 className="gi-title">Llegadas con cita realizada</h3>
-          <p className="gi-caption mt-1">Leads únicos con al menos una cita registrada como realizada. No es el avance inferido ni un conteo de personas entre varios leads.</p>
-          {citasReales == null ? <p role="status" className="mt-3 text-xs">{rangoEsperando ? 'Consultando citas de las llegadas…' : 'Citas reales de las llegadas no disponibles.'}</p> : <>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-              <DatoDetalle label="Leads con cita registrada como realizada" valor={numero(citasReales.leads_con_cita_real)} />
-              <DatoDetalle label="Citas registradas como realizadas" valor={numero(citasReales.citas_realizadas)} />
-              <DatoDetalle label="Porcentaje de las llegadas" valor={pct(citasReales.pct_llegadas_con_cita_real)} />
-            </dl>
-            <p className="gi-caption">De {numero(citasReales.leads_base)} llegadas · {etiquetaPeriodo(datos?.periodo ?? null)} · {origenFiltrado == null ? 'Todos los orígenes comerciales' : etiquetaOrigen(origenFiltrado)}. Seguimiento hasta {new Date(citasReales.seguimiento_hasta).toLocaleString('es-PE', { timeZone: 'America/Lima' })} (Lima).</p>
-            <p className="gi-caption mt-1">La fecha de la cita es la prevista; se lee su estado registrado actual. La llegada pertenece al primer analista, aunque otra persona registre la cita.</p>
-            {citasReales.citas_anteriores_al_alta > 0 && <p role="status" className="mt-2 text-xs text-amber-800">Hay {numero(citasReales.citas_anteriores_al_alta)} citas realizadas con fecha prevista anterior al alta del lead; se excluyeron del indicador y requieren revisión.</p>}
-            <dl className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Citas reales por origen">
-              {origenes.map((origen) => <div key={origen.origen} className="text-xs"><dt className="font-semibold">{nombreOrigen(origen.origen)}</dt><dd>{numeroDisponible(origen.leads_con_cita_real ?? null)} leads · {numeroDisponible(origen.citas_realizadas ?? null)} citas registradas como realizadas</dd></div>)}
-            </dl>
-          </>}
-        </section>
-        <section data-gi-panel className="gi-card min-w-0 p-5" aria-label="Operaciones elegidas para conversión">
-          <h3 className="gi-title">Operaciones elegidas para conversión</h3>
-          <p className="gi-caption mt-1">Selección y aporte servidos por el núcleo. Lectura viva del rango de toda la empresa, sin filtro de origen; no reconstruye fotos mensuales cerradas.</p>
-          {operacionesConversion == null ? <p role="status" className="mt-3 text-xs">{rangoEsperando ? 'Consultando operaciones elegidas…' : 'Detalle de operaciones elegidas no disponible o no verificable.'}</p> : <>
-            <p className="mt-3 text-sm font-semibold">{numero(operacionesConversion.cantidad)} operaciones elegidas · aporte total {numero(operacionesConversion.aporte_total, 20)}</p>
-            <p className="gi-caption">{fmtFecha(operacionesConversion.desde)} al {fmtFecha(operacionesConversion.hasta)} · Lima. Elegible no significa elegida; una operación seleccionada puede aportar 0.</p>
-            {operacionesConversion.detalle.length === 0 ? <p className="mt-3 text-xs">No hay operaciones elegidas en este rango.</p> : /* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Tabla desplazable accesible con teclado. */ <div className="mt-3 overflow-x-auto" role="region" aria-label="Desglose desplazable de operaciones" tabIndex={0}>
-              <table className="w-full min-w-[430px] text-left text-xs">
-                <caption className="sr-only">Operaciones seleccionadas por el núcleo y su aporte exacto</caption>
-                <thead><tr><th className="p-2">Operación</th><th className="p-2">Analista atribuido</th><th className="p-2">Fecha</th><th className="p-2">Aporte</th></tr></thead>
-                <tbody>{operacionesConversion.detalle.map((operacion) => <tr key={operacion.operacion_id} className="border-t border-[var(--gi-line)]">
-                  <td className="p-2">{operacion.categoria === 'renovacion' ? 'Renovación' : 'Upgrade'}<span className="block break-all text-[10px] text-[var(--gi-muted)]">{operacion.operacion_id}</span></td>
-                  <td className="p-2">{equipo.find((persona) => persona.vendedorId === operacion.analista_id)?.nombre ?? 'Sin nombre disponible'}</td>
-                  <td className="p-2">{new Date(operacion.fecha_numerador).toLocaleDateString('es-PE', { timeZone: 'America/Lima' })}</td>
-                  <td className="p-2 font-semibold tabular-nums">{numero(operacion.aporte_numerador, 20)}</td>
-                </tr>)}</tbody>
-              </table>
-            </div>}
-          </>}
-        </section>
         <section data-gi-panel className="gi-card min-w-0 p-5" aria-label="Cierres por fecha de cierre">
           <h3 className="gi-title">Cierres por semana de cierre</h3>
           <p className="gi-caption mt-1">Cierres ocurridos en el rango, aunque los leads hayan llegado antes. Atribuidos a quien cierra; sin operaciones de Cartera.</p>

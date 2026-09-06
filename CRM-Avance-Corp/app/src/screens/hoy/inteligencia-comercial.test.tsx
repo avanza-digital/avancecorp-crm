@@ -64,34 +64,16 @@ function renderAmpliaciones(datos: MetricasConversiones, props: Partial<Componen
   />)
 }
 
-describe('N1/N3/N4: lecturas nuevas separadas de las anteriores', () => {
-  it('muestra lead_id únicos y eventos separados usando el porcentaje servido', () => {
+describe('citas y cierres conservados al simplificar Conversiones', () => {
+  it('conserva el indicador de citas sin los dos bloques explicativos retirados', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-    datos.citas_reales!.pct_llegadas_con_cita_real = 7.7
     renderAmpliaciones(datos)
-    const citas = within(screen.getByRole('region', { name: 'Llegadas con cita realizada' }))
-    expect(citas.getByText('38')).toBeInTheDocument()
-    expect(citas.getByText('46')).toBeInTheDocument()
-    expect(citas.getByText('7.7%')).toBeInTheDocument()
-    expect(citas.getByText('Leads con cita registrada como realizada')).toBeInTheDocument()
-    expect(citas.getByText(/La fecha de la cita es la prevista/)).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Llegadas con cita realizada' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Operaciones elegidas para conversión' })).not.toBeInTheDocument()
     expect(screen.getAllByText('Llegadas con cita realizada').find((elemento) => elemento.closest('[data-gi-kpi]'))?.closest('[data-gi-kpi]')).toHaveTextContent('38')
+    expect(screen.getByText('46 citas registradas como realizadas · de 184 llegadas')).toBeInTheDocument()
     expect(screen.queryByText('Reunión o avance posterior')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })).toBeInTheDocument()
-  })
-
-  it('no oculta una operación elegida que aporta cero ni fabrica el total', () => {
-    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-    datos.conversion_operaciones!.detalle[0]!.aporte_numerador = 0
-    datos.conversion_operaciones!.aporte_total = 1
-    renderAmpliaciones(datos)
-    const operaciones = within(screen.getByRole('region', { name: 'Operaciones elegidas para conversión' }))
-    const tabla = operaciones.getByRole('table')
-    expect(within(tabla).getAllByRole('row')).toHaveLength(3)
-    expect(within(tabla).getByText('demo-operacion-renovacion').closest('tr')).toHaveTextContent('0')
-    expect(operaciones.getByText('2 operaciones elegidas · aporte total 1')).toBeInTheDocument()
-    expect(within(tabla).getByText('Ana Torres')).toBeInTheDocument()
-    expect(operaciones.getByText(/no reconstruye fotos mensuales cerradas/)).toBeInTheDocument()
   })
 
   it('pinta las semanas servidas por fecha de cierre sin sustituir las de llegada', () => {
@@ -129,55 +111,48 @@ describe('N1/N3/N4: lecturas nuevas separadas de las anteriores', () => {
     expect(within(screen.getByRole('region', { name: 'Cierres semanales del analista' })).getAllByRole('row')[1]).toHaveTextContent('0.004')
   })
 
-  it('declara las citas anteriores al alta excluidas, no incluidas en el cero real', () => {
+  it('conserva el cero real del indicador sin sumar citas anteriores al alta', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.citas_reales = { ...datos.citas_reales!, leads_con_cita_real: 0, citas_realizadas: 0, citas_anteriores_al_alta: 3, pct_llegadas_con_cita_real: 0 }
     renderAmpliaciones(datos)
-    const citas = screen.getByRole('region', { name: 'Llegadas con cita realizada' })
-    expect(citas).toHaveTextContent('3 citas realizadas con fecha prevista anterior al alta del lead; se excluyeron del indicador y requieren revisión.')
-    expect(citas).not.toHaveTextContent('permanecen incluidas')
+    const indicador = screen.getByText('Llegadas con cita realizada').closest('[data-gi-kpi]')
+    expect(indicador).toHaveTextContent('0 citas registradas como realizadas')
+    expect(indicador).not.toHaveTextContent('3 citas')
   })
 
-  it('conserva cierres y Cartera aunque no hayan llegado leads nuevos', () => {
+  it('conserva cierres aunque no hayan llegado leads nuevos', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.cohorte.leads = 0
     datos.citas_reales = { ...datos.citas_reales!, leads_base: 0, leads_con_cita_real: 0, citas_realizadas: 0, pct_llegadas_con_cita_real: null }
     renderAmpliaciones(datos)
     expect(screen.getByText('Aún no hay leads para analizar')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Cierres ocurridos por semana de cierre' })).toHaveAttribute('data-series', '[21,0,0,0,0]')
-    expect(screen.getByRole('region', { name: 'Operaciones elegidas para conversión' })).toHaveTextContent('2 operaciones elegidas')
-    expect(screen.getByRole('region', { name: 'Llegadas con cita realizada' })).toHaveTextContent('De 0 llegadas')
   })
 
-  it.each([null, undefined])('un servidor anterior (%s) no se interpreta como cero operaciones o citas', (valor) => {
+  it.each([null, undefined])('un servidor anterior (%s) no se interpreta como cero citas o cierres', (valor) => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.citas_reales = valor
     datos.conversion_operaciones = valor
     datos.cierres_por_semana = valor
     renderAmpliaciones(datos)
-    expect(screen.getByText('Citas reales de las llegadas no disponibles.')).toBeInTheDocument()
-    expect(screen.getByText('Detalle de operaciones elegidas no disponible o no verificable.')).toBeInTheDocument()
     expect(screen.getByText('Reunión o avance posterior').closest('[data-gi-kpi]')).toHaveTextContent('58')
-    expect(screen.queryByText('No hay operaciones elegidas en este rango.')).not.toBeInTheDocument()
+    expect(screen.getByText('Semanas por fecha de cierre no disponibles o no verificables.')).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Cierres ocurridos por semana de cierre' })).not.toBeInTheDocument()
   })
 
   it('bloquea respuestas parciales o con otro rango/origen sin tocar el avance inferido', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.citas_reales!.origen_filtrado = 'referido'
-    datos.conversion_operaciones!.completo = false
     datos.cierres_por_semana!.hasta = '2026-08-20'
     renderAmpliaciones(datos)
-    expect(screen.getByText('Citas reales de las llegadas no disponibles.')).toBeInTheDocument()
-    expect(screen.getByText('Detalle de operaciones elegidas no disponible o no verificable.')).toBeInTheDocument()
+    expect(screen.getByText('Reunión o avance posterior').closest('[data-gi-kpi]')).toHaveTextContent('58')
     expect(screen.getByText('Semanas por fecha de cierre no disponibles o no verificables.')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })).toBeInTheDocument()
   })
 
-  it('las citas reales son independientes de la paridad del índice; aportes y cierres se protegen', () => {
+  it('las citas reales son independientes de la paridad del índice; los cierres se protegen', () => {
     renderAmpliaciones(metricasConversionesDemo('2026-08-01', '2026-08-31'), { modoDemo: false })
-    expect(screen.getByRole('region', { name: 'Llegadas con cita realizada' })).toHaveTextContent('38')
-    expect(screen.getByText('Detalle de operaciones elegidas no disponible o no verificable.')).toBeInTheDocument()
+    expect(screen.getByText('Llegadas con cita realizada').closest('[data-gi-kpi]')).toHaveTextContent('38')
     expect(screen.queryByRole('img', { name: 'Cierres ocurridos por semana de cierre' })).not.toBeInTheDocument()
   })
 
