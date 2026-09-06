@@ -1,0 +1,2 @@
+# clave	firma	md5(functiondef+'\n')	md5(prosrc) — PRODUCCIÓN (= banco-f7) 06/09/2026, con D-19 aplicada
+crm.importar_lead_fn	crm.importar_lead_fn(jsonb)	553b1e079746ac0c2e4165e5337ca746	cf1d8388fcf2aae71fd8e5e9c99c52d5

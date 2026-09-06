@@ -9278,6 +9278,33 @@ async function testIdentidadF2bD4(sessions) {
   }
 }
 
+// ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
+// La conducta (nota + tarea, idempotencia, atribución) la mide scripts/oraculo-f2b-d20.sh. Aquí se vigila la
+// superficie: que el ayudante no esté expuesto y que el importador conserve su puerta cerrada a la API.
+async function testIdentidadF2bD20(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-20]: el cliente que vuelve no se pierde —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-20: ${etiqueta}`, sql);
+  const AYUD = 'private.registrar_solicitud_cliente_fn(uuid,text,jsonb)';
+  if (cuenta('D-20 aplicada', `select (to_regprocedure('${AYUD}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-20 (20260906210000) no está en esta base)');
+    return;
+  }
+  check(cuenta('ayudante', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'registrar_solicitud_cliente_fn' and p.prosecdef and p.provolatile = 'v' and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
+    'D-20 el ayudante es DEFINER de postgres, VOLATILE, con search_path vacío y lock_timeout');
+  check(cuenta('ayudante cerrado', `select (has_function_privilege('authenticated', '${AYUD}', 'EXECUTE') or has_function_privilege('anon', '${AYUD}', 'EXECUTE') or has_function_privilege('service_role', '${AYUD}', 'EXECUTE'))::int`) === 0
+      && cuenta('ayudante PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${AYUD}'::regprocedure and a.grantee = 0`) === 0,
+    'D-20 el ayudante no es llamable por la API: solo lo usa el importador, que corre como service_role sin sesión');
+  check(cuenta('exige service_role y bandera', `select (strpos(p.prosrc, 'auth.uid()') > 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0)::int from pg_proc p where p.oid = '${AYUD}'::regprocedure`) === 1,
+    'D-20 el ayudante exige que no haya sesión humana y lee la bandera bajo su candado (D-19)');
+  // El documento NO puede acabar en la ficha ni en la tarea: la bitácora copia esas filas enteras (regla D-9).
+  const SIN_DOC = "select (strpos(p.prosrc, '''dni''') = 0 and strpos(p.prosrc, 'documento') = 0)::int from pg_proc p where p.oid = '" + AYUD + "'::regprocedure";
+  check(cuenta('sin documento en la nota', SIN_DOC) === 1,
+    'D-20 el ayudante no escribe el documento en la nota ni en la tarea (la bitácora copia esas filas enteras)');
+  check(cuenta('importador cerrado', `select (has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('authenticated', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('anon', 'crm.importar_lead_fn(jsonb)', 'EXECUTE'))::int`) === 1
+      && cuenta('importador marcador', `select (strpos(p.prosrc, 'F2.b [D-20]') > 0)::int from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure`) === 1,
+    'D-20 el importador conserva su puerta (solo service_role) y lleva la rama del cliente que vuelve');
+}
+
 // ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
 // El invariante es censal: NINGUNA función que escriba puede leer `resolver_en_puertas` sin tomar antes su candado
 // compartido. Lo demás (que encender y apagar esperen a una escritura en vuelo) lo mide scripts/oraculo-f2b-d19.sh.
@@ -9473,9 +9500,9 @@ async function testIdentidadF2bD17yD18(sessions) {
   check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}). Con D-19 aplicada este número baja a 0 y lo vigila su propio bloque; aquí se conserva como guarda para una base sin D-19.`);
 }
 
-// ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
-// El invariante es censal: NINGUNA función que escriba puede leer `resolver_en_puertas` sin tomar antes su candado
-// compartido. Lo demás (que encender y apagar esperen a una escritura en vuelo) lo mide scripts/oraculo-f2b-d19.sh.
+// ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
+// La conducta (nota + tarea, idempotencia, atribución) la mide scripts/oraculo-f2b-d20.sh. Aquí se vigila la
+// superficie: que el ayudante no esté expuesto y que el importador conserve su puerta cerrada a la API.
 async function testRentabilidadR1(sessions, seed) {
   console.log('\n— Rentabilidad R1: núcleo de tasa, solicitudes y ledger —');
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R1: ${etiqueta}`, sql);
@@ -12516,6 +12543,7 @@ async function main() {
       await testIdentidadF2bD4(sessions);
       await testIdentidadF2bD17yD18(sessions);
       await testIdentidadF2bD19(sessions);
+      await testIdentidadF2bD20(sessions);
       await testIdentidadF2bD15(sessions, verifiedSeed);
       await testIdentidadF2bD5(sessions, verifiedSeed);
       await testRentabilidadR1(sessions, verifiedSeed);
