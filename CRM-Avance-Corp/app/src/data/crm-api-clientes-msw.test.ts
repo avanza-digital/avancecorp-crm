@@ -1391,6 +1391,21 @@ describe('crearContrato — los rechazos de idempotencia del servidor llegan con
     await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({ code: 'ALTA_ELIMINADA' })
   })
 
+  it('Gerencia tiene la eliminación PREPARADA (55000, migración 20260905234500) → CONTRATO_EN_ELIMINACION con un mensaje que no invita a reintentar', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
+        HttpResponse.json(
+          { code: '55000', message: 'El contrato está en proceso de eliminación', details: null, hint: null },
+          { status: 400 },
+        ),
+      ),
+    )
+    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({
+      code: 'CONTRATO_EN_ELIMINACION',
+      message: expect.stringContaining('Gerencia está eliminando'),
+    })
+  })
+
   it('cualquier otro P0409 sigue siendo el error genérico (no se cuela como idempotencia)', async () => {
     rechazar('Otro conflicto cualquiera', '')
     await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({ code: 'POSTGREST_ERROR' })

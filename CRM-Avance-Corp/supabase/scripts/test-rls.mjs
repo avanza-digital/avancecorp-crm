@@ -5457,6 +5457,204 @@ async function testContractBankAccounts(sessions, seed) {
           .eq('numero_contrato', `RLS-IDEM-${idemToken}-6`),
       );
       check(carreraCount.count === 1, 'idempotencia: la carrera dejo UN solo contrato', `count=${carreraCount.count}`);
+
+      // ── El botón «Eliminar contrato» de Gerencia deja el DELETE auditado a nombre de quien
+      // lo pulsó (migración 20260905233000). La edge borra por la puerta oficial
+      // (contrato_eliminacion_preparar + finalizar) con service_role: aquí, el cliente admin.
+      // Sin la migración, auth.uid() es NULL dentro de finalizar y el DELETE de
+      // public.contratos queda en audit_log SIN actor (medido en prod el 05/09/2026).
+      // La puerta exige es_admin() como actor: vend1 pasa a admin del portal solo para esto
+      // (mismo truco que las sondas P04) y vuelve a analista en el finally.
+      {
+        const actorId = seed.profileIdByKey.vend1;
+        const paraBorrar = await positive(
+          'eliminación auditada: alta de un contrato que se va a borrar por la puerta',
+          altaIdem(`RLS-IDEM-${idemToken}-DEL`, { clave_idempotencia: randomUUID() }),
+        );
+        const delId = typeof paraBorrar?.data?.id === 'string' ? paraBorrar.data.id : null;
+        check(delId !== null, 'eliminación auditada: el contrato a borrar existe');
+        await requireAdmin(
+          'eliminación auditada: vend1 pasa a admin del portal (la puerta exige es_admin)',
+          admin.from('perfiles').update({ rol: 'admin' }).eq('id', actorId),
+        );
+        try {
+          const prep = await requireAdmin(
+            'eliminación auditada: preparar como service_role con p_actor_id',
+            admin.schema('crm').rpc('contrato_eliminacion_preparar', { p_contrato_id: delId, p_actor_id: actorId }),
+          );
+          const token = typeof prep?.data?.token === 'string' ? prep.data.token : null;
+          check(token !== null, 'eliminación auditada: la puerta autorizó al actor admin (token)');
+          const fin = await requireAdmin(
+            'eliminación auditada: finalizar como service_role con p_actor_id',
+            admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: delId, p_token: token, p_actor_id: actorId }),
+          );
+          check(fin?.data?.ok === true, 'eliminación auditada: el contrato se borró por la puerta oficial');
+          const queda = await requireAdmin(
+            'eliminación auditada: releer el contrato borrado',
+            admin.from('contratos').select('id', { count: 'exact', head: true }).eq('id', delId),
+          );
+          check(queda.count === 0, 'eliminación auditada: no queda el contrato');
+          // audit_log está fuera del alcance de la API: se lee por la vía fuera de banda.
+          const atribuido = contarFueraDeBanda('audit del DELETE atribuido al actor',
+            `select count(*) from public.audit_log where tabla='contratos' and fila_id::text='${delId}' and operacion='DELETE' and usuario_id='${actorId}'`);
+          const sinActor = contarFueraDeBanda('audit del DELETE sin actor',
+            `select count(*) from public.audit_log where tabla='contratos' and fila_id::text='${delId}' and operacion='DELETE' and usuario_id is null`);
+          check(atribuido === 1 && sinActor === 0,
+            'eliminación auditada: el DELETE hecho por service_role quedó en audit_log a nombre del actor, no con usuario NULL',
+            `atribuido=${atribuido} sinActor=${sinActor}`);
+
+          // ── m3 (migración 20260905234500): el replay NO devuelve un contrato con eliminación PREPARADA ──
+
+          // Gerencia pulsó «Eliminar» (preparar) y la edge aún no finalizó: el replay del alta con la
+
+          // misma clave debe responder 55000 «en proceso de eliminación» (como el alta nueva), sin
+
+          // devolver el contrato como «alta recuperada» y sin crear otro; finalizado el borrado, el replay
+
+          // vuelve a ser lápida P0409. Con el texto vivo (v2.1) el replay devolvía el contrato: falso «ok».
+
+          const claveM3 = randomUUID();
+
+          const altaM3 = await positive(
+
+            'm3: alta con clave K de un contrato que Gerencia va a poner en eliminación',
+
+            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+
+          );
+
+          const m3Id = typeof altaM3?.data?.id === 'string' ? altaM3.data.id : null;
+
+          const prepM3 = await requireAdmin(
+
+            'm3: preparar la eliminación como admin (queda PENDIENTE, sin finalizar)',
+
+            admin.schema('crm').rpc('contrato_eliminacion_preparar', { p_contrato_id: m3Id, p_actor_id: actorId }),
+
+          );
+
+          const tokenM3 = typeof prepM3?.data?.token === 'string' ? prepM3.data.token : null;
+
+          await expectExpectedFailure(
+
+            'm3: el replay con la MISMA clave responde 55000 «en proceso de eliminación», no «alta recuperada»',
+
+            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+
+            ['55000'],
+
+            /en proceso de eliminaci/i,
+
+          );
+
+          await expectExpectedFailure(
+
+            'm3: misma clave con OTRO número tampoco crea nada mientras hay eliminación pendiente (55000 antes que la huella)',
+
+            altaIdem(`RLS-IDEM-${idemToken}-M3B`, { clave_idempotencia: claveM3 }),
+
+            ['55000'],
+
+            /en proceso de eliminaci/i,
+
+          );
+
+          const sigueM3 = await requireAdmin(
+
+            'm3: releer el contrato en eliminación',
+
+            admin.from('contratos').select('id', { count: 'exact', head: true }).like('numero_contrato', `RLS-IDEM-${idemToken}-M3%`),
+
+          );
+
+          check(sigueM3.count === 1, 'm3: el contrato sigue (uno solo); el replay no lo tocó ni creó otro', `count=${sigueM3.count}`);
+
+          const finM3 = await requireAdmin(
+
+            'm3: Gerencia finaliza el borrado',
+
+            admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: m3Id, p_token: tokenM3, p_actor_id: actorId }),
+
+          );
+
+          check(finM3?.data?.ok === true, 'm3: el borrado finalizó');
+
+          await expectExpectedFailure(
+
+            'm3: tras el borrado, el replay vuelve a ser lápida P0409 «fue eliminado después» (no recrea)',
+
+            altaIdem(`RLS-IDEM-${idemToken}-M3`, { clave_idempotencia: claveM3 }),
+
+            ['P0409'],
+
+            /fue eliminado después/,
+
+          );
+
+          const nadaM3 = await requireAdmin(
+
+            'm3: contar tras la lápida',
+
+            admin.from('contratos').select('id', { count: 'exact', head: true }).like('numero_contrato', `RLS-IDEM-${idemToken}-M3%`),
+
+          );
+
+          check(nadaM3.count === 0, 'm3: no queda ni se recreó ningún contrato M3', `count=${nadaM3.count}`);
+
+
+          // Los DENEGADOS de la puerta también en el gate (auditor-rls): la autorización sigue siendo
+          // token + solicitado_por = p_actor_id, y ni authenticated ni anon pueden ejecutarla.
+          const segundo = await positive(
+            'eliminación auditada (denegados): alta de un segundo contrato',
+            altaIdem(`RLS-IDEM-${idemToken}-DEL2`, { clave_idempotencia: randomUUID() }),
+          );
+          const del2 = typeof segundo?.data?.id === 'string' ? segundo.data.id : null;
+          await expectExplicitAuthorizationDenied(
+            'eliminación auditada (denegados): un actor NO admin (gerencia) no puede preparar la eliminación',
+            admin.schema('crm').rpc('contrato_eliminacion_preparar', { p_contrato_id: del2, p_actor_id: seed.profileIdByKey.gerencia }),
+            ['42501'],
+          );
+          const prep2 = await requireAdmin(
+            'eliminación auditada (denegados): preparar el segundo contrato como el actor admin',
+            admin.schema('crm').rpc('contrato_eliminacion_preparar', { p_contrato_id: del2, p_actor_id: actorId }),
+          );
+          const token2 = typeof prep2?.data?.token === 'string' ? prep2.data.token : null;
+          await expectExpectedFailure(
+            'eliminación auditada (denegados): token equivocado → P0002',
+            admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: del2, p_token: '00000000-0000-0000-0000-000000000000', p_actor_id: actorId }),
+            ['P0002'],
+            /no existe o venció/i,
+          );
+          await expectExpectedFailure(
+            'eliminación auditada (denegados): otro actor con el token correcto → P0002 (el mutex es de quien preparó)',
+            admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: del2, p_token: token2, p_actor_id: seed.profileIdByKey.gerencia }),
+            ['P0002'],
+            /no existe o venció/i,
+          );
+          for (const [quien, cli] of [['vend1', sessions.vend1.client], ['gerencia', sessions.gerencia.client], ['anon', anonIdem]]) {
+            await expectExplicitAuthorizationDenied(
+              `eliminación auditada (denegados): ${quien} no ejecuta contrato_eliminacion_finalizar (sin EXECUTE)`,
+              cli.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: del2, p_token: token2, p_actor_id: actorId }),
+              ['42501', 'PGRST202'],
+            );
+          }
+          const vivo2 = await requireAdmin(
+            'eliminación auditada (denegados): releer el segundo contrato',
+            admin.from('contratos').select('id', { count: 'exact', head: true }).eq('id', del2),
+          );
+          check(vivo2.count === 1, 'eliminación auditada (denegados): tras los rechazos el contrato sigue vivo');
+          const fin2 = await requireAdmin(
+            'eliminación auditada (denegados): limpieza — finalizar con el token y el actor correctos',
+            admin.schema('crm').rpc('contrato_eliminacion_finalizar', { p_contrato_id: del2, p_token: token2, p_actor_id: actorId }),
+          );
+          check(fin2?.data?.ok === true, 'eliminación auditada (denegados): con token y actor correctos sí se borra');
+        } finally {
+          await requireAdmin(
+            'eliminación auditada: vend1 vuelve a analista',
+            admin.from('perfiles').update({ rol: 'analista' }).eq('id', actorId),
+          );
+        }
+      }
     }
 
     // El cronograma deliberadamente invalido evita una mutacion aun si hubiera

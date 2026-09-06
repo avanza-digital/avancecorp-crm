@@ -1696,6 +1696,13 @@ function aErrorApi(
     // tardío no lo recrea. El modal libera la clave y pide volver a pulsar.
     code = 'ALTA_ELIMINADA'
     mensaje = error.message ?? mensaje
+  } else if (codigoPg === '55000' && texto.includes('en proceso de eliminación')) {
+    // Gerencia preparó la eliminación del contrato de este intento (o del contrato
+    // cuyo PDF se pide) y la edge aún no finalizó (migración 20260905234500, m3).
+    // No se creó nada. El modal NO libera la clave: cuando el borrado termine, el
+    // reintento cae solo en la lápida P0409; si Gerencia se arrepiente, en el replay.
+    code = 'CONTRATO_EN_ELIMINACION'
+    mensaje = 'Gerencia está eliminando el contrato de tu intento anterior; no se creó otro. Espera a que termine o consúltalo antes de volver a intentar.'
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
     // 22023 = validaciones de parámetros de las RPC operativas.

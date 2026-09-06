@@ -1,0 +1,3 @@
+crm.contrato_eliminacion_finalizar functiondef PROD  8e78cb04c7c5b6d561cd3c6c15b7f270
+crm.contrato_eliminacion_finalizar functiondef NUEVO 5e398eaff1aef4a557e7ebb31d19fcf0
+migracion 20260905233000 md5(archivo) 4230bc67fbc0604d7ad3f788b651e1a3

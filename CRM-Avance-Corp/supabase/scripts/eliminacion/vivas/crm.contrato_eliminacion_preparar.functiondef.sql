@@ -1,0 +1,115 @@
+CREATE OR REPLACE FUNCTION crm.contrato_eliminacion_preparar(p_contrato_id uuid, p_actor_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_poder jsonb;
+  v_eliminacion private.contrato_eliminaciones%rowtype;
+  v_objetos jsonb;
+begin
+  perform private.bloquear_fila_contrato_pdf(p_contrato_id);
+  v_poder := private.poder_eliminar_contrato_como(
+    p_contrato_id, p_actor_id
+  );
+  if not coalesce((v_poder->>'admin')::boolean, false) then
+    raise insufficient_privilege using
+      message = 'Solo Admin o Superadmin puede eliminar contratos';
+  end if;
+  if coalesce((v_poder->>'tiene_pagos')::boolean, false)
+     and not coalesce((v_poder->>'superadmin')::boolean, false) then
+    raise insufficient_privilege using
+      message = 'Este contrato tiene pagos; solo Superadmin puede eliminarlo';
+  end if;
+
+  select * into v_eliminacion
+  from private.contrato_eliminaciones e
+  where e.contrato_id = p_contrato_id
+  for update;
+  if found then
+    return jsonb_build_object(
+      'contrato_id', v_eliminacion.contrato_id,
+      'token', v_eliminacion.token,
+      'objetos', v_eliminacion.objetos
+    );
+  end if;
+
+  if exists (
+    select 1
+    from private.contrato_pdf_jobs j
+    where j.contrato_id = p_contrato_id
+      and j.estado in ('procesando', 'subido_verificado')
+      and j.lease_expira_en > statement_timestamp()
+  ) then
+    raise exception
+      'El PDF se está generando; reintenta la eliminación en unos minutos'
+      using errcode = '55000';
+  end if;
+
+  if exists (
+    select 1
+    from public.documentos d
+    where d.contrato_id = p_contrato_id
+      and (
+        d.storage_path is null
+        or d.storage_path <> btrim(d.storage_path)
+        or length(d.storage_path) not between 5 and 1024
+        or left(d.storage_path, length(p_contrato_id::text) + 1)
+             <> p_contrato_id::text || '/'
+        or strpos(d.storage_path, '..') > 0
+        or strpos(d.storage_path, '//') > 0
+        or strpos(d.storage_path, E'\\') > 0
+        or d.storage_path ~ '[[:cntrl:]]'
+      )
+  ) then
+    raise exception 'Un documento del contrato tiene una ruta Storage inválida'
+      using errcode = '23514';
+  end if;
+
+  select coalesce(jsonb_agg(objeto order by objeto->>'bucket', objeto->>'path'), '[]'::jsonb)
+  into v_objetos
+  from (
+    select distinct jsonb_build_object(
+      'bucket', 'contratos-generados', 'path', x.storage_path
+    ) as objeto
+    from (
+      select j.storage_path
+      from private.contrato_pdf_jobs j
+      where j.contrato_id = p_contrato_id
+      union
+      select p.storage_path
+      from private.contrato_pdfs p
+      where p.contrato_id = p_contrato_id
+    ) x
+    where x.storage_path is not null
+
+    union
+
+    select distinct jsonb_build_object(
+      'bucket', 'documentos', 'path', d.storage_path
+    ) as objeto
+    from public.documentos d
+    where d.contrato_id = p_contrato_id
+      and d.storage_path is not null
+      and btrim(d.storage_path) <> ''
+  ) objetos;
+
+  if jsonb_array_length(v_objetos) > 1000 then
+    raise exception 'El contrato supera el límite seguro de archivos para borrar'
+      using errcode = '54000';
+  end if;
+
+  insert into private.contrato_eliminaciones (
+    contrato_id, solicitado_por, objetos
+  ) values (
+    p_contrato_id, p_actor_id, v_objetos
+  ) returning * into v_eliminacion;
+
+  return jsonb_build_object(
+    'contrato_id', v_eliminacion.contrato_id,
+    'token', v_eliminacion.token,
+    'objetos', v_eliminacion.objetos
+  );
+end;
+$function$
