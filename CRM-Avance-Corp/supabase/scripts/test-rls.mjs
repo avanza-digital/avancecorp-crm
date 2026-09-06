@@ -9470,7 +9470,7 @@ async function testIdentidadF2bD17yD18(sessions) {
   }
   // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
   const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
-  check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}; el encendido las cubre con el drenaje de scripts/encender-resolver-en-puertas.sql)`);
+  check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}). Con D-19 aplicada este número baja a 0 y lo vigila su propio bloque; aquí se conserva como guarda para una base sin D-19.`);
 }
 
 // ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
