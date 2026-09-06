@@ -29,14 +29,34 @@ FORMAS = ["coalesce((select f.activo from crm.multiempresa_flags f where f.nombr
           "coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false)"]
 
 T = {}   # clave -> (texto_prod, texto_nuevo, firma, md5_prosrc_prod, md5_prosrc_nuevo)
+LECTURAS = {}
 for key, firma, md5def, md5src in H:
     prev = (S/'vivas'/'d19'/f'{key}.sql').read_text(encoding='utf-8')
     assert md5s(prev) == md5def, f'{key}: el volcado no coincide con la huella de producción'
     n = sum(prev.count(f) for f in FORMAS)
-    assert n == 1, f'{key}: {n} lecturas en línea de la bandera (se esperaba exactamente 1)'
+    assert n >= 1, f'{key}: no se encontró la lectura en línea de la bandera'
+    LECTURAS[key] = n
     new = prev
     for f in FORMAS: new = new.replace(f, HELPER)
     assert new != prev
+    if key == 'crm.fijar_membresia_activa_fn':
+        # Auditor D-19 M1: tomaba el interlock EXCLUSIVO de jerarquía y SOLO DESPUÉS leía la bandera, al revés que
+        # todas las demás. Con el exclusivo del encendido encolado eso cierra un ciclo blando. Se pone la lectura
+        # (y por tanto el candado de la bandera) ANTES del interlock: orden global BANDERA → JERARQUÍA → documento
+        # → persona → lead. El motivo original de D-2 (leer bajo el interlock) ya no aplica: la bandera tiene candado propio.
+        viejo = ('''  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0)
+  );
+  -- F2.b [D-2]: la bandera se lee BAJO el interlock exclusivo (las puertas de identidad de b5 lo toman compartido).
+  v_flag := ''' + HELPER + ';')
+        nuevo = ('''  -- F2.b [D-19] (auditor M1): primero el candado de la BANDERA, después el interlock de jerarquía. El orden global
+  -- es BANDERA → JERARQUÍA → documento → persona → lead; invertirlo aquí encolaba un ciclo blando con el encendido.
+  v_flag := ''' + HELPER + ''';
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0)
+  );''')
+        assert new.count(viejo) == 1, 'M1: no se encontró el bloque del interlock'
+        new = new.replace(viejo, nuevo)
     body = lambda t: t.split('AS $function$', 1)[1].rsplit('$function$', 1)[0]
     T[key] = (prev.rstrip('\n'), new.rstrip('\n'), firma, md5src, md5s(body(new)))
 
@@ -64,8 +84,9 @@ PRE_RB = ''.join(f"""  if coalesce((select md5(p.prosrc) from pg_proc p where p.
 POST_RB = ''.join(f"""  if not exists (select 1 from pg_proc p where p.oid = '{firma}'::regprocedure
                   and md5(p.prosrc) = '{h0}'
                   and p.prosecdef = {A[key][1]} and p.proowner = '{A[key][3]}'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = '{q(A[key][2])}') then
-    raise exception 'REVERSA D-19: {firma} no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = '{q(A[key][2])}'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = '{q(A[key][5])}') then
+    raise exception 'REVERSA D-19: {firma} no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
 """ for key, (prev, new, firma, h0, h1) in T.items())
 
@@ -112,19 +133,42 @@ revoke all on function private.resolver_en_puertas_bajo_candado() from public;
 -- como su dueño. Si algún día la llama una función INVOKER, ese día se le da el permiso y se dice por qué.
 """
 
-CENSO = """  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+CENSO = """  -- EL invariante, en su forma TOTAL: NINGUNA función puede leer `resolver_en_puertas` sin tener su candado. Ya no
+  -- se distingue entre escritoras y lectoras —el auditor y Codex mostraron que la distinción era falsa: un disparador
+  -- BEFORE escribe con `new.<col> := …` sin decir «update», y un ayudante «de solo lectura» como `persona_vetada_perfil`
+  -- gobierna lo que un disparador deja pasar—. La única exención es una LISTA BLANCA explícita de las puertas que ya
+  -- toman el candado EN LÍNEA desde D-5/D-13/D-15/D-17, más el propio ayudante. Cualquier función nueva que lea la
+  -- bandera sin llamarlo pone esto en rojo el mismo día.
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname in ('crm','private','public')
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas') > 0
-         and pg_catalog.strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0
-         and p.prosrc ~* '(insert into|update |delete from)') <> 0 then
-    raise exception 'POSTFLIGHT D-19: sigue habiendo funciones que ESCRIBEN y leen la bandera sin el candado compartido';
+         and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') <> all (array[
+      'crm.abandonar_conversion_gerencia_fn(uuid, text)',
+      'crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)',
+      'crm.editar_lead_fn(uuid, jsonb)',
+      'crm.fijar_dni_lead_fn(uuid, text)',
+      'crm.levantar_no_contactar(uuid, text)',
+      'crm.marcar_efectos_conversion(uuid, uuid, text)',
+      'crm.marcar_efectos_conversion(uuid)',
+      'crm.marcar_no_contactar(uuid, text)',
+      'crm.reabrir_lead_fn(uuid)',
+      'crm.rescatar_descartes(uuid[], uuid[], boolean)',
+      'crm.reservar_conversion_lead(uuid)',
+      'crm.retomar_conversion_gerencia_fn(uuid)',
+      'crm.tomar_lead_libre(text, text)',
+      'private.deshacer_descarte_implementacion(uuid)',
+      -- El propio ayudante: es quien SOSTIENE el candado. Entra en la lista porque el criterio es TEXTUAL y su
+      -- comentario dice «el UPDATE de la bandera», que el patrón de escritura confunde con una escritura de verdad.
+      -- Vale como recordatorio de que este censo es un centinela de texto, no un análisis del flujo.
+      'private.resolver_en_puertas_bajo_candado()'])) <> 0 then
+    raise exception 'POSTFLIGHT D-19: sigue habiendo funciones que leen la bandera sin su candado compartido';
   end if;
 """
 
 mig = f"""-- ============================================================================
--- P-055 · MULTIEMPRESA Contrato-F2 · F2.b prerrequisito de ACTIVACIÓN [D-19] — TODA ESCRITURA LEE LA BANDERA
--- BAJO EL CANDADO DEL ENCENDIDO (el último ítem de código antes del `!` que enciende la identidad unificada)
+-- P-055 · MULTIEMPRESA Contrato-F2 · F2.b prerrequisito de ACTIVACIÓN [D-19] — NADIE QUE ESCRIBA LEE LA BANDERA
+-- SIN SU CANDADO (el último ítem de código antes del `!` que enciende la identidad unificada)
 --
 -- Por qué. D-5 puso el trigger que serializa el UPDATE de `resolver_en_puertas` contra el candado consultivo
 -- `crm_flag_resolver_en_puertas` (EXCLUSIVO al encender) y transformó las puertas de leads para tomarlo en COMPARTIDO
@@ -135,10 +179,19 @@ mig = f"""-- ===================================================================
 -- del ENCENDIDO, no una mejora.
 --
 -- Qué hace. Crea {HELPER} —READ COMMITTED obligatorio, compartido, y entonces la lectura— y
--- sustituye en las {len(T)} la lectura en línea por esa llamada. UNA sustitución por función, anclada por md5 al texto
--- VIVO de producción. Con la bandera estable el valor es el mismo, así que el comportamiento es el de hoy: lo único que
--- cambia es que ahora se lee con el candado puesto, y que quien llame en REPEATABLE READ o SERIALIZABLE recibe `0A000`
--- (el front, las edges y la suite van por PostgREST, que es READ COMMITTED).
+-- sustituye la lectura en línea por esa llamada en las {len(T)} funciones que ESCRIBEN o pueden bloquear una escritura.
+-- Anclado por md5 al texto VIVO de producción. Con la bandera estable el valor es el mismo, así que el comportamiento
+-- es el de hoy: lo único que cambia es que ahora se lee con el candado puesto, y que quien llame en REPEATABLE READ o
+-- SERIALIZABLE recibe `0A000` (el front, las edges y la suite van por PostgREST, que es READ COMMITTED).
+--
+-- ALCANCE, dicho con precisión (auditor #A1 y #A2). Entran: las RPC que escriben, las dos puertas de la saga, los
+-- ayudantes que toman los candados de documento y persona, y **los cinco disparadores de `crm.leads` y `crm.tareas`
+-- que leen la bandera**. Esos disparadores son la parte que faltaba: un `update crm.leads` directo desde el front (por
+-- PostgREST, sin pasar por ninguna RPC) dispara validadores BEFORE que decidían con la bandera SIN candado, así que el
+-- encendido no los esperaba y podían confirmar con el criterio viejo. Un disparador BEFORE escribe aunque no diga
+-- «update»: muta con `new.<columna> := …`. Quedan FUERA, a propósito, las ocho funciones de SOLO LECTURA (correo de
+-- Auth, cliente eliminable, previsualización de fusión, impacto de baja, leads por repartir, leads vetados, veto por
+-- perfil y verificador de disponibilidad): una lectura obsoleta en una pantalla no corrompe nada.
 --
 -- ⚠️ Toca `public.crear_contrato`, la puerta de alta que comparte con el Portal. Es el mismo objeto que ya transformó
 -- E4 con el `!` de Miguel; aquí solo cambia la lectura de la bandera. Sus permisos y su definer se comprueban intactos
@@ -146,6 +199,10 @@ mig = f"""-- ===================================================================
 --
 -- Aterriza APAGADA (se niega si la bandera está encendida). Reversa byte a byte: scripts/rollback-f2b-d19.sql.
 -- Registro: scripts/registrar-f2b-d19.sql. Orden de reversa: D-19 → D-18 → D-17 → D-15 → D-5 → D-3/D-13.
+-- ⚠️ Mientras D-19 esté aplicada quedan inservibles OCHO reversas anteriores, no seis (auditor #M5): además de las de
+-- la cadena, las de **D-2** (offboarding y reasignar), **D-10** (la reserva de 4 argumentos), **b5** (alta de identidad,
+-- conversión y saga) y **E4** (`crear_contrato_con_cuenta` y `public.crear_contrato`). Todas rehúsan solas con su
+-- guarda de huella —el fallo es seguro—, pero conviene saberlo antes de intentarlo.
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';
@@ -171,7 +228,10 @@ begin
                   where n.nspname = 'private' and p.proname = 'resolver_en_puertas_bajo_candado'
                     and p.prosecdef and p.provolatile = 'v' and p.prolang = (select oid from pg_language where lanname = 'plpgsql')
                     and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""']
-                    and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)) then
+                    and not exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0)
+                    and not has_function_privilege('authenticated', '{HELPER}', 'EXECUTE')
+                    and not has_function_privilege('anon', '{HELPER}', 'EXECUTE')
+                    and not has_function_privilege('service_role', '{HELPER}', 'EXECUTE')) then
     raise exception 'POSTFLIGHT D-19: {HELPER} no quedó como se esperaba (plpgsql, volatile, definer, dueño, search_path o PUBLIC)';
   end if;
 {POST}{CENSO}  raise notice 'F2.b D-19 OK: las {len(T)} escrituras leen la bandera bajo el candado del encendido (apagada: sin cambio de comportamiento).';
@@ -200,6 +260,18 @@ for i, (key, (prev, new, firma, h0, h1)) in enumerate(T.items(), 1):
 {prev};
 """
 rb += f"""
+do $dep$
+declare v_dep text;
+begin
+  select string_agg(distinct d.classid::regclass::text || ' ' || d.objid::text, ', ')
+    into v_dep
+    from pg_depend d
+   where d.refobjid = to_regprocedure('{HELPER}') and d.deptype in ('n','a') and d.classid <> 'pg_proc'::regclass;
+  if v_dep is not null then
+    raise exception 'REVERSA D-19: algo depende de {HELPER} (%): resuélvelo antes de soltarla', v_dep;
+  end if;
+end
+$dep$;
 drop function if exists private.resolver_en_puertas_bajo_candado();
 
 do $post$
@@ -229,13 +301,19 @@ begin
   if to_regprocedure('{HELPER}') is null then
     raise exception 'REGISTRO D-19: no está {HELPER}: ¿aplicaste la migración?';
   end if;
-{POST}{CENSO}  if exists (select 1 from supabase_migrations.schema_migrations where version = '{VER}' and coalesce(name, '') <> '{NAME[15:]}') then
+{POST}{CENSO}  if exists (select 1 from supabase_migrations.schema_migrations where version = '{VER}'
+               and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null
+                    or md5(statements[1]) <> '{MD5MIG}')) then
+    raise exception 'REGISTRO D-19: la versión {VER} ya está registrada con otro contenido (o incompleto)';
+  end if;
+  if exists (select 1 from supabase_migrations.schema_migrations where version = '{VER}' and coalesce(name, '') <> '{NAME[15:]}') then
     raise exception 'REGISTRO D-19: la versión {VER} ya está registrada con otro nombre';
   end if;
 end
 $chk$;
+-- Se registra la migración ENTERA, igual que D-17 y D-18: así `statements[1]` vuelve a dar el md5 del archivo.
 insert into supabase_migrations.schema_migrations (version, name, statements)
-values ('{VER}', '{NAME[15:]}', array['-- F2.b D-19 aplicada con db query --linked --file (md5 {MD5MIG})'])
+values ('{VER}', '{NAME[15:]}', array[$m${mig}$m$])
 on conflict (version) do nothing;
 commit;
 """

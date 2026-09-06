@@ -1,5 +1,5 @@
 -- ============================================================================
--- REVERSA de F2.b [D-19] (20260906200000): restaura byte a byte las 18 funciones (texto vivo de producción, huellas en
+-- REVERSA de F2.b [D-19] (20260906200000): restaura byte a byte las 34 funciones (texto vivo de producción, huellas en
 -- huellas-d19-prod.txt), suelta private.resolver_en_puertas_bajo_candado() y desregistra la versión. Repetible dos veces.
 -- Se niega con la bandera encendida: con ON, quitar el candado es justo el hueco que D-19 cierra.
 -- ============================================================================
@@ -39,7 +39,7 @@ begin
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.enlazar_lead_inversionista_fn(uuid, uuid, text)')), '') not in ('ae7a1c05cbf1659c2ef39783fb0d034d', '3766ae3484f839218f94dccdde5bb04b') then
     raise exception 'REVERSA D-19: crm.enlazar_lead_inversionista_fn(uuid, uuid, text) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid)')), '') not in ('4f6829b5f07a96d431cea16136e0daa4', '07b8acd42d6b2eadb18353e0a8d8aaa5') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid)')), '') not in ('a3db3c1ada3fb4f7a4751364b5509d00', '07b8acd42d6b2eadb18353e0a8d8aaa5') then
     raise exception 'REVERSA D-19: crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
   end if;
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid, uuid, text, text)')), '') not in ('04de1797b11de93502ecb63487565bf6', '87e25279ed5c3bc8b3418be573499f41') then
@@ -72,10 +72,58 @@ begin
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('public.crear_contrato(jsonb, jsonb)')), '') not in ('4bf2f691888bee4d3198cccba8acd396', '061c40e345312ca5e515ddd5ee282e5c') then
     raise exception 'REVERSA D-19: public.crear_contrato(jsonb, jsonb) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
   end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.bloquear_personas_de_leads(uuid[], text)')), '') not in ('14727d8ae95fe727f5ddc81f9a92c9fd', '0a00e15b47907d3c79b59920ddd86911') then
+    raise exception 'REVERSA D-19: private.bloquear_personas_de_leads(uuid[], text) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.identidad_bloquear_documento(text, text)')), '') not in ('31f8f749f404614ac083b47bcfbd083b', 'ad3a36cf8237bef81bef5e7632177e1a') then
+    raise exception 'REVERSA D-19: private.identidad_bloquear_documento(text, text) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.identidad_bloquear_persona(text, text)')), '') not in ('b3a4fef3be766a70869c5dd8e6b8ede3', 'ecc1fd3672e2466ccd9494e9530bf299') then
+    raise exception 'REVERSA D-19: private.identidad_bloquear_persona(text, text) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.trg_leads_disponibilidad_atomica()')), '') not in ('ba0fd3ef2e9a16181fb6b944ac002450', '0fc38c3b3b63b4004d45891e9ff92b19') then
+    raise exception 'REVERSA D-19: private.trg_leads_disponibilidad_atomica() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.trg_leads_hereda_veto_persona()')), '') not in ('1ee382b97b06bd13e3543d23075eba3e', '927858289e431b0d6dc2a5f42c68e061') then
+    raise exception 'REVERSA D-19: private.trg_leads_hereda_veto_persona() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.trg_leads_no_contactar_solo_puerta()')), '') not in ('c8a2204232c07a605a815aac80360238', '595dfbd9c1d06b42638c18cc979a3c23') then
+    raise exception 'REVERSA D-19: private.trg_leads_no_contactar_solo_puerta() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.trg_leads_zz_reapertura_solo_rpc()')), '') not in ('ec1e53826887925cad0c41c319e967fb', '5af423f5a32ff7978b51216bf1a31dc7') then
+    raise exception 'REVERSA D-19: private.trg_leads_zz_reapertura_solo_rpc() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.trg_tareas_veto_persona_perfil()')), '') not in ('a2243b17cc31e7a06cfb7b0e443975ed', '3826f7b7d9f19fa63b5f2515168c56cf') then
+    raise exception 'REVERSA D-19: private.trg_tareas_veto_persona_perfil() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.auth_usuario_por_correo_fn(text)')), '') not in ('13ab2b907ead9b091e328565cb580255', '4fde369f6e9ef37859871410be6338a5') then
+    raise exception 'REVERSA D-19: crm.auth_usuario_por_correo_fn(text) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.cliente_eliminable_fn(uuid)')), '') not in ('f8ce7433266b5044dcd4c2c5475f681e', '4f2afd8bddbf354ec956027d9b3aeb18') then
+    raise exception 'REVERSA D-19: crm.cliente_eliminable_fn(uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusion_previsualizar_fn(uuid, uuid)')), '') not in ('417b8ce74b4e95e7f5ccfbfe70951b21', '27eedf7b16b4d680bc6c7483901630cb') then
+    raise exception 'REVERSA D-19: crm.fusion_previsualizar_fn(uuid, uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.impacto_desactivacion_usuario_fn(uuid)')), '') not in ('165bbd6e236197e5627993330c9a317f', '787c48c1a8e80a307fb1285b42f82180') then
+    raise exception 'REVERSA D-19: crm.impacto_desactivacion_usuario_fn(uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.leads_por_repartir_implementacion()')), '') not in ('72ad135aa4d6c202623e8a57b34dea63', '0b67ca88bb17b8ac8059d415721504e7') then
+    raise exception 'REVERSA D-19: private.leads_por_repartir_implementacion() no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.leads_vetados_persona(uuid[])')), '') not in ('d3bb89258feb3235ba5e3d3b7bf5f9d9', '7f441c688f608017bdb4d398772a2aeb') then
+    raise exception 'REVERSA D-19: private.leads_vetados_persona(uuid[]) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.persona_vetada_perfil(uuid)')), '') not in ('b781240fbb6f72df381a1a262e8e9103', '597d76a6aa5f6ca75f0ffb86bd20497e') then
+    raise exception 'REVERSA D-19: private.persona_vetada_perfil(uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.verificar_disponibilidad_lead_impl(text, text, uuid)')), '') not in ('683c16fdcb08377af860f1aa0a18f3a1', '3ea1fbae8b35c0f8d2702270dd5c6b8d') then
+    raise exception 'REVERSA D-19: private.verificar_disponibilidad_lead_impl(text, text, uuid) no es ni el texto de D-19 ni el vivo de producción; no se pisa a ciegas';
+  end if;
 end
 $pre$;
 
--- ── 1/18 · crm.actualizar_cliente_gerencia(uuid, jsonb) (texto vivo de producción) ─────────
+-- ── 1/34 · crm.actualizar_cliente_gerencia(uuid, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.actualizar_cliente_gerencia(p_cliente_id uuid, p_patch jsonb)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -227,7 +275,7 @@ begin
 end;
 $function$;
 
--- ── 2/18 · crm.alta_cliente_identidad_fn(text, jsonb) (texto vivo de producción) ─────────
+-- ── 2/34 · crm.alta_cliente_identidad_fn(text, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.alta_cliente_identidad_fn(p_paso text, p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -339,7 +387,7 @@ begin
 end;
 $function$;
 
--- ── 3/18 · crm.convertir_lead(uuid, uuid) (texto vivo de producción) ─────────
+-- ── 3/34 · crm.convertir_lead(uuid, uuid) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.convertir_lead(p_lead_id uuid, p_perfil_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -644,7 +692,7 @@ begin
 end;
 $function$;
 
--- ── 4/18 · crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid) (texto vivo de producción) ─────────
+-- ── 4/34 · crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.corregir_documento_inversionista_fn(p_inversionista uuid, p_tipo text, p_documento text, p_motivo text, p_identificador_anterior uuid DEFAULT NULL::uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -869,7 +917,7 @@ begin
 end;
 $function$;
 
--- ── 5/18 · crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb) (texto vivo de producción) ─────────
+-- ── 5/34 · crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.crear_contrato_con_cuenta(p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1098,7 +1146,7 @@ begin
 end;
 $function$;
 
--- ── 6/18 · crm.eliminar_cliente_fn(uuid) (texto vivo de producción) ─────────
+-- ── 6/34 · crm.eliminar_cliente_fn(uuid) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.eliminar_cliente_fn(p_perfil_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1136,7 +1184,7 @@ begin
 end;
 $function$;
 
--- ── 7/18 · crm.enlazar_lead_inversionista_fn(uuid, uuid, text) (texto vivo de producción) ─────────
+-- ── 7/34 · crm.enlazar_lead_inversionista_fn(uuid, uuid, text) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.enlazar_lead_inversionista_fn(p_lead_id uuid, p_inversionista uuid, p_motivo text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1279,7 +1327,7 @@ begin
 end;
 $function$;
 
--- ── 8/18 · crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid) (texto vivo de producción) ─────────
+-- ── 8/34 · crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.fijar_membresia_activa_fn(p_perfil_id uuid, p_activo boolean, p_reemplazo_id uuid, p_version_equipo timestamp with time zone, p_idempotencia uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1564,7 +1612,7 @@ begin
 end;
 $function$;
 
--- ── 9/18 · crm.fusionar_inversionistas_fn(uuid, uuid, text, text) (texto vivo de producción) ─────────
+-- ── 9/34 · crm.fusionar_inversionistas_fn(uuid, uuid, text, text) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.fusionar_inversionistas_fn(p_perdedora uuid, p_canonica uuid, p_motivo text, p_hash text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1765,7 +1813,7 @@ begin
 end;
 $function$;
 
--- ── 10/18 · crm.reasignar_responsable_relacion_fn(uuid, uuid, text) (texto vivo de producción) ─────────
+-- ── 10/34 · crm.reasignar_responsable_relacion_fn(uuid, uuid, text) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.reasignar_responsable_relacion_fn(p_inversionista uuid, p_nuevo_responsable uuid, p_motivo text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1905,7 +1953,7 @@ begin
 end;
 $function$;
 
--- ── 11/18 · crm.registrar_reingreso_lead_fn(uuid, text, jsonb) (texto vivo de producción) ─────────
+-- ── 11/34 · crm.registrar_reingreso_lead_fn(uuid, text, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.registrar_reingreso_lead_fn(p_lead_id uuid, p_origen text, p_datos jsonb DEFAULT '{}'::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1946,7 +1994,7 @@ begin
 end;
 $function$;
 
--- ── 12/18 · crm.reservar_conversion_lead(uuid, text, text, jsonb) (texto vivo de producción) ─────────
+-- ── 12/34 · crm.reservar_conversion_lead(uuid, text, text, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.reservar_conversion_lead(p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -2157,7 +2205,7 @@ begin
 end;
 $function$;
 
--- ── 13/18 · crm.saga_conversion_fn(text, jsonb) (texto vivo de producción) ─────────
+-- ── 13/34 · crm.saga_conversion_fn(text, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION crm.saga_conversion_fn(p_paso text, p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -2234,7 +2282,7 @@ begin
 end;
 $function$;
 
--- ── 14/18 · private.enlazar_lead_reabierto(uuid, uuid) (texto vivo de producción) ─────────
+-- ── 14/34 · private.enlazar_lead_reabierto(uuid, uuid) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION private.enlazar_lead_reabierto(p_lead_id uuid, p_inv uuid)
  RETURNS void
  LANGUAGE plpgsql
@@ -2256,7 +2304,7 @@ begin
 end;
 $function$;
 
--- ── 15/18 · private.trg_leads_zz_enlaza_identidad() (texto vivo de producción) ─────────
+-- ── 15/34 · private.trg_leads_zz_enlaza_identidad() (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION private.trg_leads_zz_enlaza_identidad()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2360,7 +2408,7 @@ begin
 end;
 $function$;
 
--- ── 16/18 · private.trg_leads_zz_puente_identidad() (texto vivo de producción) ─────────
+-- ── 16/34 · private.trg_leads_zz_puente_identidad() (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION private.trg_leads_zz_puente_identidad()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2404,7 +2452,7 @@ begin
 end;
 $function$;
 
--- ── 17/18 · private.trg_perfiles_documento_protegido() (texto vivo de producción) ─────────
+-- ── 17/34 · private.trg_perfiles_documento_protegido() (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION private.trg_perfiles_documento_protegido()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -2438,7 +2486,7 @@ begin
 end;
 $function$;
 
--- ── 18/18 · public.crear_contrato(jsonb, jsonb) (texto vivo de producción) ─────────
+-- ── 18/34 · public.crear_contrato(jsonb, jsonb) (texto vivo de producción) ─────────
 CREATE OR REPLACE FUNCTION public.crear_contrato(p_contrato jsonb, p_cronograma jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -2716,6 +2764,919 @@ begin
 end;
 $function$;
 
+-- ── 19/34 · private.bloquear_personas_de_leads(uuid[], text) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.bloquear_personas_de_leads(p_leads uuid[], p_dni_extra text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_personas uuid[]; v_claves text[]; v_k text;
+begin
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    return pg_catalog.jsonb_build_object('personas', '[]'::jsonb, 'claves', '[]'::jsonb);
+  end if;
+  -- Codex v4.3 [2]: la comprobación «sigue dentro de lo bloqueado» relee tras esperar y eso solo vale en READ COMMITTED
+  -- (en REPEATABLE READ el snapshot viejo esconde a una persona confirmada por otra transacción).
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'La identidad unificada requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
+  end if;
+  select pg_catalog.array_agg(distinct p order by p) into v_personas
+  from (select private.lead_persona_reabrir(l.id) as p from crm.leads l where l.id = any(coalesce(p_leads, '{}'::uuid[]))
+        union select private.inversionista_por_documento('DNI', p_dni_extra) where p_dni_extra is not null) s
+  where p is not null;
+  select pg_catalog.array_agg(distinct k order by k) into v_claves
+  from (select 'DNI:' || l.dni as k from crm.leads l where l.id = any(coalesce(p_leads, '{}'::uuid[])) and l.dni is not null
+        union select 'DNI:' || p_dni_extra where p_dni_extra is not null
+        union select d.tipo_documento || ':' || d.documento_normalizado
+                from crm.inversionista_identificadores d
+               where d.inversionista_id = any(coalesce(v_personas, '{}'::uuid[])) and d.estado = 'vigente') s;
+  if v_claves is not null then
+    foreach v_k in array v_claves loop
+      perform private.identidad_bloquear_documento(split_part(v_k, ':', 1), split_part(v_k, ':', 2));
+    end loop;
+  end if;
+  if v_personas is not null then
+    perform 1 from crm.inversionistas i where i.id = any(v_personas) order by i.id for share;
+  end if;
+  -- Codex v4.3 [1]: identidad_bloquear_documento es un no-op si la bandera está APAGADA; si alguien la apagó entre la primera
+  -- lectura y los candados, no hay candados reales → no se declara nada bloqueado (el llamador da veredicto fresco / 40001).
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    return pg_catalog.jsonb_build_object('personas', '[]'::jsonb, 'claves', '[]'::jsonb);
+  end if;
+  -- Devuelve lo que REALMENTE bloqueó (Codex v4.2, ABA): el llamador, tras tomar la fila, exige que el documento actual
+  -- del lead esté entre las claves bloqueadas y su persona entre las bloqueadas; si no, veredicto fresco / 40001.
+  return pg_catalog.jsonb_build_object('personas', pg_catalog.to_jsonb(coalesce(v_personas, '{}'::uuid[])),
+                                       'claves', pg_catalog.to_jsonb(coalesce(v_claves, '{}'::text[])));
+end;
+$function$;
+
+-- ── 20/34 · private.identidad_bloquear_documento(text, text) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.identidad_bloquear_documento(p_tipo text, p_documento text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_norm text := pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_documento,''), '[^A-Za-z0-9]', '', 'g'));
+begin
+  if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    return;
+  end if;
+  if v_norm = '' or p_tipo is null then
+    return;
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('inv_resolver:' || p_tipo || ':' || v_norm));
+end;
+$function$;
+
+-- ── 21/34 · private.identidad_bloquear_persona(text, text) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.identidad_bloquear_persona(p_tipo text, p_documento text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare v_inv uuid;
+begin
+  if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    return;
+  end if;
+  v_inv := private.inversionista_por_documento(p_tipo, p_documento);
+  if v_inv is null then
+    return;
+  end if;
+  perform 1 from crm.inversionistas i where i.id = v_inv for update;
+end;
+$function$;
+
+-- ── 22/34 · private.trg_leads_disponibilidad_atomica() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.trg_leads_disponibilidad_atomica()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare
+  v_actor uuid := (select auth.uid());
+  v_rol text;
+  v_disponibilidad jsonb;
+  v_cambio_identidad boolean;
+  v_dias integer;
+  v_disponible_desde timestamptz;
+  v_descartado_por text;
+  v_priv boolean := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false);
+begin
+  if tg_op = 'UPDATE' then
+    if new.telefono is distinct from old.telefono then
+      new.telefono := private.normalizar_telefono(new.telefono);
+      if new.telefono is null or new.telefono !~ '^\+519[0-9]{8}$' then
+        raise exception using errcode = '22023', message = 'Telefono invalido';
+      end if;
+    end if;
+
+    if new.dni is distinct from old.dni then
+      new.dni := nullif(pg_catalog.btrim(new.dni), '');
+      if new.dni is not null and new.dni !~ '^[0-9]{8}$' then
+        raise exception using errcode = '22023', message = 'DNI invalido';
+      end if;
+    end if;
+
+    v_cambio_identidad := new.telefono is distinct from old.telefono
+      or new.dni is distinct from old.dni;
+
+    perform private.bloquear_contactos_lead(
+      array[old.telefono, new.telefono],
+      array[old.dni, new.dni]
+    );
+
+    -- F2.b (b5) [E3-6]: la corrección de documento de Gerencia (RPC definer bajo válvula Y con su
+    -- GUC propia crm.correccion_documento) cambia SOLO el DNI de un lead que conserva su persona; los terceros (otra identidad,
+    -- otro cliente del Portal, otro lead vivo) ya los comprobó la RPC bajo sus locks. Ningún
+    -- otro escritor bajo válvula cambia el DNI; fuera de esta forma exacta nada cambia.
+    if v_priv and coalesce(pg_catalog.current_setting('crm.correccion_documento', true) = 'on', false)
+       and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+       and new.dni is distinct from old.dni and new.telefono is not distinct from old.telefono
+       and new.no_contactar = old.no_contactar and new.etapa = old.etapa and new.activo = old.activo
+       and new.motivo_descarte is not distinct from old.motivo_descarte
+       and old.inversionista_id is not null and new.inversionista_id = old.inversionista_id then
+      return new;
+    end if;
+    if not v_cambio_identidad or v_actor is null then
+      return new;
+    end if;
+
+    v_rol := private.rol_crm(v_actor);
+    if v_rol is null or v_rol not in ('vendedor', 'supervisor', 'gerencia') then
+      raise exception using errcode = '42501', message = 'Acceso CRM revocado';
+    end if;
+
+    -- Excluir OLD al validar el destino es correcto para un lead operativo,
+    -- pero no debe permitir «mover» un No contactar o un enfriamiento y dejar
+    -- libre la identidad anterior. Ambos vetos propios congelan teléfono y DNI
+    -- mientras sigan vigentes; levantarlos es una operación separada y auditable.
+    if old.no_contactar = true then
+      raise exception using
+        errcode = 'P0481',
+        message = 'Contacto no disponible',
+        detail = pg_catalog.jsonb_build_object('estado', 'no_contactar')::text;
+    end if;
+
+    if old.etapa = 'descartado'
+       and old.descartado_en is not null
+       and old.motivo_descarte is not null then
+      select
+        ep.dias,
+        old.descartado_en + pg_catalog.make_interval(days => ep.dias),
+        p.nombre_completo
+      into v_dias, v_disponible_desde, v_descartado_por
+      from crm.enfriamiento_politica ep
+      left join public.perfiles p on p.id = old.descartado_por
+      where ep.motivo = old.motivo_descarte;
+
+      if coalesce(v_dias, 0) > 0
+         and v_disponible_desde > pg_catalog.now() then
+        raise exception using
+          errcode = 'P0481',
+          message = 'Contacto no disponible',
+          detail = pg_catalog.jsonb_build_object(
+            'estado', 'enfriamiento',
+            'motivo_descarte', old.motivo_descarte,
+            'disponible_desde', v_disponible_desde,
+            'descartado_por', v_descartado_por
+          )::text;
+      end if;
+    end if;
+
+    v_disponibilidad := private.verificar_disponibilidad_lead_impl(
+      new.telefono,
+      new.dni,
+      old.id
+    );
+    if v_disponibilidad ->> 'estado' is distinct from 'libre' then
+      raise exception using
+        errcode = 'P0481',
+        message = 'Contacto no disponible',
+        detail = v_disponibilidad::text;
+    end if;
+    return new;
+  end if;
+
+  new.telefono := private.normalizar_telefono(new.telefono);
+  new.dni := nullif(pg_catalog.btrim(new.dni), '');
+
+  if new.telefono is null or new.telefono !~ '^\+519[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'Telefono invalido';
+  end if;
+  if new.dni is not null and new.dni !~ '^[0-9]{8}$' then
+    raise exception using errcode = '22023', message = 'DNI invalido';
+  end if;
+
+  perform private.bloquear_contactos_lead(array[new.telefono], array[new.dni]);
+
+  -- Un escritor interno sin sesion humana se serializa, pero conserva su
+  -- contrato especializado (por ejemplo crm-importar-leads con service_role).
+  if v_actor is null then
+    return new;
+  end if;
+
+  v_rol := private.rol_crm(v_actor);
+  if v_rol is null or v_rol not in ('vendedor', 'supervisor', 'gerencia') then
+    raise exception using errcode = '42501', message = 'Acceso CRM revocado';
+  end if;
+
+  -- La compatibilidad temporal es solo para el alta que ya hacía el bundle
+  -- anterior. No abre una vía para fabricar leads terminales o inactivos.
+  if new.activo is distinct from true
+     or new.etapa not in ('nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada') then
+    raise exception using errcode = '22023', message = 'Un lead debe nacer activo y en etapa operativa';
+  end if;
+
+  v_disponibilidad := private.verificar_disponibilidad_lead_impl(new.telefono, new.dni);
+  if v_disponibilidad ->> 'estado' is distinct from 'libre' then
+    raise exception using
+      errcode = 'P0481',
+      message = 'Contacto no disponible',
+      detail = v_disponibilidad::text;
+  end if;
+
+  return new;
+end;
+$function$;
+
+-- ── 23/34 · private.trg_leads_hereda_veto_persona() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.trg_leads_hereda_veto_persona()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare
+  v_inv uuid;
+  v_veto boolean;
+begin
+  if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    return new;
+  end if;
+  -- Solo DNI: crm.leads.dni es siempre DNI de 8 dígitos (contrato §18). Se
+  -- normaliza igual que el resolver (este trigger corre ANTES del btrim de 00).
+  if nullif(pg_catalog.btrim(coalesce(new.dni,'')), '') is null then
+    return new;
+  end if;
+  -- Orden total: documento -> identidad -> (contactos los toma 00 después).
+  perform private.identidad_bloquear_documento('DNI', new.dni);
+  v_inv := private.inversionista_por_documento('DNI', new.dni);
+  if v_inv is null then
+    return new;
+  end if;
+  -- Serializa contra marcar/levantar_no_contactar (identidad FOR UPDATE) y relee.
+  select i.no_contactar into v_veto
+  from crm.inversionistas i
+  where i.id = v_inv
+  for update;
+  if coalesce(v_veto, false) then
+    raise exception 'La persona tiene la restricción «No insistir»: no se abre una oportunidad nueva'
+      using errcode = 'P0429',
+            detail = pg_catalog.jsonb_build_object('estado', 'no_contactar', 'via', 'identidad')::text;
+  end if;
+  return new;
+end;
+$function$;
+
+-- ── 24/34 · private.trg_leads_no_contactar_solo_puerta() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.trg_leads_no_contactar_solo_puerta()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
+    return new;  -- bandera apagada: comportamiento de hoy
+  end if;
+  if new.no_contactar is distinct from old.no_contactar
+     and coalesce(pg_catalog.current_setting('crm.op_privilegiada', true), 'off') <> 'on' then
+    raise exception 'No contactar se cambia solo por su puerta (marcar_no_contactar / levantar_no_contactar)'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$function$;
+
+-- ── 25/34 · private.trg_leads_zz_reapertura_solo_rpc() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.trg_leads_zz_reapertura_solo_rpc()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_priv boolean := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false);
+begin
+  if v_priv or not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    return new;
+  end if;
+  if ((old.etapa = 'descartado' and new.etapa is distinct from 'descartado') or (old.activo = false and new.activo = true))
+     and coalesce(pg_catalog.current_setting('crm.reapertura_identidad', true), 'off') <> 'on' then
+    raise exception 'Con la identidad unificada encendida, un descarte se reabre solo por sus puertas (tomar, rescatar o deshacer): juzgan a la persona y enlazan el lead'
+      using errcode = 'P0409';
+  end if;
+  return new;
+end;
+$function$;
+
+-- ── 26/34 · private.trg_tareas_veto_persona_perfil() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.trg_tareas_veto_persona_perfil()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_personas uuid[];
+begin
+  -- F2.b [D-3] (v3/v4, Codex #5/#10/N1): la tarea de PERFIL (cliente) respeta el veto de la PERSONA (contrato §7.3) igual
+  -- que la de lead, en un trigger propio de crm.tareas (el trigger de gestión compartido con actividades sigue byte a byte).
+  -- Corre ANTES que el resto (00_0): toma a las personas del perfil FOR SHARE —persona → perfil, el orden de reasignar—
+  -- SIN ESPERAR: si alguien las tiene (veto, fusión, reasignación, baja) → 40001 y se reintenta (nunca se espera con una
+  -- tarea en la mano: cerrar_tarea agenda la siguiente con la tarea bloqueada y marcar espera esa tarea con la persona
+  -- bloqueada). Después revalida que lo bloqueado siga siendo lo actual (una fusión pudo mover el perfil de persona).
+  -- Writers internos (auth.uid NULL) y la válvula quedan fuera, como en leads.
+  if (select auth.uid()) is null
+     or new.lead_id is not null or new.perfil_id is null
+     or coalesce(pg_catalog.current_setting('crm.op_privilegiada', true) = 'on', false)
+     or not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    return new;
+  end if;
+  v_personas := array(select x from private.personas_de_perfil(new.perfil_id) x order by 1);
+  begin
+    perform 1 from crm.inversionistas i where i.id = any(v_personas) order by i.id for share nowait;
+  exception when lock_not_available then
+    raise exception 'La persona del cliente está siendo actualizada (veto, fusión o reasignación); vuelve a intentarlo'
+      using errcode = '40001';
+  end;
+  if array(select x from private.personas_de_perfil(new.perfil_id) x order by 1) is distinct from v_personas then
+    raise exception 'La persona del cliente cambió mientras se agendaba; vuelve a intentarlo'
+      using errcode = '40001';
+  end if;
+  if private.persona_vetada_perfil(new.perfil_id) then
+    raise exception '%: no se registra seguimiento', 'La persona tiene la restricción «No insistir»'
+      using errcode = 'P0429';
+  end if;
+  return new;
+end;
+$function$;
+
+-- ── 27/34 · crm.auth_usuario_por_correo_fn(text) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION crm.auth_usuario_por_correo_fn(p_correo text)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select case when not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+    then pg_catalog.jsonb_build_object('id', null, 'apagada', true)
+    else coalesce((
+    select pg_catalog.jsonb_build_object('id', u.id, 'claim_id', u.raw_app_meta_data->>'claim_id',
+                                         'tiene_perfil', exists (select 1 from public.perfiles p where p.id = u.id))
+    from auth.users u
+    where pg_catalog.lower(u.email) = pg_catalog.lower(pg_catalog.btrim(p_correo))
+    limit 1), pg_catalog.jsonb_build_object('id', null)) end
+$function$;
+
+-- ── 28/34 · crm.cliente_eliminable_fn(uuid) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION crm.cliente_eliminable_fn(p_perfil_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_n integer;
+begin
+  if (select auth.uid()) is not null then
+    raise exception 'Solo el servicio consulta si un cliente es eliminable' using errcode = '42501';
+  end if;
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada' using errcode = 'P0409';
+  end if;
+  if exists (select 1 from crm.inversionistas i where i.perfil_id = p_perfil_id and i.estado <> 'fusionado') then
+    return pg_catalog.jsonb_build_object('eliminable', false, 'motivo', 'identidad',
+      'mensaje', 'Este cliente está reconocido como persona (identidad unificada): desactívalo en vez de eliminarlo');
+  end if;
+  select count(*) into v_n from public.contratos c where c.cliente_id = p_perfil_id;
+  if v_n > 0 then
+    return pg_catalog.jsonb_build_object('eliminable', false, 'motivo', 'contratos', 'contratos', v_n,
+      'mensaje', 'Este cliente tiene contratos: desactívalo en vez de eliminarlo');
+  end if;
+  return pg_catalog.jsonb_build_object('eliminable', true);
+end;
+$function$;
+
+-- ── 29/34 · crm.fusion_previsualizar_fn(uuid, uuid) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION crm.fusion_previsualizar_fn(p_perdedora uuid, p_canonica uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_p crm.inversionistas%rowtype; v_c crm.inversionistas%rowtype; v_lead crm.leads%rowtype;
+  v_bloq text[]; v_adv text[] := '{}'; v_foto jsonb;
+  v_tp crm.inversionista_responsables%rowtype; v_tc crm.inversionista_responsables%rowtype;
+begin
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada' using errcode = 'P0409';
+  end if;
+  if not private.es_gerencia_crm_activa() then
+    raise exception 'Solo Gerencia previsualiza una fusión' using errcode = '42501';
+  end if;
+  v_bloq := private.fusion_bloqueos(p_perdedora, p_canonica);
+  select * into v_p from crm.inversionistas where id = p_perdedora;
+  select * into v_c from crm.inversionistas where id = p_canonica;
+  if v_p.id is null or v_c.id is null or p_perdedora = p_canonica then
+    return pg_catalog.jsonb_build_object('viable', false, 'bloqueos', pg_catalog.to_jsonb(v_bloq),
+      'advertencias', '[]'::jsonb, 'hash', null, 'foto', null, 'impacto', null);
+  end if;
+  if exists (select 1 from crm.inversionista_identificadores a
+             join crm.inversionista_identificadores b on b.tipo_documento = a.tipo_documento and b.documento_normalizado <> a.documento_normalizado
+             where a.inversionista_id = p_perdedora and b.inversionista_id = p_canonica and a.estado = 'vigente' and b.estado = 'vigente') then
+    v_adv := pg_catalog.array_append(v_adv, 'Las dos tienen un documento vigente del mismo tipo: una está mal; corrige el documento después de fusionar (indicando cuál sale)'::text);
+  end if;
+  if v_p.no_contactar <> v_c.no_contactar
+     or exists (select 1 from crm.leads l where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica])) and l.no_contactar <> (v_p.no_contactar or v_c.no_contactar)) then
+    v_adv := pg_catalog.array_append(v_adv, 'Vetos distintos: el resultado es «No contactar» en la persona y el lead, y se cancelan las tareas pendientes del lead'::text);
+  end if;
+  select * into v_tp from crm.inversionista_responsables where inversionista_id = p_perdedora and hasta is null;
+  select * into v_tc from crm.inversionista_responsables where inversionista_id = p_canonica and hasta is null;
+  if v_tp.responsable_id is not null and v_tc.responsable_id is not null and v_tp.responsable_id <> v_tc.responsable_id then
+    v_adv := pg_catalog.array_append(v_adv, 'Responsables de relación distintos: gana el de la canónica; se cierra el tramo de la perdedora'::text);
+  elsif v_tp.responsable_id is not null and v_tc.responsable_id is null then
+    v_adv := pg_catalog.array_append(v_adv, 'La canónica hereda el responsable de relación de la perdedora'::text);
+  end if;
+  if exists (select 1 from crm.inversiones where inversionista_id = p_perdedora)
+     or exists (select 1 from crm.inversion_titulares where inversionista_id = p_perdedora)
+     or exists (select 1 from crm.cierres_externos where inversionista_id = p_perdedora) then
+    v_adv := pg_catalog.array_append(v_adv, 'La perdedora tiene inversiones, titularidades o cierres: se reapuntan a la canónica; el dinero y sus fotos no se tocan'::text);
+  end if;
+  if exists (select 1 from crm.inversionistas where inversionista_canonico_id = p_perdedora) then
+    v_adv := pg_catalog.array_append(v_adv, 'La perdedora es canónica de otras identidades fusionadas: se aplanan a la nueva canónica'::text);
+  end if;
+  select * into v_lead from crm.leads where id in (select private.leads_de_identidades(array[p_perdedora, p_canonica])) order by id limit 1;
+  if v_lead.id is not null and not v_lead.activo then
+    v_adv := pg_catalog.array_append(v_adv, 'El lead está inactivo: no se deja nota de actividad (el libro de fusiones es el rastro)'::text);
+  end if;
+  v_adv := pg_catalog.array_append(v_adv, 'La conversión mensual sigue siendo por lead/cliente hasta Contrato-F3: la fusión no altera cifras ni meses sellados'::text);
+  v_foto := private.fusion_estado_jsonb(p_perdedora, p_canonica);
+  return pg_catalog.jsonb_build_object(
+    'viable', pg_catalog.cardinality(v_bloq) = 0,
+    'bloqueos', pg_catalog.to_jsonb(v_bloq),
+    'advertencias', pg_catalog.to_jsonb(v_adv),
+    'hash', private.idem_hash(v_foto),
+    'foto', v_foto,
+    'impacto', pg_catalog.jsonb_build_object(
+      'leads', (select count(*) from private.leads_de_identidades(array[p_perdedora])),
+      'puente', (select count(*) from crm.inversionista_leads where inversionista_id = p_perdedora),
+      'tareas_pendientes', (select count(*) from crm.tareas t where t.estado = 'pendiente' and t.lead_id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))),
+      'identificadores', (select count(*) from crm.inversionista_identificadores where inversionista_id = p_perdedora and estado = 'vigente'),
+      'tramos', (select count(*) from crm.inversionista_responsables where inversionista_id = p_perdedora and hasta is null),
+      'cierres', (select count(*) from crm.cierres_externos where inversionista_id = p_perdedora),
+      'inversiones', (select count(*) from crm.inversiones where inversionista_id = p_perdedora),
+      'titulares', (select count(*) from crm.inversion_titulares where inversionista_id = p_perdedora),
+      'reservas', (select count(*) from crm.conversion_reservas where inversionista_id = p_perdedora),
+      'predecesoras', (select count(*) from crm.inversionistas where inversionista_canonico_id = p_perdedora)));
+end;
+$function$;
+
+-- ── 30/34 · crm.impacto_desactivacion_usuario_fn(uuid) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION crm.impacto_desactivacion_usuario_fn(p_perfil_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_subordinados integer;
+  v_leads integer;
+  v_bandeja integer;
+  v_tareas integer;
+  v_clientes integer;
+  v_personas integer := 0;  -- F2.b [D-2]
+  v_flag boolean := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);  -- F2.b [D-2]
+begin
+  if not private.es_gerencia_crm_activa() then
+    raise insufficient_privilege using message = 'Solo Gerencia puede evaluar una baja CRM';
+  end if;
+  if not exists (select 1 from crm.equipo e where e.perfil_id = p_perfil_id) then
+    raise exception 'Membresia CRM no encontrada';
+  end if;
+
+  select count(*)::integer into v_subordinados
+  from crm.equipo e
+  where e.supervisor_id = p_perfil_id and e.activo is true;
+
+  select count(*)::integer into v_leads
+  from crm.leads l
+  where l.vendedor_id = p_perfil_id
+    and l.activo is true and l.etapa not in ('convertido','descartado');
+
+  select count(*)::integer into v_bandeja
+  from crm.leads l
+  where l.asignado_supervisor_id = p_perfil_id
+    and l.activo is true and l.etapa not in ('convertido','descartado');
+
+  select count(*)::integer into v_tareas
+  from crm.tareas t
+  where (t.vendedor_id = p_perfil_id
+      or t.asignado_supervisor_id = p_perfil_id)
+    and t.activo is true and t.estado = 'pendiente';
+
+  select count(*)::integer into v_clientes
+  from public.perfiles p
+  where p.rol = 'cliente' and p.activo is true
+    and p.asesor_perfil_id = p_perfil_id;
+
+  -- F2.b [D-2]: con la identidad ENCENDIDA, las PERSONAS cuyo responsable de relación es el saliente (identidades
+  -- activas con tramo abierto suyo o apuntándole) también exigen reemplazo: nadie se queda sin responsable. Con la
+  -- bandera apagada la respuesta es byte a byte la de hoy (el front la valida con un esquema ESTRICTO: la clave
+  -- personas_a_cargo solo aparece con ON, y el front la incorpora en el bloque 4, antes del encendido).
+  if v_flag then
+    select count(*)::integer into v_personas
+    from crm.inversionistas i
+               where i.estado <> 'fusionado'
+                 and (i.responsable_relacion_id = p_perfil_id
+                      or exists (select 1 from crm.inversionista_responsables r
+                                 where r.inversionista_id = i.id and r.hasta is null and r.responsable_id = p_perfil_id));
+    return pg_catalog.jsonb_build_object(
+      'perfil_id', p_perfil_id,
+      'subordinados_activos', v_subordinados,
+      'leads_abiertos', v_leads,
+      'leads_en_bandeja', v_bandeja,
+      'tareas_pendientes', v_tareas,
+      'clientes_activos', v_clientes,
+      'personas_a_cargo', v_personas,
+      'requiere_reemplazo',
+        v_subordinados + v_leads + v_bandeja + v_tareas + v_clientes + v_personas > 0
+    );
+  end if;
+  return pg_catalog.jsonb_build_object(
+    'perfil_id', p_perfil_id,
+    'subordinados_activos', v_subordinados,
+    'leads_abiertos', v_leads,
+    'leads_en_bandeja', v_bandeja,
+    'tareas_pendientes', v_tareas,
+    'clientes_activos', v_clientes,
+    'requiere_reemplazo',
+      v_subordinados + v_leads + v_bandeja + v_tareas + v_clientes > 0
+  );
+end;
+$function$;
+
+-- ── 31/34 · private.leads_por_repartir_implementacion() (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.leads_por_repartir_implementacion()
+ RETURNS TABLE(id uuid, nombre_completo text, distrito text, origen text, categoria_interes text, monto_estimado numeric, moneda text, creado_en timestamp with time zone, clasificacion_auto text, comentario text)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_actor uuid := (select auth.uid());
+        v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);
+begin
+  if v_actor is null or not exists (
+    select 1 from crm.equipo actor_equipo
+    join public.perfiles actor_perfil on actor_perfil.id = actor_equipo.perfil_id
+    where actor_equipo.perfil_id = v_actor
+      and actor_equipo.rol_crm in ('coordinador','gerencia')
+      and actor_equipo.activo = true and actor_perfil.activo = true
+  ) then
+    raise exception 'Solo el coordinador puede ver la cola de leads por repartir'
+      using errcode = '42501';
+  end if;
+
+  return query
+  select l.id, l.nombre_completo, l.distrito, l.origen,
+         l.categoria_interes, l.monto_estimado, l.moneda, l.creado_en,
+         l.clasificacion_auto,
+         -- Comentario REDACTADO (correo/celular/documento fuera) y acotado a
+         -- 400 caracteres: Rosa necesita leer la pregunta, no los datos de
+         -- contacto. Mantiene la premisa "sin PII de contacto" de C1.
+         nullif(left(private.redactar_pii(l.nota), 400), '')
+  from crm.leads l
+  left join crm.inversionistas inv0 on inv0.id = l.inversionista_id
+  left join crm.inversionistas inv  on inv.id  = coalesce(inv0.inversionista_canonico_id, inv0.id)  -- sigue a la canónica si está fusionada
+  where l.activo = true
+    and l.vendedor_id is null
+    and l.asignado_supervisor_id is null                     -- cola global (sin dueño)
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false                               -- Ley 29571: nunca listar 'No Insista'
+    and (not v_flag or coalesce(inv.no_contactar, false) = false) -- el veto es de la PERSONA (contrato §7.3)
+    and not private.persona_vetada(l.id)                     -- F2.b (b2): también por documento exacto (lead suelto)
+  order by l.creado_en asc;                                  -- FIFO justo
+end;
+$function$;
+
+-- ── 32/34 · private.leads_vetados_persona(uuid[]) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.leads_vetados_persona(p_lead_ids uuid[])
+ RETURNS SETOF uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select l.id
+  from crm.leads l
+  left join crm.inversionistas inv0 on inv0.id = l.inversionista_id
+  left join crm.inversionistas inv  on inv.id  = coalesce(inv0.inversionista_canonico_id, inv0.id)
+  where l.id = any (coalesce(p_lead_ids, array[]::uuid[]))
+    and coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+    and (
+      l.no_contactar = true
+      or coalesce(inv.no_contactar, false)
+      -- F2.b [D-3]: un lead que está en el PUENTE de una persona vetada (histórico sin enlace vivo) también lo está.
+      or exists (select 1
+                 from crm.inversionista_leads il
+                 join crm.inversionistas p0 on p0.id = il.inversionista_id
+                 join crm.inversionistas p  on p.id  = coalesce(p0.inversionista_canonico_id, p0.id)
+                 where il.lead_id = l.id and p.no_contactar = true)
+      or (l.inversionista_id is null
+          and nullif(pg_catalog.btrim(coalesce(l.dni,'')), '') is not null
+          and exists (
+            select 1
+            from crm.inversionista_identificadores idf
+            join crm.inversionistas i on i.id = idf.inversionista_id
+            where idf.tipo_documento = 'DNI'
+              and idf.documento_normalizado = pg_catalog.upper(pg_catalog.regexp_replace(l.dni, '[^A-Za-z0-9]', '', 'g'))
+              and idf.estado = 'vigente'
+              and idf.verificado = true
+              and i.estado <> 'fusionado'
+              and i.no_contactar = true))
+    )
+$function$;
+
+-- ── 33/34 · private.persona_vetada_perfil(uuid) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.persona_vetada_perfil(p_perfil_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  -- F2.b [D-3]: el veto de la PERSONA visto desde un perfil cliente (tareas de cliente, actividades_cliente): por el
+  -- enlace perfil↔identidad (canónica) o por el documento exacto del perfil (identificador vigente y verificado).
+  -- Con la bandera apagada es siempre false (paridad con hoy).
+  select coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
+     and (
+       exists (select 1
+               from crm.inversionistas i0
+               join crm.inversionistas i on i.id = coalesce(i0.inversionista_canonico_id, i0.id)
+               where i0.perfil_id = p_perfil_id and i0.estado <> 'fusionado' and i.no_contactar = true)
+       or exists (select 1
+                  from public.perfiles p
+                  join crm.inversionista_identificadores idf
+                    on idf.tipo_documento = coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI')
+                   and idf.documento_normalizado = pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p.dni, ''), '[^A-Za-z0-9]', '', 'g'))
+                   and idf.estado = 'vigente' and idf.verificado = true
+                  join crm.inversionistas i on i.id = idf.inversionista_id
+                  where p.id = p_perfil_id
+                    and nullif(pg_catalog.btrim(coalesce(p.dni, '')), '') is not null
+                    and i.estado <> 'fusionado' and i.no_contactar = true)
+     )
+$function$;
+
+-- ── 34/34 · private.verificar_disponibilidad_lead_impl(text, text, uuid) (texto vivo de producción) ─────────
+CREATE OR REPLACE FUNCTION private.verificar_disponibilidad_lead_impl(p_telefono text, p_dni text, p_excluir_lead_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_tel text := private.normalizar_telefono(p_telefono);
+  v_lead record;
+  v_perfil record;
+  v_dias integer;
+  v_disponible_desde timestamptz;
+  v_quedo_libre_en timestamptz;
+  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);
+  -- documento normalizado IGUAL que el resolver (documento_normalizado es mayúsculas+alfanumérico)
+  v_dni_norm text := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_dni,''), '[^A-Za-z0-9]', '', 'g')), '');
+  v_asesor_identidad text;
+begin
+  if v_tel is null or pg_catalog.length(v_tel) = 0 then
+    return pg_catalog.jsonb_build_object(
+      'estado', 'error',
+      'detalle', 'telefono_invalido'
+    );
+  end if;
+
+  if exists (
+    select 1
+    from crm.leads l
+  left join crm.inversionistas inv0 on inv0.id = l.inversionista_id
+    left join crm.inversionistas inv  on inv.id  = coalesce(inv0.inversionista_canonico_id, inv0.id)  -- sigue a la canónica si está fusionada
+    where l.id is distinct from p_excluir_lead_id
+      and (l.no_contactar = true or (v_flag and coalesce(inv.no_contactar, false)))
+      and (l.telefono = v_tel or (p_dni is not null and l.dni = p_dni))
+  )
+  -- El veto es de la PERSONA (contrato §7.3): también si el documento EXACTO
+  -- pertenece a una identidad vetada, aunque no tenga lead con ese teléfono.
+  -- Solo DNI: crm.leads.dni es siempre DNI de 8 dígitos (el trigger de alta lo
+  -- exige; contrato §18: CE/pasaporte se resuelven al convertir).
+  or (v_flag and v_dni_norm is not null and exists (
+    select 1
+    from crm.inversionista_identificadores idf
+    join crm.inversionistas i on i.id = idf.inversionista_id
+    where idf.tipo_documento = 'DNI'
+      and idf.documento_normalizado = v_dni_norm
+      and idf.estado = 'vigente'
+      and idf.verificado = true
+      and i.estado <> 'fusionado'
+      and i.no_contactar = true
+  )) then
+    return pg_catalog.jsonb_build_object('estado', 'no_contactar');
+  end if;
+
+  select per.id, asesor.nombre_completo as asesor_nombre
+  into v_perfil
+  from public.perfiles per
+  left join public.perfiles asesor on asesor.id = per.asesor_perfil_id
+  where per.rol = 'cliente'
+    and per.activo = true
+    and (
+      private.normalizar_telefono(per.telefono) = v_tel
+      or (p_dni is not null and per.dni = p_dni)
+    )
+  limit 1;
+
+  if found then
+    return pg_catalog.jsonb_build_object(
+      'estado', 'ya_es_cliente',
+      'asesor', coalesce(v_perfil.asesor_nombre, 'sin asesor asignado')
+    );
+  end if;
+
+  -- Un solo lead TOTAL por persona (contrato #6, meta #3): si el DOCUMENTO exacto
+  -- ya pertenece a una identidad que TIENE lead (Avance o cooperativa — aunque no
+  -- tenga perfil de portal), esa persona ya es cliente / ya tiene su lead: no se
+  -- crea otro. Solo el documento vincula (contrato #8). Gateado por bandera.
+  if v_flag and v_dni_norm is not null then
+    -- F2.b [D-13]: «los leads de una persona» = enlace vivo ∪ PUENTE ∪ sueltos vivos con su documento (private.leads_de_personas;
+    -- incluye históricos y soft-borrados enlazados, como ya contaba el join sin filtro de activo); una persona EN CONVERSIÓN
+    -- (reserva por persona viva o sellada de OTRO lead) o que YA ES CLIENTE (perfil enlazado, activo o no) tampoco recibe
+    -- otro lead. `asesor` = responsable de relación, o quien reservó (reserva vigente), o el centinela. Contrato del front intacto.
+    select coalesce(resp.nombre_completo, res.nombre_completo, 'sin asesor asignado')
+      into v_asesor_identidad
+    from crm.inversionista_identificadores idf
+    join crm.inversionistas i on i.id = idf.inversionista_id
+    left join public.perfiles resp on resp.id = i.responsable_relacion_id
+    left join lateral (
+      select p.nombre_completo
+      from crm.conversion_reservas r
+      join public.perfiles p on p.id = r.reservado_por
+      left join crm.leads lr on lr.id = r.lead_id
+      where r.inversionista_id = i.id and r.lead_id is distinct from p_excluir_lead_id
+        and (r.expira_en > pg_catalog.now() or (r.efectos_iniciados_en is not null and coalesce(lr.etapa, '') <> 'convertido'))
+      order by r.reservado_en desc
+      limit 1
+    ) res on true
+    where idf.tipo_documento = 'DNI'
+      and idf.documento_normalizado = v_dni_norm
+      and idf.estado = 'vigente'
+      and idf.verificado = true
+      and i.estado <> 'fusionado'
+      and (exists (select 1 from private.leads_de_personas(array[i.id]) x where x is distinct from p_excluir_lead_id)
+           or private.persona_en_conversion(i.id, p_excluir_lead_id)
+           or i.perfil_id is not null)
+    limit 1;
+    if found then
+      return pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'asesor', v_asesor_identidad, 'via', 'identidad');
+    end if;
+  end if;
+
+  select
+    l.id,
+    l.tenencia_desde,
+    l.vendedor_id,
+    l.asignado_supervisor_id,
+    coalesce(pv.nombre_completo, ps.nombre_completo) as tenedor
+  into v_lead
+  from crm.leads l
+  left join public.perfiles pv on pv.id = l.vendedor_id
+  left join public.perfiles ps on ps.id = l.asignado_supervisor_id
+  where l.id is distinct from p_excluir_lead_id
+    and l.activo = true
+    and l.etapa not in ('convertido', 'descartado')
+    and (l.telefono = v_tel or (p_dni is not null and l.dni = p_dni))
+  limit 1;
+
+  if found then
+    if v_lead.vendedor_id is null and v_lead.asignado_supervisor_id is null then
+      return pg_catalog.jsonb_build_object('estado', 'en_bolsa');
+    end if;
+    return pg_catalog.jsonb_build_object(
+      'estado', 'tomado',
+      'vendedor', v_lead.tenedor,
+      'tenencia_desde', v_lead.tenencia_desde,
+      -- La última CONVERSACIÓN real: «¿el cliente RESPONDIÓ?» — espejo de
+      -- TIPOS_CONVERSACION (tipos.ts) y del WHEN de
+      -- trg_zz_actividades_avance_etapa. Los intentos (llamada_no_contestada,
+      -- whatsapp_enviado) NO cuentan: decisión dura de Miguel, 2026-08-16.
+      -- NULL si jamás hubo conversación — la tarjeta no pinta la línea.
+      'ultima_conversacion_en', (
+        select pg_catalog.max(a.creado_en)
+        from crm.actividades a
+        where a.lead_id = v_lead.id
+          and a.tipo in ('llamada_realizada', 'whatsapp_recibido', 'reunion_realizada')
+      )
+    );
+  end if;
+
+  select
+    l.id,
+    l.activo,
+    l.motivo_descarte,
+    l.descartado_en,
+    pd.nombre_completo as descartado_por_nombre
+  into v_lead
+  from crm.leads l
+  left join public.perfiles pd on pd.id = l.descartado_por
+  where l.id is distinct from p_excluir_lead_id
+    and l.etapa = 'descartado'
+    and l.descartado_en is not null
+    and (l.telefono = v_tel or (p_dni is not null and l.dni = p_dni))
+  order by l.descartado_en desc
+  limit 1;
+
+  if found then
+    select ep.dias
+    into v_dias
+    from crm.enfriamiento_politica ep
+    where ep.motivo = v_lead.motivo_descarte;
+
+    v_dias := coalesce(v_dias, 0);
+    v_disponible_desde := v_lead.descartado_en
+      + pg_catalog.make_interval(days => v_dias);
+
+    if v_dias > 0 and v_disponible_desde > pg_catalog.now() then
+      return pg_catalog.jsonb_build_object(
+        'estado', 'enfriamiento',
+        'motivo_descarte', v_lead.motivo_descarte,
+        'disponible_desde', v_disponible_desde,
+        'descartado_por', v_lead.descartado_por_nombre
+      );
+    end if;
+
+    -- ── F2: el descarte VENCIDO se parte (spec §5.6) ─────────────────────────
+    -- Un enfriamiento vencido ya NO cae al 'libre' genérico: el contacto es
+    -- REUTILIZABLE y su puerta es crm.tomar_lead_libre (el alta lo bloquea
+    -- desde F1 — crear duplicaría). Dos excepciones deliberadas del plan:
+    --   · activo=false jamás es reutilizable: un soft-borrado no se revive
+    --     por esta puerta — cae a 'libre' y el alta crea de cero.
+    --   · motivos con 0 días (pide_credito, datos_invalidos): CARENCIA de
+    --     24 h SOLO para tomar (Miguel 2026-08-16 — protege el «Deshacer
+    --     descarte 24h» del coordinador). Durante la ventana el veredicto
+    --     sigue 'libre': el alta manual conserva su comportamiento de hoy.
+    if v_lead.activo = true then
+      if v_dias = 0
+         and v_lead.descartado_en + pg_catalog.make_interval(hours => 24) > pg_catalog.now() then
+        return pg_catalog.jsonb_build_object('estado', 'libre');
+      end if;
+      v_quedo_libre_en := case
+        when v_dias > 0 then v_disponible_desde
+        else v_lead.descartado_en + pg_catalog.make_interval(hours => 24)
+      end;
+      return pg_catalog.jsonb_build_object(
+        'estado', 'reutilizable',
+        'motivo_descarte', v_lead.motivo_descarte,
+        'descartado_en', v_lead.descartado_en,
+        'quedo_libre_en', v_quedo_libre_en,
+        'descartado_por', v_lead.descartado_por_nombre,
+        'ultima_conversacion_en', (
+          select pg_catalog.max(a.creado_en)
+          from crm.actividades a
+          where a.lead_id = v_lead.id
+            and a.tipo in ('llamada_realizada', 'whatsapp_recibido', 'reunion_realizada')
+        )
+      );
+    end if;
+  end if;
+
+  return pg_catalog.jsonb_build_object('estado', 'libre');
+end;
+$function$;
+
+do $dep$
+declare v_dep text;
+begin
+  select string_agg(distinct d.classid::regclass::text || ' ' || d.objid::text, ', ')
+    into v_dep
+    from pg_depend d
+   where d.refobjid = to_regprocedure('private.resolver_en_puertas_bajo_candado()') and d.deptype in ('n','a') and d.classid <> 'pg_proc'::regclass;
+  if v_dep is not null then
+    raise exception 'REVERSA D-19: algo depende de private.resolver_en_puertas_bajo_candado() (%): resuélvelo antes de soltarla', v_dep;
+  end if;
+end
+$dep$;
 drop function if exists private.resolver_en_puertas_bajo_candado();
 
 do $post$
@@ -2723,110 +3684,240 @@ begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.actualizar_cliente_gerencia(uuid, jsonb)'::regprocedure
                   and md5(p.prosrc) = 'a984566930994023eb527d777ff5829b'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: crm.actualizar_cliente_gerencia(uuid, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.actualizar_cliente_gerencia(uuid, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.alta_cliente_identidad_fn(text, jsonb)'::regprocedure
                   and md5(p.prosrc) = 'da08974050e65ecf2d76032d489db48e'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.alta_cliente_identidad_fn(text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.alta_cliente_identidad_fn(text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid, uuid)'::regprocedure
                   and md5(p.prosrc) = 'a31d2c2a4938afa56febe2a4bd25a1c9'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.convertir_lead(uuid, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.convertir_lead(uuid, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid)'::regprocedure
                   and md5(p.prosrc) = '05379200b541878371954cf1c4d6dcb6'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb)'::regprocedure
                   and md5(p.prosrc) = '7f2b4976640553a50ab27cf25b30fb36'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.eliminar_cliente_fn(uuid)'::regprocedure
                   and md5(p.prosrc) = '63077333fcfe0100eb2ce1c4e980c06f'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.eliminar_cliente_fn(uuid) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.eliminar_cliente_fn(uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.enlazar_lead_inversionista_fn(uuid, uuid, text)'::regprocedure
                   and md5(p.prosrc) = '3766ae3484f839218f94dccdde5bb04b'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.enlazar_lead_inversionista_fn(uuid, uuid, text) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.enlazar_lead_inversionista_fn(uuid, uuid, text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid)'::regprocedure
                   and md5(p.prosrc) = '07b8acd42d6b2eadb18353e0a8d8aaa5'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.fijar_membresia_activa_fn(uuid, boolean, uuid, timestamp with time zone, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid, uuid, text, text)'::regprocedure
                   and md5(p.prosrc) = '87e25279ed5c3bc8b3418be573499f41'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.fusionar_inversionistas_fn(uuid, uuid, text, text) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.fusionar_inversionistas_fn(uuid, uuid, text, text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.reasignar_responsable_relacion_fn(uuid, uuid, text)'::regprocedure
                   and md5(p.prosrc) = '00e579a03a0faa6a72dfa56f6c3a639c'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.reasignar_responsable_relacion_fn(uuid, uuid, text) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.reasignar_responsable_relacion_fn(uuid, uuid, text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.registrar_reingreso_lead_fn(uuid, text, jsonb)'::regprocedure
                   and md5(p.prosrc) = 'b8b041176c5883dd9e39d14cef65b146'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: crm.registrar_reingreso_lead_fn(uuid, text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.registrar_reingreso_lead_fn(uuid, text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.reservar_conversion_lead(uuid, text, text, jsonb)'::regprocedure
                   and md5(p.prosrc) = '9307f1687b37a32230a08e4377b1b787'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.reservar_conversion_lead(uuid, text, text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.reservar_conversion_lead(uuid, text, text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.saga_conversion_fn(text, jsonb)'::regprocedure
                   and md5(p.prosrc) = 'd2bdbe3d830afb4884065395e5c64a80'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: crm.saga_conversion_fn(text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.saga_conversion_fn(text, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'private.enlazar_lead_reabierto(uuid, uuid)'::regprocedure
                   and md5(p.prosrc) = '95d16ba245f33d8e278265d3e19243bd'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: private.enlazar_lead_reabierto(uuid, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.enlazar_lead_reabierto(uuid, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_zz_enlaza_identidad()'::regprocedure
                   and md5(p.prosrc) = '31a10fdc8c86bb3ff2af60e3415750fa'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: private.trg_leads_zz_enlaza_identidad() no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_zz_enlaza_identidad() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_zz_puente_identidad()'::regprocedure
                   and md5(p.prosrc) = '7a64d7b6e92f87a1ffdeb1728faf4d25'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s') then
-    raise exception 'REVERSA D-19: private.trg_leads_zz_puente_identidad() no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_zz_puente_identidad() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'private.trg_perfiles_documento_protegido()'::regprocedure
                   and md5(p.prosrc) = '8c1c718ed2bcae0b9999a2173ff00612'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: private.trg_perfiles_documento_protegido() no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_perfiles_documento_protegido() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if not exists (select 1 from pg_proc p where p.oid = 'public.crear_contrato(jsonb, jsonb)'::regprocedure
                   and md5(p.prosrc) = '061c40e345312ca5e515ddd5ee282e5c'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole
-                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""') then
-    raise exception 'REVERSA D-19: public.crear_contrato(jsonb, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño o config)';
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: public.crear_contrato(jsonb, jsonb) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.bloquear_personas_de_leads(uuid[], text)'::regprocedure
+                  and md5(p.prosrc) = '0a00e15b47907d3c79b59920ddd86911'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.bloquear_personas_de_leads(uuid[], text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.identidad_bloquear_documento(text, text)'::regprocedure
+                  and md5(p.prosrc) = 'ad3a36cf8237bef81bef5e7632177e1a'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.identidad_bloquear_documento(text, text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.identidad_bloquear_persona(text, text)'::regprocedure
+                  and md5(p.prosrc) = 'ecc1fd3672e2466ccd9494e9530bf299'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.identidad_bloquear_persona(text, text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_disponibilidad_atomica()'::regprocedure
+                  and md5(p.prosrc) = '0fc38c3b3b63b4004d45891e9ff92b19'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_disponibilidad_atomica() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_hereda_veto_persona()'::regprocedure
+                  and md5(p.prosrc) = '927858289e431b0d6dc2a5f42c68e061'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path="",lock_timeout=5s'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_hereda_veto_persona() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_no_contactar_solo_puerta()'::regprocedure
+                  and md5(p.prosrc) = '595dfbd9c1d06b42638c18cc979a3c23'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_no_contactar_solo_puerta() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.trg_leads_zz_reapertura_solo_rpc()'::regprocedure
+                  and md5(p.prosrc) = '5af423f5a32ff7978b51216bf1a31dc7'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_leads_zz_reapertura_solo_rpc() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.trg_tareas_veto_persona_perfil()'::regprocedure
+                  and md5(p.prosrc) = '3826f7b7d9f19fa63b5f2515168c56cf'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.trg_tareas_veto_persona_perfil() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.auth_usuario_por_correo_fn(text)'::regprocedure
+                  and md5(p.prosrc) = '4fde369f6e9ef37859871410be6338a5'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.auth_usuario_por_correo_fn(text) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.cliente_eliminable_fn(uuid)'::regprocedure
+                  and md5(p.prosrc) = '4f2afd8bddbf354ec956027d9b3aeb18'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE,service_role:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.cliente_eliminable_fn(uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.fusion_previsualizar_fn(uuid, uuid)'::regprocedure
+                  and md5(p.prosrc) = '27eedf7b16b4d680bc6c7483901630cb'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.fusion_previsualizar_fn(uuid, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.impacto_desactivacion_usuario_fn(uuid)'::regprocedure
+                  and md5(p.prosrc) = '787c48c1a8e80a307fb1285b42f82180'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'authenticated:EXECUTE,postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: crm.impacto_desactivacion_usuario_fn(uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.leads_por_repartir_implementacion()'::regprocedure
+                  and md5(p.prosrc) = '0b67ca88bb17b8ac8059d415721504e7'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.leads_por_repartir_implementacion() no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.leads_vetados_persona(uuid[])'::regprocedure
+                  and md5(p.prosrc) = '7f441c688f608017bdb4d398772a2aeb'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.leads_vetados_persona(uuid[]) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.persona_vetada_perfil(uuid)'::regprocedure
+                  and md5(p.prosrc) = '597d76a6aa5f6ca75f0ffb86bd20497e'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.persona_vetada_perfil(uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'private.verificar_disponibilidad_lead_impl(text, text, uuid)'::regprocedure
+                  and md5(p.prosrc) = '3ea1fbae8b35c0f8d2702270dd5c6b8d'
+                  and p.prosecdef = true and p.proowner = 'postgres'::regrole
+                  and coalesce(array_to_string(p.proconfig, ','), '') = 'search_path=""'
+                  and coalesce((select string_agg(a.grantee::regrole::text||':'||a.privilege_type, ',' order by a.grantee::regrole::text||a.privilege_type) from aclexplode(p.proacl) a), 'null') = 'postgres:EXECUTE') then
+    raise exception 'REVERSA D-19: private.verificar_disponibilidad_lead_impl(text, text, uuid) no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if to_regprocedure('private.resolver_en_puertas_bajo_candado()') is not null then
     raise exception 'REVERSA D-19: private.resolver_en_puertas_bajo_candado() sigue viva';

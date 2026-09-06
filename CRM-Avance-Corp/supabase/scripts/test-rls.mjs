@@ -9294,16 +9294,35 @@ async function testIdentidadF2bD19(sessions) {
   check(cuenta('ayudante cerrado', `select (has_function_privilege('authenticated', '${AYUDANTE}', 'EXECUTE') or has_function_privilege('anon', '${AYUDANTE}', 'EXECUTE') or has_function_privilege('service_role', '${AYUDANTE}', 'EXECUTE'))::int`) === 0
       && cuenta('ayudante PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${AYUDANTE}'::regprocedure and a.grantee = 0`) === 0,
     'D-19 el ayudante no está expuesto a la API (lo llaman las SECURITY DEFINER de postgres, no PostgREST)');
-  check(cuenta('ayudante exige READ COMMITTED', `select (strpos(p.prosrc, 'read committed') > 0 and strpos(p.prosrc, 'pg_advisory_xact_lock_shared') > 0)::int from pg_proc p where p.oid = '${AYUDANTE}'::regprocedure`) === 1,
-    'D-19 el ayudante exige READ COMMITTED y toma el compartido antes de leer la bandera');
+  // No basta con que el candado esté: tiene que estar ANTES de la lectura. Un ayudante que leyera primero y
+  // tomara el candado después dejaría intacta la carrera original y pasaría cualquier prueba de tiempos
+  // (auditor D-17 #3 y Codex #2), porque el candado es de transacción y retiene igual. Aquí se compara la POSICIÓN.
+  check(cuenta('ayudante exige READ COMMITTED', `select (strpos(p.prosrc, 'read committed') > 0)::int from pg_proc p where p.oid = '${AYUDANTE}'::regprocedure`) === 1
+      && cuenta('candado antes de la lectura', `select (strpos(p.prosrc, 'pg_advisory_xact_lock_shared') > 0 and strpos(p.prosrc, 'pg_advisory_xact_lock_shared') < strpos(p.prosrc, 'from crm.multiempresa_flags'))::int from pg_proc p where p.oid = '${AYUDANTE}'::regprocedure`) === 1,
+    'D-19 el ayudante exige READ COMMITTED y toma el compartido ANTES de leer la bandera, no después');
   // EL invariante. Si alguien añade una escritora que lee la bandera suelta, esto se pone rojo el mismo día.
-  const sueltas = cuenta('escritoras sin candado', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0 and p.prosrc ~* '(insert into|update |delete from)'`);
-  check(sueltas === 0, `D-19 ninguna función que escriba lee la bandera sin el candado compartido (hoy ${sueltas})`);
-  check(cuenta('las 18 la llaman', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0`) >= 18,
-    'D-19 las 18 escrituras transformadas llaman al ayudante');
-  // public.crear_contrato es la puerta compartida con el Portal: sus permisos no se tocan.
-  check(cuenta('crear_contrato permisos', `select (has_function_privilege('authenticated', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE') and has_function_privilege('service_role', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE'))::int`) === 1,
-    'D-19 public.crear_contrato conserva sus permisos: el alta del Portal sigue entrando');
+  const sueltas = cuenta('lectoras sin candado', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0`);
+  check(sueltas === 0, `D-19 ninguna función lee la bandera sin su candado compartido (hoy ${sueltas})`);
+  // Contar no basta: se podría revertir una y adoptar otra distinta y el total no se movería (auditor #M4.4).
+  // Se comprueban las 34 firmas, una a una.
+  const D19 = ['crm.actualizar_cliente_gerencia(uuid,jsonb)', 'crm.alta_cliente_identidad_fn(text,jsonb)', 'crm.auth_usuario_por_correo_fn(text)',
+    'crm.cliente_eliminable_fn(uuid)', 'crm.convertir_lead(uuid,uuid)', 'crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)',
+    'crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)', 'crm.eliminar_cliente_fn(uuid)', 'crm.enlazar_lead_inversionista_fn(uuid,uuid,text)',
+    'crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamptz,uuid)', 'crm.fusion_previsualizar_fn(uuid,uuid)', 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)',
+    'crm.impacto_desactivacion_usuario_fn(uuid)', 'crm.reasignar_responsable_relacion_fn(uuid,uuid,text)', 'crm.registrar_reingreso_lead_fn(uuid,text,jsonb)',
+    'crm.reservar_conversion_lead(uuid,text,text,jsonb)', 'crm.saga_conversion_fn(text,jsonb)', 'private.bloquear_personas_de_leads(uuid[],text)',
+    'private.enlazar_lead_reabierto(uuid,uuid)', 'private.identidad_bloquear_documento(text,text)', 'private.identidad_bloquear_persona(text,text)',
+    'private.leads_por_repartir_implementacion()', 'private.leads_vetados_persona(uuid[])', 'private.persona_vetada_perfil(uuid)',
+    'private.trg_leads_disponibilidad_atomica()', 'private.trg_leads_hereda_veto_persona()', 'private.trg_leads_no_contactar_solo_puerta()',
+    'private.trg_leads_zz_enlaza_identidad()', 'private.trg_leads_zz_puente_identidad()', 'private.trg_leads_zz_reapertura_solo_rpc()',
+    'private.trg_perfiles_documento_protegido()', 'private.trg_tareas_veto_persona_perfil()', 'private.verificar_disponibilidad_lead_impl(text,text,uuid)',
+    'public.crear_contrato(jsonb,jsonb)'];
+  const listaD19 = D19.map((f) => `'${f}'`).join(',');
+  check(cuenta('las 34 la llaman', `select count(*) from unnest(array[${listaD19}]) f(firma) where exists (select 1 from pg_proc p where p.oid = to_regprocedure(f.firma) and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0)`) === D19.length,
+    `D-19 las ${D19.length} funciones que leen la bandera (escrituras, disparadores, ayudantes de bloqueo y consultas) pasan por el ayudante`);
+  // public.crear_contrato es la puerta compartida con el Portal: ni permisos, ni definer, ni dueño, ni search_path.
+  check(cuenta('crear_contrato intacta', `select count(*) from pg_proc p where p.oid = 'public.crear_contrato(jsonb,jsonb)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and has_function_privilege('authenticated', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE') and has_function_privilege('service_role', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE')`) === 1,
+    'D-19 public.crear_contrato conserva permisos, definer, dueño y search_path: el alta del Portal sigue entrando igual');
 }
 
 // ── F2.b [D-15] (20260906150000): el botón «Reabrir» pasa por la puerta crm.reabrir_lead_fn ──
@@ -9422,18 +9441,18 @@ async function testIdentidadF2bD17yD18(sessions) {
     console.log('  (saltado: D-17 (20260906160000) no está en esta base)');
     return;
   }
-  check(cuenta('D-17 marcadores', `select count(*) from pg_proc p where p.oid in (${lista(D17)}::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-17]') > 0`) === 3
-      && cuenta('D-17 compartido', `select count(*) from pg_proc p where p.oid in (${lista(D17)}::regprocedure[]) and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0 and strpos(p.prosrc, 'read committed') > 0`) === 3,
+  check(cuenta('D-17 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-17]') > 0`) === 3
+      && cuenta('D-17 compartido', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0 and strpos(p.prosrc, 'read committed') > 0`) === 3,
     'D-17 las tres puertas (marcar, levantar, conversión en cooperativa) leen la bandera bajo el candado compartido y exigen READ COMMITTED');
   check(cuenta('D-17 grants', `select count(*) from unnest(array[${lista(D17)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 3
-      && cuenta('D-17 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${lista(D17)}::regprocedure[]) and a.grantee = 0`) === 0,
+      && cuenta('D-17 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D17)}]::regprocedure[]) and a.grantee = 0`) === 0,
     'D-17 las tres conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
   if (cuenta('D-18 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and strpos(p.prosrc, 'F2.b [D-18]') > 0)`) === 1) {
-    check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid in (${lista(D18)}::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
+    check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D18)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
         && cuenta('D-18 jerarquía', `select (strpos(p.prosrc, 'usuarios_jerarquia') > 0)::int from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure`) === 1,
       'D-18 la conversión toma el interlock de jerarquía y la fusión cancela tareas de cliente (marcadores en el cuerpo)');
     check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2
-        && cuenta('D-18 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${lista(D18)}::regprocedure[]) and a.grantee = 0`) === 0,
+        && cuenta('D-18 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D18)}]::regprocedure[]) and a.grantee = 0`) === 0,
       'D-18 las dos conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
     // El interlock hace ESPERAR: sin lock_timeout la conversión se cuelga hasta el timeout de PostgREST (auditor D-18 #2).
     check(cuenta('D-18 lock_timeout', `select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.proconfig @> array['lock_timeout=5s']`) === 1,

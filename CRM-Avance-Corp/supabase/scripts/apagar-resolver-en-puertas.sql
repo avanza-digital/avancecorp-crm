@@ -1,19 +1,20 @@
 -- APAGADO de la identidad unificada (F2.b): UN solo UPDATE, en su propia transacción corta, con timeout explícito.
 --
 -- POR QUÉ ASÍ. El cambio de bandera toma el candado EXCLUSIVO `crm_flag_resolver_en_puertas` (trigger de D-5) y por
--- tanto ESPERA a las puertas en vuelo que lo leyeron bajo el compartido (D-5, D-15, D-17). Pero NO todas las funciones
--- que leen la bandera lo toman: el censo del 06/09/2026 encontró 14 más que la leen y escriben (la conversión Avance,
--- la reserva por persona, el alta de contrato, la fusión, la corrección de documento, el enlace, la reasignación, el
--- alta y la eliminación de cliente, el reingreso, el puente…). Para ésas, la garantía no es un candado sino el DRENAJE:
--- este script se niega a cambiar la bandera si hay alguna transacción de la aplicación viva contra la base. Por eso el
--- encendido va en VENTANA MUERTA (22:00–07:00 Lima o domingo) y sin nadie operando: si algo está en vuelo, aborta y se
--- repite. Nunca cambiar la bandera dentro de una transacción larga que toque filas de negocio (interbloqueo), ni desde
--- una reversa que la apaga junto a otras cosas.
+-- tanto ESPERA a toda llamada en vuelo que la haya leído bajo el compartido. Desde **D-19 (20260906200000) eso son
+-- TODAS**: las 34 funciones que leen `resolver_en_puertas` pasan por `private.resolver_en_puertas_bajo_candado()`, que
+-- exige READ COMMITTED, toma el compartido y solo entonces lee. Antes de D-19 quedaban fuera 18 —incluidos los
+-- validadores BEFORE de `crm.leads`, que son el camino directo del front— y la única garantía era el DRENAJE de este
+-- script. **Codex demostró que el drenaje NO cierra la admisión**: una llamada puede empezar justo después del recuento
+-- y justo antes del UPDATE, y el recuento tampoco ve una edge que va por dos operaciones SQL separadas. Por eso el
+-- recuento se conserva como AVISO informativo, no como compuerta: con D-19 lo correcto es **esperar**, no rehusar.
 --
--- APAGAR es la dirección segura (las puertas vuelven al comportamiento de siempre), pero se aplica el mismo rigor.
--- Si el UPDATE espera más de 30 s, aborta solo (lock_timeout): revisar qué puerta sigue en vuelo y repetir.
--- Bitácora: `trg_audit_multiempresa_flags` registra el cambio en `public.audit_log` (el `actualizado_por` queda vacío
--- al ejecutarlo desde `db query`: anotar en el ledger quién y cuándo). Se niega si D-5 no está aplicada.
+-- Sigue siendo buena práctica hacerlo en VENTANA MUERTA (22:00–07:00 Lima o domingo). Nunca cambiar la bandera dentro
+-- de una transacción larga que toque filas de negocio (interbloqueo), ni desde una reversa que la apaga junto a otras cosas.
+--
+-- Si el UPDATE espera más de 30 s, aborta solo (lock_timeout): mira qué sigue en vuelo y repite.
+-- Bitácora: `trg_audit_multiempresa_flags` registra el cambio en `public.audit_log` (el actor queda vacío al ejecutarlo
+-- desde `db query`: anotar en el ledger quién y cuándo). Se niega si D-5 no está aplicada.
 begin;
 set local lock_timeout = '30s';
 do $$
@@ -23,9 +24,8 @@ begin
                    and tgname = 'trg_multiempresa_flags_00_serializa_puertas' and tgenabled = 'O') then
     raise exception 'F2.b: falta el trigger que serializa el cambio de bandera (D-5, 20260906140000): aplica D-5 antes de apagar';
   end if;
-  -- DRENAJE: ninguna transacción de la aplicación puede estar a medias (las que no toman el candado compartido
-  -- terminarían con una bandera distinta de la que leyeron). `authenticator` es el rol de PostgREST; `service_role`
-  -- y `authenticated` son los roles con los que corren las llamadas del CRM, del Portal y de las edges.
+  -- AVISO (ya no compuerta): cuántas transacciones de la aplicación hay a medias. Con D-19 todas toman el candado
+  -- compartido, así que este UPDATE las ESPERA en vez de tener que rehusar. Se informa por si el número sorprende.
   select count(*) into v_vivas
   from pg_stat_activity
   where datname = current_database()
@@ -37,8 +37,11 @@ begin
     and (state = 'active'
          or (state like 'idle in transaction%' and coalesce(query, '') !~* '^\s*begin'));
   if v_vivas > 0 then
-    raise exception 'F2.b: hay % transaccion(es) de la aplicacion en vuelo: espera a la ventana muerta y vuelve a intentarlo', v_vivas
-      using hint = 'Con nadie operando, este contador queda en cero. Mira pg_stat_activity si se repite.';
+    raise notice 'F2.b: hay % transaccion(es) de la aplicacion en vuelo; el cambio de bandera las ESPERA (D-19). Si el UPDATE aborta por lock_timeout, repite.', v_vivas;
+  end if;
+  -- Sí es compuerta: sin D-19 el drenaje volvería a ser la única (falsa) garantía.
+  if to_regprocedure('private.resolver_en_puertas_bajo_candado()') is null then
+    raise exception 'F2.b: falta D-19 (20260906200000): sin ella hay funciones que leen la bandera sin candado y este cambio puede pillarlas a medias';
   end if;
 end $$;
 update crm.multiempresa_flags set activo = false, actualizado_en = now() where nombre = 'resolver_en_puertas';
