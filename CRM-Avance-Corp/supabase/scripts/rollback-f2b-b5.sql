@@ -13,6 +13,11 @@ begin
   if exists (select 1 from crm.multiempresa_flags where nombre in ('resolver_en_puertas','inversiones_escritura') and activo) then
     raise exception 'REVERSA b5: alguna bandera está ENCENDIDA; apágala a propósito antes de revertir';
   end if;
+  -- Codex D-17 #4: la reversa de b5 restaura el cuerpo viejo de la fusión y borraría D-18 sin avisar.
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)')
+               and md5(p.prosrc) = 'd3d1a56fcf0d8c7479be27ce13990b17') then
+    raise exception 'REVERSA b5: D-18 (20260906190000) sigue aplicada sobre crm.fusionar_inversionistas_fn: revierte D-18 ANTES o perderás la cancelación de tareas de cliente';
+  end if;
 end
 $flags$;
 

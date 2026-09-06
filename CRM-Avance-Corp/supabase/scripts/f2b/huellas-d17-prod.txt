@@ -1,0 +1,4 @@
+# md5(pg_get_functiondef + '\n') en PRODUCCIÓN el 06/09/2026 (= banco-f7, contrastado) de las tres puertas que D-17 transforma.
+crm.marcar_no_contactar 3801006e30ae81df9bd311872277626c
+crm.levantar_no_contactar 7d67b6012f9f1a44e435a14f574b7927
+crm.convertir_lead_externo 3ff4aa7ec25751ba028af596c9fed6a2

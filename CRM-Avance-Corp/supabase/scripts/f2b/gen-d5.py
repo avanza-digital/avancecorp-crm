@@ -489,6 +489,13 @@ begin
   if to_regprocedure('crm.reabrir_lead_fn(uuid)') is not null or to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') is not null then
     raise exception 'REVERSA D-5: D-15 (20260906150000) sigue aplicada y sus puertas toman el compartido que este trigger serializa: revierte D-15 ANTES (orden D-15 → D-5)';
   end if;
+  -- Codex D-17 #4: retirar D-5 suelta el trigger que serializa la bandera, y D-17 lo NECESITA. Orden: D-18 → D-17 → D-15 → D-5.
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.marcar_no_contactar(uuid,text)')
+               and md5(p.prosrc) in ('9b7e1138a11d2d708d5a525d1047a683'))
+     or exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.levantar_no_contactar(uuid,text)')
+               and md5(p.prosrc) in ('3840a73fc3a1db8f27ea921fad1bd65a')) then
+    raise exception 'REVERSA D-5: D-17 (20260906160000) sigue aplicada y sus tres puertas dependen del trigger serializador que D-5 crea: revierte D-17 ANTES (orden D-18 → D-17 → D-15 → D-5)';
+  end if;
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('{HB['r0']}', '{HB['r']}')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('{HB['m0']}', '{HB['m']}')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')), '') not in ('{HB['m30']}', '{HB['m3']}')

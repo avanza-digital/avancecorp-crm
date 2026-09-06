@@ -9384,6 +9384,39 @@ async function testIdentidadF2bD15(sessions, seed) {
 // ── RENTABILIDAD R1 (20260906170000): política versionada, núcleo private.resolver_tasa por su puerta, solicitudes de tasa y ledger ──
 // Grants, definer, RLS estructural, superficie 42501 y D3. El flujo de negocio completo (pedir → aprobar/rechazar/aprobar hasta X →
 // aceptar/declinar, herencia en renovación/upgrade, vencimiento, política) vive en scripts/oraculo-rentabilidad-r1.sh (115 aserciones).
+async function testIdentidadF2bD17yD18(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-17]/[D-18]: las últimas puertas antes del encendido —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-17/D-18: ${etiqueta}`, sql);
+  const D17 = ['crm.marcar_no_contactar(uuid,text)', 'crm.levantar_no_contactar(uuid,text)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'];
+  const D18 = ['crm.convertir_lead(uuid,uuid)', 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'];
+  const lista = (a) => a.map((f) => `'${f}'`).join(',');
+  if (cuenta('D-17 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.marcar_no_contactar(uuid,text)'::regprocedure and strpos(p.prosrc, 'F2.b [D-17]') > 0)`) !== 1) {
+    console.log('  (saltado: D-17 (20260906160000) no está en esta base)');
+    return;
+  }
+  check(cuenta('D-17 marcadores', `select count(*) from pg_proc p where p.oid in (${lista(D17)}::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-17]') > 0`) === 3
+      && cuenta('D-17 compartido', `select count(*) from pg_proc p where p.oid in (${lista(D17)}::regprocedure[]) and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0 and strpos(p.prosrc, 'read committed') > 0`) === 3,
+    'D-17 las tres puertas (marcar, levantar, conversión en cooperativa) leen la bandera bajo el candado compartido y exigen READ COMMITTED');
+  check(cuenta('D-17 grants', `select count(*) from unnest(array[${lista(D17)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 3
+      && cuenta('D-17 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${lista(D17)}::regprocedure[]) and a.grantee = 0`) === 0,
+    'D-17 las tres conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+  if (cuenta('D-18 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and strpos(p.prosrc, 'F2.b [D-18]') > 0)`) === 1) {
+    check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid in (${lista(D18)}::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
+        && cuenta('D-18 jerarquía', `select (strpos(p.prosrc, 'usuarios_jerarquia') > 0)::int from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure`) === 1,
+      'D-18 la conversión toma el interlock de jerarquía y la fusión cancela tareas de cliente (marcadores en el cuerpo)');
+    check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2,
+      'D-18 las dos conservan sus grants (solo authenticated)');
+  } else {
+    console.log('  (D-18 (20260906170000) no está en esta base: se saltan sus aserciones)');
+  }
+  // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
+  const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
+  check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}; el encendido las cubre con el drenaje de scripts/encender-resolver-en-puertas.sql)`);
+}
+
+// ── F2.b [D-15] (20260906150000): el botón «Reabrir» pasa por la puerta crm.reabrir_lead_fn ──
+// Grants, definer, superficie y paridad apagada (el negocio encendido —persona, veto, enlace— lo cubre scripts/oraculo-f2b-d15.sh).
+
 async function testRentabilidadR1(sessions, seed) {
   console.log('\n— Rentabilidad R1: núcleo de tasa, solicitudes y ledger —');
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R1: ${etiqueta}`, sql);
@@ -12422,6 +12455,7 @@ async function main() {
       await testIdentidadF2bD3(sessions);
       await testIdentidadF2bD2(sessions);
       await testIdentidadF2bD4(sessions);
+      await testIdentidadF2bD17yD18(sessions);
       await testIdentidadF2bD15(sessions, verifiedSeed);
       await testIdentidadF2bD5(sessions, verifiedSeed);
       await testRentabilidadR1(sessions, verifiedSeed);

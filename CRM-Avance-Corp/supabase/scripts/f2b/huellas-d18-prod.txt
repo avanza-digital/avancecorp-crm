@@ -1,0 +1,3 @@
+# md5(pg_get_functiondef + '\n') en PRODUCCIÓN el 06/09/2026 (= banco-f7) de las dos funciones que D-18 transforma.
+crm.convertir_lead 1d3f437cafe73d2e4076bb68158af812
+crm.fusionar_inversionistas_fn f5b05e84232d54c3e8f92ebbe95f8e2a
