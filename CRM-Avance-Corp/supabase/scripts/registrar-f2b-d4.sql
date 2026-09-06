@@ -6,7 +6,7 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d4_importador_por_puerta'));
 do $chk$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3ba66a37f66f6b9eae6f4c913e1a838') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
     raise exception 'REGISTRO D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
@@ -57,7 +57,7 @@ begin
   if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_enlaza_identidad' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
     raise exception 'REGISTRO D-4: el trigger de nacimiento crm.leads.trg_leads_zz_enlaza_identidad falta, está deshabilitado o no es BEFORE INSERT';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'b48bc6b9f9a94ef638568ca97dd8caf7')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '23dd8c0666399006d359d125a266c2a6')) then
     raise exception 'REGISTRO D-4: la versión 20260906130000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -259,16 +259,17 @@ begin
       'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
       'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
       'interes', v_categoria, 'nota', v_nota);
-    -- IDEMPOTENCIA (Codex v4 #7): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló después),
-    -- el reingreso ya anotado en las últimas 24 h vale: no se escribe una segunda nota. Misma persona, mismo origen y
-    -- los mismos datos (lo que registrar_reingreso_lead_fn guarda en metadata.datos).
+    -- IDEMPOTENCIA (Codex v4 #7, v5 #3): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló
+    -- después), el reingreso ya anotado vale: no se escribe una segunda nota. Misma persona, mismo origen y los mismos
+    -- DATOS —sin el número de fila, que cambia si alguien inserta una fila encima— en los últimos 7 días (una caída larga
+    -- del CRM tampoco la burla). Es lo que registrar_reingreso_lead_fn guarda en metadata.datos.
     select a.id into v_prev
       from crm.actividades a
      where a.lead_id = v_lead
        and a.metadata->>'evento' = 'reingreso'
        and a.metadata->>'origen' = 'hoja'
-       and a.metadata->'datos' = v_datos
-       and a.creado_en > pg_catalog.now() - interval '24 hours'
+       and (a.metadata->'datos') - 'fila' = v_datos - 'fila'
+       and a.creado_en > pg_catalog.now() - interval '7 days'
      order by a.creado_en desc
      limit 1;
     if v_prev is not null then
@@ -277,11 +278,11 @@ begin
       begin
         v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', v_datos);
       exception when others then
-        -- Un fallo TRANSITORIO sube entero: el edge lo trata como temporal y la fila se reintenta en el siguiente lote
-        -- (auditor M4). Las clases son LAS MISMAS que el edge considera temporales (Codex v4 #8): conexión (08),
-        -- transacción (40), recursos (53), candado (55), operador/cancelación (57), E/S (58) e internos (XX).
-        -- Solo lo definitivo queda anotado en la respuesta.
-        if pg_catalog.left(sqlstate, 2) in ('08', '40', '53', '55', '57', '58', 'XX') then
+        -- Solo los errores DE NEGOCIO quedan anotados como definitivos en la respuesta (datos 22xxx, integridad 23xxx y
+        -- los P0xxx que levantan nuestras funciones: lead inexistente, origen inválido, identidad apagada). Cualquier
+        -- otro —transacción, recursos, candado, cancelación, E/S, límites (54), internos, configuración— sube entero: el
+        -- edge lo trata como temporal y la hoja reintenta la fila (auditor M4; Codex v4 #8 y v5 #4).
+        if pg_catalog.left(sqlstate, 2) not in ('22', '23', 'P0') then
           raise;
         end if;
         v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
@@ -298,7 +299,7 @@ comment on function crm.importar_lead_fn(jsonb) is 'F2.b [D-4]: puerta SQL del i
 
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3ba66a37f66f6b9eae6f4c913e1a838') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
     raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')

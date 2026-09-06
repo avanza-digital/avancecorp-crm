@@ -23,6 +23,9 @@
 # la tabla, como hoy); el reingreso es IDEMPOTENTE 24 h (misma fila de la hoja reenviada tras perder la confirmación → no se anota
 # dos veces: reingreso {ok, repetido}); suben las clases 08/40/53/55/57/58/XX (las mismas que el edge trata como temporales);
 # la reversa se niega a soltar una puerta cuyo cuerpo no sea el de este generador.
+# v6 (Codex 3ª ronda 06/09): la idempotencia del reingreso compara los DATOS sin el número de fila (que cambia si alguien inserta
+# una fila encima) y cubre 7 días (una caída larga del CRM no la burla); el reingreso solo se traga como definitivos los errores
+# de negocio (clases 22, 23 y P0); cualquier otro sube entero (el edge los reintenta).
 # Uso: python3 gen-d4.py <dir scripts/f2b> <dir supabase>
 import sys, pathlib, hashlib
 S = pathlib.Path(sys.argv[1]); W = pathlib.Path(sys.argv[2])
@@ -157,16 +160,17 @@ begin
       'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
       'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
       'interes', v_categoria, 'nota', v_nota);
-    -- IDEMPOTENCIA (Codex v4 #7): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló después),
-    -- el reingreso ya anotado en las últimas 24 h vale: no se escribe una segunda nota. Misma persona, mismo origen y
-    -- los mismos datos (lo que registrar_reingreso_lead_fn guarda en metadata.datos).
+    -- IDEMPOTENCIA (Codex v4 #7, v5 #3): si la hoja reenvía la MISMA fila (perdió la confirmación HTTP o el lote falló
+    -- después), el reingreso ya anotado vale: no se escribe una segunda nota. Misma persona, mismo origen y los mismos
+    -- DATOS —sin el número de fila, que cambia si alguien inserta una fila encima— en los últimos 7 días (una caída larga
+    -- del CRM tampoco la burla). Es lo que registrar_reingreso_lead_fn guarda en metadata.datos.
     select a.id into v_prev
       from crm.actividades a
      where a.lead_id = v_lead
        and a.metadata->>'evento' = 'reingreso'
        and a.metadata->>'origen' = 'hoja'
-       and a.metadata->'datos' = v_datos
-       and a.creado_en > pg_catalog.now() - interval '24 hours'
+       and (a.metadata->'datos') - 'fila' = v_datos - 'fila'
+       and a.creado_en > pg_catalog.now() - interval '7 days'
      order by a.creado_en desc
      limit 1;
     if v_prev is not null then
@@ -175,11 +179,11 @@ begin
       begin
         v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', v_datos);
       exception when others then
-        -- Un fallo TRANSITORIO sube entero: el edge lo trata como temporal y la fila se reintenta en el siguiente lote
-        -- (auditor M4). Las clases son LAS MISMAS que el edge considera temporales (Codex v4 #8): conexión (08),
-        -- transacción (40), recursos (53), candado (55), operador/cancelación (57), E/S (58) e internos (XX).
-        -- Solo lo definitivo queda anotado en la respuesta.
-        if pg_catalog.left(sqlstate, 2) in ('08', '40', '53', '55', '57', '58', 'XX') then
+        -- Solo los errores DE NEGOCIO quedan anotados como definitivos en la respuesta (datos 22xxx, integridad 23xxx y
+        -- los P0xxx que levantan nuestras funciones: lead inexistente, origen inválido, identidad apagada). Cualquier
+        -- otro —transacción, recursos, candado, cancelación, E/S, límites (54), internos, configuración— sube entero: el
+        -- edge lo trata como temporal y la hoja reintenta la fila (auditor M4; Codex v4 #8 y v5 #4).
+        if pg_catalog.left(sqlstate, 2) not in ('22', '23', 'P0') then
           raise;
         end if;
         v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
@@ -277,8 +281,8 @@ commit;
 rb = f"""-- ============================================================================
 -- REVERSA de F2.b [D-4] ({VER}): suelta crm.importar_lead_fn y desregistra la versión. Repetible dos veces.
 -- Antes de revertir, devolver el edge crm-importar-leads a la versión que INSERTA directo (fase 2 deshecha): con el edge de
--- fase 2 vivo y la puerta ausente, cada fila del lote responde «ERROR temporal» (PGRST202/42883 → se reintenta, no se
--- congela como rechazo) hasta que vuelva el edge o la puerta.
+-- fase 2 vivo y la puerta ausente, cada fila que supera el pase 1 del edge responde «ERROR temporal» (PGRST202/42883 →
+-- se reintenta, no se congela como rechazo) hasta que vuelva el edge o la puerta; las inválidas siguen rechazadas en el pase 1.
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';

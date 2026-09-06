@@ -883,10 +883,14 @@ function contarEstadosDeLeads(hoja) {
   const cuenta = { total: 0, pendientes: 0, importados: 0, duplicados: 0, ya_clientes: 0, rechazados: 0, errores: 0, otros: 0 };
   const ultima = hoja.getLastRow();
   if (ultima < 2) return cuenta;
-  const telefonos = hoja.getRange(2, 2, ultima - 1, 1).getDisplayValues();
+  const identidad = hoja.getRange(2, 1, ultima - 1, 2).getDisplayValues(); // nombre y teléfono
   const estados = hoja.getRange(2, COL_ESTADO, ultima - 1, 1).getDisplayValues();
   for (let i = 0; i < estados.length; i++) {
-    if (!String(telefonos[i][0]).trim()) continue; // fila vacía de la rejilla
+    // Fila vacía de la rejilla = sin nombre, sin teléfono y sin estado. Una fila con
+    // el teléfono principal vacío (el importador acepta solo el alternativo) o con
+    // estado escrito SÍ cuenta (Codex v5 #1).
+    const hayDatos = String(identidad[i][0]).trim() || String(identidad[i][1]).trim() || String(estados[i][0]).trim();
+    if (!hayDatos) continue;
     cuenta.total++;
     const e = String(estados[i][0]).trim();
     if (!e) cuenta.pendientes++;

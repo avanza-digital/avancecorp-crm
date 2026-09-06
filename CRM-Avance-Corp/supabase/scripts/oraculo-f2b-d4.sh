@@ -10,6 +10,8 @@
 # v5 (Codex 2ª ronda): candados retenidos con adquisición CONFIRMADA (marca LOCK-OK) y sesión secundaria exigida; sesión + payload
 # malformado → 42501; sin prevalidaciones (paridad de código con el INSERT directo, fijo → 22023 del trigger 00; vetada + fijo → no_contactar);
 # reingreso idempotente (misma fila dos veces → una nota, repetido); E/S (58030) en el reingreso sube.
+# v6 (Codex 3ª ronda): idempotencia aunque cambie el número de fila y con DOS llamadas SIMULTÁNEAS; 54001 en el reingreso sube; el veto
+# con el candado retenido HASTA UNA SEÑAL (no por tiempo) y cronómetro en milisegundos.
 set -uo pipefail
 : "${S:?exporta S=/ruta/al/scratchpad con banco-pooler.txt}"
 PG="$(cat "$S/banco-pooler.txt")"
@@ -52,6 +54,17 @@ commit;
 EOF
 echo "exit=$?" >> "$LOCKF" ) & BG=$!; local i; for i in $(seq 1 20); do grep -q LOCK-OK "$LOCKF" 2>/dev/null && return 0; sleep 0.5; done; rojo "el candado de la sesión secundaria no llegó a tomarse: $(head -c 200 "$LOCKF")"; return 1; }
 soltado() { wait $BG 2>/dev/null; grep -q "exit=0" "$LOCKF" && return 0; rojo "la sesión secundaria que retenía el candado falló: $(grep -v LOCK-OK "$LOCKF" | head -c 200)"; return 1; }
+# retiene un candado en OTRA sesión HASTA que se le mande la señal (FIFO): la contención no depende de un temporizador
+retener_hasta_senal() { LOCKF="$S/d4-lock-$RUN-$RANDOM.out"; FIFO="$S/d4-fifo-$RUN-$RANDOM"; rm -f "$FIFO"; mkfifo "$FIFO"; ( psql "$PG" -qAt -v ON_ERROR_STOP=1 > "$LOCKF" 2>&1 <<EOF
+begin;
+$1;
+\echo LOCK-OK
+\! cat "$FIFO" > /dev/null
+commit;
+EOF
+echo "exit=$?" >> "$LOCKF" ) & BG=$!; local i; for i in $(seq 1 20); do grep -q LOCK-OK "$LOCKF" 2>/dev/null && return 0; sleep 0.5; done; rojo "el candado de la sesión secundaria no llegó a tomarse: $(head -c 200 "$LOCKF")"; return 1; }
+senal() { echo suelta > "$FIFO"; soltado; rm -f "$FIFO"; }
+ms() { perl -MTime::HiRes=time -e 'printf "%d\n", time*1000'; }
 lead_de() { sys "insert into crm.leads (id,nombre_completo,telefono,dni,monto_estimado,origen,etapa,creado_por,vendedor_id) values ('$1','D4 $3 r$RUN','+51$2',$4,1000,'landing','nuevo',null,${5:-null})"; }
 
 echo "== Preflight (RUN=$RUN) =="
@@ -119,8 +132,16 @@ R="$(puerta "$(fila 9${RUN}79 "\"$D8\"" REING 9)")"
 # (v5) la MISMA fila otra vez (la hoja perdió la confirmación y reenvía) → ya_cliente, reingreso ok + repetido, y NO hay segunda nota
 R="$(puerta "$(fila 9${RUN}79 "\"$D8\"" REING 9)")"
 [[ "$(j "$R" resultado)" == "ya_cliente" && "$(jj "$R" reingreso ok)" == "True" && "$(jj "$R" reingreso repetido)" == "True" && "$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso' and metadata->'datos'->>'fila'='9'")" == "$((N0+1))" ]] && ok "ON · la MISMA fila reenviada (confirmación perdida) → ya_cliente con reingreso {ok, repetido}: sigue habiendo UNA sola nota (idempotente 24 h)" || rojo "[D-4] reingreso repetido: $(echo "$R" | head -c 220) notas=$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso' and metadata->'datos'->>'fila'='9'")"
-R="$(puerta "$(fila 9${RUN}79 "\"$D8\"" REING 11)")"
-[[ "$(j "$R" resultado)" == "ya_cliente" && "$(jj "$R" reingreso ok)" == "True" && -z "$(jj "$R" reingreso repetido)" && "$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso' and metadata->'datos'->>'fila'='11'")" == "1" ]] && ok "ON · la misma persona con OTROS datos (otra fila) → reingreso nuevo, sí se anota" || rojo "[D-4] reingreso distinto: $(echo "$R" | head -c 200)"
+R="$(puerta "$(fila 9${RUN}79 "\"$D8\"" REING 12)")"
+[[ "$(j "$R" resultado)" == "ya_cliente" && "$(jj "$R" reingreso ok)" == "True" && "$(jj "$R" reingreso repetido)" == "True" && "$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso'")" == "$((N0+1))" ]] && ok "ON · los mismos datos en OTRO número de fila (alguien insertó una fila encima) → sigue siendo repetido: una sola nota" || rojo "[D-4] repetido con otra fila: $(echo "$R" | head -c 200)"
+R="$(puerta "$(fila 9${RUN}79 "\"$D8\"" REING 11 | sed 's/"monto_estimado":1000/"monto_estimado":2500/')")"
+[[ "$(j "$R" resultado)" == "ya_cliente" && "$(jj "$R" reingreso ok)" == "True" && -z "$(jj "$R" reingreso repetido)" && "$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso'")" == "$((N0+2))" ]] && ok "ON · la misma persona con OTROS datos (otro capital) → reingreso nuevo, sí se anota" || rojo "[D-4] reingreso distinto: $(echo "$R" | head -c 200)"
+# dos lotes SIMULTÁNEOS con la misma fila (datos nuevos): la persona va FOR UPDATE → uno anota, el otro ve la nota → una sola nota
+FSIM="$(fila 9${RUN}79 "\"$D8\"" REING 13 | sed 's/"monto_estimado":1000/"monto_estimado":3000/')"
+( puerta "$FSIM" > "$S/d4-sim-a-$RUN.out" 2>&1 ) & PA=$!; ( puerta "$FSIM" > "$S/d4-sim-b-$RUN.out" 2>&1 ) & PB=$!; wait $PA; wait $PB
+RA="$(cat "$S/d4-sim-a-$RUN.out")"; RB="$(cat "$S/d4-sim-b-$RUN.out")"; NREP=$(( $([[ "$(jj "$RA" reingreso repetido)" == "True" ]] && echo 1 || echo 0) + $([[ "$(jj "$RB" reingreso repetido)" == "True" ]] && echo 1 || echo 0) ))
+[[ "$(j "$RA" resultado)" == "ya_cliente" && "$(j "$RB" resultado)" == "ya_cliente" && "$(jj "$RA" reingreso ok)" == "True" && "$(jj "$RB" reingreso ok)" == "True" && $NREP -eq 1 && "$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso'")" == "$((N0+3))" ]] && ok "ON · DOS llamadas SIMULTÁNEAS con la misma fila → las dos ya_cliente ok, exactamente una «repetido», una sola nota (la persona va FOR UPDATE)" || rojo "[D-4] simultáneas: A=$(echo "$RA" | head -c 120) B=$(echo "$RB" | head -c 120) notas=$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso'") rep=$NREP"
+rm -f "$S/d4-sim-a-$RUN.out" "$S/d4-sim-b-$RUN.out"
 RD="$(directo 9${RUN}79 "'$D8'" REING)"; echo "$RD" | grep -q "P0481" && echo "$RD" | grep -q "identidad" && echo "$RD" | grep -q "$L8" && ok "INSERT directo de la misma fila → P0481 ya_es_cliente vía identidad con lead_id = L8 (misma información, hoy en el error)" || rojo "directo ON: $(echo "$RD" | grep -E 'ERROR|DETAIL' | head -2 | tr '\n' ' ' | cut -c1-200)"
 # persona vetada: rechazado (no_contactar) = INSERT directo P0429 (trigger 000)
 R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$V\",\"role\":\"authenticated\"}',true); select crm.marcar_no_contactar('$L8','ensayo D-4 r$RUN'); commit;" 2>&1)"; [[ "$(q "select no_contactar from crm.inversionistas where id='$P8'")" == "t" ]] && ok "fixture: P8 vetada" || rojo "veto P8: $(echo "$R" | head -c 120)"
@@ -130,10 +151,10 @@ R="$(puerta "$(fila 9${RUN}80 "\"$D8\"" VETADA 10)")"; RD="$(directo 9${RUN}80 "
 R="$(puerta "$(fila 14457891 "\"$D8\"" VETOFIJO 28)")"; RD="$(directo 14457891 "'$D8'" VETOFIJO)"
 [[ "$(j "$R" resultado)" == "rechazado" && "$(jj "$R" veredicto estado)" == "no_contactar" ]] && echo "$RD" | grep -q "P0429" && ok "ON · persona vetada + teléfono fijo → no_contactar en la puerta = P0429 en el INSERT directo (el veto va antes que el formato en los dos)" || rojo "[D-4] vetada + fijo: $(echo "$R" | head -c 160) | $(echo "$RD" | grep ERROR | head -1 | cut -c1-80)"
 # (v4/v5) persona vetada + teléfono retenido por OTRA sesión (adquisición CONFIRMADA) más de lock_timeout → rechazado enseguida, no 55P03
-if retener "select private.bloquear_contactos_lead(array['+519${RUN}97'], null)" 8; then
-  T0=$(date +%s); R="$(puerta "$(fila 9${RUN}97 "\"$D8\"" VETOLOCK 27)")"; T1=$(date +%s)
-  [[ "$(j "$R" resultado)" == "rechazado" && "$(jj "$R" veredicto estado)" == "no_contactar" && $((T1-T0)) -le 2 ]] && ok "ON · persona vetada con el teléfono retenido por otra sesión (candado confirmado) → rechazado no_contactar en $((T1-T0)) s (umbral 2 s; lock_timeout 5 s), sin esperar el candado de contacto" || rojo "[D-4] vetada con contacto retenido: $((T1-T0)) s $(echo "$R" | head -c 160)"
-  soltado
+if retener_hasta_senal "select private.bloquear_contactos_lead(array['+519${RUN}97'], null)"; then
+  T0=$(ms); R="$(puerta "$(fila 9${RUN}97 "\"$D8\"" VETOLOCK 27)")"; T1=$(ms); DT=$((T1-T0))
+  [[ "$(j "$R" resultado)" == "rechazado" && "$(jj "$R" veredicto estado)" == "no_contactar" && $DT -lt 2000 ]] && ok "ON · persona vetada con el teléfono retenido por otra sesión HASTA LA SEÑAL (sin temporizador) → rechazado no_contactar en $DT ms (umbral 2000 ms; lock_timeout 5 s): el veto va antes que el candado de contacto" || rojo "[D-4] vetada con contacto retenido: $DT ms $(echo "$R" | head -c 160)"
+  senal
 fi
 psql "$PG" -qtA -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$G\",\"role\":\"authenticated\"}',true); select crm.levantar_no_contactar('$L8','fin r$RUN'); commit;" >/dev/null 2>&1
 # (v3) el reingreso FALLA: definitivo → ya_cliente con reingreso.ok=false (la hoja lo dice, sin nota a medias); transitorio → la puerta sube el error entero (la fila se reintenta)
@@ -146,7 +167,10 @@ R="$(puerta "$(fila 9${RUN}93 "\"$D8\"" TRANS 23)")"
 echo "$R" | grep -q "55P03" && ! echo "$R" | grep -q '"resultado"' && [[ "$(q "select count(*) from crm.leads where telefono='+519${RUN}93'")" == "0" ]] && ok "ON · el reingreso falla de forma TRANSITORIA (55P03) → la puerta sube el error entero (el edge lo reintenta), nada a medias" || rojo "[D-4] reingreso transitorio: $(echo "$R" | head -c 200)"
 psql "$PG" -q -v ON_ERROR_STOP=1 -c "create or replace function public.d4_ensayo_reingreso_falla() returns trigger language plpgsql as \$f\$ begin if new.lead_id = '$L8' and new.metadata->>'evento' = 'reingreso' then raise exception 'ensayo D-4: E/S' using errcode = '58030'; end if; return new; end \$f\$;" 2>&1 | grep ERROR
 R="$(puerta "$(fila 9${RUN}98 "\"$D8\"" ES 29)")"
-echo "$R" | grep -q "58030" && ! echo "$R" | grep -q '"resultado"' && [[ "$(q "select count(*) from crm.leads where telefono='+519${RUN}98'")" == "0" ]] && ok "ON · el reingreso falla por E/S (58030, temporal para el edge) → la puerta lo sube entero (misma lista de clases que el edge), nada a medias" || rojo "[D-4] reingreso 58030: $(echo "$R" | head -c 200)"
+echo "$R" | grep -q "58030" && ! echo "$R" | grep -q '"resultado"' && [[ "$(q "select count(*) from crm.leads where telefono='+519${RUN}98'")" == "0" ]] && ok "ON · el reingreso falla por E/S (58030, temporal para el edge) → la puerta lo sube entero, nada a medias" || rojo "[D-4] reingreso 58030: $(echo "$R" | head -c 200)"
+psql "$PG" -q -v ON_ERROR_STOP=1 -c "create or replace function public.d4_ensayo_reingreso_falla() returns trigger language plpgsql as \$f\$ begin if new.lead_id = '$L8' and new.metadata->>'evento' = 'reingreso' then raise exception 'ensayo D-4: límite' using errcode = '54001'; end if; return new; end \$f\$;" 2>&1 | grep ERROR
+R="$(puerta "$(fila 9${RUN}99 "\"$D8\"" LIM 30)")"
+echo "$R" | grep -q "54001" && ! echo "$R" | grep -q '"resultado"' && ok "ON · el reingreso falla por un límite del servidor (54001, que PostgREST devuelve como 500 → temporal para el edge) → la puerta lo sube entero: solo 22/23/P0 quedan como definitivos" || rojo "[D-4] reingreso 54001: $(echo "$R" | head -c 200)"
 psql "$PG" -q -c "drop trigger if exists zzz_d4_ensayo on crm.actividades; drop function if exists public.d4_ensayo_reingreso_falla();" 2>&1 | grep ERROR
 # DNI nuevo con ON: nace sin identidad (b1: la identidad nace al convertir/dar de alta); DNI de una persona reconocida SIN lead: nace ENLAZADO
 R="$(puerta "$(fila 9${RUN}82 "\"6${RUN}2\"" NUEVA 12)")"; L12="$(j "$R" lead_id)"
@@ -183,7 +207,7 @@ R="$(puerta "$(fila 9${RUN}85 "\"6${RUN}5\"" OFFLOCK 15)")"; [[ "$(j "$R" result
 
 echo "== Limpieza =="
 sys "update crm.leads set activo=false where (telefono like '+519${RUN}%' or telefono like '%1445789_') and nombre_completo like 'D4 %'" >/dev/null
-rm -f "$S"/d4-lock-$RUN-*.out
+rm -f "$S"/d4-lock-$RUN-*.out "$S"/d4-fifo-$RUN-*
 sys "update public.perfiles set activo=false where id in ('$PF3','${PF20:-$PF3}')" >/dev/null
 psql "$PG" -q -c "drop trigger if exists zzz_d4_ensayo on crm.actividades; drop function if exists public.d4_ensayo_reingreso_falla();" >/dev/null 2>&1
 flag false

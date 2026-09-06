@@ -347,6 +347,12 @@ const MUTANTES = [
     a: ``,
   },
   {
+    nombre: "el contador del panel vuelve a ignorar las filas sin teléfono principal",
+    archivo: PUENTE,
+    de: `    const hayDatos = String(identidad[i][0]).trim() || String(identidad[i][1]).trim() || String(estados[i][0]).trim();`,
+    a: `    const hayDatos = String(identidad[i][1]).trim();`,
+  },
+  {
     nombre: "onEdit limpia «YA ES CLIENTE» como si fuera un rechazo",
     archivo: CONECTOR,
     de: `    if (estado.indexOf("IMPORTADO") === 0 || estado.indexOf("YA ES CLIENTE") === 0) continue;`,

@@ -1174,6 +1174,15 @@ test("F2.b D-4: el contador del panel cuenta «YA ES CLIENTE» aparte, no como �
   );
 });
 
+test("F2.b D-4: el contador cuenta una fila SIN teléfono principal (solo alternativo) que ya es cliente", () => {
+  const sinPrincipal = filaConEstado("YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha");
+  sinPrincipal[1] = ""; // columna B vacía: el importador acepta el alternativo
+  const { gs, hojaLeads } = montar({ filasLeads: [sinPrincipal, filaConEstado("IMPORTADO ✓")] });
+  const cuenta = gs.contarEstadosDeLeads(hojaLeads);
+  assert.deepEqual({ total: cuenta.total, ya_clientes: cuenta.ya_clientes }, { total: 2, ya_clientes: 1 },
+    "una fila con estado escrito cuenta aunque la columna del teléfono principal esté vacía");
+});
+
 test("onEdit CONSERVA «YA ES CLIENTE»: reenviar esa fila anotaría OTRO reingreso en la ficha", () => {
   const ESTADO = "YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha";
   const { gs, hojaLeads } = montar({ filasLeads: [filaConEstado(ESTADO)] });

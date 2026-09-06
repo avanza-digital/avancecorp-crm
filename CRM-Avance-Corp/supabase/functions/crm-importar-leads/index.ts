@@ -10,6 +10,7 @@ import {
   clasificarRespuestaPuerta,
   type RespuestaPuerta,
 } from "./resultado-importacion.ts";
+import { etiquetaPropia } from "./catalogo.ts";
 import { reconocerTelefono, repartirNumeros } from "./telefonos.ts";
 
 // ============================================================================
@@ -310,7 +311,10 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    const canal = CANALES[(f.canal ?? "").trim().toLowerCase()];
+    // Solo claves PROPIAS: «Constructor» o «__proto__» en la hoja no deben caer en el
+    // prototipo del objeto (Codex v5 #5: `origen` acababa siendo una función, JSON la
+    // omitía y la fila cambiaba de categoría entre el INSERT directo y la puerta).
+    const canal = etiquetaPropia(CANALES, (f.canal ?? "").trim().toLowerCase());
     if (!canal) {
       rechazo(
         "canal inválido (Referido / LANDING / FORMULARIO / Wallking / Otro)",
@@ -358,7 +362,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const interesRaw = (f.interes ?? "").trim().toLowerCase();
-    const interes = interesRaw ? INTERES[interesRaw] ?? null : null;
+    const interes = interesRaw
+      ? etiquetaPropia(INTERES, interesRaw) ?? null
+      : null;
     if (interesRaw && !interes) {
       rechazo("interés inválido (Nuevo / Renovación / Upgrade)");
       continue;
