@@ -61,3 +61,12 @@ migración, `scripts/rollback-f2b-dN.sql` (byte a byte + desregistro) y `scripts
   (`impacto_desactivacion_usuario_fn`, `fijar_membresia_activa_fn`, `reasignar_responsable_relacion_fn`). Oráculo
   `scripts/oraculo-f2b-d2.sh` (51; sin D-2, 24 rojos; crea V2/V3 bajo S y devuelve sus personas a Gerencia al final).
 - Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § «Bloque 2 de activación». Bloques de la suite: `testIdentidadF2bD9/D3/D2` en `test-rls.mjs`.
+
+## Bloque 3 de activación: [D-4] el importador por la puerta SQL (06/09)
+
+- `gen-d4.py` → `20260906130000` (`crm.importar_lead_fn(jsonb)`, solo service_role: los mismos candados y el MISMO INSERT del edge, con
+  `23505`/`P0481`/`P0429` convertidos en veredicto y el reingreso en la misma transacción), `scripts/rollback-f2b-d4.sql` (DROP) y
+  `scripts/registrar-f2b-d4.sql`. Sin funciones vivas transformadas. Oráculo `scripts/oraculo-f2b-d4.sh` (30; sin la puerta, 22 rojos).
+- 🔴 Regla aprendida: el importador NO usa el veredicto comercial (enfriamiento, ficha, veto de un lead viejo): el trigger de disponibilidad
+  exime al escritor sin sesión; la puerta debe hacer el mismo INSERT y traducir, no juzgar.
+- Fase 2 = el edge `functions/crm-importar-leads` (`rpc importar_lead_fn`; tests Deno `deno test` en esa carpeta). Deploy aparte.
