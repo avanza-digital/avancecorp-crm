@@ -272,3 +272,14 @@ VIEJO por un nombre de archivo mal cambiado en el script de banco: el conteo se 
 ## Hallazgo (06/09, madrugada) — `testConversionMensual`: 4 rojos nuevos al cierre del bloque 2 de F2.b
 
 En la última corrida de la noche (suite 1588/1597) aparecieron 4 rojos en el bloque `testConversionMensual` (`total.analistas == responsables + fuera_de_roster.analistas` para gerencia/directorio/sup1/sup2, `{"total":12,"filas":12,"fuera":5}`, y «el payload trae SOLO las 11 claves del contrato») y la suite pasó de 1480 a 1597 aserciones. Ese bloque no lo toca el bloque 2 (D-9/D-3/D-2 no transforman `metricas_conversiones_fn` ni el ranking) y estuvo VERDE en las tres corridas anteriores de la misma noche con las tres migraciones aplicadas. Lo que cambió entre corridas: el día (06/09) y más cierres de cooperativa acumulados por los actores F3 de los oráculos (`F3 VENDEDOR` y los vendedores `V2`/`V3` que crea `oraculo-f2b-d2.sh`), que quedan «fuera del roster» del seed. Sin diagnosticar: hay que ver si el invariante del ranking cuenta mal a los analistas fuera de roster cuando son varios (es de la sesión del tablero de Gerencia) o si es solo residuo del banco. Los otros 5 rojos son los ambientales conocidos (timeout de `metricas_conversiones_fn` con 14 250 leads, +2 en cascada, y el «tercer estado»).
+
+## Hallazgo (06/09, madrugada) — colisión del lead transitorio `+51999000041` al sembrar identidad (una corrida de 1607)
+
+Una corrida de la suite (ciclo completo reset-gate → seed:demo → baja-historica → test:rls, con D-4 v4 aplicada) abortó con
+`✗ error fatal: sembrar los leads de identidad: 23505 · uq_leads_telefono_vivo · +51999000041`: el bloque de identidad
+(`test-rls.mjs` ~10530, `TEL_IDENTIDAD(41)`) siembra el MISMO teléfono que el lead «AVANCE CONVERSACION TRANSIENT» del
+bloque de avance (~1647, `999000041`), que solo se desactiva en la limpieza final (~474). En las otras cuatro corridas de la
+noche (v2, v3 y dos de v4) el mismo orden pasó, así que el transitorio no siempre está vivo al llegar ahí (probable cascada
+de un timeout 57014 anterior que dejó su desactivación intermedia sin hacer). No hay nadie más en el banco (pg_stat_activity
+solo con conexiones del sistema). Sin diagnosticar; dos teléfonos distintos o desactivar el transitorio al cerrar su bloque
+lo evitarían. No es de D-4 (el bloque D-4 no había corrido aún).
