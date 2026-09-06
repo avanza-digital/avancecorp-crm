@@ -104,7 +104,9 @@ R="$(fus "$PA" "$IX" "motivo con $DA dentro" "$H")"; echo "$R" | grep -q "22023"
 R="$(reas "$G" "$IX" "$SUP" "ensayo b5: cambio de responsable antes de fusionar")"; [[ "$(j "$R" estado)" == "reasignado" ]] && ok "reasignar IX → supervisor (tramo nuevo)" || rojo "reasignar: $R"
 R="$(fus "$PA" "$IX" "fusión de prueba r$RUN" "$H")"; echo "$R" | grep -q "caducó" && ok "fusión con huella vieja (tramo cambió) → P0409 «caducó»" || rojo "huella vieja pasó: $R"
 R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"
-run_as "$V" "insert into crm.tareas (lead_id, vendedor_id, tipo, titulo, vence_en, creado_por) values ('$LX','$V','tarea','B5 tarea tardía r$RUN', now() + interval '2 day', '$V')" >/dev/null
+# F2.b [D-2] (bloque 2): reasignar el responsable mueve la cartera (LX pasó al supervisor); la tarea tardía la agenda quien TIENE el lead ahora.
+TENEDOR="$(q "select vendedor_id from crm.leads where id='$LX'")"
+run_as "$TENEDOR" "insert into crm.tareas (lead_id, vendedor_id, tipo, titulo, vence_en, creado_por) values ('$LX','$TENEDOR','tarea','B5 tarea tardía r$RUN', now() + interval '2 day', '$TENEDOR')" >/dev/null
 R="$(fus "$PA" "$IX" "fusión r$RUN" "$H")"; echo "$R" | grep -q "caducó" && ok "[E3-4] una tarea agendada tras previsualizar cambia la huella → P0409 «caducó»" || rojo "E3-4: $R"
 R="$(prev "$PA" "$IX")"; H="$(j "$R" hash)"; [[ "$(jj "$R" impacto.tareas_pendientes)" == "2" ]] && ok "la foto y el impacto cuentan las 2 tareas pendientes" || rojo "tareas en impacto: $(jj "$R" impacto.tareas_pendientes)"
 # [E3-9] otra sesión retiene el lead LX (como derivar): la fusión no espera dentro del ciclo → 40001

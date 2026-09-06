@@ -194,6 +194,8 @@ function ResumenImpacto({ impacto }: { impacto: ImpactoDesactivacionUsuario }) {
     ['Leads en bandeja', impacto.leads_en_bandeja],
     ['Tareas pendientes', impacto.tareas_pendientes],
     ['Clientes activos', impacto.clientes_activos],
+    // F2.b [D-2]: solo llega con la identidad multiempresa encendida.
+    ...(impacto.personas_a_cargo === undefined ? [] : [['Personas a cargo', impacto.personas_a_cargo] as const]),
   ] as const
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

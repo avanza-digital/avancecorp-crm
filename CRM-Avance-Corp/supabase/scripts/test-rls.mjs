@@ -9066,6 +9066,163 @@ async function testIdentidadF2bE4(sessions, seed) {
   }
 }
 
+// ── F2.b [D-9] (20260906100000): los auditores genéricos de crm.leads y crm.cierres_externos no copian el documento ──
+// Estructura (triggers exactos, trinquete, sello) y un lead sembrado fuera de banda cuyo rastro no lleva el DNI.
+async function testIdentidadF2bD9() {
+  console.log('\n— Identidad multiempresa F2.b [D-9]: auditores de leads/cierres sin documento —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-9: ${etiqueta}`, sql);
+  const DEF_L = "CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'')";
+  const DEF_C = "CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''documento'')";
+  const def = (tabla, trg) => `(select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid='${tabla}'::regclass and t.tgname='${trg}' and not t.tgisinternal)`;
+  if (cuenta('D-9 aplicada', `select (${def('crm.leads', 'trg_audit_leads')} like '%log_audit_sin_secretos%')::int`) !== 1) {
+    console.log('  (saltado: D-9 (20260906100000) no está en esta base)');
+    return;
+  }
+  check(cuenta('trigger leads', `select (${def('crm.leads', 'trg_audit_leads')} = '${DEF_L}')::int`) === 1,
+    'D-9 trg_audit_leads es exactamente el de la migración (AFTER I/U/D, log_audit_sin_secretos(dni))');
+  check(cuenta('trigger cierres', `select (${def('crm.cierres_externos', 'trg_audit_cierres_externos')} = '${DEF_C}')::int`) === 1,
+    'D-9 trg_audit_cierres_externos es exactamente el de la migración (log_audit_sin_secretos(documento))');
+  check(cuenta('trinquete', `select count(*) from private.tablas_sin_rastro() s where s.tabla in ('crm.leads','crm.cierres_externos')`) === 0,
+    'D-9 el trinquete de auditoría sigue viendo rastro completo en leads y cierres (reconoce al auditor por OID)');
+  check(cuenta('sello', `select (exists (select 1 from private.auditoria_sello h where h.huella = private.huella_exenciones()))::int`) === 1,
+    'D-9 el sello de exenciones cuadra (la migración no toca las listas)');
+  check(cuenta('auditor definer', `select count(*) from pg_proc p where p.oid = 'private.log_audit_sin_secretos()'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""']`) === 1,
+    'D-9 private.log_audit_sin_secretos sigue siendo DEFINER con search_path vacío');
+  // Funcional, fuera de banda (writer interno, sin sesión): nace con DNI, se corrige, se desactiva. Ninguna fila lleva el documento.
+  const leadId = randomUUID();
+  const sufijo = String(Date.now()).slice(-6);
+  const dni = `77${sufijo}`;
+  ejecutarFueraDeBanda('D-9 fixture lead', `
+    insert into crm.leads (id, nombre_completo, telefono, dni, monto_estimado, origen, etapa, creado_por)
+    values ('${leadId}', 'SUITE D-9', '97${sufijo}9', '${dni}', 1000, 'landing', 'nuevo', null);
+    update crm.leads set nombre_completo = 'SUITE D-9 bis' where id = '${leadId}';
+    update crm.leads set activo = false where id = '${leadId}';`);
+  check(cuenta('filas del lead', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}'`) >= 3,
+    'D-9 el lead sembrado dejó rastro (INSERT + 2 UPDATE)');
+  check(cuenta('dni en claro', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and (coalesce(data_antes->>'dni','') = '${dni}' or coalesce(data_despues->>'dni','') = '${dni}')`) === 0,
+    'D-9 ninguna fila de auditoría del lead lleva el DNI en claro');
+  check(cuenta('dni enmascarado', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and data_despues->>'dni' = '***'`) >= 1,
+    'D-9 la clave dni sigue presente, enmascarada (***), en el rastro');
+  check(cuenta('resto en claro', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and data_despues->>'nombre_completo' = 'SUITE D-9 bis'`) >= 1,
+    'D-9 las demás columnas siguen auditadas en claro (el cambio real queda)');
+}
+
+// ── F2.b [D-3] (20260906110000): el veto de la persona es coherente (tareas de perfil, ficha del cliente, sueltos/puente) ──
+// Grants, marcadores, paridad OFF del helper y el gate REAL por la API: una tarea de cliente para una persona vetada.
+// El negocio completo (marcar/levantar sobre sueltos y puente, cancelación de tareas de cliente, actividades_cliente)
+// lo cubre scripts/oraculo-f2b-d3.sh.
+async function testIdentidadF2bD3(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-3]: veto coherente (perfil, ficha, sueltos/puente) —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-3)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-3: ${etiqueta}`, sql);
+  const marcador = (firma) => cuenta(`marcador ${firma}`, `select (strpos(p.prosrc, 'F2.b [D-3]') > 0)::int from pg_proc p where p.oid = '${firma}'::regprocedure`);
+  const DEF_T = 'CREATE TRIGGER trg_actividades_cliente_01_veto_persona BEFORE INSERT ON crm.actividades_cliente FOR EACH ROW EXECUTE FUNCTION private.trg_actividades_cliente_veto_persona()';
+  if (cuenta('D-3 aplicada', `select (to_regprocedure('private.persona_vetada_perfil(uuid)') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-3 (20260906110000) no está en esta base)');
+    return;
+  }
+  const perfilId = randomUUID();
+  const dni = `78${String(Date.now()).slice(-6)}`;
+  const tarea = (cliente) => cliente.schema('crm').from('tareas').insert({
+    perfil_id: perfilId, tipo: 'llamada', titulo: 'SUITE D-3', vence_en: new Date(Date.now() + 86400000).toISOString(),
+    creado_por: cliente === sessions.vend1.client ? sessions.vend1.user.id : null,
+  }).select('id').single();
+  try {
+    check(cuenta('grants RPC', `select count(*) from unnest(array['crm.marcar_no_contactar(uuid,text)','crm.levantar_no_contactar(uuid,text)']) f(firma)
+      where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+         or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)`) === 0,
+      'D-3 marcar/levantar_no_contactar conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('helpers sin EXECUTE', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol), unnest(array['private.leads_de_persona_veto(uuid)','private.persona_vetada_perfil(uuid)','private.leads_vetados_persona(uuid[])']) f(firma) where has_function_privilege(r.rol, f.firma, 'EXECUTE')`) === 0,
+      'D-3 los helpers privados no tienen EXECUTE para la API');
+    check(cuenta('definer', `select count(*) from pg_proc p where p.oid in ('private.leads_de_persona_veto(uuid)'::regprocedure, 'private.persona_vetada_perfil(uuid)'::regprocedure, 'private.personas_de_perfil(uuid)'::regprocedure, 'private.trg_tareas_veto_persona_perfil()'::regprocedure, 'private.trg_actividades_cliente_veto_persona()'::regprocedure) and p.prosecdef and p.proconfig @> array['search_path=""']`) === 5,
+      'D-3 los 5 objetos nuevos son DEFINER con search_path vacío');
+    check(cuenta('trigger ficha', `select ((select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid='crm.actividades_cliente'::regclass and t.tgname='trg_actividades_cliente_01_veto_persona' and not t.tgisinternal and t.tgenabled in ('O','A')) = '${DEF_T}')::int`) === 1,
+      'D-3 el trigger de la ficha del cliente está montado tal cual (BEFORE INSERT) y habilitado');
+    check(cuenta('trigger tareas', `select ((select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid='crm.tareas'::regclass and t.tgname='trg_tareas_00_0_veto_persona' and not t.tgisinternal and t.tgenabled in ('O','A')) = 'CREATE TRIGGER trg_tareas_00_0_veto_persona BEFORE INSERT ON crm.tareas FOR EACH ROW EXECUTE FUNCTION private.trg_tareas_veto_persona_perfil()')::int`) === 1,
+      'D-3 v3: el gate de las tareas de perfil es un trigger propio (00_0, corre primero) y está habilitado');
+    check(marcador('crm.marcar_no_contactar(uuid,text)') + marcador('crm.levantar_no_contactar(uuid,text)') + marcador('private.leads_vetados_persona(uuid[])') === 3
+        && cuenta('trg_gestion intacta', `select (md5(pg_get_functiondef(p.oid)) = '7af0e66b8a4849566e43b514245e1b86')::int from pg_proc p where p.oid = 'private.trg_gestion_lead_serializada()'::regprocedure`) === 1,
+      'D-3 v3: las tres funciones vivas llevan la transformación y private.trg_gestion_lead_serializada sigue byte a byte (Codex #10)');
+    // Fixture fuera de banda: persona Q verificada y VETADA; perfil cliente PF con su documento (sin enlace), asesor vend1.
+    ejecutarFueraDeBanda('D-3 fixture', `
+      select private.inversionista_resolver('DNI', '${dni}', true, 'suite_d3');
+      update crm.inversionistas set no_contactar = true, no_contactar_en = now(), no_contactar_por = '${sessions.gerencia.user.id}'
+       where id = private.inversionista_por_documento('DNI', '${dni}');
+      insert into auth.users (id) values ('${perfilId}') on conflict (id) do nothing;
+      insert into public.perfiles (id, nombre_completo, rol, tipo_documento, dni, correo, asesor_perfil_id, activo)
+      values ('${perfilId}', 'SUITE D-3 CLIENTE', 'cliente', 'DNI', '${dni}', 'suite-d3-${dni}@x.pe', '${sessions.vend1.user.id}', true);`);
+    flag(false);
+    check(cuenta('OFF helper', `select private.persona_vetada_perfil('${perfilId}')::int`) === 0,
+      'D-3 OFF: persona_vetada_perfil es false aunque la persona esté vetada (paridad con hoy)');
+    const { data: tareaOff, error: errOff } = await tarea(sessions.vend1.client);
+    check(!errOff && tareaOff?.id, 'D-3 OFF: vend1 agenda una tarea de cliente para el perfil de la persona vetada (sin gate, como hoy)', errOff?.message ?? '');
+    flag(true);
+    check(cuenta('ON helper', `select private.persona_vetada_perfil('${perfilId}')::int`) === 1,
+      'D-3 ON: persona_vetada_perfil ve el veto por el DOCUMENTO del perfil');
+    await expectExpectedFailure('D-3 ON vend1 tarea de cliente para una persona vetada → P0429', tarea(sessions.vend1.client), ['P0429'], /No insistir/i);
+    check(cuenta('ON sin tarea nueva', `select count(*) from crm.tareas where perfil_id='${perfilId}' and estado='pendiente'`) === 1,
+      'D-3 ON: el rechazo no dejó tarea (solo sigue la de OFF)');
+  } finally {
+    flag(false);
+    ejecutarFueraDeBanda('D-3 limpieza', `
+      select set_config('crm.cancela_sistema', 'on', true);
+      update crm.tareas set estado = 'cancelada' where perfil_id = '${perfilId}' and estado = 'pendiente';
+      update public.perfiles set activo = false where id = '${perfilId}';
+      update crm.inversionistas set no_contactar = false, no_contactar_en = null, no_contactar_por = null
+       where id = private.inversionista_por_documento('DNI', '${dni}');`, { tolerante: true });
+  }
+}
+
+// ── F2.b [D-2] (20260906120000): offboarding atómico sobre los tramos y capacidad operativa del nuevo responsable ──
+// Grants, marcadores, y el contrato del front: con OFF el impacto lleva EXACTAMENTE las 7 claves de hoy (esquema estricto);
+// con ON aparece personas_a_cargo. El negocio (tramos, ledger, cartera) lo cubre scripts/oraculo-f2b-d2.sh.
+async function testIdentidadF2bD2(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-2]: offboarding atómico y capacidad del responsable —');
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-2)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-2: ${etiqueta}`, sql);
+  const FIRMAS = ['crm.impacto_desactivacion_usuario_fn(uuid)', 'crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamp with time zone,uuid)', 'crm.reasignar_responsable_relacion_fn(uuid,uuid,text)'];
+  const marcador = (firma) => cuenta(`marcador ${firma}`, `select (strpos(p.prosrc, 'F2.b [D-2]') > 0)::int from pg_proc p where p.oid = '${firma}'::regprocedure`);
+  const impacto = (cliente, id) => cliente.schema('crm').rpc('impacto_desactivacion_usuario_fn', { p_perfil_id: id });
+  const CLAVES_HOY = ['clientes_activos', 'leads_abiertos', 'leads_en_bandeja', 'perfil_id', 'requiere_reemplazo', 'subordinados_activos', 'tareas_pendientes'];
+  if (cuenta('D-2 aplicada', `select (strpos(p.prosrc, 'F2.b [D-2]') > 0)::int from pg_proc p where p.oid = 'crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamp with time zone,uuid)'::regprocedure`) !== 1) {
+    console.log('  (saltado: D-2 (20260906120000) no está en esta base)');
+    return;
+  }
+  try {
+    check(cuenta('grants', `select count(*) from unnest(array['${FIRMAS.join("','")}']) f(firma)
+      where has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE')
+         or not has_function_privilege('authenticated', f.firma, 'EXECUTE')
+         or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = f.firma::regprocedure and a.grantee = 0)
+         or not exists (select 1 from pg_proc p where p.oid = f.firma::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'])`) === 0,
+      'D-2 las tres RPC conservan sus grants (solo authenticated) y son DEFINER con search_path vacío');
+    check(FIRMAS.reduce((n, f) => n + marcador(f), 0) === 3, 'D-2 las tres funciones llevan la transformación (marcador en el cuerpo)');
+    check(cuenta('conteo retirado', `select (to_regprocedure('crm.personas_por_responsable_fn(uuid)') is null)::int`) === 1,
+      'D-2 crm.personas_por_responsable_fn no existe (un conteo no es un interlock; retirada en b5 v2)');
+    check(cuenta('leads_de_personas', `select count(*) from pg_proc p where p.oid = 'private.leads_de_personas(uuid[])'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""']`) === 1,
+      'D-2 private.leads_de_personas (D-13), de la que depende la cartera, sigue DEFINER con search_path vacío');
+    // OFF (producción): la respuesta del impacto es byte a byte la de hoy: exactamente las 7 claves del esquema estricto del front.
+    flag(false);
+    const { data: off, error: errOff } = await impacto(sessions.gerencia.client, sessions.vend1.user.id);
+    check(!errOff && off && Object.keys(off).sort().join(',') === CLAVES_HOY.join(','),
+      'D-2 OFF: impacto_desactivacion_usuario_fn devuelve EXACTAMENTE las 7 claves de hoy (ImpactoDesactivacionUsuarioSchema es strictObject)',
+      errOff?.message ?? Object.keys(off ?? {}).sort().join(','));
+    await expectExpectedFailure('D-2 OFF vend1 impacto → 42501 (solo Gerencia)', impacto(sessions.vend1.client, sessions.vend1.user.id), ['42501'], /Gerencia/i);
+    // ON: aparece personas_a_cargo (entero ≥ 0) y requiere_reemplazo la incluye.
+    flag(true);
+    const { data: on, error: errOn } = await impacto(sessions.gerencia.client, sessions.vend1.user.id);
+    check(!errOn && on && Number.isInteger(on.personas_a_cargo) && on.personas_a_cargo >= 0 && Object.keys(on).length === 8,
+      'D-2 ON: impacto lleva personas_a_cargo (entero) además de las 7 claves de hoy', errOn?.message ?? '');
+    check(!errOn && on && on.requiere_reemplazo === ((on.subordinados_activos + on.leads_abiertos + on.leads_en_bandeja + on.tareas_pendientes + on.clientes_activos + on.personas_a_cargo) > 0),
+      'D-2 ON: requiere_reemplazo suma también las personas a cargo');
+    await expectExpectedFailure('D-2 ON vend1 impacto → 42501 (solo Gerencia, antes de la bandera)', impacto(sessions.vend1.client, sessions.vend1.user.id), ['42501'], /Gerencia/i);
+  } finally {
+    flag(false);
+  }
+}
+
 // ── F2.b [D-10] (20260905150000): la reserva por persona cuenta el PUENTE en «un solo lead» ──
 // Solo grants, paridad apagada y que la rama ON sea alcanzable sin efectos (el negocio —puente, replay
 // tras fusión [D-11]— lo cubre scripts/oraculo-f2b-d10-d11.sh).
@@ -10563,6 +10720,8 @@ async function testIdentidadF2b(sessions, seed) {
       `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${firmas.map((f) => `'${f}'::regprocedure`).join(',')}) and a.grantee = 0`);
   const leadIds = Object.values(IDS_F2B);
   const sueltosB2 = [IDS_F2B.lu1, IDS_F2B.lu2, IDS_F2B.lu3, IDS_F2B.lu4];
+  // F2.b [D-3] (bloque 2): con D-3 instalada los sueltos heredan la bandera propia del veto.
+  const conD3 = contarFueraDeBanda('F2.b b2: D-3 instalada', `select (to_regprocedure('private.persona_vetada_perfil(uuid)') is not null)::int`) === 1;
 
   // Precondición: b1 y b2 aplicados en el banco. Sin ellos no hay nada que medir.
   if (cuenta('b1+b2 aplicados', `select (to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is not null)::int + (to_regprocedure('private.persona_vetada(uuid)') is not null)::int`) !== 2) {
@@ -10765,14 +10924,15 @@ async function testIdentidadF2b(sessions, seed) {
       await positive(`b2 #0 vend1 marca no_contactar (persona ${n})`, sessions.vend1.client.schema('crm').rpc('marcar_no_contactar', { p_lead_id: lead, p_motivo: 'gate f2b' }));
     }
     check(cuenta('personas vetadas', `select count(*) from crm.inversionistas i where i.no_contactar and i.id in (${[DOCS_F2B.a, DOCS_F2B.b, DOCS_F2B.c, DOCS_F2B.d, DOCS_F2B.e].map(invDe).join(',')})`) === 5, 'b2 #0 las 5 personas quedaron vetadas');
-    check(cuenta('sueltos siguen sueltos', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and no_contactar=false and inversionista_id is null`) === 4,
-      'b2 #0 los 4 sueltos siguen SIN veto propio y SIN enlace (solo la persona los veta)');
+    // F2.b [D-3] (bloque 2, 20260906110000): los sueltos con el documento de la persona HEREDAN el veto (bandera propia); antes solo la persona los vetaba.
+    check(cuenta('sueltos siguen sueltos', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and no_contactar=${conD3 ? 'true' : 'false'} and inversionista_id is null`) === 4,
+      conD3 ? 'b2 #0 [D-3] los 4 sueltos heredan el veto de la persona y siguen SIN enlace' : 'b2 #0 los 4 sueltos siguen SIN veto propio y SIN enlace (solo la persona los veta)');
     check(cuenta('persona_vetada', `select private.persona_vetada('${IDS_F2B.lu1}')::int + private.persona_vetada('${IDS_F2B.lu5}')::int`) === 2,
       'b2 #0 persona_vetada(): por documento (suelto) y por enlace');
 
     // ── #9 · mutaciones sobre sueltos de personas vetadas → P0429 / veredicto ─
     await expectExpectedFailure('b2 #9 gerencia no reparte un suelto de persona vetada → P0429',
-      sessions.gerencia.client.schema('crm').rpc('repartir_lead', { p_lead: IDS_F2B.lu1, p_supervisor: sup1Id }), ['P0429'], /No insistir/i);
+      sessions.gerencia.client.schema('crm').rpc('repartir_lead', { p_lead: IDS_F2B.lu1, p_supervisor: sup1Id }), ['P0429'], /No insist/i);  // «No insistir» (persona) o, con D-3, «No Insista» (bandera propia heredada)
     const cola = await positive('b2 #9 coordinador lee la cola de reparto', sessions.coordinador.client.schema('crm').rpc('leads_por_repartir'));
     check(Array.isArray(cola?.data) && !cola.data.some((f) => f.id === IDS_F2B.lu1 || f.id === IDS_F2B.lu4),
       'b2 #9 la cola (leads_por_repartir_implementacion) no lista los sueltos de personas vetadas');
@@ -10785,7 +10945,7 @@ async function testIdentidadF2b(sessions, seed) {
       && cuenta('lu1 sigue en bolsa', `select count(*) from crm.leads where id='${IDS_F2B.lu1}' and vendedor_id is null and asignado_supervisor_id is null`) === 1,
     'b2 #9 tomar_lead_libre → veredicto no_contactar y el lead sigue en la bolsa', JSON.stringify(toma?.data));
     await expectExpectedFailure('b2 #9 sup1 no deriva un suelto de persona vetada → P0429',
-      sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', { p_lead_ids: [IDS_F2B.lu2], p_asesor_ids: [vend1Id] }), ['P0429'], /No insistir/i);
+      sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', { p_lead_ids: [IDS_F2B.lu2], p_asesor_ids: [vend1Id] }), ['P0429'], /No insist/i);
     await expectExpectedFailure('b2 #9 sup1 no devuelve a la bandeja (revertir) un suelto de persona vetada → P0429',
       sessions.sup1.client.schema('crm').rpc('revertir_derivacion_equipo_fn', { p_lead_id: IDS_F2B.lu3 }), ['P0429'], /No insistir/i);
     await expectExpectedFailure('b2 #9 vend1 no registra una actividad humana sobre lu3 → P0429',
@@ -10815,6 +10975,10 @@ async function testIdentidadF2b(sessions, seed) {
     // ── #11 · paridad con la bandera APAGADA: repartir / derivar / actividad pasan como hoy ─
     flag(false);
     check(cuenta('OFF persona_vetada', `select private.persona_vetada('${IDS_F2B.lu1}')::int`) === 0, 'b2 #11 OFF: persona_vetada() = false');
+    // F2.b [D-3]: con la bandera encendida los sueltos heredaron la bandera propia; para medir la paridad OFF (lead sin veto propio) se les quita.
+    if (conD3) {
+      ejecutarFueraDeBanda('b2 #11 sueltos sin bandera propia (D-3)', `select set_config('crm.op_privilegiada', 'on', true); update crm.leads set no_contactar = false where id in ('${IDS_F2B.lu1}', '${IDS_F2B.lu2}') and no_contactar;`);
+    }
     await positive('b2 #11 OFF: gerencia reparte lu1 como hoy',
       sessions.gerencia.client.schema('crm').rpc('repartir_lead', { p_lead: IDS_F2B.lu1, p_supervisor: sup1Id }));
     check(cuenta('OFF lu1 repartido', `select count(*) from crm.leads where id='${IDS_F2B.lu1}' and asignado_supervisor_id='${sup1Id}'`) === 1, 'b2 #11 OFF: lu1 fue a la bandeja de sup1');
@@ -11910,6 +12074,9 @@ async function main() {
       await testIdentidadF2bE4(sessions, verifiedSeed);
       await testIdentidadF2bD10(sessions);
       await testIdentidadF2bD13(sessions, verifiedSeed);
+      await testIdentidadF2bD9();
+      await testIdentidadF2bD3(sessions);
+      await testIdentidadF2bD2(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

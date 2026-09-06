@@ -42,6 +42,9 @@ export const ImpactoDesactivacionUsuarioSchema = v.strictObject({
   leads_en_bandeja: EnteroNoNegativoRpcSchema,
   tareas_pendientes: EnteroNoNegativoRpcSchema,
   clientes_activos: EnteroNoNegativoRpcSchema,
+  // F2.b [D-2] (identidad multiempresa): con la bandera encendida el servidor añade las PERSONAS a cargo del saliente
+  // (responsable de relación). Opcional: con la bandera apagada la respuesta sigue siendo la de siempre.
+  personas_a_cargo: v.optional(EnteroNoNegativoRpcSchema),
   requiere_reemplazo: v.boolean(),
 })
 

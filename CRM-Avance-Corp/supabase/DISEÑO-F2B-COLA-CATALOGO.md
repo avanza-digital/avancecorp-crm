@@ -599,3 +599,106 @@ Contrato-F3 (métrica por inversionista/mes; hasta entonces la fusión no toca c
 - **[4] Puerta de la suite:** ya gateaba por `lead_dentro_de_bloqueo` desde la nota N1 del auditor v4.3.
 - **[5] El registrador solo comprobaba las 9 funciones transformadas:** **v4.4:** exige además los 9 helpers y la puerta vivos con su forma (definer + `search_path` vacío) y el trigger de reapertura montado.
 - **Oráculo:** nueva sección (11) con los asertos directos que pidió el auditor (N2): `lead_dentro_de_bloqueo` con el documento bloqueado → dentro; con OTRO documento (el ABA) → fuera; persona no bloqueada → fuera; lead sin DNI ni persona con bloqueo vacío → dentro; y la guarda de aislamiento en el helper y en la puerta (REPEATABLE READ → `0A000`, DNI intacto). Total **81 asertos**.
+
+## Bloque 2 de activación — `[D-9]`, `[D-3]`, `[D-2]` — diseño v1 (05/09/2026, noche)
+
+Tres migraciones independientes, una por ítem (cada una con su reversa byte a byte, su registrador y su oráculo bash; generadas desde el texto
+VIVO de producción por `scripts/f2b/gen-d9.py`, `gen-d3.py`, `gen-d2.py` sobre `vivas/bloque2/` y `huellas-bloque2-prod.txt`). D-3 y D-2
+aterrizan APAGADAS (rama ON = todo lo nuevo; con OFF las funciones responden byte a byte como hoy); D-9 no va detrás de la bandera.
+
+### `[D-9]` (`20260906100000`) — los auditores genéricos de `crm.leads` y `crm.cierres_externos` no copian el documento
+`private.log_audit_crm()` copia la fila entera a `public.audit_log`; en `leads` va `dni` y en `cierres_externos` `documento` ([E3-13]).
+Los dos triggers (`trg_audit_leads`, `trg_audit_cierres_externos`, MISMO nombre ⇒ mismo orden entre los AFTER) pasan a
+`private.log_audit_sin_secretos('dni')` / `('documento')`: auditor ya vivo (suscripciones_push, agenda_ics, inversionista_identificadores),
+enmascara con `"***"` sin huella, conserva `null`, y **omite el UPDATE que solo mueve `actualizado_en`** (regla de ruido: documentada; con
+`log_audit_crm` ese UPDATE dejaba una fila idéntica salvo el reloj). El trinquete (`private.tablas_sin_rastro`) reconoce ese auditor por
+OID; el sello de exenciones no cambia. **Decisión para Miguel:** las filas HISTÓRICAS con documento en claro (05/09: 163 de leads, 33 de
+cierres) no se tocan —la auditoría no se reescribe sola—; enmascararlas sería una migración aparte con su OK. Lectores de `audit_log`
+comprobados: `bandeja_actividad` (nombre/contrato/creado_por), `corregir_fecha_cierre_comercial` y `marcar_contrato_demo` (escriben), el
+front (`store.tsx` solo comenta) y `eliminar-cliente` (comenta): ninguno lee `dni`/`documento` de esas filas.
+
+### `[D-3]` (`20260906110000`) — el veto de la persona es coherente (contrato §7.3)
+- **Regla:** «los leads de una persona» para el VETO = enlace vivo ∪ puente ∪ SUELTOS con su DNI vigente y verificado, en cualquier etapa
+  (`private.leads_de_persona_veto(uuid)`); su perfil cliente (`inversionistas.perfil_id`) lleva las tareas de cliente. Se calcula BAJO el
+  lock de la persona (la corrección documental y la fusión de b5 también lo toman): el conjunto es estable hasta el commit. Ojo de forma:
+  `uq_leads_dni_vivo` solo admite UN lead vivo por DNI, así que un suelto vivo con el documento existe solo cuando el enlazado está cerrado.
+- **`crm.marcar_no_contactar`:** identidad → tareas (de esos leads + las de CLIENTE del perfil) `FOR UPDATE` → leads (el conjunto entero,
+  `order by id`, `FOR UPDATE`): todos heredan `no_contactar`; todas las pendientes se cancelan como sistema; `leads_afectados` cuenta el
+  conjunto. **`levantar`:** simétrico sobre los leads (no revive tareas). Con OFF: solo el lead (byte a byte hoy).
+- **Gate de seguimiento (`private.trg_gestion_lead_serializada`):** la tarea de PERFIL (`lead_id null`, `perfil_id`) → con ON y fuera de la
+  válvula, `private.persona_vetada_perfil(perfil)` → `P0429`. Writers internos (`auth.uid null`) siguen exentos.
+- **`private.persona_vetada_perfil(uuid)`:** por el enlace perfil↔identidad (canónica) o por el documento exacto del perfil (identificador
+  vigente y verificado); OFF ⇒ false.
+- **Ficha del cliente:** trigger nuevo `trg_actividades_cliente_01_veto_persona` (BEFORE INSERT en `crm.actividades_cliente`): tipos de
+  CONTACTO de una persona vetada → `P0429`; `nota`/`reasignacion` entran; `auth.uid null` y válvula exentos. Cubre `crm.cerrar_tarea` y
+  cualquier escritor futuro.
+- **`private.leads_vetados_persona(uuid[])`** (el gate por lead) ve además el PUENTE (un histórico sin enlace vivo de una persona vetada).
+- Sin cambio: `rescatar_descartes`/`derivar` (ya usan `persona_vetada`), `trg_leads_000_hereda_veto` (b1).
+
+### `[D-2]` (`20260906120000`) — salida de un analista sin personas sin responsable; capacidad operativa del nuevo responsable
+- **`crm.impacto_desactivacion_usuario_fn`:** con ON cuenta `personas_a_cargo` (identidades ACTIVAS con tramo abierto del saliente en
+  `inversionista_responsables` o `responsable_relacion_id` = saliente) y las suma a `requiere_reemplazo`. La clave nueva aparece SOLO con
+  ON: el front valida con `v.strictObject` (`ImpactoDesactivacionUsuarioSchema`) ⇒ **prerrequisito del bloque 4 (front): añadir
+  `personas_a_cargo` opcional al esquema y una tarjeta en `ResumenImpacto` ANTES del encendido** (con OFF la respuesta es byte a byte hoy).
+- **`crm.fijar_membresia_activa_fn` (offboarding):** lee la bandera BAJO el interlock exclusivo de jerarquía (las puertas de b5 lo toman
+  compartido: no se cruzan). Con reemplazo: bloquea las personas del saliente ANTES que sus leads (`FOR NO KEY UPDATE`, que serializa contra
+  el `FOR UPDATE` de reasignar/marcar/convertir sin chocar con los `KEY SHARE` de las FK del puente) y sus tramos abiertos `FOR UPDATE`; tras
+  los traslados de hoy (equipo → leads → tareas → perfiles) cierra cada tramo abierto (`hasta = v_ahora`) y abre otro al reemplazo
+  (`motivo 'offboarding'`, `por` = Gerencia, `desde = v_ahora`, un único reloj tras los locks [E3-14]) y mueve `responsable_relacion_id`;
+  el evento `membresia_desactivada` lleva `personas_transferidas` (solo con ON). Sin reemplazo y con personas a cargo → se niega con el
+  mensaje de hoy, aunque la bandera cambiara entre las dos lecturas. Orden de aristas persona → lead = el de conversiones y veto.
+- **`crm.reasignar_responsable_relacion_fn` (b5):** tras el tramo, si el nuevo responsable puede tener cartera (`rol_crm` efectivo
+  vendedor/supervisor): los leads VIVOS en tenencia operativa (`private.leads_de_personas` de D-13: enlace ∪ puente ∪ sueltos vivos
+  verificados; `activo` y etapa abierta) se bloquean (tareas pendientes `FOR UPDATE` → leads `FOR UPDATE`) y pasan a `vendedor_id = nuevo`,
+  `asignado_supervisor_id = null` (los triggers de leads llevan el ledger `lead_asignaciones` —cierre `transferido`/`parqueado`, apertura
+  `reasignado`/`asignado`—, la actividad «reasignacion», `tenencia_desde` y las tareas pendientes); el perfil cliente de la persona pasa a
+  `asesor_perfil_id = nuevo` (el trigger del perfil mueve las tareas de cliente y deja la actividad de cliente «reasignacion»). Con Gerencia
+  como nuevo responsable solo cambia el tramo. Respuesta: `+ tenencia {estado movida|sin_cambios, leads_movidos, perfil_movido}`.
+  `sin_cambios` (tramo ya en el destino) no mueve cartera. Un lead cerrado nunca se mueve.
+- Retirado sin construir: `crm.personas_por_responsable_fn` (un conteo no es un interlock; nunca llegó a producción).
+
+**Oráculos:** `scripts/oraculo-f2b-d9.sh` (18), `oraculo-f2b-d3.sh` (36), `oraculo-f2b-d2.sh` (≈50; crea V2/V3 bajo S; incluye el
+interlock con una baja en curso → `55P03`). Cada uno sale ROJO sin su migración (mutante).
+
+### Bloque 2 v2 (06/09 madrugada) — respuesta al auditor-rls (sin bloqueantes; medios M1..M7)
+- **D-3 M1** documento → persona en `marcar`/`levantar` (`identidad_bloquear_documentos_de` antes del `FOR UPDATE` de la persona, relectura → `40001`): la puerta del DNI (D-13) ya no puede llevarse un suelto mientras se propaga el veto. Residual: persona con 2+ DNI vigentes en la rama del suelto → posible `40P01` reintentable.
+- **D-3 M3** `v_perfiles` = perfil enlazado ∪ perfiles cliente con un DNI vigente de la persona (simetría con `persona_vetada_perfil`).
+- **D-2 M2** el UPDATE de leads revalida `activo`, etapa abierta y pertenencia (`leads_de_personas`) bajo los locks. **M5** con ON, el offboarding bloquea las tareas pendientes del saliente antes de sus leads (tareas → leads). **N4** personas no fusionadas (no solo `activo`). **N5** `movida` solo si se movió algo. **M4** front: `personas_a_cargo` opcional + tarjeta (hecho, sin publicar). **M7** oráculo: supervisor como nuevo responsable.
+- **D-9 M6** (decisión de Miguel): enmascarar también teléfono/fecha de nacimiento/género/monto en el rastro de leads. **N1**: `fijar_dni_lead_fn` no deja actividad del hecho.
+
+### Bloque 2 v3 (06/09 madrugada) — respuesta a Codex (refutó la v1: NO-GO para encender; 14 hallazgos, 4 bloqueantes)
+| # | Hallazgo (Codex) | Respuesta v3 |
+|---|---|---|
+| 1 | BLOQUEANTE · ciclo tareas → lead de `reasignar`/`marcar` frente a `derivar`/`repartir` (lead → tareas por el trigger de sincronización); b5 ya usaba NOWAIT por esto | **HECHO**: `reasignar`, `marcar` y `levantar` toman los leads del conjunto `FOR UPDATE NOWAIT` → `55P03` se convierte en `40001` («otra sesión está trabajando uno de los leads»); solo con ON (con OFF no hay tareas bloqueadas). Oráculos: lead retenido por otra sesión → `40001` en ≤ 3 s. |
+| 2 | MEDIO · offboarding leads → tareas frente a `cerrar_tarea` (heredado, también OFF) | Con ON el offboarding bloquea las tareas pendientes del saliente ANTES de sus leads (auditor M5); con OFF queda el orden heredado (documentado, no lo introduce D-2). |
+| 3 | BLOQUEANTE · una conversión en vuelo (no toma el interlock de jerarquía) abre un tramo al saliente DESPUÉS del censo | **HECHO**: recenso tras los dos UPDATE de leads (que dejan bloqueados todos los leads vivos del saliente: ninguna conversión suya sigue en vuelo); lo que apareció se bloquea `FOR NO KEY UPDATE NOWAIT` (persona tras lead es la arista inversa → `40001`, Gerencia reintenta) y se suma al traslado. |
+| 4 | BLOQUEANTE · conjunto de leads no estable (`fijar_dni_lead_fn(Ls, NULL)` no bloquea a la persona vieja) | **Ya en v2** (auditor M1): documento → persona en `marcar`/`levantar` (advisories de los documentos vigentes antes del `FOR UPDATE` de la persona, relectura → `40001`); en `reasignar` el UPDATE revalida pertenencia/etapa bajo los locks (M2). |
+| 5 | MEDIO · una tarea de perfil insertada en paralelo al veto sobrevive (el gate no bloqueaba a la persona) | **HECHO**: el gate de perfil pasa a un trigger propio `trg_tareas_00_0_veto_persona` (corre primero) que bloquea a las personas del perfil `FOR SHARE` (persona → perfil, el orden de reasignar) antes de juzgar: o nace antes del veto y `marcar` la cancela, o nace después y se rechaza. |
+| 6 | MEDIO · perfil reconocido solo por documento fuera de la cancelación; `cerrar_tarea` de una reunión sin `resultado_tipo` no pasa por el gate | Cancelación por documento **ya en v2** (M3). El cierre de una reunión ya agendada sin resultado de contacto no es seguimiento nuevo: se documenta como alcance (una vez vetada, no quedan pendientes salvo la carrera #5, cerrada). |
+| 7 | BLOQUEANTE · `marcar`/`levantar` desde un lead SOLO-PUENTE no resuelven a la persona | **HECHO**: la persona se resuelve por el puente (canónica) antes que por documento; revalidación propia tras bloquear el lead (`40001` si el puente cambió). Oráculo: marcar(LP) veta a P y su conjunto; levantar(LP) lo levanta y el gate deja de ver a LP. |
+| 8 | MEDIO · `reasignar` mueve un lead cerrado tras capturarlo | **Ya en v2** (M2). |
+| 9 | MEDIO · reloj del ledger (`statement_timestamp`) vs un episodio abierto por `derivar` en paralelo → CHECK y abort | Aceptado como residual: con NOWAIT (#1) el caso exige que `derivar` confirme entre el cálculo y el bloqueo; el resultado es un abort limpio (`lead_asignaciones_intervalo_valido`), nunca un intervalo corrupto; Gerencia reintenta. |
+| 10 | MEDIO · paridad OFF: `new.perfil_id` en el trigger compartido con `actividades` → `42703` en vez de `42501` | **HECHO**: `private.trg_gestion_lead_serializada` vuelve a ser byte a byte (ya no se transforma; el postflight lo exige); el gate de perfil vive en el trigger propio de tareas (#5). Oráculo: actividad sin lead con OFF → `42501`. |
+| 11 | BLOQUEANTE (front) · `personas_a_cargo` rompe el esquema estricto | **HECHO** (v2): `personas_a_cargo: v.optional(...)` + tarjeta en `ResumenImpacto`. |
+| 12 | MEDIO · documentos en motivos (`marcar`/`levantar` no sanean; `reasignar` valida antes del lock) | **HECHO**: `marcar`/`levantar` rechazan (`22023`) un motivo con un documento vigente de la persona (regla documental de b5, sin su largo mínimo); `reasignar` revalida el motivo BAJO el lock de la persona. Los auditores genéricos de `actividades` y tramos siguen copiando la fila (heredado; el motivo ya no puede llevar el documento). |
+| 13 | MEDIO · registradores sin advisory (pueden registrar tras una reversa) | **HECHO**: los tres toman el mismo advisory que migración y reversa. |
+| 14 | MEDIO · registradores no certifican cuerpos/`tgenabled`/grants | **HECHO**: D-3 exige `md5(prosrc)` de los 5 helpers, triggers habilitados y grants; D-2 grants/definer; D-9 huellas del auditor sin secretos y `enmascarar_claves`, y auditores habilitados. |
+| — | Negocio: mover `asesor_perfil_id` desde el CRM requiere OK de Miguel; `sin_cambios` no reconcilia cartera | Para Miguel (el offboarding vivo ya lo mueve; D-2 lo extiende a `reasignar`). Checklist del encendido (`[D-14]`): reconciliar cartera ↔ responsable antes del `!` de la bandera. |
+
+### Bloque 2 v4 (06/09 madrugada) — respuesta a la segunda ronda de Codex (sobre la v3: **GO para aterrizar apagadas las tres**; NO-GO para encender)
+Codex cerró #1, #4, #7, #8, #10, #11, #13 y dejó abiertos #2 (heredado con OFF), #3, #5, #6, #9, #12, #14 y cinco hallazgos nuevos (N1–N5) más N6.
+| # | Hallazgo | v4 |
+|---|---|---|
+| N1 | BLOQUEANTE (para encender) · el `FOR SHARE` del gate de tareas de perfil crea el ciclo persona ↔ tarea con `cerrar_tarea` → `crear_siguiente_tarea` (retiene la tarea y agenda la siguiente del mismo perfil) frente a `marcar` (retiene la persona y espera la tarea) | **HECHO**: el gate toma a las personas `FOR SHARE NOWAIT` → `40001` («la persona está siendo actualizada»); nunca se espera con una tarea en la mano. Y `marcar` toma las tareas `FOR UPDATE NOWAIT` → `40001`. |
+| #5 | la tarea de perfil insertada en paralelo a una fusión bloquea una persona que ya no es la del perfil | **HECHO**: tras el lock se revalida que las personas del perfil sigan siendo las bloqueadas (`40001` si cambió). |
+| N2 | ciclo persona ↔ equipo: el alta de tarea (persona → equipo del asesor) frente al offboarding (equipo → personas) | **HECHO**: el primer censo del offboarding toma a las personas `FOR NO KEY UPDATE NOWAIT` → `40001` («vuelve a intentar la baja»). |
+| N3 | la relectura de documentos volvía a tomar candados con la persona ya bloqueada (persona → documento) | **HECHO**: la relectura es una lectura pura (sin candados); si el juego cambió → `40001`. |
+| N4 | `reasignar` iba tareas → perfil mientras el Portal va perfil → tareas (trigger) | **HECHO**: `reasignar` toma tareas y perfil `NOWAIT` → `40001`; con persona y tramo en la mano no espera nada más. |
+| #6 | la cancelación por documento solo miraba perfiles DNI (el gate reconoce CE/Pasaporte) | **HECHO**: `v_perfiles` compara `tipo:documento` con cualquier tipo. |
+| #12 | el motivo se contrastaba solo con los documentos vigentes (un DNI histórico pasaba) | **HECHO**: se contrasta con TODOS los identificadores de la persona (vigentes e históricos). |
+| #14 / N5 | registradores: `proconfig` solo «contiene» `search_path`; funciones de trigger sin comprobación de EXECUTE; registro con `statements` nulo o de más de un elemento | **HECHO**: `proconfig` EXACTO (`{search_path=""}`), EXECUTE de anon/authenticated/service_role en los 5 objetos, y el registro exige `statements` de exactamente 1 elemento no nulo con la huella. |
+| #3 | una conversión cuyo ASESOR DE PERFIL es el saliente (y el lead es de otro vendedor) abre el tramo tras el recenso (lee `equipo.activo` sin candado) | **Abierto para el encendido**: hay que endurecer `convertir_lead` (D-13/D-5): tomar el perfil `FOR SHARE` y revalidar `equipo.activo` bajo el interlock compartido de jerarquía antes de abrir el tramo. Hasta entonces la baja no puede garantizarlo. |
+| N6 | la fusión hereda el veto pero solo cancela tareas de LEAD (b5) | **Abierto para el encendido** (escritor de b5): que la fusión cancele también las tareas de cliente de los perfiles de la canónica. |
+| #9 | reloj del ledger vs `derivar` en paralelo → abort limpio | Residual aceptado (documentado). |
+| #2 | offboarding leads → tareas con OFF (heredado) | Residual heredado (documentado); con ON lo cubre M5. |
+| — | puentes históricos desnormalizados (P fusionada conserva puentes) y gate del puente a un salto | Hipótesis sin datos: la fusión vigente aplana y mueve puentes; `[D-14]` (re-backfill) debe verificar que no haya puentes bajo identidades fusionadas. |

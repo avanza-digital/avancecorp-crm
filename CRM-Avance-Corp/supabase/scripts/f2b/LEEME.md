@@ -44,3 +44,20 @@ de las claims, así que prueba también los grants). Retomar: nota del vault **R
   y `scripts/registrar-f2b-d13.sql`. `python3 gen-d13.py <esta carpeta> <dir supabase>`.
 - Oráculo: `scripts/oraculo-f2b-d13.sh` (81 asertos; sin D-13 debe salir ROJO; fixtures de descartado viejo con el trigger del sello apagado un instante). Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § [D-13].
 
+
+## Bloque 2 de activación: [D-9] + [D-3] + [D-2] (05/09 noche → 06/09)
+
+Tres migraciones independientes, una por ítem, generadas desde el texto VIVO (`vivas/bloque2/*.sql`, md5 = producción en
+`huellas-bloque2-prod.txt`): `python3 gen-d9.py <esta carpeta> <dir supabase>` (ídem `gen-d3.py`, `gen-d2.py`). Cada una escribe la
+migración, `scripts/rollback-f2b-dN.sql` (byte a byte + desregistro) y `scripts/registrar-f2b-dN.sql`.
+
+- `gen-d9.py` → `20260906100000`: los auditores de `crm.leads` y `crm.cierres_externos` pasan a `private.log_audit_sin_secretos('dni')` /
+  `('documento')`. NO va detrás de la bandera (privacidad). Oráculo `scripts/oraculo-f2b-d9.sh` (18; sin D-9, 5 rojos).
+- `gen-d3.py` → `20260906110000`: veto coherente (tareas de perfil, ficha del cliente, sueltos/puente). Transforma 4 vivas
+  (`marcar/levantar_no_contactar`, `trg_gestion_lead_serializada`, `leads_vetados_persona`) + 3 helpers privados + 1 trigger.
+  Oráculo `scripts/oraculo-f2b-d3.sh` (36; sin D-3, 13 rojos). 🔴 Forma: `uq_leads_dni_vivo` admite UN lead vivo por DNI; las
+  identidades nacidas de un lead NO quedan verificadas (la persona del fixture nace en la coop).
+- `gen-d2.py` → `20260906120000`: offboarding atómico sobre los tramos + capacidad operativa del nuevo responsable. Transforma 3 vivas
+  (`impacto_desactivacion_usuario_fn`, `fijar_membresia_activa_fn`, `reasignar_responsable_relacion_fn`). Oráculo
+  `scripts/oraculo-f2b-d2.sh` (51; sin D-2, 24 rojos; crea V2/V3 bajo S y devuelve sus personas a Gerencia al final).
+- Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § «Bloque 2 de activación». Bloques de la suite: `testIdentidadF2bD9/D3/D2` en `test-rls.mjs`.

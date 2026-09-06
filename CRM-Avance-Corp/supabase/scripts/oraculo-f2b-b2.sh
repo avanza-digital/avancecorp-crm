@@ -53,7 +53,12 @@ TA="$(uuid)"; R="$(run_as "$V" "insert into crm.tareas (id, lead_id, vendedor_id
 # VETO de las 5 personas (por su lead enlazado).
 for L in "$L1" "$L2" "$L3" "$L4" "$LU5"; do run_as "$V" "select crm.marcar_no_contactar('$L','ensayo b2')" >/dev/null || rojo "marcar $L falló"; done
 [[ "$(q "select count(*) from crm.inversionistas i where i.no_contactar and i.id in (select private.inversionista_por_documento('DNI',d) from unnest(array['$DA','$DB','$DC','$DD','$DE']) d)")" == "5" ]] && ok "5 personas vetadas" || rojo "personas vetadas ≠ 5"
-[[ "$(q "select count(*) from crm.leads where id in ('$LU1','$LU2','$LU3','$LU4') and no_contactar=false and inversionista_id is null")" == "4" ]] && ok "los 4 leads sueltos siguen SIN veto propio y sin enlace (solo la persona los veta)" || rojo "los leads sueltos cambiaron"
+# F2.b [D-3] (bloque 2, 20260906110000): los sueltos con el documento de la persona HEREDAN el veto (y sus tareas se cancelan); antes solo la persona los vetaba.
+if [[ "$(q "select to_regprocedure('private.persona_vetada_perfil(uuid)') is not null")" == "t" ]]; then
+  [[ "$(q "select count(*) from crm.leads where id in ('$LU1','$LU2','$LU3','$LU4') and no_contactar=true and inversionista_id is null")" == "4" ]] && ok "[D-3] los 4 leads sueltos heredan el veto de la persona y siguen sin enlace" || rojo "[D-3] los leads sueltos no heredaron el veto"
+else
+  [[ "$(q "select count(*) from crm.leads where id in ('$LU1','$LU2','$LU3','$LU4') and no_contactar=false and inversionista_id is null")" == "4" ]] && ok "los 4 leads sueltos siguen SIN veto propio y sin enlace (solo la persona los veta)" || rojo "los leads sueltos cambiaron"
+fi
 [[ "$(q "select private.persona_vetada('$LU1') and private.persona_vetada('$LU5')")" == "t" ]] && ok "persona_vetada(): por documento (suelto) y por enlace" || rojo "helper no detecta el veto"
 
 echo "== Mutaciones sobre leads sueltos de personas vetadas → P0429 / veredicto =="
@@ -80,6 +85,8 @@ R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata,
 echo "== Paridad con bandera APAGADA (mismo lead suelto, misma persona vetada) =="
 flag false
 [[ "$(q "select private.persona_vetada('$LU1')")" == "f" ]] && ok "OFF: persona_vetada() = false" || rojo "OFF: helper activo"
+# F2.b [D-3]: con la bandera encendida los sueltos heredaron la bandera propia; para medir la paridad OFF (lead sin veto propio) se les quita.
+run_sys "select set_config('crm.op_privilegiada','on',true); update crm.leads set no_contactar=false where id in ('$LU1','$LU2') and no_contactar=true" >/dev/null
 R="$(run_as "$G" "select crm.repartir_lead('$LU1','$SU')")"; [[ "$(q "select asignado_supervisor_id='$SU' from crm.leads where id='$LU1'")" == "t" ]] && ok "OFF: repartir_lead pasa como hoy" || rojo "OFF: repartir falló: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_as "$SU" "select crm.derivar_leads_equipo_fn(array['$LU2']::uuid[], array['$V']::uuid[])")"; [[ "$(q "select vendedor_id='$V' from crm.leads where id='$LU2'")" == "t" ]] && ok "OFF: derivar pasa como hoy" || rojo "OFF: derivar falló: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por) values ('$LU3','llamada_realizada','B2 OFF','{}'::jsonb,'$V')")"; [[ -z "$(echo "$R"|grep P0429)" ]] && ok "OFF: actividad pasa como hoy" || rojo "OFF: actividad bloqueada"
@@ -113,7 +120,11 @@ flag true
 R="$(run_as "$V" "insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por) values ('$LU3','nota','B2 nota administrativa','{}'::jsonb,'$V')")"; [[ -z "$(echo "$R"|grep P0429)" ]] && ok "una NOTA sobre persona vetada entra (no es contacto)" || rojo "nota bloqueada: $(echo "$R"|tail -1|cut -c1-100)"
 
 echo "== Offboarding: sin cambios en este lote (la reasignación del responsable es puerta de Gerencia, b5) =="
-[[ "$(q "select strpos(prosrc,'offboarding') from pg_proc where proname='fijar_membresia_activa_fn'")" == "0" ]] && ok "fijar_membresia_activa_fn intacta" || rojo "fijar_membresia_activa_fn transformada"
+if [[ "$(q "select (strpos(prosrc,'F2.b [D-2]') > 0) from pg_proc where proname='fijar_membresia_activa_fn'")" == "t" ]]; then
+  ok "fijar_membresia_activa_fn la transforma [D-2] (bloque 2, 20260906120000), no b2 ([v2-4] sigue: b2 no la tocó)"
+else
+  [[ "$(q "select strpos(prosrc,'offboarding') from pg_proc where proname='fijar_membresia_activa_fn'")" == "0" ]] && ok "fijar_membresia_activa_fn intacta" || rojo "fijar_membresia_activa_fn transformada"
+fi
 
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1
 flag false
