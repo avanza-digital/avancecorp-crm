@@ -33,6 +33,16 @@ resolver() { q "select private.inversionista_resolver('DNI','$1',true,'ensayo-d1
 sim_perfil(){ psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); insert into auth.users (id) values ('$1') on conflict do nothing; insert into public.perfiles (id, nombre_completo, rol, tipo_documento, dni, correo, asesor_perfil_id, activo) values ('$1','D15 CLIENTE $2 r$RUN','cliente','DNI','$2','$3','$V',true); commit;" 2>&1 | grep -E "ERROR"; }
 pay()  { echo "{\"correo\":\"$1\",\"nombre_completo\":\"D15 $2\",\"telefono\":\"9${RUN}0$3\",\"domicilio\":\"Av. Prueba 123, Lima\"}"; }
 reservar() { run_as "$1" "select crm.reservar_conversion_lead('$2','DNI','$3','$4'::jsonb)"; }
+retener_as() { LOCKF="$S/d15-lock-$RUN-$RANDOM.out"; ( psql "$PG" -qAt -v ON_ERROR_STOP=1 > "$LOCKF" 2>&1 <<EOF
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"$1","role":"authenticated"}', true);
+$2;
+\echo LOCK-OK
+select pg_sleep($3);
+commit;
+EOF
+echo "exit=$?" >> "$LOCKF" ) & BG=$!; local i; for i in $(seq 1 100); do grep -q "LOCK-OK" "$LOCKF" 2>/dev/null && return 0; grep -q "ERROR" "$LOCKF" 2>/dev/null && { rojo "retener_as: $(head -c 200 "$LOCKF")"; return 1; }; sleep 0.1; done; rojo "retener_as: sin LOCK-OK en 10 s"; return 1; }
 retener() { LOCKF="$S/d15-lock-$RUN-$RANDOM.out"; ( psql "$PG" -qAt -v ON_ERROR_STOP=1 > "$LOCKF" 2>&1 <<EOF
 begin;
 $1;
@@ -78,6 +88,15 @@ R="$(reabrir "$LG")"; R2="$(directo "$LG2")"; FG="$(foto "$LG")"; FG2="$(foto "$
 LH="$(uuid)"; lead_de "$LH" 18 H; descartar "$LH"
 retener "select 1 from crm.leads where id='$LH' for update" 8 && { T0="$(ms)"; R="$(reabrir "$LH")"; T1="$(ms)"; echo "$R" | grep -q "55P03" && (( T1 - T0 >= 4500 )) && ok "[O9] fila retenida por otra sesión → 55P03 tras el lock_timeout de 5 s ($((T1-T0)) ms)" || rojo "O9: $(echo "$R" | head -c 160) · $((T1-T0)) ms"; soltado; }
 R="$(reabrir "$LH")"; [[ "$(j "$R" etapa)" == "nuevo" ]] && ok "[O9] soltada la fila, reabre" || rojo "O9 después: $(echo "$R" | head -c 160)"
+
+echo "== (1b) El cambio de bandera se serializa con la puerta (Codex v3 #4) =="
+LS="$(uuid)"; lead_de "$LS" 41 SERIAL; descartar "$LS"
+retener_as "$V" "select crm.reabrir_lead_fn('$LS')" 6 && { T0="$(ms)"; flag true; T1="$(ms)"; (( T1 - T0 >= 4500 )) && ok "[S1] con una reapertura en vuelo (entró apagada), ENCENDER espera a que termine ($((T1-T0)) ms)" || rojo "S1: el encendido no esperó ($((T1-T0)) ms)"; soltado; }
+[[ "$(q "select etapa||' '||coalesce(inversionista_id::text,'-') from crm.leads where id='$LS'")" == "nuevo -" ]] && ok "[S1] la reapertura que entró apagada terminó apagada (nuevo, sin enlace), con la bandera encendida después" || rojo "S1 foto: $(q "select etapa, inversionista_id from crm.leads where id='$LS'")"
+LS2="$(uuid)"; lead_de "$LS2" 42 SERIAL2; descartar "$LS2"
+retener_as "$V" "select crm.reabrir_lead_fn('$LS2')" 6 && { T0="$(ms)"; flag false; T1="$(ms)"; (( T1 - T0 >= 4500 )) && ok "[S2] con una reapertura en vuelo (entró encendida), APAGAR espera a que termine ($((T1-T0)) ms)" || rojo "S2: el apagado no esperó ($((T1-T0)) ms)"; soltado; }
+[[ "$(q "select etapa from crm.leads where id='$LS2'")" == "nuevo" ]] && ok "[S2] la reapertura que entró encendida terminó (nuevo) y la bandera quedó apagada después" || rojo "S2 foto: $(q "select etapa from crm.leads where id='$LS2'")"
+flag false
 
 echo "== (2) Bandera ENCENDIDA: reabrir juzga a la persona y enlaza =="
 flag true

@@ -2140,8 +2140,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // F2.b [D-13/D-15]: el DNI va por SU puerta (candados documento → persona →
         // fila; con la identidad encendida un UPDATE directo de dni está cerrado) y
         // ANTES del resto: si ese documento ya es de otra persona con lead/ficha, no
-        // se guarda nada. Si el DNI no cambia, no viaja en el UPDATE (con la
-        // identidad encendida, tocar la columna sin cambiarla también la despierta).
+        // se guarda nada. El UPDATE del resto lleva la FILA COMPLETA, DNI incluido,
+        // como hoy (Codex bloque 4 #1): así dos ediciones simultáneas no se mezclan
+        // —gana la última entera, o falla entera—; con la identidad encendida el
+        // trigger deja pasar un DNI que no cambia y cierra (P0409) el que sí.
         const { dni: dniNuevo, ...resto } = parche
         const cambiaDni = dniNuevo !== undefined && dniNuevo !== (actual.dni ?? null)
         const restoTieneCambios = Object.keys(resto).length > 0
@@ -2150,7 +2152,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             if (cambiaDni) await fijarDniLead(id, dniNuevo ?? null)
             if (!restoTieneCambios) return
             try {
-              await actualizarLead(id, resto)
+              await actualizarLead(id, parche)
             } catch (causa: unknown) {
               // Dos escrituras donde antes había una: si el DNI YA quedó guardado y el
               // resto falla, el toast no puede prometer «se restauró el estado

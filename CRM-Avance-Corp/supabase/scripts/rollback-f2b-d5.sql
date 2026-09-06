@@ -11,12 +11,12 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-5: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('6312a17af8c5af75ea04ae649d50896f', '677a388c26a2841abf459a0bc1f03750')
-     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('098bc79771ac5acae28a0b5f7ff91a1e', '7687a522515350d9feb06795494f1c88')
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('6312a17af8c5af75ea04ae649d50896f', '1a95dfd21b7306dd32464b9a13b61bd3')
+     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('098bc79771ac5acae28a0b5f7ff91a1e', 'f04bd6873e2e193f4b3e1d31eb3d0198')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')), '') not in ('dac3606741accbc1ea96362440405bbf', '78c301d2a208a25b3cb8fb1849307f0e') then
     raise exception 'REVERSA D-5: alguna de las dos firmas de un argumento no es ni el texto de D-5 ni el vivo de producción; no se pisa a ciegas';
   end if;
-  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') and md5(p.prosrc) <> '7cfb30ade5ab58b16c1163d0c735267e') then
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') and md5(p.prosrc) <> '8d52df269b43040e43f73d61789321d7') then
     raise exception 'REVERSA D-5: crm.abandonar_conversion_gerencia_fn viva no tiene el cuerpo de gen-d5.py; no se suelta a ciegas';
   end if;
 end
@@ -256,6 +256,8 @@ begin
 end;
 $function$;
 drop function if exists crm.abandonar_conversion_gerencia_fn(uuid,text);
+drop trigger if exists trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags;
+drop function if exists private.trg_multiempresa_flags_serializa_puertas();
 do $post$
 begin
   if (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.reservar_conversion_lead(uuid)'::regprocedure) <> '6312a17af8c5af75ea04ae649d50896f'
@@ -263,8 +265,9 @@ begin
      or (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure) <> 'dac3606741accbc1ea96362440405bbf' then
     raise exception 'REVERSA D-5: las firmas transformadas no quedaron byte a byte como en producción';
   end if;
-  if to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') is not null then
-    raise exception 'REVERSA D-5: abandonar_conversion_gerencia_fn sigue existiendo';
+  if to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') is not null or to_regprocedure('private.trg_multiempresa_flags_serializa_puertas()') is not null
+     or exists (select 1 from pg_trigger where tgrelid = 'crm.multiempresa_flags'::regclass and tgname = 'trg_multiempresa_flags_00_serializa_puertas') then
+    raise exception 'REVERSA D-5: abandonar_conversion_gerencia_fn o el trigger de la bandera siguen existiendo';
   end if;
   delete from supabase_migrations.schema_migrations where version = '20260906140000';
   raise notice 'REVERSA F2.b D-5 OK (versión 20260906140000 desregistrada de schema_migrations si estaba)';

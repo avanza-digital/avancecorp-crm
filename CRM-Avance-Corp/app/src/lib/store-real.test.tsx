@@ -1425,22 +1425,23 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const res = mutar((a) => a.editarLead(id, { dni: '45678901', nota: 'con documento' }))
 
     expect(res).toMatchObject({ ok: true })
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { nota: 'con documento' }))
+    // El UPDATE lleva la fila completa (DNI incluido): dos ediciones no se mezclan (Codex bloque 4 #1).
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { dni: '45678901', nota: 'con documento' }))
     expect(fijarDniLead).toHaveBeenCalledWith(id, '45678901')
     expect(orden).toEqual(['dni', 'resto'])
   })
 
-  it('sin cambio de DNI no se llama a la puerta ni viaja el dni en el UPDATE', async () => {
+  it('sin cambio de DNI no se llama a la puerta; el dni viaja igual en el UPDATE (como hoy)', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
     const dniActual = api().lead(id)?.dni ?? null
 
-    // La ficha manda SIEMPRE el dni (el valor del formulario): sin cambio, se omite.
+    // La ficha manda SIEMPRE el dni (el valor del formulario).
     const res = mutar((a) => a.editarLead(id, { dni: dniActual, telefono: '+51999111333' }))
 
     expect(res).toMatchObject({ ok: true })
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { telefono: '+51999111333' }))
+    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { dni: dniActual, telefono: '+51999111333' }))
     expect(fijarDniLead).not.toHaveBeenCalled()
   })
 
@@ -1466,7 +1467,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: true })
     await waitFor(() => expect(fijarDniLead).toHaveBeenCalledWith(id, null))
-    expect(actualizarLead).toHaveBeenCalledWith(id, { nota: 'sin documento' })
+    expect(actualizarLead).toHaveBeenCalledWith(id, { dni: null, nota: 'sin documento' })
   })
 
   it('DNI guardado y el resto falla: el toast es honesto (no dice «se restauró»)', async () => {

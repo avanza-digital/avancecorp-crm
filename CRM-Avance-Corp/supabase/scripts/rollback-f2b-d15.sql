@@ -8,9 +8,9 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d15_reabrir_lead_por_puerta'));
 do $pre$
 begin
-  -- No se suelta a ciegas: solo la puerta que genera gen-d15.py (cuerpo 53a211b0…). Otro cuerpo = otra versión: revisar antes.
-  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.reabrir_lead_fn(uuid)') and md5(p.prosrc) <> '53a211b04192a853b154c5fba4fb9300') then
-    raise exception 'REVERSA D-15: la puerta viva no tiene el cuerpo de gen-d15.py (53a211b0…); no se suelta a ciegas';
+  -- No se suelta a ciegas: solo la puerta que genera gen-d15.py (cuerpo 704fecf9…). Otro cuerpo = otra versión: revisar antes.
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.reabrir_lead_fn(uuid)') and md5(p.prosrc) <> '704fecf995c0300d2dc2ef064c6d6490') then
+    raise exception 'REVERSA D-15: la puerta viva no tiene el cuerpo de gen-d15.py (704fecf9…); no se suelta a ciegas';
   end if;
 end
 $pre$;

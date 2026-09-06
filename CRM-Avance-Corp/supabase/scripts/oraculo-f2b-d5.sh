@@ -32,6 +32,20 @@ retomar()   { run_as "$G" "select crm.retomar_conversion_gerencia_fn('$1')"; }
 verificar() { run_as "$V" "select crm.verificar_disponibilidad_lead('$1','$2')"; }
 lead_de() { sys "insert into crm.leads (id,nombre_completo,telefono,dni,monto_estimado,origen,etapa,creado_por,vendedor_id) values ('$1','D5 $3 r$RUN','9${RUN}$2',${4:-null},1000,'landing','nuevo','$V','$V')"; }
 vencer() { sys "update crm.conversion_reservas set vence_absoluto_en = now() - interval '1 minute', expira_en = now() - interval '1 minute' where lead_id='$1'"; sys "update crm.multiempresa_idempotencia set resultado = resultado || jsonb_build_object('lease_hasta', (now() - interval '1 minute')) where clave = 'auth_persona:' || '$2'"; }
+vencer_tope() { sys "update crm.conversion_reservas set vence_absoluto_en = now() - interval '1 minute', expira_en = now() - interval '1 minute' where lead_id='$1'"; }
+ms() { perl -MTime::HiRes=time -e 'printf "%d\n", time*1000'; }
+# retiene una transacción CON SESIÓN (rol authenticated + claims) N segundos tras ejecutar la sentencia: para ensayar el candado compartido de la bandera
+retener_as() { LOCKF="$S/d5-lock-$RUN-$RANDOM.out"; ( psql "$PG" -qAt -v ON_ERROR_STOP=1 > "$LOCKF" 2>&1 <<EOF
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"$1","role":"authenticated"}', true);
+$2;
+\echo LOCK-OK
+select pg_sleep($3);
+commit;
+EOF
+echo "exit=$?" >> "$LOCKF" ) & BG=$!; local i; for i in $(seq 1 100); do grep -q "LOCK-OK" "$LOCKF" 2>/dev/null && return 0; grep -q "ERROR" "$LOCKF" 2>/dev/null && { rojo "retener_as: $(head -c 200 "$LOCKF")"; return 1; }; sleep 0.1; done; rojo "retener_as: sin LOCK-OK en 10 s"; return 1; }
+soltado() { wait $BG 2>/dev/null; grep -q "exit=0" "$LOCKF" && return 0; rojo "la sesión que retenía el candado falló: $(grep -v LOCK-OK "$LOCKF" | head -c 200)"; return 1; }
 # sella por persona: reserva de 4 args + sellado de 3; deja en las globales INV/CL/TK
 sellar_persona() { local R; R="$(reservar4 "$1" "$2" "$(pay "$3@x.pe" "$3" "$4")")"; INV="$(j "$R" inversionista_id)"; CL="$(j "$R" claim_id)"; TK="$(j "$R" token)"; [[ "$(j "$R" estado)" == "reclamado" ]] || { rojo "reserva por persona de $1: $(echo "$R" | head -c 200)"; return 1; }; R="$(sellar3 "$1" "$CL" "$TK")"; [[ "$(j "$R" ok)" == "True" ]] || { rojo "sellado de $1: $(echo "$R" | head -c 200)"; return 1; }; return 0; }
 
@@ -56,12 +70,25 @@ D2="6${RUN}2"; sellar_persona "$L2" "$D2" "p2$RUN" 2 && ok "[T4] ON (regresión 
 I2="$INV"; CL2="$CL"
 [[ "$(q "select private.persona_en_conversion('$I2'::uuid, null)")" == "t" ]] && ok "fixture: la persona I2 está «en conversión» (reserva sellada, lead sin convertir)" || rojo "fixture persona_en_conversion"
 
+echo "== (2b) El cambio de bandera se serializa con las puertas (Codex v3 #3) =="
+flag false
+LS="$(uuid)"; lead_de "$LS" 61 SERIAL
+retener_as "$V" "select crm.reservar_conversion_lead('$LS')" 6 && { T0="$(ms)"; flag true; T1="$(ms)"; (( T1 - T0 >= 4500 )) && ok "[S1] con una reserva por lead en vuelo (entró apagada), ENCENDER la bandera espera a que termine ($((T1-T0)) ms)" || rojo "S1: el encendido no esperó ($((T1-T0)) ms)"; soltado; }
+[[ "$(q "select count(*) from crm.conversion_reservas where lead_id='$LS' and inversionista_id is null")" == "1" ]] && ok "[S1] la llamada que entró apagada terminó apagada (reserva por lead creada) y la bandera quedó encendida después" || rojo "S1 reserva: $(q "select count(*) from crm.conversion_reservas where lead_id='$LS'")"
+R="$(reservar1 "$LS")"; echo "$R" | grep -q "va por persona" && ok "[S1] la siguiente llamada, ya encendida, se cierra (P0409)" || rojo "S1 después: $(echo "$R" | head -c 200)"
+sys "delete from crm.conversion_reservas where lead_id='$LS'"
+# (la dirección ENCENDIDA → APAGADA la ensaya el oráculo de D-15 con crm.reabrir_lead_fn; las puertas de b4/D-13 —reserva por persona,
+#  sellado por persona— no toman el candado compartido: D-5 no las transforma, y apagar mientras corren es la dirección segura)
+flag true
+
 echo "== (3) Gerencia abandona una conversión sellada sin cuenta =="
 R="$(abandonar "$L2" "'Cliente desistió antes de crear la cuenta'" "$V")"; echo "$R" | grep -q "42501" && ok "[A1] un analista no abandona → 42501" || rojo "A1: $(echo "$R" | head -c 200)"
 R="$(abandonar "$L3" "'Cliente desistió antes de crear la cuenta'")"; echo "$R" | grep -q "P0002" && ok "[A2] lead sin reserva por persona → P0002" || rojo "A2: $(echo "$R" | head -c 200)"
 R="$(abandonar "$L2" "'abc'")"; echo "$R" | grep -q "22023" && ok "[A3] motivo corto → 22023 (obligatorio, 5..300)" || rojo "A3: $(echo "$R" | head -c 200)"
 R="$(abandonar "$L2" "null")"; echo "$R" | grep -q "22023" && ok "[A3] motivo nulo → 22023" || rojo "A3 null: $(echo "$R" | head -c 200)"
 R="$(abandonar "$L2" "'Cliente desistió antes de crear la cuenta'")"; echo "$R" | grep -q "sigue viva" && [[ "$(q "select count(*) from crm.conversion_reservas where lead_id='$L2'")" == "1" ]] && ok "[A4] reserva y claim vigentes → P0409 «sigue viva» (nunca expulsa a una ejecución viva), nada borrado" || rojo "A4: $(echo "$R" | head -c 200)"
+vencer_tope "$L2"
+R="$(abandonar "$L2" "'Cliente desistió antes de crear la cuenta'")"; echo "$R" | grep -q "sigue viva" && [[ "$(q "select count(*) from crm.multiempresa_idempotencia where clave='auth_persona:$I2'")" == "1" ]] && ok "[A4b Codex v3 #2] tope de la reserva vencido pero LEASE del claim vigente (reintento del dueño en vuelo) → P0409 «sigue viva», nada borrado" || rojo "A4b: $(echo "$R" | head -c 200)"
 vencer "$L2" "$I2"
 NA0="$(q "select count(*) from public.audit_log where (tabla like '%conversion_reservas' or tabla like '%multiempresa_idempotencia') and operacion='DELETE'")"
 R="$(abandonar "$L2" "'Cliente desistió antes de crear la cuenta'")"; [[ "$(j "$R" ok)" == "True" && "$(j "$R" estado_previo)" == "reclamado" && "$(j "$R" inversionista_id)" == "$I2" && "$(j "$R" claim_id)" == "$CL2" ]] && ok "[A5] vencidos reserva y lease, con claim en «reclamado» → abandonada (estado_previo reclamado, persona y claim en la respuesta)" || rojo "A5: $(echo "$R" | head -c 260)"
@@ -94,7 +121,7 @@ R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; set loca
 R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -c "begin; set local role anon; select crm.abandonar_conversion_gerencia_fn('$L4','motivo largo'); rollback;" 2>&1)"; echo "$R" | grep -q "42501" && ok "[A11] anon sin EXECUTE → 42501" || rojo "A11 anon: $(echo "$R" | head -c 200)"
 
 echo "== Limpieza =="
-psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); delete from crm.conversion_reservas where lead_id in ('$L1','$L2','$L3','$L4','$L5','${L6:-$L5}','${L7:-$L5}'); delete from crm.multiempresa_idempotencia where clave in ('auth_persona:${I2:-x}','auth_persona:${I4:-x}','auth_persona:${I5:-x}','auth_persona:${I6:-x}','auth_persona:${I7:-x}','auth_persona:${I8:-x}'); delete from crm.conversion_reservas where lead_id = '${L8:-00000000-0000-0000-0000-000000000000}'; update crm.leads set activo=false where nombre_completo like 'D5 %' and activo; commit;" >/dev/null 2>&1
+psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); delete from crm.conversion_reservas where lead_id in ('$L1','$L2','$L3','$L4','$L5','${L6:-$L5}','${L7:-$L5}','${LS:-$L5}'); delete from crm.multiempresa_idempotencia where clave in ('auth_persona:${I2:-x}','auth_persona:${I4:-x}','auth_persona:${I5:-x}','auth_persona:${I6:-x}','auth_persona:${I7:-x}','auth_persona:${I8:-x}'); delete from crm.conversion_reservas where lead_id = '${L8:-00000000-0000-0000-0000-000000000000}'; update crm.leads set activo=false where nombre_completo like 'D5 %' and activo; commit;" >/dev/null 2>&1
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1
 flag false
 echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b D-5: VERDE — apagada, las firmas de un argumento son las de hoy; encendida se cierran (P0409) y las de b4 siguen; Gerencia abandona solo una conversión sellada sin cuenta y vencida (borra reserva y claim, nota y bitácora, persona libre); con cuenta/ficha → retomar."; else echo "ORÁCULO F2.b D-5: ROJO — $ROJO aserciones fallaron." >&2; exit 1; fi

@@ -23,6 +23,10 @@ def guard(que, pista):
   -- (sobrecargas de b4: reserva con documento + datos, sellado con claim + token, saga de Auth vigilada). Esta firma de UN
   -- argumento —{que}— queda SOLO para la bandera apagada: encendida, se cierra, para que ningún cliente
   -- viejo del edge abra una conversión que la saga no vigila (la cuenta de portal huérfana que b4 vino a impedir).
+  -- Codex v3 #3: la guarda se serializa con el CAMBIO de la bandera (candado compartido por bandera; el UPDATE de
+  -- crm.multiempresa_flags toma el exclusivo en su trigger): una llamada que entró apagada termina apagada, y una que entre
+  -- después del encendido lo ve. Sin esto, una llamada que esperaba por el lead podía escribir sin persona ya encendida.
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'Con la identidad unificada encendida, la conversión a cliente va por persona (documento y datos): actualiza el CRM y vuelve a intentarlo'
       using errcode = 'P0409', hint = '{pista}';
@@ -42,6 +46,7 @@ GUARD_M = AUTH + """  -- F2.b [D-5] (b4 M3, Codex #8): con la identidad unificad
   -- Esta firma de UN argumento —el sellado sin claim ni token— queda SOLO para la bandera apagada y para ese paso: una
   -- llamada directa con la bandera encendida se cierra, para que ningún cliente viejo del edge selle una conversión que la
   -- saga no vigila (la cuenta de portal huérfana que b4 vino a impedir).
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));   -- Codex v3 #3: serializa con el cambio de bandera
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false)
      and coalesce(pg_catalog.current_setting('crm.sellado_por_persona', true), 'off') <> 'on' then
     raise exception 'Con la identidad unificada encendida, la conversión a cliente va por persona (documento y datos): actualiza el CRM y vuelve a intentarlo'
@@ -62,6 +67,32 @@ end;""", """  -- F2.b [D-5]: la firma de un argumento queda cerrada con la ident
 end;""")
 HB = {'r': md5s(body(r)), 'm': md5s(body(m)), 'm3': md5s(body(m3)), 'r0': md5s(body(r_prev)), 'm0': md5s(body(m_prev)), 'm30': md5s(body(m3_prev))}
 assert HB['r'] != HB['r0'] and HB['m'] != HB['m0'] and HB['m3'] != HB['m30']
+# ── 2c. el cambio de bandera toma el candado EXCLUSIVO por bandera (las puertas de D-5/D-15 toman el compartido) ─────
+TRG_FLAGS = """create or replace function private.trg_multiempresa_flags_serializa_puertas()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  -- F2.b [D-5] (Codex v3 #3/#4): encender o apagar una bandera espera a que terminen las puertas que la leyeron bajo el
+  -- candado compartido (pg_advisory_xact_lock_shared('crm_flag_<nombre>')) y bloquea a las que lleguen hasta que el cambio
+  -- se confirme. Así ninguna llamada termina con una bandera distinta de la que leyó. Candado por bandera, transaccional.
+  if new.activo is distinct from old.activo then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('crm_flag_' || new.nombre));
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function private.trg_multiempresa_flags_serializa_puertas() from public, anon, authenticated, service_role;
+drop trigger if exists trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags;
+create trigger trg_multiempresa_flags_00_serializa_puertas
+  before update of activo on crm.multiempresa_flags
+  for each row execute function private.trg_multiempresa_flags_serializa_puertas();
+comment on trigger trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags is
+  'F2.b [D-5]: el cambio de una bandera toma el advisory exclusivo crm_flag_<nombre>; las puertas que leen resolver_en_puertas bajo el compartido terminan con la bandera que leyeron.';
+"""
+
 # ── 3. la herramienta de Gerencia: abandonar una conversión sellada que nunca creó la cuenta ───────────────────────
 ABANDONAR_BODY = """
 declare
@@ -133,11 +164,12 @@ begin
       raise exception 'Estado de saga desconocido (%): revisar antes de abandonar', v_est->>'estado' using errcode = 'P0409';
     end if;
   end if;
-  -- Nunca expulsa a una ejecución viva (Codex E2 #10): solo pasado el tope de la reserva o vencido el lease del claim
-  -- (sin lease escrito se trata como vivo: auditor v1 #3).
+  -- Nunca expulsa a una ejecución viva (Codex E2 #10): abandonar es destructivo, así que exige los DOS plazos vencidos
+  -- (el tope de la reserva Y el lease del claim; sin lease escrito se trata como vivo). Codex v3 #2: un reintento del dueño
+  -- renueva el lease diez minutos aunque el tope original haya pasado; con «uno u otro» se le borraba el claim en vuelo.
   if v_r.vence_absoluto_en > pg_catalog.now()
-     and (v_est is null or coalesce((v_est->>'lease_hasta')::timestamptz, 'infinity'::timestamptz) > pg_catalog.now()) then
-    raise exception 'La conversión sigue viva (reserva y claim vigentes): espera a que venza antes de abandonarla' using errcode = 'P0409';
+     or (v_est is not null and coalesce((v_est->>'lease_hasta')::timestamptz, 'infinity'::timestamptz) > pg_catalog.now()) then
+    raise exception 'La conversión sigue viva (reserva o claim vigentes): espera a que venzan los dos antes de abandonarla' using errcode = 'P0409';
   end if;
   -- Auditor v1 #1 (ALTO): el edge crea el usuario de Auth ANTES de registrar el paso (createUser con app_metadata.claim_id
   -- → registrar_auth). Si murió entre medias, el claim sigue en «reclamado» pero la cuenta EXISTE con la marca de este claim;
@@ -214,6 +246,10 @@ def post(tag):
   if not exists (select 1 from pg_proc p where p.oid = '{FA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '{HB['a']}') then
     raise exception '{tag} D-5: crm.abandonar_conversion_gerencia_fn no quedó como la genera gen-d5.py';
   end if;
+  if not exists (select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.multiempresa_flags'::regclass and t.tgname = 'trg_multiempresa_flags_00_serializa_puertas' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16 and p.prosecdef and p.proconfig @> array['search_path=""'])
+     or has_function_privilege('authenticated', 'private.trg_multiempresa_flags_serializa_puertas()', 'EXECUTE') or has_function_privilege('anon', 'private.trg_multiempresa_flags_serializa_puertas()', 'EXECUTE') or has_function_privilege('service_role', 'private.trg_multiempresa_flags_serializa_puertas()', 'EXECUTE') then
+    raise exception '{tag} D-5: el trigger que serializa el cambio de bandera (crm.multiempresa_flags) falta, está deshabilitado, no es BEFORE UPDATE o su función tiene EXECUTE para la API';
+  end if;
   if exists (select 1 from unnest(array['crm.reservar_conversion_lead(uuid)','crm.marcar_efectos_conversion(uuid)','crm.marcar_efectos_conversion(uuid,uuid,text)','{FA}']) f(firma)
              where not has_function_privilege('authenticated', f.firma, 'EXECUTE') or has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE'))
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.reservar_conversion_lead(uuid)'::regprocedure, 'crm.marcar_efectos_conversion(uuid)'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure, '{FA}'::regprocedure) and a.grantee = 0) then
@@ -240,6 +276,9 @@ mig = f"""-- ===================================================================
 -- audit_log por los triggers de las dos tablas). Con cuenta o ficha creadas, el camino sigue siendo RETOMAR (b4).
 -- Transformación anclada al texto VIVO de producción (vivas/d5/, huellas-d5-prod.txt); reversa byte a byte.
 -- Ensayo: scripts/oraculo-f2b-d5.sh. Reversa: scripts/rollback-f2b-d5.sql. Registro: scripts/registrar-f2b-d5.sql.
+-- ENCENDIDO SERIALIZADO (Codex v3 #3/#4): las firmas de un argumento y crm.reabrir_lead_fn (D-15) leen la bandera bajo el
+-- advisory COMPARTIDO crm_flag_resolver_en_puertas y el UPDATE de crm.multiempresa_flags toma el EXCLUSIVO (trigger nuevo):
+-- una llamada que entró apagada termina apagada; el encendido espera a las llamadas en vuelo y frena a las nuevas hasta confirmar.
 -- CAPAS: D-5 transforma el sellado por persona (texto de D-13) y la reserva de 1 argumento (texto que D-10/D-13/E2/E3 anclan):
 -- mientras D-5 esté aplicada, las reversas y registros de D-13/D-10/E2/E3 rehúsan (correcto). Orden de reversa: D-15 → D-5 → D-13.
 
@@ -267,6 +306,10 @@ $guard$;
 -- ============================================================================
 {m3};
 
+-- ============================================================================
+-- 2c. crm.multiempresa_flags: el cambio de bandera se serializa con las puertas (candado exclusivo por bandera)
+-- ============================================================================
+{TRG_FLAGS}
 -- ============================================================================
 -- 3. crm.abandonar_conversion_gerencia_fn(uuid, text): Gerencia abandona una conversión sellada sin cuenta
 -- ============================================================================
@@ -306,6 +349,8 @@ $pre$;
 {m_prev};
 {m3_prev};
 drop function if exists {FA};
+drop trigger if exists trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags;
+drop function if exists private.trg_multiempresa_flags_serializa_puertas();
 do $post$
 begin
   if (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.reservar_conversion_lead(uuid)'::regprocedure) <> '{HB['r0']}'
@@ -313,8 +358,9 @@ begin
      or (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure) <> '{HB['m30']}' then
     raise exception 'REVERSA D-5: las firmas transformadas no quedaron byte a byte como en producción';
   end if;
-  if to_regprocedure('{FA}') is not null then
-    raise exception 'REVERSA D-5: abandonar_conversion_gerencia_fn sigue existiendo';
+  if to_regprocedure('{FA}') is not null or to_regprocedure('private.trg_multiempresa_flags_serializa_puertas()') is not null
+     or exists (select 1 from pg_trigger where tgrelid = 'crm.multiempresa_flags'::regclass and tgname = 'trg_multiempresa_flags_00_serializa_puertas') then
+    raise exception 'REVERSA D-5: abandonar_conversion_gerencia_fn o el trigger de la bandera siguen existiendo';
   end if;
   delete from supabase_migrations.schema_migrations where version = '{VER}';
   raise notice 'REVERSA F2.b D-5 OK (versión {VER} desregistrada de schema_migrations si estaba)';

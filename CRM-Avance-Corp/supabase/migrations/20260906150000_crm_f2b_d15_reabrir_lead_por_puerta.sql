@@ -18,7 +18,8 @@
 --     persona / conversión en curso / ya cliente, activo o no) y, tras el UPDATE bajo crm.reapertura_identidad, el lead
 --     queda ENLAZADO a su persona (enlazar_lead_reabierto). Todo helper es el de D-13 (huellas de producción como guardas).
 -- El front (store.reabrir) llama esta puerta en vez de actualizar la fila; la edición del DNI del lead va por
--- crm.fijar_dni_lead_fn (D-13). Ensayo: scripts/oraculo-f2b-d15.sh (UPDATE directo vs puerta, OFF y ON, mutante sin D-15).
+-- crm.fijar_dni_lead_fn (D-13). La bandera se lee bajo el advisory compartido crm_flag_resolver_en_puertas (D-5 pone el exclusivo
+-- en el cambio de bandera): la llamada termina con la bandera que leyó. Ensayo: scripts/oraculo-f2b-d15.sh (UPDATE directo vs puerta, OFF y ON, mutante sin D-15).
 -- Reversa: scripts/rollback-f2b-d15.sql (DROP). Registro: scripts/registrar-f2b-d15.sql.
 
 begin;
@@ -94,7 +95,7 @@ declare
   v_v       jsonb;
   v_previo  text;
   v_inv     uuid;
-  v_flag    boolean := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);
+  v_flag    boolean;
 begin
   -- F2.b [D-15]: la puerta del botón «Reabrir» del CRM (analista, supervisor o Gerencia, sobre un lead de su ámbito).
   -- Sustituye el UPDATE directo de etapa que hacía el front, que con la identidad encendida cierra el trigger
@@ -106,6 +107,10 @@ begin
   if p_lead_id is null then
     raise exception 'El lead es obligatorio' using errcode = '22023';
   end if;
+  -- Codex v3 #4: la bandera se lee bajo el candado COMPARTIDO por bandera (el cambio de bandera toma el exclusivo en su
+  -- trigger, D-5): una llamada que entró apagada termina apagada aunque espere por el lead, y viceversa.
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
+  v_flag := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);
   -- Ámbito ANTES de cualquier candado (auditor D-13 v4 M1): un lead ajeno o inexistente muere aquí sin sondear a nadie.
   -- Mismo predicado que la policy leads_update (el UPDATE que hacía el front).
   if not exists (select 1 from crm.leads l
@@ -185,7 +190,7 @@ comment on function crm.reabrir_lead_fn(uuid) is 'F2.b [D-15]: la puerta del bot
 
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '53a211b04192a853b154c5fba4fb9300') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '704fecf995c0300d2dc2ef064c6d6490') then
     raise exception 'POSTFLIGHT D-15: crm.reabrir_lead_fn no quedó como la genera gen-d15.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('authenticated', 'crm.reabrir_lead_fn(uuid)', 'EXECUTE')
