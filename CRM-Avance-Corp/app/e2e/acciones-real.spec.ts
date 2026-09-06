@@ -100,7 +100,7 @@ test('creación rechazada: rollback honesto y la RPC sí se intentó', async ({ 
 })
 
 test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor y no miente', async ({ page }) => {
-  const estado = await montarBackendReal(page, { fallarProximoPatchTelefono: true })
+  const estado = await montarBackendReal(page, { fallarProximaEdicionTelefono: true })
   await loginReal(page)
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
@@ -114,7 +114,8 @@ test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor
   await expect(
     page.getByText(/Ese teléfono ya pertenece a otro lead abierto de la empresa.*se restauró el estado anterior/i),
   ).toBeVisible()
-  await expect.poll(() => estado.llamadas.patchLead).toBe(1)
+  await expect.poll(() => estado.llamadas.rpcEditarLead).toBe(1)
+  expect(estado.llamadas.patchLead).toBe(0)
   // El valor editado se revirtió al del servidor (no quedó el optimista).
   await expect(drawer.getByText('+51999000111')).toBeVisible()
   await expect(page.getByText('(demo)')).toHaveCount(0)

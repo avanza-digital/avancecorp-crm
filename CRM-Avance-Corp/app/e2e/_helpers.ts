@@ -1692,8 +1692,8 @@ export interface BackendReal {
   fallarProximaCargaLeads: boolean
   /** El próximo PATCH de leads responde 400 (rechazo del servidor, error genérico). */
   fallarProximoPatch: boolean
-  /** El próximo PATCH de leads responde 400 con 23505/uq_leads_telefono_vivo. */
-  fallarProximoPatchTelefono: boolean
+  /** La próxima RPC de edición responde 400 con 23505/uq_leads_telefono_vivo. */
+  fallarProximaEdicionTelefono: boolean
   /** La próxima RPC de alta atómica pierde la última defensa única (23505). */
   fallarProximaCreacionLeadAtomica: boolean
   /** Veredicto de crm.verificar_disponibilidad_lead para P-048. */
@@ -1788,6 +1788,7 @@ export interface BackendReal {
     /** Escrituras legacy directas: la UI nueva debe mantener este contador en cero. */
     insertLeadDirecto: number
     rpcDisponibilidadLead: number
+    rpcEditarLead: number
     patchLead: number
     insertActividad: number
     getLeads: number
@@ -1868,7 +1869,7 @@ export async function montarBackendReal(
     rolPortal,
     fallarProximaCargaLeads: init.fallarProximaCargaLeads ?? false,
     fallarProximoPatch: init.fallarProximoPatch ?? false,
-    fallarProximoPatchTelefono: init.fallarProximoPatchTelefono ?? false,
+    fallarProximaEdicionTelefono: init.fallarProximaEdicionTelefono ?? false,
     fallarProximaCreacionLeadAtomica: init.fallarProximaCreacionLeadAtomica ?? false,
     disponibilidadLead: init.disponibilidadLead ?? { estado: 'libre' },
     fallarProximoInsertActividad: init.fallarProximoInsertActividad ?? false,
@@ -1935,7 +1936,7 @@ export async function montarBackendReal(
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
       rpcCrearLeadAtomico: 0, insertLeadDirecto: 0, rpcDisponibilidadLead: 0,
-      patchLead: 0, insertActividad: 0, getLeads: 0,
+      rpcEditarLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcActualizarClienteGerencia: 0,
       rpcListarCuentasBancarias: 0,
       rpcCompletarDomicilio: 0,
@@ -3032,6 +3033,22 @@ export async function montarBackendReal(
     }
 
     // ── leads ──
+    if (p === '/rest/v1/rpc/editar_lead_fn' && method === 'POST') {
+      estado.llamadas.rpcEditarLead += 1
+      if (estado.fallarProximaEdicionTelefono) {
+        estado.fallarProximaEdicionTelefono = false
+        return json(route, { code: '23505', message: 'duplicate key', details: 'uq_leads_telefono_vivo' }, 400)
+      }
+      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_cambios?: Partial<LeadReal> }
+      if (!body.p_lead_id || !body.p_cambios) {
+        return json(route, { code: '22023', message: 'Faltan datos de la edición' }, 400)
+      }
+      if (!estado.leads.some((lead) => lead.id === body.p_lead_id)) {
+        return json(route, { code: 'P0002', message: 'Lead no encontrado' }, 400)
+      }
+      estado.leads = estado.leads.map((lead) => lead.id === body.p_lead_id ? { ...lead, ...body.p_cambios } : lead)
+      return json(route, null)
+    }
     if (p === '/rest/v1/leads') {
       if (method === 'GET') {
         estado.llamadas.getLeads += 1
@@ -3048,10 +3065,6 @@ export async function montarBackendReal(
       }
       if (method === 'PATCH') {
         estado.llamadas.patchLead += 1
-        if (estado.fallarProximoPatchTelefono) {
-          estado.fallarProximoPatchTelefono = false
-          return json(route, { code: '23505', message: 'duplicate key', details: 'uq_leads_telefono_vivo' }, 400)
-        }
         if (estado.fallarProximoPatch) {
           estado.fallarProximoPatch = false
           return json(route, { code: '', message: 'update rechazado', details: '' }, 400)
