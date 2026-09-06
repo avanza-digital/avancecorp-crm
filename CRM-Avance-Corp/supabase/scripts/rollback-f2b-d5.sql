@@ -11,17 +11,21 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-5: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
+  if to_regprocedure('crm.reabrir_lead_fn(uuid)') is not null or to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') is not null then
+    raise exception 'REVERSA D-5: D-15 (20260906150000) sigue aplicada y sus puertas toman el compartido que este trigger serializa: revierte D-15 ANTES (orden D-15 → D-5)';
+  end if;
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('6312a17af8c5af75ea04ae649d50896f', '55bf3300a940729b08f36b1db93075b6')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('098bc79771ac5acae28a0b5f7ff91a1e', 'b8f9cbc6b5e5ae697c0e9cbad32abbc8')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')), '') not in ('dac3606741accbc1ea96362440405bbf', '801d4262f24c43e9f5ca41a9ecb36e76')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)')), '') not in ('13acdb73eb3c9208370f27b0f4c70ffb', '3b92916944a76fb7bcbc3bce603e4788')
-     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.tomar_lead_libre(text,text)')), '') not in ('cf17acb39feaf24b8ad8254006b70469', '0502d5d14a81af37f7b8a17ec50cd0d3')
-     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.rescatar_descartes(uuid[],uuid[],boolean)')), '') not in ('33c9033eb6981aed68faec99ee09ee01', '3d6710fdb7893ccffebe19b1b6143341')
+     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.tomar_lead_libre(text,text)')), '') not in ('cf17acb39feaf24b8ad8254006b70469', 'f755d63f59dfc0e8959fefb83c7b9f9a')
+     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.rescatar_descartes(uuid[],uuid[],boolean)')), '') not in ('33c9033eb6981aed68faec99ee09ee01', '5f4f5ca115f535f6ab8a1209dda19a0f')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('private.deshacer_descarte_implementacion(uuid)')), '') not in ('0818f0b0f82eb8e3bd891b0c1e76dc28', '241c65a8da53c98ec12027692d7724a4')
+     or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.retomar_conversion_gerencia_fn(uuid)')), '') not in ('5791cfd76a0b6ff6013d321c768e41a6', 'cff6d812b0385a52d86700507bdb33c2')
      then
     raise exception 'REVERSA D-5: alguna de las firmas transformadas no es ni el texto de D-5 ni el vivo de producción; no se pisa a ciegas';
   end if;
-  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') and md5(p.prosrc) <> '34d89623650161ca2f2941abd91129b6') then
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.abandonar_conversion_gerencia_fn(uuid,text)') and md5(p.prosrc) <> '9b225b5aa9a10ddd4ae276fa56db3982') then
     raise exception 'REVERSA D-5: crm.abandonar_conversion_gerencia_fn viva no tiene el cuerpo de gen-d5.py; no se suelta a ciegas';
   end if;
 end
@@ -1019,6 +1023,57 @@ begin
     'reabierto_en', statement_timestamp());
 end;
 $function$;
+CREATE OR REPLACE FUNCTION crm.retomar_conversion_gerencia_fn(p_lead_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare
+  v_uid uuid := (select auth.uid()); v_inv uuid; v_r crm.conversion_reservas%rowtype; v_est jsonb; v_token text; v_clave text;
+begin
+  if not private.es_gerencia_crm_activa() then
+    raise exception 'Solo Gerencia retoma una conversión' using errcode = '42501';
+  end if;
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada' using errcode = 'P0409';
+  end if;
+  select r.inversionista_id into v_inv from crm.conversion_reservas r where r.lead_id = p_lead_id;
+  if v_inv is null then
+    raise exception 'Este lead no tiene una reserva por persona' using errcode = 'P0002';
+  end if;
+  perform 1 from crm.inversionistas i where i.id = v_inv for update;
+  select * into v_r from crm.conversion_reservas r where r.lead_id = p_lead_id for update;
+  if v_r.efectos_iniciados_en is null then
+    raise exception 'La reserva no está sellada: basta con volver a reservar' using errcode = 'P0409';
+  end if;
+  v_clave := 'auth_persona:' || v_inv::text;
+  select i.resultado into v_est from crm.multiempresa_idempotencia i where i.clave = v_clave for update;
+  if v_est is null or v_est->>'estado' = 'enlazado' then
+    raise exception 'No hay una conversión a medias que retomar' using errcode = 'P0409';
+  end if;
+  if (v_est->>'lead_id')::uuid is distinct from p_lead_id or v_r.claim_id is distinct from (v_est->>'claim_id')::uuid then
+    raise exception 'La reserva y el claim de esta persona no corresponden a este lead' using errcode = 'P0409';
+  end if;
+  -- Nunca expulsa a una ejecución viva: solo pasado el tope de la reserva o con el lease del claim vencido (Codex E2 #10).
+  if v_r.vence_absoluto_en > pg_catalog.now() and (v_est->>'lease_hasta')::timestamptz > pg_catalog.now() then
+    raise exception 'La conversión sigue viva (reserva y claim vigentes): no hay nada que retomar todavía' using errcode = 'P0409';
+  end if;
+  v_token := pg_catalog.encode(extensions.gen_random_bytes(24), 'hex');
+  v_est := v_est || pg_catalog.jsonb_build_object('token_hash', private.saga_token_hash(v_token), 'owner', v_uid,
+    'lease_hasta', pg_catalog.now() + interval '10 minutes', 'actualizado_en', pg_catalog.now(), 'retomado_por_gerencia', true);
+  update crm.multiempresa_idempotencia set resultado = v_est, version = version + 1 where clave = v_clave;
+  update crm.conversion_reservas r
+     set reservado_por = v_uid, reservado_en = pg_catalog.now(),
+         expira_en = pg_catalog.now() + interval '5 minutes', vence_absoluto_en = pg_catalog.now() + interval '30 minutes'
+   where r.lead_id = p_lead_id;
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'inversionista_id', v_inv,
+    'claim_id', (v_est->>'claim_id')::uuid, 'token', v_token, 'estado', v_est->>'estado',
+    'version', (select i.version from crm.multiempresa_idempotencia i where i.clave = v_clave),
+    'auth_user_id', (v_est->>'auth_user_id')::uuid, 'perfil_id', (v_est->>'perfil_id')::uuid, 'reanudar', true);
+end;
+$function$;
 drop function if exists crm.abandonar_conversion_gerencia_fn(uuid,text);
 drop trigger if exists trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags;
 drop function if exists private.trg_multiempresa_flags_serializa_puertas();
@@ -1031,6 +1086,7 @@ begin
      or (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.tomar_lead_libre(text,text)'::regprocedure) <> 'cf17acb39feaf24b8ad8254006b70469'
      or (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.rescatar_descartes(uuid[],uuid[],boolean)'::regprocedure) <> '33c9033eb6981aed68faec99ee09ee01'
      or (select md5(p.prosrc) from pg_proc p where p.oid = 'private.deshacer_descarte_implementacion(uuid)'::regprocedure) <> '0818f0b0f82eb8e3bd891b0c1e76dc28'
+     or (select md5(p.prosrc) from pg_proc p where p.oid = 'crm.retomar_conversion_gerencia_fn(uuid)'::regprocedure) <> '5791cfd76a0b6ff6013d321c768e41a6'
      then
     raise exception 'REVERSA D-5: las firmas transformadas no quedaron byte a byte como en producción';
   end if;

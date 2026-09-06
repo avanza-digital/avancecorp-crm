@@ -153,7 +153,7 @@ LP="$(uuid)"; lead_de "$LP" 30 P; descartar "$LP"; LP2="$(uuid)"; lead_de "$LP2"
 R="$(reabrir "$LP")"; echo "$R" | grep -q "uq_leads_telefono_vivo" && [[ "$(q "select etapa from crm.leads where id='$LP'")" == "descartado" ]] && ok "[T9] ON: otro lead vivo con el teléfono → 23505 (mismo índice; nada se enlazó)" || rojo "T9: $(echo "$R" | head -c 200)"
 
 echo "== Limpieza =="
-psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); update crm.leads set activo=false where nombre_completo like 'D15 %' and activo; update crm.inversionistas set no_contactar=false where id='${IL:-00000000-0000-0000-0000-000000000000}'; commit;" >/dev/null 2>&1
+psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); update crm.leads set activo=false where nombre_completo like 'D15 % r$RUN' and activo; update crm.inversionistas set no_contactar=false where id='${IL:-00000000-0000-0000-0000-000000000000}'; commit;" >/dev/null 2>&1
 psql "$PG" -q -c "begin; alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia; update crm.equipo set activo=false where perfil_id::text like 'f3000000-%'; alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia; commit;" >/dev/null 2>&1
 flag false
 echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b D-15: VERDE — apagada, la puerta es el UPDATE de hoy (paridad de foto); encendida, juzga a la persona (otro lead, veto, cliente, conversión), enlaza y respeta ámbito, grants, aislamiento y candados."; else echo "ORÁCULO F2.b D-15: ROJO — $ROJO aserciones fallaron." >&2; exit 1; fi

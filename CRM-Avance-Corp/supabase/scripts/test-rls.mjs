@@ -9341,7 +9341,35 @@ async function testIdentidadF2bD15(sessions, seed) {
     const { data: r4, error: e4 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'editada por su analista', dni: null, distrito: 'Lima' } });
     check(!e4 && r4?.ok === true && r4?.dni_por_puerta === false && cuenta('editada', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por su analista' and distrito = 'Lima' and dni is null`) === 1,
       'D-15 OFF vend1 edita el suyo por editar_lead_fn → escrito (nota, distrito, dni null), dni_por_puerta=false (el UPDATE de hoy)', e4?.message ?? JSON.stringify(r4));
-    check(cuenta('flag trigger', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.multiempresa_flags'::regclass and t.tgname = 'trg_multiempresa_flags_00_serializa_puertas' and t.tgenabled = 'O' and pg_get_triggerdef(t.oid) like 'CREATE TRIGGER trg_multiempresa_flags_00_serializa_puertas BEFORE UPDATE OF activo ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.trg_multiempresa_flags_serializa_puertas()' and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
+    await expectExpectedFailure('D-15 vend1 editar_lead_fn sin cambios ({}) → 22023', sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: {} }), ['22023'], /sin cambios|inválidos/i);
+    // Matriz de roles (auditor v5 #3): los que no ven el lead (RLS) → P0002 sin sondear; los jerárquicos escriben.
+    for (const clave of ['coordinador', 'directorio', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`D-15 ${clave} editar_lead_fn sobre el lead de vend1 → P0002 (la RLS no se lo muestra)`, sessions[clave].client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'ajena' } }), ['P0002'], /no encontrado/i);
+    }
+    const { data: r5, error: e5 } = await sessions.sup1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { nota: 'editada por el supervisor' } });
+    check(!e5 && r5?.ok === true && cuenta('editada sup1', `select count(*) from crm.leads where id = '${L_V1}' and nota = 'editada por el supervisor'`) === 1, 'D-15 OFF sup1 edita el lead de su analista (ámbito jerárquico)', e5?.message ?? JSON.stringify(r5));
+    const { data: r6, error: e6 } = await sessions.gerencia.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V2, p_cambios: { nota: 'editada por gerencia' } });
+    check(!e6 && r6?.ok === true && cuenta('editada gerencia', `select count(*) from crm.leads where id = '${L_V2}' and nota = 'editada por gerencia'`) === 1, 'D-15 OFF gerencia edita el de vend2 (ámbito global)', e6?.message ?? JSON.stringify(r6));
+    // Camino ENCENDIDO en la suite (auditor v5 #3): el DNI por su puerta y el resto en UNA transacción; si el resto choca, el DNI tampoco queda.
+    const flagD15 = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-15)', `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+    const DNI_LIBRE = `7${RUN_IDENTIDAD}191`;
+    flagD15(true);
+    try {
+      const { error: e7 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: DNI_LIBRE, telefono: TEL_F2B(192) } });
+      check(!!e7 && ['P0481', '23505'].includes(String(e7.code)) && cuenta('dni no quedó', `select count(*) from crm.leads where id = '${L_V1}' and dni is null`) === 1,
+        'D-15 ON: DNI nuevo + teléfono de OTRO lead vivo → el resto choca y el DNI tampoco queda (una transacción)', e7?.message ?? 'aceptado');
+      const { data: r8, error: e8 } = await sessions.vend1.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: DNI_LIBRE, nota: 'con documento por su puerta' } });
+      check(!e8 && r8?.ok === true && r8?.dni_por_puerta === true && cuenta('dni y nota', `select count(*) from crm.leads where id = '${L_V1}' and dni = '${DNI_LIBRE}' and nota = 'con documento por su puerta'`) === 1,
+        'D-15 ON: DNI libre + nota → el DNI por su puerta (dni_por_puerta=true) y la nota en la misma transacción', e8?.message ?? JSON.stringify(r8));
+      // coordinador no ve el lead (P0002 antes de llamar a la puerta); directorio (lector global) lo VE pero no tiene rol CRM
+      // que edite: la puerta del DNI lo rechaza con 42501 antes de tocar nada.
+      await expectExpectedFailure('D-15 ON coordinador editar_lead_fn con otro DNI → P0002 (la RLS no muestra el lead; la puerta del DNI no llega a llamarse)', sessions.coordinador.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['P0002'], /no encontrado/i);
+      await expectExpectedFailure('D-15 ON directorio editar_lead_fn con otro DNI → 42501 (lo ve como lector global, pero la puerta del DNI exige rol CRM que edite)', sessions.directorio.client.schema('crm').rpc('editar_lead_fn', { p_lead_id: L_V1, p_cambios: { dni: `7${RUN_IDENTIDAD}193` } }), ['42501', 'P0002'], /revocado|no encontrado/i);
+    } finally {
+      flagD15(false);
+    }
+    check(cuenta('sin identidad fantasma (editar)', `select count(*) from crm.inversionista_identificadores where documento_normalizado in ('${DNI_LIBRE}', '7${RUN_IDENTIDAD}193')`) === 0, 'D-15: editar_lead_fn no crea identidades');
+    check(cuenta('flag trigger', `select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'crm.multiempresa_flags'::regclass and t.tgname = 'trg_multiempresa_flags_00_serializa_puertas' and t.tgenabled = 'O' and pg_get_triggerdef(t.oid) = 'CREATE TRIGGER trg_multiempresa_flags_00_serializa_puertas BEFORE UPDATE OF activo ON crm.multiempresa_flags FOR EACH ROW EXECUTE FUNCTION private.trg_multiempresa_flags_serializa_puertas()' and not has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE') and not has_function_privilege('service_role', p.oid, 'EXECUTE')`) === 1,
       'D-5 el trigger que serializa el cambio de bandera está exactamente como lo genera gen-d5.py (BEFORE UPDATE OF activo, FOR EACH ROW) y su función sin EXECUTE para la API');
     check(cuenta('flags sin privilegios API', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_table_privilege(r.rol, 'crm.multiempresa_flags', 'UPDATE') or has_table_privilege(r.rol, 'crm.multiempresa_flags', 'INSERT') or has_table_privilege(r.rol, 'crm.multiempresa_flags', 'DELETE')`) === 0,
       'D-5 ningún rol de la API escribe crm.multiempresa_flags (el cambio de bandera es solo de postgres)');
@@ -9560,7 +9588,7 @@ async function testIdentidadF2bD10(sessions) {
   try {
     check(cuenta('grants', `select (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
       'D-10 la reserva por persona conserva sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
-    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) in ('a067183bfe986cf7bd5f82b4ed6674d7', 'dd646949c7e0ea73a0acad30e2748a42'))::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
+    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) in ('a067183bfe986cf7bd5f82b4ed6674d7', 'c9fc656c5f9b57d0688a5ecccd747e73'))::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
       'D-10 la reserva de 1 argumento (camino de hoy) sigue byte a byte (texto de producción o el de D-5, que solo añade la guarda con ON)');
     check(cuenta('leads_de_identidades sin EXECUTE', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.leads_de_identidades(uuid[])', 'EXECUTE')`) === 0,
       'D-10 private.leads_de_identidades sigue sin EXECUTE para la API (solo la llama la definer)');

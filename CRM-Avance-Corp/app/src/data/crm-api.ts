@@ -1682,6 +1682,11 @@ function aErrorApi(
     // Carrera bajo aislamiento serializable (defensivo: el default es READ COMMITTED).
     code = 'REINTENTAR'
     mensaje = 'El lead se estaba repartiendo en simultáneo. Vuelve a intentarlo.'
+  } else if (codigoPg === '40P01') {
+    // Interbloqueo detectado por Postgres (una puerta y la ficha se cruzaron):
+    // la transacción entera se deshizo; repetir suele bastar (auditor bloque 4 #9).
+    code = 'REINTENTAR'
+    mensaje = 'Dos operaciones se cruzaron sobre este lead. Vuelve a intentarlo.'
   } else if (codigoPg === 'P0481') {
     code = 'CONTACTO_NO_DISPONIBLE'
     mensaje = 'Ese teléfono o DNI no está disponible para este lead.'

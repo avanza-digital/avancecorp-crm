@@ -114,24 +114,28 @@ D13['fijar_dni_lead_fn'] = (f_prev, f, 'crm.fijar_dni_lead_fn(uuid,text)')
 # tomar_lead_libre: tras el acceso (42501), antes de cualquier candado
 t_prev = viv('tomar_lead_libre'); assert md5s(t_prev + '\n') == H['crm.tomar_lead_libre.d13']
 t = rep(t_prev, "  v_flag_d13 boolean := coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false);\n", "  v_flag_d13 boolean;\n")
-t = rep(t, """     or v_rol not in ('vendedor', 'supervisor', 'gerencia') then
-    raise exception using errcode = '42501', message = 'Acceso CRM revocado';
+t = rep(t, """  if v_rol <> 'vendedor' then
+    raise exception using
+      errcode = '42501',
+      message = 'La toma directa es solo para vendedores; supervisión asigna por el reparto';
   end if;
-
-  -- La toma directa es del VENDEDOR para sí mismo (spec §7).""", """     or v_rol not in ('vendedor', 'supervisor', 'gerencia') then
-    raise exception using errcode = '42501', message = 'Acceso CRM revocado';
+""", """  if v_rol <> 'vendedor' then
+    raise exception using
+      errcode = '42501',
+      message = 'La toma directa es solo para vendedores; supervisión asigna por el reparto';
   end if;
-""" + LOCK_D13('v_flag_d13', SEL_F) + """
-  -- La toma directa es del VENDEDOR para sí mismo (spec §7).""")
+""" + LOCK_D13('v_flag_d13', SEL_F))
 D13['tomar_lead_libre'] = (t_prev, t, 'crm.tomar_lead_libre(text,text)')
 # rescatar_descartes: tras las validaciones de parámetros, antes de los candados (primer uso de v_flag en la consulta de episodios)
 rc_prev = viv('rescatar_descartes'); assert md5s(rc_prev + '\n') == H['crm.rescatar_descartes.d13']
 rc = rep(rc_prev, "  v_flag boolean := coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false);\n", "  v_flag boolean;\n")
-rc = rep(rc, """    raise exception 'Selecciona entre 1 y 100 descartes válidos'
-      using errcode = '22023';
+rc = rep(rc, """  if v_actor is null or v_rol is null then
+    raise exception 'Solo supervisión puede rescatar descartes'
+      using errcode = '42501';
   end if;
-""", """    raise exception 'Selecciona entre 1 y 100 descartes válidos'
-      using errcode = '22023';
+""", """  if v_actor is null or v_rol is null then
+    raise exception 'Solo supervisión puede rescatar descartes'
+      using errcode = '42501';
   end if;
 """ + LOCK_D13('v_flag', SEL_R))
 D13['rescatar_descartes'] = (rc_prev, rc, 'crm.rescatar_descartes(uuid[],uuid[],boolean)')
@@ -148,6 +152,29 @@ d = rep(d, """  if p_lead is null then
 """ + LOCK_D13('v_flag_d13', SEL_F) + """
   -- F2.b [D-13]: candados de PERSONA antes de la fila""")
 D13['deshacer_descarte_implementacion'] = (d_prev, d, 'private.deshacer_descarte_implementacion(uuid)')
+# retomar_conversion_gerencia_fn (b4; Codex v5 #2): retomar sustituye el token del claim, así que NUNCA expulsa a una ejecución
+# viva: exige el tope de la reserva Y el lease del claim vencidos (un reintento del dueño renueva el lease aunque el tope haya
+# pasado); un claim sin lease es anomalía. Y lee la bandera con READ COMMITTED bajo el compartido (mismo patrón que el resto).
+rt_prev = viv('retomar_conversion_gerencia_fn'); assert md5s(rt_prev + '\n') == H['crm.retomar_conversion_gerencia_fn.b4']
+rt = rep(rt_prev, """  if not private.es_gerencia_crm_activa() then
+    raise exception 'Solo Gerencia retoma una conversión' using errcode = '42501';
+  end if;
+""", """  if not private.es_gerencia_crm_activa() then
+    raise exception 'Solo Gerencia retoma una conversión' using errcode = '42501';
+  end if;
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then   -- F2.b [D-5]
+    raise exception 'Retomar requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
+""")
+rt = rep(rt, """  if v_r.vence_absoluto_en > pg_catalog.now() and (v_est->>'lease_hasta')::timestamptz > pg_catalog.now() then""",
+"""  if v_est->>'lease_hasta' is null then
+    raise exception 'El claim de esta conversión no tiene lease (anomalía de datos): revisar antes de retomar' using errcode = 'P0409';
+  end if;
+  -- F2.b [D-5] (Codex v5 #2): mismo criterio que abandonar. Retomar rota el token del claim: nunca expulsa a una ejecución
+  -- viva. Exige el tope de la reserva Y el lease del claim vencidos (un reintento del dueño renueva el lease aunque el tope pase).
+  if v_r.vence_absoluto_en > pg_catalog.now() or (v_est->>'lease_hasta')::timestamptz > pg_catalog.now() then""")
+D13['retomar_conversion_gerencia_fn'] = (rt_prev, rt, 'crm.retomar_conversion_gerencia_fn(uuid)')
 HB = {'r': md5s(body(r)), 'm': md5s(body(m)), 'm3': md5s(body(m3)), 'r0': md5s(body(r_prev)), 'm0': md5s(body(m_prev)), 'm30': md5s(body(m3_prev))}
 for k, (prev, new_, firma) in D13.items():
     HB[k] = md5s(body(new_)); HB[k + '0'] = md5s(body(prev)); assert HB[k] != HB[k + '0']
@@ -198,10 +225,14 @@ begin
   -- `reclamado`: sin cuenta de acceso ni ficha) y la ejecución ya no está viva (reserva o lease vencidos): se borran la
   -- reserva y el claim (bitácora en audit_log por sus triggers) y queda una nota en el lead. Con cuenta o ficha creadas
   -- el camino es RETOMAR (crm.retomar_conversion_gerencia_fn); consumada (perfil enlazado) no hay nada que abandonar.
-  -- Orden de candados, el de retomar: persona → reserva → lead → claim.
+  -- Orden de candados: persona → lead → reserva → claim (el de la conversión en cooperativa y del sellado).
   if not private.es_gerencia_crm_activa() then
     raise exception 'Solo Gerencia abandona una conversión' using errcode = '42501';
   end if;
+  if pg_catalog.current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'Abandonar requiere READ COMMITTED (aislamiento actual: %)', pg_catalog.current_setting('transaction_isolation') using errcode = '0A000';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtext('crm_flag_resolver_en_puertas'));
   if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'Identidad unificada apagada' using errcode = 'P0409';
   end if;
@@ -215,7 +246,13 @@ begin
   if v_inv is null then
     raise exception 'Este lead no tiene una reserva por persona' using errcode = 'P0002';
   end if;
+  -- Orden de candados (Codex v5 #3): persona → lead → reserva → claim, el de la conversión en cooperativa y del sellado
+  -- (lead antes que reserva); las revalidaciones van después de cada candado.
   perform 1 from crm.inversionistas i where i.id = v_inv for update;
+  select * into v_lead from crm.leads l where l.id = p_lead_id for update;
+  if not found then
+    raise exception 'Lead no encontrado' using errcode = 'P0002';
+  end if;
   select * into v_r from crm.conversion_reservas r where r.lead_id = p_lead_id for update;
   -- Revalidación tras los candados (auditor v1 #3): la reserva pudo borrarse (doble clic) o cambiar de persona mientras se esperaba.
   if not found then
@@ -227,15 +264,14 @@ begin
   if v_r.efectos_iniciados_en is null then
     raise exception 'La reserva no está sellada: caduca sola a los pocos minutos, no hay nada que abandonar' using errcode = 'P0409';
   end if;
-  select * into v_lead from crm.leads l where l.id = p_lead_id for update;
-  if not found then
-    raise exception 'Lead no encontrado' using errcode = 'P0002';
-  end if;
   if v_lead.etapa = 'convertido' then
     raise exception 'El lead ya está convertido: la conversión se consumó, no se abandona' using errcode = 'P0409';
   end if;
   v_clave := 'auth_persona:' || v_inv::text;
   select i.resultado into v_est from crm.multiempresa_idempotencia i where i.clave = v_clave for update;
+  if v_est is null and v_r.claim_id is not null then
+    raise exception 'La reserva apunta a un claim que ya no existe (anomalía de datos): revisar antes de abandonar' using errcode = 'P0409';
+  end if;
   if v_est is not null then
     if (v_est->>'lead_id')::uuid is distinct from p_lead_id or v_r.claim_id is distinct from (v_est->>'claim_id')::uuid then
       raise exception 'La reserva y el claim de esta persona no corresponden a este lead' using errcode = 'P0409';
@@ -321,7 +357,7 @@ GUARD = f"""  if coalesce((select f.activo from crm.multiempresa_flags f where f
 """ + ''.join(f"""  if to_regprocedure('{k}') is null or left(md5(pg_get_functiondef('{k}'::regprocedure)), 8) <> '{v}' then
     raise exception 'F2.b D-5: {k} falta o no es el texto vivo de producción (esperado {v}…)';
   end if;
-""" for k, v in H.items() if not k[-2:] in ('.1', '.3') and not k.endswith('.d13')) + """  if not exists (select 1 from information_schema.columns where table_schema='crm' and table_name='conversion_reservas' and column_name in ('inversionista_id','claim_id','efectos_iniciados_en','vence_absoluto_en') having count(*) = 4)
+""" for k, v in H.items() if not k[-2:] in ('.1', '.3') and not k.endswith('.d13') and not k.endswith('.b4')) + """  if not exists (select 1 from information_schema.columns where table_schema='crm' and table_name='conversion_reservas' and column_name in ('inversionista_id','claim_id','efectos_iniciados_en','vence_absoluto_en') having count(*) = 4)
      or to_regclass('crm.multiempresa_idempotencia') is null then
     raise exception 'F2.b D-5: crm.conversion_reservas no tiene las columnas de b4 o falta crm.multiempresa_idempotencia';
   end if;
@@ -412,7 +448,8 @@ $guard$;
 -- ============================================================================
 {TRG_FLAGS}
 -- ============================================================================
--- 2d. Las cuatro puertas de D-13 (fijar DNI, tomar, rescatar, deshacer) leen la bandera bajo el compartido
+-- 2d. Las cuatro puertas de D-13 (fijar DNI, tomar, rescatar, deshacer) leen la bandera bajo el compartido, y la retoma de
+--     Gerencia (b4) adopta el criterio de «ejecución viva» de abandonar (ambos plazos vencidos; sin lease = anomalía)
 -- ============================================================================
 {f};
 
@@ -421,6 +458,8 @@ $guard$;
 {rc};
 
 {d};
+
+{rt};
 
 -- ============================================================================
 -- 3. crm.abandonar_conversion_gerencia_fn(uuid, text): Gerencia abandona una conversión sellada sin cuenta
@@ -447,6 +486,9 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-5: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
+  if to_regprocedure('crm.reabrir_lead_fn(uuid)') is not null or to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') is not null then
+    raise exception 'REVERSA D-5: D-15 (20260906150000) sigue aplicada y sus puertas toman el compartido que este trigger serializa: revierte D-15 ANTES (orden D-15 → D-5)';
+  end if;
   if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('{HB['r0']}', '{HB['r']}')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('{HB['m0']}', '{HB['m']}')
      or coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')), '') not in ('{HB['m30']}', '{HB['m3']}')
@@ -466,6 +508,7 @@ $pre$;
 {t_prev};
 {rc_prev};
 {d_prev};
+{rt_prev};
 drop function if exists {FA};
 drop trigger if exists trg_multiempresa_flags_00_serializa_puertas on crm.multiempresa_flags;
 drop function if exists private.trg_multiempresa_flags_serializa_puertas();

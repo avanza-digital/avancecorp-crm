@@ -142,6 +142,9 @@ begin
   if p_lead_id is null or p_cambios is null or pg_catalog.jsonb_typeof(p_cambios) <> 'object' then
     raise exception 'Cambios inválidos' using errcode = '22023';
   end if;
+  if p_cambios = '{}'::jsonb then
+    raise exception 'Sin cambios' using errcode = '22023';   -- auditor v5 #6: nunca un «ok» sin escribir
+  end if;
   for v_k in select k from pg_catalog.jsonb_object_keys(p_cambios) k loop
     if not (v_k = any(v_claves)) then
       raise exception 'Campo no editable desde la ficha: %', v_k using errcode = '22023';
@@ -273,6 +276,9 @@ do $guard$
 begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'F2.b D-15: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
+  end if;
+  if not exists (select 1 from pg_trigger where tgrelid = 'crm.multiempresa_flags'::regclass and tgname = 'trg_multiempresa_flags_00_serializa_puertas' and tgenabled = 'O') then
+    raise exception 'F2.b D-15: falta el trigger que serializa el cambio de bandera (D-5, 20260906140000): aplica D-5 ANTES que D-15';
   end if;
 {GUARD_DEPS}end
 $guard$;

@@ -10,8 +10,8 @@ do $pre$
 begin
   -- No se suelta a ciegas: solo la puerta que genera gen-d15.py (cuerpo 65b4b092…). Otro cuerpo = otra versión: revisar antes.
   if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.reabrir_lead_fn(uuid)') and md5(p.prosrc) <> '65b4b0924da38eaa2c6b7dc42f44ee79')
-     or exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') and md5(p.prosrc) <> '55224774b94c1d429f1b0d52a185a303') then
-    raise exception 'REVERSA D-15: alguna puerta viva no tiene el cuerpo de gen-d15.py (65b4b092… / 55224774…); no se suelta a ciegas';
+     or exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.editar_lead_fn(uuid,jsonb)') and md5(p.prosrc) <> 'f2c1b7665ae58bea071499e04d970290') then
+    raise exception 'REVERSA D-15: alguna puerta viva no tiene el cuerpo de gen-d15.py (65b4b092… / f2c1b766…); no se suelta a ciegas';
   end if;
 end
 $pre$;

@@ -15,7 +15,7 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and a.grantee = 0) then
     raise exception 'REGISTRO D-15: los grants de la puerta no son «solo authenticated»';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '55224774b94c1d429f1b0d52a185a303') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'f2c1b7665ae58bea071499e04d970290') then
     raise exception 'REGISTRO D-15: crm.editar_lead_fn no quedó como la genera gen-d15.py (cuerpo, INVOKER, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('authenticated', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
@@ -70,7 +70,7 @@ begin
                    and strpos(pg_get_expr(polqual, polrelid), 'vendedor_ids_visibles') > 0 and strpos(pg_get_expr(polqual, polrelid), '''gerencia''') > 0) then
     raise exception 'REGISTRO D-15: la policy crm.leads.leads_update no es la esperada (ámbito por vendedor_ids_visibles / gerencia)';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906150000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '5eebbc1e165e8214ff258c6fc1f4e164')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906150000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '533f766a975365cd968818329a13d534')) then
     raise exception 'REGISTRO D-15: la versión 20260906150000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -109,6 +109,9 @@ do $guard$
 begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'F2.b D-15: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
+  end if;
+  if not exists (select 1 from pg_trigger where tgrelid = 'crm.multiempresa_flags'::regclass and tgname = 'trg_multiempresa_flags_00_serializa_puertas' and tgenabled = 'O') then
+    raise exception 'F2.b D-15: falta el trigger que serializa el cambio de bandera (D-5, 20260906140000): aplica D-5 ANTES que D-15';
   end if;
   if to_regprocedure('private.bloquear_personas_de_leads(uuid[],text)') is null or left(md5(pg_get_functiondef('private.bloquear_personas_de_leads(uuid[],text)'::regprocedure)), 8) <> '781496f9' then
     raise exception 'F2.b D-15: private.bloquear_personas_de_leads(uuid[],text) falta o no es el texto vivo de producción (esperado 781496f9…)';
@@ -303,6 +306,9 @@ begin
   if p_lead_id is null or p_cambios is null or pg_catalog.jsonb_typeof(p_cambios) <> 'object' then
     raise exception 'Cambios inválidos' using errcode = '22023';
   end if;
+  if p_cambios = '{}'::jsonb then
+    raise exception 'Sin cambios' using errcode = '22023';   -- auditor v5 #6: nunca un «ok» sin escribir
+  end if;
   for v_k in select k from pg_catalog.jsonb_object_keys(p_cambios) k loop
     if not (v_k = any(v_claves)) then
       raise exception 'Campo no editable desde la ficha: %', v_k using errcode = '22023';
@@ -358,7 +364,7 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.reabrir_lead_fn(uuid)'::regprocedure and a.grantee = 0) then
     raise exception 'POSTFLIGHT D-15: los grants de la puerta no son «solo authenticated»';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '55224774b94c1d429f1b0d52a185a303') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.editar_lead_fn(uuid,jsonb)'::regprocedure and not p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'f2c1b7665ae58bea071499e04d970290') then
     raise exception 'POSTFLIGHT D-15: crm.editar_lead_fn no quedó como la genera gen-d15.py (cuerpo, INVOKER, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('authenticated', 'crm.editar_lead_fn(uuid,jsonb)', 'EXECUTE')
