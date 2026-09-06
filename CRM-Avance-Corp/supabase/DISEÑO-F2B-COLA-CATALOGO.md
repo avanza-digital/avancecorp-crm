@@ -702,3 +702,5 @@ Codex cerró #1, #4, #7, #8, #10, #11, #13 y dejó abiertos #2 (heredado con OFF
 | #9 | reloj del ledger vs `derivar` en paralelo → abort limpio | Residual aceptado (documentado). |
 | #2 | offboarding leads → tareas con OFF (heredado) | Residual heredado (documentado); con ON lo cubre M5. |
 | — | puentes históricos desnormalizados (P fusionada conserva puentes) y gate del puente a un salto | Hipótesis sin datos: la fusión vigente aplana y mueve puentes; `[D-14]` (re-backfill) debe verificar que no haya puentes bajo identidades fusionadas. |
+
+**Decisiones de Miguel (06/09 madrugada):** (1) sí: `reasignar` mueve `public.perfiles.asesor_perfil_id` (una sola verdad CRM↔Portal); (2) la bitácora de leads tacha también `fecha_nacimiento` y `genero` (teléfono y monto en claro, son lo que se investiga) → D-9 v2 del trigger; (3) las filas históricas de `audit_log` se dejan.

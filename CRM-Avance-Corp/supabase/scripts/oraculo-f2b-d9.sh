@@ -20,16 +20,17 @@ audit_ultimo() { q "select coalesce(data_despues, data_antes)->>'$3' from public
 echo "== Preflight (RUN=$RUN) =="
 psql "$PG" -q -v ON_ERROR_STOP=1 -v run="$RUN" -c "set timezone='America/Lima';" -f "$AQUI/siembra-banco-f3.sql" 2>&1 | grep -E "SIEMBRA-F3-OK|ERROR" | head -2
 DEF_L="$(q "select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid='crm.leads'::regclass and t.tgname='trg_audit_leads'")"
-if echo "$DEF_L" | grep -q "log_audit_sin_secretos('dni')"; then echo "  D-9 instalada (todo debe salir VERDE)"; else echo "  ⚠️ D-9 NO instalada: corrida MUTANTE ((1) y (2) deben salir ROJAS)"; fi
+if echo "$DEF_L" | grep -q "log_audit_sin_secretos('dni', 'fecha_nacimiento', 'genero')"; then echo "  D-9 instalada (todo debe salir VERDE)"; else echo "  ⚠️ D-9 NO instalada: corrida MUTANTE ((1) y (2) deben salir ROJAS)"; fi
 flag false   # la identidad apagada: el ensayo no depende de ella y no debe dejar identidades
 
 echo "== (1) crm.leads: el auditor enmascara dni y conserva el resto =="
 L1="$(uuid)"; D1="4${RUN}1"
-sys "insert into crm.leads (id,nombre_completo,telefono,dni,monto_estimado,origen,etapa,creado_por,vendedor_id) values ('$L1','D9 LEAD r$RUN','9${RUN}61','$D1',1000,'landing','nuevo',null,'$V')"
+sys "insert into crm.leads (id,nombre_completo,telefono,dni,fecha_nacimiento,genero,monto_estimado,origen,etapa,creado_por,vendedor_id) values ('$L1','D9 LEAD r$RUN','9${RUN}61','$D1','1990-05-17','F',1000,'landing','nuevo',null,'$V')"
 N0="$(q "select count(*) from public.audit_log where tabla='crm.leads' and fila_id='$L1'")"
 [[ "$N0" == "1" ]] && ok "INSERT del lead → 1 fila de auditoría (mismo fila_id)" || rojo "filas de auditoría del INSERT: $N0"
 [[ "$(audit_ultimo crm.leads "$L1" dni)" == "***" ]] && ok "data_despues.dni = *** (enmascarado, sin huella)" || rojo "[D-9 HUECO] data_despues.dni = '$(audit_ultimo crm.leads "$L1" dni)'"
-[[ "$(audit_ultimo crm.leads "$L1" telefono)" == "+519${RUN}61" && "$(audit_ultimo crm.leads "$L1" etapa)" == "nuevo" ]] && ok "las demás columnas siguen en claro (telefono, etapa)" || rojo "columnas no secretas alteradas"
+[[ "$(audit_ultimo crm.leads "$L1" telefono)" == "+519${RUN}61" && "$(audit_ultimo crm.leads "$L1" etapa)" == "nuevo" && "$(audit_ultimo crm.leads "$L1" monto_estimado)" == "1000" ]] && ok "las demás columnas siguen en claro (telefono, etapa, monto_estimado)" || rojo "columnas no secretas alteradas"
+[[ "$(audit_ultimo crm.leads "$L1" fecha_nacimiento)" == "***" && "$(audit_ultimo crm.leads "$L1" genero)" == "***" ]] && ok "fecha_nacimiento y genero = *** (decisión de Miguel 06/09)" || rojo "[D-9 HUECO] fecha_nacimiento='$(audit_ultimo crm.leads "$L1" fecha_nacimiento)' genero='$(audit_ultimo crm.leads "$L1" genero)'"
 [[ "$(q "select count(*) from public.audit_log where tabla='crm.leads' and fila_id='$L1' and (data_despues ? 'dni')")" == "1" ]] && ok "la clave dni sigue PRESENTE (enmascarada, no borrada)" || rojo "la clave dni desapareció del payload"
 sys "update crm.leads set nombre_completo = 'D9 LEAD r$RUN bis' where id = '$L1'"
 R="$(q "select (data_antes->>'dni')||' '||(data_despues->>'dni')||' '||(data_despues->>'nombre_completo') from public.audit_log where tabla='crm.leads' and fila_id='$L1' and operacion='UPDATE' order by ts desc limit 1")"

@@ -9071,7 +9071,7 @@ async function testIdentidadF2bE4(sessions, seed) {
 async function testIdentidadF2bD9() {
   console.log('\n— Identidad multiempresa F2.b [D-9]: auditores de leads/cierres sin documento —');
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-9: ${etiqueta}`, sql);
-  const DEF_L = "CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'')";
+  const DEF_L = "CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'', ''fecha_nacimiento'', ''genero'')";
   const DEF_C = "CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''documento'')";
   const def = (tabla, trg) => `(select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid='${tabla}'::regclass and t.tgname='${trg}' and not t.tgisinternal)`;
   if (cuenta('D-9 aplicada', `select (${def('crm.leads', 'trg_audit_leads')} like '%log_audit_sin_secretos%')::int`) !== 1) {
@@ -9079,7 +9079,7 @@ async function testIdentidadF2bD9() {
     return;
   }
   check(cuenta('trigger leads', `select (${def('crm.leads', 'trg_audit_leads')} = '${DEF_L}')::int`) === 1,
-    'D-9 trg_audit_leads es exactamente el de la migración (AFTER I/U/D, log_audit_sin_secretos(dni))');
+    'D-9 trg_audit_leads es exactamente el de la migración (AFTER I/U/D, log_audit_sin_secretos(dni, fecha_nacimiento, genero))');
   check(cuenta('trigger cierres', `select (${def('crm.cierres_externos', 'trg_audit_cierres_externos')} = '${DEF_C}')::int`) === 1,
     'D-9 trg_audit_cierres_externos es exactamente el de la migración (log_audit_sin_secretos(documento))');
   check(cuenta('trinquete', `select count(*) from private.tablas_sin_rastro() s where s.tabla in ('crm.leads','crm.cierres_externos')`) === 0,
@@ -9093,8 +9093,8 @@ async function testIdentidadF2bD9() {
   const sufijo = String(Date.now()).slice(-6);
   const dni = `77${sufijo}`;
   ejecutarFueraDeBanda('D-9 fixture lead', `
-    insert into crm.leads (id, nombre_completo, telefono, dni, monto_estimado, origen, etapa, creado_por)
-    values ('${leadId}', 'SUITE D-9', '97${sufijo}9', '${dni}', 1000, 'landing', 'nuevo', null);
+    insert into crm.leads (id, nombre_completo, telefono, dni, fecha_nacimiento, genero, monto_estimado, origen, etapa, creado_por)
+    values ('${leadId}', 'SUITE D-9', '97${sufijo}9', '${dni}', '1990-05-17', 'F', 1000, 'landing', 'nuevo', null);
     update crm.leads set nombre_completo = 'SUITE D-9 bis' where id = '${leadId}';
     update crm.leads set activo = false where id = '${leadId}';`);
   check(cuenta('filas del lead', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}'`) >= 3,
@@ -9105,6 +9105,9 @@ async function testIdentidadF2bD9() {
     'D-9 la clave dni sigue presente, enmascarada (***), en el rastro');
   check(cuenta('resto en claro', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and data_despues->>'nombre_completo' = 'SUITE D-9 bis'`) >= 1,
     'D-9 las demás columnas siguen auditadas en claro (el cambio real queda)');
+  check(cuenta('fecha/genero enmascarados', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and (coalesce(data_despues->>'fecha_nacimiento','') = '1990-05-17' or coalesce(data_despues->>'genero','') = 'F')`) === 0
+      && cuenta('telefono en claro', `select count(*) from public.audit_log where tabla='crm.leads' and fila_id='${leadId}' and data_despues->>'telefono' = '+5197${sufijo}9'`) >= 1,
+    'D-9 fecha_nacimiento y genero enmascarados; el teléfono sigue en claro (decisión de Miguel 06/09)');
 }
 
 // ── F2.b [D-3] (20260906110000): el veto de la persona es coherente (tareas de perfil, ficha del cliente, sueltos/puente) ──

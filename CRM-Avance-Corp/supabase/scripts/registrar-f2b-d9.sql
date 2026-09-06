@@ -5,7 +5,7 @@ begin;
 select pg_advisory_xact_lock(hashtext('crm_f2b_d9_auditores_sin_documento'));
 do $chk$
 begin
-  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'')'
+  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'', ''fecha_nacimiento'', ''genero'')'
      or (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.cierres_externos'::regclass and t.tgname = 'trg_audit_cierres_externos' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''documento'')' then
     raise exception 'REGISTRO D-9: los auditores VIVOS no son los de D-9 (aplica la migración ANTES de registrar)';
   end if;
@@ -32,7 +32,7 @@ begin
   if not exists (select 1 from private.auditoria_sello h where h.huella = private.huella_exenciones()) then
     raise exception 'REGISTRO D-9: el sello de exenciones no cuadra (este cambio no toca las listas)';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906100000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'e951a37ad994427383c45c1ab7577402')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906100000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'b07300dac944e4f3b3bd9310ef9eb232')) then
     raise exception 'REGISTRO D-9: la versión 20260906100000 ya está registrada con otro contenido (o incompleto: Codex N5)';
   end if;
 end
@@ -48,12 +48,14 @@ values ('20260906100000', 'crm_f2b_d9_auditores_de_leads_y_cierres_sin_documento
 -- cierre dejaba el documento en claro en la auditoría ([E3-13]: b5 garantiza que NINGUNO de sus payloads lleva el
 -- documento; los auditores genéricos eran la deuda [D-9]). Los dos triggers pasan a private.log_audit_sin_secretos
 -- (auditor ya VIVO en suscripciones_push, agenda_ics e inversionista_identificadores; enmascara con "***" sin
--- huella, conserva los null, y omite el UPDATE que solo mueve `actualizado_en`) con la columna a enmascarar.
+-- huella, conserva los null, y omite el UPDATE que solo mueve `actualizado_en`) con las columnas a enmascarar: en leads
+-- `dni`, `fecha_nacimiento` y `genero` (decisión de Miguel 06/09: teléfono y monto siguen en claro, son lo que se investiga);
+-- en cierres `documento`.
 -- Mismo nombre de trigger => mismo orden de disparo. Nada más cambia: mismas tablas, mismos verbos, mismo
 -- `fila_id`, mismo actor; el trinquete (private.tablas_sin_rastro) reconoce ese auditor por OID.
 -- NO va detrás de la bandera resolver_en_puertas: es privacidad, sin efecto funcional; enmascarar «solo con ON»
 -- seguiría copiando documentos hasta el encendido. Las filas HISTÓRICAS de audit_log (163 de leads y 33 de cierres
--- con documento en claro el 05/09) no se tocan: decisión aparte de Miguel (la auditoría no se reescribe sola).
+-- con documento en claro el 05/09) SE DEJAN (decisión de Miguel 06/09: la auditoría no se reescribe; el DNI sigue en el lead).
 -- Ensayo: scripts/oraculo-f2b-d9.sh. Reversa: scripts/rollback-f2b-d9.sql. Registro: scripts/registrar-f2b-d9.sql.
 
 begin;
@@ -76,7 +78,7 @@ begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p where p.oid = 'private.log_audit_crm()'::regprocedure) is distinct from '2d1b31c407d6eb882047112224792e73' then
     raise exception 'F2.b D-9: private.log_audit_crm() no es el texto vivo de producción';
   end if;
-  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) not in ('CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()', 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'')') then
+  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) not in ('CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()', 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'', ''fecha_nacimiento'', ''genero'')') then
     raise exception 'F2.b D-9: trg_audit_leads no es el trigger vivo de producción ni el de D-9 (%)', (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal);
   end if;
   if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.cierres_externos'::regclass and t.tgname = 'trg_audit_cierres_externos' and not t.tgisinternal) not in ('CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()', 'CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''documento'')') then
@@ -86,12 +88,13 @@ end
 $guard$;
 
 -- ============================================================================
--- 1. crm.leads: el auditor enmascara `dni`
+-- 1. crm.leads: el auditor enmascara `dni`, `fecha_nacimiento` y `genero` (decisión de Miguel 06/09: teléfono y monto siguen
+--    en claro porque son lo que se investiga; la fecha de nacimiento y el género casi nunca hacen falta y son sensibles)
 -- ============================================================================
 drop trigger if exists trg_audit_leads on crm.leads;
 create trigger trg_audit_leads
   after insert or delete or update on crm.leads
-  for each row execute function private.log_audit_sin_secretos('dni');
+  for each row execute function private.log_audit_sin_secretos('dni', 'fecha_nacimiento', 'genero');
 
 -- ============================================================================
 -- 2. crm.cierres_externos: el auditor enmascara `documento`
@@ -103,7 +106,7 @@ create trigger trg_audit_cierres_externos
 
 do $post$
 begin
-  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'')' then
+  if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_audit_leads' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_leads AFTER INSERT OR DELETE OR UPDATE ON crm.leads FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''dni'', ''fecha_nacimiento'', ''genero'')' then
     raise exception 'POSTFLIGHT D-9: trg_audit_leads no quedó como lo genera gen-d9.py';
   end if;
   if (select pg_get_triggerdef(t.oid) from pg_trigger t where t.tgrelid = 'crm.cierres_externos'::regclass and t.tgname = 'trg_audit_cierres_externos' and not t.tgisinternal) is distinct from 'CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos(''documento'')' then
@@ -132,7 +135,7 @@ begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p where p.oid = 'private.log_audit_crm()'::regprocedure) is distinct from '2d1b31c407d6eb882047112224792e73' then
     raise exception 'F2.b D-9: private.log_audit_crm() no es el texto vivo de producción';
   end if;
-  raise notice 'F2.b D-9 OK: los auditores de crm.leads (dni) y crm.cierres_externos (documento) enmascaran el documento.';
+  raise notice 'F2.b D-9 OK: los auditores de crm.leads (dni, fecha_nacimiento, genero) y crm.cierres_externos (documento) enmascaran esos datos.';
 end
 $post$;
 commit;
