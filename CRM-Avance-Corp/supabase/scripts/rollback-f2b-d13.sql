@@ -1,6 +1,6 @@
 -- ============================================================================
--- REVERSA de F2.b [D-13] (20260905160000): restaura las 5 funciones byte a byte (md5 de prod), suelta el helper
--- y desregistra la versión. Se NIEGA si la bandera está encendida (y lo re-comprueba antes del commit). Repetible.
+-- REVERSA de F2.b [D-13] (20260905160000): restaura las 9 funciones byte a byte (8 de prod + la reserva de D-10), suelta el
+-- trigger y los 7 helpers y desregistra la versión. Se NIEGA si la bandera está encendida (y lo re-comprueba antes del commit).
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';
@@ -15,60 +15,69 @@ begin
   if v_h is null then
     raise exception 'F2.b D-13: falta private.verificar_disponibilidad_lead_impl(text,text,uuid)';
   end if;
-  if v_h is distinct from '5f99912dde92e5b0ff1720077377a172' and v_h is distinct from 'c5ed89a08461453c5a02f7ea559207d9' then
-    raise exception 'F2.b D-13: private.verificar_disponibilidad_lead_impl(text,text,uuid) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '5f99912dde92e5b0ff1720077377a172' and v_h is distinct from '4a2d7b8b3d1030d6ab96009e933af6cc' then
+    raise exception 'F2.b D-13: private.verificar_disponibilidad_lead_impl(text,text,uuid) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_zz_enlaza_identidad' and pg_get_function_identity_arguments(p.oid)='');
   if v_h is null then
     raise exception 'F2.b D-13: falta private.trg_leads_zz_enlaza_identidad()';
   end if;
-  if v_h is distinct from '7986b01ab6109bd15d228157cef3ef33' and v_h is distinct from '62cebe9fbebf0f9a1ac617acba4ac3d7' then
-    raise exception 'F2.b D-13: private.trg_leads_zz_enlaza_identidad() no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '7986b01ab6109bd15d228157cef3ef33' and v_h is distinct from 'd6fa34cabc1ada619e50ecb114f5255b' then
+    raise exception 'F2.b D-13: private.trg_leads_zz_enlaza_identidad() no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='tomar_lead_libre' and pg_get_function_identity_arguments(p.oid)='p_telefono text, p_dni text');
   if v_h is null then
     raise exception 'F2.b D-13: falta crm.tomar_lead_libre(text,text)';
   end if;
-  if v_h is distinct from '045d22cf0b5f62a98008cd5e04ae4d78' and v_h is distinct from '596ccbcb365923406d9a96efdc9f081a' then
-    raise exception 'F2.b D-13: crm.tomar_lead_libre(text,text) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '045d22cf0b5f62a98008cd5e04ae4d78' and v_h is distinct from 'cf1c6d953df901c3373304206a3560ab' then
+    raise exception 'F2.b D-13: crm.tomar_lead_libre(text,text) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_perfil_id uuid');
   if v_h is null then
     raise exception 'F2.b D-13: falta crm.convertir_lead(uuid,uuid)';
   end if;
-  if v_h is distinct from 'c30a0ac9be5f44bc1caa129bc90a2ea7' and v_h is distinct from '8bd4d8c94aeb79b92bf6638bb16aeea0' then
-    raise exception 'F2.b D-13: crm.convertir_lead(uuid,uuid) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from 'c30a0ac9be5f44bc1caa129bc90a2ea7' and v_h is distinct from '1d3f437cafe73d2e4076bb68158af812' then
+    raise exception 'F2.b D-13: crm.convertir_lead(uuid,uuid) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text');
   if v_h is null then
     raise exception 'F2.b D-13: falta crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)';
   end if;
-  if v_h is distinct from '0272febed241415d7c1cfcdf70bed37b' and v_h is distinct from '29d5bffdb76f47fe2048f450412c8be5' then
-    raise exception 'F2.b D-13: crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '0272febed241415d7c1cfcdf70bed37b' and v_h is distinct from '3ff4aa7ec25751ba028af596c9fed6a2' then
+    raise exception 'F2.b D-13: crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_claim_id uuid, p_token text');
   if v_h is null then
     raise exception 'F2.b D-13: falta crm.marcar_efectos_conversion(uuid,uuid,text)';
   end if;
-  if v_h is distinct from '8ab20f7fb4842caaed5ad705db5e91b2' and v_h is distinct from 'b006033723cb3f210dc8e73fd05087b9' then
-    raise exception 'F2.b D-13: crm.marcar_efectos_conversion(uuid,uuid,text) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '8ab20f7fb4842caaed5ad705db5e91b2' and v_h is distinct from '511c059250774b625c8bc3274523e61a' then
+    raise exception 'F2.b D-13: crm.marcar_efectos_conversion(uuid,uuid,text) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='rescatar_descartes' and pg_get_function_identity_arguments(p.oid)='p_episodios uuid[], p_analistas_destino uuid[], p_evitar_asesor_origen boolean');
   if v_h is null then
     raise exception 'F2.b D-13: falta crm.rescatar_descartes(uuid[],uuid[],boolean)';
   end if;
-  if v_h is distinct from '89778f4d57b3421a69628473520c6f41' and v_h is distinct from 'e65beebf90da4e03ac51e62755605bfd' then
-    raise exception 'F2.b D-13: crm.rescatar_descartes(uuid[],uuid[],boolean) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from '89778f4d57b3421a69628473520c6f41' and v_h is distinct from '38d5869195a00c82437cbfb3298df8e7' then
+    raise exception 'F2.b D-13: crm.rescatar_descartes(uuid[],uuid[],boolean) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
   end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='deshacer_descarte_implementacion' and pg_get_function_identity_arguments(p.oid)='p_lead uuid');
   if v_h is null then
     raise exception 'F2.b D-13: falta private.deshacer_descarte_implementacion(uuid)';
   end if;
-  if v_h is distinct from 'b14b91bf82827240a3a29e88a5b9e39f' and v_h is distinct from '6d1612339d1ed900f73b32aeae227d43' then
-    raise exception 'F2.b D-13: private.deshacer_descarte_implementacion(uuid) no es ni el texto vivo de producción ni el de D-13 (%)', v_h;
+  if v_h is distinct from 'b14b91bf82827240a3a29e88a5b9e39f' and v_h is distinct from '5e343627436b8532215501d38aecafeb' then
+    raise exception 'F2.b D-13: private.deshacer_descarte_implementacion(uuid) no es ni el texto vivo esperado (producción) ni el de D-13 (%)', v_h;
+  end if;
+  v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb');
+  if v_h is null then
+    raise exception 'F2.b D-13: falta crm.reservar_conversion_lead(uuid,text,text,jsonb)';
+  end if;
+  if v_h is distinct from 'b6c1863eec07df43e2023e7e8d729d05' and v_h is distinct from '8ec13410c8f18a3b3004a7321afe9398' then
+    raise exception 'F2.b D-13: crm.reservar_conversion_lead(uuid,text,text,jsonb) no es ni el texto vivo esperado (D-10) ni el de D-13 (%)', v_h;
   end if;
 end
 $guard$;
+
+drop trigger if exists trg_leads_zz_reapertura_solo_rpc on crm.leads;
 
 CREATE OR REPLACE FUNCTION private.verificar_disponibilidad_lead_impl(p_telefono text, p_dni text, p_excluir_lead_id uuid)
  RETURNS jsonb
@@ -1567,52 +1576,272 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION crm.reservar_conversion_lead(p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET lock_timeout TO '5s'
+AS $function$
+declare
+  v_uid      uuid := (select auth.uid());
+  v_rol      text := private.rol_crm((select auth.uid()));
+  v_lead     crm.leads%rowtype;
+  v_expira   timestamptz;
+  v_ahora    timestamptz := now();
+  v_ventana  interval := interval '5 minutes';
+  v_tope     interval := interval '30 minutes';
+  v_tipo     text := coalesce(nullif(pg_catalog.upper(pg_catalog.btrim(p_tipo_documento)), ''), 'DNI');
+  v_doc      text := nullif(pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_documento, ''), '[^A-Za-z0-9]', '', 'g')), '');
+  v_inv      uuid; v_veto boolean; v_otro uuid; v_perfil uuid; v_perfil_activo boolean;
+  v_hash     text; v_hash_payload jsonb; v_saga jsonb; v_claim uuid;
+begin
+  if not private.puede_gestionar_contratos_crm() then
+    raise exception 'No autorizado para convertir leads'
+      using errcode = '42501';
+  end if;
+  if not coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
+    raise exception 'Identidad unificada apagada: usa la reserva por lead' using errcode = 'P0409';
+  end if;
+  if v_doc is null then
+    raise exception 'El documento es obligatorio para reservar la conversión' using errcode = '22023';
+  end if;
+  if p_payload is null or pg_catalog.jsonb_typeof(p_payload) <> 'object' then
+    raise exception 'Payload inválido' using errcode = '22023';
+  end if;
+
+  -- documento -> identidad -> lead (ámbito, VERBATIM de la viva) -> revalidaciones de la persona.
+  -- El ámbito va ANTES de cualquier lectura sobre la persona: un vendedor no puede sondear
+  -- documentos ajenos con un lead que no es suyo (auditor b4 A1).
+  perform private.identidad_bloquear_documento(v_tipo, v_doc);
+  v_inv := private.inversionista_resolver(v_tipo, v_doc, true, 'reserva_conversion');
+  select i.no_contactar, i.perfil_id into v_veto, v_perfil from crm.inversionistas i where i.id = v_inv for update;
+  select *
+    into v_lead
+  from crm.leads
+  where id = p_lead_id
+    and activo = true
+    and (
+      v_rol = 'gerencia'
+      or vendedor_id in (
+        select private.vendedor_ids_visibles((select auth.uid()))
+      )
+      or (
+        vendedor_id is null
+        and asignado_supervisor_id in (
+          select private.vendedor_ids_visibles((select auth.uid()))
+        )
+      )
+    )
+  for update;
+  if not found then
+    raise exception 'Lead no encontrado o fuera de tu ambito';
+  end if;
+
+
+  -- El documento tecleado debe ser el de la persona de ESTE lead (misma regla que convertir_lead, adelantada a antes de Auth).
+  if v_lead.inversionista_id is not null and v_lead.inversionista_id <> v_inv then
+    raise exception 'El documento no es el de la persona de este lead' using errcode = 'P0409';
+  end if;
+  -- F2.b [D-10] (Codex #2): el PUENTE de ESTE lead también manda. Un lead que solo está en el puente (sin enlace vivo
+  -- ni DNI) pertenece a la persona de su puente; con un documento que resuelve a otra persona no se reserva
+  -- (la Gerencia lo corrige o fusiona), igual que ya exige crm.enlazar_lead_inversionista_fn (b5). Por la canónica.
+  if exists (select 1 from crm.inversionista_leads il
+              where il.lead_id = p_lead_id and private.inversionista_canonica(il.inversionista_id) is distinct from v_inv) then
+    raise exception 'La persona de este lead (según su puente) no es la del documento: corrección o fusión de Gerencia'
+      using errcode = 'P0409';
+  end if;
+  if v_tipo = 'DNI' and v_lead.dni is not null and v_lead.dni <> v_doc then
+    raise exception 'El documento no coincide con el del lead' using errcode = 'P0409';
+  end if;
+  if coalesce(v_veto, false) then
+    raise exception 'La persona tiene la restricción «No insistir»: no se convierte' using errcode = 'P0429';
+  end if;
+  -- un solo lead TOTAL (invariante #6): la persona no puede tener OTRO lead.
+  select l.id into v_otro from crm.leads l where l.inversionista_id = v_inv and l.id <> p_lead_id limit 1;
+  -- F2.b [D-10] (Codex B2): si no hay OTRO enlace vivo, «un solo lead» cuenta también el PUENTE (crm.inversionista_leads,
+  -- históricos del backfill sin enlace vivo), como ya hacen las dos conversiones desde b5; el propio lead no cuenta.
+  -- Espejo de b5 (auditor D-10 M1): el enlace vivo se comprueba PRIMERO (el detalle señala el lead canónico cuando existe)
+  -- y un lead ya cerrado conserva las respuestas de hoy (enlazado / «ya esta cerrado», más abajo). Mismo error y mismo
+  -- detalle que hoy (el front no cambia).
+  if v_otro is null and v_lead.etapa not in ('convertido', 'descartado') then
+    select x into v_otro from private.leads_de_identidades(array[v_inv]) x where x <> p_lead_id order by x limit 1;
+  end if;
+  if v_otro is not null then
+    raise exception 'Esta persona ya tiene su lead: la nueva inversión sobre un cliente existente no es una conversión'
+      using errcode = 'P0409', detail = pg_catalog.jsonb_build_object('estado', 'ya_es_cliente', 'via', 'identidad', 'lead_id', v_otro)::text;
+  end if;
+  if v_perfil is null then
+    -- Perfil cliente con ese documento creado antes de la identidad: se reutiliza (dedup de hoy, por identidad).
+    select p.id into v_perfil from public.perfiles p
+     where p.rol = 'cliente' and p.dni = v_doc and coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') = v_tipo
+     limit 1;
+  end if;
+  if v_perfil is not null then
+    select p.activo into v_perfil_activo from public.perfiles p where p.id = v_perfil;
+    if v_perfil_activo is distinct from true then
+      raise exception 'Ese cliente existe pero está inactivo en el portal' using errcode = 'P0409';
+    end if;
+  end if;
+
+  -- Conversión ya consumada cuya respuesta se perdió (Codex E2 #4): la saga manda.
+  if v_lead.etapa = 'convertido' and v_lead.perfil_id is not null and v_lead.inversionista_id = v_inv
+     and exists (select 1 from crm.multiempresa_idempotencia i where i.clave = 'auth_persona:' || v_inv::text
+                 and i.resultado->>'estado' <> 'enlazado' and i.resultado->>'tipo' = 'conversion'
+                 and (i.resultado->>'lead_id')::uuid = p_lead_id
+                 and coalesce((i.resultado->>'auth_user_id')::uuid, v_lead.perfil_id) = v_lead.perfil_id) then
+    update crm.multiempresa_idempotencia
+       set resultado = resultado || pg_catalog.jsonb_build_object('estado', 'enlazado', 'perfil_id', v_lead.perfil_id, 'actualizado_en', pg_catalog.now()),
+           version = version + 1
+     where clave = 'auth_persona:' || v_inv::text;
+  end if;
+  if v_lead.etapa in ('convertido', 'descartado') then
+    if v_lead.etapa = 'convertido' and v_lead.perfil_id is not null then
+      return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'estado', 'enlazado', 'reanudar', true,
+        'inversionista_id', v_inv, 'perfil_id', v_lead.perfil_id, 'ya_existia', true);
+    end if;
+    raise exception 'El lead ya esta cerrado';
+  end if;
+  -- Reserva viva o sellada de OTRO lead de la misma persona (Avance en curso en otro lead).
+  if exists (select 1 from crm.conversion_reservas r
+              where r.inversionista_id = v_inv and r.lead_id <> p_lead_id
+                and (r.efectos_iniciados_en is not null or r.expira_en > v_ahora)) then
+    raise exception using errcode = 'P0409',
+      message = 'Esta persona tiene una conversion a cliente de Avance en curso en otro lead',
+      hint    = 'Quien la empezo tiene que terminarla o dejar que caduque.';
+  end if;
+
+  -- Una reserva viva o sellada de este lead pertenece a UNA persona: no se cambia de identidad
+  -- sin compensar (Codex E2 #5).
+  if exists (select 1 from crm.conversion_reservas r
+              where r.lead_id = p_lead_id and r.inversionista_id is not null and r.inversionista_id <> v_inv
+                and (r.efectos_iniciados_en is not null or r.expira_en > v_ahora)) then
+    raise exception 'Este lead ya está reservado para otra persona; espera a que caduque o pide a Gerencia que lo retome'
+      using errcode = 'P0409';
+  end if;
+  -- Huella canónica SIN documento (Codex E2 #10).
+  v_hash_payload := pg_catalog.jsonb_build_object('v', 1, 'inv', v_inv,
+    'correo', pg_catalog.lower(coalesce(p_payload->>'correo','')), 'nombre', coalesce(p_payload->>'nombre_completo',''),
+    'apellidos', coalesce(p_payload->>'apellidos',''), 'nombres', coalesce(p_payload->>'nombres',''),
+    'telefono', coalesce(p_payload->>'telefono',''), 'domicilio', coalesce(p_payload->'domicilio', 'null'::jsonb),
+    'bancarios', coalesce(p_payload->'bancarios', 'null'::jsonb));
+  v_hash := private.idem_hash(v_hash_payload);
+
+  insert into crm.conversion_reservas as r
+    (lead_id, reservado_por, expira_en, vence_absoluto_en, inversionista_id, hash_payload)
+  values (p_lead_id, v_uid,
+          v_ahora + v_ventana, v_ahora + v_tope, v_inv, v_hash)
+  on conflict (lead_id) do update
+     set reservado_por = excluded.reservado_por,
+         reservado_en  = v_ahora,
+         inversionista_id = v_inv,
+         hash_payload  = v_hash,
+         -- El tope absoluto MANDA sobre la ventana: sin este `least`, renovar a
+         -- los 29 minutos daba 5 más y el tope no era un tope.
+         expira_en     = least(excluded.expira_en,
+                               case when r.reservado_por = v_uid
+                                    then r.vence_absoluto_en
+                                    else excluded.vence_absoluto_en end),
+         vence_absoluto_en = case
+           -- Retomar la propia reserva NO reinicia el tope.
+           when r.reservado_por = v_uid then r.vence_absoluto_en
+           else excluded.vence_absoluto_en
+         end
+   where (r.reservado_por = v_uid and r.vence_absoluto_en > v_ahora)
+      or (r.efectos_iniciados_en is null and r.expira_en <= v_ahora)
+  returning r.expira_en into v_expira;
+
+  if v_expira is null then
+    -- Distinguir los motivos importa: uno se resuelve esperando y el otro no.
+    if exists (select 1 from crm.conversion_reservas r2
+               where r2.lead_id = p_lead_id and r2.efectos_iniciados_en is not null) then
+      raise exception using
+        errcode = 'P0409',
+        message = 'Este lead ya tiene una conversion a cliente de Avance empezada por otra persona',
+        hint    = 'Ya existe una cuenta de portal a su nombre: quien la empezo tiene que terminarla.';
+    end if;
+    raise exception using
+      errcode = 'P0409',
+      message = 'Otra persona esta convirtiendo este lead en este momento',
+      hint    = 'Espera unos minutos y vuelve a intentarlo.';
+  end if;
+
+
+  -- Persona YA cliente del portal (identidad enlazada o perfil con el documento exacto): sin Auth y
+  -- sin saga; el edge convierte con convertir_lead_con_domicilio como hoy (auditor b4 A2).
+  if v_perfil is not null then
+    update crm.conversion_reservas r set claim_id = null where r.lead_id = p_lead_id;
+    return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'expira_en', v_expira,
+      'inversionista_id', v_inv, 'perfil_id', v_perfil, 'ya_existia', true, 'estado', 'ya_existia', 'reanudar', false);
+  end if;
+  -- Claim de la saga (o reanudación con token / lease vencido).
+  v_saga := private.saga_auth_reclamar(v_inv, 'conversion', v_hash_payload, p_lead_id, p_payload->>'token');
+  v_claim := (v_saga->>'claim_id')::uuid;
+  update crm.conversion_reservas r set claim_id = v_claim where r.lead_id = p_lead_id;
+
+  return pg_catalog.jsonb_build_object('ok', true, 'lead_id', p_lead_id, 'expira_en', v_expira,
+    'inversionista_id', v_inv, 'perfil_id', (v_saga->>'perfil_id')::uuid, 'ya_existia', false)
+    || (v_saga - 'inversionista_id' - 'perfil_id');
+end;
+$function$
+;
+
+drop function if exists private.trg_leads_zz_reapertura_solo_rpc();
+drop function if exists crm.fijar_dni_lead_fn(uuid, text);
+drop function if exists private.enlazar_lead_reabierto(uuid, uuid);
+drop function if exists private.juicio_reapertura(uuid, text, text);
+drop function if exists private.juicio_persona(uuid, uuid);
+drop function if exists private.lead_dentro_de_bloqueo(uuid, jsonb);
+drop function if exists private.bloquear_personas_de_leads(uuid[], text);
+drop function if exists private.lead_persona_reabrir(uuid);
+drop function if exists private.leads_de_personas(uuid[]);
 drop function if exists private.persona_en_conversion(uuid, uuid);
 
 do $post$
 begin
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid)='p_telefono text, p_dni text, p_excluir_lead_id uuid') is distinct from '5f99912dde92e5b0ff1720077377a172' then
-    raise exception 'REVERSA D-13: private.verificar_disponibilidad_lead_impl(text,text,uuid) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: private.verificar_disponibilidad_lead_impl(text,text,uuid) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='trg_leads_zz_enlaza_identidad' and pg_get_function_identity_arguments(p.oid)='') is distinct from '7986b01ab6109bd15d228157cef3ef33' then
-    raise exception 'REVERSA D-13: private.trg_leads_zz_enlaza_identidad() no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: private.trg_leads_zz_enlaza_identidad() no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='tomar_lead_libre' and pg_get_function_identity_arguments(p.oid)='p_telefono text, p_dni text') is distinct from '045d22cf0b5f62a98008cd5e04ae4d78' then
-    raise exception 'REVERSA D-13: crm.tomar_lead_libre(text,text) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: crm.tomar_lead_libre(text,text) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_perfil_id uuid') is distinct from 'c30a0ac9be5f44bc1caa129bc90a2ea7' then
-    raise exception 'REVERSA D-13: crm.convertir_lead(uuid,uuid) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: crm.convertir_lead(uuid,uuid) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='convertir_lead_externo' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text') is distinct from '0272febed241415d7c1cfcdf70bed37b' then
-    raise exception 'REVERSA D-13: crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='marcar_efectos_conversion' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_claim_id uuid, p_token text') is distinct from '8ab20f7fb4842caaed5ad705db5e91b2' then
-    raise exception 'REVERSA D-13: crm.marcar_efectos_conversion(uuid,uuid,text) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: crm.marcar_efectos_conversion(uuid,uuid,text) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='rescatar_descartes' and pg_get_function_identity_arguments(p.oid)='p_episodios uuid[], p_analistas_destino uuid[], p_evitar_asesor_origen boolean') is distinct from '89778f4d57b3421a69628473520c6f41' then
-    raise exception 'REVERSA D-13: crm.rescatar_descartes(uuid[],uuid[],boolean) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: crm.rescatar_descartes(uuid[],uuid[],boolean) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='deshacer_descarte_implementacion' and pg_get_function_identity_arguments(p.oid)='p_lead uuid') is distinct from 'b14b91bf82827240a3a29e88a5b9e39f' then
-    raise exception 'REVERSA D-13: private.deshacer_descarte_implementacion(uuid) no volvió byte a byte al vivo de producción';
+    raise exception 'REVERSA D-13: private.deshacer_descarte_implementacion(uuid) no volvió byte a byte al vivo esperado';
+  end if;
+  if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb') is distinct from 'b6c1863eec07df43e2023e7e8d729d05' then
+    raise exception 'REVERSA D-13: crm.reservar_conversion_lead(uuid,text,text,jsonb) no volvió byte a byte al vivo esperado';
   end if;
   if (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid)='p_telefono text, p_dni text') is distinct from '742d44fff6a8a742292c8de702812e60' then
     raise exception 'D-13: la sobrecarga de 2 argumentos del verificador (solo delega) cambió';
   end if;
-  if exists (select 1 from unnest(array['private.verificar_disponibilidad_lead_impl(text,text,uuid)','private.verificar_disponibilidad_lead_impl(text,text)','private.trg_leads_zz_enlaza_identidad()']) f(firma), unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE'))
-     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure,'private.verificar_disponibilidad_lead_impl(text,text)'::regprocedure,'private.trg_leads_zz_enlaza_identidad()'::regprocedure) and a.grantee = 0) then
-    raise exception 'D-13: las funciones privadas del verificador/trigger no pueden tener EXECUTE para la API ni PUBLIC';
+  if exists (select 1 from unnest(array['private.verificar_disponibilidad_lead_impl(text,text,uuid)','private.verificar_disponibilidad_lead_impl(text,text)','private.trg_leads_zz_enlaza_identidad()','private.deshacer_descarte_implementacion(uuid)']) f(firma), unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, f.firma, 'EXECUTE'))
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure,'private.verificar_disponibilidad_lead_impl(text,text)'::regprocedure,'private.trg_leads_zz_enlaza_identidad()'::regprocedure,'private.deshacer_descarte_implementacion(uuid)'::regprocedure) and a.grantee = 0) then
+    raise exception 'D-13: las funciones privadas transformadas no pueden tener EXECUTE para la API ni PUBLIC';
   end if;
-  if exists (select 1 from unnest(array['crm.tomar_lead_libre(text,text)','crm.convertir_lead(uuid,uuid)','crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)','crm.marcar_efectos_conversion(uuid,uuid,text)','crm.rescatar_descartes(uuid[],uuid[],boolean)']) f(firma)
+  if exists (select 1 from unnest(array['crm.tomar_lead_libre(text,text)','crm.convertir_lead(uuid,uuid)','crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)','crm.marcar_efectos_conversion(uuid,uuid,text)','crm.rescatar_descartes(uuid[],uuid[],boolean)','crm.reservar_conversion_lead(uuid,text,text,jsonb)']) f(firma)
               where not has_function_privilege('authenticated', f.firma, 'EXECUTE') or has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE'))
-     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.tomar_lead_libre(text,text)'::regprocedure,'crm.convertir_lead(uuid,uuid)'::regprocedure,'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'::regprocedure,'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure,'crm.rescatar_descartes(uuid[],uuid[],boolean)'::regprocedure) and a.grantee = 0) then
+     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.tomar_lead_libre(text,text)'::regprocedure,'crm.convertir_lead(uuid,uuid)'::regprocedure,'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'::regprocedure,'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure,'crm.rescatar_descartes(uuid[],uuid[],boolean)'::regprocedure,'crm.reservar_conversion_lead(uuid,text,text,jsonb)'::regprocedure) and a.grantee = 0) then
     raise exception 'D-13: los grants de las RPC transformadas cambiaron (solo authenticated)';
   end if;
-  if exists (select 1 from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.deshacer_descarte_implementacion(uuid)', 'EXECUTE'))
-     or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'private.deshacer_descarte_implementacion(uuid)'::regprocedure and a.grantee = 0) then
-    raise exception 'D-13: private.deshacer_descarte_implementacion no puede tener EXECUTE para la API ni PUBLIC';
-  end if;
-  if to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null then
-    raise exception 'REVERSA D-13: quedó el helper';
+  if exists (select 1 from unnest(array['private.persona_en_conversion(uuid,uuid)','private.leads_de_personas(uuid[])','private.lead_persona_reabrir(uuid)','private.bloquear_personas_de_leads(uuid[],text)','private.lead_dentro_de_bloqueo(uuid,jsonb)','private.juicio_persona(uuid,uuid)','private.juicio_reapertura(uuid,text,text)','private.enlazar_lead_reabierto(uuid,uuid)','private.trg_leads_zz_reapertura_solo_rpc()']) f(firma) where to_regprocedure(f.firma) is not null)
+     or to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)') is not null
+     or exists (select 1 from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_reapertura_solo_rpc') then
+    raise exception 'REVERSA D-13: quedó algún helper, la puerta del DNI o el trigger';
   end if;
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
     raise exception 'REVERSA D-13 (al confirmar): la bandera resolver_en_puertas está ENCENDIDA';

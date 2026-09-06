@@ -242,3 +242,29 @@ El bloque «P04: matriz completa de offboarding» abortaba la suite entera con `
 tres llamadas nuevas de P-058 a `assertAccess(...)` pasaban `sessions.X` en vez de `sessions.X.client`. Corregido en la
 rama `feat/multiempresa-f2b-cola` (`sessions.X.client`). Con el código de `main` tal cual, la suite no llega a los
 bloques posteriores (identidad incluida).
+
+## 05/09/2026 — el banco es UNO y lo comparten las sesiones (ensayos rojos en cascada sin bug)
+Dos ciclos de D-13 (`20260905160000`, v4.2 y v4.3) salieron rojos en cascada (43/31 y 45/29 en el oráculo; b1 11/20
+cuando una hora antes daba 31/31) con un síntoma común: a mitad del ensayo `resolver_en_puertas` estaba APAGADA
+(«Identidad unificada apagada: usa la reserva por lead») o los fixtures chocaban con `uq_leads_dni_vivo`. La migración
+estaba bien (el mismo oráculo, solo, dio 74/74 minutos antes): otra sesión de Claude estaba usando banco-f7 a la vez
+(53 leads de un `seed:demo` entre 18:42 y 18:46, `ficha_360_neutral` tocada a las 19:05, cliente PostgREST activo), y
+la suite de esa sesión fija `resolver_en_puertas=false` en el bloque bancario (`c6796ea`).
+Reglas: (1) antes de un ciclo largo, mirar `crm.multiempresa_flags.actualizado_en` y `pg_stat_activity` (clientes
+PostgREST = alguien corre la suite) y `ListAgents` + `SendMessage` para pedir turno; (2) el `flag()` de los oráculos
+RELEE y reintenta (si no lo consigue cuenta rojo) — antes escribía a ciegas; (3) un resumen «68/74» venía de un log
+VIEJO por un nombre de archivo mal cambiado en el script de banco: el conteo se lee del MISMO archivo que se escribe;
+(4) no editar la migración ni un oráculo mientras un ciclo los está leyendo (bash lee el script a medida que avanza).
+
+## 05/09/2026 — dos rojos que no eran del código (ciclo de D-13 v4.4)
+1. **`oraculo-f2b-b2.sh` 34/35 «resumen () ≠ cola»** desde que existe: el aserto leía `crm.resumen_reparto_fn()->'por_origen'`
+   y la función devuelve `{cola: {por_origen: [...]}}` (la suite, `b2 #9`, sí lee `cola.por_origen`). El diagnóstico anterior
+   («salida vacía intermitente del pooler») era falso: `sum()` sobre un jsonb nulo da NULL y el oráculo lo imprimía vacío.
+   Corregido en el oráculo (ruta `->'cola'->'por_origen'`). Lección: un rojo que se repite IGUAL en cada corrida no es
+   intermitente; leer la forma real de la respuesta antes de culpar a la red.
+2. **Suite: `metricas_conversiones_fn` → 57014 statement timeout** (y dos asertos en cascada del mismo bloque). El banco
+   acumula **14 250 leads / 13 774 asignaciones** de meses de oráculos append-only y la RPC tarda **8,1 s** como Gerencia,
+   por encima del `statement_timeout=8s` del rol `authenticated`. No es D-13 (no toca métricas): es el volumen del banco.
+   Señal para producción: esa RPC escala mal con los leads (14 k → 8 s); si prod se acerca a esa cifra, habrá que
+   indexar/materializar antes ([[crm-escalabilidad-plan]]). Mientras, el banco necesita una poda de fixtures viejos
+   (`D13 %`, `F3 %`, `B1 %`… con RUN antiguo) o aceptar ese rojo como ambiental.

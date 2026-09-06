@@ -9113,22 +9113,28 @@ async function testIdentidadF2bD10(sessions) {
 // ── F2.b [D-13] (20260905160000): «un solo lead» y «el puente manda» en todas las puertas con la bandera ON ──
 // Solo grants, marcadores y paridad apagada (el negocio —puente, conversión en curso, toma, conversiones— lo
 // cubre scripts/oraculo-f2b-d13.sh en el banco, con fixtures que la suite no puede sembrar sin válvula).
-async function testIdentidadF2bD13(sessions) {
+async function testIdentidadF2bD13(sessions, seed) {
   console.log('\n— Identidad multiempresa F2.b [D-13]: un solo lead y el puente manda en todas las puertas —');
   const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-13)',
     `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-13: ${etiqueta}`, sql);
   const lista = (arr) => `'${arr.join("','")}'`;
-  const PRIVADAS = ['private.persona_en_conversion(uuid,uuid)', 'private.verificar_disponibilidad_lead_impl(text,text,uuid)',
+  const PRIVADAS = ['private.persona_en_conversion(uuid,uuid)', 'private.leads_de_personas(uuid[])', 'private.lead_persona_reabrir(uuid)',
+    'private.bloquear_personas_de_leads(uuid[],text)', 'private.lead_dentro_de_bloqueo(uuid,jsonb)', 'private.juicio_reapertura(uuid,text,text)', 'private.enlazar_lead_reabierto(uuid,uuid)',
+    'private.trg_leads_zz_reapertura_solo_rpc()', 'private.juicio_persona(uuid,uuid)', 'private.verificar_disponibilidad_lead_impl(text,text,uuid)',
     'private.verificar_disponibilidad_lead_impl(text,text)', 'private.trg_leads_zz_enlaza_identidad()', 'private.leads_de_identidades(uuid[])',
     'private.deshacer_descarte_implementacion(uuid)'];
   const RPC = ['crm.tomar_lead_libre(text,text)', 'crm.convertir_lead(uuid,uuid)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)',
-    'crm.marcar_efectos_conversion(uuid,uuid,text)', 'crm.rescatar_descartes(uuid[],uuid[],boolean)'];
+    'crm.marcar_efectos_conversion(uuid,uuid,text)', 'crm.rescatar_descartes(uuid[],uuid[],boolean)', 'crm.reservar_conversion_lead(uuid,text,text,jsonb)',
+    'crm.fijar_dni_lead_fn(uuid,text)'];
   const marcador = (nombre, args) => cuenta(`marcador ${nombre}`, `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname || '.' || p.proname = '${nombre}' and pg_get_function_identity_arguments(p.oid) = '${args}'`);
   const DNI_SIN_DUENO = '00000013';
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-00000000d013';
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d13'));
 
-  if (cuenta('D-13 aplicada', `select (to_regprocedure('private.persona_en_conversion(uuid,uuid)') is not null)::int`) !== 1) {
+  // Gate por el objeto MÁS nuevo de D-13 (v4.3: lead_dentro_de_bloqueo): con una versión anterior en la base, el bloque se
+  // salta en vez de abortar la suite en las cuentas de grants (has_function_privilege sobre una firma inexistente es un error fatal).
+  if (cuenta('D-13 aplicada', `select (to_regprocedure('private.juicio_persona(uuid,uuid)') is not null and to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)') is not null and to_regprocedure('private.lead_dentro_de_bloqueo(uuid,jsonb)') is not null)::int`) !== 1) {
     console.log('  (saltado: D-13 (20260905160000) no está en esta base)');
     return;
   }
@@ -9151,6 +9157,79 @@ async function testIdentidadF2bD13(sessions) {
         + cuenta('marcador rescate', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='rescatar_descartes'`)
         + cuenta('marcador deshacer', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='deshacer_descarte_implementacion'`) === 3,
       'D-13 v2: el sellado, el rescate y el deshacer llevan la transformación');
+    check(cuenta('marcador reserva D-13', `select (strpos(p.prosrc, 'F2.b [D-13]') > 0)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb'`) === 1,
+      'D-13 v3: la reserva por persona (texto de D-10) cuenta también los sueltos por documento');
+    check(cuenta('trigger reapertura', `select count(*) from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_reapertura_solo_rpc' and tgenabled='O' and pg_get_triggerdef(oid) like '%BEFORE UPDATE OF etapa, activo%'`) === 1,
+      'D-13 v3: el trigger «reabrir solo por RPC» está BEFORE UPDATE OF etapa, activo y habilitado');
+    // La puerta del DNI (v4): OFF = el UPDATE de hoy; ON = el UPDATE directo de dni muere en P0409 «por su puerta» (service_role también).
+    for (const clave of ['coordinador', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`D-13 ${clave} fijar_dni_lead_fn → 42501 (no es del CRM o está inactivo)`, sessions[clave].client.schema('crm').rpc('fijar_dni_lead_fn', { p_lead_id: LEAD_INEXISTENTE, p_dni: DNI_SIN_DUENO }), ['42501'], /revocado/i);
+    }
+    await expectExpectedFailure('D-13 anon fijar_dni_lead_fn → 42501 (sin EXECUTE)', anon.schema('crm').rpc('fijar_dni_lead_fn', { p_lead_id: LEAD_INEXISTENTE, p_dni: DNI_SIN_DUENO }), ['42501'], /permission denied|denegado/i);
+    for (const on of [false, true]) {
+      flag(on);
+      await expectExpectedFailure(`D-13 ${on ? 'ON' : 'OFF'} vend1 fijar_dni_lead_fn sobre un lead inexistente → P0002 (sin efectos)`, sessions.vend1.client.schema('crm').rpc('fijar_dni_lead_fn', { p_lead_id: LEAD_INEXISTENTE, p_dni: DNI_SIN_DUENO }), ['P0002'], /no encontrado/i);
+    }
+    check(cuenta('sin identidad fantasma (fijar)', `select count(*) from crm.inversionista_identificadores where documento_normalizado='${DNI_SIN_DUENO}'`) === 0, 'D-13: fijar_dni_lead_fn no crea identidades');
+    // La puerta del DNI con leads de verdad (auditor v4 M3): ámbito antes de candados, OFF = el UPDATE de hoy, ON solo por la puerta.
+    {
+      const vend1Id = seed.profileIdByKey.vend1;
+      const vend2Id = seed.profileIdByKey.vend2;
+      const L_V1 = randomUUID();
+      const L_V2 = randomUUID();
+      const DNI_P = (n) => `8${RUN_IDENTIDAD}${String(n).padStart(3, '0')}`;  // 8 dígitos, distinto por corrida
+      const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
+      const fijar = (clave, leadId, dni) => sessions[clave].client.schema('crm').rpc('fijar_dni_lead_fn', { p_lead_id: leadId, p_dni: dni });
+      flag(false);
+      await requireAdmin('D-13: sembrar dos leads sin DNI (vend1 y vend2)', admin.schema('crm').from('leads').insert([
+        { ...base, id: L_V1, nombre_completo: 'D13 PUERTA DNI V1 TRANSIENT', telefono: TEL_F2B(181), creado_por: vend1Id, vendedor_id: vend1Id },
+        { ...base, id: L_V2, nombre_completo: 'D13 PUERTA DNI V2 TRANSIENT', telefono: TEL_F2B(182), creado_por: vend2Id, vendedor_id: vend2Id },
+      ]));
+      await expectExpectedFailure('D-13 OFF vend1 fija el DNI de un lead de vend2 → P0002 (fuera de ámbito, sin sondear a nadie)', fijar('vend1', L_V2, DNI_P(181)), ['P0002'], /no encontrado/i);
+      const r1 = await fijar('vend1', L_V1, DNI_P(181));
+      check(!r1.error && r1.data?.ok === true && cuenta('dni fijado', `select count(*) from crm.leads where id='${L_V1}' and dni='${DNI_P(181)}'`) === 1,
+        'D-13 OFF: vend1 fija el DNI de su propio lead → ok y DNI cambiado (el UPDATE de hoy)', errorText(r1.error));
+      const r2 = await fijar('vend1', L_V1, DNI_P(181));
+      check(!r2.error && r2.data?.sin_cambios === true, 'D-13 OFF: la misma llamada otra vez → sin_cambios', errorText(r2.error));
+      flag(true);
+      await expectExpectedFailure('D-13 ON vend1 UPDATE directo de dni de su lead → P0409 «por su puerta»',
+        sessions.vend1.client.schema('crm').from('leads').update({ dni: DNI_P(183) }).eq('id', L_V1).select('id'), ['P0409'], /por su puerta/i);
+      await expectExpectedFailure('D-13 ON service_role UPDATE directo de dni → P0409 «por su puerta» (sin válvula el trigger no distingue)',
+        admin.schema('crm').from('leads').update({ dni: DNI_P(183) }).eq('id', L_V2).select('id'), ['P0409'], /por su puerta/i);
+      check(cuenta('dni intactos', `select count(*) from crm.leads where (id='${L_V1}' and dni='${DNI_P(181)}') or (id='${L_V2}' and dni is null)`) === 2, 'D-13 ON: los DNI quedaron intactos');
+      const r3 = await fijar('vend1', L_V1, DNI_P(184));
+      check(!r3.error && r3.data?.ok === true && r3.data?.enlazado === false && cuenta('dni por puerta ON', `select count(*) from crm.leads where id='${L_V1}' and dni='${DNI_P(184)}' and inversionista_id is null`) === 1,
+        'D-13 ON: por la puerta, un DNI sin persona sí se fija (sin enlace)', errorText(r3.error));
+      check(cuenta('sin identidad fantasma (puerta)', `select count(*) from crm.inversionista_identificadores where documento_normalizado in ('${DNI_P(181)}','${DNI_P(183)}','${DNI_P(184)}')`) === 0, 'D-13: la puerta no crea identidades');
+      flag(false);
+    }
+    // El trigger «reabrir solo por RPC»: OFF inerte (el UPDATE directo pasa y la etapa cambia de verdad), ON → P0409 sin GUC
+    // (service_role dispara el trigger igual: no lleva válvula), y activo false→true también (auditor v3 M2).
+    {
+      flag(false);
+      // Descartado PROPIO del bloque (auditor v4.2 N3): no se toca el estado del seed.
+      const idDesc = randomUUID();
+      await requireAdmin('D-13: sembrar un lead y descartarlo (bandera apagada)', admin.schema('crm').from('leads').insert({
+        activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000,
+        id: idDesc, nombre_completo: 'D13 REAPERTURA TRANSIENT', telefono: TEL_F2B(183), creado_por: seed.profileIdByKey.vend1, vendedor_id: seed.profileIdByKey.vend1 }));
+      await requireAdmin('D-13: descartar el lead sembrado', admin.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', idDesc));
+      if (idDesc) {
+        const { error } = await sessions.gerencia.client.schema('crm').from('leads').update({ etapa: 'nuevo', motivo_descarte: null }).eq('id', idDesc).select('id');
+        check(!error && cuenta('reabierto OFF', `select count(*) from crm.leads where id='${idDesc}' and etapa='nuevo'`) === 1,
+          'D-13 OFF: reabrir un descarte por UPDATE directo pasa y la etapa cambia (trigger inerte)', errorText(error));
+        await requireAdmin('D-13: volver a descartar el lead sembrado', admin.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', idDesc));
+        flag(true);
+        await expectExpectedFailure('D-13 ON: UPDATE directo descartado→nuevo (service_role, sin GUC ni válvula) → P0409 «solo por sus puertas»',
+          admin.schema('crm').from('leads').update({ etapa: 'nuevo', motivo_descarte: null }).eq('id', idDesc).select('id'), ['P0409'], /solo por sus puertas/i);
+        check(cuenta('sigue descartado', `select count(*) from crm.leads where id='${idDesc}' and etapa='descartado'`) === 1, 'D-13 ON: el descarte sigue descartado');
+        ejecutarFueraDeBanda('D-13 ON: soft-borrar el descarte sembrado bajo válvula', `select set_config('crm.op_privilegiada','on',true); update crm.leads set activo=false where id='${idDesc}';`);
+        await expectExpectedFailure('D-13 ON: activo false→true por UPDATE directo (service_role) → P0409 «solo por sus puertas»',
+          admin.schema('crm').from('leads').update({ activo: true }).eq('id', idDesc).select('id'), ['P0409'], /solo por sus puertas/i);
+        // Queda desactivado (soft-borrado): el bloque no deja rastro vivo.
+      } else {
+        console.log('  (sin descartado sembrado: se omite la paridad del trigger de reapertura)');
+      }
+    }
     // Denegados ejercitados, no solo contados (auditor N7): la toma directa es de vendedores activos.
     const tomarComo = (cliente) => cliente.schema('crm').rpc('tomar_lead_libre', { p_telefono: '900000013', p_dni: DNI_SIN_DUENO });
     await expectExpectedFailure('D-13 anon tomar_lead_libre → 42501 (sin EXECUTE)', tomarComo(anon), ['42501'], /permission denied|denegado/i);
@@ -10508,13 +10587,7 @@ async function testIdentidadF2b(sessions, seed) {
         { ...leadBase, id: IDS_F2B.l2, nombre_completo: 'F2B L2 TRANSIENT', telefono: TEL_F2B(112) },
         { ...leadBase, id: IDS_F2B.l3, nombre_completo: 'F2B L3 TRANSIENT', telefono: TEL_F2B(113) },
         { ...leadBase, id: IDS_F2B.l4, nombre_completo: 'F2B L4 TRANSIENT', telefono: TEL_F2B(114) },
-        { ...bolsa, id: IDS_F2B.lu1, nombre_completo: 'F2B LU1 BOLSA TRANSIENT',    telefono: TEL_F2B(121), dni: DOCS_F2B.a },
-        { ...bolsa, id: IDS_F2B.lu2, nombre_completo: 'F2B LU2 BANDEJA TRANSIENT',  telefono: TEL_F2B(122), dni: DOCS_F2B.b, asignado_supervisor_id: sup1Id },
-        { ...bolsa, id: IDS_F2B.lu3, nombre_completo: 'F2B LU3 DERIVADO TRANSIENT', telefono: TEL_F2B(123), dni: DOCS_F2B.c, asignado_supervisor_id: sup1Id },
-        { ...bolsa, id: IDS_F2B.lu4, nombre_completo: 'F2B LU4 BOLSA TRANSIENT',    telefono: TEL_F2B(124), dni: DOCS_F2B.d },
       ]));
-    check(cuenta('sueltos sin enlace', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and inversionista_id is null and no_contactar=false`) === 4,
-      'F2.b #0 los 4 leads sueltos nacen sin enlace ni veto con la bandera apagada');
 
     flag(true);
     // Identidades SIN lead (por el resolver, como el arnés) y una persona vetada SIN
@@ -10663,6 +10736,20 @@ async function testIdentidadF2b(sessions, seed) {
     for (const [lead, doc, n] of [[IDS_F2B.l1, DOCS_F2B.a, '1'], [IDS_F2B.l2, DOCS_F2B.b, '2'], [IDS_F2B.l3, DOCS_F2B.c, '3'], [IDS_F2B.l4, DOCS_F2B.d, '4']]) {
       await positive(`b2 #0 vend1 convierte por coop (persona ${n})`, coop('vend1', lead, doc, n));
     }
+    // Los sueltos lu1..lu4 (mismo documento que las personas a–d) nacen DESPUÉS de las conversiones y con la bandera
+    // APAGADA (sin enlace): desde [D-13] un lead vivo suelto con el documento de la persona cuenta en «un solo lead» y la
+    // conversión coop de otro lead de esa persona se rechaza («ya tiene un lead»); el veto por documento se mide igual.
+    flag(false);
+    await requireAdmin('F2.b: sembrar los sueltos b2 (bandera apagada, tras las conversiones)',
+      admin.schema('crm').from('leads').insert([
+        { ...bolsa, id: IDS_F2B.lu1, nombre_completo: 'F2B LU1 BOLSA TRANSIENT',    telefono: TEL_F2B(121), dni: DOCS_F2B.a },
+        { ...bolsa, id: IDS_F2B.lu2, nombre_completo: 'F2B LU2 BANDEJA TRANSIENT',  telefono: TEL_F2B(122), dni: DOCS_F2B.b, asignado_supervisor_id: sup1Id },
+        { ...bolsa, id: IDS_F2B.lu3, nombre_completo: 'F2B LU3 DERIVADO TRANSIENT', telefono: TEL_F2B(123), dni: DOCS_F2B.c, asignado_supervisor_id: sup1Id },
+        { ...bolsa, id: IDS_F2B.lu4, nombre_completo: 'F2B LU4 BOLSA TRANSIENT',    telefono: TEL_F2B(124), dni: DOCS_F2B.d },
+      ]));
+    check(cuenta('sueltos sin enlace', `select count(*) from crm.leads where id in (${lista(sueltosB2)}) and inversionista_id is null and no_contactar=false`) === 4,
+      'F2.b #0 los 4 leads sueltos nacen sin enlace ni veto con la bandera apagada');
+    flag(true);
     // Antes del veto: sup1 deriva lu3 a vend1 (persona aún sin veto → pasa) y lu5 nace
     // enlazado por b1 con una tarea pendiente de vend1.
     await positive('b2 #0 sup1 deriva lu3 a vend1 antes del veto (pasa)',
@@ -11822,7 +11909,7 @@ async function main() {
       await testIdentidadF2bB5(sessions);
       await testIdentidadF2bE4(sessions, verifiedSeed);
       await testIdentidadF2bD10(sessions);
-      await testIdentidadF2bD13(sessions);
+      await testIdentidadF2bD13(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

@@ -38,8 +38,9 @@ de las claims, así que prueba también los grants). Retomar: nota del vault **R
 
 ## Bloque 2 de activación: [D-13] (05/09)
 
-- `gen-d13.py` + `vivas/d13/*.sql` (8 funciones vivas: verificador 3-args, trigger de nacimiento, `tomar_lead_libre`,
-  `convertir_lead`, `convertir_lead_externo`, `marcar_efectos_conversion` 3-args, `rescatar_descartes`, `deshacer_descarte_implementacion`) + `huellas-d13-prod.txt` → migración `20260905160000`, `scripts/rollback-f2b-d13.sql`
+- `gen-d13.py` (v4.4) + `vivas/d13/*.sql` (9 funciones vivas: verificador 3-args, trigger de nacimiento, `tomar_lead_libre`,
+  `convertir_lead`, `convertir_lead_externo`, `marcar_efectos_conversion` 3-args, `rescatar_descartes`, `deshacer_descarte_implementacion`
+  y `reservar_conversion_lead` 4-args TAL COMO LA DEJA D-10 —requisito—) + `huellas-d13-prod.txt`; 9 helpers privados (`bloquear_personas_de_leads` devuelve `{personas, claves}` y `lead_dentro_de_bloqueo` exige que el lead siga dentro de lo bloqueado —Codex v4.2, ABA—), la puerta `crm.fijar_dni_lead_fn` y el trigger `trg_leads_zz_reapertura_solo_rpc` → migración `20260905160000`, `scripts/rollback-f2b-d13.sql`
   y `scripts/registrar-f2b-d13.sql`. `python3 gen-d13.py <esta carpeta> <dir supabase>`.
-- Oráculo: `scripts/oraculo-f2b-d13.sh` (42 asertos; sin D-13 debe salir ROJO; fixtures de descartado viejo con el trigger del sello apagado un instante). Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § [D-13].
+- Oráculo: `scripts/oraculo-f2b-d13.sh` (81 asertos; sin D-13 debe salir ROJO; fixtures de descartado viejo con el trigger del sello apagado un instante). Diseño: `DISEÑO-F2B-COLA-CATALOGO.md` § [D-13].
 

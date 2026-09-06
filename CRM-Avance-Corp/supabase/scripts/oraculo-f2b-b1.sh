@@ -58,7 +58,13 @@ R="$(run_sys "update crm.leads set dni='$DOC8' where id='$LA'")"; echo "$R" | gr
 R="$(run_as "$V" "update crm.leads set dni='$DOC8' where id='$LB'")"
 echo "$R" | grep -q "P0409" && [[ "$(q "select inversionista_id is null from crm.leads where id='$LB'")" == "t" ]] && ok "lead suelto + DNI de persona reconocida (vendedor) → P0409, NO se enlaza por edición (Gerencia corrige)" || rojo "UPDATE humano hacia persona reconocida no rechazado: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_sys "update crm.leads set dni='$DOC5' where id='$LC'")"; echo "$R" | grep -q "P0409" && ok "lead suelto + DNI de persona CON lead (sin sesión) → P0409" || rojo "UPDATE a DNI ocupado no rechazado: $(echo "$R"|tail -1|cut -c1-120)"
+if [[ "$(q "select to_regprocedure('crm.fijar_dni_lead_fn(uuid,text)') is not null")" == "t" ]]; then
+  # [D-13]: con la identidad encendida el DNI se fija por su puerta; el UPDATE directo → P0409 «por su puerta»
+  R="$(run_as "$V" "update crm.leads set dni='6${RUN}3' where id='$LB'")"; echo "$R" | grep -q "por su puerta" && ok "[D-13] UPDATE directo de un DNI sin dueño → P0409 «por su puerta»" || rojo "D-13 UPDATE directo: $(echo "$R"|tail -1|cut -c1-120)"
+  R="$(run_as "$V" "select crm.fijar_dni_lead_fn('$LB','6${RUN}3')")"; [[ "$(q "select dni from crm.leads where id='$LB'")" == "6${RUN}3" ]] && ok "[D-13] DNI que no resuelve a nadie: se fija por la puerta (fijar_dni_lead_fn)" || rojo "D-13 fijar: $(echo "$R"|tail -1|cut -c1-120)"
+else
 R="$(run_as "$V" "update crm.leads set dni='6${RUN}3' where id='$LB'")"; [[ -z "$(echo "$R"|grep -i "P04")" && "$(q "select dni from crm.leads where id='$LB'")" == "6${RUN}3" ]] && ok "DNI que no resuelve a nadie: se edita como hoy" || rojo "edición de DNI desconocido bloqueada: $(echo "$R"|tail -1|cut -c1-120)"
+fi
 R="$(run_as "$V" "update crm.leads set nombre_completo='B1 renombrado' where id='$LA'")"; [[ -z "$(echo "$R" | grep -i error)" ]] && ok "UPDATE que no toca dni no dispara nada" || rojo "UPDATE ajeno al dni falló: $(echo "$R"|tail -1|cut -c1-100)"
 
 echo "== (a) Persona vetada → P0429 (y la carrera alta ↔ marcar) =="

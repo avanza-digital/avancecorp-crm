@@ -29,6 +29,10 @@ echo "== Preflight (RUN=$RUN) =="
 psql "$PG" -q -v ON_ERROR_STOP=1 -v run="$RUN" -c "set timezone='America/Lima';" -f "$AQUI/siembra-banco-f3.sql" 2>&1 | grep -E "SIEMBRA-F3-OK|ERROR" | head -2
 [[ "$(q "select to_regprocedure('private.persona_vetada(uuid)') is not null")" == "t" ]] || { echo "falta b2 en el banco" >&2; exit 2; }
 # Leads NO enlazados (nacen con la bandera APAGADA) con el documento de personas que luego se vetan:
+flag true
+# Cada persona: un lead de la siembra convertido en coop (queda enlazado) → luego se veta.
+for par in "$L1:$DA:1" "$L2:$DB:2" "$L3:$DC:3" "$L4:$DD:4"; do IFS=: read -r L D N <<< "$par"; run_as "$V" "$(coop "$L" "$D" "$N")" >/dev/null || rojo "coop $N falló"; done
+# [D-13] los sueltos con el documento de las personas a–d nacen DESPUÉS de las conversiones (un suelto vivo con el documento cuenta en «un solo lead»)
 flag false
 LU1="$(uuid)"; LU2="$(uuid)"; LU3="$(uuid)"; LU4="$(uuid)"
 run_sys "$(ins "$LU1" BOLSA "${T}31" null null "$DA")" >/dev/null || rojo "no se pudo crear LU1"
@@ -37,8 +41,6 @@ run_sys "$(ins "$LU3" DERIVADO "${T}33" null "'$SU'" "$DC")" >/dev/null || rojo 
 run_sys "$(ins "$LU4" EN-COLA "${T}34" null null "$DD")" >/dev/null || rojo "no se pudo crear LU4"
 [[ "$(q "select count(*) from crm.leads where id in ('$LU1','$LU2','$LU3','$LU4') and inversionista_id is null")" == "4" ]] && ok "4 leads sueltos (sin enlace) con documento, creados con la bandera apagada" || rojo "los leads nacieron enlazados"
 flag true
-# Cada persona: un lead de la siembra convertido en coop (queda enlazado) → luego se veta.
-for par in "$L1:$DA:1" "$L2:$DB:2" "$L3:$DC:3" "$L4:$DD:4"; do IFS=: read -r L D N <<< "$par"; run_as "$V" "$(coop "$L" "$D" "$N")" >/dev/null || rojo "coop $N falló"; done
 [[ "$(q "select count(*) from crm.inversionista_responsables r join crm.inversionista_identificadores d on d.inversionista_id=r.inversionista_id where r.hasta is null and r.responsable_id='$V' and d.documento_normalizado in ('$DA','$DB','$DC','$DD')")" == "4" ]] && ok "4 personas con responsable de relación V (tramo abierto)" || rojo "tramos de responsable ≠ 4"
 # Antes de vetar: S deriva LU3 a V (con bandera ON, persona aún sin veto) y V agenda una tarea en LU3.
 R="$(run_as "$SU" "select crm.derivar_leads_equipo_fn(array['$LU3']::uuid[], array['$V']::uuid[])")"; [[ "$(q "select vendedor_id='$V' from crm.leads where id='$LU3'")" == "t" ]] && ok "derivación previa LU3→V (persona sin veto): pasa" || rojo "derivación previa falló: $(echo "$R"|tail -1|cut -c1-120)"
@@ -58,7 +60,7 @@ echo "== Mutaciones sobre leads sueltos de personas vetadas → P0429 / veredict
 R="$(run_as "$G" "select crm.repartir_lead('$LU1','$SU')")"; echo "$R" | grep -q "P0429" && ok "repartir_lead → P0429" || rojo "repartir pasó: $(echo "$R"|tail -1|cut -c1-120)"
 EC="$(run_as "$G" "select count(*) from crm.leads_por_repartir() x where x.id='$LU1'" | tail -1)"
 [[ "$EC" == "0" ]] && ok "la cola (leads_por_repartir, como Gerencia) no lista a LU1" || rojo "la cola lista a LU1 ($EC)"
-NC="$(run_as "$G" "select count(*) from crm.leads_por_repartir()" | tail -1)"; NR="$(run_as "$G" "select (select sum((e->>'n')::int) from jsonb_array_elements(crm.resumen_reparto_fn()->'por_origen') e)" | tail -1)"
+NC="$(run_as "$G" "select count(*) from crm.leads_por_repartir()" | tail -1)"; NR="$(run_as "$G" "select (select sum((e->>'n')::int) from jsonb_array_elements(crm.resumen_reparto_fn()->'cola'->'por_origen') e)" | tail -1)"
 [[ "$NC" == "${NR:-0}" ]] && ok "resumen_reparto_fn cuenta lo mismo que la cola ($NC)" || rojo "resumen ($NR) ≠ cola ($NC)"
 R="$(run_as "$V" "select crm.tomar_lead_libre('${T}31','$DA')")"; echo "$R" | grep -q "no_contactar" && [[ "$(q "select vendedor_id is null from crm.leads where id='$LU1'")" == "t" ]] && ok "tomar_lead_libre → veredicto no_contactar, sin tomar" || rojo "tomar: $(echo "$R"|tail -1|cut -c1-120)"
 R="$(run_as "$SU" "select crm.derivar_leads_equipo_fn(array['$LU2']::uuid[], array['$V']::uuid[])")"; echo "$R" | grep -q "P0429" && ok "derivar_leads_equipo_fn → P0429" || rojo "derivar pasó: $(echo "$R"|tail -1|cut -c1-120)"
