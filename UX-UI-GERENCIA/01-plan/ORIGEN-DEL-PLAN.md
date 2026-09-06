@@ -1,0 +1,1 @@
+../../BASE DE CONOCIMINETO/AVANCECORP/Replanteamiento UI UX con UI-UX 2 - 2026-09-05.md

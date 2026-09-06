@@ -1,0 +1,10 @@
+# Evidencia técnica local. Se conserva en esta carpeta, fuera del historial Git.
+**/calls/
+**/state.json
+**/evidencia/
+**/scripts/
+**/*.log
+90-auditoria-inicial/
+91-figma-inicial/
+92-desarrollo-anterior/
+99-organizacion/*.json

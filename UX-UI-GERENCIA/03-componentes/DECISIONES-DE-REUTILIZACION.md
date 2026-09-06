@@ -1,0 +1,1 @@
+../../BASE DE CONOCIMINETO/AVANCECORP/Inventario de reutilizacion frontend - F0 UI UX 2 2026-09-06.md

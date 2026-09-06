@@ -1,0 +1,1 @@
+../../BASE DE CONOCIMINETO/AVANCECORP/F0 UI UX 2 - auditoria y linea base 2026-09-05.md

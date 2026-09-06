@@ -1,0 +1,195 @@
+{
+  "capturedAt": "2026-09-06T05:40:53.768Z",
+  "scope": "Inventario de reutilización de frontend para F0; no certificación integral ni actualización de dependencias",
+  "declaredDependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.2",
+    "echarts": "^6.1.0",
+    "recharts": "^3.8.0",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@radix-ui/react-hover-card": "^1.1.19",
+    "lucide-react": "^1.24.0",
+    "gsap": "^3.15.0",
+    "@gsap/react": "^2.1.2",
+    "@tanstack/react-query": "^5.101.2",
+    "sonner": "^2.0.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "fileGroups": {
+    "ui": [
+      "avatar.tsx",
+      "badge.tsx",
+      "button.tsx",
+      "card.tsx",
+      "chart.tsx",
+      "coverflow-carousel.tsx",
+      "dialog.tsx",
+      "dropdown-menu.tsx",
+      "hover-card.tsx",
+      "input.tsx",
+      "label.tsx",
+      "progress.tsx",
+      "select.tsx",
+      "sheet.tsx",
+      "skeleton.tsx",
+      "textarea.tsx"
+    ],
+    "common": [
+      "animated-value.tsx",
+      "aviso-cobertura-conversion.tsx",
+      "aviso-degradacion.tsx",
+      "chip-arrastre.tsx",
+      "controles-periodo-derivaciones.tsx",
+      "desglose-monedas.tsx",
+      "donut.tsx",
+      "estado-panel.tsx",
+      "kpi-card.tsx",
+      "paginacion.tsx",
+      "section-head.tsx",
+      "sparkline.tsx",
+      "stat-strip.tsx",
+      "tabla.tsx"
+    ],
+    "gerencia": [
+      "area-consulta-gerencia.tsx",
+      "atencion-citas.tsx",
+      "chart-theme.ts",
+      "consulta-context.ts",
+      "echart-bar.tsx",
+      "echart-lazy.tsx",
+      "echart-line.tsx",
+      "echart.tsx",
+      "indicador-gerencia.tsx",
+      "motion.tsx",
+      "periodo-context-base.ts",
+      "periodo-context.tsx",
+      "periodo.ts",
+      "use-consulta-gerencia.ts",
+      "use-periodo-gerencia.ts",
+      "valores-grafico.tsx"
+    ]
+  },
+  "counts": {
+    "ui": 16,
+    "common": 14,
+    "gerencia": 16
+  },
+  "rows": [
+    {
+      "id": "REU-01",
+      "need": "Marca y navegación",
+      "existing": "BrandLockup · Sidebar · Topbar · Lucide",
+      "decision": "Conservar identidad, destinos y controles conocidos; ajustar únicamente la jerarquía y el espacio.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/app/brand.tsx",
+        "CRM-Avance-Corp/app/src/components/app/sidebar.tsx",
+        "CRM-Avance-Corp/app/src/components/app/topbar.tsx"
+      ]
+    },
+    {
+      "id": "REU-02",
+      "need": "Indicadores",
+      "existing": "IndicadorGerencia · Card · Progress",
+      "decision": "Ampliar la presentación para comparar resultado y meta. Conservar valor, período, base y moneda originales.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/gerencia/indicador-gerencia.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/card.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/progress.tsx"
+      ]
+    },
+    {
+      "id": "REU-03",
+      "need": "Gráficos de Gerencia",
+      "existing": "GerenciaEChart · barras/líneas · ValoresGrafico",
+      "decision": "Reutilizar el motor activo en Resumen, Citas y Conversiones. Ya maneja tamaño del contenedor, carga diferida y movimiento reducido.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/gerencia/echart.tsx",
+        "CRM-Avance-Corp/app/src/components/gerencia/echart-lazy.tsx",
+        "CRM-Avance-Corp/app/src/components/gerencia/valores-grafico.tsx",
+        "CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx",
+        "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx"
+      ]
+    },
+    {
+      "id": "REU-04",
+      "need": "Gráficos Recharts",
+      "existing": "ChartContainer · ChartTooltip · GraficasGerencia",
+      "decision": "Biblioteca y componentes disponibles. No se encontró una referencia de producción a GraficasGerencia fuera de su definición; revisar encaje antes de activar ese panel.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/ui/chart.tsx",
+        "CRM-Avance-Corp/app/src/screens/hoy/graficas-gerencia.tsx"
+      ]
+    },
+    {
+      "id": "REU-05",
+      "need": "Período y regreso",
+      "existing": "PeriodoGerenciaProvider · ConsultaGerencia · AreaConsultaGerencia",
+      "decision": "Conservar el contexto de reportes y la recuperación por vista; adaptar la presentación móvil. No extender esa garantía a todas las pantallas.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/gerencia/periodo-context.tsx",
+        "CRM-Avance-Corp/app/src/components/gerencia/consulta-context.ts",
+        "CRM-Avance-Corp/app/src/components/gerencia/area-consulta-gerencia.tsx"
+      ]
+    },
+    {
+      "id": "REU-06",
+      "need": "Tablas y listas",
+      "existing": "TablaEnvoltura · Th/Td · Paginación · lista de Ranking",
+      "decision": "Ajustar densidad, nombres y acción principal; mantener orden, búsqueda, filtros y operaciones existentes.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/common/tabla.tsx",
+        "CRM-Avance-Corp/app/src/components/common/paginacion.tsx",
+        "CRM-Avance-Corp/app/src/screens/hoy/ranking-vendedores.tsx",
+        "CRM-Avance-Corp/app/src/screens/mi-cartera.tsx"
+      ]
+    },
+    {
+      "id": "REU-07",
+      "need": "Formularios",
+      "existing": "Input · Select · Textarea · Label · Button · LeadNuevo",
+      "decision": "Reordenar campos y resolver el ancho de Capital estimado en móvil. Conservar validaciones y acciones del CRM.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/ui/input.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/select.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/textarea.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/label.tsx",
+        "CRM-Avance-Corp/app/src/components/app/lead-nuevo.tsx"
+      ]
+    },
+    {
+      "id": "REU-08",
+      "need": "Paneles y foco",
+      "existing": "Dialog · Sheet sobre Radix · detalle de Ranking",
+      "decision": "Aprovechar los paneles existentes. El retorno de foco de Cartera sigue siendo un hallazgo pendiente; la biblioteca por sí sola no lo valida.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/ui/dialog.tsx",
+        "CRM-Avance-Corp/app/src/components/ui/sheet.tsx",
+        "CRM-Avance-Corp/app/src/screens/hoy/ranking-detalle.tsx"
+      ]
+    },
+    {
+      "id": "REU-09",
+      "need": "Carga, errores y avisos",
+      "existing": "Skeleton · PanelVacio/Cargando/Error · AvisoDegradacion · Sonner",
+      "decision": "Reutilizar estados y reintentos; una consulta incompleta no debe verse como cero ni una escritura incierta como éxito.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/ui/skeleton.tsx",
+        "CRM-Avance-Corp/app/src/components/common/estado-panel.tsx",
+        "CRM-Avance-Corp/app/src/components/common/aviso-degradacion.tsx",
+        "CRM-Avance-Corp/app/src/main.tsx"
+      ]
+    },
+    {
+      "id": "REU-10",
+      "need": "Movimiento",
+      "existing": "GSAP · @gsap/react · GerenciaMotion",
+      "decision": "Mantener animaciones breves y la preferencia de movimiento reducido. La animación debe ayudar a leer y seguir una acción.",
+      "sources": [
+        "CRM-Avance-Corp/app/src/components/gerencia/motion.tsx"
+      ]
+    }
+  ]
+}

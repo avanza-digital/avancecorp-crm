@@ -1,0 +1,1 @@
+../../BASE DE CONOCIMINETO/AVANCECORP/Plan maestro UI UX del CRM - adaptacion UI-UX 2 2026-09-05.md

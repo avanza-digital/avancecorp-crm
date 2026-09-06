@@ -1,0 +1,136 @@
+[
+  {
+    "id": "UX0-01",
+    "priority": "P1",
+    "screen": "Resumen · escritorio/móvil",
+    "evidence": [
+      1,
+      11
+    ],
+    "finding": "La jerarquía desplaza los gráficos debajo de los KPI y de bloques de explicación. En móvil, el título de evolución empieza aproximadamente en y=1785 desde scroll 0.",
+    "impact": "La lectura rápida exige desplazarse y reconstruir mentalmente resultado, objetivo y evolución.",
+    "proposal": "Diseñar el primer bloque comercial con indicadores y comparación visual; resumir período y filtros; agrupar atención y explicaciones sin perder contexto.",
+    "phase": "UX1 → UX2 / bloque A",
+    "acceptance": "A 1440 × 960 y 390 × 844 se identifican resultado, período y objetivo; un gráfico útil aparece antes de los detalles extensos. Prueba de comprensión con Gerencia pendiente.",
+    "confidence": "Observado en capturas actuales y geometría DOM."
+  },
+  {
+    "id": "UX0-02",
+    "priority": "P1",
+    "screen": "Conversiones · escritorio/móvil",
+    "evidence": [
+      2,
+      12
+    ],
+    "finding": "El bloque principal y varias secciones de texto anteceden a la lectura visual; Resultados por analista está en y≈1965 en escritorio y y≈3764 en móvil.",
+    "impact": "Cuesta comparar el desempeño y decidir dónde profundizar. Miguel ya rechazó esta presentación.",
+    "proposal": "Separar visualmente conversión mensual, resultados de llegadas y cierres por fecha. Jerarquizar gráficos y llevar definiciones extensas a detalle ampliable.",
+    "phase": "UX1 → UX2 / bloque A",
+    "acceptance": "Las tres bases se distinguen sin abrir ayuda; los gráficos conservan sus valores y unidades; mismo acceso a comparación y detalle.",
+    "confidence": "Observado. La rapidez de comprensión aún no se midió con una persona."
+  },
+  {
+    "id": "UX0-03",
+    "priority": "P1",
+    "screen": "Conversiones · indicador Capital del mes",
+    "evidence": [
+      1,
+      2,
+      12
+    ],
+    "finding": "La tarjeta abreviada dice Capital del mes y muestra S/ 1.48 M; Resumen muestra capital confirmado unificado S/ 1,840,096 y su desglose PEN/USD/TC.",
+    "impact": "La misma expresión comercial puede interpretarse como dos totales incompatibles.",
+    "proposal": "Explicitar si el importe es sólo PEN o el total equivalente ya disponible; mantener visible la existencia de USD y el contexto del TC cuando corresponda. Reutilizar el dato servido y el componente de monedas.",
+    "phase": "UX1 → UX2 / bloque A",
+    "acceptance": "Cada tarjeta declara moneda y alcance. La lectura de 1.48 M PEN se distingue de 1,840,096 equivalentes sin recalcular ni cambiar fórmulas.",
+    "confidence": "Diferencia visible confirmada en la demo; comprobar la variante real durante validación autorizada."
+  },
+  {
+    "id": "UX0-04",
+    "priority": "P1",
+    "screen": "Nuevo lead · móvil",
+    "evidence": [
+      9
+    ],
+    "finding": "Capital estimado dispone de sólo 43 × 36 px a 390 × 844, junto al selector de moneda de 96 px.",
+    "impact": "El campo obligatorio deja muy poco espacio para revisar un importe antes de enviarlo.",
+    "proposal": "Diseñar capital y moneda con ancho suficiente y orden adaptable; conservar el campo numérico, moneda, validaciones y obligatoriedad.",
+    "phase": "UX1 → UX3 / bloque C",
+    "acceptance": "Importes representativos largos se pueden leer, editar y revisar en móvil; probar teclado virtual en un dispositivo real antes de cerrar.",
+    "confidence": "Medición DOM y captura. Teclado virtual real no probado."
+  },
+  {
+    "id": "UX0-05",
+    "priority": "P2",
+    "screen": "Nuevo lead · orden y tamaño de controles",
+    "evidence": [
+      8,
+      9
+    ],
+    "finding": "Seis campos opcionales se intercalan entre Teléfono y los obligatorios Origen/Capital. Campos y botones principales miden 36 px de alto; categorías, 25 px.",
+    "impact": "Aumenta el recorrido hasta completar lo esencial y deja controles por debajo del objetivo táctil de producto de 44 px.",
+    "proposal": "Agrupar primero los cuatro datos obligatorios y mover información adicional a una sección clara. Diseñar variantes táctiles preservando todos los campos.",
+    "phase": "UX1 → UX3 / bloque C",
+    "acceptance": "Los cuatro requisitos se reconocen al iniciar; campos secundarios y errores siguen accesibles; áreas táctiles se revisan con la regla del plan, sin afirmar conformidad WCAG a partir de esta medida.",
+    "confidence": "Orden, etiquetas y medidas confirmados. Ahorro de tiempo pendiente de medir."
+  },
+  {
+    "id": "UX0-06",
+    "priority": "P1",
+    "screen": "Cartera → ficha de cliente → cerrar",
+    "evidence": [
+      6,
+      7
+    ],
+    "finding": "Tras buscar NADIA, abrir Ver detalle y cerrar, la búsqueda se conserva pero document.activeElement es BODY; el foco no regresa al botón de la fila.",
+    "impact": "Quien navega con teclado pierde su punto de trabajo.",
+    "proposal": "Llevar a la ficha el mismo patrón de recuperación de foco ya comprobado en Ranking.",
+    "phase": "UX1 → UX4 / UX5",
+    "acceptance": "Cerrar y Escape devuelven el foco al control de origen; la búsqueda y filtros permanecen. Si el control desaparece, existe un destino de foco coherente.",
+    "confidence": "Observado en DOM inmediatamente después y en una segunda comprobación; falta recorrido completo con lector de pantalla."
+  },
+  {
+    "id": "UX0-07",
+    "priority": "P2",
+    "screen": "Cartera · escritorio/móvil",
+    "evidence": [
+      6,
+      10
+    ],
+    "finding": "Cuatro acciones por cliente; nombres largos abreviados en escritorio y especialmente en móvil. La adaptación a lista móvil ya funciona.",
+    "impact": "Compiten las acciones y se dificulta identificar visualmente al cliente con poco ancho.",
+    "proposal": "Conservar la lista adaptable; probar acción principal según tarea confirmada y secundarios en menú con etiquetas claras; dar más espacio al nombre o permitir leerlo completo.",
+    "phase": "UX1 → UX3 / bloque C",
+    "acceptance": "Se conservan todas las operaciones permitidas y se identifica al cliente sin adivinar su nombre. La acción principal se elige con frecuencia de uso, no por preferencia del auditor.",
+    "confidence": "Capturas confirmadas; frecuencia de acciones pendiente de Miguel/usuarios."
+  },
+  {
+    "id": "UX0-08",
+    "priority": "P2",
+    "screen": "Ranking · Capital total",
+    "evidence": [
+      4,
+      13
+    ],
+    "finding": "Las barras se ven llenas para resultados entre 108.74% y 127%; el porcentaje textual sí los distingue. Existe verde en esta vista frente a la regla documental sin verde.",
+    "impact": "La longitud deja de ayudar a comparar los resultados por encima de la meta; queda una decisión visual de consistencia pendiente.",
+    "proposal": "Especificar cómo mostrar sobrecumplimiento con referencia a 100% y valores originales; documentar qué colores actuales se conservan o ajustan en UX1.",
+    "phase": "UX1 → UX2 / bloque B",
+    "acceptance": "Orden, porcentaje, importes y metas permanecen; se entiende quién supera la meta y en qué medida; la decisión de color queda documentada.",
+    "confidence": "Observación visual y comparación con Fundamentos UX. No se considera error de la fórmula."
+  },
+  {
+    "id": "UX0-09",
+    "priority": "P2",
+    "screen": "Cabecera móvil · Conversiones",
+    "evidence": [
+      12
+    ],
+    "finding": "El título se presenta como Conversi… a 390 px, junto a la etiqueta Demo y tres controles.",
+    "impact": "La cabecera pierde legibilidad justo cuando el menú usa iconos.",
+    "proposal": "Ajustar prioridades, ancho y variantes de cabecera aprovechando la familia existente; mantener los nombres accesibles de las acciones.",
+    "phase": "UX1 → UX2",
+    "acceptance": "El destino se reconoce en la cabecera de móvil, sin solapar acciones ni perder acceso. La etiqueta de entorno puede compactarse manteniendo su significado.",
+    "confidence": "Confirmado en la captura móvil; los nombres de accesibilidad sí existen."
+  }
+]

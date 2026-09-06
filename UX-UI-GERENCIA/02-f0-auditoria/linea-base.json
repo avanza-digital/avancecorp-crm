@@ -1,0 +1,58 @@
+{
+  "environment": "CRM local · Gerencia demo · Chrome",
+  "desktop": "1440 × 960",
+  "mobile": "390 × 844",
+  "human_participants": 0,
+  "frequency_confirmed": false,
+  "timing_method": "No se midió tiempo humano. La duración de llamadas/esperas del agente no se usa como tiempo de tarea.",
+  "tasks": [
+    {
+      "id": "T1",
+      "goal": "Desde Resumen, consultar Conversiones, comparar Carla y Bruno y volver a Resumen.",
+      "steps": [
+        "Ver Conversiones",
+        "Comparar dos analistas",
+        "Elegir Carla",
+        "Elegir Bruno",
+        "Resumen"
+      ],
+      "semantic_actions": 5,
+      "clicks": 3,
+      "selections": 2,
+      "result": "Recorrido de consulta completado en demo; mensualidad explícita y base 9 frente a 9.",
+      "human_time_seconds": null,
+      "human_success": null
+    },
+    {
+      "id": "T2",
+      "goal": "Desde Resumen, abrir Ranking, consultar Capital total de Carla y volver al listado.",
+      "steps": [
+        "Ranking",
+        "Capital total",
+        "Ver detalle de Carla Mendoza",
+        "Volver a Ranking"
+      ],
+      "semantic_actions": 4,
+      "clicks": 4,
+      "result": "Se conservan setiembre 2026, Capital total y foco en Carla. Comprobación adicional móvil: Enter, Shift+Tab y Escape.",
+      "human_time_seconds": null,
+      "human_success": null
+    },
+    {
+      "id": "T3",
+      "goal": "Desde Ranking, buscar a NADIA en Cartera, leer su ficha y cerrar.",
+      "steps": [
+        "Cartera",
+        "Escribir NADIA en Buscar en la cartera",
+        "Ver detalle",
+        "Cerrar"
+      ],
+      "semantic_actions": 4,
+      "clicks": 3,
+      "text_entries": 1,
+      "result": "Consulta completada y búsqueda conservada; recuperación de foco defectuosa (BODY).",
+      "human_time_seconds": null,
+      "human_success": null
+    }
+  ]
+}
