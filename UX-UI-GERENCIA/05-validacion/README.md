@@ -1,5 +1,6 @@
 # Validación
 
+- [Revisión actual de color y movimiento solicitada por Miguel](revision-propuesta-color-2026-09-06/README.md).
 - [Autoevaluación de UX1/UX2 y sus límites](../04-propuestas/revision-ux1-ux2-2026-09-06/README.md).
 - [QA estructural del diseño del bloque A](../04-propuestas/revision-ux1-ux2-2026-09-06/qa-diseno.json).
 - [Recorridos comprobados en el visor de Figma](../04-propuestas/revision-ux1-ux2-2026-09-06/recorridos-verificados.json).

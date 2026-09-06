@@ -1,0 +1,190 @@
+{
+  "root": "112:14",
+  "colors": [
+    "#111e3d",
+    "#0d1730",
+    "#ffffff",
+    "#c3cde0",
+    "#2563eb",
+    "#7aa6ff",
+    "#f6f8fc",
+    "#475569",
+    "#64748b",
+    "#eef2f8",
+    "#f8f6f1",
+    "#16334d",
+    "#1d2733",
+    "#1f4e79",
+    "#f0f9ff",
+    "#22c55e",
+    "#16a34a",
+    "#f59e0b",
+    "#d97706",
+    "#ecfdf3",
+    "#f97316",
+    "#ea580c",
+    "#fffbeb"
+  ],
+  "text": [
+    {
+      "id": "112:79",
+      "text": "Metas",
+      "size": 14,
+      "colors": [
+        "#c3cde0"
+      ]
+    },
+    {
+      "id": "112:218",
+      "text": "Ejemplo: conversión mensual, metas y capital de setiembre 2026; llegadas, avance y citas del 01 set. 2026 al 05 set. 2026. Sin filtro de origen.",
+      "size": 11,
+      "colors": [
+        "#64748b"
+      ]
+    },
+    {
+      "id": "112:354",
+      "text": "Meta",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "112:358",
+      "text": "118% de la meta mensual",
+      "size": 12,
+      "colors": [
+        "#1f4e79"
+      ]
+    },
+    {
+      "id": "I112:360;77:11",
+      "text": "Conversión del mes",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "112:367",
+      "text": "Conversión",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "112:373",
+      "text": "Objetivo",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "112:377",
+      "text": "10 cierres · 83% de la meta",
+      "size": 12,
+      "colors": [
+        "#1f4e79"
+      ]
+    },
+    {
+      "id": "114:158",
+      "text": "Evolución de llegadas y cierres",
+      "size": 20,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:159",
+      "text": "Llegadas y leads que cerraron · 01-05 set. 2026",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "114:161",
+      "text": "Llegadas",
+      "size": 12,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:162",
+      "text": "Cerrados",
+      "size": 12,
+      "colors": [
+        "#1f4e79"
+      ]
+    },
+    {
+      "id": "114:200",
+      "text": "Barras desde cero · cerrados atribuidos a su llegada",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    },
+    {
+      "id": "114:202",
+      "text": "Conversión por analista",
+      "size": 20,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:209",
+      "text": "31.50%",
+      "size": 12,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:218",
+      "text": "22.22%",
+      "size": 12,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:227",
+      "text": "12.78%",
+      "size": 12,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:236",
+      "text": "12.50%",
+      "size": 12,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "I114:245;50:15",
+      "text": "Desglose y metas",
+      "size": 14,
+      "colors": [
+        "#16334d"
+      ]
+    },
+    {
+      "id": "114:247",
+      "text": "Capital: S/ 1,480,000 + US$ 96,000 · TC S/ 3.751. Meta: S/ 1,555,148.",
+      "size": 12,
+      "colors": [
+        "#475569"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # Índice de Figma
 
+**Referencia de color más reciente:** Miguel está afinando [Resumen escritorio `112:14`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) con el agente de Figma. [Revisión con capturas nuevas](05-validacion/revision-propuesta-color-2026-09-06/README.md). Los componentes y recorridos UX1/UX2 de abajo siguen siendo reutilizables; la actualización cromática debe incorporarse también a móvil.
+
 [Abrir la portada: Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3).
 
 La portada lleva al plan, auditoría, inventario, componentes y propuestas. Conserva la diferencia entre CRM actual y diseño propuesto.

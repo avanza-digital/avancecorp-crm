@@ -7,6 +7,8 @@ tags: [crm, ux, ui, figma, plan]
 
 ## Objetivo y decisión vigente
 
+**Actualización de dirección visual — color y movimiento:** Miguel está mejorando Resumen con el agente de Figma y pidió tomar esa propuesta como referencia para usar colores y recursos que expliquen los resultados. [[Referencia de color y movimiento de Gerencia - 2026-09-06]] conserva la revisión de `112:14`: iconos, barras azul/verde/ámbar/naranja y etiquetas con fondo. La nueva preferencia amplía la paleta anterior; antes de extenderla, definir si cada color representa categoría, serie, cumplimiento o atención, sin inventar umbrales. GSAP existente se aprovechará para transiciones ligadas a acciones reales. Se conserva el orden UX0–UX6, la base del CRM y la revisión antes de implementar.
+
 **Avance del 6 de septiembre — bloque A preparado:** [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]] registra el catálogo UX1 (nueve familias conservadas y tres composiciones nuevas) y ocho vistas UX2 de Resumen/Conversiones, comparación y filtros. [Abrir revisión vigente `176:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Se verificaron estructura y navegación acotada en Figma; los 462 archivos del frontend permanecen iguales al inicio de este bloque. Falta la revisión visual prevista con Miguel, más prioridades y observación humana de F0. Las fases UX3–UX6 y los bloques B–D no se declaran completados. Los enlaces de propuestas iniciales más abajo se conservan como antecedentes.
 
 **Organización del trabajo:** [UX-UI-GERENCIA/README.md](../../UX-UI-GERENCIA/README.md) reúne plan, auditoría, componentes, propuestas, validación y continuidad. En Figma abrir [Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3). Ver [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]]. Las notas del Vault siguen siendo la fuente única de las decisiones.
@@ -31,7 +33,7 @@ El PDF define un método de trabajo, no una plantilla visual que deba copiarse. 
 | Elemento | Fuente actual y decisión |
 | --- | --- |
 | Marca | Logo original Avance Corp, nombre y sidebar navy. Activo original ya guardado en Figma; sin recrear el logotipo. |
-| Lenguaje visual | Navy institucional `#111e3d`, azul de acción `#2563eb`, superficies claras, bordes y sombras actuales. Color semántico acompañado de texto. No incorporar verde como nuevo éxito. |
+| Lenguaje visual | Navy institucional `#111e3d`, azul de acción `#2563eb`, superficies claras, bordes y sombras actuales. Incorporar la dirección cromática que Miguel está afinando en `112:14`, con etiquetas y significados consistentes. No deducir éxito o alerta únicamente de un color sin una regla vigente. |
 | Tipografía | Plus Jakarta Sans en la estructura general; IBM Plex Sans en reportes de Gerencia. Registrar ambos usos y su jerarquía antes de proponer una unificación. |
 | Navegación | Menú, nombres de módulos, búsqueda, ayuda, avisos y acciones conocidas. Reorganizar sólo con evidencia de tarea y sin eliminar destinos. |
 | Componentes de código | Button, Card, Input, Dialog/Sheet, pestañas, tablas/listas, estados y gráficos ECharts existentes. Reutilizar su comportamiento; añadir variantes sólo ante una necesidad concreta. |
