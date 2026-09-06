@@ -9288,7 +9288,7 @@ async function testIdentidadF2bD15(sessions, seed) {
     console.log('  (saltado: D-15 (20260906150000) no está en esta base)');
     return;
   }
-  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-0000000000d15';
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-000000000d15';
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d15'));
   const vend1Id = seed.profileIdByKey.vend1;
   const vend2Id = seed.profileIdByKey.vend2;
@@ -9302,17 +9302,21 @@ async function testIdentidadF2bD15(sessions, seed) {
     check(cuenta('trigger reapertura', `select count(*) from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_reapertura_solo_rpc' and tgenabled='O'`) === 1,
       'D-15 la premisa sigue: el trigger «reabrir solo por RPC» (D-13) está habilitado');
     await expectExpectedFailure('D-15 anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['42501'], /permission denied|denegado/i);
-    for (const clave of ['coordinador', 'clientBank', 'vendInactive']) {
+    for (const clave of ['coordinador', 'directorio', 'clientBank', 'vendInactive']) {
       await expectExpectedFailure(`D-15 ${clave} → 42501 (no reabre: sin rol vendedor/supervisor/gerencia)`, sessions[clave].client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['42501'], /reabre un lead/i);
     }
     await expectExpectedFailure('D-15 vend1 sobre un lead inexistente → P0002 (sin revelar existencia)', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['P0002'], /no encontrado/i);
     await expectExpectedFailure('D-15 vend1 con lead nulo → 22023', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: null }), ['22023'], /obligatorio/i);
     // Paridad apagada con leads de verdad: ámbito (P0002 sin sondear), solo descartados (P0409) y reapertura = el UPDATE de hoy.
-    const base = { activo: true, asignado_supervisor_id: null, etapa: 'descartado', motivo_descarte: 'sin_interes', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
-    await requireAdmin('D-15: sembrar dos descartados (vend1 y vend2)', admin.schema('crm').from('leads').insert([
+    // Un lead no nace descartado (trigger): nace nuevo y lo descarta su analista por el camino del front (UPDATE bajo RLS).
+    const base = { activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
+    await requireAdmin('D-15: sembrar dos leads nuevos (vend1 y vend2)', admin.schema('crm').from('leads').insert([
       { ...base, id: L_V1, nombre_completo: 'D15 REABRIR V1 TRANSIENT', telefono: TEL_F2B(191), creado_por: vend1Id, vendedor_id: vend1Id },
       { ...base, id: L_V2, nombre_completo: 'D15 REABRIR V2 TRANSIENT', telefono: TEL_F2B(192), creado_por: vend2Id, vendedor_id: vend2Id },
     ]));
+    await requireAdmin('D-15: vend1 descarta el suyo', sessions.vend1.client.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', L_V1));
+    await requireAdmin('D-15: vend2 descarta el suyo', sessions.vend2.client.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', L_V2));
+    check(cuenta('descartados sembrados', `select count(*) from crm.leads where id in ('${L_V1}','${L_V2}') and etapa = 'descartado' and descartado_por is not null`) === 2, 'D-15 los dos leads quedaron descartados por sus analistas (sello estampado)');
     await expectExpectedFailure('D-15 OFF vend1 reabre un lead de vend2 → P0002 (fuera de ámbito)', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V2 }), ['P0002'], /no encontrado/i);
     const { data: r1, error: e1 } = await sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 });
     check(!e1 && r1?.ok === true && r1?.etapa === 'nuevo' && r1?.enlazado === false && r1?.reabierto_por === vend1Id,
@@ -9322,6 +9326,12 @@ async function testIdentidadF2bD15(sessions, seed) {
     await expectExpectedFailure('D-15 vend1 reabre un lead que ya está abierto → P0409', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 }), ['P0409'], /solo se puede reabrir un lead descartado/i);
     const { data: r2, error: e2 } = await sessions.gerencia.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V2 });
     check(!e2 && r2?.ok === true && r2?.etapa === 'nuevo', 'D-15 OFF gerencia reabre el de vend2 (ámbito global)', e2?.message ?? JSON.stringify(r2));
+    // Ámbito jerárquico: el supervisor reabre un lead de SU analista (vend1 cuelga de sup1 en el seed).
+    await requireAdmin('D-15: vend1 vuelve a descartar el suyo', sessions.vend1.client.schema('crm').from('leads').update({ etapa: 'descartado', motivo_descarte: 'sin_interes' }).eq('id', L_V1));
+    const { data: r3, error: e3 } = await sessions.sup1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 });
+    check(!e3 && r3?.ok === true && r3?.etapa === 'nuevo' && r3?.reabierto_por === seed.profileIdByKey.sup1, 'D-15 OFF sup1 reabre el lead de su analista vend1 (ámbito jerárquico), atribuido a sup1', e3?.message ?? JSON.stringify(r3));
+    // Los caminos ENCENDIDOS de abandonar_conversion_gerencia_fn (borrado, auth_creado → retoma, enlazado, «no corresponden», Auth con la
+    // marca del claim) y de reabrir (enlace, veto, otro lead, conversión en curso) viven en scripts/oraculo-f2b-d5.sh y oraculo-f2b-d15.sh.
   } finally {
     ejecutarFueraDeBanda('D-15 limpieza', `update crm.leads set activo = false where id in ('${L_V1}','${L_V2}');`, { tolerante: true });
   }
@@ -9340,7 +9350,7 @@ async function testIdentidadF2bD5(sessions, seed) {
     console.log('  (saltado: D-5 (20260906140000) no está en esta base)');
     return;
   }
-  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-00000000000d5';
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-0000000000d5';
   const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d5'));
   const vend1Id = seed.profileIdByKey.vend1;
   const L_V1 = randomUUID();
@@ -9403,8 +9413,8 @@ async function testIdentidadF2bD10(sessions) {
   try {
     check(cuenta('grants', `select (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
       'D-10 la reserva por persona conserva sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
-    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) = 'a067183bfe986cf7bd5f82b4ed6674d7')::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
-      'D-10 la reserva de 1 argumento (camino de hoy) sigue byte a byte');
+    check(cuenta('1 argumento intacta', `select (md5(pg_get_functiondef(p.oid)) in ('a067183bfe986cf7bd5f82b4ed6674d7', 'a52395c226058387caac9134f14b84ca'))::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='crm' and p.proname='reservar_conversion_lead' and pg_get_function_identity_arguments(p.oid)='p_lead_id uuid'`) === 1,
+      'D-10 la reserva de 1 argumento (camino de hoy) sigue byte a byte (texto de producción o el de D-5, que solo añade la guarda con ON)');
     check(cuenta('leads_de_identidades sin EXECUTE', `select count(*) from unnest(array['anon','authenticated','service_role']) r(rol) where has_function_privilege(r.rol, 'private.leads_de_identidades(uuid[])', 'EXECUTE')`) === 0,
       'D-10 private.leads_de_identidades sigue sin EXECUTE para la API (solo la llama la definer)');
     // OFF (estado de producción): la sobrecarga es inerte antes de leer argumentos.

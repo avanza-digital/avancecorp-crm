@@ -1316,9 +1316,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             invalidarAgenda,
           }).then((restaurado) => {
             if (!notificarError) return
+            // GUARDADO_PARCIAL: una parte sí se escribió; «se restauró el estado
+            // anterior» sería falso, la ficha muestra lo que quedó en el servidor.
+            const parcial = resultado.codigo === 'GUARDADO_PARCIAL'
             toast.error(
               restaurado
-                ? `${mensaje} — se restauró el estado anterior`
+                ? parcial
+                  ? `${mensaje} — la ficha muestra lo que sí quedó guardado`
+                  : `${mensaje} — se restauró el estado anterior`
                 : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
             )
           })
@@ -2143,7 +2148,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         persistir(
           async () => {
             if (cambiaDni) await fijarDniLead(id, dniNuevo ?? null)
-            if (restoTieneCambios) await actualizarLead(id, resto)
+            if (!restoTieneCambios) return
+            try {
+              await actualizarLead(id, resto)
+            } catch (causa: unknown) {
+              // Dos escrituras donde antes había una: si el DNI YA quedó guardado y el
+              // resto falla, el toast no puede prometer «se restauró el estado
+              // anterior» (auditor bloque 4 #2). Se dice lo que pasó, con la causa.
+              if (cambiaDni && causa instanceof CrmApiError) {
+                throw new CrmApiError(
+                  `El documento sí quedó guardado; el resto de los cambios no se aplicó: ${causa.message}`,
+                  'GUARDADO_PARCIAL',
+                )
+              }
+              throw causa
+            }
           },
           {
             invalidarNucleosConversion:

@@ -1469,6 +1469,20 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(actualizarLead).toHaveBeenCalledWith(id, { nota: 'sin documento' })
   })
 
+  it('DNI guardado y el resto falla: el toast es honesto (no dice «se restauró»)', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+    actualizarLead.mockRejectedValueOnce(new CrmApiError('Ese teléfono ya pertenece a otro lead abierto de la empresa', 'DUP_TELEFONO'))
+
+    mutar((a) => a.editarLead(id, { dni: '45678905', telefono: '+51999111444' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('El documento sí quedó guardado')))
+    expect(fijarDniLead).toHaveBeenCalledWith(id, '45678905')
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('la ficha muestra lo que sí quedó guardado'))
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior'))
+  })
+
   it('la puerta del DNI rechaza (P0409 «ya tiene su lead»): rollback y el resto NO se guarda', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))

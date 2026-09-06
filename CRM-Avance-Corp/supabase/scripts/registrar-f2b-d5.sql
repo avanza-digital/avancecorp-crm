@@ -15,7 +15,7 @@ begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '78c301d2a208a25b3cb8fb1849307f0e') then
     raise exception 'REGISTRO D-5: crm.marcar_efectos_conversion(uuid,uuid,text) no quedó como la genera gen-d5.py';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.abandonar_conversion_gerencia_fn(uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '6441592549d47d67cb1273c4a19c519b') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.abandonar_conversion_gerencia_fn(uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '7cfb30ade5ab58b16c1163d0c735267e') then
     raise exception 'REGISTRO D-5: crm.abandonar_conversion_gerencia_fn no quedó como la genera gen-d5.py';
   end if;
   if exists (select 1 from unnest(array['crm.reservar_conversion_lead(uuid)','crm.marcar_efectos_conversion(uuid)','crm.marcar_efectos_conversion(uuid,uuid,text)','crm.abandonar_conversion_gerencia_fn(uuid,text)']) f(firma)
@@ -23,7 +23,7 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.reservar_conversion_lead(uuid)'::regprocedure, 'crm.marcar_efectos_conversion(uuid)'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure, 'crm.abandonar_conversion_gerencia_fn(uuid,text)'::regprocedure) and a.grantee = 0) then
     raise exception 'REGISTRO D-5: los grants no son «solo authenticated» (ni anon, ni service_role, ni PUBLIC)';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906140000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'b44d7685de2f05c374fa79ea9213d039')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906140000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> 'a3a231699a4768f2e99ad9e0ab831b1d')) then
     raise exception 'REGISTRO D-5: la versión 20260906140000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -49,6 +49,8 @@ values ('20260906140000', 'crm_f2b_d5_rpc_de_un_argumento_cerradas_con_on', arra
 -- audit_log por los triggers de las dos tablas). Con cuenta o ficha creadas, el camino sigue siendo RETOMAR (b4).
 -- Transformación anclada al texto VIVO de producción (vivas/d5/, huellas-d5-prod.txt); reversa byte a byte.
 -- Ensayo: scripts/oraculo-f2b-d5.sh. Reversa: scripts/rollback-f2b-d5.sql. Registro: scripts/registrar-f2b-d5.sql.
+-- CAPAS: D-5 transforma el sellado por persona (texto de D-13) y la reserva de 1 argumento (texto que D-10/D-13/E2/E3 anclan):
+-- mientras D-5 esté aplicada, las reversas y registros de D-13/D-10/E2/E3 rehúsan (correcto). Orden de reversa: D-15 → D-5 → D-13.
 
 begin;
 set local lock_timeout = '5s';
@@ -59,16 +61,16 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'F2.b D-5: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
   end if;
-  if (select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')) not in ('6312a17af8c5af75ea04ae649d50896f', '677a388c26a2841abf459a0bc1f03750') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.reservar_conversion_lead(uuid)')), '') not in ('6312a17af8c5af75ea04ae649d50896f', '677a388c26a2841abf459a0bc1f03750') then
     raise exception 'F2.b D-5: crm.reservar_conversion_lead(uuid) no es ni el texto vivo de producción (6312a17a…) ni el de D-5';
   end if;
-  if (select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')) not in ('098bc79771ac5acae28a0b5f7ff91a1e', '7687a522515350d9feb06795494f1c88') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid)')), '') not in ('098bc79771ac5acae28a0b5f7ff91a1e', '7687a522515350d9feb06795494f1c88') then
     raise exception 'F2.b D-5: crm.marcar_efectos_conversion(uuid) no es ni el texto vivo de producción (098bc797…) ni el de D-5';
   end if;
   if to_regprocedure('crm.reservar_conversion_lead(uuid,text,text,jsonb)') is null or to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)') is null then
     raise exception 'F2.b D-5: faltan las sobrecargas por persona de b4 (reserva de 4 argumentos / sellado de 3)';
   end if;
-  if (select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')) not in ('dac3606741accbc1ea96362440405bbf', '78c301d2a208a25b3cb8fb1849307f0e') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.marcar_efectos_conversion(uuid,uuid,text)')), '') not in ('dac3606741accbc1ea96362440405bbf', '78c301d2a208a25b3cb8fb1849307f0e') then
     raise exception 'F2.b D-5: crm.marcar_efectos_conversion(uuid,uuid,text) no es ni el texto vivo de producción (D-13, dac36067…) ni el de D-5';
   end if;
   if to_regprocedure('private.es_gerencia_crm_activa()') is null or left(md5(pg_get_functiondef('private.es_gerencia_crm_activa()'::regprocedure)), 8) <> 'ca6f82ba' then
@@ -402,6 +404,13 @@ begin
   end if;
   perform 1 from crm.inversionistas i where i.id = v_inv for update;
   select * into v_r from crm.conversion_reservas r where r.lead_id = p_lead_id for update;
+  -- Revalidación tras los candados (auditor v1 #3): la reserva pudo borrarse (doble clic) o cambiar de persona mientras se esperaba.
+  if not found then
+    raise exception 'Este lead ya no tiene una reserva por persona' using errcode = 'P0002';
+  end if;
+  if v_r.inversionista_id is distinct from v_inv then
+    raise exception 'La reserva cambió de persona mientras se bloqueaba; vuelve a intentarlo' using errcode = '40001';
+  end if;
   if v_r.efectos_iniciados_en is null then
     raise exception 'La reserva no está sellada: caduca sola a los pocos minutos, no hay nada que abandonar' using errcode = 'P0409';
   end if;
@@ -429,13 +438,23 @@ begin
       raise exception 'Estado de saga desconocido (%): revisar antes de abandonar', v_est->>'estado' using errcode = 'P0409';
     end if;
   end if;
-  -- Nunca expulsa a una ejecución viva (Codex E2 #10): solo pasado el tope de la reserva o vencido el lease del claim.
-  if v_r.vence_absoluto_en > pg_catalog.now() and (v_est is null or (v_est->>'lease_hasta')::timestamptz > pg_catalog.now()) then
+  -- Nunca expulsa a una ejecución viva (Codex E2 #10): solo pasado el tope de la reserva o vencido el lease del claim
+  -- (sin lease escrito se trata como vivo: auditor v1 #3).
+  if v_r.vence_absoluto_en > pg_catalog.now()
+     and (v_est is null or coalesce((v_est->>'lease_hasta')::timestamptz, 'infinity'::timestamptz) > pg_catalog.now()) then
     raise exception 'La conversión sigue viva (reserva y claim vigentes): espera a que venza antes de abandonarla' using errcode = 'P0409';
+  end if;
+  -- Auditor v1 #1 (ALTO): el edge crea el usuario de Auth ANTES de registrar el paso (createUser con app_metadata.claim_id
+  -- → registrar_auth). Si murió entre medias, el claim sigue en «reclamado» pero la cuenta EXISTE con la marca de este claim;
+  -- borrar el claim la dejaría huérfana para siempre (el reintento la adopta por la marca). Con la marca viva: retomar.
+  if v_r.claim_id is not null and exists (select 1 from auth.users u where u.raw_app_meta_data->>'claim_id' = v_r.claim_id::text) then
+    raise exception 'Ya existe la cuenta de acceso creada por esta conversión (aún sin registrar en la saga): retoma la conversión en vez de abandonarla'
+      using errcode = 'P0409', hint = 'crm.retomar_conversion_gerencia_fn(p_lead_id)';
   end if;
   delete from crm.multiempresa_idempotencia where clave = v_clave;
   delete from crm.conversion_reservas where lead_id = p_lead_id;
-  -- Nota administrativa en el lead (no es contacto: entra aunque la persona esté vetada, bajo la válvula como las RPC de veto).
+  -- Nota administrativa en el lead (no es contacto). La válvula es PREVISIÓN (hoy ningún trigger de crm.actividades veta una
+  -- «nota» ni mira la válvula; trg_gestion_lead_serializada exige creado_por = auth.uid(), lead activo y rol, que se cumplen).
   if v_lead.activo then
     v_previo := coalesce(pg_catalog.current_setting('crm.op_privilegiada', true), 'off');
     perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);
@@ -466,7 +485,7 @@ begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '78c301d2a208a25b3cb8fb1849307f0e') then
     raise exception 'POSTFLIGHT D-5: crm.marcar_efectos_conversion(uuid,uuid,text) no quedó como la genera gen-d5.py';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.abandonar_conversion_gerencia_fn(uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '6441592549d47d67cb1273c4a19c519b') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.abandonar_conversion_gerencia_fn(uuid,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '7cfb30ade5ab58b16c1163d0c735267e') then
     raise exception 'POSTFLIGHT D-5: crm.abandonar_conversion_gerencia_fn no quedó como la genera gen-d5.py';
   end if;
   if exists (select 1 from unnest(array['crm.reservar_conversion_lead(uuid)','crm.marcar_efectos_conversion(uuid)','crm.marcar_efectos_conversion(uuid,uuid,text)','crm.abandonar_conversion_gerencia_fn(uuid,text)']) f(firma)
