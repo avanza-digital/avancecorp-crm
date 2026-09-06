@@ -11,9 +11,11 @@
 -- (una persona con más de un lead vivo NO se enlaza automáticamente: eso lo decide Gerencia) y
 -- ejecutar la PARTE 2, que enlaza solo los inequívocos.
 --
--- CENSO DEL 06/09/2026 EN PRODUCCIÓN: 11 leads vivos con documento sin enlace ni puente, y NINGUNO
--- de sus documentos corresponde a una persona reconocida ni a un cliente del Portal → 0 candidatos,
--- 0 conflictivos. Nada que enlazar. Repetir el censo antes del `!` de la bandera.
+-- CENSO DEL 06/09/2026 EN PRODUCCIÓN (repetido dos veces ese día, la segunda al cerrar el bloque 6):
+-- 11 leads vivos con documento sin enlace ni puente, y NINGUNO de sus documentos corresponde a una
+-- persona reconocida ni a un cliente del Portal → 0 candidatos, 0 conflictivos. Nada que enlazar.
+-- D-14 es hoy un NO-OP: repetir la PARTE 1 el mismo día del `!` de la bandera y, si sigue en 0,
+-- darlo por cerrado sin ejecutar la PARTE 2.
 -- ============================================================================
 
 -- ── PARTE 1 · CENSO (solo lectura; no escribe nada) ─────────────────────────────────────────────
