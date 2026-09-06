@@ -19,6 +19,9 @@ H = {l.split()[0]: l.split()[1] for l in (S/'huellas-d18-prod.txt').read_text().
 
 # ── (a) convertir_lead ───────────────────────────────────────────────────────────────────────────
 c_prev = viv('convertir_lead'); assert md5s(c_prev + '\n') == H['crm.convertir_lead']
+# El interlock hace esperar: sin lock_timeout, una conversión podía quedarse colgada detrás del exclusivo de jerarquía
+# hasta el timeout de PostgREST (auditor D-18 #2). No entra en md5(prosrc) —es proconfig—, así que la reversa, que hace
+# CREATE OR REPLACE con el functiondef vivo (sin la opción), la resetea sola y sigue siendo byte a byte.
 c = rep(c_prev, """  if not private.puede_gestionar_contratos_crm() then
     raise exception 'No autorizado para convertir leads'
       using errcode = '42501';
@@ -32,7 +35,12 @@ c = rep(c_prev, """  if not private.puede_gestionar_contratos_crm() then
   -- EXCLUSIVO de jerarquía) podía cerrarle sus tramos mientras esta conversión le abría uno nuevo. Se toma el
   -- interlock COMPARTIDO al ENTRAR —antes de cualquier candado de negocio, el mismo orden que el offboarding:
   -- jerarquía → documento → persona → lead, así que no hay ciclo— y más abajo se revalida `activo` bajo él.
-  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+  -- Solo con la bandera ENCENDIDA: es el único caso en que se abre el tramo de responsable (más abajo, bajo
+  -- `if v_flag and v_inv is not null`). Apagada, tomarlo haría esperar a TODA conversión detrás de cualquier
+  -- titular del exclusivo (offboarding, RPC de jerarquía, alta de vendedor) sin ganar nada (auditor D-18 #2).
+  if v_flag then
+    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+  end if;
 """)
 c = rep(c, """    if v_asesor is not null
        and exists (select 1 from crm.equipo e where e.perfil_id = v_asesor and e.activo)""",
@@ -40,13 +48,27 @@ c = rep(c, """    if v_asesor is not null
        -- F2.b [D-18]: bajo el interlock compartido de jerarquía tomado al entrar, y con la fila del equipo FOR SHARE:
        -- si el analista se está dando de baja, o esta conversión espera a que termine, o la baja espera a ésta.
        and exists (select 1 from crm.equipo e where e.perfil_id = v_asesor and e.activo for share of e)""")
+c = rep(c, " SET search_path TO ''", " SET search_path TO ''\n SET lock_timeout TO '5s'")
+
 # ── (b) fusionar_inversionistas_fn ───────────────────────────────────────────────────────────────
 f_prev = viv('fusionar_inversionistas_fn'); assert md5s(f_prev + '\n') == H['crm.fusionar_inversionistas_fn']
 f = rep(f_prev, """  perform 1 from crm.tareas t where t.estado = 'pendiente' and t.lead_id = any(v_leads) order by t.id for update;""",
 """  -- F2.b [D-18] (N6): también las tareas de CLIENTE de las dos personas (por su perfil), que hasta ahora quedaban
   -- vivas cuando la fusión heredaba el veto. Mismo criterio que D-3 y mismo orden (tareas → leads).
-  v_perfiles_fusion := array(select p.id from public.perfiles p
-                              where p.id in (v_p.perfil_id, v_c.perfil_id) and p.id is not null);
+  v_perfiles_fusion := array(
+    select x from (
+      select v_p.perfil_id as x
+      union select v_c.perfil_id
+      -- Mismo criterio que D-3: el perfil cliente que lleva el documento exacto de la persona, aunque la identidad
+      -- lo tenga en NULL (el backfill de F2 deja perfil_id NULL justo cuando otra identidad ya reclamó ese perfil,
+      -- que es el caso típico de una fusión). Y el perfil del lead, que el FOR SHARE de arriba ya bloquea.
+      union select p.id from public.perfiles p
+             where p.rol = 'cliente'
+               and nullif(pg_catalog.btrim(coalesce(p.dni, '')), '') is not null
+               and (coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') || ':' ||
+                    pg_catalog.upper(pg_catalog.regexp_replace(p.dni, '[^A-Za-z0-9]', '', 'g'))) = any(v_docs)
+      union select l.perfil_id from crm.leads l where l.id = any(v_leads)
+    ) s where s.x is not null order by 1);
   perform 1 from crm.tareas t
    where t.estado = 'pendiente'
      and (t.lead_id = any(v_leads) or (v_perfiles_fusion <> '{}' and t.perfil_id = any(v_perfiles_fusion)))
@@ -85,6 +107,14 @@ GUARD = ''.join(f"""  if coalesce((select md5(p.prosrc) from pg_proc p where p.o
   end if;
 """ for k,(prev,new_,firma) in T.items()) + """  if to_regprocedure('private.cancelar_tareas_pendientes_lead(uuid)') is null then
     raise exception 'F2.b D-18: falta private.cancelar_tareas_pendientes_lead(uuid)';
+  end if;
+  -- Toda la corrección de (a) descansa en que el offboarding (D-2) toma el interlock de jerarquía en EXCLUSIVO:
+  -- sobre una base sin D-2 este lote aterrizaría igual protegiendo mucho menos de lo que dice (auditor D-18 #5).
+  if not exists (select 1 from pg_proc p
+                  where p.oid = to_regprocedure('crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamptz,uuid)')
+                    and pg_catalog.strpos(p.prosrc, 'usuarios_jerarquia') > 0
+                    and pg_catalog.strpos(p.prosrc, 'pg_advisory_xact_lock(') > 0) then
+    raise exception 'F2.b D-18: falta D-2 (20260906120000): sin su interlock EXCLUSIVO de jerarquía en crm.fijar_membresia_activa_fn, la revalidación de esta migración no serializa contra nada';
   end if;
   -- La guarda se lee bajo el MISMO candado compartido que usan las puertas (auditor D-17 #5): esta migración corre como
   -- `postgres`, así que el drenaje del script de encendido no la ve; sin el candado, un encendido confirmado entre esta
@@ -150,7 +180,11 @@ $guard$;
 
 do $post$
 begin
-{post('POSTFLIGHT')}  raise notice 'F2.b D-18 OK: la conversión respeta la baja del analista y la fusión cancela las tareas de cliente.';
+{post('POSTFLIGHT')}  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure
+                  and p.proconfig @> array['lock_timeout=5s']) then
+    raise exception 'POSTFLIGHT D-18: crm.convertir_lead se quedó sin lock_timeout y el interlock puede colgarla';
+  end if;
+  raise notice 'F2.b D-18 OK: la conversión respeta la baja del analista y la fusión cancela las tareas de cliente.';
 end
 $post$;
 commit;

@@ -11,6 +11,10 @@ begin
   if coalesce((select activo from crm.multiempresa_flags where nombre='resolver_en_puertas'), false) then
     raise exception 'REVERSA D-13: la bandera resolver_en_puertas está ENCENDIDA';
   end if;
+  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')
+               and pg_catalog.strpos(p.prosrc, 'F2.b [D-18]') > 0) then
+    raise exception 'REVERSA D-13: crm.convertir_lead lleva D-18 (20260906190000) encima y esta reversa la pisaría: revierte D-18 ANTES (orden D-18 → D-17 → D-15 → D-5 → D-3/D-13)';
+  end if;
   v_h := (select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='verificar_disponibilidad_lead_impl' and pg_get_function_identity_arguments(p.oid)='p_telefono text, p_dni text, p_excluir_lead_id uuid');
   if v_h is null then
     raise exception 'F2.b D-13: falta private.verificar_disponibilidad_lead_impl(text,text,uuid)';

@@ -85,5 +85,16 @@ migración, `scripts/rollback-f2b-dN.sql` (byte a byte + desregistro) y `scripts
 - `gen-d15.py` + `huellas-d15-prod.txt` → `20260906150000` (`crm.reabrir_lead_fn`, la puerta del botón «Reabrir», y `crm.editar_lead_fn`, INVOKER: la edición de la ficha en una transacción), `rollback-f2b-d15.sql`, `registrar-f2b-d15.sql`. Oráculo `../oraculo-f2b-d15.sh` (52 en v3; mutante sin las puertas: todo lo suyo en rojo).
 - `gen-d5.py` (v5) transforma además el sellado por persona (compartido al entrar) y las cuatro puertas de D-13 (`vivas/d5/`: fijar_dni_lead_fn, tomar_lead_libre, rescatar_descartes, deshacer_descarte_implementacion; md5 de prod en `huellas-d5-prod.txt` con sufijo `.d13`) y crea el trigger `trg_multiempresa_flags_00_serializa_puertas`. Encender/apagar: `../encender-resolver-en-puertas.sql` / `../apagar-resolver-en-puertas.sql`.
 - Lección: antes de cerrar una firma vieja, buscar quién DELEGA en ella (`strpos(prosrc, 'nombre(')` en pg_proc): el sellado por persona delegaba en la de un argumento.
-- Capas: D-5 transforma textos que D-13/D-10/E2/E3/b4 anclan por md5 → mientras D-5 esté aplicada, sus reversas y registros rehúsan (las de b4/b5 no lo comprueban al entrar: NO usarlas con D-5 aplicada; la de D-5 rehúsa si D-15 sigue). Orden de reversa: **D-18 → D-17 → D-15 → D-5 → D-3/D-13**. D-17 depende del trigger serializador que crea D-5, y la reversa de D-5 lo comprueba desde el 06/09; la de b5 rechaza si D-18 sigue viva (restauraba el cuerpo viejo de la fusión y la borraba en silencio).
+- Capas: D-5 transforma textos que D-13/D-10/E2/E3/b4 anclan por md5 → mientras D-5 esté aplicada, sus reversas y registros rehúsan (las de b4/b5 no lo comprueban al entrar: NO usarlas con D-5 aplicada; la de D-5 rehúsa si D-15 sigue). Orden de reversa: **D-19 → D-18 → D-17 → D-15 → D-5 → D-3/D-13**. D-17 depende del trigger serializador que crea D-5, y la reversa de D-5 lo comprueba desde el 06/09; la de b5 rechaza si D-18 sigue viva (restauraba el cuerpo viejo de la fusión y la borraba en silencio).
 - Encender/apagar la bandera: SOLO con `../encender-resolver-en-puertas.sql` / `../apagar-…` (un UPDATE en transacción corta, `lock_timeout 30 s`, se niega sin D-5). Pendiente `[D-17]` antes del ON: marcar/levantar veto (D-3) y convertir_lead_externo (D-13) bajo el compartido.
+
+## D-19 — toda escritura lee la bandera bajo su candado (`gen-d19.py`)
+
+El generador más mecánico de la serie y el más ancho: **una** sustitución por función en **18** funciones que escriben.
+Sustituye la lectura en línea de `resolver_en_puertas` por `private.resolver_en_puertas_bajo_candado()`, que exige READ
+COMMITTED, toma el compartido y entonces lee. Insumos: `huellas-d19-prod.txt` (md5 del `pg_get_functiondef` y del cuerpo)
+y `atributos-d19-prod.txt` (definer, dueño, `proconfig` y **ACL exacta** de cada una, que el postflight compara tal cual:
+`public.crear_contrato` y las de `service_role` no pueden perder permisos). Las dos formas de lectura que hay en el árbol
+están en `FORMAS`; el generador aborta si alguna función no tiene exactamente una.
+
+Regla de oro al re-volcar: el texto vivo se toma **con D-17 y D-18 ya aplicadas**, porque D-19 va encima de las dos.

@@ -1,0 +1,19 @@
+# clave	prosecdef	proconfig	dueño	prokind	ACL — PRODUCCIÓN (= banco-f7) 06/09/2026
+crm.actualizar_cliente_gerencia	true	search_path=""	postgres	f	postgres:EXECUTE
+crm.alta_cliente_identidad_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE,service_role:EXECUTE
+crm.convertir_lead	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.corregir_documento_inversionista_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.crear_contrato_con_cuenta	true	search_path=""	postgres	f	postgres:EXECUTE
+crm.eliminar_cliente_fn	true	search_path="",lock_timeout=5s	postgres	f	postgres:EXECUTE,service_role:EXECUTE
+crm.enlazar_lead_inversionista_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.fijar_membresia_activa_fn	true	search_path=""	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.fusionar_inversionistas_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.reasignar_responsable_relacion_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.registrar_reingreso_lead_fn	true	search_path=""	postgres	f	postgres:EXECUTE,service_role:EXECUTE
+crm.reservar_conversion_lead	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+crm.saga_conversion_fn	true	search_path="",lock_timeout=5s	postgres	f	authenticated:EXECUTE,postgres:EXECUTE
+private.enlazar_lead_reabierto	true	search_path=""	postgres	f	postgres:EXECUTE
+private.trg_leads_zz_enlaza_identidad	true	search_path="",lock_timeout=5s	postgres	f	postgres:EXECUTE
+private.trg_leads_zz_puente_identidad	true	search_path="",lock_timeout=5s	postgres	f	postgres:EXECUTE
+private.trg_perfiles_documento_protegido	true	search_path=""	postgres	f	postgres:EXECUTE
+public.crear_contrato	true	search_path=""	postgres	f	authenticated:EXECUTE,postgres:EXECUTE,service_role:EXECUTE

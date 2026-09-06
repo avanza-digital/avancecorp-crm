@@ -4,10 +4,10 @@ set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d18_deudas_bloque2'));
 do $chk$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '4b013634a8d8aa6b205dfc37fe1b6da1') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'a31d2c2a4938afa56febe2a4bd25a1c9') then
     raise exception 'REGISTRO D-18: crm.convertir_lead(uuid,uuid) no quedó como la genera gen-d18.py';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3d1a56fcf0d8c7479be27ce13990b17') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '87e25279ed5c3bc8b3418be573499f41') then
     raise exception 'REGISTRO D-18: crm.fusionar_inversionistas_fn(uuid,uuid,text,text) no quedó como la genera gen-d18.py';
   end if;
   if exists (select 1 from unnest(array['crm.convertir_lead(uuid,uuid)','crm.fusionar_inversionistas_fn(uuid,uuid,text,text)']) f(firma)
@@ -15,7 +15,7 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.convertir_lead(uuid,uuid)'::regprocedure, 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure) and a.grantee = 0) then
     raise exception 'REGISTRO D-18: los grants no son «solo authenticated»';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906190000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '9fdc977999fa538581a393b0220a0741')) then
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906190000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '37a51c10b2e95689d40ee0f17a46dcf1')) then
     raise exception 'REGISTRO D-18: la versión 20260906190000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -49,14 +49,22 @@ select pg_advisory_xact_lock(hashtext('crm_f2b_d18_deudas_bloque2'));
 
 do $guard$
 begin
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')), '') not in ('c8ebebbef7ba675702b91d4f10bb4d6a', '4b013634a8d8aa6b205dfc37fe1b6da1') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')), '') not in ('c8ebebbef7ba675702b91d4f10bb4d6a', 'a31d2c2a4938afa56febe2a4bd25a1c9') then
     raise exception 'F2.b D-18: crm.convertir_lead(uuid,uuid) no es ni el texto vivo de producción (c8ebebbe…) ni el de D-18';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)')), '') not in ('eaa39f1552cdea5821311c544d90e3b0', 'd3d1a56fcf0d8c7479be27ce13990b17') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)')), '') not in ('eaa39f1552cdea5821311c544d90e3b0', '87e25279ed5c3bc8b3418be573499f41') then
     raise exception 'F2.b D-18: crm.fusionar_inversionistas_fn(uuid,uuid,text,text) no es ni el texto vivo de producción (eaa39f15…) ni el de D-18';
   end if;
   if to_regprocedure('private.cancelar_tareas_pendientes_lead(uuid)') is null then
     raise exception 'F2.b D-18: falta private.cancelar_tareas_pendientes_lead(uuid)';
+  end if;
+  -- Toda la corrección de (a) descansa en que el offboarding (D-2) toma el interlock de jerarquía en EXCLUSIVO:
+  -- sobre una base sin D-2 este lote aterrizaría igual protegiendo mucho menos de lo que dice (auditor D-18 #5).
+  if not exists (select 1 from pg_proc p
+                  where p.oid = to_regprocedure('crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamptz,uuid)')
+                    and pg_catalog.strpos(p.prosrc, 'usuarios_jerarquia') > 0
+                    and pg_catalog.strpos(p.prosrc, 'pg_advisory_xact_lock(') > 0) then
+    raise exception 'F2.b D-18: falta D-2 (20260906120000): sin su interlock EXCLUSIVO de jerarquía en crm.fijar_membresia_activa_fn, la revalidación de esta migración no serializa contra nada';
   end if;
   -- La guarda se lee bajo el MISMO candado compartido que usan las puertas (auditor D-17 #5): esta migración corre como
   -- `postgres`, así que el drenaje del script de encendido no la ve; sin el candado, un encendido confirmado entre esta
@@ -79,6 +87,7 @@ CREATE OR REPLACE FUNCTION crm.convertir_lead(p_lead_id uuid, p_perfil_id uuid)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
+ SET lock_timeout TO '5s'
 AS $function$
 declare
   v_uid        uuid := (select auth.uid());
@@ -104,7 +113,12 @@ begin
   -- EXCLUSIVO de jerarquía) podía cerrarle sus tramos mientras esta conversión le abría uno nuevo. Se toma el
   -- interlock COMPARTIDO al ENTRAR —antes de cualquier candado de negocio, el mismo orden que el offboarding:
   -- jerarquía → documento → persona → lead, así que no hay ciclo— y más abajo se revalida `activo` bajo él.
-  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+  -- Solo con la bandera ENCENDIDA: es el único caso en que se abre el tramo de responsable (más abajo, bajo
+  -- `if v_flag and v_inv is not null`). Apagada, tomarlo haría esperar a TODA conversión detrás de cualquier
+  -- titular del exclusivo (offboarding, RPC de jerarquía, alta de vendedor) sin ganar nada (auditor D-18 #2).
+  if v_flag then
+    perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));
+  end if;
 
   -- IDEMPOTENCIA (contrato §8.2, Codex #5): misma clave + mismo payload -> mismo
   -- resultado, sin efectos. Misma clave con otro payload -> P0409.
@@ -444,8 +458,20 @@ begin
   perform 1 from crm.inversionista_responsables r where r.inversionista_id in (p_perdedora, p_canonica) and r.hasta is null order by r.id for update;
   -- F2.b [D-18] (N6): también las tareas de CLIENTE de las dos personas (por su perfil), que hasta ahora quedaban
   -- vivas cuando la fusión heredaba el veto. Mismo criterio que D-3 y mismo orden (tareas → leads).
-  v_perfiles_fusion := array(select p.id from public.perfiles p
-                              where p.id in (v_p.perfil_id, v_c.perfil_id) and p.id is not null);
+  v_perfiles_fusion := array(
+    select x from (
+      select v_p.perfil_id as x
+      union select v_c.perfil_id
+      -- Mismo criterio que D-3: el perfil cliente que lleva el documento exacto de la persona, aunque la identidad
+      -- lo tenga en NULL (el backfill de F2 deja perfil_id NULL justo cuando otra identidad ya reclamó ese perfil,
+      -- que es el caso típico de una fusión). Y el perfil del lead, que el FOR SHARE de arriba ya bloquea.
+      union select p.id from public.perfiles p
+             where p.rol = 'cliente'
+               and nullif(pg_catalog.btrim(coalesce(p.dni, '')), '') is not null
+               and (coalesce(nullif(pg_catalog.btrim(p.tipo_documento), ''), 'DNI') || ':' ||
+                    pg_catalog.upper(pg_catalog.regexp_replace(p.dni, '[^A-Za-z0-9]', '', 'g'))) = any(v_docs)
+      union select l.perfil_id from crm.leads l where l.id = any(v_leads)
+    ) s where s.x is not null order by 1);
   perform 1 from crm.tareas t
    where t.estado = 'pendiente'
      and (t.lead_id = any(v_leads) or (v_perfiles_fusion <> '{}' and t.perfil_id = any(v_perfiles_fusion)))
@@ -565,16 +591,20 @@ $function$;
 
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '4b013634a8d8aa6b205dfc37fe1b6da1') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'a31d2c2a4938afa56febe2a4bd25a1c9') then
     raise exception 'POSTFLIGHT D-18: crm.convertir_lead(uuid,uuid) no quedó como la genera gen-d18.py';
   end if;
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = 'd3d1a56fcf0d8c7479be27ce13990b17') then
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '87e25279ed5c3bc8b3418be573499f41') then
     raise exception 'POSTFLIGHT D-18: crm.fusionar_inversionistas_fn(uuid,uuid,text,text) no quedó como la genera gen-d18.py';
   end if;
   if exists (select 1 from unnest(array['crm.convertir_lead(uuid,uuid)','crm.fusionar_inversionistas_fn(uuid,uuid,text,text)']) f(firma)
              where not has_function_privilege('authenticated', f.firma, 'EXECUTE') or has_function_privilege('anon', f.firma, 'EXECUTE') or has_function_privilege('service_role', f.firma, 'EXECUTE'))
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid in ('crm.convertir_lead(uuid,uuid)'::regprocedure, 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure) and a.grantee = 0) then
     raise exception 'POSTFLIGHT D-18: los grants no son «solo authenticated»';
+  end if;
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure
+                  and p.proconfig @> array['lock_timeout=5s']) then
+    raise exception 'POSTFLIGHT D-18: crm.convertir_lead se quedó sin lock_timeout y el interlock puede colgarla';
   end if;
   raise notice 'F2.b D-18 OK: la conversión respeta la baja del analista y la fusión cancela las tareas de cliente.';
 end

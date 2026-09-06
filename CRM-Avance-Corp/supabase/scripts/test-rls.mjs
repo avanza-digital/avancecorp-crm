@@ -9278,6 +9278,34 @@ async function testIdentidadF2bD4(sessions) {
   }
 }
 
+// ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
+// El invariante es censal: NINGUNA función que escriba puede leer `resolver_en_puertas` sin tomar antes su candado
+// compartido. Lo demás (que encender y apagar esperen a una escritura en vuelo) lo mide scripts/oraculo-f2b-d19.sh.
+async function testIdentidadF2bD19(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-19]: ninguna escritura lee la bandera a ciegas —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-19: ${etiqueta}`, sql);
+  const AYUDANTE = 'private.resolver_en_puertas_bajo_candado()';
+  if (cuenta('D-19 aplicada', `select (to_regprocedure('${AYUDANTE}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-19 (20260906200000) no está en esta base)');
+    return;
+  }
+  check(cuenta('ayudante', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'resolver_en_puertas_bajo_candado' and p.prosecdef and p.provolatile = 'v' and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""']`) === 1,
+    'D-19 el ayudante es SECURITY DEFINER de postgres, VOLATILE y con search_path vacío');
+  check(cuenta('ayudante cerrado', `select (has_function_privilege('authenticated', '${AYUDANTE}', 'EXECUTE') or has_function_privilege('anon', '${AYUDANTE}', 'EXECUTE') or has_function_privilege('service_role', '${AYUDANTE}', 'EXECUTE'))::int`) === 0
+      && cuenta('ayudante PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${AYUDANTE}'::regprocedure and a.grantee = 0`) === 0,
+    'D-19 el ayudante no está expuesto a la API (lo llaman las SECURITY DEFINER de postgres, no PostgREST)');
+  check(cuenta('ayudante exige READ COMMITTED', `select (strpos(p.prosrc, 'read committed') > 0 and strpos(p.prosrc, 'pg_advisory_xact_lock_shared') > 0)::int from pg_proc p where p.oid = '${AYUDANTE}'::regprocedure`) === 1,
+    'D-19 el ayudante exige READ COMMITTED y toma el compartido antes de leer la bandera');
+  // EL invariante. Si alguien añade una escritora que lee la bandera suelta, esto se pone rojo el mismo día.
+  const sueltas = cuenta('escritoras sin candado', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0 and p.prosrc ~* '(insert into|update |delete from)'`);
+  check(sueltas === 0, `D-19 ninguna función que escriba lee la bandera sin el candado compartido (hoy ${sueltas})`);
+  check(cuenta('las 18 la llaman', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0`) >= 18,
+    'D-19 las 18 escrituras transformadas llaman al ayudante');
+  // public.crear_contrato es la puerta compartida con el Portal: sus permisos no se tocan.
+  check(cuenta('crear_contrato permisos', `select (has_function_privilege('authenticated', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE') and has_function_privilege('service_role', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE'))::int`) === 1,
+    'D-19 public.crear_contrato conserva sus permisos: el alta del Portal sigue entrando');
+}
+
 // ── F2.b [D-15] (20260906150000): el botón «Reabrir» pasa por la puerta crm.reabrir_lead_fn ──
 // Grants, definer, superficie y paridad apagada (el negocio encendido —persona, veto, enlace— lo cubre scripts/oraculo-f2b-d15.sh).
 async function testIdentidadF2bD15(sessions, seed) {
@@ -9404,19 +9432,31 @@ async function testIdentidadF2bD17yD18(sessions) {
     check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid in (${lista(D18)}::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
         && cuenta('D-18 jerarquía', `select (strpos(p.prosrc, 'usuarios_jerarquia') > 0)::int from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure`) === 1,
       'D-18 la conversión toma el interlock de jerarquía y la fusión cancela tareas de cliente (marcadores en el cuerpo)');
-    check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2,
-      'D-18 las dos conservan sus grants (solo authenticated)');
+    check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2
+        && cuenta('D-18 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in (${lista(D18)}::regprocedure[]) and a.grantee = 0`) === 0,
+      'D-18 las dos conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+    // El interlock hace ESPERAR: sin lock_timeout la conversión se cuelga hasta el timeout de PostgREST (auditor D-18 #2).
+    check(cuenta('D-18 lock_timeout', `select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.proconfig @> array['lock_timeout=5s']`) === 1,
+      'D-18 la conversión lleva lock_timeout, así que esperar detrás de un offboarding se corta con 55P03 y no cuelga la petición');
+    // La cancelación de tareas de cliente tiene que quedar a nombre del SISTEMA, no de quien fusiona, y alcanzar a los
+    // mismos perfiles que D-3 (identidad ∪ perfil cliente con el documento exacto ∪ perfil del lead) — auditor D-18 #3 y #8.
+    check(cuenta('D-18 sello sistema', `select (strpos(p.prosrc, 'crm.cancela_sistema') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1
+        && cuenta('D-18 criterio de perfiles', `select (strpos(p.prosrc, 'any(v_docs)') > 0 and strpos(p.prosrc, 'v_perfiles_fusion') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
+      'D-18 la fusión cancela las tareas de cliente bajo el sello del sistema y con el criterio de perfiles de D-3');
+    // Contador siempre presente (0 cuando no hay veto): el front no puede distinguir «no cancelé» de «no lo informo».
+    check(cuenta('D-18 contador siempre', `select (strpos(p.prosrc, '''tareas_cliente_canceladas''') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
+      'D-18 la respuesta de la fusión informa siempre tareas_cliente_canceladas (0 si no hereda veto)');
   } else {
-    console.log('  (D-18 (20260906170000) no está en esta base: se saltan sus aserciones)');
+    console.log('  (D-18 (20260906190000) no está en esta base: se saltan sus aserciones)');
   }
   // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
   const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
   check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}; el encendido las cubre con el drenaje de scripts/encender-resolver-en-puertas.sql)`);
 }
 
-// ── F2.b [D-15] (20260906150000): el botón «Reabrir» pasa por la puerta crm.reabrir_lead_fn ──
-// Grants, definer, superficie y paridad apagada (el negocio encendido —persona, veto, enlace— lo cubre scripts/oraculo-f2b-d15.sh).
-
+// ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
+// El invariante es censal: NINGUNA función que escriba puede leer `resolver_en_puertas` sin tomar antes su candado
+// compartido. Lo demás (que encender y apagar esperen a una escritura en vuelo) lo mide scripts/oraculo-f2b-d19.sh.
 async function testRentabilidadR1(sessions, seed) {
   console.log('\n— Rentabilidad R1: núcleo de tasa, solicitudes y ledger —');
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R1: ${etiqueta}`, sql);
@@ -12456,6 +12496,7 @@ async function main() {
       await testIdentidadF2bD2(sessions);
       await testIdentidadF2bD4(sessions);
       await testIdentidadF2bD17yD18(sessions);
+      await testIdentidadF2bD19(sessions);
       await testIdentidadF2bD15(sessions, verifiedSeed);
       await testIdentidadF2bD5(sessions, verifiedSeed);
       await testRentabilidadR1(sessions, verifiedSeed);

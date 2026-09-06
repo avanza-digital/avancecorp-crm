@@ -891,6 +891,12 @@ for k in FN: assert H_NEW[k] != prod[k], k
 def md5sel(k):
     sch, nm, args, _ = FN[k]
     return f"(select md5(pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='{sch}' and p.proname='{nm}' and pg_get_function_identity_arguments(p.oid)='{args}')"
+# Auditor D-18 #6: si lo vivo lleva D-18 encima, esta reversa lo pisaría. Decir QUÉ hacer, no solo que no cuadra.
+AVISO_D18 = """  if exists (select 1 from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')
+               and pg_catalog.strpos(p.prosrc, 'F2.b [D-18]') > 0) then
+    raise exception 'REVERSA D-13: crm.convertir_lead lleva D-18 (20260906190000) encima y esta reversa la pisaría: revierte D-18 ANTES (orden D-18 → D-17 → D-15 → D-5 → D-3/D-13)';
+  end if;
+"""
 GUARDS = ''.join(f"""  v_h := {md5sel(k)};
   if v_h is null then
     raise exception 'F2.b D-13: falta {FN[k][3]}';
@@ -1064,7 +1070,7 @@ select pg_advisory_xact_lock(hashtext('{ADV}'));
 do $guard$
 declare v_h text;
 begin
-{FLAG_OFF('REVERSA D-13')}{GUARDS}end
+{FLAG_OFF('REVERSA D-13')}{AVISO_D18}{GUARDS}end
 $guard$;
 
 drop trigger if exists trg_leads_zz_reapertura_solo_rpc on crm.leads;

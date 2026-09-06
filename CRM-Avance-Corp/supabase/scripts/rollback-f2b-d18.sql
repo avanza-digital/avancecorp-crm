@@ -11,10 +11,10 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-18: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')), '') not in ('c8ebebbef7ba675702b91d4f10bb4d6a', '4b013634a8d8aa6b205dfc37fe1b6da1') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.convertir_lead(uuid,uuid)')), '') not in ('c8ebebbef7ba675702b91d4f10bb4d6a', 'a31d2c2a4938afa56febe2a4bd25a1c9') then
     raise exception 'REVERSA D-18: crm.convertir_lead(uuid,uuid) no es ni el texto de D-18 ni el vivo de producción; no se pisa a ciegas';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)')), '') not in ('eaa39f1552cdea5821311c544d90e3b0', 'd3d1a56fcf0d8c7479be27ce13990b17') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.fusionar_inversionistas_fn(uuid,uuid,text,text)')), '') not in ('eaa39f1552cdea5821311c544d90e3b0', '87e25279ed5c3bc8b3418be573499f41') then
     raise exception 'REVERSA D-18: crm.fusionar_inversionistas_fn(uuid,uuid,text,text) no es ni el texto de D-18 ni el vivo de producción; no se pisa a ciegas';
   end if;
 end
