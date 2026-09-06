@@ -116,3 +116,68 @@ export function clasificarErrorInsercion(
     estado: `RECHAZADO: ${detalle}`,
   };
 }
+
+// ── F2.b [D-4] (bloque 3): el importador entra por la puerta SQL crm.importar_lead_fn ───────────────────────────────
+// La puerta hace el MISMO INSERT que hacía este edge y devuelve un veredicto en vez de una excepción. Los textos que
+// llegan a la hoja son los mismos de siempre: aquí solo cambia de dónde sale la categoría.
+
+export type ReingresoPuerta = {
+  ok?: boolean;
+  actividad_id?: string;
+  error?: string;
+} | null;
+
+export type RespuestaPuerta = {
+  resultado: "importado" | "duplicado" | "ya_cliente" | "rechazado";
+  lead_id?: string | null;
+  veredicto?: Record<string, unknown> | null;
+  reingreso?: ReingresoPuerta;
+};
+
+/** Texto de rechazo a partir del veredicto (el mismo que hoy sale del DETAIL del INSERT). */
+export function textoRechazoDeVeredicto(
+  veredicto: Record<string, unknown> | null | undefined,
+): string {
+  const estado = typeof veredicto?.estado === "string" ? veredicto.estado : "no disponible";
+  // P0429 (trigger 000, identidad encendida): la PERSONA tiene «No insistir».
+  if (estado === "no_contactar" && veredicto?.via === "identidad") {
+    return "RECHAZADO: la persona tiene la restricción «No insistir»";
+  }
+  return `RECHAZADO: contacto ${estado.replace(/_/g, " ")}`;
+}
+
+/**
+ * Convierte la respuesta de crm.importar_lead_fn en la categoría estable de la hoja.
+ * `ya_cliente` compone además el texto del reingreso (registrado / no se pudo anotar), que antes componía el edge tras
+ * llamar aparte a registrar_reingreso_lead_fn.
+ */
+export function clasificarRespuestaPuerta(
+  r: RespuestaPuerta | null | undefined,
+): ResultadoImportacion {
+  if (!r || typeof r !== "object" || typeof r.resultado !== "string") {
+    return {
+      resultado: "error_temporal",
+      estado: "ERROR temporal: el CRM no confirmó la importación — se reintenta solo",
+    };
+  }
+  if (r.resultado === "importado") {
+    return { resultado: "importado", estado: "IMPORTADO ✓", lead_id: r.lead_id ?? undefined };
+  }
+  if (r.resultado === "duplicado") {
+    return { resultado: "duplicado", estado: "DUPLICADO: ya existe en el CRM" };
+  }
+  if (r.resultado === "ya_cliente") {
+    const v = r.veredicto ?? {};
+    const asesor = typeof v.asesor === "string" ? v.asesor : "";
+    const base = `YA ES CLIENTE${asesor ? ` (asesor: ${asesor})` : ""}`;
+    const lead_id = typeof r.lead_id === "string" ? r.lead_id : undefined;
+    let estado = base;
+    if (r.reingreso && r.reingreso.ok === true) {
+      estado = `${base}: reingreso registrado en su ficha`;
+    } else if (r.reingreso && typeof r.reingreso.error === "string") {
+      estado = `${base}: NO se pudo anotar el reingreso en su ficha (${r.reingreso.error.slice(0, 60)})`;
+    }
+    return { resultado: "ya_cliente", estado, lead_id, asesor: asesor || undefined };
+  }
+  return { resultado: "rechazado", estado: textoRechazoDeVeredicto(r.veredicto) };
+}

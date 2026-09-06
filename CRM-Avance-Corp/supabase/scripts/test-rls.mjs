@@ -9226,6 +9226,47 @@ async function testIdentidadF2bD2(sessions) {
   }
 }
 
+// ── F2.b [D-4] (20260906130000): el importador entra por la puerta SQL crm.importar_lead_fn ──
+// Grants (solo service_role, sin sesión), definer/search_path/lock_timeout, y la puerta por la API con el cliente
+// de servicio: importado → duplicado → 42501 para un humano. La paridad fila a fila con el INSERT directo (OFF y ON)
+// la cubre scripts/oraculo-f2b-d4.sh.
+async function testIdentidadF2bD4(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-4]: el importador entra por la puerta SQL —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-4: ${etiqueta}`, sql);
+  const FIRMA = 'crm.importar_lead_fn(jsonb)';
+  if (cuenta('D-4 aplicada', `select (to_regprocedure('${FIRMA}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-4 (20260906130000) no está en esta base)');
+    return;
+  }
+  const sufijo = String(Date.now()).slice(-6);
+  const fila = {
+    fila: 1, nombre_completo: 'SUITE D-4', telefono: `+5198${sufijo}1`, telefono_alternativo: null, telefono_alternativo_crudo: null,
+    correo: null, dni: null, genero: null, fecha_nacimiento: null, distrito: null, origen: 'landing', etapa: 'nuevo',
+    monto_estimado: 1000, moneda: 'PEN', categoria_interes: null, nota: null, no_contactar: false,
+    consentimiento_en: null, consentimiento_fuente: null, vendedor_id: null, asignado_supervisor_id: null, activo: true,
+  };
+  let leadId = null;
+  try {
+    check(cuenta('grants', `select (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
+      'D-4 la puerta solo tiene EXECUTE para service_role (ni anon, ni authenticated, ni PUBLIC)');
+    check(cuenta('definer', `select count(*) from pg_proc p where p.oid = '${FIRMA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
+      'D-4 la puerta es DEFINER con search_path vacío y lock_timeout de 5 s');
+    const { data: r1, error: e1 } = await admin.rpc('importar_lead_fn', { p_fila: fila });
+    leadId = r1?.lead_id ?? null;
+    check(!e1 && r1?.resultado === 'importado' && typeof leadId === 'string', 'D-4 service_role: una fila libre → importado con lead_id', e1?.message ?? JSON.stringify(r1));
+    check(cuenta('nació como el edge', `select count(*) from crm.leads where id = '${leadId}' and creado_por is null and alta_manual = false and activo and etapa = 'nuevo' and vendedor_id is null and asignado_supervisor_id is null`) === 1,
+      'D-4 la fila nace como con el INSERT del edge (sin sesión, cola global, alta_manual false)');
+    const { data: r2, error: e2 } = await admin.rpc('importar_lead_fn', { p_fila: fila });
+    check(!e2 && r2?.resultado === 'duplicado' && r2?.veredicto?.estado === 'duplicado', 'D-4 la misma fila otra vez → duplicado (lead vivo con ese teléfono), sin excepción', e2?.message ?? JSON.stringify(r2));
+    await expectExpectedFailure('D-4 vend1 (authenticated) → 42501 (sin EXECUTE)', sessions.vend1.client.schema('crm').rpc('importar_lead_fn', { p_fila: fila }), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure('D-4 gerencia (authenticated) → 42501 (sin EXECUTE)', sessions.gerencia.client.schema('crm').rpc('importar_lead_fn', { p_fila: fila }), ['42501'], /permission denied|denegado/i);
+    const { error: e3 } = await admin.rpc('importar_lead_fn', { p_fila: { ...fila, telefono: `+5198${sufijo}2`, dni: '123' } });
+    check(e3?.code === '22023', 'D-4 un DNI que no es de 8 dígitos → 22023 (la puerta exige lo mismo que la fila al nacer)', e3?.message ?? 'sin error');
+  } finally {
+    if (leadId) ejecutarFueraDeBanda('D-4 limpieza', `update crm.leads set activo = false where id = '${leadId}';`, { tolerante: true });
+  }
+}
+
 // ── F2.b [D-10] (20260905150000): la reserva por persona cuenta el PUENTE en «un solo lead» ──
 // Solo grants, paridad apagada y que la rama ON sea alcanzable sin efectos (el negocio —puente, replay
 // tras fusión [D-11]— lo cubre scripts/oraculo-f2b-d10-d11.sh).
@@ -12080,6 +12121,7 @@ async function main() {
       await testIdentidadF2bD9();
       await testIdentidadF2bD3(sessions);
       await testIdentidadF2bD2(sessions);
+      await testIdentidadF2bD4(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

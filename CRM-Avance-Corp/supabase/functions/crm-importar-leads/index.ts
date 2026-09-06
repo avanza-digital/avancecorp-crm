@@ -7,6 +7,8 @@ import { indexarDestinosImportacion } from "./destinos.ts";
 import {
   type CategoriaResultadoImportacion,
   clasificarErrorInsercion,
+  clasificarRespuestaPuerta,
+  type RespuestaPuerta,
 } from "./resultado-importacion.ts";
 import { reconocerTelefono, repartirNumeros } from "./telefonos.ts";
 
@@ -15,7 +17,9 @@ import { reconocerTelefono, repartirNumeros } from "./telefonos.ts";
 //
 // La hoja "Leads AVANCE CORP — captura para CRM" (Drive de Miguel) corre un
 // Apps Script con trigger de tiempo que empuja aquí las filas sin estado; esta
-// función valida, deduplica por teléfono e inserta con service_role. Devuelve
+// función valida, deduplica por teléfono y entra por la PUERTA SQL del importador
+// (crm.importar_lead_fn, F2.b [D-4]: los mismos candados y el mismo INSERT de
+// siempre, con el veredicto como respuesta en vez de como error). Devuelve
 // el resultado POR FILA y el script lo escribe en la columna "Estado
 // importación" de la propia hoja (la hoja es la UI de rechazos).
 //
@@ -478,20 +482,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // F2.b b1: la bandera de identidad se lee UNA vez por lote (booleano sin
-    // PII; crm.bandera_activa admite service_role desde 20260904120000). Si la
-    // lectura falla, el lote NO se importa (fail-closed: el Apps Script lo
-    // reintenta como error temporal), nunca se adivina el estado.
-    const { data: banderaIdentidad, error: errBandera } = await admin.rpc(
-      "bandera_activa",
-      { p_nombre: "resolver_en_puertas" },
-    );
-    if (errBandera) {
-      return json({
-        error: `Error leyendo la bandera de identidad: ${errBandera.message}`,
-      }, 500);
-    }
-    const identidadEnPuertas = banderaIdentidad === true;
+    // F2.b [D-4]: la bandera de identidad ya no se lee aquí: la puerta SQL decide con la
+    // identidad que haya (apagada = el INSERT de siempre; encendida = persona reconocida,
+    // reingreso en su lead, vetos), sin parsear errores.
 
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
     for (const v of validas) {
@@ -508,49 +501,26 @@ Deno.serve(async (req: Request) => {
         if (id) v.insert.vendedor_id = id;
         else v.avisos.push("vendedor no encontrado → quedó por repartir");
       }
-      const { error: errIns, status: statusIns } = await admin.from("leads")
-        .insert(v.insert);
-      if (errIns) {
-        const clasificacion = clasificarErrorInsercion(errIns, statusIns);
-        // F2.b b1: con la bandera encendida, la persona que vuelve por la hoja
-        // queda como REINGRESO en su propio lead (señal de venta para su
-        // responsable). Con la bandera apagada la BD no emite este veredicto y
-        // esta rama no corre: idéntico a hoy.
-        if (
-          clasificacion.resultado === "ya_cliente" && identidadEnPuertas &&
-          clasificacion.lead_id
-        ) {
-          const { error: errRe } = await admin.rpc(
-            "registrar_reingreso_lead_fn",
-            {
-              p_lead_id: clasificacion.lead_id,
-              p_origen: "hoja",
-              p_datos: {
-                fila: v.fila,
-                nombre: v.insert.nombre_completo,
-                telefono: v.insert.telefono,
-                telefono_alternativo: v.insert.telefono_alternativo,
-                correo: v.insert.correo,
-                capital: v.insert.monto_estimado,
-                moneda: v.insert.moneda,
-                canal: v.insert.origen,
-                distrito: v.insert.distrito,
-                interes: v.insert.categoria_interes,
-                nota: v.insert.nota,
-              },
-            },
-          );
-          resultados.push({
-            fila: v.fila,
-            resultado: "ya_cliente",
-            estado: errRe
-              ? `${clasificacion.estado}: NO se pudo anotar el reingreso en su ficha (${
-                String(errRe.message).slice(0, 60)
-              })`
-              : `${clasificacion.estado}: reingreso registrado en su ficha`,
-          });
-          continue;
-        }
+      // F2.b [D-4]: la puerta SQL (solo service_role, sin sesión) hace el INSERT de siempre bajo
+      // los candados en el orden total y devuelve el veredicto; si «ya es cliente» por identidad,
+      // el reingreso queda anotado en su lead dentro de la misma transacción.
+      const { data: respuesta, error: errPuerta, status: statusPuerta } = await admin.rpc(
+        "importar_lead_fn",
+        { p_fila: { ...v.insert, fila: v.fila } },
+      );
+      if (errPuerta) {
+        // Errores que la puerta deja subir (datos inválidos, destino que no puede recibir
+        // leads, timeouts): la misma clasificación de siempre (definitivo vs temporal).
+        const clasificacion = clasificarErrorInsercion(errPuerta, statusPuerta);
+        resultados.push({
+          fila: v.fila,
+          resultado: clasificacion.resultado,
+          estado: clasificacion.estado,
+        });
+        continue;
+      }
+      const clasificacion = clasificarRespuestaPuerta(respuesta as RespuestaPuerta);
+      if (clasificacion.resultado !== "importado") {
         resultados.push({
           fila: v.fila,
           resultado: clasificacion.resultado,
