@@ -35,6 +35,6 @@ Una analista registró el contrato de una clienta (S/ 20 000, 15 %, firmado el 1
 - **Una defensa accidental no es una defensa.** El chequeo de número repetido frenaba los reintentos sin querer; en cuanto alguien cambió el número, se acabó.
 - **Toda escritura que un humano puede reintentar lleva clave de idempotencia.** Es la única forma de que «reintentar» sea seguro.
 - **Cuando el servidor cambia la forma de una respuesta, el navegador cambia en el mismo commit**, y el registro de cambios no afirma «el front no depende» sin una prueba que lo demuestre.
-- **Un borrado desde un botón debe quedar a nombre de quien lo pulsó.** El de Gerencia hoy no lo hace (auditoría sin actor); queda anotado como deuda.
+- **Un borrado desde un botón debe quedar a nombre de quien lo pulsó.** El de Gerencia no lo hacía (auditoría sin actor); **resuelto el mismo día** con la migración `20260905233000` (y, de paso, un superadmin ya puede borrar una renovación, que antes fallaba para todos).
 
 Relacionadas: [[Ciclo de vida de contratos]] · [[Número de contrato]] · [[Cuentas bancarias por contrato]] · [[PDF de contrato (generador) — plan]] · [[Bug de plazo contractual en PDF por fin de mes (2026-09-01)]]
