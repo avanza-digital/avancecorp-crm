@@ -1406,8 +1406,16 @@ describe('crearContrato — los rechazos de idempotencia del servidor llegan con
     })
   })
 
-  it('cualquier otro P0409 sigue siendo el error genérico (no se cuela como idempotencia)', async () => {
+  // F2.b [D-15] (06/09): un P0409 desconocido ya no cae en el genérico «No se pudo guardar el
+  // cambio.»: se muestra el TEXTO DEL SERVIDOR con el código CONFLICTO (los P0409 de nuestras
+  // puertas están en idioma de negocio y sin PII; auditor bloque 4). Lo que este caso protege
+  // sigue igual: NO se cuela como idempotencia, así que el modal del alta no libera ni conserva
+  // la clave por error (solo reacciona a ALTA_YA_CREADA y ALTA_ELIMINADA).
+  it('cualquier otro P0409 NO se cuela como idempotencia (llega como CONFLICTO con el texto del servidor)', async () => {
     rechazar('Otro conflicto cualquiera', '')
-    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({ code: 'POSTGREST_ERROR' })
+    await expect(crearContrato(ALTA, [] as never)).rejects.toMatchObject({
+      code: 'CONFLICTO',
+      message: 'Otro conflicto cualquiera',
+    })
   })
 })
