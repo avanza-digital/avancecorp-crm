@@ -143,7 +143,11 @@ CENSO = """  -- EL invariante, en su forma TOTAL: NINGUNA función puede leer `r
        where n.nspname in ('crm','private','public')
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas') > 0
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0
-         and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') <> all (array[
+         -- La exención pide DOS cosas a la vez: estar en la lista blanca Y llevar de verdad el candado en el cuerpo.
+         -- Con una sola no bastaba: por nombre, aplicar D-19 sin D-17 pasaría el censo aunque esas tres puertas
+         -- siguieran leyendo suelto; por marcador, bastaba nombrar el candado en una rama para eximir la función entera.
+         and not (pg_catalog.strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0
+                  and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') = any (array[
       'crm.abandonar_conversion_gerencia_fn(uuid, text)',
       'crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)',
       'crm.editar_lead_fn(uuid, jsonb)',
@@ -161,7 +165,7 @@ CENSO = """  -- EL invariante, en su forma TOTAL: NINGUNA función puede leer `r
       -- El propio ayudante: es quien SOSTIENE el candado. Entra en la lista porque el criterio es TEXTUAL y su
       -- comentario dice «el UPDATE de la bandera», que el patrón de escritura confunde con una escritura de verdad.
       -- Vale como recordatorio de que este censo es un centinela de texto, no un análisis del flujo.
-      'private.resolver_en_puertas_bajo_candado()'])) <> 0 then
+      'private.resolver_en_puertas_bajo_candado()']))) <> 0 then
     raise exception 'POSTFLIGHT D-19: sigue habiendo funciones que leen la bandera sin su candado compartido';
   end if;
 """

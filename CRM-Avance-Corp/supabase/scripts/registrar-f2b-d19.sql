@@ -1,7 +1,7 @@
 -- ============================================================================
 -- REGISTRO de F2.b [D-19] (20260906200000) en supabase_migrations.schema_migrations.
 -- Idempotente: se puede correr dos veces. Se niega si lo aplicado no es lo que dice el archivo.
--- md5 del archivo de migración: 87fdae14d6ebe861e780d0a40c042882
+-- md5 del archivo de migración: de86e56515542ef41f40ff3199c84225
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';
@@ -264,7 +264,11 @@ begin
        where n.nspname in ('crm','private','public')
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas') > 0
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0
-         and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') <> all (array[
+         -- La exención pide DOS cosas a la vez: estar en la lista blanca Y llevar de verdad el candado en el cuerpo.
+         -- Con una sola no bastaba: por nombre, aplicar D-19 sin D-17 pasaría el censo aunque esas tres puertas
+         -- siguieran leyendo suelto; por marcador, bastaba nombrar el candado en una rama para eximir la función entera.
+         and not (pg_catalog.strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0
+                  and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') = any (array[
       'crm.abandonar_conversion_gerencia_fn(uuid, text)',
       'crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)',
       'crm.editar_lead_fn(uuid, jsonb)',
@@ -282,12 +286,12 @@ begin
       -- El propio ayudante: es quien SOSTIENE el candado. Entra en la lista porque el criterio es TEXTUAL y su
       -- comentario dice «el UPDATE de la bandera», que el patrón de escritura confunde con una escritura de verdad.
       -- Vale como recordatorio de que este censo es un centinela de texto, no un análisis del flujo.
-      'private.resolver_en_puertas_bajo_candado()'])) <> 0 then
+      'private.resolver_en_puertas_bajo_candado()']))) <> 0 then
     raise exception 'POSTFLIGHT D-19: sigue habiendo funciones que leen la bandera sin su candado compartido';
   end if;
   if exists (select 1 from supabase_migrations.schema_migrations where version = '20260906200000'
                and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null
-                    or md5(statements[1]) <> '87fdae14d6ebe861e780d0a40c042882')) then
+                    or md5(statements[1]) <> 'de86e56515542ef41f40ff3199c84225')) then
     raise exception 'REGISTRO D-19: la versión 20260906200000 ya está registrada con otro contenido (o incompleto)';
   end if;
   if exists (select 1 from supabase_migrations.schema_migrations where version = '20260906200000' and coalesce(name, '') <> 'crm_f2b_d19_toda_escritura_lee_la_bandera_bajo_su_candado') then
@@ -4291,7 +4295,11 @@ begin
        where n.nspname in ('crm','private','public')
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas') > 0
          and pg_catalog.strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0
-         and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') <> all (array[
+         -- La exención pide DOS cosas a la vez: estar en la lista blanca Y llevar de verdad el candado en el cuerpo.
+         -- Con una sola no bastaba: por nombre, aplicar D-19 sin D-17 pasaría el censo aunque esas tres puertas
+         -- siguieran leyendo suelto; por marcador, bastaba nombrar el candado en una rama para eximir la función entera.
+         and not (pg_catalog.strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0
+                  and (n.nspname || '.' || p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') = any (array[
       'crm.abandonar_conversion_gerencia_fn(uuid, text)',
       'crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)',
       'crm.editar_lead_fn(uuid, jsonb)',
@@ -4309,7 +4317,7 @@ begin
       -- El propio ayudante: es quien SOSTIENE el candado. Entra en la lista porque el criterio es TEXTUAL y su
       -- comentario dice «el UPDATE de la bandera», que el patrón de escritura confunde con una escritura de verdad.
       -- Vale como recordatorio de que este censo es un centinela de texto, no un análisis del flujo.
-      'private.resolver_en_puertas_bajo_candado()'])) <> 0 then
+      'private.resolver_en_puertas_bajo_candado()']))) <> 0 then
     raise exception 'POSTFLIGHT D-19: sigue habiendo funciones que leen la bandera sin su candado compartido';
   end if;
   raise notice 'F2.b D-19 OK: las 34 escrituras leen la bandera bajo el candado del encendido (apagada: sin cambio de comportamiento).';

@@ -8244,7 +8244,7 @@ La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at tim
 
 ## 20260906200000 · `crm_f2b_d19_toda_escritura_lee_la_bandera_bajo_su_candado`
 
-**Estado: 🧪 CONSTRUIDA el 06/09/2026, ensayándose en banco-f7. **NO en producción**. md5 de la migración `87fdae14…`. Aterriza APAGADA. **Es el último ítem de código antes del `!` que enciende la identidad unificada**: sin ella, el encendido es NO-GO (Codex, ronda de D-17).
+**Estado: 🧪 CONSTRUIDA el 06/09/2026, ensayándose en banco-f7. **NO en producción**. md5 de la migración `de86e565…`. Aterriza APAGADA. **Es el último ítem de código antes del `!` que enciende la identidad unificada**: sin ella, el encendido es NO-GO (Codex, ronda de D-17).
 
 **El problema, en una frase.** Encender la bandera no es instantáneo para quien ya está dentro. Una llamada puede leer «apagada», tardar en sus candados de negocio y escribir con el criterio viejo cuando el resto del CRM ya juzga con la identidad unificada. Contraejemplo concreto de Codex: `crm.convertir_lead` captura OFF, espera por el lead, se confirma el encendido, y sigue adelante omitiendo su rama de identidad. En el sentido inverso, una puerta puede pasar su comprobación con ON y encontrarse OFF más abajo, en `identidad_bloquear_documento`, que entonces no toma el candado documental.
 
