@@ -1,7 +1,7 @@
 ---
 serial: AVC-UX-GERENCIA-FIGMA-20260905-R1
 fecha: 2026-09-05
-estado: ux0-auditada-validacion-humana-pendiente
+estado: ux1-ux2-bloque-a-preparado-revision-pendiente
 tags: [crm, ux, gerencia, figma, continuidad]
 ---
 
@@ -11,7 +11,9 @@ Relacionado con [[Plan de mejora UX de Gerencia - revision 2026-09-05]], [[Plan 
 
 ## Instrucción para la siguiente sesión
 
-**Organización vigente:** abrir [UX-UI-GERENCIA/README.md](../../UX-UI-GERENCIA/README.md) y [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]]. Las evidencias se trasladaron a esa carpeta; los accesos anteriores de `output/` siguen funcionando. En Figma comenzar por [Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3): F0, componentes, propuestas e historial están identificados. El próximo paso continúa siendo la validación pendiente de F0 y la preparación de UX1 con la base existente; esta organización no inicia implementación.
+**Entrega vigente — UX1/UX2 del bloque A:** leer [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]]. Se prepararon tres composiciones propias con nueve presentaciones y ocho vistas de Resumen/Conversiones, comparación y filtros. [Abrir la revisión de Figma `176:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Los recorridos acotados se comprobaron en escritorio/móvil. El siguiente paso es la revisión visual prevista con Miguel y completar prioridades/observación humana de F0; no reanudar código antes de esa revisión. Ranking conserva su piloto en el bloque B/UX3 del plan vigente.
+
+**Organización vigente:** abrir [UX-UI-GERENCIA/README.md](../../UX-UI-GERENCIA/README.md) y [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]]. Las evidencias se trasladaron a esa carpeta; los accesos anteriores de `output/` siguen funcionando. En Figma comenzar por [Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3): F0, componentes, propuestas e historial están identificados. Miguel autorizó commits por bloques: `387a1b8` guarda organización/F0; el siguiente commit guarda UX1/UX2. No hubo publicación ni cambios de código en este bloque; 462 archivos del frontend conservan sus huellas de inicio.
 
 **Continuación vigente de F0:** Miguel pidió seguir y recordó aprovechar el desarrollo y las librerías React actuales. Leer [[Inventario de reutilizacion frontend - F0 UI UX 2 2026-09-06]]: diez áreas documentadas en Figma `138:2`; tres capturas complementarias en `138:52`. El riesgo de desplazamiento heredado no se reprodujo en dos recorridos móviles; no se declara corregido. Resumen local quedó listo para una tarea humana. Esperar sus prioridades/comentarios y completar la observación pendiente, sin inventar mediciones ni reanudar código.
 
@@ -40,7 +42,7 @@ Miguel pidió este serial para comenzar el desarrollo del plan en otra sesión. 
 ## Fuentes que se deben abrir
 
 1. Las instrucciones `AGENTS.md` aplicables y el contexto del vault. El punto de entrada disponible en la revisión previa fue [[Inicio]]; `Bienvenido.md` no estaba disponible entonces.
-2. [[Plan de mejora UX de Gerencia - revision 2026-09-05]]: plan maestro vigente, fases, criterios de cierre y alcance frontend.
+2. [[Plan maestro UI UX del CRM - adaptacion UI-UX 2 2026-09-05]]: plan vigente UX0–UX6, criterios de cierre y alcance frontend. [[Plan de mejora UX de Gerencia - revision 2026-09-05]] conserva el antecedente G-F0–G-F5.
 3. [Auditoría con las 14 capturas](../../output/ux-gerencia-2026-09-05/informe-auditoria.md). Sus imágenes están en `output/ux-gerencia-2026-09-05/`.
 4. [[Fundamentos UX del CRM]], [[Acceso y roles del CRM]] e [[Inventario de indicadores de Gerencia - Contrato de lectura]] antes de proponer cambios visuales que alteren la interpretación de cifras o acciones.
 

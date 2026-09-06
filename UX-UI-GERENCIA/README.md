@@ -4,10 +4,11 @@ Punto de entrada del trabajo `AVC-UX-GERENCIA-FIGMA-20260905-R1`. Organización 
 
 **Objetivo:** un dashboard dinámico y sencillo de leer comercialmente, conservando la identidad, el desarrollo y las librerías del CRM.
 
-**Estado:** auditoría experta F0 realizada; prioridades de uso y observación humana pendientes. La propuesta de Resumen en escritorio es la dirección visual elegida. Implementación pausada.
+**Estado:** UX1 del bloque A preparada y nueva revisión UX2 de Resumen/Conversiones disponible en Figma. Se conserva la dirección de Resumen escritorio elegida. F0 mantiene pendientes prioridades de uso y observación humana. Implementación pausada hasta la revisión visual prevista.
 
 ## Abrir primero
 
+- [Revisión vigente: Resumen y Conversiones, escritorio y móvil](04-propuestas/revision-ux1-ux2-2026-09-06/README.md).
 - [Qué sigue y qué falta para cerrar F0](PROXIMO-PASO.md).
 - [Plan maestro por fases](01-plan/PLAN-MAESTRO.md).
 - [Índice de Figma y estado de las propuestas](ENLACES-FIGMA.md).
@@ -21,7 +22,7 @@ Punto de entrada del trabajo `AVC-UX-GERENCIA-FIGMA-20260905-R1`. Organización 
 | --- | --- |
 | [01-plan](01-plan/README.md) | Plan maestro, origen de la decisión y documento UI-UX (2). |
 | [02-f0-auditoria](02-f0-auditoria/README.md) | Informe, hallazgos, pantallas, capturas y continuación de F0. |
-| [03-componentes](03-componentes/README.md) | Inventario de reutilización y decisiones para UX1. |
+| [03-componentes](03-componentes/README.md) | Inventario, catálogo UX1 y correspondencia con el CRM. |
 | [04-propuestas](04-propuestas/README.md) | Accesos a las propuestas de Figma y sus imágenes exportadas. |
 | [05-validacion](05-validacion/README.md) | Guion de prueba, línea base y verificaciones técnicas. |
 | [06-continuidad](06-continuidad/README.md) | Serial, estado vigente y memoria para la siguiente sesión. |

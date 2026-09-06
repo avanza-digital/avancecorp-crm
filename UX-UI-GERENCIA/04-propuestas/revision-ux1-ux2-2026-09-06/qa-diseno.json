@@ -1,0 +1,506 @@
+{
+  "run": "AVC-UX1-UX2-20260906",
+  "checkedAt": "2026-09-06T07:36:18.329Z",
+  "scope": "Diseño Figma del bloque A; no ejecución React ni validación humana",
+  "sourceIntegrity": "verificacion-fuente.json",
+  "baseline": {
+    "families": 9,
+    "presentations": 30,
+    "variables": 72,
+    "collections": [
+      {
+        "id": "VariableCollectionId:42:2",
+        "name": "CRM · Primitivos",
+        "count": 36
+      },
+      {
+        "id": "VariableCollectionId:42:3",
+        "name": "CRM · Color",
+        "count": 20
+      },
+      {
+        "id": "VariableCollectionId:42:4",
+        "name": "CRM · Geometría",
+        "count": 16
+      }
+    ],
+    "textStyles": 8,
+    "effectStyles": 2
+  },
+  "newComponents": [
+    {
+      "id": "156:133",
+      "name": "Gerencia/Indicador visual",
+      "variants": 6,
+      "textCount": 48,
+      "contrastFailures": [],
+      "unboundPaints": [],
+      "fontFamilies": [
+        "IBM Plex Sans"
+      ]
+    },
+    {
+      "id": "158:1598",
+      "name": "Gerencia/Período compacto",
+      "variants": 1,
+      "textCount": 3,
+      "contrastFailures": [],
+      "unboundPaints": [],
+      "fontFamilies": [
+        "IBM Plex Sans"
+      ]
+    },
+    {
+      "id": "164:563",
+      "name": "Gerencia/Conversión por analista",
+      "variants": 2,
+      "textCount": 22,
+      "contrastFailures": [],
+      "unboundPaints": [],
+      "fontFamilies": [
+        "IBM Plex Sans"
+      ]
+    }
+  ],
+  "views": [
+    {
+      "id": "162:264",
+      "name": "UX2 · Resumen · escritorio · revisión 06 sep",
+      "width": 1440,
+      "height": 960,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "162:293",
+          "name": "NavButton",
+          "w": 215,
+          "h": 36,
+          "type": "NODE",
+          "dest": "165:454"
+        },
+        {
+          "id": "162:525",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=84-84"
+        },
+        {
+          "id": "162:610",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=66-2"
+        },
+        {
+          "id": "162:612",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:454"
+        },
+        {
+          "id": "162:613",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=104-4"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "162:428",
+          "direction": "VERTICAL",
+          "w": 1200,
+          "h": 896
+        }
+      ]
+    },
+    {
+      "id": "162:718",
+      "name": "UX2 · Resumen · móvil · revisión 06 sep",
+      "width": 390,
+      "height": 844,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "162:732",
+          "name": "Conversiones",
+          "w": 47,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:843"
+        },
+        {
+          "id": "I162:1080;158:1596",
+          "name": "CRM/Acción",
+          "w": 96,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:1106"
+        },
+        {
+          "id": "162:923",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=85-124"
+        },
+        {
+          "id": "162:1008",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=69-156"
+        },
+        {
+          "id": "162:1010",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:843"
+        },
+        {
+          "id": "162:1011",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "URL",
+          "url": "https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=104-4"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "162:821",
+          "direction": "VERTICAL",
+          "w": 326,
+          "h": 780
+        }
+      ]
+    },
+    {
+      "id": "165:454",
+      "name": "UX2 · Conversiones · escritorio · revisión 06 sep",
+      "width": 1440,
+      "height": 960,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "165:474",
+          "name": "NavButton",
+          "w": 215,
+          "h": 36,
+          "type": "NODE",
+          "dest": "162:264"
+        },
+        {
+          "id": "165:661",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:638"
+        },
+        {
+          "id": "I165:762;164:518",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:638"
+        },
+        {
+          "id": "165:739",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:638"
+        },
+        {
+          "id": "165:740",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "162:264"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "165:618",
+          "direction": "VERTICAL",
+          "w": 1200,
+          "h": 896
+        }
+      ]
+    },
+    {
+      "id": "165:843",
+      "name": "UX2 · Conversiones · móvil · revisión 06 sep",
+      "width": 390,
+      "height": 844,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "165:851",
+          "name": "Resumen",
+          "w": 47,
+          "h": 44,
+          "type": "NODE",
+          "dest": "162:718"
+        },
+        {
+          "id": "I165:1138;158:1596",
+          "name": "CRM/Acción",
+          "w": 96,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:1272"
+        },
+        {
+          "id": "I165:1095;164:560",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:909"
+        },
+        {
+          "id": "165:1072",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "167:909"
+        },
+        {
+          "id": "165:1073",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "162:718"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "165:946",
+          "direction": "VERTICAL",
+          "w": 326,
+          "h": 780
+        }
+      ]
+    },
+    {
+      "id": "167:638",
+      "name": "UX2 · Comparación de ejemplo · escritorio",
+      "width": 1440,
+      "height": 960,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "167:658",
+          "name": "NavButton",
+          "w": 215,
+          "h": 36,
+          "type": "NODE",
+          "dest": "162:264"
+        },
+        {
+          "id": "167:667",
+          "name": "NavButton",
+          "w": 215,
+          "h": 36,
+          "type": "NODE",
+          "dest": "165:454"
+        },
+        {
+          "id": "167:803",
+          "name": "CRM/Acción",
+          "w": 220,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:454"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "167:802",
+          "direction": "VERTICAL",
+          "w": 1200,
+          "h": 896
+        }
+      ]
+    },
+    {
+      "id": "167:909",
+      "name": "UX2 · Comparación de ejemplo · móvil",
+      "width": 390,
+      "height": 844,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "167:917",
+          "name": "Resumen",
+          "w": 47,
+          "h": 44,
+          "type": "NODE",
+          "dest": "162:718"
+        },
+        {
+          "id": "167:923",
+          "name": "Conversiones",
+          "w": 47,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:843"
+        },
+        {
+          "id": "167:1013",
+          "name": "CRM/Acción",
+          "w": 220,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:843"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "167:1012",
+          "direction": "VERTICAL",
+          "w": 326,
+          "h": 780
+        }
+      ]
+    },
+    {
+      "id": "167:1106",
+      "name": "UX2 · Filtros de Resumen · móvil",
+      "width": 390,
+      "height": 844,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "167:1251",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "162:718"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "167:1209",
+          "direction": "VERTICAL",
+          "w": 326,
+          "h": 780
+        }
+      ]
+    },
+    {
+      "id": "167:1272",
+      "name": "UX2 · Filtros de Conversiones · móvil",
+      "width": 390,
+      "height": 844,
+      "badFonts": [],
+      "horizontalOverflow": [],
+      "links": [
+        {
+          "id": "167:1417",
+          "name": "CRM/Acción",
+          "w": 180,
+          "h": 44,
+          "type": "NODE",
+          "dest": "165:843"
+        }
+      ],
+      "scroll": [
+        {
+          "id": "167:1375",
+          "direction": "VERTICAL",
+          "w": 326,
+          "h": 780
+        }
+      ]
+    }
+  ],
+  "mobileNavigation": [
+    {
+      "id": "162:718",
+      "count": 14,
+      "bottom": 764,
+      "frameHeight": 844
+    },
+    {
+      "id": "165:843",
+      "count": 14,
+      "bottom": 764,
+      "frameHeight": 844
+    },
+    {
+      "id": "167:909",
+      "count": 14,
+      "bottom": 764,
+      "frameHeight": 844
+    },
+    {
+      "id": "167:1106",
+      "count": 14,
+      "bottom": 764,
+      "frameHeight": 844
+    },
+    {
+      "id": "167:1272",
+      "count": 14,
+      "bottom": 764,
+      "frameHeight": 844
+    }
+  ],
+  "portalLinks": {
+    "147:25": "162-264",
+    "147:29": "162-718",
+    "147:33": "165-454",
+    "147:37": "165-843"
+  },
+  "missingExchangeRateCopy": [
+    "Tipo de cambio no disponible",
+    "S/ y US$ se muestran por separado. El equivalente y su avance esperan el tipo de cambio.",
+    "Reintentar"
+  ],
+  "visualComparison": {
+    "method": "Inspección conjunta de capturas antes/después, mismas vistas y datos; inspección adicional de componentes y vistas auxiliares.",
+    "mobileResumen": "Sin encabezado duplicado; indicadores más compactos; evolución antes de citas/detalle; filas de navegación de 44 px.",
+    "mobileConversiones": "Conversión mensual y cuatro tasas con bases antes del rango; acceso directo a comparación.",
+    "desktop": "Jerarquía elegida conservada en Resumen; Conversiones incorpora analistas junto a la lectura mensual."
+  },
+  "pass": {
+    "source": true,
+    "fonts": true,
+    "horizontalOverflow": true,
+    "componentTextContrast": true,
+    "newComponentPaintBindings": true,
+    "mobileActiveTargets": true
+  },
+  "limits": [
+    "La comparación de contraste se limita al texto de las tres familias nuevas sobre sus superficies.",
+    "No acredita teclado, foco, lectores de pantalla, zoom ni todos los estados del CRM.",
+    "El prototipo usa datos fijos, filtros ilustrativos y comparación fija Carla/Bruno.",
+    "F0 no tiene participantes observados ni tiempos humanos."
+  ]
+}

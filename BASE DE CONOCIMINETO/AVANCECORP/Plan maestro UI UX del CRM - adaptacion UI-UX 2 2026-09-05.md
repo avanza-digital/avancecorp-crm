@@ -1,11 +1,13 @@
 ---
 fecha: 2026-09-05
-estado: ux0-en-curso-implementacion-pausada
+estado: ux1-ux2-bloque-a-en-revision-implementacion-pausada
 tags: [crm, ux, ui, figma, plan]
 ---
 # Plan maestro UI y UX del CRM — adaptación de UI-UX (2)
 
 ## Objetivo y decisión vigente
+
+**Avance del 6 de septiembre — bloque A preparado:** [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]] registra el catálogo UX1 (nueve familias conservadas y tres composiciones nuevas) y ocho vistas UX2 de Resumen/Conversiones, comparación y filtros. [Abrir revisión vigente `176:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Se verificaron estructura y navegación acotada en Figma; los 462 archivos del frontend permanecen iguales al inicio de este bloque. Falta la revisión visual prevista con Miguel, más prioridades y observación humana de F0. Las fases UX3–UX6 y los bloques B–D no se declaran completados. Los enlaces de propuestas iniciales más abajo se conservan como antecedentes.
 
 **Organización del trabajo:** [UX-UI-GERENCIA/README.md](../../UX-UI-GERENCIA/README.md) reúne plan, auditoría, componentes, propuestas, validación y continuidad. En Figma abrir [Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3). Ver [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]]. Las notas del Vault siguen siendo la fuente única de las decisiones.
 

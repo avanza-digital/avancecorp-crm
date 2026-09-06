@@ -17,6 +17,7 @@ Revisión del 6 de septiembre de 2026, autorizada por Miguel para avanzar con el
 | P1.b | Indicador visual reutilizable | Componer el indicador actual con barras de cantidad/meta y contexto. Variantes para capital, conversión y citas, en escritorio y móvil. No cambia cálculos. |
 | P1.c | Período compacto móvil | Convertir la propuesta existente en componente vinculado; conservar rango, origen y acción de filtros de 44 px. |
 | P1.d | Estados y anatomía documentados | Conservar carga, vacío, error, sin base y sin TC; mostrar instancias adaptadas al móvil y documentar cero, parcial y actualización. La cobertura total de UX4 sigue en su fase. |
+| P1.e | Conversión por analista | Convertir las barras propias en variantes escritorio/móvil, con nombre, base, porcentaje y acceso a comparación. |
 | P2.a | Resumen | Preservar la dirección de escritorio elegida. Compactar el móvil y adelantar la evolución, manteniendo cifras, bases y acceso al detalle. |
 | P2.b | Conversiones | Comparación por analista junto a la conversión mensual; resultados del rango, citas y cierres agrupados después. Mantener título y definiciones vigentes. |
 | P2.c | Revisión | Capturas antes/después, desbordamiento, tipografías, tamaños táctiles y navegación del ejemplo. Registrar límites del prototipo. |
@@ -26,3 +27,7 @@ Revisión del 6 de septiembre de 2026, autorizada por Miguel para avanzar con el
 `IndicadorGerencia` presenta etiqueta, valor y contexto; las barras añadidas son una composición propuesta, con `Progress`/gráficos existentes como base futura. El período compacto y las nuevas posiciones son diseño, todavía no comportamiento implementado. La maqueta usa cifras fijas de septiembre de 2026: no debe atribuirse recálculo real a sus filtros.
 
 El resultado no cierra F0: siguen pendientes prioridades/frecuencias confirmadas y observación humana. UX2 requiere revisión visual de Miguel antes de continuar frontend.
+
+## Resultado preparado
+
+P1.a–P1.e y P2.a–P2.c están documentados en el [catálogo UX1](CATALOGO-UX1.md) y la [revisión UX2](../04-propuestas/revision-ux1-ux2-2026-09-06/README.md). Se conservaron 30 variantes y se añadieron nueve presentaciones en tres composiciones propias. Las ocho vistas del bloque A están en Figma con navegación acotada y comprobaciones técnicas. Esto prepara la revisión del bloque; no cierra las fases de todo el CRM ni sustituye su validación humana.

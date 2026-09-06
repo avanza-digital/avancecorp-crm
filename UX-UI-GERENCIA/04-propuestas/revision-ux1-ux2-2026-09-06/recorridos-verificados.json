@@ -1,0 +1,104 @@
+{
+  "checkedAt": "2026-09-06T07:36:18.330Z",
+  "environment": "Visor de prototipos Figma en Chrome, sesión Avance Corp, mediante CUA",
+  "fileKey": "1FEvjQkwSzNDsGJ7UUvqIK",
+  "desktop": [
+    {
+      "from": "162:264",
+      "action": "Conversiones",
+      "observed": "165:454",
+      "pass": true
+    },
+    {
+      "from": "165:454",
+      "action": "Comparar analistas",
+      "observed": "167:638",
+      "pass": true
+    },
+    {
+      "from": "167:638",
+      "action": "Volver a Conversiones",
+      "observed": "165:454",
+      "pass": true
+    },
+    {
+      "from": "165:454",
+      "action": "Resumen",
+      "observed": "162:264",
+      "pass": true
+    }
+  ],
+  "mobile": [
+    {
+      "from": "162:718",
+      "action": "Ver filtros",
+      "observed": "167:1106",
+      "pass": true
+    },
+    {
+      "from": "167:1106",
+      "action": "Volver al reporte",
+      "observed": "162:718",
+      "pass": true
+    },
+    {
+      "from": "162:718",
+      "action": "Conversiones",
+      "observed": "165:843",
+      "pass": true
+    },
+    {
+      "from": "165:843",
+      "action": "Comparar analistas",
+      "observed": "167:909",
+      "pass": true
+    },
+    {
+      "from": "167:909",
+      "action": "Volver a Conversiones",
+      "observed": "165:843",
+      "pass": true
+    },
+    {
+      "from": "165:843",
+      "action": "Ver filtros",
+      "observed": "167:1272",
+      "pass": true
+    },
+    {
+      "from": "167:1272",
+      "action": "Volver al reporte",
+      "observed": "165:843",
+      "pass": true
+    },
+    {
+      "from": "165:843",
+      "action": "Volver a Resumen (contenido inferior)",
+      "observed": "162:718",
+      "pass": true
+    }
+  ],
+  "mobileScroll": {
+    "pass": true,
+    "observed": "Resultados del rango, citas, cierres por fecha, operaciones y regreso visibles al desplazar el contenido."
+  },
+  "browserEvidenceLocal": [
+    "evidencia/visor-escritorio-verificado.jpg",
+    "evidencia/visor-movil-rango-verificado.png"
+  ],
+  "resolvedDuringVerification": [
+    "Enlaces clonados apuntaban a propuestas anteriores: actualizados a los ocho destinos UX2.",
+    "Un intento de click de Playwright sobre la comparación móvil no navegó; sesión recuperada y activación accesible del botón comprobada en una pestaña nueva."
+  ],
+  "limitations": [
+    "Datos y filtros fijos; no se verificó recálculo ni selección libre.",
+    "Las acciones de detalle de Carla/Bruno y búsqueda/alta son ilustrativas.",
+    "No equivale a prueba funcional del frontend ni a observación de una persona."
+  ],
+  "humanValidation": {
+    "participants": 0,
+    "timeSeconds": null,
+    "clicks": null,
+    "status": "pendiente"
+  }
+}

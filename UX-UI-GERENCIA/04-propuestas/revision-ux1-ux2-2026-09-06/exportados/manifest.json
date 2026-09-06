@@ -1,0 +1,169 @@
+{
+  "fileKey": "1FEvjQkwSzNDsGJ7UUvqIK",
+  "copiedAt": "2026-09-06T07:36:18.310Z",
+  "note": "Copias literales de capturas MCP. Dimensiones son píxeles exportados; el diseño de escritorio es 1440 × 960.",
+  "images": [
+    {
+      "file": "resumen-escritorio.png",
+      "nodeId": "162:264",
+      "source": "evidencia/37b-resumen-escritorio.png",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c4a0ca7275b59e113b5b716ac3d4ff7232c04a1af01c974c835a3de52174425e",
+      "bytes": 161390
+    },
+    {
+      "file": "resumen-movil.png",
+      "nodeId": "162:718",
+      "source": "evidencia/34b-resumen-movil-final.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "e6c0b56ceb3c442073470c9b42bdc15d90d8f3ca7afbf7a59444b8184d038e15",
+      "bytes": 55863
+    },
+    {
+      "file": "conversiones-escritorio.png",
+      "nodeId": "165:454",
+      "source": "evidencia/37c-conversiones-escritorio.png",
+      "width": 1440,
+      "height": 960,
+      "sha256": "a4bc6bbcde0ba2cc18a3617a397c2c6bb3e4fc3d6b405383c43850e4d935281e",
+      "bytes": 178225
+    },
+    {
+      "file": "conversiones-movil.png",
+      "nodeId": "165:843",
+      "source": "evidencia/34c-conversiones-movil-final.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "a8eb2a0a1f59b6b7ef36dc52e96e399906bb2ee9a12993c22646936e350649fb",
+      "bytes": 61095
+    },
+    {
+      "file": "comparacion-escritorio.png",
+      "nodeId": "167:638",
+      "source": "evidencia/37d-comparacion-escritorio.png",
+      "width": 1440,
+      "height": 960,
+      "sha256": "0cd43e4afd43929fc9ad2283b0d0c5930e80bd5c1c6cefd6f87e7d86e3c70ec2",
+      "bytes": 132800
+    },
+    {
+      "file": "comparacion-movil.png",
+      "nodeId": "167:909",
+      "source": "evidencia/35d-comparacion-movil-final.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "c0e613ede1e0414fae062fec01ff4be09a4f2c07c1718e480d515cd8fd1c9aa2",
+      "bytes": 54042
+    },
+    {
+      "file": "filtros-resumen-movil.png",
+      "nodeId": "167:1106",
+      "source": "evidencia/35e-filtros-resumen-final.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "5971a31c91bd01e7eb293093ca754e414ba9f2b72cae9469be447c3c61d02fdc",
+      "bytes": 44690
+    },
+    {
+      "file": "filtros-conversiones-movil.png",
+      "nodeId": "167:1272",
+      "source": "evidencia/35f-filtros-conversiones-final.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "042a6359520385be65df4845102cf3a21948dc576bd97a9e9b44d971dd911a09",
+      "bytes": 45430
+    },
+    {
+      "file": "componentes-indicadores.png",
+      "nodeId": "156:10",
+      "source": "evidencia/37e-indicadores.png",
+      "width": 1440,
+      "height": 658,
+      "sha256": "02c3c9aa12877f34030d3a7d12777d8016b5868876a7389cbd753623c802b10a",
+      "bytes": 81259
+    },
+    {
+      "file": "componente-periodo.png",
+      "nodeId": "158:1600",
+      "source": "evidencia/37f-periodo.png",
+      "width": 900,
+      "height": 262,
+      "sha256": "b3d31c6ad5bc2a1cc5d5fe345644dadead60e5d8dce0bc470ba2b3e02e43556d",
+      "bytes": 21358
+    },
+    {
+      "file": "componentes-analistas.png",
+      "nodeId": "164:476",
+      "source": "evidencia/37g-analistas.png",
+      "width": 1440,
+      "height": 508,
+      "sha256": "16b0f46ca9c5fd1d3ea1fba59c1e0332a5ef44570f516090c52115a00af8a525",
+      "bytes": 42066
+    },
+    {
+      "file": "estados-moviles.png",
+      "nodeId": "160:29",
+      "source": "evidencia/37-estados-legibles.png",
+      "width": 1600,
+      "height": 486,
+      "sha256": "5452602c4b746ebd31fe62643b8ab181b22866a2725e878d83fcbdf9bc300ef6",
+      "bytes": 84903
+    },
+    {
+      "file": "portada-figma.png",
+      "nodeId": "147:3",
+      "source": "evidencia/38b-portada-final.png",
+      "width": 1600,
+      "height": 924,
+      "sha256": "ece86b78314e739e0ff97533081f651f43238d048a6e6fb5768efcf990ebcf63",
+      "bytes": 131850
+    },
+    {
+      "file": "inicio-revision.png",
+      "nodeId": "176:733",
+      "source": "evidencia/31f-inicio-revision.png",
+      "width": 1440,
+      "height": 115,
+      "sha256": "e84d3622e59767cedbd06e78faf257ba1f7dad655eeaffda6e11e3632a0f5f42",
+      "bytes": 16897
+    },
+    {
+      "file": "referencia-resumen-escritorio.png",
+      "nodeId": "112:14",
+      "source": "evidencia/04-resumen-desktop-antes.png",
+      "width": 1440,
+      "height": 960,
+      "sha256": "3e3b90753be15056dfb58166adafdc8aa443e9fae9e6da89bad3f98702324c7b",
+      "bytes": 161046
+    },
+    {
+      "file": "referencia-resumen-movil.png",
+      "nodeId": "113:55",
+      "source": "evidencia/05-resumen-mobile-antes.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "b15cf9fa5dd9a4a0945996cabb570a969475608be894a04c31838ec1d780a743",
+      "bytes": 53320
+    },
+    {
+      "file": "referencia-conversiones-escritorio.png",
+      "nodeId": "113:366",
+      "source": "evidencia/06-conversiones-desktop-antes.png",
+      "width": 1440,
+      "height": 960,
+      "sha256": "af50d49ecb7ad3813c5a2b2cdbcf6c9d80e3ff01097421040f1e50fbe2d7d999",
+      "bytes": 167037
+    },
+    {
+      "file": "referencia-conversiones-movil.png",
+      "nodeId": "113:734",
+      "source": "evidencia/07-conversiones-mobile-antes.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "0083ba77277b147b5a4ec179018a83f535fce2f10ab203f48d2847568b5b92fe",
+      "bytes": 57431
+    }
+  ]
+}

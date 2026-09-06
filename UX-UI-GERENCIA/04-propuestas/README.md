@@ -1,5 +1,9 @@
 # Propuestas UI-UX (2)
 
+**Revisión vigente:** [UX1/UX2 del 6 de septiembre: componentes, Resumen y Conversiones](revision-ux1-ux2-2026-09-06/README.md), con imágenes finales y recorridos verificados. [Abrir revisión en Figma](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733).
+
+## Referencias anteriores conservadas
+
 La fuente editable está en Figma. Las imágenes de esta carpeta son accesos a exportaciones conservadas de la revisión del 5 de septiembre; no se presentan como datos en vivo.
 
 | Vista | Estado | Imagen | Figma |

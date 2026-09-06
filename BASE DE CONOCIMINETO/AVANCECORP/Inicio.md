@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-05
+actualizado: 2026-09-06
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -26,6 +26,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]] — catálogo reutilizable y nueva revisión de Resumen/Conversiones; pendiente de revisión visual y validación humana de F0.
 - [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]] — carpeta `UX-UI-GERENCIA`, índice de Figma, estado de F0 y preparación de UX1.
 - [[Rol Analista]]
 - [[Rol Directorio]]

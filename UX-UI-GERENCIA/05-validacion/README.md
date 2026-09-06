@@ -1,5 +1,8 @@
 # Validación
 
+- [Autoevaluación de UX1/UX2 y sus límites](../04-propuestas/revision-ux1-ux2-2026-09-06/README.md).
+- [QA estructural del diseño del bloque A](../04-propuestas/revision-ux1-ux2-2026-09-06/qa-diseno.json).
+- [Recorridos comprobados en el visor de Figma](../04-propuestas/revision-ux1-ux2-2026-09-06/recorridos-verificados.json).
 - [Guion de prueba humana](PRUEBA-USABILIDAD.md).
 - [Línea base actual](LINEA-BASE.json).
 - [Autoevaluación de F0](../02-f0-auditoria/auto-evaluacion.md).
