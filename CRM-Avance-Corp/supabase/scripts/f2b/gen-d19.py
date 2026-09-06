@@ -244,6 +244,9 @@ commit;
 rb = f"""-- ============================================================================
 -- REVERSA de F2.b [D-19] ({VER}): restaura byte a byte las {len(T)} funciones (texto vivo de producción, huellas en
 -- huellas-d19-prod.txt), suelta {HELPER} y desregistra la versión. Repetible dos veces.
+-- ORDEN: D-19 → D-18 → D-17 → D-15 → D-5 → D-3/D-13. Mientras D-19 esté aplicada quedan inservibles OCHO reversas
+-- anteriores: las de esa cadena más las de D-2, D-10, b5 y E4, que restauran alguna de estas {len(T)} funciones.
+-- Todas rehúsan solas con su guarda de huella (el fallo es seguro), pero conviene saberlo antes de intentarlo.
 -- Se niega con la bandera encendida: con ON, quitar el candado es justo el hueco que D-19 cierra.
 -- ============================================================================
 begin;
@@ -300,6 +303,11 @@ do $chk$
 begin
   if to_regprocedure('{HELPER}') is null then
     raise exception 'REGISTRO D-19: no está {HELPER}: ¿aplicaste la migración?';
+  end if;
+  -- Codex #5: no basta con que exista. Un ayudante alterado (sin el candado, o sin la exigencia de READ COMMITTED)
+  -- dejaría registrar D-19 como si protegiera. Se comprueba su CUERPO, no solo su presencia.
+  if (select md5(p.prosrc) from pg_proc p where p.oid = '{HELPER}'::regprocedure) <> '3d0fb83b13c9950461184de7c678ba64' then
+    raise exception 'REGISTRO D-19: el cuerpo de {HELPER} no es el de esta migración; no se registra un candado que no se sabe cuál es';
   end if;
 {POST}{CENSO}  if exists (select 1 from supabase_migrations.schema_migrations where version = '{VER}'
                and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null

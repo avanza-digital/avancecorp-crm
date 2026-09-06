@@ -11,6 +11,11 @@ begin
   if to_regprocedure('private.resolver_en_puertas_bajo_candado()') is null then
     raise exception 'REGISTRO D-19: no está private.resolver_en_puertas_bajo_candado(): ¿aplicaste la migración?';
   end if;
+  -- Codex #5: no basta con que exista. Un ayudante alterado (sin el candado, o sin la exigencia de READ COMMITTED)
+  -- dejaría registrar D-19 como si protegiera. Se comprueba su CUERPO, no solo su presencia.
+  if (select md5(p.prosrc) from pg_proc p where p.oid = 'private.resolver_en_puertas_bajo_candado()'::regprocedure) <> '3d0fb83b13c9950461184de7c678ba64' then
+    raise exception 'REGISTRO D-19: el cuerpo de private.resolver_en_puertas_bajo_candado() no es el de esta migración; no se registra un candado que no se sabe cuál es';
+  end if;
   if not exists (select 1 from pg_proc p where p.oid = 'crm.actualizar_cliente_gerencia(uuid, jsonb)'::regprocedure
                   and md5(p.prosrc) = '96ca3748c4b455e1dd6207b927684006'
                   and p.prosecdef = true and p.proowner = 'postgres'::regrole

@@ -1,6 +1,9 @@
 -- ============================================================================
 -- REVERSA de F2.b [D-19] (20260906200000): restaura byte a byte las 34 funciones (texto vivo de producción, huellas en
 -- huellas-d19-prod.txt), suelta private.resolver_en_puertas_bajo_candado() y desregistra la versión. Repetible dos veces.
+-- ORDEN: D-19 → D-18 → D-17 → D-15 → D-5 → D-3/D-13. Mientras D-19 esté aplicada quedan inservibles OCHO reversas
+-- anteriores: las de esa cadena más las de D-2, D-10, b5 y E4, que restauran alguna de estas 34 funciones.
+-- Todas rehúsan solas con su guarda de huella (el fallo es seguro), pero conviene saberlo antes de intentarlo.
 -- Se niega con la bandera encendida: con ON, quitar el candado es justo el hueco que D-19 cierra.
 -- ============================================================================
 begin;
