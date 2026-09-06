@@ -9246,24 +9246,35 @@ async function testIdentidadF2bD4(sessions) {
     consentimiento_en: null, consentimiento_fuente: null, vendedor_id: null, asignado_supervisor_id: null, activo: true,
   };
   let leadId = null;
+  let leadPriv = null;
   try {
     check(cuenta('grants', `select (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
       'D-4 la puerta solo tiene EXECUTE para service_role (ni anon, ni authenticated, ni PUBLIC)');
     check(cuenta('definer', `select count(*) from pg_proc p where p.oid = '${FIRMA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
       'D-4 la puerta es DEFINER con search_path vacío y lock_timeout de 5 s');
-    const { data: r1, error: e1 } = await admin.rpc('importar_lead_fn', { p_fila: fila });
+    const { data: r1, error: e1 } = await admin.schema('crm').rpc('importar_lead_fn', { p_fila: fila });
     leadId = r1?.lead_id ?? null;
     check(!e1 && r1?.resultado === 'importado' && typeof leadId === 'string', 'D-4 service_role: una fila libre → importado con lead_id', e1?.message ?? JSON.stringify(r1));
-    check(cuenta('nació como el edge', `select count(*) from crm.leads where id = '${leadId}' and creado_por is null and alta_manual = false and activo and etapa = 'nuevo' and vendedor_id is null and asignado_supervisor_id is null`) === 1,
+    check(typeof leadId === 'string' && cuenta('nació como el edge', `select count(*) from crm.leads where id = '${leadId}' and creado_por is null and alta_manual = false and activo and etapa = 'nuevo' and vendedor_id is null and asignado_supervisor_id is null`) === 1,
       'D-4 la fila nace como con el INSERT del edge (sin sesión, cola global, alta_manual false)');
-    const { data: r2, error: e2 } = await admin.rpc('importar_lead_fn', { p_fila: fila });
+    const { data: r2, error: e2 } = await admin.schema('crm').rpc('importar_lead_fn', { p_fila: fila });
     check(!e2 && r2?.resultado === 'duplicado' && r2?.veredicto?.estado === 'duplicado', 'D-4 la misma fila otra vez → duplicado (lead vivo con ese teléfono), sin excepción', e2?.message ?? JSON.stringify(r2));
     await expectExpectedFailure('D-4 vend1 (authenticated) → 42501 (sin EXECUTE)', sessions.vend1.client.schema('crm').rpc('importar_lead_fn', { p_fila: fila }), ['42501'], /permission denied|denegado/i);
     await expectExpectedFailure('D-4 gerencia (authenticated) → 42501 (sin EXECUTE)', sessions.gerencia.client.schema('crm').rpc('importar_lead_fn', { p_fila: fila }), ['42501'], /permission denied|denegado/i);
-    const { error: e3 } = await admin.rpc('importar_lead_fn', { p_fila: { ...fila, telefono: `+5198${sufijo}2`, dni: '123' } });
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d4'));
+    await expectExpectedFailure('D-4 anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('importar_lead_fn', { p_fila: fila }), ['42501'], /permission denied|denegado/i);
+    // v3 (auditor M3a): las claves privilegiadas del payload se IGNORAN; la puerta solo lee las columnas del edge.
+    const FORJADO = '00000000-0000-4000-8000-0000000000d4';
+    const { data: r4, error: e4 } = await admin.schema('crm').rpc('importar_lead_fn', { p_fila: { ...fila, telefono: `+5198${sufijo}3`, etapa: 'convertido', activo: false, no_contactar: true, alta_manual: true, creado_por: sessions.vend1.user.id, id: FORJADO, perfil_id: sessions.vend1.user.id, contrato_id: FORJADO, inversionista_id: FORJADO } });
+    leadPriv = r4?.lead_id ?? null;
+    check(!e4 && r4?.resultado === 'importado' && typeof leadPriv === 'string' && leadPriv !== FORJADO
+      && cuenta('claves privilegiadas ignoradas', `select count(*) from crm.leads where id = '${leadPriv}' and etapa = 'nuevo' and activo and not no_contactar and alta_manual = false and creado_por is null and perfil_id is null and contrato_id is null and inversionista_id is null`) === 1,
+      'D-4 las claves privilegiadas del payload (etapa, activo, no_contactar, alta_manual, creado_por, id, perfil_id, contrato_id, inversionista_id) se IGNORAN', e4?.message ?? JSON.stringify(r4));
+    const { error: e3 } = await admin.schema('crm').rpc('importar_lead_fn', { p_fila: { ...fila, telefono: `+5198${sufijo}2`, dni: '123' } });
     check(e3?.code === '22023', 'D-4 un DNI que no es de 8 dígitos → 22023 (la puerta exige lo mismo que la fila al nacer)', e3?.message ?? 'sin error');
   } finally {
-    if (leadId) ejecutarFueraDeBanda('D-4 limpieza', `update crm.leads set activo = false where id = '${leadId}';`, { tolerante: true });
+    const limpiar = [leadId, leadPriv].filter((x) => typeof x === 'string');
+    if (limpiar.length) ejecutarFueraDeBanda('D-4 limpieza', `update crm.leads set activo = false where id in (${limpiar.map((x) => `'${x}'`).join(',')});`, { tolerante: true });
   }
 }
 

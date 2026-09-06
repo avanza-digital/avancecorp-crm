@@ -6,15 +6,20 @@ import { interpretarAutorizacionContacto } from "./autorizacion-contacto.ts";
 import { indexarDestinosImportacion } from "./destinos.ts";
 import {
   type CategoriaResultadoImportacion,
-  clasificarErrorInsercion,
+  clasificarErrorPuerta,
+  clasificarRespuestaPuerta,
+  type RespuestaPuerta,
 } from "./resultado-importacion.ts";
+import { reconocerTelefono, repartirNumeros } from "./telefonos.ts";
 
 // ============================================================================
 // crm-importar-leads — conector hoja de Google → crm.leads (2026-07-20).
 //
 // La hoja "Leads AVANCE CORP — captura para CRM" (Drive de Miguel) corre un
 // Apps Script con trigger de tiempo que empuja aquí las filas sin estado; esta
-// función valida, deduplica por teléfono e inserta con service_role. Devuelve
+// función valida, deduplica por teléfono y entra por la PUERTA SQL del importador
+// (crm.importar_lead_fn, F2.b [D-4]: los mismos candados y el mismo INSERT de
+// siempre, con el veredicto como respuesta en vez de como error). Devuelve
 // el resultado POR FILA y el script lo escribe en la columna "Estado
 // importación" de la propia hoja (la hoja es la UI de rechazos).
 //
@@ -26,7 +31,10 @@ import {
 // Rotar = nuevo valor en ambos lados; no hace falta redeploy.
 //
 // Reglas espejadas de la BD (CHECKs/triggers de crm.leads, verificados en prod):
-//  - telefono celular peruano → E.164 +519######## (el trigger de BD re-normaliza)
+//  - telefono / telefono_alternativo: celular peruano, fijo peruano o numero
+//    internacional en E.164 (ver telefonos.ts). Los dos candidatos se juzgan
+//    JUNTOS: basta uno bueno para que el lead entre; solo si NINGUNO sirve se
+//    rechaza la fila. El movil se prefiere como identidad (WhatsApp).
 //  - origen del catálogo · moneda PEN/USD · monto (0, 9_999_999_999.99] 2 dec
 //  - dni 8 dígitos · genero F/M · fecha_nacimiento en [1900, 2100) y edad ≥ 18
 //    (regla de capa app: se invierte capital, no hay producto para menores)
@@ -82,17 +90,6 @@ function secretoValido(recibido: string | null): boolean {
     diff |= recibido.charCodeAt(i) ^ IMPORTAR_SECRET.charCodeAt(i);
   }
   return diff === 0;
-}
-
-/** Espejo de lib/validacion.ts del CRM y de private.normalizar_telefono. */
-function normalizarTelefono(valor: string): string | null {
-  // La coma es deliberada: Sheets formatea un celular como "964,262,777" cuando
-  // la columna quedó como número. Sin ella, ese teléfono se rechazaba.
-  const limpio = valor.replace(/[\s().,-]/g, "");
-  const sinMas = limpio.startsWith("+") ? limpio.slice(1) : limpio;
-  if (/^9\d{8}$/.test(sinMas)) return `+51${sinMas}`;
-  if (/^519\d{8}$/.test(sinMas)) return `+${sinMas}`;
-  return null;
 }
 
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -263,27 +260,34 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    const telefono = normalizarTelefono((f.telefono ?? "").trim());
-    if (!telefono) {
-      rechazo("teléfono inválido (celular de 9 dígitos que empiece en 9)");
+    // ⚠️ UN SOLO NUMERO BUENO BASTA (regla de Miguel, 2026-08-26: «si los dos
+    // numeros estan mal, ahi si debe descartarlo»). Los dos candidatos de la
+    // fila se juzgan JUNTOS: si el principal esta ilegible pero el segundo
+    // sirve, ese pasa a ser la identidad y el lead ENTRA. Hasta hoy un teclazo
+    // en la primera columna tiraba el lead entero teniendo el otro numero al
+    // lado. El movil se prefiere para principal (es lo que responde WhatsApp);
+    // un fijo solo sube a identidad cuando no hay ningun movil en la fila.
+    const reparto = repartirNumeros([f.telefono, f.telefono_alternativo]);
+    if (!reparto.principal) {
+      rechazo(
+        "ningún teléfono utilizable (celular peruano 9########, fijo peruano, o internacional con +código de país)",
+      );
       continue;
     }
+    const telefono = reparto.principal;
     if (telefonosLote.has(telefono)) {
       rechazo("teléfono repetido en la misma hoja");
       continue;
     }
+    // El segundo numero ya no puede costar un lead: `repartirNumeros` lo devuelve
+    // solo si sirve, y su ausencia nunca rechaza la fila. Lo que no se pudo leer
+    // viaja como AVISO a la columna de estado de la hoja, que es donde se corrige.
     const alternativoRaw = (f.telefono_alternativo ?? "").trim();
-    const telefonoAlternativo = alternativoRaw
-      ? normalizarTelefono(alternativoRaw)
-      : null;
-    if (alternativoRaw && !telefonoAlternativo) {
-      rechazo("teléfono alternativo inválido (celular de 9 dígitos que empiece en 9)");
-      continue;
-    }
-    // WhatsApp suele repetir el principal: se conserva solo si aporta otro contacto.
-    const alternativoDistinto = telefonoAlternativo === telefono
-      ? null
-      : telefonoAlternativo;
+    const alternativoDistinto = reparto.alternativo;
+    // Lo que no se pudo leer NO se tira: viaja crudo para que un humano lo mire.
+    const alternativoCrudo = reparto.alternativoCrudo;
+    const principalRaw = (f.telefono ?? "").trim();
+    const principalEraElDeSiempre = reconocerTelefono(principalRaw)?.e164 === telefono;
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
@@ -371,6 +375,20 @@ Deno.serve(async (req: Request) => {
     const fuente = (f.fuente_consentimiento ?? "").trim().slice(0, 80) || null;
 
     const avisos: string[] = [];
+    if (!principalEraElDeSiempre) {
+      avisos.push(
+        principalRaw
+          ? "el teléfono principal no se pudo leer → se usó el 2.º número"
+          : "sin teléfono principal → se usó el 2.º número",
+      );
+    }
+    if (alternativoRaw && !alternativoDistinto) {
+      avisos.push(
+        reconocerTelefono(alternativoRaw)
+          ? "2.º número repetía al principal → no se guardó"
+          : "2.º número ilegible → se guardó tal como llegó, para corregirlo",
+      );
+    }
     telefonosLote.add(telefono);
     validas.push({
       fila,
@@ -381,6 +399,7 @@ Deno.serve(async (req: Request) => {
         nombre_completo: nombre,
         telefono,
         telefono_alternativo: alternativoDistinto,
+        telefono_alternativo_crudo: alternativoCrudo,
         correo,
         dni,
         genero,
@@ -463,6 +482,10 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // F2.b [D-4]: la bandera de identidad ya no se lee aquí: la puerta SQL decide con la
+    // identidad que haya (apagada = el INSERT de siempre; encendida = persona reconocida,
+    // reingreso en su lead, vetos), sin parsear errores.
+
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
     for (const v of validas) {
       if (yaEnCrm.has(v.telefono)) {
@@ -478,13 +501,31 @@ Deno.serve(async (req: Request) => {
         if (id) v.insert.vendedor_id = id;
         else v.avisos.push("vendedor no encontrado → quedó por repartir");
       }
-      const { error: errIns, status: statusIns } = await admin.from("leads")
-        .insert(v.insert);
-      if (errIns) {
-        const clasificacion = clasificarErrorInsercion(errIns, statusIns);
+      // F2.b [D-4]: la puerta SQL (solo service_role, sin sesión) hace el INSERT de siempre bajo
+      // los candados en el orden total y devuelve el veredicto; si «ya es cliente» por identidad,
+      // el reingreso queda anotado en su lead dentro de la misma transacción.
+      const { data: respuesta, error: errPuerta, status: statusPuerta } = await admin.rpc(
+        "importar_lead_fn",
+        { p_fila: { ...v.insert, fila: v.fila } },
+      );
+      if (errPuerta) {
+        // Errores que la puerta deja subir (datos inválidos, destino que no puede recibir
+        // leads, timeouts): la misma clasificación de siempre (definitivo vs temporal). Si la
+        // puerta no está (reversa, caché rancia, EXECUTE perdido) la fila se reintenta, no se congela.
+        const clasificacion = clasificarErrorPuerta(errPuerta, statusPuerta);
         resultados.push({
           fila: v.fila,
-          ...clasificacion,
+          resultado: clasificacion.resultado,
+          estado: clasificacion.estado,
+        });
+        continue;
+      }
+      const clasificacion = clasificarRespuestaPuerta(respuesta as RespuestaPuerta);
+      if (clasificacion.resultado !== "importado") {
+        resultados.push({
+          fila: v.fila,
+          resultado: clasificacion.resultado,
+          estado: clasificacion.estado,
         });
         continue;
       }
@@ -501,12 +542,14 @@ Deno.serve(async (req: Request) => {
   const conteo = {
     importadas: 0,
     duplicadas: 0,
+    ya_clientes: 0,
     rechazadas: 0,
     errores_temporales: 0,
   };
   for (const r of resultados) {
     if (r.resultado === "importado") conteo.importadas++;
     else if (r.resultado === "duplicado") conteo.duplicadas++;
+    else if (r.resultado === "ya_cliente") conteo.ya_clientes++;
     else if (r.resultado === "rechazado") conteo.rechazadas++;
     else conteo.errores_temporales++;
   }

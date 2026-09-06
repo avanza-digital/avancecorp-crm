@@ -10,16 +10,23 @@
 # No transforma ninguna función viva: solo CREA la puerta (solo service_role) y sus guardas. Sin bandera propia: con
 # resolver_en_puertas apagada responde exactamente lo que hoy da el INSERT directo (los helpers de identidad no toman
 # nada y el verificador no mira la identidad). Genera la migración 20260906130000, su reversa (DROP) y el registro.
+# v3 (auditor-rls 06/09): el INSERT directo YA toma documento → persona → contactos dentro de los triggers BEFORE, antes del
+# índice: D-4 no cambia el orden de candados; su ganancia es un veredicto único sin parsear SQLSTATE y el reingreso en la misma
+# transacción. Guardas nuevas: los tres triggers de nacimiento (000/00/zz) y los dos índices únicos, que SON el contrato del
+# importador; el veredicto de duplicado nombra el índice (sin PII); el reingreso deja subir los errores transitorios (40/53/55/57);
+# la puerta apaga crm.op_privilegiada al entrar; postflight y registro exigen dueño postgres.
 # Uso: python3 gen-d4.py <dir scripts/f2b> <dir supabase>
 import sys, pathlib, hashlib
 S = pathlib.Path(sys.argv[1]); W = pathlib.Path(sys.argv[2])
 md5s = lambda t: hashlib.md5(t.encode('utf-8')).hexdigest()
 ADV = 'crm_f2b_d4_importador_por_puerta'
 VER = '20260906130000'; NAME = f'{VER}_crm_f2b_d4_importador_por_puerta_sql'
-# Huellas de PROD (06/09) de lo que la puerta reutiliza (= banco); la guarda exige que sigan siendo esas.
+# Huellas de PROD (06/09) de lo que la puerta reutiliza y de las premisas de nacimiento que interpreta (= banco); la guarda
+# exige que sigan siendo esas.
 H = {
-  'private.verificar_disponibilidad_lead_impl(text,text)': '742d44ff',   # delega en la de 3 args (D-13 v4.4)
-  'private.verificar_disponibilidad_lead_impl(text,text,uuid)': '4a2d7b8b',
+  'private.trg_leads_hereda_veto_persona()': 'f3fabb22',       # trigger 000: la persona vetada → P0429
+  'private.trg_leads_disponibilidad_atomica()': 'fdae5787',    # trigger 00: «un escritor sin sesión conserva su contrato»
+  'private.trg_leads_zz_enlaza_identidad()': 'd6fa34ca',       # trigger zz: P0481 {estado, via, lead_id, asesor}
   'private.bloquear_contactos_lead(text[],text[])': '0d52f58c',
   'private.identidad_bloquear_documento(text,text)': '96de62e3',
   'private.identidad_bloquear_persona(text,text)': 'b0ebfdb9',
@@ -28,6 +35,9 @@ H = {
   'private.inversionista_por_documento(text,text)': None,               # solo existencia
   'private.normalizar_telefono(text)': '00c30277',
 }
+# Índices únicos de crm.leads (el ÚNICO dedup del importador) y triggers de nacimiento que deben seguir habilitados BEFORE INSERT.
+IDX = {'uq_leads_telefono_vivo': '9fab4b46', 'uq_leads_dni_vivo': '28351eeb'}
+TRG = ['trg_leads_000_hereda_veto', 'trg_leads_00_disponibilidad_insert', 'trg_leads_zz_enlaza_identidad']
 FIRMA = 'crm.importar_lead_fn(jsonb)'
 BODY = """
 declare
@@ -50,6 +60,7 @@ declare
   v_cons_fuente text := nullif(pg_catalog.btrim(p_fila->>'consentimiento_fuente'), '');
   v_vendedor   uuid := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
   v_detalle    text;
+  v_constraint text;
   v_veredicto  jsonb;
   v_resultado  text;
   v_lead       uuid;
@@ -59,6 +70,8 @@ begin
   if (select auth.uid()) is not null then
     raise exception 'Solo el importador (service_role) usa esta puerta' using errcode = '42501';
   end if;
+  -- Defensa en profundidad (auditor N5): esta puerta nunca corre como operación privilegiada, venga como venga la sesión.
+  perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
   if p_fila is null or pg_catalog.jsonb_typeof(p_fila) <> 'object' then
     raise exception 'Fila invalida' using errcode = '22023';
   end if;
@@ -83,9 +96,10 @@ begin
   end if;
 
   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
-  -- Hoy el INSERT directo toma los contactos DENTRO del trigger (fila → contactos, [v2-2]); aquí van antes. Los
-  -- triggers de nacimiento los vuelven a tomar (reentrantes, misma transacción). Con la bandera apagada los dos
-  -- de identidad no toman nada.
+  -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice); aquí
+  -- se toman explícitos y los triggers de nacimiento los vuelven a tomar (reentrantes, misma transacción). D-4 no
+  -- cambia el orden: lo que aporta es un veredicto único sin parsear SQLSTATE y el reingreso en la misma transacción.
+  -- Con la bandera apagada los dos candados de identidad no toman nada.
   perform private.identidad_bloquear_documento('DNI', v_dni);
   perform private.identidad_bloquear_persona('DNI', v_dni);
   perform private.bloquear_contactos_lead(array[v_telefono], array[v_dni]);
@@ -111,8 +125,9 @@ begin
   exception
     when unique_violation then
       -- uq_leads_telefono_vivo (o uq_leads_dni_vivo): ya hay un lead VIVO con ese contacto → DUPLICADO (hoy: 23505).
-      get stacked diagnostics v_detalle = pg_exception_detail;
-      v_veredicto := pg_catalog.jsonb_build_object('estado', 'duplicado', 'detalle', pg_catalog.left(coalesce(v_detalle, ''), 200));
+      -- Se devuelve el NOMBRE del índice, no el DETAIL (que lleva el teléfono o el DNI en claro; auditor N1).
+      get stacked diagnostics v_constraint = constraint_name;
+      v_veredicto := pg_catalog.jsonb_build_object('estado', 'duplicado', 'indice', coalesce(v_constraint, 'desconocido'));
       v_resultado := 'duplicado';
     when sqlstate 'P0481' then
       -- «Contacto no disponible» con el veredicto en DETAIL (hoy lo parsea el edge): ya_es_cliente por identidad
@@ -137,14 +152,19 @@ begin
 
   v_lead := nullif(v_veredicto->>'lead_id', '')::uuid;
   if v_resultado = 'ya_cliente' and v_lead is not null then
-    -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara, la fila sigue
-    -- siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
+    -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
+    -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
     begin
       v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', pg_catalog.jsonb_build_object(
         'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
         'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
         'interes', v_categoria, 'nota', v_nota));
     exception when others then
+      -- Un fallo TRANSITORIO (serialización, recursos, candado, cancelación) sube entero: el edge lo trata como temporal y
+      -- la fila se reintenta en el siguiente lote (auditor M4). Solo lo definitivo queda anotado en la respuesta.
+      if pg_catalog.left(sqlstate, 2) in ('40', '53', '55', '57') then
+        raise;
+      end if;
       v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
     end;
   end if;
@@ -172,8 +192,16 @@ GUARD_DEPS = ''.join(
     raise exception 'F2.b D-4: {k} falta o no es el texto vivo de producción (esperado {v}…)';
   end if;
 """) for k, v in H.items())
-POST = f"""  if not exists (select 1 from pg_proc p where p.oid = '{FIRMA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and md5(p.prosrc) = '{H_BODY}') then
-    raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, search_path, lock_timeout)';
+GUARD_DEPS += ''.join(f"""  if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = '{k}' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '{v}') then
+    raise exception 'F2.b D-4: el índice único crm.leads.{k} falta o no es el de producción (esperado {v}…)';
+  end if;
+""" for k, v in IDX.items())
+GUARD_DEPS += ''.join(f"""  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = '{k}' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'F2.b D-4: el trigger de nacimiento crm.leads.{k} falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+""" for k in TRG)
+POST = f"""  if not exists (select 1 from pg_proc p where p.oid = '{FIRMA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '{H_BODY}') then
+    raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', '{FIRMA}', 'EXECUTE')
      or has_function_privilege('anon', '{FIRMA}', 'EXECUTE')
@@ -199,8 +227,9 @@ mig = f"""-- ===================================================================
 --   · Con resolver_en_puertas APAGADA responde exactamente lo que hoy produce el INSERT directo: los candados de
 --     identidad no toman nada y el verificador no mira la identidad. No hay bandera propia: la puerta es inerte hasta
 --     que el edge la llame (fase 2 del bloque 3, deploy aparte).
--- No transforma ninguna función viva. Guardas: huellas de los helpers que reutiliza; postflight: cuerpo, definer,
--- search_path, lock_timeout y grants. Ensayo: scripts/oraculo-f2b-d4.sh (INSERT directo vs puerta, fila a fila, OFF y ON).
+-- No transforma ninguna función viva. Guardas: huellas de los helpers que reutiliza y de las PREMISAS de nacimiento que
+-- interpreta (triggers 000/00/zz habilitados BEFORE INSERT e índices únicos de teléfono/DNI vivos: son el contrato del
+-- importador); postflight: cuerpo, definer, dueño, search_path, lock_timeout y grants. Ensayo: scripts/oraculo-f2b-d4.sh (INSERT directo vs puerta, fila a fila, OFF y ON).
 -- Reversa: scripts/rollback-f2b-d4.sql (DROP). Registro: scripts/registrar-f2b-d4.sql.
 
 begin;
@@ -226,7 +255,9 @@ commit;
 (W/'migrations'/f'{NAME}.sql').write_text(mig, encoding='utf-8')
 rb = f"""-- ============================================================================
 -- REVERSA de F2.b [D-4] ({VER}): suelta crm.importar_lead_fn y desregistra la versión. Repetible dos veces.
--- Antes de revertir, el edge crm-importar-leads debe estar en la versión que INSERTA directo (fase 2 deshecha).
+-- Antes de revertir, devolver el edge crm-importar-leads a la versión que INSERTA directo (fase 2 deshecha): con el edge de
+-- fase 2 vivo y la puerta ausente, cada fila del lote responde «ERROR temporal» (PGRST202/42883 → se reintenta, no se
+-- congela como rechazo) hasta que vuelva el edge o la puerta.
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';
@@ -248,7 +279,7 @@ H_MIG = hashlib.md5(mig.encode('utf-8')).hexdigest()
 reg = ("-- REGISTRO en supabase_migrations.schema_migrations de F2.b [D-4]. `db query --linked --file` NO registra: correr DESPUÉS de aplicar.\n"
        "-- Idempotente; toma el MISMO advisory que la migración y la reversa; exige la puerta con su cuerpo, definer, search_path,\n"
        "-- lock_timeout y grants exactos, los helpers vivos que reutiliza, y se niega si la versión ya está registrada con OTRO contenido.\n"
-       f"begin;\nselect pg_advisory_xact_lock(hashtext('{ADV}'));\ndo $chk$\nbegin\n"
+       f"begin;\nset local lock_timeout = '5s';\nselect pg_advisory_xact_lock(hashtext('{ADV}'));\ndo $chk$\nbegin\n"
        + POST.replace('POSTFLIGHT D-4', 'REGISTRO D-4') + GUARD_DEPS.replace('F2.b D-4', 'REGISTRO D-4')
        + f"  if exists (select 1 from supabase_migrations.schema_migrations where version='{VER}' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '{H_MIG}')) then\n"
        f"    raise exception 'REGISTRO D-4: la versión {VER} ya está registrada con otro contenido (o incompleto)';\n  end if;\nend\n$chk$;\n"

@@ -117,6 +117,30 @@ export function clasificarErrorInsercion(
   };
 }
 
+/**
+ * F2.b [D-4] (auditor A1): un error de la PUERTA que no es un veredicto sobre la fila —la RPC no existe
+ * (PGRST202 / 42883: reversa aplicada o caché de PostgREST rancia), el EXECUTE se perdió (42501) o un 404—
+ * es un problema del CRM, no de la fila: TEMPORAL, para que la hoja la reintente en vez de congelarla como
+ * RECHAZADA. Cualquier otro error sigue la clasificación de siempre (definitivo vs temporal).
+ */
+export function clasificarErrorPuerta(
+  error: ErrorPostgrestMinimo,
+  status?: number | null,
+): ResultadoImportacion {
+  const codigo = String(error?.code ?? "").trim().toUpperCase();
+  if (
+    codigo === "PGRST202" || codigo === "42883" || codigo === "42501" ||
+    status === 404
+  ) {
+    return {
+      resultado: "error_temporal",
+      estado:
+        "ERROR temporal: la puerta del importador no está disponible en el CRM — se reintenta solo",
+    };
+  }
+  return clasificarErrorInsercion(error, status);
+}
+
 // ── F2.b [D-4] (bloque 3): el importador entra por la puerta SQL crm.importar_lead_fn ───────────────────────────────
 // La puerta hace el MISMO INSERT que hacía este edge y devuelve un veredicto en vez de una excepción. Los textos que
 // llegan a la hoja son los mismos de siempre: aquí solo cambia de dónde sale la categoría.
@@ -138,7 +162,9 @@ export type RespuestaPuerta = {
 export function textoRechazoDeVeredicto(
   veredicto: Record<string, unknown> | null | undefined,
 ): string {
-  const estado = typeof veredicto?.estado === "string" ? veredicto.estado : "no disponible";
+  const estado = typeof veredicto?.estado === "string"
+    ? veredicto.estado
+    : "no disponible";
   // P0429 (trigger 000, identidad encendida): la PERSONA tiene «No insistir».
   if (estado === "no_contactar" && veredicto?.via === "identidad") {
     return "RECHAZADO: la persona tiene la restricción «No insistir»";
@@ -157,11 +183,16 @@ export function clasificarRespuestaPuerta(
   if (!r || typeof r !== "object" || typeof r.resultado !== "string") {
     return {
       resultado: "error_temporal",
-      estado: "ERROR temporal: el CRM no confirmó la importación — se reintenta solo",
+      estado:
+        "ERROR temporal: el CRM no confirmó la importación — se reintenta solo",
     };
   }
   if (r.resultado === "importado") {
-    return { resultado: "importado", estado: "IMPORTADO ✓", lead_id: r.lead_id ?? undefined };
+    return {
+      resultado: "importado",
+      estado: "IMPORTADO ✓",
+      lead_id: r.lead_id ?? undefined,
+    };
   }
   if (r.resultado === "duplicado") {
     return { resultado: "duplicado", estado: "DUPLICADO: ya existe en el CRM" };
@@ -175,9 +206,19 @@ export function clasificarRespuestaPuerta(
     if (r.reingreso && r.reingreso.ok === true) {
       estado = `${base}: reingreso registrado en su ficha`;
     } else if (r.reingreso && typeof r.reingreso.error === "string") {
-      estado = `${base}: NO se pudo anotar el reingreso en su ficha (${r.reingreso.error.slice(0, 60)})`;
+      estado = `${base}: NO se pudo anotar el reingreso en su ficha (${
+        r.reingreso.error.slice(0, 60)
+      })`;
     }
-    return { resultado: "ya_cliente", estado, lead_id, asesor: asesor || undefined };
+    return {
+      resultado: "ya_cliente",
+      estado,
+      lead_id,
+      asesor: asesor || undefined,
+    };
   }
-  return { resultado: "rechazado", estado: textoRechazoDeVeredicto(r.veredicto) };
+  return {
+    resultado: "rechazado",
+    estado: textoRechazoDeVeredicto(r.veredicto),
+  };
 }

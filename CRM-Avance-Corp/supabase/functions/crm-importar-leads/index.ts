@@ -6,7 +6,7 @@ import { interpretarAutorizacionContacto } from "./autorizacion-contacto.ts";
 import { indexarDestinosImportacion } from "./destinos.ts";
 import {
   type CategoriaResultadoImportacion,
-  clasificarErrorInsercion,
+  clasificarErrorPuerta,
   clasificarRespuestaPuerta,
   type RespuestaPuerta,
 } from "./resultado-importacion.ts";
@@ -510,8 +510,9 @@ Deno.serve(async (req: Request) => {
       );
       if (errPuerta) {
         // Errores que la puerta deja subir (datos inválidos, destino que no puede recibir
-        // leads, timeouts): la misma clasificación de siempre (definitivo vs temporal).
-        const clasificacion = clasificarErrorInsercion(errPuerta, statusPuerta);
+        // leads, timeouts): la misma clasificación de siempre (definitivo vs temporal). Si la
+        // puerta no está (reversa, caché rancia, EXECUTE perdido) la fila se reintenta, no se congela.
+        const clasificacion = clasificarErrorPuerta(errPuerta, statusPuerta);
         resultados.push({
           fila: v.fila,
           resultado: clasificacion.resultado,

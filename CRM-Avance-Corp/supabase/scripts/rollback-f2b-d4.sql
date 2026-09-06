@@ -1,6 +1,8 @@
 -- ============================================================================
 -- REVERSA de F2.b [D-4] (20260906130000): suelta crm.importar_lead_fn y desregistra la versión. Repetible dos veces.
--- Antes de revertir, el edge crm-importar-leads debe estar en la versión que INSERTA directo (fase 2 deshecha).
+-- Antes de revertir, devolver el edge crm-importar-leads a la versión que INSERTA directo (fase 2 deshecha): con el edge de
+-- fase 2 vivo y la puerta ausente, cada fila del lote responde «ERROR temporal» (PGRST202/42883 → se reintenta, no se
+-- congela como rechazo) hasta que vuelva el edge o la puerta.
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';

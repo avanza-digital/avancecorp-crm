@@ -2,11 +2,12 @@
 -- Idempotente; toma el MISMO advisory que la migración y la reversa; exige la puerta con su cuerpo, definer, search_path,
 -- lock_timeout y grants exactos, los helpers vivos que reutiliza, y se niega si la versión ya está registrada con OTRO contenido.
 begin;
+set local lock_timeout = '5s';
 select pg_advisory_xact_lock(hashtext('crm_f2b_d4_importador_por_puerta'));
 do $chk$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and md5(p.prosrc) = '949c6caf2d524b6348ffc1ca1e947ff5') then
-    raise exception 'REGISTRO D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, search_path, lock_timeout)';
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '50dd721dbc7469c4a59a613eecd61fbe') then
+    raise exception 'REGISTRO D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
      or has_function_privilege('anon', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
@@ -14,11 +15,14 @@ begin
      or exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and a.grantee = 0) then
     raise exception 'REGISTRO D-4: los grants de la puerta no son «solo service_role»';
   end if;
-  if to_regprocedure('private.verificar_disponibilidad_lead_impl(text,text)') is null or left(md5(pg_get_functiondef('private.verificar_disponibilidad_lead_impl(text,text)'::regprocedure)), 8) <> '742d44ff' then
-    raise exception 'REGISTRO D-4: private.verificar_disponibilidad_lead_impl(text,text) falta o no es el texto vivo de producción (esperado 742d44ff…)';
+  if to_regprocedure('private.trg_leads_hereda_veto_persona()') is null or left(md5(pg_get_functiondef('private.trg_leads_hereda_veto_persona()'::regprocedure)), 8) <> 'f3fabb22' then
+    raise exception 'REGISTRO D-4: private.trg_leads_hereda_veto_persona() falta o no es el texto vivo de producción (esperado f3fabb22…)';
   end if;
-  if to_regprocedure('private.verificar_disponibilidad_lead_impl(text,text,uuid)') is null or left(md5(pg_get_functiondef('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure)), 8) <> '4a2d7b8b' then
-    raise exception 'REGISTRO D-4: private.verificar_disponibilidad_lead_impl(text,text,uuid) falta o no es el texto vivo de producción (esperado 4a2d7b8b…)';
+  if to_regprocedure('private.trg_leads_disponibilidad_atomica()') is null or left(md5(pg_get_functiondef('private.trg_leads_disponibilidad_atomica()'::regprocedure)), 8) <> 'fdae5787' then
+    raise exception 'REGISTRO D-4: private.trg_leads_disponibilidad_atomica() falta o no es el texto vivo de producción (esperado fdae5787…)';
+  end if;
+  if to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is null or left(md5(pg_get_functiondef('private.trg_leads_zz_enlaza_identidad()'::regprocedure)), 8) <> 'd6fa34ca' then
+    raise exception 'REGISTRO D-4: private.trg_leads_zz_enlaza_identidad() falta o no es el texto vivo de producción (esperado d6fa34ca…)';
   end if;
   if to_regprocedure('private.bloquear_contactos_lead(text[],text[])') is null or left(md5(pg_get_functiondef('private.bloquear_contactos_lead(text[],text[])'::regprocedure)), 8) <> '0d52f58c' then
     raise exception 'REGISTRO D-4: private.bloquear_contactos_lead(text[],text[]) falta o no es el texto vivo de producción (esperado 0d52f58c…)';
@@ -41,7 +45,22 @@ begin
   if to_regprocedure('private.normalizar_telefono(text)') is null or left(md5(pg_get_functiondef('private.normalizar_telefono(text)'::regprocedure)), 8) <> '00c30277' then
     raise exception 'REGISTRO D-4: private.normalizar_telefono(text) falta o no es el texto vivo de producción (esperado 00c30277…)';
   end if;
-  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '25e3662d516b586dbbcbe0cdfd5fdf75')) then
+  if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_telefono_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '9fab4b46') then
+    raise exception 'REGISTRO D-4: el índice único crm.leads.uq_leads_telefono_vivo falta o no es el de producción (esperado 9fab4b46…)';
+  end if;
+  if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_dni_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '28351eeb') then
+    raise exception 'REGISTRO D-4: el índice único crm.leads.uq_leads_dni_vivo falta o no es el de producción (esperado 28351eeb…)';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_hereda_veto' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'REGISTRO D-4: el trigger de nacimiento crm.leads.trg_leads_000_hereda_veto falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_00_disponibilidad_insert' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'REGISTRO D-4: el trigger de nacimiento crm.leads.trg_leads_00_disponibilidad_insert falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_enlaza_identidad' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'REGISTRO D-4: el trigger de nacimiento crm.leads.trg_leads_zz_enlaza_identidad falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+  if exists (select 1 from supabase_migrations.schema_migrations where version='20260906130000' and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null or md5(statements[1]) <> '90d4fafff5ae9ef06ae09110775ab786')) then
     raise exception 'REGISTRO D-4: la versión 20260906130000 ya está registrada con otro contenido (o incompleto)';
   end if;
 end
@@ -64,8 +83,9 @@ values ('20260906130000', 'crm_f2b_d4_importador_por_puerta_sql', array[$m$-- ==
 --   · Con resolver_en_puertas APAGADA responde exactamente lo que hoy produce el INSERT directo: los candados de
 --     identidad no toman nada y el verificador no mira la identidad. No hay bandera propia: la puerta es inerte hasta
 --     que el edge la llame (fase 2 del bloque 3, deploy aparte).
--- No transforma ninguna función viva. Guardas: huellas de los helpers que reutiliza; postflight: cuerpo, definer,
--- search_path, lock_timeout y grants. Ensayo: scripts/oraculo-f2b-d4.sh (INSERT directo vs puerta, fila a fila, OFF y ON).
+-- No transforma ninguna función viva. Guardas: huellas de los helpers que reutiliza y de las PREMISAS de nacimiento que
+-- interpreta (triggers 000/00/zz habilitados BEFORE INSERT e índices únicos de teléfono/DNI vivos: son el contrato del
+-- importador); postflight: cuerpo, definer, dueño, search_path, lock_timeout y grants. Ensayo: scripts/oraculo-f2b-d4.sh (INSERT directo vs puerta, fila a fila, OFF y ON).
 -- Reversa: scripts/rollback-f2b-d4.sql (DROP). Registro: scripts/registrar-f2b-d4.sql.
 
 begin;
@@ -74,11 +94,14 @@ select pg_advisory_xact_lock(hashtext('crm_f2b_d4_importador_por_puerta'));
 
 do $guard$
 begin
-  if to_regprocedure('private.verificar_disponibilidad_lead_impl(text,text)') is null or left(md5(pg_get_functiondef('private.verificar_disponibilidad_lead_impl(text,text)'::regprocedure)), 8) <> '742d44ff' then
-    raise exception 'F2.b D-4: private.verificar_disponibilidad_lead_impl(text,text) falta o no es el texto vivo de producción (esperado 742d44ff…)';
+  if to_regprocedure('private.trg_leads_hereda_veto_persona()') is null or left(md5(pg_get_functiondef('private.trg_leads_hereda_veto_persona()'::regprocedure)), 8) <> 'f3fabb22' then
+    raise exception 'F2.b D-4: private.trg_leads_hereda_veto_persona() falta o no es el texto vivo de producción (esperado f3fabb22…)';
   end if;
-  if to_regprocedure('private.verificar_disponibilidad_lead_impl(text,text,uuid)') is null or left(md5(pg_get_functiondef('private.verificar_disponibilidad_lead_impl(text,text,uuid)'::regprocedure)), 8) <> '4a2d7b8b' then
-    raise exception 'F2.b D-4: private.verificar_disponibilidad_lead_impl(text,text,uuid) falta o no es el texto vivo de producción (esperado 4a2d7b8b…)';
+  if to_regprocedure('private.trg_leads_disponibilidad_atomica()') is null or left(md5(pg_get_functiondef('private.trg_leads_disponibilidad_atomica()'::regprocedure)), 8) <> 'fdae5787' then
+    raise exception 'F2.b D-4: private.trg_leads_disponibilidad_atomica() falta o no es el texto vivo de producción (esperado fdae5787…)';
+  end if;
+  if to_regprocedure('private.trg_leads_zz_enlaza_identidad()') is null or left(md5(pg_get_functiondef('private.trg_leads_zz_enlaza_identidad()'::regprocedure)), 8) <> 'd6fa34ca' then
+    raise exception 'F2.b D-4: private.trg_leads_zz_enlaza_identidad() falta o no es el texto vivo de producción (esperado d6fa34ca…)';
   end if;
   if to_regprocedure('private.bloquear_contactos_lead(text[],text[])') is null or left(md5(pg_get_functiondef('private.bloquear_contactos_lead(text[],text[])'::regprocedure)), 8) <> '0d52f58c' then
     raise exception 'F2.b D-4: private.bloquear_contactos_lead(text[],text[]) falta o no es el texto vivo de producción (esperado 0d52f58c…)';
@@ -100,6 +123,21 @@ begin
   end if;
   if to_regprocedure('private.normalizar_telefono(text)') is null or left(md5(pg_get_functiondef('private.normalizar_telefono(text)'::regprocedure)), 8) <> '00c30277' then
     raise exception 'F2.b D-4: private.normalizar_telefono(text) falta o no es el texto vivo de producción (esperado 00c30277…)';
+  end if;
+  if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_telefono_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '9fab4b46') then
+    raise exception 'F2.b D-4: el índice único crm.leads.uq_leads_telefono_vivo falta o no es el de producción (esperado 9fab4b46…)';
+  end if;
+  if not exists (select 1 from pg_class c join pg_index i on i.indexrelid = c.oid where i.indrelid = 'crm.leads'::regclass and c.relname = 'uq_leads_dni_vivo' and i.indisunique and left(md5(pg_get_indexdef(c.oid)), 8) = '28351eeb') then
+    raise exception 'F2.b D-4: el índice único crm.leads.uq_leads_dni_vivo falta o no es el de producción (esperado 28351eeb…)';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_000_hereda_veto' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'F2.b D-4: el trigger de nacimiento crm.leads.trg_leads_000_hereda_veto falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_00_disponibilidad_insert' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'F2.b D-4: el trigger de nacimiento crm.leads.trg_leads_00_disponibilidad_insert falta, está deshabilitado o no es BEFORE INSERT';
+  end if;
+  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.leads'::regclass and t.tgname = 'trg_leads_zz_enlaza_identidad' and t.tgenabled = 'O' and (t.tgtype & 2) = 2 and (t.tgtype & 4) = 4) then
+    raise exception 'F2.b D-4: el trigger de nacimiento crm.leads.trg_leads_zz_enlaza_identidad falta, está deshabilitado o no es BEFORE INSERT';
   end if;
 end
 $guard$;
@@ -134,6 +172,7 @@ declare
   v_cons_fuente text := nullif(pg_catalog.btrim(p_fila->>'consentimiento_fuente'), '');
   v_vendedor   uuid := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
   v_detalle    text;
+  v_constraint text;
   v_veredicto  jsonb;
   v_resultado  text;
   v_lead       uuid;
@@ -143,6 +182,8 @@ begin
   if (select auth.uid()) is not null then
     raise exception 'Solo el importador (service_role) usa esta puerta' using errcode = '42501';
   end if;
+  -- Defensa en profundidad (auditor N5): esta puerta nunca corre como operación privilegiada, venga como venga la sesión.
+  perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);
   if p_fila is null or pg_catalog.jsonb_typeof(p_fila) <> 'object' then
     raise exception 'Fila invalida' using errcode = '22023';
   end if;
@@ -167,9 +208,10 @@ begin
   end if;
 
   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
-  -- Hoy el INSERT directo toma los contactos DENTRO del trigger (fila → contactos, [v2-2]); aquí van antes. Los
-  -- triggers de nacimiento los vuelven a tomar (reentrantes, misma transacción). Con la bandera apagada los dos
-  -- de identidad no toman nada.
+  -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice); aquí
+  -- se toman explícitos y los triggers de nacimiento los vuelven a tomar (reentrantes, misma transacción). D-4 no
+  -- cambia el orden: lo que aporta es un veredicto único sin parsear SQLSTATE y el reingreso en la misma transacción.
+  -- Con la bandera apagada los dos candados de identidad no toman nada.
   perform private.identidad_bloquear_documento('DNI', v_dni);
   perform private.identidad_bloquear_persona('DNI', v_dni);
   perform private.bloquear_contactos_lead(array[v_telefono], array[v_dni]);
@@ -195,8 +237,9 @@ begin
   exception
     when unique_violation then
       -- uq_leads_telefono_vivo (o uq_leads_dni_vivo): ya hay un lead VIVO con ese contacto → DUPLICADO (hoy: 23505).
-      get stacked diagnostics v_detalle = pg_exception_detail;
-      v_veredicto := pg_catalog.jsonb_build_object('estado', 'duplicado', 'detalle', pg_catalog.left(coalesce(v_detalle, ''), 200));
+      -- Se devuelve el NOMBRE del índice, no el DETAIL (que lleva el teléfono o el DNI en claro; auditor N1).
+      get stacked diagnostics v_constraint = constraint_name;
+      v_veredicto := pg_catalog.jsonb_build_object('estado', 'duplicado', 'indice', coalesce(v_constraint, 'desconocido'));
       v_resultado := 'duplicado';
     when sqlstate 'P0481' then
       -- «Contacto no disponible» con el veredicto en DETAIL (hoy lo parsea el edge): ya_es_cliente por identidad
@@ -221,14 +264,19 @@ begin
 
   v_lead := nullif(v_veredicto->>'lead_id', '')::uuid;
   if v_resultado = 'ya_cliente' and v_lead is not null then
-    -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara, la fila sigue
-    -- siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
+    -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
+    -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
     begin
       v_reingreso := crm.registrar_reingreso_lead_fn(v_lead, 'hoja', pg_catalog.jsonb_build_object(
         'fila', p_fila->'fila', 'nombre', v_nombre, 'telefono', v_telefono, 'telefono_alternativo', v_alt,
         'correo', v_correo, 'capital', v_monto, 'moneda', v_moneda, 'canal', v_origen, 'distrito', v_distrito,
         'interes', v_categoria, 'nota', v_nota));
     exception when others then
+      -- Un fallo TRANSITORIO (serialización, recursos, candado, cancelación) sube entero: el edge lo trata como temporal y
+      -- la fila se reintenta en el siguiente lote (auditor M4). Solo lo definitivo queda anotado en la respuesta.
+      if pg_catalog.left(sqlstate, 2) in ('40', '53', '55', '57') then
+        raise;
+      end if;
       v_reingreso := pg_catalog.jsonb_build_object('ok', false, 'error', sqlstate || ': ' || pg_catalog.left(sqlerrm, 120));
     end;
   end if;
@@ -242,8 +290,8 @@ comment on function crm.importar_lead_fn(jsonb) is 'F2.b [D-4]: puerta SQL del i
 
 do $post$
 begin
-  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and md5(p.prosrc) = '949c6caf2d524b6348ffc1ca1e947ff5') then
-    raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, search_path, lock_timeout)';
+  if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole and md5(p.prosrc) = '50dd721dbc7469c4a59a613eecd61fbe') then
+    raise exception 'POSTFLIGHT D-4: crm.importar_lead_fn no quedó como la genera gen-d4.py (cuerpo, definer, dueño postgres, search_path, lock_timeout)';
   end if;
   if not has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
      or has_function_privilege('anon', 'crm.importar_lead_fn(jsonb)', 'EXECUTE')
