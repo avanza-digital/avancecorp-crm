@@ -1703,6 +1703,13 @@ function aErrorApi(
     // reintento cae solo en la lápida P0409; si Gerencia se arrepiente, en el replay.
     code = 'CONTRATO_EN_ELIMINACION'
     mensaje = 'Gerencia está eliminando el contrato de tu intento anterior; no se creó otro. Espera a que termine o consúltalo antes de volver a intentar.'
+  } else if (codigoPg === 'P0409') {
+    // Conflicto de ESTADO que levantan nuestras puertas (F2.b: «la persona ya es
+    // cliente o ya tiene su lead», «solo lo corrige Gerencia», «conversión en
+    // curso», «solo se puede reabrir un descartado»). El texto ya viene en idioma
+    // de negocio y sin PII: se muestra tal cual, en vez del genérico que lo tapaba.
+    code = 'CONFLICTO'
+    if (error.message) mensaje = error.message
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
     // 22023 = validaciones de parámetros de las RPC operativas.
@@ -1806,6 +1813,32 @@ export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<v
     // sin revelar existencia (igual que el espejo del store).
     throw new CrmApiError('Lead no encontrado', 'NO_ENCONTRADO')
   }
+}
+
+/**
+ * F2.b [D-15]: el botón «Reabrir» (descartado → nuevo) pasa por su puerta SQL en vez
+ * de actualizar la fila. Con la identidad unificada apagada es el UPDATE de siempre
+ * (mismos triggers, mismos índices de contacto vivo); encendida, el servidor juzga
+ * a la PERSONA (P0429 «No insistir»; P0409 otro lead suyo, conversión en curso o ya
+ * cliente) y enlaza el lead. El 23505 de un teléfono/DNI ya vivo llega igual que hoy.
+ */
+export async function reabrirLead(leadId: string): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('reabrir_lead_fn', { p_lead_id: leadId })
+  if (error) throw aErrorApi(error, 'crm.leads.reabrir_fallido')
+}
+
+/**
+ * F2.b [D-13/D-15]: el DNI de un lead vivo se FIJA por su puerta (candados
+ * documento → persona → fila). Apagada la identidad es el UPDATE de hoy; encendida,
+ * un lead ya reconocido solo lo corrige Gerencia (P0409), y un documento de una
+ * persona que ya es cliente o ya tiene su lead no se asigna (P0409 / P0429 veto).
+ * `null` borra el DNI (el parámetro no tiene default: el null viaja explícito).
+ */
+export async function fijarDniLead(leadId: string, dni: string | null): Promise<void> {
+  const { error } = await cliente()
+    .schema('crm')
+    .rpc('fijar_dni_lead_fn', { p_lead_id: leadId, p_dni: nuloExplicito(dni) })
+  if (error) throw aErrorApi(error, 'crm.leads.fijar_dni_fallido')
 }
 
 export async function insertarActividad(fila: ActividadInsert): Promise<void> {

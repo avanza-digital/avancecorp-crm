@@ -79,3 +79,8 @@ migración, `scripts/rollback-f2b-dN.sql` (byte a byte + desregistro) y `scripts
 - 🔴 Regla aprendida: el importador NO usa el veredicto comercial (enfriamiento, ficha, veto de un lead viejo): el trigger de disponibilidad
   exime al escritor sin sesión; la puerta debe hacer el mismo INSERT y traducir, no juzgar.
 - Fase 2 = el edge `functions/crm-importar-leads` (`rpc importar_lead_fn`; tests Deno `deno test` en esa carpeta). Deploy aparte.
+
+## Bloque 4 (06/09): `[D-5]` y `[D-15]`
+- `gen-d5.py` + `huellas-d5-prod.txt` + `vivas/d5/` (reserva 1 arg, sellado 1 arg, sellado 3 args: textos vivos de prod = banco) → `20260906140000` (las firmas de un argumento se cierran con ON; el sellado por persona marca su paso con el GUC `crm.sellado_por_persona`; `crm.abandonar_conversion_gerencia_fn`), `rollback-f2b-d5.sql`, `registrar-f2b-d5.sql`. Oráculo `../oraculo-f2b-d5.sh` (28/28; mutante 20 rojos).
+- `gen-d15.py` + `huellas-d15-prod.txt` → `20260906150000` (`crm.reabrir_lead_fn`, la puerta del botón «Reabrir»), `rollback-f2b-d15.sql`, `registrar-f2b-d15.sql`. Oráculo `../oraculo-f2b-d15.sh` (37/37; mutante 28 rojos).
+- Lección: antes de cerrar una firma vieja, buscar quién DELEGA en ella (`strpos(prosrc, 'nombre(')` en pg_proc): el sellado por persona delegaba en la de un argumento.

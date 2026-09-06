@@ -54,12 +54,14 @@ import {
   actualizarTarea,
   cerrarReunion,
   cerrarTarea,
+  fijarDniLead,
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
   obtenerCumplimientoMetas,
   obtenerMetasDelMes,
   listarTareasDelAmbito,
+  reabrirLead,
   reprogramarReunion,
 } from '@/data/crm-api'
 import {
@@ -2130,8 +2132,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (choque) return choque
         }
         aplicar(id, parche)
+        // F2.b [D-13/D-15]: el DNI va por SU puerta (candados documento → persona →
+        // fila; con la identidad encendida un UPDATE directo de dni está cerrado) y
+        // ANTES del resto: si ese documento ya es de otra persona con lead/ficha, no
+        // se guarda nada. Si el DNI no cambia, no viaja en el UPDATE (con la
+        // identidad encendida, tocar la columna sin cambiarla también la despierta).
+        const { dni: dniNuevo, ...resto } = parche
+        const cambiaDni = dniNuevo !== undefined && dniNuevo !== (actual.dni ?? null)
+        const restoTieneCambios = Object.keys(resto).length > 0
         persistir(
-          () => actualizarLead(id, parche),
+          async () => {
+            if (cambiaDni) await fijarDniLead(id, dniNuevo ?? null)
+            if (restoTieneCambios) await actualizarLead(id, resto)
+          },
           {
             invalidarNucleosConversion:
               parche.origen !== undefined && parche.origen !== actual.origen,
@@ -2490,10 +2503,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           { etapa: 'nuevo', motivo_descarte: null },
           actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO.descartado.label} → ${ETAPA_INFO.nuevo.label}`),
         )
-        persistir(
-          () => actualizarLead(id, { etapa: 'nuevo', motivo_descarte: null }),
-          { invalidarConversionRango: true },
-        )
+        // F2.b [D-15]: por su puerta SQL, no por UPDATE. Apagada la identidad es el
+        // mismo UPDATE; encendida, el servidor juzga a la persona y enlaza el lead
+        // (y el UPDATE directo está cerrado por D-13).
+        persistir(() => reabrirLead(id), { invalidarConversionRango: true })
         return { ok: true }
       },
 

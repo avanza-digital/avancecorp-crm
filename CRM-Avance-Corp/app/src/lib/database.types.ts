@@ -3213,6 +3213,7 @@ export type Database = {
         Returns: Json
       }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
+      fijar_dni_lead_fn: { Args: { p_lead_id: string; p_dni: string }; Returns: Json }
       destinos_importacion_por_correo_fn: {
         Args: { p_correos: string[] }
         Returns: {
@@ -3552,6 +3553,7 @@ export type Database = {
         }
         Returns: Json
       }
+      reabrir_lead_fn: { Args: { p_lead_id: string }; Returns: Json }
       registrar_reingreso_lead_fn: {
         Args: { p_datos?: Json; p_lead_id: string; p_origen: string }
         Returns: Json

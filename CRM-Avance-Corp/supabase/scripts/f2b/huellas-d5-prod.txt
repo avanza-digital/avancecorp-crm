@@ -1,0 +1,8 @@
+# md5(pg_get_functiondef + '\n') en PRODUCCIÓN el 06/09/2026 (= banco-f7, contrastado) de las dos firmas de UN argumento que D-5 transforma,
+# y md5 corto (8) de lo que la herramienta de Gerencia reutiliza o presupone.
+crm.reservar_conversion_lead.1 a067183bfe986cf7bd5f82b4ed6674d7
+crm.marcar_efectos_conversion.1 d505da488a943730cfa2a09aca79a049
+crm.marcar_efectos_conversion.3 511c059250774b625c8bc3274523e61a
+private.es_gerencia_crm_activa() ca6f82ba
+private.persona_en_conversion(uuid,uuid) cc7e1e04
+crm.retomar_conversion_gerencia_fn(uuid) c6aa6301

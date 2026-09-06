@@ -9278,6 +9278,110 @@ async function testIdentidadF2bD4(sessions) {
   }
 }
 
+// ── F2.b [D-15] (20260906150000): el botón «Reabrir» pasa por la puerta crm.reabrir_lead_fn ──
+// Grants, definer, superficie y paridad apagada (el negocio encendido —persona, veto, enlace— lo cubre scripts/oraculo-f2b-d15.sh).
+async function testIdentidadF2bD15(sessions, seed) {
+  console.log('\n— Identidad multiempresa F2.b [D-15]: «Reabrir» por su puerta SQL —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-15: ${etiqueta}`, sql);
+  const FIRMA = 'crm.reabrir_lead_fn(uuid)';
+  if (cuenta('D-15 aplicada', `select (to_regprocedure('${FIRMA}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-15 (20260906150000) no está en esta base)');
+    return;
+  }
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-0000000000d15';
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d15'));
+  const vend1Id = seed.profileIdByKey.vend1;
+  const vend2Id = seed.profileIdByKey.vend2;
+  const L_V1 = randomUUID();
+  const L_V2 = randomUUID();
+  try {
+    check(cuenta('grants', `select (has_function_privilege('authenticated', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('anon', '${FIRMA}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${FIRMA}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${FIRMA}'::regprocedure and a.grantee = 0)`) === 1,
+      'D-15 la puerta solo tiene EXECUTE para authenticated (ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('definer', `select count(*) from pg_proc p where p.oid = '${FIRMA}'::regprocedure and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s'] and p.proowner = 'postgres'::regrole`) === 1,
+      'D-15 la puerta es DEFINER de postgres con search_path vacío y lock_timeout de 5 s');
+    check(cuenta('trigger reapertura', `select count(*) from pg_trigger where tgrelid='crm.leads'::regclass and tgname='trg_leads_zz_reapertura_solo_rpc' and tgenabled='O'`) === 1,
+      'D-15 la premisa sigue: el trigger «reabrir solo por RPC» (D-13) está habilitado');
+    await expectExpectedFailure('D-15 anon → 42501 (sin EXECUTE)', anon.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['42501'], /permission denied|denegado/i);
+    for (const clave of ['coordinador', 'clientBank', 'vendInactive']) {
+      await expectExpectedFailure(`D-15 ${clave} → 42501 (no reabre: sin rol vendedor/supervisor/gerencia)`, sessions[clave].client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['42501'], /reabre un lead/i);
+    }
+    await expectExpectedFailure('D-15 vend1 sobre un lead inexistente → P0002 (sin revelar existencia)', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: LEAD_INEXISTENTE }), ['P0002'], /no encontrado/i);
+    await expectExpectedFailure('D-15 vend1 con lead nulo → 22023', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: null }), ['22023'], /obligatorio/i);
+    // Paridad apagada con leads de verdad: ámbito (P0002 sin sondear), solo descartados (P0409) y reapertura = el UPDATE de hoy.
+    const base = { activo: true, asignado_supervisor_id: null, etapa: 'descartado', motivo_descarte: 'sin_interes', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 };
+    await requireAdmin('D-15: sembrar dos descartados (vend1 y vend2)', admin.schema('crm').from('leads').insert([
+      { ...base, id: L_V1, nombre_completo: 'D15 REABRIR V1 TRANSIENT', telefono: TEL_F2B(191), creado_por: vend1Id, vendedor_id: vend1Id },
+      { ...base, id: L_V2, nombre_completo: 'D15 REABRIR V2 TRANSIENT', telefono: TEL_F2B(192), creado_por: vend2Id, vendedor_id: vend2Id },
+    ]));
+    await expectExpectedFailure('D-15 OFF vend1 reabre un lead de vend2 → P0002 (fuera de ámbito)', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V2 }), ['P0002'], /no encontrado/i);
+    const { data: r1, error: e1 } = await sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 });
+    check(!e1 && r1?.ok === true && r1?.etapa === 'nuevo' && r1?.enlazado === false && r1?.reabierto_por === vend1Id,
+      'D-15 OFF vend1 reabre el suyo → ok, etapa nuevo, sin enlace, atribuido a vend1', e1?.message ?? JSON.stringify(r1));
+    check(cuenta('foto tras reabrir', `select count(*) from crm.leads l where l.id = '${L_V1}' and l.etapa = 'nuevo' and l.motivo_descarte is null and l.descartado_en is null and l.descartado_por is null and l.inversionista_id is null and exists (select 1 from crm.actividades a where a.lead_id = l.id and a.tipo = 'cambio_etapa' and a.detalle = 'descartado → nuevo' and a.creado_por = '${vend1Id}')`) === 1,
+      'D-15 OFF la foto es la del UPDATE de hoy: motivo y sello limpios, actividad «descartado → nuevo» atribuida al analista');
+    await expectExpectedFailure('D-15 vend1 reabre un lead que ya está abierto → P0409', sessions.vend1.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V1 }), ['P0409'], /solo se puede reabrir un lead descartado/i);
+    const { data: r2, error: e2 } = await sessions.gerencia.client.schema('crm').rpc('reabrir_lead_fn', { p_lead_id: L_V2 });
+    check(!e2 && r2?.ok === true && r2?.etapa === 'nuevo', 'D-15 OFF gerencia reabre el de vend2 (ámbito global)', e2?.message ?? JSON.stringify(r2));
+  } finally {
+    ejecutarFueraDeBanda('D-15 limpieza', `update crm.leads set activo = false where id in ('${L_V1}','${L_V2}');`, { tolerante: true });
+  }
+}
+
+// ── F2.b [D-5] (20260906140000): las RPC de un argumento de la conversión se cierran con la identidad encendida;
+// Gerencia abandona una conversión sellada sin cuenta. Grants, definer, marcadores, paridad apagada y superficie ON.
+async function testIdentidadF2bD5(sessions, seed) {
+  console.log('\n— Identidad multiempresa F2.b [D-5]: RPC de un argumento cerradas con ON; abandonar conversión —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-5: ${etiqueta}`, sql);
+  const flag = (on) => ejecutarFueraDeBanda('bandera resolver_en_puertas (F2.b D-5)',
+    `update crm.multiempresa_flags set activo=${on ? 'true' : 'false'}, actualizado_en=now() where nombre='resolver_en_puertas';`);
+  const FA = 'crm.abandonar_conversion_gerencia_fn(uuid,text)';
+  const UNO = ['crm.reservar_conversion_lead(uuid)', 'crm.marcar_efectos_conversion(uuid)'];
+  if (cuenta('D-5 aplicada', `select (to_regprocedure('${FA}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-5 (20260906140000) no está en esta base)');
+    return;
+  }
+  const LEAD_INEXISTENTE = '00000000-0000-4000-8000-00000000000d5';
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-d5'));
+  const vend1Id = seed.profileIdByKey.vend1;
+  const L_V1 = randomUUID();
+  try {
+    check(cuenta('marcadores', `select count(*) from pg_proc p where p.oid in ('${UNO[0]}'::regprocedure, '${UNO[1]}'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure) and strpos(p.prosrc, 'F2.b [D-5]') > 0`) === 3,
+      'D-5 las dos firmas de un argumento y el sellado por persona llevan la transformación (marcador en el cuerpo)');
+    check(cuenta('grants', `select count(*) from unnest(array['${UNO[0]}','${UNO[1]}','crm.marcar_efectos_conversion(uuid,uuid,text)','${FA}']) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 4
+        && cuenta('PUBLIC residual', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid in ('${UNO[0]}'::regprocedure, '${UNO[1]}'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure, '${FA}'::regprocedure) and a.grantee = 0`) === 0,
+      'D-5 las cuatro conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+    check(cuenta('definer', `select count(*) from pg_proc p where p.oid in ('${UNO[0]}'::regprocedure, '${UNO[1]}'::regprocedure, 'crm.marcar_efectos_conversion(uuid,uuid,text)'::regprocedure, '${FA}'::regprocedure) and p.prosecdef and p.proconfig @> array['search_path=""'] and p.proowner = 'postgres'::regrole`) === 4,
+      'D-5 las cuatro son DEFINER de postgres con search_path vacío');
+    await expectExpectedFailure('D-5 anon abandonar → 42501 (sin EXECUTE)', anon.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['42501'], /permission denied|denegado/i);
+    await expectExpectedFailure('D-5 vend1 abandonar → 42501 (solo Gerencia)', sessions.vend1.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['42501'], /Gerencia/i);
+    await expectExpectedFailure('D-5 OFF gerencia abandonar → P0409 «apagada» (superficie inerte)', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: LEAD_INEXISTENTE, p_motivo: 'motivo largo' }), ['P0409'], /apagada/i);
+    // Paridad APAGADA de la reserva por lead (la firma vieja del edge de hoy): reserva y sella como siempre.
+    await requireAdmin('D-5: sembrar un lead vivo de vend1', admin.schema('crm').from('leads').insert([
+      { id: L_V1, nombre_completo: 'D5 RESERVA V1 TRANSIENT', telefono: TEL_F2B(193), creado_por: vend1Id, vendedor_id: vend1Id, activo: true, asignado_supervisor_id: null, etapa: 'nuevo', moneda: 'PEN', no_contactar: false, origen: 'otro', monto_estimado: 5000 },
+    ]));
+    const { data: r1, error: e1 } = await sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 });
+    check(!e1 && r1?.ok === true && cuenta('reserva por lead', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}' and inversionista_id is null`) === 1,
+      'D-5 OFF vend1 reserva por lead (1 argumento) → ok, como hoy', e1?.message ?? JSON.stringify(r1));
+    const { data: r2, error: e2 } = await sessions.vend1.client.schema('crm').rpc('marcar_efectos_conversion', { p_lead_id: L_V1 });
+    check(!e2 && r2?.ok === true && cuenta('sellada', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}' and efectos_iniciados_en is not null`) === 1,
+      'D-5 OFF vend1 sella sin persona (1 argumento) → ok, como hoy', e2?.message ?? JSON.stringify(r2));
+    ejecutarFueraDeBanda('D-5 soltar la reserva de prueba', `delete from crm.conversion_reservas where lead_id = '${L_V1}';`);
+    // Con la bandera ENCENDIDA la firma vieja se cierra sin efectos (P0409 con la firma nueva en HINT); apagada de nuevo, vuelve a servir.
+    flag(true);
+    await expectExpectedFailure('D-5 ON vend1 reserva por lead (1 argumento) → P0409 «va por persona»', sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 }), ['P0409'], /va por persona/i);
+    await expectExpectedFailure('D-5 ON vend1 sella sin persona (1 argumento) → P0409 «va por persona»', sessions.vend1.client.schema('crm').rpc('marcar_efectos_conversion', { p_lead_id: L_V1 }), ['P0409'], /va por persona/i);
+    check(cuenta('sin reserva con ON', `select count(*) from crm.conversion_reservas where lead_id = '${L_V1}'`) === 0, 'D-5 ON la firma vieja no dejó reserva');
+    await expectExpectedFailure('D-5 ON gerencia abandonar un lead sin reserva por persona → P0002', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: L_V1, p_motivo: 'motivo largo' }), ['P0002'], /reserva por persona/i);
+    await expectExpectedFailure('D-5 ON gerencia abandonar con motivo corto → 22023', sessions.gerencia.client.schema('crm').rpc('abandonar_conversion_gerencia_fn', { p_lead_id: L_V1, p_motivo: 'abc' }), ['22023'], /motivo/i);
+    flag(false);
+    const { data: r3, error: e3 } = await sessions.vend1.client.schema('crm').rpc('reservar_conversion_lead', { p_lead_id: L_V1 });
+    check(!e3 && r3?.ok === true, 'D-5 OFF otra vez: la firma vieja vuelve a servir', e3?.message ?? JSON.stringify(r3));
+  } finally {
+    flag(false);
+    ejecutarFueraDeBanda('D-5 limpieza', `delete from crm.conversion_reservas where lead_id = '${L_V1}'; update crm.leads set activo = false where id = '${L_V1}';`, { tolerante: true });
+  }
+}
+
 // ── F2.b [D-10] (20260905150000): la reserva por persona cuenta el PUENTE en «un solo lead» ──
 // Solo grants, paridad apagada y que la rama ON sea alcanzable sin efectos (el negocio —puente, replay
 // tras fusión [D-11]— lo cubre scripts/oraculo-f2b-d10-d11.sh).
@@ -12133,6 +12237,8 @@ async function main() {
       await testIdentidadF2bD3(sessions);
       await testIdentidadF2bD2(sessions);
       await testIdentidadF2bD4(sessions);
+      await testIdentidadF2bD15(sessions, verifiedSeed);
+      await testIdentidadF2bD5(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

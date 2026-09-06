@@ -1,0 +1,11 @@
+# md5(pg_get_functiondef) en PRODUCCIÓN el 06/09/2026 (= banco-f7, contrastado) de lo que crm.reabrir_lead_fn reutiliza o presupone (D-13/b2/base).
+private.bloquear_personas_de_leads(uuid[],text) 781496f9
+private.lead_dentro_de_bloqueo(uuid,jsonb) f1fc03b9
+private.juicio_reapertura(uuid,text,text) 47277cd6
+private.enlazar_lead_reabierto(uuid,uuid) c0c26159
+private.lead_persona_reabrir(uuid) 027e19f2
+private.persona_vetada(uuid) a70efe77
+private.trg_leads_zz_reapertura_solo_rpc() 39c49943
+private.trg_leads_cambio_etapa() 5e457384
+private.rol_crm(uuid) 99827f3f
+private.vendedor_ids_visibles(uuid) 85544c70
