@@ -29,7 +29,7 @@ const EXPUESTO =
   " corridaProgramada, instalarHorario, quitarHorario, verHorario, verEstado," +
   " leerEstado, medirOrigen, relojDeLima, contarEstadosDeLeads, crearMenu, onEdit," +
   " TOPE_POR_PASADA, FECHA_CORTE, HOJA_MARCAS, HOJA_HUELLAS, HOJA_LEADS," +
-  " HOJA_REVISAR, MOTIVO_BACKLOG, CADENCIA_MINUTOS, COL_ESTADO };";
+  " HOJA_REVISAR, MOTIVO_BACKLOG, CADENCIA_MINUTOS, COL_ESTADO, categoriaResultadoImportacion };";
 
 function cargar(entorno) {
   const g = entorno.globales;
@@ -1143,6 +1143,30 @@ test("onEdit CONSERVA el estado IMPORTADO al editar otra columna de la fila", ()
 
   assert.equal(estadoDe(hojaLeads, 2), "IMPORTADO ✓",
     "una fila ya importada no debe volver a quedar pendiente de reintento");
+});
+
+// F2.b [D-4] (identidad unificada): con la identidad encendida el CRM responde «YA ES
+// CLIENTE (asesor: X): reingreso registrado en su ficha». Es una escritura confirmada
+// (la nota de reingreso ya está en la ficha): ni se reintenta ni se limpia al editar.
+test("F2.b D-4: «YA ES CLIENTE» es una categoría propia (ya_cliente), no un error a reintentar", () => {
+  const { gs } = montar({ filasLeads: [filaConEstado("IMPORTADO ✓")] });
+  assert.equal(gs.categoriaResultadoImportacion({
+    resultado: "ya_cliente",
+    estado: "YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha",
+  }), "ya_cliente");
+  assert.equal(gs.categoriaResultadoImportacion({ estado: "YA ES CLIENTE" }), "ya_cliente",
+    "un edge que solo mande el estado también se entiende");
+  assert.equal(gs.categoriaResultadoImportacion({ resultado: "ya_cliente", estado: "DUPLICADO: ya existe en el CRM" }), null,
+    "estado y resultado contradictorios = respuesta ambigua (se reintenta)");
+});
+
+test("onEdit CONSERVA «YA ES CLIENTE»: reenviar esa fila anotaría OTRO reingreso en la ficha", () => {
+  const ESTADO = "YA ES CLIENTE (asesor: Ana Pérez): reingreso registrado en su ficha";
+  const { gs, hojaLeads } = montar({ filasLeads: [filaConEstado(ESTADO)] });
+
+  gs.onEdit(eventoEdicion(hojaLeads, 2, 1)); // se edita el nombre (columna A)
+
+  assert.equal(estadoDe(hojaLeads, 2), ESTADO, "una fila «ya es cliente» no debe volver a quedar pendiente");
 });
 
 test("onEdit SIGUE limpiando DUPLICADO/RECHAZADO/ERROR — esas sí hay que reintentarlas", () => {

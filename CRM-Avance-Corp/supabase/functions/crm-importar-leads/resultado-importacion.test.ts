@@ -327,3 +327,12 @@ Deno.test("D-4 v3: los demás errores de la puerta conservan la clasificación d
     "40001 sigue siendo temporal",
   );
 });
+
+Deno.test("D-4 v4: una categoría que este edge no conoce es TEMPORAL, nunca un rechazo", () => {
+  const r = clasificarRespuestaPuerta(
+    { resultado: "otro", veredicto: { estado: "x" } } as unknown as Parameters<
+      typeof clasificarRespuestaPuerta
+    >[0],
+  );
+  assert(r.resultado === "error_temporal", "categoría desconocida → temporal");
+});

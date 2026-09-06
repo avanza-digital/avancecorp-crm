@@ -335,6 +335,18 @@ const MUTANTES = [
 
   // ── El conector ───────────────────────────────────────────────────────────
   {
+    nombre: "la hoja no reconoce «YA ES CLIENTE» (lo reintentaría y anotaría reingresos repetidos)",
+    archivo: CONECTOR,
+    de: `  else if (estado.indexOf("YA ES CLIENTE") === 0) porEstado = "ya_cliente";\n`,
+    a: ``,
+  },
+  {
+    nombre: "onEdit limpia «YA ES CLIENTE» como si fuera un rechazo",
+    archivo: CONECTOR,
+    de: `    if (estado.indexOf("IMPORTADO") === 0 || estado.indexOf("YA ES CLIENTE") === 0) continue;`,
+    a: `    if (estado.indexOf("IMPORTADO") === 0) continue;`,
+  },
+  {
     nombre: "activarConector deja de exigir el secreto antes de encender",
     archivo: CONECTOR,
     de: `  secretoDeImportacion(); // falla AQUÍ si falta, no dentro del primer ciclo silencioso`,

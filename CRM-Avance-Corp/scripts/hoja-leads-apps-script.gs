@@ -164,6 +164,7 @@ function prepararHoja() {
   hoja.setConditionalFormatRules([
     regla("IMPORTADO", "#d9ead3", "#1e4620"), // verde
     regla("DUPLICADO", "#fff2cc", "#7f6000"), // ámbar
+    regla("YA ES CLIENTE", "#d9d2e9", "#20124d"), // lila (F2.b: la persona ya es cliente; reingreso anotado en su ficha)
     regla("RECHAZADO", "#f4cccc", "#990000"), // rojo
     regla("ERROR", "#cfe2f3", "#0b5394"),     // azul (temporal, se reintenta)
   ]);
@@ -288,7 +289,10 @@ function onEdit(e) {
   if (col > ENCABEZADOS.length) return;  // fuera de la tabla
   for (let r = Math.max(desde, 2); r <= hasta; r++) {
     const celda = hoja.getRange(r, COL_ESTADO);
-    if (String(celda.getValue()).trim().indexOf("IMPORTADO") === 0) continue;
+    const estado = String(celda.getValue()).trim();
+    // IMPORTADO y YA ES CLIENTE son escrituras confirmadas en el CRM: reenviarlas
+    // reetiquetaría la fila (DUPLICADO) o anotaría OTRO reingreso en la ficha.
+    if (estado.indexOf("IMPORTADO") === 0 || estado.indexOf("YA ES CLIENTE") === 0) continue;
     celda.clearContent();
   }
 }
@@ -313,10 +317,11 @@ function categoriaResultadoImportacion(resultado) {
   let porEstado = null;
   if (estado.indexOf("IMPORTADO") === 0) porEstado = "importado";
   else if (estado.indexOf("DUPLICADO") === 0) porEstado = "duplicado";
+  else if (estado.indexOf("YA ES CLIENTE") === 0) porEstado = "ya_cliente";
   else if (estado.indexOf("RECHAZADO") === 0) porEstado = "rechazado";
   else if (estado.indexOf("ERROR temporal") === 0) porEstado = "error_temporal";
 
-  const validas = ["importado", "duplicado", "rechazado", "error_temporal"];
+  const validas = ["importado", "duplicado", "ya_cliente", "rechazado", "error_temporal"];
   if (declarada && validas.indexOf(declarada) < 0) return null;
   if (!porEstado) return null;
   if (declarada && porEstado && declarada !== porEstado) return null;
@@ -326,7 +331,7 @@ function categoriaResultadoImportacion(resultado) {
 /**
  * Concilia EXACTAMENTE las filas enviadas con lo que devolvió el CRM.
  *
- * - resultado válido y único → conserva IMPORTADO/DUPLICADO/RECHAZADO/ERROR;
+ * - resultado válido y único → conserva IMPORTADO/DUPLICADO/YA ES CLIENTE/RECHAZADO/ERROR;
  * - fila ausente, repetida o respuesta ambigua → ERROR temporal reintentable;
  * - resultados de filas que no pertenecían a esta corrida → se ignoran.
  *

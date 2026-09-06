@@ -15,6 +15,9 @@
 # transacción. Guardas nuevas: los tres triggers de nacimiento (000/00/zz) y los dos índices únicos, que SON el contrato del
 # importador; el veredicto de duplicado nombra el índice (sin PII); el reingreso deja subir los errores transitorios (40/53/55/57);
 # la puerta apaga crm.op_privilegiada al entrar; postflight y registro exigen dueño postgres.
+# v4 (Codex 06/09): los candados de CONTACTO ya no se toman explícitos —los toma el trigger 00 del INSERT, después del veto de
+# la persona (000), como el INSERT directo: una persona vetada no espera por un teléfono retenido—; los casts del payload van
+# después de la autorización (un payload malformado no cambia el 42501 por un 22xxx).
 # Uso: python3 gen-d4.py <dir scripts/f2b> <dir supabase>
 import sys, pathlib, hashlib
 S = pathlib.Path(sys.argv[1]); W = pathlib.Path(sys.argv[2])
@@ -43,22 +46,22 @@ BODY = """
 declare
   v_id         uuid := pg_catalog.gen_random_uuid();
   v_nombre     text := nullif(pg_catalog.btrim(p_fila->>'nombre_completo'), '');
-  v_telefono   text := private.normalizar_telefono(p_fila->>'telefono');
+  v_telefono   text;
   v_alt        text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo'), '');
   v_alt_crudo  text := nullif(pg_catalog.btrim(p_fila->>'telefono_alternativo_crudo'), '');
   v_correo     text := nullif(pg_catalog.btrim(p_fila->>'correo'), '');
   v_dni        text := nullif(pg_catalog.btrim(p_fila->>'dni'), '');
   v_genero     text := nullif(pg_catalog.btrim(p_fila->>'genero'), '');
-  v_fecha      date := nullif(pg_catalog.btrim(p_fila->>'fecha_nacimiento'), '')::date;
+  v_fecha      date;
   v_distrito   text := nullif(pg_catalog.btrim(p_fila->>'distrito'), '');
   v_origen     text := nullif(pg_catalog.btrim(p_fila->>'origen'), '');
-  v_monto      numeric := nullif(pg_catalog.btrim(p_fila->>'monto_estimado'), '')::numeric;
+  v_monto      numeric;
   v_moneda     text := nullif(pg_catalog.btrim(p_fila->>'moneda'), '');
   v_categoria  text := nullif(pg_catalog.btrim(p_fila->>'categoria_interes'), '');
   v_nota       text := nullif(pg_catalog.btrim(p_fila->>'nota'), '');
-  v_cons_en    timestamptz := nullif(pg_catalog.btrim(p_fila->>'consentimiento_en'), '')::timestamptz;
+  v_cons_en    timestamptz;
   v_cons_fuente text := nullif(pg_catalog.btrim(p_fila->>'consentimiento_fuente'), '');
-  v_vendedor   uuid := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
+  v_vendedor   uuid;
   v_detalle    text;
   v_constraint text;
   v_veredicto  jsonb;
@@ -75,6 +78,12 @@ begin
   if p_fila is null or pg_catalog.jsonb_typeof(p_fila) <> 'object' then
     raise exception 'Fila invalida' using errcode = '22023';
   end if;
+  -- Los casts van DESPUÉS de la autorización (Codex v3 #6): un payload malformado no cambia el 42501 por un 22xxx.
+  v_telefono := private.normalizar_telefono(p_fila->>'telefono');
+  v_fecha    := nullif(pg_catalog.btrim(p_fila->>'fecha_nacimiento'), '')::date;
+  v_monto    := nullif(pg_catalog.btrim(p_fila->>'monto_estimado'), '')::numeric;
+  v_cons_en  := nullif(pg_catalog.btrim(p_fila->>'consentimiento_en'), '')::timestamptz;
+  v_vendedor := nullif(pg_catalog.btrim(p_fila->>'vendedor_id'), '')::uuid;
   -- Lo mismo que hoy exige la fila al nacer (trigger de disponibilidad, CHECKs), dicho antes y con el mismo texto.
   if v_nombre is null then
     raise exception 'El nombre es obligatorio' using errcode = '22023';
@@ -96,13 +105,14 @@ begin
   end if;
 
   -- Orden TOTAL de candados (b1/D-13, el de crm.crear_lead_si_disponible): documento → persona → contactos → fila.
-  -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice); aquí
-  -- se toman explícitos y los triggers de nacimiento los vuelven a tomar (reentrantes, misma transacción). D-4 no
-  -- cambia el orden: lo que aporta es un veredicto único sin parsear SQLSTATE y el reingreso en la misma transacción.
-  -- Con la bandera apagada los dos candados de identidad no toman nada.
+  -- El INSERT directo de hoy YA los toma en ese orden (triggers BEFORE 000 → 00, antes de tocar tupla e índice). Aquí
+  -- se toman explícitos SOLO los de identidad (documento → persona; apagada la bandera no toman nada), antes del
+  -- sub-bloque para que sobrevivan a su rollback y el reingreso corra con la persona retenida. Los de CONTACTO los toma
+  -- el trigger 00 del INSERT, DESPUÉS del veto de la persona (000), exactamente como el INSERT directo: una persona
+  -- vetada recibe su «no insistir» sin esperar por un teléfono retenido (Codex v3 #3). D-4 no cambia el orden: lo que
+  -- aporta es un veredicto único sin parsear SQLSTATE y el reingreso en la misma transacción.
   perform private.identidad_bloquear_documento('DNI', v_dni);
   perform private.identidad_bloquear_persona('DNI', v_dni);
-  perform private.bloquear_contactos_lead(array[v_telefono], array[v_dni]);
 
   -- El CONTRATO del importador es el de la fila al nacer sin sesión humana (trigger de disponibilidad: «un escritor
   -- interno se serializa pero conserva su contrato especializado»): NO se consulta la disponibilidad comercial
@@ -182,7 +192,7 @@ CREA = f"""create or replace function crm.importar_lead_fn(p_fila jsonb)
 as $function${BODY}$function$;
 revoke all on function {FIRMA} from public, anon, authenticated;
 grant execute on function {FIRMA} to service_role;
-comment on function crm.importar_lead_fn(jsonb) is 'F2.b [D-4]: puerta SQL del importador (solo service_role). Una fila de la hoja → veredicto {{resultado, lead_id, veredicto, reingreso}}; inserta si está libre con los candados en el orden total del front.';
+comment on function crm.importar_lead_fn(jsonb) is 'F2.b [D-4]: puerta SQL del importador (solo service_role). Una fila de la hoja → veredicto {{resultado, lead_id, veredicto, reingreso}}; el MISMO INSERT del edge bajo el orden total de candados, con el reingreso en la misma transacción.';
 """
 GUARD_DEPS = ''.join(
   (f"""  if to_regprocedure('{k}') is null then
@@ -218,7 +228,8 @@ mig = f"""-- ===================================================================
 -- QUE: el edge crm-importar-leads (las filas de la hoja de Google, cada 5 minutos, con service_role) INSERTA hoy directo
 -- en crm.leads y adivina el veredicto parseando los errores del INSERT (P0481 con el veredicto en DETAIL, P0429, 23505).
 -- Los leads del front entran por crm.crear_lead_si_disponible: candados en el orden TOTAL (documento → persona →
--- contactos → fila) y un veredicto único del mismo verificador. Esta puerta hace lo mismo para el importador:
+-- contactos → fila) y un veredicto único. Esta puerta hace el MISMO INSERT del edge bajo ese mismo orden (los de
+-- identidad explícitos; los de contacto los toma el trigger 00 tras el veto 000, como hoy) y devuelve un veredicto:
 --   crm.importar_lead_fn(p_fila jsonb) → {{resultado, lead_id, veredicto, reingreso}}   (SOLO service_role, sin sesión)
 --   · resultado = importado (insertó, mismo payload del edge) | duplicado (lead vivo con ese teléfono/DNI) |
 --     ya_cliente (persona reconocida por identidad, bandera encendida; anota el REINGRESO en su lead en la misma

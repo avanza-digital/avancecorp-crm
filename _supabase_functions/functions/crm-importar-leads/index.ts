@@ -287,7 +287,8 @@ Deno.serve(async (req: Request) => {
     // Lo que no se pudo leer NO se tira: viaja crudo para que un humano lo mire.
     const alternativoCrudo = reparto.alternativoCrudo;
     const principalRaw = (f.telefono ?? "").trim();
-    const principalEraElDeSiempre = reconocerTelefono(principalRaw)?.e164 === telefono;
+    const principalEraElDeSiempre =
+      reconocerTelefono(principalRaw)?.e164 === telefono;
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
@@ -424,33 +425,13 @@ Deno.serve(async (req: Request) => {
   }
 
   if (validas.length > 0) {
-    // ── Pase 2: dedup contra la BD por teléfono ──────────────────────────────
-    // Espejo EXACTO del índice `uq_leads_telefono_vivo`, que es único SOLO entre
-    // leads vivos: WHERE activo = true AND etapa NOT IN ('convertido','descartado').
-    // Sin estos dos filtros el edge era MÁS estricto que la BD y bloqueaba para
-    // siempre dos reingresos legítimos: (1) el lead que se descartó alguna vez, y
-    // (2) el cliente YA CONVERTIDO que vuelve por un segundo depósito — el mejor
-    // lead posible, rechazado en silencio como "DUPLICADO".
-    // Se traen las columnas y se decide EN MEMORIA, a propósito: expresar
-    // "etapa NOT IN (...)" como filtro de PostgREST es fácil de escribir mal y
-    // fallaría en silencio (deduplicar de menos = teléfonos repetidos; de más =
-    // nadie vuelve a entrar). El lote está acotado a MAX_POR_LOTE teléfonos.
-    const { data: existentes, error: errDedup } = await admin
-      .from("leads")
-      .select("telefono, etapa, activo")
-      .in("telefono", validas.map((v) => v.telefono));
-    if (errDedup) {
-      return json({
-        error: `Error consultando duplicados: ${errDedup.message}`,
-      }, 500);
-    }
-
-    const CERRADAS = new Set(["convertido", "descartado"]);
-    const yaEnCrm = new Set(
-      (existentes ?? [])
-        .filter((r) => r.activo === true && !CERRADAS.has(String(r.etapa)))
-        .map((r) => r.telefono),
-    );
+    // ── Pase 2 (F2.b [D-4] v4, Codex #2): SIN dedup previo contra la BD ────────
+    // Antes se consultaba `leads` por teléfono vivo y esas filas se cerraban como
+    // DUPLICADO sin llegar a la base. Con la identidad encendida eso se saltaba el
+    // reingreso: la persona reconocida cuyo lead vivo tiene el MISMO teléfono debe
+    // recibir «ya es cliente» y su reingreso, no «duplicado». Ahora decide la puerta
+    // (índice único de teléfono/DNI vivo → duplicado; trigger de identidad → ya
+    // cliente / no insistir). El dedup dentro del mismo lote sigue en el pase 1.
 
     // ── Pase 3: resolver destino por el rol CRM efectivo canónico ───────────
     const correosVendedor = [
@@ -488,14 +469,6 @@ Deno.serve(async (req: Request) => {
 
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
     for (const v of validas) {
-      if (yaEnCrm.has(v.telefono)) {
-        resultados.push({
-          fila: v.fila,
-          resultado: "duplicado",
-          estado: "DUPLICADO: ya existe en el CRM",
-        });
-        continue;
-      }
       if (v.vendedorCorreo) {
         const id = vendedorPorCorreo.get(v.vendedorCorreo);
         if (id) v.insert.vendedor_id = id;
@@ -504,10 +477,11 @@ Deno.serve(async (req: Request) => {
       // F2.b [D-4]: la puerta SQL (solo service_role, sin sesión) hace el INSERT de siempre bajo
       // los candados en el orden total y devuelve el veredicto; si «ya es cliente» por identidad,
       // el reingreso queda anotado en su lead dentro de la misma transacción.
-      const { data: respuesta, error: errPuerta, status: statusPuerta } = await admin.rpc(
-        "importar_lead_fn",
-        { p_fila: { ...v.insert, fila: v.fila } },
-      );
+      const { data: respuesta, error: errPuerta, status: statusPuerta } =
+        await admin.rpc(
+          "importar_lead_fn",
+          { p_fila: { ...v.insert, fila: v.fila } },
+        );
       if (errPuerta) {
         // Errores que la puerta deja subir (datos inválidos, destino que no puede recibir
         // leads, timeouts): la misma clasificación de siempre (definitivo vs temporal). Si la
@@ -520,7 +494,9 @@ Deno.serve(async (req: Request) => {
         });
         continue;
       }
-      const clasificacion = clasificarRespuestaPuerta(respuesta as RespuestaPuerta);
+      const clasificacion = clasificarRespuestaPuerta(
+        respuesta as RespuestaPuerta,
+      );
       if (clasificacion.resultado !== "importado") {
         resultados.push({
           fila: v.fila,

@@ -66,10 +66,12 @@ migración, `scripts/rollback-f2b-dN.sql` (byte a byte + desregistro) y `scripts
 
 - `gen-d4.py` → `20260906130000` (`crm.importar_lead_fn(jsonb)`, solo service_role: los mismos candados y el MISMO INSERT del edge, con
   `23505`/`P0481`/`P0429` convertidos en veredicto y el reingreso en la misma transacción), `scripts/rollback-f2b-d4.sql` (DROP) y
-  `scripts/registrar-f2b-d4.sql`. Sin funciones vivas transformadas. Oráculo `scripts/oraculo-f2b-d4.sh` (39 en v3; sin la puerta, 29 rojos).
+  `scripts/registrar-f2b-d4.sql`. Sin funciones vivas transformadas. Oráculo `scripts/oraculo-f2b-d4.sh` (40 en v4; sin la puerta, 30 rojos).
 - v3 (auditor-rls 06/09): guardas de los triggers 000/00/zz e índices únicos (son el contrato del importador), veredicto de duplicado
   sin PII (nombre del índice), transitorios del reingreso suben, `op_privilegiada` off, dueño `postgres` en postflight/registro; en el
   edge, la puerta ausente (`PGRST202`/`42883`/`42501`/404) es temporal, no rechazo. Espejo `_supabase_functions/…/crm-importar-leads` sincronizado.
+- v4 (Codex 06/09): sin dedup previo en el edge (decide la puerta); contactos los toma el trigger 00 tras el veto (una persona vetada no espera);
+  casts tras el gate; categorías cerradas en el edge; el Apps Script conoce «YA ES CLIENTE» (🔴 reinstalarlo en Google antes del ON).
 - 🔴 Regla aprendida: el importador NO usa el veredicto comercial (enfriamiento, ficha, veto de un lead viejo): el trigger de disponibilidad
   exime al escritor sin sesión; la puerta debe hacer el mismo INSERT y traducir, no juzgar.
 - Fase 2 = el edge `functions/crm-importar-leads` (`rpc importar_lead_fn`; tests Deno `deno test` en esa carpeta). Deploy aparte.

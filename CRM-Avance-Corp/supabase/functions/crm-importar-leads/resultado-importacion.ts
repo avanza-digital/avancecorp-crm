@@ -177,10 +177,22 @@ export function textoRechazoDeVeredicto(
  * `ya_cliente` compone además el texto del reingreso (registrado / no se pudo anotar), que antes componía el edge tras
  * llamar aparte a registrar_reingreso_lead_fn.
  */
+const CATEGORIAS_PUERTA = new Set([
+  "importado",
+  "duplicado",
+  "ya_cliente",
+  "rechazado",
+]);
+
 export function clasificarRespuestaPuerta(
   r: RespuestaPuerta | null | undefined,
 ): ResultadoImportacion {
-  if (!r || typeof r !== "object" || typeof r.resultado !== "string") {
+  // Solo las cuatro categorías del contrato; cualquier otra cosa (una versión de
+  // la puerta que este edge no conoce) es temporal, nunca un rechazo (Codex v3 #4).
+  if (
+    !r || typeof r !== "object" || typeof r.resultado !== "string" ||
+    !CATEGORIAS_PUERTA.has(r.resultado)
+  ) {
     return {
       resultado: "error_temporal",
       estado:

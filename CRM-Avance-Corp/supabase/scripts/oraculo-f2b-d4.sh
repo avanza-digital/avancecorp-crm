@@ -5,6 +5,8 @@
 # Sin D-4 (mutante) la puerta no existe: todas las llamadas fallan (42883) y el oráculo sale ROJO.
 # v3 (auditor-rls 06/09): + veredicto de duplicado sin PII, claves privilegiadas ignoradas, duplicado por DNI vivo, reingreso que
 # falla (definitivo vs transitorio), persona con ficha sin lead, persona en conversión.
+# v4 (Codex 06/09): persona vetada con el teléfono retenido → rechazada sin esperar; «en conversión» prueba de verdad la rama de
+# la reserva (lead sin documento, ni enlace, ni puente).
 set -uo pipefail
 : "${S:?exporta S=/ruta/al/scratchpad con banco-pooler.txt}"
 PG="$(cat "$S/banco-pooler.txt")"
@@ -103,6 +105,12 @@ RD="$(directo 9${RUN}79 "'$D8'" REING)"; echo "$RD" | grep -q "P0481" && echo "$
 R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$V\",\"role\":\"authenticated\"}',true); select crm.marcar_no_contactar('$L8','ensayo D-4 r$RUN'); commit;" 2>&1)"; [[ "$(q "select no_contactar from crm.inversionistas where id='$P8'")" == "t" ]] && ok "fixture: P8 vetada" || rojo "veto P8: $(echo "$R" | head -c 120)"
 R="$(puerta "$(fila 9${RUN}80 "\"$D8\"" VETADA 10)")"; RD="$(directo 9${RUN}80 "'$D8'" VETADA)"
 [[ "$(j "$R" resultado)" == "rechazado" && "$(jj "$R" veredicto estado)" == "no_contactar" && -z "$(j "$R" reingreso)" ]] && echo "$RD" | grep -q "P0429" && ok "persona vetada → puerta: rechazado (no_contactar), sin reingreso = INSERT directo: P0429" || rojo "[D-4] vetada: $(echo "$R" | head -c 160) | $(echo "$RD" | grep ERROR | head -1 | cut -c1-120)"
+# (v4) persona vetada + teléfono retenido por OTRA sesión más de lock_timeout: el veto (trigger 000) va antes que el candado de contacto → rechazado enseguida, no 55P03
+psql "$PG" -q -c "begin; select private.bloquear_contactos_lead(array['+519${RUN}97'], null); select pg_sleep(8); commit;" >/dev/null 2>&1 &
+BG=$!; sleep 1; T0=$(date +%s)
+R="$(puerta "$(fila 9${RUN}97 "\"$D8\"" VETOLOCK 27)")"; T1=$(date +%s)
+[[ "$(j "$R" resultado)" == "rechazado" && "$(jj "$R" veredicto estado)" == "no_contactar" && $((T1-T0)) -le 4 ]] && ok "ON · persona vetada con el teléfono retenido por otra sesión → rechazado no_contactar en $((T1-T0)) s, sin esperar el candado de contacto (el veto va antes, como en el INSERT directo)" || rojo "[D-4] vetada con contacto retenido: $((T1-T0)) s $(echo "$R" | head -c 160)"
+wait $BG 2>/dev/null
 psql "$PG" -qtA -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$G\",\"role\":\"authenticated\"}',true); select crm.levantar_no_contactar('$L8','fin r$RUN'); commit;" >/dev/null 2>&1
 # (v3) el reingreso FALLA: definitivo → ya_cliente con reingreso.ok=false (la hoja lo dice, sin nota a medias); transitorio → la puerta sube el error entero (la fila se reintenta)
 N1="$(q "select count(*) from crm.actividades where lead_id='$L8' and metadata->>'evento'='reingreso'")"
@@ -126,17 +134,17 @@ psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true); ins
 R="$(puerta "$(fila 9${RUN}94 "\"$D20\"" PERFIL 24)")"; RD="$(directo 9${RUN}94 "'$D20'" PERFIL)"
 [[ "$(j "$R" resultado)" == "ya_cliente" && -z "$(j "$R" lead_id)" && -z "$(j "$R" reingreso)" && "$(jj "$R" veredicto via)" == "identidad" ]] && echo "$RD" | grep -q "P0481" && [[ "$(q "select count(*) from crm.leads where telefono='+519${RUN}94'")" == "0" ]] && ok "ON · persona con ficha de cliente y sin lead → ya_cliente SIN lead_id ni reingreso (nada donde anotar) = INSERT directo P0481; no nace lead" || rojo "[D-4] ON ficha sin lead: $(echo "$R" | head -c 220) | $(echo "$RD" | grep ERROR | head -1 | cut -c1-80)"
 # (v3) persona EN CONVERSIÓN (reserva por persona viva, D-10): la fila que llega durante la conversión va al lead reservado
-D21="6${RUN}1"; P21="$(persona "$D21")"; L21="$(uuid)"; lead_de "$L21" 9${RUN}95 CONV "'$D21'" "'$V'"
+D21="6${RUN}1"; P21="$(persona "$D21")"; L21="$(uuid)"; lead_de "$L21" 9${RUN}95 CONV null "'$V'"   # SIN documento, ni enlace, ni puente: solo la reserva une L21 con P21
 R="$(psql "$PG" -qtA -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claims','{\"sub\":\"$V\",\"role\":\"authenticated\"}',true); select crm.reservar_conversion_lead('$L21','DNI','$D21','{\"correo\":\"d4c$RUN@x.pe\"}'::jsonb); commit;" 2>&1)"
-[[ "$(q "select count(*) from crm.conversion_reservas where lead_id='$L21' and inversionista_id='$P21' and expira_en > now()")" == "1" ]] && ok "fixture: L21 (de V, DNI de P21) reservado para conversión por persona" || rojo "reserva L21: $(echo "$R" | head -c 200)"
+[[ "$(q "select count(*) from crm.conversion_reservas where lead_id='$L21' and inversionista_id='$P21' and expira_en > now()")" == "1" && "$(q "select count(*) from private.leads_de_personas(array['$P21'::uuid])")" == "0" ]] && ok "fixture: L21 (de V, sin documento) reservado para conversión POR PERSONA para P21; leads_de_personas(P21) vacío ⇒ solo la rama de la reserva puede reconocerla" || rojo "reserva L21: $(echo "$R" | head -c 200) · leads_de_personas=$(q "select count(*) from private.leads_de_personas(array['$P21'::uuid])")"
 R="$(puerta "$(fila 9${RUN}96 "\"$D21\"" CONV2 26)")"
-[[ "$(j "$R" resultado)" == "ya_cliente" && "$(j "$R" lead_id)" == "$L21" && "$(jj "$R" reingreso ok)" == "True" && "$(q "select count(*) from crm.actividades where lead_id='$L21' and metadata->>'evento'='reingreso' and metadata->'datos'->>'fila'='26'")" == "1" && "$(q "select count(*) from crm.leads where telefono='+519${RUN}96'")" == "0" ]] && ok "ON · persona en conversión → ya_cliente con lead_id = el lead reservado y el reingreso anotado ahí; no nace otro lead" || rojo "[D-4] ON en conversión: $(echo "$R" | head -c 220)"
+[[ "$(j "$R" resultado)" == "ya_cliente" && "$(j "$R" lead_id)" == "$L21" && "$(jj "$R" reingreso ok)" == "True" && "$(q "select count(*) from crm.actividades where lead_id='$L21' and metadata->>'evento'='reingreso' and metadata->'datos'->>'fila'='26'")" == "1" && "$(q "select count(*) from crm.leads where telefono='+519${RUN}96'")" == "0" ]] && ok "ON · persona EN CONVERSIÓN (solo la reserva la une al lead) → ya_cliente con lead_id = el lead reservado y el reingreso anotado ahí; no nace otro lead" || rojo "[D-4] ON en conversión: $(echo "$R" | head -c 220)"
 
 echo "== (4) Orden de candados: documento → persona → contactos; la puerta espera detrás del candado de contacto =="
 psql "$PG" -q -c "begin; select private.bloquear_contactos_lead(array['+519${RUN}83'], null); select pg_sleep(4); commit;" >/dev/null 2>&1 &
 BG=$!; sleep 1; T0=$(date +%s)
 R="$(puerta "$(fila 9${RUN}83 null LOCK 13)")"; T1=$(date +%s)
-[[ "$(j "$R" resultado)" == "importado" && $((T1-T0)) -ge 2 ]] && ok "con el teléfono retenido por otra sesión, la puerta esperó $((T1-T0)) s y luego importó (mismo candado que el front)" || rojo "candado de contacto: $((T1-T0)) s $(echo "$R" | head -c 160)"
+[[ "$(j "$R" resultado)" == "importado" && $((T1-T0)) -ge 2 ]] && ok "con el teléfono retenido por otra sesión, la puerta esperó $((T1-T0)) s y luego importó (el candado de contacto lo toma el trigger 00 del INSERT, como en el front y en el INSERT directo)" || rojo "candado de contacto: $((T1-T0)) s $(echo "$R" | head -c 160)"
 wait $BG 2>/dev/null
 psql "$PG" -q -c "begin; select private.identidad_bloquear_documento('DNI','6${RUN}4'); select pg_sleep(4); commit;" >/dev/null 2>&1 &
 BG=$!; sleep 1; T0=$(date +%s)
