@@ -51,7 +51,8 @@ echo "== (2) Encendida, cliente CON lead vivo: reingreso en el lead, sin tarea d
 flag true; estado t
 R="$(importar "$(fila 12 "D20 UNO" "9${RUN}12" "$D1" "vuelve con lead")")"
 if echo "$R" | grep -q '"resultado" *: *"ya_cliente"'; then ok "[S2] ENCENDIDA: el CRM la reconoce y responde «ya es cliente» (no duplica su ficha)"; else rojo "S2: $(echo "$R" | head -c 220)"; fi
-echo "$R" | grep -q '"reingreso"' && ok "[S2] el reingreso queda anotado en su lead vivo" || rojo "S2: sin reingreso"
+# Buscar la CLAVE no vale: aparece también con valor null (Codex). Se exige la escritura de verdad.
+echo "$R" | grep -q '"reingreso": *{' && [[ "$(q "select count(*) from crm.actividades a where a.lead_id='$(q "select id from crm.leads where dni='$D1' and activo and etapa not in ('convertido','descartado') limit 1")' and a.metadata->>'evento'='reingreso'")" == "1" ]] && ok "[S2] el reingreso queda anotado en su lead vivo (comprobado en la tabla, no en la clave)" || rojo "S2: el reingreso no quedó escrito · $(echo "$R" | head -c 200)"
 [[ "$(q "select count(*) from crm.tareas t where t.perfil_id='$P1' and t.estado='pendiente'")" == "0" ]] && ok "[S2] y NO se le crea tarea aparte: el lead vivo ya es el trabajo" || rojo "S2: se duplicó el trabajo (lead + tarea)"
 
 echo "== (3) Encendida, cliente SIN lead vivo: nota en la ficha y TAREA a su analista =="

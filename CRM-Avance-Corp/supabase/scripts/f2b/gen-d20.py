@@ -43,9 +43,18 @@ nuevo = rep(nuevo, """  v_lead := nullif(v_veredicto->>'lead_id', '')::uuid;
   -- F2.b [D-20] (auditor A1): `private.leads_de_personas` devuelve enlace ∪ puente ∪ sueltos, así que `v_lead`
   -- también trae leads CONVERTIDOS y descartados. Anotar el reingreso en uno cerrado es escribir donde nadie mira.
   -- La bifurcación va por el lead VIVO: solo ése es un trabajo que alguien tiene en su bandeja.
+  -- Y no basta con mirar el lead que trae el veredicto: si ése está cerrado pero la persona conserva OTRO vivo, crear
+  -- una tarea duplicaría el trabajo (Codex). Se busca cualquier lead vivo suyo, prefiriendo el del veredicto.
   select l.id into v_lead_vivo
     from crm.leads l
-   where l.id = v_lead and l.activo and l.etapa not in ('convertido', 'descartado');
+   where l.activo
+     and l.etapa not in ('convertido', 'descartado')
+     and (l.id = v_lead
+          or (nullif(pg_catalog.btrim(coalesce(v_dni, '')), '') is not null and l.dni = v_dni)
+          or (l.inversionista_id is not null
+              and l.inversionista_id = private.inversionista_por_documento('DNI', v_dni)))
+   order by (l.id = v_lead) desc, l.creado_en desc
+   limit 1;
   if v_resultado = 'ya_cliente' and v_lead_vivo is not null then""")
 nuevo = rep(nuevo, """    end if;
   end if;
@@ -92,7 +101,8 @@ nuevo = rep(nuevo, """    end if;
     end if;
   end if;
 
-  return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso, 'solicitud', v_solicitud);""")
+  return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso)
+      || case when v_solicitud is null then '{}'::jsonb else pg_catalog.jsonb_build_object('solicitud', v_solicitud) end;""")
 H1 = md5s(body(nuevo))
 assert H1 != H0
 
@@ -161,7 +171,10 @@ begin
     from crm.actividades_cliente a
    where a.cliente_id = p_perfil
      and a.tipo = 'nota'
-     and pg_catalog.strpos(coalesce(a.detalle, ''), 'Ref: ' || v_huella) > 0
+     -- La comparación va contra la COLA, no contra el interior (Codex): el sufijo « · Ref: <huella>» lo añadimos
+     -- nosotros SIEMPRE al final, mientras que la nota del visitante queda antes y recortada. Con `strpos`, un texto
+     -- del formulario que contuviera «Ref: <huella>» podía hacer pasar por repetida una solicitud jamás registrada.
+     and pg_catalog.right(coalesce(a.detalle, ''), pg_catalog.length(' · Ref: ' || v_huella)) = ' · Ref: ' || v_huella
      and a.creado_por is null   -- auditor #M2: solo cuenta la nota que escribió el importador, no una copiada a mano
      and a.creado_en > pg_catalog.now() - interval '7 days'
    order by a.creado_en desc

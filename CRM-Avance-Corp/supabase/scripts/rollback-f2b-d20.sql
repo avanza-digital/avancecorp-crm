@@ -15,7 +15,7 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-20: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('321770b5349d70af1767d7d27bcedc93', 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('261411a75326cbe78220d3ef1a61a7cd', 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
     raise exception 'REVERSA D-20: crm.importar_lead_fn no es ni el texto de D-20 ni el vivo de producción; no se pisa a ciegas';
   end if;
 end

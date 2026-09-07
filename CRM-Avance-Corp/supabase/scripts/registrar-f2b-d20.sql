@@ -1,5 +1,5 @@
 -- ============================================================================
--- REGISTRO de F2.b [D-20] (20260906210000). Idempotente. md5 del archivo de migración: d1aae01d2a942db5258db5e84bfad11e
+-- REGISTRO de F2.b [D-20] (20260906210000). Idempotente. md5 del archivo de migración: 3edbf10a21a3bdfe6e8e5f255284569c
 -- ============================================================================
 begin;
 set local lock_timeout = '5s';
@@ -9,12 +9,12 @@ begin
   if to_regprocedure('private.registrar_solicitud_cliente_fn(uuid,text,jsonb)') is null then
     raise exception 'REGISTRO D-20: no está el ayudante: ¿aplicaste la migración?';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure), '') <> '321770b5349d70af1767d7d27bcedc93' then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure), '') <> '261411a75326cbe78220d3ef1a61a7cd' then
     raise exception 'REGISTRO D-20: crm.importar_lead_fn no es la de D-20';
   end if;
   if exists (select 1 from supabase_migrations.schema_migrations where version = '20260906210000'
                and (statements is null or array_length(statements, 1) is distinct from 1 or statements[1] is null
-                    or md5(statements[1]) <> 'd1aae01d2a942db5258db5e84bfad11e')) then
+                    or md5(statements[1]) <> '3edbf10a21a3bdfe6e8e5f255284569c')) then
     raise exception 'REGISTRO D-20: la versión 20260906210000 ya está registrada con otro contenido';
   end if;
 end
@@ -54,7 +54,7 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'F2.b D-20: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('cf1d8388fcf2aae71fd8e5e9c99c52d5', '321770b5349d70af1767d7d27bcedc93') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('cf1d8388fcf2aae71fd8e5e9c99c52d5', '261411a75326cbe78220d3ef1a61a7cd') then
     raise exception 'F2.b D-20: crm.importar_lead_fn no es ni el texto vivo de producción (cf1d8388…) ni el de D-20';
   end if;
   if to_regprocedure('private.resolver_en_puertas_bajo_candado()') is null then
@@ -145,7 +145,10 @@ begin
     from crm.actividades_cliente a
    where a.cliente_id = p_perfil
      and a.tipo = 'nota'
-     and pg_catalog.strpos(coalesce(a.detalle, ''), 'Ref: ' || v_huella) > 0
+     -- La comparación va contra la COLA, no contra el interior (Codex): el sufijo « · Ref: <huella>» lo añadimos
+     -- nosotros SIEMPRE al final, mientras que la nota del visitante queda antes y recortada. Con `strpos`, un texto
+     -- del formulario que contuviera «Ref: <huella>» podía hacer pasar por repetida una solicitud jamás registrada.
+     and pg_catalog.right(coalesce(a.detalle, ''), pg_catalog.length(' · Ref: ' || v_huella)) = ' · Ref: ' || v_huella
      and a.creado_por is null   -- auditor #M2: solo cuenta la nota que escribió el importador, no una copiada a mano
      and a.creado_en > pg_catalog.now() - interval '7 days'
    order by a.creado_en desc
@@ -316,9 +319,18 @@ begin
   -- F2.b [D-20] (auditor A1): `private.leads_de_personas` devuelve enlace ∪ puente ∪ sueltos, así que `v_lead`
   -- también trae leads CONVERTIDOS y descartados. Anotar el reingreso en uno cerrado es escribir donde nadie mira.
   -- La bifurcación va por el lead VIVO: solo ése es un trabajo que alguien tiene en su bandeja.
+  -- Y no basta con mirar el lead que trae el veredicto: si ése está cerrado pero la persona conserva OTRO vivo, crear
+  -- una tarea duplicaría el trabajo (Codex). Se busca cualquier lead vivo suyo, prefiriendo el del veredicto.
   select l.id into v_lead_vivo
     from crm.leads l
-   where l.id = v_lead and l.activo and l.etapa not in ('convertido', 'descartado');
+   where l.activo
+     and l.etapa not in ('convertido', 'descartado')
+     and (l.id = v_lead
+          or (nullif(pg_catalog.btrim(coalesce(v_dni, '')), '') is not null and l.dni = v_dni)
+          or (l.inversionista_id is not null
+              and l.inversionista_id = private.inversionista_por_documento('DNI', v_dni)))
+   order by (l.id = v_lead) desc, l.creado_en desc
+   limit 1;
   if v_resultado = 'ya_cliente' and v_lead_vivo is not null then
     -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
     -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
@@ -395,14 +407,15 @@ begin
     end if;
   end if;
 
-  return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso, 'solicitud', v_solicitud);
+  return pg_catalog.jsonb_build_object('resultado', v_resultado, 'lead_id', v_lead, 'veredicto', v_veredicto, 'reingreso', v_reingreso)
+      || case when v_solicitud is null then '{}'::jsonb else pg_catalog.jsonb_build_object('solicitud', v_solicitud) end;
 end;
 $function$;
 
 do $post$
 begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure
-                  and md5(p.prosrc) = '321770b5349d70af1767d7d27bcedc93' and p.prosecdef and p.proowner = 'postgres'::regrole
+                  and md5(p.prosrc) = '261411a75326cbe78220d3ef1a61a7cd' and p.prosecdef and p.proowner = 'postgres'::regrole
                   and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']
                   and coalesce((select string_agg(a.grantee::regrole::text, ',' order by a.grantee::regrole::text) from aclexplode(p.proacl) a), 'null') = 'postgres,service_role') then
     raise exception 'POSTFLIGHT D-20: crm.importar_lead_fn no quedó como se esperaba (cuerpo, definer, dueño, config o permisos)';
