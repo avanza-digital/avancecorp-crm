@@ -4,11 +4,11 @@ Autorización de Miguel: «haz los filtros de paginación, evitemos scrolls infi
 
 ## Estado de publicación
 
-**Backend activo, publicación frontend en verificación.** En producción se aplicaron los cinco SQL, se reconstruyeron 831 contextos en cuatro lotes y se cerraron los helpers transitorios con N4. La comparación contra la foto original terminó con 0 pendientes sin contexto, 0 contextos incoherentes y 0 nuevos faltantes. El gate completo de gobernanza y N1/N2/N3 está OK. [Evidencia de producción sin PII: control, gate, cuatro lotes, comparación del stock y ledger canónico](../supabase/tests/sla-integracion/produccion-activacion-20260907.json).
+**PUBLICADO Y ACTIVO.** El hotfix del frontend está publicado y verificado en `crm.miavance.com`. En producción se aplicaron los cinco SQL, se reconstruyeron 831 contextos en cuatro lotes y se cerraron los helpers transitorios con N4. La comparación contra la foto original terminó con 0 pendientes sin contexto, 0 contextos incoherentes y 0 nuevos faltantes. El gate completo de gobernanza y N1/N2/N3 está OK. [Evidencia de producción sin PII: control, gate, cuatro lotes, comparación del stock y ledger canónico](../supabase/tests/sla-integracion/produccion-activacion-20260907.json).
 
-Política operativa **v6**, control **activo / revisión 1**, primera activación **2026-09-07T04:03:49.941009Z**. La adopción corresponde a v6. La activación y los efectos registrados se conservan durante la verificación del frontend.
+Política operativa **v6**, control **activo / revisión 1**, primera activación **2026-09-07T04:03:49.941009Z**. La adopción corresponde a v6. La publicación final del frontend conserva la activación y los efectos registrados. El gate SQL completo volvió a pasar después del hotfix.
 
-El primer artefacto de interfaz ya está publicado en `crm.miavance.com`:
+Registro histórico del primer artefacto de interfaz publicado en `crm.miavance.com`, sustituido por el hotfix final:
 
 | Campo | Valor confirmado |
 |---|---|
@@ -16,7 +16,21 @@ El primer artefacto de interfaz ya está publicado en `crm.miavance.com`:
 | Build | `build-20260907T035742935Z` |
 | Release | `crm-20260907T035743Z-839aa7c8c01c` |
 
-Hay un hotfix del frontend en curso antes del cierre de la entrega. Su commit, build, artefacto y verificación final aún no se registran: los identificadores anteriores describen únicamente el primer release publicado.
+El artefacto final servido y verificado corresponde al hotfix:
+
+| Campo | Valor confirmado |
+|---|---|
+| Commit fuente | `2fedc9030b19607b1c0f9ad61a6dbbd5db41feb2` |
+| Build | `build-20260907T043440010Z` |
+| Release | `crm-20260907T043440Z-2fedc9030b19` |
+| SHA-256 del ZIP | `86b4230f0b686afcb981c13a6cfbb0f59cdada62f4777bddde02308735414079` |
+| Tamaño / archivos | 1.917.306 bytes / 76 archivos |
+
+La comprobación HTTP de los 76 archivos terminó con cero fallos: 63 hashes exactos, 12 PNG transformados por Hostinger y `.htaccess` protegido con 403. Las URLs de ZIP en CRM y portal respondieron 404; el manifiesto de versión permaneció estable. [Evidencia HTTP sin PII](../supabase/tests/sla-integracion/produccion-http-20260907.json).
+
+La verificación en sesión real confirmó la ficha completa —incluidos monto y SLA— de un lead antes ausente de la carga inicial por ocupar la posición 1148; página 2 con rango 11–20/815 y 10 filas; tamaño 50 con rango 1–50/815 y 50 filas; 455 revisiones y 19 resultados al combinar revisión, Contactado y un analista. Se restauraron todos los filtros y el tamaño 10. No se guardaron gestiones durante esta comprobación y no hubo errores de navegador. Esos conteos corresponden al instante de verificación. [Evidencia UI sin PII](../supabase/tests/sla-integracion/produccion-ui-20260907.json).
+
+El commit posterior de documentación registra este cierre; el código fuente del release sigue siendo `2fedc9030b19607b1c0f9ad61a6dbbd5db41feb2`. Ese cierre documental no requiere reconstruir el artefacto.
 
 ## Comportamiento entregable
 
@@ -53,13 +67,13 @@ Reloj corrido. La conversación debe ocurrir en las últimas 24 horas del plazo 
 
 ## Estado de validación
 
-La instalación y activación del backend ya están acreditadas por la ejecución y lectura posteriores registradas por el coordinador de la publicación. El primer frontend está publicado; el cierre del hotfix y su smoke final permanecen pendientes. Las pruebas locales siguientes son evidencia complementaria y no sustituyen esas verificaciones del servicio.
+La instalación, activación y gate final del backend, junto con el hotfix servido y su verificación HTTP y en sesión real, están acreditados en las evidencias de producción enlazadas arriba. Las pruebas locales siguientes complementan esas verificaciones del servicio.
 
 N2: 23/23 pruebas en banco integral PG17 con funciones, permisos y controles reales; 7,145 s de casos, 8,014 s incluyendo preparación. Incluye concurrencia de publicación y gestión, apagado, reconstrucción idempotente, falta de evidencia, cierre y contingencia. Detalles y alcance en [runbook N2](../supabase/tests/sla-operacion/README.md). Las pruebas de N1, N3 y prerrequisito se registran en sus artefactos de evidencia y en [MIGRACIONES.md](../supabase/migrations/MIGRACIONES.md); una prueba local no acredita uso en producción.
 
-Validación final previa a integrar: N1 47/47, N3 21/21 en instalación fresca (6,296 s), prerrequisito con reversa/reaplicación exactas y cuatro controles verdes sin elevar topes. Frontend: 2895 pruebas en 201 archivos (15,51 s), typecheck correcto y lint sin errores, con cuatro advertencias preexistentes. [Evidencia integral y SHA-256 de los cinco SQL](../supabase/tests/sla-integracion/evidencia-20260907.json). El banco no ejecuta PostgREST, Auth HTTP ni scheduler: el smoke posterior debe comprobar el servicio real. La carrera específica de adquisición de ámbito v1 se cierra con el invariante de bloqueo y huella; no se afirma haber forzado determinísticamente esa intercalación. `npm run gate:sla:produccion` verifica los siete controles y el cierre de los helpers de reconstrucción.
+Validación final previa a integrar: N1 47/47, N3 21/21 en instalación fresca (6,296 s), prerrequisito con reversa/reaplicación exactas y cuatro controles verdes sin elevar topes. Frontend: 2895 pruebas en 201 archivos (15,51 s), typecheck correcto y lint sin errores, con cuatro advertencias preexistentes. [Evidencia integral y SHA-256 de los cinco SQL](../supabase/tests/sla-integracion/evidencia-20260907.json). El banco no ejecuta PostgREST, Auth HTTP ni scheduler; la verificación HTTP y en sesión real documentada arriba cubre el servicio publicado dentro de su alcance. La carrera específica de adquisición de ámbito v1 se cierra con el invariante de bloqueo y huella; no se afirma haber forzado determinísticamente esa intercalación. `npm run gate:sla:produccion` verifica los siete controles y el cierre de los helpers de reconstrucción.
 
-Validación local final del hotfix en curso: **2918/2918 pruebas en 201 archivos, 17,21 s**; typecheck correcto; lint sin errores y cuatro advertencias preexistentes de coverflow. Store 62/62, incluidas 14 regresiones nuevas; API 45/45. La recomprobación E2E final pasó 7/7 casos en 26,5 s y la revisión visual de escritorio y móvil fue correcta. La identificación y lectura del artefacto final publicado quedan pendientes de confirmación. Estos resultados no cambian los identificadores del primer release.
+Validación local final del hotfix publicado: **2918/2918 pruebas en 201 archivos, 17,21 s**; typecheck correcto; lint sin errores y cuatro advertencias preexistentes de coverflow. Store 62/62, incluidas 14 regresiones nuevas; API 45/45. La recomprobación E2E final pasó 7/7 casos en 26,5 s y la revisión visual de escritorio y móvil fue correcta. La identidad del artefacto final y su lectura en producción están confirmadas arriba; los identificadores del primer release se conservan solo como historial.
 
 El contraste previo está en [CONTRASTE-CARTERA-2026-09-06.md](CONTRASTE-CARTERA-2026-09-06.md). El contrato técnico está en [CONTRATO-V2.md](auditoria-r2/CONTRATO-V2.md).
 

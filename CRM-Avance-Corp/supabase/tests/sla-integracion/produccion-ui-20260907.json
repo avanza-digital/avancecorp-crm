@@ -1,0 +1,89 @@
+{
+  "fecha": "2026-09-07",
+  "dominio": "crm.miavance.com",
+  "fuente_commit": "2fedc9030b19607b1c0f9ad61a6dbbd5db41feb2",
+  "build": "build-20260907T043440010Z",
+  "release": "crm-20260907T043440Z-2fedc9030b19",
+  "zip": {
+    "sha256": "86b4230f0b686afcb981c13a6cfbb0f59cdada62f4777bddde02308735414079",
+    "bytes": 1917306
+  },
+  "verificacion": {
+    "navegador_real": true,
+    "rol": "gerencia",
+    "solo_lectura": true,
+    "ficha_antes_ausente_del_boot": {
+      "posicion_en_lectura_anterior": 1148,
+      "dialogos_abiertos": 1,
+      "fila_completa": true,
+      "monto_visible": true,
+      "plazos_sla_visibles": true
+    },
+    "paginacion": [
+      {
+        "rango": "1–10",
+        "total": 815,
+        "pagina": 1,
+        "filas": 10
+      },
+      {
+        "rango": "11–20",
+        "total": 815,
+        "pagina": 2,
+        "filas": 10
+      },
+      {
+        "rango": "1–50",
+        "total": 815,
+        "pagina": 1,
+        "filas": 50
+      }
+    ],
+    "filtros": [
+      {
+        "senal": "revisiones",
+        "total": 455
+      },
+      {
+        "senal": "revisiones",
+        "etapa": "contactado",
+        "analista_elegido": true,
+        "total": 19,
+        "filas": 19
+      }
+    ],
+    "errores_navegador": [],
+    "estado_final": {
+      "filtros": "todas",
+      "por_pagina": 10,
+      "pagina": 1,
+      "total": 815,
+      "dialogos": 0
+    }
+  },
+  "pruebas": {
+    "vitest": {
+      "archivos": 201,
+      "casos": 2918,
+      "correctos": 2918
+    },
+    "e2e_sla": {
+      "casos": 7,
+      "correctos": 7
+    },
+    "typecheck": "correcto",
+    "lint": {
+      "errores": 0,
+      "advertencias_preexistentes": 4
+    },
+    "store_fichas": {
+      "casos": 62,
+      "nuevos": 14
+    },
+    "api": {
+      "casos": 45
+    }
+  },
+  "gate_final": "OK: SLA completo, gobernanza y contratos N1/N2/N3 verificados; reconstruccion cerrada",
+  "alcance": "Comprobación real de lectura, navegación y fichas. Las escrituras se validaron con pruebas automatizadas locales; esta comprobación no creó gestiones comerciales."
+}
