@@ -1,0 +1,311 @@
+{
+  "status": "APLICADA_Y_VERIFICADA",
+  "project_id": "dctqcbznekcyxhjujuci",
+  "approval": "ok me gusta tu correcion hazla",
+  "source_commit": "9f7262c12d006f550656b50520cddf9c8e720e92",
+  "migration": "20260907194756_crm_sla_primera_atencion_respeta_compromiso.sql",
+  "source_sha256": "a0126d8089b07d743e58450145d4bb20b4e64da4c3cbf159f49a8b6428f29f89",
+  "applied_via": "Supabase MCP apply_migration, SQL exacto aprobado",
+  "application_result": {
+    "success": true
+  },
+  "mcp_version": "20260907201712",
+  "canonical_version": "20260907194756",
+  "metadata_reconciliation": [
+    {
+      "version": "20260907194756",
+      "name": "crm_sla_primera_atencion_respeta_compromiso",
+      "source_sha256": "a0126d8089b07d743e58450145d4bb20b4e64da4c3cbf159f49a8b6428f29f89"
+    }
+  ],
+  "metadata_reconciliation_scope": "Una fila: solo version, origen/nombre/SHA-256 exactos y destino libre; sin reaplicar efectos.",
+  "contract_before": [
+    {
+      "schema_name": "crm",
+      "proname": "avisos_sla_resumen_v2_fn",
+      "args": "",
+      "md5": "7b5f75dfb6ac3e480659bdef3dc5ac0f",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "crm",
+      "proname": "cola_accion_v2_fn",
+      "args": "p_limite integer, p_senal text, p_etapa text, p_analista_id uuid, p_cursor jsonb",
+      "md5": "f0b81dd1103390cec2db26a9e11f1acf",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "crm",
+      "proname": "estado_sla_leads_v2_fn",
+      "args": "p_lead_ids uuid[]",
+      "md5": "b50bf8c3f41770618a67d94b01b1ca42",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "assert_sla_nucleo",
+      "args": "",
+      "md5": "6bc541b2e3ba1549b4b4ed419c22d455",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_hechos_actuales",
+      "args": "p_lead_ids uuid[], p_global boolean, p_visibles uuid[]",
+      "md5": "0591814007ab1ebc39be1708d147f15e",
+      "provolatile": "s",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_operacion_autorizada",
+      "args": "p_lead_ids uuid[], p_incluir_operacion boolean",
+      "md5": "08abb868e8cf62389fbbfe2e7d53ef8c",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_operacion_leads",
+      "args": "p_lead_ids uuid[], p_global boolean, p_visibles uuid[], p_ahora timestamp with time zone",
+      "md5": "c0c7eb4b8e5b0c8a60eca3af3115ebe3",
+      "provolatile": "s",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    }
+  ],
+  "contract_after": [
+    {
+      "schema_name": "crm",
+      "proname": "avisos_sla_resumen_v2_fn",
+      "args": "",
+      "md5": "7b5f75dfb6ac3e480659bdef3dc5ac0f",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "crm",
+      "proname": "cola_accion_v2_fn",
+      "args": "p_limite integer, p_senal text, p_etapa text, p_analista_id uuid, p_cursor jsonb",
+      "md5": "f0b81dd1103390cec2db26a9e11f1acf",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "crm",
+      "proname": "estado_sla_leads_v2_fn",
+      "args": "p_lead_ids uuid[]",
+      "md5": "b50bf8c3f41770618a67d94b01b1ca42",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "assert_sla_nucleo",
+      "args": "",
+      "md5": "6bc541b2e3ba1549b4b4ed419c22d455",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_hechos_actuales",
+      "args": "p_lead_ids uuid[], p_global boolean, p_visibles uuid[]",
+      "md5": "0591814007ab1ebc39be1708d147f15e",
+      "provolatile": "s",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_operacion_autorizada",
+      "args": "p_lead_ids uuid[], p_incluir_operacion boolean",
+      "md5": "08abb868e8cf62389fbbfe2e7d53ef8c",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    },
+    {
+      "schema_name": "private",
+      "proname": "sla_operacion_leads",
+      "args": "p_lead_ids uuid[], p_global boolean, p_visibles uuid[], p_ahora timestamp with time zone",
+      "md5": "d880268ef586322e0589586cb8cde30d",
+      "provolatile": "s",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "owner": "postgres"
+    }
+  ],
+  "contract_check": true,
+  "gate": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas",
+  "control_unchanged": true,
+  "control": {
+    "modo": "activo",
+    "revision": 1,
+    "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00",
+    "politica_adopcion_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6"
+  },
+  "portfolio": {
+    "compared_at": "2026-09-07 20:16:57.459502+00",
+    "post_read_at": "2026-09-07 20:17:51.580556+00",
+    "total_before": 1271,
+    "total_after": 1271,
+    "stable_facts_rows": 1270,
+    "concurrent_business_changes": 1,
+    "concurrent_business_change_reason": "Una oportunidad recibió una llamada a las 20:17:27 UTC y fue descartada a las 20:17:40 UTC entre ambas lecturas. Se excluye de la atribución al SQL.",
+    "first_attention_before": 362,
+    "first_attention_after": 332,
+    "rows_changed_by_approved_rule": 51,
+    "due_first_attention_deferred": 30,
+    "scheduled_initial_attention_replaced": 21,
+    "covered_without_initial_attempt": 11,
+    "unexpected_changes_on_stable_facts": 0,
+    "other_alerts_unchanged_on_stable_facts": true
+  },
+  "authenticated_read_verification": {
+    "method": "Transacciones READ ONLY, SET LOCAL ROLE authenticated y claim sub de perfiles reales, ROLLBACK. Sin escrituras de negocio.",
+    "roles": [
+      {
+        "rol": "analista",
+        "current_user": "authenticated",
+        "fichas_visibles": 1,
+        "ficha_avisos": [],
+        "cobertura": true,
+        "proxima_accion_en": "2026-09-08T17:46:00+00:00",
+        "contacto_historico": null,
+        "primera_atencion_analista": 2,
+        "pagina_incompleta": false,
+        "ejemplo_en_filtro": false,
+        "primera_atencion_ambito": 2,
+        "campana_primera_atencion": 2,
+        "calculado_en": "2026-09-07T20:20:01.13263+00:00"
+      },
+      {
+        "rol": "supervisor",
+        "current_user": "authenticated",
+        "fichas_visibles": 1,
+        "ficha_avisos": [],
+        "cobertura": true,
+        "proxima_accion_en": "2026-09-08T17:46:00+00:00",
+        "contacto_historico": null,
+        "primera_atencion_analista": 2,
+        "pagina_incompleta": false,
+        "ejemplo_en_filtro": false,
+        "primera_atencion_ambito": 110,
+        "campana_primera_atencion": 110,
+        "calculado_en": "2026-09-07T20:19:56.734877+00:00"
+      },
+      {
+        "rol": "gerencia",
+        "current_user": "authenticated",
+        "fichas_visibles": 1,
+        "ficha_avisos": [],
+        "cobertura": true,
+        "proxima_accion_en": "2026-09-08T17:46:00+00:00",
+        "contacto_historico": null,
+        "primera_atencion_analista": 2,
+        "pagina_incompleta": false,
+        "ejemplo_en_filtro": false,
+        "primera_atencion_ambito": 331,
+        "campana_primera_atencion": 331,
+        "calculado_en": "2026-09-07T20:20:03.109452+00:00"
+      }
+    ]
+  },
+  "advisors": {
+    "before": 210,
+    "after": 210,
+    "added": [],
+    "removed": []
+  },
+  "ui": {
+    "method": "Chrome CUA, sesión real de Gerencia, recarga y lectura de accesibilidad; sin registrar gestiones.",
+    "ficha_warning_absent": true,
+    "proxima_accion_preserved": true,
+    "proxima_accion_display": "Mañana · 12:46",
+    "filter_label": "Primera atención 331",
+    "filter_pagination": "1–10 de 331 oportunidades · Página 1",
+    "observed_lima": "2026-09-07 15:22",
+    "no_frontend_deployment_required": true,
+    "campana": {
+      "heading": "Revisa 648 oportunidades pendientes",
+      "summary": "330 contactos iniciales · 461 actividades por revisar · 496 seguimientos por retomar · 438 casos por decidir",
+      "observed_lima": "2026-09-07 15:24",
+      "counts_are_time_specific": true
+    }
+  },
+  "limits": [
+    "La cartera cambia mientras se atienden oportunidades. El cotejo fija el mismo instante SLA, pero excluye una fila con llamada y descarte reales entre lecturas.",
+    "Los conteos son del instante observado, no constantes del negocio.",
+    "Las fronteras de vencimiento, cancelación, reversión y autorización se ensayaron previamente en los bancos locales declarados; no se escribieron datos de prueba en producción."
+  ]
+}

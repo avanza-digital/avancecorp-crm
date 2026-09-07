@@ -1,12 +1,12 @@
 # Regla general: avisos cuando corresponde atender la próxima acción
 
-Estado: **PREPARADO Y PROBADO. SQL PENDIENTE DE CONFIRMACIÓN; NO APLICADO EN PRODUCCIÓN**.
+Estado: **APLICADO Y VERIFICADO EN PRODUCCIÓN** el 07/09/2026 a las 15:17 Lima, después de la confirmación de Miguel: «ok me gusta tu correcion hazla».
 
-El reporte de Miguel es general. Una oportunidad ya gestionada, con siguiente intento válido programado, sigue recibiendo «Contacta al cliente y registra el resultado» porque el núcleo aún exige el primer contacto efectivo. El aviso ignora la cobertura que ya reconoce para seguimiento. El ajuste anterior de caché, publicado en `8a31692`, no resolvía esta regla comercial.
+El reporte de Miguel es general. Antes del cambio, una oportunidad ya gestionada, con siguiente intento válido programado, seguía recibiendo «Contacta al cliente y registra el resultado» porque el núcleo exigía el primer contacto efectivo sin respetar la cobertura reconocida para seguimiento. El ajuste anterior de caché, publicado en `8a31692`, no resolvía esta regla comercial.
 
 La consulta de producción fue exclusivamente de lectura. En el corte observado había 366 oportunidades en primera atención; 29 reunían gestión previa de ciclo/asignación y cobertura activa. El recuento identifica el patrón en la cartera, no una corrección particular de la ficha de la captura.
 
-## Comportamiento propuesto para todo el sistema
+## Comportamiento vigente para todo el sistema
 
 | Situación | Resultado operativo |
 |---|---|
@@ -52,6 +52,14 @@ Se ejecutó el SQL real en bancos locales desechables. Los datos y la autoridad 
 
 [SQL de reversión](../../supabase/scripts/rollback-sla-primera-compromiso.sql), SHA-256 `e53e230471210c8ccab711dc706da8521596e75c904aae1b94acced8f533a0d3`. Solo admite la función corregida exacta y restaura la definición anterior. No revierte el ajuste de caché ni elimina historia.
 
-## Paso pendiente
+## Aplicación y verificación productiva
 
-Presentar este SQL a Miguel y recibir confirmación conforme a la regla del vault. Después: revalidar la fuente viva, aplicar exclusivamente esta migración, comprobar los estados autorizados por rol y la concordancia de las tres superficies, y registrar su publicación. No ejecutar otras migraciones pendientes del repositorio.
+Se aplicó exclusivamente el SQL aprobado desde el commit `9f7262c12d006f550656b50520cddf9c8e720e92`, previamente igual a Main y `avancecorp/main`. Supabase lo registró como `20260907201712`; se alineó a `20260907194756` actualizando solo `version`, tras exigir origen, nombre, SHA-256 exacto y destino libre. La lectura final confirma una única versión canónica y la fuente íntegra.
+
+La función viva tiene MD5 `d880268ef586322e0589586cb8cde30d`. Firma, propietario, ACL, estabilidad y `search_path` son iguales. Las otras seis definiciones protegidas, el control activo/revisión 1 y la política de adopción permanecen intactos; el gate pasó. Advisors de seguridad: 210 antes y después, sin novedades.
+
+Se compararon 1.271 filas al mismo instante SLA. En las 1.270 con hechos estables hubo exactamente 51 cambios previstos: 30 avisos vencidos de primera atención retirados y 21 acciones iniciales futuras sustituidas por la siguiente acción que correspondía. Se conservaron los demás avisos y los 11 casos con cobertura pero sin gestión inicial. Una oportunidad recibió una llamada y fue descartada entre las lecturas; se excluye de la atribución al cambio.
+
+Las RPC se verificaron en transacciones de solo lectura bajo `authenticated` con identidades reales de analista, supervisor y gerencia: ficha sin aviso prematuro, tarea y contacto histórico intactos, ausencia de esa oportunidad en el filtro y conteos de filtro/campana iguales por ámbito. Chrome confirmó la ficha corregida, la próxima acción visible, el filtro paginado y la pantalla de pendientes actualizada. No se registraron gestiones de prueba. Los conteos varían con el trabajo diario.
+
+[Evidencia productiva sin PII](produccion-verificacion.json). El frontend publicado consume el núcleo existente; no se construyó ni desplegó otra interfaz para esta corrección.
