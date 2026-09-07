@@ -32,6 +32,8 @@ export function ColaSlaPanel() {
   const { abrirLead } = usePanelesActions()
   const [filtros, setFiltros] = useState<FiltrosSla>({ senal: 'todas', etapa: null, analista_id: null })
   const [limite, setLimite] = useState(10)
+  const [abriendo, setAbriendo] = useState<string | null>(null)
+  const [errorApertura, setErrorApertura] = useState(false)
   const [cursores, setCursores] = useState<(CursorSla | null)[]>([null])
   const cursor = cursores[cursores.length - 1] ?? null
   const consulta = useColaSlaPagina(filtros, cursor, limite, true)
@@ -54,6 +56,18 @@ export function ColaSlaPanel() {
     encabezado.current?.focus()
   }
   const reiniciar = () => { setCursores([null]); if (cursor === null) void consulta.refetch() }
+  async function abrirFicha(id: string) {
+    if (abriendo) return
+    setAbriendo(id)
+    setErrorApertura(false)
+    try {
+      if (await abrirLead(id) === false) setErrorApertura(true)
+    } catch {
+      setErrorApertura(true)
+    } finally {
+      setAbriendo(null)
+    }
+  }
   return <Card><CardContent className="space-y-4 p-4 sm:p-5">
     <GuardadosSlaPendientes />
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -83,6 +97,8 @@ export function ColaSlaPanel() {
         </Select>
       </label>
     </div>
+    {abriendo && <p role="status" className="text-xs text-muted-foreground">Abriendo ficha…</p>}
+    {errorApertura && <p role="alert" className="text-sm text-destructive">No se pudo abrir la ficha. Actualiza la lista o vuelve a intentarlo.</p>}
     {consulta.error ? <div className="space-y-2"><FalloSla onReintentar={reiniciar} />{cursores.length > 1 && <Button variant="outline" size="sm" onClick={() => setCursores([null])}>Volver a la primera página</Button>}</div>
       : !pagina ? <p role="status" className="py-8 text-sm">Cargando oportunidades…</p>
       : pagina.modo !== 'activo' ? <p role="status">Las reglas operativas están desactivadas. Actualiza la pantalla para ver el modo vigente.</p>
@@ -91,7 +107,7 @@ export function ColaSlaPanel() {
         {pagina.items.length === 0 ? <p className="rounded-lg bg-muted/40 p-6 text-sm">No hay oportunidades con estos filtros. Puedes elegir otra señal o etapa.</p>
           : <ul className="divide-y divide-border" aria-label="Oportunidades de esta página" aria-busy={consulta.isFetching}>
             {pagina.items.map((item) => <li key={item.lead_id}>
-              <button type="button" onClick={() => abrirLead(item.lead_id)} className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-lg px-2 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <button type="button" disabled={abriendo !== null} onClick={() => void abrirFicha(item.lead_id)} className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-lg px-2 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60">
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-semibold">{item.lead.nombre_completo}</p>
                   <p className="text-xs text-muted-foreground">{ETAPA_INFO[item.lead.etapa as keyof typeof ETAPA_INFO]?.label ?? item.lead.etapa}{esSupervisor ? ` · ${item.lead.analista_nombre ?? 'Sin analista'}` : ''}</p>

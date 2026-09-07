@@ -2,6 +2,22 @@
 
 Autorización de Miguel: «haz los filtros de paginación, evitemos scrolls infinitos, y ya saquemos esto a producción» (06/09/2026, Lima). Las reglas aprobadas se conservan. No se exige un día de observación antes de activar.
 
+## Estado de publicación
+
+**Backend activo, publicación frontend en verificación.** En producción se aplicaron los cinco SQL, se reconstruyeron 831 contextos en cuatro lotes y se cerraron los helpers transitorios con N4. La comparación contra la foto original terminó con 0 pendientes sin contexto, 0 contextos incoherentes y 0 nuevos faltantes. El gate completo de gobernanza y N1/N2/N3 está OK. [Evidencia de producción sin PII: control, gate, cuatro lotes, comparación del stock y ledger canónico](../supabase/tests/sla-integracion/produccion-activacion-20260907.json).
+
+Política operativa **v6**, control **activo / revisión 1**, primera activación **2026-09-07T04:03:49.941009Z**. La adopción corresponde a v6. La activación y los efectos registrados se conservan durante la verificación del frontend.
+
+El primer artefacto de interfaz ya está publicado en `crm.miavance.com`:
+
+| Campo | Valor confirmado |
+|---|---|
+| Commit fuente | `839aa7c8c01cecba3102fb3222408784a1e4b972` |
+| Build | `build-20260907T035742935Z` |
+| Release | `crm-20260907T035743Z-839aa7c8c01c` |
+
+Hay un hotfix del frontend en curso antes del cierre de la entrega. Su commit, build, artefacto y verificación final aún no se registran: los identificadores anteriores describen únicamente el primer release publicado.
+
 ## Comportamiento entregable
 
 - Cola de trabajo con 10 registros iniciales; tamaños 10/25/50, Anterior y Siguiente. Filtros por señal, etapa y analista dentro del ámbito autorizado. Los totales abarcan la población completa; las señales se pueden solapar.
@@ -22,7 +38,7 @@ Autorización de Miguel: «haz los filtros de paginación, evitemos scrolls infi
 
 El orden de esta entrega es explícito, no el orden lexicográfico de los archivos: **prerrequisito → N1 → N2 → N3 → lotes → N4 → frontend → publicación de reglas → activación**. No aplicar todas las migraciones ciegamente en una sola pasada.
 
-La foto del contraste tenía política v5 con bases 1/8/15/20 días, primera gestión de 120 minutos y primer contacto de 1440. Si esa versión sigue vigente al publicar, el bootstrap creará v6 y el control seguirá en revisión 0; activar lo llevará a revisión 1 y fijará la adopción de v6. Son expectativas verificables, no valores para forzar: una publicación concurrente o futura debe detener la operación mediante sus controles, y obliga a releer.
+La foto del contraste tenía política v5 con bases 1/8/15/20 días, primera gestión de 120 minutos y primer contacto de 1440. La publicación creó v6 y la activación dejó el control en revisión 1 con adopción de v6. Son resultados releídos después de las operaciones, no valores forzados. El orden anterior se conserva como protocolo; instalación, reconstrucción, cierre y activación ya están completados.
 
 ## Reglas comerciales aprobadas
 
@@ -37,13 +53,38 @@ Reloj corrido. La conversación debe ocurrir en las últimas 24 horas del plazo 
 
 ## Estado de validación
 
-Documento de trabajo: aún no acredita publicación. Las evidencias de instalación, activación, commit y artefacto se añadirán después de ejecutarlas.
+La instalación y activación del backend ya están acreditadas por la ejecución y lectura posteriores registradas por el coordinador de la publicación. El primer frontend está publicado; el cierre del hotfix y su smoke final permanecen pendientes. Las pruebas locales siguientes son evidencia complementaria y no sustituyen esas verificaciones del servicio.
 
 N2: 23/23 pruebas en banco integral PG17 con funciones, permisos y controles reales; 7,145 s de casos, 8,014 s incluyendo preparación. Incluye concurrencia de publicación y gestión, apagado, reconstrucción idempotente, falta de evidencia, cierre y contingencia. Detalles y alcance en [runbook N2](../supabase/tests/sla-operacion/README.md). Las pruebas de N1, N3 y prerrequisito se registran en sus artefactos de evidencia y en [MIGRACIONES.md](../supabase/migrations/MIGRACIONES.md); una prueba local no acredita uso en producción.
 
 Validación final previa a integrar: N1 47/47, N3 21/21 en instalación fresca (6,296 s), prerrequisito con reversa/reaplicación exactas y cuatro controles verdes sin elevar topes. Frontend: 2895 pruebas en 201 archivos (15,51 s), typecheck correcto y lint sin errores, con cuatro advertencias preexistentes. [Evidencia integral y SHA-256 de los cinco SQL](../supabase/tests/sla-integracion/evidencia-20260907.json). El banco no ejecuta PostgREST, Auth HTTP ni scheduler: el smoke posterior debe comprobar el servicio real. La carrera específica de adquisición de ámbito v1 se cierra con el invariante de bloqueo y huella; no se afirma haber forzado determinísticamente esa intercalación. `npm run gate:sla:produccion` verifica los siete controles y el cierre de los helpers de reconstrucción.
 
+Validación local final del hotfix en curso: **2918/2918 pruebas en 201 archivos, 17,21 s**; typecheck correcto; lint sin errores y cuatro advertencias preexistentes de coverflow. Store 62/62, incluidas 14 regresiones nuevas; API 45/45. La recomprobación E2E de siete casos y la identificación/lectura del artefacto final publicado quedan pendientes de confirmación. Estos resultados no cambian los identificadores del primer release.
+
 El contraste previo está en [CONTRASTE-CARTERA-2026-09-06.md](CONTRASTE-CARTERA-2026-09-06.md). El contrato técnico está en [CONTRATO-V2.md](auditoria-r2/CONTRATO-V2.md).
+
+## Registro de migraciones y avisos del servicio
+
+MCP aplicó los SQL con versiones operativas distintas a sus filenames. Se reconciliaron únicamente las cinco columnas `version` del ledger con las versiones canónicas del commit, sin ejecutar nuevamente los SQL ni cambiar `name`, `statements`, `created_by`, `idempotency_key` o `rollback`:
+
+| Pieza | Versión operativa aplicada | Versión canónica registrada |
+|---|---|---|
+| Prerrequisito | `20260907035818` | `20260907032338` |
+| N1 | `20260907035837` | `20260907001024` |
+| N2 | `20260907035851` | `20260907024903` |
+| N3 | `20260907035906` | `20260907025220` |
+| N4 | `20260907040053` | `20260907031450` |
+
+La reconciliación terminó correctamente con [reconciliar-ledger-sla.sql](../supabase/scripts/reconciliar-ledger-sla.sql), SHA-256 `72421c3d80be8fd7584678de15a8c3345ecb097d4eef40ca3b2c5303c4ff06f2`. Sus controles exigieron cinco nombres únicos, una sentencia por fila, SHA-256 idéntico al SQL comprometido y destinos libres; verificaron después que los demás campos permanecían intactos. El [mapping y ensayo local](../supabase/tests/sla-integracion/reconciliacion-ledger-20260907.json) conserva las versiones operativas originales. Esta reparación evita que la CLI interprete estos cinco artefactos como pendientes; la reproducción desde cero sigue requiriendo el orden explícito del prerrequisito.
+
+Los nuevos avisos asociados al diseño SLA se interpretan con su ámbito concreto:
+
+- **RLS activada sin policies en tablas privadas:** el acceso directo queda cerrado de forma intencional. Los consumidores usan las RPC autorizadas; no se debe crear una policy abierta para silenciar el aviso.
+- **Funciones SECURITY DEFINER accesibles a authenticated:** son puertas explícitas con `search_path` fijo, ACL controlada y comprobación de rol/ámbito en el núcleo. Los gates certifican ese contrato; el aviso por el patrón no autoriza ampliar grants.
+- **FK del control sin índice adicional:** nace en la tabla singleton del control, de una sola fila. No introduce un problema de escala en ese diseño; no corresponde añadir un índice por reflejo.
+- **Índices nuevos aún sin uso registrado:** la ausencia inicial de estadísticas no demuestra que sobren. Se conservan los índices del núcleo y se revisan con uso representativo; no se eliminan durante esta publicación.
+
+Estas decisiones son específicas de esos avisos. Una nueva policy, grant, cambio de owner o crecimiento fuera del singleton requiere otra revisión.
 
 ## Recuperación
 

@@ -546,7 +546,7 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
   }
 }
 
-// ── Ámbito completo para el store (lectura NO paginada) ───────────────────────
+// ── Ámbito acotado para el store (lotes internos de transporte) ────────────────
 // El store necesita TODA la cartera del ámbito para los cálculos agregados
 // (métricas, embudo, colas). La RLS ya recorta a lo visible; el tope alto es una
 // salvaguarda de payload, no seguridad. Con volumen bajo (piloto) sobra.
@@ -554,6 +554,13 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
 // grupos del supervisor puede estar incompleta y reconocer se desactiva —
 // una foto trunca aceptada por el servidor callaría al lead 2001 (Codex #5).
 export const MAX_LEADS_AMBITO = 2000
+const TAMANO_TRANSPORTE_LEADS = 500
+
+/** Literales de la sintaxis PostgREST: los cursores son datos del servidor,
+ * nunca operadores. Conservar el timestamp exacto evita perder microsegundos. */
+function literalFiltroPostgrest(valor: string): string {
+  return `"${valor.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
 
 export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]> {
   // Ventana de convertidos (decisión de Miguel 2026-08-08, F1): un convertido
@@ -563,29 +570,51 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
   // `.or()` de PostgREST el literal ISO viaja como valor citado, nunca como
   // parte de la expresión lógica.
   const corteConvertidos = new Date(Date.now() - VENTANA_CONVERTIDOS_MS).toISOString()
-  let consulta = cliente()
-    .schema('crm')
-    .from('leads')
-    .select(COLUMNAS_LEAD)
-    .or(`etapa.neq.convertido,convertido_en.gte."${corteConvertidos}"`)
-    .order('actualizado_en', { ascending: false })
-    .order('id', { ascending: true })
-    .limit(MAX_LEADS_AMBITO)
-  if (signal) consulta = consulta.abortSignal(signal)
-
-  const { data, error } = await consulta
-  lanzarAbortSiCorresponde(signal)
-  if (error) {
-    const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.leads.ambito_fallido', fallo)
-    throw fallo
+  const ventana = `or(etapa.neq.convertido,convertido_en.gte.${literalFiltroPostgrest(corteConvertidos)})`
+  const data: unknown[] = []
+  let cursor: { actualizado: string; id: string } | null = null
+  // El límite de PostgREST (habitualmente 1000) prevalece sobre .limit(2000).
+  // Lotes de 500 completan el ámbito sin añadir scroll ni páginas a la UI.
+  while (data.length < MAX_LEADS_AMBITO) {
+    lanzarAbortSiCorresponde(signal)
+    const limite = Math.min(TAMANO_TRANSPORTE_LEADS, MAX_LEADS_AMBITO - data.length)
+    const despues: string | null = cursor
+      ? `or(actualizado_en.lt.${literalFiltroPostgrest(cursor.actualizado)},and(actualizado_en.eq.${literalFiltroPostgrest(cursor.actualizado)},id.gt.${literalFiltroPostgrest(cursor.id)}))`
+      : null
+    let consulta = cliente().schema('crm').from('leads').select(COLUMNAS_LEAD)
+      .or(despues ? `and(${ventana},${despues})` : ventana)
+      .order('actualizado_en', { ascending: false }).order('id', { ascending: true }).limit(limite)
+    if (signal) consulta = consulta.abortSignal(signal)
+    const { data: lote, error } = await consulta
+    lanzarAbortSiCorresponde(signal)
+    if (error) {
+      const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+      registrarError('crm.leads.ambito_fallido', fallo)
+      throw fallo
+    }
+    const filas: unknown[] = lote ?? []
+    if (!Array.isArray(filas) || filas.length > limite) throw new CrmApiError('La cartera recibida no corresponde al lote solicitado.', 'ROW_CONTRACT')
+    data.push(...filas)
+    if (filas.length < limite || data.length === MAX_LEADS_AMBITO) break
+    const ultima = filas[filas.length - 1] as Record<string, unknown> | undefined
+    if (!ultima || typeof ultima.id !== 'string' || typeof ultima.actualizado_en !== 'string'
+      || !Number.isFinite(Date.parse(ultima.actualizado_en))
+      || (cursor && cursor.id === ultima.id && cursor.actualizado === ultima.actualizado_en)) {
+      throw new CrmApiError('No se pudo continuar la lectura de la cartera.', 'ROW_CONTRACT')
+    }
+    cursor = { actualizado: ultima.actualizado_en, id: ultima.id }
   }
-  avisarTopeAlcanzado('leads_del_ambito', MAX_LEADS_AMBITO, (data ?? []).length)
+  avisarTopeAlcanzado('leads_del_ambito', MAX_LEADS_AMBITO, data.length)
   const items: Lead[] = []
+  const vistos = new Set<string>()
   let descartadas = 0
-  for (const cruda of data ?? []) {
+  for (const cruda of data) {
     const r = v.safeParse(LeadRowSchema, cruda)
-    if (r.success) items.push(aLead(r.output))
+    // Los lotes no son una transacción de lectura: un cambio concurrente no
+    // debe producir dos tarjetas de la misma identidad en el store.
+    if (r.success) {
+      if (!vistos.has(r.output.id)) { vistos.add(r.output.id); items.push(aLead(r.output)) }
+    }
     else descartadas += 1
   }
   if (descartadas > 0) {
@@ -596,6 +625,24 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
     )
   }
   return items
+}
+
+/** Ficha completa por identidad: la tabla y su RLS siguen siendo la puerta de
+ * acceso. La cola resumida nunca se convierte en un Lead parcial. */
+export async function obtenerLeadDelAmbitoPorId(id: string, signal?: AbortSignal): Promise<Lead | null> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').from('leads').select(COLUMNAS_LEAD)
+    .eq('id', id).eq('activo', true)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta.maybeSingle()
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw new CrmApiError('No se pudo cargar la ficha del lead.', error.code || 'POSTGREST_ERROR')
+  if (data === null) return null
+  const resultado = v.safeParse(LeadRowSchema, data)
+  if (!resultado.success || resultado.output.id !== id || !resultado.output.activo) {
+    throw new CrmApiError('Los datos de esta ficha no cumplen el contrato del CRM. Solicita revisión a Gerencia.', 'ROW_CONTRACT')
+  }
+  return aLead(resultado.output)
 }
 
 // ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────

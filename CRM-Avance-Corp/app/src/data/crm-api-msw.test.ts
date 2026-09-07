@@ -20,6 +20,7 @@ import {
   listarActividadesDelAmbito,
   listarLeads,
   listarLeadsDelAmbito,
+  obtenerLeadDelAmbitoPorId,
   listarResumenCartera,
   listarTareasDelAmbito,
   reprogramarReunion,
@@ -253,6 +254,42 @@ describe('listarLeads (msw)', () => {
 })
 
 describe('listarLeadsDelAmbito (msw)', () => {
+  function carteraConCap(cantidad: number, capServidor = 1000) {
+    const capturadas: URL[] = []
+    // Empates de timestamp atraviesan el borde de página: el ID debe ser el
+    // desempate. Son identidades sintéticas, sin datos de producción.
+    const filas = Array.from({ length: cantidad }, (_, i) => fila({
+      id: `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+      actualizado_en: new Date(Date.parse('2026-07-02T12:00:00Z') - Math.floor(i / 750) * 1000).toISOString(),
+    }))
+    server.use(http.get(RUTA_LEADS, ({ request }) => {
+      const url = new URL(request.url); capturadas.push(url)
+      expect(request.headers.get('accept-profile')).toBe('crm')
+      const criterio = url.searchParams.get('or') ?? ''
+      expect(criterio).toContain('etapa.neq.convertido')
+      expect(criterio).toContain('convertido_en.gte.')
+      const actualizado = /actualizado_en\.lt\."([^"]+)"/.exec(criterio)?.[1]
+      const id = /id\.gt\."([^"]+)"/.exec(criterio)?.[1]
+      const elegibles = actualizado && id ? filas.filter((f) => String(f.actualizado_en) < actualizado
+        || (f.actualizado_en === actualizado && String(f.id) > id)) : filas
+      const limite = Number(url.searchParams.get('limit'))
+      return HttpResponse.json(elegibles.slice(0, Math.min(limite, capServidor)))
+    }))
+    return { capturadas, filas }
+  }
+
+  it('recupera la fila 1148 de 1157 pese al máximo de 1000 filas de PostgREST', async () => {
+    const { capturadas, filas } = carteraConCap(1157)
+    const leads = await listarLeadsDelAmbito()
+    expect(leads).toHaveLength(1157)
+    expect(leads[1147]?.id).toBe(filas[1147]!.id)
+    expect(new Set(leads.map((l) => l.id)).size).toBe(1157)
+    expect(capturadas).toHaveLength(3)
+    expect(capturadas.every((url) => url.searchParams.get('limit') === '500')).toBe(true)
+    expect(capturadas.every((url) => url.searchParams.get('order') === 'actualizado_en.desc,id.asc')).toBe(true)
+    expect(capturadas.every((url) => !url.searchParams.has('offset'))).toBe(true)
+    expect(capturadas[1]?.searchParams.get('or')).toContain(String(filas[499]!.id))
+  })
   it('descarta y registra filas inválidas también en la ruta real del store', async () => {
     server.use(
       http.get(RUTA_LEADS, () =>
@@ -276,17 +313,12 @@ describe('listarLeadsDelAmbito (msw)', () => {
   // servidor. Se cuentan las filas CRUDAS recibidas (2000), no las que
   // sobreviven al parse — el recorte ocurre antes de validar.
   it('avisa a observabilidad cuando la respuesta llena el tope de 2000', async () => {
-    server.use(
-      http.get(RUTA_LEADS, () =>
-        HttpResponse.json(
-          Array.from({ length: 2000 }, (_, i) => fila({ id: `l-tope-${i}` })),
-        ),
-      ),
-    )
+    const { capturadas } = carteraConCap(2150)
 
     const leads = await listarLeadsDelAmbito()
 
     expect(leads).toHaveLength(2000)
+    expect(capturadas).toHaveLength(4)
     expect(console.error).toHaveBeenCalledWith(
       '[ac-crm]',
       expect.objectContaining({
@@ -296,6 +328,37 @@ describe('listarLeadsDelAmbito (msw)', () => {
         }),
       }),
     )
+  })
+
+  it('no entrega una cartera parcial si falla una página posterior', async () => {
+    let llamadas = 0
+    server.use(http.get(RUTA_LEADS, () => ++llamadas === 1
+      ? HttpResponse.json(Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` })))
+      : HttpResponse.json({ code: '42501', message: 'Sin acceso' }, { status: 403 })))
+    await expect(listarLeadsDelAmbito()).rejects.toMatchObject({ code: '42501' })
+    expect(llamadas).toBe(2)
+  })
+
+  it('no duplica una identidad que reaparece tras un cambio concurrente entre lotes', async () => {
+    let llamadas = 0
+    server.use(http.get(RUTA_LEADS, () => HttpResponse.json(++llamadas === 1
+      ? Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` }))
+      : [fila({ id: 'l-10' }), fila({ id: 'l-500' })])))
+    const leads = await listarLeadsDelAmbito()
+    expect(leads).toHaveLength(501)
+    expect(leads.filter((lead) => lead.id === 'l-10')).toHaveLength(1)
+  })
+
+  it('detiene la carga sin pedir otro lote cuando se cancela la sesión', async () => {
+    const cancelacion = new AbortController()
+    let llamadas = 0
+    server.use(http.get(RUTA_LEADS, () => {
+      llamadas += 1
+      cancelacion.abort()
+      return HttpResponse.json(Array.from({ length: 500 }, (_, i) => fila({ id: `l-${i}` })))
+    }))
+    await expect(listarLeadsDelAmbito(cancelacion.signal)).rejects.toMatchObject({ name: 'AbortError' })
+    expect(llamadas).toBe(1)
   })
 
   it('NO dispara la alarma de tope por debajo del límite', async () => {
@@ -334,6 +397,30 @@ describe('listarLeadsDelAmbito (msw)', () => {
     // El corte es "hoy − 45 días" calculado al momento de la llamada.
     const corteMs = Date.parse(sello ?? '')
     expect(Math.abs(corteMs - (antes - 45 * 86_400_000))).toBeLessThan(60_000)
+  })
+})
+
+describe('obtenerLeadDelAmbitoPorId (msw)', () => {
+  it('lee la ficha completa por ID en crm con activo=true y aplica el mapeador canónico', async () => {
+    let pedida: URL | undefined
+    server.use(http.get(RUTA_LEADS, ({ request }) => {
+      pedida = new URL(request.url)
+      expect(request.headers.get('accept-profile')).toBe('crm')
+      return HttpResponse.json([fila({ id: 'fuera-del-lote', monto_estimado: '2000.50', nota: 'Detalle completo' })])
+    }))
+    await expect(obtenerLeadDelAmbitoPorId('fuera-del-lote')).resolves.toMatchObject({ id: 'fuera-del-lote', monto_estimado: 2000.5, nota: 'Detalle completo', telefono: '+51987650000' })
+    expect(pedida?.searchParams.get('id')).toBe('eq.fuera-del-lote')
+    expect(pedida?.searchParams.get('activo')).toBe('eq.true')
+    expect(pedida?.searchParams.get('select')).toContain('telefono,')
+    expect(pedida?.searchParams.has('or')).toBe(false)
+  })
+  it('devuelve null si RLS no devuelve el lead, sin revelar su existencia', async () => {
+    server.use(http.get(RUTA_LEADS, () => HttpResponse.json([])))
+    await expect(obtenerLeadDelAmbitoPorId('fuera-de-ambito')).resolves.toBeNull()
+  })
+  it.each([{ monto_estimado: null }, { id: 'otra-fila' }, { activo: false }])('rechaza datos incompletos o de otra identidad: %j', async (cambio) => {
+    server.use(http.get(RUTA_LEADS, () => HttpResponse.json([fila(cambio)])))
+    await expect(obtenerLeadDelAmbitoPorId('l-api-1')).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })
 

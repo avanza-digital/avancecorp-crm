@@ -1,7 +1,70 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
 import muestraSql from '../src/data/sla-operacion-sql.fixture.json' with { type: 'json' }
+
+async function colaConLeadFueraDelLote(page: Page) {
+  const lead = leadReal({ id: 'ffffffff-0000-4000-8000-000000002501', vendedor_id: UID,
+    nombre_completo: 'OPORTUNIDAD FUERA DEL LOTE', telefono: '+51982224466', monto_estimado: 2000, etapa: 'propuesta_enviada' })
+  await montarBackendReal(page, { leads: [], rolCrm: 'gerencia' })
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as { p_lead_ids: string[] }
+    await route.fulfill({ json: { ...muestraSql.estado, filas: args.p_lead_ids.map((lead_id) => ({ ...muestraSql.estado.filas[0], lead_id })) } })
+  })
+  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as { p_limite: number; p_senal: string; p_etapa: string | null; p_analista_id: string | null }
+    const original = muestraSql.cola.items[0]!
+    await route.fulfill({ json: { ...muestraSql.cola, limite: args.p_limite,
+      filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
+      total_items: 1, rango: { desde: 1, hasta: 1 }, hay_mas: false, cursor_siguiente: null,
+      items: [{ ...original, lead_id: lead.id,
+        lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' },
+        estado: { ...original.estado, lead_id: lead.id } }],
+    } })
+  })
+  return lead
+}
+
+test('la cola abre una ficha completa fuera del lote inicial después de confirmar su lectura RLS', async ({ page }) => {
+  const lead = await colaConLeadFueraDelLote(page)
+  let responder!: () => void
+  const espera = new Promise<void>((resolve) => { responder = resolve })
+  let consultasId = 0
+  await page.route('**/rest/v1/leads?*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('id') !== `eq.${lead.id}`) return route.fallback()
+    consultasId += 1
+    expect(url.searchParams.get('activo')).toBe('eq.true')
+    expect(url.searchParams.get('select')).toContain('telefono,')
+    await espera
+    await route.fulfill({ json: [lead] })
+  })
+  await loginReal(page)
+  const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
+  await lista.getByRole('button', { name: /OPORTUNIDAD FUERA DEL LOTE/ }).click()
+  await expect.poll(() => consultasId).toBe(1)
+  await expect(page.getByRole('dialog', { name: /OPORTUNIDAD FUERA DEL LOTE/ })).toHaveCount(0)
+  responder()
+  const ficha = page.getByRole('dialog', { name: /OPORTUNIDAD FUERA DEL LOTE/ })
+  await expect(ficha).toBeVisible()
+  await expect(ficha.getByRole('region', { name: 'Datos del lead' }).getByText('+51982224466', { exact: true })).toBeVisible()
+  await expect(ficha.getByRole('link', { name: 'WhatsApp a OPORTUNIDAD FUERA DEL LOTE' })).toHaveAttribute('href', 'https://wa.me/51982224466')
+  await expect(page).toHaveURL(new RegExp(`/lead/${lead.id}$`))
+  expect(consultasId).toBe(1)
+})
+
+test('si RLS ya no devuelve la oportunidad, la cola informa el fallo y no abre una ficha parcial', async ({ page }) => {
+  const lead = await colaConLeadFueraDelLote(page)
+  await page.route('**/rest/v1/leads?*', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('id') !== `eq.${lead.id}`) return route.fallback()
+    await route.fulfill({ json: [] })
+  })
+  await loginReal(page)
+  await page.getByRole('list', { name: 'Oportunidades de esta página' }).getByRole('button', { name: /OPORTUNIDAD FUERA DEL LOTE/ }).click()
+  await expect(page.getByText('La oportunidad ya no está disponible en tu cartera.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /OPORTUNIDAD FUERA DEL LOTE/ })).toHaveCount(0)
+  await expect(page).not.toHaveURL(new RegExp(`/lead/${lead.id}$`))
+})
 
 test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha', async ({ page }) => {
   const leads = Array.from({ length: 12 }, (_, i) => leadReal({

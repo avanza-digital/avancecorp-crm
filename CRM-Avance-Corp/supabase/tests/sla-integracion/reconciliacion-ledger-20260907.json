@@ -1,0 +1,107 @@
+{
+  "estado": "propuesta verificada en lectura; NO ejecutada en producción por este agente",
+  "commit_artefacto": "839aa7c8c01cecba3102fb3222408784a1e4b972",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "mapa": [
+    {
+      "nombre": "crm_sla_prerrequisito_gobernanza",
+      "operativa": "20260907035818",
+      "canonica": "20260907032338",
+      "sql_sha256": "cebf5605304f09d5ae6aa5c62618c006d747844abaf4703e187eb18cdf856189"
+    },
+    {
+      "nombre": "crm_sla_nucleo_operativo_lectura",
+      "operativa": "20260907035837",
+      "canonica": "20260907001024",
+      "sql_sha256": "1db637e615b4c054acdd0395ce2aea6e586ae78d44f84698ca1f16f2d361e98d"
+    },
+    {
+      "nombre": "crm_sla_nucleo_operativo_escritura",
+      "operativa": "20260907035851",
+      "canonica": "20260907024903",
+      "sql_sha256": "650730b6e44ef4e6a1bfcb0073f637043f3ee7d82ee680968b18f1e29f2d2cbd"
+    },
+    {
+      "nombre": "crm_sla_comandos_recibos",
+      "operativa": "20260907035906",
+      "canonica": "20260907025220",
+      "sql_sha256": "1476b01e1c916cb88ddc9bf3d0e555ea292219060731c7f996f0633060dc1f2e"
+    },
+    {
+      "nombre": "crm_sla_cierre_reconstruccion_contextos",
+      "operativa": "20260907040053",
+      "canonica": "20260907031450",
+      "sql_sha256": "5a200ee70895015ea7aa7db06cedbe044afb47b466e52d145f24d25083b5ceb4"
+    }
+  ],
+  "campos_actualizados": [
+    "version"
+  ],
+  "campos_preservados": [
+    "name",
+    "statements",
+    "created_by",
+    "idempotency_key",
+    "rollback"
+  ],
+  "preflight_remoto": {
+    "cinco_sha256_coinciden": true,
+    "cardinalidad_uno": true,
+    "destinos_ocupados": 0,
+    "triggers_de_usuario": 0,
+    "referencias_fk": 0,
+    "privilegio_update": true,
+    "rls": false
+  },
+  "orden_operativo": [
+    "prerrequisito",
+    "N1",
+    "N2",
+    "N3",
+    "stock por lotes",
+    "cierre R4"
+  ],
+  "nota_replay": "Las versiones canónicas conservan nombres comprometidos. El prerrequisito tiene timestamp mayor que N1/N2/N3/R4; la reproducción requiere el orden explícito documentado, no un reset cronológico ciego.",
+  "pruebas_ledger_local": [
+    {
+      "caso": "sql_distinto",
+      "ok": true,
+      "ninguna_mutacion": true
+    },
+    {
+      "caso": "cardinalidad_distinta",
+      "ok": true,
+      "ninguna_mutacion": true
+    },
+    {
+      "caso": "nombre_duplicado",
+      "ok": true,
+      "ninguna_mutacion": true
+    },
+    {
+      "caso": "destino_ocupado",
+      "ok": true,
+      "ninguna_mutacion": true
+    },
+    {
+      "caso": "reconciliacion_cinco",
+      "ok": true,
+      "veredicto": "OK: cinco versiones SLA reconciliadas; SQL y demás campos intactos"
+    },
+    {
+      "caso": "otros_campos_preservados",
+      "ok": true
+    },
+    {
+      "caso": "fila_ajena_preservada",
+      "ok": true
+    },
+    {
+      "caso": "reintento_rechazado",
+      "ok": true
+    }
+  ],
+  "sql_sha256": "72421c3d80be8fd7584678de15a8c3345ecb097d4eef40ca3b2c5303c4ff06f2",
+  "referencia_cli": "https://github.com/supabase/cli/blob/develop/apps/cli/docs/supabase/migration/repair.md",
+  "alternativa_cli": "migration repair reverted/applied elimina/inserta filas; no se eligió porque se requiere conservar statements y todos los campos existentes mediante actualización única de version."
+}

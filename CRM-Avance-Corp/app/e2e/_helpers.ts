@@ -3130,6 +3130,11 @@ export async function montarBackendReal(
           estado.fallarProximaCargaLeads = false
           return json(route, { message: 'server down' }, 500)
         }
+        const idPedido = url.searchParams.get('id')
+        if (idPedido?.startsWith('eq.')) {
+          return json(route, estado.leads.filter((lead) => lead.id === idPedido.slice(3)
+            && (url.searchParams.get('activo') !== 'eq.true' || lead.activo)))
+        }
         return json(route, estado.leads)
       }
       if (method === 'POST') {

@@ -31,7 +31,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260906180000 | constraint trigger NUEVO `trg_contratos_zz_observar_rentabilidad` sobre `public.contratos` (AFTER INSERT / UPDATE OF tasa_anual, categoria, cliente_id, capital, moneda, fecha_inicio, fecha_vencimiento; diferido; solo escribe en `crm.ledger_rentabilidad`, nunca aborta) | sí, 2026-09-06 (Miguel la aplicó con `!`; Rentabilidad R2) |
 | 20260905140000 | `public.crear_contrato` (CREATE OR REPLACE: reconoce a la persona antes de crear el contrato) y `private.trg_perfiles_documento_protegido`, trigger sobre `public.perfiles` que impide cambiar el documento de un cliente reconocido — **fila añadida a posteriori el 2026-09-06** (auditor de D-19, hallazgo B1): la migración se aplicó el 05/09 con el `!` de Miguel y su OK explícito para «las dos piezas de `public`», pero la fila del registro no se escribió. | sí, 2026-09-05 (E4, «las dos piezas de public con OK de Miguel») |
 | 20260906200000 ✅ | `public.crear_contrato` (CREATE OR REPLACE: solo cambia CÓMO lee la bandera de identidad, pasa a hacerlo bajo su candado) y `private.trg_perfiles_documento_protegido`, el trigger de `public.perfiles` que E4 ya había puesto (mismo cambio de lectura). Sin DDL de tablas, columnas ni permisos: el postflight exige que definer, dueño, `search_path` y la ACL exacta (`authenticated` y `service_role`) queden idénticos. | sí, 2026-09-06 (la aplicó él mismo con el `!`, tras avisarle de que tocaba las dos piezas de `public` ya autorizadas en E4) |
-| 20260907032338 · PENDIENTE | `public.crear_contrato`: retira únicamente una variable no utilizada que consultaba `public.es_analista()`. Conserva firma, autoridad efectiva `private.puede_registrar_ventas`, cuerpo restante, dueño y ACL. Los demás cambios del prerrequisito son `crm`/`private`. | Incluida en la publicación conjunta SLA autorizada por Miguel el 06/09; SQL revisado y ensayado, aún sin aplicar. |
+| 20260907032338 ✅ | `public.crear_contrato`: retira únicamente una variable no utilizada que consultaba `public.es_analista()`. Conserva firma, autoridad efectiva `private.puede_registrar_ventas`, cuerpo restante, dueño y ACL. Los demás cambios del prerrequisito son `crm`/`private`. | Sí, aplicada en producción el 07/09 UTC como prerrequisito de la publicación conjunta SLA autorizada el 06/09; postflight y registro canónico verificados. |
 
 ## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
 
@@ -8294,11 +8294,11 @@ La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at tim
 
 ## 20260907001024 — SLA N1: núcleo operativo de lectura
 
-**PENDIENTE de aplicación y publicación.** SQL generado por Supabase CLI; versión final con 47/47 casos N1 y ensayo de instalación en esquema integral PG17. Cuatro tablas aditivas cerradas/auditadas, núcleo privado de hechos y decisión, ventana común y estado/cola v2 con filtros y cursor opaco. V1 conserva firma/ACL/payload mediante el proveedor compartido. No publica política, captura stock, concede ajustes ni activa; control inicial legado/revisión 0.
+**APLICADA en producción el 07/09/2026 UTC. Backend activo; publicación frontend en verificación.** SQL generado por Supabase CLI; versión final con 47/47 casos N1 y ensayo de instalación en esquema integral PG17. Cuatro tablas aditivas cerradas/auditadas, núcleo privado de hechos y decisión, ventana común y estado/cola v2 con filtros y cursor opaco. V1 conserva firma/ACL/payload mediante el proveedor compartido. No publica política, captura stock, concede ajustes ni activa; control inicial legado/revisión 0.
 
 Manifiesto y oráculos puros: [README N1](../tests/sla-nucleo/README.md). Integración final y límites: [banco integral](../tests/sla-integracion/README.md), [evidencia y hashes](../tests/sla-integracion/evidencia-20260907.json). [Reversa de lectura](../scripts/rollback-sla-nucleo-lectura.sql) solo antes de activar. No modifica exenciones ni topes. SHA-256 final: `1db637e615b4c054acdd0395ce2aea6e586ae78d44f84698ca1f16f2d361e98d`.
 
-El contraste real y las reglas guiadas ya están documentados. Instalación, lectura posterior, revisión del servicio y activación aún deben registrarse; las pruebas locales no son evidencia de publicación. Para esta entrega N1 requiere aplicar primero el prerrequisito `20260907032338`, aunque su nombre sea cronológicamente posterior. El orden completo y las entradas N2/N3/N4 se detallan al final del ledger.
+El contraste real y las reglas guiadas están documentados. N1 está instalada y el backend opera con política v6, modo activo/revisión 1 y primera activación `2026-09-07T04:03:49.941009Z`. El primer frontend está publicado y su hotfix permanece en verificación. N1 se aplicó después del prerrequisito `20260907032338`, aunque su nombre sea cronológicamente posterior. El orden y registro completos se detallan en SLA-R2.
 
 ## 20260906220000 · `crm_rentabilidad_r3_lecturas_bandeja_ficha_politica`
 
@@ -8315,30 +8315,30 @@ El contraste real y las reglas guiadas ya están documentados. Instalación, lec
 
 ## SLA-R2 · orden explícito de publicación conjunta (07/09/2026 UTC)
 
-**PENDIENTE de aplicación, registro, despliegue y activación.** Miguel autorizó publicar SLA conjuntamente tras contrastar la cartera. Esta entrada registra artefactos revisados y ensayados; no afirma operaciones remotas realizadas. El protocolo está en [PUBLICACION-SLA-2026-09-07.md](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/PUBLICACION-SLA-2026-09-07.md).
+**BACKEND ACTIVO; PUBLICACIÓN FRONTEND EN VERIFICACIÓN.** Los cinco SQL están aplicados y registrados canónicamente; 831 contextos se reconstruyeron en cuatro lotes, con 0 faltantes, 0 incoherencias y 0 nuevos faltantes al comparar la foto original. N4 está cerrado y el gate completo está OK. Política v6, activo/revisión 1, primera activación `2026-09-07T04:03:49.941009Z`, adopción v6. Miguel autorizó publicar conjuntamente tras contrastar la cartera. El protocolo está en [PUBLICACION-SLA-2026-09-07.md](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/PUBLICACION-SLA-2026-09-07.md). [Evidencia productiva sin PII](../tests/sla-integracion/produccion-activacion-20260907.json): control, gate, lotes, comparación original y cinco versiones canónicas verificadas.
 
-Primero integrar Main con `avancecorp/main`, comprobar igualdad de commit y construir/verificar el artefacto desde checkout limpio. Después ejecutar, con postflight leído en cada paso: **prerrequisito → N1 → N2 → N3 → lotes independientes → N4 → despliegue frontend → bootstrap desde UI Gerencia → activación**. El orden no es el de los timestamps: el prerrequisito fue descubierto después y N4 no puede adelantarse al poblamiento. No aplicar indiscriminadamente todo el directorio. Mantener modo legado/revisión 0 hasta completar configuración y comprobaciones.
+Primero integrar Main con `avancecorp/main`, comprobar igualdad de commit y construir/verificar el artefacto desde checkout limpio. Después ejecutar, con postflight leído en cada paso: **prerrequisito → N1 → N2 → N3 → lotes independientes → N4 → despliegue frontend → bootstrap desde UI Gerencia → activación**. El orden no es el de los timestamps: el prerrequisito fue descubierto después y N4 no puede adelantarse al poblamiento. No aplicar indiscriminadamente todo el directorio. Ese orden ya se ejecutó; el control permaneció en legado/revisión 0 durante instalación y lotes. El hotfix de frontend está en verificación antes del cierre final.
 
 | Orden | Versión | Nombre | Estado |
 |---|---|---|---|
-| Previo | 20260907032338 | crm_sla_prerrequisito_gobernanza | PENDIENTE |
-| N1 | 20260907001024 | crm_sla_nucleo_operativo_lectura | PENDIENTE |
-| N2 | 20260907024903 | crm_sla_nucleo_operativo_escritura | PENDIENTE |
-| N3 | 20260907025220 | crm_sla_comandos_recibos | PENDIENTE |
-| Lotes | Sin migración masiva | Reconstrucción privada, máximo 200 leads por transacción | PENDIENTE |
-| N4 | 20260907031450 | crm_sla_cierre_reconstruccion_contextos | PENDIENTE, solo después de los lotes |
+| Previo | 20260907032338 | crm_sla_prerrequisito_gobernanza | APLICADA; cuatro gates de gobernanza OK |
+| N1 | 20260907001024 | crm_sla_nucleo_operativo_lectura | APLICADA |
+| N2 | 20260907024903 | crm_sla_nucleo_operativo_escritura | APLICADA; política v6 y modo activo |
+| N3 | 20260907025220 | crm_sla_comandos_recibos | APLICADA; gate de comandos OK |
+| Lotes | Sin migración masiva | Reconstrucción privada, máximo 200 leads por transacción | COMPLETADA: 831 contextos, cuatro lotes; verificación sin faltantes/incoherencias/nuevos |
+| N4 | 20260907031450 | crm_sla_cierre_reconstruccion_contextos | APLICADA después de los lotes; helpers retirados |
 
 El banco integral PG17 usa esquema CRM, funciones, owners, RLS, autoridades y vetos reales, con actores sintéticos. Superpone únicamente dos definiciones pertinentes leídas de producción sobre el esquema F7. No ejecuta PostgREST, Auth HTTP ni scheduler; las omisiones administradas están declaradas. No se afirma paridad global F7/producción. [Evidencia final y hashes completos](../tests/sla-integracion/evidencia-20260907.json), [metodología](../tests/sla-integracion/README.md). SQL: N1 47/47, N2 23/23, N3 21/21; prerrequisito rollback/reaplicación exactos y cuatro gates de gobernanza verdes sin aumentar topes. Frontend: 2895 pruebas en 201 archivos, typecheck correcto y lint sin errores (cuatro advertencias preexistentes), verificados antes de integrar.
 
 ## 20260907032338 · crm_sla_prerrequisito_gobernanza
 
-**PENDIENTE; aplicar ANTES de N1.** Repara cuatro controles que ya estaban rojos antes de SLA. Extrae inventario documental e impacto al núcleo privado de identidad conservando preguntas y autoridad; transforma conteos usados solo como umbral o cardinalidad de locks por expresiones equivalentes. Retira una variable no utilizada de `public.crear_contrato`, sin tocar su autorización efectiva ni el cuerpo restante. Completa INSERT/UPDATE/DELETE en cuatro auditores de rentabilidad. Recertifica cuerpos ya presentes y sus declaraciones tras revisión exacta, conservando topes, cierres F7, ventanas, ACL y callers. No incorpora excepciones nuevas para tapar errores.
+**APLICADA en producción ANTES de N1.** Repara cuatro controles que ya estaban rojos antes de SLA. Extrae inventario documental e impacto al núcleo privado de identidad conservando preguntas y autoridad; transforma conteos usados solo como umbral o cardinalidad de locks por expresiones equivalentes. Retira una variable no utilizada de `public.crear_contrato`, sin tocar su autorización efectiva ni el cuerpo restante. Completa INSERT/UPDATE/DELETE en cuatro auditores de rentabilidad. Recertifica cuerpos ya presentes y sus declaraciones tras revisión exacta, conservando topes, cierres F7, ventanas, ACL y callers. No incorpora excepciones nuevas para tapar errores.
 
 SHA-256: `cebf5605304f09d5ae6aa5c62618c006d747844abaf4703e187eb18cdf856189`. Preflight fija fuentes pertinentes; postflight exige los cuatro controles y proveedores privados. [Reversa](../scripts/rollback-sla-prerrequisito-gobernanza.sql) ensayada: restaura cuerpos y declaraciones originales, incluidos sus cuatro fallos conocidos; solo para una reversa completa revisada después de retirar la dependencia SLA. No es el apagado operativo.
 
 ## 20260907024903 · SLA N2: configuración y núcleo escritor
 
-**PENDIENTE; requiere prerrequisito y N1.** Publicador v1/v2 compartido y atómico, cuatro reglas, bootstrap aprobado servido por un proveedor único, control de modo con CAS `P0409`, primera activación/adopción inmutables. Captura transaccional del ciclo de nuevas tareas, reconstrucción privada temporal y estricta del stock, prórrogas por conversación/mismo episodio/presupuesto mediante la regla N1. Conserva `clock_timestamp` humano tras leadlock. El gesto completo difiere la adjudicación hasta terminar actividad y siguiente tarea. No publica ni activa al instalar.
+**APLICADA en producción tras prerrequisito y N1.** Publicador v1/v2 compartido y atómico, cuatro reglas, bootstrap aprobado servido por un proveedor único, control de modo con CAS `P0409`, primera activación/adopción inmutables. Captura transaccional del ciclo de nuevas tareas, reconstrucción privada temporal y estricta del stock, prórrogas por conversación/mismo episodio/presupuesto mediante la regla N1. Conserva `clock_timestamp` humano tras leadlock. El gesto completo difiere la adjudicación hasta terminar actividad y siguiente tarea. No publica ni activa al instalar.
 
 SHA-256: `650730b6e44ef4e6a1bfcb0073f637043f3ee7d82ee680968b18f1e29f2d2cbd`. [Pruebas y runbook N2](../tests/sla-operacion/README.md): 23/23, incluidas dos publicaciones/gestiones concurrentes, apagado esperando writer admitido, captura interna, evidencia humana, cierre y contingencia. Cada lote se invoca en su propia transacción con `lock_timeout=5s` y `statement_timeout=30s` exteriores. No se usa vencimiento como fecha de creación ni se modifican tareas para conseguir cobertura. Guardar resultados ambiguos fuera del repositorio.
 
@@ -8346,14 +8346,33 @@ Recuperación principal: modo legado y ZIP anterior. [Contingencia de hooks](../
 
 ## 20260907025220 · SLA N3: comandos y recibos
 
-**PENDIENTE; requiere N1/N2.** Cinco comandos v2 para actividad, cierre de tarea/reunión y reprogramación de reunión/otra tarea. UUID estable por operación y actor, payload/resultado guardados en tabla privada; reserva, efectos y respuesta se confirman juntos. FKs y comprobación de respuesta diferidas, trigger de confirmación DEFINER con ACL cerrada al COMMIT. Actividad más siguiente tarea es un solo gesto. Retrys autorizados devuelven respuesta plana original; no ejecutan otra gestión. Las firmas v1 conservan autoridad/resultado, con lock fuerte del lead antes de tarea y guarda contra adquisición concurrente de ámbito (`P0409`).
+**APLICADA en producción tras N1/N2.** Cinco comandos v2 para actividad, cierre de tarea/reunión y reprogramación de reunión/otra tarea. UUID estable por operación y actor, payload/resultado guardados en tabla privada; reserva, efectos y respuesta se confirman juntos. FKs y comprobación de respuesta diferidas, trigger de confirmación DEFINER con ACL cerrada al COMMIT. Actividad más siguiente tarea es un solo gesto. Retrys autorizados devuelven respuesta plana original; no ejecutan otra gestión. Las firmas v1 conservan autoridad/resultado, con lock fuerte del lead antes de tarea y guarda contra adquisición concurrente de ámbito (`P0409`).
 
 SHA-256: `1476b01e1c916cb88ddc9bf3d0e555ea292219060731c7f996f0633060dc1f2e`. Instalación fresca y 21/21 pruebas integrales en 6,296 s. Incluye atomicidad/retry, conflictos de payload, revocación, ACL, concurrencia, v1 directo, avance y prórroga al terminar el gesto. La intercalación exacta de adquisición de ámbito v1 no se forzó con instrumentación: se protege por el UUID realmente bloqueado y un gate que certifica sus cuerpos. No quitar comandos mientras el frontend los use; la contingencia N2 conserva sus firmas y recibos.
 
 ## 20260907031450 · SLA N4: cierre de reconstrucción
 
-**PENDIENTE; aplicar SOLO después de los lotes y su revisión.** Retira `private.sla_reconstruir_contextos_lote(uuid[])` y `private.sla_cadena_tarea_reconstruible(uuid,uuid,timestamptz)`. Conserva contextos ya probados y captura de nuevas tareas. Gate de núcleo obligatorio; sin política nueva ni activación.
+**APLICADA en producción después de los cuatro lotes y su revisión.** Retira `private.sla_reconstruir_contextos_lote(uuid[])` y `private.sla_cadena_tarea_reconstruible(uuid,uuid,timestamptz)`. Conserva contextos ya probados y captura de nuevas tareas. Gate de núcleo obligatorio; sin política nueva ni activación.
 
 SHA-256: `5a200ee70895015ea7aa7db06cedbe044afb47b466e52d145f24d25083b5ceb4`. Cierre ensayado en N2 y en la instalación integral. Tras N4, el trinquete `scripts/trinquete-sla-produccion.sql` verifica los siete controles y la ausencia de helpers transitorios. Reabrir reconstrucción exige otra migración revisada; no recrear funciones de forma improvisada ni editar historia.
 
-Después del frontend, Gerencia publica las reglas con la revisión de política recién leída y activa con la revisión de modo vigente. La foto tenía v5, primera gestión 120 min y contacto 1440 min: sin cambios concurrentes, el bootstrap crea v6 preservando ambos, deja revisión 0 y activar produce revisión 1/adopción v6. Confirmar por lectura posterior; nunca forzar esos números. Ninguna de estas expectativas acredita producción hasta registrar los resultados reales.
+Después del primer frontend se publicaron las reglas y se activó con revisiones vigentes. La lectura posterior confirmó política v6, revisión 1, adopción v6 y primera activación `2026-09-07T04:03:49.941009Z`, preservando primera gestión 120 min y contacto 1440 min. El hotfix frontend y su verificación final todavía no se declaran terminados.
+
+
+### SLA-R2 · artefacto publicado y reconciliación del ledger
+
+Primer frontend ya publicado: commit fuente `839aa7c8c01cecba3102fb3222408784a1e4b972`, build `build-20260907T035742935Z`, release `crm-20260907T035743Z-839aa7c8c01c`, destino `crm.miavance.com`. Hay un hotfix en curso; no reutilizar estos identificadores para describir su publicación final. Validación local del hotfix: 2918/2918 pruebas/201 archivos en 17,21 s, typecheck correcto, lint 0 errores y cuatro advertencias preexistentes de coverflow; store62/62 (14 regresiones nuevas), API45/45. Rechequeo E2E de siete casos e identidad/smoke del artefacto final pendientes de confirmación.
+
+| Nombre | Versión operativa MCP | Versión canónica actual |
+|---|---|---|
+| crm_sla_prerrequisito_gobernanza | 20260907035818 | 20260907032338 |
+| crm_sla_nucleo_operativo_lectura | 20260907035837 | 20260907001024 |
+| crm_sla_nucleo_operativo_escritura | 20260907035851 | 20260907024903 |
+| crm_sla_comandos_recibos | 20260907035906 | 20260907025220 |
+| crm_sla_cierre_reconstruccion_contextos | 20260907040053 | 20260907031450 |
+
+Reconciliación DML ejecutada correctamente con [reconciliar-ledger-sla.sql](../scripts/reconciliar-ledger-sla.sql), SHA-256 `72421c3d80be8fd7584678de15a8c3345ecb097d4eef40ca3b2c5303c4ff06f2`. Solo cambió `version` en cinco filas después de exigir origen/nombre únicos, cardinalidad 1 y SHA-256 de `statements[1]` idéntico al SQL comprometido; destinos previamente libres. Conservó `name`, `statements`, `created_by`, `idempotency_key`, `rollback` y las demás filas. No se volvieron a aplicar efectos ni se creó una sexta migración. El [mapping y pruebas](../tests/sla-integracion/reconciliacion-ledger-20260907.json) conserva la cronología operativa. La CLI reconoce los cinco filenames; la reproducción desde cero continúa usando el orden explícito.
+
+### SLA-R2 · advisories específicos de esta entrega
+
+RLS sin policies en tablas privadas es deliberada: niega acceso directo y deja las operaciones a RPC autorizadas. Las puertas SECURITY DEFINER para authenticated conservan `search_path` fijo, ACL y ámbito certificados por gates. La FK del singleton de control no genera un problema de escala por falta de índice adicional. Los índices nuevos sin uso observado permanecen: estadísticas iniciales vacías no prueban inutilidad. No abrir policies/grants ni borrar índices para silenciar estos avisos; revisar de nuevo si cambian esos supuestos.

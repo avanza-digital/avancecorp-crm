@@ -57,6 +57,7 @@ import {
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
+  obtenerLeadDelAmbitoPorId,
   obtenerCumplimientoMetas,
   obtenerMetasDelMes,
   listarTareasDelAmbito,
@@ -432,7 +433,7 @@ export interface PanelesState {
 }
 
 export interface PanelesActions {
-  abrirLead(id: string): void
+  abrirLead(id: string): void | Promise<boolean>
   abrirNuevoLead(etapa?: EtapaActiva, telefonoInicial?: string): void
   cerrarPaneles(): void
 }
@@ -708,12 +709,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   )
   const [demoListo, setDemoListo] = useState(false)
   const [realListo, setRealListo] = useState(false)
+  const claveFuenteReal = `${yo?.id ?? ''}|${yo?.rol ?? ''}|${yo?.demo === true}`
+  const [fuenteReal, setFuenteReal] = useState<string | null>(null)
   const [errorReal, setErrorReal] = useState(false)
   // Reintento manual desde la pantalla de error: cambiar este contador vuelve a
   // disparar el efecto de carga (misma sesión, otra época).
   const [intentoReal, setIntentoReal] = useState(0)
   const demoActivo = demoSolicitado && demoListo
-  const realActivo = sesionReal && realListo
+  const realActivo = sesionReal && realListo && fuenteReal === claveFuenteReal
   const equipo = auxiliares.equipo
 
   // Época de la sesión/carga: se incrementa en CADA corrida del efecto de datos
@@ -734,12 +737,66 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [nuevoLeadAbierto, setNuevoLeadAbierto] = useState(false)
   const [etapaInicial, setEtapaInicial] = useState<EtapaActiva>('nuevo')
   const [telefonoInicial, setTelefonoInicial] = useState<string | null>(null)
+  const aperturaRef = useRef(0)
+  const aperturaAbortRef = useRef<AbortController | null>(null)
+  const contextoPanelRef = useRef({ yo, realActivo, demoActivo, datos, equipo, leadAbiertoId })
+  contextoPanelRef.current = { yo, realActivo, demoActivo, datos, equipo, leadAbiertoId }
+  useEffect(() => () => { aperturaAbortRef.current?.abort(); aperturaRef.current += 1 }, [])
 
-  const abrirLead = useCallback((id: string) => {
+  const abrirLead = useCallback(async (id: string): Promise<boolean> => {
+    const intento = ++aperturaRef.current
+    aperturaAbortRef.current?.abort()
+    const contexto = contextoPanelRef.current
+    const epoca = epocaRef.current
     setNuevoLeadAbierto(false)
-    setLeadAbiertoId(id)
+    if (!contexto.realActivo && !contexto.demoActivo) return false
+    if (contexto.datos.leads.some((l) => l.id === id && l.activo)) {
+      setLeadAbiertoId(id)
+      return true
+    }
+    if (!contexto.realActivo) return false
+    const control = new AbortController()
+    aperturaAbortRef.current = control
+    const vigente = () => !control.signal.aborted && aperturaRef.current === intento
+      && epocaRef.current === epoca && contextoPanelRef.current.yo?.id === contexto.yo?.id
+      && contextoPanelRef.current.yo?.rol === contexto.yo?.rol && contextoPanelRef.current.realActivo
+    let reloj: ReturnType<typeof setTimeout> | undefined
+    try {
+      // Una cola del servidor puede incluir filas fuera del límite del boot.
+      // Releer la fila completa por su puerta RLS antes de abrir la ficha.
+      const fila = await Promise.race([
+        obtenerLeadDelAmbitoPorId(id, control.signal),
+        new Promise<never>((_, reject) => {
+          reloj = setTimeout(() => {
+            control.abort()
+            reject(new Error('Tiempo de apertura agotado'))
+          }, LIMITE_CARGA_REAL_MS)
+        }),
+      ])
+      if (!vigente()) return false
+      if (!fila) {
+        toast.error('La oportunidad ya no está disponible en tu cartera.')
+        return false
+      }
+      const nombre = contextoPanelRef.current.equipo.find((m) => m.perfil_id === fila.vendedor_id)?.nombre_completo ?? null
+      setDatos((actual) => actual.leads.some((l) => l.id === id) ? actual
+        : { ...actual, leads: [...actual.leads, { ...fila, vendedor_nombre: nombre }] })
+      setLeadAbiertoId(id)
+      return true
+    } catch (error) {
+      if (vigente()) {
+        registrarError('crm.ficha.lectura_fallida', error)
+        toast.error('No se pudo abrir la ficha. Reintenta.')
+      }
+      return false
+    } finally {
+      clearTimeout(reloj)
+      if (aperturaAbortRef.current === control) aperturaAbortRef.current = null
+    }
   }, [])
   const abrirNuevoLead = useCallback((etapa?: EtapaActiva, telefono?: string) => {
+    aperturaRef.current += 1
+    aperturaAbortRef.current?.abort()
     setLeadAbiertoId(null)
     setEtapaInicial(etapa ?? 'nuevo')
     // El atajo del buscador llega con el teléfono ya tecleado; el alta normal
@@ -749,6 +806,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     setNuevoLeadAbierto(true)
   }, [])
   const cerrarPaneles = useCallback(() => {
+    aperturaRef.current += 1
+    aperturaAbortRef.current?.abort()
     setLeadAbiertoId(null)
     setNuevoLeadAbierto(false)
   }, [])
@@ -818,6 +877,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return null
         }),
       ])
+      // El boot sigue acotado. La ficha abierta se conserva sólo después de
+      // volver a comprobar su autorización; nunca arrastrar una fila revocada.
+      const abierta = contextoPanelRef.current.leadAbiertoId
+      if (abierta && !leads.some((l) => l.id === abierta)) {
+        const fila = await obtenerLeadDelAmbitoPorId(abierta, signal)
+        if (fila) leads.push(fila)
+      }
       let cumplimientoCoherente = cumplimientoRpc
       if (cumplimientoCoherente && !configuracionMetas) {
         // Sin la revisión de objetivos no hay denominador confiable para mostrar
@@ -877,6 +943,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     } = {},
   ): Promise<boolean> => {
     const miEpoca = epocaRef.current
+    const miApertura = aperturaRef.current
     // Puente de coherencia F1 (TRANSITORIO hasta F3): mientras las mutaciones
     // pasen por el store, cada resincronización invalida por prefijo las
     // métricas del ámbito servidas por RPC — sin esto, crear o mover un lead
@@ -938,6 +1005,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
       // descarta en vez de repoblar el store de otra sesión.
       if (epocaRef.current !== miEpoca) return false
+      // Otra ficha se abrió mientras se revalidaba la anterior: esta foto
+      // podría excluirla. No sobrescribir la intención más reciente.
+      if (aperturaRef.current !== miApertura) return false
       setDatos({ leads, actividades })
       setTareas(tareasServidor)
       setAuxiliares((prev) => ({
@@ -965,6 +1035,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     const control = new AbortController()
     // Nueva corrida del efecto = nueva época: invalida cualquier resync en vuelo.
     epocaRef.current += 1
+    aperturaRef.current += 1
+    aperturaAbortRef.current?.abort()
+    setLeadAbiertoId(null)
+    setNuevoLeadAbierto(false)
     setDemoListo(false)
     setRealListo(false)
     setErrorReal(false)
@@ -1014,6 +1088,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       setTareas([])
       setAuxiliares(AUXILIARES_VACIOS)
       setRealListo(true)
+      setFuenteReal(claveFuenteReal)
       return () => {
         cancelado = true
         control.abort()
@@ -1066,6 +1141,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               cumplimientoMetasError,
             })
             setRealListo(true)
+            setFuenteReal(claveFuenteReal)
           },
         )
         .catch((error: unknown) => {
@@ -1094,7 +1170,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       cancelado = true
       control.abort()
     }
-  }, [demoSolicitado, sesionReal, soloRoles, yo?.id, intentoReal, cargarReal])
+  }, [demoSolicitado, sesionReal, soloRoles, yo?.id, intentoReal, cargarReal, claveFuenteReal])
 
   useEffect(() => {
     if (!realActivo) {
@@ -1143,6 +1219,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const ambito = useMemo<Ambito>(() => {
     const rol = yo?.rol
     const miId = yo?.id ?? null
+    if (sesionReal && !realActivo) return { leads: [], vendedores: [], esGlobal: false }
+    // En sesión real las filas proceden exclusivamente del lector RLS. Su
+    // subárbol es recursivo y no se puede sustituir por reportes directos.
+    if (realActivo) return {
+      leads: datos.leads.filter((l) => l.activo),
+      vendedores: equipo.filter((m) => m.rol_crm === 'vendedor'),
+      esGlobal: can(rol, 'verTodo'),
+    }
     if (can(rol, 'verTodo')) {
       // gerencia y directorio: todo el universo VIVO + todos los analistas.
       // Espejo del filtro `activo = true` de leads_select. Desde
@@ -1180,7 +1264,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       vendedores: equipo.filter((m) => m.perfil_id === miId),
       esGlobal: false,
     }
-  }, [datos, yo, equipo])
+  }, [datos, yo, equipo, realActivo, sesionReal])
 
   const api = useMemo<StoreDataApi>(() => {
     const rol = yo?.rol

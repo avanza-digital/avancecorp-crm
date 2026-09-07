@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from './auth-context'
-import { useCRMData, useStoreEstado } from './store-context'
+import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from './store-context'
 import type { Rol } from './roles'
-import type { StoreDataApi, StoreEstado } from './store'
+import type { PanelesActions, PanelesState, StoreDataApi, StoreEstado } from './store'
 import type { Yo } from './tipos'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import type { CumplimientoMetasRpc } from './objetivos'
@@ -32,6 +32,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
   return {
     ...actual, // conserva CrmApiError real (instanceof en persistir)
     listarLeadsDelAmbito: vi.fn(),
+    obtenerLeadDelAmbitoPorId: vi.fn(),
     listarEquipo: vi.fn(),
     listarActividadesDelAmbito: vi.fn(),
     listarTareasDelAmbito: vi.fn(),
@@ -54,6 +55,7 @@ const { StoreProvider, LIMITE_CARGA_REAL_MS } = await import('./store')
 const { CrmApiError } = crmApi
 
 const listarLeads = vi.mocked(crmApi.listarLeadsDelAmbito)
+const obtenerLeadPorId = vi.mocked(crmApi.obtenerLeadDelAmbitoPorId)
 const listarEquipo = vi.mocked(crmApi.listarEquipo)
 const listarActs = vi.mocked(crmApi.listarActividadesDelAmbito)
 const insertarLead = vi.mocked(crmApi.insertarLead)
@@ -240,26 +242,39 @@ function sesionReal(rol: Rol, overrides: Partial<Yo> = {}): AuthContextValue {
 interface Montaje {
   api: () => StoreDataApi
   estado: () => StoreEstado
+  panelActions: () => PanelesActions
+  panelState: () => PanelesState
+  rerenderAuth: (rol: Rol, overrides?: Partial<Yo>) => void
   mutar: <T>(fn: (api: StoreDataApi) => T) => T
 }
 
 function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
-  const ref: { api: StoreDataApi | null; estado: StoreEstado | null } = {
+  const ref: {
+    api: StoreDataApi | null
+    estado: StoreEstado | null
+    panelActions: PanelesActions | null
+    panelState: PanelesState | null
+  } = {
     api: null,
     estado: null,
+    panelActions: null,
+    panelState: null,
   }
   function Sonda(): null {
     ref.api = useCRMData()
     ref.estado = useStoreEstado()
+    ref.panelActions = usePanelesActions()
+    ref.panelState = usePanelesState()
     return null
   }
-  render(
-    <AuthContext.Provider value={sesionReal(rol, overrides)}>
+  const arbol = (nuevoRol: Rol, nuevaIdentidad: Partial<Yo> = {}) => (
+    <AuthContext.Provider value={sesionReal(nuevoRol, nuevaIdentidad)}>
       <StoreProvider>
         <Sonda />
       </StoreProvider>
-    </AuthContext.Provider>,
+    </AuthContext.Provider>
   )
+  const vista = render(arbol(rol, overrides))
   return {
     api: () => {
       if (!ref.api) throw new Error('StoreProvider aún no montado')
@@ -268,6 +283,17 @@ function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
     estado: () => {
       if (!ref.estado) throw new Error('StoreProvider aún no montado')
       return ref.estado
+    },
+    panelActions: () => {
+      if (!ref.panelActions) throw new Error('StoreProvider aún no montado')
+      return ref.panelActions
+    },
+    panelState: () => {
+      if (!ref.panelState) throw new Error('StoreProvider aún no montado')
+      return ref.panelState
+    },
+    rerenderAuth: (nuevoRol, nuevaIdentidad = {}) => {
+      vista.rerender(arbol(nuevoRol, nuevaIdentidad))
     },
     mutar: (fn) => {
       let r!: ReturnType<typeof fn>
@@ -279,11 +305,18 @@ function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
   }
 }
 
+function diferida<T>() {
+  let resolver!: (valor: T) => void
+  const promesa = new Promise<T>((resolve) => { resolver = resolve })
+  return { promesa, resolver }
+}
+
 describe('store — ruta real (sesión autenticada, no demo)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     comandoSla.mockResolvedValue(undefined)
     listarLeads.mockResolvedValue([leadBase()])
+    obtenerLeadPorId.mockReset().mockResolvedValue(null)
     listarEquipo.mockResolvedValue(ROSTER)
     listarActs.mockResolvedValue([])
     insertarLead.mockImplementation(async (fila) => {
@@ -311,6 +344,241 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     expect(api().leads[0]?.vendedor_nombre).toBe('Analista Real')
+  })
+
+  describe('apertura de fichas autorizadas fuera de la carga inicial', () => {
+    const ID_A = '22222222-2222-4222-8222-222222222222'
+    const ID_B = '33333333-3333-4333-8333-333333333333'
+    const filaA = () => ({ ...leadBase(), id: ID_A, nombre_completo: 'FICHA FUERA DEL BOOT', nota: 'Dato completo del servidor' })
+    const filaB = () => ({ ...leadBase(), id: ID_B, nombre_completo: 'ÚLTIMA FICHA SOLICITADA' })
+    type LecturaLead = Awaited<ReturnType<typeof crmApi.obtenerLeadDelAmbitoPorId>>
+
+    async function abrir(montaje: Montaje, id: string) {
+      let resultado: boolean | void
+      await act(async () => { resultado = await montaje.panelActions().abrirLead(id) })
+      return resultado!
+    }
+
+    it('hidrata la fila completa y su analista antes de abrir la ficha', async () => {
+      const montaje = montar('gerencia')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+
+      expect(await abrir(montaje, ID_A)).toBe(true)
+
+      expect(obtenerLeadPorId).toHaveBeenCalledWith(ID_A, expect.any(AbortSignal))
+      expect(montaje.api().lead(ID_A)).toMatchObject({
+        ...filaA(), vendedor_nombre: 'Analista Real',
+      })
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id, ID_A])
+      expect(montaje.panelState().leadAbiertoId).toBe(ID_A)
+    })
+
+    it('abre inmediatamente una fila activa ya cargada sin otra lectura', async () => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+
+      expect(await abrir(montaje, leadBase().id)).toBe(true)
+
+      expect(montaje.panelState().leadAbiertoId).toBe(leadBase().id)
+      expect(obtenerLeadPorId).not.toHaveBeenCalled()
+    })
+
+    it.each(['sin acceso', 'error remoto'] as const)('no inventa ni abre una ficha ante %s', async (caso) => {
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      if (caso === 'error remoto') obtenerLeadPorId.mockRejectedValueOnce(new Error('Lectura rechazada'))
+
+      expect(await abrir(montaje, ID_A)).toBe(false)
+
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(montaje.api().leads).toHaveLength(1)
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+      expect(toast.error).toHaveBeenCalled()
+    })
+
+    it.each(['cerrar', 'nueva ficha'] as const)('ignora la respuesta tardía después de %s', async (accion) => {
+      const lectura = diferida<LecturaLead>()
+      obtenerLeadPorId.mockReturnValueOnce(lectura.promesa)
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      let apertura!: ReturnType<PanelesActions['abrirLead']>
+      act(() => { apertura = montaje.panelActions().abrirLead(ID_A) })
+      const signal = obtenerLeadPorId.mock.calls[0]?.[1]
+
+      act(() => {
+        if (accion === 'cerrar') montaje.panelActions().cerrarPaneles()
+        else montaje.panelActions().abrirNuevoLead('contactado', '+51999000111')
+      })
+      expect(signal?.aborted).toBe(true)
+      await act(async () => {
+        // El transporte simulado responde incluso tras abortar: el store debe
+        // descartar también por intención, sin depender de la cancelación HTTP.
+        lectura.resolver(filaA())
+        expect(await apertura).toBe(false)
+      })
+
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(montaje.panelState()).toMatchObject({
+        leadAbiertoId: null, nuevoLeadAbierto: accion === 'nueva ficha',
+      })
+      if (accion === 'nueva ficha') expect(montaje.panelState()).toMatchObject({
+        etapaInicial: 'contactado', telefonoInicial: '+51999000111',
+      })
+      expect(toast.error).not.toHaveBeenCalled()
+    })
+
+    it('la última intención gana aunque la primera lectura termine después', async () => {
+      const lecturaA = diferida<LecturaLead>()
+      obtenerLeadPorId.mockReturnValueOnce(lecturaA.promesa).mockResolvedValueOnce(filaB())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      let aperturaA!: ReturnType<PanelesActions['abrirLead']>
+      act(() => { aperturaA = montaje.panelActions().abrirLead(ID_A) })
+
+      expect(await abrir(montaje, ID_B)).toBe(true)
+      await act(async () => {
+        lecturaA.resolver(filaA())
+        expect(await aperturaA).toBe(false)
+      })
+
+      expect(montaje.panelState().leadAbiertoId).toBe(ID_B)
+      expect(montaje.api().lead(ID_B)).toMatchObject(filaB())
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(obtenerLeadPorId.mock.calls[0]?.[1]?.aborted).toBe(true)
+    })
+
+    it.each(['otro actor', 'otro rol del mismo actor'] as const)('descarta una apertura pendiente al cambiar a %s', async (cambio) => {
+      const lectura = diferida<LecturaLead>()
+      obtenerLeadPorId.mockReturnValueOnce(lectura.promesa)
+      const montaje = montar('gerencia')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      let apertura!: ReturnType<PanelesActions['abrirLead']>
+      act(() => { apertura = montaje.panelActions().abrirLead(ID_A) })
+      const nuevoBoot = diferida<Awaited<ReturnType<typeof crmApi.listarLeadsDelAmbito>>>()
+      listarLeads.mockReturnValueOnce(nuevoBoot.promesa)
+
+      montaje.rerenderAuth('vendedor', cambio === 'otro actor' ? {} : { id: 'u-ger' })
+
+      expect(montaje.estado().cargando).toBe(true)
+      expect(montaje.api().ambito.leads).toEqual([])
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+      expect(obtenerLeadPorId.mock.calls[0]?.[1]?.aborted).toBe(true)
+      // Tampoco se permite abrir una fila del caché de la identidad anterior
+      // mientras se determina el nuevo ámbito real.
+      expect(await abrir(montaje, leadBase().id)).toBe(false)
+      await act(async () => {
+        nuevoBoot.resolver([])
+        lectura.resolver(filaA())
+        expect(await apertura).toBe(false)
+      })
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(montaje.api().leads).toEqual([])
+      expect(montaje.panelState().leadAbiertoId).toBeNull()
+    })
+
+    it('termina la apertura y aborta la lectura si el servidor no responde', async () => {
+      const lectura = diferida<LecturaLead>()
+      obtenerLeadPorId.mockReturnValueOnce(lectura.promesa)
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      vi.useFakeTimers()
+      try {
+        let apertura!: ReturnType<PanelesActions['abrirLead']>
+        act(() => { apertura = montaje.panelActions().abrirLead(ID_A) })
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(LIMITE_CARGA_REAL_MS)
+          expect(await apertura).toBe(false)
+        })
+        expect(obtenerLeadPorId.mock.calls[0]?.[1]?.aborted).toBe(true)
+        expect(montaje.panelState().leadAbiertoId).toBeNull()
+        await act(async () => { lectura.resolver(filaA()) })
+        expect(montaje.api().lead(ID_A)).toBeUndefined()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('respeta las filas que RLS autoriza a un supervisor por descendencia recursiva', async () => {
+      listarEquipo.mockResolvedValueOnce([
+        ...ROSTER,
+        { perfil_id: 'u-s2', nombre_completo: 'Supervisor Descendiente', rol_crm: 'supervisor', supervisor_id: 'u-s1', activo: true },
+        { perfil_id: 'u-v2', nombre_completo: 'Analista Descendiente', rol_crm: 'vendedor', supervisor_id: 'u-s2', activo: true },
+      ])
+      listarLeads.mockResolvedValueOnce([
+        { ...filaA(), vendedor_id: 'u-v2' },
+        { ...filaB(), vendedor_id: null, asignado_supervisor_id: 'u-s2' },
+        { ...leadBase(), activo: false },
+      ])
+      const montaje = montar('supervisor')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([ID_A, ID_B])
+      expect(montaje.api().ambito.vendedores.map((m) => m.perfil_id)).toContain('u-v2')
+      expect(montaje.api().lead(ID_A)?.vendedor_nombre).toBe('Analista Descendiente')
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      expect(await abrir(montaje, ID_B)).toBe(true)
+      expect(obtenerLeadPorId).not.toHaveBeenCalled()
+    })
+
+    it('resync conserva la ficha fuera del boot con una fila fresca y revalidada', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      listarLeads.mockResolvedValueOnce([leadBase()])
+      const fresca = { ...filaA(), nota: 'Nota modificada por otro operador', monto_estimado: 9000 }
+      obtenerLeadPorId.mockResolvedValueOnce(fresca)
+      listarEquipo.mockResolvedValueOnce(ROSTER.map((m) => m.perfil_id === 'u-v1' ? { ...m, nombre_completo: 'Analista actualizado' } : m))
+
+      await act(async () => { expect(await montaje.api().recargar()).toBe(true) })
+
+      expect(obtenerLeadPorId).toHaveBeenCalledTimes(2)
+      expect(obtenerLeadPorId.mock.calls[1]?.[0]).toBe(ID_A)
+      expect(montaje.api().lead(ID_A)).toMatchObject({ ...fresca, vendedor_nombre: 'Analista actualizado' })
+      expect(montaje.panelState().leadAbiertoId).toBe(ID_A)
+    })
+
+    it('resync elimina una ficha abierta cuyo acceso fue revocado', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      listarLeads.mockResolvedValueOnce([leadBase()])
+      obtenerLeadPorId.mockResolvedValueOnce(null)
+
+      await act(async () => { expect(await montaje.api().recargar()).toBe(true) })
+
+      expect(obtenerLeadPorId).toHaveBeenCalledTimes(2)
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toEqual([leadBase().id])
+      expect(await abrir(montaje, ID_A)).toBe(false)
+      expect(montaje.api().lead(ID_A)).toBeUndefined()
+    })
+
+    it('una revalidación lenta de A no borra B abierta mientras viajaba el resync', async () => {
+      obtenerLeadPorId.mockResolvedValueOnce(filaA())
+      const montaje = montar()
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      expect(await abrir(montaje, ID_A)).toBe(true)
+      const revalidacionA = diferida<LecturaLead>()
+      listarLeads.mockResolvedValueOnce([leadBase()])
+      obtenerLeadPorId.mockReturnValueOnce(revalidacionA.promesa).mockResolvedValueOnce(filaB())
+      let recarga!: Promise<boolean>
+      act(() => { recarga = montaje.api().recargar() })
+      await waitFor(() => expect(obtenerLeadPorId).toHaveBeenCalledTimes(2))
+
+      expect(await abrir(montaje, ID_B)).toBe(true)
+      await act(async () => {
+        revalidacionA.resolver(filaA())
+        await recarga
+      })
+
+      expect(montaje.panelState().leadAbiertoId).toBe(ID_B)
+      expect(montaje.api().lead(ID_B)).toMatchObject(filaB())
+      expect(montaje.api().ambito.leads.map((l) => l.id)).toContain(ID_B)
+    })
   })
 
   it('Gerencia carga el ámbito operativo completo además del roster y las metas', async () => {

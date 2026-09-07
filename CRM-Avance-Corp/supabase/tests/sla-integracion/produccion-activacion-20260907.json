@@ -1,0 +1,109 @@
+{
+  "fecha": "2026-09-07",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "control": [
+    {
+      "modo": "activo",
+      "revision": 1,
+      "primera_activacion_en": "2026-09-07 04:03:49.941009+00",
+      "politica_adopcion": 6,
+      "primera_gestion_minutos": 120,
+      "primer_contacto_minutos": 1440,
+      "reglas": 4,
+      "comandos": "OK: comandos SLA privados, idempotentes y confirmados al commit"
+    }
+  ],
+  "gate": [
+    {
+      "veredicto": "OK: SLA completo, gobernanza y contratos N1/N2/N3 verificados; reconstruccion cerrada"
+    }
+  ],
+  "ledger_verificado": [
+    {
+      "version": "20260907001024",
+      "name": "crm_sla_nucleo_operativo_lectura",
+      "sentencias": 1
+    },
+    {
+      "version": "20260907024903",
+      "name": "crm_sla_nucleo_operativo_escritura",
+      "sentencias": 1
+    },
+    {
+      "version": "20260907025220",
+      "name": "crm_sla_comandos_recibos",
+      "sentencias": 1
+    },
+    {
+      "version": "20260907031450",
+      "name": "crm_sla_cierre_reconstruccion_contextos",
+      "sentencias": 1
+    },
+    {
+      "version": "20260907032338",
+      "name": "crm_sla_prerrequisito_gobernanza",
+      "sentencias": 1
+    }
+  ],
+  "stock": [
+    {
+      "verificacion": {
+        "verificado_en": "2026-09-07T04:00:33.393547+00:00",
+        "original_tareas": 831,
+        "original_resultados": {
+          "contexto_reconstruido": 831
+        },
+        "original_clasificadas": 831,
+        "actual_contextos_incoherentes": 0,
+        "actual_pendientes_sin_contexto": 0,
+        "nuevos_pendientes_sin_contexto": 0
+      }
+    }
+  ],
+  "lotes": [
+    [
+      {
+        "lote": {
+          "resultados": {
+            "reconstruido": 223
+          },
+          "tareas_evaluadas": 223,
+          "leads_solicitados": 200
+        }
+      }
+    ],
+    [
+      {
+        "lote": {
+          "resultados": {
+            "reconstruido": 236
+          },
+          "tareas_evaluadas": 236,
+          "leads_solicitados": 200
+        }
+      }
+    ],
+    [
+      {
+        "lote": {
+          "resultados": {
+            "reconstruido": 233
+          },
+          "tareas_evaluadas": 233,
+          "leads_solicitados": 200
+        }
+      }
+    ],
+    [
+      {
+        "lote": {
+          "resultados": {
+            "reconstruido": 139
+          },
+          "tareas_evaluadas": 139,
+          "leads_solicitados": 126
+        }
+      }
+    ]
+  ]
+}
