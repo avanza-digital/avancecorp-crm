@@ -2217,6 +2217,10 @@ export function MiCartera() {
             analistas={analistasParaContrato}
             analistaInicial={yo?.id ?? null}
             {...(overlay.upgrade ? { categoriaFija: 'upgrade' as const } : {})}
+            // Rentabilidad R3 (D2): en un upgrade el analista elige el contrato ACTIVO que amplía.
+            contratosActivos={(grupos?.find((g) => g.cliente.id === overlay.clienteId)?.contratos ?? [])
+              .filter((c) => c.estado === 'activo')
+              .map((c) => ({ id: c.id, numero_contrato: c.numero_contrato, tasa_anual: c.tasa_anual, capital: c.capital, moneda: c.moneda, fecha_vencimiento: c.fecha_vencimiento }))}
             onConfirmado={(numero, creadoLocal) =>
               setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
             }

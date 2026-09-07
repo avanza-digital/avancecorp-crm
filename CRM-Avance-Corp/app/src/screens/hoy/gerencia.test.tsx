@@ -235,6 +235,13 @@ let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | n
 let CONVERSION_MENSUAL_FALLA = false
 let CONVERSION_MENSUAL_FETCHING = false
 vi.mock('@/data/crm-queries', () => ({
+  // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
+  useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
+  useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useResponderTopeTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
+  useSolicitarTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
   // el banner simplemente no existe.
   useCierreMesEstado: () => ({ data: undefined, isError: false }),
@@ -289,6 +296,7 @@ vi.mock('@/data/crm-queries', () => ({
   // Altas nuevas por analista (F7, sustituto del reporte viejo): tiene su
   // propio test; aquí un vacío honesto para que el panel monte sin red.
   useAltasNuevasPorAnalista: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
+  useObservacionRentabilidad: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   useActualizarCapacidadLeadsObjetivo: () => ({ mutateAsync: async () => {} }),
   // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
   useCierresExternos: (...argumentos: [boolean, string]) => {

@@ -41,6 +41,7 @@ const CAPACIDAD_POR_VISTA = {
   'config-productos': null,
   'config-metas': null,
   'config-sla': null,
+  'config-rentabilidad': null,
 } as const satisfies Record<Vista, Accion | null>
 
 /** Dónde aterriza un rol cuando la ruta pedida no existe o no está permitida. */

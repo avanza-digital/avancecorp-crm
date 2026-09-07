@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
 import { sb, type ClienteCrm } from '@/lib/supabase'
 import type { Database, Json } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
@@ -1737,6 +1738,11 @@ function aErrorApi(
   } else if (codigoPg === 'P0481') {
     code = 'CONTACTO_NO_DISPONIBLE'
     mensaje = 'Ese teléfono o DNI no está disponible para este lead.'
+  } else if (codigoPg === 'P0410') {
+    // Rentabilidad R4: el candado del servidor rechazó la tasa. El mensaje ya viene en idioma de negocio
+    // («la fija la política: 15%…», «el upgrade debe declarar el contrato que amplía»), sin PII: se muestra tal cual.
+    code = 'TASA_FUERA_DE_POLITICA'
+    mensaje = error.message ?? 'La tasa de este contrato la fija la política de rentabilidad.'
   } else if (codigoPg === 'P0409' && texto.includes('ya creó el contrato')) {
     // Idempotencia del alta: la misma clave llegó con OTROS datos y el intento
     // anterior SÍ creó el contrato. El servidor no creó otro ni devolvió el viejo
@@ -2515,6 +2521,8 @@ export async function crearContrato(
     p_contrato.capital_renovado = input.capital_renovado ?? null
     p_contrato.capital_adicional = input.capital_adicional ?? 0
   }
+  // Rentabilidad D2: el upgrade declara el contrato que amplía (misma huella que la solicitud; la puerta lo usa en R4).
+  if (input.categoria === 'upgrade' && input.contrato_origen_id) p_contrato.contrato_origen_id = input.contrato_origen_id
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   // Solo viaja si de verdad se eligió a alguien. Ausente ≠ null: ausente deja
@@ -3683,6 +3691,761 @@ export async function listarAltasNuevasPorAnalista(pMeses = 12, signal?: AbortSi
   }
   registrarFilasMetricasInvalidas('altas_nuevas', descartadas)
   return items
+}
+
+// ─── Rentabilidad R2: la tarjeta de observación (crm.observacion_rentabilidad_fn) ───
+// El ledger crm.ledger_rentabilidad anota, por cada alta o corrección de tasa, la base
+// que dice el núcleo frente a la que quedó. Esta RPC (solo Gerencia/Directorio) agrega
+// el periodo: totales, margen cedido/retenido por moneda, por analista, por regla, casos
+// sin regla y últimos divergentes. Una sola fuente y una sonda `coherente` del servidor.
+const MontoPorMonedaSchema = v.object({ PEN: NumericoRpc, USD: NumericoRpc })
+const ObservacionRentabilidadSchema = v.object({
+  version: v.literal(1),
+  periodo: v.object({ desde: v.string(), hasta: v.string() }),
+  politica: v.nullable(v.object({ version: v.number(), modo: v.string(), tasa_base_nueva: NumericoRpc })),
+  totales: v.object({
+    observados: v.number(),
+    contratos: v.optional(v.number()),
+    eventos: v.optional(v.number()),
+    importe_no_calculable: v.optional(v.number()),
+    divergentes: v.number(),
+    ceden: v.number(),
+    retienen: v.number(),
+    sin_regla: v.number(),
+    correcciones: v.number(),
+    puntos_promedio_cedido: NumericoRpc,
+    cedido: MontoPorMonedaSchema,
+    retenido: MontoPorMonedaSchema,
+  }),
+  por_regla: v.array(v.object({
+    regla: v.string(),
+    contratos: v.optional(v.number()),
+    observados: v.optional(v.number()),
+    divergentes: v.number(),
+    cedido_pen: v.optional(NumericoRpc),
+    cedido_usd: v.optional(NumericoRpc),
+    retenido_pen: v.optional(NumericoRpc),
+    retenido_usd: v.optional(NumericoRpc),
+  })),
+  por_analista: v.array(v.object({
+    analista_id: v.nullable(v.string()),
+    analista_nombre: v.string(),
+    contratos: v.optional(v.number()),
+    observados: v.optional(v.number()),
+    divergentes: v.number(),
+    puntos_promedio_cedido: NumericoRpc,
+    cedido_pen: NumericoRpc,
+    cedido_usd: NumericoRpc,
+    retenido_pen: v.optional(NumericoRpc),
+    retenido_usd: v.optional(NumericoRpc),
+  })),
+  sin_regla: v.array(v.object({ motivo: v.string(), n: v.number() })),
+  ultimos_divergentes: v.array(v.object({
+    contrato_id: v.string(),
+    numero_contrato: v.string(),
+    cliente_nombre: v.nullable(v.string()),
+    analista_nombre: v.string(),
+    categoria: v.nullable(v.string()),
+    regla: v.string(),
+    tasa_base: NumericoRpc,
+    tasa_final: NumericoRpc,
+    puntos: NumericoRpc,
+    capital: v.nullable(NumericoRpc),
+    moneda: v.nullable(v.string()),
+    cedido: v.nullable(NumericoRpc),
+    operacion: v.nullable(v.string()),
+    registrado_en: v.string(),
+  })),
+  metodo: v.string(),
+  altas_sin_observar: v.number(),
+  cobertura: v.optional(v.object({
+    observacion_activa_desde: v.nullable(v.string()),
+    cobertura_desde: v.nullable(v.string()),
+    periodo_sin_cobertura: v.boolean(),
+  })),
+  sondas: v.optional(v.object({
+    consistencia_interna: v.boolean(),
+    cobertura_altas: v.boolean(),
+    cobertura_correcciones: v.string(),
+  })),
+  coherente: v.boolean(),
+  generado_en: v.string(),
+})
+export type ObservacionRentabilidadCruda = v.InferOutput<typeof ObservacionRentabilidadSchema>
+
+export interface AnalistaObservacion {
+  analista_id: string
+  analista_nombre: string
+  observados: number
+  divergentes: number
+  puntos_promedio_cedido: number
+  cedido_pen: number
+  cedido_usd: number
+  retenido_pen: number
+  retenido_usd: number
+}
+export interface ObservacionRentabilidad {
+  periodo: { desde: string; hasta: string }
+  politica: { version: number; modo: string; tasa_base_nueva: number } | null
+  totales: {
+    observados: number
+    eventos: number
+    importe_no_calculable: number
+    divergentes: number
+    ceden: number
+    retienen: number
+    sin_regla: number
+    correcciones: number
+    puntos_promedio_cedido: number
+    cedido: { PEN: number; USD: number }
+    retenido: { PEN: number; USD: number }
+  }
+  por_regla: { regla: string; observados: number; divergentes: number }[]
+  cobertura: { observacion_activa_desde: string | null; cobertura_desde: string | null; periodo_sin_cobertura: boolean } | null
+  sondas: { consistencia_interna: boolean; cobertura_altas: boolean; cobertura_correcciones: string } | null
+  por_analista: AnalistaObservacion[]
+  sin_regla: { motivo: string; n: number }[]
+  ultimos_divergentes: {
+    contrato_id: string
+    numero_contrato: string
+    cliente_nombre: string | null
+    analista_nombre: string
+    categoria: string | null
+    regla: string
+    tasa_base: number
+    tasa_final: number
+    puntos: number
+    capital: number | null
+    moneda: string | null
+    cedido: number | null
+    operacion: string | null
+    registrado_en: string
+  }[]
+  metodo: string
+  altas_sin_observar: number
+  coherente: boolean
+}
+
+// ─── Rentabilidad R1/R3: la tasa la decide la política; la excepción, Gerencia ───
+type MonedaContrato = 'PEN' | 'USD'
+// Núcleo: private.resolver_tasa (una sola definición de «qué tasa base corresponde y por qué»).
+// El front NO calcula tasas: pregunta al núcleo (resolver_tasa_fn), pide excepción
+// (solicitar_tasa_fn), Gerencia decide (resolver_solicitud_tasa_fn: aprobar | rechazar |
+// aprobar_hasta) y el analista responde al tope (responder_tope_tasa_fn). Lecturas R3:
+// solicitudes_tasa_fn, historial_tasa_cliente_fn, politica_rentabilidad_fn.
+export type EstadoSolicitudTasa =
+  | 'pendiente'
+  | 'aprobada'
+  | 'aprobada_con_tope'
+  | 'rechazada'
+  | 'aceptada_por_analista'
+  | 'declinada_por_analista'
+  | 'consumida'
+  | 'vencida'
+export { ESTADOS_SOLICITUD_TASA_VIVOS, etiquetaReglaTasa } from '@/lib/rentabilidad'
+
+const ReglaTasaSchema = v.picklist(['primera_inversion', 'heredada_renovacion', 'heredada_upgrade', 'historica_legacy', 'sin_regla'])
+export type ReglaTasa = v.InferOutput<typeof ReglaTasaSchema>
+
+const ResolucionTasaSchema = v.object({
+  tasa_base: NumericoRpc,
+  regla: ReglaTasaSchema,
+  categoria: v.string(),
+  cliente_id: v.string(),
+  contrato_origen: v.nullable(v.object({
+    id: v.string(),
+    numero_contrato: v.string(),
+    tasa_anual: NumericoRpc,
+    estado: v.string(),
+    moneda: v.string(),
+    capital: NumericoRpc,
+    fecha_vencimiento: v.string(),
+  })),
+  contratos_previos: v.number(),
+  contratos_activos: v.number(),
+  prioridad_bandeja: v.boolean(),
+  politica: v.object({
+    id: v.string(),
+    version: v.number(),
+    modo: v.string(),
+    tasa_base_nueva: NumericoRpc,
+    tope_tecnico: NumericoRpc,
+    vigencia_solicitud_dias: v.number(),
+  }),
+})
+export interface ResolucionTasa {
+  tasa_base: number
+  regla: ReglaTasa
+  contrato_origen: { id: string; numero_contrato: string; tasa_anual: number; estado: string } | null
+  contratos_previos: number
+  prioridad_bandeja: boolean
+  politica: { version: number; modo: string; tasa_base_nueva: number; tope_tecnico: number; vigencia_solicitud_dias: number }
+}
+
+export interface IntencionContrato {
+  cliente_id: string
+  categoria: CategoriaContrato
+  contrato_origen_id: string | null
+  /**
+   * Condición de producto DECLARADA. Va null cuando el contrato entra por el puente legacy: su snapshot lo sintetiza
+   * el servidor al insertar (y lo recrea al cambiar términos), así que el formulario no puede conocerlo, y el candado
+   * de R4 normaliza igual en su orilla. Con un producto de catálogo va su id y la coincidencia es estricta.
+   */
+  producto_condicion_id?: string | null
+  capital: number
+  moneda: MonedaContrato
+  modalidad: ModalidadContrato
+  tipo_interes: TipoInteres
+  fecha_inicio: string
+  fecha_vencimiento: string
+  /** R4: contrato que se está CORRIGIENDO. Sin él el núcleo rechaza el origen de una renovación por «ya renovado». */
+  contrato_id?: string | null
+}
+
+
+/** Pregunta al núcleo qué tasa base corresponde a un contrato en intención (42501 si el cliente no está en el ámbito). */
+export async function resolverTasa(
+  clienteId: string,
+  categoria: CategoriaContrato,
+  contratoOrigenId: string | null,
+  signal?: AbortSignal,
+): Promise<ResolucionTasa> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('resolver_tasa_fn', {
+    p_cliente_id: clienteId,
+    p_categoria: categoria,
+    ...(contratoOrigenId ? { p_contrato_origen_id: contratoOrigenId } : {}),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.resolver_tasa_fallido')
+  const r = v.safeParse(ResolucionTasaSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('La tasa base no tiene el formato esperado.', 'RESOLVER_TASA_CONTRACT')
+    registrarError('crm.rentabilidad.resolver_tasa_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  const o = r.output
+  return {
+    tasa_base: numEstricto(o.tasa_base, 'tasa_base'),
+    regla: o.regla,
+    contrato_origen: o.contrato_origen
+      ? { id: o.contrato_origen.id, numero_contrato: o.contrato_origen.numero_contrato, tasa_anual: aNumero(o.contrato_origen.tasa_anual) ?? 0, estado: o.contrato_origen.estado }
+      : null,
+    contratos_previos: o.contratos_previos,
+    prioridad_bandeja: o.prioridad_bandeja,
+    politica: {
+      version: o.politica.version,
+      modo: o.politica.modo,
+      tasa_base_nueva: aNumero(o.politica.tasa_base_nueva) ?? 0,
+      tope_tecnico: aNumero(o.politica.tope_tecnico) ?? 50,
+      vigencia_solicitud_dias: o.politica.vigencia_solicitud_dias,
+    },
+  }
+}
+
+const SolicitudTasaSchema = v.object({
+  id: v.string(),
+  estado: v.picklist(['pendiente', 'aprobada', 'aprobada_con_tope', 'rechazada', 'aceptada_por_analista', 'declinada_por_analista', 'consumida', 'vencida']),
+  estado_efectivo: v.optional(v.picklist(['pendiente', 'aprobada', 'aprobada_con_tope', 'rechazada', 'aceptada_por_analista', 'declinada_por_analista', 'consumida', 'vencida'])),
+  vigente: v.optional(v.boolean()),
+  categoria: v.string(),
+  cliente_id: v.optional(v.string()),
+  cliente_nombre: v.optional(v.string()),
+  contrato_origen_id: v.nullable(v.string()),
+  contrato_origen_numero: v.nullable(v.string()),
+  producto_condicion_id: v.optional(v.nullable(v.string())),
+  capital: NumericoRpc,
+  moneda: v.string(),
+  modalidad: v.optional(v.string()),
+  tipo_interes: v.optional(v.string()),
+  fecha_inicio: v.string(),
+  fecha_vencimiento: v.string(),
+  tasa_base: NumericoRpc,
+  regla_base: ReglaTasaSchema,
+  tasa_solicitada: NumericoRpc,
+  tasa_maxima_autorizada: v.nullable(NumericoRpc),
+  motivo: v.string(),
+  motivo_resolucion: v.nullable(v.string()),
+  motivo_analista: v.optional(v.nullable(v.string())),
+  prioridad_bandeja: v.optional(v.boolean()),
+  contratos_previos: v.optional(v.number()),
+  solicitada_por: v.string(),
+  solicitante_nombre: v.optional(v.string()),
+  solicitada_en: v.string(),
+  vence_en: v.string(),
+  resuelta_por: v.nullable(v.string()),
+  resolutor_nombre: v.optional(v.nullable(v.string())),
+  resuelta_en: v.nullable(v.string()),
+  respondida_por_analista_en: v.optional(v.nullable(v.string())),
+  consumida_en: v.optional(v.nullable(v.string())),
+  contrato_id: v.nullable(v.string()),
+  es_mia: v.optional(v.boolean()),
+  puede_resolver: v.optional(v.boolean()),
+  puede_responder: v.optional(v.boolean()),
+})
+export interface SolicitudTasa {
+  id: string
+  estado: EstadoSolicitudTasa
+  /** Una viva con vence_en pasado se declara vencida aunque la fila aún no lleve el sello. */
+  estado_efectivo: EstadoSolicitudTasa
+  vigente: boolean
+  categoria: CategoriaContrato
+  cliente_id: string | null
+  cliente_nombre: string
+  contrato_origen_id: string | null
+  contrato_origen_numero: string | null
+  producto_condicion_id: string | null
+  capital: number
+  moneda: MonedaContrato
+  modalidad: ModalidadContrato | null
+  tipo_interes: TipoInteres | null
+  fecha_inicio: string
+  fecha_vencimiento: string
+  tasa_base: number
+  regla_base: ReglaTasa
+  tasa_solicitada: number
+  /** La tasa AUTORIZADA efectiva: = pedida si aprobó tal cual; < pedida si aprobó hasta un tope. */
+  tasa_maxima_autorizada: number | null
+  motivo: string
+  motivo_resolucion: string | null
+  motivo_analista: string | null
+  prioridad_bandeja: boolean
+  contratos_previos: number
+  solicitada_por: string
+  solicitante_nombre: string
+  solicitada_en: string
+  vence_en: string
+  resuelta_por: string | null
+  resolutor_nombre: string | null
+  resuelta_en: string | null
+  respondida_por_analista_en: string | null
+  contrato_id: string | null
+  es_mia: boolean
+  puede_resolver: boolean
+  puede_responder: boolean
+}
+
+/** Un numeric del servidor que no se pueda leer NO se convierte en 0: es un contrato roto. */
+function numEstricto(x: number | string | null | undefined, campo: string): number {
+  const n = x == null ? null : aNumero(x)
+  if (n == null || !Number.isFinite(n)) {
+    const fallo = new CrmApiError(`El campo ${campo} de rentabilidad no es numérico.`, 'RENTABILIDAD_NUMERO_CONTRACT')
+    registrarError('crm.rentabilidad.numero_fuera_de_contrato', fallo, { campo })
+    throw fallo
+  }
+  return n
+}
+
+function aSolicitudTasa(o: v.InferOutput<typeof SolicitudTasaSchema>): SolicitudTasa {
+  const vivo = ESTADOS_SOLICITUD_TASA_VIVOS.includes(o.estado)
+  const vencida = vivo && new Date(o.vence_en).getTime() < Date.now()
+  return {
+    id: o.id,
+    estado: o.estado,
+    estado_efectivo: o.estado_efectivo ?? (vencida ? 'vencida' : o.estado),
+    vigente: o.vigente ?? (vivo && !vencida),
+    categoria: o.categoria as CategoriaContrato,
+    cliente_id: o.cliente_id ?? null,
+    cliente_nombre: o.cliente_nombre ?? 'Cliente',
+    contrato_origen_id: o.contrato_origen_id,
+    contrato_origen_numero: o.contrato_origen_numero,
+    producto_condicion_id: o.producto_condicion_id ?? null,
+    capital: numEstricto(o.capital, 'capital'),
+    moneda: o.moneda as MonedaContrato,
+    modalidad: (o.modalidad as ModalidadContrato | undefined) ?? null,
+    tipo_interes: (o.tipo_interes as TipoInteres | undefined) ?? null,
+    fecha_inicio: o.fecha_inicio,
+    fecha_vencimiento: o.fecha_vencimiento,
+    tasa_base: numEstricto(o.tasa_base, 'tasa_base'),
+    regla_base: o.regla_base,
+    tasa_solicitada: numEstricto(o.tasa_solicitada, 'tasa_solicitada'),
+    tasa_maxima_autorizada: o.tasa_maxima_autorizada == null ? null : numEstricto(o.tasa_maxima_autorizada, 'tasa_maxima_autorizada'),
+    motivo: o.motivo,
+    motivo_resolucion: o.motivo_resolucion,
+    motivo_analista: o.motivo_analista ?? null,
+    prioridad_bandeja: o.prioridad_bandeja ?? false,
+    contratos_previos: o.contratos_previos ?? 0,
+    solicitada_por: o.solicitada_por,
+    solicitante_nombre: o.solicitante_nombre ?? 'Sin nombre',
+    solicitada_en: o.solicitada_en,
+    vence_en: o.vence_en,
+    resuelta_por: o.resuelta_por,
+    resolutor_nombre: o.resolutor_nombre ?? null,
+    resuelta_en: o.resuelta_en,
+    respondida_por_analista_en: o.respondida_por_analista_en ?? null,
+    contrato_id: o.contrato_id,
+    es_mia: o.es_mia ?? false,
+    puede_resolver: o.puede_resolver ?? false,
+    puede_responder: o.puede_responder ?? false,
+  }
+}
+
+function parsearSolicitudTasa(data: unknown, contexto: string): SolicitudTasa {
+  const r = v.safeParse(SolicitudTasaSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('La solicitud de tasa no tiene el formato esperado.', 'SOLICITUD_TASA_CONTRACT')
+    registrarError(contexto, fallo)
+    throw fallo
+  }
+  return aSolicitudTasa(r.output)
+}
+
+/** El analista pide una tasa SUPERIOR a la base para un contrato en intención (D4: nunca por debajo). */
+export async function solicitarTasa(intencion: IntencionContrato, tasaSolicitada: number, motivo: string): Promise<SolicitudTasa> {
+  const { data, error } = await cliente().schema('crm').rpc('solicitar_tasa_fn', {
+    p_solicitud: {
+      cliente_id: intencion.cliente_id,
+      categoria: intencion.categoria,
+      contrato_origen_id: intencion.contrato_origen_id,
+      producto_condicion_id: intencion.producto_condicion_id ?? null,
+      capital: intencion.capital,
+      moneda: intencion.moneda,
+      modalidad: intencion.modalidad,
+      tipo_interes: intencion.tipo_interes,
+      fecha_inicio: intencion.fecha_inicio,
+      fecha_vencimiento: intencion.fecha_vencimiento,
+      ...(intencion.contrato_id ? { contrato_id: intencion.contrato_id } : {}),
+      tasa_solicitada: tasaSolicitada,
+      motivo,
+    },
+  })
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.solicitar_fallido')
+  return parsearSolicitudTasa(data, 'crm.rentabilidad.solicitar_fuera_de_contrato')
+}
+
+export type DecisionSolicitudTasa = 'aprobar' | 'rechazar' | 'aprobar_hasta'
+
+/** Gerencia decide en un clic: aprobar, rechazar o aprobar hasta un tope (D6). Nunca la propia (D3). */
+export async function resolverSolicitudTasa(
+  solicitudId: string,
+  decision: DecisionSolicitudTasa,
+  tasaMaxima: number | null,
+  motivo: string | null,
+): Promise<SolicitudTasa> {
+  const { data, error } = await cliente().schema('crm').rpc('resolver_solicitud_tasa_fn', {
+    p_solicitud_id: solicitudId,
+    p_decision: decision,
+    ...(tasaMaxima != null ? { p_tasa_maxima: tasaMaxima } : {}),
+    ...(motivo ? { p_motivo: motivo } : {}),
+  })
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.resolver_solicitud_fallido')
+  return parsearSolicitudTasa(data, 'crm.rentabilidad.resolver_fuera_de_contrato')
+}
+
+/** Quien pidió acepta el tope (y sigue) o lo declina. */
+export async function responderTopeTasa(solicitudId: string, acepta: boolean, motivo: string | null): Promise<SolicitudTasa> {
+  const { data, error } = await cliente().schema('crm').rpc('responder_tope_tasa_fn', {
+    p_solicitud_id: solicitudId,
+    p_acepta: acepta,
+    ...(motivo ? { p_motivo: motivo } : {}),
+  })
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.responder_fallido')
+  return parsearSolicitudTasa(data, 'crm.rentabilidad.responder_fuera_de_contrato')
+}
+
+export interface OpcionesSolicitudesTasa {
+  /** Solo las que pidió el actor (el formulario y el aviso del analista): el servidor filtra ANTES del límite. */
+  soloMias?: boolean
+  /** Solo las de este cliente. */
+  clienteId?: string | null
+  limite?: number
+}
+/** Solicitudes visibles para el actor (Gerencia: todas; analista: las suyas; supervisor: su subárbol), filtradas en el servidor. */
+export async function listarSolicitudesTasa(estados: EstadoSolicitudTasa[] | null, signal?: AbortSignal, opciones: OpcionesSolicitudesTasa = {}): Promise<SolicitudTasa[]> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('solicitudes_tasa_fn', {
+    ...(estados ? { p_estados: estados } : {}),
+    p_limite: opciones.limite ?? 200,
+    ...(opciones.soloMias ? { p_solo_mias: true } : {}),
+    ...(opciones.clienteId ? { p_cliente_id: opciones.clienteId } : {}),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.solicitudes_fallido')
+  const r = v.safeParse(v.array(SolicitudTasaSchema), data)
+  if (!r.success) {
+    const fallo = new CrmApiError('Las solicitudes de tasa no tienen el formato esperado.', 'SOLICITUDES_TASA_CONTRACT')
+    registrarError('crm.rentabilidad.solicitudes_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return r.output.map(aSolicitudTasa)
+}
+
+const HistorialTasaClienteSchema = v.object({
+  version: v.literal(1),
+  cliente_id: v.string(),
+  contratos: v.array(v.object({
+    contrato_id: v.string(),
+    numero_contrato: v.string(),
+    estado: v.string(),
+    categoria: v.nullable(v.string()),
+    tasa_anual: NumericoRpc,
+    capital: NumericoRpc,
+    moneda: v.string(),
+    fecha_inicio: v.string(),
+    fecha_vencimiento: v.string(),
+    es_demo: v.boolean(),
+    observacion: v.nullable(v.object({
+      regla: ReglaTasaSchema,
+      tasa_base: NumericoRpc,
+      tasa_final: NumericoRpc,
+      divergente: v.boolean(),
+      origen: v.string(),
+      motivo: v.nullable(v.string()),
+      registrado_en: v.string(),
+      base_conservada: v.boolean(),
+      contrato_origen_id: v.nullable(v.string()),
+      solicitud_id: v.nullable(v.string()),
+    })),
+  })),
+  solicitudes: v.array(SolicitudTasaSchema),
+})
+export interface ObservacionTasaContrato {
+  regla: ReglaTasa
+  tasa_base: number
+  tasa_final: number
+  divergente: boolean
+  origen: string
+  motivo: string | null
+  registrado_en: string
+  solicitud_id: string | null
+  contrato_origen_id: string | null
+}
+export interface HistorialTasaCliente {
+  cliente_id: string
+  /** Por contrato: la última fila del ledger (legacy u observación), o null si no hay. */
+  contratos: { contrato_id: string; numero_contrato: string; tasa_anual: number; observacion: ObservacionTasaContrato | null }[]
+  solicitudes: SolicitudTasa[]
+}
+
+/** Historial de tasa del cliente (ficha): ledger por contrato + solicitudes visibles. */
+export async function obtenerHistorialTasaCliente(clienteId: string, signal?: AbortSignal): Promise<HistorialTasaCliente> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('historial_tasa_cliente_fn', { p_cliente_id: clienteId })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.historial_fallido')
+  const r = v.safeParse(HistorialTasaClienteSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('El historial de tasa no tiene el formato esperado.', 'HISTORIAL_TASA_CONTRACT')
+    registrarError('crm.rentabilidad.historial_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    cliente_id: r.output.cliente_id,
+    contratos: r.output.contratos.map((c) => ({
+      contrato_id: c.contrato_id,
+      numero_contrato: c.numero_contrato,
+      tasa_anual: aNumero(c.tasa_anual) ?? 0,
+      observacion: c.observacion
+        ? {
+            regla: c.observacion.regla,
+            tasa_base: aNumero(c.observacion.tasa_base) ?? 0,
+            tasa_final: aNumero(c.observacion.tasa_final) ?? 0,
+            divergente: c.observacion.divergente,
+            origen: c.observacion.origen,
+            motivo: c.observacion.motivo,
+            registrado_en: c.observacion.registrado_en,
+            solicitud_id: c.observacion.solicitud_id,
+            contrato_origen_id: c.observacion.contrato_origen_id,
+          }
+        : null,
+    })),
+    solicitudes: r.output.solicitudes.map(aSolicitudTasa),
+  }
+}
+
+const PoliticaRentabilidadFilaSchema = v.object({
+  id: v.string(),
+  version: v.number(),
+  vigente_desde: v.string(),
+  tasa_base_nueva: NumericoRpc,
+  regla_renovacion: v.string(),
+  regla_upgrade: v.string(),
+  tope_tecnico: NumericoRpc,
+  vigencia_solicitud_dias: v.number(),
+  modo: v.string(),
+  nota: v.nullable(v.string()),
+  publicada_en: v.string(),
+  publicada_por: v.optional(v.nullable(v.string())),
+  publicada_por_nombre: v.optional(v.nullable(v.string())),
+  es_vigente: v.optional(v.boolean()),
+})
+const PoliticaRentabilidadSchema = v.object({
+  version: v.literal(1),
+  vigente: v.nullable(PoliticaRentabilidadFilaSchema),
+  expected_version: v.number(),
+  historial: v.array(PoliticaRentabilidadFilaSchema),
+  observacion_activa_desde: v.nullable(v.string()),
+  puede_publicar: v.boolean(),
+})
+export interface PoliticaRentabilidadFila {
+  id: string
+  version: number
+  vigente_desde: string
+  tasa_base_nueva: number
+  tope_tecnico: number
+  vigencia_solicitud_dias: number
+  modo: string
+  nota: string | null
+  publicada_en: string
+  publicada_por_nombre: string | null
+  es_vigente: boolean
+}
+export interface PoliticaRentabilidad {
+  vigente: PoliticaRentabilidadFila | null
+  expected_version: number
+  historial: PoliticaRentabilidadFila[]
+  observacion_activa_desde: string | null
+  puede_publicar: boolean
+}
+
+function aPoliticaFila(f: v.InferOutput<typeof PoliticaRentabilidadFilaSchema>): PoliticaRentabilidadFila {
+  return {
+    id: f.id,
+    version: f.version,
+    vigente_desde: f.vigente_desde,
+    tasa_base_nueva: aNumero(f.tasa_base_nueva) ?? 0,
+    tope_tecnico: aNumero(f.tope_tecnico) ?? 50,
+    vigencia_solicitud_dias: f.vigencia_solicitud_dias,
+    modo: f.modo,
+    nota: f.nota,
+    publicada_en: f.publicada_en,
+    publicada_por_nombre: f.publicada_por_nombre ?? null,
+    es_vigente: f.es_vigente ?? false,
+  }
+}
+
+/** La política de rentabilidad vigente, su historial y el control optimista para publicar. */
+export async function obtenerPoliticaRentabilidad(signal?: AbortSignal): Promise<PoliticaRentabilidad> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('politica_rentabilidad_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.politica_fallido')
+  const r = v.safeParse(PoliticaRentabilidadSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('La política de rentabilidad no tiene el formato esperado.', 'POLITICA_RENTABILIDAD_CONTRACT')
+    registrarError('crm.rentabilidad.politica_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    vigente: r.output.vigente ? aPoliticaFila(r.output.vigente) : null,
+    expected_version: r.output.expected_version,
+    historial: r.output.historial.map(aPoliticaFila),
+    observacion_activa_desde: r.output.observacion_activa_desde,
+    puede_publicar: r.output.puede_publicar,
+  }
+}
+
+/** Modo de la política de rentabilidad: observación (mide) o enforcement (el servidor rechaza, R4). */
+export type ModoPoliticaRentabilidad = 'observacion' | 'enforcement'
+
+export interface PublicacionPoliticaRentabilidad {
+  expectedVersion: number
+  tasaBaseNueva: number
+  topeTecnico: number
+  vigenciaSolicitudDias: number
+  /** R4: «observacion» mide y no bloquea; «enforcement» es el candado del servidor. */
+  modo?: ModoPoliticaRentabilidad
+  nota: string | null
+}
+
+/** Gerencia publica una revisión de la política (control optimista por versión). El `modo` es el interruptor del candado (R4). */
+export async function publicarPoliticaRentabilidad(input: PublicacionPoliticaRentabilidad): Promise<PoliticaRentabilidadFila> {
+  const { data, error } = await cliente().schema('crm').rpc('publicar_politica_rentabilidad_fn', {
+    p_expected_version: input.expectedVersion,
+    p_config: {
+      tasa_base_nueva: input.tasaBaseNueva,
+      tope_tecnico: input.topeTecnico,
+      vigencia_solicitud_dias: input.vigenciaSolicitudDias,
+      modo: input.modo ?? 'observacion',
+      ...(input.nota ? { nota: input.nota } : {}),
+    },
+  })
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.publicar_fallido')
+  const r = v.safeParse(PoliticaRentabilidadFilaSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError('La política publicada no tiene el formato esperado.', 'POLITICA_RENTABILIDAD_CONTRACT')
+    registrarError('crm.rentabilidad.publicar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return aPoliticaFila(r.output)
+}
+
+function fechaLimaIso(desplazamientoDias = 0): string {
+  const ahora = new Date()
+  const lima = new Date(ahora.getTime() - 5 * 60 * 60 * 1000)   // Lima = UTC-5, sin horario de verano
+  lima.setUTCDate(lima.getUTCDate() + desplazamientoDias)
+  return lima.toISOString().slice(0, 10)
+}
+
+/** Observación de rentabilidad de los últimos `dias` (1..366; el servidor valida el periodo). Solo Gerencia/Directorio. */
+export async function listarObservacionRentabilidad(dias = 30, signal?: AbortSignal): Promise<ObservacionRentabilidad> {
+  lanzarAbortSiCorresponde(signal)
+  const hasta = fechaLimaIso(0)
+  const desde = fechaLimaIso(-(Math.max(1, Math.min(366, Math.trunc(dias))) - 1))
+  let consulta = cliente().schema('crm').rpc('observacion_rentabilidad_fn', { p_desde: desde, p_hasta: hasta })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.observacion_rentabilidad_fallido')
+  const r = v.safeParse(ObservacionRentabilidadSchema, data)
+  if (!r.success || r.output.periodo.desde !== desde || r.output.periodo.hasta !== hasta) {
+    const fallo = new CrmApiError('La observación de rentabilidad no tiene el formato esperado.', 'OBSERVACION_RENTABILIDAD_CONTRACT')
+    registrarError('crm.metricas.observacion_rentabilidad_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  const o = r.output
+  const n = (x: number | string | null | undefined): number => aNumero(x ?? null) ?? 0
+  return {
+    periodo: o.periodo,
+    politica: o.politica ? { version: o.politica.version, modo: o.politica.modo, tasa_base_nueva: n(o.politica.tasa_base_nueva) } : null,
+    totales: {
+      observados: o.totales.contratos ?? o.totales.observados,
+      eventos: o.totales.eventos ?? o.totales.observados,
+      importe_no_calculable: o.totales.importe_no_calculable ?? 0,
+      divergentes: o.totales.divergentes,
+      ceden: o.totales.ceden,
+      retienen: o.totales.retienen,
+      sin_regla: o.totales.sin_regla,
+      correcciones: o.totales.correcciones,
+      puntos_promedio_cedido: n(o.totales.puntos_promedio_cedido),
+      cedido: { PEN: n(o.totales.cedido.PEN), USD: n(o.totales.cedido.USD) },
+      retenido: { PEN: n(o.totales.retenido.PEN), USD: n(o.totales.retenido.USD) },
+    },
+    por_regla: o.por_regla.map((r) => ({ regla: r.regla, observados: r.contratos ?? r.observados ?? 0, divergentes: r.divergentes })),
+    por_analista: o.por_analista.map((a) => ({
+      analista_id: a.analista_id ?? SIN_ANALISTA_ID,
+      analista_nombre: a.analista_nombre,
+      observados: a.contratos ?? a.observados ?? 0,
+      divergentes: a.divergentes,
+      puntos_promedio_cedido: n(a.puntos_promedio_cedido),
+      cedido_pen: n(a.cedido_pen),
+      cedido_usd: n(a.cedido_usd),
+      retenido_pen: n(a.retenido_pen),
+      retenido_usd: n(a.retenido_usd),
+    })),
+    cobertura: o.cobertura ?? null,
+    sondas: o.sondas ?? null,
+    sin_regla: o.sin_regla,
+    ultimos_divergentes: o.ultimos_divergentes.map((u) => ({
+      ...u,
+      tasa_base: n(u.tasa_base),
+      tasa_final: n(u.tasa_final),
+      puntos: n(u.puntos),
+      capital: u.capital == null ? null : n(u.capital),
+      cedido: u.cedido == null ? null : n(u.cedido),
+    })),
+    metodo: o.metodo,
+    altas_sin_observar: o.altas_sin_observar,
+    coherente: o.coherente,
+  }
 }
 
 /** Pagos por mes/moneda/tipo/estado (default: últimos 12 meses). */

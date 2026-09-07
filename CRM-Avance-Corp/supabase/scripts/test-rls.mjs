@@ -9286,31 +9286,53 @@ async function testIdentidadF2bD4(sessions) {
   }
 }
 
-// ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
-// La conducta (nota + tarea, idempotencia, atribución) la mide scripts/oraculo-f2b-d20.sh. Aquí se vigila la
-// superficie: que el ayudante no esté expuesto y que el importador conserve su puerta cerrada a la API.
-async function testIdentidadF2bD20(sessions) {
-  console.log('\n— Identidad multiempresa F2.b [D-20]: el cliente que vuelve no se pierde —');
-  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-20: ${etiqueta}`, sql);
-  const AYUD = 'private.registrar_solicitud_cliente_fn(uuid,text,jsonb)';
-  if (cuenta('D-20 aplicada', `select (to_regprocedure('${AYUD}') is not null)::int`) !== 1) {
-    console.log('  (saltado: D-20 (20260906210000) no está en esta base)');
+// ── F2.b [D-17] (20260906160000) y [D-18] (20260906170000): las últimas puertas antes del encendido ──
+// Superficie y marcadores; el comportamiento concurrente (el flip espera a cada puerta; la conversión espera a la
+// baja del analista; la fusión cancela tareas de cliente) vive en scripts/oraculo-f2b-d17.sh y oraculo-f2b-d18.sh.
+async function testIdentidadF2bD17yD18(sessions) {
+  console.log('\n— Identidad multiempresa F2.b [D-17]/[D-18]: las últimas puertas antes del encendido —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-17/D-18: ${etiqueta}`, sql);
+  const D17 = ['crm.marcar_no_contactar(uuid,text)', 'crm.levantar_no_contactar(uuid,text)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'];
+  const D18 = ['crm.convertir_lead(uuid,uuid)', 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'];
+  const lista = (a) => a.map((f) => `'${f}'`).join(',');
+  if (cuenta('D-17 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.marcar_no_contactar(uuid,text)'::regprocedure and strpos(p.prosrc, 'F2.b [D-17]') > 0)`) !== 1) {
+    console.log('  (saltado: D-17 (20260906160000) no está en esta base)');
     return;
   }
-  check(cuenta('ayudante', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'registrar_solicitud_cliente_fn' and p.prosecdef and p.provolatile = 'v' and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
-    'D-20 el ayudante es DEFINER de postgres, VOLATILE, con search_path vacío y lock_timeout');
-  check(cuenta('ayudante cerrado', `select (has_function_privilege('authenticated', '${AYUD}', 'EXECUTE') or has_function_privilege('anon', '${AYUD}', 'EXECUTE') or has_function_privilege('service_role', '${AYUD}', 'EXECUTE'))::int`) === 0
-      && cuenta('ayudante PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${AYUD}'::regprocedure and a.grantee = 0`) === 0,
-    'D-20 el ayudante no es llamable por la API: solo lo usa el importador, que corre como service_role sin sesión');
-  check(cuenta('exige service_role y bandera', `select (strpos(p.prosrc, 'auth.uid()') > 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0)::int from pg_proc p where p.oid = '${AYUD}'::regprocedure`) === 1,
-    'D-20 el ayudante exige que no haya sesión humana y lee la bandera bajo su candado (D-19)');
-  // El documento NO puede acabar en la ficha ni en la tarea: la bitácora copia esas filas enteras (regla D-9).
-  const SIN_DOC = "select (strpos(p.prosrc, '''dni''') = 0 and strpos(p.prosrc, 'documento') = 0)::int from pg_proc p where p.oid = '" + AYUD + "'::regprocedure";
-  check(cuenta('sin documento en la nota', SIN_DOC) === 1,
-    'D-20 el ayudante no escribe el documento en la nota ni en la tarea (la bitácora copia esas filas enteras)');
-  check(cuenta('importador cerrado', `select (has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('authenticated', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('anon', 'crm.importar_lead_fn(jsonb)', 'EXECUTE'))::int`) === 1
-      && cuenta('importador marcador', `select (strpos(p.prosrc, 'F2.b [D-20]') > 0)::int from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure`) === 1,
-    'D-20 el importador conserva su puerta (solo service_role) y lleva la rama del cliente que vuelve');
+  check(cuenta('D-17 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-17]') > 0`) === 3
+      && cuenta('D-17 compartido', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0 and strpos(p.prosrc, 'read committed') > 0`) === 3,
+    'D-17 las tres puertas (marcar, levantar, conversión en cooperativa) leen la bandera bajo el candado compartido y exigen READ COMMITTED');
+  check(cuenta('D-17 grants', `select count(*) from unnest(array[${lista(D17)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 3
+      && cuenta('D-17 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D17)}]::regprocedure[]) and a.grantee = 0`) === 0,
+    'D-17 las tres conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+  if (cuenta('D-18 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and strpos(p.prosrc, 'F2.b [D-18]') > 0)`) === 1) {
+    check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D18)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
+        && cuenta('D-18 jerarquía', `select (strpos(p.prosrc, 'usuarios_jerarquia') > 0)::int from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure`) === 1,
+      'D-18 la conversión toma el interlock de jerarquía y la fusión cancela tareas de cliente (marcadores en el cuerpo)');
+    check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2
+        && cuenta('D-18 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D18)}]::regprocedure[]) and a.grantee = 0`) === 0,
+      'D-18 las dos conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
+    // El interlock hace ESPERAR: sin lock_timeout la conversión se cuelga hasta el timeout de PostgREST (auditor D-18 #2).
+    check(cuenta('D-18 lock_timeout', `select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.proconfig @> array['lock_timeout=5s']`) === 1,
+      'D-18 la conversión lleva lock_timeout, así que esperar detrás de un offboarding se corta con 55P03 y no cuelga la petición');
+    // La cancelación de tareas de cliente tiene que quedar a nombre del SISTEMA, no de quien fusiona, y alcanzar a los
+    // mismos perfiles que D-3 (identidad ∪ perfil cliente con el documento exacto ∪ perfil del lead) — auditor D-18 #3 y #8.
+    check(cuenta('D-18 sello sistema', `select (strpos(p.prosrc, 'crm.cancela_sistema') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1
+        && cuenta('D-18 criterio de perfiles', `select (strpos(p.prosrc, 'any(v_docs)') > 0 and strpos(p.prosrc, 'v_perfiles_fusion') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
+      'D-18 la fusión cancela las tareas de cliente bajo el sello del sistema y con el criterio de perfiles de D-3');
+    // Contador siempre presente (0 cuando no hay veto): el front no puede distinguir «no cancelé» de «no lo informo».
+    check(cuenta('D-18 contador siempre', `select (strpos(p.prosrc, '''tareas_cliente_canceladas''') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
+      'D-18 la respuesta de la fusión informa siempre tareas_cliente_canceladas (0 si no hereda veto)');
+  } else {
+    console.log('  (D-18 (20260906190000) no está en esta base: se saltan sus aserciones)');
+  }
+  // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
+  const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
+  if (cuenta('D-19 presente', `select (to_regprocedure('private.resolver_en_puertas_bajo_candado()') is not null)::int`) === 1) {
+    console.log('  (censo de D-17/D-18 superado por D-19: lo vigila su propio bloque, que exige CERO)');
+  } else {
+    check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido})`);
+  }
 }
 
 // ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
@@ -9538,55 +9560,6 @@ async function testIdentidadF2bD15(sessions, seed) {
 // ── RENTABILIDAD R1 (20260906170000): política versionada, núcleo private.resolver_tasa por su puerta, solicitudes de tasa y ledger ──
 // Grants, definer, RLS estructural, superficie 42501 y D3. El flujo de negocio completo (pedir → aprobar/rechazar/aprobar hasta X →
 // aceptar/declinar, herencia en renovación/upgrade, vencimiento, política) vive en scripts/oraculo-rentabilidad-r1.sh (115 aserciones).
-async function testIdentidadF2bD17yD18(sessions) {
-  console.log('\n— Identidad multiempresa F2.b [D-17]/[D-18]: las últimas puertas antes del encendido —');
-  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-17/D-18: ${etiqueta}`, sql);
-  const D17 = ['crm.marcar_no_contactar(uuid,text)', 'crm.levantar_no_contactar(uuid,text)', 'crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)'];
-  const D18 = ['crm.convertir_lead(uuid,uuid)', 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'];
-  const lista = (a) => a.map((f) => `'${f}'`).join(',');
-  if (cuenta('D-17 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.marcar_no_contactar(uuid,text)'::regprocedure and strpos(p.prosrc, 'F2.b [D-17]') > 0)`) !== 1) {
-    console.log('  (saltado: D-17 (20260906160000) no está en esta base)');
-    return;
-  }
-  check(cuenta('D-17 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-17]') > 0`) === 3
-      && cuenta('D-17 compartido', `select count(*) from pg_proc p where p.oid = any(array[${lista(D17)}]::regprocedure[]) and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') > 0 and strpos(p.prosrc, 'read committed') > 0`) === 3,
-    'D-17 las tres puertas (marcar, levantar, conversión en cooperativa) leen la bandera bajo el candado compartido y exigen READ COMMITTED');
-  check(cuenta('D-17 grants', `select count(*) from unnest(array[${lista(D17)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 3
-      && cuenta('D-17 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D17)}]::regprocedure[]) and a.grantee = 0`) === 0,
-    'D-17 las tres conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
-  if (cuenta('D-18 aplicada', `select (select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and strpos(p.prosrc, 'F2.b [D-18]') > 0)`) === 1) {
-    check(cuenta('D-18 marcadores', `select count(*) from pg_proc p where p.oid = any(array[${lista(D18)}]::regprocedure[]) and strpos(p.prosrc, 'F2.b [D-18]') > 0`) === 2
-        && cuenta('D-18 jerarquía', `select (strpos(p.prosrc, 'usuarios_jerarquia') > 0)::int from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure`) === 1,
-      'D-18 la conversión toma el interlock de jerarquía y la fusión cancela tareas de cliente (marcadores en el cuerpo)');
-    check(cuenta('D-18 grants', `select count(*) from unnest(array[${lista(D18)}]) f(firma) where has_function_privilege('authenticated', f.firma, 'EXECUTE') and not has_function_privilege('anon', f.firma, 'EXECUTE') and not has_function_privilege('service_role', f.firma, 'EXECUTE')`) === 2
-        && cuenta('D-18 PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = any(array[${lista(D18)}]::regprocedure[]) and a.grantee = 0`) === 0,
-      'D-18 las dos conservan sus grants (solo authenticated; ni anon, ni service_role, ni PUBLIC)');
-    // El interlock hace ESPERAR: sin lock_timeout la conversión se cuelga hasta el timeout de PostgREST (auditor D-18 #2).
-    check(cuenta('D-18 lock_timeout', `select count(*) from pg_proc p where p.oid = 'crm.convertir_lead(uuid,uuid)'::regprocedure and p.proconfig @> array['lock_timeout=5s']`) === 1,
-      'D-18 la conversión lleva lock_timeout, así que esperar detrás de un offboarding se corta con 55P03 y no cuelga la petición');
-    // La cancelación de tareas de cliente tiene que quedar a nombre del SISTEMA, no de quien fusiona, y alcanzar a los
-    // mismos perfiles que D-3 (identidad ∪ perfil cliente con el documento exacto ∪ perfil del lead) — auditor D-18 #3 y #8.
-    check(cuenta('D-18 sello sistema', `select (strpos(p.prosrc, 'crm.cancela_sistema') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1
-        && cuenta('D-18 criterio de perfiles', `select (strpos(p.prosrc, 'any(v_docs)') > 0 and strpos(p.prosrc, 'v_perfiles_fusion') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
-      'D-18 la fusión cancela las tareas de cliente bajo el sello del sistema y con el criterio de perfiles de D-3');
-    // Contador siempre presente (0 cuando no hay veto): el front no puede distinguir «no cancelé» de «no lo informo».
-    check(cuenta('D-18 contador siempre', `select (strpos(p.prosrc, '''tareas_cliente_canceladas''') > 0)::int from pg_proc p where p.oid = 'crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure`) === 1,
-      'D-18 la respuesta de la fusión informa siempre tareas_cliente_canceladas (0 si no hereda veto)');
-  } else {
-    console.log('  (D-18 (20260906190000) no está en esta base: se saltan sus aserciones)');
-  }
-  // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
-  const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
-  if (cuenta('D-19 presente', `select (to_regprocedure('private.resolver_en_puertas_bajo_candado()') is not null)::int`) === 1) {
-    console.log('  (censo de D-17/D-18 superado por D-19: lo vigila su propio bloque, que exige CERO)');
-  } else {
-    check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido})`);
-  }
-}
-
-// ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
-// La conducta (nota + tarea, idempotencia, atribución) la mide scripts/oraculo-f2b-d20.sh. Aquí se vigila la
-// superficie: que el ayudante no esté expuesto y que el importador conserve su puerta cerrada a la API.
 async function testRentabilidadR1(sessions, seed) {
   console.log('\n— Rentabilidad R1: núcleo de tasa, solicitudes y ledger —');
   const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R1: ${etiqueta}`, sql);
@@ -9646,7 +9619,10 @@ async function testRentabilidadR1(sessions, seed) {
     await expectExpectedFailure('R1 gerencia renovación sin origen → 22023', sessions.gerencia.client.schema('crm').rpc('resolver_tasa_fn', { p_cliente_id: clienteId, p_categoria: 'renovacion' }), ['22023'], /contrato origen/i);
     // Solicitud: gerencia pide (tiene la autoridad del alta) y NO puede resolver la suya (D3); el resto no resuelve (42501).
     const base = Number(r1?.tasa_base ?? 15);
-    const cuerpo = { cliente_id: clienteId, categoria: 'nuevo', capital: 12345.67, moneda: 'PEN', modalidad: 'mensual', tipo_interes: 'simple', fecha_inicio: '2026-11-01', fecha_vencimiento: '2027-11-01', tasa_solicitada: base + 1.5, motivo: 'Suite RLS R1 TRANSIENT: prueba de solicitud' };
+    // Capital único por corrida: la unicidad es por HUELLA (D6), y una corrida anterior o una sesión ajena pudo dejar
+    // una solicitud viva sobre la misma intención en el banco compartido.
+    const capitalCorrida = 10000 + Math.floor(Math.random() * 8_999_999) / 100;
+    const cuerpo = { cliente_id: clienteId, categoria: 'nuevo', capital: capitalCorrida, moneda: 'PEN', modalidad: 'mensual', tipo_interes: 'simple', fecha_inicio: '2026-11-01', fecha_vencimiento: '2027-11-01', tasa_solicitada: base + 1.5, motivo: 'Suite RLS R1 TRANSIENT: prueba de solicitud' };
     const { data: s1, error: es1 } = await sessions.gerencia.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpo });
     solicitudId = s1?.id ?? null;
     check(!es1 && s1?.estado === 'pendiente' && Number(s1?.tasa_base) === base && s1?.solicitada_por === gerenciaId,
@@ -9672,7 +9648,7 @@ async function testRentabilidadR1(sessions, seed) {
       await expectBlockedMutation('R1 gerencia no edita una solicitud por la tabla (sin UPDATE)', sessions.gerencia.client.schema('crm').from('solicitudes_tasa').update({ tasa_solicitada: 40 }).eq('id', solicitudId), ['42501']);
     }
     // Flujo positivo con dos actores: vend1 pide, Gerencia (otra persona) decide con tope, vend1 acepta. Supervisor y Gerencia ven la de vend1.
-    const cuerpoV1 = { ...cuerpo, capital: 23456.78, tasa_solicitada: base + 3, motivo: 'Suite RLS R1 TRANSIENT: solicitud de vend1' };
+    const cuerpoV1 = { ...cuerpo, capital: capitalCorrida + 1, tasa_solicitada: base + 3, motivo: 'Suite RLS R1 TRANSIENT: solicitud de vend1' };
     const { data: sv, error: esv } = await sessions.vend1.client.schema('crm').rpc('solicitar_tasa_fn', { p_solicitud: cuerpoV1 });
     solicitudV1 = sv?.id ?? null;
     check(!esv && sv?.estado === 'pendiente' && sv?.solicitada_por === vend1Id, 'R1 vend1 crea su solicitud (pendiente)', esv?.message ?? JSON.stringify(sv));
@@ -9696,11 +9672,26 @@ async function testRentabilidadR1(sessions, seed) {
       check(!ea1 && a1?.estado === 'aceptada_por_analista' && Number(a1?.tasa_maxima_autorizada) === base + 1, 'R1 vend1 acepta el tope → aceptada_por_analista', ea1?.message ?? JSON.stringify(a1));
     }
     // Publicar: solo Gerencia; control optimista; enforcement rechazado en R1 (0A000, evaluado antes que la versión).
-    const versionActual = cuenta('versión vigente', 'select max(version) from crm.politica_rentabilidad');
+    let versionActual = cuenta('versión vigente', 'select max(version) from crm.politica_rentabilidad');
     const { data: p1, error: ep1 } = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion', nota: 'Suite RLS R1 TRANSIENT (misma base)' } });
     check(!ep1 && p1?.version === versionActual + 1 && p1?.publicada_por === gerenciaId && p1?.modo === 'observacion', 'R1 gerencia publica una revisión de la política (misma base) con control de versión', ep1?.message ?? JSON.stringify(p1));
-    await expectExpectedFailure('R1 publicar con la versión vieja → 40001', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion' } }), ['40001'], /Conflicto de versi/i);
-    await expectExpectedFailure('R1 gerencia no publica en modo enforcement (R4) → 0A000', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual + 1, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'enforcement' } }), ['0A000'], /enforcement/i);
+    await expectExpectedFailure('R1 publicar con la versión vieja → 40001', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion' } }), ['P0409'], /Conflicto de versi/i);
+    // El modo enforcement lo RECHAZA R1 (0A000)… hasta que R4 lo construye: entonces es EL INTERRUPTOR y se admite.
+    // Si se admite, hay que volver a «observacion» en el acto: dejar el banco con el candado encendido rompería los
+    // bloques siguientes (y las altas de cualquier otra sesión que comparta esta base).
+    const r4Instalada = contarFueraDeBanda('R1: helpers del candado R4',
+      `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'rentabilidad_consumir_autorizacion'`) === 1;
+    if (r4Instalada) {
+      const { data: pEnf, error: ePEnf } = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual + 1, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'enforcement', nota: 'Suite RLS: interruptor de R4 (se apaga en la línea siguiente)' } });
+      check(!ePEnf && pEnf?.modo === 'enforcement', 'R1+R4 Gerencia SÍ puede publicar el modo enforcement (es el interruptor del candado)', ePEnf?.message ?? JSON.stringify(pEnf));
+      const { data: pObs, error: ePObs } = await sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual + 2, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'observacion', nota: 'Suite RLS: candado apagado otra vez' } });
+      check(!ePObs && pObs?.modo === 'observacion', 'R1+R4 y volver a observacion apaga el candado sin migración (el banco queda como estaba)', ePObs?.message ?? JSON.stringify(pObs));
+      const modoFinal = textoFueraDeBanda('R1: modo tras el ensayo del interruptor', `select modo from crm.politica_rentabilidad order by version desc limit 1`);
+      check(modoFinal === 'observacion', 'R1+R4 el banco NO se queda con el candado encendido', String(modoFinal));
+      versionActual += 2;
+    } else {
+      await expectExpectedFailure('R1 gerencia no publica en modo enforcement (R4) → 0A000', sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: versionActual + 1, p_config: { tasa_base_nueva: base, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'enforcement' } }), ['0A000'], /enforcement/i);
+    }
     await expectBlockedMutation('R1 gerencia no inserta en el ledger por la tabla', sessions.gerencia.client.schema('crm').from('ledger_rentabilidad').insert({ contrato_id: '00000000-0000-4000-8000-0000000000a3', numero_contrato: 'X', cliente_id: clienteId, tasa_base: 15, tasa_final: 15, regla: 'sin_regla', origen: 'observacion' }), ['42501']);
     await expectBlockedMutation('R1 gerencia no inserta en la política por la tabla', sessions.gerencia.client.schema('crm').from('politica_rentabilidad').insert({ version: 999, vigente_desde: new Date().toISOString(), tasa_base_nueva: 1 }), ['42501']);
   } finally {
@@ -9710,6 +9701,137 @@ async function testRentabilidadR1(sessions, seed) {
       ejecutarFueraDeBanda('R1 limpieza', `select set_config('crm.solicitud_tasa_por_puerta','on',true); update crm.solicitudes_tasa set estado = 'vencida' where id in (${ids.map((x) => `'${x}'`).join(',')}) and estado in ('pendiente','aprobada','aprobada_con_tope','aceptada_por_analista');`, { tolerante: true });
     }
   }
+}
+
+// ── RENTABILIDAD R2 (20260906180000): observador diferido de public.contratos + tarjeta crm.observacion_rentabilidad_fn ──
+// Superficie y estructura; el comportamiento (alta/renovación/upgrade/corrección observadas) vive en scripts/oraculo-rentabilidad-r2.sh.
+async function testRentabilidadR2(sessions) {
+  console.log('\n— Rentabilidad R2: observador y tarjeta de Gerencia —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R2: ${etiqueta}`, sql);
+  const RPC = 'crm.observacion_rentabilidad_fn(date,date)';
+  if (cuenta('R2 aplicada', `select (to_regprocedure('${RPC}') is not null)::int`) !== 1) {
+    console.log('  (saltado: Rentabilidad R2 (20260906180000) no está en esta base)');
+    return;
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-r2'));
+  check(cuenta('trigger', `select count(*) from pg_trigger t where t.tgrelid = 'public.contratos'::regclass and t.tgname = 'trg_contratos_zz_observar_rentabilidad' and t.tgenabled = 'O' and t.tgdeferrable and t.tginitdeferred and t.tgconstraint <> 0`) === 1,
+    'R2 el observador está montado como constraint trigger diferido y habilitado en public.contratos');
+  check(cuenta('hito', `select count(*) from crm.rentabilidad_hitos where clave = 'observacion_activa_desde'`) === 1
+    && cuenta('hito RLS', `select (c.relrowsecurity)::int - (has_table_privilege('authenticated','crm.rentabilidad_hitos','INSERT'))::int - (has_table_privilege('anon','crm.rentabilidad_hitos','SELECT'))::int from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'crm' and c.relname = 'rentabilidad_hitos'`) === 1,
+    'R2 el hito de activación existe, con RLS y solo SELECT para authenticated');
+  check(cuenta('núcleo 5 args', `select (to_regprocedure('private.resolver_tasa(uuid,text,uuid,timestamptz,uuid)') is not null)::int + (to_regprocedure('private.resolver_tasa(uuid,text,uuid,timestamptz)') is not null)::int`) === 2,
+    'R2 el núcleo tiene las dos firmas (la de R1 delega)');
+  for (const f of ['private.resolver_tasa(uuid,text,uuid,timestamptz,uuid)', 'private.trg_contratos_observar_rentabilidad()']) {
+    check(cuenta(`privada ${f}`, `select (has_function_privilege('authenticated', '${f}', 'EXECUTE'))::int + (has_function_privilege('anon', '${f}', 'EXECUTE'))::int + (has_function_privilege('service_role', '${f}', 'EXECUTE'))::int + (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::int`) === 0,
+      `R2 ${f} no es llamable por la API ni por PUBLIC`);
+  }
+  check(cuenta('grants RPC', `select (has_function_privilege('authenticated', '${RPC}', 'EXECUTE'))::int - (has_function_privilege('anon', '${RPC}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${RPC}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${RPC}'::regprocedure and a.grantee = 0)::int`) === 1,
+    'R2 la tarjeta solo tiene EXECUTE para authenticated');
+  check(cuenta('definer RPC', `select count(*) from pg_proc p where p.oid = '${RPC}'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""']`) === 1,
+    'R2 la tarjeta es DEFINER de postgres con search_path vacío');
+  await expectExpectedFailure('R2 anon → 42501', anon.schema('crm').rpc('observacion_rentabilidad_fn', {}), ['42501'], /permission denied|denegado|No autorizado/i);
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'clientBank', 'vendInactive']) {
+    await expectExpectedFailure(`R2 ${clave} no lee la tarjeta → 42501`, sessions[clave].client.schema('crm').rpc('observacion_rentabilidad_fn', {}), ['42501'], /No autorizado/i);
+  }
+  await expectExpectedFailure('R2 gerencia con desde > hasta → 22023', sessions.gerencia.client.schema('crm').rpc('observacion_rentabilidad_fn', { p_desde: '2026-09-10', p_hasta: '2026-09-01' }), ['22023'], /Periodo/i);
+  await expectExpectedFailure('R2 gerencia con rango > 366 días → 22023', sessions.gerencia.client.schema('crm').rpc('observacion_rentabilidad_fn', { p_desde: '2025-01-01', p_hasta: '2026-09-01' }), ['22023'], /Periodo/i);
+  await expectExpectedFailure('R2 gerencia con hasta en el futuro → 22023', sessions.gerencia.client.schema('crm').rpc('observacion_rentabilidad_fn', { p_desde: '2030-01-01', p_hasta: '2030-01-31' }), ['22023'], /Periodo/i);
+  check(cuenta('precedente intacto', `select count(*) from pg_trigger t where t.tgrelid = 'public.contratos'::regclass and t.tgname = 'trg_contratos_operacion_cartera_commit' and t.tgenabled = 'O'`) === 1,
+    'R2 el constraint trigger de operaciones de cartera sigue habilitado (regresión)');
+  for (const clave of ['gerencia', 'directorio']) {
+    const { data, error } = await sessions[clave].client.schema('crm').rpc('observacion_rentabilidad_fn', {});
+    check(!error && data?.version === 1 && typeof data?.coherente === 'boolean' && typeof data?.altas_sin_observar === 'number'
+      && data?.metodo === 'simple_sobre_plazo_revision_efectiva' && typeof data?.totales?.contratos === 'number' && typeof data?.totales?.eventos === 'number'
+      && typeof data?.sondas?.consistencia_interna === 'boolean' && typeof data?.sondas?.cobertura_altas === 'boolean' && data?.sondas?.cobertura_correcciones === 'desconocida'
+      && typeof data?.cobertura?.observacion_activa_desde === 'string' && Array.isArray(data?.por_analista),
+      `R2 ${clave} lee la tarjeta: version 1, eventos/contratos, sondas separadas, cobertura desde el hito y método declarado`, error?.message ?? JSON.stringify(data)?.slice(0, 200));
+  }
+}
+
+// ── RENTABILIDAD R3 (20260906220000): lecturas para la bandeja, la ficha y la política ──
+async function testRentabilidadR3(sessions, seed) {
+  console.log('\n— Rentabilidad R3: lecturas (solicitudes_tasa_fn, historial_tasa_cliente_fn, politica_rentabilidad_fn) —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`Rentabilidad R3: ${etiqueta}`, sql);
+  const FNS = ['crm.solicitudes_tasa_fn(text[],integer,boolean,uuid)', 'crm.historial_tasa_cliente_fn(uuid)', 'crm.politica_rentabilidad_fn()'];
+  if (cuenta('R3 aplicada', `select (to_regprocedure('${FNS[2]}') is not null)::int`) !== 1) {
+    console.log('  (saltado: Rentabilidad R3 (20260906220000) no está en esta base)');
+    return;
+  }
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-r3'));
+  const clienteId = seed.profileIdByKey.clientBank;
+  for (const f of FNS) {
+    check(cuenta(`grants ${f}`, `select (has_function_privilege('authenticated', '${f}', 'EXECUTE'))::int - (has_function_privilege('anon', '${f}', 'EXECUTE'))::int - (has_function_privilege('service_role', '${f}', 'EXECUTE'))::int - (select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::int`) === 1,
+      `R3 ${f} solo tiene EXECUTE para authenticated`);
+    check(cuenta(`definer ${f}`, `select count(*) from pg_proc p where p.oid = '${f}'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and p.provolatile = 's'`) === 1,
+      `R3 ${f} es DEFINER estable de postgres con search_path vacío`);
+  }
+  await expectExpectedFailure('R3 anon solicitudes_tasa_fn → 42501', anon.schema('crm').rpc('solicitudes_tasa_fn', {}), ['42501'], /permission denied|denegado|No autorizado/i);
+  await expectExpectedFailure('R3 anon politica_rentabilidad_fn → 42501', anon.schema('crm').rpc('politica_rentabilidad_fn'), ['42501'], /permission denied|denegado|No autorizado/i);
+  for (const clave of ['clientBank', 'vendInactive']) {
+    await expectExpectedFailure(`R3 ${clave} no lee solicitudes → 42501`, sessions[clave].client.schema('crm').rpc('solicitudes_tasa_fn', {}), ['42501'], /No autorizado/i);
+    await expectExpectedFailure(`R3 ${clave} no lee la política → 42501`, sessions[clave].client.schema('crm').rpc('politica_rentabilidad_fn'), ['42501'], /No autorizado/i);
+  }
+  await expectExpectedFailure('R3 gerencia con estado desconocido → 22023', sessions.gerencia.client.schema('crm').rpc('solicitudes_tasa_fn', { p_estados: ['inventado'] }), ['22023'], /Estado desconocido/i);
+  for (const clave of ['gerencia', 'directorio', 'vend1', 'sup1', 'coordinador']) {
+    const { data, error } = await sessions[clave].client.schema('crm').rpc('politica_rentabilidad_fn');
+    check(!error && data?.version === 1 && data?.vigente?.modo === 'observacion' && typeof data?.expected_version === 'number' && Array.isArray(data?.historial),
+      `R3 ${clave} lee la política vigente`, error?.message ?? JSON.stringify(data)?.slice(0, 160));
+    if (clave === 'gerencia') check(data?.puede_publicar === true, 'R3 gerencia puede publicar la política');
+    if (clave === 'vend1') check(data?.puede_publicar === false, 'R3 vend1 no puede publicar la política');
+  }
+  for (const clave of ['gerencia', 'directorio', 'vend1', 'sup1']) {
+    const { data, error } = await sessions[clave].client.schema('crm').rpc('solicitudes_tasa_fn', { p_estados: ['pendiente'], p_limite: 20 });
+    check(!error && Array.isArray(data) && data.every((s) => s.estado === 'pendiente' && typeof s.cliente_nombre === 'string' && typeof s.puede_resolver === 'boolean'),
+      `R3 ${clave} lee sus solicitudes pendientes con nombres y permisos`, error?.message ?? JSON.stringify(data)?.slice(0, 160));
+    if (clave === 'vend1') check(!error && data.every((s) => s.es_mia === true && s.puede_resolver === false), 'R3 vend1 solo ve las suyas y ninguna puede_resolver');
+    if (clave === 'gerencia') check(!error && data.every((s) => s.puede_resolver === (s.es_mia === false)), 'R3 gerencia puede resolver exactamente las ajenas (D3)');
+  }
+  const { data: h, error: eh } = await sessions.gerencia.client.schema('crm').rpc('historial_tasa_cliente_fn', { p_cliente_id: clienteId });
+  check(!eh && h?.version === 1 && Array.isArray(h?.contratos) && Array.isArray(h?.solicitudes), 'R3 gerencia lee el historial de tasa del cliente bancario', eh?.message ?? JSON.stringify(h)?.slice(0, 160));
+  await expectExpectedFailure('R3 gerencia historial de cliente inexistente → 42501 uniforme', sessions.gerencia.client.schema('crm').rpc('historial_tasa_cliente_fn', { p_cliente_id: '00000000-0000-4000-8000-0000000000a3' }), ['42501'], /fuera de tu cartera/i);
+  await expectExpectedFailure('R3 clientBank no lee historial → 42501', sessions.clientBank.client.schema('crm').rpc('historial_tasa_cliente_fn', { p_cliente_id: clienteId }), ['42501'], /fuera de tu cartera/i);
+}
+
+// ── RENTABILIDAD R4 (20260907093000): el CANDADO del servidor. Este bloque NO enciende el enforcement (la suite es
+// compartida y encenderlo rompería los demás bloques): comprueba que el candado está montado, que sus helpers no se
+// alcanzan desde la API, que el trigger diferido sigue en su sitio y que solo Gerencia puede tocar el interruptor.
+// El comportamiento del candado (rechazos, consumo, doble consumo, huella, bypass) lo prueba el oráculo adversarial
+// supabase/scripts/oraculo-rentabilidad-r4.sh en el banco.
+async function testRentabilidadR4(sessions) {
+  console.log('\n— Rentabilidad R4: el candado del servidor (montado, no encendido) —');
+  const texto = (etiqueta, sql) => textoFueraDeBanda(`R4: ${etiqueta}`, sql);
+  const HELPERS = ['private.rentabilidad_origen_declarado(public.contratos)',
+                   'private.rentabilidad_consumir_autorizacion(public.contratos,numeric,uuid,uuid,timestamptz)'];
+  const instaladas = contarFueraDeBanda('R4: helpers del candado',
+    `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname in ('rentabilidad_origen_declarado', 'rentabilidad_consumir_autorizacion')`);
+  if (instaladas !== 2) {
+    console.log('  ⚠ Rentabilidad R4 NO desplegada en esta base: bloque SALTADO (no probado)');
+    return;
+  }
+  for (const f of HELPERS) {
+    const acl = texto(`ACL de ${f}`,
+      `select has_function_privilege('authenticated', '${f}', 'EXECUTE')::text || '|' || has_function_privilege('anon', '${f}', 'EXECUTE')::text || '|' || has_function_privilege('service_role', '${f}', 'EXECUTE')::text || '|' || exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = '${f}'::regprocedure and a.grantee = 0)::text`);
+    check(acl === 'false|false|false|false', `R4 ${f} NO es ejecutable desde la API (helper privado)`, acl);
+    const def = texto(`definer de ${f}`,
+      `select p.prosecdef::text || '|' || p.proowner::regrole::text || '|' || exists (select 1 from unnest(p.proconfig) c where c in ('search_path=', 'search_path=""'))::text from pg_proc p where p.oid = '${f}'::regprocedure`);
+    check(def === 'true|postgres|true', `R4 ${f} es DEFINER de postgres con search_path vacío`, def);
+  }
+  const trg = texto('trigger del candado',
+    `select t.tgdeferrable::text || '|' || t.tginitdeferred::text || '|' || t.tgenabled::text from pg_trigger t where t.tgname = 'trg_contratos_zz_observar_rentabilidad' and t.tgrelid = 'public.contratos'::regclass`);
+  check(trg === 'true|true|O', 'R4 el trigger del candado sigue diferido y habilitado sobre public.contratos', trg);
+  const modo = texto('modo vigente', `select p.modo from crm.politica_rentabilidad p order by p.vigente_desde desc, p.version desc limit 1`);
+  check(modo === 'observacion' || modo === 'enforcement', 'R4 la política vigente declara su modo', String(modo));
+  if (modo === 'enforcement') {
+    console.log('  ⚠ la política de esta base está en ENFORCEMENT: los bloques de altas pueden rechazar tasas fuera de la base');
+  }
+  // El interruptor es de Gerencia: un analista no lo toca, ni para encenderlo ni para apagarlo.
+  const version = contarFueraDeBanda('R4: versión vigente', `select max(version) from crm.politica_rentabilidad`);
+  await expectExpectedFailure('R4 vend1 no puede tocar el interruptor del candado → 42501',
+    sessions.vend1.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: version, p_config: { tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'enforcement' } }),
+    ['42501'], /Solo Gerencia|No autorizado|autoriz/i);
+  await expectExpectedFailure('R4 un modo inventado → 22023',
+    sessions.gerencia.client.schema('crm').rpc('publicar_politica_rentabilidad_fn', { p_expected_version: version, p_config: { tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7, modo: 'candado_total' } }),
+    ['22023'], /Modo inválido/i);
 }
 
 // ── F2.b [D-5] (20260906140000): las RPC de un argumento de la conversión se cierran con la identidad encendida;
@@ -12625,13 +12747,15 @@ async function main() {
       await testIdentidadF2bD3(sessions);
       await testIdentidadF2bD2(sessions);
       await testIdentidadF2bD4(sessions);
+      await testIdentidadF2bD15(sessions, verifiedSeed);
+      await testIdentidadF2bD5(sessions, verifiedSeed);
       await testIdentidadF2bD17yD18(sessions);
       await testIdentidadF2bD19(sessions);
       await testIdentidadF2bD20(sessions, verifiedSeed);
-      await testIdentidadF2bD20(sessions);
-      await testIdentidadF2bD15(sessions, verifiedSeed);
-      await testIdentidadF2bD5(sessions, verifiedSeed);
       await testRentabilidadR1(sessions, verifiedSeed);
+      await testRentabilidadR2(sessions);
+      await testRentabilidadR3(sessions, verifiedSeed);
+      await testRentabilidadR4(sessions);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese

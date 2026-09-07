@@ -3325,6 +3325,7 @@ export type Database = {
           responsable_nuevo: string
         }[]
       }
+      historial_tasa_cliente_fn: { Args: { p_cliente_id: string }; Returns: Json }
       impacto_desactivacion_usuario_fn: {
         Args: { p_perfil_id: string }
         Returns: Json
@@ -3459,6 +3460,10 @@ export type Database = {
         Args: { p_domicilio: string }
         Returns: string
       }
+      observacion_rentabilidad_fn: {
+        Args: { p_desde?: string; p_hasta?: string }
+        Returns: Json
+      }
       panel_distribucion_reparto: {
         Args: {
           p_analista?: string
@@ -3468,6 +3473,7 @@ export type Database = {
         }
         Returns: Json
       }
+      politica_rentabilidad_fn: { Args: never; Returns: Json }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }
       productos_inversion_seleccion_fn: {
         Args: never
@@ -3509,6 +3515,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      publicar_politica_rentabilidad_fn: {
+        Args: { p_expected_version: number; p_config: Json }
+        Returns: Json
       }
       publicar_politica_sla: {
         Args: {
@@ -3647,6 +3657,18 @@ export type Database = {
             }
             Returns: Json
           }
+      resolver_solicitud_tasa_fn: {
+        Args: { p_solicitud_id: string; p_decision: string; p_tasa_maxima?: number; p_motivo?: string }
+        Returns: Json
+      }
+      resolver_tasa_fn: {
+        Args: { p_cliente_id: string; p_categoria: string; p_contrato_origen_id?: string }
+        Returns: Json
+      }
+      responder_tope_tasa_fn: {
+        Args: { p_solicitud_id: string; p_acepta: boolean; p_motivo?: string }
+        Returns: Json
+      }
       resumen_cartera_clientes_fn: { Args: never; Returns: Json }
       resumen_cartera_fn: { Args: never; Returns: Json }
       resumen_reparto_fn: { Args: never; Returns: Json }
@@ -3664,6 +3686,11 @@ export type Database = {
         Returns: Json
       }
       series_comerciales_fn: { Args: { p_meses?: number }; Returns: Json }
+      solicitar_tasa_fn: { Args: { p_solicitud: Json }; Returns: Json }
+      solicitudes_tasa_fn: {
+        Args: { p_estados?: string[]; p_limite?: number; p_solo_mias?: boolean; p_cliente_id?: string }
+        Returns: Json
+      }
       supervisores_para_reparto: {
         Args: never
         Returns: {

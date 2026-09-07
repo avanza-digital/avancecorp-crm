@@ -71,6 +71,13 @@ let CONVERSION_MENSUAL_PENDING = false
 const REFETCH_CONVERSION_MENSUAL = vi.fn()
 let METRICAS_AGENDA: import('@/lib/metricas-agenda').MetricasAgenda | undefined
 vi.mock('@/data/crm-queries', () => ({
+  // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
+  useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
+  useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useResponderTopeTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
+  useSolicitarTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+  useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
   useMetricasAgenda: () => ({
     data: METRICAS_AGENDA,
     error: null,

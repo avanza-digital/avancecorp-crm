@@ -39,6 +39,8 @@ const obtenerTitulares = vi.mocked(crmApi.obtenerTitulares)
 
 const asegurarContratoPdfActualizado = vi.mocked(contratoPdf.asegurarContratoPdfActualizado)
 
+/** Rentabilidad R3: solicitudes de tasa que «devuelve el servidor» al bloque de tasa (vacías salvo en el test de caducidad). */
+const rentabilidadDobles = vi.hoisted(() => ({ solicitudes: [] as unknown[] }))
 const productosEstado = vi.hoisted(() => ({
   data: [] as import('@/lib/productos-inversion').ProductoCondicionSeleccion[],
   error: false,
@@ -68,6 +70,19 @@ const CONDICION_VIGENTE: import('@/lib/productos-inversion').ProductoCondicionSe
   tasa_minima: 14,
   tasa_maxima: 18,
 }
+
+vi.mock('@/data/crm-queries', async (importActual) => {
+  const actual = await importActual<typeof import('@/data/crm-queries')>()
+  return {
+    ...actual,
+    // Rentabilidad R3: en corrección la base es la tasa vigente; sin solicitudes en estos escenarios.
+    useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: vi.fn() }),
+    useSolicitudesTasa: () => ({ data: rentabilidadDobles.solicitudes, isPending: false, isError: false, refetch: vi.fn() }),
+    useSolicitarTasa: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useResponderTopeTasa: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: vi.fn() }),
+  }
+})
 
 vi.mock('@/data/crm-config-queries', () => ({
   useProductosSeleccionables: () => ({
@@ -139,6 +154,7 @@ function escribirFecha(etiqueta: string, valor: string) {
 }
 
 beforeEach(() => {
+    rentabilidadDobles.solicitudes = []
   productosEstado.data = []
   productosEstado.error = false
   productosEstado.pending = false
@@ -305,11 +321,41 @@ describe('ContratoCorregir — producto versionado', () => {
     expect(screen.getByLabelText('Moneda')).toBeDisabled()
     expect(screen.getByLabelText('Plazo')).toBeDisabled()
 
-    await user.clear(screen.getByLabelText('Tasa anual (%)'))
-    await user.type(screen.getByLabelText('Tasa anual (%)'), '19')
+    // Rentabilidad R3: la tasa vigente (16%) queda bloqueada aunque el producto de catálogo admita 14–18%:
+    // cambiarla exige autorización de Gerencia. Guardar conserva el 16%.
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('readonly')
+    expect(screen.getByText(/Tasa vigente del contrato: 16%/)).toBeInTheDocument()
     await user.click(guardar())
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/entre 14% y 18%/)
+    await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ tasa_anual: 16 })
+  })
+
+  it('una autorización que caduca entre dos ticks del reloj no deja guardar por encima de la tasa vigente (Codex R3 ronda 2 #4)', async () => {
+    const user = userEvent.setup()
+    // Misma huella que el contrato del fixture (capital, moneda, fechas, modalidad, tipo, condición); vence en 1,5 s.
+    rentabilidadDobles.solicitudes = [{
+      id: 's-exp', estado: 'aprobada', estado_efectivo: 'aprobada', vigente: true, categoria: 'nuevo', cliente_id: 'cli-1', cliente_nombre: 'CLIENTE PORTAL UNO',
+      // La condición va NULL: el contrato lleva el snapshot legacy del puente, que el formulario no puede declarar
+      // (lo sintetiza el servidor al guardar), y el candado de R4 normaliza igual en su orilla.
+      contrato_origen_id: null, contrato_origen_numero: null, producto_condicion_id: null,
+      capital: 10000, moneda: 'PEN', modalidad: 'mensual', tipo_interes: 'simple', fecha_inicio: '2026-01-15', fecha_vencimiento: '2027-01-15',
+      tasa_base: 15, regla_base: 'primera_inversion', tasa_solicitada: 17, tasa_maxima_autorizada: 17, motivo: 'Referido', motivo_resolucion: null, motivo_analista: null,
+      prioridad_bandeja: false, contratos_previos: 0, solicitada_por: 'yo', solicitante_nombre: 'YO', solicitada_en: '2026-09-06T10:00:00Z',
+      vence_en: new Date(Date.now() + 1500).toISOString(), resuelta_por: 'g', resolutor_nombre: 'GERENCIA', resuelta_en: '2026-09-06T11:00:00Z',
+      respondida_por_analista_en: null, contrato_id: null, es_mia: true, puede_resolver: false, puede_responder: false,
+    }]
+    await montar()
+    const input = screen.getByLabelText('Tasa anual (%)') as HTMLInputElement
+    // Con la autorización viva el campo se habilita entre 15 y 17 (y conserva el 15 persistido); el analista escribe 17…
+    await waitFor(() => expect(input).toBeEnabled())
+    expect(input).not.toHaveAttribute('readonly')
+    expect(input.value).toBe('15')
+    fireEvent.change(input, { target: { value: '17' } })
+    // …pero la autorización vence antes de guardar y el reloj del bloque solo refresca cada minuto.
+    await new Promise((r) => setTimeout(r, 1700))
+    await user.click(guardar())
+    expect(await screen.findByRole('alert')).toHaveTextContent(/La autorización de Gerencia venció/)
     expect(actualizarContrato).not.toHaveBeenCalled()
   })
 
@@ -324,12 +370,15 @@ describe('ContratoCorregir — producto versionado', () => {
     expect(screen.getByLabelText('Modalidad de pago')).toHaveValue('trimestral')
     expect(screen.getByLabelText('Plazo')).toHaveValue('12 meses')
 
+    // Rentabilidad R3: la condición precarga categoría, modalidad y plazo, pero NO la tasa: la vigente del contrato
+    // (15%) se mantiene hasta que Gerencia autorice otra.
+    expect((screen.getByLabelText('Tasa anual (%)') as HTMLInputElement).value).toBe('15')
     await user.click(guardar())
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
     expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({
       categoria: 'renovacion',
       modalidad: 'trimestral',
-      tasa_anual: 16,
+      tasa_anual: 15,
     })
   })
 })

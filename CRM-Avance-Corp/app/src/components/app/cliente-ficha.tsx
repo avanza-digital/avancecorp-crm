@@ -37,7 +37,8 @@ import {
   FichaComercialSeccionPlegable,
 } from '@/components/app/ficha-comercial'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
-import { useActividadesCliente, useClienteFichaComercial, useCuentasBancariasCliente } from '@/data/crm-queries'
+import { useActividadesCliente, useClienteFichaComercial, useCuentasBancariasCliente, useHistorialTasaCliente } from '@/data/crm-queries'
+import { tasaTxt } from '@/lib/rentabilidad'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, money } from '@/lib/format'
 import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
@@ -349,6 +350,17 @@ export function ClienteFicha({
   const qUsd = useCuentasBancariasCliente(clienteId, 'USD', puedeVerCuentas && !precargado && accesoConfirmado)
   const qActividades = useActividadesCliente(clienteId, !precargado && accesoConfirmado)
 
+  // Rentabilidad R3: qué tasa quedó frente a la que dice la política, por contrato (ledger del servidor).
+  const historialTasa = useHistorialTasaCliente(grupo.cliente.id, !demo && grupo.contratos.length > 0)
+  const observacionPorContrato = useMemo(() => {
+    const mapa = new Map<string, NonNullable<NonNullable<typeof historialTasa.data>['contratos'][number]['observacion']>>()
+    for (const c of historialTasa.data?.contratos ?? []) if (c.observacion) mapa.set(c.contrato_id, c.observacion)
+    return mapa
+  }, [historialTasa.data])
+  const solicitudesTasaVivas = useMemo(
+    () => (historialTasa.data?.solicitudes ?? []).filter((s) => s.vigente),
+    [historialTasa.data],
+  )
   const eventosHistorial = useMemo(() => {
     const contratosPorId = new Map(grupo.contratos.map((contrato) => [contrato.id, contrato]))
     const eventos: EventoHistorialCliente[] = (qActividades.data ?? []).map((actividad) => ({
@@ -752,7 +764,8 @@ export function ClienteFicha({
               Este cliente todavía no tiene una inversión registrada.
             </p>
           ) : (
-            <ol className="space-y-2">
+            // oxlint-disable-next-line jsx-a11y/no-redundant-roles
+            <ol role="list" className="space-y-2" aria-label="Contratos del cliente">
               {vista.contratos.map(({ contrato, renovable: llegoFechaFin }) => {
                 const renovable = operable && onRenovarContrato != null && llegoFechaFin
                 return (
@@ -776,6 +789,23 @@ export function ClienteFicha({
                         <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
                           Contrato {contrato.numero_contrato} · Vencimiento: {fechaCorta(contrato.fecha_vencimiento)}
                         </p>
+                        {(() => {
+                          const obs = observacionPorContrato.get(contrato.id)
+                          if (!obs) return null
+                          const puntos = obs.tasa_final - obs.tasa_base
+                          return (
+                            <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground" data-testid={`tasa-politica-${contrato.id}`}>
+                              Tasa {tasaTxt(obs.tasa_final)}
+                              {obs.regla === 'historica_legacy'
+                                ? ' · anterior a la política'
+                                : obs.regla === 'sin_regla'
+                                  ? ' · la política no define este caso'
+                                  : obs.divergente
+                                    ? <> · base {tasaTxt(obs.tasa_base)} ({puntos > 0 ? '+' : ''}{puntos.toLocaleString('es-PE', { maximumFractionDigits: 2 })} <abbr title="puntos" className="no-underline">pts</abbr>{obs.solicitud_id ? ', autorizada por Gerencia' : ', sin autorización'})</>
+                                    : ' · en la base de la política'}
+                            </p>
+                          )
+                        })()}
                       </div>
                       <p className="shrink-0 text-sm font-extrabold tabular-nums text-primary">
                         {money(contrato.capital, contrato.moneda)}
@@ -814,6 +844,12 @@ export function ClienteFicha({
                 )
               })}
             </ol>
+          )}
+          {solicitudesTasaVivas.length > 0 && (
+            <p className="mt-2 text-[11px] text-muted-foreground" data-testid="solicitudes-tasa-cliente">
+              {solicitudesTasaVivas.length === 1 ? 'Hay una solicitud de tasa en curso' : `Hay ${solicitudesTasaVivas.length} solicitudes de tasa en curso`} para este cliente
+              {' '}({solicitudesTasaVivas.map((sol) => `${tasaTxt(sol.tasa_solicitada)} ${sol.estado_efectivo === 'pendiente' ? 'pendiente' : sol.estado_efectivo === 'aprobada_con_tope' ? `con tope ${tasaTxt(sol.tasa_maxima_autorizada ?? 0)}` : `autorizada hasta ${tasaTxt(sol.tasa_maxima_autorizada ?? 0)}`}`).join(' · ')}).
+            </p>
           )}
         </FichaComercialSeccion>
 

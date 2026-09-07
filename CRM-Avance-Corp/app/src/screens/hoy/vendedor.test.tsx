@@ -42,6 +42,13 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
   return {
     ...actual,
+    // Rentabilidad R3: sin solicitudes ni decisiones en estos escenarios (tienen sus propios tests).
+    useSolicitudesTasa: () => ({ data: [], isPending: false, isError: false, refetch: () => {} }),
+    useResolverSolicitudTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+    useResponderTopeTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+    useResolucionTasa: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
+    useSolicitarTasa: () => ({ mutateAsync: async () => ({}), isPending: false }),
+    useHistorialTasaCliente: () => ({ data: undefined, isPending: false, isError: false, refetch: () => {} }),
     useConversionMensual: () => ({
       data: CONVERSION_MENSUAL ?? undefined,
       isError: CONVERSION_MENSUAL_ERROR,

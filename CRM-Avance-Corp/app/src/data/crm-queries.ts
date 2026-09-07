@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
+import type { CategoriaContrato } from '@/lib/cronograma'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
@@ -37,6 +39,16 @@ import {
   obtenerCumplimientoMetas,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
+  listarObservacionRentabilidad,
+  listarSolicitudesTasa,
+  type OpcionesSolicitudesTasa,
+  obtenerHistorialTasaCliente,
+  obtenerPoliticaRentabilidad,
+  publicarPoliticaRentabilidad,
+  resolverSolicitudTasa,
+  resolverTasa,
+  responderTopeTasa,
+  solicitarTasa,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeadsV3,
   listarMetricasPagosMes,
@@ -106,6 +118,15 @@ export const crmQueryKeys = {
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
   metricasPagos: (meses: number) => [...crmQueryKeys.metricas(), 'pagos', meses] as const,
   altasNuevas: (meses: number) => [...crmQueryKeys.metricas(), 'altas-nuevas', meses] as const,
+  observacionRentabilidad: (dias: number) => [...crmQueryKeys.metricas(), 'observacion-rentabilidad', dias] as const,
+  // Rentabilidad R1/R3: el núcleo de la tasa, las solicitudes, el historial por cliente y la política.
+  rentabilidad: () => [...crmQueryKeys.raiz, 'rentabilidad'] as const,
+  resolucionTasa: (clienteId: string, categoria: string, origenId: string | null) =>
+    [...crmQueryKeys.rentabilidad(), 'resolver', clienteId, categoria, origenId ?? null] as const,
+  solicitudesTasa: (estados: readonly string[] | null, opciones?: { soloMias?: boolean; clienteId?: string | null; limite?: number }) =>
+    [...crmQueryKeys.rentabilidad(), 'solicitudes', estados ? [...estados].sort().join(',') : 'todas', opciones?.soloMias ? 'mias' : 'ambito', opciones?.clienteId ?? 'todos', opciones?.limite ?? 200] as const,
+  historialTasaCliente: (clienteId: string) => [...crmQueryKeys.rentabilidad(), 'historial', clienteId] as const,
+  politicaRentabilidad: () => [...crmQueryKeys.rentabilidad(), 'politica'] as const,
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
   metricasDistribucionLeads: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
@@ -510,6 +531,93 @@ export function useAltasNuevasPorAnalista(habilitada: boolean, meses = 12) {
     queryKey: crmQueryKeys.altasNuevas(meses),
     queryFn: ({ signal }) => listarAltasNuevasPorAnalista(meses, signal),
     enabled: habilitada,
+  })
+}
+
+/** Rentabilidad R2: tarjeta de observación de Gerencia (últimos `dias`). */
+export function useObservacionRentabilidad(habilitada: boolean, dias = 30) {
+  return useQuery({
+    queryKey: crmQueryKeys.observacionRentabilidad(dias),
+    queryFn: ({ signal }) => listarObservacionRentabilidad(dias, signal),
+    enabled: habilitada,
+  })
+}
+
+/** Rentabilidad: qué tasa base dice el núcleo para un contrato en intención (solo con cliente y categoría). */
+export function useResolucionTasa(clienteId: string, categoria: CategoriaContrato | '', contratoOrigenId: string | null, habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.resolucionTasa(clienteId, categoria, contratoOrigenId),
+    queryFn: ({ signal }) => resolverTasa(clienteId, categoria as CategoriaContrato, contratoOrigenId, signal),
+    enabled: habilitada && !!clienteId && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId),
+    staleTime: 30_000,
+  })
+}
+
+/** Rentabilidad: solicitudes de tasa visibles para el actor. Se refresca solo mientras hay pendientes que esperar. */
+export function useSolicitudesTasa(estados: EstadoSolicitudTasa[] | null, habilitada: boolean, refrescarCadaMs: number | false = false, opciones?: OpcionesSolicitudesTasa) {
+  return useQuery({
+    queryKey: crmQueryKeys.solicitudesTasa(estados, opciones),
+    queryFn: ({ signal }) => listarSolicitudesTasa(estados, signal, opciones),
+    enabled: habilitada,
+    refetchInterval: refrescarCadaMs,
+  })
+}
+
+export function useHistorialTasaCliente(clienteId: string, habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.historialTasaCliente(clienteId),
+    queryFn: ({ signal }) => obtenerHistorialTasaCliente(clienteId, signal),
+    enabled: habilitada && !!clienteId,
+  })
+}
+
+export function usePoliticaRentabilidad(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.politicaRentabilidad(),
+    queryFn: ({ signal }) => obtenerPoliticaRentabilidad(signal),
+    enabled: habilitada,
+  })
+}
+
+function invalidarRentabilidad(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: crmQueryKeys.rentabilidad() }),
+    queryClient.invalidateQueries({ queryKey: [...crmQueryKeys.metricas(), 'observacion-rentabilidad'] }),
+  ])
+}
+
+export function useSolicitarTasa() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { intencion: IntencionContrato; tasaSolicitada: number; motivo: string }) =>
+      solicitarTasa(input.intencion, input.tasaSolicitada, input.motivo),
+    onSuccess: async () => { await invalidarRentabilidad(queryClient) },
+  })
+}
+
+export function useResolverSolicitudTasa() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { solicitudId: string; decision: DecisionSolicitudTasa; tasaMaxima: number | null; motivo: string | null }) =>
+      resolverSolicitudTasa(input.solicitudId, input.decision, input.tasaMaxima, input.motivo),
+    onSuccess: async () => { await invalidarRentabilidad(queryClient) },
+  })
+}
+
+export function useResponderTopeTasa() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { solicitudId: string; acepta: boolean; motivo: string | null }) =>
+      responderTopeTasa(input.solicitudId, input.acepta, input.motivo),
+    onSuccess: async () => { await invalidarRentabilidad(queryClient) },
+  })
+}
+
+export function usePublicarPoliticaRentabilidad() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: PublicacionPoliticaRentabilidad) => publicarPoliticaRentabilidad(input),
+    onSuccess: async () => { await invalidarRentabilidad(queryClient) },
   })
 }
 

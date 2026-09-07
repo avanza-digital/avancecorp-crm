@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import {
   Package, Target, Users, Clock, Settings, ChevronRight, Eye, RefreshCw, type LucideIcon,
+  Percent,
 } from 'lucide-react'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ const SECCIONES: Seccion[] = [
   { icon: Package, t: 'Productos de inversión', d: 'Catálogo versionado, condiciones, montos y tasas', vista: 'config-productos', color: 'var(--chart-1)' },
   { icon: Target, t: 'Metas', d: 'Objetivos por analista, categoría, moneda y mes', vista: 'config-metas', color: 'var(--chart-4)' },
   { icon: Clock, t: 'Tiempos de atención', d: 'Primera gestión, contacto y máximos por etapa', vista: 'config-sla', color: 'var(--chart-3)' },
+  { icon: Percent, t: 'Política de rentabilidad', d: 'Tasa base, herencia en renovación y upgrade, excepciones de Gerencia', vista: 'config-rentabilidad', color: 'var(--chart-5)' },
 ]
 
 interface PasoEstado {

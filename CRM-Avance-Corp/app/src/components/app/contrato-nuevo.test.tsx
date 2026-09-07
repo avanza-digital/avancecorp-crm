@@ -63,6 +63,15 @@ const legalesEstado = vi.hoisted(() => ({
 vi.mock('@/data/crm-queries', () => ({
   // ATR-3: el aviso de cadena de upgrade no aplica en estos escenarios — sin dato.
   useAtribucionContrato: vi.fn(() => ({ data: null, isPending: false, isError: false })),
+  // Rentabilidad R3: el núcleo responde base 15 (primera inversión) y no hay solicitudes vivas.
+  useResolucionTasa: vi.fn(() => ({
+    data: { tasa_base: 15, regla: 'primera_inversion', contrato_origen: null, contratos_previos: 0, prioridad_bandeja: false,
+      politica: { version: 1, modo: 'observacion', tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7 } },
+    isPending: false, isError: false, refetch: vi.fn(),
+  })),
+  useSolicitudesTasa: vi.fn(() => ({ data: [], isPending: false, isError: false, refetch: vi.fn() })),
+  useSolicitarTasa: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useResponderTopeTasa: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useDatosLegalesContrato: vi.fn((clienteId: string) => ({
     data: legalesEstado.error
       ? undefined
@@ -679,7 +688,9 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
 
 describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
   it('POSITIVO: renovando un contrato de una cadena, avisa a quién cuenta', async () => {
-    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValueOnce({
+    // Persistente (no «Once»): con la tasa fijada por la política (R3) el formulario se
+    // re-renderiza tras montar y volvería a consultar el hook; el aviso debe sobrevivir.
+    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({
       data: {
         contrato_id: 'origen-1',
         analista_id: 'x-1',
@@ -723,6 +734,7 @@ describe('ContratoNuevo — el aviso de la cadena de upgrade (ATR-3)', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/El núcleo determina el aporte de la renovación/)).toBeInTheDocument()
     expect(screen.queryByText(/La renovación suma una conversión/)).not.toBeInTheDocument()
+    vi.mocked(crmQueries.useAtribucionContrato).mockReturnValue({ data: null, isPending: false, isError: false } as never)
   })
 
   it('NEGATIVO: sin cadena en el origen, el aviso no existe', () => {

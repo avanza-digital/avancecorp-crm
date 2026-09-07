@@ -33,6 +33,7 @@ describe('router por hash', () => {
     ['#/config-productos', 'config-productos'],
     ['#/config-metas', 'config-metas'],
     ['#/config-sla', 'config-sla'],
+    ['#/config-rentabilidad', 'config-rentabilidad'],
   ] as const)('acepta variantes compatibles de %s', (hash, vista) => {
     window.location.hash = hash
     expect(leerHash()).toEqual({ vista, leadId: null })
@@ -110,6 +111,7 @@ describe('router por hash', () => {
       'config-productos',
       'config-metas',
       'config-sla',
+      'config-rentabilidad',
     ] as const) {
       expect(VISTAS).toContain(vista)
       expect(esVistaConfiguracion(vista)).toBe(true)

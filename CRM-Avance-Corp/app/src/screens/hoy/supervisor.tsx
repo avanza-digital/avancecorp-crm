@@ -25,6 +25,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AgendaEquipoPanel } from './agenda-equipo'
+import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 import { TresCosas } from './tres-cosas'
 import {
   BUCKET_LABEL,
@@ -838,6 +839,9 @@ export function HoySupervisor(): JSX.Element {
               </CardContent>
             </Card>
           </SlaOperacionBoundary>
+
+          {/* Rentabilidad R3: tus solicitudes de tasa en curso (solo si hay). */}
+          <TasasAutorizadasAnalistaPanel />
 
           {/* ── Agenda del equipo (Fase F — quién registra, cierra y arrastra) ── */}
           <AgendaEquipoPanel

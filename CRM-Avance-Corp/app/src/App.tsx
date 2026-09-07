@@ -58,6 +58,7 @@ const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) =
 const ConfigProductos = lazy(() => import('@/screens/config-productos').then((m) => ({ default: m.ConfigProductos })))
 const ConfigMetas = lazy(() => import('@/screens/config-metas').then((m) => ({ default: m.ConfigMetas })))
 const ConfigSla = lazy(() => import('@/screens/config-sla').then((m) => ({ default: m.ConfigSla })))
+const ConfigRentabilidad = lazy(() => import('@/screens/config-rentabilidad').then((m) => ({ default: m.ConfigRentabilidad })))
 
 /** Registro exhaustivo: una Vista nueva exige declarar también su pantalla. */
 const PANTALLA_POR_VISTA = {
@@ -83,6 +84,7 @@ const PANTALLA_POR_VISTA = {
   'config-productos': ConfigProductos,
   'config-metas': ConfigMetas,
   'config-sla': ConfigSla,
+  'config-rentabilidad': ConfigRentabilidad,
 } satisfies Record<Vista, unknown>
 
 /**

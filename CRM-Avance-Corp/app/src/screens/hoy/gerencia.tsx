@@ -62,6 +62,8 @@ import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
+import { ObservacionRentabilidadPanel } from './observacion-rentabilidad'
+import { SolicitudesTasaGerenciaPanel } from './solicitudes-tasa-gerencia'
 
 interface ConsultaCargable {
   isPending: boolean
@@ -640,6 +642,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       {esResumen && (
         <CompromisosSupervisoresPanel demo={modoDemo} nombrePorId={nombresEquipo} />
       )}
+
+      {/* Rentabilidad R2: qué tasa quedó frente a la que dice la política, por analista.
+          Solo en sesión real: el ledger de observación existe sobre datos de verdad. */}
+      {/* Rentabilidad R3: la bandeja de excepciones de tasa (aprobar · rechazar · aprobar hasta X%). */}
+      {esResumen && sesionReal && <SolicitudesTasaGerenciaPanel />}
+      {esResumen && sesionReal && <ObservacionRentabilidadPanel />}
 
       {seccion === 'conversiones' && (
         <InteligenciaComercialPanel

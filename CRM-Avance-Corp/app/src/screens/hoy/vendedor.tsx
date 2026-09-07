@@ -77,6 +77,7 @@ import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { seleccionarPrioridadesVendedor, type PrioridadVendedor } from './prioridades-vendedor'
+import { TasasAutorizadasAnalistaPanel } from './tasas-autorizadas-analista'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -1163,6 +1164,9 @@ export function HoyVendedor(): JSX.Element {
           Vista personal · solo ves tu cartera
         </p>
       </header>
+
+      {/* Rentabilidad R3: qué decidió Gerencia sobre tus solicitudes de tasa (solo si hay alguna en curso). */}
+      <TasasAutorizadasAnalistaPanel />
 
       <AvisoDegradacion
         activo={Boolean(resumenOp.error || (modoSla.legado && colaOp.error)) && !yo?.demo}

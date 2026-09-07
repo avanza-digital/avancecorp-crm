@@ -36,6 +36,8 @@ import {
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
 import { CuentaPagoContrato } from '@/components/app/cuenta-pago-contrato'
+import { TasaPolitica, type RangoTasaPolitica } from '@/components/app/tasa-politica'
+import { rangoEfectivo } from '@/lib/rentabilidad'
 import { useAtribucionContrato, useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
 import {
   SECCION_BANCARIA_VACIA,
@@ -158,6 +160,11 @@ export interface ContratoNuevoProps {
     moneda: Moneda
     fechaVencimiento: string
   }
+  /**
+   * Rentabilidad R3 (D2): en un UPGRADE el analista SELECCIONA el contrato activo que
+   * amplía; su tasa es la base que hereda. Son los contratos activos del cliente.
+   */
+  contratosActivos?: { id: string; numero_contrato: string; tasa_anual: number; capital: number; moneda: Moneda; fecha_vencimiento: string }[]
   /** Solo para el recorrido local sin backend: identidad legal ficticia ya conocida. */
   pdfDatosDemo?: Omit<ContratoPdfDatos, 'contrato'> | undefined
   /** Cuentas precargadas: obligatorias para un demo útil y, sobre todo, sin red. */
@@ -188,6 +195,7 @@ export function ContratoNuevo({
   monedaSugerida,
   categoriaFija,
   renovacionOrigen,
+  contratosActivos,
   pdfDatosDemo,
   cuentasDemo,
   validarNumero,
@@ -218,7 +226,12 @@ export function ContratoNuevo({
   const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
   const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
   const [moneda, setMoneda] = useState<Moneda>(renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
-  const [tasa, setTasa] = useState('15') // default del negocio (espejo del portal)
+  // Rentabilidad R3: la tasa la fija la POLÍTICA (bloque TasaPolitica); arranca en 15 solo hasta que el núcleo responde.
+  const [tasa, setTasa] = useState('15')
+  const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
+  const [origenUpgrade, setOrigenUpgrade] = useState<string>(
+    contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : '',
+  )
   const [fechaInicio, setFechaInicio] = useState(hoyLocal())
   const [plazo, setPlazo] = useState<string>('12')
   const [vencManual, setVencManual] = useState('')
@@ -404,6 +417,8 @@ export function ContratoNuevo({
   const esRenovacion = categoria === 'renovacion'
   const capitalNum = esRenovacion ? renovadoNum + adicionalNum : (parseMonto(capital) ?? NaN)
   const tasaNum = parseMonto(tasa) ?? NaN
+  const esUpgrade = categoria === 'upgrade'
+  const contratoOrigenId: string | null = esRenovacion ? renovacionOrigen?.id ?? null : esUpgrade ? origenUpgrade || null : null
 
   // Vencimiento libre: preset o fecha escrita por el analista.
   const fechaVencimiento = useMemo(() => {
@@ -544,6 +559,30 @@ export function ContratoNuevo({
       reportarError('La tasa anual debe ser mayor que 0 y hasta 50%')
       return
     }
+    if (esUpgrade && !contratoOrigenId) {
+      reportarError('Selecciona el contrato que se amplía (upgrade).')
+      return
+    }
+    // Rentabilidad R3: la tasa la fija la política. Sin autorización de Gerencia, solo la base;
+    // con ella, entre la base y la tasa autorizada. (El candado del servidor llega en R4.)
+    if (!esDemo) {
+      if (!rangoTasa || rangoTasa.minimo == null || rangoTasa.maximo == null || rangoTasa.modo === 'cargando' || rangoTasa.modo === 'error') {
+        reportarError('Todavía no se conoce la tasa base de la política. Espera o reintenta antes de crear el contrato.')
+        return
+      }
+      // La vigencia se comprueba con el reloj de AHORA (el bloque solo refresca el suyo cada minuto): caducada → base.
+      const rango = rangoEfectivo(rangoTasa)
+      if (rango.caducada && rango.minimo != null && tasaNum > rango.minimo + 1e-9) {
+        reportarError(`La autorización de Gerencia venció: la tasa vuelve a la base (${rango.minimo}%). Vuelve a solicitarla si la necesitas.`)
+        return
+      }
+      if (rango.minimo != null && rango.maximo != null && (tasaNum < rango.minimo - 1e-9 || tasaNum > rango.maximo + 1e-9)) {
+        reportarError(rango.minimo === rango.maximo
+          ? `La tasa de este contrato la fija la política: ${rango.minimo}%. Para otra tasa, solicita autorización a Gerencia.`
+          : `La tasa debe estar entre ${rango.minimo}% (base) y ${rango.maximo}% (autorizada por Gerencia).`)
+        return
+      }
+    }
     if (!fechaVencimiento) {
       reportarError('Falta la fecha de vencimiento')
       return
@@ -597,6 +636,8 @@ export function ContratoNuevo({
             capital_adicional: adicionalNum,
           }
         : {}),
+      // D2: el upgrade declara el contrato que amplía. Hoy la puerta lo ignora; R4 lo usa para heredar la tasa.
+      ...(esUpgrade && contratoOrigenId ? { contrato_origen_id: contratoOrigenId } : {}),
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
       cuenta_pago: cuentaPago.cuenta,
@@ -1006,6 +1047,40 @@ export function ContratoNuevo({
           </div>
         </div>
 
+        {esUpgrade && (
+          <div className="space-y-1.5">
+            <Label htmlFor="ct-origen-upgrade">Contrato que se amplía</Label>
+            {/* El <select> es SIEMPRE el dueño del id (la etiqueta nunca queda huérfana); el estado va en un id propio y vivo. */}
+            <Select
+              id="ct-origen-upgrade"
+              value={origenUpgrade}
+              onChange={(e) => setOrigenUpgrade(e.target.value)}
+              disabled={enviando || !contratosActivos?.length}
+              aria-describedby="ct-origen-upgrade-ayuda ct-origen-upgrade-estado"
+            >
+              {contratosActivos?.length ? (
+                <>
+                  <option value="" disabled>— Seleccionar —</option>
+                  {contratosActivos.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.numero_contrato} · {money(c.capital, c.moneda)} · {c.tasa_anual}% · vence {fmtFecha(c.fecha_vencimiento)}
+                    </option>
+                  ))}
+                </>
+              ) : (
+                <option value="">{contratosActivos ? 'Sin contratos activos que ampliar' : 'No disponible desde aquí'}</option>
+              )}
+            </Select>
+            <p id="ct-origen-upgrade-estado" role="status" className="text-xs font-semibold text-destructive">
+              {contratosActivos?.length === 0 && 'Este cliente no tiene contratos activos que ampliar. Un upgrade siempre amplía un contrato activo.'}
+              {contratosActivos === undefined && 'Los upgrades se registran desde la ficha del cliente, eligiendo el contrato que se amplía.'}
+            </p>
+            <p id="ct-origen-upgrade-ayuda" className="text-xs text-muted-foreground">
+              El upgrade hereda la tasa del contrato que amplía (política de rentabilidad).
+            </p>
+          </div>
+        )}
+
         {analistas && analistas.length > 0 ? (
           <div className="space-y-1.5">
             <Label htmlFor="ct-analista">Analista de la venta</Label>
@@ -1117,17 +1192,25 @@ export function ContratoNuevo({
         )}
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="ct-tasa">Tasa anual (%)</Label>
-            <Input
-              id="ct-tasa"
-              inputMode="decimal"
-              value={tasa}
-              onChange={(e) => setTasa(e.target.value)}
-              placeholder="18"
-              disabled={enviando}
-            />
-          </div>
+          <TasaPolitica
+            clienteId={clienteId}
+            categoria={categoria}
+            contratoOrigenId={contratoOrigenId}
+            intencion={{
+              capital: Number.isFinite(capitalNum) ? capitalNum : null,
+              moneda,
+              modalidad: esCompuesto ? 'anual' : modalidad,
+              tipo_interes: tipoInteres,
+              fecha_inicio: fechaInicio,
+              fecha_vencimiento: fechaVencimiento,
+            }}
+            tasa={tasa}
+            onTasaChange={setTasa}
+            onRangoChange={setRangoTasa}
+            demo={esDemo}
+            disabled={enviando}
+            idInput="ct-tasa"
+          />
           {!esCompuesto && (
             <div className="space-y-1.5">
               <Label htmlFor="ct-modalidad">Modalidad de pago</Label>

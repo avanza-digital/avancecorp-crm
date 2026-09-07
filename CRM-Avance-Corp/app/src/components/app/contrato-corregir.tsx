@@ -29,7 +29,9 @@ import {
   actualizarContrato,
   CrmApiError,
   type ActualizarContratoInput } from '@/data/crm-api'
-import { useTitulares } from '@/data/crm-queries'
+import { useHistorialTasaCliente, useTitulares } from '@/data/crm-queries'
+import { TasaPolitica, type RangoTasaPolitica } from '@/components/app/tasa-politica'
+import { rangoEfectivo } from '@/lib/rentabilidad'
 import { useProductosSeleccionables } from '@/data/crm-config-queries'
 import { validarRangosProducto } from '@/lib/contrato-producto'
 import type { ProductoCondicionSeleccion } from '@/lib/productos-inversion'
@@ -125,6 +127,11 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const [capital, setCapital] = useState(String(contrato.capital))
   const [moneda, setMoneda] = useState<Moneda>(contrato.moneda)
   const [tasa, setTasa] = useState(String(contrato.tasa_anual))
+  // Rentabilidad R3: cambiar la tasa exige la autorización de Gerencia (bloque TasaPolitica en modo corrección).
+  const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
+  // El contrato origen de una renovación/upgrade lo conoce el ledger (R2), no la fila del contrato: hace falta para pedir excepción.
+  const historialTasa = useHistorialTasaCliente(contrato.cliente_id, true)
+  const origenSegunLedger = historialTasa.data?.contratos.find((c) => c.contrato_id === contrato.id)?.observacion?.contrato_origen_id ?? null
   const [fechaInicio, setFechaInicio] = useState(contrato.fecha_inicio)
   // El select muestra el plazo REAL: si ningún preset reproduce el vencimiento
   // guardado, arranca en 'personalizado' (antes caía a '12' y enseñaba "1 año"
@@ -340,6 +347,20 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     }
     if (!Number.isFinite(tasaNum) || tasaNum <= 0 || tasaNum > 50) {
       setError('La tasa anual debe estar entre 0 y 50%.')
+      return
+    }
+    // Rentabilidad: SIEMPRE (también con producto de catálogo): la tasa vigente solo cambia con autorización de Gerencia.
+    // La vigencia se comprueba con el reloj de AHORA (el bloque solo refresca el suyo cada minuto): caducada → tasa vigente.
+    const rango = rangoTasa ? rangoEfectivo(rangoTasa) : null
+    if (rango?.caducada && rango.minimo != null && tasaNum > rango.minimo + 1e-9) {
+      setError(`La autorización de Gerencia venció: la tasa se queda en la vigente (${rango.minimo}%). Vuelve a solicitarla si la necesitas.`)
+      return
+    }
+    if (rango && rango.minimo != null && rango.maximo != null
+        && (tasaNum < rango.minimo - 1e-9 || tasaNum > rango.maximo + 1e-9)) {
+      setError(rango.minimo === rango.maximo
+        ? `La tasa vigente del contrato es ${rango.minimo}%. Cambiarla exige la autorización de Gerencia: usa «Solicitar tasa superior».`
+        : `La tasa debe estar entre ${rango.minimo}% y ${rango.maximo}% (autorizada por Gerencia).`)
       return
     }
     if (condicionProducto) {
@@ -572,16 +593,30 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
-          <div className="space-y-1.5">
-            <Label htmlFor="cc-tasa">Tasa anual (%)</Label>
-            <Input
-              id="cc-tasa"
-              inputMode="decimal"
-              value={tasa}
-              onChange={(e) => setTasa(e.target.value)}
-              disabled={enviando || esVersionCatalogadaNoVigente}
-            />
-          </div>
+          <TasaPolitica
+            clienteId={contrato.cliente_id}
+            categoria={categoria || contrato.categoria || 'nuevo'}
+            contratoOrigenId={origenSegunLedger}
+            intencion={{
+              capital: Number.isFinite(capitalNum) ? capitalNum : null,
+              moneda,
+              modalidad: esCompuesto ? 'anual' : modalidad,
+              tipo_interes: tipoInteres,
+              fecha_inicio: fechaInicio,
+              fecha_vencimiento: venc,
+              // Misma huella que el candado: la condición de CATÁLOGO elegida, o null. El snapshot legacy NO va: lo
+              // sintetiza el servidor al guardar (y crea otro distinto si cambian los términos), así que ni el
+              // formulario puede predecirlo ni la autorización podría coincidir con él.
+              producto_condicion_id: condicionProducto?.condicion_id ?? null,
+            }}
+            tasa={tasa}
+            onTasaChange={setTasa}
+            onRangoChange={setRangoTasa}
+            demo={false}
+            disabled={enviando || esVersionCatalogadaNoVigente}
+            idInput="cc-tasa"
+            correccion={{ tasaActual: contrato.tasa_anual, contratoId: contrato.id }}
+          />
           <div className="space-y-1.5">
             <Label htmlFor="cc-inicio">Fecha de inicio</Label>
             <Input

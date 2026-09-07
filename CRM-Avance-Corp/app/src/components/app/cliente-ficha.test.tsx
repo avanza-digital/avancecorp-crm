@@ -38,6 +38,8 @@ vi.mock('@/data/crm-api', async (importActual) => {
     obtenerClienteFichaComercial: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
     listarActividadesCliente: vi.fn(),
+    // Rentabilidad R3: sin ledger ni solicitudes en estos escenarios.
+    obtenerHistorialTasaCliente: vi.fn(async () => ({ cliente_id: 'cli-1', contratos: [], solicitudes: [] })),
   }
 })
 

@@ -40,6 +40,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   'config-productos': 'Productos',
   'config-metas': 'Metas',
   'config-sla': 'Tiempos de atención',
+  'config-rentabilidad': 'Política de rentabilidad',
 }
 
 interface AyudaVendedorPanelProps {
