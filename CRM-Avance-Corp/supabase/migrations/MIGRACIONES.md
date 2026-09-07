@@ -8361,7 +8361,7 @@ Después del primer frontend se publicaron las reglas y se activó con revisione
 
 ### SLA-R2 · artefacto publicado y reconciliación del ledger
 
-Primer frontend ya publicado: commit fuente `839aa7c8c01cecba3102fb3222408784a1e4b972`, build `build-20260907T035742935Z`, release `crm-20260907T035743Z-839aa7c8c01c`, destino `crm.miavance.com`. Hay un hotfix en curso; no reutilizar estos identificadores para describir su publicación final. Validación local del hotfix: 2918/2918 pruebas/201 archivos en 17,21 s, typecheck correcto, lint 0 errores y cuatro advertencias preexistentes de coverflow; store62/62 (14 regresiones nuevas), API45/45. Rechequeo E2E de siete casos e identidad/smoke del artefacto final pendientes de confirmación.
+Primer frontend ya publicado: commit fuente `839aa7c8c01cecba3102fb3222408784a1e4b972`, build `build-20260907T035742935Z`, release `crm-20260907T035743Z-839aa7c8c01c`, destino `crm.miavance.com`. Hay un hotfix en curso; no reutilizar estos identificadores para describir su publicación final. Validación local del hotfix: 2918/2918 pruebas/201 archivos en 17,21 s, typecheck correcto, lint 0 errores y cuatro advertencias preexistentes de coverflow; store62/62 (14 regresiones nuevas), API45/45. E2E final 7/7 en 26,5 s y revisión visual de escritorio y móvil correctas. Identidad y smoke del artefacto final pendientes de confirmación.
 
 | Nombre | Versión operativa MCP | Versión canónica actual |
 |---|---|---|
