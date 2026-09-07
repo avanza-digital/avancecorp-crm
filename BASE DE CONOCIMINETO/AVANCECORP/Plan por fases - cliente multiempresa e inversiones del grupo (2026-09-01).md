@@ -201,6 +201,15 @@ Estas reglas permiten diseñar sin dejar ambigüedades. Miguel puede cambiarlas 
 6. Comisión: **cada inversión liquida según la regla de su empresa**; la conversión se acredita una sola vez en la vida (en la primera inversión). ✅
 7. si las inversiones en cooperativa llevan una fecha comercial propia, que puede ser anterior al registro pero nunca futura; Capital y conversión la usan igual que en Avance. Si cae en un mes ya sellado, entra como ajuste posterior, sin reescribir el mes (añadida el 02/09/2026 como decisión 9 de la lista de preguntas a Miguel; **CONFIRMADA por Miguel el 02/09/2026**).
 
+> [!success] Estado real al 07/09/2026 — TRES fases de nueve
+> **F0, F1, F2 y F3 están EN PRODUCCIÓN**, y la identidad unificada se **encendió el 07/09 a las 10:09 (Lima)**:
+> el CRM ya reconoce a la persona a través de leads, clientes del Portal y contratos.
+> **Falta desde F4**: hoy un cliente **todavía NO puede** invertir en otra empresa desde su ficha; los interruptores
+> `inversiones_escritura` (F4) y `ficha_360_neutral` (F5) siguen apagados y no existe la puerta de «nueva inversión».
+> 🔴 Hallazgo del encendido: **930 de 937 leads vivos no tienen documento**, y el documento es lo que el motor
+> necesita. Decidir si se pide en el formulario es previo a que F4 rinda.
+> Punto de retoma: [[RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07)]].
+
 ## 6. Plan por fases
 
 Horizonte de referencia: **12 semanas**, suponiendo decisiones rápidas, una persona de ingeniería dedicada, revisión independiente y usuarios piloto disponibles. Los gates no se eliminan para recuperar retrasos.

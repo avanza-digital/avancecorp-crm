@@ -8215,6 +8215,36 @@ La v1 nunca se aplicó. `auditor-rls` (04/09) la tumbó con NO-GO: usaba `at tim
 
 **Reversa:** `scripts/rollback-f2b-d15.sql` (DROP; publicar antes un front que vuelva al UPDATE directo, que con la bandera encendida cierra D-13).
 
+## 🟢 07/09/2026 10:09 (Lima) — LA IDENTIDAD UNIFICADA SE ENCENDIÓ EN PRODUCCIÓN
+
+`crm.multiempresa_flags.resolver_en_puertas = true`. No es una migración: es el interruptor que pone en marcha todo lo
+que las migraciones D-1 … D-20 dejaron construido y apagado. Se ejecutó el equivalente exacto de
+`scripts/encender-resolver-en-puertas.sql` (guarda del trigger de D-5, exigencia de D-19, aviso de transacciones en
+vuelo y el UPDATE) en una sola transacción atómica. ⚠️ **Se ejecutó por la vía MCP a petición expresa de Miguel («hazlo
+ahora»), no con su `!` habitual**: queda anotado porque se aparta de la regla del proyecto de que toda escritura en
+producción pasa por su terminal.
+
+**Verificación inmediata (seis sondeos independientes en producción y un escéptico por hallazgo): 33 observaciones,
+CERO confirmadas como problema del encendido.** 664 peticiones sin un solo 4xx ni 5xx; cero errores de base; cero
+contención de candados; los analistas siguieron trabajando (6 gestiones en los primeros 5 minutos); y las cifras de
+Gerencia —capital por moneda, contratos, clientes, leads y conversión— **idénticas** al minuto anterior, que es lo que
+debía pasar: encender no mueve dinero.
+
+🔴 **Hallazgo que condiciona el valor de todo esto: los leads no traen documento.** El motor reconoce a la persona por
+su documento, y el canal principal no lo captura: en septiembre entraron **440 leads y solo 10 con DNI**; de los **937
+leads vivos, 930 no lo tienen**; la tanda del 07/09 (114 leads), ninguno. Sobre esos leads el motor no puede actuar
+—no detecta el duplicado ni reconoce al cliente que vuelve—. Sí actúa donde el documento existe: cuando el analista lo
+escribe en la ficha, al convertir (27 de las 35 conversiones históricas lo tenían), al crear contrato y en la corrección
+de documento de Gerencia. **Decidir si se pide el documento en el formulario es previo a que F4 rinda.**
+
+**Apagado:** `scripts/apagar-resolver-en-puertas.sql`, reversible en un comando y sin pérdida de datos; desde D-19 el
+cambio de bandera **espera** a las operaciones en vuelo. Las notas y tareas ya creadas por D-20 no se borran.
+
+**Estado del plan multiempresa: tres fases de nueve.** F0, F1, F2 y F3 en producción. Falta desde **F4** (motor de
+inversiones multiempresa): hoy un cliente **todavía no puede** invertir en otra empresa desde su ficha; los
+interruptores `inversiones_escritura` y `ficha_360_neutral` siguen en `false`. Punto de retoma: nota del vault
+**RETOMAR-62**.
+
 ## 20260906160000 · `crm_f2b_d17_veto_y_coop_bajo_el_candado_de_la_bandera`
 
 **Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 06/09/2026 (noche, Lima) por Miguel con dos `!` (`db query --linked --file` de la migración y del registrador). Verificado en solo lectura tras cada paso: los tres cuerpos (`marcar_no_contactar` `9b7e1138…`, `levantar_no_contactar` `3840a73f…`, `convertir_lead_externo` `162daf7c…`) toman el candado, conservan DEFINER, dueño `postgres` y EXECUTE solo para `authenticated`; md5 registrado `15498af7…` = archivo; banderas en `false`. Antes: construida y ensayada en banco-f7 el mismo día. Aterriza APAGADA y, con la bandera estable, no cambia ningún comportamiento. **Orden: DESPUÉS de D-5 (el trigger serializador vive en D-5) y de D-15.** Auditor-rls: «apta para aterrizar apagada», condicionada a esta fila del ledger (cerrada aquí). Codex (1 ronda, solo lectura): **GO para aterrizar APAGADA, NO-GO para ENCENDER con pendientes** (ver «Lo que NO cierra»).
@@ -8300,9 +8330,21 @@ Manifiesto y oráculos puros: [README N1](../tests/sla-nucleo/README.md). Integr
 
 El contraste real y las reglas guiadas están documentados. N1 está instalada y el backend opera con política v6, modo activo/revisión 1 y primera activación `2026-09-07T04:03:49.941009Z`. El hotfix final está publicado y verificado, con la identidad y evidencias registradas al final de SLA-R2. N1 se aplicó después del prerrequisito `20260907032338`, aunque su nombre sea cronológicamente posterior. El orden y registro completos se detallan en SLA-R2.
 
+## 20260906233000 · `crm_rentabilidad_r1_hotfix_conflicto_version_p0409`
+
+**Estado: 🧪 construido y ensayado en banco-f7 el 06/09/2026 (aplicado, registrado ×2, reversa → reaplicar → registrar en cadena; md5 del archivo `6eaccec7…`; cuerpo de la función `55193777…`, el de R1 era `47ef8010…`). Pendiente: `!` de Miguel (hotfix + `scripts/registrar-rentabilidad-r1-hotfix.sql`), junto con R3.** Requiere R1 en producción (lo está).
+
+**Qué.** `create or replace` de `crm.publicar_politica_rentabilidad_fn(integer, jsonb)` con el MISMO cuerpo de R1 salvo el errcode del conflicto de versión: **40001 → P0409** (y su comentario). Firma, DEFINER, `search_path`, `lock_timeout`, grants y comportamiento intactos. Se niega si la función no lleva el cuerpo exacto de R1.
+
+**Por qué.** En Supabase, PostgREST trata SQLSTATE `40001` (*serialization_failure*) como fallo transitorio y **reintenta la llamada hasta que el gateway corta con «upstream request timeout» (~125 s)**. Reproducido en el banco el 06/09: una función que solo hace `raise … errcode '40001'` tarda 125 143 ms vía RPC; la misma con `'P0409'`, 590 ms. Publicar la política con una versión vieja (control optimista, D-lógica de R1) colgaba 2 minutos en vez de responder «Conflicto de versión» al instante; era el único fallo de R1 en la suite RLS (tres corridas seguidas) y en psql tardaba <1 s, por eso parecía un *flake*. Tras el hotfix: 143 ms y `P0409` vía PostgREST. `test-rls.mjs` y `oraculo-rentabilidad-r1.sh` esperan ahora `P0409`.
+
+**⚠️ Hallazgo fuera de este alcance (decisión pendiente de Miguel).** El mismo `40001` lo usan funciones VIVAS en producción desde agosto: `20260807203757_crm_metas_sla_versionados` (2 raises), `20260807203751_crm_catalogo_productos_versionado` (5) y `20260807203740_crm_usuarios_jerarquia_autoservicio` (4). Cada conflicto de versión en Configuración → Metas/SLA, Catálogo o Usuarios cuelga ~2 minutos y termina en un error de gateway en vez del mensaje de conflicto. Mismo arreglo (P0409 + tests), en su propia migración.
+
+**Reversa:** `scripts/rollback-rentabilidad-r1-hotfix.sql` (restaura el cuerpo exacto de R1 y desregistra; solo si la función lleva el cuerpo del hotfix). **Registro:** `scripts/registrar-rentabilidad-r1-hotfix.sql` (md5 `6eaccec7…`).
+
 ## 20260906220000 · `crm_rentabilidad_r3_lecturas_bandeja_ficha_politica`
 
-**Estado: 🧪 construida y ensayada en banco-f7 el 06/09/2026, **v2** tras la revisión adversarial de Codex (aplicada y registrada allí; md5 del archivo `7fa52bb6…`; cuerpos: solicitudes `77fdd56a…`, historial `5fc2c0e8…`, política `8a4aca68…`; la v1 `c913928b…` quedó revertida en el banco y la reversa acepta ambas). Registro ×2 idempotente; reversa → reaplicar → registrar en cadena. Bloque «Rentabilidad R3» en `test-rls.mjs`. Codex R3 (11 hallazgos, todos atendidos: en el servidor **#3** el asesor necesita además `puede_registrar_ventas()`, **#4** `cliente_nombre` solo con ámbito sobre la ficha —el resto del subárbol ve «Cliente de tu equipo»—, **#9** el filtro por estado es sobre el estado EFECTIVO antes del `limit`; y 42501 uniforme también si el cliente no existe) y `revisor-a11y` (5 mayores corregidos: foco al abrir/cerrar y tras decidir, contraste del badge, `<label>` del selector de origen, `aria-invalid` con texto). Pendiente: `!` de Miguel (migración + `scripts/registrar-rentabilidad-r3.sql`) y, DESPUÉS, el release del CRM (`/release-crm`) y el despliegue del portal.** Plan: vault «Plan Rentabilidad server-side», fase **R3** (el frente). Requiere R1 y R2 (en producción).
+**Estado: 🧪 construida y ensayada en banco-f7 el 06/09/2026, **v5** tras TRES rondas adversariales de Codex (md5 del archivo `44f002a4…`; cuerpos: solicitudes `abe12a00…` —firma nueva `(text[], integer, boolean, uuid)`—, historial `4c65bdb3…`, política `8a4aca68…`; v1 `c913928b…`, v2 `7fa52bb6…`, v3 `ae76461e…` y v4 `282e5fcd…` solo existieron en el banco, la reversa reconoce las cinco y suelta ambas firmas). Registro ×2 idempotente; reversa → reaplicar → registrar en cadena (cinco veces en el banco). Suite RLS completa en banco-f7 con la v5 (06/09 noche): **R3 29/29, R2 19/19, R1 60/61**; los 15 fallos de 1666 son ajenos (57014 por timeout del banco compartido en métricas/conversiones, conteos de clientes movidos por otra sesión, y «publicar con la versión vieja → 40001» que llega como *upstream request timeout* del gateway aunque en psql el rechazo tarda <1 s). Codex R3 (11 hallazgos, todos atendidos: en el servidor **#3** el asesor necesita además `puede_registrar_ventas()`, **#4** `cliente_nombre` solo con ámbito sobre la ficha —el resto del subárbol ve «Cliente de tu equipo»—, **#9** el filtro por estado es sobre el estado EFECTIVO antes del `limit`; y 42501 uniforme también si el cliente no existe). Codex ronda 2 (5 mayores, todos atendidos): **`solicitudes_tasa_fn` gana `p_solo_mias` y `p_cliente_id`** (filtro de SERVIDOR antes del límite: el formulario y el aviso del analista piden solo las suyas, así 200 pendientes del equipo no tapan una autorización propia; la bandeja de Gerencia sigue con `['pendiente']` y límite 200, pendientes y prioritarias primero: límite aceptado), la lectura del historial tiene EXACTAMENTE la autoridad de la policy del ledger de R1 (se quitó la rama `es_admin()`: un admin del Portal sin membresía CRM no lee el ledger por policy y tampoco por la RPC), y en el frente: Enter en «Tasa solicitada» ya no dispara el alta, la corrección conserva la tasa persistida aunque haya autorización viva, la vigencia se recomprueba con `Date.now()` al guardar (`rangoEfectivo`), el analista ve los rechazos de los últimos 7 días y el panel no se desmonta con el foco dentro. Codex ronda 3 (5 cerrados, 2 parciales → cerrados en v5): las TERMINALES solo de los últimos 7 días en el servidor y las VIVAS siempre antes del `limit`, para que 200 rechazos viejos no tapen una autorización. Y `revisor-a11y` (5 mayores corregidos: foco al abrir/cerrar y tras decidir, contraste del badge, `<label>` del selector de origen, `aria-invalid` con texto). Pendiente: `!` de Miguel (migración + `scripts/registrar-rentabilidad-r3.sql`) y, DESPUÉS, el release del CRM (`/release-crm`) y el despliegue del portal.** Plan: vault «Plan Rentabilidad server-side», fase **R3** (el frente). Requiere R1 y R2 (en producción).
 
 **Qué (servidor).** Tres LECTURAS DEFINER estables, solo `authenticated`, sin tocar `public` ni ninguna función viva: **`crm.solicitudes_tasa_fn(p_estados, p_limite)`** — las solicitudes visibles para el actor con la MISMA regla que la policy de R1 (quien pidió; su subárbol; Gerencia todas; Directorio), nombres resueltos, `estado_efectivo` (vencida si `vence_en` pasó aunque el sello sea perezoso), `es_mia`, `puede_resolver` (Gerencia, ajena, pendiente, vigente: D3) y `puede_responder`; pendientes y prioritarias (D1) primero; 22023 con un estado desconocido; 42501 sin la autoridad del alta. **`crm.historial_tasa_cliente_fn(p_cliente_id)`** — por contrato del cliente la ÚLTIMA fila del ledger (legacy u observación) y las solicitudes del cliente visibles; autoridad de la ficha o Gerencia/Directorio/admin/asesor; 42501 uniforme. **`crm.politica_rentabilidad_fn()`** — vigente, `expected_version`, historial, hito de activación y `puede_publicar`. Guardas: R1/R2 aplicadas con el núcleo de R2 exacto (`a3f043fb…`), columna `secuencia`, helpers de autoridad con su md5 de prod.
 
@@ -8310,7 +8352,7 @@ El contraste real y las reglas guiadas están documentados. N1 está instalada y
 
 **Límite declarado:** hasta R4 el candado es del FRONTE: la puerta SQL sigue aceptando la tasa que llegue (R2 la observa). R4 hará que `crear_contrato_con_cuenta_pdf_v2`, `public.crear_contrato` y la corrección ignoren la tasa del navegador salvo autorización vigente con la misma huella, y lean `contrato_origen_id` del upgrade.
 
-**Reversa:** `scripts/rollback-rentabilidad-r3.sql` (drop de las 3 lecturas si llevan un cuerpo conocido; el front recibiría PGRST202: publicar antes un front sin R3). **Registro:** `scripts/registrar-rentabilidad-r3.sql` (md5 `7fa52bb6…`; exige los 3 cuerpos, definer/config/volatilidad/ACL).
+**Reversa:** `scripts/rollback-rentabilidad-r3.sql` (drop de las 3 lecturas si llevan un cuerpo conocido; el front recibiría PGRST202: publicar antes un front sin R3). **Registro:** `scripts/registrar-rentabilidad-r3.sql` (md5 `44f002a4…`; exige los 3 cuerpos, definer/config/volatilidad/ACL).
 
 
 ## SLA-R2 · orden explícito de publicación conjunta (07/09/2026 UTC)

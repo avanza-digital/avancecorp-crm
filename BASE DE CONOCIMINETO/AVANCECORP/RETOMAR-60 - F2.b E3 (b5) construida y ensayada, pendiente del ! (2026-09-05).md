@@ -1,5 +1,12 @@
 # RETOMAR-60 — F2.b «cola del catálogo F0»: E3 (b5) y E4 (`public`) EN PRODUCCIÓN (apagadas). F2.b COMPLETA
 
+> [!success] CERRADA el 07/09/2026
+> Todo el plan de activación de F2.b está EN PRODUCCIÓN y la bandera `resolver_en_puertas` se **encendió el 07/09 a
+> las 10:09:16 (Lima)**. Esta nota queda como histórico del trabajo. **La continuación vive en
+> [[RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07)]]**, con la verificación del encendido, el
+> hallazgo de los leads sin documento, las decisiones pendientes y las fases F4–F9.
+
+
 **Fecha del checkpoint:** 2026-09-05. **Para retomar en otra sesión:** decir «retomemos RETOMAR-60». Sustituye a [[RETOMAR-59 - F2.b cola del catalogo F0, E1+E2 en produccion, sigue E3 (2026-09-05)]].
 
 Enlaza con: [[Contrato arquitectonico consolidado - identidad unificada de inversionistas (F0 2026-08-31)]] · [[Catalogo de puertas de escritura - identidad e inversiones (F0, 2026-09-03)]] · [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
