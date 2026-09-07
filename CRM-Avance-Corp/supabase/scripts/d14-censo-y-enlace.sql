@@ -14,8 +14,9 @@
 -- CENSO DEL 06/09/2026 EN PRODUCCIÓN (repetido dos veces ese día, la segunda al cerrar el bloque 6):
 -- 11 leads vivos con documento sin enlace ni puente, y NINGUNO de sus documentos corresponde a una
 -- persona reconocida ni a un cliente del Portal → 0 candidatos, 0 conflictivos. Nada que enlazar.
--- D-14 es hoy un NO-OP: repetir la PARTE 1 el mismo día del `!` de la bandera y, si sigue en 0,
--- darlo por cerrado sin ejecutar la PARTE 2.
+-- CENSO DEL 07/09/2026 (lunes, tras la primera tanda real del puente): 11 leads vivos con documento,
+-- **0 candidatos y 0 conflictivos**. D-14 queda CERRADO como no-op: no se ejecuta la PARTE 2. Si el
+-- encendido se retrasa varios días, repetir la PARTE 1 esa misma mañana.
 -- ============================================================================
 
 -- ── PARTE 1 · CENSO (solo lectura; no escribe nada) ─────────────────────────────────────────────
