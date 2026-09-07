@@ -93,3 +93,48 @@ describe('contrato de realización de citas por modalidad', () => {
     }
   })
 })
+
+describe('bases y alcance de Citas de Gerencia', () => {
+  it('conserva los nuevos campos y sigue aceptando respuestas anteriores', () => {
+    const payload = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    const datos = v.parse(MetricasReunionesSchema, payload)
+    expect(datos.resumen).toMatchObject({ divisor_realizacion: 72, divisor_asistencia: 66 })
+    expect(datos.responsables[1]).toMatchObject({ divisor_realizacion: 24, debieron_ocurrir: 26, canceladas_sistema_vencidas: 1, canceladas_ajenas_vencidas: 0, reprogramadas_vencidas: 1, programadas_futuras: 1 })
+    expect(datos.conversion.leads_con_cierre_previo).toBe(1)
+    for (const campo of [...CAMPOS_REALIZACION, 'divisor_asistencia'] as const) delete payload.resumen[campo]
+    for (const fila of payload.responsables) {
+      for (const campo of [...CAMPOS_REALIZACION, 'debieron_ocurrir', 'canceladas_ajenas_vencidas', 'programadas_futuras'] as const) delete fila[campo]
+    }
+    for (const fila of [payload.conversion, ...payload.modalidades, ...payload.origenes]) delete fila.leads_con_cierre_previo
+    const anterior = v.parse(MetricasReunionesSchema, payload)
+    expect(anterior.resumen.divisor_realizacion).toBeUndefined()
+    expect(anterior.responsables[0]!.divisor_realizacion).toBeUndefined()
+    expect(anterior.conversion.leads_con_cierre_previo).toBeUndefined()
+  })
+
+  it('rechaza bases globales o de analista incompatibles sin corregirlas en el cliente', () => {
+    const global = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    global.resumen.divisor_realizacion = 71
+    expect(v.safeParse(MetricasReunionesSchema, global).success).toBe(false)
+    const asistencia = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    asistencia.resumen.divisor_asistencia = 82
+    expect(v.safeParse(MetricasReunionesSchema, asistencia).success).toBe(false)
+    const analista = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    analista.responsables[1]!.divisor_realizacion = 27
+    expect(v.safeParse(MetricasReunionesSchema, analista).success).toBe(false)
+  })
+
+  it('acepta historia fuera del desglose y rechaza filas que exceden el total', () => {
+    const payload = metricasReunionesDemo('2026-08-01', '2026-08-31')
+    payload.responsables.pop()
+    expect(v.safeParse(MetricasReunionesSchema, payload).success).toBe(true)
+    payload.responsables[0]!.pactadas = payload.resumen.pactadas + 1
+    expect(v.safeParse(MetricasReunionesSchema, payload).success).toBe(false)
+  })
+
+  it('no admite que los cierres previos y posteriores dupliquen la base de prospectos', () => {
+    const payload = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    payload.conversion.leads_con_cierre_previo = payload.conversion.leads_reunidos
+    expect(v.safeParse(MetricasReunionesSchema, payload).success).toBe(false)
+  })
+})

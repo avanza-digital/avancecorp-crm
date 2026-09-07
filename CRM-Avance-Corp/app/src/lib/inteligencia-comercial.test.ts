@@ -100,8 +100,8 @@ describe('contratos de inteligencia comercial', () => {
 
   it('el ejemplo de modalidades entrega la base y las exclusiones N2 explícitas', () => {
     const demo = metricasReunionesDemo('2026-09-01', '2026-09-04')
-    expect(demo.modalidades[0]).toMatchObject({ divisor_realizacion: 44, canceladas_sistema_vencidas: 0, reprogramadas_vencidas: 0, realizadas: 37, pct_realizacion: 84.09 })
-    expect(demo.modalidades[1]).toMatchObject({ divisor_realizacion: 29, canceladas_sistema_vencidas: 0, reprogramadas_vencidas: 0, realizadas: 21, pct_realizacion: 72.41 })
+    expect(demo.modalidades[0]).toMatchObject({ divisor_realizacion: 44, canceladas_sistema_vencidas: 1, reprogramadas_vencidas: 1, realizadas: 37, pct_realizacion: 84.09 })
+    expect(demo.modalidades[1]).toMatchObject({ divisor_realizacion: 28, canceladas_sistema_vencidas: 1, reprogramadas_vencidas: 1, realizadas: 21, pct_realizacion: 75 })
     expect(demo.modalidades.reduce((total, fila) => total + fila.reprogramadas, 0)).toBe(demo.resumen.reprogramadas)
     for (const fila of demo.modalidades) {
       expect(fila.reprogramadas - (fila.reprogramadas_vencidas ?? 0)).toBeLessThanOrEqual(

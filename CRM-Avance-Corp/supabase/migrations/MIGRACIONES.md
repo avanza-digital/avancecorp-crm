@@ -8519,3 +8519,14 @@ Verificado localmente: 56 casos PostgreSQL 16; migración, reversión y reaplica
 Frontend publicado desde fuente limpia `8bb960672fb2a6d14e728e96b8ff611e30f3d9cb`, idéntica a Main/avancecorp/main al publicar: release `crm-20260907T165158Z-8bb960672fb2`, build `build-20260907T165116731Z`. HTTP: 78 archivos, 65 hashes exactos, 12 imágenes optimizadas, configuración protegida y cero fallos. [Evidencia](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/avisos-contextuales-20260907/implementacion/produccion-verificacion.json). El commit de cierre documental no altera esa fuente.
 
 El nuevo aviso de advisors corresponde a la RPC SECURITY DEFINER autorizada para authenticated; se verificaron ACL, search_path y ámbito. No se añadieron policies para silenciarlo. Reversión: `../scripts/rollback-sla-avisos-contextuales.sql`, primero recuperar el frontend anterior compatible.
+
+
+## 20260907194622 — Citas de Gerencia: bases y alcance (APLICADA)
+
+Miguel autorizó corregir los ocho hallazgos después de aclarar el alcance frontend/consulta. Se amplía únicamente `private.metricas_reuniones_implementacion(date,date)` con bases, exclusiones por responsable y el conteo `leads_con_cierre_previo`. La regla de atribución desde la hora programada de la última cita realizada se conserva, sin tolerancia temporal inventada. No cambia la fachada, los núcleos, las firmas, las ACL ni datos comerciales.
+
+Versión canónica alineada antes del primer commit con el ledger MCP `20260907194622`; SHA-256 del SQL `615e9e8cb8dc63729899ca6e719755bbfdfcd9947583f8ad64164b7b86f42665`. MD5 del agregador `6e8935eae3cf1a4c049a93cb20e1f3bd` → `cec7ee9ec1c31ddd8fa17f1d42e88fc1`. Guardas transaccionales verifican dependencias, OID, permisos, propietario y search_path.
+
+Banco aislado PostgreSQL 16 aprobado: paridad de todos los campos previos, bases globales y de analista, responsable histórico, cierre anterior por 20 segundos, exacto, posterior al rango, última cita, anulación, ACL, rechazo de reaplicación, reversión y reaplicación. Auth/catálogo/Capital son dobles declarados; Citas, Conversión, filtro, agregador y fachada son cuerpos reales capturados. Producción: agosto y septiembre conservan todos los valores anteriores y pasan el contrato frontend; cinco dependencias protegidas idénticas. Advisors sin novedades (seguridad 210; rendimiento 89).
+
+Pruebas: `../scripts/test-citas-gerencia-local.py`, con JSON de definiciones capturadas y esta migración. Reversión: `../scripts/rollback-citas-gerencia-bases-y-alcance.sql`; exige la huella nueva y restaura la anterior. El frontend acepta la ausencia de campos nuevos sin completar bases con ceros ni recalcular porcentajes. Decisión y evidencia: [[Citas de Gerencia - correcciones comerciales y bases 2026-09-07]].

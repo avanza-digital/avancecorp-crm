@@ -50,13 +50,14 @@ describe('resumen de reuniones de Gerencia', () => {
 
   it('expone cancelaciones de asesor y sistema sin recomponer los totales servidos', () => {
     const datos = metricasReunionesDemo('2026-09-01', '2026-09-04')
-    datos.resumen = { ...datos.resumen, pactadas: 28, realizadas: 5, no_concretadas: 17, no_show: 16, canceladas: 1, canceladas_sistema: 4, pct_realizacion: 20.8, pct_asistencia: 23.8 }
+    datos.resumen = { ...datos.resumen, pactadas: 28, debieron_ocurrir: 28, realizadas: 5, no_concretadas: 17, no_show: 16, canceladas: 1, canceladas_sistema: 4, reprogramadas: 0, reprogramadas_vencidas: 0, canceladas_sistema_vencidas: 4, divisor_realizacion: 24, divisor_asistencia: 21, pendientes_cierre: 2, programadas_futuras: 0, pct_realizacion: 20.8, pct_asistencia: 23.8 }
+    datos.responsables = []
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
     const sistema = screen.getByText('Canceladas por sistema').closest('[data-gi-kpi]') as HTMLElement
     expect(within(sistema).getByText('4')).toBeInTheDocument()
-    expect(screen.getByText('16 no asistieron · canceladas por asesor: 1')).toBeInTheDocument()
-    expect(screen.getByText('20.8% de realización')).toBeInTheDocument()
+    expect(within(screen.getByText('No asistieron').closest('[data-gi-kpi]') as HTMLElement).getByText('16')).toBeInTheDocument()
+    expect(screen.getByText('20.8%')).toBeInTheDocument()
     expect(screen.getByText('23.8%')).toBeInTheDocument()
     expect(screen.getByText(/las pactadas incluyen las canceladas/i)).toBeInTheDocument()
   })
@@ -75,7 +76,7 @@ describe('resumen de reuniones de Gerencia', () => {
     expect(within(virtual).getByText('4 realizadas')).toBeInTheDocument()
     expect(within(virtual).getByText('Base y exclusiones no disponibles.')).toBeInTheDocument()
     expect(within(virtual).queryByText('4 de 21')).not.toBeInTheDocument()
-    expect(screen.getByText(/Realización: realizadas sobre citas vencidas/)).toBeInTheDocument()
+    expect(screen.getByText(/Citas realizadas sobre citas vencidas/)).toBeInTheDocument()
   })
 
   it.each([
@@ -174,8 +175,82 @@ describe('resumen de reuniones de Gerencia', () => {
     ]
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    expect(opcionesGraficos.get('Conversión de citas a clientes por origen')?.series[0]?.data).toEqual([0, null])
+    expect(opcionesGraficos.get('Cierres posteriores a citas por origen')?.series[0]?.data).toEqual([0, null])
     expect(screen.getByText('Sin muestra: — (sin base para calcular)')).toBeInTheDocument()
     expect(screen.queryByText('Cero real: — (sin base para calcular)')).not.toBeInTheDocument()
+  })
+
+  it('concilia los totales históricos sin eliminar citas de responsables fuera del desglose', () => {
+    const datos = metricasReunionesDemo('2026-08-01', '2026-08-31')
+    datos.resumen.pactadas += 4
+    datos.resumen.realizadas += 1
+    render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
+
+    const fuera = screen.getByRole('row', { name: 'Fuera del desglose actual 4 1 0 —' })
+    expect(fuera).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Total del período 86 59 3 —' })).toBeInTheDocument()
+  })
+
+  it('separa vencidas sin resultado y reprogramadas y acota las próximas al período', () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    datos.resumen.reprogramadas = 2
+    datos.resumen.pendientes_cierre = 7
+    render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
+
+    const reprogramadas = screen.getByText('Reprogramadas').closest('[data-gi-kpi]') as HTMLElement
+    expect(within(reprogramadas).getByText('2')).toBeInTheDocument()
+    expect(within(reprogramadas).queryByText(/sin resultado|vencidas/)).not.toBeInTheDocument()
+    expect(screen.getByText('Vencidas sin resultado').parentElement).toHaveTextContent('7')
+    expect(screen.getByText('6 próximas dentro del período')).toBeInTheDocument()
+    const hero = screen.getByText('Realización de citas').closest('[data-gi-hero]') as HTMLElement
+    expect(within(hero).getByText('80.6%')).toBeInTheDocument()
+    expect(within(hero).queryByText('87.9%')).not.toBeInTheDocument()
+    expect(within(hero).getByText('58 de 72 citas computables')).toBeInTheDocument()
+  })
+
+  it('explica el porcentaje por analista con la base servida, sin inferirla de las pactadas', () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    Object.assign(datos.responsables[0]!, {
+      nombre: 'Analista de prueba', pactadas: 5, realizadas: 2, debieron_ocurrir: 4,
+      divisor_realizacion: 3, canceladas_sistema_vencidas: 1,
+      canceladas_ajenas_vencidas: 0, reprogramadas_vencidas: 0, programadas_futuras: 1,
+      pct_realizacion: 66.7,
+    })
+    render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
+
+    const fila = screen.getByRole('rowheader', { name: 'Analista de prueba' }).closest('tr') as HTMLElement
+    expect(within(fila).getByText('66.7%')).toBeInTheDocument()
+    expect(within(fila).getByText('2 de 3 computables')).toBeInTheDocument()
+    expect(within(fila).getByText(/1 canceladas por sistema/)).toHaveTextContent('1 próximas dentro del período')
+    expect(within(fila).queryByText('40%')).not.toBeInTheDocument()
+  })
+
+  it('no inventa una base cuando llega un contrato anterior', () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    delete datos.resumen.divisor_realizacion
+    delete datos.responsables[0]!.divisor_realizacion
+    delete datos.conversion.leads_con_cierre_previo
+    render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
+
+    expect(screen.getByText('58 realizadas · base no disponible')).toBeInTheDocument()
+    const fila = screen.getByRole('rowheader', { name: 'Andrea Salas' }).closest('tr') as HTMLElement
+    expect(within(fila).getByText('Base no disponible')).toBeInTheDocument()
+    expect(screen.getByText('El detalle de cierres anteriores no está disponible.')).toBeInTheDocument()
+  })
+
+  it('muestra el cierre previo aparte sin convertirlo en cierre posterior ni sumar su capital', () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-07')
+    datos.conversion = { ...datos.conversion, leads_reunidos: 7, clientes: 0, contratos: 0, conversion_cliente_pct: 0, conversion_contrato_pct: 0, leads_con_cierre_previo: 1, capital_pen: 0, capital_usd: 0 }
+    datos.generado_en = '2026-09-08T00:00:00Z'
+    render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
+
+    const panel = screen.getByRole('heading', { name: 'Cierres posteriores a citas' }).closest('section') as HTMLElement
+    expect(within(panel).getByText('0 de 7 prospectos atendidos')).toBeInTheDocument()
+    expect(within(panel).getByText(/Con cierre anterior a la hora programada/)).toHaveTextContent('1. Se muestran aparte.')
+    expect(within(panel).getByText(/Seguimiento al/)).toHaveTextContent('7 set. 2026')
+    expect(screen.queryByText('Terminan en cliente')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Resultado registrado de la cita' })).toBeInTheDocument()
+    expect(screen.getAllByText('Capital asociado a estos cierres')).toHaveLength(2)
+    expect(screen.getAllByText('Acumulado, sin recorte por fecha.')).toHaveLength(2)
   })
 })
