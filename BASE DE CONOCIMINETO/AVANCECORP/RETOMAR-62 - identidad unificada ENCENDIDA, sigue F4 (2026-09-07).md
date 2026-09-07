@@ -12,6 +12,18 @@ sustituye_a: RETOMAR-60
 > El **07/09/2026 a las 10:09:16 (Lima)** se encendió en producción `crm.multiempresa_flags.resolver_en_puertas`.
 > El CRM reconoce a la persona a través de leads, clientes del Portal y contratos. Tres fases de nueve completadas.
 
+## 0. Dónde está cada cosa (los tres archivos del plan)
+
+Todo cuelga de `~/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/`:
+
+| Para qué | Archivo |
+|---|---|
+| **Retomar el trabajo** (esta nota): estado, decisiones abiertas y fases que faltan | `BASE DE CONOCIMINETO/AVANCECORP/RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07).md` |
+| **El plan completo** que aprobó Miguel el 01/09: objetivo, modelo, F0–F9 con sus gates | `BASE DE CONOCIMINETO/AVANCECORP/Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01).md` |
+| **La bitácora en HTML**, para abrir en el navegador: qué se publicó cada día y con qué evidencia | `PLAN-MAESTRO-MULTIEMPRESA.html` (en la raíz) |
+
+⚠️ La carpeta está escrita `CONOCIMINETO`, sin la «E». Es así de verdad, no es una errata al buscar.
+
 ## 1. Qué decir en una frase
 
 Terminamos el **reconocimiento de la persona** (F3). Falta el **motor de inversiones multiempresa** (F4), que es lo
