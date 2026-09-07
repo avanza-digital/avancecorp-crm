@@ -537,3 +537,61 @@ test('la campana abre pendientes y el aviso recupera una actividad fuera del lot
   await expect(page.getByRole('heading', { name: 'Cerrar tarea', exact: true })).toBeVisible()
   expect(lecturas).toBe(1)
 })
+
+test('cerrar una llamada contestada actualiza Primera atención aunque la lectura inicial llegue tarde', async ({ page }) => {
+  const lead = leadReal({ vendedor_id: UID, nombre_completo: 'CONTACTO YA ATENDIDO', etapa: 'contactado' })
+  const tarea = {
+    id: 'eeeeeeee-0000-4000-8000-000000000100', lead_id: lead.id, perfil_id: null,
+    vendedor_id: UID, asignado_supervisor_id: null, tipo: 'llamada', titulo: 'Llamada inicial',
+    nota: null, vence_en: '2026-09-07T15:00:00Z', estado: 'pendiente', activo: true,
+    reprogramaciones: 0, creado_en: '2026-09-06T15:00:00Z', duracion_min: null,
+    modalidad_reunion: null, ubicacion_reunion: null, enlace_reunion: null,
+    resultado_reunion: null, motivo_no_realizada: null, detalle_cierre_reunion: null,
+    confirmada_en: null, reagendada_de: null,
+  }
+  const backend = await montarBackendReal(page, { leads: [lead], tareas: [tarea], rolCrm: 'vendedor' })
+  let liberarLectura!: () => void
+  const lecturaAntigua = new Promise<void>((resolve) => { liberarLectura = resolve })
+  let lecturasAntes = 0
+  let lecturasDespues = 0
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+    const atendida = backend.tareas[0]?.estado === 'completada'
+    const original = muestraSql.estado.filas[0]!
+    // El servidor ya tomó esta foto, pero la respuesta viaja más lentamente
+    // que el cierre. La UI debe descartar esa foto y pedir el estado confirmado.
+    const estado = { ...original, lead_id: lead.id,
+      base: { ...original.base, lead_id: lead.id,
+        primera_gestion_en: atendida ? '2026-09-07T15:00:00Z' : null,
+        primer_contacto_en: atendida ? '2026-09-07T15:00:00Z' : null,
+        asignacion_primera_gestion_en: atendida ? '2026-09-07T15:00:00Z' : null,
+        asignacion_primer_contacto_en: atendida ? '2026-09-07T15:00:00Z' : null },
+      avisos: atendida ? [] : [{ ...original.avisos[0]!, bucket: 'primera_atencion', tarea_id: null }],
+      compromiso: { tarea: null, validez: 'sin_tarea', cobertura_activa: false, hasta_en: null },
+    }
+    if (atendida) lecturasDespues += 1
+    else { lecturasAntes += 1; await lecturaAntigua }
+    await route.fulfill({ json: { ...muestraSql.estado, filas: [estado] } })
+  })
+  try {
+    await loginReal(page)
+    await irAPipeline(page)
+    const ficha = await abrirLead(page, /CONTACTO YA ATENDIDO/)
+    await expect.poll(() => lecturasAntes).toBeGreaterThan(0)
+    await ficha.getByRole('button', { name: /Cerrar tarea — Llamada inicial/ }).click()
+    const cierre = page.getByRole('dialog', { name: 'Cerrar tarea', exact: true })
+    await cierre.getByRole('button', { name: 'Contestó', exact: true }).click()
+    await cierre.getByRole('button', { name: 'Saltar esta vez', exact: true }).click()
+    await cierre.getByRole('button', { name: 'Cerrar tarea', exact: true }).click()
+    await expect(cierre).toBeHidden()
+    liberarLectura()
+    await expect.poll(() => lecturasDespues).toBeGreaterThan(0)
+    const avisos = ficha.getByRole('region', { name: 'Pendientes y plazos' })
+    await expect(avisos.getByText('Ver plazos', { exact: true })).toBeVisible()
+    await expect(avisos.getByText('Contacta al cliente y registra el resultado', { exact: true })).toHaveCount(0)
+    expect(backend.llamadas.rpcSlaComandos).toEqual(['cerrar_tarea'])
+    expect(backend.tareas).toHaveLength(1)
+    expect(backend.tareas[0]?.estado).toBe('completada')
+  } finally {
+    liberarLectura()
+  }
+})

@@ -952,9 +952,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // dejaría los tiles de Cartera/Pipeline contando el mundo de ANTES de la
     // escritura. Se dispara también en el resync de un rollback (costo: un
     // refetch de más en un caso raro; mentir en un tile sería peor).
-    void queryClient.invalidateQueries({
+    // Invalidar una primera lectura sin caché reutiliza su petición en curso,
+    // que puede traer el estado anterior a la escritura. Cancelarla primero
+    // asegura que ficha, cola y campana vuelvan a consultar después de guardar.
+    void queryClient.cancelQueries({
       queryKey: crmQueryKeys.metricasAmbito(),
-    })
+    }).then(() => queryClient.invalidateQueries({
+      queryKey: crmQueryKeys.metricasAmbito(),
+    }))
     // F2: la tabla de Cartera ya NO se pinta desde este store — la sirve
     // `cartera_pagina_fn` por cursor. Sin esta segunda invalidación, crear o
     // mover un lead actualizaría los tiles y dejaría las FILAS de abajo en la

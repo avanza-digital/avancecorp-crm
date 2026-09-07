@@ -4,6 +4,7 @@
 // mockea (sin red); CrmApiError se conserva real para el instanceof de persistir.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, waitFor } from '@testing-library/react'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from './store-context'
@@ -17,6 +18,7 @@ import { ejecutarComandoSla } from '@/data/sla-operacion-comandos'
 
 vi.mock('@/data/sla-operacion-comandos', () => ({ ejecutarComandoSla: vi.fn(), tareaConConfirmacionPendiente: vi.fn() }))
 import { crmQueryKeys } from '@/data/crm-queries'
+import { slaOperacionKeys } from '@/data/sla-operacion-queries'
 import { queryClient } from './query-client'
 
 vi.mock('sonner', () => ({
@@ -24,7 +26,10 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('./query-client', () => ({
-  queryClient: { invalidateQueries: vi.fn().mockResolvedValue(undefined) },
+  queryClient: {
+    invalidateQueries: vi.fn().mockResolvedValue(undefined),
+    cancelQueries: vi.fn().mockResolvedValue(undefined),
+  },
 }))
 
 vi.mock('@/data/crm-api', async (importActual) => {
@@ -315,6 +320,8 @@ function diferida<T>() {
 describe('store — ruta real (sesión autenticada, no demo)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    invalidarQueriesMock.mockReset().mockResolvedValue(undefined)
+    vi.mocked(queryClient.cancelQueries).mockReset().mockResolvedValue(undefined)
     comandoSla.mockResolvedValue(undefined)
     listarLeads.mockResolvedValue([leadBase()])
     obtenerLeadPorId.mockReset().mockResolvedValue(null)
@@ -1334,6 +1341,83 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
     expect(fantasma).toMatchObject({ ok: false, codigo: 'no_encontrado' })
     expect(insertarTarea).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['tarea', false],
+    ['actividad', false],
+    ['tarea', true],
+  ] as const)('una llamada desde %s refresca las primeras lecturas SLA sin duplicar gestión (rechazo: %s)', async (origen, rechazar) => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } })
+    invalidarQueriesMock.mockImplementation((filtros, opciones) => cliente.invalidateQueries(filtros, opciones))
+    vi.mocked(queryClient.cancelQueries).mockImplementation((filtros, opciones) => cliente.cancelQueries(filtros, opciones))
+    const lead = leadBase()
+    const tarea = {
+      id: '22222222-2222-4222-8222-222222222222', lead_id: lead.id, perfil_id: null,
+      vendedor_id: 'u-v1', asignado_supervisor_id: null, tipo: 'llamada' as const,
+      titulo: 'Llamada inicial', vence_en: '2026-07-18T15:00:00.000Z',
+      estado: 'pendiente' as const, reprogramaciones: 0, activo: true,
+      creado_en: '2026-07-17T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tarea])
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+    const escritura = diferida<void>()
+    const respuestaAntigua = diferida<void>()
+    let guardado = false
+    comandoSla.mockImplementation(async () => {
+      await escritura.promesa
+      if (rechazar) throw new CrmApiError('No se pudo guardar la llamada', 'P0409')
+      guardado = true
+      if (origen === 'tarea') listarTareas.mockResolvedValue([{ ...tarea, estado: 'completada' }])
+      listarActs.mockResolvedValue([{
+        id: '33333333-3333-4333-8333-333333333333', lead_id: lead.id,
+        tipo: 'llamada_realizada', detalle: null, autor_nombre: 'Analista de prueba',
+        creado_en: new Date().toISOString(),
+      }])
+    })
+    const claves = [
+      slaOperacionKeys.estado('u-v1', [lead.id]),
+      slaOperacionKeys.cola('u-v1', { senal: 'primera_atencion', etapa: null, analista_id: null }, null, 10),
+      slaOperacionKeys.avisos('u-v1'),
+    ]
+    // QueryClient y observadores reales: las tres respuestas se capturan ANTES
+    // de guardar, pero llegan DESPUÉS. Sin cancelación, invalidateQueries
+    // reutiliza esas primeras peticiones y la llamada sigue como pendiente.
+    const observadores = claves.map((queryKey) => new QueryObserver(cliente, {
+      queryKey,
+      queryFn: async ({ signal }) => {
+        const foto = { primera_atencion: !guardado }
+        if (!guardado) await respuestaAntigua.promesa
+        void signal
+        return foto
+      },
+    }))
+    const desuscribir = observadores.map((observador) => observador.subscribe(() => undefined))
+    try {
+      expect(claves.every((clave) => cliente.getQueryState(clave)?.fetchStatus === 'fetching')).toBe(true)
+      const res = mutar((acciones) => origen === 'tarea'
+        ? acciones.completarTarea({ tarea_id: tarea.id, estado: 'completada', resultado_tipo: 'llamada_realizada' })
+        : acciones.registrarActividad(lead.id, 'llamada_realizada'))
+      expect(res.ok).toBe(true)
+      expect(claves.every((clave) => cliente.getQueryData(clave) === undefined)).toBe(true)
+      await act(async () => {
+        escritura.resolver()
+        expect(await res.persistido).toBe(!rechazar)
+        respuestaAntigua.resolver()
+      })
+      await waitFor(() => {
+        for (const clave of claves) expect(cliente.getQueryData(clave)).toEqual({ primera_atencion: rechazar })
+      })
+      expect(comandoSla).toHaveBeenCalledTimes(1)
+      expect(comandoSla.mock.calls[0]?.[1]).toBe(origen === 'tarea' ? 'cerrar_tarea_v2' : 'registrar_actividad_v2')
+      expect(insertarActividad).not.toHaveBeenCalled()
+    } finally {
+      escritura.resolver()
+      respuestaAntigua.resolver()
+      desuscribir.forEach((cancelar) => cancelar())
+      cliente.clear()
+    }
   })
 
   it('completarTarea: llamada exige resultado 1-tap; con él cierra por la RPC atómica y agenda la siguiente', async () => {
