@@ -1,0 +1,71 @@
+{
+  "fecha": "2026-09-07",
+  "entorno": "produccion",
+  "sitio": "https://crm.miavance.com",
+  "navegador": "Chrome",
+  "rol_verificado_en_sesion_real": "gerencia",
+  "commit_fuente": "556133fdedf5983a4a3a5e221c1296039681b731",
+  "build": "build-20260907T054758176Z",
+  "release": "crm-20260907T055007Z-556133fdedf5",
+  "actualizacion_mediante_aviso_de_nueva_version": true,
+  "navegacion": {
+    "entradas_seguimiento_en_menu": 1,
+    "colas_seguimiento_en_resumen": 0,
+    "ruta_modulo": "#/seguimiento"
+  },
+  "paginacion_inicial": {
+    "total_oportunidades": 815,
+    "filas_visibles": 10,
+    "segunda_pagina": {
+      "desde": 11,
+      "hasta": 20,
+      "total_oportunidades": 815,
+      "filas_visibles": 10
+    }
+  },
+  "filtros_secuenciales": [
+    {
+      "etapa": "contactado",
+      "total_oportunidades": 408,
+      "reinicia_en_primera_pagina": true
+    },
+    {
+      "etapa": "contactado",
+      "analista_autorizado_seleccionado": true,
+      "total_oportunidades": 25
+    },
+    {
+      "etapa": "contactado",
+      "analista_autorizado_seleccionado": true,
+      "senal": "revisiones",
+      "total_oportunidades": 19,
+      "filas_visibles": 10,
+      "filas_respetan_etapa_analista_y_senal": true
+    }
+  ],
+  "ficha": {
+    "dialogo_abierto": true,
+    "seccion_seguimiento_visible": true,
+    "sin_error": true,
+    "cerrada_sin_guardar": true
+  },
+  "limpiar_y_tamano": {
+    "total_tras_limpiar_filtros": 815,
+    "tamano_seleccionado": 25,
+    "filas_visibles": 25
+  },
+  "estado_final_restaurado": {
+    "senal": "todas",
+    "etapa": null,
+    "analista_id": null,
+    "tamano_pagina": 10
+  },
+  "gestiones_guardadas": 0,
+  "errores_consola": 0,
+  "captura_real": "Privada; fuera del repositorio.",
+  "supervisor_sesion_real_verificada": false,
+  "alcance_supervisor": "La evidencia del Supervisor corresponde a E2E con datos sinteticos.",
+  "nota_conteos": "Describen la lectura observada; no son constantes ni una poblacion permanente.",
+  "sin_nombres_ni_identificadores_de_clientes_o_analistas": true,
+  "correcto": true
+}
