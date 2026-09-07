@@ -1,6 +1,6 @@
 # Avisos de seguimiento: revisión para publicar
 
-Estado: **IMPLEMENTADO Y VERIFICADO LOCALMENTE; SQL PRODUCTIVO PENDIENTE DE CONFIRMACIÓN**.
+Estado: **PUBLICADO Y VERIFICADO EN PRODUCCIÓN EL 07/09/2026**.
 Miguel aprobó el 07/09/2026 reemplazar la explicación permanente por avisos según el momento y el rol.
 
 ## Resultado
@@ -17,7 +17,7 @@ Miguel aprobó el 07/09/2026 reemplazar la explicación permanente por avisos se
 - Se mantienen recordatorios de contactos y avisos gerenciales. El libro de reconocimientos no se modifica; sigue aplicándose al modo legado.
 - Se mantiene retirado Seguimiento comercial de Hoy del Analista.
 
-## Backend y SQL a aprobar
+## Backend y SQL aplicado
 
 [SQL exacto](../../../supabase/migrations/20260907155813_crm_sla_avisos_contextuales.sql).
 
@@ -39,10 +39,18 @@ Las huellas de las cuatro fuentes productivas se consultaron antes de preparar e
 
 Los avisos se consultan cada 60 segundos mientras se usa el CRM y al recuperar foco; no se implementa entrega con el CRM cerrado ni temporizador exacto al segundo.
 
-## Publicación pendiente
+## Publicación completada
 
-La nota `BASE DE CONOCIMINETO/AVANCECORP/Inicio.md` indica: «Cambios de base de datos: mostrar el SQL primero y esperar confirmación». Esta entrega deja preparado el SQL concreto para esa aprobación.
+La nota `BASE DE CONOCIMINETO/AVANCECORP/Inicio.md` indica: «Cambios de base de datos: mostrar el SQL primero y esperar confirmación». Miguel respondió «ok publica» después de recibir el enlace al SQL concreto. La migración se aplicó mediante MCP con éxito y ocho controles correctos.
 
-Tras confirmarlo: verificar otra vez las huellas remotas, aplicar la migración, verificar permisos/lecturas por rol, construir desde el commit idéntico de Main y avancecorp/main, publicar únicamente ese artefacto y comprobar la versión servida.
+Fuente limpia `8bb960672fb2a6d14e728e96b8ff611e30f3d9cb`, Main local y avancecorp/main idénticos antes de publicar. Release `crm-20260907T165158Z-8bb960672fb2`, build `build-20260907T165116731Z`, ZIP SHA-256 `e6c29606646413d0143237e647f5fbf9ca5eeaf56926f8695f90e064bb2735aa`.
+
+[Verificación productiva](produccion-verificacion.json) y [comprobación HTTP](produccion-http.json): 78 archivos, 65 hashes exactos, 12 imágenes transformadas por Hostinger, `.htaccess` protegido, ZIP no expuesto y cero fallos. Resumen y cola coinciden para los tres roles; las decisiones de supervisión quedan fuera de la lectura del Analista. Se rechaza la lectura sin identidad. Plazos, política v6 y modo activo/revisión 1 conservados.
+
+Versión de aplicación MCP `20260907165929`, reconciliada con el filename canónico `20260907155813` después de verificar SHA-256 exacto y origen único. [Script de identidad del ledger](../../../supabase/scripts/reconciliar-ledger-sla-avisos.sql), ensayado con ROLLBACK: actualiza exclusivamente `version` de una fila y conserva los otros campos; no reaplica efectos.
+
+[Revisión UI en sesión productiva](produccion-ui.json): ficha compacta, fechas cerradas inicialmente, actividad correcta abierta y cancelada sin guardar; página 2 sin acumulación; campana agrupada y retorno a Seguimiento en página 1. Se inspeccionó visualmente la vista de Gerencia. Los recorridos de Analista/Supervisor permanecen respaldados por E2E local y comprobaciones SQL productivas por rol.
+
+Advisors: un aviso nuevo por la RPC de lectura SECURITY DEFINER destinada expresamente a authenticated; autoridad, ámbito y ACL comprobados. [Criterio del verificador de Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable). Los demás avisos de seguridad y rendimiento son anteriores a esta publicación.
 
 [Reversión SQL](../../../supabase/scripts/rollback-sla-avisos-contextuales.sql): publicar primero el frontend anterior compatible y después restaurar los lectores. El script comprueba las huellas nuevas antes de revertir. Conserva hechos y configuración.

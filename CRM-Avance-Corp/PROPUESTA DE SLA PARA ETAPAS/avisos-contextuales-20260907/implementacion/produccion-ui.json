@@ -1,0 +1,17 @@
+{
+  "fecha_utc": "2026-09-07",
+  "build": "build-20260907T165116731Z",
+  "sesion": "Existente, con vista de Gerencia; sin cambio de credenciales",
+  "acciones_de_negocio_guardadas": 0,
+  "verificaciones": [
+    "Seguimiento abre con Para atender ahora seleccionado y 10 oportunidades por página.",
+    "Página 2 muestra el rango 11–20; no acumula la primera página.",
+    "La ficha presenta instrucciones breves para contacto, actividad, seguimiento y decisión comercial cuando cada condición corresponde.",
+    "Ver plazos permanece cerrado inicialmente; se inspeccionó visualmente el recuadro compacto.",
+    "Revisar actividad carga la tarea y abre Cerrar tarea. Se canceló sin guardar.",
+    "La campana presenta Revisa 736 oportunidades pendientes, con desglose por causa, en el instante observado.",
+    "Ver pendientes vuelve al módulo Seguimiento con Para atender ahora seleccionado y página 1."
+  ],
+  "observacion": "Los conteos cambiaron durante la verificación por la actividad normal de la cartera. No se guardan nombres, teléfonos, identificadores de clientes ni capturas productivas en esta evidencia.",
+  "limite": "Esta sesión productiva comprueba Gerencia. Analista/Supervisor tienen pruebas E2E locales y lecturas SQL autenticadas productivas verificadas por separado."
+}

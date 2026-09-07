@@ -1,0 +1,369 @@
+{
+  "estado": "PUBLICADO_Y_VERIFICADO",
+  "fecha_utc": "2026-09-07",
+  "destino": "https://crm.miavance.com",
+  "commit_fuente": "8bb960672fb2a6d14e728e96b8ff611e30f3d9cb",
+  "main_local_y_avancecorp_main_verificados_iguales_antes_de_publicar": true,
+  "release": "crm-20260907T165158Z-8bb960672fb2",
+  "build": "build-20260907T165116731Z",
+  "zip_sha256": "e6c29606646413d0143237e647f5fbf9ca5eeaf56926f8695f90e064bb2735aa",
+  "manifiesto_sha256": "e83ab7350b96cda6375055b9ab155c4c22b948159050771537819a64ba9a3b15",
+  "zip_bytes": 1924223,
+  "archivos": 78,
+  "autorizacion": "Miguel: «ok publica», después de mostrar y enlazar el SQL concreto.",
+  "sql": {
+    "nombre": "crm_sla_avisos_contextuales",
+    "version_mcp_aplicacion": "20260907165929",
+    "version_canonica_final": "20260907155813",
+    "sha256": "6da2960e0d7c80a0bb562f1b7c8e491efe5f69bf140d57e212e45a512bc768bd",
+    "aplicacion": "supabase_apply_migration: success",
+    "reconciliacion": "reconciliar-ledger-sla-avisos.sql: ensayo con ROLLBACK y aplicación confirmada; una fila, solo version, SHA y todos los demás campos intactos",
+    "reconciliacion_sql_sha256": "ba2a244beadf19fc7e7b1833265c30a670fe673115fe02bdb01245513065cb74"
+  },
+  "backend": {
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "estado": "ACTIVE_HEALTHY",
+    "postgres": "17.6.1.105",
+    "huellas_lectores_iguales_al_banco_pg17": true,
+    "control_sin_cambio": {
+      "modo": "activo",
+      "revision": 1,
+      "politica_adopcion_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+      "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00"
+    },
+    "gates": {
+      "f7": "OK: 15 piezas vigiladas (observacion 11, permanentes 4, demolidas 0, liberadas 0)",
+      "avisos": "OK: avisos derivados del nucleo, con autoridad y resumen completo",
+      "nucleo": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas",
+      "comandos": "OK: comandos SLA privados, idempotentes y confirmados al commit",
+      "vigencia": "OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar",
+      "analitica": "OK: 29 contadores declarados y con su huella intacta, tope 30, 0 sin declarar",
+      "auditoria": "",
+      "operacion": "OK: publicacion atomica, captura y prorroga gobernadas por SLA"
+    },
+    "funciones": [
+      {
+        "md5": "7b5f75dfb6ac3e480659bdef3dc5ac0f",
+        "firma": "crm.avisos_sla_resumen_v2_fn()",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": true
+      },
+      {
+        "md5": "bf835965ea92cb14265b08b5e5b4f121",
+        "firma": "private.assert_sla_avisos()",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": true
+      },
+      {
+        "md5": "c0c7eb4b8e5b0c8a60eca3af3115ebe3",
+        "firma": "private.sla_operacion_leads(uuid[],boolean,uuid[],timestamp with time zone)",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": false
+      },
+      {
+        "md5": "08abb868e8cf62389fbbfe2e7d53ef8c",
+        "firma": "private.sla_operacion_autorizada(uuid[],boolean)",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": true
+      },
+      {
+        "md5": "efefdcdc8b2b2754f238b6af804d9dd8",
+        "firma": "private.sla_filtros_cola_validos(text,text)",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": false
+      },
+      {
+        "md5": "f0b81dd1103390cec2db26a9e11f1acf",
+        "firma": "crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": true
+      },
+      {
+        "md5": "6bc541b2e3ba1549b4b4ed419c22d455",
+        "firma": "private.assert_sla_nucleo()",
+        "owner": "postgres",
+        "proacl": [
+          "postgres=X/postgres"
+        ],
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "security_definer": true
+      }
+    ],
+    "roles_muestra": [
+      {
+        "rol": "vendedor",
+        "cola": {
+          "rango": {
+            "desde": 1,
+            "hasta": 25
+          },
+          "hay_mas": true,
+          "totales": {
+            "pendientes": 69,
+            "revisiones": 0,
+            "por_repartir": 0,
+            "tareas_vencidas": 35,
+            "primera_atencion": 41,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 57
+          },
+          "total_items": 69,
+          "items_pagina": 25
+        },
+        "resumen": {
+          "modo": "activo",
+          "grupos": [
+            {
+              "total": 41,
+              "bucket": "primera_atencion"
+            },
+            {
+              "total": 35,
+              "bucket": "tarea_vencida"
+            },
+            {
+              "total": 57,
+              "bucket": "seguimiento"
+            }
+          ],
+          "version": 2,
+          "criticas": 76,
+          "calculado_en": "2026-09-07T17:03:19.428431+00:00",
+          "total_avisos": 133,
+          "control_revision": 1,
+          "total_oportunidades": 69,
+          "politica_adopcion_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_operativa_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00",
+          "activacion_hipotetica_en": null,
+          "politica_operativa_version": 6
+        },
+        "total_revisiones": 0,
+        "coinciden_totales": true,
+        "pagina_solo_pendientes": true,
+        "hay_cursor_cuando_corresponde": true,
+        "avisos_solo_supervision_en_pagina": 0
+      },
+      {
+        "rol": "supervisor",
+        "cola": {
+          "rango": {
+            "desde": 1,
+            "hasta": 25
+          },
+          "hay_mas": true,
+          "totales": {
+            "pendientes": 458,
+            "revisiones": 317,
+            "por_repartir": 0,
+            "tareas_vencidas": 325,
+            "primera_atencion": 239,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 358
+          },
+          "total_items": 458,
+          "items_pagina": 25
+        },
+        "resumen": {
+          "modo": "activo",
+          "grupos": [
+            {
+              "total": 239,
+              "bucket": "primera_atencion"
+            },
+            {
+              "total": 325,
+              "bucket": "tarea_vencida"
+            },
+            {
+              "total": 358,
+              "bucket": "seguimiento"
+            },
+            {
+              "total": 317,
+              "bucket": "revision_comercial"
+            }
+          ],
+          "version": 2,
+          "criticas": 881,
+          "calculado_en": "2026-09-07T17:03:14.296157+00:00",
+          "total_avisos": 1239,
+          "control_revision": 1,
+          "total_oportunidades": 458,
+          "politica_adopcion_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_operativa_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00",
+          "activacion_hipotetica_en": null,
+          "politica_operativa_version": 6
+        },
+        "total_revisiones": 317,
+        "coinciden_totales": true,
+        "pagina_solo_pendientes": true,
+        "hay_cursor_cuando_corresponde": true,
+        "avisos_solo_supervision_en_pagina": 25
+      },
+      {
+        "rol": "gerencia",
+        "cola": {
+          "rango": {
+            "desde": 1,
+            "hasta": 25
+          },
+          "hay_mas": true,
+          "totales": {
+            "pendientes": 739,
+            "revisiones": 452,
+            "por_repartir": 0,
+            "tareas_vencidas": 519,
+            "primera_atencion": 390,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 536
+          },
+          "total_items": 739,
+          "items_pagina": 25
+        },
+        "resumen": {
+          "modo": "activo",
+          "grupos": [
+            {
+              "total": 390,
+              "bucket": "primera_atencion"
+            },
+            {
+              "total": 519,
+              "bucket": "tarea_vencida"
+            },
+            {
+              "total": 536,
+              "bucket": "seguimiento"
+            },
+            {
+              "total": 452,
+              "bucket": "revision_comercial"
+            }
+          ],
+          "version": 2,
+          "criticas": 1361,
+          "calculado_en": "2026-09-07T17:03:05.834494+00:00",
+          "total_avisos": 1897,
+          "control_revision": 1,
+          "total_oportunidades": 739,
+          "politica_adopcion_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "politica_operativa_id": "ee276f9b-07ef-4f1e-9689-6e16b16d7eb6",
+          "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00",
+          "activacion_hipotetica_en": null,
+          "politica_operativa_version": 6
+        },
+        "total_revisiones": 452,
+        "coinciden_totales": true,
+        "pagina_solo_pendientes": true,
+        "hay_cursor_cuando_corresponde": true,
+        "avisos_solo_supervision_en_pagina": 23
+      }
+    ],
+    "sin_identidad_rechazado": "42501: No autorizado",
+    "datos_comerciales_escritos_por_pruebas": 0
+  },
+  "advisors": {
+    "security_antes": 206,
+    "security_despues": 207,
+    "performance_antes": 93,
+    "performance_despues": 93,
+    "nuevos": [
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "title": "Signed-In Users Can Execute SECURITY DEFINER Function",
+        "level": "WARN",
+        "facing": "EXTERNAL",
+        "categories": [
+          "SECURITY"
+        ],
+        "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+        "detail": "Function `crm.avisos_sla_resumen_v2_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/avisos_sla_resumen_v2_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "metadata": {
+          "name": "avisos_sla_resumen_v2_fn",
+          "schema": "crm",
+          "language": "plpgsql",
+          "arguments": "",
+          "security_definer": true
+        },
+        "cache_key": "authenticated_security_definer_function_executable_crm_avisos_sla_resumen_v2_fn_",
+        "observed_at": "2026-09-07T17:02:09.521Z"
+      }
+    ],
+    "revision": "El único aviso nuevo identifica la puerta de lectura SECURITY DEFINER intencional para authenticated. Se verificaron search_path vacío, revocación de PUBLIC/anon/service_role, ámbito por auth.uid, rechazo 42501 sin identidad y conteos por tres roles. No se amplían políticas para silenciar avisos. Los 206 avisos de seguridad y 93 de rendimiento anteriores se mantienen."
+  },
+  "http": {
+    "archivo": "produccion-http.json",
+    "correcto": true,
+    "version_estable": true,
+    "hash_exacto": 65,
+    "imagenes_transformadas_hostinger": 12,
+    "htaccess_403": 1,
+    "zip_no_expuesto_404_crm_y_portal": true,
+    "fallos": 0
+  },
+  "navegador": {
+    "archivo": "produccion-ui.json",
+    "verificado": true,
+    "vista": "Gerencia",
+    "acciones_de_negocio_guardadas": 0
+  },
+  "pruebas_previas": {
+    "vitest": 2952,
+    "postgres16": 56,
+    "playwright": 10,
+    "postgres17": "integración, reversión y reaplicación aprobadas",
+    "tipos_build_verify_release": "PASS"
+  },
+  "limites": [
+    "Los conteos son una foto del instante calculado y cambian con la cartera.",
+    "El refresco ocurre aproximadamente cada 60 segundos y al recuperar foco; no hay entrega con el CRM cerrado.",
+    "La comprobación por roles en producción es de lectura SQL autenticada; los recorridos de analista/supervisor en navegador se probaron localmente."
+  ],
+  "rollback": {
+    "frontend_anterior": "crm-20260907T143831Z-67400637f295",
+    "orden": "Frontend anterior primero; después rollback-sla-avisos-contextuales.sql si corresponde. No se ejecutó reversión en producción."
+  }
+}

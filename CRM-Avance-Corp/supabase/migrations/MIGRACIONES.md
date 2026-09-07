@@ -8422,10 +8422,14 @@ Reconciliación DML ejecutada correctamente con [reconciliar-ledger-sla.sql](../
 RLS sin policies en tablas privadas es deliberada: niega acceso directo y deja las operaciones a RPC autorizadas. Las puertas SECURITY DEFINER para authenticated conservan `search_path` fijo, ACL y ámbito certificados por gates. La FK del singleton de control no genera un problema de escala por falta de índice adicional. Los índices nuevos sin uso observado permanecen: estadísticas iniciales vacías no prueban inutilidad. No abrir policies/grants ni borrar índices para silenciar estos avisos; revisar de nuevo si cambian esos supuestos.
 
 
-## 20260907155813 — Avisos contextuales de seguimiento (PENDIENTE de producción)
+## 20260907155813 — Avisos contextuales de seguimiento (APLICADA en producción)
 
-Implementación aprobada por Miguel el 07/09/2026. SQL concreto pendiente de confirmación según [[Inicio]]. No aplicado a producción.
+Miguel confirmó «ok publica» el 07/09/2026 tras recibir el SQL concreto, conforme a [[Inicio]]. Aplicada mediante MCP como `20260907165929`; reconciliada con la versión canónica `20260907155813` verificando SHA-256 `6da2960e0d7c80a0bb562f1b7c8e491efe5f69bf140d57e212e45a512bc768bd`. [Reconciliación](../scripts/reconciliar-ledger-sla-avisos.sql): una fila, solo versión, demás campos intactos, ensayo con ROLLBACK y comprobación final. No se reaplicaron efectos.
 
 Amplía los lectores del núcleo SLA con avisos independientes por causa y destinatario; agrega `crm.avisos_sla_resumen_v2_fn()` con conteos del ámbito completo y un gate privado. Conserva plazos, políticas, writers, tareas, gestiones, reconocimientos y objetos de `public`. La cola agrega el filtro `pendientes`, inicialmente seleccionado por la interfaz.
 
-Verificado localmente: 56 casos PostgreSQL 16; migración, reversión y reaplicación PostgreSQL 17 con esquema completo, actores sintéticos y gates reales; 2.952 pruebas de interfaz/datos y 10 recorridos de navegador. La publicación del frontend debe coordinarse con este SQL. Reversión: `../scripts/rollback-sla-avisos-contextuales.sql`, primero recuperar el frontend anterior compatible.
+Verificado localmente: 56 casos PostgreSQL 16; migración, reversión y reaplicación PostgreSQL 17 con esquema completo, actores sintéticos y gates reales; 2.952 pruebas de interfaz/datos y 10 recorridos de navegador. Producción: ocho gates correctos, huellas iguales a las probadas, lecturas de los tres roles con resumen y cola concordantes; Analista sin revisiones de supervisión y 42501 sin identidad. Política v6, activo/revisión 1 y primera activación intactos.
+
+Frontend publicado desde fuente limpia `8bb960672fb2a6d14e728e96b8ff611e30f3d9cb`, idéntica a Main/avancecorp/main al publicar: release `crm-20260907T165158Z-8bb960672fb2`, build `build-20260907T165116731Z`. HTTP: 78 archivos, 65 hashes exactos, 12 imágenes optimizadas, configuración protegida y cero fallos. [Evidencia](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/avisos-contextuales-20260907/implementacion/produccion-verificacion.json). El commit de cierre documental no altera esa fuente.
+
+El nuevo aviso de advisors corresponde a la RPC SECURITY DEFINER autorizada para authenticated; se verificaron ACL, search_path y ámbito. No se añadieron policies para silenciarlo. Reversión: `../scripts/rollback-sla-avisos-contextuales.sql`, primero recuperar el frontend anterior compatible.
