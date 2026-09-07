@@ -1,0 +1,1881 @@
+{
+  "release": "crm-20260907T193510Z-8a3169291601",
+  "commit": "8a3169291601cd33284c460fd80c7c7e391180b1",
+  "build": "build-20260907T193429314Z",
+  "cantidad_archivos": 79,
+  "manifiesto": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260907T193510Z-8a3169291601.manifest.json",
+  "manifiesto_sha256": "f9a5c02ad4517c289a93714787a3b25d00d3c91142ebc06b1eac233a62746c0b",
+  "fuente_limpia": true,
+  "zip_local": {
+    "sha256": "bb823de38f2249a7ac7c6d30e9f06dac170e98d8b6a241332907c265488f2c07",
+    "bytes": 1944713,
+    "valido": true
+  },
+  "inicio": "2026-09-07T19:37:12.679Z",
+  "fin": "2026-09-07T19:37:15.735Z",
+  "solo_lectura": true,
+  "concurrencia": 6,
+  "version": {
+    "estable": true,
+    "antes": {
+      "schema": 1,
+      "buildId": "build-20260907T193429314Z"
+    },
+    "despues": {
+      "schema": 1,
+      "buildId": "build-20260907T193429314Z"
+    }
+  },
+  "agregados": {
+    "htaccess_protegido_403": 1,
+    "hash_exacto": 66,
+    "imagen_transformada_por_servidor": 12
+  },
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "esperado": {
+        "bytes": 2944,
+        "sha256": "72fe269c108746faded25d6a6d242cedc3ca2143e8a203e180ec3ebf3747dd04"
+      },
+      "url": "https://crm.miavance.com/.htaccess",
+      "final_url": "https://crm.miavance.com/.htaccess",
+      "status": 403,
+      "bytes": 0,
+      "sha256": null,
+      "ms": 180,
+      "headers": {
+        "content-type": "text/html",
+        "content-length": "787",
+        "cache-control": "private, no-cache, no-store, must-revalidate, max-age=0",
+        "server": "hcdn",
+        "x-hcdn-request-id": "80750d3e717fb498a344d0567a70d222-san-edge2"
+      },
+      "clasificacion": "htaccess_protegido_403"
+    },
+    {
+      "ruta": "404.html",
+      "esperado": {
+        "bytes": 1910,
+        "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f"
+      },
+      "url": "https://crm.miavance.com/404.html",
+      "final_url": "https://crm.miavance.com/404.html",
+      "status": 200,
+      "bytes": 1910,
+      "sha256": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "ms": 246,
+      "headers": {
+        "content-type": "text/html",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "etag": "W/\"776-6a9ecb76-b67761d99bbdfa51;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "DYNAMIC",
+        "x-hcdn-request-id": "a4d4ea40da6aed7477c2d8f3cdfea087-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "esperado": {
+        "bytes": 212660,
+        "sha256": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7"
+      },
+      "url": "https://crm.miavance.com/aliados/belysh.png",
+      "final_url": "https://crm.miavance.com/aliados/belysh.png",
+      "status": 200,
+      "bytes": 257370,
+      "sha256": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "ms": 202,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "257370",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "f87cd359546f813310c7deaeef14c772-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "esperado": {
+        "bytes": 21196,
+        "sha256": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91"
+      },
+      "url": "https://crm.miavance.com/aliados/clinica-alvarez.png",
+      "final_url": "https://crm.miavance.com/aliados/clinica-alvarez.png",
+      "status": 200,
+      "bytes": 23135,
+      "sha256": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "ms": 218,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "23135",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "017e210793f818b62bb7813d3525a3bb-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "esperado": {
+        "bytes": 133622,
+        "sha256": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76"
+      },
+      "url": "https://crm.miavance.com/aliados/mascapital.png",
+      "final_url": "https://crm.miavance.com/aliados/mascapital.png",
+      "status": 200,
+      "bytes": 143241,
+      "sha256": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "ms": 241,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "143241",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "55164ddc482c546b888fdf747d0e069a-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "esperado": {
+        "bytes": 112725,
+        "sha256": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f"
+      },
+      "url": "https://crm.miavance.com/aliados/ntc-agency.png",
+      "final_url": "https://crm.miavance.com/aliados/ntc-agency.png",
+      "status": 200,
+      "bytes": 100601,
+      "sha256": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "ms": 254,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "100601",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "3cc77dd72aef26fc0a8aaa48a97dbc9b-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "esperado": {
+        "bytes": 237650,
+        "sha256": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11"
+      },
+      "url": "https://crm.miavance.com/aliados/phoenix.png",
+      "final_url": "https://crm.miavance.com/aliados/phoenix.png",
+      "status": 200,
+      "bytes": 245744,
+      "sha256": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "ms": 111,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "245744",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "690f03ad0c222bf79308645b6ffb8bb9-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "esperado": {
+        "bytes": 39491,
+        "sha256": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6"
+      },
+      "url": "https://crm.miavance.com/aliados/prodelco.png",
+      "final_url": "https://crm.miavance.com/aliados/prodelco.png",
+      "status": 200,
+      "bytes": 42375,
+      "sha256": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "ms": 101,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "42375",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "f23fa7d2475c0e7bbece44234dbbd0b9-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "esperado": {
+        "bytes": 188016,
+        "sha256": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86"
+      },
+      "url": "https://crm.miavance.com/aliados/qorilazo.png",
+      "final_url": "https://crm.miavance.com/aliados/qorilazo.png",
+      "status": 200,
+      "bytes": 217135,
+      "sha256": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "ms": 99,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "217135",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "9fa70e97517b2c9007e13a7adf4fb2c3-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "assets/agenda-Cq2OVIMJ.js",
+      "esperado": {
+        "bytes": 30539,
+        "sha256": "3ee636b307352cbaa6ee9f519b945c914c7323be7f5a5d4cf88205e27b71fbea"
+      },
+      "url": "https://crm.miavance.com/assets/agenda-Cq2OVIMJ.js",
+      "final_url": "https://crm.miavance.com/assets/agenda-Cq2OVIMJ.js",
+      "status": 200,
+      "bytes": 30539,
+      "sha256": "3ee636b307352cbaa6ee9f519b945c914c7323be7f5a5d4cf88205e27b71fbea",
+      "ms": 181,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"774b-6a9ecb76-c65ec74ca94e3c7c;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "d781a0c42b944ac2f283bbc12cee07aa-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/agenda-vistas-B0IrsQ7Y.js",
+      "esperado": {
+        "bytes": 3648,
+        "sha256": "89fea38954b7efa23caf2b270cd7ea2dad59fbb4c1a494e665f7f55b065411d9"
+      },
+      "url": "https://crm.miavance.com/assets/agenda-vistas-B0IrsQ7Y.js",
+      "final_url": "https://crm.miavance.com/assets/agenda-vistas-B0IrsQ7Y.js",
+      "status": 200,
+      "bytes": 3648,
+      "sha256": "89fea38954b7efa23caf2b270cd7ea2dad59fbb4c1a494e665f7f55b065411d9",
+      "ms": 178,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"e40-6a9ecb76-669248420abee63c;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "af0eb312a9d7f2bc901e093e249ecb12-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/alertas-C1wcOOEX.js",
+      "esperado": {
+        "bytes": 15255,
+        "sha256": "b621933f35cb108dc792372231643e14d0a848389cf47a0962f2e7f6b6baad76"
+      },
+      "url": "https://crm.miavance.com/assets/alertas-C1wcOOEX.js",
+      "final_url": "https://crm.miavance.com/assets/alertas-C1wcOOEX.js",
+      "status": 200,
+      "bytes": 15255,
+      "sha256": "b621933f35cb108dc792372231643e14d0a848389cf47a0962f2e7f6b6baad76",
+      "ms": 179,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"3b97-6a9ecb76-83d817b9cf8ab236;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "dc22a27fbc476d56efdab4beb4d2e81e-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-j2mtUrUI.js",
+      "esperado": {
+        "bytes": 1198,
+        "sha256": "64806cf5cd7031bc907eeee9144a376234fe5be71853e315bb7b264c07b62beb"
+      },
+      "url": "https://crm.miavance.com/assets/aviso-degradacion-j2mtUrUI.js",
+      "final_url": "https://crm.miavance.com/assets/aviso-degradacion-j2mtUrUI.js",
+      "status": 200,
+      "bytes": 1198,
+      "sha256": "64806cf5cd7031bc907eeee9144a376234fe5be71853e315bb7b264c07b62beb",
+      "ms": 170,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"4ae-6a9ecb76-1f76a8433ae8fb29;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "037ba6c2aa254502c83c72ee1f8d9850-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/card-O5y7GKb5.js",
+      "esperado": {
+        "bytes": 737,
+        "sha256": "8e99ef8adfdfd22678c27094b97a1f10bb565cda69e3c1cf01ca8babe47e250b"
+      },
+      "url": "https://crm.miavance.com/assets/card-O5y7GKb5.js",
+      "final_url": "https://crm.miavance.com/assets/card-O5y7GKb5.js",
+      "status": 200,
+      "bytes": 737,
+      "sha256": "8e99ef8adfdfd22678c27094b97a1f10bb565cda69e3c1cf01ca8babe47e250b",
+      "ms": 174,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2e1-6a9ecb76-96492c5c392e8563;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "bd683838dfa5b012273c476eca1af325-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/cartera-B3ednu62.js",
+      "esperado": {
+        "bytes": 10081,
+        "sha256": "da57520882e2dbd94a1ec7796c0ef7f40f5de1aaeecdfc4f5fa4c8a5bd4467a1"
+      },
+      "url": "https://crm.miavance.com/assets/cartera-B3ednu62.js",
+      "final_url": "https://crm.miavance.com/assets/cartera-B3ednu62.js",
+      "status": 200,
+      "bytes": 10081,
+      "sha256": "da57520882e2dbd94a1ec7796c0ef7f40f5de1aaeecdfc4f5fa4c8a5bd4467a1",
+      "ms": 192,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2761-6a9ecb76-938f52700a987a60;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "0fa3b118a0a505c44a698d21dd54e4d3-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-1lawtZQG.js",
+      "esperado": {
+        "bytes": 14812,
+        "sha256": "d74e58b629c6617a27ce1795996783baab49d3407e364aadc4adc50ac4bb1039"
+      },
+      "url": "https://crm.miavance.com/assets/cierres-externos-seccion-1lawtZQG.js",
+      "final_url": "https://crm.miavance.com/assets/cierres-externos-seccion-1lawtZQG.js",
+      "status": 200,
+      "bytes": 14812,
+      "sha256": "d74e58b629c6617a27ce1795996783baab49d3407e364aadc4adc50ac4bb1039",
+      "ms": 179,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"39dc-6a9ecb76-60fdfae2d20d90a;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "3e083a5bac648eb8e904bdd5b08a4f11-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "esperado": {
+        "bytes": 304,
+        "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815"
+      },
+      "url": "https://crm.miavance.com/assets/clientes-vista-BT9wOPoj.js",
+      "final_url": "https://crm.miavance.com/assets/clientes-vista-BT9wOPoj.js",
+      "status": 200,
+      "bytes": 304,
+      "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "ms": 47,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"130-6a9df890-a7543cb9d240ef76;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "174df408cdb7c02d3478fa3783dfa521-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-BiCBgKSW.js",
+      "esperado": {
+        "bytes": 11615,
+        "sha256": "657c4d600899bb8911ce8dbb1f4e21eddf067da4b8443361b366c5fbbcbaa15b"
+      },
+      "url": "https://crm.miavance.com/assets/config-BiCBgKSW.js",
+      "final_url": "https://crm.miavance.com/assets/config-BiCBgKSW.js",
+      "status": 200,
+      "bytes": 11615,
+      "sha256": "657c4d600899bb8911ce8dbb1f4e21eddf067da4b8443361b366c5fbbcbaa15b",
+      "ms": 178,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2d5f-6a9ecb76-53f58712f571eb72;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "7ccf07387df187cf551fd5704e98b7cc-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-metas-nLi9z3pZ.js",
+      "esperado": {
+        "bytes": 12592,
+        "sha256": "571c708dd801d227d42b4746afb8e02d778e4754e253e278a3f6c80117ed1249"
+      },
+      "url": "https://crm.miavance.com/assets/config-metas-nLi9z3pZ.js",
+      "final_url": "https://crm.miavance.com/assets/config-metas-nLi9z3pZ.js",
+      "status": 200,
+      "bytes": 12592,
+      "sha256": "571c708dd801d227d42b4746afb8e02d778e4754e253e278a3f6c80117ed1249",
+      "ms": 177,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"3130-6a9ecb76-a3e6921e58081f86;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "9405f41d5ff47f13809baf6a0ccd7e25-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-productos-D-V22jkS.js",
+      "esperado": {
+        "bytes": 27073,
+        "sha256": "0b89f40b909e628be06ddd447f938c3e3f29968bee11954b70f8a52880c48154"
+      },
+      "url": "https://crm.miavance.com/assets/config-productos-D-V22jkS.js",
+      "final_url": "https://crm.miavance.com/assets/config-productos-D-V22jkS.js",
+      "status": 200,
+      "bytes": 27073,
+      "sha256": "0b89f40b909e628be06ddd447f938c3e3f29968bee11954b70f8a52880c48154",
+      "ms": 170,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"69c1-6a9ecb76-838120e27127150a;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "2327339d3b53c3614d35d6c8c91c3cd9-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-Chsfu3YL.js",
+      "esperado": {
+        "bytes": 11969,
+        "sha256": "0306b3e0d719aa8d6d5460575a185f4d746a901a630fcc078ad9adcdd044567a"
+      },
+      "url": "https://crm.miavance.com/assets/config-rentabilidad-Chsfu3YL.js",
+      "final_url": "https://crm.miavance.com/assets/config-rentabilidad-Chsfu3YL.js",
+      "status": 200,
+      "bytes": 11969,
+      "sha256": "0306b3e0d719aa8d6d5460575a185f4d746a901a630fcc078ad9adcdd044567a",
+      "ms": 179,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2ec1-6a9ecb76-2692f14c1018da6c;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "f6ac66dfe6a9932fd11190b6058a28ff-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-sla-Bpv1qmt0.js",
+      "esperado": {
+        "bytes": 17132,
+        "sha256": "c32822b6a18a5267dbd6cb241b333a7eb17783776c048d293c8e37df47069f29"
+      },
+      "url": "https://crm.miavance.com/assets/config-sla-Bpv1qmt0.js",
+      "final_url": "https://crm.miavance.com/assets/config-sla-Bpv1qmt0.js",
+      "status": 200,
+      "bytes": 17132,
+      "sha256": "c32822b6a18a5267dbd6cb241b333a7eb17783776c048d293c8e37df47069f29",
+      "ms": 176,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"42ec-6a9ecb76-d0335f1e2f2fd4d3;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "1b6b7dfa86eff9dcc74050e8cfe942ee-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/config-usuarios-DqW9Fvw2.js",
+      "esperado": {
+        "bytes": 23835,
+        "sha256": "84134eecdf215f5428e0574a25bfa73efeb9908dc0675e8cc2bca27552807232"
+      },
+      "url": "https://crm.miavance.com/assets/config-usuarios-DqW9Fvw2.js",
+      "final_url": "https://crm.miavance.com/assets/config-usuarios-DqW9Fvw2.js",
+      "status": 200,
+      "bytes": 23835,
+      "sha256": "84134eecdf215f5428e0574a25bfa73efeb9908dc0675e8cc2bca27552807232",
+      "ms": 175,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"5d1b-6a9ecb76-ffa8e5ac6a8935c8;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "f22441727e544aee07cc7420d8d3eabf-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/configuracion-shell-CthWPpeh.js",
+      "esperado": {
+        "bytes": 1758,
+        "sha256": "fdb1f3623a8e5172b8234eaf7a631a7b76488781c2a4129bb3cb1c97fba081f5"
+      },
+      "url": "https://crm.miavance.com/assets/configuracion-shell-CthWPpeh.js",
+      "final_url": "https://crm.miavance.com/assets/configuracion-shell-CthWPpeh.js",
+      "status": 200,
+      "bytes": 1758,
+      "sha256": "fdb1f3623a8e5172b8234eaf7a631a7b76488781c2a4129bb3cb1c97fba081f5",
+      "ms": 173,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"6de-6a9ecb76-bb208de57ae661f6;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "8e448b8e459280354c6f17fee54ea5d2-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/crm-api-C5NYp3Xh.js",
+      "esperado": {
+        "bytes": 178264,
+        "sha256": "ac652b5c7837977b568bf6a2c6f472c54f947449117daabf3faa0ae453db53ba"
+      },
+      "url": "https://crm.miavance.com/assets/crm-api-C5NYp3Xh.js",
+      "final_url": "https://crm.miavance.com/assets/crm-api-C5NYp3Xh.js",
+      "status": 200,
+      "bytes": 178264,
+      "sha256": "ac652b5c7837977b568bf6a2c6f472c54f947449117daabf3faa0ae453db53ba",
+      "ms": 182,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2b858-6a9ecb76-8147b33232db8764;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "b2910b181f0faa07ef057df127155977-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/data-vendor-CVus9pJE.js",
+      "esperado": {
+        "bytes": 241283,
+        "sha256": "96236843d5818177a09c90f9f8b80dcecb3b2460887d5bc03e84980e2a3a9c2d"
+      },
+      "url": "https://crm.miavance.com/assets/data-vendor-CVus9pJE.js",
+      "final_url": "https://crm.miavance.com/assets/data-vendor-CVus9pJE.js",
+      "status": 200,
+      "bytes": 241283,
+      "sha256": "96236843d5818177a09c90f9f8b80dcecb3b2460887d5bc03e84980e2a3a9c2d",
+      "ms": 59,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"3ae83-6a9df890-ffb76a768088f3aa;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "d4cfa2de0c95203b161acfbd90d85e59-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/derivaciones-O-V1l6j5.js",
+      "esperado": {
+        "bytes": 13069,
+        "sha256": "f042cc1132691e543b10f599790a94b9099aad87eef3e39b3679185b3823f43b"
+      },
+      "url": "https://crm.miavance.com/assets/derivaciones-O-V1l6j5.js",
+      "final_url": "https://crm.miavance.com/assets/derivaciones-O-V1l6j5.js",
+      "status": 200,
+      "bytes": 13069,
+      "sha256": "f042cc1132691e543b10f599790a94b9099aad87eef3e39b3679185b3823f43b",
+      "ms": 174,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"330d-6a9ecb76-178bd842067f0452;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "e9cabacf71355d64ddf936dfb59410f9-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/desglose-monedas-CkgBIXJ4.js",
+      "esperado": {
+        "bytes": 643,
+        "sha256": "c81cc6d39cecb7d4307d8303d4bc8e5ce62b51e221d774d0e40c9a58fd3842ba"
+      },
+      "url": "https://crm.miavance.com/assets/desglose-monedas-CkgBIXJ4.js",
+      "final_url": "https://crm.miavance.com/assets/desglose-monedas-CkgBIXJ4.js",
+      "status": 200,
+      "bytes": 643,
+      "sha256": "c81cc6d39cecb7d4307d8303d4bc8e5ce62b51e221d774d0e40c9a58fd3842ba",
+      "ms": 174,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"283-6a9ecb76-d36438683e930530;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "313ab907fa279a434c466b4368519996-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/echart-bar-BsAAUZaw.js",
+      "esperado": {
+        "bytes": 21988,
+        "sha256": "1ccb96fefecf623fda2e4f1e9ac719930597dec606cbb401b059381814dfae86"
+      },
+      "url": "https://crm.miavance.com/assets/echart-bar-BsAAUZaw.js",
+      "final_url": "https://crm.miavance.com/assets/echart-bar-BsAAUZaw.js",
+      "status": 200,
+      "bytes": 21988,
+      "sha256": "1ccb96fefecf623fda2e4f1e9ac719930597dec606cbb401b059381814dfae86",
+      "ms": 176,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"55e4-6a9ecb76-293fcf14131c5404;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "268a86746478c650e18bcb8648104de4-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/echart-C3tHmt9_.js",
+      "esperado": {
+        "bytes": 487201,
+        "sha256": "e6a03625bf61b5d6e43c0cb5442df8fa5510a56db2b4aabcd518c7543db79774"
+      },
+      "url": "https://crm.miavance.com/assets/echart-C3tHmt9_.js",
+      "final_url": "https://crm.miavance.com/assets/echart-C3tHmt9_.js",
+      "status": 200,
+      "bytes": 487201,
+      "sha256": "e6a03625bf61b5d6e43c0cb5442df8fa5510a56db2b4aabcd518c7543db79774",
+      "ms": 292,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"76f21-6a9ecb76-1456b37279dfde75;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "1f7c77cc8c6397350b7870a3872565cf-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/echart-line-lGh_uEtr.js",
+      "esperado": {
+        "bytes": 45314,
+        "sha256": "1db8df86b3b85f959f8ec52464941ca972383af6fc19cd04d13770052c107d19"
+      },
+      "url": "https://crm.miavance.com/assets/echart-line-lGh_uEtr.js",
+      "final_url": "https://crm.miavance.com/assets/echart-line-lGh_uEtr.js",
+      "status": 200,
+      "bytes": 45314,
+      "sha256": "1db8df86b3b85f959f8ec52464941ca972383af6fc19cd04d13770052c107d19",
+      "ms": 187,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"b102-6a9ecb76-d5a9a2c527543967;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "9cd79e46ea0c6d92666e46cb7d70bdeb-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/equipo-P5EbGSZQ.js",
+      "esperado": {
+        "bytes": 26155,
+        "sha256": "e2d1506cd1122821235238a32bebe1876cb3775b1c59cec40b087c30c98778c4"
+      },
+      "url": "https://crm.miavance.com/assets/equipo-P5EbGSZQ.js",
+      "final_url": "https://crm.miavance.com/assets/equipo-P5EbGSZQ.js",
+      "status": 200,
+      "bytes": 26155,
+      "sha256": "e2d1506cd1122821235238a32bebe1876cb3775b1c59cec40b087c30c98778c4",
+      "ms": 178,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"662b-6a9ecb76-b919212b444e5d68;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "0a110c6292d079106050a21aa77b4b9c-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "esperado": {
+        "bytes": 84559,
+        "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722"
+      },
+      "url": "https://crm.miavance.com/assets/esm-BofDk75c.js",
+      "final_url": "https://crm.miavance.com/assets/esm-BofDk75c.js",
+      "status": 200,
+      "bytes": 84559,
+      "sha256": "83896dae0e387ac3d002482a822d03dda90b01bbf82fba06bd017cdb635cd722",
+      "ms": 49,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"14a4f-6a9df890-cddc88bc275b32e3;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "b2db3586f0ccf54b27e026b72bf0a58e-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/estado-panel-8iFRN1T4.js",
+      "esperado": {
+        "bytes": 2974,
+        "sha256": "7b68798768f79238dec006e148dc6450ac042e9fafd13b4fcf0466701951f6e1"
+      },
+      "url": "https://crm.miavance.com/assets/estado-panel-8iFRN1T4.js",
+      "final_url": "https://crm.miavance.com/assets/estado-panel-8iFRN1T4.js",
+      "status": 200,
+      "bytes": 2974,
+      "sha256": "7b68798768f79238dec006e148dc6450ac042e9fafd13b4fcf0466701951f6e1",
+      "ms": 172,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"b9e-6a9ecb76-eca6cd61d4c0261a;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "69f120181fc86ae11ccdd673f0bc090a-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/gerencia-BF6yAFlO.js",
+      "esperado": {
+        "bytes": 507,
+        "sha256": "0e9f215ca74b7be7f577fd0a275028d44e723a039a500913362e8e39bd9d9492"
+      },
+      "url": "https://crm.miavance.com/assets/gerencia-BF6yAFlO.js",
+      "final_url": "https://crm.miavance.com/assets/gerencia-BF6yAFlO.js",
+      "status": 200,
+      "bytes": 507,
+      "sha256": "0e9f215ca74b7be7f577fd0a275028d44e723a039a500913362e8e39bd9d9492",
+      "ms": 176,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"1fb-6a9ecb76-df84c37ef8de9b94;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "4c32ab8a97bcb618970e3a80c1ce1000-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/gerencia-lK3YSSul.js",
+      "esperado": {
+        "bytes": 180556,
+        "sha256": "1b835f0f48c0744f507f27a3b369775b26cd8d66841a4ca4eadbf420692651a9"
+      },
+      "url": "https://crm.miavance.com/assets/gerencia-lK3YSSul.js",
+      "final_url": "https://crm.miavance.com/assets/gerencia-lK3YSSul.js",
+      "status": 200,
+      "bytes": 180556,
+      "sha256": "1b835f0f48c0744f507f27a3b369775b26cd8d66841a4ca4eadbf420692651a9",
+      "ms": 185,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2c14c-6a9ecb76-8044a72ff0d062a9;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "d05f56fbda2038b6e2c85914c07eb520-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/hoy-DcEu4DBi.js",
+      "esperado": {
+        "bytes": 93276,
+        "sha256": "dc6f96dce51d1e49803f9e23225d45b9983d979640e22311f62f3b0ff08a9d92"
+      },
+      "url": "https://crm.miavance.com/assets/hoy-DcEu4DBi.js",
+      "final_url": "https://crm.miavance.com/assets/hoy-DcEu4DBi.js",
+      "status": 200,
+      "bytes": 93276,
+      "sha256": "dc6f96dce51d1e49803f9e23225d45b9983d979640e22311f62f3b0ff08a9d92",
+      "ms": 193,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"16c5c-6a9ecb76-58b52081beb4ceea;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "d717bc1f5742357c7ab9f74576ffb5ad-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "esperado": {
+        "bytes": 22588,
+        "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "status": 200,
+      "bytes": 22588,
+      "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "ms": 48,
+      "headers": {
+        "content-type": "font/woff2",
+        "content-length": "22588",
+        "cache-control": "public, max-age=604800",
+        "etag": "\"583c-6a9df890-1bddb2c40e59edda;;;\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "fefb6c9e1cb3b06baac5e34900dfa214-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "esperado": {
+        "bytes": 22104,
+        "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "status": 200,
+      "bytes": 22104,
+      "sha256": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "ms": 176,
+      "headers": {
+        "content-type": "application/font-woff",
+        "content-length": "22104",
+        "etag": "\"5658-6a9ecb76-6908a1b86d701a57;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "9855249d39865e448a26f80cd03ab6db-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "esperado": {
+        "bytes": 24184,
+        "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "status": 200,
+      "bytes": 24184,
+      "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "ms": 43,
+      "headers": {
+        "content-type": "font/woff2",
+        "content-length": "24184",
+        "cache-control": "public, max-age=604800",
+        "etag": "\"5e78-6a9df890-b595ce3c83ed039f;;;\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "bbadd7fcaf8ec0ae3b9a55b1fbcd9900-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "esperado": {
+        "bytes": 23916,
+        "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "status": 200,
+      "bytes": 23916,
+      "sha256": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "ms": 59,
+      "headers": {
+        "content-type": "application/font-woff",
+        "content-length": "23916",
+        "etag": "\"5d6c-6a9eaf22-e33d2453b331cdf7;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 12:33:38 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "97b6dffc7d287a50b5735490afb86278-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "esperado": {
+        "bytes": 23876,
+        "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "status": 200,
+      "bytes": 23876,
+      "sha256": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "ms": 48,
+      "headers": {
+        "content-type": "application/font-woff",
+        "content-length": "23876",
+        "etag": "\"5d44-6a9eaf22-215182c704b2cf0f;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 12:33:38 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "4139479a1c761f357dadd52e9f00ea5e-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "esperado": {
+        "bytes": 24252,
+        "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "status": 200,
+      "bytes": 24252,
+      "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "ms": 45,
+      "headers": {
+        "content-type": "font/woff2",
+        "content-length": "24252",
+        "cache-control": "public, max-age=604800",
+        "etag": "\"5ebc-6a9df890-1a9a05fa536778f7;;;\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "f80f81538eb476fe12b32d501481b414-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "esperado": {
+        "bytes": 22280,
+        "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "status": 200,
+      "bytes": 22280,
+      "sha256": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "ms": 49,
+      "headers": {
+        "content-type": "application/font-woff",
+        "content-length": "22280",
+        "etag": "\"5708-6a9eaf22-ad23b51297d5e650;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 12:33:38 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "ad72a8abb21108d28b73165b207bc087-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "esperado": {
+        "bytes": 22832,
+        "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7"
+      },
+      "url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "final_url": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "status": 200,
+      "bytes": 22832,
+      "sha256": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "ms": 52,
+      "headers": {
+        "content-type": "font/woff2",
+        "content-length": "22832",
+        "cache-control": "public, max-age=604800",
+        "etag": "\"5930-6a9df890-81698a2a6c35cef9;;;\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "5a764a1998e1b4c4fc56740defc93f47-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/index-BdkgV80S.js",
+      "esperado": {
+        "bytes": 575654,
+        "sha256": "44e1f1c495f180ff5ce4c004a46886b719eabbdc822d84539536666b4f166dff"
+      },
+      "url": "https://crm.miavance.com/assets/index-BdkgV80S.js",
+      "final_url": "https://crm.miavance.com/assets/index-BdkgV80S.js",
+      "status": 200,
+      "bytes": 575654,
+      "sha256": "44e1f1c495f180ff5ce4c004a46886b719eabbdc822d84539536666b4f166dff",
+      "ms": 331,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"8c8a6-6a9ecb76-d7265010acb9a2d;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "ed3a8889e6603c87d62f2aa277ea0c94-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/index-CW5HBrUY.css",
+      "esperado": {
+        "bytes": 136569,
+        "sha256": "091f762d7cefd8f4b71ae32c43ae0b3b9d20721f7820714321db0663a6eb54af"
+      },
+      "url": "https://crm.miavance.com/assets/index-CW5HBrUY.css",
+      "final_url": "https://crm.miavance.com/assets/index-CW5HBrUY.css",
+      "status": 200,
+      "bytes": 136569,
+      "sha256": "091f762d7cefd8f4b71ae32c43ae0b3b9d20721f7820714321db0663a6eb54af",
+      "ms": 180,
+      "headers": {
+        "content-type": "text/css",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"21579-6a9ecb76-1334b2ac2a64f1f1;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "5bea4229e2a9305d7f049b155480d8f3-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/lead-hover-card-BPnY0cCW.js",
+      "esperado": {
+        "bytes": 33794,
+        "sha256": "75b42c35acf45dcf2a0e7c203b3568882ae876b05f54d849e5701c6d77e5ea03"
+      },
+      "url": "https://crm.miavance.com/assets/lead-hover-card-BPnY0cCW.js",
+      "final_url": "https://crm.miavance.com/assets/lead-hover-card-BPnY0cCW.js",
+      "status": 200,
+      "bytes": 33794,
+      "sha256": "75b42c35acf45dcf2a0e7c203b3568882ae876b05f54d849e5701c6d77e5ea03",
+      "ms": 206,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"8402-6a9ecb76-c4100caf356bd2eb;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "1a465b24303235e204593951771a531a-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/mi-cartera-BggOZSeL.js",
+      "esperado": {
+        "bytes": 139534,
+        "sha256": "2faa8a007e6326e437ee8f1504fcac7c43ae42e080e44eda741e59423fa3b558"
+      },
+      "url": "https://crm.miavance.com/assets/mi-cartera-BggOZSeL.js",
+      "final_url": "https://crm.miavance.com/assets/mi-cartera-BggOZSeL.js",
+      "status": 200,
+      "bytes": 139534,
+      "sha256": "2faa8a007e6326e437ee8f1504fcac7c43ae42e080e44eda741e59423fa3b558",
+      "ms": 189,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2210e-6a9ecb76-30f5f2173a22758a;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "4a608918cadf69d3c326e7c7b5b5d6c2-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/paginacion-Cy0GMF4R.js",
+      "esperado": {
+        "bytes": 1074,
+        "sha256": "ef83693acee72b646a13449dc825c683587f25e6cad65effa558a588937b377a"
+      },
+      "url": "https://crm.miavance.com/assets/paginacion-Cy0GMF4R.js",
+      "final_url": "https://crm.miavance.com/assets/paginacion-Cy0GMF4R.js",
+      "status": 200,
+      "bytes": 1074,
+      "sha256": "ef83693acee72b646a13449dc825c683587f25e6cad65effa558a588937b377a",
+      "ms": 44,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"432-6a9df890-c744d0aa1456b965;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "e7b5b6306125aea4840551731996541f-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/pipeline-7cnDkksu.js",
+      "esperado": {
+        "bytes": 15188,
+        "sha256": "2795750c2920c583086f416ec1b55e31f528e9398094e699ec1556e853c2f959"
+      },
+      "url": "https://crm.miavance.com/assets/pipeline-7cnDkksu.js",
+      "final_url": "https://crm.miavance.com/assets/pipeline-7cnDkksu.js",
+      "status": 200,
+      "bytes": 15188,
+      "sha256": "2795750c2920c583086f416ec1b55e31f528e9398094e699ec1556e853c2f959",
+      "ms": 183,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"3b54-6a9ecb76-8b5f257516c634c1;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "6baeedf291e84fcc1f9a5197f169ad51-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/plan-lead-DJStKRbZ.js",
+      "esperado": {
+        "bytes": 20885,
+        "sha256": "ab9f32d7f4f51579e7af89deed25a02192afd1d7c0143c9f660271bc689d3037"
+      },
+      "url": "https://crm.miavance.com/assets/plan-lead-DJStKRbZ.js",
+      "final_url": "https://crm.miavance.com/assets/plan-lead-DJStKRbZ.js",
+      "status": 200,
+      "bytes": 20885,
+      "sha256": "ab9f32d7f4f51579e7af89deed25a02192afd1d7c0143c9f660271bc689d3037",
+      "ms": 182,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"5195-6a9ecb76-ca3fc7277dd5a822;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "ff1623c25d0d85e3e70ee7e3a468b1f6-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/progress-ODpCQZiN.js",
+      "esperado": {
+        "bytes": 426,
+        "sha256": "1eb8bc67361b8ef377f4d57ce35d5442ee6ab932fe1209faf6ed1b954f0f3256"
+      },
+      "url": "https://crm.miavance.com/assets/progress-ODpCQZiN.js",
+      "final_url": "https://crm.miavance.com/assets/progress-ODpCQZiN.js",
+      "status": 200,
+      "bytes": 426,
+      "sha256": "1eb8bc67361b8ef377f4d57ce35d5442ee6ab932fe1209faf6ed1b954f0f3256",
+      "ms": 180,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"1aa-6a9ecb76-40dcdcf4bdce98e0;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "1f049c0ed212a3132685eb9876c03bf0-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-CfoArt70.js",
+      "esperado": {
+        "bytes": 31153,
+        "sha256": "c7caa25218000e13a7cc03a5efd8011d5ca01333bb1488a44bc44399a79717b6"
+      },
+      "url": "https://crm.miavance.com/assets/ranking-vendedores-CfoArt70.js",
+      "final_url": "https://crm.miavance.com/assets/ranking-vendedores-CfoArt70.js",
+      "status": 200,
+      "bytes": 31153,
+      "sha256": "c7caa25218000e13a7cc03a5efd8011d5ca01333bb1488a44bc44399a79717b6",
+      "ms": 252,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"79b1-6a9ecb76-4ac6deaa3b6aea64;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "654f1e24bf4493eb02a999226dbb687d-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "esperado": {
+        "bytes": 190815,
+        "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18"
+      },
+      "url": "https://crm.miavance.com/assets/react-vendor-BXy-oECh.js",
+      "final_url": "https://crm.miavance.com/assets/react-vendor-BXy-oECh.js",
+      "status": 200,
+      "bytes": 190815,
+      "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "ms": 57,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2e95f-6a9df890-15b80aa2b7dbec41;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "0f54d134e86ea8d90dc0ed718a942fa0-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/repartir-COz0Bf0N.js",
+      "esperado": {
+        "bytes": 46343,
+        "sha256": "97286bc2f380963c2ad5b5ffde4a0271709380e967392475fdd4c8a63da5bfed"
+      },
+      "url": "https://crm.miavance.com/assets/repartir-COz0Bf0N.js",
+      "final_url": "https://crm.miavance.com/assets/repartir-COz0Bf0N.js",
+      "status": 200,
+      "bytes": 46343,
+      "sha256": "97286bc2f380963c2ad5b5ffde4a0271709380e967392475fdd4c8a63da5bfed",
+      "ms": 176,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"b507-6a9ecb76-f21c8eb5f966c5b5;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "715cf151d5afbd641e5b00c4ab7a1666-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-Dh28iSOr.js",
+      "esperado": {
+        "bytes": 205,
+        "sha256": "fbeda0426fd84673a1b57901b3d9040fdd1933aca6350c5b1d5bd61c7de12cfc"
+      },
+      "url": "https://crm.miavance.com/assets/rescate-carpeta-Dh28iSOr.js",
+      "final_url": "https://crm.miavance.com/assets/rescate-carpeta-Dh28iSOr.js",
+      "status": 200,
+      "bytes": 205,
+      "sha256": "fbeda0426fd84673a1b57901b3d9040fdd1933aca6350c5b1d5bd61c7de12cfc",
+      "ms": 180,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "content-length": "205",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "\"cd-6a9ecb76-925d21eaf876efaf;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "aad3074b40bb1a642c00c478fdf016da-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/rescate-descartados-Bk-_j2yh.js",
+      "esperado": {
+        "bytes": 30808,
+        "sha256": "4e3f6dd95a8fb827bb51d1c8fb94901467f5a52a9196d0c361bdb66efd672879"
+      },
+      "url": "https://crm.miavance.com/assets/rescate-descartados-Bk-_j2yh.js",
+      "final_url": "https://crm.miavance.com/assets/rescate-descartados-Bk-_j2yh.js",
+      "status": 200,
+      "bytes": 30808,
+      "sha256": "4e3f6dd95a8fb827bb51d1c8fb94901467f5a52a9196d0c361bdb66efd672879",
+      "ms": 175,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"7858-6a9ecb76-98a9dc3ce7e17c8f;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "e45eca980ffbacf7c7a5137505659384-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "esperado": {
+        "bytes": 694,
+        "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+      },
+      "url": "https://crm.miavance.com/assets/rolldown-runtime-QTnfLwEv.js",
+      "final_url": "https://crm.miavance.com/assets/rolldown-runtime-QTnfLwEv.js",
+      "status": 200,
+      "bytes": 694,
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "ms": 42,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2b6-6a9df890-7ebecb6b95b8113e;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "3cbce888a83c1c11237d73128ac5b1c1-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/section-head-Btmhxlks.js",
+      "esperado": {
+        "bytes": 432,
+        "sha256": "585f424852a6c819653a1eee5e51f7a8ac30a927211a8f851af699dcd68cf414"
+      },
+      "url": "https://crm.miavance.com/assets/section-head-Btmhxlks.js",
+      "final_url": "https://crm.miavance.com/assets/section-head-Btmhxlks.js",
+      "status": 200,
+      "bytes": 432,
+      "sha256": "585f424852a6c819653a1eee5e51f7a8ac30a927211a8f851af699dcd68cf414",
+      "ms": 172,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"1b0-6a9ecb76-aab9c6b504f2f78e;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "cafb0618719f4cf57eb077fd05b69428-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/seguimiento-Br2DoKqY.js",
+      "esperado": {
+        "bytes": 817,
+        "sha256": "e987ef7971b78f5c6dcdee527a4450b7d035f58a08b1414c3d5d013eacbb01f4"
+      },
+      "url": "https://crm.miavance.com/assets/seguimiento-Br2DoKqY.js",
+      "final_url": "https://crm.miavance.com/assets/seguimiento-Br2DoKqY.js",
+      "status": 200,
+      "bytes": 817,
+      "sha256": "e987ef7971b78f5c6dcdee527a4450b7d035f58a08b1414c3d5d013eacbb01f4",
+      "ms": 173,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"331-6a9ecb76-abb038920bf1360f;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "c05b3d08fbdde5d83d74c39f76505fae-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/stat-strip-De9FxhTJ.js",
+      "esperado": {
+        "bytes": 3038,
+        "sha256": "3a5b33314536eee775622474049762b7c4944d3ca1c48fd72bdc786961d6a7f7"
+      },
+      "url": "https://crm.miavance.com/assets/stat-strip-De9FxhTJ.js",
+      "final_url": "https://crm.miavance.com/assets/stat-strip-De9FxhTJ.js",
+      "status": 200,
+      "bytes": 3038,
+      "sha256": "3a5b33314536eee775622474049762b7c4944d3ca1c48fd72bdc786961d6a7f7",
+      "ms": 175,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"bde-6a9ecb76-31879fbe518cf8d8;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "257ce00347e9198c9452f6170024eb52-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/tabla-j15Msk8f.js",
+      "esperado": {
+        "bytes": 701,
+        "sha256": "1842c0523811f86014605f7fb554abbcd302b93619adac97c8a8120ff8221a7e"
+      },
+      "url": "https://crm.miavance.com/assets/tabla-j15Msk8f.js",
+      "final_url": "https://crm.miavance.com/assets/tabla-j15Msk8f.js",
+      "status": 200,
+      "bytes": 701,
+      "sha256": "1842c0523811f86014605f7fb554abbcd302b93619adac97c8a8120ff8221a7e",
+      "ms": 172,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"2bd-6a9ecb76-6515851aa9549ad8;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "559ee8175624b6e9b48e32adbecedcf3-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/ui-vendor-CBkUcYWd.js",
+      "esperado": {
+        "bytes": 85988,
+        "sha256": "f82b8287dd49553f0efbea9ef71b95a2cc834e802d7ec894d92eed647a9cde67"
+      },
+      "url": "https://crm.miavance.com/assets/ui-vendor-CBkUcYWd.js",
+      "final_url": "https://crm.miavance.com/assets/ui-vendor-CBkUcYWd.js",
+      "status": 200,
+      "bytes": 85988,
+      "sha256": "f82b8287dd49553f0efbea9ef71b95a2cc834e802d7ec894d92eed647a9cde67",
+      "ms": 193,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"14fe4-6a9ecb76-14d78450797c8646;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "aa3d863a4bf05ac19f73dc26a48a8a03-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-BubOYAOu.js",
+      "esperado": {
+        "bytes": 1563,
+        "sha256": "c830ad368d05004ef2704b695a7673380ae5c4aae973cda5fa25dbcab51c52df"
+      },
+      "url": "https://crm.miavance.com/assets/use-metricas-vendedores-operativas-BubOYAOu.js",
+      "final_url": "https://crm.miavance.com/assets/use-metricas-vendedores-operativas-BubOYAOu.js",
+      "status": 200,
+      "bytes": 1563,
+      "sha256": "c830ad368d05004ef2704b695a7673380ae5c4aae973cda5fa25dbcab51c52df",
+      "ms": 184,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"61b-6a9ecb76-a303a12f01a113f2;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "883df866ac9314ae162aa50c4db17f75-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/use-periodo-derivaciones-BygSfhS6.js",
+      "esperado": {
+        "bytes": 3044,
+        "sha256": "6e09b8823d35de95f2f614e9fd4a7e5d3c125e90e37afb78c2bc9ec48778f3fa"
+      },
+      "url": "https://crm.miavance.com/assets/use-periodo-derivaciones-BygSfhS6.js",
+      "final_url": "https://crm.miavance.com/assets/use-periodo-derivaciones-BygSfhS6.js",
+      "status": 200,
+      "bytes": 3044,
+      "sha256": "6e09b8823d35de95f2f614e9fd4a7e5d3c125e90e37afb78c2bc9ec48778f3fa",
+      "ms": 196,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"be4-6a9ecb76-4d6295b793d8187c;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "9ba3dd41367bdec7aa855ee6e1926c59-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-BTaETrU1.js",
+      "esperado": {
+        "bytes": 289,
+        "sha256": "de4f2cf029f87859f4d8e964000b8cb3db591b114db1b0d9759fb9b54f116cb3"
+      },
+      "url": "https://crm.miavance.com/assets/use-periodo-gerencia-BTaETrU1.js",
+      "final_url": "https://crm.miavance.com/assets/use-periodo-gerencia-BTaETrU1.js",
+      "status": 200,
+      "bytes": 289,
+      "sha256": "de4f2cf029f87859f4d8e964000b8cb3db591b114db1b0d9759fb9b54f116cb3",
+      "ms": 185,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "content-length": "289",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "\"121-6a9ecb76-282431b028bf5f14;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "be16428bd6215b98e7b578456ad73e90-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-DHRzHiQQ.js",
+      "esperado": {
+        "bytes": 525,
+        "sha256": "aef3dee604895a048f913d4b25c68fdb6c09741eb7922d03b935ec44ca89131c"
+      },
+      "url": "https://crm.miavance.com/assets/use-resumen-cartera-operativo-DHRzHiQQ.js",
+      "final_url": "https://crm.miavance.com/assets/use-resumen-cartera-operativo-DHRzHiQQ.js",
+      "status": 200,
+      "bytes": 525,
+      "sha256": "aef3dee604895a048f913d4b25c68fdb6c09741eb7922d03b935ec44ca89131c",
+      "ms": 177,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"20d-6a9ecb76-eafcc8e0c89d7ddf;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "e06d59f65b6aca0be83524f21ae8f9c8-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "assets/utils-CsgI2Vnl.js",
+      "esperado": {
+        "bytes": 26939,
+        "sha256": "5d4758979291c8a3288bc2cca22d1c08a07638b5e659ea0cdfdcf26021edcdf1"
+      },
+      "url": "https://crm.miavance.com/assets/utils-CsgI2Vnl.js",
+      "final_url": "https://crm.miavance.com/assets/utils-CsgI2Vnl.js",
+      "status": 200,
+      "bytes": 26939,
+      "sha256": "5d4758979291c8a3288bc2cca22d1c08a07638b5e659ea0cdfdcf26021edcdf1",
+      "ms": 178,
+      "headers": {
+        "content-type": "application/x-javascript",
+        "cache-control": "public, max-age=31536000, immutable",
+        "etag": "W/\"693b-6a9ecb76-475175ddeb2b2c05;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "MISS",
+        "x-hcdn-request-id": "3b7dfeccc4babe31c5f6b2acde8e6912-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "esperado": {
+        "bytes": 30652,
+        "sha256": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0"
+      },
+      "url": "https://crm.miavance.com/brand/avance-icon-512.png",
+      "final_url": "https://crm.miavance.com/brand/avance-icon-512.png",
+      "status": 200,
+      "bytes": 22966,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "ms": 46,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "22966",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "cab5c96221250387492e96541840a9b3-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "esperado": {
+        "bytes": 30652,
+        "sha256": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0"
+      },
+      "url": "https://crm.miavance.com/brand/avance-icon.png",
+      "final_url": "https://crm.miavance.com/brand/avance-icon.png",
+      "status": 200,
+      "bytes": 22966,
+      "sha256": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "ms": 366,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "22966",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "580d36e01ce25f8ffeeefc3bd51e6302-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "esperado": {
+        "bytes": 33721,
+        "sha256": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f"
+      },
+      "url": "https://crm.miavance.com/brand/avance-logo-full.png",
+      "final_url": "https://crm.miavance.com/brand/avance-logo-full.png",
+      "status": 200,
+      "bytes": 35493,
+      "sha256": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "ms": 291,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "35493",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "2de9488d58d918b4b0df0a5d448f9277-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "esperado": {
+        "bytes": 2097,
+        "sha256": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23"
+      },
+      "url": "https://crm.miavance.com/brand/favicon-32.png",
+      "final_url": "https://crm.miavance.com/brand/favicon-32.png",
+      "status": 200,
+      "bytes": 1415,
+      "sha256": "2cbcc7abc1dac16e3d05bb198a180e0d3fd2e91a5002d69eb54dd40f2e645fb6",
+      "ms": 40,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "1415",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "3cb8af86ed16add6154ba9f2ee8265df-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "esperado": {
+        "bytes": 108685,
+        "sha256": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898"
+      },
+      "url": "https://crm.miavance.com/contrato/fondo-corporativo.png",
+      "final_url": "https://crm.miavance.com/contrato/fondo-corporativo.png",
+      "status": 200,
+      "bytes": 108883,
+      "sha256": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "ms": 272,
+      "headers": {
+        "content-type": "image/png",
+        "content-length": "108883",
+        "cache-control": "public, max-age=604800",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "6f8270e22ace72f539b7e8c1812771b4-san-edge2"
+      },
+      "clasificacion": "imagen_transformada_por_servidor"
+    },
+    {
+      "ruta": "favicon.svg",
+      "esperado": {
+        "bytes": 9522,
+        "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+      },
+      "url": "https://crm.miavance.com/favicon.svg",
+      "final_url": "https://crm.miavance.com/favicon.svg",
+      "status": 200,
+      "bytes": 9522,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "ms": 48,
+      "headers": {
+        "content-type": "image/svg+xml",
+        "cache-control": "public, max-age=604800",
+        "etag": "W/\"2532-6a9df890-20ed5d04eaf93fad;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "281abb6821df5d4d9ca7c73cc8310a44-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "icons.svg",
+      "esperado": {
+        "bytes": 5031,
+        "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+      },
+      "url": "https://crm.miavance.com/icons.svg",
+      "final_url": "https://crm.miavance.com/icons.svg",
+      "status": 200,
+      "bytes": 5031,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "ms": 41,
+      "headers": {
+        "content-type": "image/svg+xml",
+        "cache-control": "public, max-age=604800",
+        "etag": "W/\"13a7-6a9df890-78131233e2f70a3;gz\"",
+        "last-modified": "Sun, 06 Sep 2026 23:34:40 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "HIT",
+        "x-hcdn-request-id": "c09d3306ed96d5402272e215803c904c-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "index.html",
+      "esperado": {
+        "bytes": 1300,
+        "sha256": "6e14bf37aadec93312545c96b43d471b3cbeb6c7241ffd81204d5ae6349cb67c"
+      },
+      "url": "https://crm.miavance.com/index.html",
+      "final_url": "https://crm.miavance.com/index.html",
+      "status": 200,
+      "bytes": 1300,
+      "sha256": "6e14bf37aadec93312545c96b43d471b3cbeb6c7241ffd81204d5ae6349cb67c",
+      "ms": 170,
+      "headers": {
+        "content-type": "text/html",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "etag": "W/\"514-6a9ecb76-920700581e7bf8a8;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "DYNAMIC",
+        "x-hcdn-request-id": "5f2dd2eed9b806467094d7951712b083-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "robots.txt",
+      "esperado": {
+        "bytes": 26,
+        "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1"
+      },
+      "url": "https://crm.miavance.com/robots.txt",
+      "final_url": "https://crm.miavance.com/robots.txt",
+      "status": 200,
+      "bytes": 26,
+      "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "ms": 170,
+      "headers": {
+        "content-type": "text/plain",
+        "content-length": "26",
+        "etag": "\"1a-6a9ecb76-d7f9d9f86ed93184;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "EXPIRED",
+        "x-hcdn-request-id": "13a96b28f4afc03637e4433308c3ce41-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    },
+    {
+      "ruta": "version.json",
+      "esperado": {
+        "bytes": 51,
+        "sha256": "f5213c5697686b49b7b56f5f137cd6e1bbe67eb92221cc6797a864f2ff24e419"
+      },
+      "url": "https://crm.miavance.com/version.json",
+      "final_url": "https://crm.miavance.com/version.json",
+      "status": 200,
+      "bytes": 51,
+      "sha256": "f5213c5697686b49b7b56f5f137cd6e1bbe67eb92221cc6797a864f2ff24e419",
+      "ms": 171,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "51",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "etag": "\"33-6a9ecb76-a0ae94a1db380b74;;;\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-cache-status": "DYNAMIC",
+        "x-hcdn-request-id": "5485b33fa3e1f07be4bf0ce1d7a90385-san-edge2"
+      },
+      "clasificacion": "hash_exacto"
+    }
+  ],
+  "zip_publico": [
+    {
+      "url": "https://crm.miavance.com/crm-20260907T193510Z-8a3169291601.zip",
+      "final_url": "https://crm.miavance.com/crm-20260907T193510Z-8a3169291601.zip",
+      "status": 404,
+      "bytes": 0,
+      "sha256": null,
+      "ms": 172,
+      "headers": {
+        "content-type": "text/html",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        "etag": "W/\"776-6a9ecb76-b67761d99bbdfa51;gz\"",
+        "last-modified": "Mon, 07 Sep 2026 14:34:30 GMT",
+        "server": "hcdn",
+        "x-hcdn-request-id": "3eda5e8c14f8820d9bd1105906507134-san-edge2"
+      }
+    },
+    {
+      "url": "https://miavance.com/crm-20260907T193510Z-8a3169291601.zip",
+      "final_url": "https://miavance.com/crm-20260907T193510Z-8a3169291601.zip",
+      "status": 404,
+      "bytes": 0,
+      "sha256": null,
+      "ms": 321,
+      "headers": {
+        "content-type": "text/html",
+        "etag": "W/\"112c0-6a8de4f5-43626523547b6549;gz\"",
+        "last-modified": "Tue, 25 Aug 2026 18:54:45 GMT",
+        "server": "hcdn",
+        "x-hcdn-request-id": "b72749d5e2ecc7c9eb9a2de45fcc9789-san-edge2"
+      }
+    }
+  ],
+  "excepciones": "No se compara el cuerpo .htaccess: debe devolver 403. Las imágenes pueden ser optimizadas por Hostinger; se documentan individualmente, sin afirmar igualdad binaria.",
+  "correcto": true
+}
