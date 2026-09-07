@@ -1,0 +1,62 @@
+{
+  "fecha": "2026-09-07",
+  "estado": "implementado_sin_publicar",
+  "fuente": "311a212ea9330511fb861c12e07d45801ccd4758",
+  "verificacion": {
+    "suite": {
+      "archivos": 202,
+      "correctos": 2939
+    },
+    "e2e": {
+      "casos": 9,
+      "correctos": 9
+    },
+    "ajustes_visuales_finales": {
+      "casos": 2,
+      "correctos": 2,
+      "titulo_movil_completo": true,
+      "sin_desbordamiento": true,
+      "errores_navegador": []
+    },
+    "typecheck": "correcto",
+    "lint": {
+      "errores": 0,
+      "advertencias_previas": 4
+    }
+  },
+  "capturas": {
+    "gerencia-desktop.png": {
+      "sha256": "5b5fc83e7afd87c030b2e8aebdf6f8e8c06fb6bd77949bc31ddcd31fb489c865",
+      "datos": "sintéticos",
+      "viewport": {
+        "width": 1192,
+        "height": 784
+      }
+    },
+    "gerencia-mobile.png": {
+      "sha256": "1d97cfcd0d7f1853a0013d6ca6f6b5ff2905a6ffcece1fef9dbafcf89191a469",
+      "datos": "sintéticos",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    "supervisor-desktop.png": {
+      "sha256": "48751d73cc486f4191d29959bfb1ad02ac8fae137645901111e120558ad5a074",
+      "datos": "sintéticos",
+      "viewport": {
+        "width": 1192,
+        "height": 784
+      }
+    },
+    "supervisor-mobile.png": {
+      "sha256": "a1a2371bc5ba8e8244780fed90e03f5a57d963bbe0547ce13668ccd9b7bab9ba",
+      "datos": "sintéticos",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    }
+  },
+  "alcance": "Navegación y UI probadas con el backend simulado de E2E; permisos de datos y cálculos se conservan en las RPC existentes. No se modificaron producción, políticas ni migraciones."
+}
