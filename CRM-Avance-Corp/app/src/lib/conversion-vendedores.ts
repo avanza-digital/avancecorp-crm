@@ -8,6 +8,7 @@ import type {
   DetalleConversionVendedor,
   MetricasConversiones,
 } from './metricas-conversiones'
+import { sondasNucleoVerificadas } from './sondas-conversion'
 import {
   capitalObjetivo,
   capitalReal,
@@ -105,6 +106,164 @@ export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = Detal
   responsablesDisponibles: boolean
   vendedores: ConversionVendedorAdaptada<D>[]
   tendenciaSemanal: PuntoTendenciaEquipo[] | null
+}
+
+/**
+ * Fuentes que Gerencia puede aislar dentro del índice comercial. Landing,
+ * Formulario y Referido son orígenes de prospectos; Renovación y Upgrade son
+ * operaciones de cartera. El selector las reúne porque las cinco aportan al
+ * mismo numerador, pero mantiene visible la familia para no presentarlas como
+ * si compartieran base.
+ */
+export const FUENTES_CONVERSION = [
+  { id: 'landing', etiqueta: 'Landing', familia: 'prospectos' },
+  { id: 'formulario', etiqueta: 'Formulario', familia: 'prospectos' },
+  { id: 'upgrade', etiqueta: 'Upgrade', familia: 'cartera' },
+  { id: 'referido', etiqueta: 'Referido', familia: 'prospectos' },
+  { id: 'renovacion', etiqueta: 'Renovación', familia: 'cartera' },
+] as const
+
+export type FuenteConversion = (typeof FUENTES_CONVERSION)[number]['id']
+
+export interface AporteConversionVendedor {
+  divisor: number
+  numerador: number
+  porcentaje: number | null
+  resultados: number
+}
+
+export interface AporteConversionRango {
+  fuente: FuenteConversion | null
+  etiqueta: string
+  familia: 'todos' | 'prospectos' | 'cartera'
+  divisor: number
+  numerador: number
+  porcentaje: number | null
+  resultados: number
+  peso: number | null
+  porVendedor: ReadonlyMap<string, AporteConversionVendedor>
+}
+
+/**
+ * Proyección de lectura del filtro de Gerencia sobre el payload ya servido.
+ * No decide elegibilidad ni ponderaciones: cierres_por_semana y
+ * conversion_operaciones traen aporte_numerador listo desde el núcleo. El
+ * cliente únicamente agrupa la fuente elegida contra el divisor publicado.
+ */
+export function adaptarAporteConversionRango(
+  datos: MetricasConversiones | null | undefined,
+  fuente: FuenteConversion | null,
+): AporteConversionRango | null {
+  if (datos?.nucleo == null || !sondasNucleoVerificadas(datos.sondas)) return null
+
+  const nucleo = datos.nucleo
+  const definicion = fuente == null
+    ? null
+    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuente) ?? null
+  const esOrigenProspecto = definicion?.familia === 'prospectos'
+  const esOperacionCartera = definicion?.familia === 'cartera'
+
+  if (esOrigenProspecto && (datos.origen_filtrado ?? null) !== fuente) return null
+  if ((fuente == null || esOperacionCartera) && (datos.origen_filtrado ?? null) !== null) return null
+
+  let numerador: number
+  let porcentaje: number | null
+  let resultados: number
+  let peso: number | null
+
+  if (fuente == null) {
+    numerador = nucleo.numerador
+    porcentaje = nucleo.conversion_pct
+    resultados = nucleo.cierres_no_referidos + nucleo.cierres_referidos + nucleo.operaciones_cartera
+    peso = null
+  } else if (esOrigenProspecto) {
+    const cierres = datos.cierres_por_semana
+    if (cierres == null
+      || cierres.desde !== datos.periodo.desde
+      || cierres.hasta !== datos.periodo.hasta
+      || cierres.origen_filtrado !== fuente) return null
+    numerador = cierres.aporte_cierres
+    resultados = cierres.cierres
+    peso = fuente === 'referido' ? nucleo.peso_referido : 1
+    porcentaje = nucleo.divisor > 0
+      ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+      : null
+  } else {
+    const operaciones = datos.conversion_operaciones
+    if (operaciones == null
+      || !operaciones.completo
+      || operaciones.desde !== datos.periodo.desde
+      || operaciones.hasta !== datos.periodo.hasta
+      || operaciones.origen_filtrado !== null) return null
+    const elegidas = operaciones.detalle.filter((operacion) => operacion.categoria === fuente)
+    numerador = elegidas.reduce((total, operacion) => total + operacion.aporte_numerador, 0)
+    resultados = elegidas.length
+    peso = fuente === 'renovacion' ? (nucleo.peso_renovacion ?? nucleo.peso_referido) : 1
+    porcentaje = nucleo.divisor > 0
+      ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100
+      : null
+  }
+
+  const operacionesPorVendedor = new Map<string, { cantidad: number, aporte: number }>()
+  if (datos.conversion_operaciones?.completo) {
+    for (const operacion of datos.conversion_operaciones.detalle) {
+      if (operacion.analista_id == null || (esOperacionCartera && operacion.categoria !== fuente)) continue
+      const actual = operacionesPorVendedor.get(operacion.analista_id) ?? { cantidad: 0, aporte: 0 }
+      actual.cantidad += 1
+      actual.aporte += operacion.aporte_numerador
+      operacionesPorVendedor.set(operacion.analista_id, actual)
+    }
+  }
+
+  const porVendedor = new Map<string, AporteConversionVendedor>()
+  for (const responsable of datos.responsables ?? []) {
+    const divisor = responsable.nucleo_divisor
+    if (divisor == null) continue
+    const operaciones = operacionesPorVendedor.get(responsable.vendedor_id) ?? { cantidad: 0, aporte: 0 }
+    let aporte = 0
+    let cantidad = 0
+    let pct: number | null = null
+
+    if (fuente == null) {
+      if (responsable.nucleo_numerador == null) continue
+      aporte = responsable.nucleo_numerador
+      cantidad = (responsable.cierres_por_semana ?? []).reduce((total, semana) => total + semana.cierres, 0)
+        + operaciones.cantidad
+      pct = responsable.nucleo_conversion_pct ?? null
+    } else if (esOrigenProspecto) {
+      if (responsable.cierres_por_semana == null) continue
+      aporte = responsable.cierres_por_semana.reduce((total, semana) => total + semana.aporte_cierres, 0)
+      cantidad = responsable.cierres_por_semana.reduce((total, semana) => total + semana.cierres, 0)
+      pct = divisor > 0
+        ? Math.round((100 * aporte / divisor + Number.EPSILON) * 100) / 100
+        : null
+    } else {
+      aporte = operaciones.aporte
+      cantidad = operaciones.cantidad
+      pct = divisor > 0
+        ? Math.round((100 * aporte / divisor + Number.EPSILON) * 100) / 100
+        : null
+    }
+
+    porVendedor.set(responsable.vendedor_id, {
+      divisor,
+      numerador: aporte,
+      porcentaje: pct,
+      resultados: cantidad,
+    })
+  }
+
+  return {
+    fuente,
+    etiqueta: definicion?.etiqueta ?? 'Todos los aportes',
+    familia: definicion?.familia ?? 'todos',
+    divisor: nucleo.divisor,
+    numerador,
+    porcentaje,
+    resultados,
+    peso,
+    porVendedor,
+  }
 }
 
 export type ConversionVendedorConDetalle<D extends DetalleRankeable = DetalleConversionVendedor> =
@@ -353,6 +512,62 @@ export function adaptarConversionMensual(
     vendedores,
     // El payload mensual no trae tendencia semanal: mide OTRA pregunta.
     tendenciaSemanal: null,
+  }
+}
+
+/**
+ * Conserva la identidad y el detalle auxiliar de la foto mensual, pero cambia
+ * las columnas de conversión por el aporte de la fuente elegida en el mismo
+ * período. La lectura filtrada ya contiene los aportes ponderados del núcleo;
+ * aquí solo se prepara el modelo común que consumen Ranking y Rendimiento.
+ */
+export function adaptarConversionMensualPorFuente(
+  datos: ConversionMensual | null | undefined,
+  equipo: readonly ConversionEquipoVendedor[],
+  fuente: FuenteConversion | null,
+  lecturaFuente: AporteConversionRango | null | undefined,
+): ConversionVendedoresAdaptada<DetalleConversionMensual> {
+  const mensual = adaptarConversionMensual(datos, equipo)
+  if (lecturaFuente == null && fuente == null) return mensual
+
+  const lecturaValida = lecturaFuente?.fuente === fuente ? lecturaFuente : null
+  const responsablesCompletos = mensual.responsablesDisponibles
+    && lecturaValida != null
+    && mensual.vendedores.every((fila) => lecturaValida.porVendedor.has(fila.vendedorId))
+
+  return {
+    responsablesDisponibles: responsablesCompletos,
+    tendenciaSemanal: null,
+    vendedores: mensual.vendedores.map((fila) => {
+      const aporte = responsablesCompletos
+        ? lecturaValida?.porVendedor.get(fila.vendedorId) ?? null
+        : null
+      if (fila.detalle == null || aporte == null) {
+        return { ...fila, detalle: null, estadoConversion: 'indisponible' }
+      }
+
+      const estado = aporte.divisor > 0
+        ? 'medible' as const
+        : aporte.numerador > 0
+          ? fuente === 'referido' ? 'solo_referidos' as const : 'solo_arrastre' as const
+          : 'sin_actividad' as const
+      const detalle: DetalleConversionMensual = {
+        ...fila.detalle,
+        leads: aporte.divisor,
+        clientes: aporte.resultados,
+        conversion_pct: aporte.porcentaje,
+        numerador: aporte.numerador,
+        divisor: aporte.divisor,
+        estado,
+        operacionesCartera: 0,
+      }
+
+      return {
+        ...fila,
+        detalle,
+        estadoConversion: estadoConversion(detalle, estado),
+      }
+    }),
   }
 }
 

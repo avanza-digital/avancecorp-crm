@@ -50,7 +50,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     expect(screen.getByText('36')).toBeInTheDocument()
     expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
     // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
-    const grafico = screen.getByRole('img', { name: 'Conversión a clientes por analista' })
+    const grafico = screen.getByRole('img', { name: 'Conversión por analista' })
     expect(JSON.parse(grafico.getAttribute('data-series') ?? '[]')).toEqual([
       31.5,
       22.22,
@@ -80,7 +80,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       />,
     )
 
-    expect(screen.queryByRole('img', { name: 'Conversión a clientes por analista' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión por analista' })).not.toBeInTheDocument()
     expect(screen.getAllByText('No disponible')).toHaveLength(conversionEquipoDemo().length)
     expect(screen.getAllByText('Datos no disponibles').length).toBeGreaterThan(0)
     // Los KPIs del mes degradan a «—», nunca a cero.
@@ -135,7 +135,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       expect(tarjeta).not.toBeNull()
       expect(within(tarjeta as HTMLElement).getByText('—')).toBeInTheDocument()
     }
-    expect(screen.queryByRole('img', { name: 'Conversión a clientes por analista' }))
+    expect(screen.queryByRole('img', { name: 'Conversión por analista' }))
       .not.toBeInTheDocument()
     expect(screen.getAllByText('No disponible'))
       .toHaveLength(conversionEquipoDemo().length)

@@ -71,6 +71,11 @@ import {
   type SeleccionReparto,
 } from '@/lib/distribucion-lecturas'
 import { money, type Moneda } from '@/lib/format'
+import {
+  FUENTES_CONVERSION,
+  type AporteConversionRango,
+  type FuenteConversion,
+} from '@/lib/conversion-vendedores'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { cn } from '@/lib/utils'
 
@@ -92,6 +97,8 @@ export interface DistribucionLeadsGerenciaProps {
   modoDemo?: boolean
   mostrarOperacion?: boolean
   mostrarPeriodo?: boolean
+  fuenteConversion?: FuenteConversion | null
+  lecturaFuente?: AporteConversionRango | null | undefined
   desde: string
   hasta: string
   onCambiarPeriodo: (desde: string, hasta: string) => void
@@ -340,9 +347,13 @@ function CargandoDistribucion(): JSX.Element {
 function ResumenDistribucion({
   datos,
   mostrarOperacion,
+  fuenteConversion,
+  lecturaFuente,
 }: {
   datos: MetricasDistribucionLeads
   mostrarOperacion: boolean
+  fuenteConversion: FuenteConversion | null
+  lecturaFuente: AporteConversionRango | null | undefined
 }): JSX.Element {
   // Todo servido por la RPC V3 (F3): la puntería PEN/USD —incluida la suma de
   // dólares que antes hacía este componente— y la cifra del núcleo. Aquí no
@@ -352,6 +363,15 @@ function ResumenDistribucion({
   const conversionUsd = porcentajePunteria(punteria.usd.pct)
   const porRepartir = datos.resumen.por_repartir_actuales
   const sondas = estadoSondasDistribucion(datos)
+  const etiquetaFuente = fuenteConversion == null
+    ? null
+    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+  const lecturaComercialVisible = fuenteConversion == null
+    ? sondas.mostrarNucleo
+    : lecturaFuente != null
+  const conversionVisible = fuenteConversion == null
+    ? punteria.nucleo_conversion_pct
+    : lecturaFuente?.porcentaje ?? null
 
   return (
     <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : ''}`}>
@@ -396,19 +416,21 @@ function ResumenDistribucion({
 
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Conversión del rango
+          {fuenteConversion == null ? 'Conversión del rango' : `Aporte de ${etiquetaFuente}`}
         </dt>
-        {sondas.mostrarNucleo ? (
+        {lecturaComercialVisible ? (
           <>
             <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-primary">
-              {porcentajeNucleo(punteria.nucleo_conversion_pct)}
+              {porcentajeNucleo(conversionVisible)}
             </dd>
             <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {/* D8 + F2.6 (27/08): el total de HOY suma también al ex-roster,
                   así que la identidad volvió a ser verdad MEDIDA (verificada
                   contra el servidor en el mismo snapshot antes de afirmarla
                   aquí). Si dejara de cuadrar, el aviso de sondas lo dice. */}
-              {datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
+              {fuenteConversion != null && lecturaFuente != null
+                ? `${ENTERO.format(lecturaFuente.resultados)} ${lecturaFuente.familia === 'cartera' ? 'operaciones' : 'cierres'} · aporte ${lecturaFuente.numerador.toLocaleString('es-PE', { maximumFractionDigits: 2 })} ÷ base ${ENTERO.format(lecturaFuente.divisor)}.`
+                : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
                 ? 'Núcleo comercial: prospectos recibidos, referidos y renovaciones ponderados; upgrades ×1.'
                 : 'Base histórica con la definición anterior.'}
               {' '}{mesEnPalabras(datos.cohorte.desde_inclusivo)}
@@ -1562,6 +1584,8 @@ export function DistribucionLeadsGerencia({
   modoDemo = false,
   mostrarOperacion = true,
   mostrarPeriodo = true,
+  fuenteConversion = null,
+  lecturaFuente,
   desde,
   hasta,
   onCambiarPeriodo,
@@ -1672,7 +1696,7 @@ export function DistribucionLeadsGerencia({
             </p>
           )}
 
-          <ResumenDistribucion datos={datos} mostrarOperacion={mostrarOperacion} />
+          <ResumenDistribucion datos={datos} mostrarOperacion={mostrarOperacion} fuenteConversion={fuenteConversion} lecturaFuente={lecturaFuente} />
           <AtencionHoy datos={datos} mostrarOperacion={mostrarOperacion} />
 
           <EquipoPorPersona

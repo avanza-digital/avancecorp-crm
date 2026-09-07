@@ -1,15 +1,142 @@
 import { describe, expect, it } from 'vitest'
 import {
+  conversionMensualInteligenciaDemo,
   conversionEquipoDemo,
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
 } from './demo-inteligencia-comercial'
 import {
+  adaptarAporteConversionRango,
+  adaptarConversionMensualPorFuente,
   adaptarConversionVendedores,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
 } from './conversion-vendedores'
+
+function metricasConNucleo() {
+  const datos = metricasConversionesDemo('2026-09-01', '2026-09-07')
+  datos.origen_filtrado = null
+  datos.nucleo = {
+    base: 'llegada_unica',
+    atribucion: 'primer_analista',
+    llegadas: 110,
+    altas_manuales: 9,
+    renovaciones: 1,
+    upgrades: 1,
+    aporte_cartera: 1.15,
+    peso_renovacion: 0.15,
+    divisor: 100,
+    numerador: 4.3,
+    conversion_pct: 4.3,
+    cierres_no_referidos: 3,
+    cierres_referidos: 1,
+    referidos_recibidos: 1,
+    referidos_cierran_pct: 100,
+    operaciones_cartera: 2,
+    peso_referido: 0.15,
+    mes_peso: '2026-09-01',
+    incluye_cartera: true,
+  }
+  datos.sondas = {
+    cuadra: true,
+    paridad_nucleo: 0,
+    paridad_filas: 6,
+    divisor_fuera_del_roster: 0,
+    numerador_fuera_del_roster: 0,
+    cierres_sin_ficha_convertida: 0,
+    cohorte_convertidos_sin_cierre_elegible: 0,
+    cartera_fuera_del_rango: 0,
+    cierres_anulados: 0,
+    episodios_sin_origen: 0,
+    origen_ficha_distinto_del_ledger: 0,
+  }
+  datos.responsables = datos.responsables?.map((fila, indice) => ({
+    ...fila,
+    nucleo_divisor: indice === 0 ? 25 : 15,
+    nucleo_numerador: indice === 0 ? 1.15 : indice === 1 ? 1 : 0,
+    nucleo_conversion_pct: indice === 0 ? 4.6 : indice === 1 ? 6.67 : 0,
+  }))
+  return datos
+}
+
+describe('filtro por fuente del índice comercial', () => {
+  it('conserva el total servido y aísla las operaciones ya ponderadas', () => {
+    const datos = metricasConNucleo()
+
+    expect(adaptarAporteConversionRango(datos, null)).toMatchObject({
+      etiqueta: 'Todos los aportes',
+      divisor: 100,
+      numerador: 4.3,
+      porcentaje: 4.3,
+      resultados: 6,
+    })
+    expect(adaptarAporteConversionRango(datos, 'upgrade')).toMatchObject({
+      etiqueta: 'Upgrade',
+      familia: 'cartera',
+      divisor: 100,
+      numerador: 1,
+      porcentaje: 1,
+      resultados: 1,
+      peso: 1,
+    })
+    expect(adaptarAporteConversionRango(datos, 'renovacion')).toMatchObject({
+      numerador: 0.15,
+      porcentaje: 0.15,
+      resultados: 1,
+      peso: 0.15,
+    })
+  })
+
+  it('acepta un origen de prospecto solo cuando el servidor confirma el mismo filtro', () => {
+    const datos = metricasConNucleo()
+    expect(adaptarAporteConversionRango(datos, 'landing')).toBeNull()
+
+    datos.origen_filtrado = 'landing'
+    datos.cierres_por_semana = datos.cierres_por_semana == null ? null : {
+      ...datos.cierres_por_semana,
+      origen_filtrado: 'landing',
+      cierres: 2,
+      aporte_cierres: 2,
+    }
+    const lectura = adaptarAporteConversionRango(datos, 'landing')
+    expect(lectura).toMatchObject({
+      etiqueta: 'Landing',
+      familia: 'prospectos',
+      divisor: 100,
+      numerador: 2,
+      porcentaje: 2,
+      resultados: 2,
+      peso: 1,
+    })
+  })
+
+  it('proyecta la misma fuente al ranking por analista sin cambiar la foto mensual', () => {
+    const datos = metricasConNucleo()
+    const lectura = adaptarAporteConversionRango(datos, 'upgrade')
+    const mensual = conversionMensualInteligenciaDemo(Date.parse('2026-09-07T12:00:00-05:00'))
+    const adaptada = adaptarConversionMensualPorFuente(
+      mensual,
+      conversionEquipoDemo(),
+      'upgrade',
+      lectura,
+    )
+
+    expect(adaptada.responsablesDisponibles).toBe(true)
+    expect(adaptada.vendedores.find((fila) => fila.vendedorId === 'demo-v2')?.detalle).toMatchObject({
+      clientes: 1,
+      numerador: 1,
+      divisor: 15,
+      conversion_pct: 6.67,
+    })
+    expect(adaptada.vendedores.find((fila) => fila.vendedorId === 'demo-v1')?.detalle).toMatchObject({
+      clientes: 0,
+      numerador: 0,
+      divisor: 25,
+      conversion_pct: 0,
+    })
+  })
+})
 
 describe('adapter de responsables de conversión', () => {
   it('preserva indisponible cuando la RPC no incluye responsables', () => {

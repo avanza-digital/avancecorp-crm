@@ -747,12 +747,12 @@ describe('Hoy · gerencia — meta del mes', () => {
 })
 
 describe('Hoy · gerencia — período del tablero', () => {
-  it('sólo ofrece Landing, Formulario y Referido como orígenes comerciales', () => {
+  it('ofrece todas las fuentes que aportan al índice comercial', () => {
     montar({}, 'conversiones')
 
-    const selector = within(screen.getByLabelText('Origen del lead'))
+    const selector = within(screen.getByLabelText('Fuente de conversión'))
     expect(selector.getAllByRole('option').map((option) => option.getAttribute('value')).sort())
-      .toEqual(['', 'formulario', 'landing', 'referido'])
+      .toEqual(['', 'formulario', 'landing', 'referido', 'renovacion', 'upgrade'])
   })
 
   it.each(['mes', 'revisión', 'cierre'] as const)('Resumen retira fotos con %s discordante sin ocultar el rango independiente', (discrepancia) => {
@@ -802,13 +802,12 @@ describe('Hoy · gerencia — período del tablero', () => {
       .toHaveTextContent('Se muestran los últimos datos disponibles, sin actualizar.')
   })
 
-  it('explica que el origen filtra la conversión de prospectos y no el índice mensual', () => {
+  it('presenta el rango y la meta sin introducir otra definición de conversión', () => {
     montar({}, 'resumen')
 
     expect(screen.getByText(/Rango: 01 jul\. 2026 al 15 jul\. 2026/))
       .toBeInTheDocument()
-    expect(screen.getByText(/El origen filtra los prospectos del período y su conversión\. El índice de Metas sigue siendo mensual/))
-      .toBeInTheDocument()
+    expect(screen.getByText(/Meta mensual: julio 2026/)).toBeInTheDocument()
     expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
       .not.toBeInTheDocument()
   })
@@ -928,13 +927,12 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-05-01' } })
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Fuente de conversión'), { target: { value: 'upgrade' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ir a ranking' }))
 
     expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-06')
-    expect(screen.queryByLabelText('Origen del lead')).not.toBeInTheDocument()
-    // El ranking ya no enciende metricas_conversiones_fn: sus pestañas leen
-    // mensual, cumplimiento/capital y cosecha, cada una por separado.
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(false, '2026-06-01', '2026-06-30', null)
+    expect(screen.getByLabelText('Fuente de conversión')).toHaveValue('upgrade')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30', null)
     expect(screen.queryByRole('button', { name: 'Aplicar' })).not.toBeInTheDocument()
   })
 })
@@ -1115,7 +1113,7 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     ESTADO_CUMPLIMIENTO_RANKING.error = new Error('foto mensual caída')
     montar({}, 'conversiones', new Date('2026-09-02T15:00:00Z'))
 
-    const origen = screen.getByLabelText('Origen del lead')
+    const origen = screen.getByLabelText('Fuente de conversión')
     fireEvent.change(origen, { target: { value: 'referido' } })
     expect(origen).toHaveValue('referido')
     expect(screen.getByLabelText('Error mensual de Conversiones')).not.toBeEmptyDOMElement()
@@ -1127,7 +1125,7 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     expect(screen.getByLabelText('Meta mensual de Conversiones')).not.toHaveTextContent('|0')
     expect(origen).toBeDisabled()
     expect(origen).toHaveValue('')
-    expect(screen.getByText(/Ejemplo:.*Sin filtro de origen/)).toBeInTheDocument()
+    expect(screen.getByText(/Ejemplo.*filtro no disponible/)).toBeInTheDocument()
   })
 
   it('el ejemplo mensual respeta el mes elegido y no lo rotula con datos del mes vigente', () => {

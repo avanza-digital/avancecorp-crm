@@ -52,6 +52,30 @@ function fuentesRankingSinError() {
 }
 
 describe('ranking general de analistas', () => {
+  it('mantiene el aporte de Upgrade con la misma base y el mismo peso comercial', () => {
+    render(<RankingVendedoresPanel
+      conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+      fuenteConversion="upgrade"
+      lecturaFuente={{
+        fuente: 'upgrade', etiqueta: 'Upgrade', familia: 'cartera', divisor: 298,
+        numerador: 2, porcentaje: 0.67, resultados: 2, peso: 1,
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 1, porcentaje: 10, resultados: 1 }]]),
+      }}
+      equipo={conversionEquipoDemo()}
+      metasVendedores={metasConversionEquipoDemo()}
+      cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+      metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+      tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
+      {...fuentesRankingSinError()}
+    />)
+
+    expect(screen.getByRole('tab', { name: 'Aporte: Upgrade' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('columnheader', { name: 'Operaciones' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Aporte al índice' })).toBeInTheDocument()
+    expect(screen.getByText(/Upgrade aporta ×1 por resultado/)).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Producción fuera del ranking' })).not.toBeInTheDocument()
+  })
+
   it('rotula la base legacy como histórica sin cambiar la foto ni los números del ranking', () => {
     const mensual = conversionMensualInteligenciaDemo(Date.now())
     mensual.fuentes.divisor = 'crm.lead_asignaciones.asignado_en'

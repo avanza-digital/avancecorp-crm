@@ -340,6 +340,22 @@ describe('DistribucionLeadsGerencia', () => {
     expect(fichaDe('Ana Torres')).toHaveTextContent('5 de 20 leads')
   })
 
+  it('Rendimiento muestra el aporte de la fuente elegida sobre la misma base', () => {
+    montar({
+      mostrarOperacion: false,
+      fuenteConversion: 'renovacion',
+      lecturaFuente: {
+        fuente: 'renovacion', etiqueta: 'Renovación', familia: 'cartera', divisor: 298,
+        numerador: 0.3, porcentaje: 0.1, resultados: 2, peso: 0.15, porVendedor: new Map(),
+      },
+    })
+
+    const aporte = screen.getByText('Aporte de Renovación').parentElement!
+    expect(aporte).toHaveTextContent('0.1%')
+    expect(aporte).toHaveTextContent('2 operaciones · aporte 0.3 ÷ base 298')
+    expect(screen.queryByText('Conversión del rango')).not.toBeInTheDocument()
+  })
+
   it('nivel 1: resumen en lenguaje natural con monedas separadas y avisos de atención', () => {
     montar()
 

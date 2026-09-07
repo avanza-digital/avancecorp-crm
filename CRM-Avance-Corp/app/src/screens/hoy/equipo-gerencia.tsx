@@ -10,10 +10,13 @@ import {
   type ConversionMensual,
 } from '@/lib/conversion-mensual'
 import {
-  adaptarConversionMensual,
+  adaptarConversionMensualPorFuente,
   clasificarRankingConversion,
+  FUENTES_CONVERSION,
+  type AporteConversionRango,
   type ConversionVendedorAdaptada,
   type DetalleConversionMensual,
+  type FuenteConversion,
 } from '@/lib/conversion-vendedores'
 
 function pct(valor: number | null): string {
@@ -34,6 +37,8 @@ function etiquetaEstado(fila: ConversionVendedorAdaptada<DetalleConversionMensua
 export function EquipoGerenciaPanel({
   conversionMensual,
   conversiones,
+  fuenteConversion = null,
+  lecturaFuente,
 }: {
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — única
@@ -43,10 +48,17 @@ export function EquipoGerenciaPanel({
    */
   conversionMensual: ConversionMensual | null | undefined
   conversiones: ConversionEquipoVendedor[]
+  fuenteConversion?: FuenteConversion | null
+  lecturaFuente?: AporteConversionRango | null | undefined
 }): JSX.Element {
   const adaptada = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, conversiones),
-    [conversionMensual, conversiones],
+    () => adaptarConversionMensualPorFuente(
+      conversionMensual ?? null,
+      conversiones,
+      fuenteConversion,
+      lecturaFuente,
+    ),
+    [conversionMensual, conversiones, fuenteConversion, lecturaFuente],
   )
   const ranking = useMemo(
     () => clasificarRankingConversion(adaptada.vendedores),
@@ -57,14 +69,23 @@ export function EquipoGerenciaPanel({
   const medibles = ranking.conPuesto.filter((fila) => fila.detalle.conversion_pct != null)
   // Los agregados del equipo los sirve la RPC — aquí no se divide nada global.
   const total = totalConversionPublicable(conversionMensual)
-  const base = total?.divisor ?? null
-  const etiquetaBase = conversionMensual == null
+  const etiquetaFuente = fuenteConversion == null
+    ? null
+    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+  const base = fuenteConversion == null ? total?.divisor ?? null : lecturaFuente?.divisor ?? null
+  const etiquetaBase = fuenteConversion != null
+    ? 'Base automática'
+    : conversionMensual == null
     ? 'Base del mes'
     : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
       ? 'Base automática'
       : 'Base histórica'
-  const cierres = total == null ? null : total.cierres_no_referidos + total.cierres_referidos
-  const conversion = total?.conversion_pct ?? null
+  const cierres = fuenteConversion == null
+    ? total == null ? null : total.cierres_no_referidos + total.cierres_referidos
+    : lecturaFuente?.resultados ?? null
+  const conversion = fuenteConversion == null
+    ? total?.conversion_pct ?? null
+    : lecturaFuente?.porcentaje ?? null
   const vendedores = adaptada.vendedores.length
   // La identidad pertenece a la misma población que la conversión: roster
   // vivo hoy o snapshot del mes histórico. Contar supervisores desde el store
@@ -79,8 +100,8 @@ export function EquipoGerenciaPanel({
     { label: 'Analistas', valor: numero(vendedores), icon: UsersRound, color: C.blue },
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
     { label: etiquetaBase, valor: base == null ? '—' : numero(base), icon: Inbox, color: C.navy },
-    { label: 'Cierres del mes', valor: cierres == null ? '—' : numero(cierres), icon: UserRoundCheck, color: C.green },
-    { label: 'Conversión del mes', valor: pct(conversion), icon: Target, color: C.teal },
+    { label: fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'Operaciones' : 'Cierres del mes', valor: cierres == null ? '—' : numero(cierres), icon: UserRoundCheck, color: C.green },
+    { label: fuenteConversion == null ? 'Conversión del mes' : `Aporte de ${etiquetaFuente}`, valor: pct(conversion), icon: Target, color: C.teal },
   ]
 
   const opcion = useMemo<EChartsOption>(() => ({
@@ -152,7 +173,9 @@ export function EquipoGerenciaPanel({
       </div>
 
       <p className="gi-caption">
-        {conversionMensual == null
+        {fuenteConversion != null
+          ? `${etiquetaFuente}: mismo divisor y ponderación del índice comercial.`
+          : conversionMensual == null
           ? 'La base mensual no está disponible.'
           : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
             ? 'Base automática: prospectos recibidos desde Landing/Formulario. No incluye altas manuales ni referidos.'
@@ -161,8 +184,8 @@ export function EquipoGerenciaPanel({
 
       {medibles.length > 0 && (
         <section data-gi-panel className="gi-card p-5">
-          <div className="flex items-center justify-between"><h2 className="gi-title">Conversión por analista</h2><span className="gi-caption">{numero(medibles.length)} {medibles.length === 1 ? 'analista medible' : 'analistas medibles'} este mes</span></div>
-          <GerenciaEChart tipo="barras" option={opcion} ariaLabel="Conversión a clientes por analista" className="mt-3 w-full" style={{ height: Math.max(290, medibles.length * 38) }} />
+          <div className="flex items-center justify-between"><h2 className="gi-title">{fuenteConversion == null ? 'Conversión por analista' : `Aporte de ${etiquetaFuente} por analista`}</h2><span className="gi-caption">{numero(medibles.length)} {medibles.length === 1 ? 'analista medible' : 'analistas medibles'} este mes</span></div>
+          <GerenciaEChart tipo="barras" option={opcion} ariaLabel={fuenteConversion == null ? 'Conversión por analista' : `Aporte de ${etiquetaFuente} por analista`} className="mt-3 w-full" style={{ height: Math.max(290, medibles.length * 38) }} />
         </section>
       )}
 
@@ -185,14 +208,14 @@ export function EquipoGerenciaPanel({
             <section key={supervisorId} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
                 <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} {vendedoresGrupo.length === 1 ? 'analista' : 'analistas'}</p></div>
-                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalBase == null ? 'Datos no disponibles' : `cierres del mes · ${etiquetaBase.toLowerCase()}: ${numero(totalBase)}`}</p></div>
+                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalBase == null ? 'Datos no disponibles' : `${fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'operaciones' : 'cierres del mes'} · ${etiquetaBase.toLowerCase()}: ${numero(totalBase)}`}</p></div>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {vendedoresGrupo.map((fila) => {
                   const conversionFila = fila.detalle?.conversion_pct ?? null
                   return (
                     <div key={fila.vendedorId} className="rounded-xl border border-[var(--gi-line)] bg-white p-4">
-                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${etiquetaBase}: ${numero(fila.detalle.divisor)} · ${numero(fila.detalle.clientes)} cierres`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
+                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${etiquetaBase}: ${numero(fila.detalle.divisor)} · ${numero(fila.detalle.clientes)} ${fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'operaciones' : 'cierres'}`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
                       {/* Barra RELATIVA al máximo del grupo: un 120 % no se disfraza de 100. */}
                       <div className="gi-track mt-3"><div className="gi-fill" style={{ width: `${conversionFila == null ? 0 : (conversionFila / maximoGrupo) * 100}%`, background: C.teal }} /></div>
                     </div>

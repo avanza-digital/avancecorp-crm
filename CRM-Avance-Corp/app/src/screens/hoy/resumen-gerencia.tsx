@@ -6,7 +6,6 @@ import {
   ChevronRight,
   RefreshCw,
   Target,
-  TrendingUp,
   UserRoundCheck,
   WalletCards,
   type LucideIcon,
@@ -31,14 +30,17 @@ import {
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
 import {
-  adaptarConversionMensual,
+  adaptarAporteConversionRango,
+  adaptarConversionMensualPorFuente,
   adaptarConversionVendedores,
   clasificarRankingConversion,
+  FUENTES_CONVERSION,
+  type AporteConversionRango,
+  type FuenteConversion,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
-import { etiquetaOrigen } from '@/lib/tipos'
 import { presentarCitas } from '@/lib/terminologia'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 
@@ -59,10 +61,11 @@ interface ResumenGerenciaPanelProps {
   cumplimiento: CumplimientoAgregado | null
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
-  /** Origen del lote aplicado a Cosecha y embudo (null = todos). La conversión
-   * canónica del rango y «Avance de metas» permanecen a nivel empresa: el chip
-   * lo dice para que las dos aguas no se confundan. */
+  /** Origen de prospecto enviado a la RPC; null para total y cartera. */
   origenFiltrado: string | null
+  /** Fuente cuyo aporte se muestra. Ausente conserva compatibilidad de pruebas. */
+  fuenteConversion?: FuenteConversion | null
+  lecturaFuente?: AporteConversionRango | null | undefined
   cargando: boolean
   /** Estado exclusivo de `crm.metricas_conversiones_fn` (rango). */
   rangoCargando?: boolean
@@ -140,6 +143,8 @@ export function ResumenGerenciaPanel({
   metaMensual,
   tc,
   origenFiltrado,
+  fuenteConversion,
+  lecturaFuente,
   cargando,
   rangoCargando = false,
   mensualCargando = false,
@@ -147,6 +152,13 @@ export function ResumenGerenciaPanel({
   modoDemo,
   onReintentar,
 }: ResumenGerenciaPanelProps): JSX.Element {
+  const fuenteActiva = fuenteConversion === undefined
+    ? origenFiltrado as FuenteConversion | null
+    : fuenteConversion
+  const etiquetaFuente = fuenteActiva == null
+    ? null
+    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteActiva)?.etiqueta ?? fuenteActiva
+  const esFuenteCartera = fuenteActiva === 'upgrade' || fuenteActiva === 'renovacion'
   const clientes = conversiones?.cohorte.contratos ?? null
   const leads = conversiones?.cohorte.leads ?? null
   // El número grande obedece al rango visible y toma el porcentaje YA SERVIDO
@@ -155,14 +167,21 @@ export function ResumenGerenciaPanel({
   const origenesVerificados = conversiones?.nucleo != null
     && sondasNucleoVerificadas(conversiones.sondas)
   const nucleoRango = origenesVerificados ? conversiones.nucleo ?? null : null
+  const aporteRango = lecturaFuente === undefined
+    ? adaptarAporteConversionRango(conversiones, fuenteActiva)
+    : lecturaFuente
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
   const totalMes = totalConversionPublicable(conversionMensual)
   const conversionMes = totalMes?.conversion_pct ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
   const rangoEsperando = rangoCargando && conversiones === undefined
   const usaNucleoRango = conversiones?.nucleo != null || rangoEsperando
-  const conversionPrincipal = usaNucleoRango ? nucleoRango?.conversion_pct ?? null : conversionMes
-  const conversionPrincipalCargando = usaNucleoRango ? rangoEsperando : mensualCargando
+  const conversionPrincipal = fuenteActiva != null
+    ? aporteRango?.porcentaje ?? null
+    : usaNucleoRango ? aporteRango?.porcentaje ?? null : conversionMes
+  const conversionPrincipalCargando = fuenteActiva != null || usaNucleoRango
+    ? rangoEsperando
+    : mensualCargando
   const etiquetaPeriodoRango = conversiones == null
     ? ''
     : `${fmtFecha(conversiones.periodo.desde)} al ${fmtFecha(conversiones.periodo.hasta)}`
@@ -290,8 +309,13 @@ export function ResumenGerenciaPanel({
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensual ?? null, equipoMensual ?? equipo),
-    [conversionMensual, equipo, equipoMensual],
+    () => adaptarConversionMensualPorFuente(
+      conversionMensual ?? null,
+      equipoMensual ?? equipo,
+      fuenteActiva,
+      aporteRango,
+    ),
+    [aporteRango, conversionMensual, equipo, equipoMensual, fuenteActiva],
   )
   const rankingMes = useMemo(
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
@@ -387,19 +411,22 @@ export function ResumenGerenciaPanel({
           </Button>
         </div>
       )}
-      {origenFiltrado != null && (
-        <p role="status" className="rounded-xl border border-[var(--gi-line)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--gi-navy)]">
-          Origen: {etiquetaOrigen(origenFiltrado)} · filtra los prospectos del período y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa.
-        </p>
-      )}
       <section data-gi-hero className="gi-summary-hero">
         <div>
           <p className="gi-label text-white/65">
-            {usaNucleoRango ? `Conversión del rango${etiquetaPeriodoRango ? ` · ${etiquetaPeriodoRango}` : ''}` : 'Conversión del mes'}
+            {fuenteActiva != null
+              ? `Aporte de ${etiquetaFuente} al índice${etiquetaPeriodoRango ? ` · ${etiquetaPeriodoRango}` : ''}`
+              : usaNucleoRango ? `Conversión del rango${etiquetaPeriodoRango ? ` · ${etiquetaPeriodoRango}` : ''}` : 'Conversión del mes'}
           </p>
           <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{conversionPrincipalCargando ? 'Calculando…' : pct(conversionPrincipal)}</p>
           <p className="mt-2 text-xs text-white/65">
-            {usaNucleoRango
+            {fuenteActiva != null
+              ? rangoEsperando
+                ? `Consultando ${etiquetaFuente}…`
+                : aporteRango == null
+                  ? 'Aporte no disponible.'
+                  : `${numero(aporteRango.resultados)} ${aporteRango.familia === 'cartera' ? 'operaciones' : 'cierres'} · aporte ${numero(aporteRango.numerador, 2)} ÷ base ${numero(aporteRango.divisor)}`
+              : usaNucleoRango
               ? rangoEsperando
                 ? 'Todos los orígenes · consultando el núcleo del rango…'
                 : nucleoRango == null
@@ -416,14 +443,14 @@ export function ResumenGerenciaPanel({
                     : `${numero(cierresMes ?? 0)} cierres este mes`
                       + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
-          {usaNucleoRango && nucleoRango?.base === 'llegada_unica' && nucleoRango.llegadas != null && (
+          {fuenteActiva == null && usaNucleoRango && nucleoRango?.base === 'llegada_unica' && nucleoRango.llegadas != null && (
             <p className="mt-1 text-xs text-white/65">{numero(nucleoRango.llegadas)} prospectos recibidos: {numero(nucleoRango.divisor)} automáticos · {nucleoRango.altas_manuales == null ? 'altas manuales no disponibles' : `${numero(nucleoRango.altas_manuales)} manuales`} · {numero(nucleoRango.referidos_recibidos)} {nucleoRango.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
           )}
           {usaNucleoRango && nucleoRango != null && !nucleoRango.incluye_cartera && (
             <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
           )}
         </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-3">
+        <div className="grid flex-1 grid-cols-3 gap-2 sm:gap-3">
           {/* Pastilla ESTRECHA: monto compacto (el exacto vive en el KPI de
               abajo). La captura de Miguel mostro «S/ 4,700,021.9» truncado. */}
           <div className="gi-hero-metric"><span>Capital del mes</span><strong>{mensualCargando || tcEnVuelo ? 'Consultando…' : capitalTotal.total == null ? '—' : moneyCompacta(capitalTotal.total, 'PEN')}</strong></div>
@@ -446,40 +473,32 @@ export function ResumenGerenciaPanel({
         {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label={usaNucleoRango ? 'Conversión del rango' : 'Conversión del mes'}
-          valor={conversionPrincipalCargando ? 'Calculando…' : pct(conversionPrincipal)}
-          detalle={usaNucleoRango
-            ? rangoEsperando
-              ? 'Consultando el rango…'
-              : nucleoRango == null ? 'Dato no disponible' : `${numero(nucleoRango.divisor)} ${nucleoRango.base === 'llegada_unica' ? 'leads automáticos' : 'registros en la base histórica'}`
-            : mensualCargando ? 'Consultando el mes…' : cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`}
-          Icon={TrendingUp}
-          color={C.blue}
-        />
+      {/* La conversión vive SOLO en el héroe: repetirla abajo era el mismo número dos veces. */}
+      <div className="grid gap-4 sm:grid-cols-3">
         {/* «del período», sin más: Miguel vetó «dados de alta» (27/08). La
             distinción con el divisor la explica el héroe, no este detalle. */}
-        <Kpi label="Leads del mes que cerraron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del mes`} Icon={UserRoundCheck} color={C.green} />
-        <Kpi label="Capital confirmado del mes" valor={mensualCargando ? 'Calculando…' : capitalMesTexto} detalle={mensualCargando ? 'Consultando capital y meta…' : capitalMesDetalle} Icon={WalletCards} color={C.teal} />
-        <Kpi label="Citas realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando citas…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
+        {fuenteActiva == null
+          ? <Kpi label="Leads del mes que cerraron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del mes`} Icon={UserRoundCheck} color={C.blue} />
+          : <Kpi label={`Resultados de ${etiquetaFuente}`} valor={aporteRango == null ? '—' : numero(aporteRango.resultados)} detalle={aporteRango == null ? 'Dato no disponible' : `Aporte ${numero(aporteRango.numerador, 2)} · base ${numero(aporteRango.divisor)}`} Icon={UserRoundCheck} color={C.blue} />}
+        <Kpi label="Capital confirmado del mes" valor={mensualCargando ? 'Calculando…' : capitalMesTexto} detalle={mensualCargando ? 'Consultando capital y meta…' : capitalMesDetalle} Icon={WalletCards} color={C.blue} />
+        <Kpi label="Citas realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando citas…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.blue} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]">
-        <section data-gi-panel className="gi-card p-5">
+      <div className={`grid gap-4 ${esFuenteCartera ? '' : 'xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]'}`}>
+        {!esFuenteCartera && <section data-gi-panel className="gi-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de ingreso</h2><span className="gi-caption">Prospectos del mes y cuántos cerraron, agrupados por su semana de ingreso</span></div>
           {tendenciaEquipo == null
             ? <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div>
             : valoresEvolucion.length > 0
               ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Prospectos por semana de ingreso y resultados" className="mt-3 h-[260px] w-full" />
               : <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para mostrar</div>}
-        </section>
+        </section>}
         <section
           data-gi-panel
           className="gi-card group relative cursor-pointer p-5 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--gi-blue)]/30 hover:shadow-[0_16px_38px_rgba(17,30,61,.10)] focus-within:ring-[3px] focus-within:ring-ring/35 motion-reduce:transform-none motion-reduce:transition-none"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="gi-title">Mejores analistas</h2>
+            <h2 className="gi-title">{fuenteActiva == null ? 'Mejores analistas' : `Aporte de ${etiquetaFuente} por analista`}</h2>
             <a
               href="#/ranking-vendedores"
               aria-label="Ver ranking general de analistas"
@@ -493,10 +512,10 @@ export function ResumenGerenciaPanel({
             {mensualCargando
               ? <Skeleton className="h-28 rounded-2xl" aria-label="Consultando ranking mensual" />
               : mejores.length > 0
-              ? mejores.map((fila, indice) => (
+              ? mejores.map((fila) => (
                   <div key={fila.vendedorId}>
                     <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.nombre}</span><strong className="tabular-nums">{pct(fila.detalle.conversion_pct)}</strong></div>
-                    <div className="gi-track"><div className="gi-fill motion-reduce:transition-none" style={{ width: `${((fila.detalle.conversion_pct ?? 0) / maxMejor) * 100}%`, background: indice < 3 ? C.green : indice === 3 ? C.amber : C.red }} /></div>
+                    <div className="gi-track"><div className="gi-fill motion-reduce:transition-none" style={{ width: `${((fila.detalle.conversion_pct ?? 0) / maxMejor) * 100}%`, background: C.blue }} /></div>
                   </div>
                 ))
               : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay analistas medibles este mes' : 'Detalle por analista no disponible'}</p>}
@@ -505,7 +524,7 @@ export function ResumenGerenciaPanel({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <section data-gi-panel className="gi-card p-5 lg:col-span-2">
+        {fuenteActiva == null && <section data-gi-panel className="gi-card p-5 lg:col-span-2">
           <h2 className="gi-title">Resultados por origen</h2>
           <p className="gi-caption mt-1">De los leads del mes en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>
           {!origenesVerificados
@@ -527,8 +546,8 @@ export function ResumenGerenciaPanel({
               {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}: de los recibidos por ese origen, cuánto cerró — queda fuera de la base general de la conversión.
             </p>
           )}
-        </section>
-        <section data-gi-panel className="gi-card p-5">
+        </section>}
+        <section data-gi-panel className={`gi-card p-5 ${fuenteActiva != null ? 'lg:col-span-3' : ''}`}>
           <h2 className="gi-title">Avance de metas</h2>
           <p className="gi-caption mt-1">Meta mensual · {metaMensual.etiqueta}</p>
           {mensualCargando ? (
@@ -550,7 +569,9 @@ export function ResumenGerenciaPanel({
                   </p>
                 )}
               </div>
-              <div><div className="mb-2 flex justify-between text-xs"><span>Conversión</span><strong>{avanceConversion == null ? conversionMes == null ? 'Dato no disponible' : 'Sin meta' : `${numero(avanceConversion, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${limitar(avanceConversion ?? 0)}%`, background: C.amber }} /></div></div>
+              {fuenteActiva == null
+                ? <div><div className="mb-2 flex justify-between text-xs"><span>Conversión</span><strong>{avanceConversion == null ? conversionMes == null ? 'Dato no disponible' : 'Sin meta' : `${numero(avanceConversion, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${limitar(avanceConversion ?? 0)}%`, background: C.amber }} /></div></div>
+                : <div className="flex items-baseline justify-between gap-3 rounded-xl bg-[var(--gi-soft)] px-4 py-3"><span className="text-xs font-semibold">Aporte de {etiquetaFuente} al índice</span><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{pct(conversionPrincipal)}</strong></div>}
             </div>
           ) : <p role="status" className="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>}
         </section>

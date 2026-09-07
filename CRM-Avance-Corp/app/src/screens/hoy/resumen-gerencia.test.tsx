@@ -349,8 +349,6 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(heroe).not.toHaveTextContent('fuera de la base')
     expect(heroe).not.toHaveTextContent('317')
     expect(heroe).not.toHaveTextContent('3.79%')
-    expect(screen.getByText('Conversión del rango', { selector: '.gi-label' }).closest('[data-gi-kpi]'))
-      .toHaveTextContent('176 leads automáticos')
   })
 
   it('no convierte una foto mensual pendiente en cero ni en ausencia de meta', () => {
@@ -375,7 +373,6 @@ describe('estados vacíos del resumen de Gerencia', () => {
 
     expect(screen.getByText('Consultando conversión, capital y meta del mes…')).toBeInTheDocument()
     expect(screen.getAllByText('Consultando…')).toHaveLength(2)
-    expect(screen.getByText('Consultando el mes…').closest('[data-gi-kpi]')).toHaveTextContent('Calculando…')
     expect(screen.getByText('Consultando capital y meta…').closest('[data-gi-kpi]')).toHaveTextContent('Calculando…')
     expect(screen.getByLabelText('Consultando ranking mensual')).toBeInTheDocument()
     expect(screen.getByLabelText('Consultando avance de metas')).toBeInTheDocument()
@@ -594,7 +591,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
 })
 
 describe('meta publicada de conversión en el resumen de Gerencia', () => {
-  it('aclara que el origen no filtra las citas de toda la empresa', () => {
+  it('identifica la fuente elegida sin mezclarla con las citas', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
@@ -613,11 +610,8 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
       />,
     )
 
-    expect(
-      screen.getByText(
-        /filtra los prospectos del período y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa/,
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getAllByText(/Aporte de Referido al índice/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Citas realizadas').length).toBeGreaterThan(0)
   })
 
   it('no inventa un 15 % cuando todavía no existe una meta publicada', () => {

@@ -34,7 +34,11 @@ import {
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { ORIGENES } from '@/lib/tipos'
+import {
+  adaptarAporteConversionRango,
+  FUENTES_CONVERSION,
+  type FuenteConversion,
+} from '@/lib/conversion-vendedores'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
@@ -118,25 +122,49 @@ function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso, nota 
   )
 }
 
-function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, origen, onCambiarOrigen, origenDeshabilitado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; origen: string | null; onCambiarOrigen: (origen: string | null) => void; origenDeshabilitado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void }): JSX.Element {
+function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, fuente, onCambiarFuente, filtroVisible, filtroDeshabilitado, modo, mes, mesMaximo, etiquetaMes, onCambiarMes }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void; fuente: FuenteConversion | null; onCambiarFuente: (fuente: FuenteConversion | null) => void; filtroVisible: boolean; filtroDeshabilitado: boolean; modo: 'rango' | 'mes' | 'mixto'; mes: string; mesMaximo: string; etiquetaMes: string; onCambiarMes: (mes: string) => void }): JSX.Element {
   const validacion = validarPeriodoGerencia(borrador)
   const sinCambios = borrador.desde === periodo.desde && borrador.hasta === periodo.hasta
   const hoyLima = periodoInicialGerencia().hasta
   const maximoDesde = borrador.hasta && borrador.hasta < hoyLima ? borrador.hasta : hoyLima
   const etiquetaRango = `${fmtFecha(periodo.desde)} al ${fmtFecha(periodo.hasta)}`
+  const selectorFuente = filtroVisible ? (
+    <label className="flex min-w-0 items-center gap-2">
+      <span className="gi-label whitespace-nowrap">Conversión de</span>
+      <select
+        aria-label="Fuente de conversión"
+        value={fuente ?? ''}
+        disabled={filtroDeshabilitado}
+        onChange={(e) => onCambiarFuente(e.target.value === '' ? null : e.target.value as FuenteConversion)}
+        className="gi-date min-w-[170px]"
+        title={filtroDeshabilitado ? 'Los datos de ejemplo no se filtran' : undefined}
+      >
+        <option value="">Todas las fuentes</option>
+        {FUENTES_CONVERSION.map((opcion) => (
+          <option key={opcion.id} value={opcion.id}>{opcion.etiqueta}</option>
+        ))}
+      </select>
+    </label>
+  ) : null
   if (modo === 'mes') {
     return (
       <div data-gi-toolbar className="gi-toolbar">
-        <div className="flex items-center gap-2"><CalendarRange className="size-4 text-[var(--gi-blue)]" /><label htmlFor="mes-gerencia" className="gi-label">Mes calendario</label></div>
-        <input
-          id="mes-gerencia"
-          aria-label="Mes calendario"
-          type="month"
-          value={mes}
-          max={mesMaximo}
-          onChange={(e) => onCambiarMes(e.target.value)}
-          className="gi-date"
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <CalendarRange className="size-4 text-[var(--gi-blue)]" />
+            <span className="gi-label">Mes</span>
+            <input
+              id="mes-gerencia"
+              aria-label="Mes calendario"
+              type="month"
+              value={mes}
+              max={mesMaximo}
+              onChange={(e) => onCambiarMes(e.target.value)}
+              className="gi-date"
+            />
+          </label>
+          {selectorFuente}
+        </div>
       </div>
     )
   }
@@ -149,29 +177,13 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, ori
           <span className="text-xs text-[var(--gi-muted)]">a</span>
           <input aria-label="Hasta" aria-describedby={!validacion.valido ? 'error-periodo-gerencia' : undefined} type="date" value={borrador.hasta} min={borrador.desde} max={hoyLima} onChange={(e) => onCambiarBorrador('hasta', e.target.value)} className="gi-date" />
           <button type="button" disabled={!validacion.valido || sinCambios} onClick={onAplicar} className="gi-apply">Aplicar</button>
-          {/* Filtro de ORIGEN del lote (Miguel, 27/08): recorta las lecturas
-              del período en Resumen y Conversiones. En demo se apaga: el
-              mundo de ejemplo no filtra. */}
-          {modo === 'mixto' && (
-            <select
-              aria-label="Origen del lead"
-              value={origen ?? ''}
-              disabled={origenDeshabilitado}
-              onChange={(e) => onCambiarOrigen(e.target.value === '' ? null : e.target.value)}
-              className="gi-date"
-              title={origenDeshabilitado ? 'Los datos de ejemplo no se filtran' : undefined}
-            >
-              <option value="">Todos los orígenes comerciales</option>
-              {ORIGENES.filter((o) => o.k === 'landing' || o.k === 'formulario' || o.k === 'referido')
-                .map((o) => <option key={o.k} value={o.k}>{o.label}</option>)}
-            </select>
-          )}
+          {selectorFuente}
         </div>
         {modo === 'mixto' && (
           <p role="status" className="mt-1.5 text-[11px] font-medium text-[var(--gi-muted)]">
-            {origenDeshabilitado
-              ? `Ejemplo: conversión mensual, metas y capital de ${etiquetaMes}; prospectos, avance y citas del ${etiquetaRango}. Sin filtro de origen.`
-              : `Rango: ${etiquetaRango} · El origen filtra los prospectos del período y su conversión. El índice de Metas sigue siendo mensual (${etiquetaMes}).`}
+            {filtroDeshabilitado
+              ? `Ejemplo · ${etiquetaRango} · filtro no disponible.`
+              : `Rango: ${etiquetaRango} · Meta mensual: ${etiquetaMes}.`}
           </p>
         )}
         {!validacion.valido && (
@@ -242,6 +254,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const rankingHistorico = periodoRanking.desde !== periodoInicialGerencia(ahoraPeriodo).desde
   const vistaMensual = seccion === 'ranking-vendedores' || seccion === 'metas' || seccion === 'rendimiento'
   const vistaConRangoYOrigen = seccion === 'completo' || seccion === 'resumen' || seccion === 'conversiones'
+  const vistaConFiltroConversion = vistaConRangoYOrigen || vistaMensual
   const modoCabecera: 'rango' | 'mes' | 'mixto' = vistaMensual
     ? 'mes'
     : vistaConRangoYOrigen ? 'mixto' : 'rango'
@@ -264,20 +277,21 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     diaTipoCambioAnterior.current = diaLima
     if (!usaTipoCambioHistorico) recargarTipoCambio()
   }, [diaLima, recargarTipoCambio, usaTipoCambioHistorico])
-  // `metricas_conversiones_fn` alimenta inteligencia/resumen, NO el ranking.
-  // El ranking tiene tres fuentes propias y todas nacen de los núcleos: mensual,
-  // cumplimiento de metas/capital y cosecha. Mantenerlo en esta lista hacía que
-  // una consulta lateral pudiera apagar sus tres pestañas.
-  const necesitaConversiones = ['completo', 'resumen', 'conversiones'].includes(seccion)
+  const fuenteActiva = modoDemo ? null : origenFiltrado
+  // Resumen y Conversiones siempre necesitan el rango. Ranking, Metas y
+  // Rendimiento lo consultan únicamente al aislar una fuente, porque ese
+  // payload trae los aportes ya ponderados por origen y por analista.
+  const necesitaConversiones = vistaConRangoYOrigen || (vistaMensual && fuenteActiva != null)
   const necesitaConversionMensual = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento'].includes(seccion)
   const necesitaReuniones = ['completo', 'resumen', 'reuniones'].includes(seccion)
   const necesitaDistribucion = seccion === 'rendimiento'
-  // El filtro de origen SOLO gobierna las lecturas del LOTE (Resumen y
-  // Conversiones); las demas secciones piden sin filtro.
-  const origenActivo = seccion === 'completo' || seccion === 'resumen' || seccion === 'conversiones'
-    ? origenFiltrado === 'landing' || origenFiltrado === 'formulario' || origenFiltrado === 'referido'
-      ? origenFiltrado
-      : null
+  // La RPC acepta los orígenes de prospecto. Upgrade y Renovación viajan sin
+  // `p_origen` y se recortan sobre `conversion_operaciones`, cuyos aportes ya
+  // llegan calculados por el mismo núcleo comercial.
+  const origenActivo = fuenteActiva === 'landing'
+    || fuenteActiva === 'formulario'
+    || fuenteActiva === 'referido'
+    ? fuenteActiva
     : null
   const conversiones = useMetricasConversiones(
     sesionReal && necesitaConversiones,
@@ -469,6 +483,15 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     [cumplimientoRanking?.porVendedor],
   )
   const datosConversion = conversionesDeEjemplo ? metricasConversionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : conversiones.data
+  const lecturaFuenteConversion = useMemo(
+    () => adaptarAporteConversionRango(datosConversion, fuenteActiva),
+    [datosConversion, fuenteActiva],
+  )
+  const lecturaFuentePaneles = fuenteActiva != null
+    && !conversionesDeEjemplo
+    && estaCargando(sesionReal, conversiones)
+    ? undefined
+    : lecturaFuenteConversion
   const datosEquipoConversionRango = conversionesDeEjemplo
     ? conversionEquipoDemo()
     : equipoConversionVigente
@@ -549,9 +572,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
   const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
   const esResumen = seccion === 'completo' || seccion === 'resumen'
-  const errorRendimiento = errorConversionMensual ?? errorFotoMensualRanking
+  const errorFuenteConversion = fuenteActiva == null ? null : errorConversiones
+  const errorRendimiento = errorFuenteConversion ?? errorConversionMensual ?? errorFotoMensualRanking
   const periodoPie = vistaMensual ? periodoRanking : periodo
-  const claveMotion = `${seccion}|${periodo.desde}|${periodo.hasta}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
+  const claveMotion = `${seccion}|${periodo.desde}|${periodo.hasta}|${fuenteActiva ?? 'todas'}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
 
   return (
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
@@ -560,9 +584,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
         borrador={borrador}
         onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))}
         onAplicar={() => setPeriodo(borrador)}
-        origen={conversionesDeEjemplo ? null : origenActivo}
-        onCambiarOrigen={setOrigenFiltrado}
-        origenDeshabilitado={conversionesDeEjemplo}
+        fuente={fuenteActiva}
+        onCambiarFuente={setOrigenFiltrado}
+        filtroVisible={vistaConFiltroConversion}
+        filtroDeshabilitado={conversionesDeEjemplo}
         modo={modoCabecera}
         mes={periodoRanking.desde.slice(0, 7)}
         mesMaximo={diaLima.slice(0, 7)}
@@ -578,7 +603,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={modoDemo ? null : origenActivo} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={origenActivo} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por analista.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
@@ -597,7 +622,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           datos={datosConversion}
           conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles}
           cumplimiento={cumplimiento}
-          origenFiltrado={conversionesDeEjemplo ? null : origenActivo}
+          origenFiltrado={origenActivo}
+          fuenteConversion={fuenteActiva}
+          lecturaFuente={lecturaFuentePaneles}
           equipo={datosEquipoConversionRango}
           equipoMensual={datosEquipoConversion}
           metaConversion={metaConversionVisual}
@@ -626,7 +653,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       {seccion === 'ranking-vendedores' && (
         <RankingVendedoresPanel
           conversionMensual={conversionMensualPaneles}
-          conversionError={errorConversionMensual}
+          conversionError={errorFuenteConversion ?? errorConversionMensual}
+          fuenteConversion={fuenteActiva}
+          lecturaFuente={lecturaFuentePaneles}
           onReintentarConversion={() => {
             reintentarConversionMensual()
             if (fotoMensualBaseDesalineada) void qCumplimientoRanking.refetch()
@@ -690,12 +719,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               </div>
             )}
 
-            {errorConversionMensual && (
+            {(errorFuenteConversion ?? errorConversionMensual) && (
               <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4">
                 <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="size-4" aria-hidden /> {errorConversionMensual}
+                  <AlertTriangle className="size-4" aria-hidden /> {errorFuenteConversion ?? errorConversionMensual}
                 </span>
-                <Button type="button" variant="outline" size="sm" onClick={reintentarConversionMensual}>
+                <Button type="button" variant="outline" size="sm" onClick={fuenteActiva == null ? reintentarConversionMensual : reintentarConversiones}>
                   <RefreshCw aria-hidden /> Reintentar conversión
                 </Button>
               </div>
@@ -712,7 +741,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               </div>
             )}
 
-            {conversionMensualCargando || cumplimientoRankingCargando ? (
+            {conversionMensualCargando || cumplimientoRankingCargando || (fuenteActiva != null && lecturaFuentePaneles === undefined) ? (
               <Skeleton className="h-44 rounded-2xl" aria-label="Cargando metas del mes seleccionado" />
             ) : <div className="grid gap-4 sm:grid-cols-2">
                 <MetaItem
@@ -755,34 +784,34 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                                 : undefined}
                 />
                 <MetaItem
-                  label="Índice para la meta mensual"
-                  actual={porcentajeConversionCanonica(conversionActual)}
-                  objetivo={metaMensualRanking.errorCarga
-                    ? 'meta no disponible'
-                    : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
-                  nota={[
-                    // Sin conteo de base aquí (veto del doble contador,
-                    // 27/08): el detalle vive en Conversiones.
-                    'El detalle por analista está en Conversiones.',
-                    // Por qué la cifra no es definitiva, PEGADO a ella y no en
-                    // su lugar: sustituirla era lo que hacía que un mes con
-                    // recibidos y cierres dijera «sin datos».
-                    lecturaConversion.mostrar ? lecturaConversion.aviso : null,
-                  ].filter(Boolean).join(' · ')}
-                  progreso={meta.conversionObjetivo > 0 && conversionActual != null
+                  label={fuenteActiva == null ? 'Índice para la meta mensual' : `Aporte de ${lecturaFuentePaneles?.etiqueta ?? 'la fuente'} al índice`}
+                  actual={porcentajeConversionCanonica(fuenteActiva == null ? conversionActual : lecturaFuentePaneles?.porcentaje ?? null)}
+                  objetivo={fuenteActiva == null
+                    ? metaMensualRanking.errorCarga
+                      ? 'meta no disponible'
+                      : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'
+                    : 'del índice comercial'}
+                  nota={fuenteActiva == null
+                    ? ['El detalle por analista está en Conversiones.', lecturaConversion.mostrar ? lecturaConversion.aviso : null].filter(Boolean).join(' · ')
+                    : lecturaFuentePaneles == null
+                      ? 'Detalle no disponible.'
+                      : `${numero(lecturaFuentePaneles.resultados)} ${lecturaFuentePaneles.familia === 'cartera' ? 'operaciones' : 'cierres'} · aporte ${numero(lecturaFuentePaneles.numerador, 2)} ÷ base ${numero(lecturaFuentePaneles.divisor)}`}
+                  progreso={fuenteActiva == null && meta.conversionObjetivo > 0 && conversionActual != null
                     ? pctMeta(conversionActual, meta.conversionObjetivo)
                     : null}
-                  mensajeSinProgreso={!conversionMensualMedible && conversionMensual != null
-                    ? (lecturaConversion.aviso ?? 'Base de conversión no disponible para este mes')
-                    : metaMensualRanking.errorCarga
-                        ? 'No pudimos cargar la meta mensual'
-                        : meta.conversionObjetivo <= 0
-                            ? undefined
-                            : conversionActual == null
-                                ? conversionMensual == null
-                                  ? 'Conversión mensual no disponible'
-                                  : 'Sin base para medir la conversión este mes'
-                                : undefined}
+                  mensajeSinProgreso={fuenteActiva != null
+                    ? 'Este aporte forma parte del índice total.'
+                    : !conversionMensualMedible && conversionMensual != null
+                      ? (lecturaConversion.aviso ?? 'Base de conversión no disponible para este mes')
+                      : metaMensualRanking.errorCarga
+                          ? 'No pudimos cargar la meta mensual'
+                          : meta.conversionObjetivo <= 0
+                              ? undefined
+                              : conversionActual == null
+                                  ? conversionMensual == null
+                                    ? 'Conversión mensual no disponible'
+                                    : 'Sin base para medir la conversión este mes'
+                                  : undefined}
                 />
             </div>}
 
@@ -862,18 +891,18 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
                 <AlertTriangle className="size-4" aria-hidden /> {errorRendimiento}
               </span>
-              <Button type="button" variant="outline" size="sm" onClick={() => { reintentarConversionMensual(); void qCumplimientoRanking.refetch() }}>
+              <Button type="button" variant="outline" size="sm" onClick={() => { if (fuenteActiva != null) reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch() }}>
                 <RefreshCw aria-hidden /> Reintentar
               </Button>
             </div>
           )}
-          {(conversionMensualCargando || cumplimientoRankingCargando) && conversionMensualPaneles === undefined
+          {(conversionMensualCargando || cumplimientoRankingCargando || (fuenteActiva != null && lecturaFuentePaneles === undefined)) && (conversionMensualPaneles === undefined || lecturaFuentePaneles === undefined)
             ? <Skeleton className="h-72 rounded-2xl" aria-label="Cargando rendimiento del equipo" />
             : conversionMensualPaneles != null || !errorRendimiento
-              ? <EquipoGerenciaPanel conversionMensual={conversionMensualPaneles} conversiones={datosEquipoConversion} />
+              ? <EquipoGerenciaPanel conversionMensual={conversionMensualPaneles} conversiones={datosEquipoConversion} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} />
               : null}
           <div data-gi-panel>
-            <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.', distribucion.data)} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} desde={periodoRanking.desde} hasta={periodoRanking.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />
+            <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.', distribucion.data)} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} fuenteConversion={fuenteActiva} lecturaFuente={lecturaFuentePaneles} desde={periodoRanking.desde} hasta={periodoRanking.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />
           </div>
         </>
       )}

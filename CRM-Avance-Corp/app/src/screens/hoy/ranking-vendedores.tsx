@@ -14,8 +14,11 @@ import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
-  adaptarConversionMensual,
+  adaptarConversionMensualPorFuente,
+  FUENTES_CONVERSION,
+  type AporteConversionRango,
   type DetalleConversionMensual,
+  type FuenteConversion,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
   type RankingCapitalTotalVendedores,
@@ -44,6 +47,10 @@ interface RankingVendedoresPanelProps {
   /** Un fallo de conversión solo bloquea SU pestaña. */
   conversionError: string | null
   onReintentarConversion: () => void
+  /** Fuente que reemplaza el total en la pestaña Conversión. */
+  fuenteConversion?: FuenteConversion | null
+  /** Aportes ponderados del mismo mes; `undefined` mientras se consultan. */
+  lecturaFuente?: AporteConversionRango | null | undefined
   /**
    * Segunda lectura POR COSECHA del ranking (`crm.metricas_conversiones_equipo_fn`,
    * F2.2 — patrón D2: de los leads que cada quien RECIBIÓ en el mes, cuántos
@@ -294,9 +301,11 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
   )
 }
 
-function RankingConversion({ ranking, etiquetaBase }: {
+function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierres', etiquetaPorcentaje = 'Conversión' }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
   etiquetaBase: string
+  etiquetaResultados?: string
+  etiquetaPorcentaje?: string
 }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
@@ -310,8 +319,8 @@ function RankingConversion({ ranking, etiquetaBase }: {
               <th className="px-3 py-3" scope="col">Analista</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
               <th className="px-3 py-3 text-right" scope="col">{etiquetaBase}</th>
-              <th className="px-3 py-3 text-right" scope="col">Cierres</th>
-              <th className="px-3 py-3 text-right" scope="col">Conversión</th>
+              <th className="px-3 py-3 text-right" scope="col">{etiquetaResultados}</th>
+              <th className="px-3 py-3 text-right" scope="col">{etiquetaPorcentaje}</th>
               <th className="min-w-56 px-5 py-3" scope="col">Nivel de conversión</th>
             </tr>
           </thead>
@@ -372,7 +381,7 @@ function RankingConversion({ ranking, etiquetaBase }: {
                 <div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--gi-navy)]">{fila.nombre}</p><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--gi-muted)]">{fila.supervisorNombre}</p></div>
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
-              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{etiquetaBase}: {numero(fila.detalle.divisor)}</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{etiquetaBase}: {numero(fila.detalle.divisor)}</span><span>{numero(fila.detalle.clientes)} {etiquetaResultados.toLowerCase()}</span></div>
               {fila.detalle.operacionesCartera > 0 && (
                 <p className="ml-12 mt-1 text-[10px] font-semibold text-[var(--muted-foreground-strong)]">
                   {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
@@ -628,6 +637,8 @@ export function RankingVendedoresPanel({
   conversionMensual,
   conversionError,
   onReintentarConversion,
+  fuenteConversion = null,
+  lecturaFuente,
   cosecha,
   cosechaCargando,
   cosechaError,
@@ -696,8 +707,13 @@ export function RankingVendedoresPanel({
         }
   ), [conversionMensual, idsPoblacion])
   const adaptadaMensual = useMemo(
-    () => adaptarConversionMensual(conversionMensualPoblacion ?? null, equipoRanking),
-    [conversionMensualPoblacion, equipoRanking],
+    () => adaptarConversionMensualPorFuente(
+      conversionMensualPoblacion ?? null,
+      equipoRanking,
+      fuenteConversion,
+      lecturaFuente,
+    ),
+    [conversionMensualPoblacion, equipoRanking, fuenteConversion, lecturaFuente],
   )
   const rankingConversion = useMemo(
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
@@ -726,11 +742,16 @@ export function RankingVendedoresPanel({
         ? onReintentarCapital
         : onReintentarCosecha
   const cargandoActivo = fotoMensualCargando || (tipo === 'conversion'
-    ? conversionMensual === undefined
+    ? conversionMensual === undefined || (fuenteConversion != null && lecturaFuente === undefined)
     : tipo === 'capital-total'
       ? metaMensual.comparable && tc === undefined
       : cosechaCargando)
-  const formulaConversion = conversionMensual == null
+  const etiquetaFuente = fuenteConversion == null
+    ? null
+    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+  const formulaConversion = fuenteConversion != null
+    ? `${etiquetaFuente} aporta ${lecturaFuente?.peso == null ? 'según el peso comercial vigente' : `×${numero(lecturaFuente.peso, 2)} por resultado`} y se divide entre la misma base automática del índice.`
+    : conversionMensual == null
     ? 'Conversión ponderada del núcleo comercial'
     : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
       ? `(Cierres Landing/Formulario + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; el cierre, a quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
@@ -769,7 +790,7 @@ export function RankingVendedoresPanel({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
-          <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
+          <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>{fuenteConversion == null ? 'Conversión general' : `Aporte: ${etiquetaFuente}`}</button>
           <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
           <button id="tab-ranking-cosecha" type="button" role="tab" aria-selected={tipo === 'cosecha'} aria-controls="panel-ranking-cosecha" onClick={() => setTipo('cosecha')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'cosecha' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Resultados de los leads del mes</button>
         </div>
@@ -808,9 +829,13 @@ export function RankingVendedoresPanel({
       ) : tipo === 'conversion' ? (
         <RankingConversion
           ranking={rankingConversion}
-          etiquetaBase={conversionMensual?.fuentes.divisor === 'crm.leads.creado_en'
+          etiquetaBase={fuenteConversion != null
+            ? 'Base automática'
+            : conversionMensual?.fuentes.divisor === 'crm.leads.creado_en'
             ? 'Base automática'
             : conversionMensual == null ? 'Base del mes' : 'Base histórica'}
+          etiquetaResultados={fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'Operaciones' : 'Cierres'}
+          etiquetaPorcentaje={fuenteConversion == null ? 'Conversión' : 'Aporte al índice'}
         />
       ) : tipo === 'cosecha' ? (
         <TabpanelMarco tab="cosecha">
@@ -840,7 +865,7 @@ export function RankingVendedoresPanel({
           <RankingCapitalTotal ranking={rankingCapitalTotal} />
         </>
       )}
-      {!fotoMensualCargando && !fotoMensualError && (
+      {fuenteConversion == null && !fotoMensualCargando && !fotoMensualError && (
         <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
       )}
     </section>

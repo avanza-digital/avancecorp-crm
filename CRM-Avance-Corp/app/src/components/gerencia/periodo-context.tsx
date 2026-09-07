@@ -10,6 +10,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { fechaLima } from '@/lib/agenda-derivada'
+import type { FuenteConversion } from '@/lib/conversion-vendedores'
 import { periodoInicialGerencia, type PeriodoGerencia } from './periodo'
 import { PeriodoGerenciaContext } from './periodo-context-base'
 
@@ -30,7 +31,7 @@ function milisegundosHastaMedianocheLima(ahora: number): number {
 export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): JSX.Element {
   const [periodo, setPeriodoInterno] = useState<PeriodoGerencia>(periodoInicialGerencia)
   const [diaLima, setDiaLima] = useState(() => fechaLima(Date.now()))
-  const [origenFiltrado, setOrigenFiltrado] = useState<string | null>(null)
+  const [origenFiltrado, setOrigenFiltrado] = useState<FuenteConversion | null>(null)
   const automaticoRef = useRef(true)
   const setPeriodo = useCallback<Dispatch<SetStateAction<PeriodoGerencia>>>((actualizador) => {
     setPeriodoInterno((anterior) => {
