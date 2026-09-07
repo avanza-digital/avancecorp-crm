@@ -372,8 +372,8 @@ function ResumenDistribucion({
           {mostrarOperacion
             ? `Capital estimado: ${dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} en soles · ${dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en dólares`
             : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
-              ? 'Llegadas automáticas Landing/Formulario; una vez por lead, para su primer analista.'
-              : 'Base histórica; no equivale a llegadas únicas.'}
+              ? 'Prospectos recibidos automáticamente desde Landing/Formulario; cada uno cuenta una sola vez para su primer analista.'
+              : 'Base histórica; no equivale a prospectos recibidos.'}
         </dd>
       </div>
 
@@ -409,7 +409,7 @@ function ResumenDistribucion({
                   contra el servidor en el mismo snapshot antes de afirmarla
                   aquí). Si dejara de cuadrar, el aviso de sondas lo dice. */}
               {datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
-                ? 'Núcleo comercial: llegadas únicas, referidos y renovaciones ponderados; upgrades ×1.'
+                ? 'Núcleo comercial: prospectos recibidos, referidos y renovaciones ponderados; upgrades ×1.'
                 : 'Base histórica con la definición anterior.'}
               {' '}{mesEnPalabras(datos.cohorte.desde_inclusivo)}
             </dd>
@@ -461,7 +461,7 @@ function ResumenDistribucion({
           </div>
         </dd>
         <dd className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          Seguimiento operativo de asignaciones del período, no conversión comercial ni llegadas únicas.
+          Seguimiento operativo de asignaciones del período, no conversión comercial ni prospectos recibidos.
         </dd>
       </div>}
     </dl>
@@ -1294,7 +1294,7 @@ function TablaRangos({
               {modo === 'carga'
                 ? mostrarOperacion
                   ? 'Cada celda: leads activos hoy y, debajo, asignaciones del período en ese rango.'
-                  : 'Cada celda muestra leads activos hoy, no llegadas del mes.'
+                  : 'Cada celda muestra leads activos hoy, no prospectos recibidos en el mes.'
                 : 'Cada celda: cierres sobre asignaciones resueltas del período. No es conversión comercial.'}
             </p>
             <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Lectura de la tabla">

@@ -797,7 +797,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByText(/Rango: 01 jul\. 2026 al 15 jul\. 2026/))
       .toBeInTheDocument()
-    expect(screen.getByText(/El origen filtra las llegadas y sus resultados, no la conversión general ni las citas registradas/))
+    expect(screen.getByText(/El origen filtra los prospectos del período y sus resultados, no la conversión general ni las citas registradas/))
       .toBeInTheDocument()
     expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
       .not.toBeInTheDocument()

@@ -46,7 +46,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     expect(screen.getAllByText('Base automática: 9 · 2 cierres')).toHaveLength(2)
     // KPIs servidos: divisor y cierres de la empresa, sin divisiones en cliente.
     expect(screen.getByText('Base automática')).toBeInTheDocument()
-    expect(screen.queryByText(/recibidos/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/prospectos recibidos desde Landing\/Formulario/i)).toBeInTheDocument()
     expect(screen.getByText('36')).toBeInTheDocument()
     expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
     // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
@@ -149,7 +149,7 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
 
     expect(screen.getByText('Base histórica')).toBeInTheDocument()
     expect(screen.getByText('Base histórica: 10 · 4 cierres')).toBeInTheDocument()
-    expect(screen.getByText(/no equivale a llegadas únicas/i)).toBeInTheDocument()
+    expect(screen.getByText(/no equivale a prospectos recibidos/i)).toBeInTheDocument()
     expect(screen.queryByText('Base automática')).not.toBeInTheDocument()
     expect(mensual).toEqual(original)
   })

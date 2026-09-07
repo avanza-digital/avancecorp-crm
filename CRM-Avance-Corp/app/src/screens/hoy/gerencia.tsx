@@ -170,8 +170,8 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar, ori
         {modo === 'mixto' && (
           <p role="status" className="mt-1.5 text-[11px] font-medium text-[var(--gi-muted)]">
             {origenDeshabilitado
-              ? `Ejemplo: conversión mensual, metas y capital de ${etiquetaMes}; llegadas, avance y citas del ${etiquetaRango}. Sin filtro de origen.`
-              : `Rango: ${etiquetaRango} · Metas y capital mensual: ${etiquetaMes}. El origen filtra las llegadas y sus resultados, no la conversión general ni las citas registradas.`}
+              ? `Ejemplo: conversión mensual, metas y capital de ${etiquetaMes}; prospectos, avance y citas del ${etiquetaRango}. Sin filtro de origen.`
+              : `Rango: ${etiquetaRango} · Metas y capital mensual: ${etiquetaMes}. El origen filtra los prospectos del período y sus resultados, no la conversión general ni las citas registradas.`}
           </p>
         )}
         {!validacion.valido && (

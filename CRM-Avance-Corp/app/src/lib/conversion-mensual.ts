@@ -293,7 +293,7 @@ export const ConversionMensualSchema = v.pipe(
   v.check((payload) => payload.fuentes.divisor !== 'crm.leads.creado_en'
     || (payload.fuentes.referido === 'crm.leads.origen'
       && payload.ponderacion.renovacion === payload.ponderacion.referido),
-  'El núcleo de llegadas debe declarar renovación con el mismo peso que Referido'),
+  'El núcleo comercial debe declarar renovación con el mismo peso que Referido'),
   v.check((payload) => {
     const [anio, mes] = payload.periodo.mes.split('-').map(Number)
     return payload.periodo.anio === anio

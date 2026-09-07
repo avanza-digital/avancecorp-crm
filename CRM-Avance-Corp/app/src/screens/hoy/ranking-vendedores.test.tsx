@@ -69,7 +69,7 @@ describe('ranking general de analistas', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Base histórica' })).toBeInTheDocument()
     expect(screen.getByText('Base histórica: 10')).toBeInTheDocument()
-    expect(screen.getByText(/no equivale a llegadas únicas/i)).toBeInTheDocument()
+    expect(screen.getByText(/no equivale a prospectos recibidos/i)).toBeInTheDocument()
     expect(screen.getByText('Foto sellada')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Recibidos' })).not.toBeInTheDocument()
     expect(mensual).toEqual(original)
@@ -225,7 +225,7 @@ describe('ranking general de analistas', () => {
 
     expect(screen.getByText('7 analistas · sin límite fijo de participantes')).toBeInTheDocument()
     expect(screen.getByText('Mes calendario · agosto 2026')).toBeInTheDocument()
-    expect(screen.getByText(/renovaciones ×0.15.*llegadas automáticas Landing\/Formulario/)).toBeInTheDocument()
+    expect(screen.getByText(/renovaciones ×0.15.*prospectos automáticos de Landing\/Formulario/)).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     // Columnas de la conversión MENSUAL: base automática y cierres — no los
     // rótulos del payload viejo (Leads/Clientes medían el rango completo).

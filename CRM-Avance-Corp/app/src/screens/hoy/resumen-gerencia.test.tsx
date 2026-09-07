@@ -260,7 +260,7 @@ describe('ranking general de analistas', () => {
 
     const enlace = screen.getByRole('link', { name: 'Ver ranking general de analistas' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
-    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
+    const evolucion = screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
   })
 
@@ -345,7 +345,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(heroe).not.toBeNull()
     expect(heroe).toHaveTextContent('3.98%')
     expect(heroe).toHaveTextContent('Base: 176 leads automáticos · 7 cierres')
-    expect(heroe).toHaveTextContent('185 llegadas únicas: 176 automáticas · 8 manuales · 1 referido')
+    expect(heroe).toHaveTextContent('185 prospectos recibidos: 176 automáticos · 8 manuales · 1 referido')
     expect(heroe).not.toHaveTextContent('fuera de la base')
     expect(heroe).not.toHaveTextContent('317')
     expect(heroe).not.toHaveTextContent('3.79%')
@@ -615,7 +615,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(
       screen.getByText(
-        /filtra las llegadas y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa/,
+        /filtra los prospectos del período y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa/,
       ),
     ).toBeInTheDocument()
   })
@@ -643,7 +643,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     expect(screen.queryByText('15%', { selector: '.gi-hero-metric strong' })).not.toBeInTheDocument()
     // F3: la meta mensual ya no se dibuja sobre la curva semanal (H12) — la
     // ausencia del 15 % se vigila en el héroe; la serie 1 ahora son cierres.
-    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
+    const evolucion = screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' })
     expect(evolucion).toBeInTheDocument()
   })
 
@@ -668,7 +668,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(screen.getByText('No disponible', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
-    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
+    const evolucion = screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' })
     expect(evolucion).toBeInTheDocument()
   })
 })
@@ -741,7 +741,7 @@ describe('gráfica por origen — publicación fail-closed', () => {
     delete datos.nucleo.altas_manuales
     montar(datos)
     const heroe = screen.getByText(/Conversión del rango ·/).closest('section')
-    expect(heroe).toHaveTextContent('185 llegadas únicas')
+    expect(heroe).toHaveTextContent('185 prospectos recibidos')
     expect(heroe).toHaveTextContent('altas manuales no disponibles')
     expect(heroe).not.toHaveTextContent('0 manuales')
   })

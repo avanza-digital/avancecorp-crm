@@ -270,7 +270,7 @@ export function ResumenGerenciaPanel({
     },
     series: [
       {
-        name: 'Llegadas',
+        name: 'Prospectos recibidos',
         type: 'line',
         smooth: true,
         data: valoresRecibidos,
@@ -389,7 +389,7 @@ export function ResumenGerenciaPanel({
       )}
       {origenFiltrado != null && (
         <p role="status" className="rounded-xl border border-[var(--gi-line)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--gi-navy)]">
-          Origen: {etiquetaOrigen(origenFiltrado)} · filtra las llegadas y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa.
+          Origen: {etiquetaOrigen(origenFiltrado)} · filtra los prospectos del período y sus resultados; las citas, la conversión del rango, el capital mensual y las metas muestran toda la empresa.
         </p>
       )}
       <section data-gi-hero className="gi-summary-hero">
@@ -417,7 +417,7 @@ export function ResumenGerenciaPanel({
                       + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
           {usaNucleoRango && nucleoRango?.base === 'llegada_unica' && nucleoRango.llegadas != null && (
-            <p className="mt-1 text-xs text-white/65">{numero(nucleoRango.llegadas)} llegadas únicas: {numero(nucleoRango.divisor)} automáticas · {nucleoRango.altas_manuales == null ? 'altas manuales no disponibles' : `${numero(nucleoRango.altas_manuales)} manuales`} · {numero(nucleoRango.referidos_recibidos)} {nucleoRango.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
+            <p className="mt-1 text-xs text-white/65">{numero(nucleoRango.llegadas)} prospectos recibidos: {numero(nucleoRango.divisor)} automáticos · {nucleoRango.altas_manuales == null ? 'altas manuales no disponibles' : `${numero(nucleoRango.altas_manuales)} manuales`} · {numero(nucleoRango.referidos_recibidos)} {nucleoRango.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
           )}
           {usaNucleoRango && nucleoRango != null && !nucleoRango.incluye_cartera && (
             <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
@@ -467,11 +467,11 @@ export function ResumenGerenciaPanel({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]">
         <section data-gi-panel className="gi-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de llegada</h2><span className="gi-caption">Leads del mes y cuántos cerraron, agrupados por su semana de llegada</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="gi-title">Resultados por semana de ingreso</h2><span className="gi-caption">Prospectos del mes y cuántos cerraron, agrupados por su semana de ingreso</span></div>
           {tendenciaEquipo == null
             ? <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div>
             : valoresEvolucion.length > 0
-              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads por semana de llegada y resultados" className="mt-3 h-[260px] w-full" />
+              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Prospectos por semana de ingreso y resultados" className="mt-3 h-[260px] w-full" />
               : <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para mostrar</div>}
         </section>
         <section

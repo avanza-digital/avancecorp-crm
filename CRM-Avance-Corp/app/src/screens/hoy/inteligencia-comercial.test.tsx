@@ -68,19 +68,19 @@ describe('citas y cierres conservados al simplificar Conversiones', () => {
   it('conserva el indicador de citas sin los dos bloques explicativos retirados', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     renderAmpliaciones(datos)
-    expect(screen.queryByRole('region', { name: 'Llegadas con cita realizada' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Prospectos con cita realizada' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Operaciones elegidas para conversión' })).not.toBeInTheDocument()
-    expect(screen.getAllByText('Llegadas con cita realizada').find((elemento) => elemento.closest('[data-gi-kpi]'))?.closest('[data-gi-kpi]')).toHaveTextContent('38')
-    expect(screen.getByText('46 citas registradas como realizadas · de 184 llegadas')).toBeInTheDocument()
+    expect(screen.getAllByText('Prospectos con cita realizada').find((elemento) => elemento.closest('[data-gi-kpi]'))?.closest('[data-gi-kpi]')).toHaveTextContent('38')
+    expect(screen.getByText('46 citas registradas como realizadas · de 184 prospectos')).toBeInTheDocument()
     expect(screen.queryByText('Reunión o avance posterior')).not.toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Señales de avance de los prospectos del período' })).toBeInTheDocument()
   })
 
   it('pinta las semanas servidas por fecha de cierre sin sustituir las de llegada', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     renderAmpliaciones(datos)
     expect(screen.getByRole('img', { name: 'Cierres ocurridos por semana de cierre' })).toHaveAttribute('data-series', '[21,0,0,0,0]')
-    expect(screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Cierres por fecha de cierre' })).toHaveTextContent('21 cierres')
     expect(screen.getByText('Leads del mes que cerraron').closest('[data-gi-kpi]')).toHaveTextContent('17')
   })
@@ -115,7 +115,7 @@ describe('citas y cierres conservados al simplificar Conversiones', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.citas_reales = { ...datos.citas_reales!, leads_con_cita_real: 0, citas_realizadas: 0, citas_anteriores_al_alta: 3, pct_llegadas_con_cita_real: 0 }
     renderAmpliaciones(datos)
-    const indicador = screen.getByText('Llegadas con cita realizada').closest('[data-gi-kpi]')
+    const indicador = screen.getByText('Prospectos con cita realizada').closest('[data-gi-kpi]')
     expect(indicador).toHaveTextContent('0 citas registradas como realizadas')
     expect(indicador).not.toHaveTextContent('3 citas')
   })
@@ -147,12 +147,12 @@ describe('citas y cierres conservados al simplificar Conversiones', () => {
     renderAmpliaciones(datos)
     expect(screen.getByText('Reunión o avance posterior').closest('[data-gi-kpi]')).toHaveTextContent('58')
     expect(screen.getByText('Semanas por fecha de cierre no disponibles o no verificables.')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Señales de avance de los prospectos del período' })).toBeInTheDocument()
   })
 
   it('las citas reales son independientes de la paridad del índice; los cierres se protegen', () => {
     renderAmpliaciones(metricasConversionesDemo('2026-08-01', '2026-08-31'), { modoDemo: false })
-    expect(screen.getByText('Llegadas con cita realizada').closest('[data-gi-kpi]')).toHaveTextContent('38')
+    expect(screen.getByText('Prospectos con cita realizada').closest('[data-gi-kpi]')).toHaveTextContent('38')
     expect(screen.queryByRole('img', { name: 'Cierres ocurridos por semana de cierre' })).not.toBeInTheDocument()
   })
 
@@ -161,9 +161,9 @@ describe('citas y cierres conservados al simplificar Conversiones', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     expect(screen.getByRole('region', { name: 'Citas reales del analista' })).toHaveTextContent('11 leads · 13 citas registradas como realizadas')
     const cierres = screen.getByRole('region', { name: 'Cierres semanales del analista' })
-    expect(cierres).toHaveTextContent('aunque la llegada pertenezca a otro')
+    expect(cierres).toHaveTextContent('aunque el prospecto pertenezca a otro')
     expect(within(cierres).getAllByRole('row')[1]).toHaveTextContent('6')
-    expect(screen.getByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })).toBeInTheDocument()
   })
 })
 
@@ -387,7 +387,7 @@ describe('detalle de conversión por analista', () => {
     expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
     expect(contenido.getByText('31.50%')).toBeInTheDocument()
     expect(contenido.getByText('Base automática 10 · cierres del mes 4')).toBeInTheDocument()
-    const semanal = contenido.getByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })
+    const semanal = contenido.getByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })
     expect(semanal).toHaveAttribute('data-meta-series', '[]')
     expect(contenido.getByText(/No se compara con la meta mensual ponderada/)).toBeInTheDocument()
     expect(contenido.queryByText('Citas')).not.toBeInTheDocument()
@@ -395,7 +395,7 @@ describe('detalle de conversión por analista', () => {
     // Procedencia y referidos con la letra corregida del plan.
     expect(contenido.getByText('de agosto 3, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
-    expect(contenido.getByText(/Fórmula:.*renovaciones ×0.15.*llegadas automáticas Landing\/Formulario/)).toBeInTheDocument()
+    expect(contenido.getByText(/Fórmula:.*renovaciones ×0.15.*prospectos automáticos de Landing\/Formulario/)).toBeInTheDocument()
     // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
     // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
     // fuente vieja lo dejaba en S/ 0 eterno).
@@ -564,7 +564,7 @@ describe('detalle de conversión por analista', () => {
       />,
     )
 
-    const evolucion = screen.getByRole('img', { name: 'Leads por semana de llegada y resultados' })
+    const evolucion = screen.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' })
     expect(JSON.parse(evolucion.getAttribute('data-x-axis') ?? '[]')).toEqual([
       '2026-06-03 – 2026-06-09',
       '2026-06-10 – 2026-06-16',
@@ -576,7 +576,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const tendencia = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-      .getByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })
+      .getByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })
     expect(JSON.parse(tendencia.getAttribute('data-x-axis') ?? '[]')).toEqual([
       '2026-06-03 – 2026-06-09',
       '2026-06-10 – 2026-06-16',
@@ -681,7 +681,7 @@ describe('detalle de conversión por analista', () => {
     expect(detalle.getByText(/1 cierre no tiene episodio verificable/)).toBeInTheDocument()
     expect(detalle.queryByText('31.50%')).not.toBeInTheDocument()
     expect(detalle.queryByText('Base automática 10 · cierres del mes 4')).not.toBeInTheDocument()
-    expect(detalle.queryByRole('img', { name: 'Resultados por semana de llegada de Ana Torres' })).not.toBeInTheDocument()
+    expect(detalle.queryByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })).not.toBeInTheDocument()
     expect(detalle.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(detalle.getByText(money(20_000, 'USD'))).toBeInTheDocument()
   })
@@ -916,7 +916,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(heroeRegion).not.toHaveTextContent('317')
     expect(heroeRegion).not.toHaveTextContent('3.79%')
     expect(heroe.queryByText(/no incluye operaciones de cartera/)).not.toBeInTheDocument()
-    expect(heroe.getByText('185 llegadas únicas: 176 automáticas · 8 manuales · 1 referido')).toBeInTheDocument()
+    expect(heroe.getByText('185 prospectos recibidos: 176 automáticos · 8 manuales · 1 referido')).toBeInTheDocument()
     expect(heroe.getByText(/Peso: referidos y renovaciones ×0.15 · Upgrades ×1/)).toBeInTheDocument()
     expect(heroeRegion).not.toHaveTextContent('fuera de la base')
     expect(heroeRegion).not.toHaveTextContent('Cosecha del rango')
@@ -955,7 +955,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getByRole('heading', { name: 'Avance comercial inferido' })).toBeInTheDocument()
     expect(screen.queryByText('Leads que llegaron a cita')).not.toBeInTheDocument()
     expect(screen.queryByText('Citas realizadas')).not.toBeInTheDocument()
-    const avance = screen.getByRole('img', { name: 'Señales de avance inferido de las llegadas del rango' })
+    const avance = screen.getByRole('img', { name: 'Señales de avance de los prospectos del período' })
     expect(JSON.parse(avance.getAttribute('data-series') ?? '[]')).toEqual([184, 139, 82, 58, 37, 17])
   })
 
@@ -976,7 +976,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
     montarConNucleo({ ...SONDAS }, true)
-    expect(screen.getByText(/sus llegadas no aumentan la base automática/)).toBeInTheDocument()
+    expect(screen.getByText(/estos prospectos no aumentan la base automática/)).toBeInTheDocument()
   })
 
   it('origen ficha≠ledger avisa sin ocultar la cifra', () => {
@@ -1160,7 +1160,7 @@ describe('filtro de origen en Conversiones (27/08)', () => {
     expect(screen.queryByText(/Meta mensual ·/)).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado del mes')).not.toBeInTheDocument()
     // Capital del lote = origenes[] (Referido demo: 460.000 PEN + 60.000 USD).
-    expect(screen.getAllByText('Capital vinculado a las llegadas')[0]).toBeInTheDocument()
+    expect(screen.getAllByText('Capital vinculado a los prospectos')[0]).toBeInTheDocument()
     expect(screen.getAllByText(money(460_000, 'PEN')).length).toBeGreaterThan(0)
     expect(screen.getByText(money(60_000, 'USD'))).toBeInTheDocument()
   })
@@ -1169,7 +1169,7 @@ describe('filtro de origen en Conversiones (27/08)', () => {
     montarConOrigen(null)
     expect(screen.getByText('Capital del mes')).toBeInTheDocument()
     expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
-    expect(screen.queryByText(/Capital vinculado a las llegadas/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Capital vinculado a los prospectos/)).not.toBeInTheDocument()
     expect(screen.queryByText(/origen: /)).not.toBeInTheDocument()
   })
 })

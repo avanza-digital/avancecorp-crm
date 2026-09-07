@@ -733,8 +733,8 @@ export function RankingVendedoresPanel({
   const formulaConversion = conversionMensual == null
     ? 'Conversión ponderada del núcleo comercial'
     : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
-      ? `(Cierres Landing/Formulario + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ llegadas automáticas Landing/Formulario. La llegada queda en el primer analista; el cierre, en quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
-      : 'Base histórica del mes: conserva la definición anterior con la que se calculó; no equivale a llegadas únicas.'
+      ? `(Cierres Landing/Formulario + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + renovaciones ×${numero(conversionMensual.ponderacion.renovacion ?? conversionMensual.ponderacion.referido, 2)} + upgrades) ÷ prospectos automáticos de Landing/Formulario. El prospecto se atribuye al primer analista; el cierre, a quien lo consigue. Altas manuales, referidos y cartera no agregan base.`
+      : 'Base histórica del mes: conserva la definición anterior con la que se calculó; no equivale a prospectos recibidos.'
 
   return (
     <section data-gi-panel className="gi-card overflow-hidden">

@@ -155,8 +155,8 @@ export function EquipoGerenciaPanel({
         {conversionMensual == null
           ? 'La base mensual no está disponible.'
           : conversionMensual.fuentes.divisor === 'crm.leads.creado_en'
-            ? 'Base automática: llegadas de Landing/Formulario. No incluye altas manuales ni referidos.'
-            : 'Base histórica: conserva la definición de la foto mensual; no equivale a llegadas únicas.'}
+            ? 'Base automática: prospectos recibidos desde Landing/Formulario. No incluye altas manuales ni referidos.'
+            : 'Base histórica: conserva la definición de la foto mensual; no equivale a prospectos recibidos.'}
       </p>
 
       {medibles.length > 0 && (
