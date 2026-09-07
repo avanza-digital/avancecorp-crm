@@ -45,6 +45,14 @@ function contarFueraDeBanda(etiqueta, sql) {
   }
   return n;
 }
+// Lee UN valor de texto por la vía fuera de banda (el gate de identidad necesita ids que la API no expone).
+function textoFueraDeBanda(etiqueta, sql) {
+  const psqlBanco = process.env.CRM_BANCO_PSQL_URL ?? '';
+  if (!psqlBanco) {
+    throw new Error(`falta CRM_BANCO_PSQL_URL — ${etiqueta} exige la via fuera de banda del banco (LEEME-seed)`);
+  }
+  return execFileSync('psql', [psqlBanco, '-v', 'ON_ERROR_STOP=1', '-qAt', '-c', sql], { encoding: 'utf8' }).trim() || null;
+}
 // Ejecuta SQL de setup por la misma vía fuera de banda (una transacción). Lo
 // usa el gate de identidad multiempresa para togglear `crm.multiempresa_flags`
 // (sin grants API) y limpiar fixtures de identidad (RLS deny-by-default).
@@ -9305,6 +9313,78 @@ async function testIdentidadF2bD20(sessions) {
     'D-20 el importador conserva su puerta (solo service_role) y lleva la rama del cliente que vuelve');
 }
 
+// ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
+// La conducta (nota + tarea, idempotencia, atribución) la mide scripts/oraculo-f2b-d20.sh. Aquí se vigila la
+// superficie: que el ayudante no esté expuesto y que el importador conserve su puerta cerrada a la API.
+async function testIdentidadF2bD20(sessions, seed) {
+  console.log('\n— Identidad multiempresa F2.b [D-20]: el cliente que vuelve no se pierde —');
+  const cuenta = (etiqueta, sql) => contarFueraDeBanda(`F2.b D-20: ${etiqueta}`, sql);
+  const AYUD = 'private.registrar_solicitud_cliente_fn(uuid,text,jsonb)';
+  if (cuenta('D-20 aplicada', `select (to_regprocedure('${AYUD}') is not null)::int`) !== 1) {
+    console.log('  (saltado: D-20 (20260906210000) no está en esta base)');
+    return;
+  }
+  check(cuenta('ayudante', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'registrar_solicitud_cliente_fn' and p.prosecdef and p.provolatile = 'v' and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']`) === 1,
+    'D-20 el ayudante es DEFINER de postgres, VOLATILE, con search_path vacío y lock_timeout');
+  check(cuenta('ayudante cerrado', `select (has_function_privilege('authenticated', '${AYUD}', 'EXECUTE') or has_function_privilege('anon', '${AYUD}', 'EXECUTE') or has_function_privilege('service_role', '${AYUD}', 'EXECUTE'))::int`) === 0
+      && cuenta('ayudante PUBLIC', `select count(*) from pg_proc p, aclexplode(p.proacl) a where p.oid = '${AYUD}'::regprocedure and a.grantee = 0`) === 0,
+    'D-20 el ayudante no es llamable por la API: solo lo usa el importador, que corre como service_role sin sesión');
+  check(cuenta('exige service_role y bandera', `select (strpos(p.prosrc, 'auth.uid()') > 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0)::int from pg_proc p where p.oid = '${AYUD}'::regprocedure`) === 1,
+    'D-20 el ayudante exige que no haya sesión humana y lee la bandera bajo su candado (D-19)');
+  // El documento NO puede acabar en la ficha ni en la tarea: la bitácora copia esas filas enteras (regla D-9).
+  const SIN_DOC = "select (strpos(p.prosrc, '''dni''') = 0 and strpos(p.prosrc, 'documento') = 0)::int from pg_proc p where p.oid = '" + AYUD + "'::regprocedure";
+  check(cuenta('sin documento en la nota', SIN_DOC) === 1,
+    'D-20 el ayudante no escribe el documento en la nota ni en la tarea (la bitácora copia esas filas enteras)');
+  check(cuenta('importador cerrado', `select (has_function_privilege('service_role', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('authenticated', 'crm.importar_lead_fn(jsonb)', 'EXECUTE') and not has_function_privilege('anon', 'crm.importar_lead_fn(jsonb)', 'EXECUTE'))::int`) === 1
+      && cuenta('importador marcador', `select (strpos(p.prosrc, 'F2.b [D-20]') > 0)::int from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure`) === 1,
+    'D-20 el importador conserva su puerta (solo service_role) y lleva la rama del cliente que vuelve');
+
+  // ── Matriz de RLS sobre lo que D-20 crea (auditor D-20, cobertura) ──────────────────────────────
+  // La nota y la tarea son datos nuevos en la ficha de un cliente: hay que fijar quién los ve y que
+  // nadie los pueda editar ni borrar por la API.
+  const cliente = seed.profileIdByKey[BANK_CLIENT.key];
+  const asesor = cuenta('asesor del cliente de banca', `select count(*) from public.perfiles where id = '${cliente}' and asesor_perfil_id is not null`) === 1
+    ? textoFueraDeBanda('asesor', `select asesor_perfil_id::text from public.perfiles where id = '${cliente}'`)
+    : null;
+  if (!asesor) {
+    console.log('  (matriz RLS saltada: el cliente de banca del fixture no tiene analista asignado)');
+  } else {
+    const NOTA = '00000000-0000-4000-8000-0000000000d2';
+    const TAREA = '00000000-0000-4000-8000-0000000000d3';
+    ejecutarFueraDeBanda('D-20 fixture', `
+      delete from crm.tareas where id = '${TAREA}';
+      delete from crm.actividades_cliente where id = '${NOTA}';
+      insert into crm.actividades_cliente (id, cliente_id, vendedor_id, tipo, detalle, creado_por)
+      values ('${NOTA}', '${cliente}', '${asesor}', 'nota', 'D-20 visibilidad · Ref: fixture', null);
+      insert into crm.tareas (id, perfil_id, tipo, titulo, vence_en, estado, creado_por)
+      values ('${TAREA}', '${cliente}', 'llamada', 'D-20 visibilidad', now() + interval '1 day', 'pendiente', null);`);
+    const ve = async (clave, tabla, id) => {
+      const s = sessions[clave];
+      if (!s) return null;
+      const r = await s.client.schema('crm').from(tabla).select('id').eq('id', id);
+      return r.error ? 0 : (r.data ?? []).length;
+    };
+    const asesorEsVend1 = cuenta('el analista del cliente es vend1', `select count(*) from public.perfiles where id = '${cliente}' and asesor_perfil_id = '${seed.profileIdByKey.vend1}'`) === 1;
+    if (asesorEsVend1) {
+      check(await ve('vend1', 'actividades_cliente', NOTA) === 1 && await ve('vend1', 'tareas', TAREA) === 1,
+        'D-20 el analista de la cartera ve la nota y la tarea de la solicitud');
+      check(await ve('vend2', 'actividades_cliente', NOTA) === 0 && await ve('vend2', 'tareas', TAREA) === 0,
+        'D-20 un analista de otro subárbol no ve ni la nota ni la tarea');
+      check(await ve('vendInactive', 'actividades_cliente', NOTA) === 0,
+        'D-20 un miembro dado de baja no ve la nota');
+    }
+    check(await ve('gerencia', 'actividades_cliente', NOTA) === 1 && await ve('gerencia', 'tareas', TAREA) === 1,
+      'D-20 Gerencia ve la solicitud y su tarea');
+    const upd = await sessions.gerencia.client.schema('crm').from('actividades_cliente').update({ detalle: 'editada' }).eq('id', NOTA).select('id');
+    check((upd.error !== null) || ((upd.data ?? []).length === 0),
+      'D-20 la nota de la solicitud no se puede editar por la API (la ficha es append-only)');
+    const del = await sessions.gerencia.client.schema('crm').from('actividades_cliente').delete().eq('id', NOTA).select('id');
+    check((del.error !== null) || ((del.data ?? []).length === 0),
+      'D-20 la nota de la solicitud no se puede borrar por la API');
+    ejecutarFueraDeBanda('D-20 limpieza', `delete from crm.tareas where id = '${TAREA}'; delete from crm.actividades_cliente where id = '${NOTA}';`, { tolerante: true });
+  }
+}
+
 // ── F2.b [D-19] (20260906200000): toda escritura lee la bandera bajo el candado del encendido ──
 // El invariante es censal: NINGUNA función que escriba puede leer `resolver_en_puertas` sin tomar antes su candado
 // compartido. Lo demás (que encender y apagar esperen a una escritura en vuelo) lo mide scripts/oraculo-f2b-d19.sh.
@@ -9497,7 +9577,11 @@ async function testIdentidadF2bD17yD18(sessions) {
   }
   // El censo que justifica el DRENAJE del script de encendido: cuántas funciones leen la bandera y escriben sin el compartido.
   const sinCompartido = cuenta('funciones que leen la bandera y escriben sin el compartido', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and (strpos(p.prosrc, 'insert into') > 0 or strpos(p.prosrc, 'update ') > 0 or strpos(p.prosrc, 'delete from') > 0)`);
-  check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido}). Con D-19 aplicada este número baja a 0 y lo vigila su propio bloque; aquí se conserva como guarda para una base sin D-19.`);
+  if (cuenta('D-19 presente', `select (to_regprocedure('private.resolver_en_puertas_bajo_candado()') is not null)::int`) === 1) {
+    console.log('  (censo de D-17/D-18 superado por D-19: lo vigila su propio bloque, que exige CERO)');
+  } else {
+    check(sinCompartido <= 14, `D-17/D-18: el censo de funciones que leen la bandera y escriben sin el candado compartido no crece (hoy ${sinCompartido})`);
+  }
 }
 
 // ── F2.b [D-20] (20260906210000): el cliente que vuelve deja tarea a su analista ──
@@ -12543,6 +12627,7 @@ async function main() {
       await testIdentidadF2bD4(sessions);
       await testIdentidadF2bD17yD18(sessions);
       await testIdentidadF2bD19(sessions);
+      await testIdentidadF2bD20(sessions, verifiedSeed);
       await testIdentidadF2bD20(sessions);
       await testIdentidadF2bD15(sessions, verifiedSeed);
       await testIdentidadF2bD5(sessions, verifiedSeed);

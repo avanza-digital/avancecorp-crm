@@ -121,5 +121,8 @@ psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true);
   delete from crm.tareas where perfil_id in ('$P1','$P2','$P3','$P4','$P5','$P8','$P9');
   delete from crm.actividades_cliente where cliente_id in ('$P1','$P2','$P3','$P4','$P5','$P8','$P9');
   commit;" >/dev/null 2>&1
+# El banco es COMPARTIDO: un cliente de prueba sin analista descuadra los conteos de la suite de otra sesión.
+psql "$PG" -q -c "begin; select set_config('crm.op_privilegiada','on',true);
+  update public.perfiles set activo=false where nombre_completo like 'D20 CLIENTE % r$RUN' or nombre_completo like 'D20 ANALISTA% r$RUN'; commit;" >/dev/null 2>&1
 flag false
 echo; if [[ "$ROJO" == "0" ]]; then echo "ORÁCULO F2.b D-20: VERDE — el cliente que vuelve nunca se pierde: con lead vivo va al lead, sin lead deja nota y tarea a su analista, y reenviar no duplica."; else echo "ORÁCULO F2.b D-20: ROJO — $ROJO aserciones fallaron." >&2; exit 1; fi
