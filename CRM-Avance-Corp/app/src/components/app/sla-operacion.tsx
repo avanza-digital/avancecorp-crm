@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 're
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, RefreshCw, ArrowUpRight, ListFilter, X } from 'lucide-react'
 import './sla-operacion.css'
+import { CrmApiError } from '@/data/crm-api'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { GuardadosSlaPendientes } from './guardados-sla-pendientes'
@@ -45,6 +46,10 @@ export function ColaSlaPanel() {
     if (evento.type === 'updated' && evento.action.type === 'invalidate'
       && JSON.stringify(evento.query.queryKey).startsWith(prefijo)) setCursores([null])
   }), [prefijo, queryClient])
+  // Una frontera temporal o un cambio de cartera invalida la posición anterior.
+  useEffect(() => {
+    if (cursor && consulta.error instanceof CrmApiError && consulta.error.code === '22023') setCursores([null])
+  }, [cursor, consulta.error])
   const esSupervisor = yo?.rol === 'supervisor' || yo?.rol === 'gerencia' || yo?.rol === 'directorio'
   const id = useId()
   function filtrar(cambio: Partial<FiltrosSla>) { setFiltros((actual) => ({ ...actual, ...cambio })); setCursores([null]) }
@@ -68,6 +73,7 @@ export function ColaSlaPanel() {
     }
   }
   const senales = SENALES_SLA.filter(([key]) => esSupervisor || (key !== 'por_repartir' && key !== 'revisiones'))
+    .map(([key, label]) => [key, pagina?.modelo_avisos === 3 && key === 'primera_atencion' ? 'Primera gestión pendiente' : label] as const)
   const hayFiltros = filtros.senal !== 'pendientes' || filtros.etapa !== null || filtros.analista_id !== null
   const limpiar = () => { setFiltros({ senal: 'pendientes', etapa: null, analista_id: null }); setCursores([null]); setErrorApertura(false) }
   return <section className="sla-bandeja" aria-label="Seguimiento comercial">
@@ -133,7 +139,7 @@ export function ColaSlaPanel() {
                     <span className="sla-meta"><span>{ETAPA_INFO[item.lead.etapa as keyof typeof ETAPA_INFO]?.label ?? item.lead.etapa}</span>{esSupervisor && <span>{item.lead.analista_nombre ?? 'Sin analista'}</span>}</span>
                   </span>
                   <span className="sla-accion">
-                    <span className={`sla-etiqueta sla-etiqueta-${item.severidad}`}>{ACCIONES_SLA[item.bucket] ?? 'Revisar oportunidad'}</span>
+                    <span className={`sla-etiqueta sla-etiqueta-${item.severidad}`}>{pagina.modelo_avisos === 3 && item.bucket === 'primera_atencion' ? 'Realizar la primera gestión' : ACCIONES_SLA[item.bucket] ?? 'Revisar oportunidad'}</span>
                     {esSupervisor && item.senales.revisiones && item.bucket !== 'revision_comercial' && <span className="sla-revision">Revisión comercial</span>}
                     {esSupervisor && item.senales.revisiones && <span className="sla-motivo">{item.estado.etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</span>}
                   </span>
@@ -169,6 +175,9 @@ export function DetalleSla({ estado, supervision = false, onActuar }: {
   estado: EstadoSlaV2; supervision?: boolean; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined
 }) {
   const { compromiso, seguimiento, etapa } = estado
+  const modelo = estado.operacion?.modelo
+  const avisos = modelo === 3 ? estado.avisos_mostrados ?? [] : estado.avisos
+  const programada = modelo === 3 ? estado.operacion?.proxima_accion : compromiso.tarea
   const [abriendo, setAbriendo] = useState<string | null>(null)
   async function actuar(aviso: AvisoSla) {
     if (abriendo || !onActuar) return
@@ -176,9 +185,9 @@ export function DetalleSla({ estado, supervision = false, onActuar }: {
     try { await onActuar(aviso) } finally { setAbriendo(null) }
   }
   return <section aria-label="Pendientes y plazos" className="space-y-2">
-    {estado.avisos.length > 0 && <ul aria-label="Acciones pendientes" className="space-y-2">
-      {estado.avisos.map((aviso) => {
-        const texto = textoAvisoSla(aviso, supervision)
+    {avisos.length > 0 && <ul aria-label="Acciones pendientes" className="space-y-2">
+      {avisos.map((aviso) => {
+        const texto = textoAvisoSla(aviso, supervision, modelo)
         return <li key={aviso.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-text/30 bg-warning-text/5 px-3 py-2">
           <div className="min-w-0 flex-1 text-xs">
             <p className="font-semibold text-foreground">{texto.titulo}</p>
@@ -194,9 +203,9 @@ export function DetalleSla({ estado, supervision = false, onActuar }: {
       <div className="mt-3 space-y-2">
         <p className="text-muted-foreground">Fechas y horas de Lima.</p>
         <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2">
-          {compromiso.tarea && <><dt className="text-muted-foreground">Actividad programada</dt><dd>{fechaSla(compromiso.tarea.vence_en)}</dd></>}
-          <dt className="text-muted-foreground">{compromiso.cobertura_activa === true ? 'Retomar seguimiento desde' : 'Próxima gestión: límite'}</dt>
-          <dd>{fechaSla(compromiso.cobertura_activa === true ? compromiso.hasta_en : seguimiento.limite_en)}</dd>
+          {programada && <><dt className="text-muted-foreground">Actividad programada</dt><dd>{fechaSla(programada.vence_en)}</dd></>}
+          {modelo !== 3 && <><dt className="text-muted-foreground">{compromiso.cobertura_activa === true ? 'Retomar seguimiento desde' : 'Próxima gestión: límite'}</dt>
+          <dd>{fechaSla(compromiso.cobertura_activa === true ? compromiso.hasta_en : seguimiento.limite_en)}</dd></>}
           <dt className="text-muted-foreground">Plazo actual de etapa</dt><dd>{fechaSla(etapa.limite_operativo_en)}</dd>
           {supervision && <><dt className="text-muted-foreground">Tope para ampliaciones</dt><dd>{fechaSla(etapa.techo_en)}</dd></>}
         </dl>

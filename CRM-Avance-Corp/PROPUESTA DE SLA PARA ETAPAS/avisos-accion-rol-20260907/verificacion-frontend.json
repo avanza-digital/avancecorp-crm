@@ -1,0 +1,36 @@
+{
+  "npm_run_check": {
+    "ok": true,
+    "test_files": 211,
+    "tests": 3045,
+    "typecheck": true,
+    "build": true,
+    "release_config": true,
+    "bundle": true,
+    "duplicacion_lineas_porcentaje": 0.64,
+    "umbral_porcentaje": 0.8,
+    "lint_errores": 0,
+    "lint_advertencias_existentes": 4
+  },
+  "playwright": {
+    "ok": true,
+    "suite": "e2e/sla-operacion.spec.ts",
+    "tests": 14,
+    "seconds": 13.5,
+    "backend": "HTTP interceptado, loopback; sin producción",
+    "frontera_en_navegador_activo_menos_de_ms": 2000
+  },
+  "capturas": [
+    "sla-modelo3-vendedor-desktop.png",
+    "sla-modelo3-vendedor-mobile.png",
+    "sla-modelo3-supervisor-desktop.png",
+    "sla-modelo3-supervisor-mobile.png"
+  ],
+  "qa_visual": {
+    "revisado": true,
+    "mobile_width": 390,
+    "solapamiento_titulo_fecha_corregido": true,
+    "sin_scroll_horizontal_pagina": true
+  },
+  "publicado": false
+}

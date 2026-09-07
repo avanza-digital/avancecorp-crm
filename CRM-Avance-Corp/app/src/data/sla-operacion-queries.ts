@@ -4,6 +4,7 @@ import { crmQueryKeys } from './crm-queries'
 import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaSla, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
 import { CrmApiError } from './crm-api'
 import type { CursorSla, FiltrosSla } from '@/lib/sla-operacion'
+import { intervaloReconsultaSla } from './sla-operacion-reloj'
 
 // Ambas lecturas heredan la invalidación existente de cada gestión, tarea y cambio de ámbito.
 export const slaOperacionKeys = {
@@ -16,12 +17,12 @@ export function useResumenAvisosSla(habilitada: boolean) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.avisos(yo?.id ?? null),
     queryFn: ({ signal }) => obtenerResumenAvisosSla(signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: 60_000, refetchOnWindowFocus: 'always' })
+    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' })
 }
 export function useEstadosSlaV2(ids: string[]) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.estado(yo?.id ?? null, ids),
-    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: 60_000, refetchOnWindowFocus: 'always' })
+    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always' })
 }
 export function useModoSla() {
   const { yo } = useAuth()
@@ -33,7 +34,7 @@ export function useColaSlaPagina(filtros: FiltrosSla, cursor: CursorSla | null, 
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.cola(yo?.id ?? null, filtros, cursor, limite),
     queryFn: ({ signal }) => listarColaSla(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: cursor === null ? 60_000 : false, refetchOnWindowFocus: 'always',
+    refetchInterval: (query) => intervaloReconsultaSla(query.state.error ? undefined : query.state.data, query.state.dataUpdatedAt), refetchOnWindowFocus: 'always', refetchOnReconnect: 'always',
   })
 }
 

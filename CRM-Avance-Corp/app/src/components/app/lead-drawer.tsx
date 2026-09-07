@@ -1,4 +1,5 @@
-import type { AvisoSla } from '@/lib/sla-operacion'
+import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
+import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
@@ -514,11 +515,21 @@ function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
   return dow === 0 || (h ?? 12) < 7 || (h ?? 12) >= 20
 }
 
-function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
-  const { tareasDe, crearTarea, anularTarea, actividadesDe } = useCRMData()
+export function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
+  const { tareasDe, crearTarea, anularTarea, actividadesDe, obtenerTareaParaRevision } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
-  const pendientes = tareasDe(l.id)
+  const consultaSla = useEstadosSlaV2([l.id])
+  const operacion = !consultaSla.error && consultaSla.data?.modo === 'activo'
+    ? consultaSla.data.filas.find((fila) => fila.lead_id === l.id)?.operacion : undefined
+  const proxima = operacion?.proxima_accion
+  const agendaSinConfirmar = !yo?.demo && (!consultaSla.data || Boolean(consultaSla.error))
+  // El núcleo escoge la primera tarea. Agenda conserva las restantes y sus flujos.
+  const locales = tareasDe(l.id)
+  const pendientes = proxima
+    ? [...locales.filter((t) => t.id === proxima.id), ...locales.filter((t) => t.id !== proxima.id)] : locales
+  const fueraDelLote = proxima && !locales.some((t) => t.id === proxima.id)
+  const [abriendoProxima, setAbriendoProxima] = useState(false)
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   // Confirmación de anulado, INLINE y por fila (id de la tarea, no un boolean):
   // la lista puede tener varias y el "¿seguro?" tiene que quedar pegado a la
@@ -555,9 +566,22 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const [camposReunion, setCamposReunion] =
     useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
 
-  if (!escribe && pendientes.length === 0) return null
+  if (!escribe && pendientes.length === 0 && !fueraDelLote) return null
   // Lead cerrado: sus pendientes ya fueron canceladas por el trigger; nada que agendar.
-  if (!activa && pendientes.length === 0) return null
+  if (!activa && pendientes.length === 0 && !fueraDelLote) return null
+
+  async function revisarProxima() {
+    if (!proxima || abriendoProxima) return
+    setAbriendoProxima(true)
+    try {
+      // Recupera el registro completo por ID y autoridad actual, incluido el tipo
+      // real de reunión/llamada. El título libre no determina el flujo de cierre.
+      const tarea = await obtenerTareaParaRevision(l.id, proxima.id)
+      if (tarea) setTareaACerrar(tarea)
+      else { toast.error('La actividad cambió. Actualiza la ficha.'); void consultaSla.refetch() }
+    } catch { toast.error('No se pudo abrir la actividad. Vuelve a intentarlo.') }
+    finally { setAbriendoProxima(false) }
+  }
 
   const cambiarTipo = (v: string) => {
     if (!esTipoTarea(v)) return
@@ -624,7 +648,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     // única, el lead se queda sin plan y cae a la cola. Mismo criterio de
     // honestidad que `quedaSinPlan` en cerrar-tarea.tsx — a un lead cerrado o
     // a un "No Insista" no se le puede prometer esa consecuencia.
-    if (pendientes.length === 1 && activa && !l.no_contactar) {
+    if (pendientes.length === 1 && !fueraDelLote && activa && !l.no_contactar) {
       toast.warning(
         `Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción${sufijo}`,
       )
@@ -700,18 +724,26 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
         <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           <CalendarPlus className="size-3.5" aria-hidden /> Próxima acción
         </h3>
-        {pendientes.length > 0 && (
+        {(pendientes.length > 0 || fueraDelLote) && (
           <Badge color="var(--accent)" className="text-[10px]">
-            {pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'}
+            {operacion ? 'En Agenda' : `${pendientes.length} pendiente${pendientes.length === 1 ? '' : 's'}`}
           </Badge>
         )}
       </div>
 
+      {agendaSinConfirmar && pendientes.length === 0 && <p role="status" className="mb-2 text-xs text-muted-foreground">La próxima actividad todavía no está confirmada.</p>}
+      {fueraDelLote && proxima && <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs">
+        <span className="col-span-2 min-w-0 font-medium wrap-break-word">{proxima.titulo}</span>
+        <span className="min-w-0 text-muted-foreground tabular-nums">{fechaSla(proxima.vence_en)} · Lima</span>
+        {escribe && activa && <Button variant="outline" size="sm" disabled={abriendoProxima} onClick={() => void revisarProxima()}>
+          {abriendoProxima ? 'Abriendo…' : 'Revisar actividad'}
+        </Button>}
+      </div>}
       {/* Pendientes del lead: la promesa visible de que nadie lo suelta. */}
       {pendientes.length > 0 && (
         <ul className="mb-2 space-y-1">
           {pendientes.map((t) => {
-            const ev = tareaAEvento(t, ahora)
+            const ev = tareaAEvento(proxima?.id === t.id ? { ...t, titulo: proxima.titulo, vence_en: proxima.vence_en } : t, ahora)
             return (
               <li
                 key={t.id}
@@ -763,7 +795,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                         aria-label={`Cerrar tarea — ${ev.titulo}`}
                         title="Cerrar tarea (resultado + siguiente)"
                         className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground pointer-coarse:size-8"
-                        onClick={() => setTareaACerrar(t)}
+                        disabled={abriendoProxima}
+                        onClick={() => proxima?.id === t.id ? void revisarProxima() : setTareaACerrar(t)}
                       >
                         <CalendarCheck className="size-3.5" aria-hidden />
                       </button>
@@ -901,15 +934,15 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
         <Button size="xs" disabled={guardandoAnulacion} onClick={() => void anular(anulacionSinConfirmar.tarea, anulacionSinConfirmar.motivo)}>Reintentar anulación</Button>
       </div>}
 
-      {escribe && activa && pendientes.length > 0 && !agendarOtra && (
+      {escribe && activa && (pendientes.length > 0 || fueraDelLote) && !agendarOtra && (
         <Button size="xs" variant="ghost" onClick={() => setAgendarOtra(true)}>
           <CalendarPlus /> Agendar otra
         </Button>
       )}
 
-      {escribe && activa && (pendientes.length === 0 || agendarOtra) && (
+      {escribe && activa && ((pendientes.length === 0 && !fueraDelLote && !agendaSinConfirmar) || agendarOtra) && (
         <fieldset disabled={guardandoTarea} className="min-w-0 rounded-xl border border-border/70 p-2.5">
-          {pendientes.length === 0 && (
+          {pendientes.length === 0 && !fueraDelLote && (
             <p className="mb-2 text-[11px] font-medium text-[#d97706]">
               Este lead no tiene próxima acción — agéndale una para que no se enfríe.
             </p>

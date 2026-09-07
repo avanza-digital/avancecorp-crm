@@ -1,0 +1,11 @@
+{
+  "migracion": "20260907212612_crm_sla_avisos_por_accion_y_rol.sql",
+  "sha256": "01e5c106f4861e3ad33a7b02c92cb60615182ca0de8eed4fc3c6c8709be72015",
+  "sin_cambio": true,
+  "pruebas": 9,
+  "fallos": 14,
+  "errores": 2,
+  "correcto": false,
+  "postgres": "17.10 (Homebrew)",
+  "alcance": "SQL real sobre banco reducido con dobles de autoridad; sin red ni PII."
+}

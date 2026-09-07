@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
-import muestraSql from '../src/data/sla-operacion-sql.fixture.json' with { type: 'json' }
+import muestraSql from '../src/data/sla-operacion-sql.test.fixture.json' with { type: 'json' }
 
 async function irASeguimiento(page: Page) {
   await page.getByRole('button', { name: 'Seguimiento', exact: true }).click()
@@ -594,4 +594,62 @@ test('cerrar una llamada contestada actualiza Primera atención aunque la lectur
   } finally {
     liberarLectura()
   }
+})
+
+for (const rol of ['vendedor', 'supervisor'] as const) {
+  test(`modelo 3: ${rol} conserva la tarea futura con etapa agotada y ve solo su acción`, async ({ page }) => {
+    const lead = leadReal({ vendedor_id: UID, etapa: 'nuevo', nombre_completo: 'OPORTUNIDAD CON PROXIMO INTENTO' })
+    await montarBackendReal(page, { leads: [lead], rolCrm: rol })
+    const revision = { id: 'revision-etapa', bucket: 'revision_comercial', severidad: 'critica', referencia_en: '2026-09-06T15:00Z', tarea_id: null }
+    const proxima = { id: 'eeeeeeee-0000-4000-8000-000000000035', tipo: 'llamada', titulo: 'WhatsApp programado', vence_en: '2027-01-10T15:00Z' }
+    await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+      const args = route.request().postDataJSON() as { p_lead_ids: string[] }
+      await route.fulfill({ json: { ...muestraSql.estado, modelo_avisos: 3, proximo_cambio_en: null,
+        filas: args.p_lead_ids.map((lead_id) => ({ ...muestraSql.estado.filas[0], lead_id,
+          avisos: rol === 'vendedor' ? [] : [revision], avisos_mostrados: rol === 'vendedor' ? [] : [revision],
+          operacion: { modelo: 3, aviso_principal: null, proxima_accion: proxima, proximo_cambio_en: null },
+          compromiso: { tarea: null, validez: 'valido', cobertura_activa: false, hasta_en: '2026-09-06T15:00Z' },
+          etapa: { ...muestraSql.estado.filas[0]!.etapa, revision_requerida: true, motivos_revision: ['limite_operativo_agotado'] },
+        })) } })
+    })
+    await loginReal(page); await irAPipeline(page)
+    const ficha = await abrirLead(page, /OPORTUNIDAD CON PROXIMO INTENTO/)
+    await expect(ficha.getByText('WhatsApp programado', { exact: true })).toBeVisible()
+    await expect(ficha.getByText(/Contacta al cliente|Realiza el primer intento|Retoma el seguimiento/)).toHaveCount(0)
+    await expect(ficha.getByText('Se venció el plazo de esta etapa')).toHaveCount(rol === 'supervisor' ? 1 : 0)
+    await expect(ficha.locator('details').filter({ hasText: 'Ver plazos' })).not.toHaveAttribute('open')
+    await ficha.screenshot({ path: `/private/tmp/sla-modelo3-${rol}-desktop.png`, animations: 'disabled' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await ficha.screenshot({ path: `/private/tmp/sla-modelo3-${rol}-mobile.png`, animations: 'disabled' })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
+
+test('modelo 3: actualiza el aviso al vencer la tarea sin recargar ni registrar otra gestión', async ({ page }) => {
+  const lead = leadReal({ vendedor_id: UID, etapa: 'contactado' })
+  await montarBackendReal(page, { leads: [lead], rolCrm: 'vendedor' })
+  let vence = 0
+  let lecturas = 0
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as { p_lead_ids: string[] }
+    if (args.p_lead_ids.length && !vence) vence = Date.now() + 3_000
+    if (args.p_lead_ids.length) lecturas++
+    const calculado = new Date().toISOString()
+    const vencida = vence > 0 && Date.now() >= vence
+    const proxima = { id: 'eeeeeeee-0000-4000-8000-000000000036', tipo: 'llamada', titulo: 'Actividad que vence', vence_en: new Date(vence || Date.now() + 3_000).toISOString() }
+    const aviso = { id: 'tarea-que-vence', bucket: 'tarea_vencida', severidad: 'critica', referencia_en: proxima.vence_en, tarea_id: proxima.id }
+    const cambio = vencida ? null : proxima.vence_en
+    await route.fulfill({ json: { ...muestraSql.estado, calculado_en: calculado, modelo_avisos: 3, proximo_cambio_en: cambio,
+      filas: args.p_lead_ids.map((lead_id) => ({ ...muestraSql.estado.filas[0], lead_id,
+        avisos: vencida ? [aviso] : [], avisos_mostrados: vencida ? [aviso] : [],
+        operacion: { modelo: 3, aviso_principal: vencida ? aviso : null, proxima_accion: proxima, proximo_cambio_en: cambio },
+      })) } })
+  })
+  await loginReal(page); await irAPipeline(page)
+  const ficha = await abrirLead(page, /CLIENTE REAL UNO/)
+  await expect(ficha.getByText('Actividad que vence', { exact: true })).toBeVisible()
+  await expect(ficha.getByText('Revisa la actividad pendiente', { exact: true })).toHaveCount(0)
+  await expect(ficha.getByText('Revisa la actividad pendiente', { exact: true })).toBeVisible({ timeout: 6_000 })
+  expect(lecturas).toBeGreaterThanOrEqual(2)
+  expect(Date.now() - vence).toBeLessThan(2_000)
 })

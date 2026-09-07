@@ -3,6 +3,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ColaSlaPanel, DetalleSla, SlaOperacionBoundary } from './sla-operacion'
+import { CrmApiError } from '@/data/crm-api'
 import { fechaSla, type ColaSlaPagina, type EstadoSlaV2 } from '@/lib/sla-operacion'
 import { useColaSlaPagina, useModoSla } from '@/data/sla-operacion-queries'
 const abrir = vi.fn()
@@ -245,4 +246,47 @@ describe('cola SLA con páginas explícitas', () => {
     await userEvent.click(screen.getByText('Ver plazos'))
     expect(screen.getByText('Sin fecha confirmada')).toBeVisible()
   })
+})
+
+describe('modelo de acción principal y perspectiva autorizada', () => {
+  const tarea = { id: 'av-tarea', bucket: 'tarea_vencida' as const, severidad: 'critica' as const, referencia_en: '2026-09-07T15:00Z', tarea_id: 'tarea-real' }
+  const inicial = { ...tarea, id: 'av-inicial', bucket: 'primera_atencion' as const, tarea_id: null }
+  const revision = { ...tarea, id: 'av-revision', bucket: 'revision_comercial' as const, tarea_id: null }
+  const programada = { id: 'tarea-real', tipo: 'llamada', titulo: 'Próximo intento', vence_en: '2026-09-08T15:00Z' }
+  const estadoNuevo: EstadoSlaV2 = { ...estado, operacion: { modelo: 3, aviso_principal: tarea, proxima_accion: programada, proximo_cambio_en: programada.vence_en }, avisos: [inicial, tarea], avisos_mostrados: [tarea] }
+  it('dirige a la tarea vencida y conserva una sola orden aunque haya primera gestión pendiente', async () => {
+    const actuar = vi.fn(); const usuario = userEvent.setup()
+    render(<DetalleSla estado={estadoNuevo} onActuar={actuar} />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText(/Realiza el primer intento/)).not.toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: /Revisar actividad/ }))
+    expect(actuar).toHaveBeenCalledWith(tarea)
+  })
+  it('permite la revisión independiente que autorizó el servidor para supervisión', () => {
+    render(<DetalleSla estado={{ ...estadoNuevo, avisos: [inicial, tarea, revision], avisos_mostrados: [tarea, revision] }} supervision />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByText('Se venció el plazo de esta etapa')).toBeInTheDocument()
+  })
+  it('no anticipa contacto por cobertura agotada cuando el servidor indicó próxima acción', () => {
+    render(<DetalleSla estado={{ ...estadoNuevo, avisos: [], avisos_mostrados: [], operacion: { ...estadoNuevo.operacion!, aviso_principal: null } }} />)
+    expect(screen.queryByRole('list', { name: 'Acciones pendientes' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Retomar seguimiento desde|Próxima gestión: límite/)).not.toBeInTheDocument()
+    expect(screen.getByText(fechaSla(programada.vence_en))).toBeInTheDocument()
+  })
+  it('usa el significado nuevo solo cuando lo confirma el servidor', async () => {
+    consulta.mockImplementation(() => resultado({ ...primera, modelo_avisos: 3 }))
+    montar()
+    expect(screen.getByRole('button', { name: 'Primera gestión pendiente 527' })).toBeInTheDocument()
+    expect(screen.getByText('Realizar la primera gestión')).toBeInTheDocument()
+  })
+})
+
+it('reinicia automáticamente la página cuando el servidor invalida su posición', async () => {
+  const usuario = userEvent.setup()
+  consulta.mockImplementation((_filtros, cursor) => cursor
+    ? resultado(undefined, new CrmApiError('Cursor incompatible', '22023')) : resultado(primera))
+  montar()
+  await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+  expect(consulta.mock.lastCall?.[1]).toBeNull()
+  expect(screen.getByText('Oportunidad Uno')).toBeInTheDocument()
 })

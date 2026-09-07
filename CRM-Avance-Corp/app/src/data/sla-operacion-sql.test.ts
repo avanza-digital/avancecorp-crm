@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { ColaSlaPaginaSchema, ConfiguracionSlaV2Schema, EstadosSlaV2Schema, ResumenAvisosSlaSchema } from '@/lib/sla-operacion'
-import muestra from './sla-operacion-sql.fixture.json'
+import muestra from './sla-operacion-sql.test.fixture.json'
 import previa from './sla-operacion-previa-sql.fixture.json'
 
 // Respuesta real del banco PostgreSQL 17 con N1/N2/N3 y avisos, actor y oportunidad

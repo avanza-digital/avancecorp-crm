@@ -17,7 +17,7 @@ export function alertaResumenSla(resumen: ResumenAvisosSla, actor: string, rol: 
     severidad: resumen.criticas > 0 ? 'critica' : 'atencion',
     alcance: rol === 'vendedor' ? 'personal' : rol === 'supervisor' ? 'equipo' : 'empresa',
     titulo: `Revisa ${total} ${resumen.total_oportunidades === 1 ? 'oportunidad pendiente' : 'oportunidades pendientes'}`,
-    detalle: resumen.grupos.map((grupo) => `${grupo.total.toLocaleString('es-PE')} ${causas[grupo.bucket]}`).join(' · '),
+    detalle: resumen.grupos.map((grupo) => `${grupo.total.toLocaleString('es-PE')} ${resumen.modelo_avisos === 3 && grupo.bucket === 'primera_atencion' ? 'gestiones iniciales pendientes' : causas[grupo.bucket]}`).join(' · '),
     responsableId: null, responsable: null, valor: resumen.total_oportunidades,
     destino: { vista: 'seguimiento', etiqueta: 'Ver pendientes' },
     // Sin miembros/reconocimiento: leer este aviso no resuelve sus condiciones.

@@ -1,0 +1,81 @@
+{
+  "patrones_reportados": [
+    {
+      "patron": "Tarea futura con etapa agotada",
+      "primera_gestion_pendiente": false,
+      "seguimiento_pendiente": false,
+      "revision": true,
+      "accion": "proxima_tarea"
+    },
+    {
+      "patron": "Tarea futura dentro del plazo",
+      "primera_gestion_pendiente": false,
+      "seguimiento_pendiente": false,
+      "revision": false,
+      "accion": "proxima_tarea"
+    }
+  ],
+  "snapshot_sha256": "ab3744b62b395b641f0584c20d4b642e23fd6d688742d4000a093134404f7444",
+  "calculado_en": "2026-09-07T21:45:17.409023+00:00",
+  "oportunidades": 1272,
+  "tareas": 863,
+  "alcance": "SQL real sobre proveedores locales de hechos normalizados (dobles explícitos). Misma foto y reloj. Permisos probados por separado en esquema integral.",
+  "global_supervision": {
+    "antes": {
+      "oportunidades": 634,
+      "causas": {
+        "primera_atencion": 319,
+        "revision_comercial": 438,
+        "seguimiento": 500,
+        "tarea_vencida": 459
+      }
+    },
+    "despues": {
+      "oportunidades": 634,
+      "causas": {
+        "primera_atencion": 121,
+        "revision_comercial": 438,
+        "seguimiento": 419,
+        "tarea_vencida": 459
+      }
+    }
+  },
+  "perspectiva_analistas_agregada": {
+    "antes": {
+      "oportunidades": 609,
+      "causas": {
+        "primera_atencion": 319,
+        "seguimiento": 500,
+        "tarea_vencida": 459
+      }
+    },
+    "despues": {
+      "oportunidades": 581,
+      "causas": {
+        "primera_atencion": 121,
+        "seguimiento": 419,
+        "tarea_vencida": 459
+      }
+    }
+  },
+  "cambios_accion_principal": {
+    "primera_atencion → proxima_tarea": 17,
+    "primera_atencion → seguimiento": 6,
+    "primera_atencion → tarea_vencida": 214,
+    "seguimiento → proxima_tarea": 11
+  },
+  "diferencia_senales": {
+    "datos_incompletos": 0,
+    "por_repartir": 0,
+    "primera_atencion": -198,
+    "revisiones": 0,
+    "seguimientos_pendientes": -81,
+    "tareas_vencidas": 0
+  },
+  "explicaciones": {
+    "sale_de_primera_por_gestion_o_asignacion_actual": 198
+  },
+  "historia_plazos_compromisos_intactos": true,
+  "revisiones_intactas": true,
+  "diferencias_sin_explicacion": 0
+}

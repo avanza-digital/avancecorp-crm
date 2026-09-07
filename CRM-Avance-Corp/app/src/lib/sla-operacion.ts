@@ -8,17 +8,22 @@ export const TipoAvisoSlaSchema = v.picklist(['primera_atencion', 'tarea_vencida
 export const AvisoSlaSchema = v.object({ id: v.string(), bucket: TipoAvisoSlaSchema, severidad: v.picklist(['critica', 'media']),
   referencia_en: fecha, tarea_id: v.nullable(v.string()) })
 export type AvisoSla = v.InferOutput<typeof AvisoSlaSchema>
-export const EstadoSlaV2Schema = v.object({
+export const EstadoSlaV2Schema = v.pipe(v.object({
   lead_id: v.string(), evaluacion: v.picklist(['completa', 'parcial', 'no_aplica']), motivos_datos: v.array(v.string()),
   avisos: v.array(AvisoSlaSchema),
+  avisos_mostrados: v.optional(v.array(AvisoSlaSchema)),
+  operacion: v.optional(v.object({ modelo: v.literal(3), aviso_principal: v.nullable(AvisoSlaSchema),
+    proxima_accion: v.nullable(v.object({ id: v.string(), tipo: v.string(), titulo: v.string(), vence_en: v.string() })),
+    proximo_cambio_en: fecha })),
   seguimiento: v.object({ referencia_en: fecha, ultima_gestion_en: fecha, limite_en: fecha, vencido: indicador, accion_pendiente: indicador }),
   compromiso: v.object({ tarea, validez: v.string(), hasta_en: fecha, cobertura_activa: indicador }),
   etapa: v.object({ limite_original_en: fecha, limite_prorrogado_en: fecha, limite_operativo_en: fecha, techo_en: fecha,
     prorrogas_usadas: numero, prorrogas_restantes: numero, revision_requerida: indicador, motivos_revision: v.array(v.string()) }),
-})
+}), v.check((estado) => !estado.operacion || (estado.avisos_mostrados !== undefined
+  && estado.avisos_mostrados.every((aviso) => estado.avisos.some((causa) => causa.id === aviso.id)))))
 export type EstadoSlaV2 = v.InferOutput<typeof EstadoSlaV2Schema>
 export const ModoSlaSchema = v.picklist(['legado', 'observacion', 'activo'])
-const sobre = { version: v.literal(2), modo: ModoSlaSchema, control_revision: v.number(), calculado_en: v.string() }
+const sobre = { modelo_avisos: v.optional(v.literal(3)), proximo_cambio_en: v.optional(fecha), version: v.literal(2), modo: ModoSlaSchema, control_revision: v.number(), calculado_en: v.string() }
 export const EstadosSlaV2Schema = v.object({ ...sobre, filas: v.array(EstadoSlaV2Schema) })
 const conteo = v.pipe(v.number(), v.integer(), v.minValue(0))
 export const ResumenAvisosSlaSchema = v.pipe(v.object({ ...sobre,
@@ -58,7 +63,13 @@ export const ACCIONES_SLA: Record<string, string> = {
   proxima_tarea: 'Próxima tarea', por_repartir: 'Asignar analista',
 }
 // Solo presentación: el servidor decide qué avisos corresponden al actor y cuándo.
-export function textoAvisoSla(aviso: AvisoSla, supervision: boolean) {
+export function textoAvisoSla(aviso: AvisoSla, supervision: boolean, modelo?: number) {
+  if (modelo === 3 && aviso.bucket === 'primera_atencion') return {
+    titulo: supervision ? 'Revisa la primera gestión con el analista' : 'Realiza el primer intento y registra el resultado', boton: 'Registrar gestión',
+  }
+  if (modelo === 3 && aviso.bucket === 'seguimiento') return {
+    titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el seguimiento', boton: 'Registrar gestión',
+  }
   switch (aviso.bucket) {
     case 'tarea_vencida': return { titulo: 'Revisa la actividad pendiente', boton: 'Revisar actividad' }
     case 'primera_atencion': return { titulo: supervision ? 'Revisa el contacto inicial con el cliente' : 'Contacta al cliente y registra el resultado', boton: 'Registrar gestión' }

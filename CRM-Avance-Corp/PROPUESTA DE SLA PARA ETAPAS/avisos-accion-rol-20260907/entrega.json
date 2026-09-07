@@ -1,0 +1,18 @@
+{
+  "estado": "Implementado y validado localmente. SQL productivo pendiente de confirmación expresa tras mostrar este archivo.",
+  "base_git": "58402b893fcd4f783d1503561f13d8eba25cfb33",
+  "migracion": "20260907212612_crm_sla_avisos_por_accion_y_rol.sql",
+  "sha256": "30e60b0e1a3af9944ab2c20715c010a7cd97351c7ea0af6d569406ed60897bed",
+  "rollback": "rollback-sla-accion-rol.sql",
+  "rollback_sha256": "c2bfff226c7535ef50f44bbde563907938b8916fc9a14eda7daa7e9fa798bfd3",
+  "fuentes_candidatas": {
+    "private.sla_operacion_leads(uuid[],boolean,uuid[],timestamptz)": "6151f05563abd1b9cf3cd58e60596086",
+    "private.sla_operacion_autorizada(uuid[],boolean)": "ea7ee548df90a8ce4f64d3349e37fb25",
+    "crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)": "ef9b56eddeaad5c4297ac0e20777799c"
+  },
+  "postgres": "17",
+  "schema_base_sha256": "bec81064d045b32721ed93e67593b07e9962b688ff0081dddc9d284aed1fab55",
+  "produccion_modificada": false,
+  "version_rpc": 2,
+  "modelo_avisos": 3
+}
