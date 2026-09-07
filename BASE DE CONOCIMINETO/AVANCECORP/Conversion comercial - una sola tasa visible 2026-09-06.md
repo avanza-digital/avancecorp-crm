@@ -21,4 +21,13 @@ El cambio es únicamente de presentación en frontend. No modifica RPC, contrato
 
 ## Estado
 
-Implementado y validado localmente. Publicación pendiente.
+Publicado y verificado en producción.
+
+- Commit fuente: `97dbc1176ce69690fd400a84f9349583b337cfad`.
+- Release: `crm-20260907T010701Z-97dbc1176ce6`.
+- Build: `build-20260907T010617899Z`.
+- SHA-256 del ZIP: `82b5a94d4eda11bbf3a2b4de8f0a87c7b6a657ec1610a882fd3a7790cec2c5c7`.
+- Validación: 97 pruebas enfocadas y 2,845 pruebas del checkout limpio; el pre-push aprobó 2,877 pruebas del árbol de trabajo integrado. También aprobaron tipos, lint, configuración pública, build y guardas del bundle.
+- Producción: 79 de 79 comprobaciones remotas correctas y tres lecturas estables de versión.
+- Revisión visual autenticada: Conversiones muestra 1.9%, 6 de 313 prospectos, 313 recibidos y 6 convertidos; no muestra 3.02% ni 15% en el encabezado. Metas muestra `Índice para la meta mensual · 3.02% de 15%`.
+- Rollback frontend conservado: `crm-20260907T004240Z-ff599df5ddcd`.
