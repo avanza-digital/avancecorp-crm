@@ -4,8 +4,13 @@ const fecha = v.nullable(v.string())
 const indicador = v.nullable(v.boolean())
 const numero = v.nullable(v.number())
 const tarea = v.nullable(v.object({ id: v.string(), tipo: v.string(), vence_en: v.string(), reprogramaciones: v.number() }))
+export const TipoAvisoSlaSchema = v.picklist(['primera_atencion', 'tarea_vencida', 'seguimiento', 'revision_comercial', 'datos_incompletos', 'por_repartir'])
+export const AvisoSlaSchema = v.object({ id: v.string(), bucket: TipoAvisoSlaSchema, severidad: v.picklist(['critica', 'media']),
+  referencia_en: fecha, tarea_id: v.nullable(v.string()) })
+export type AvisoSla = v.InferOutput<typeof AvisoSlaSchema>
 export const EstadoSlaV2Schema = v.object({
   lead_id: v.string(), evaluacion: v.picklist(['completa', 'parcial', 'no_aplica']), motivos_datos: v.array(v.string()),
+  avisos: v.array(AvisoSlaSchema),
   seguimiento: v.object({ referencia_en: fecha, ultima_gestion_en: fecha, limite_en: fecha, vencido: indicador, accion_pendiente: indicador }),
   compromiso: v.object({ tarea, validez: v.string(), hasta_en: fecha, cobertura_activa: indicador }),
   etapa: v.object({ limite_original_en: fecha, limite_prorrogado_en: fecha, limite_operativo_en: fecha, techo_en: fecha,
@@ -15,22 +20,31 @@ export type EstadoSlaV2 = v.InferOutput<typeof EstadoSlaV2Schema>
 export const ModoSlaSchema = v.picklist(['legado', 'observacion', 'activo'])
 const sobre = { version: v.literal(2), modo: ModoSlaSchema, control_revision: v.number(), calculado_en: v.string() }
 export const EstadosSlaV2Schema = v.object({ ...sobre, filas: v.array(EstadoSlaV2Schema) })
+const conteo = v.pipe(v.number(), v.integer(), v.minValue(0))
+export const ResumenAvisosSlaSchema = v.pipe(v.object({ ...sobre,
+  total_oportunidades: conteo, total_avisos: conteo, criticas: conteo,
+  grupos: v.pipe(v.array(v.object({ bucket: TipoAvisoSlaSchema, total: v.pipe(conteo, v.minValue(1)) })), v.maxLength(6)),
+}), v.check((r) => r.total_oportunidades <= r.total_avisos && r.criticas <= r.total_avisos
+  && r.grupos.reduce((total, g) => total + g.total, 0) === r.total_avisos
+  && new Set(r.grupos.map((g) => g.bucket)).size === r.grupos.length
+  && (r.total_oportunidades > 0 || r.total_avisos === 0)))
+export type ResumenAvisosSla = v.InferOutput<typeof ResumenAvisosSlaSchema>
 export const SENALES_SLA = [
-  ['todas', 'Todas las acciones'], ['primera_atencion', 'Primera atención'], ['tareas_vencidas', 'Tareas vencidas'],
+  ['pendientes', 'Para atender ahora'], ['todas', 'Todas las acciones'], ['primera_atencion', 'Primera atención'], ['tareas_vencidas', 'Tareas vencidas'],
   ['seguimientos_pendientes', 'Seguimiento pendiente'], ['revisiones', 'Revisión comercial'],
   ['datos_incompletos', 'Datos incompletos'], ['por_repartir', 'Por repartir'],
 ] as const
 export type SenalSla = typeof SENALES_SLA[number][0]
 export type FiltrosSla = { senal: SenalSla; etapa: string | null; analista_id: string | null }
 export type CursorSla = Record<string, unknown>
-const senales = v.object({ primera_atencion: v.boolean(), tareas_vencidas: v.boolean(), seguimientos_pendientes: v.boolean(),
+const senales = v.object({ pendientes: v.boolean(), primera_atencion: v.boolean(), tareas_vencidas: v.boolean(), seguimientos_pendientes: v.boolean(),
   revisiones: v.boolean(), datos_incompletos: v.boolean(), por_repartir: v.boolean() })
 const cursor = v.nullable(v.record(v.string(), v.unknown()))
 export const ColaSlaPaginaSchema = v.object({ ...sobre,
   filtros: v.object({ senal: v.string(), etapa: v.nullable(v.string()), analista_id: v.nullable(v.string()) }),
   limite: v.number(), total_items: v.number(), hay_mas: v.boolean(), cursor_siguiente: cursor,
   rango: v.object({ desde: v.number(), hasta: v.number() }),
-  totales: v.object({ primera_atencion: v.number(), tareas_vencidas: v.number(), seguimientos_pendientes: v.number(), revisiones: v.number(), datos_incompletos: v.number(), por_repartir: v.number() }),
+  totales: v.object({ pendientes: v.number(), primera_atencion: v.number(), tareas_vencidas: v.number(), seguimientos_pendientes: v.number(), revisiones: v.number(), datos_incompletos: v.number(), por_repartir: v.number() }),
   items: v.array(v.object({ lead_id: v.string(), bucket: v.string(), severidad: v.picklist(['critica', 'media', 'baja']),
     prioridad: v.number(), referencia_en: fecha, tarea_id: v.nullable(v.string()),
     lead: v.object({ id: v.string(), nombre_completo: v.string(), etapa: v.string(), analista_id: v.nullable(v.string()), analista_nombre: v.nullable(v.string()) }),
@@ -39,9 +53,20 @@ export const ColaSlaPaginaSchema = v.object({ ...sobre,
 })
 export type ColaSlaPagina = v.InferOutput<typeof ColaSlaPaginaSchema>
 export const ACCIONES_SLA: Record<string, string> = {
-  primera_atencion: 'Primera atención', tarea_vencida: 'Tarea vencida', tarea_hoy: 'Tarea de hoy',
-  seguimiento: 'Seguimiento pendiente', revision_comercial: 'Revisión comercial', datos_incompletos: 'Revisar datos',
+  primera_atencion: 'Contactar al cliente', tarea_vencida: 'Revisar actividad pendiente', tarea_hoy: 'Actividad de hoy',
+  seguimiento: 'Retomar el contacto', revision_comercial: 'Definir el siguiente paso', datos_incompletos: 'Revisar datos',
   proxima_tarea: 'Próxima tarea', por_repartir: 'Asignar analista',
+}
+// Solo presentación: el servidor decide qué avisos corresponden al actor y cuándo.
+export function textoAvisoSla(aviso: AvisoSla, supervision: boolean) {
+  switch (aviso.bucket) {
+    case 'tarea_vencida': return { titulo: 'Revisa la actividad pendiente', boton: 'Revisar actividad' }
+    case 'primera_atencion': return { titulo: supervision ? 'Revisa el contacto inicial con el cliente' : 'Contacta al cliente y registra el resultado', boton: 'Registrar gestión' }
+    case 'seguimiento': return { titulo: supervision ? 'Revisa el seguimiento con el analista' : 'Retoma el contacto y registra el resultado', boton: 'Registrar gestión' }
+    case 'revision_comercial': return { titulo: 'Revisa el caso y define el siguiente paso', boton: 'Revisar caso' }
+    case 'por_repartir': return { titulo: 'Asigna un analista a esta oportunidad', boton: 'Ver asignación' }
+    case 'datos_incompletos': return { titulo: supervision ? 'Revisa los datos de esta oportunidad' : 'Pide al supervisor revisar los datos', boton: 'Ver datos' }
+  }
 }
 export const MOTIVOS_REVISION_SLA: Record<string, string> = {
   limite_operativo_agotado: 'Se venció el plazo de esta etapa',

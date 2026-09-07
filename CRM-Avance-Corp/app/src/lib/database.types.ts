@@ -2901,6 +2901,7 @@ export type Database = {
       }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
       cola_accion_v2_fn: { Args: { p_limite?: number; p_senal?: string; p_etapa?: string | null; p_analista_id?: string | null; p_cursor?: Json | null }; Returns: Json }
+      avisos_sla_resumen_v2_fn: { Args: Record<PropertyKey, never>; Returns: Json }
       configuracion_sla_v2_fn: { Args: never; Returns: Json }
       publicar_reglas_sla_aprobadas_v2: { Args: { p_expected_version: number }; Returns: Json }
       cambiar_modo_sla_operacion: { Args: { p_expected_revision: number; p_modo: string }; Returns: Json }

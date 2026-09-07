@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth-context'
 import { crmQueryKeys } from './crm-queries'
-import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaSla, obtenerEstadosSlaV2 } from './sla-operacion-api'
+import { cambiarModoSla, publicarReglasSlaAprobadas, obtenerConfiguracionSlaV2, listarColaSla, obtenerEstadosSlaV2, obtenerResumenAvisosSla } from './sla-operacion-api'
 import { CrmApiError } from './crm-api'
 import type { CursorSla, FiltrosSla } from '@/lib/sla-operacion'
 
@@ -10,11 +10,18 @@ export const slaOperacionKeys = {
   raiz: () => [...crmQueryKeys.metricasAmbito(), 'sla-v2'] as const,
   estado: (actor: string | null, ids: string[]) => [...slaOperacionKeys.raiz(), actor, 'estado', ids] as const,
   cola: (actor: string | null, filtros: FiltrosSla, cursor: CursorSla | null, limite: number) => [...slaOperacionKeys.raiz(), actor, 'cola', filtros, cursor, limite] as const,
+  avisos: (actor: string | null) => [...slaOperacionKeys.raiz(), actor, 'avisos'] as const,
+}
+export function useResumenAvisosSla(habilitada: boolean) {
+  const { yo } = useAuth()
+  return useQuery({ queryKey: slaOperacionKeys.avisos(yo?.id ?? null),
+    queryFn: ({ signal }) => obtenerResumenAvisosSla(signal), enabled: Boolean(habilitada && yo && !yo.demo),
+    refetchInterval: 60_000, refetchOnWindowFocus: 'always' })
 }
 export function useEstadosSlaV2(ids: string[]) {
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.estado(yo?.id ?? null, ids),
-    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: 60_000 })
+    queryFn: ({ signal }) => obtenerEstadosSlaV2(ids, signal), enabled: Boolean(yo && !yo.demo), refetchInterval: 60_000, refetchOnWindowFocus: 'always' })
 }
 export function useModoSla() {
   const { yo } = useAuth()
@@ -26,7 +33,7 @@ export function useColaSlaPagina(filtros: FiltrosSla, cursor: CursorSla | null, 
   const { yo } = useAuth()
   return useQuery({ queryKey: slaOperacionKeys.cola(yo?.id ?? null, filtros, cursor, limite),
     queryFn: ({ signal }) => listarColaSla(filtros, cursor, limite, signal), enabled: Boolean(habilitada && yo && !yo.demo),
-    refetchInterval: cursor === null ? 60_000 : false,
+    refetchInterval: cursor === null ? 60_000 : false, refetchOnWindowFocus: 'always',
   })
 }
 

@@ -1,3 +1,4 @@
+import type { AvisoSla } from '@/lib/sla-operacion'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
@@ -199,6 +200,30 @@ function Ficha({ l }: { l: Lead }) {
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
   // de la sección Datos sin duplicar su estado (contador incremental).
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
+  const [componiendoGestion, setComponiendoGestion] = useState(false)
+  const [tareaAviso, setTareaAviso] = useState<Tarea | null>(null)
+  const { obtenerTareaParaRevision } = useCRMData()
+  const refEtapa = useRef<HTMLDivElement>(null)
+  const refDatos = useRef<HTMLDivElement>(null)
+  const refActividad = useRef<HTMLDivElement>(null)
+  async function actuarSobreAviso(aviso: AvisoSla) {
+    if (aviso.bucket === 'tarea_vencida') {
+      try {
+        const tarea = aviso.tarea_id ? await obtenerTareaParaRevision(l.id, aviso.tarea_id) : null
+        if (tarea) setTareaAviso(tarea)
+        else toast.error('La actividad ya no está pendiente o disponible. Actualiza la ficha.')
+      } catch {
+        toast.error('No se pudo abrir la actividad. Vuelve a intentarlo.')
+      }
+    } else if (aviso.bucket === 'primera_atencion' || aviso.bucket === 'seguimiento') {
+      setComponiendoGestion(true)
+      refActividad.current?.scrollIntoView({ block: 'nearest' })
+    } else {
+      const destino = aviso.bucket === 'revision_comercial' ? refEtapa : refDatos
+      destino.current?.focus()
+      destino.current?.scrollIntoView({ block: 'nearest' })
+    }
+  }
   const info = ETAPA_INFO[l.etapa]
 
   return (
@@ -253,20 +278,20 @@ function Ficha({ l }: { l: Lead }) {
       </SheetHeader>
 
       <SheetBody className="space-y-5">
-        {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
-        {!esTerminal && <EstadoSlaFicha leadId={l.id} />}
+        <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}</div>
+        {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
             ofreciendo "Editar" y "Faltan DNI… → Completar" sobre un lead que el
             store ya no deja escribir. */}
-        <Datos
+        <div ref={refDatos} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring"><Datos
           l={l}
           escribe={escribe}
           activa={!esTerminal}
           puedeReasignar={puedeReasignar}
           pedirEditar={pedirEditarDatos}
-        />
-        <Timeline l={l} escribe={escribe} activa={!esTerminal} />
+        /></div>
+        <div ref={refActividad}><Timeline l={l} escribe={escribe} activa={!esTerminal} componiendo={componiendoGestion} setComponiendo={setComponiendoGestion} /></div>
       </SheetBody>
 
       {escribe && !esTerminal && (
@@ -295,6 +320,7 @@ function Ficha({ l }: { l: Lead }) {
         </SheetFooter>
       )}
 
+      <CerrarTareaDialog tarea={tareaAviso} onCerrar={() => setTareaAviso(null)} />
       {dialogo === 'convertir' && <DialogConvertir l={l} onClose={() => setDialogo(null)} />}
       {dialogo === 'descartar' && <DialogDescartar l={l} onClose={() => setDialogo(null)} />}
     </>
@@ -1429,7 +1455,7 @@ function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
   )
 }
 
-function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
+function Timeline({ l, escribe, activa, componiendo, setComponiendo }: { l: Lead; escribe: boolean; activa: boolean; componiendo: boolean; setComponiendo: (valor: boolean) => void }) {
   const { actividadesDe, registrarActividad } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -1442,7 +1468,6 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
   const [detalle, setDetalle] = useState('')
   // La sección se abre mayormente para LEER el historial: el composer vive
   // plegado tras una fila con aspecto de input y se despliega a un click.
-  const [componiendo, setComponiendo] = useState(false)
   const [guardandoActividad, setGuardandoActividad] = useState(false)
   const [errorActividad, setErrorActividad] = useState<string | null>(null)
 

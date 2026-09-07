@@ -17,6 +17,7 @@ export type SeveridadAlerta = 'critica' | 'atencion'
 export type AlcanceAlerta = 'personal' | 'equipo' | 'empresa'
 
 export type TipoAlerta =
+  | 'seguimiento_comercial'
   | 'tarea_vencida'
   | 'lead_sin_responder'
   | 'sin_proxima_accion'
@@ -92,6 +93,7 @@ const PESO_TIPO: Record<TipoAlerta, number> = {
   // El recordatorio vencido va PRIMERO: es la acción más barata y con
   // ventana (otro analista puede tomar el contacto mientras tanto).
   revisar_contacto: 0,
+  seguimiento_comercial: 1,
   por_repartir: 1,
   tarea_vencida: 2,
   lead_sin_responder: 3,

@@ -8420,3 +8420,12 @@ Reconciliación DML ejecutada correctamente con [reconciliar-ledger-sla.sql](../
 ### SLA-R2 · advisories específicos de esta entrega
 
 RLS sin policies en tablas privadas es deliberada: niega acceso directo y deja las operaciones a RPC autorizadas. Las puertas SECURITY DEFINER para authenticated conservan `search_path` fijo, ACL y ámbito certificados por gates. La FK del singleton de control no genera un problema de escala por falta de índice adicional. Los índices nuevos sin uso observado permanecen: estadísticas iniciales vacías no prueban inutilidad. No abrir policies/grants ni borrar índices para silenciar estos avisos; revisar de nuevo si cambian esos supuestos.
+
+
+## 20260907155813 — Avisos contextuales de seguimiento (PENDIENTE de producción)
+
+Implementación aprobada por Miguel el 07/09/2026. SQL concreto pendiente de confirmación según [[Inicio]]. No aplicado a producción.
+
+Amplía los lectores del núcleo SLA con avisos independientes por causa y destinatario; agrega `crm.avisos_sla_resumen_v2_fn()` con conteos del ámbito completo y un gate privado. Conserva plazos, políticas, writers, tareas, gestiones, reconocimientos y objetos de `public`. La cola agrega el filtro `pendientes`, inicialmente seleccionado por la interfaz.
+
+Verificado localmente: 56 casos PostgreSQL 16; migración, reversión y reaplicación PostgreSQL 17 con esquema completo, actores sintéticos y gates reales; 2.952 pruebas de interfaz/datos y 10 recorridos de navegador. La publicación del frontend debe coordinarse con este SQL. Reversión: `../scripts/rollback-sla-avisos-contextuales.sql`, primero recuperar el frontend anterior compatible.

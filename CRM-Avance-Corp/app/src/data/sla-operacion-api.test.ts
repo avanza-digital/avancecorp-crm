@@ -15,7 +15,7 @@ afterAll(() => server.close())
 const filtros = { senal: 'revisiones' as const, etapa: 'contactado', analista_id: 'analista' }
 const pagina = { version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-07T10:00:00Z',
   filtros, limite: 10, rango: { desde: 0, hasta: 0 }, total_items: 0, hay_mas: false, cursor_siguiente: null, items: [],
-  totales: { primera_atencion: 4, tareas_vencidas: 9, seguimientos_pendientes: 2, revisiones: 0, datos_incompletos: 0, por_repartir: 0 } }
+  totales: { pendientes: 9, primera_atencion: 4, tareas_vencidas: 9, seguimientos_pendientes: 2, revisiones: 0, datos_incompletos: 0, por_repartir: 0 } }
 describe('contrato HTTP de lecturas SLA', () => {
   it('informa un conflicto de revisión P0409 sin repetir el cambio', async () => {
     const cambiar = vi.fn(() => HttpResponse.json({ code: 'P0409', message: 'Revisión obsoleta' }, { status: 409 }))

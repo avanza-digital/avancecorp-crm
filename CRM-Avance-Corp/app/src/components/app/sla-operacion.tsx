@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, ETAPAS } from '@/lib/tipos'
 import { slaOperacionKeys, useColaSlaPagina, useEstadosSlaV2, useModoSla } from '@/data/sla-operacion-queries'
-import { ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type SenalSla } from '@/lib/sla-operacion'
+import { ACCIONES_SLA, MOTIVOS_REVISION_SLA, SENALES_SLA, fechaSla, textoAvisoSla, type AvisoSla, type CursorSla, type EstadoSlaV2, type FiltrosSla, type SenalSla } from '@/lib/sla-operacion'
 
 export function SlaOperacionBoundary({ children, legado }: { children: ReactNode; legado?: ReactNode }) {
   const modo = useModoSla()
@@ -29,7 +29,7 @@ export function ColaSlaPanel() {
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const { abrirLead } = usePanelesActions()
-  const [filtros, setFiltros] = useState<FiltrosSla>({ senal: 'todas', etapa: null, analista_id: null })
+  const [filtros, setFiltros] = useState<FiltrosSla>({ senal: 'pendientes', etapa: null, analista_id: null })
   const [limite, setLimite] = useState(10)
   const [abriendo, setAbriendo] = useState<string | null>(null)
   const [errorApertura, setErrorApertura] = useState(false)
@@ -67,9 +67,9 @@ export function ColaSlaPanel() {
       setAbriendo(null)
     }
   }
-  const senales = SENALES_SLA.filter(([key]) => esSupervisor || key !== 'por_repartir')
-  const hayFiltros = filtros.senal !== 'todas' || filtros.etapa !== null || filtros.analista_id !== null
-  const limpiar = () => { setFiltros({ senal: 'todas', etapa: null, analista_id: null }); setCursores([null]); setErrorApertura(false) }
+  const senales = SENALES_SLA.filter(([key]) => esSupervisor || (key !== 'por_repartir' && key !== 'revisiones'))
+  const hayFiltros = filtros.senal !== 'pendientes' || filtros.etapa !== null || filtros.analista_id !== null
+  const limpiar = () => { setFiltros({ senal: 'pendientes', etapa: null, analista_id: null }); setCursores([null]); setErrorApertura(false) }
   return <section className="sla-bandeja" aria-label="Seguimiento comercial">
     <GuardadosSlaPendientes />
     <header className="sla-cabecera">
@@ -81,7 +81,7 @@ export function ColaSlaPanel() {
     </header>
 
     <div className="sla-prioridades" role="group" aria-label="Prioridades de seguimiento">
-      {senales.filter(([key]) => key !== 'todas').map(([key, label]) => <button key={key} type="button"
+      {senales.filter(([key]) => key !== 'todas' && key !== 'pendientes').map(([key, label]) => <button key={key} type="button"
         aria-label={`${label} ${pagina ? pagina.totales[key as Exclude<SenalSla, 'todas'>].toLocaleString('es-PE') : 'sin confirmar'}`}
         aria-pressed={filtros.senal === key} onClick={() => filtrar({ senal: key })}>
         <span>{label}</span><strong>{pagina ? pagina.totales[key as Exclude<SenalSla, 'todas'>].toLocaleString('es-PE') : '—'}</strong>
@@ -89,7 +89,7 @@ export function ColaSlaPanel() {
     </div>
 
     <div className="sla-herramientas">
-      <div className="sla-todas"><button type="button" aria-pressed={filtros.senal === 'todas'} onClick={() => filtrar({ senal: 'todas' })}><ListFilter aria-hidden /> Todas las acciones</button></div>
+      <div className="sla-todas"><button type="button" aria-pressed={filtros.senal === 'pendientes'} onClick={() => filtrar({ senal: 'pendientes' })}>Para atender ahora</button><button type="button" aria-pressed={filtros.senal === 'todas'} onClick={() => filtrar({ senal: 'todas' })}><ListFilter aria-hidden /> Todas las acciones</button></div>
       <label htmlFor={`${id}-senal`} className="sla-mostrar">Mostrar
         <Select id={`${id}-senal`} value={filtros.senal} onChange={(e) => filtrar({ senal: e.target.value as SenalSla })}>
           {senales.map(([key, label]) => <option key={key} value={key}>{label}{key !== 'todas' && pagina ? ` (${pagina.totales[key]})` : ''}</option>)}
@@ -122,7 +122,7 @@ export function ColaSlaPanel() {
             </Select>
           </label>
         </div>
-        {pagina.items.length === 0 ? <div className="sla-vacio"><ListFilter aria-hidden /><p>No hay oportunidades con estos filtros.</p><span>Puedes elegir otra señal o etapa para seguir revisando.</span>{hayFiltros && <Button variant="outline" size="sm" onClick={limpiar}>Ver todas las acciones</Button>}</div>
+        {pagina.items.length === 0 ? <div className="sla-vacio"><ListFilter aria-hidden /><p>No hay oportunidades con estos filtros.</p><span>{filtros.senal === 'pendientes' ? 'Las próximas actividades siguen en Agenda.' : 'Puedes elegir otra señal o etapa.'}</span>{hayFiltros && <Button variant="outline" size="sm" onClick={limpiar}>Ver todas las acciones</Button>}</div>
           : <>
             <div className="sla-columnas" aria-hidden="true"><span>Oportunidad{esSupervisor ? ' y analista' : ''}</span><span>Acción pendiente</span><span>Fecha de referencia</span><span>Ficha</span></div>
             <ul className="sla-lista" aria-label="Oportunidades de esta página" aria-busy={consulta.isFetching || abriendo !== null}>
@@ -134,11 +134,10 @@ export function ColaSlaPanel() {
                   </span>
                   <span className="sla-accion">
                     <span className={`sla-etiqueta sla-etiqueta-${item.severidad}`}>{ACCIONES_SLA[item.bucket] ?? 'Revisar oportunidad'}</span>
-                    {item.senales.revisiones && item.bucket !== 'revision_comercial' && <span className="sla-revision">Revisión comercial</span>}
-                    {item.senales.revisiones && <span className="sla-motivo">{item.estado.etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</span>}
-                    {item.estado.compromiso.cobertura_activa && <span className="sla-cobertura">Seguimiento en espera por actividad programada</span>}
+                    {esSupervisor && item.senales.revisiones && item.bucket !== 'revision_comercial' && <span className="sla-revision">Revisión comercial</span>}
+                    {esSupervisor && item.senales.revisiones && <span className="sla-motivo">{item.estado.etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</span>}
                   </span>
-                  <span className="sla-fecha"><span>Referencia</span>{fechaSla(item.referencia_en)}</span>
+                  <span className="sla-fecha"><span>Referencia</span>{fechaSla(item.referencia_en)} <span>(Lima)</span></span>
                   <span className="sla-abrir"><span>Abrir ficha</span><ArrowUpRight aria-hidden /></span>
                 </button>
               </li>)}
@@ -154,7 +153,7 @@ export function ColaSlaPanel() {
   </section>
 }
 
-export function EstadoSlaFicha({ leadId }: { leadId: string }) {
+export function EstadoSlaFicha({ leadId, onActuar }: { leadId: string; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined }) {
   const { yo } = useAuth()
   const consulta = useEstadosSlaV2([leadId])
   if (yo?.demo) return null
@@ -164,60 +163,44 @@ export function EstadoSlaFicha({ leadId }: { leadId: string }) {
   const estado = consulta.data.filas.find((fila) => fila.lead_id === leadId)
   if (!estado) return <p role="alert" className="text-xs">El estado de seguimiento no está disponible para esta oportunidad.</p>
   if (estado.evaluacion === 'no_aplica') return null
-  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} /></div>
+  return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} supervision={yo?.rol !== 'vendedor'} onActuar={onActuar} /></div>
 }
-export function DetalleSla({ estado }: { estado: EstadoSlaV2 }) {
+export function DetalleSla({ estado, supervision = false, onActuar }: {
+  estado: EstadoSlaV2; supervision?: boolean; onActuar?: ((aviso: AvisoSla) => void | Promise<void>) | undefined
+}) {
   const { compromiso, seguimiento, etapa } = estado
-  const enEspera = compromiso.cobertura_activa === true
-  const pendiente = seguimiento.accion_pendiente === true
-  // Solo explicamos decisiones del núcleo; las fechas no se recalculan aquí.
-  let explicacionActividad = 'Esta actividad no permite aplazar el seguimiento del cliente.'
-  if (compromiso.cobertura_activa === null || compromiso.validez === 'datos_incompletos') {
-    explicacionActividad = 'Faltan datos para confirmar si esta actividad permite esperar antes de volver a gestionar al cliente.'
-  } else if (enEspera) {
-    explicacionActividad = 'Durante esta espera, el seguimiento no se marca como pendiente por falta de gestión. Las revisiones de la etapa se atienden por separado.'
-  } else if (compromiso.validez === 'reprogramaciones_agotadas') {
-    explicacionActividad = 'Esta actividad ya se reprogramó tres veces o más y no permite seguir aplazando el seguimiento.'
-  } else if (compromiso.validez === 'deshabilitado') {
-    explicacionActividad = 'En esta etapa, programar una actividad no aplaza el seguimiento del cliente.'
-  } else if (compromiso.validez === 'valido' && compromiso.hasta_en) {
-    explicacionActividad = `El tiempo de espera por esta actividad terminó el ${fechaSla(compromiso.hasta_en, 'completa')}`
+  const [abriendo, setAbriendo] = useState<string | null>(null)
+  async function actuar(aviso: AvisoSla) {
+    if (abriendo || !onActuar) return
+    setAbriendo(aviso.id)
+    try { await onActuar(aviso) } finally { setAbriendo(null) }
   }
-  return <section aria-label="Seguimiento y plazos" className="space-y-3 rounded-xl border p-3">
-    <div><h3 className="text-sm font-bold">Seguimiento y plazos</h3><p className="text-xs text-muted-foreground">Fechas y horas de Lima.</p></div>
-    {estado.evaluacion === 'parcial' && <p role="status" className="text-xs text-amber-800">Faltan datos para confirmar algunos plazos. El supervisor debe revisar la información de la ficha.</p>}
-    {etapa.revision_requerida && <div className="space-y-1 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-      <p className="font-bold">Este caso necesita una decisión</p>
-      {etapa.motivos_revision.length > 0 && <ul className="list-disc space-y-1 pl-4">{etapa.motivos_revision.map((motivo) => <li key={motivo}>{MOTIVOS_REVISION_SLA[motivo] ?? 'Hace falta revisar la gestión de esta etapa'}</li>)}</ul>}
-      <p>El supervisor o Gerencia debe revisar el caso y definir cómo continuar.</p>
-    </div>}
-    <div className="grid gap-4 text-xs sm:grid-cols-2">
-      <div className="space-y-1">
-        <h4 className="font-bold">Seguimiento de la oportunidad</h4>
-        <p className="font-semibold">{enEspera ? 'En espera por una actividad programada' : pendiente ? 'Seguimiento vencido' : seguimiento.accion_pendiente === false ? 'Seguimiento dentro de plazo' : 'Seguimiento por confirmar'}</p>
-        <dl><dt className="text-muted-foreground">{enEspera ? 'Plazo habitual para registrar otra gestión' : pendiente ? 'Debía registrar otra gestión antes de' : 'Fecha límite para la próxima gestión'}</dt>
-          <dd>{fechaSla(seguimiento.limite_en, 'completa')}</dd></dl>
-        {pendiente && !enEspera && <p>El responsable debe retomar el contacto y registrar la gestión en la ficha.</p>}
-      </div>
-      <div className="space-y-1">
-        <h4 className="font-bold">Permanencia en esta etapa</h4>
-        <dl className="space-y-2">
-          <div><dt className="text-muted-foreground">Fecha límite actual</dt><dd className="font-semibold">{fechaSla(etapa.limite_operativo_en, 'completa')}</dd></div>
-          <div><dt className="text-muted-foreground">Límite máximo permitido</dt><dd>{fechaSla(etapa.techo_en, 'completa')}</dd></div>
+  return <section aria-label="Pendientes y plazos" className="space-y-2">
+    {estado.avisos.length > 0 && <ul aria-label="Acciones pendientes" className="space-y-2">
+      {estado.avisos.map((aviso) => {
+        const texto = textoAvisoSla(aviso, supervision)
+        return <li key={aviso.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-text/30 bg-warning-text/5 px-3 py-2">
+          <div className="min-w-0 flex-1 text-xs">
+            <p className="font-semibold text-foreground">{texto.titulo}</p>
+            {aviso.bucket === 'tarea_vencida' && <p className="mt-0.5 text-muted-foreground">Programada: {fechaSla(aviso.referencia_en)} · Lima</p>}
+            {aviso.bucket === 'revision_comercial' && <p className="mt-0.5 text-muted-foreground">{etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</p>}
+          </div>
+          {onActuar && <Button variant="outline" size="sm" disabled={abriendo !== null} onClick={() => void actuar(aviso)}>{abriendo === aviso.id ? 'Abriendo…' : texto.boton}<ArrowUpRight aria-hidden /></Button>}
+        </li>
+      })}
+    </ul>}
+    <details className="rounded-lg border px-3 py-2 text-xs">
+      <summary className="cursor-pointer font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring">Ver plazos</summary>
+      <div className="mt-3 space-y-2">
+        <p className="text-muted-foreground">Fechas y horas de Lima.</p>
+        <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2">
+          {compromiso.tarea && <><dt className="text-muted-foreground">Actividad programada</dt><dd>{fechaSla(compromiso.tarea.vence_en)}</dd></>}
+          <dt className="text-muted-foreground">{compromiso.cobertura_activa === true ? 'Retomar seguimiento desde' : 'Próxima gestión: límite'}</dt>
+          <dd>{fechaSla(compromiso.cobertura_activa === true ? compromiso.hasta_en : seguimiento.limite_en)}</dd>
+          <dt className="text-muted-foreground">Plazo actual de etapa</dt><dd>{fechaSla(etapa.limite_operativo_en)}</dd>
+          {supervision && <><dt className="text-muted-foreground">Tope para ampliaciones</dt><dd>{fechaSla(etapa.techo_en)}</dd></>}
         </dl>
-        <p>Rige la fecha límite actual. Cualquier ampliación debe respetar el máximo permitido.</p>
       </div>
-    </div>
-    {compromiso.tarea && <div className="space-y-1 border-t pt-3 text-xs">
-      <h4 className="font-bold">Actividad pendiente en Agenda</h4>
-      <dl><dt className="text-muted-foreground">Fecha programada</dt><dd className="font-semibold">{fechaSla(compromiso.tarea.vence_en, 'completa')}</dd></dl>
-      {enEspera && <dl><dt className="text-muted-foreground">Espera del seguimiento por esta actividad hasta</dt><dd>{fechaSla(compromiso.hasta_en, 'completa')}</dd></dl>}
-      <p>{explicacionActividad}</p>
-      <p>La actividad conserva su fecha y hora de Agenda, aunque el seguimiento esté en espera.</p>
-    </div>}
-    {(etapa.prorrogas_usadas ?? 0) > 0 && <div className="space-y-1 border-t pt-3 text-xs">
-      <p>Ampliaciones aplicadas: {etapa.prorrogas_usadas} · Disponibles: {etapa.prorrogas_restantes ?? 'Por confirmar'}</p>
-      <dl><dt className="text-muted-foreground">Fecha con las ampliaciones aplicadas</dt><dd>{fechaSla(etapa.limite_prorrogado_en, 'completa')}</dd></dl>
-    </div>}
+    </details>
   </section>
 }

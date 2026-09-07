@@ -23,7 +23,7 @@ vi.mock('@/data/sla-operacion-queries', () => ({
 const consulta = vi.mocked(useColaSlaPagina)
 const modo = vi.mocked(useModoSla)
 const estado: EstadoSlaV2 = {
-  lead_id: 'l1', evaluacion: 'completa', motivos_datos: [],
+  lead_id: 'l1', avisos: [], evaluacion: 'completa', motivos_datos: [],
   seguimiento: { referencia_en: null, ultima_gestion_en: null, limite_en: '2026-09-07T10:00:00Z', vencido: true, accion_pendiente: true },
   compromiso: { tarea: null, validez: 'sin_tarea', hasta_en: null, cobertura_activa: false },
   etapa: { limite_original_en: '2026-09-07T10:00:00Z', limite_prorrogado_en: '2026-09-07T10:00:00Z', limite_operativo_en: '2026-09-07T10:00:00Z', techo_en: '2026-09-09T10:00:00Z', prorrogas_usadas: 0, prorrogas_restantes: 2, revision_requerida: true, motivos_revision: ['limite_operativo_agotado'] },
@@ -31,10 +31,10 @@ const estado: EstadoSlaV2 = {
 const primera: ColaSlaPagina = {
   version: 2, modo: 'activo', control_revision: 1, calculado_en: '2026-09-07T10:00:00Z', filtros: { senal: 'todas', etapa: null, analista_id: null },
   limite: 10, total_items: 455, hay_mas: true, rango: { desde: 1, hasta: 10 }, cursor_siguiente: { token: 'pagina2' },
-  totales: { primera_atencion: 527, tareas_vencidas: 538, seguimientos_pendientes: 527, revisiones: 455, datos_incompletos: 0, por_repartir: 3 },
+  totales: { pendientes: 455, primera_atencion: 527, tareas_vencidas: 538, seguimientos_pendientes: 527, revisiones: 455, datos_incompletos: 0, por_repartir: 3 },
   items: [{ lead_id: 'l1', bucket: 'primera_atencion', severidad: 'critica', prioridad: 10, referencia_en: '2026-09-07T10:00:00Z', tarea_id: null,
     lead: { id: 'l1', nombre_completo: 'Oportunidad Uno', etapa: 'contactado', analista_id: 'analista', analista_nombre: 'Analista Uno' },
-    senales: { primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado }],
+    senales: { pendientes: true, primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado }],
 }
 const segunda: ColaSlaPagina = { ...primera, rango: { desde: 11, hasta: 11 }, hay_mas: false, cursor_siguiente: null, items: [{ ...primera.items[0]!, lead_id: 'l2', lead: { ...primera.items[0]!.lead, id: 'l2', nombre_completo: 'Oportunidad Dos' } }] }
 function resultado(data: ColaSlaPagina | undefined, error: Error | null = null, isFetching = false) {
@@ -104,12 +104,12 @@ describe('cola SLA con páginas explícitas', () => {
     await usuario.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
 
     expect(consulta.mock.lastCall?.slice(0, 3)).toEqual([
-      { senal: 'todas', etapa: null, analista_id: null }, null, 25,
+      { senal: 'pendientes', etapa: null, analista_id: null }, null, 25,
     ])
-    expect(screen.getByRole('combobox', { name: 'Mostrar' })).toHaveValue('todas')
+    expect(screen.getByRole('combobox', { name: 'Mostrar' })).toHaveValue('pendientes')
     expect(screen.getByRole('combobox', { name: 'Etapa' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Analista' })).toHaveValue('')
-    expect(screen.getByRole('button', { name: 'Todas las acciones' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Para atender ahora' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument()
   })
@@ -139,7 +139,7 @@ describe('cola SLA con páginas explícitas', () => {
   it('muestra la revisión aunque primera atención tenga prioridad y usa totales completos', async () => {
     const usuario = userEvent.setup(); montar()
     const lista = screen.getByRole('list', { name: 'Oportunidades de esta página' })
-    expect(within(lista).getByText('Primera atención')).toBeInTheDocument()
+    expect(within(lista).getByText('Contactar al cliente')).toBeInTheDocument()
     expect(within(lista).getByText('Revisión comercial')).toBeInTheDocument()
     expect(within(lista).getByText('Analista Uno')).toBeInTheDocument()
     expect(within(lista).getByText('Contactado')).toBeInTheDocument()
@@ -209,32 +209,40 @@ describe('cola SLA con páginas explícitas', () => {
     expect(screen.queryByText('Cola antigua')).not.toBeInTheDocument()
     expect(screen.queryByText('Cola nueva')).not.toBeInTheDocument()
   })
-  it('la ficha distingue compromiso cubierto y vencimiento de agenda', () => {
-    montar(<DetalleSla estado={{ ...estado,
-      seguimiento: { ...estado.seguimiento, limite_en: '2026-09-10T10:00:00Z', vencido: false, accion_pendiente: false },
+  it('una actividad vencida y una revisión se muestran sin explicar la cobertura', async () => {
+    const actuar = vi.fn()
+    const tarea = { id: 'av-tarea', bucket: 'tarea_vencida' as const, severidad: 'critica' as const, referencia_en: '2026-09-07T10:00:00Z', tarea_id: 't1' }
+    montar(<DetalleSla supervision onActuar={actuar} estado={{ ...estado,
+      avisos: [tarea, { ...tarea, id: 'av-revision', bucket: 'revision_comercial', tarea_id: null }],
+      seguimiento: { ...estado.seguimiento, accion_pendiente: false },
       compromiso: { tarea: { id: 't1', tipo: 'llamada', vence_en: '2026-09-07T10:00:00Z', reprogramaciones: 0 }, validez: 'valido', cobertura_activa: true, hasta_en: '2026-09-08T10:00:00Z' },
-      etapa: { ...estado.etapa, motivos_revision: ['reingreso_etapa'] },
     }} />)
-    expect(screen.getByText('En espera por una actividad programada')).toBeInTheDocument()
-    // La cobertura puede terminar antes del próximo plazo habitual. No lo sustituye.
-    expect(screen.getByText(fechaSla('2026-09-10T10:00:00Z', 'completa'))).toBeInTheDocument()
-    expect(screen.getByText(fechaSla('2026-09-08T10:00:00Z', 'completa'))).toBeInTheDocument()
-    expect(screen.getByText(/La actividad conserva su fecha y hora de Agenda/)).toBeInTheDocument()
-    // Esperar por una actividad no elimina una revisión de etapa independiente.
-    expect(screen.getByText('Este caso necesita una decisión')).toBeInTheDocument()
-    expect(screen.getByText('La oportunidad ingresó a esta etapa tres veces o más en este proceso comercial')).toBeInTheDocument()
-    expect(screen.queryByText('Seguimiento vencido')).not.toBeInTheDocument()
+    expect(screen.getByText('Revisa la actividad pendiente')).toBeVisible()
+    expect(screen.getByText('Revisa el caso y define el siguiente paso')).toBeVisible()
+    expect(screen.queryByText(/En espera por/)).not.toBeInTheDocument()
+    expect(screen.getByText('Plazo actual de etapa')).not.toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar actividad' }))
+    expect(actuar).toHaveBeenCalledWith(tarea)
+    await userEvent.click(screen.getByText('Ver plazos'))
+    expect(screen.getByText('Plazo actual de etapa')).toBeVisible()
+    expect(screen.getByText('Retomar seguimiento desde')).toBeVisible()
   })
-  it('los datos sin confirmar no se presentan como permiso de espera rechazado', () => {
+  it('sin avisos solo ofrece Ver plazos, y el analista no ve el tope de ampliaciones', async () => {
+    montar(<DetalleSla estado={estado} />)
+    expect(screen.queryByRole('list', { name: 'Acciones pendientes' })).not.toBeInTheDocument()
+    expect(screen.getByText('Ver plazos')).toBeVisible()
+    expect(screen.queryByText('Tope para ampliaciones')).not.toBeInTheDocument()
+    expect(screen.getByText('Fechas y horas de Lima.')).not.toBeVisible()
+    await userEvent.click(screen.getByText('Ver plazos'))
+    expect(screen.getByText('Fechas y horas de Lima.')).toBeVisible()
+  })
+  it('los datos sin confirmar piden una revisión sin inventar fechas', async () => {
     montar(<DetalleSla estado={{ ...estado, evaluacion: 'parcial',
+      avisos: [{ id: 'datos', bucket: 'datos_incompletos', severidad: 'media', referencia_en: null, tarea_id: null }],
       seguimiento: { ...estado.seguimiento, limite_en: null, vencido: null, accion_pendiente: null },
-      compromiso: { tarea: { id: 't1', tipo: 'llamada', vence_en: '2026-09-07T10:00:00Z', reprogramaciones: 0 }, validez: 'datos_incompletos', cobertura_activa: null, hasta_en: null },
-      etapa: { ...estado.etapa, revision_requerida: null, motivos_revision: [], prorrogas_usadas: 1, prorrogas_restantes: null },
     }} />)
-    expect(screen.getByText('Seguimiento por confirmar')).toBeInTheDocument()
-    expect(screen.getByText(/Faltan datos para confirmar si esta actividad permite esperar/)).toBeInTheDocument()
-    expect(screen.getByText(/Disponibles: Por confirmar/)).toBeInTheDocument()
-    expect(screen.queryByText('Seguimiento vencido')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Esta actividad no permite aplazar/)).not.toBeInTheDocument()
+    expect(screen.getByText('Pide al supervisor revisar los datos')).toBeVisible()
+    await userEvent.click(screen.getByText('Ver plazos'))
+    expect(screen.getByText('Sin fecha confirmada')).toBeVisible()
   })
 })

@@ -1972,6 +1972,23 @@ const MAX_TAREAS_AMBITO = 2000
  * Tareas PENDIENTES del ámbito (HOY + Agenda beben de aquí). Las cerradas no
  * viajan: su historia vive en crm.actividades (timeline del lead).
  */
+/** Lectura puntual de Agenda por su puerta RLS; no depende del límite del lote. */
+export async function obtenerTareaDelAmbitoPorId(leadId: string, id: string, signal?: AbortSignal): Promise<Tarea | null> {
+  let consulta = cliente().schema('crm').from('tareas').select(COLUMNAS_TAREA)
+    .eq('id', id).eq('lead_id', leadId).eq('estado', 'pendiente').eq('activo', true)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta.maybeSingle()
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw new CrmApiError('No se pudo consultar la actividad.', error.code || 'POSTGREST_ERROR')
+  if (!data) return null
+  const resultado = v.safeParse(TareaRowSchema, data)
+  if (!resultado.success || resultado.output.id !== id || resultado.output.lead_id !== leadId
+    || resultado.output.estado !== 'pendiente' || !resultado.output.activo) {
+    throw new CrmApiError('No se pudo verificar la actividad.', 'ROW_CONTRACT')
+  }
+  return resultado.output
+}
+
 export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea[]> {
   let consulta = cliente()
     .schema('crm')

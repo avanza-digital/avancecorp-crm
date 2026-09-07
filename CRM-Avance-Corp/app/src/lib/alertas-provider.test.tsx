@@ -172,6 +172,12 @@ vi.mock('@/lib/alertas-gerencia', () => ({
   periodoAnteriorComparable: () => ({ desde: '2026-07-01', hasta: '2026-07-06' }),
 }))
 
+let RESUMEN_SLA = { version: 2, modo: 'legado', control_revision: 1, calculado_en: '2026-09-07T12:00:00Z', total_oportunidades: 0, total_avisos: 0, criticas: 0, grupos: [] as { bucket: string; total: number }[] }
+let RESUMEN_ERROR: Error | null = null
+const refrescarAvisos = vi.fn()
+const consultarAvisos = vi.fn((habilitada: boolean) => ({ data: habilitada ? RESUMEN_SLA : undefined, error: RESUMEN_ERROR, isPending: false, isFetching: false, refetch: refrescarAvisos }))
+vi.mock('@/data/sla-operacion-queries', () => ({ useResumenAvisosSla: (habilitada: boolean) => consultarAvisos(habilitada) }))
+
 const { AlertasCRMProvider } = await import('./alertas-provider')
 const { useAlertasCRM } = await import('./alertas-context')
 
@@ -246,6 +252,10 @@ function montar(
 }
 
 beforeEach(() => {
+  RESUMEN_SLA = { ...RESUMEN_SLA, modo: 'legado', total_oportunidades: 0, total_avisos: 0, criticas: 0, grupos: [] }
+  RESUMEN_ERROR = null
+  refrescarAvisos.mockClear()
+  consultarAvisos.mockClear()
   LEADS_VISIBLES = true
   LEADS = [{ id: 'lead-store' }]
   RECORDATORIOS_ERROR = null
@@ -311,7 +321,7 @@ describe('AlertasCRMProvider', () => {
     // provider no debe pedir recordatorios ni derivar alertas invisibles.
     expect(consultaRecordatorios).toHaveBeenCalledWith(false)
     expect(screen.getByRole('status')).not.toHaveTextContent('revisar-contacto')
-    expect(screen.getByRole('status')).toHaveTextContent('personal-1')
+    expect(screen.getByRole('status')).not.toHaveTextContent('personal-1')
   })
 
   it('deriva al supervisor con su roster visible y no consulta datos de Gerencia', () => {
@@ -512,5 +522,34 @@ describe('AlertasCRMProvider', () => {
     expect(estado.pendientes).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'reintentar' }))
     expect(refetchReconocimientos).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('campana gobernada por el núcleo SLA activo', () => {
+  it.each(['vendedor', 'supervisor', 'gerencia'] as const)('usa el total del servidor para %s y conserva otros avisos', (rol) => {
+    RESUMEN_SLA = { ...RESUMEN_SLA, modo: 'activo', total_oportunidades: 2501, total_avisos: 2502, criticas: 1,
+      grupos: [{ bucket: 'seguimiento', total: 2501 }, { bucket: 'tarea_vencida', total: 1 }] }
+    LEADS = []
+    montar(rol)
+    expect(derivarVendedor).not.toHaveBeenCalled()
+    expect(derivarSupervisor).not.toHaveBeenCalled()
+    const resultado = JSON.parse(screen.getByRole('status').textContent!)
+    const aviso = resultado.alertas.find((a: { tipo: string }) => a.tipo === 'seguimiento_comercial')
+    expect(aviso.valor).toBe(2501)
+    expect(aviso.destino).toEqual({ vista: 'seguimiento', etiqueta: 'Ver pendientes' })
+    expect(aviso.miembros).toBeUndefined()
+    expect(consultaReconocimientos).toHaveBeenLastCalledWith(false)
+    if (rol === 'vendedor') expect(resultado.alertas.some((a: { tipo: string }) => a.tipo === 'revisar_contacto')).toBe(true)
+    if (rol === 'gerencia') expect(resultado.alertas.some((a: { tipo: string }) => a.tipo === 'bajo_meta_conversion')).toBe(true)
+  })
+  it('un error con datos anteriores no muestra Todo al día ni reactiva v1', () => {
+    RESUMEN_SLA.modo = 'activo'
+    RESUMEN_ERROR = new Error('Sin respuesta')
+    montar('supervisor')
+    expect(derivarSupervisor).not.toHaveBeenCalled()
+    const resultado = JSON.parse(screen.getByRole('status').textContent!)
+    expect(resultado.errores).toContain('No se pudieron confirmar los avisos de seguimiento. Pulsa Actualizar.')
+    fireEvent.click(screen.getByText('reintentar'))
+    expect(refrescarAvisos).toHaveBeenCalledOnce()
   })
 })

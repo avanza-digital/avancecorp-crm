@@ -1,0 +1,39 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/sla-operacion.spec.ts
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:62102) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 7 workers
+
+(node:62134) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62138) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62133) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62136) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62135) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62137) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 11:40:22 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-07T16:40:22.004Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"5fde983a-8eba-4139-92f4-e76a2dc42e7c","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   1 [chromium] › e2e/sla-operacion.spec.ts:155:1 › si RLS ya no devuelve la oportunidad, la cola informa el fallo y no abre una ficha parcial (4.0s)
+  ✓   4 [chromium] › e2e/sla-operacion.spec.ts:126:1 › la cola abre una ficha completa fuera del lote inicial después de confirmar su lectura RLS (4.2s)
+  ✓   6 [chromium] › e2e/sla-operacion.spec.ts:169:1 › Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas y abre la ficha (4.3s)
+[WebServer] 11:40:25 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-07T16:40:25.656Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"8f3955aa-8118-4832-b4aa-d0e285d1cae3","datos":{"error":{"name":"CrmApiError","message":"Confirmación pendiente. Reintenta el mismo guardado; no se duplicará.","code":"SLA_CONFIRMACION_PENDIENTE"}}}
+  ✓   5 [chromium] › e2e/sla-operacion.spec.ts:330:1 › el contacto y su siguiente tarea se confirman juntos antes de cerrar el diálogo (4.6s)
+  ✓   7 [chromium] › e2e/sla-operacion.spec.ts:357:1 › el reintento tras perder la respuesta conserva la siguiente tarea aunque el resync ya la muestre (4.7s)
+[WebServer] 11:40:25 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-07T16:40:25.952Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"d44a11ad-c20c-4ae6-98da-cd690658d4de","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   2 [chromium] › e2e/sla-operacion.spec.ts:244:3 › supervisor: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada (5.1s)
+  ✓   3 [chromium] › e2e/sla-operacion.spec.ts:244:3 › gerencia: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada (5.2s)
+[WebServer] 11:40:28 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-07T16:40:28.811Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"9fe322f4-c78f-454b-8a27-9636211a9f73","datos":{"error":{"name":"CrmApiError","message":"Confirmación pendiente. Reintenta el mismo guardado; no se duplicará.","code":"SLA_CONFIRMACION_PENDIENTE"}}}
+  ✓   9 [chromium] › e2e/sla-operacion.spec.ts:426:1 › Gerencia publica las reglas aprobadas y activa solo después de la confirmación (3.8s)
+  ✓  10 [chromium] › e2e/sla-operacion.spec.ts:485:1 › la campana abre pendientes y el aviso recupera una actividad fuera del lote de Agenda (4.6s)
+  ✓   8 [chromium] › e2e/sla-operacion.spec.ts:390:1 › tras recargar verifica explícitamente el guardado original sin reconstruir el formulario (6.4s)
+
+  10 passed (11.3s)

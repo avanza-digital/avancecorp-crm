@@ -44,6 +44,7 @@ type FiltroPrioridad = 'todas' | AlertaCRM['severidad']
 type FiltroTipo = 'todos' | TipoAlerta
 
 const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
+  seguimiento_comercial: 'Seguimiento',
   tarea_vencida: 'Tarea vencida',
   lead_sin_responder: 'Lead sin responder',
   sin_proxima_accion: 'Sin próxima acción',
@@ -56,6 +57,7 @@ const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
 }
 
 const ICONO_TIPO: Record<TipoAlerta, LucideIcon> = {
+  seguimiento_comercial: AlarmClock,
   tarea_vencida: AlarmClock,
   lead_sin_responder: UserRoundX,
   sin_proxima_accion: CalendarPlus,
@@ -75,18 +77,18 @@ const COPY_ROL: Record<'vendedor' | 'supervisor' | 'gerencia', {
     alcance: 'Tu acción',
     titulo: 'Mis pendientes actuales',
     detalle: 'Solo aparecen casos tuyos que puedes resolver desde el CRM.',
-    vacio: 'No tienes acciones atrasadas ni leads sin siguiente paso.',
+    vacio: 'No hay avisos pendientes. Tus próximas actividades están en Agenda.',
   },
   supervisor: {
     alcance: 'Tu intervención',
     titulo: 'Excepciones del equipo',
-    detalle: 'Solo aparecen atrasos que ya superaron la tolerancia o requieren reparto.',
+    detalle: 'Revisa los pendientes del equipo y los casos que necesitan una decisión.',
     vacio: 'Tu equipo no tiene excepciones que requieran intervención.',
   },
   gerencia: {
     alcance: 'Tu decisión',
     titulo: 'Señales de gestión',
-    detalle: 'Señales del mes en curso con datos verificables y muestra suficiente.',
+    detalle: 'Pendientes del equipo y resultados que necesitan revisión.',
     vacio: 'No se generaron avisos con los datos evaluables. Esto no confirma que todo esté dentro de la meta: puede faltar el corte de revisión, una meta, muestra suficiente o verificación.',
   },
 }

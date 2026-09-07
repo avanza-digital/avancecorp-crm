@@ -163,7 +163,7 @@ describe('Alertas — responsabilidad por rol', () => {
     expect(screen.getByText(/puede faltar el corte de revisión, una meta, muestra suficiente o verificación/)).toBeVisible()
     expect(screen.queryByText('Nada pendiente')).not.toBeInTheDocument()
     expect(screen.queryByText('No hay desviaciones estratégicas que requieran una decisión.')).not.toBeInTheDocument()
-    expect(screen.getByText(/Señales del mes en curso/)).toBeVisible()
+    expect(screen.getByText(/Pendientes del equipo y resultados/)).toBeVisible()
   })
 
   it('abre la señal de Gerencia con su rango consultado y sin un filtro de origen anterior', async () => {

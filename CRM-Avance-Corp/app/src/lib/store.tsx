@@ -58,6 +58,7 @@ import {
   listarEquipo,
   listarLeadsDelAmbito,
   obtenerLeadDelAmbitoPorId,
+  obtenerTareaDelAmbitoPorId,
   obtenerCumplimientoMetas,
   obtenerMetasDelMes,
   listarTareasDelAmbito,
@@ -322,6 +323,7 @@ export interface StoreDataApi {
   // Agenda (crm.tareas): la fuente de verdad son las TAREAS; `agenda` es su
   // vista de display derivada (labels Lima). tareasDe alimenta el drawer.
   tareas: Tarea[]
+  obtenerTareaParaRevision(leadId: string, tareaId: string): Promise<Tarea | null>
   tareasDe(leadId: string): Tarea[] // pendientes del lead, orden por vence_en
   tareasDeCliente?(perfilId: string): Tarea[] // postventa, misma agenda
   /** `avance` = etapa a la que subió el lead SOLO por agendar esta tarea
@@ -1447,6 +1449,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // necesitan reloj vivo (HOY) reordenan con useAhora sobre vence_en.
       agenda: agendaDeTareas(tareas, Date.now()),
       tareas,
+      obtenerTareaParaRevision: async (leadId, tareaId) => {
+        const contexto = contextoPanelRef.current
+        const epoca = epocaRef.current
+        if (contexto.leadAbiertoId !== leadId) return null
+        if (!contexto.realActivo) return contexto.demoActivo
+          ? tareas.find((t) => t.id === tareaId && t.lead_id === leadId && t.activo && t.estado === 'pendiente') ?? null : null
+        const tarea = await obtenerTareaDelAmbitoPorId(leadId, tareaId, AbortSignal.timeout(LIMITE_CARGA_REAL_MS))
+        if (epocaRef.current !== epoca || contextoPanelRef.current.yo?.id !== contexto.yo?.id
+          || contextoPanelRef.current.yo?.rol !== contexto.yo?.rol || !contextoPanelRef.current.realActivo
+          || contextoPanelRef.current.leadAbiertoId !== leadId) return null
+        if (tarea) setTareas((actuales) => [...actuales.filter((t) => t.id !== tareaId), tarea])
+        return tarea
+      },
       tareasDe: (leadId) =>
         idsDelAmbito.has(leadId)
           ? tareas

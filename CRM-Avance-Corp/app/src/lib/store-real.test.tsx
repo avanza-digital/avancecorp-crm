@@ -33,6 +33,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     ...actual, // conserva CrmApiError real (instanceof en persistir)
     listarLeadsDelAmbito: vi.fn(),
     obtenerLeadDelAmbitoPorId: vi.fn(),
+    obtenerTareaDelAmbitoPorId: vi.fn(),
     listarEquipo: vi.fn(),
     listarActividadesDelAmbito: vi.fn(),
     listarTareasDelAmbito: vi.fn(),
@@ -358,6 +359,33 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       await act(async () => { resultado = await montaje.panelActions().abrirLead(id) })
       return resultado!
     }
+
+    it('incorpora una actividad leída por ID fuera del lote y rechaza respuestas de otra sesión', async () => {
+      const montaje = montar('gerencia')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      obtenerLeadPorId.mockResolvedValue(filaA())
+      await abrir(montaje, ID_A)
+      const tarea: Awaited<ReturnType<typeof crmApi.obtenerTareaDelAmbitoPorId>> = {
+        id: 'tarea-fuera-lote', lead_id: ID_A, perfil_id: null, vendedor_id: 'u-v1', asignado_supervisor_id: null,
+        tipo: 'llamada', titulo: 'Contacto pendiente', nota: null, vence_en: '2026-09-07T10:00:00Z', estado: 'pendiente', activo: true,
+        reprogramaciones: 0, creado_en: '2026-09-06T10:00:00Z', duracion_min: null, modalidad_reunion: null,
+        ubicacion_reunion: null, enlace_reunion: null, resultado_reunion: null, motivo_no_realizada: null,
+        detalle_cierre_reunion: null, confirmada_en: null, reagendada_de: null,
+      }
+      const obtener = vi.mocked(crmApi.obtenerTareaDelAmbitoPorId)
+      obtener.mockResolvedValueOnce(tarea)
+      await act(async () => { expect(await montaje.api().obtenerTareaParaRevision(ID_A, tarea.id)).toEqual(tarea) })
+      expect(montaje.api().tareasDe(ID_A)).toContainEqual(tarea)
+      expect(obtener).toHaveBeenCalledWith(ID_A, tarea.id, expect.any(AbortSignal))
+      let resolver!: (valor: typeof tarea) => void
+      obtener.mockImplementationOnce(() => new Promise((resolve) => { resolver = resolve }))
+      let lectura!: Promise<typeof tarea | null>
+      act(() => { lectura = montaje.api().obtenerTareaParaRevision(ID_A, 'tarea-tardia') })
+      montaje.rerenderAuth('vendedor')
+      await waitFor(() => expect(montaje.estado().cargando).toBe(false))
+      await act(async () => { resolver({ ...tarea, id: 'tarea-tardia' }); expect(await lectura).toBeNull() })
+      expect(montaje.api().tareas.some((t) => t.id === 'tarea-tardia')).toBe(false)
+    })
 
     it('hidrata la fila completa y su analista antes de abrir la ficha', async () => {
       const montaje = montar('gerencia')

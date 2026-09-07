@@ -2,7 +2,18 @@ import * as v from 'valibot'
 import { sb } from '@/lib/supabase'
 import type { Json } from '@/lib/database.types'
 import { CrmApiError } from './crm-api'
-import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
+import { ConfiguracionSlaV2Schema, ResultadoPublicacionSlaV2Schema, ResultadoModoSlaSchema, ColaSlaPaginaSchema, EstadosSlaV2Schema, ResumenAvisosSlaSchema, type CursorSla, type FiltrosSla } from '@/lib/sla-operacion'
+
+export async function obtenerResumenAvisosSla(signal?: AbortSignal) {
+  if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')
+  let consulta = sb.schema('crm').rpc('avisos_sla_resumen_v2_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw new CrmApiError(error.message, error.code)
+  const parsed = v.safeParse(ResumenAvisosSlaSchema, data)
+  if (!parsed.success) throw new CrmApiError('No se pudieron confirmar los avisos de seguimiento.', 'SLA_CONTRACT')
+  return parsed.output
+}
 
 export async function listarColaSla(filtros: FiltrosSla, cursor: CursorSla | null, limite: number, signal?: AbortSignal) {
   if (!sb) throw new CrmApiError('No hay conexión con el CRM.', 'SIN_CLIENTE')

@@ -52,7 +52,7 @@ async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
       referencia_en: calculado,
       lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa,
         analista_id: lead.vendedor_id, analista_nombre: equipoVisible.find((miembro) => miembro.perfil_id === lead.vendedor_id)!.nombre_completo },
-      senales: { primera_atencion: i % 3 === 0, tareas_vencidas: i % 3 === 1,
+      senales: { pendientes: true, primera_atencion: i % 3 === 0, tareas_vencidas: i % 3 === 1,
         seguimientos_pendientes: i % 3 === 2, revisiones: revision, datos_incompletos: false, por_repartir: false },
       estado: { ...original.estado, lead_id: lead.id,
         compromiso: i % 5 === 4 ? original.estado.compromiso : { tarea: null, validez: 'sin_tarea', hasta_en: null, cobertura_activa: false },
@@ -68,6 +68,7 @@ async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
     tarea: { id: 'eeeeeeee-0000-4000-8000-000000000001', tipo: 'llamada', vence_en: '2026-08-31T15:00:00Z', reprogramaciones: 0 },
     validez: 'valido', cobertura_activa: false, hasta_en: '2026-08-31T19:00:00Z',
   }
+  ejemplo.avisos = [...ejemplo.avisos, { ...ejemplo.avisos[0]!, id: 'revision-ejemplo', bucket: 'revision_comercial', tarea_id: null }]
   ejemplo.etapa = { ...ejemplo.etapa,
     limite_original_en: '2026-09-01T15:00:00Z', limite_prorrogado_en: '2026-09-01T15:00:00Z',
     limite_operativo_en: '2026-09-01T15:00:00Z', techo_en: '2026-09-02T16:21:00Z',
@@ -173,7 +174,7 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
   await montarBackendReal(page, { leads, rolCrm: 'vendedor' })
   const calculado = new Date().toISOString()
   function estado(id: string): EstadoSlaV2 {
-    return { lead_id: id, evaluacion: 'completa', motivos_datos: [],
+    return { lead_id: id, avisos: [{ id: `seguimiento-${id}`, bucket: 'seguimiento', severidad: 'media', referencia_en: calculado, tarea_id: null }], evaluacion: 'completa', motivos_datos: [],
       seguimiento: { referencia_en: calculado, ultima_gestion_en: calculado, limite_en: calculado, vencido: true, accion_pendiente: true },
       compromiso: { tarea: null, validez: 'sin_tarea', hasta_en: null, cobertura_activa: false },
       etapa: { limite_original_en: calculado, limite_prorrogado_en: calculado, limite_operativo_en: calculado, techo_en: calculado,
@@ -194,11 +195,11 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
       filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
       limite: args.p_limite, total_items: 12, rango: { desde: inicio + 1, hasta: inicio + subset.length },
       hay_mas: inicio === 0, cursor_siguiente: inicio === 0 ? { opaque: 'siguiente' } : null,
-      totales: { primera_atencion: 12, tareas_vencidas: 0, seguimientos_pendientes: 12, revisiones: 12, datos_incompletos: 0, por_repartir: 0 },
+      totales: { pendientes: 12, primera_atencion: 12, tareas_vencidas: 0, seguimientos_pendientes: 12, revisiones: 12, datos_incompletos: 0, por_repartir: 0 },
       items: subset.map((lead) => ({ lead_id: lead.id, bucket: 'primera_atencion', severidad: 'critica', prioridad: 10,
         referencia_en: calculado, tarea_id: null,
         lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' },
-        senales: { primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado: estado(lead.id) })),
+        senales: { pendientes: true, primera_atencion: true, tareas_vencidas: false, seguimientos_pendientes: true, revisiones: true, datos_incompletos: false, por_repartir: false }, estado: estado(lead.id) })),
     } })
   })
   await loginReal(page)
@@ -218,23 +219,24 @@ test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas 
   await expect(lista.locator(':scope > li')).toHaveCount(2)
   await expect(lista.getByText('OPORTUNIDAD SLA 01', { exact: true })).toHaveCount(0)
   await expect(lista.getByText('OPORTUNIDAD SLA 11', { exact: true })).toBeVisible()
-  const revision = page.getByRole('group', { name: 'Prioridades de seguimiento' }).getByRole('button', { name: /Revisión comercial/ })
+  const revision = page.getByRole('group', { name: 'Prioridades de seguimiento' }).getByRole('button', { name: /Seguimiento pendiente/ })
   await revision.click()
   await expect(revision).toHaveAttribute('aria-pressed', 'true')
   await expect(lista.locator(':scope > li')).toHaveCount(10)
-  await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('revisiones')
+  await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('seguimientos_pendientes')
   expect(pedidos.at(-1)?.p_cursor).toBeNull()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await page.getByRole('heading', { name: 'Seguimiento comercial' }).scrollIntoViewIfNeeded()
-  await expect(page.getByRole('combobox', { name: 'Mostrar', exact: true })).toHaveValue('revisiones')
+  await expect(page.getByRole('combobox', { name: 'Mostrar', exact: true })).toHaveValue('seguimientos_pendientes')
   await page.screenshot({ path: '/private/tmp/sla-ui-mobile.png', fullPage: true })
   const ancho = await page.evaluate(() => ({ total: document.documentElement.scrollWidth, visible: window.innerWidth }))
   expect(ancho.total).toBeLessThanOrEqual(ancho.visible)
   await lista.getByRole('button').first().click()
   const ficha = page.getByRole('dialog', { name: 'OPORTUNIDAD SLA 01' })
-  await expect(ficha.getByRole('region', { name: 'Seguimiento y plazos' })).toBeVisible()
-  await expect(ficha.getByText('Este caso necesita una decisión')).toBeVisible()
+  await expect(ficha.getByRole('region', { name: 'Pendientes y plazos' })).toBeVisible()
+  await expect(ficha.getByText('Retoma el contacto y registra el resultado')).toBeVisible()
+  await expect(ficha.getByText('Revisa el caso y define el siguiente paso')).toHaveCount(0)
 })
 
 
@@ -260,7 +262,7 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
     const prioridades = page.getByRole('group', { name: 'Prioridades de seguimiento' })
     await expect(lista.locator(':scope > li')).toHaveCount(10)
-    await expect(page.getByRole('button', { name: 'Todas las acciones', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: 'Para atender ahora', exact: true })).toHaveAttribute('aria-pressed', 'true')
     const analistas = page.getByRole('combobox', { name: 'Analista', exact: true })
     await expect(analistas.locator(`option[value="${UID}"]`)).toHaveCount(0)
     await expect(analistas.locator(`option[value="${analistaAjeno}"]`)).toHaveCount(rol === 'gerencia' ? 1 : 0)
@@ -316,7 +318,7 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     await lista.getByRole('button').first().click()
     const ficha = page.getByRole('dialog', { name: 'OPORTUNIDAD NORTE 01', exact: true })
     await expect(ficha).toBeVisible()
-    const plazos = ficha.getByRole('region', { name: 'Seguimiento y plazos' })
+    const plazos = ficha.getByRole('region', { name: 'Pendientes y plazos' })
     await expect(plazos).toBeVisible()
     await plazos.screenshot({ path: `/private/tmp/sla-plazos-${rol}-mobile.png`, animations: 'disabled' })
     await page.setViewportSize({ width: 1192, height: 784 })
@@ -478,4 +480,60 @@ test('Gerencia publica las reglas aprobadas y activa solo después de la confirm
   expect(activaciones).toEqual([{ p_expected_revision: 0, p_modo: 'activo' }])
   await expect(page.getByRole('button', { name: 'Desactivar seguimiento operativo' })).toBeEnabled()
   await panelConfiguracion.screenshot({ path: '/private/tmp/sla-ui-config-activa.png', animations: 'disabled' })
+})
+
+test('la campana abre pendientes y el aviso recupera una actividad fuera del lote de Agenda', async ({ page }) => {
+  const lead = leadReal({ vendedor_id: UID, nombre_completo: 'CLIENTE DE PRUEBA', etapa: 'contactado' })
+  const backend = await montarBackendReal(page, { leads: [lead], tareas: [], rolCrm: 'vendedor' })
+  const tarea = {
+    id: 'eeeeeeee-0000-4000-8000-000000000099', lead_id: lead.id, perfil_id: null, vendedor_id: UID, asignado_supervisor_id: null,
+    tipo: 'llamada', titulo: 'Contacto pendiente', nota: null, vence_en: '2026-09-05T18:00:00Z', estado: 'pendiente', activo: true,
+    reprogramaciones: 0, creado_en: '2026-09-04T10:00:00Z', duracion_min: null, modalidad_reunion: null,
+    ubicacion_reunion: null, enlace_reunion: null, resultado_reunion: null, motivo_no_realizada: null,
+    detalle_cierre_reunion: null, confirmada_en: null, reagendada_de: null,
+  }
+  const estado = { ...muestraSql.estado.filas[0]!, lead_id: lead.id,
+    avisos: [{ id: 'aviso-tarea', bucket: 'tarea_vencida', severidad: 'critica', referencia_en: tarea.vence_en, tarea_id: tarea.id }],
+    compromiso: { tarea: { id: tarea.id, tipo: tarea.tipo, vence_en: tarea.vence_en, reprogramaciones: 0 }, validez: 'valido', cobertura_activa: true, hasta_en: '2026-09-07T18:00:00Z' },
+  }
+  await page.route('**/rest/v1/rpc/avisos_sla_resumen_v2_fn', (route) => route.fulfill({ json: { ...muestraSql.resumen,
+    total_oportunidades: 1, total_avisos: 1, criticas: 1, grupos: [{ bucket: 'tarea_vencida', total: 1 }] } }))
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', (route) => route.fulfill({ json: { ...muestraSql.estado,
+    filas: route.request().postDataJSON().p_lead_ids.length ? [estado] : [] } }))
+  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', (route) => {
+    const p = route.request().postDataJSON()
+    return route.fulfill({ json: { ...muestraSql.cola, limite: p.p_limite,
+      filtros: { senal: p.p_senal, etapa: p.p_etapa, analista_id: p.p_analista_id },
+      items: [{ ...muestraSql.cola.items[0], lead_id: lead.id, estado,
+        lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa, analista_id: UID, analista_nombre: 'Analista de prueba' } }] } })
+  })
+  let lecturas = 0
+  await page.route('**/rest/v1/tareas?*', (route) => {
+    const p = new URL(route.request().url()).searchParams
+    if (!p.has('id')) return route.fallback()
+    expect(p.get('id')).toBe(`eq.${tarea.id}`)
+    expect(p.get('lead_id')).toBe(`eq.${lead.id}`)
+    expect(p.get('estado')).toBe('eq.pendiente')
+    lecturas += 1
+    backend.tareas = [tarea]
+    return route.fulfill({ json: tarea })
+  })
+  await loginReal(page)
+  await page.getByRole('link', { name: /Abrir pendientes/ }).click()
+  await expect(page.getByText('Revisa 1 oportunidad pendiente', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Reconocer|Posponer/ })).toHaveCount(0)
+  await page.getByRole('link', { name: 'Ver pendientes: Revisa 1 oportunidad pendiente', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Para atender ahora', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('list', { name: 'Oportunidades de esta página' }).getByRole('button').click()
+  const ficha = page.getByRole('dialog', { name: 'CLIENTE DE PRUEBA', exact: true })
+  const avisos = ficha.getByRole('region', { name: 'Pendientes y plazos' })
+  await expect(avisos.getByText('Revisa la actividad pendiente')).toBeVisible()
+  await expect(avisos.getByText('Plazo actual de etapa')).toBeHidden()
+  await avisos.screenshot({ path: '/private/tmp/sla-aviso-analista-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await avisos.screenshot({ path: '/private/tmp/sla-aviso-analista-mobile.png' })
+  expect(await avisos.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true)
+  await avisos.getByRole('button', { name: 'Revisar actividad', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Cerrar tarea', exact: true })).toBeVisible()
+  expect(lecturas).toBe(1)
 })
