@@ -12,7 +12,7 @@
 // con resultado (motor Fase B), reprogramar rápido +1d/+3d/+1sem, y el
 // anti no-show de Fase E: recordatorio wa.me que PIDE confirmación + chip
 // Confirmada/Sin confirmar en reuniones.
-import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
@@ -179,6 +179,9 @@ function TarjetaTarea({
 }) {
   const { reprogramarTarea, confirmarTarea, equipo } = useCRMData()
   const { yo } = useAuth()
+  const [reprogramando, setReprogramando] = useState(false)
+  const envioReprogramacion = useRef(false)
+  const [saltoSinConfirmar, setSaltoSinConfirmar] = useState<{ destino: string; cuando: string } | null>(null)
   // Supervisión: quien ve equipo necesita saber de QUIÉN es cada tarea.
   const verEquipo = can(yo?.rol, 'verEquipo')
   const ev = tareaAEvento(t, ahora)
@@ -209,16 +212,25 @@ function TarjetaTarea({
       }
     : {}
 
-  const posponer = (dias: number) => {
-    const destino = destinoSalto(t.vence_en, dias, ahora)
+  const posponer = async (dias: number) => {
+    if (envioReprogramacion.current) return
+    const destino = saltoSinConfirmar?.destino ?? destinoSalto(t.vence_en, dias, ahora)
     const res = reprogramarTarea(t.id, destino)
     // El toast nombra el DÍA de destino en vez del salto pedido ("+1d"): si la
     // base fue AHORA (vencida) o la ventana legal corrió el slot, el analista lo
     // ve — nunca vuelve a pulsar creyendo que no pasó nada (patrón de
     // FilaHigiene en hoy/vendedor.tsx, que ya anuncia "Movida al …").
-    const cuando = tareaAEvento({ ...t, vence_en: destino }, ahora).cuando
-    if (res.ok) toast.success(`Reprogramada — ${cuando}${yo?.demo ? ' (demo)' : ''}`)
-    else toast.error(res.error ?? 'No se pudo reprogramar')
+    const cuando = saltoSinConfirmar?.cuando ?? tareaAEvento({ ...t, vence_en: destino }, ahora).cuando
+    if (!res.ok) { toast.error(res.error ?? 'No se pudo reprogramar'); return }
+    setReprogramando(true)
+    envioReprogramacion.current = true
+    try {
+      if (await (res.persistido ?? Promise.resolve(true))) {
+        setSaltoSinConfirmar(null)
+        toast.success(`Reprogramada — ${cuando}${yo?.demo ? ' (demo)' : ''}`)
+      } else setSaltoSinConfirmar({ destino, cuando })
+    } catch { setSaltoSinConfirmar({ destino, cuando }) }
+    finally { setReprogramando(false); envioReprogramacion.current = false }
   }
 
   return (
@@ -302,6 +314,7 @@ function TarjetaTarea({
               {SALTOS.map((s) => (
                 <button
                   key={s.label}
+                  disabled={reprogramando || saltoSinConfirmar !== null}
                   type="button"
                   title={`Reprogramar ${s.aria}`}
                   aria-label={`Reprogramar ${s.aria} — ${ev.titulo}`}
@@ -330,6 +343,8 @@ function TarjetaTarea({
                   {s.label}
                 </button>
               ))}
+              {saltoSinConfirmar && <button type="button" disabled={reprogramando} className="rounded-md px-2 py-1 text-xs font-semibold text-warning-text"
+                onClick={(e) => { e.stopPropagation(); void posponer(0) }}>Reintentar reprogramación</button>}
             </span>
           )}
         </div>

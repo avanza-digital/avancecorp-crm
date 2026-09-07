@@ -1,0 +1,151 @@
+{
+  "alcance": "Formulas parciales y patrones SQL sinteticos; no es prueba integral del CRM",
+  "comprobaciones": 27,
+  "aprobadas": 27,
+  "casos": [
+    {
+      "caso": "R1: techo legacy se mueve con politica nueva",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: techo legacy queda ligado a politica de adopcion",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R1: al terminar margen el limite salta hacia atras",
+      "ok": true,
+      "detalle": {
+        "antes_dias": 13.0,
+        "despues_dias": 8.0
+      }
+    },
+    {
+      "caso": "R2: limite de compromiso pendiente conserva fecha al vencer",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: cobertura activa antes de frontera",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: cobertura termina exactamente en frontera",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: revision empieza en frontera conservada",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R1: filtrar contexto oculta tarea atrasada ambigua",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: contexto ambiguo impide usar otra tarea como cobertura",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R1: prorroga corta permite consumir otra enseguida",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: configuracion rechaza prorroga <= ventana",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: segunda conversacion inmediata fuera de ventana",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: evento exactamente al limite no prorroga",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: evento al comienzo de ventana si califica",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R1: constraint de presupuesto impide probar techo parcial",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: techo parcial registra ganancia real",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: reintento exacto conserva identidad",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: misma llave con payload diferente no confirma",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "Banco SQL sintetico creado",
+      "ok": true,
+      "detalle": "PostgreSQL 16.14 (Homebrew) on aarch64-apple-darwin25.4.0, compiled by Apple clang version 21.0.0 (clang-2100.0.123.102), 64-bit"
+    },
+    {
+      "caso": "R1/live: escalamiento SHARE a UPDATE puede hacer deadlock",
+      "ok": true,
+      "detalle": [
+        "ERROR:  40P01: deadlock detected\nDETAIL:  Process 29653 waits for ShareLock on transaction 749; blocked by process 29655.\nProcess 29655 waits for ShareLock on transaction 748; blocked by process 29653.\nHINT:  See server log for query details.\nCONTEXT:  while locking tuple (0,1) in relation \"audit_lead\"\nLOCATION:  DeadLockReport, deadlock.c:1135\n",
+        "1\n"
+      ]
+    },
+    {
+      "caso": "R1/live: tarea-lead contra lead-tarea puede hacer deadlock",
+      "ok": true,
+      "detalle": [
+        "ERROR:  40P01: deadlock detected\nDETAIL:  Process 29653 waits for ShareLock on transaction 751; blocked by process 29655.\nProcess 29655 waits for ShareLock on transaction 750; blocked by process 29653.\nHINT:  See server log for query details.\nCONTEXT:  while locking tuple (0,1) in relation \"audit_lead\"\nLOCATION:  DeadLockReport, deadlock.c:1135\n",
+        "1\n"
+      ]
+    },
+    {
+      "caso": "R2: segundo escritor espera lead antes de tomar tarea",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: orden lead-tarea y lock fuerte desde inicio completa ambas",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R1: lectura simple de modo permite ajuste despues de apagar",
+      "ok": true,
+      "detalle": "legado|1"
+    },
+    {
+      "caso": "R2: cambio de modo espera escritor admitido",
+      "ok": true,
+      "detalle": null
+    },
+    {
+      "caso": "R2: apagado confirma despues de terminar escritor anterior",
+      "ok": true,
+      "detalle": "legado|2"
+    },
+    {
+      "caso": "R2: evento posterior al apagado no concede ajuste",
+      "ok": true,
+      "detalle": null
+    }
+  ]
+}

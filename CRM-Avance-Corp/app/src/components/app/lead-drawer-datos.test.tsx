@@ -61,6 +61,9 @@ function montar({
   avanceTarea,
   tareas = [],
   actividades = [],
+  persistenciaActividad,
+  persistenciaTarea,
+  persistenciaAnulacion,
   retroceso,
 }: {
   lead?: Partial<Lead>
@@ -75,19 +78,22 @@ function montar({
    *  componente y necesita saber si hubo contacto real (y si la reunión llegó
    *  a ocurrir) para decidir a qué etapa devolvería el lead. */
   actividades?: { tipo: string }[]
+  persistenciaActividad?: Promise<boolean>
+  persistenciaTarea?: Promise<boolean>
+  persistenciaAnulacion?: Promise<boolean>
   /** Etapa a la que BAJA el lead al anular (lo que devuelve el store real). */
   retroceso?: EtapaActiva
 } = {}) {
   const l: Lead = { ...LEAD, ...lead }
   const editarLead = vi.fn<StoreDataApi['editarLead']>(() => resultadoEditar)
   const registrarActividad = vi.fn<StoreDataApi['registrarActividad']>(() =>
-    avance ? { ok: true, avance } : { ok: true },
+    ({ ok: true, ...(avance ? { avance } : {}), ...(persistenciaActividad ? { persistido: persistenciaActividad } : {}) }),
   )
   const crearTarea = vi.fn<StoreDataApi['crearTarea']>(() =>
-    avanceTarea ? { ok: true, id: 't-test', avance: avanceTarea } : { ok: true, id: 't-test' },
+    ({ ok: true, id: 't-test', ...(avanceTarea ? { avance: avanceTarea } : {}), ...(persistenciaTarea ? { persistido: persistenciaTarea } : {}) }),
   )
   const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() =>
-    retroceso ? { ok: true, retroceso } : { ok: true },
+    ({ ok: true, ...(retroceso ? { retroceso } : {}), ...(persistenciaAnulacion ? { persistido: persistenciaAnulacion } : {}) }),
   )
   const api = {
     lead: (id: string) => (id === l.id ? l : undefined),
@@ -441,6 +447,22 @@ describe('LeadDrawer — el composer canta el avance automático de etapa', () =
 // store lo calculaba, movía la etapa… y no lo decía: era el único de los tres
 // escritores que cambiaba el embudo a espaldas del analista.
 describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () => {
+  it('espera la confirmación y conserva el título si el alta no se confirma', async () => {
+    const user = userEvent.setup()
+    let confirmar!: (ok: boolean) => void
+    const persistenciaTarea = new Promise<boolean>((resolve) => { confirmar = resolve })
+    const { crearTarea } = montar({ persistenciaTarea })
+    await user.clear(screen.getByLabelText('Título de la tarea'))
+    await user.type(screen.getByLabelText('Título de la tarea'), 'Llamar para confirmar la propuesta')
+    await user.click(screen.getByRole('button', { name: 'Agendar' }))
+    expect(screen.getByRole('button', { name: 'Confirmando…' })).toBeDisabled()
+    expect(toast.success).not.toHaveBeenCalled()
+    confirmar(false)
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se confirmó la tarea')
+    expect(screen.getByLabelText('Título de la tarea')).toHaveValue('Llamar para confirmar la propuesta')
+    expect(crearTarea).toHaveBeenCalledTimes(1)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
   it('lo dice cuando agendar la tarea sube la etapa del lead', async () => {
     const user = userEvent.setup()
     montar({ avanceTarea: 'reunion_agendada' })
@@ -479,6 +501,24 @@ describe('LeadDrawer — anular una pendiente que ya no hace falta', () => {
     reprogramaciones: 0,
     activo: true,
     creado_en: new Date().toISOString(),
+  })
+
+  it('no anuncia anulación antes de confirmar y permite reintentar la misma tarea', async () => {
+    const user = userEvent.setup()
+    let confirmar!: (ok: boolean) => void
+    const persistenciaAnulacion = new Promise<boolean>((resolve) => { confirmar = resolve })
+    const { anularTarea } = montar({ tareas: [pendiente('t1', 'Llamar a Ana')], persistenciaAnulacion })
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' }))
+    expect(screen.getByText('Confirmando anulación…')).toBeInTheDocument()
+    expect(toast.warning).not.toHaveBeenCalled()
+    confirmar(false)
+    await screen.findByRole('button', { name: 'Reintentar anulación' })
+    expect(toast.warning).not.toHaveBeenCalled()
+    anularTarea.mockReturnValueOnce({ ok: true, persistido: Promise.resolve(true) })
+    await user.click(screen.getByRole('button', { name: 'Reintentar anulación' }))
+    expect(anularTarea).toHaveBeenLastCalledWith('t1')
+    expect(toast.warning).toHaveBeenCalledWith('Tarea anulada — Ana quedó SIN próxima acción (demo)')
   })
 
   it('pide confirmación antes de anular (un tap no basta: es irreversible)', async () => {
@@ -720,5 +760,24 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
 
     expect(toast.warning).toHaveBeenCalledTimes(1)
     expect(toast.warning).toHaveBeenCalledWith(expect.not.stringContaining('SIN próxima acción'))
+  })
+})
+
+
+describe('confirmación de actividad SLA', () => {
+  it('espera el recibo antes de cerrar el formulario y conserva el detalle si falla', async () => {
+    const user = userEvent.setup()
+    let resolver!: (valor: boolean) => void
+    const persistenciaActividad = new Promise<boolean>((resuelve) => { resolver = resuelve })
+    const { registrarActividad } = montar({ persistenciaActividad })
+    await user.click(screen.getByRole('button', { name: /Registrar actividad/ }))
+    await user.type(screen.getByRole('textbox', { name: 'Detalle de la actividad' }), 'Conversación confirmada')
+    await user.click(screen.getByRole('button', { name: 'Registrar' }))
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
+    expect(toast.success).not.toHaveBeenCalled()
+    resolver(false)
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se confirmó el guardado')
+    expect(screen.getByRole('textbox', { name: 'Detalle de la actividad' })).toHaveValue('Conversación confirmada')
+    expect(registrarActividad).toHaveBeenCalledTimes(1)
   })
 })

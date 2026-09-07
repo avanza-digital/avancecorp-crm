@@ -384,12 +384,10 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     // reunión de cliente necesita que cerrar_tarea confirme también el motivo
     // estructurado. Si RLS/RPC la rechaza, el store revierte y este mismo
     // diálogo queda disponible para reintentar sin haber anunciado éxito.
-    if (tarea.perfil_id) {
-      setProcesando(true)
-      const persistio = await (res.persistido ?? Promise.resolve(true))
-      setProcesando(false)
-      if (!persistio) return
-    }
+    setProcesando(true)
+    const persistio = await (res.persistido ?? Promise.resolve(true))
+    setProcesando(false)
+    if (!persistio) return
     onCerrar()
     // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
     // acción" porque es el cambio más grande y el que el analista no pidió
@@ -406,6 +404,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   }
 
   const confirmar = async () => {
+    if (procesando) return
     if (!eleccion) return
     if (tarea.tipo === 'reunion' && eleccion.estado === 'completada' && !resultadoReunion) {
       toast.error('Selecciona el resultado comercial de la cita')
@@ -463,12 +462,10 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     // éxito falso ante RLS, esto mantiene juntos el cierre, la clasificación,
     // actividades_cliente y la siguiente acción que la RPC escribe de forma
     // atómica. Los leads conservan su interacción optimista histórica.
-    if (tarea.perfil_id) {
-      setProcesando(true)
-      const persistio = await (res.persistido ?? Promise.resolve(true))
-      setProcesando(false)
-      if (!persistio) return
-    }
+    setProcesando(true)
+    const persistio = await (res.persistido ?? Promise.resolve(true))
+    setProcesando(false)
+    if (!persistio) return
     // El AVANCE de etapa se anuncia SIEMPRE que ocurra. `completarTarea` ya lo
     // devolvía (el resultado registrado y/o la reunión encadenada pueden mover
     // el lead) y este diálogo —la superficie donde más tareas se cierran— lo

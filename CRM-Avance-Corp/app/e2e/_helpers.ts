@@ -1782,6 +1782,8 @@ export interface BackendReal {
   ventanaVencida: boolean
   /** El próximo POST a la edge crear-cliente responde 409 (documento duplicado). */
   fallarProximaAlta: boolean
+  /** El comando se confirma en el servidor, pero se pierde su respuesta HTTP. */
+  perderProximaRespuestaSla: boolean
   /** Contadores para aserciones. */
   llamadas: {
     rpcCrearLeadAtomico: number
@@ -1791,6 +1793,7 @@ export interface BackendReal {
     rpcEditarLead: number
     patchLead: number
     insertActividad: number
+    rpcSlaComandos: string[]
     getLeads: number
     altaCliente: number
     patchPerfil: number
@@ -1934,9 +1937,10 @@ export async function montarBackendReal(
     fallarProximoDeshacer: init.fallarProximoDeshacer ?? null,
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
+    perderProximaRespuestaSla: init.perderProximaRespuestaSla ?? false,
     llamadas: {
       rpcCrearLeadAtomico: 0, insertLeadDirecto: 0, rpcDisponibilidadLead: 0,
-      rpcEditarLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
+      rpcEditarLead: 0, patchLead: 0, insertActividad: 0, rpcSlaComandos: [], getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcActualizarClienteGerencia: 0,
       rpcListarCuentasBancarias: 0,
       rpcCompletarDomicilio: 0,
@@ -1973,6 +1977,9 @@ export async function montarBackendReal(
     }
     return route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(obj) })
   }
+
+  const recibosSla = new Map<string, { huella: string; respuesta: Record<string, unknown> }>()
+  const actividadesSla: Record<string, unknown>[] = []
 
   await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     const req = route.request()
@@ -2545,7 +2552,7 @@ export async function montarBackendReal(
     // P-055 Fase 3: el detalle pregunta de quién es la venta. NULL = «no puedes
     // ver ese contrato» y el bloque no se pinta — suficiente para estos specs.
     if (p === '/rest/v1/rpc/atribucion_contrato_fn') return json(route, null)
-    if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
+    if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, actividadesSla)
     if (p === '/rest/v1/rpc/verificar_disponibilidad_lead' && method === 'POST') {
       estado.llamadas.rpcDisponibilidadLead += 1
       return json(route, estado.disponibilidadLead)
@@ -2702,6 +2709,60 @@ export async function montarBackendReal(
       }
     }
 
+    // Comandos SLA con recibo. Este doble ejercita el transporte y la UI;
+    // reglas, locks y prórrogas se prueban con PostgreSQL real en el banco SQL.
+    const comandoSla = p.match(/^\/rest\/v1\/rpc\/(registrar_actividad|cerrar_tarea|cerrar_reunion|reprogramar_reunion|reprogramar_tarea)_v2$/)?.[1]
+    if (comandoSla && method === 'POST') {
+      estado.llamadas.rpcSlaComandos.push(comandoSla)
+      const args = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const operacion = String(args.p_operacion_id ?? '')
+      if (!/^[0-9a-f-]{36}$/i.test(operacion)) return json(route, { code: '22023', message: 'Recibo requerido' }, 400)
+      const huella = JSON.stringify({ comandoSla, args })
+      const previo = recibosSla.get(operacion)
+      if (previo) return previo.huella === huella ? json(route, previo.respuesta)
+        : json(route, { code: '23505', message: 'Recibo incompatible' }, 409)
+      const tarea = estado.tareas.find((t) => t.id === args.p_tarea_id)
+      const leadId = comandoSla === 'registrar_actividad' ? args.p_lead_id : tarea?.lead_id
+      const lead = estado.leads.find((l) => l.id === leadId)
+      if (!lead || (comandoSla !== 'registrar_actividad' && !tarea)) return json(route, { code: 'P0002', message: 'Oportunidad o tarea no disponible' }, 400)
+      if (estado.fallarProximoInsertActividad && comandoSla === 'registrar_actividad') {
+        estado.fallarProximoInsertActividad = false
+        return json(route, { code: '23514', message: 'Actividad rechazada' }, 400)
+      }
+      const siguiente = args.p_siguiente as Record<string, unknown> | null | undefined
+      const guardarSiguiente = () => {
+        if (!siguiente) return
+        estado.tareas.push({ ...siguiente, lead_id: lead.id, perfil_id: null,
+          vendedor_id: lead.vendedor_id, asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+          nota: null, duracion_min: null, resultado_reunion: null, motivo_no_realizada: null, detalle_cierre_reunion: null,
+          estado: 'pendiente', activo: true, reprogramaciones: 0, creado_en: new Date().toISOString(),
+          creado_por: UID, confirmada_en: null, reagendada_de: null })
+      }
+      if (comandoSla === 'registrar_actividad') {
+        actividadesSla.push({ id: operacion, lead_id: lead.id, tipo: args.p_tipo, detalle: args.p_detalle,
+          creado_en: new Date().toISOString(), autor_nombre: 'Gerente Real' })
+        if (lead.etapa === 'nuevo' && ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada'].includes(String(args.p_tipo))) lead.etapa = 'contactado'
+        guardarSiguiente()
+      } else if (comandoSla === 'reprogramar_reunion') {
+        tarea!.estado = 'reprogramada'
+        estado.tareas.push({ ...tarea, id: args.p_nueva_id, estado: 'pendiente', vence_en: args.p_vence_en,
+          confirmada_en: null, reagendada_de: tarea!.id, reprogramaciones: Number(tarea!.reprogramaciones ?? 0) + 1 })
+      } else if (comandoSla === 'reprogramar_tarea') {
+        tarea!.vence_en = args.p_vence_en; tarea!.confirmada_en = null
+        tarea!.reprogramaciones = Number(tarea!.reprogramaciones ?? 0) + 1
+      } else {
+        tarea!.estado = args.p_estado
+        guardarSiguiente()
+      }
+      const respuesta = { version: 2, ok: true, operacion_id: operacion, lead_id: lead.id, comando: comandoSla }
+      recibosSla.set(operacion, { huella, respuesta })
+      if (estado.perderProximaRespuestaSla) {
+        estado.perderProximaRespuestaSla = false
+        return route.abort('failed')
+      }
+      return json(route, respuesta)
+    }
+
     // ── RPC cerrar_tarea (cierre atómico: resultado al log + tarea siguiente) ──
     if (p === '/rest/v1/rpc/cerrar_tarea' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_tarea_id?: string }
@@ -2757,6 +2818,18 @@ export async function montarBackendReal(
           ? { cerrado: true, cerrado_en: '2026-08-10T14:20:00.000Z', automatico: true }
           : { cerrado: false },
       })
+    }
+    // Las suites históricas conservan el modo legado. El spec SLA activo
+    // sobrescribe estas rutas con una política y una cola v2 completas.
+    if (p === '/rest/v1/rpc/estado_sla_leads_v2_fn') {
+      return json(route, { version: 2, modo: 'legado', control_revision: 0,
+        calculado_en: new Date().toISOString(), filas: [] })
+    }
+    if (p === '/rest/v1/rpc/configuracion_sla_v2_fn') {
+      return json(route, { version: 2, puede_editar: estado.rolCrm === 'gerencia', expected_version: 1,
+        vigente: { base: { version: 1 }, operacion: null },
+        ultima_publicada: { base: { version: 1 }, operacion: null },
+        control: { modo: 'legado', revision: 0, primera_activacion_en: null, politica_adopcion_id: null } })
     }
     if (p === '/rest/v1/rpc/estado_sla_leads_fn') {
       return json(route, [])

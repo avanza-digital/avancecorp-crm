@@ -291,10 +291,17 @@ export function usePublicarPoliticaSla() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: mutacionSoloReal(demo, publicarPoliticaSla),
+    retry: false,
+    onError: async (error) => {
+      if (error instanceof CrmApiError && error.code === 'CONFLICTO_CONFIG') {
+        await queryClient.invalidateQueries({ queryKey: crmQueryKeys.configSla() })
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.configSla() }),
         queryClient.invalidateQueries({ queryKey: [...crmQueryKeys.metricas(), 'sla'] }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
       ])
     },
   })

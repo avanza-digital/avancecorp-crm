@@ -1,3 +1,5 @@
+// El panel operativo v2 tiene pruebas propias; aquí se mantiene la política base histórica.
+vi.mock('@/components/app/configuracion-sla-operativa', () => ({ ConfiguracionSlaOperativa: () => null }))
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -205,7 +207,7 @@ describe('ConfigSla', () => {
     expect(dobles.publicar).not.toHaveBeenCalled()
   })
 
-  it('mantiene abierta la confirmación cuando el servidor rechaza por concurrencia', async () => {
+  it('cierra la confirmación obsoleta para revisar la configuración cuando hay concurrencia', async () => {
     dobles.publicar.mockRejectedValueOnce(new CrmApiError(
       'La política cambió en otra sesión. Recarga antes de continuar.',
       'CONFLICTO_CONFIG',
@@ -223,7 +225,7 @@ describe('ConfigSla', () => {
     await waitFor(() => expect(dobles.toastError).toHaveBeenCalledWith(
       'La política cambió en otra sesión. Recarga antes de continuar.',
     ))
-    expect(screen.getByRole('dialog', { name: 'Publicar política SLA v3' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Publicar política SLA v3' })).not.toBeInTheDocument()
   })
 
   it('cambia entre días y horas sin obligar a calcular minutos', async () => {

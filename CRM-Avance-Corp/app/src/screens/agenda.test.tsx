@@ -114,6 +114,22 @@ function montar(tareas: Tarea[]) {
 const salto = (aria: string) => screen.getByRole('button', { name: `Reprogramar ${aria} — Llamar a Ana` })
 
 describe('Agenda — saltos rápidos de reprogramación', () => {
+  it('reintenta la fecha original aunque cambie la tarea durante la confirmación', async () => {
+    const user = userEvent.setup()
+    const original = tarea()
+    const { reprogramarTarea } = montar([original])
+    let confirmar!: (ok: boolean) => void
+    reprogramarTarea.mockReturnValueOnce({ ok: true, persistido: new Promise<boolean>((resolve) => { confirmar = resolve }) })
+    await user.click(salto('+1 día'))
+    expect(salto('+1 día')).toBeDisabled()
+    const primerDestino = reprogramarTarea.mock.calls[0]![1]
+    // El resync ya observó la nueva fecha; el reintento no suma otro día.
+    original.vence_en = primerDestino
+    confirmar(false)
+    await user.click(await screen.findByRole('button', { name: 'Reintentar reprogramación' }))
+    expect(reprogramarTarea).toHaveBeenLastCalledWith('t1', primerDestino)
+    expect(reprogramarTarea).toHaveBeenCalledTimes(2)
+  })
   it('una tarea VENCIDA salta desde AHORA (sale de la franja de vencidas)', async () => {
     const user = userEvent.setup()
     const { reprogramarTarea } = montar([tarea()]) // venció hace 5 días

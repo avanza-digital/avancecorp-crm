@@ -110,9 +110,9 @@ test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor
   await drawer.getByRole('button', { name: /^Guardar$/ }).click()
 
   // aErrorApi mapea 23505/uq_leads_telefono_vivo → mensaje de teléfono duplicado,
-  // y persistir lo concatena con "se restauró el estado anterior".
+  // y persistir lo concatena con "se actualizó la vista con el estado del servidor".
   await expect(
-    page.getByText(/Ese teléfono ya pertenece a otro lead abierto de la empresa.*se restauró el estado anterior/i),
+    page.getByText(/Ese teléfono ya pertenece a otro lead abierto de la empresa.*se actualizó la vista con el estado del servidor/i),
   ).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcEditarLead).toBe(1)
   expect(estado.llamadas.patchLead).toBe(0)
@@ -155,7 +155,7 @@ test('descartar real con nota fallida: avisa el fallo parcial SIN mentir "se res
   // El descarte SÍ persistió; solo la nota falló → aviso puntual, no rollback falso.
   await expect(page.getByText(/no se pudo guardar la nota del descarte/i)).toBeVisible()
   await expect(drawer.getByText('Lead descartado')).toBeVisible()
-  await expect(page.getByText(/se restauró el estado anterior/i)).toHaveCount(0)
+  await expect(page.getByText(/se actualizó la vista con el estado del servidor/i)).toHaveCount(0)
 })
 
 test('convertir en real: pide los datos de la cuenta y valida antes de tocar el servidor', async ({ page }) => {

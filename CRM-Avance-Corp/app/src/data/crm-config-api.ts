@@ -66,7 +66,7 @@ function errorConfiguracion(error: ErrorPostgrest, contexto: string): CrmApiErro
   let codigo = 'CONFIG_ERROR'
   let mensaje = 'No se pudo completar la operación.'
 
-  if (codigoPg === '40001' || codigoPg === '23505') {
+  if (codigoPg === 'P0409' || codigoPg === '40001' || codigoPg === '23505') {
     codigo = 'CONFLICTO_CONFIG'
     mensaje = 'La configuración cambió en otra sesión. Recarga antes de continuar.'
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {

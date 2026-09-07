@@ -1,3 +1,5 @@
+// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
 // Tests de integración de la pantalla "Hoy · Analista" — los cinco arreglos de
 // la auditoría 2026-07-25, cada uno con su regresión:
 //   1. la agenda héroe listaba TODA la agenda futura mientras su badge contaba

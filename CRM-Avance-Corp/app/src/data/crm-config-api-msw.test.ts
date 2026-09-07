@@ -283,6 +283,12 @@ describe('publicaciones versionadas: contrato estricto de confirmación', () => 
 describe('errores PostgREST de Configuración', () => {
   it.each([
     [
+      'P0409',
+      409,
+      'CONFLICTO_CONFIG',
+      'La configuración cambió en otra sesión. Recarga antes de continuar.',
+    ],
+    [
       '40001',
       409,
       'CONFLICTO_CONFIG',

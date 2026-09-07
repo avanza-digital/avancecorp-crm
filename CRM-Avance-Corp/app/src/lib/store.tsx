@@ -52,7 +52,6 @@ import {
   insertarLead,
   insertarTarea,
   actualizarTarea,
-  cerrarReunion,
   cerrarTarea,
   editarLeadFn,
   listarActividadesDelAmbito,
@@ -75,6 +74,7 @@ import {
   type ObjetivosPorVendedor,
 } from './objetivos'
 import { presentarDisponibilidadLead } from './disponibilidad-lead'
+import { ejecutarComandoSla, tareaConConfirmacionPendiente } from '@/data/sla-operacion-comandos'
 
 /**
  * Estado de la CARGA remota (solo sesión real). La app lo usa para decidir
@@ -354,7 +354,7 @@ export interface StoreDataApi {
     persistido?: Promise<boolean>
   }
   /** Reprogramar = mover vence_en de una PENDIENTE (el contador lo lleva el trigger). */
-  reprogramarTarea(id: string, venceEn: string): ResultadoMut
+  reprogramarTarea(id: string, venceEn: string): ResultadoMut & { persistido?: Promise<boolean> }
   /** Anti no-show: el cliente respondió al recordatorio confirmando la cita. */
   confirmarTarea(id: string): ResultadoMut
   /** ANULAR — el cuarto verbo de una tarea: «esto ya no hace falta».
@@ -415,7 +415,7 @@ export interface StoreDataApi {
   /** `avance` = etapa a la que subió SOLO el lead por este contacto (ver
    *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
    *  cambio de etapa silencioso asusta más que ayuda. */
-  registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut & { avance?: EtapaActiva }
+  registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string, siguiente?: CompletarTareaInput['siguiente']): ResultadoMut & { avance?: EtapaActiva; persistido?: Promise<boolean> }
   reasignar(id: string, vendedorId: string | null): ResultadoMut
   // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
   // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
@@ -541,7 +541,8 @@ function aResultadoPersistenciaFallida(causa: unknown): ResultadoPersistenciaFal
 type SiguienteCierre = Exclude<Parameters<typeof cerrarTarea>[0]['siguiente'], undefined>
 
 interface CierreTareaServidor {
-  tarea: Pick<Tarea, 'id' | 'tipo' | 'lead_id' | 'perfil_id'>
+  tarea: Tarea
+  actorId: string | null
   estado: CompletarTareaInput['estado'] | 'cancelada'
   resultadoTipo: TipoActividadManual | null
   resultadoDetalle: string | null
@@ -557,14 +558,25 @@ function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
   // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y
   // conserva la clasificación sin contaminar etapas/SLA de leads.
   if (input.tarea.tipo === 'reunion' && input.tarea.lead_id) {
-    return cerrarReunion({
-      tarea_id: input.tarea.id,
-      estado: input.estado,
-      resultado_reunion: input.resultadoReunion,
-      motivo_no_realizada: input.motivoNoRealizada,
-      detalle: input.detalleReunion,
-      siguiente: input.siguiente,
-    }).then(() => undefined)
+    return ejecutarComandoSla(input.actorId, 'cerrar_reunion_v2', input.tarea.id, {
+      p_tarea_id: input.tarea.id,
+      p_estado: input.estado,
+      p_resultado_reunion: input.resultadoReunion,
+      p_motivo_no_realizada: input.motivoNoRealizada,
+      p_detalle: input.detalleReunion,
+      p_siguiente: input.siguiente,
+    }, input.tarea)
+  }
+  if (input.tarea.lead_id) {
+    return ejecutarComandoSla(input.actorId, 'cerrar_tarea_v2', input.tarea.id, {
+      p_tarea_id: input.tarea.id,
+      p_estado: input.estado,
+      p_resultado_tipo: input.resultadoTipo,
+      p_resultado_detalle: input.resultadoDetalle,
+      p_resultado_reunion: input.resultadoReunion,
+      p_motivo_no_realizada: input.motivoNoRealizada,
+      p_siguiente: input.siguiente,
+    }, input.tarea)
   }
 
   return cerrarTarea({
@@ -1228,7 +1240,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     // Contrato común de los cuatro verbos de agenda: solo una tarea pendiente
     // y activa puede cerrarse, reprogramarse, confirmarse o anularse.
-    const buscarTareaPendiente = (id: string) => {
+    const buscarTareaPendiente = (id: string, recuperarConfirmacion = false) => {
+      if (realActivo && recuperarConfirmacion) {
+        const pendiente = tareaConConfirmacionPendiente(yo?.id ?? null, id)
+        if (pendiente?.lead_id && buscar(pendiente.lead_id)) return pendiente
+      }
       const tarea = tareas.find((candidata) => candidata.id === id)
       return tarea?.estado === 'pendiente' && tarea.activo ? tarea : undefined
     }
@@ -1318,7 +1334,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             if (!notificarError) return
             toast.error(
               restaurado
-                ? `${mensaje} — se restauró el estado anterior`
+                ? `${mensaje} — se actualizó la vista con el estado del servidor`
                 : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
             )
           })
@@ -1489,7 +1505,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       completarTarea: (input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
-        const t = buscarTareaPendiente(input.tarea_id)
+        const t = buscarTareaPendiente(input.tarea_id, true)
         if (!t) return noEncontrado()
         const lead = t.lead_id ? buscar(t.lead_id) : undefined
         const resultado = input.resultado_tipo ?? null
@@ -1675,6 +1691,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const persistido = persistir(
           async () => {
             await ejecutarCierreTarea({
+              actorId: miId,
               tarea: t,
               estado: input.estado,
               resultadoTipo: resultado,
@@ -1709,7 +1726,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       reprogramarTarea: (id, venceEn) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
-        const t = buscarTareaPendiente(id)
+        const t = buscarTareaPendiente(id, true)
         if (!t) return noEncontrado()
         const iso = normalizarFechaTarea(venceEn)
         if (!iso) {
@@ -1747,11 +1764,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                 : x,
             ),
           ])
-          persistir(
-            () => reprogramarReunion(id, iso, nuevaId).then(() => undefined),
+          const persistido = persistir(
+            () => t.lead_id
+              ? ejecutarComandoSla(miId, 'reprogramar_reunion_v2', id, {
+                p_tarea_id: id, p_vence_en: iso, p_nueva_id: nuevaId,
+              }, t)
+              : reprogramarReunion(id, iso, nuevaId).then(() => undefined),
             { invalidarReuniones: true, invalidarAgenda: true },
           )
-          return { ok: true }
+          return { ok: true, persistido }
         }
         // Optimista espejo del trigger: mover fecha incrementa el contador y
         // una cita reprogramada pierde su confirmación (hay que reconfirmar).
@@ -1767,11 +1788,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               : x,
           ),
         )
-        persistir(
-          () => actualizarTarea(id, { vence_en: iso, confirmada_en: null }),
+        const persistido = persistir(
+          () => t.lead_id
+            ? ejecutarComandoSla(miId, 'reprogramar_tarea_v2', id, { p_tarea_id: id, p_vence_en: iso }, t)
+            : actualizarTarea(id, { vence_en: iso, confirmada_en: null }),
           { invalidarAgenda: true },
         )
-        return { ok: true }
+        return { ok: true, persistido }
       },
 
       confirmarTarea: (id) => {
@@ -1833,7 +1856,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       anularTarea: (id, cierreReunion) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
-        const t = buscarTareaPendiente(id)
+        const t = buscarTareaPendiente(id, true)
         // Espejo del `for update` de la RPC (activo + pendiente): una tarea ya
         // cerrada es inmutable en el servidor y reintentarlo daría "Tarea no
         // encontrada" DESPUÉS de haberla pintado como anulada.
@@ -1885,6 +1908,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
         const persistido = persistir(() =>
           ejecutarCierreTarea({
+            actorId: miId,
             tarea: t,
             estado: 'cancelada',
             resultadoTipo: null,
@@ -2503,7 +2527,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         return { ok: true }
       },
 
-      registrarActividad: (id, tipo, detalle) => {
+      registrarActividad: (id, tipo, detalle, siguiente) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
@@ -2522,6 +2546,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             ok: false,
             codigo: 'lead_cerrado',
             error: 'El lead está cerrado — reábrelo para registrar actividad',
+          }
+        }
+        let siguientePayload: SiguienteCierre = null
+        if (siguiente) {
+          const vence = normalizarFechaTarea(siguiente.vence_en)
+          const titulo = siguiente.titulo.trim()
+          if (!esTipoTarea(siguiente.tipo) || !vence || !titulo || titulo.length > 200) {
+            return { ok: false, error: 'La siguiente tarea necesita tipo, título y fecha válidos' }
+          }
+          const reunion = prepararReunionTarea(siguiente.tipo, siguiente)
+          if (!reunion.ok) return reunion.resultado
+          siguientePayload = {
+            id: uid(), tipo: siguiente.tipo,
+            titulo: siguiente.tipo === 'reunion' ? normalizarCitasInternas(titulo) : titulo,
+            vence_en: vence, ...reunion.campos,
           }
         }
         const act = actividadAuto(id, tipo, detalle?.trim() || null)
@@ -2544,16 +2583,28 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // El `cambio_etapa` va DELANTE: ocurrió después del contacto.
           actividades: actEtapa ? [actEtapa, act, ...d.actividades] : [act, ...d.actividades],
         }))
-        persistir(() =>
-          insertarActividad({
-            lead_id: id,
-            tipo,
-            detalle: act.detalle,
-            creado_por: miId,
+        const persistido = persistir(() =>
+          ejecutarComandoSla(miId, 'registrar_actividad_v2', id, {
+            p_lead_id: id,
+            p_tipo: tipo,
+            p_detalle: act.detalle,
+            p_siguiente: siguientePayload,
           }),
-          { invalidarConversionRango: true },
+          { invalidarConversionRango: true, invalidarAgenda: Boolean(siguiente), invalidarReuniones: siguiente?.tipo === 'reunion' },
         )
-        return avance ? { ok: true, avance } : { ok: true }
+        if (!realActivo && siguiente) {
+          // En demo conserva la misma agenda local que crearTarea.
+          setTareas((prev) => [{
+            id: siguientePayload!.id!, lead_id: id, tipo: siguientePayload!.tipo as Tarea['tipo'],
+            titulo: siguientePayload!.titulo, vence_en: siguientePayload!.vence_en,
+            estado: 'pendiente', reprogramaciones: 0, activo: true,
+            creado_en: new Date().toISOString(), creado_por: miId,
+            modalidad_reunion: siguientePayload!.modalidad_reunion ?? null,
+            ubicacion_reunion: siguientePayload!.ubicacion_reunion ?? null,
+            enlace_reunion: siguientePayload!.enlace_reunion ?? null,
+          }, ...prev])
+        }
+        return avance ? { ok: true, avance, persistido } : { ok: true, persistido }
       },
 
       reasignar: (id, vendedorId) => {

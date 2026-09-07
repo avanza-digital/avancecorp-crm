@@ -1,0 +1,162 @@
+{
+  "t0": "2026-09-07T02:22:34.78482+00:00",
+  "foto_sha256": "065e5496946dda8d5e50f06a4c9341327c545fce6c4f2844f7b0a6032ee0b5a2",
+  "oraculo": "oraculo-cartera.py",
+  "nucleo": "SQL N1 ejecutado localmente",
+  "poblacion": {
+    "filas": 1157,
+    "abiertos": 827,
+    "sin_asignacion": 3,
+    "terminales": 330
+  },
+  "comparaciones": 18698,
+  "discrepancias": 0,
+  "campos": [
+    {
+      "campo": "cobertura",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "episodios_etapa_en_ciclo",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "fuera_plazo_original",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "hasta_en",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "limite_operativo_en",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "limite_seguimiento_en",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "referencia_seguimiento_en",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "revision",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "revision_limite",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "revision_reingreso",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "revision_reprogramaciones",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "seguimiento_pendiente",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "seguimiento_vencido",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "sin_asignacion.evaluacion_parcial",
+      "comparaciones": 3,
+      "discrepancias": 0
+    },
+    {
+      "campo": "sin_asignacion.motivo_visible",
+      "comparaciones": 3,
+      "discrepancias": 0
+    },
+    {
+      "campo": "sin_asignacion.reparto_supervision",
+      "comparaciones": 3,
+      "discrepancias": 0
+    },
+    {
+      "campo": "sin_asignacion.seguimiento_no_evaluable",
+      "comparaciones": 3,
+      "discrepancias": 0
+    },
+    {
+      "campo": "sin_asignacion.sin_atencion",
+      "comparaciones": 3,
+      "discrepancias": 0
+    },
+    {
+      "campo": "tarea_elegida_id",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "techo_en",
+      "comparaciones": 827,
+      "discrepancias": 0
+    },
+    {
+      "campo": "terminal.compromiso_no_aplica",
+      "comparaciones": 330,
+      "discrepancias": 0
+    },
+    {
+      "campo": "terminal.revision_no_aplica",
+      "comparaciones": 330,
+      "discrepancias": 0
+    },
+    {
+      "campo": "terminal.seguimiento_no_aplica",
+      "comparaciones": 330,
+      "discrepancias": 0
+    },
+    {
+      "campo": "terminal.sin_atencion",
+      "comparaciones": 330,
+      "discrepancias": 0
+    },
+    {
+      "campo": "terminal.sin_supervision",
+      "comparaciones": 330,
+      "discrepancias": 0
+    },
+    {
+      "campo": "universo.evaluacion_operativa",
+      "comparaciones": 1157,
+      "discrepancias": 0
+    },
+    {
+      "campo": "universo.primera_atencion",
+      "comparaciones": 1157,
+      "discrepancias": 0
+    },
+    {
+      "campo": "universo.revisiones",
+      "comparaciones": 1157,
+      "discrepancias": 0
+    },
+    {
+      "campo": "universo.tarea_agenda_vencida",
+      "comparaciones": 1157,
+      "discrepancias": 0
+    }
+  ],
+  "limites": "Comparacion de calculo N1 sobre el mismo corte local; no verifica RLS real, concurrencia de writers, UI ni despliegue. UUID usados solo en memoria para conciliar pertenencia, no incluidos en este informe."
+}

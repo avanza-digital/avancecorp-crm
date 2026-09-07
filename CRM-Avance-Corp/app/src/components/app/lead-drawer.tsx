@@ -1,3 +1,4 @@
+import { EstadoSlaFicha } from '@/components/app/sla-operacion'
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
 // desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
@@ -253,6 +254,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
+        {!esTerminal && <EstadoSlaFicha leadId={l.id} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
             ofreciendo "Editar" y "Faltan DNI… → Completar" sobre un lead que el
@@ -498,6 +500,11 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   // ir a un tap; `window.confirm` está descartado (bloquea el hilo y en móvil
   // sale como diálogo del navegador, fuera del CRM).
   const [anulandoId, setAnulandoId] = useState<string | null>(null)
+  const [guardandoAnulacion, setGuardandoAnulacion] = useState(false)
+  const [anulacionSinConfirmar, setAnulacionSinConfirmar] = useState<{
+    tarea: Tarea; motivo: MotivoNoRealizadaManual | ''
+  } | null>(null)
+  const envioAnulacion = useRef(false)
   // Los botones de la confirmación se DESMONTAN al pulsarlos (y con «Sí» se va
   // el `<li>` entero). Sin devolver el foco a mano, Radix lo rescata al tope
   // del drawer y hay que re-tabular stepper, banner y ficha completa para
@@ -507,6 +514,9 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   // Con pendientes vivas, agendar OTRA es un gesto raro: el quick-add se pliega
   // tras este botón. Solo con 0 pendientes (aviso ámbar) queda abierto siempre.
   const [agendarOtra, setAgendarOtra] = useState(false)
+  const [guardandoTarea, setGuardandoTarea] = useState(false)
+  const [errorTarea, setErrorTarea] = useState<string | null>(null)
+  const envioTarea = useRef(false)
   const [motivoAnulacionReunion, setMotivoAnulacionReunion] =
     useState<MotivoNoRealizadaManual | ''>('')
 
@@ -538,24 +548,40 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
    * que puede mover es la etapa, hacia atrás y solo al anular la última reunión
    * viva sin reagendar (pedido de Miguel, 2026-07-26).
    */
-  const anular = (t: Tarea) => {
+  const anular = async (t: Tarea, motivo = motivoAnulacionReunion) => {
+    if (envioAnulacion.current) return
     let res
     if (t.tipo === 'reunion') {
-      if (!motivoAnulacionReunion) {
+      if (!motivo) {
         toast.error('Selecciona por qué se cancela la cita')
         return
       }
-      res = anularTarea(t.id, { motivo: motivoAnulacionReunion })
+      res = anularTarea(t.id, { motivo })
     } else {
       res = anularTarea(t.id)
     }
-    setAnulandoId(null)
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo anular la tarea')
       // La fila sigue ahí (no se anuló nada): el foco vuelve a su interruptor.
       requestAnimationFrame(() => refInterruptores.current.get(t.id)?.focus())
       return
     }
+    envioAnulacion.current = true
+    setGuardandoAnulacion(true)
+    try {
+      if (!(await (res.persistido ?? Promise.resolve(true)))) {
+        setAnulacionSinConfirmar({ tarea: t, motivo })
+        return
+      }
+    } catch {
+      setAnulacionSinConfirmar({ tarea: t, motivo })
+      return
+    } finally {
+      envioAnulacion.current = false
+      setGuardandoAnulacion(false)
+    }
+    setAnulacionSinConfirmar(null)
+    setAnulandoId(null)
     // La fila se fue. El foco aterriza en la sección, que sigue montada aunque
     // la lista quede vacía — desde ahí el siguiente Tab es el quick-add.
     requestAnimationFrame(() => refSeccion.current?.focus())
@@ -581,7 +607,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     }
   }
 
-  const agendar = () => {
+  const agendar = async () => {
+    if (envioTarea.current) return
     const reunion = tipo === 'reunion'
       ? validarReunionOperativa(camposReunion)
       : null
@@ -599,6 +626,22 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo agendar la tarea')
       return
+    }
+    envioTarea.current = true
+    setGuardandoTarea(true)
+    setAgendarOtra(true)
+    setErrorTarea(null)
+    try {
+      if (!(await (res.persistido ?? Promise.resolve(true)))) {
+        setErrorTarea('No se confirmó la tarea. Revisa la agenda antes de volver a agendarla.')
+        return
+      }
+    } catch {
+      setErrorTarea('No se confirmó la tarea. Revisa la agenda antes de volver a agendarla.')
+      return
+    } finally {
+      envioTarea.current = false
+      setGuardandoTarea(false)
     }
     // NADA EN SILENCIO: agendar una reunión con quien ya se trabajó sube el lead
     // a "Reunión agendada" por trigger (lib/avance-automatico). El store ya lo
@@ -753,8 +796,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       // que quien navega con teclado llegaría al destructivo
                       // antes de oírla. `aria-describedby` la trae al foco.
                       aria-describedby={`anular-nota-${t.id}`}
-                      onClick={() => anular(t)}
-                      disabled={t.tipo === 'reunion' && !motivoAnulacionReunion}
+                      onClick={() => void anular(t)}
+                      disabled={guardandoAnulacion || anulacionSinConfirmar !== null || (t.tipo === 'reunion' && !motivoAnulacionReunion)}
                     >
                       Sí, anular
                     </Button>
@@ -763,6 +806,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       variant="ghost"
                       className="pointer-coarse:h-8 pointer-coarse:px-3"
                       aria-label={`No anular — ${ev.titulo}`}
+                      disabled={guardandoAnulacion || anulacionSinConfirmar !== null}
                       onClick={() => {
                         setAnulandoId(null)
                         requestAnimationFrame(() => refInterruptores.current.get(t.id)?.focus())
@@ -774,6 +818,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       <Select
                         aria-label={`Motivo de cancelación — ${ev.titulo}`}
                         value={motivoAnulacionReunion}
+                        disabled={guardandoAnulacion || anulacionSinConfirmar !== null}
                         onChange={(evento) => setMotivoAnulacionReunion(
                           evento.target.value as typeof motivoAnulacionReunion,
                         )}
@@ -824,6 +869,12 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
         </ul>
       )}
 
+      {guardandoAnulacion && <p role="status" className="mb-2 text-xs">Confirmando anulación…</p>}
+      {anulacionSinConfirmar && <div className="mb-2 space-y-2 rounded-lg border p-2">
+        <p role="alert" className="text-xs text-destructive">La anulación de «{presentarCitas(anulacionSinConfirmar.tarea.titulo)}» todavía no está confirmada.</p>
+        <Button size="xs" disabled={guardandoAnulacion} onClick={() => void anular(anulacionSinConfirmar.tarea, anulacionSinConfirmar.motivo)}>Reintentar anulación</Button>
+      </div>}
+
       {escribe && activa && pendientes.length > 0 && !agendarOtra && (
         <Button size="xs" variant="ghost" onClick={() => setAgendarOtra(true)}>
           <CalendarPlus /> Agendar otra
@@ -831,7 +882,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
       )}
 
       {escribe && activa && (pendientes.length === 0 || agendarOtra) && (
-        <div className="rounded-xl border border-border/70 p-2.5">
+        <fieldset disabled={guardandoTarea} className="min-w-0 rounded-xl border border-border/70 p-2.5">
           {pendientes.length === 0 && (
             <p className="mb-2 text-[11px] font-medium text-[#d97706]">
               Este lead no tiene próxima acción — agéndale una para que no se enfríe.
@@ -883,9 +934,9 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
             <Button
               size="sm"
               className="w-full"
-              onClick={agendar}
+              onClick={() => void agendar()}
               disabled={
-                !titulo.trim()
+                guardandoTarea || !titulo.trim()
                 || !fecha
                 || !hora
                 || (tipo === 'reunion' && (
@@ -894,7 +945,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                 ))
               }
             >
-              <CalendarPlus /> Agendar
+              <CalendarPlus /> {guardandoTarea ? 'Confirmando…' : 'Agendar'}
             </Button>
           </div>
           {avisoVentana && (
@@ -902,7 +953,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
               Fuera de la ventana L–S 07:00–20:00 (Ley 29571) — úsalo solo si el cliente lo pidió.
             </p>
           )}
-        </div>
+          {errorTarea && <p role="alert" className="mt-2 text-xs text-destructive">{errorTarea}</p>}
+        </fieldset>
       )}
 
       <CerrarTareaDialog tarea={tareaACerrar} onCerrar={() => setTareaACerrar(null)} />
@@ -1391,12 +1443,29 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
   // La sección se abre mayormente para LEER el historial: el composer vive
   // plegado tras una fila con aspecto de input y se despliega a un click.
   const [componiendo, setComponiendo] = useState(false)
+  const [guardandoActividad, setGuardandoActividad] = useState(false)
+  const [errorActividad, setErrorActividad] = useState<string | null>(null)
 
-  const registrar = () => {
+  const registrar = async () => {
+    if (guardandoActividad) return
+    setErrorActividad(null)
     const res = registrarActividad(l.id, tipo, detalle)
     if (!res.ok) {
       if (res.error) toast.error(res.error)
       return
+    }
+    if (res.persistido) {
+      setGuardandoActividad(true)
+      try {
+        const confirmado = await res.persistido
+        if (!confirmado) {
+          setErrorActividad('No se confirmó el guardado. Conservamos tu actividad para reintentar.')
+          return
+        }
+      } catch {
+        setErrorActividad('No se confirmó el guardado. Conservamos tu actividad para reintentar.')
+        return
+      } finally { setGuardandoActividad(false) }
     }
     setDetalle('')
     setComponiendo(false)
@@ -1426,6 +1495,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
       {escribe && activa && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <Select
+            disabled={guardandoActividad}
             aria-label="Tipo de actividad"
             value={tipo}
             onChange={(e) => setTipo(e.target.value as TipoActividadManual)}
@@ -1438,6 +1508,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
             ))}
           </Select>
           <Textarea
+            disabled={guardandoActividad}
             aria-label="Detalle de la actividad"
             value={detalle}
             onChange={(e) => setDetalle(e.target.value)}
@@ -1445,12 +1516,13 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
             className="min-h-[56px] text-xs"
             autoFocus
           />
+          {errorActividad && <p role="alert" className="text-xs text-destructive">{errorActividad}</p>}
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setComponiendo(false)}>
+            <Button size="sm" variant="ghost" disabled={guardandoActividad} onClick={() => setComponiendo(false)}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={registrar}>
-              <Send /> Registrar
+            <Button size="sm" disabled={guardandoActividad} onClick={() => void registrar()}>
+              <Send /> {guardandoActividad ? 'Guardando…' : 'Registrar'}
             </Button>
           </div>
         </div>

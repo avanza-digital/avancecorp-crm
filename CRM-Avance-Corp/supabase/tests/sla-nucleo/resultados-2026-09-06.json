@@ -1,0 +1,180 @@
+{
+  "alcance": "Migracion y contratos en PostgreSQL 16 aislado con datos sinteticos; autoridad/veto mediante dobles. No es test-rls ni despliegue.",
+  "migracion": "20260907001024_crm_sla_nucleo_operativo_lectura.sql",
+  "sha256": "06432935119f09c71340cb52020c46f2153a205100a3fd18298d77f5b270688b",
+  "archivo_no_cambio": true,
+  "banco": "/var/folders/jv/bdqzz_ks1_qd0j6lmm847thw0000gn/T/sla-nucleo-jau_u4lm",
+  "servidor_detenido": true,
+  "segundos": 8.07,
+  "pruebas": [
+    {
+      "caso": "test_activacion_no_crea_mora_retroactiva",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_ajuste_con_causa_preserva_limite_original",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_asignacion_anterior_o_ajena_no_genera_seguimiento",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cambio_politica_no_mueve_techo_de_episodio_ni_legado",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_censo_real_no_aumenta_y_detecta_contador_senuelo",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cerradas_e_inactivas_no_cubren",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cinco_tipos_de_gestion_validos",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cobertura_vence_en_limite_sin_retroceder_plazo",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cobertura_y_limite_nunca_superan_techo",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_cola_totales_antes_del_limite_y_concordancia_estado",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_compromiso_vencido_no_se_salta_a_futuro",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_contexto_no_acepta_lead_ajeno_y_no_se_reescribe",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_desactivar_pausa_no_oculta_mora",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_empate_de_tareas_ordenado_por_id",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_etapa_incoherente_no_aplica_otro_presupuesto",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_gate_arquitectura_y_mutante_de_dependencia",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_gestion_ignora_notas_y_respeta_ciclo_y_tenencia",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_migracion_inicia_legado_sin_capturas",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_mutante_de_cobertura_rompe_estado_y_cola",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_mutante_inclusivo_rompe_frontera_de_cobertura",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_no_se_agregan_reglas_a_politica_con_historia",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_observacion_es_hipotetica_y_no_escribe",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_paridad_v1_por_rol_y_fotos",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_politica_parcial_no_se_completa_con_otra_version",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_prioridad_hoy_usa_fecha_de_lima",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_prorroga_no_permite_doble_ganancia_inmediata",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_puertas_respetan_ambito_y_cero_ids",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_regla_prorroga_limites_ventana_y_ganancia_parcial",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_regla_prorroga_solo_conversacion_humana_mismo_episodio",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_reglas_inmutables_y_adopcion_fija_auditadas",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_reingreso_tres_es_por_etapa_y_ciclo",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_reversa_repetible_conserva_hechos_y_v1",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_sin_asignacion_no_inventa_seguimiento",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_supervision_recibe_revision_y_analista_su_agenda",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_tarea_administrativa_no_concede_cobertura",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_tarea_ambigua_bloquea_todas_las_coberturas",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_tarea_de_ciclo_anterior_bloquea_cobertura",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_techo_agotado_pide_revision_aun_con_datos_incompletos",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_tenencia_de_tarea_incoherente_e_infinito",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_tercera_reprogramacion_no_cubre_y_pide_revision",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_terminal_veto_y_sin_foto_son_distintos",
+      "estado": "ok"
+    },
+    {
+      "caso": "test_validacion_de_entradas_y_core_privado",
+      "estado": "ok"
+    }
+  ],
+  "correcto": true
+}

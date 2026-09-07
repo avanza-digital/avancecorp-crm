@@ -1,3 +1,4 @@
+import { ConfiguracionSlaOperativa } from '@/components/app/configuracion-sla-operativa'
 import { useEffect, useMemo, useState } from 'react'
 import { Clock, RefreshCw, Save, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useConfiguracionSla, useMetricasSla, usePublicarPoliticaSla } from '@/data/crm-config-queries'
-import { mensajeDeError } from '@/data/crm-api'
+import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
   ETAPAS_SLA,
@@ -241,6 +242,7 @@ export function ConfigSla() {
       setVigenciaLocal('')
       toast.success(`Política SLA v${consulta.data.expected_version + 1} publicada.`)
     } catch (error) {
+      if (error instanceof CrmApiError && error.code === 'CONFLICTO_CONFIG') setConfirmando(false)
       toast.error(mensajeDeError(error, 'No se pudo publicar la política SLA.'))
     }
   }
@@ -267,6 +269,8 @@ export function ConfigSla() {
         </Button>
       ) : undefined}
     >
+      <ConfiguracionSlaOperativa />
+
       {consulta.isPending && (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground" role="status">Cargando la política vigente…</CardContent></Card>
       )}

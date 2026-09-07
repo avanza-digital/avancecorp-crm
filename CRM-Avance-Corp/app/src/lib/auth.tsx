@@ -34,6 +34,7 @@ import type { Yo } from './tipos'
 import { interpretarMiAccesoParaUsuario } from './acceso-crm'
 
 import { DEMO_YO } from './auth-demo'
+import { limpiarIntencionesSla } from '@/data/sla-operacion-comandos'
 
 /** El demo refleja la autorización real del CRM, incluida Gerencia operativa. */
 const contrataEnDemo = (rol: Rol): boolean =>
@@ -187,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // bloquear el cliente (deadlock documentado por Supabase).
     const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
       if (cancelado) return
+      if (_evento === 'SIGNED_OUT') limpiarIntencionesSla()
       const userId = session?.user.id ?? null
       diferir(() => actor.send({ type: 'SESION_CAMBIO', userId }))
     })
@@ -278,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const salir = async () => {
     const eraDemo = yoRef.current?.demo === true
+    limpiarIntencionesSla()
     limpiarSesionDemo()
     // SALIR cancela cualquier verificación en vuelo ANTES del signOut: una
     // respuesta tardía ya no puede recolocar la identidad anterior.

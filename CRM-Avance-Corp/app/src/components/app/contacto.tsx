@@ -46,6 +46,7 @@ import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useAuth } from '@/lib/auth-context'
 import { puedeEscribir } from '@/lib/roles'
 import { useCRMData } from '@/lib/store-context'
+import type { CompletarTareaInput } from '@/lib/store'
 import { useAhora } from '@/lib/ahora'
 import { usePuedeMarcar } from '@/lib/media'
 import { enlaceTel, numeroWhatsapp } from '@/lib/telefono'
@@ -328,6 +329,15 @@ const PLANTILLA_TAREA: Tarea = {
   creado_en: new Date(0).toISOString(),
 }
 
+type EnvioContacto = {
+  leadId: string
+  tipo: TipoActividadManual
+  detalle: string | undefined
+  siguiente: Exclude<CompletarTareaInput['siguiente'], undefined>
+  tarea: Tarea | null
+  sugerida: SugerenciaSiguiente | null
+}
+
 function DialogResultado({
   lead,
   canal,
@@ -337,10 +347,14 @@ function DialogResultado({
   canal: Canal
   onClose: () => void
 }): JSX.Element {
-  const { registrarActividad, tareasDe, completarTarea, crearTarea } = useCRMData()
+  const { registrarActividad, tareasDe, completarTarea } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
   const [nota, setNota] = useState('')
+  const [procesando, setProcesando] = useState(false)
+  const [sinConfirmar, setSinConfirmar] = useState<EnvioContacto | null>(null)
+  const enviando = useRef(false)
+  const ahoraDelFormulario = useRef(ahora).current
   const [cierraTarea, setCierraTarea] = useState(true)
   const [agendaSiguiente, setAgendaSiguiente] = useState(true)
   const [camposReunion, setCamposReunion] =
@@ -348,7 +362,7 @@ function DialogResultado({
 
   const pendientes = tareasDe(lead.id)
   const conPlanVivo = pendientes.filter((t) => esPlanVivo(t, ahora))
-  const tarea = tareaQueCierra(pendientes, canal, yo?.id, ahora)
+  const [tarea] = useState(() => tareaQueCierra(pendientes, canal, yo?.id, ahora))
   // Solo el DUEÑO encadena la siguiente: nadie debe llenarle la agenda a otro.
   const soyDueno = lead.vendedor_id != null && lead.vendedor_id === yo?.id
   // ANTI-DUPLICADO: si el lead ya tiene un plan vivo que este contacto no
@@ -360,7 +374,36 @@ function DialogResultado({
   const cerrara = tarea != null && cierraTarea
   const puedeAgendar = soyDueno && (cerrara || conPlanVivo.length === 0)
 
-  const registrar = (tipo: TipoActividadManual) => {
+  const enviar = async (envio: EnvioContacto) => {
+    if (enviando.current) return
+    enviando.current = true
+    setProcesando(true)
+    try {
+      const res = envio.tarea
+        ? completarTarea({ tarea_id: envio.tarea.id, estado: 'completada', resultado_tipo: envio.tipo,
+          resultado_detalle: envio.detalle ?? null, siguiente: envio.siguiente })
+        : registrarActividad(envio.leadId, envio.tipo, envio.detalle, envio.siguiente)
+      if (!res.ok) {
+        toast.error(res.error ?? 'No se pudo registrar el contacto')
+        return
+      }
+      if (!(await (res.persistido ?? Promise.resolve(true)))) {
+        setSinConfirmar(envio)
+        return
+      }
+      onClose()
+      toast.success(avisoDe({ demo: yo?.demo, avance: res.avance,
+        ...(envio.tarea ? { cerroTarea: envio.tarea } : {}), sugerida: envio.sugerida, ahora }))
+    } catch {
+      setSinConfirmar(envio)
+    } finally {
+      enviando.current = false
+      setProcesando(false)
+    }
+  }
+
+  const registrar = async (tipo: TipoActividadManual) => {
+    if (enviando.current || sinConfirmar) return
     const detalle = nota.trim() || undefined
     // La SIGUIENTE la calcula el motor ya escrito (alternancia de canal y
     // cadencia D1/D3 dentro de la ventana legal). `noContactar` es su
@@ -373,7 +416,7 @@ function DialogResultado({
           resultado: tipo,
           leadNombre: lead.nombre_completo,
           noContactar: lead.no_contactar ?? null,
-          ahora,
+          ahora: ahoraDelFormulario,
         })
       : null
     const reunionSugerida = sugerida?.tipo === 'reunion'
@@ -387,61 +430,18 @@ function DialogResultado({
       reunionSugerida?.ok ? reunionSugerida : null,
     )
 
-    // CAMINO A — este contacto cierra la tarea que lo motivó. UNA sola
-    // escritura: la RPC `crm.cerrar_tarea` ya inserta la actividad del
-    // resultado, así que NO se llama además a registrarActividad (duplicaría
-    // el timeline). Cierre + log + siguiente, en una transacción.
-    if (tarea && cierraTarea) {
-      const res = completarTarea({
-        tarea_id: tarea.id,
-        estado: 'completada',
-        resultado_tipo: tipo,
-        resultado_detalle: detalle ?? null,
-        siguiente: sugerida
-          ? {
-              tipo: sugerida.tipo,
-              titulo: sugerida.titulo,
-              vence_en: sugerida.vence_en,
-              ...payloadReunionSugerida,
-            }
-          : null,
-      })
-      if (res.ok) {
-        onClose()
-        toast.success(avisoDe({ demo: yo?.demo, avance: res.avance, cerroTarea: tarea, sugerida, ahora }))
-        return
-      }
-      // ANTI-PÉRDIDA: si el cierre falla (tarea ya cerrada por otra pestaña,
-      // RLS, red), el contacto REAL no se puede perder — cae al camino B.
-      if (res.error) toast.warning(`${res.error} — se registra solo el contacto`)
-    }
-
-    // CAMINO B — el de siempre: registrar la actividad. Si además hay siguiente
-    // aceptada, se agenda aparte (dos escrituras: el lead ya está contactado
-    // aunque la tarea falle, y eso es lo que no puede perderse).
-    const res = registrarActividad(lead.id, tipo, detalle)
-    if (!res.ok) {
-      // P. ej. lead cerrado mientras tanto — reintentar no cambia nada: cerramos.
-      if (res.error) toast.error(res.error)
-      onClose()
-      return
-    }
-    if (sugerida) {
-      const creada = crearTarea({
-        lead_id: lead.id,
-        tipo: sugerida.tipo,
-        titulo: sugerida.titulo,
-        vence_en: sugerida.vence_en,
+    // El cierre y el contacto libre comparten la confirmación del servidor.
+    // Cada RPC incluye la siguiente tarea en la misma transacción.
+    await enviar({ leadId: lead.id, tipo, detalle, tarea: tarea && cierraTarea ? tarea : null, sugerida,
+      siguiente: sugerida ? {
+        tipo: sugerida.tipo, titulo: sugerida.titulo, vence_en: sugerida.vence_en,
         ...payloadReunionSugerida,
-      })
-      if (!creada.ok) toast.warning('Contacto registrado, pero no se pudo agendar el siguiente paso')
-    }
-    onClose()
-    toast.success(avisoDe({ demo: yo?.demo, avance: res.avance, sugerida, ahora }))
+      } : null,
+    })
   }
 
   return (
-    <Dialog open onClose={onClose} ariaLabel="Resultado del contacto" className="w-[420px]">
+    <Dialog open onClose={() => { if (!enviando.current) onClose() }} ariaLabel="Resultado del contacto" className="w-[420px]">
       <DialogHeader>
         <DialogTitle>¿Lograste comunicarte con {primerNombre(lead.nombre_completo)}?</DialogTitle>
         <DialogDescription>
@@ -451,15 +451,17 @@ function DialogResultado({
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="space-y-3">
+        <fieldset disabled={procesando || sinConfirmar !== null} className="min-w-0 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           {OPCIONES[canal].map((o) => (
-            <Button key={o.tipo} size="sm" variant="outline" onClick={() => registrar(o.tipo)}>
+            <Button key={o.tipo} size="sm" variant="outline" disabled={procesando} onClick={() => void registrar(o.tipo)}>
               <o.icono /> {o.label}
             </Button>
           ))}
         </div>
         <Textarea
           aria-label="Nota del contacto"
+          disabled={procesando}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           placeholder="Nota (opcional)…"
@@ -518,11 +520,16 @@ function DialogResultado({
             )}
           </div>
         )}
+        </fieldset>
+        {sinConfirmar && <p role="alert" className="text-sm text-destructive">El guardado todavía no está confirmado. Reintenta la misma operación para comprobar su resultado.</p>}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" disabled={procesando} onClick={onClose}>
           Omitir
         </Button>
+        {sinConfirmar && <Button size="sm" disabled={procesando} onClick={() => void enviar(sinConfirmar)}>
+          {procesando ? 'Confirmando…' : 'Reintentar guardado'}
+        </Button>}
       </DialogFooter>
     </Dialog>
   )

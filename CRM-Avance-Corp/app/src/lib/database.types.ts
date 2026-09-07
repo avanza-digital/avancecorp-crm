@@ -2900,6 +2900,16 @@ export type Database = {
         }[]
       }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
+      cola_accion_v2_fn: { Args: { p_limite?: number; p_senal?: string; p_etapa?: string | null; p_analista_id?: string | null; p_cursor?: Json | null }; Returns: Json }
+      configuracion_sla_v2_fn: { Args: never; Returns: Json }
+      publicar_reglas_sla_aprobadas_v2: { Args: { p_expected_version: number }; Returns: Json }
+      cambiar_modo_sla_operacion: { Args: { p_expected_revision: number; p_modo: string }; Returns: Json }
+      registrar_actividad_v2: { Args: { p_operacion_id: string; p_lead_id: string; p_tipo: string; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
+      cerrar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_tipo?: string | null; p_resultado_detalle?: string | null; p_siguiente?: Json | null; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null }; Returns: Json }
+      cerrar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_estado: string; p_resultado_reunion?: string | null; p_motivo_no_realizada?: string | null; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
+      reprogramar_reunion_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }; Returns: Json }
+      reprogramar_tarea_v2: { Args: { p_operacion_id: string; p_tarea_id: string; p_vence_en: string }; Returns: Json }
+      estado_sla_leads_v2_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       completar_domicilio_cliente: {
         Args: { p_cliente_id: string; p_domicilio: string }
         Returns: Json

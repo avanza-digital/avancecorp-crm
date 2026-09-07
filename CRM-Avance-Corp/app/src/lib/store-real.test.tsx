@@ -13,6 +13,9 @@ import type { Yo } from './tipos'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import type { CumplimientoMetasRpc } from './objetivos'
 import * as crmApi from '@/data/crm-api'
+import { ejecutarComandoSla } from '@/data/sla-operacion-comandos'
+
+vi.mock('@/data/sla-operacion-comandos', () => ({ ejecutarComandoSla: vi.fn(), tareaConConfirmacionPendiente: vi.fn() }))
 import { crmQueryKeys } from '@/data/crm-queries'
 import { queryClient } from './query-client'
 
@@ -61,6 +64,7 @@ const actualizarTarea = vi.mocked(crmApi.actualizarTarea)
 const insertarActividad = vi.mocked(crmApi.insertarActividad)
 const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
 const insertarTarea = vi.mocked(crmApi.insertarTarea)
+const comandoSla = vi.mocked(ejecutarComandoSla)
 const cerrarTareaMock = vi.mocked(crmApi.cerrarTarea)
 const cerrarReunionMock = vi.mocked(crmApi.cerrarReunion)
 const reprogramarReunionMock = vi.mocked(crmApi.reprogramarReunion)
@@ -278,6 +282,7 @@ function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
 describe('store — ruta real (sesión autenticada, no demo)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    comandoSla.mockResolvedValue(undefined)
     listarLeads.mockResolvedValue([leadBase()])
     listarEquipo.mockResolvedValue(ROSTER)
     listarActs.mockResolvedValue([])
@@ -564,6 +569,26 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(editarLeadFn).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
   })
 
+  it('actividad y siguiente reunión viajan en un solo comando con los campos normalizados', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+    const resultado = mutar((a) => a.registrarActividad(id, 'llamada_realizada', 'Conversación', {
+      tipo: 'reunion', titulo: '  Reunión segura  ', vence_en: '2026-07-19T15:00:00.000Z',
+      modalidad_reunion: 'virtual', ubicacion_reunion: 'No corresponde', enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+    }))
+    expect(resultado.ok).toBe(true)
+    await expect(resultado.persistido).resolves.toBe(true)
+    expect(comandoSla).toHaveBeenCalledTimes(1)
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'registrar_actividad_v2', id, {
+      p_lead_id: id, p_tipo: 'llamada_realizada', p_detalle: 'Conversación',
+      p_siguiente: { id: expect.any(String), tipo: 'reunion', titulo: 'Reunión segura', vence_en: '2026-07-19T15:00:00.000Z',
+        modalidad_reunion: 'virtual', ubicacion_reunion: null, enlace_reunion: 'https://meet.google.com/abc-defg-hij' },
+    })
+    expect(insertarActividad).not.toHaveBeenCalled()
+    expect(insertarTarea).not.toHaveBeenCalled()
+  })
+
   it('cambiar etapa y registrar actividad caducan las dos fotos de conversión por rango', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
@@ -581,7 +606,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     invalidarQueriesMock.mockClear()
     expect(mutar((a) => a.registrarActividad(id, 'llamada_realizada', 'Contactó'))).toMatchObject({ ok: true })
-    await waitFor(() => expect(insertarActividad).toHaveBeenCalledWith(expect.objectContaining({ lead_id: id })))
+    await waitFor(() => expect(comandoSla).toHaveBeenCalledWith('u-s1', 'registrar_actividad_v2', id, expect.objectContaining({ p_lead_id: id })))
+    expect(insertarActividad).not.toHaveBeenCalled()
     expect(invalidarQueriesMock).toHaveBeenCalledWith({
       queryKey: crmQueryKeys.metricasConversionesPrefijo(),
     })
@@ -934,7 +960,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await expect(res.persistido).resolves.toBe(false)
     await waitFor(() => expect(api().tareas.some((t) => t.id === res.id)).toBe(false))
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('El cliente está inactivo — se restauró el estado anterior'),
+      expect(toast.error).toHaveBeenCalledWith('El cliente está inactivo — se actualizó la vista con el estado del servidor'),
     )
   })
 
@@ -1060,21 +1086,21 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
     expect(res.ok).toBe(true)
     expect(res.siguiente_id).toBeDefined()
-    expect(cerrarTareaMock).toHaveBeenCalledWith({
-      tarea_id: tareaBase.id,
-      estado: 'completada',
-      resultado_tipo: 'llamada_no_contestada',
-      resultado_detalle: null,
-      siguiente: {
-        id: expect.any(String),
-        tipo: 'whatsapp',
-        titulo: 'WhatsApp a CLIENTE',
-        vence_en: '2026-07-19T15:00:00.000Z',
-        modalidad_reunion: null,
-        ubicacion_reunion: null,
-        enlace_reunion: null,
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'cerrar_tarea_v2', tareaBase.id, {
+      p_tarea_id: tareaBase.id,
+      p_estado: 'completada',
+      p_resultado_tipo: 'llamada_no_contestada',
+      p_resultado_detalle: null,
+      p_resultado_reunion: null,
+      p_motivo_no_realizada: null,
+      p_siguiente: {
+        id: expect.any(String), tipo: 'whatsapp', titulo: 'WhatsApp a CLIENTE',
+        vence_en: '2026-07-19T15:00:00.000Z', modalidad_reunion: null,
+        ubicacion_reunion: null, enlace_reunion: null,
       },
-    })
+    }, tareaBase)
+    expect(cerrarTareaMock).not.toHaveBeenCalled()
+
     // Optimista: la original cerrada, la siguiente pendiente, y el resultado ya en el timeline.
     expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('completada')
     expect(api().tareas.some((t) => t.titulo === 'WhatsApp a CLIENTE' && t.estado === 'pendiente')).toBe(true)
@@ -1288,15 +1314,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
 
     expect(valida.ok).toBe(true)
-    expect(cerrarTareaMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        siguiente: expect.objectContaining({
-          modalidad_reunion: 'virtual',
-          ubicacion_reunion: null,
-          enlace_reunion: 'https://meet.google.com/abc-defg-hij',
-        }),
-      }),
-    )
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'cerrar_tarea_v2', tareaBase.id,
+      expect.objectContaining({ p_siguiente: expect.objectContaining({
+        modalidad_reunion: 'virtual', ubicacion_reunion: null,
+        enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+      }) }), tareaBase)
+    expect(cerrarTareaMock).not.toHaveBeenCalled()
     expect(api().tareas.find((t) => t.id === valida.siguiente_id)).toMatchObject({
       modalidad_reunion: 'virtual',
       ubicacion_reunion: null,
@@ -1329,7 +1352,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     const rep = mutar((a) => a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
     expect(rep.ok).toBe(true)
-    expect(reprogramarReunionMock).toHaveBeenCalledWith(cita.id, '2026-07-19T20:00:00.000Z', expect.any(String))
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'reprogramar_reunion_v2', cita.id, { p_tarea_id: cita.id, p_vence_en: '2026-07-19T20:00:00.000Z', p_nueva_id: expect.any(String) }, cita)
+    expect(reprogramarReunionMock).not.toHaveBeenCalled()
     expect(api().tareas.find((t) => t.id === cita.id)).toMatchObject({
       estado: 'reprogramada',
       motivo_no_realizada: 'reprogramada',
@@ -1390,14 +1414,11 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       motivo_no_realizada: 'cancelada_cliente',
       detalle_cierre_reunion: 'El cliente pidió cancelar',
     })
-    expect(cerrarReunionMock).toHaveBeenCalledWith({
-      tarea_id: cita.id,
-      estado: 'cancelada',
-      resultado_reunion: null,
-      motivo_no_realizada: 'cancelada_cliente',
-      detalle: '  El cliente pidió cancelar  ',
-      siguiente: null,
-    })
+    expect(comandoSla).toHaveBeenCalledWith('u-s1', 'cerrar_reunion_v2', cita.id, {
+      p_tarea_id: cita.id, p_estado: 'cancelada', p_resultado_reunion: null,
+      p_motivo_no_realizada: 'cancelada_cliente', p_detalle: '  El cliente pidió cancelar  ', p_siguiente: null,
+    }, cita)
+    expect(cerrarReunionMock).not.toHaveBeenCalled()
     expect(cerrarTareaMock).not.toHaveBeenCalled()
     await expect(res.persistido).resolves.toBe(true)
     expect(invalidarQueriesMock).toHaveBeenCalledWith({
@@ -1474,7 +1495,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     mutar((a) => a.editarLead(id, { correo: 'nuevo@correo.com' }))
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior')),
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('se actualizó la vista con el estado del servidor')),
     )
   })
 
@@ -1560,7 +1581,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('no se pudo guardar la nota del descarte')),
     )
     // El descarte NO se revierte ni se miente: el toast de rollback nunca aparece.
-    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior'))
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('se actualizó la vista con el estado del servidor'))
   })
 
   // Un fetch COLGADO no rechaza nunca: sin el reloj de LIMITE_CARGA_REAL_MS el

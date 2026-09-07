@@ -1,0 +1,394 @@
+{
+  "f7": [
+    {
+      "ola": "F5.d",
+      "nota": "gemela muerta del catalogo versionado",
+      "firma": "public.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "893c857e27ec6405a3ac6e291458c346",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mcrear_contrato_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F5.d",
+      "nota": null,
+      "firma": "public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "f0e519cc4ee79c9334ae59a23844b23b",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_contrato_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F5.d",
+      "nota": null,
+      "firma": "public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "b7e0de18b559ec7fd650619cd22b9cb5",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_contrato_con_cuenta_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F5.d",
+      "nota": null,
+      "firma": "crm.crear_contrato_producto(uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "1148d0ca1beb33797995eeff3c579bd4",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mcrear_contrato_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F5.d",
+      "nota": "su nombre no aparece ni en cerrar_altas_legacy_productos",
+      "firma": "crm.crear_contrato_con_cuenta_producto(uuid,jsonb,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "06f79b07b4d65dcf50cd4359fb598723",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mcrear_contrato_con_cuenta_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": []
+    },
+    {
+      "ola": "F5.d",
+      "nota": null,
+      "firma": "crm.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "4156191492c25479be73b0365263d946",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_contrato_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F5.d",
+      "nota": null,
+      "firma": "crm.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)",
+      "estado": "observacion",
+      "ok_miguel": "Publicada F5.d (registro 186) con el ! de Miguel el 30/08; su tabla de OK esta en MIGRACIONES.md",
+      "cerrada_en": "2026-08-30",
+      "huella_md5": "8640b1246f620ab40558cec2875ada23",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_contrato_con_cuenta_producto\\s*\\(",
+      "drop_no_antes_de": "2026-09-13",
+      "llamadores_permitidos": [
+        "crm.cerrar_altas_legacy_productos(bigint)"
+      ]
+    },
+    {
+      "ola": "F7.1",
+      "nota": "puerta v1, supersedida por v3; su core private sigue vivo",
+      "firma": "crm.metricas_distribucion_leads_fn(date,date)",
+      "estado": "observacion",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "9ed153979997aab76667667a58b8b2ee",
+      "acl_esperada": "{crm_metricas_bridge=X/crm_metricas_bridge}",
+      "patron_censo": "\\mmetricas_distribucion_leads_fn\\s*\\(",
+      "drop_no_antes_de": "2026-09-14",
+      "llamadores_permitidos": []
+    },
+    {
+      "ola": "F7.1",
+      "nota": "puerta v2 (el \"v2 aun llamada\" de RETOMAR-57, muerto aqui); su core vive",
+      "firma": "crm.metricas_distribucion_leads_v2_fn(date,date)",
+      "estado": "observacion",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "c7294f041b629b695c9c3f712abec2a0",
+      "acl_esperada": "{crm_metricas_bridge=X/crm_metricas_bridge}",
+      "patron_censo": "\\mmetricas_distribucion_leads_v2_fn\\s*\\(",
+      "drop_no_antes_de": "2026-09-14",
+      "llamadores_permitidos": []
+    },
+    {
+      "ola": "F7.1",
+      "nota": "nacida en la version 20260716203331 (crm_metricas_gerencia_fn) del registro de prod; el archivo local no existe - repo incompleto, NO version muda (Codex 30/08)",
+      "firma": "crm.metricas_altas_analista_fn(integer)",
+      "estado": "observacion",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "df8a99e0dfc4e1d94794073787aa84d7",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mmetricas_altas_analista_fn\\s*\\(",
+      "drop_no_antes_de": "2026-09-14",
+      "llamadores_permitidos": []
+    },
+    {
+      "ola": "F7.1",
+      "nota": "organo interno de conversion_mensual_fn - JAMAS se derriba",
+      "firma": "crm.metricas_cartera_fn(date)",
+      "estado": "cerrada_permanente",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "0b4ede547cf7079be1e56073311453b3",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mmetricas_cartera_fn\\s*\\(",
+      "drop_no_antes_de": null,
+      "llamadores_permitidos": [
+        "crm.conversion_mensual_fn(date)"
+      ]
+    },
+    {
+      "ola": "F7.1",
+      "nota": "organo interno del alta pdf_v2 - JAMAS se derriba",
+      "firma": "crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)",
+      "estado": "cerrada_permanente",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "5c92f416c4e34fd4ed864c8be19502eb",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mcrear_contrato_con_cuenta\\s*\\(",
+      "drop_no_antes_de": null,
+      "llamadores_permitidos": [
+        "crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)"
+      ]
+    },
+    {
+      "ola": "F7.1",
+      "nota": "organo interno de la correccion pdf_v3 - JAMAS se derriba",
+      "firma": "crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)",
+      "estado": "cerrada_permanente",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "bdaa1a2753c4f82d87e7e2c28bd80b87",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_contrato_con_cuenta\\s*\\(",
+      "drop_no_antes_de": null,
+      "llamadores_permitidos": [
+        "crm.actualizar_contrato_con_cuenta_pdf_v3(uuid,jsonb,jsonb)"
+      ]
+    },
+    {
+      "ola": "F7.1",
+      "nota": "organo interno de numero_pdf_v3 - JAMAS se derriba",
+      "firma": "public.actualizar_numero_contrato(uuid,text,text,text)",
+      "estado": "cerrada_permanente",
+      "ok_miguel": "Tabla de OK de la Ola 1 en MIGRACIONES.md; publicada con el ! de Miguel (toca public: su ! es el OK explicito)",
+      "cerrada_en": "2026-08-31",
+      "huella_md5": "44270f9706a4515b16962ead8b09ea59",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "\\mactualizar_numero_contrato\\s*\\(",
+      "drop_no_antes_de": null,
+      "llamadores_permitidos": [
+        "crm.actualizar_numero_contrato_pdf_v3(uuid,text,text,text)"
+      ]
+    },
+    {
+      "ola": "F7.2",
+      "nota": "Interruptor de un solo uso hacia un catalogo real que nunca llego. Si se ejecutara, apagaria las altas en modo compatibilidad y NADIE podria crear contratos. Nombra 3 de las 7 gemelas por to_regprocedure: cerrarla las desbloquea para el 13/09.",
+      "firma": "crm.cerrar_altas_legacy_productos(bigint)",
+      "estado": "observacion",
+      "ok_miguel": "Miguel el 01/09: «si no lo necesitamos se elimina; el objetivo es ir limpiando». Medido: el interruptor nunca se uso, hoy es inejecutable (cero condiciones no-legacy) y ninguna pantalla lo dispara.",
+      "cerrada_en": "2026-09-01",
+      "huella_md5": "9dd26612ef8efefb54db115141d923c5",
+      "acl_esperada": "{postgres=X/postgres}",
+      "patron_censo": "cerrar_altas_legacy_productos",
+      "drop_no_antes_de": "2026-09-15",
+      "llamadores_permitidos": []
+    }
+  ],
+  "funciones": [
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "firma": "crear_contrato(jsonb,jsonb)",
+      "owner": "postgres",
+      "def_md5": "dbfeb173a135226a226f3eb3fb04fc00",
+      "src_md5": "4bf2f691888bee4d3198cccba8acd396",
+      "definition": "CREATE OR REPLACE FUNCTION public.crear_contrato(p_contrato jsonb, p_cronograma jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid uuid := (select auth.uid());\n  v_es_analista boolean := (select public.es_analista());\n  v_es_gestor_cartera boolean := (select public.es_gestor_cartera());\n  v_rol_crm text := private.rol_crm(v_uid);\n  v_es_gerencia_crm boolean := coalesce(v_rol_crm = 'gerencia', false);\n  v_es_crm_catalogado boolean :=\n    coalesce(v_rol_crm in ('vendedor', 'supervisor'), false)\n    and nullif(current_setting('crm.producto_condicion_id', true), '') is not null;\n  v_cliente_id uuid;\n  v_numero text := nullif(btrim(p_contrato->>'numero_contrato'), '');\n  v_categoria text := p_contrato->>'categoria';\n  v_moneda text := upper(coalesce(nullif(p_contrato->>'moneda', ''), 'PEN'));\n  v_capital numeric;\n  v_anio integer := extract(year from now() at time zone 'America/Lima')::integer;\n  v_contrato_id uuid;\n  v_fecha_operacion date;\n  v_periodo date;\n  v_cuota jsonb;\n  v_asesor_id uuid;\n  v_asesor_rol text;\n  v_operacion_id uuid;\n  v_origen_id uuid;\n  v_origen public.contratos%rowtype;\n  v_capital_renovado numeric;\n  v_capital_adicional numeric;\n  v_primer_periodo date;\n  v_upgrade_elegible boolean;\n  v_analista_cierre uuid;\nbegin\n  if p_contrato is null or jsonb_typeof(p_contrato) <> 'object' then\n    raise exception 'Faltan los datos del contrato' using errcode = '22023';\n  end if;\n  begin\n    v_cliente_id := (p_contrato->>'cliente_id')::uuid;\n    v_capital := (p_contrato->>'capital')::numeric;\n  exception when invalid_text_representation then\n    raise exception 'Cliente o capital inválido' using errcode = '22023';\n  end;\n\n  -- Vincula autorización y escritura a la misma versión de la cartera. Una\n  -- reasignación concurrente espera este lock; si ganó antes, aquí ya se lee el\n  -- nuevo Analista y el anterior queda fuera del gate.\n  -- F2.b (E4) [D-1, OK de Miguel 05/09]: con la identidad unificada ENCENDIDA, crear un contrato RECONOCE\n  -- a la persona ANTES del FOR SHARE de abajo (jerarquía -> documento -> identidad -> perfil, reentrante).\n  -- Solo si el cliente existe activo (así un id inexistente sigue muriendo en el 42501 de siempre).\n  -- Sin documento válido o con documento de otra persona reconocida -> P0409 (contrato §4.3, fail-closed).\n  -- [auditor A1] la AUTORIDAD se pregunta antes de reconocer: un no autorizado sigue muriendo en el 42501 uniforme\n  -- de abajo (sin aprender nada del documento), con ON igual que con OFF.\n  if private.resolver_en_puertas_bajo_candado()\n     and (select private.puede_registrar_ventas())\n     and exists (select 1 from public.perfiles p where p.id = v_cliente_id and p.rol = 'cliente' and p.activo) then\n    perform private.asegurar_identidad_perfil(v_cliente_id, 'contrato');\n  end if;\n  select p.asesor_perfil_id into v_asesor_id\n  from public.perfiles p\n  where p.id = v_cliente_id and p.rol = 'cliente' and p.activo\n  for share;\n  if not found then\n    raise insufficient_privilege using\n      message = 'Cliente no encontrado o fuera de tu cartera';\n  end if;\n\n  if not (select private.puede_registrar_ventas()) then\n    raise insufficient_privilege using\n      message = 'Cliente no encontrado o fuera de tu cartera';\n  end if;\n\n  if v_capital < 100 or v_capital > 100000000 then\n    raise exception 'El capital debe estar entre 100 y 100,000,000';\n  end if;\n  if (p_contrato->>'tasa_anual')::numeric <= 0\n     or (p_contrato->>'tasa_anual')::numeric > 50 then\n    raise exception 'La tasa anual debe estar entre 0 y 50%%';\n  end if;\n  if v_categoria is null or v_categoria not in ('nuevo', 'renovacion', 'upgrade') then\n    raise exception 'Selecciona la categoría del contrato (Nuevo, Renovación o Upgrade)';\n  end if;\n  if v_moneda not in ('PEN', 'USD') then\n    raise exception 'Moneda inválida' using errcode = '22023';\n  end if;\n\n  -- EL ANALISTA QUE CIERRA (decision 2 del plan P-055). Es de quien VENDIO, no\n  -- de quien tecleo: `creado_por` se conserva aparte y no se pisa.\n  begin\n    v_analista_cierre := nullif(btrim(coalesce(p_contrato->>'analista_cierre_id', '')), '')::uuid;\n  exception when invalid_text_representation then\n    raise exception 'El analista que cierra no es valido' using errcode = '22023';\n  end;\n\n  if v_analista_cierre is not null then\n    -- Elegido a mano: tiene que poder tener ventas. SOLO ACTIVOS (decision de\n    -- Miguel, 29/08): una venta NUEVA es de alguien que esta trabajando; la\n    -- venta vieja de alguien que se fue entra por la reasignacion de gerencia\n    -- (que si acepta inactivos, con motivo y rastro). Y los roles OFF-ROSTER\n    -- (coordinador, directorio) no son organigrama comercial por diseno.\n    if not exists (\n      select 1 from crm.equipo e where e.perfil_id = v_analista_cierre\n        and e.activo\n        and e.rol_crm in ('vendedor','supervisor','gerencia')\n    ) then\n      raise exception 'El analista que cierra tiene que estar activo en el equipo comercial'\n        using errcode = '22023';\n    end if;\n  else\n    -- No vino. «Si no corresponde a nadie, lo pone a su nombre» (decision 2):\n    -- eso solo tiene sentido si quien registra PUEDE tener ventas. Si no puede\n    -- -una administrativa, por ejemplo-, tiene que elegir a quien corresponde.\n    if not exists (select 1 from crm.equipo e where e.perfil_id = v_uid and e.activo) then\n      raise exception 'Elige el analista de la venta'\n        using errcode = '22023',\n              hint = 'Quien registra no forma parte del equipo comercial, asi que la venta no puede quedar a su nombre.';\n    end if;\n    v_analista_cierre := v_uid;\n  end if;\n\n  -- Las operaciones de cartera necesitan un dueño congelado. No se atribuye a\n  -- quien digitó: se atribuye al Analista de perfiles.asesor_perfil_id.\n  if v_categoria in ('renovacion', 'upgrade') then\n    select e.rol_crm into v_asesor_rol\n    from crm.equipo e\n    where e.perfil_id = v_asesor_id and e.activo\n    for share;\n    if v_asesor_id is null\n       or not found\n       or v_asesor_rol not in ('vendedor', 'supervisor') then\n      raise exception using\n        errcode = '22023',\n        message = 'Asigna un Analista activo al cliente antes de registrar la operación';\n    end if;\n  end if;\n\n  if v_categoria = 'renovacion' then\n    begin\n      v_origen_id := (p_contrato->>'contrato_origen_id')::uuid;\n      v_capital_renovado := (p_contrato->>'capital_renovado')::numeric;\n      v_capital_adicional := coalesce((p_contrato->>'capital_adicional')::numeric, 0);\n    exception when invalid_text_representation then\n      raise exception 'Completa contrato anterior, capital renovado y adicional válidos'\n        using errcode = '22023';\n    end;\n\n    select * into v_origen\n    from public.contratos c\n    where c.id = v_origen_id\n    for update;\n    if not found then\n      raise exception 'El contrato a renovar no existe' using errcode = 'P0002';\n    end if;\n    if v_origen.cliente_id is distinct from v_cliente_id then\n      raise exception 'El contrato anterior pertenece a otro cliente' using errcode = '22023';\n    end if;\n    if v_origen.estado not in ('activo', 'vencido') or v_origen.renovado_a_id is not null then\n      raise exception 'El contrato anterior ya fue cerrado o renovado' using errcode = 'P0409';\n    end if;\n    if v_origen.fecha_vencimiento > (now() at time zone 'America/Lima')::date then\n      raise exception 'La renovación solo se registra cuando el contrato llega a su fecha fin'\n        using errcode = '22023';\n    end if;\n    if v_origen.moneda is distinct from v_moneda then\n      raise exception 'La renovación debe conservar la moneda del contrato anterior'\n        using errcode = '22023';\n    end if;\n    if (p_contrato->>'fecha_inicio')::date < v_origen.fecha_vencimiento then\n      raise exception 'El contrato nuevo no puede iniciar antes del vencimiento anterior'\n        using errcode = '22023';\n    end if;\n    if v_capital_renovado <= 0 or v_capital_renovado > v_origen.capital then\n      raise exception 'El capital renovado debe ser mayor a cero y no superar el contrato anterior'\n        using errcode = '22023';\n    end if;\n    if v_capital_adicional < 0 then\n      raise exception 'El capital adicional no puede ser negativo' using errcode = '22023';\n    end if;\n    if v_capital is distinct from (v_capital_renovado + v_capital_adicional) then\n      raise exception 'El nuevo capital debe ser capital renovado + capital adicional'\n        using errcode = '22023';\n    end if;\n  end if;\n\n  if v_numero is null then\n    v_numero := private.siguiente_numero_contrato(v_anio);\n  end if;\n  if exists (select 1 from public.contratos c where c.numero_contrato = v_numero) then\n    raise exception 'El N de contrato % ya existe', v_numero;\n  end if;\n\n  insert into public.contratos (\n    cliente_id, numero_contrato, capital, moneda, tasa_anual, modalidad,\n    tipo_interes, fecha_inicio, fecha_vencimiento, notas_internas,\n    categoria, estado, creado_por, analista_cierre_id\n  ) values (\n    v_cliente_id, v_numero, v_capital, v_moneda,\n    (p_contrato->>'tasa_anual')::numeric, p_contrato->>'modalidad',\n    coalesce(nullif(p_contrato->>'tipo_interes', ''), 'simple'),\n    (p_contrato->>'fecha_inicio')::date,\n    (p_contrato->>'fecha_vencimiento')::date,\n    nullif(btrim(coalesce(p_contrato->>'notas_internas', '')), ''),\n    v_categoria, 'activo', v_uid, v_analista_cierre\n  ) returning id, fecha_cierre_comercial into v_contrato_id, v_fecha_operacion;\n\n  if p_cronograma is null or jsonb_typeof(p_cronograma) <> 'array'\n     or jsonb_array_length(p_cronograma) = 0 then\n    raise exception 'El cronograma no puede estar vacío';\n  end if;\n  for v_cuota in select value from jsonb_array_elements(p_cronograma)\n  loop\n    insert into public.cronograma_pagos (\n      contrato_id, numero_cuota, fecha_programada, monto_programado, estado, tipo\n    ) values (\n      v_contrato_id, (v_cuota->>'numero_cuota')::integer,\n      (v_cuota->>'fecha_programada')::date,\n      (v_cuota->>'monto_programado')::numeric, 'pendiente',\n      coalesce(nullif(v_cuota->>'tipo', ''), 'cuota')\n    );\n  end loop;\n  if p_contrato ? 'titulares' then\n    perform public._sync_contrato_titulares(v_contrato_id, p_contrato->'titulares');\n  end if;\n\n  if v_categoria in ('renovacion', 'upgrade') then\n    v_periodo := date_trunc('month', v_fecha_operacion)::date;\n    perform pg_catalog.pg_advisory_xact_lock(\n      pg_catalog.hashtext('crm.operaciones_cartera'),\n      pg_catalog.hashtext(v_cliente_id::text || '|' || v_periodo::text)\n    );\n\n    if v_categoria = 'upgrade' then\n      select min(date_trunc('month', c.fecha_cierre_comercial)::date)\n        into v_primer_periodo\n      from public.contratos c\n      where c.cliente_id = v_cliente_id;\n      v_upgrade_elegible := v_periodo > v_primer_periodo;\n    else\n      v_upgrade_elegible := true;\n    end if;\n\n    insert into crm.operaciones_cartera (\n      cliente_id, vendedor_id, tipo, contrato_origen_id, contrato_nuevo_id,\n      fecha_operacion, periodo, moneda, capital_renovado, capital_adicional,\n      elegible_conversion, desglose_completo, fuente, creado_por\n    ) values (\n      v_cliente_id, v_asesor_id, v_categoria, v_origen_id, v_contrato_id,\n      v_fecha_operacion, v_periodo, v_moneda,\n      case when v_categoria = 'renovacion' then v_capital_renovado end,\n      case when v_categoria = 'renovacion' then v_capital_adicional end,\n      v_upgrade_elegible, true, 'flujo_cartera', v_uid\n    ) returning id into v_operacion_id;\n  end if;\n\n  if v_categoria = 'renovacion' then\n    update public.cronograma_pagos\n       set estado = 'trasladado'\n     where contrato_id = v_origen_id and estado in ('pendiente', 'vencido');\n    update public.contratos\n       set estado = 'renovado', renovado_a_id = v_contrato_id,\n           cerrado_en = now(), cerrado_por = v_uid\n     where id = v_origen_id;\n  end if;\n\n  return jsonb_build_object(\n    'id', v_contrato_id,\n    'numero_contrato', v_numero,\n    'operacion_id', v_operacion_id,\n    'conversion_elegible', case\n      when v_categoria in ('renovacion', 'upgrade') then v_upgrade_elegible\n    end\n  );\nend;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)",
+      "owner": "postgres",
+      "def_md5": "79d9d316203ce217456a7d00f834c584",
+      "src_md5": "0de7a130ae366cde54035e2c50f213e2",
+      "definition": "CREATE OR REPLACE FUNCTION crm.crear_contrato_con_cuenta(p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid                  uuid := (select auth.uid());\n  v_cliente_id           uuid;\n  v_moneda               text;\n  v_tipo_seleccion       text;\n  v_cuenta_id            uuid;\n  v_cuenta_activa        crm.cuentas_bancarias%rowtype;\n  v_banco                text;\n  v_tipo_cuenta          text;\n  v_numero_cuenta        text;\n  v_cci                  text;\n  v_titular_distinto     boolean := false;\n  v_beneficiario_nombre  text;\n  v_beneficiario_dni     text;\n  v_cuenta_esperada      jsonb;\n  v_origen               text;\n  v_resultado            jsonb;\n  v_contrato_id          uuid;\nbegin\n  if p_contrato is null or jsonb_typeof(p_contrato) <> 'object' then\n    raise exception using errcode = '22023', message = 'Faltan los datos del contrato';\n  end if;\n  if p_cuenta is null or jsonb_typeof(p_cuenta) <> 'object' then\n    raise exception using errcode = '22023', message = 'Selecciona la cuenta para el pago de intereses';\n  end if;\n\n  begin\n    v_cliente_id := (p_contrato->>'cliente_id')::uuid;\n  exception when invalid_text_representation then\n    raise exception using errcode = '22023', message = 'Cliente invalido';\n  end;\n  v_moneda := upper(btrim(coalesce(p_contrato->>'moneda', '')));\n  if v_moneda not in ('PEN', 'USD') then\n    raise exception using errcode = '22023', message = 'Moneda del contrato invalida';\n  end if;\n  if not (select private.puede_registrar_ventas()) then\n    raise exception using errcode = '42501', message = 'Cliente no encontrado o fuera de tu cartera';\n  end if;\n\n  -- F2.b (E4) [Codex B-2]: la prepuerta de reconocimiento (jerarquía -> documento -> identidad -> perfil) va ANTES\n  -- de los locks de cuenta/perfil de este wrapper, con el mismo orden que public.crear_contrato (reentrante allí).\n  -- Después del 42501 de arriba: la precedencia para un no autorizado no cambia.\n  if private.resolver_en_puertas_bajo_candado()\n     and exists (select 1 from public.perfiles p where p.id = v_cliente_id and p.rol = 'cliente' and p.activo) then\n    perform private.asegurar_identidad_perfil(v_cliente_id, 'contrato');\n  end if;\n  v_tipo_seleccion := lower(btrim(coalesce(p_cuenta->>'tipo', '')));\n\n  if v_tipo_seleccion = 'existente' then\n    begin\n      v_cuenta_id := (p_cuenta->>'cuenta_id')::uuid;\n    exception when invalid_text_representation then\n      raise exception using errcode = '22023', message = 'Cuenta bancaria invalida';\n    end;\n\n    select cb.* into v_cuenta_activa\n    from crm.cuentas_bancarias cb\n    where cb.id = v_cuenta_id\n      and cb.cliente_id = v_cliente_id\n      and cb.moneda = v_moneda\n      and cb.activa = true\n    for share;\n    if not found then\n      raise exception using\n        errcode = '22023',\n        message = 'La cuenta bancaria no esta disponible para este cliente y moneda';\n    end if;\n\n  elsif v_tipo_seleccion in ('perfil', 'nueva') then\n    if v_tipo_seleccion = 'perfil' then\n      select\n        btrim(case when v_moneda = 'USD' then p.banco_usd else p.banco end),\n        lower(btrim(case when v_moneda = 'USD' then p.tipo_cuenta_usd else p.tipo_cuenta end)),\n        upper(btrim(case when v_moneda = 'USD' then p.numero_cuenta_usd else p.numero_cuenta end)),\n        btrim(case when v_moneda = 'USD' then p.cci_usd else p.cci end),\n        case when v_moneda = 'USD' then p.titular_distinto_usd else p.titular_distinto end,\n        case when v_moneda = 'USD' then p.beneficiario_nombre_usd else p.beneficiario_nombre end,\n        case when v_moneda = 'USD' then p.beneficiario_dni_usd else p.beneficiario_dni end\n      into v_banco, v_tipo_cuenta, v_numero_cuenta, v_cci,\n           v_titular_distinto, v_beneficiario_nombre, v_beneficiario_dni\n      from public.perfiles p\n      where p.id = v_cliente_id\n      -- La fotografia del perfil debe seguir siendo cierta hasta que termine\n      -- el alta. Sin este lock, un UPDATE concurrente podia confirmar despues\n      -- del SELECT y antes de crear el vinculo contractual.\n      for share;\n      v_origen := 'perfil';\n    else\n      v_banco := btrim(coalesce(p_cuenta->>'banco', ''));\n      v_tipo_cuenta := lower(btrim(coalesce(p_cuenta->>'tipo_cuenta', '')));\n      v_numero_cuenta := upper(btrim(coalesce(p_cuenta->>'numero_cuenta', '')));\n      v_cci := btrim(coalesce(p_cuenta->>'cci', ''));\n      begin\n        v_titular_distinto := coalesce((p_cuenta->>'titular_distinto')::boolean, false);\n      exception when invalid_text_representation then\n        raise exception using errcode = '22023', message = 'Indicador de beneficiario invalido';\n      end;\n      v_beneficiario_nombre := p_cuenta->>'beneficiario_nombre';\n      v_beneficiario_dni := p_cuenta->>'beneficiario_dni';\n      v_origen := 'contrato';\n    end if;\n\n    v_banco := btrim(coalesce(v_banco, ''));\n    v_tipo_cuenta := lower(btrim(coalesce(v_tipo_cuenta, '')));\n    v_numero_cuenta := upper(btrim(coalesce(v_numero_cuenta, '')));\n    v_cci := btrim(coalesce(v_cci, ''));\n    if v_titular_distinto then\n      v_beneficiario_nombre := upper(regexp_replace(btrim(coalesce(v_beneficiario_nombre, '')), '\\s+', ' ', 'g'));\n      v_beneficiario_dni := btrim(coalesce(v_beneficiario_dni, ''));\n    else\n      v_beneficiario_nombre := null;\n      v_beneficiario_dni := null;\n    end if;\n\n    if v_tipo_seleccion = 'perfil' then\n      v_cuenta_esperada := jsonb_build_object(\n        'banco', v_banco,\n        'tipo_cuenta', v_tipo_cuenta,\n        'numero_cuenta', v_numero_cuenta,\n        'cci', v_cci,\n        'titular_distinto', v_titular_distinto,\n        'beneficiario_nombre', v_beneficiario_nombre,\n        'beneficiario_dni', v_beneficiario_dni\n      );\n      if jsonb_typeof(p_cuenta->'cuenta_esperada') is distinct from 'object'\n         or (p_cuenta->'cuenta_esperada') is distinct from v_cuenta_esperada then\n        raise exception using\n          errcode = 'P0001',\n          message = 'La cuenta actual del cliente cambio. Recarga las cuentas y vuelve a seleccionarla';\n      end if;\n    end if;\n\n    if length(v_banco) not between 1 and 100 then\n      raise exception using errcode = '22023', message = 'Selecciona el banco de la cuenta';\n    end if;\n    if v_tipo_cuenta not in ('ahorros', 'corriente') then\n      raise exception using errcode = '22023', message = 'Selecciona un tipo de cuenta valido';\n    end if;\n    if v_numero_cuenta !~ '^[A-Za-z0-9-]{1,30}$' then\n      raise exception using errcode = '22023', message = 'El numero de cuenta solo puede contener letras, numeros y guiones';\n    end if;\n    if v_cci !~ '^[0-9]{20}$' then\n      raise exception using errcode = '22023', message = 'El CCI debe tener exactamente 20 digitos';\n    end if;\n    if v_titular_distinto and (\n      length(v_beneficiario_nombre) not between 1 and 200\n      or v_beneficiario_dni !~ '^[0-9]{8,12}$'\n    ) then\n      raise exception using errcode = '22023', message = 'Completa correctamente los datos del beneficiario';\n    end if;\n\n    -- Serializa dos altas simultaneas del mismo CCI sin bloquear otras cuentas.\n    perform pg_catalog.pg_advisory_xact_lock(\n      pg_catalog.hashtextextended(v_cliente_id::text || '|' || v_moneda || '|' || v_cci, 0)\n    );\n\n    select cb.* into v_cuenta_activa\n    from crm.cuentas_bancarias cb\n    where cb.cliente_id = v_cliente_id\n      and cb.moneda = v_moneda\n      and cb.cci = v_cci\n      and cb.activa = true\n    for update;\n\n    if found\n       and lower(v_cuenta_activa.banco) = lower(v_banco)\n       and v_cuenta_activa.tipo_cuenta = v_tipo_cuenta\n       and v_cuenta_activa.numero_cuenta = v_numero_cuenta\n       and v_cuenta_activa.titular_distinto = v_titular_distinto\n       and v_cuenta_activa.beneficiario_nombre is not distinct from v_beneficiario_nombre\n       and v_cuenta_activa.beneficiario_dni is not distinct from v_beneficiario_dni then\n      v_cuenta_id := v_cuenta_activa.id;\n    else\n      if found then\n        update crm.cuentas_bancarias\n           set activa = false,\n               desactivada_por = v_uid,\n               desactivada_en = now()\n         where id = v_cuenta_activa.id;\n      end if;\n\n      insert into crm.cuentas_bancarias (\n        cliente_id, moneda, banco, tipo_cuenta, numero_cuenta, cci,\n        titular_distinto, beneficiario_nombre, beneficiario_dni,\n        activa, origen, creado_por\n      ) values (\n        v_cliente_id, v_moneda, v_banco, v_tipo_cuenta, v_numero_cuenta, v_cci,\n        v_titular_distinto, v_beneficiario_nombre, v_beneficiario_dni,\n        true, v_origen, v_uid\n      )\n      returning id into v_cuenta_id;\n    end if;\n  else\n    raise exception using\n      errcode = '22023',\n      message = 'Selecciona una cuenta existente o registra una cuenta nueva';\n  end if;\n\n  -- public.crear_contrato mantiene su validacion de rol/cartera, numeracion,\n  -- contrato, cronograma y co-titulares. La llamada anidada participa de ESTA\n  -- transaccion: si el enlace bancario falla, todo (incluida una cuenta nueva)\n  -- se revierte.\n  v_resultado := public.crear_contrato(p_contrato, p_cronograma);\n  begin\n    v_contrato_id := (v_resultado->>'id')::uuid;\n  exception when invalid_text_representation then\n    raise exception using errcode = 'P0001', message = 'El contrato no devolvio un identificador valido';\n  end;\n  if v_contrato_id is null then\n    raise exception using errcode = 'P0001', message = 'El contrato no devolvio un identificador';\n  end if;\n\n  insert into crm.contrato_cuentas_pago (\n    contrato_id, cuenta_bancaria_id, creado_por\n  ) values (\n    v_contrato_id, v_cuenta_id, v_uid\n  );\n\n  return v_resultado || jsonb_build_object('cuenta_bancaria_id', v_cuenta_id);\nend;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "private.tablas_sin_rastro()",
+      "owner": "postgres",
+      "def_md5": "55c8b52ad34a1d6478eb04d387a71dc3",
+      "src_md5": "ff21272fc374e7ea771cc5591b47793e",
+      "definition": "CREATE OR REPLACE FUNCTION private.tablas_sin_rastro()\n RETURNS TABLE(tabla text)\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  select n.nspname || '.' || c.relname\n  from pg_catalog.pg_class c\n  join pg_catalog.pg_namespace n on n.oid = c.relnamespace\n  -- Universo completo: tablas normales y particionadas (padres E hijas: el\n  -- trigger del padre se CLONA en cada hija), foráneas y materializadas.\n  -- Permanentes y UNLOGGED (una tabla sin WAL sigue guardando datos de negocio).\n  where c.relkind in ('r', 'p', 'f', 'm')\n    and c.relpersistence in ('p', 'u')\n    and n.nspname in ('crm', 'public')\n    and not exists (\n      select 1 from private.auditoria_exenciones e\n      where e.tabla = n.nspname || '.' || c.relname)\n    and coalesce((\n      select pg_catalog.bit_or(t.tgtype)\n      from pg_catalog.pg_trigger t\n      join pg_catalog.pg_proc p on p.oid = t.tgfoid\n      where t.tgrelid = c.oid\n        and not t.tgisinternal\n        -- Activo DE VERDAD: 'D' es apagado y 'R' solo dispara en réplica.\n        and t.tgenabled in ('O', 'A')\n        and (t.tgtype & 1) = 1     -- FOR EACH ROW\n        and (t.tgtype & 2) = 0     -- AFTER, no BEFORE\n        and (t.tgtype & 64) = 0    -- no INSTEAD OF\n        -- Sin `UPDATE OF` parcial: dispara por estar la columna en el SET, no\n        -- por cambiar, y deja fuera las columnas que no lista.\n        and t.tgattr = ''::pg_catalog.int2vector\n        -- Un `WHEN` puede anularlo entero: solo cuenta si está declarado.\n        and (t.tgqual is null or exists (\n              select 1 from private.auditoria_condicionada cc\n              where cc.tabla = n.nspname || '.' || c.relname))\n        -- Por OID, no por nombre: una función señuelo llamada igual en otro\n        -- esquema pasaba la comprobación anterior.\n        and t.tgfoid in ('private.log_audit_crm()'::regprocedure,\n                         'public.log_audit_change()'::regprocedure,\n                         'private.log_audit_sin_secretos()'::regprocedure)\n        -- Y el auditor tiene que seguir siendo lo que dice ser: DEFINER con\n        -- search_path fijo (no se exige vacío: log_audit_change vive con\n        -- 'public, pg_temp' desde siempre y audita bien).\n        and p.prosecdef\n        and p.proconfig is not null\n    ), 0) & 28 <> 28               -- 4 INSERT | 8 DELETE | 16 UPDATE\n  order by 1;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "private.huella_exenciones()",
+      "owner": "postgres",
+      "def_md5": "beab76bb879c35c7ef482319d75fd52f",
+      "src_md5": "e7dd0f4061983e01e1ad92327751862b",
+      "definition": "CREATE OR REPLACE FUNCTION private.huella_exenciones()\n RETURNS text\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  select pg_catalog.md5(\n    coalesce((select pg_catalog.string_agg(e.tabla || pg_catalog.chr(31) || e.razon,\n                                           pg_catalog.chr(30) order by e.tabla)\n              from private.auditoria_exenciones e), '')\n    || pg_catalog.chr(29) ||\n    coalesce((select pg_catalog.string_agg(c.tabla || pg_catalog.chr(31) || c.razon,\n                                           pg_catalog.chr(30) order by c.tabla)\n              from private.auditoria_condicionada c), '')\n  );\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "firma": "private.es_analista_vigente()",
+      "owner": "postgres",
+      "def_md5": "05e261ac2e4ba08f1e2b044f5a66f9f9",
+      "src_md5": "81f157a28c8e9ef01fae8bdab5a8ec96",
+      "definition": "CREATE OR REPLACE FUNCTION private.es_analista_vigente()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  -- Analista del Portal Y con la membresia del CRM sin revocar.\n  -- Quien no tiene fila en `crm.equipo` NO esta revocado: la revocacion exige\n  -- una fila con `activo is false`. Los 18 analistas vivos no pierden nada.\n  select public.es_analista()\n     and not private.membresia_crm_revocada();\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "private.huella_exenciones_analitica_lc()",
+      "owner": "postgres",
+      "def_md5": "817926e696fa554d8485e8e1aa6e9b73",
+      "src_md5": "3e1857f79f25ea62debc0d8e0c78e886",
+      "definition": "CREATE OR REPLACE FUNCTION private.huella_exenciones_analitica_lc()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select md5(string_agg(objeto || '|' || huella || '|' || razon, chr(10) order by objeto))\n    from private.analitica_leads_citas_exenciones;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "private.fusion_bloqueos(uuid,uuid)",
+      "owner": "postgres",
+      "def_md5": "07cec8693b25f970726ffcf26ee3769e",
+      "src_md5": "2b9abcc118ffe9e34f6797850897414e",
+      "definition": "CREATE OR REPLACE FUNCTION private.fusion_bloqueos(p_perdedora uuid, p_canonica uuid)\n RETURNS text[]\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_b text[] := '{}'; v_p crm.inversionistas%rowtype; v_c crm.inversionistas%rowtype; v_n integer;\nbegin\n  if p_perdedora is null or p_canonica is null then\n    return array['Faltan las dos identidades'];\n  end if;\n  if p_perdedora = p_canonica then\n    return array['La perdedora y la canónica son la misma identidad'];\n  end if;\n  select * into v_p from crm.inversionistas where id = p_perdedora;\n  if not found then return array['La identidad perdedora no existe']; end if;\n  select * into v_c from crm.inversionistas where id = p_canonica;\n  if not found then return array['La identidad canónica no existe']; end if;\n  if v_p.estado = 'fusionado' then\n    v_b := pg_catalog.array_append(v_b, ('La perdedora ya está fusionada: usa su canónica ' || private.inversionista_canonica(v_p.id)::text)::text);\n  elsif v_p.estado <> 'activo' then\n    v_b := pg_catalog.array_append(v_b, ('La perdedora no está activa (' || v_p.estado || '): revisión de Gerencia')::text);\n  end if;\n  if v_c.estado = 'fusionado' then\n    v_b := pg_catalog.array_append(v_b, ('La canónica ya está fusionada: usa su canónica ' || private.inversionista_canonica(v_c.id)::text)::text);\n  elsif v_c.estado <> 'activo' then\n    v_b := pg_catalog.array_append(v_b, ('La canónica no está activa (' || v_c.estado || '): revisión de Gerencia')::text);\n  end if;\n  select count(*) into v_n from private.leads_de_identidades(array[p_perdedora, p_canonica]);\n  if v_n > 1 then\n    v_b := pg_catalog.array_append(v_b, 'Las dos identidades tienen lead (enlace vivo o puente): reconciliación de clase E hasta F5 (dos leads)'::text);\n  end if;\n  select count(distinct pf) into v_n from (\n    select v_p.perfil_id as pf union select v_c.perfil_id\n    union select l.perfil_id from crm.leads l where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))) s\n  where pf is not null;\n  if v_n > 1 then\n    v_b := pg_catalog.array_append(v_b, 'Hay más de un perfil de cliente entre las dos identidades y su lead: reconciliación de clase E hasta F5 (dos perfiles)'::text);\n  end if;\n  -- [Codex B1] el perfil del lead aún no reconocido debe llevar un documento de P o de C\n  if exists (select 1 from crm.leads l join public.perfiles pp on pp.id = l.perfil_id\n              where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))\n                and not exists (select 1 from crm.inversionistas i where i.perfil_id = pp.id and i.estado <> 'fusionado')\n                and not (private.documento_es_de_identidad(p_perdedora, pp.tipo_documento, pp.dni)\n                         or private.documento_es_de_identidad(p_canonica, pp.tipo_documento, pp.dni))) then\n    v_b := pg_catalog.array_append(v_b, 'El perfil de cliente del lead no está reconocido y su documento no es de estas personas: reconciliación documental primero'::text);\n  end if;\n  if exists (select 1 from crm.multiempresa_idempotencia m\n              where m.clave in ('auth_persona:' || p_perdedora::text, 'auth_persona:' || p_canonica::text)\n                and coalesce(m.resultado->>'estado', '') <> 'enlazado') then\n    v_b := pg_catalog.array_append(v_b, 'Hay un alta o conversión en curso (claim de Auth no terminal): termina o deja caducar'::text);\n  end if;\n  if exists (select 1 from crm.conversion_reservas r\n              left join crm.leads l on l.id = r.lead_id\n              where (r.inversionista_id in (p_perdedora, p_canonica)\n                     or r.lead_id in (select private.leads_de_identidades(array[p_perdedora, p_canonica])))\n                and (r.expira_en > pg_catalog.now()\n                     or (r.efectos_iniciados_en is not null and coalesce(l.etapa, '') <> 'convertido'))) then\n    v_b := pg_catalog.array_append(v_b, 'Hay una reserva de conversión viva o sellada sin convertir (por persona o por lead): termina o deja caducar'::text);\n  end if;\n  return v_b;\nend;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "firma": "private.bloquear_leads_nowait(uuid[])",
+      "owner": "postgres",
+      "def_md5": "7177e37ee51d7492f77cf1ee96e7efab",
+      "src_md5": "862b45ebc50b88f9780c3dbd8e7fe3ab",
+      "definition": "CREATE OR REPLACE FUNCTION private.bloquear_leads_nowait(p_ids uuid[])\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare v_n integer;\nbegin\n  begin\n    select count(*) into v_n from (select l.id from crm.leads l where l.id = any(p_ids) order by l.id for update nowait) s;\n  exception when lock_not_available then\n    raise exception 'El lead está en uso por otra operación; vuelve a intentarlo' using errcode = '40001';\n  end;\n  return v_n;\nend;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "firma": "crm.fusion_previsualizar_fn(uuid,uuid)",
+      "owner": "postgres",
+      "def_md5": "3db6acf5ba42a924c69497f5e2f79cba",
+      "src_md5": "417b8ce74b4e95e7f5ccfbfe70951b21",
+      "definition": "CREATE OR REPLACE FUNCTION crm.fusion_previsualizar_fn(p_perdedora uuid, p_canonica uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_p crm.inversionistas%rowtype; v_c crm.inversionistas%rowtype; v_lead crm.leads%rowtype;\n  v_bloq text[]; v_adv text[] := '{}'; v_foto jsonb;\n  v_tp crm.inversionista_responsables%rowtype; v_tc crm.inversionista_responsables%rowtype;\nbegin\n  if not private.resolver_en_puertas_bajo_candado() then\n    raise exception 'Identidad unificada apagada' using errcode = 'P0409';\n  end if;\n  if not private.es_gerencia_crm_activa() then\n    raise exception 'Solo Gerencia previsualiza una fusión' using errcode = '42501';\n  end if;\n  v_bloq := private.fusion_bloqueos(p_perdedora, p_canonica);\n  select * into v_p from crm.inversionistas where id = p_perdedora;\n  select * into v_c from crm.inversionistas where id = p_canonica;\n  if v_p.id is null or v_c.id is null or p_perdedora = p_canonica then\n    return pg_catalog.jsonb_build_object('viable', false, 'bloqueos', pg_catalog.to_jsonb(v_bloq),\n      'advertencias', '[]'::jsonb, 'hash', null, 'foto', null, 'impacto', null);\n  end if;\n  if exists (select 1 from crm.inversionista_identificadores a\n             join crm.inversionista_identificadores b on b.tipo_documento = a.tipo_documento and b.documento_normalizado <> a.documento_normalizado\n             where a.inversionista_id = p_perdedora and b.inversionista_id = p_canonica and a.estado = 'vigente' and b.estado = 'vigente') then\n    v_adv := pg_catalog.array_append(v_adv, 'Las dos tienen un documento vigente del mismo tipo: una está mal; corrige el documento después de fusionar (indicando cuál sale)'::text);\n  end if;\n  if v_p.no_contactar <> v_c.no_contactar\n     or exists (select 1 from crm.leads l where l.id in (select private.leads_de_identidades(array[p_perdedora, p_canonica])) and l.no_contactar <> (v_p.no_contactar or v_c.no_contactar)) then\n    v_adv := pg_catalog.array_append(v_adv, 'Vetos distintos: el resultado es «No contactar» en la persona y el lead, y se cancelan las tareas pendientes del lead'::text);\n  end if;\n  select * into v_tp from crm.inversionista_responsables where inversionista_id = p_perdedora and hasta is null;\n  select * into v_tc from crm.inversionista_responsables where inversionista_id = p_canonica and hasta is null;\n  if v_tp.responsable_id is not null and v_tc.responsable_id is not null and v_tp.responsable_id <> v_tc.responsable_id then\n    v_adv := pg_catalog.array_append(v_adv, 'Responsables de relación distintos: gana el de la canónica; se cierra el tramo de la perdedora'::text);\n  elsif v_tp.responsable_id is not null and v_tc.responsable_id is null then\n    v_adv := pg_catalog.array_append(v_adv, 'La canónica hereda el responsable de relación de la perdedora'::text);\n  end if;\n  if exists (select 1 from crm.inversiones where inversionista_id = p_perdedora)\n     or exists (select 1 from crm.inversion_titulares where inversionista_id = p_perdedora)\n     or exists (select 1 from crm.cierres_externos where inversionista_id = p_perdedora) then\n    v_adv := pg_catalog.array_append(v_adv, 'La perdedora tiene inversiones, titularidades o cierres: se reapuntan a la canónica; el dinero y sus fotos no se tocan'::text);\n  end if;\n  if exists (select 1 from crm.inversionistas where inversionista_canonico_id = p_perdedora) then\n    v_adv := pg_catalog.array_append(v_adv, 'La perdedora es canónica de otras identidades fusionadas: se aplanan a la nueva canónica'::text);\n  end if;\n  select * into v_lead from crm.leads where id in (select private.leads_de_identidades(array[p_perdedora, p_canonica])) order by id limit 1;\n  if v_lead.id is not null and not v_lead.activo then\n    v_adv := pg_catalog.array_append(v_adv, 'El lead está inactivo: no se deja nota de actividad (el libro de fusiones es el rastro)'::text);\n  end if;\n  v_adv := pg_catalog.array_append(v_adv, 'La conversión mensual sigue siendo por lead/cliente hasta Contrato-F3: la fusión no altera cifras ni meses sellados'::text);\n  v_foto := private.fusion_estado_jsonb(p_perdedora, p_canonica);\n  return pg_catalog.jsonb_build_object(\n    'viable', pg_catalog.cardinality(v_bloq) = 0,\n    'bloqueos', pg_catalog.to_jsonb(v_bloq),\n    'advertencias', pg_catalog.to_jsonb(v_adv),\n    'hash', private.idem_hash(v_foto),\n    'foto', v_foto,\n    'impacto', pg_catalog.jsonb_build_object(\n      'leads', (select count(*) from private.leads_de_identidades(array[p_perdedora])),\n      'puente', (select count(*) from crm.inversionista_leads where inversionista_id = p_perdedora),\n      'tareas_pendientes', (select count(*) from crm.tareas t where t.estado = 'pendiente' and t.lead_id in (select private.leads_de_identidades(array[p_perdedora, p_canonica]))),\n      'identificadores', (select count(*) from crm.inversionista_identificadores where inversionista_id = p_perdedora and estado = 'vigente'),\n      'tramos', (select count(*) from crm.inversionista_responsables where inversionista_id = p_perdedora and hasta is null),\n      'cierres', (select count(*) from crm.cierres_externos where inversionista_id = p_perdedora),\n      'inversiones', (select count(*) from crm.inversiones where inversionista_id = p_perdedora),\n      'titulares', (select count(*) from crm.inversion_titulares where inversionista_id = p_perdedora),\n      'reservas', (select count(*) from crm.conversion_reservas where inversionista_id = p_perdedora),\n      'predecesoras', (select count(*) from crm.inversionistas where inversionista_canonico_id = p_perdedora)));\nend;\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "firma": "crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)",
+      "owner": "postgres",
+      "def_md5": "8d3f4e3d6250bbfd4f4d1af936e8a351",
+      "src_md5": "7067b835fc8ed45f6c5e7261708f0c28",
+      "definition": "CREATE OR REPLACE FUNCTION crm.corregir_documento_inversionista_fn(p_inversionista uuid, p_tipo text, p_documento text, p_motivo text, p_identificador_anterior uuid DEFAULT NULL::uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\n SET lock_timeout TO '5s'\nAS $function$\ndeclare\n  v_uid uuid;\n  v_tipo text; v_norm text;\n  v_inv crm.inversionistas%rowtype; v_old_id uuid; v_old_tipo text; v_old_norm text; v_n integer; v_otro uuid; v_ahora timestamptz;\n  v_perfil_id uuid; v_perfil_dni text; v_perfil_tipo text; v_lead crm.leads%rowtype; v_new_id uuid; v_op_id uuid;\n  v_perfil_res text; v_lead_res text; v_k text; v_docs text[]; v_reusa boolean := false;\nbegin\n  if not private.resolver_en_puertas_bajo_candado() then\n    raise exception 'Identidad unificada apagada' using errcode = 'P0409';\n  end if;\n  if not private.es_gerencia_crm_activa() then\n    raise exception 'Solo Gerencia corrige el documento de una persona' using errcode = '42501';\n  end if;\n  v_uid := (select auth.uid());\n  v_tipo := pg_catalog.upper(pg_catalog.btrim(coalesce(p_tipo, '')));\n  v_norm := pg_catalog.upper(pg_catalog.regexp_replace(coalesce(p_documento, ''), '[^A-Za-z0-9]', '', 'g'));\n  if v_tipo not in ('DNI', 'CE', 'PASAPORTE') then\n    raise exception 'Tipo de documento invalido' using errcode = '22023';\n  end if;\n  if (v_tipo = 'DNI' and v_norm !~ '^[0-9]{8}$')\n     or (v_tipo = 'CE' and v_norm !~ '^[0-9]{9,12}$')\n     or (v_tipo = 'PASAPORTE' and v_norm !~ '^[A-Z0-9]{6,12}$') then\n    raise exception 'Documento invalido para el tipo' using errcode = '22023';\n  end if;\n  select * into v_inv from crm.inversionistas where id = p_inversionista;\n  if not found then\n    raise exception 'La persona no existe' using errcode = 'P0002';\n  end if;\n  if v_inv.estado = 'fusionado' then\n    raise exception 'Esta identidad está fusionada: corrige en su canónica %', private.inversionista_canonica(v_inv.id) using errcode = 'P0409';\n  elsif v_inv.estado <> 'activo' then\n    raise exception 'La persona no está activa (%): revisión de Gerencia', v_inv.estado using errcode = 'P0409';\n  end if;\n  -- El identificador que sale, leído SIN lock (solo para calcular los advisories); se revalida bajo la identidad [E3-5].\n  -- La unicidad «único de su tipo» solo se exige cuando NO se indica cuál sale [E3-15].\n  if p_identificador_anterior is not null then\n    select d.id, d.tipo_documento, d.documento_normalizado into v_old_id, v_old_tipo, v_old_norm\n    from crm.inversionista_identificadores d\n    where d.id = p_identificador_anterior and d.inversionista_id = p_inversionista and d.estado = 'vigente';\n    if v_old_id is null then\n      raise exception 'El identificador anterior no es un documento vigente de esta persona' using errcode = 'P0409';\n    end if;\n  else\n    select count(*) into v_n from crm.inversionista_identificadores d\n    where d.inversionista_id = p_inversionista and d.tipo_documento = v_tipo and d.estado = 'vigente';\n    if v_n > 1 then\n      raise exception 'La persona tiene varios documentos vigentes de tipo %: indica cuál sustituir (p_identificador_anterior)', v_tipo using errcode = '22023';\n    elsif v_n = 1 then\n      select d.id, d.tipo_documento, d.documento_normalizado into v_old_id, v_old_tipo, v_old_norm\n      from crm.inversionista_identificadores d\n      where d.inversionista_id = p_inversionista and d.tipo_documento = v_tipo and d.estado = 'vigente';\n    end if;\n  end if;\n  if v_old_tipo = v_tipo and v_old_norm = v_norm then\n    return pg_catalog.jsonb_build_object('ok', true, 'estado', 'sin_cambios', 'inversionista_id', p_inversionista);\n  end if;\n  perform private.motivo_sin_documento(p_motivo, array[v_norm, v_old_norm] || coalesce((select pg_catalog.array_agg(d.documento_normalizado) from crm.inversionista_identificadores d where d.inversionista_id = p_inversionista), '{}'));\n\n  -- jerarquía [E3-2] + Gerencia revalidada -> advisories de viejo y nuevo, ordenados -> identidad FOR UPDATE\n  perform pg_catalog.pg_advisory_xact_lock_shared(pg_catalog.hashtextextended('crm.equipo.usuarios_jerarquia', 0));\n  if not private.es_gerencia_crm_activa() then\n    raise exception 'Solo Gerencia corrige el documento de una persona (membresía revalidada)' using errcode = '42501';\n  end if;\n  select pg_catalog.array_agg(k order by k) into v_docs\n  from (select distinct k from unnest(array[v_tipo || ':' || v_norm, v_old_tipo || ':' || v_old_norm]) k where k is not null) s;\n  foreach v_k in array v_docs loop\n    perform private.identidad_bloquear_documento(split_part(v_k, ':', 1), split_part(v_k, ':', 2));\n  end loop;\n  select * into v_inv from crm.inversionistas where id = p_inversionista for update;\n  if v_inv.estado <> 'activo' then\n    raise exception 'La persona cambió mientras se corregía (estado %); vuelve a intentarlo', v_inv.estado using errcode = '40001';\n  end if;\n  if v_old_id is not null then\n    if not exists (select 1 from crm.inversionista_identificadores d where d.id = v_old_id and d.inversionista_id = p_inversionista\n                     and d.estado = 'vigente' and d.tipo_documento = v_old_tipo and d.documento_normalizado = v_old_norm) then\n      raise exception 'El documento de la persona cambió mientras se corregía; vuelve a intentarlo' using errcode = '40001';\n    end if;\n  end if;\n  if p_identificador_anterior is null then\n    select count(*) into v_n from crm.inversionista_identificadores d\n    where d.inversionista_id = p_inversionista and d.tipo_documento = v_tipo and d.estado = 'vigente';\n    if v_n <> (case when v_old_id is null then 0 else 1 end) then\n      raise exception 'Los documentos de la persona cambiaron mientras se corregía; vuelve a intentarlo' using errcode = '40001';\n    end if;\n  end if;\n  -- el nuevo, ¿ya es vigente de alguien?\n  select d.inversionista_id, d.id into v_otro, v_new_id from crm.inversionista_identificadores d\n  where d.tipo_documento = v_tipo and d.documento_normalizado = v_norm and d.estado = 'vigente';\n  if v_otro is not null and v_otro <> p_inversionista then\n    raise exception 'El documento pertenece a otra persona reconocida: fusiona las identidades en vez de corregir' using errcode = 'P0409';\n  end if;\n  if v_otro = p_inversionista then\n    if v_old_id is null then\n      return pg_catalog.jsonb_build_object('ok', true, 'estado', 'sin_cambios', 'inversionista_id', p_inversionista);\n    end if;\n    v_reusa := true;   -- [E3-15] el destino ya es un vigente propio (p. ej. tras una fusión): sale el anterior y se reutiliza\n  else\n    v_new_id := null;\n  end if;\n  -- alta/conversión en curso [E3-7]: claim y reservas (por persona O por lead) bajo lock\n  perform 1 from crm.multiempresa_idempotencia m where m.clave = 'auth_persona:' || p_inversionista::text for update;\n  if exists (select 1 from crm.multiempresa_idempotencia m where m.clave = 'auth_persona:' || p_inversionista::text\n              and coalesce(m.resultado->>'estado', '') <> 'enlazado') then\n    raise exception 'Hay un alta o conversión en curso para esta persona: termina o deja caducar antes de corregir' using errcode = 'P0409';\n  end if;\n  -- perfil enlazado FOR UPDATE (escribe) -> cierres -> tareas -> lead (NOWAIT) -> reservas -> contactos -> terceros\n  if v_inv.perfil_id is not null then\n    select p.id, p.dni, p.tipo_documento into v_perfil_id, v_perfil_dni, v_perfil_tipo from public.perfiles p where p.id = v_inv.perfil_id for update;\n  end if;\n  perform 1 from crm.cierres_externos ce\n   where ce.inversionista_id = p_inversionista or ce.lead_id in (select private.leads_de_identidades(array[p_inversionista]))\n   order by ce.id for update;\n  perform 1 from crm.tareas t where t.estado = 'pendiente'\n     and t.lead_id in (select private.leads_de_identidades(array[p_inversionista])) order by t.id for update;\n  perform private.bloquear_leads_nowait(coalesce((select pg_catalog.array_agg(x) from private.leads_de_identidades(array[p_inversionista]) x), '{}'));\n  select * into v_lead from crm.leads l where l.inversionista_id = p_inversionista order by l.id limit 1;\n  perform 1 from crm.conversion_reservas r\n   where r.inversionista_id = p_inversionista or r.lead_id in (select private.leads_de_identidades(array[p_inversionista])) order by r.lead_id for update;\n  if exists (select 1 from crm.conversion_reservas r left join crm.leads l on l.id = r.lead_id\n              where (r.inversionista_id = p_inversionista or r.lead_id in (select private.leads_de_identidades(array[p_inversionista])))\n                and (r.expira_en > pg_catalog.now() or (r.efectos_iniciados_en is not null and coalesce(l.etapa, '') <> 'convertido'))) then\n    raise exception 'Hay una reserva de conversión viva o sellada sin convertir (por persona o por lead): termina o deja caducar antes de corregir' using errcode = 'P0409';\n  end if;\n  -- contactos (último recurso del orden) ANTES de mirar a terceros [E3-6]: el trigger los retoma reentrante\n  if v_lead.id is not null then\n    perform private.bloquear_contactos_lead(array[v_lead.telefono], array[v_lead.dni, case when v_tipo = 'DNI' then v_norm end]);\n  else\n    perform private.bloquear_contactos_lead(array[]::text[], array[case when v_tipo = 'DNI' then v_norm end]);\n  end if;\n  v_ahora := pg_catalog.clock_timestamp();\n  if exists (select 1 from public.perfiles pp\n              where pp.rol = 'cliente'\n                and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(pp.dni, ''), '[^A-Za-z0-9]', '', 'g')) = v_norm\n                and coalesce(nullif(pg_catalog.btrim(pp.tipo_documento), ''), 'DNI') = v_tipo\n                and pp.id is distinct from v_inv.perfil_id) then\n    raise exception 'Otro cliente del Portal lleva ese documento: revisión o fusión de Gerencia' using errcode = 'P0409';\n  end if;\n  if v_tipo = 'DNI' and exists (select 1 from crm.leads l where l.dni = v_norm and l.id is distinct from v_lead.id\n                                  and l.activo = true and l.etapa not in ('convertido', 'descartado')) then\n    raise exception 'Otro lead vivo lleva ese DNI: fusiona o descarta ese lead primero' using errcode = 'P0409';\n  end if;\n  if v_tipo = 'DNI' and exists (select 1 from crm.leads l where l.dni = v_norm and l.id is distinct from v_lead.id and l.inversionista_id is not null\n                                  and l.inversionista_id <> p_inversionista) then\n    raise exception 'Otro lead enlazado a otra persona lleva ese DNI: fusiona o corrige ese lead primero' using errcode = 'P0409';\n  end if;\n  -- [auditor M2] lo que la excepción del trigger deja de comprobar: OTRO lead con ese DNI vetado o en enfriamiento congela el\n  -- documento (el veto de la PROPIA persona no cuenta: corregir su documento es justamente lo que Gerencia está haciendo).\n  if v_tipo = 'DNI' and exists (\n       select 1 from crm.leads l\n       left join crm.enfriamiento_politica ep on ep.motivo = l.motivo_descarte\n       where l.dni = v_norm and l.id is distinct from v_lead.id\n         and (l.inversionista_id is null or l.inversionista_id <> p_inversionista)\n         and (l.no_contactar\n              or (l.etapa = 'descartado' and l.descartado_en is not null and coalesce(ep.dias, 0) > 0\n                  and l.descartado_en + pg_catalog.make_interval(days => ep.dias) > pg_catalog.now()))) then\n    raise exception 'Ese DNI está congelado por un veto o un enfriamiento vigente en otro lead: revisión de Gerencia' using errcode = 'P0409';\n  end if;\n\n  perform pg_catalog.set_config('crm.op_privilegiada', 'on', true);\n  perform pg_catalog.set_config('crm.correccion_documento', 'on', true);   -- [auditor M1] la excepción del trigger la exige\n  if v_old_id is not null then\n    update crm.inversionista_identificadores set estado = 'historico', vigente_hasta = v_ahora where id = v_old_id;\n  end if;\n  if not v_reusa then\n    insert into crm.inversionista_identificadores\n      (inversionista_id, tipo_documento, documento_normalizado, documento_original, estado, verificado, fuente, vigente_desde, creado_por)\n    values (p_inversionista, v_tipo, v_norm, p_documento, 'vigente', true, 'correccion', v_ahora, v_uid)\n    returning id into v_new_id;\n  else\n    -- [Codex B3] el destino reutilizado queda VERIFICADO con la misma política de la corrección\n    update crm.inversionista_identificadores set verificado = true, fuente = coalesce(fuente, 'correccion') where id = v_new_id and verificado = false;\n  end if;\n  v_perfil_res := case when v_inv.perfil_id is null then 'ninguno' else 'sin_cambio' end;\n  if v_perfil_id is not null and v_old_id is not null\n     and pg_catalog.upper(pg_catalog.regexp_replace(coalesce(v_perfil_dni, ''), '[^A-Za-z0-9]', '', 'g')) = v_old_norm\n     and coalesce(nullif(pg_catalog.btrim(v_perfil_tipo), ''), 'DNI') = v_old_tipo then\n    begin\n      update public.perfiles set dni = v_norm, tipo_documento = v_tipo where id = v_perfil_id;\n    exception when unique_violation then\n      raise exception 'Otro cliente del Portal lleva ese documento: revisión o fusión de Gerencia' using errcode = 'P0409';\n    end;\n    v_perfil_res := 'actualizado';\n  end if;\n  v_lead_res := case when v_lead.id is null then 'sin_lead' else 'sin_cambio' end;\n  if v_lead.id is not null and v_old_id is not null and v_old_tipo = 'DNI' and v_lead.dni = v_old_norm then\n    if v_tipo = 'DNI' then\n      begin\n        update crm.leads set dni = v_norm where id = v_lead.id;\n      exception when unique_violation then\n        raise exception 'Otro lead vivo lleva ese DNI: fusiona o descarta ese lead primero' using errcode = 'P0409';\n      end;\n      v_lead_res := 'dni';\n    else\n      update crm.leads set dni = null where id = v_lead.id;\n      v_lead_res := 'nulo';\n    end if;\n  end if;\n  insert into crm.inversionista_operaciones\n    (tipo, inversionista_id, lead_id, identificador_anterior_id, identificador_nuevo_id, motivo, detalle, por)\n  values ('correccion', p_inversionista, v_lead.id, v_old_id, v_new_id, p_motivo,\n          pg_catalog.jsonb_build_object('tipo_documento', v_tipo, 'perfil', v_perfil_res, 'lead', v_lead_res, 'reutilizado', v_reusa), v_uid)\n  returning id into v_op_id;\n  if v_lead.id is not null and v_lead.activo then\n    insert into crm.actividades (lead_id, tipo, detalle, metadata, creado_por)\n    values (v_lead.id, 'nota', 'Documento corregido por Gerencia (' || v_tipo || ')',\n            pg_catalog.jsonb_build_object('evento', 'correccion_documento', 'operacion_id', v_op_id,\n                                          'inversionista_id', p_inversionista, 'lead', v_lead_res),\n            v_uid);\n  end if;\n  perform pg_catalog.set_config('crm.correccion_documento', 'off', true);\n  perform pg_catalog.set_config('crm.op_privilegiada', 'off', true);\n  return pg_catalog.jsonb_build_object('ok', true, 'estado', 'corregido', 'inversionista_id', p_inversionista,\n    'operacion_id', v_op_id, 'identificador_nuevo_id', v_new_id, 'identificador_anterior_id', v_old_id,\n    'reutilizado', v_reusa, 'perfil', v_perfil_res, 'lead', v_lead_res);\nend;\n$function$\n"
+    }
+  ],
+  "declaraciones": [
+    {
+      "tipo": "funcion",
+      "razon": "Aqui la pregunta del Portal se usa para PROHIBIR, no para permitir: es el candado que impide a un analista togglear activo o blanquear el asesor de su cliente. Anadirle la vigencia RELAJARIA el candado.",
+      "huella": "4727fcb810c3ec082d47b02a3bee7126",
+      "objeto": "public.proteger_campos_inmutables()",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    },
+    {
+      "tipo": "funcion",
+      "razon": "Es la puerta P04 en persona: ya pregunta por private.membresia_crm_revocada() en su propio cuerpo, que es exactamente la mitad nueva de es_analista_vigente().",
+      "huella": "da2fdeac84cc7017615090f1c0b46c48",
+      "objeto": "private.puede_gestionar_cuentas_cliente(uuid)",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    },
+    {
+      "tipo": "funcion",
+      "razon": "No es una puerta de analista: compara rol = analista solo para ETIQUETAR filas de actividad, y el acceso entero esta gateado por es_admin() antes de llegar ahi.",
+      "huella": "ff1bd19fed8d1d754547638ca205b12f",
+      "objeto": "public.bandeja_actividad(integer,integer)",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    },
+    {
+      "tipo": "funcion",
+      "razon": "P-055 F5.c: gatea por private.puede_registrar_ventas(), que exige NO estar revocado (la misma garantia que P04 daba via membresia). Sigue nombrando es_analista() en el DECLARE (linea muerta), por eso permanece en el censo y exenta; huella re-fijada al cuerpo de F5.c.",
+      "huella": "1ddba6aba83fee25f9225a6bec1608f1",
+      "objeto": "public.crear_contrato(jsonb,jsonb)",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    },
+    {
+      "tipo": "funcion",
+      "razon": "P-055 F5.c: gatea por private.puede_registrar_ventas(), que exige NO estar revocado (la misma garantia que P04 daba via membresia). Sigue nombrando es_analista() en el DECLARE (linea muerta), por eso permanece en el censo y exenta; huella re-fijada al cuerpo de F5.c.",
+      "huella": "df22c2bd3f28b2391384694814403abf",
+      "objeto": "public.actualizar_contrato(uuid,jsonb,jsonb)",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    },
+    {
+      "tipo": "funcion",
+      "razon": "No es una puerta de analista: usa rol = analista para SELECCIONAR a quien se rankea, y el acceso esta gateado por es_directorio() o es_admin(). Tras ATR-4 su pierna coop corta por la MEDIDA del nucleo (la anulada real sigue siendo dinero, regla 31/08).",
+      "huella": "8a66ba19cd36475acdf4ef0e2664a0bd",
+      "objeto": "public.directorio_ranking_analistas()",
+      "declarado_en": "2026-08-30T04:02:39.070674+00:00"
+    }
+  ],
+  "audit_exenciones": [
+    {
+      "razon": "Es la bitácora de la pantalla de Usuarios: ella misma ES el rastro. Además su id es BIGINT y private.log_audit_crm castea a uuid, así que colgárselo abortaría el alta de usuarios entera (visto en la auditoría P-053).",
+      "tabla": "crm.usuario_eventos",
+      "declarada_en": "2026-08-30T01:15:30.342723+00:00"
+    },
+    {
+      "razon": "Marca de «novedad leída» por persona. No es dinero, ni titulares, ni secreto: auditarla sería ruido puro que enterraría los movimientos que sí importan.",
+      "tabla": "public.novedades_leidas",
+      "declarada_en": "2026-08-30T01:15:30.342723+00:00"
+    },
+    {
+      "razon": "Es la auditoría misma: colgarle un auditor sería una recursión infinita. Su integridad la dan sus permisos y la ausencia de política de borrado, no un rastro de sí misma.",
+      "tabla": "public.audit_log",
+      "declarada_en": "2026-08-30T01:15:34.036507+00:00"
+    }
+  ],
+  "audit_condicionada": [
+    {
+      "razon": "Su rastro lleva un WHEN desde antes de esta fase, deliberadamente: el cronograma se reescribe en bloque en cada recálculo y sin la condición la auditoría se llenaría de filas idénticas. Auditar el cambio real sigue garantizado.",
+      "tabla": "public.cronograma_pagos",
+      "declarada_en": "2026-08-30T01:55:30.348954+00:00"
+    }
+  ]
+}

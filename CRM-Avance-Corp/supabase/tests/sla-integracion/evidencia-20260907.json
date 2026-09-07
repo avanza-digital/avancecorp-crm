@@ -1,0 +1,150 @@
+{
+  "alcance": "Esquema completo sin clientes; pruebas locales sin TCP; ninguna escritura remota",
+  "schema_sha256": "bec81064d045b32721ed93e67593b07e9962b688ff0081dddc9d284aed1fab55",
+  "postgres": "PostgreSQL 17.10 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.1.1.101), 64-bit",
+  "schema_restored": true,
+  "managed_extensions_not_installed": [
+    "pg_stat_statements",
+    "supabase_vault",
+    "pg_net",
+    "hypopg",
+    "index_advisor",
+    "pg_cron"
+  ],
+  "omissions": [
+    "extensions.pg_stat_statements_info()",
+    "extensions.pg_stat_statements_reset(oid,oid,bigint,boolean)",
+    "extensions.pg_stat_statements(boolean)",
+    "extensions.hypopg_unhide_all_indexes()",
+    "extensions.hypopg_hidden_indexes()",
+    "extensions.hypopg_reset_index()",
+    "extensions.hypopg_reset()",
+    "extensions.hypopg_create_index(text)",
+    "extensions.hypopg_drop_index(oid)",
+    "extensions.hypopg()",
+    "extensions.hypopg_relation_size(oid)",
+    "extensions.hypopg_get_indexdef(oid)",
+    "extensions.hypopg_hide_index(oid)",
+    "extensions.hypopg_unhide_index(oid)",
+    "extensions.index_advisor(text)",
+    "extensions.pg_stat_statements_info",
+    "extensions.pg_stat_statements",
+    "extensions.hypopg_list_indexes",
+    "extensions.hypopg_hidden_indexes"
+  ],
+  "adjustments": [
+    "CREATE SCHEMA public/extensions usa IF NOT EXISTS; estructuras y funciones CRM intactas",
+    "Metadata cron.database referencia el nombre del banco local; scheduler ausente"
+  ],
+  "managed_metadata_only": [
+    "cron.job",
+    "cron.job_run_details (vacia; no se inventan ejecuciones)"
+  ],
+  "overlay_prod": [
+    {
+      "firma": "crm.conversion_mensual_sin_cartera_fn(date)",
+      "f7_def_md5": "bb80938ccc6bd0f1e48a5f14706c0f01",
+      "prod_def_md5": "e2e2bf8fe3c71620a3db01de3cddc33b"
+    },
+    {
+      "firma": "crm.cerrar_periodo(date)",
+      "f7_def_md5": "a3fe78f62b637412f780835c9cd9a0db",
+      "prod_def_md5": "9efc07b35e9b34fdb8d84e9bad019d8e"
+    }
+  ],
+  "baseline_gates": {
+    "assert_analista_vigencia": {
+      "ok": false,
+      "salida": "",
+      "error": "ERROR:  P0001: Puertas exentas cuyo cuerpo CAMBIO desde que se declararon (la razon ya no se puede dar por buena): funcion public.crear_contrato(jsonb,jsonb)\nCONTEXT:  PL/pgSQL function private.assert_analista_vigencia() line 22 at RAISE\nLOCATION:  exec_stmt_raise, pl_exec.c:3911"
+    },
+    "assert_analitica_leads_citas": {
+      "ok": false,
+      "salida": "",
+      "error": "ERROR:  P0001: Contadores crudos de leads/citas SIN declarar: funcion crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid), funcion crm.fusion_previsualizar_fn(uuid,uuid), funcion private.bloquear_leads_nowait(uuid[]), funcion private.fusion_bloqueos(uuid,uuid). O beben del nucleo, o se declaran con su razon.\nCONTEXT:  PL/pgSQL function private.assert_analitica_leads_citas() line 8 at RAISE\nLOCATION:  exec_stmt_raise, pl_exec.c:3911"
+    },
+    "assert_auditoria": {
+      "ok": false,
+      "salida": "",
+      "error": "ERROR:  P0001: AUDITORÍA ROTA: 4 tabla(s) sin rastro completo [crm.ledger_rentabilidad, crm.politica_rentabilidad, crm.rentabilidad_hitos, crm.solicitudes_tasa]. Cuélgale un auditor AFTER por fila para los tres verbos, o declárala en private.auditoria_exenciones con su razón.\nCONTEXT:  PL/pgSQL function private.assert_auditoria() line 13 at RAISE\nLOCATION:  exec_stmt_raise, pl_exec.c:3911"
+    },
+    "assert_f7_piezas_cerradas": {
+      "ok": false,
+      "salida": "",
+      "error": "ERROR:  P0001: F7: el cuerpo de crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb) cambio estando cerrada (huella 0de7a130ae366cde54035e2c50f213e2)\nCONTEXT:  PL/pgSQL function private.assert_f7_piezas_cerradas() line 41 at RAISE\nLOCATION:  exec_stmt_raise, pl_exec.c:3911"
+    }
+  },
+  "final_gates": {
+    "assert_analista_vigencia": "OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar",
+    "assert_analitica_leads_citas": "OK: 30 contadores declarados y con su huella intacta, tope 30, 0 sin declarar",
+    "assert_auditoria": "",
+    "assert_f7_piezas_cerradas": "OK: 15 piezas vigiladas (observacion 11, permanentes 4, demolidas 0, liberadas 0)"
+  },
+  "gate_n2": "OK: publicacion atomica, captura y prorroga gobernadas por SLA",
+  "gate_n3": "OK: comandos SLA privados, idempotentes y confirmados al commit",
+  "prerequisite_roundtrip": {
+    "rollback_sources_exact": true,
+    "rollback_restores_four_baseline_reds": true,
+    "reapply_sources_exact": true,
+    "lock_row_count_equivalent": true,
+    "final_gates_green": true,
+    "private_providers_not_exposed": true
+  },
+  "migrations": [
+    {
+      "archivo": "20260907032338_crm_sla_prerrequisito_gobernanza.sql",
+      "sha256": "cebf5605304f09d5ae6aa5c62618c006d747844abaf4703e187eb18cdf856189"
+    },
+    {
+      "archivo": "20260907001024_crm_sla_nucleo_operativo_lectura.sql",
+      "sha256": "1db637e615b4c054acdd0395ce2aea6e586ae78d44f84698ca1f16f2d361e98d"
+    },
+    {
+      "archivo": "20260907024903_crm_sla_nucleo_operativo_escritura.sql",
+      "sha256": "650730b6e44ef4e6a1bfcb0073f637043f3ee7d82ee680968b18f1e29f2d2cbd"
+    },
+    {
+      "archivo": "20260907025220_crm_sla_comandos_recibos.sql",
+      "sha256": "1476b01e1c916cb88ddc9bf3d0e555ea292219060731c7f996f0633060dc1f2e"
+    },
+    {
+      "archivo": "20260907031450_crm_sla_cierre_reconstruccion_contextos.sql",
+      "sha256": "5a200ee70895015ea7aa7db06cedbe044afb47b466e52d145f24d25083b5ceb4"
+    }
+  ],
+  "n3_tests": {
+    "tests": 21,
+    "failures": 0,
+    "errors": 0,
+    "ok": true,
+    "seconds": 6.296,
+    "schema": "full",
+    "tcp": false
+  },
+  "release_gate": "OK: SLA completo, gobernanza y contratos N1/N2/N3 verificados; reconstruccion cerrada",
+  "limitations": [
+    "No HTTP/PostgREST/Auth worker ni cron ejecutando",
+    "No se afirma paridad global F7/PROD; se sellaron fuentes pertinentes",
+    "La carrera específica de adquisición de ámbito v1 no fue forzada determinísticamente; invariante de lock explícito y hash certificado"
+  ],
+  "scripts_sha256": {
+    "test-sla-integracion-local.py": "772b5aa7ca6661db0b39ba463ceed14b04e3e30f046924d40aca7c54e004a65b",
+    "test-sla-comandos-local.py": "5a7a2f4ef4c44b43cd4c28d6d6ee61aa4609158359bbcabe9264949f4b7072f7",
+    "rollback-sla-prerrequisito-gobernanza.sql": "d344e93110c80e2098f516c1d1826e2daea3069f8ed09cc6fb0209f3526814dc",
+    "trinquete-sla-produccion.sql": "93e4be842f1872ff02458d4098fd0d18217820b0cc7dcc7937b13b77f416decc",
+    "gate-sla-produccion.mjs": "36d953d6b0697ea8f4c2225b03d0b7d5e99db8ddfc86b4b89ab321debbea385c",
+    "preparar-stock-sla.py": "b2b4c4e0630a6705ad999c4a3278d7a61d3a82860ee31516b81319b29c4d6a32",
+    "sla-stock/03-verificar-foto.template.sql": "84c9b4c2699ca4e217b3c77dfbad5d4efe2a996f0bfb6cf37e16711aecab6d0b",
+    "sla-stock/02-reconstruir-lote.template.sql": "3f7a5e4b1edb49165042b202ca9ba2b774c81b68959e99509dceb343b43266bb",
+    "sla-stock/01-foto-pendientes.sql": "8ad34f8de01ac3b8ca4e278dd2d2068afe2034ce43104ad74edab67d99cc61bf"
+  },
+  "stock_pipeline_sintetico": {
+    "original": 1,
+    "reconstruido": 1,
+    "retry_existente": 1,
+    "faltantes": 0,
+    "incoherentes": 0,
+    "nuevos_faltantes": 0,
+    "timeouts": "SET LOCAL antes de la sentencia del writer"
+  }
+}

@@ -1,0 +1,4075 @@
+{
+  "t0": "2026-09-07T02:22:34.78482+00:00",
+  "estado": "completo",
+  "foto_sha256": "065e5496946dda8d5e50f06a4c9341327c545fce6c4f2844f7b0a6032ee0b5a2",
+  "migracion_sha256": "33d904a80f5eea0a94c7b3abf355827b1eec48b57a46776d9901989236f08d8f",
+  "postgres": "postgres (PostgreSQL) 17.10 (Homebrew)",
+  "v1_paridad": true,
+  "v1_filas": 1157,
+  "contextos": {
+    "total_pendientes": 831,
+    "estrictos": 831,
+    "candidatos_fecha": 831,
+    "motivos_estrictos": {}
+  },
+  "explain_estricto": {
+    "archivo": "estricto-explain.json",
+    "planning_ms": 0.031,
+    "execution_ms": 155.079,
+    "limite": "Banco reducido, cache local; no predice latencia de Supabase ni concurrencia."
+  },
+  "banco_detenido": true,
+  "servidor_origen": "PostgreSQL 17.6",
+  "censo": {
+    "leads_total": 1157,
+    "leads_activos": 1157,
+    "tareas_pendientes_sistema": 832,
+    "tareas_pendientes_sin_lead": 1
+  },
+  "universo_abierto": 827,
+  "excluidos_terminales": 330,
+  "alcance": "Simulacion local sobre hechos reales minimizados; esquema reducido. No despliegue ni validacion integral de Supabase.",
+  "escenarios": {
+    "sin_contexto": {
+      "global_": {
+        "conteos": {
+          "total_leads": 827,
+          "evaluacion_parcial": 725,
+          "revisiones": 409,
+          "tareas_vencidas": 457,
+          "primera_atencion": 342,
+          "datos_incompletos": 725,
+          "seguimientos_pendientes": 629,
+          "compromisos_cubren": 0,
+          "cobertura_desconocida": 722,
+          "seguimientos_vencidos_sin_descontar_cobertura": 629,
+          "fuera_plazo_original": 492,
+          "revision_desconocida": 382,
+          "evaluacion_completa": 102
+        },
+        "motivos_datos": {
+          "contexto_tarea_ambiguo": 722,
+          "sin_asignacion": 3
+        },
+        "motivos_revision": {
+          "reingreso_etapa": 19,
+          "limite_operativo_agotado": 395
+        },
+        "cola_atencion": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "seguimiento": 114,
+          "datos_incompletos": 112,
+          "sin_accion": 16,
+          "proxima_tarea": 1
+        },
+        "cola_supervision": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "seguimiento": 114,
+          "revision_comercial": 15,
+          "datos_incompletos": 99,
+          "sin_accion": 12,
+          "por_repartir": 3
+        }
+      },
+      "por_etapa": {
+        "contactado": {
+          "conteos": {
+            "total_leads": 418,
+            "evaluacion_parcial": 375,
+            "revisiones": 142,
+            "tareas_vencidas": 239,
+            "primera_atencion": 81,
+            "datos_incompletos": 375,
+            "seguimientos_pendientes": 305,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 375,
+            "seguimientos_vencidos_sin_descontar_cobertura": 305,
+            "fuera_plazo_original": 182,
+            "revision_desconocida": 245,
+            "evaluacion_completa": 43
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 375
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 130,
+            "reingreso_etapa": 13
+          },
+          "cola_atencion": {
+            "primera_atencion": 81,
+            "seguimiento": 85,
+            "tarea_vencida": 186,
+            "datos_incompletos": 56,
+            "sin_accion": 10
+          },
+          "cola_supervision": {
+            "primera_atencion": 81,
+            "seguimiento": 85,
+            "tarea_vencida": 186,
+            "revision_comercial": 5,
+            "datos_incompletos": 51,
+            "sin_accion": 10
+          }
+        },
+        "nuevo": {
+          "conteos": {
+            "total_leads": 272,
+            "evaluacion_parcial": 221,
+            "revisiones": 235,
+            "tareas_vencidas": 171,
+            "primera_atencion": 244,
+            "datos_incompletos": 221,
+            "seguimientos_pendientes": 269,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 218,
+            "seguimientos_vencidos_sin_descontar_cobertura": 269,
+            "fuera_plazo_original": 272,
+            "revision_desconocida": 37,
+            "evaluacion_completa": 51
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 218,
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 235,
+            "reingreso_etapa": 4
+          },
+          "cola_atencion": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "sin_accion": 3,
+            "seguimiento": 4
+          },
+          "cola_supervision": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "por_repartir": 3,
+            "seguimiento": 4
+          }
+        },
+        "propuesta_enviada": {
+          "conteos": {
+            "total_leads": 39,
+            "evaluacion_parcial": 37,
+            "revisiones": 9,
+            "tareas_vencidas": 13,
+            "primera_atencion": 5,
+            "datos_incompletos": 37,
+            "seguimientos_pendientes": 5,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 37,
+            "seguimientos_vencidos_sin_descontar_cobertura": 5,
+            "fuera_plazo_original": 17,
+            "revision_desconocida": 30,
+            "evaluacion_completa": 2
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 37
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 9
+          },
+          "cola_atencion": {
+            "datos_incompletos": 19,
+            "primera_atencion": 5,
+            "seguimiento": 4,
+            "tarea_vencida": 10,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "datos_incompletos": 15,
+            "primera_atencion": 5,
+            "seguimiento": 4,
+            "tarea_vencida": 10,
+            "revision_comercial": 5
+          }
+        },
+        "reunion_agendada": {
+          "conteos": {
+            "total_leads": 98,
+            "evaluacion_parcial": 92,
+            "revisiones": 23,
+            "tareas_vencidas": 34,
+            "primera_atencion": 12,
+            "datos_incompletos": 92,
+            "seguimientos_pendientes": 50,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 92,
+            "seguimientos_vencidos_sin_descontar_cobertura": 50,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 70,
+            "evaluacion_completa": 6
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 92
+          },
+          "motivos_revision": {
+            "reingreso_etapa": 2,
+            "limite_operativo_agotado": 21
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "datos_incompletos": 37,
+            "seguimiento": 21,
+            "sin_accion": 2,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "datos_incompletos": 33,
+            "seguimiento": 21,
+            "revision_comercial": 5,
+            "sin_accion": 2
+          }
+        }
+      },
+      "por_analista": {
+        "Analista-01": {
+          "conteos": {
+            "total_leads": 59,
+            "evaluacion_parcial": 26,
+            "revisiones": 7,
+            "tareas_vencidas": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 26,
+            "seguimientos_pendientes": 42,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 26,
+            "seguimientos_vencidos_sin_descontar_cobertura": 42,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 22,
+            "evaluacion_completa": 33
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 26
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 7
+          },
+          "cola_atencion": {
+            "seguimiento": 30,
+            "sin_accion": 10,
+            "tarea_vencida": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 3
+          },
+          "cola_supervision": {
+            "seguimiento": 30,
+            "sin_accion": 9,
+            "tarea_vencida": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 3,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-02": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_parcial": 32,
+            "revisiones": 2,
+            "tareas_vencidas": 3,
+            "primera_atencion": 11,
+            "datos_incompletos": 32,
+            "seguimientos_pendientes": 16,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 32,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 9,
+            "revision_desconocida": 31,
+            "evaluacion_completa": 1
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 32
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 1,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "seguimiento": 7,
+            "datos_incompletos": 12,
+            "primera_atencion": 11,
+            "tarea_vencida": 2,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "seguimiento": 7,
+            "datos_incompletos": 11,
+            "primera_atencion": 11,
+            "tarea_vencida": 2,
+            "revision_comercial": 2
+          }
+        },
+        "Analista-03": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_parcial": 33,
+            "revisiones": 4,
+            "tareas_vencidas": 14,
+            "primera_atencion": 5,
+            "datos_incompletos": 33,
+            "seguimientos_pendientes": 16,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 33,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 29
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 33
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 4
+          },
+          "cola_atencion": {
+            "datos_incompletos": 11,
+            "tarea_vencida": 11,
+            "seguimiento": 6,
+            "primera_atencion": 5
+          },
+          "cola_supervision": {
+            "datos_incompletos": 11,
+            "tarea_vencida": 11,
+            "seguimiento": 6,
+            "primera_atencion": 5
+          }
+        },
+        "Analista-04": {
+          "conteos": {
+            "total_leads": 37,
+            "evaluacion_parcial": 36,
+            "revisiones": 30,
+            "tareas_vencidas": 29,
+            "primera_atencion": 25,
+            "datos_incompletos": 36,
+            "seguimientos_pendientes": 37,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 36,
+            "seguimientos_vencidos_sin_descontar_cobertura": 37,
+            "fuera_plazo_original": 29,
+            "revision_desconocida": 7,
+            "evaluacion_completa": 1
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 36
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 29,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 2
+          }
+        },
+        "Analista-05": {
+          "conteos": {
+            "total_leads": 68,
+            "evaluacion_parcial": 47,
+            "revisiones": 47,
+            "tareas_vencidas": 34,
+            "primera_atencion": 31,
+            "datos_incompletos": 47,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 47,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 51,
+            "revision_desconocida": 20,
+            "evaluacion_completa": 21
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 47
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 47
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "seguimiento": 13,
+            "tarea_vencida": 18,
+            "datos_incompletos": 6
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "seguimiento": 13,
+            "tarea_vencida": 18,
+            "datos_incompletos": 5,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-06": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_parcial": 51,
+            "revisiones": 37,
+            "tareas_vencidas": 38,
+            "primera_atencion": 15,
+            "datos_incompletos": 51,
+            "seguimientos_pendientes": 55,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 51,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 48,
+            "revision_desconocida": 24,
+            "evaluacion_completa": 10
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 51
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 37
+          },
+          "cola_atencion": {
+            "tarea_vencida": 35,
+            "seguimiento": 7,
+            "primera_atencion": 15,
+            "datos_incompletos": 4
+          },
+          "cola_supervision": {
+            "tarea_vencida": 35,
+            "seguimiento": 7,
+            "primera_atencion": 15,
+            "datos_incompletos": 4
+          }
+        },
+        "Analista-07": {
+          "conteos": {
+            "total_leads": 65,
+            "evaluacion_parcial": 55,
+            "revisiones": 45,
+            "tareas_vencidas": 53,
+            "primera_atencion": 31,
+            "datos_incompletos": 55,
+            "seguimientos_pendientes": 60,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 55,
+            "seguimientos_vencidos_sin_descontar_cobertura": 60,
+            "fuera_plazo_original": 50,
+            "revision_desconocida": 19,
+            "evaluacion_completa": 10
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 55
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 45
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "datos_incompletos": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "datos_incompletos": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-08": {
+          "conteos": {
+            "total_leads": 52,
+            "evaluacion_parcial": 52,
+            "revisiones": 29,
+            "tareas_vencidas": 42,
+            "primera_atencion": 44,
+            "datos_incompletos": 52,
+            "seguimientos_pendientes": 45,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 52,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 41,
+            "revision_desconocida": 23
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 52
+          },
+          "motivos_revision": {
+            "reingreso_etapa": 1,
+            "limite_operativo_agotado": 28
+          },
+          "cola_atencion": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "datos_incompletos": 4,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "datos_incompletos": 4,
+            "seguimiento": 2
+          }
+        },
+        "Analista-09": {
+          "conteos": {
+            "total_leads": 66,
+            "evaluacion_parcial": 60,
+            "revisiones": 39,
+            "tareas_vencidas": 41,
+            "primera_atencion": 38,
+            "datos_incompletos": 60,
+            "seguimientos_pendientes": 58,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 60,
+            "seguimientos_vencidos_sin_descontar_cobertura": 58,
+            "fuera_plazo_original": 54,
+            "revision_desconocida": 27,
+            "evaluacion_completa": 6
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 60
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 39,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "datos_incompletos": 2,
+            "seguimiento": 8
+          },
+          "cola_supervision": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "datos_incompletos": 2,
+            "seguimiento": 8
+          }
+        },
+        "Analista-10": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 3,
+            "revisiones": 27,
+            "tareas_vencidas": 30,
+            "primera_atencion": 18,
+            "datos_incompletos": 30,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 30,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 6,
+            "evaluacion_parcial": 30
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 30
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 27
+          },
+          "cola_atencion": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          }
+        },
+        "Analista-12": {
+          "conteos": {
+            "total_leads": 44,
+            "evaluacion_parcial": 42,
+            "revisiones": 1,
+            "tareas_vencidas": 11,
+            "primera_atencion": 6,
+            "datos_incompletos": 42,
+            "seguimientos_pendientes": 15,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 42,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 4,
+            "revision_desconocida": 41,
+            "evaluacion_completa": 2
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 42
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "datos_incompletos": 20,
+            "seguimiento": 11,
+            "tarea_vencida": 7,
+            "primera_atencion": 6
+          },
+          "cola_supervision": {
+            "datos_incompletos": 19,
+            "seguimiento": 11,
+            "tarea_vencida": 7,
+            "primera_atencion": 6,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-13": {
+          "conteos": {
+            "total_leads": 35,
+            "evaluacion_parcial": 33,
+            "revisiones": 7,
+            "tareas_vencidas": 0,
+            "primera_atencion": 12,
+            "datos_incompletos": 33,
+            "seguimientos_pendientes": 15,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 33,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 15,
+            "revision_desconocida": 27,
+            "evaluacion_completa": 2
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 33
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 12,
+            "datos_incompletos": 16,
+            "seguimiento": 6,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 12,
+            "datos_incompletos": 16,
+            "seguimiento": 6,
+            "sin_accion": 1
+          }
+        },
+        "Analista-14": {
+          "conteos": {
+            "total_leads": 67,
+            "evaluacion_parcial": 67,
+            "revisiones": 24,
+            "tareas_vencidas": 53,
+            "primera_atencion": 34,
+            "datos_incompletos": 67,
+            "seguimientos_pendientes": 45,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 67,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 16,
+            "revision_desconocida": 43
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 67
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 15,
+            "reingreso_etapa": 12
+          },
+          "cola_atencion": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "datos_incompletos": 5,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "revision_comercial": 1,
+            "datos_incompletos": 4,
+            "seguimiento": 2
+          }
+        },
+        "Analista-15": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_parcial": 52,
+            "revisiones": 55,
+            "tareas_vencidas": 52,
+            "primera_atencion": 36,
+            "datos_incompletos": 52,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 52,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 55,
+            "revision_desconocida": 6,
+            "evaluacion_completa": 9
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 52
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 55
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          }
+        },
+        "Analista-16": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_parcial": 58,
+            "revisiones": 31,
+            "tareas_vencidas": 42,
+            "primera_atencion": 18,
+            "datos_incompletos": 58,
+            "seguimientos_pendientes": 46,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 58,
+            "seguimientos_vencidos_sin_descontar_cobertura": 46,
+            "fuera_plazo_original": 40,
+            "revision_desconocida": 29,
+            "evaluacion_completa": 3
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 58
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 31,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 28,
+            "seguimiento": 8,
+            "primera_atencion": 18,
+            "sin_accion": 1,
+            "datos_incompletos": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 28,
+            "seguimiento": 8,
+            "primera_atencion": 18,
+            "sin_accion": 1,
+            "datos_incompletos": 5,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-18": {
+          "conteos": {
+            "total_leads": 47,
+            "evaluacion_parcial": 46,
+            "revisiones": 20,
+            "tareas_vencidas": 0,
+            "primera_atencion": 17,
+            "datos_incompletos": 46,
+            "seguimientos_pendientes": 22,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 46,
+            "seguimientos_vencidos_sin_descontar_cobertura": 22,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 27,
+            "evaluacion_completa": 1
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 46
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 19,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 17,
+            "datos_incompletos": 22,
+            "seguimiento": 8
+          },
+          "cola_supervision": {
+            "primera_atencion": 17,
+            "revision_comercial": 8,
+            "datos_incompletos": 14,
+            "seguimiento": 8
+          }
+        },
+        "Analista-19": {
+          "conteos": {
+            "total_leads": 2,
+            "evaluacion_parcial": 2,
+            "revisiones": 1,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 2,
+            "seguimientos_pendientes": 2,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 2,
+            "seguimientos_vencidos_sin_descontar_cobertura": 2,
+            "fuera_plazo_original": 1,
+            "revision_desconocida": 1
+          },
+          "motivos_datos": {
+            "contexto_tarea_ambiguo": 2
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "seguimiento": 2
+          }
+        },
+        "Sin analista": {
+          "conteos": {
+            "total_leads": 3,
+            "evaluacion_parcial": 3,
+            "revisiones": 3,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 0,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 0,
+            "fuera_plazo_original": 3,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "sin_accion": 3
+          },
+          "cola_supervision": {
+            "por_repartir": 3
+          }
+        }
+      }
+    },
+    "estricto": {
+      "global_": {
+        "conteos": {
+          "total_leads": 827,
+          "evaluacion_completa": 824,
+          "revisiones": 455,
+          "tareas_vencidas": 457,
+          "primera_atencion": 342,
+          "datos_incompletos": 3,
+          "seguimientos_pendientes": 527,
+          "compromisos_cubren": 229,
+          "cobertura_desconocida": 0,
+          "seguimientos_vencidos_sin_descontar_cobertura": 629,
+          "fuera_plazo_original": 492,
+          "revision_desconocida": 0,
+          "evaluacion_parcial": 3
+        },
+        "motivos_datos": {
+          "sin_asignacion": 3
+        },
+        "motivos_revision": {
+          "reingreso_etapa": 19,
+          "limite_operativo_agotado": 441,
+          "reprogramaciones_agotadas": 6
+        },
+        "cola_atencion": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "proxima_tarea": 174,
+          "seguimiento": 53,
+          "sin_accion": 16
+        },
+        "cola_supervision": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "proxima_tarea": 157,
+          "revision_comercial": 18,
+          "seguimiento": 53,
+          "sin_accion": 12,
+          "por_repartir": 3
+        }
+      },
+      "por_etapa": {
+        "contactado": {
+          "conteos": {
+            "total_leads": 418,
+            "evaluacion_completa": 418,
+            "revisiones": 175,
+            "tareas_vencidas": 239,
+            "primera_atencion": 81,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 255,
+            "compromisos_cubren": 119,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 305,
+            "fuera_plazo_original": 182,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 163,
+            "reingreso_etapa": 13,
+            "reprogramaciones_agotadas": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 81,
+            "proxima_tarea": 96,
+            "tarea_vencida": 186,
+            "seguimiento": 45,
+            "sin_accion": 10
+          },
+          "cola_supervision": {
+            "primera_atencion": 81,
+            "proxima_tarea": 88,
+            "tarea_vencida": 186,
+            "revision_comercial": 8,
+            "seguimiento": 45,
+            "sin_accion": 10
+          }
+        },
+        "nuevo": {
+          "conteos": {
+            "total_leads": 272,
+            "evaluacion_completa": 269,
+            "revisiones": 245,
+            "tareas_vencidas": 171,
+            "primera_atencion": 244,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 242,
+            "compromisos_cubren": 27,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 269,
+            "fuera_plazo_original": 272,
+            "revision_desconocida": 0,
+            "evaluacion_parcial": 3
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 245,
+            "reprogramaciones_agotadas": 5,
+            "reingreso_etapa": 4
+          },
+          "cola_atencion": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "sin_accion": 3,
+            "seguimiento": 3,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "por_repartir": 3,
+            "seguimiento": 3,
+            "proxima_tarea": 1
+          }
+        },
+        "propuesta_enviada": {
+          "conteos": {
+            "total_leads": 39,
+            "evaluacion_completa": 39,
+            "revisiones": 12,
+            "tareas_vencidas": 13,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 2,
+            "compromisos_cubren": 22,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 5,
+            "fuera_plazo_original": 17,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 12
+          },
+          "cola_atencion": {
+            "proxima_tarea": 22,
+            "primera_atencion": 5,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 18,
+            "primera_atencion": 5,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 5
+          }
+        },
+        "reunion_agendada": {
+          "conteos": {
+            "total_leads": 98,
+            "evaluacion_completa": 98,
+            "revisiones": 23,
+            "tareas_vencidas": 34,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 28,
+            "compromisos_cubren": 61,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 50,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 2,
+            "limite_operativo_agotado": 21
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "proxima_tarea": 55,
+            "seguimiento": 4,
+            "sin_accion": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "proxima_tarea": 50,
+            "revision_comercial": 5,
+            "seguimiento": 4,
+            "sin_accion": 2
+          }
+        }
+      },
+      "por_analista": {
+        "Analista-01": {
+          "conteos": {
+            "total_leads": 59,
+            "evaluacion_completa": 59,
+            "revisiones": 7,
+            "tareas_vencidas": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 34,
+            "compromisos_cubren": 11,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 42,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 7
+          },
+          "cola_atencion": {
+            "proxima_tarea": 11,
+            "sin_accion": 10,
+            "seguimiento": 22,
+            "tarea_vencida": 15,
+            "primera_atencion": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 11,
+            "sin_accion": 9,
+            "seguimiento": 22,
+            "tarea_vencida": 15,
+            "primera_atencion": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-02": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 3,
+            "tareas_vencidas": 3,
+            "primera_atencion": 11,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 1,
+            "compromisos_cubren": 30,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 9,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 2,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "proxima_tarea": 20,
+            "primera_atencion": 11,
+            "tarea_vencida": 2
+          },
+          "cola_supervision": {
+            "proxima_tarea": 18,
+            "primera_atencion": 11,
+            "tarea_vencida": 2,
+            "revision_comercial": 2
+          }
+        },
+        "Analista-03": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 6,
+            "tareas_vencidas": 14,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 8,
+            "compromisos_cubren": 19,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 6
+          },
+          "cola_atencion": {
+            "proxima_tarea": 16,
+            "tarea_vencida": 11,
+            "primera_atencion": 5,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 16,
+            "tarea_vencida": 11,
+            "primera_atencion": 5,
+            "seguimiento": 1
+          }
+        },
+        "Analista-04": {
+          "conteos": {
+            "total_leads": 37,
+            "evaluacion_completa": 37,
+            "revisiones": 30,
+            "tareas_vencidas": 29,
+            "primera_atencion": 25,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 32,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 37,
+            "fuera_plazo_original": 29,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 29,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-05": {
+          "conteos": {
+            "total_leads": 68,
+            "evaluacion_completa": 68,
+            "revisiones": 50,
+            "tareas_vencidas": 34,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 57,
+            "compromisos_cubren": 10,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 51,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 50
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "proxima_tarea": 10,
+            "seguimiento": 9,
+            "tarea_vencida": 18
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "proxima_tarea": 9,
+            "seguimiento": 9,
+            "tarea_vencida": 18,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-06": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 46,
+            "tareas_vencidas": 38,
+            "primera_atencion": 15,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 53,
+            "compromisos_cubren": 6,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 48,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 46
+          },
+          "cola_atencion": {
+            "tarea_vencida": 35,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 35,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 6
+          }
+        },
+        "Analista-07": {
+          "conteos": {
+            "total_leads": 65,
+            "evaluacion_completa": 65,
+            "revisiones": 49,
+            "tareas_vencidas": 53,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 59,
+            "compromisos_cubren": 3,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 60,
+            "fuera_plazo_original": 50,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 49
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "proxima_tarea": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "proxima_tarea": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-08": {
+          "conteos": {
+            "total_leads": 52,
+            "evaluacion_completa": 52,
+            "revisiones": 39,
+            "tareas_vencidas": 42,
+            "primera_atencion": 44,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 41,
+            "compromisos_cubren": 9,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 41,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 1,
+            "limite_operativo_agotado": 38
+          },
+          "cola_atencion": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "proxima_tarea": 6
+          },
+          "cola_supervision": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "proxima_tarea": 6
+          }
+        },
+        "Analista-09": {
+          "conteos": {
+            "total_leads": 66,
+            "evaluacion_completa": 66,
+            "revisiones": 46,
+            "tareas_vencidas": 41,
+            "primera_atencion": 38,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 47,
+            "compromisos_cubren": 14,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 58,
+            "fuera_plazo_original": 54,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 46,
+            "reprogramaciones_agotadas": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "proxima_tarea": 7,
+            "seguimiento": 3
+          },
+          "cola_supervision": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "proxima_tarea": 7,
+            "seguimiento": 3
+          }
+        },
+        "Analista-10": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 30,
+            "tareas_vencidas": 30,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 30
+          },
+          "cola_atencion": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          }
+        },
+        "Analista-12": {
+          "conteos": {
+            "total_leads": 44,
+            "evaluacion_completa": 44,
+            "revisiones": 3,
+            "tareas_vencidas": 11,
+            "primera_atencion": 6,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 3,
+            "compromisos_cubren": 36,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 4,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "proxima_tarea": 30,
+            "tarea_vencida": 7,
+            "primera_atencion": 6,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 29,
+            "tarea_vencida": 7,
+            "primera_atencion": 6,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-13": {
+          "conteos": {
+            "total_leads": 35,
+            "evaluacion_completa": 35,
+            "revisiones": 7,
+            "tareas_vencidas": 0,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 6,
+            "compromisos_cubren": 28,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 15,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 12,
+            "proxima_tarea": 22,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 12,
+            "proxima_tarea": 21,
+            "revision_comercial": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-14": {
+          "conteos": {
+            "total_leads": 67,
+            "evaluacion_completa": 67,
+            "revisiones": 25,
+            "tareas_vencidas": 53,
+            "primera_atencion": 34,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 42,
+            "compromisos_cubren": 15,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 16,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 16,
+            "reingreso_etapa": 12
+          },
+          "cola_atencion": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "proxima_tarea": 7
+          },
+          "cola_supervision": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "revision_comercial": 2,
+            "proxima_tarea": 5
+          }
+        },
+        "Analista-15": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 55,
+            "tareas_vencidas": 52,
+            "primera_atencion": 36,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 55,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 55
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          }
+        },
+        "Analista-16": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 35,
+            "tareas_vencidas": 42,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 38,
+            "compromisos_cubren": 14,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 46,
+            "fuera_plazo_original": 40,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 35,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 28,
+            "seguimiento": 3,
+            "proxima_tarea": 11,
+            "primera_atencion": 18,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 28,
+            "seguimiento": 3,
+            "proxima_tarea": 10,
+            "primera_atencion": 18,
+            "sin_accion": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-18": {
+          "conteos": {
+            "total_leads": 47,
+            "evaluacion_completa": 47,
+            "revisiones": 20,
+            "tareas_vencidas": 0,
+            "primera_atencion": 17,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 11,
+            "compromisos_cubren": 28,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 22,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 19,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 17,
+            "proxima_tarea": 25,
+            "seguimiento": 5
+          },
+          "cola_supervision": {
+            "primera_atencion": 17,
+            "revision_comercial": 8,
+            "proxima_tarea": 17,
+            "seguimiento": 5
+          }
+        },
+        "Analista-19": {
+          "conteos": {
+            "total_leads": 2,
+            "evaluacion_completa": 2,
+            "revisiones": 1,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 1,
+            "compromisos_cubren": 1,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 2,
+            "fuera_plazo_original": 1,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "proxima_tarea": 1,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 1,
+            "seguimiento": 1
+          }
+        },
+        "Sin analista": {
+          "conteos": {
+            "total_leads": 3,
+            "evaluacion_parcial": 3,
+            "revisiones": 3,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 0,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 0,
+            "fuera_plazo_original": 3,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "sin_accion": 3
+          },
+          "cola_supervision": {
+            "por_repartir": 3
+          }
+        }
+      }
+    },
+    "solo_fecha_sensibilidad": {
+      "global_": {
+        "conteos": {
+          "total_leads": 827,
+          "evaluacion_completa": 824,
+          "revisiones": 455,
+          "tareas_vencidas": 457,
+          "primera_atencion": 342,
+          "datos_incompletos": 3,
+          "seguimientos_pendientes": 527,
+          "compromisos_cubren": 229,
+          "cobertura_desconocida": 0,
+          "seguimientos_vencidos_sin_descontar_cobertura": 629,
+          "fuera_plazo_original": 492,
+          "revision_desconocida": 0,
+          "evaluacion_parcial": 3
+        },
+        "motivos_datos": {
+          "sin_asignacion": 3
+        },
+        "motivos_revision": {
+          "reingreso_etapa": 19,
+          "limite_operativo_agotado": 441,
+          "reprogramaciones_agotadas": 6
+        },
+        "cola_atencion": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "proxima_tarea": 174,
+          "seguimiento": 53,
+          "sin_accion": 16
+        },
+        "cola_supervision": {
+          "primera_atencion": 342,
+          "tarea_vencida": 242,
+          "proxima_tarea": 157,
+          "revision_comercial": 18,
+          "seguimiento": 53,
+          "sin_accion": 12,
+          "por_repartir": 3
+        }
+      },
+      "por_etapa": {
+        "contactado": {
+          "conteos": {
+            "total_leads": 418,
+            "evaluacion_completa": 418,
+            "revisiones": 175,
+            "tareas_vencidas": 239,
+            "primera_atencion": 81,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 255,
+            "compromisos_cubren": 119,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 305,
+            "fuera_plazo_original": 182,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 163,
+            "reingreso_etapa": 13,
+            "reprogramaciones_agotadas": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 81,
+            "proxima_tarea": 96,
+            "tarea_vencida": 186,
+            "seguimiento": 45,
+            "sin_accion": 10
+          },
+          "cola_supervision": {
+            "primera_atencion": 81,
+            "proxima_tarea": 88,
+            "tarea_vencida": 186,
+            "revision_comercial": 8,
+            "seguimiento": 45,
+            "sin_accion": 10
+          }
+        },
+        "nuevo": {
+          "conteos": {
+            "total_leads": 272,
+            "evaluacion_completa": 269,
+            "revisiones": 245,
+            "tareas_vencidas": 171,
+            "primera_atencion": 244,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 242,
+            "compromisos_cubren": 27,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 269,
+            "fuera_plazo_original": 272,
+            "revision_desconocida": 0,
+            "evaluacion_parcial": 3
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 245,
+            "reprogramaciones_agotadas": 5,
+            "reingreso_etapa": 4
+          },
+          "cola_atencion": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "sin_accion": 3,
+            "seguimiento": 3,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 244,
+            "tarea_vencida": 21,
+            "por_repartir": 3,
+            "seguimiento": 3,
+            "proxima_tarea": 1
+          }
+        },
+        "propuesta_enviada": {
+          "conteos": {
+            "total_leads": 39,
+            "evaluacion_completa": 39,
+            "revisiones": 12,
+            "tareas_vencidas": 13,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 2,
+            "compromisos_cubren": 22,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 5,
+            "fuera_plazo_original": 17,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 12
+          },
+          "cola_atencion": {
+            "proxima_tarea": 22,
+            "primera_atencion": 5,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 18,
+            "primera_atencion": 5,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 5
+          }
+        },
+        "reunion_agendada": {
+          "conteos": {
+            "total_leads": 98,
+            "evaluacion_completa": 98,
+            "revisiones": 23,
+            "tareas_vencidas": 34,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 28,
+            "compromisos_cubren": 61,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 50,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 2,
+            "limite_operativo_agotado": 21
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "proxima_tarea": 55,
+            "seguimiento": 4,
+            "sin_accion": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 12,
+            "proxima_tarea": 50,
+            "revision_comercial": 5,
+            "seguimiento": 4,
+            "sin_accion": 2
+          }
+        }
+      },
+      "por_analista": {
+        "Analista-01": {
+          "conteos": {
+            "total_leads": 59,
+            "evaluacion_completa": 59,
+            "revisiones": 7,
+            "tareas_vencidas": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 34,
+            "compromisos_cubren": 11,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 42,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 7
+          },
+          "cola_atencion": {
+            "proxima_tarea": 11,
+            "sin_accion": 10,
+            "seguimiento": 22,
+            "tarea_vencida": 15,
+            "primera_atencion": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 11,
+            "sin_accion": 9,
+            "seguimiento": 22,
+            "tarea_vencida": 15,
+            "primera_atencion": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-02": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 3,
+            "tareas_vencidas": 3,
+            "primera_atencion": 11,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 1,
+            "compromisos_cubren": 30,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 9,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 2,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "proxima_tarea": 20,
+            "primera_atencion": 11,
+            "tarea_vencida": 2
+          },
+          "cola_supervision": {
+            "proxima_tarea": 18,
+            "primera_atencion": 11,
+            "tarea_vencida": 2,
+            "revision_comercial": 2
+          }
+        },
+        "Analista-03": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 6,
+            "tareas_vencidas": 14,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 8,
+            "compromisos_cubren": 19,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 16,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 6
+          },
+          "cola_atencion": {
+            "proxima_tarea": 16,
+            "tarea_vencida": 11,
+            "primera_atencion": 5,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 16,
+            "tarea_vencida": 11,
+            "primera_atencion": 5,
+            "seguimiento": 1
+          }
+        },
+        "Analista-04": {
+          "conteos": {
+            "total_leads": 37,
+            "evaluacion_completa": 37,
+            "revisiones": 30,
+            "tareas_vencidas": 29,
+            "primera_atencion": 25,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 32,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 37,
+            "fuera_plazo_original": 29,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 29,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-05": {
+          "conteos": {
+            "total_leads": 68,
+            "evaluacion_completa": 68,
+            "revisiones": 50,
+            "tareas_vencidas": 34,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 57,
+            "compromisos_cubren": 10,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 51,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 50
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "proxima_tarea": 10,
+            "seguimiento": 9,
+            "tarea_vencida": 18
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "proxima_tarea": 9,
+            "seguimiento": 9,
+            "tarea_vencida": 18,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-06": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 46,
+            "tareas_vencidas": 38,
+            "primera_atencion": 15,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 53,
+            "compromisos_cubren": 6,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 48,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 46
+          },
+          "cola_atencion": {
+            "tarea_vencida": 35,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 35,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 6
+          }
+        },
+        "Analista-07": {
+          "conteos": {
+            "total_leads": 65,
+            "evaluacion_completa": 65,
+            "revisiones": 49,
+            "tareas_vencidas": 53,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 59,
+            "compromisos_cubren": 3,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 60,
+            "fuera_plazo_original": 50,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 49
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "proxima_tarea": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "tarea_vencida": 31,
+            "proxima_tarea": 1,
+            "seguimiento": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-08": {
+          "conteos": {
+            "total_leads": 52,
+            "evaluacion_completa": 52,
+            "revisiones": 39,
+            "tareas_vencidas": 42,
+            "primera_atencion": 44,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 41,
+            "compromisos_cubren": 9,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 41,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 1,
+            "limite_operativo_agotado": 38
+          },
+          "cola_atencion": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "proxima_tarea": 6
+          },
+          "cola_supervision": {
+            "primera_atencion": 44,
+            "tarea_vencida": 2,
+            "proxima_tarea": 6
+          }
+        },
+        "Analista-09": {
+          "conteos": {
+            "total_leads": 66,
+            "evaluacion_completa": 66,
+            "revisiones": 46,
+            "tareas_vencidas": 41,
+            "primera_atencion": 38,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 47,
+            "compromisos_cubren": 14,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 58,
+            "fuera_plazo_original": 54,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 46,
+            "reprogramaciones_agotadas": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "proxima_tarea": 7,
+            "seguimiento": 3
+          },
+          "cola_supervision": {
+            "primera_atencion": 38,
+            "tarea_vencida": 18,
+            "proxima_tarea": 7,
+            "seguimiento": 3
+          }
+        },
+        "Analista-10": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 30,
+            "tareas_vencidas": 30,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 30
+          },
+          "cola_atencion": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          }
+        },
+        "Analista-12": {
+          "conteos": {
+            "total_leads": 44,
+            "evaluacion_completa": 44,
+            "revisiones": 3,
+            "tareas_vencidas": 11,
+            "primera_atencion": 6,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 3,
+            "compromisos_cubren": 36,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 4,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "proxima_tarea": 30,
+            "tarea_vencida": 7,
+            "primera_atencion": 6,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 29,
+            "tarea_vencida": 7,
+            "primera_atencion": 6,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-13": {
+          "conteos": {
+            "total_leads": 35,
+            "evaluacion_completa": 35,
+            "revisiones": 7,
+            "tareas_vencidas": 0,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 6,
+            "compromisos_cubren": 28,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 15,
+            "fuera_plazo_original": 15,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 12,
+            "proxima_tarea": 22,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 12,
+            "proxima_tarea": 21,
+            "revision_comercial": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-14": {
+          "conteos": {
+            "total_leads": 67,
+            "evaluacion_completa": 67,
+            "revisiones": 25,
+            "tareas_vencidas": 53,
+            "primera_atencion": 34,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 42,
+            "compromisos_cubren": 15,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 16,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 16,
+            "reingreso_etapa": 12
+          },
+          "cola_atencion": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "proxima_tarea": 7
+          },
+          "cola_supervision": {
+            "tarea_vencida": 26,
+            "primera_atencion": 34,
+            "revision_comercial": 2,
+            "proxima_tarea": 5
+          }
+        },
+        "Analista-15": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 55,
+            "tareas_vencidas": 52,
+            "primera_atencion": 36,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 55,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 55
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          }
+        },
+        "Analista-16": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 35,
+            "tareas_vencidas": 42,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 38,
+            "compromisos_cubren": 14,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 46,
+            "fuera_plazo_original": 40,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 35,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 28,
+            "seguimiento": 3,
+            "proxima_tarea": 11,
+            "primera_atencion": 18,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 28,
+            "seguimiento": 3,
+            "proxima_tarea": 10,
+            "primera_atencion": 18,
+            "sin_accion": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-18": {
+          "conteos": {
+            "total_leads": 47,
+            "evaluacion_completa": 47,
+            "revisiones": 20,
+            "tareas_vencidas": 0,
+            "primera_atencion": 17,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 11,
+            "compromisos_cubren": 28,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 22,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 19,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 17,
+            "proxima_tarea": 25,
+            "seguimiento": 5
+          },
+          "cola_supervision": {
+            "primera_atencion": 17,
+            "revision_comercial": 8,
+            "proxima_tarea": 17,
+            "seguimiento": 5
+          }
+        },
+        "Analista-19": {
+          "conteos": {
+            "total_leads": 2,
+            "evaluacion_completa": 2,
+            "revisiones": 1,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 1,
+            "compromisos_cubren": 1,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 2,
+            "fuera_plazo_original": 1,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "proxima_tarea": 1,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 1,
+            "seguimiento": 1
+          }
+        },
+        "Sin analista": {
+          "conteos": {
+            "total_leads": 3,
+            "evaluacion_parcial": 3,
+            "revisiones": 3,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 0,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 0,
+            "fuera_plazo_original": 3,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "sin_accion": 3
+          },
+          "cola_supervision": {
+            "por_repartir": 3
+          }
+        }
+      }
+    }
+  },
+  "proyecciones_sin_acciones": {
+    "24h": {
+      "global_": {
+        "conteos": {
+          "total_leads": 827,
+          "evaluacion_completa": 824,
+          "revisiones": 489,
+          "tareas_vencidas": 599,
+          "primera_atencion": 342,
+          "datos_incompletos": 3,
+          "seguimientos_pendientes": 612,
+          "compromisos_cubren": 183,
+          "cobertura_desconocida": 0,
+          "seguimientos_vencidos_sin_descontar_cobertura": 716,
+          "fuera_plazo_original": 494,
+          "revision_desconocida": 0,
+          "evaluacion_parcial": 3
+        },
+        "motivos_datos": {
+          "sin_asignacion": 3
+        },
+        "motivos_revision": {
+          "reingreso_etapa": 19,
+          "limite_operativo_agotado": 476,
+          "reprogramaciones_agotadas": 6
+        },
+        "cola_atencion": {
+          "primera_atencion": 342,
+          "tarea_vencida": 330,
+          "proxima_tarea": 90,
+          "seguimiento": 57,
+          "sin_accion": 8
+        },
+        "cola_supervision": {
+          "primera_atencion": 342,
+          "tarea_vencida": 330,
+          "proxima_tarea": 83,
+          "seguimiento": 57,
+          "sin_accion": 5,
+          "revision_comercial": 7,
+          "por_repartir": 3
+        }
+      },
+      "por_etapa": {
+        "contactado": {
+          "conteos": {
+            "total_leads": 418,
+            "evaluacion_completa": 418,
+            "revisiones": 181,
+            "tareas_vencidas": 304,
+            "primera_atencion": 81,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 294,
+            "compromisos_cubren": 111,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 363,
+            "fuera_plazo_original": 184,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 170,
+            "reingreso_etapa": 13,
+            "reprogramaciones_agotadas": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 81,
+            "proxima_tarea": 47,
+            "tarea_vencida": 236,
+            "seguimiento": 50,
+            "sin_accion": 4
+          },
+          "cola_supervision": {
+            "primera_atencion": 81,
+            "proxima_tarea": 44,
+            "tarea_vencida": 236,
+            "seguimiento": 50,
+            "sin_accion": 4,
+            "revision_comercial": 3
+          }
+        },
+        "nuevo": {
+          "conteos": {
+            "total_leads": 272,
+            "evaluacion_completa": 269,
+            "revisiones": 272,
+            "tareas_vencidas": 209,
+            "primera_atencion": 244,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 269,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 269,
+            "fuera_plazo_original": 272,
+            "revision_desconocida": 0,
+            "evaluacion_parcial": 3
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 272,
+            "reprogramaciones_agotadas": 5,
+            "reingreso_etapa": 4
+          },
+          "cola_atencion": {
+            "primera_atencion": 244,
+            "tarea_vencida": 24,
+            "sin_accion": 3,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 244,
+            "tarea_vencida": 24,
+            "por_repartir": 3,
+            "seguimiento": 1
+          }
+        },
+        "propuesta_enviada": {
+          "conteos": {
+            "total_leads": 39,
+            "evaluacion_completa": 39,
+            "revisiones": 13,
+            "tareas_vencidas": 24,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 9,
+            "compromisos_cubren": 19,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 14,
+            "fuera_plazo_original": 17,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 13
+          },
+          "cola_atencion": {
+            "tarea_vencida": 20,
+            "proxima_tarea": 12,
+            "primera_atencion": 5,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 20,
+            "proxima_tarea": 11,
+            "primera_atencion": 5,
+            "seguimiento": 2,
+            "revision_comercial": 1
+          }
+        },
+        "reunion_agendada": {
+          "conteos": {
+            "total_leads": 98,
+            "evaluacion_completa": 98,
+            "revisiones": 23,
+            "tareas_vencidas": 62,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 40,
+            "compromisos_cubren": 53,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 70,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 2,
+            "limite_operativo_agotado": 21
+          },
+          "cola_atencion": {
+            "tarea_vencida": 50,
+            "primera_atencion": 12,
+            "proxima_tarea": 31,
+            "seguimiento": 4,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 50,
+            "primera_atencion": 12,
+            "proxima_tarea": 28,
+            "seguimiento": 4,
+            "revision_comercial": 3,
+            "sin_accion": 1
+          }
+        }
+      },
+      "por_analista": {
+        "Analista-01": {
+          "conteos": {
+            "total_leads": 59,
+            "evaluacion_completa": 59,
+            "revisiones": 7,
+            "tareas_vencidas": 15,
+            "primera_atencion": 1,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 44,
+            "compromisos_cubren": 11,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 7
+          },
+          "cola_atencion": {
+            "proxima_tarea": 11,
+            "sin_accion": 4,
+            "seguimiento": 28,
+            "tarea_vencida": 15,
+            "primera_atencion": 1
+          },
+          "cola_supervision": {
+            "proxima_tarea": 11,
+            "sin_accion": 4,
+            "seguimiento": 28,
+            "tarea_vencida": 15,
+            "primera_atencion": 1
+          }
+        },
+        "Analista-02": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 8,
+            "tareas_vencidas": 19,
+            "primera_atencion": 11,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 8,
+            "compromisos_cubren": 24,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 18,
+            "fuera_plazo_original": 9,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 7,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 12,
+            "primera_atencion": 11,
+            "proxima_tarea": 10
+          },
+          "cola_supervision": {
+            "tarea_vencida": 12,
+            "primera_atencion": 11,
+            "proxima_tarea": 8,
+            "revision_comercial": 2
+          }
+        },
+        "Analista-03": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 8,
+            "tareas_vencidas": 24,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 17,
+            "compromisos_cubren": 16,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 26,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 8
+          },
+          "cola_atencion": {
+            "proxima_tarea": 9,
+            "tarea_vencida": 19,
+            "primera_atencion": 5
+          },
+          "cola_supervision": {
+            "proxima_tarea": 9,
+            "tarea_vencida": 19,
+            "primera_atencion": 5
+          }
+        },
+        "Analista-04": {
+          "conteos": {
+            "total_leads": 37,
+            "evaluacion_completa": 37,
+            "revisiones": 30,
+            "tareas_vencidas": 29,
+            "primera_atencion": 25,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 32,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 37,
+            "fuera_plazo_original": 29,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 29,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-05": {
+          "conteos": {
+            "total_leads": 68,
+            "evaluacion_completa": 68,
+            "revisiones": 52,
+            "tareas_vencidas": 38,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 57,
+            "compromisos_cubren": 9,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 53,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 52
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "proxima_tarea": 7,
+            "seguimiento": 8,
+            "tarea_vencida": 22
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "proxima_tarea": 6,
+            "seguimiento": 8,
+            "tarea_vencida": 22,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-06": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 47,
+            "tareas_vencidas": 42,
+            "primera_atencion": 15,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 56,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 60,
+            "fuera_plazo_original": 48,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 47
+          },
+          "cola_atencion": {
+            "tarea_vencida": 38,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 3
+          },
+          "cola_supervision": {
+            "tarea_vencida": 38,
+            "seguimiento": 5,
+            "primera_atencion": 15,
+            "proxima_tarea": 3
+          }
+        },
+        "Analista-07": {
+          "conteos": {
+            "total_leads": 65,
+            "evaluacion_completa": 65,
+            "revisiones": 50,
+            "tareas_vencidas": 55,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 62,
+            "compromisos_cubren": 1,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 62,
+            "fuera_plazo_original": 50,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 50
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "tarea_vencida": 32,
+            "seguimiento": 1,
+            "sin_accion": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "tarea_vencida": 32,
+            "seguimiento": 1,
+            "sin_accion": 1
+          }
+        },
+        "Analista-08": {
+          "conteos": {
+            "total_leads": 52,
+            "evaluacion_completa": 52,
+            "revisiones": 42,
+            "tareas_vencidas": 48,
+            "primera_atencion": 44,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 46,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 49,
+            "fuera_plazo_original": 41,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 1,
+            "limite_operativo_agotado": 41
+          },
+          "cola_atencion": {
+            "primera_atencion": 44,
+            "tarea_vencida": 5,
+            "proxima_tarea": 3
+          },
+          "cola_supervision": {
+            "primera_atencion": 44,
+            "tarea_vencida": 5,
+            "proxima_tarea": 3
+          }
+        },
+        "Analista-09": {
+          "conteos": {
+            "total_leads": 66,
+            "evaluacion_completa": 66,
+            "revisiones": 51,
+            "tareas_vencidas": 54,
+            "primera_atencion": 38,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 58,
+            "compromisos_cubren": 8,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 66,
+            "fuera_plazo_original": 54,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 51,
+            "reprogramaciones_agotadas": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 38,
+            "tarea_vencida": 23,
+            "proxima_tarea": 3,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "primera_atencion": 38,
+            "tarea_vencida": 23,
+            "proxima_tarea": 3,
+            "seguimiento": 2
+          }
+        },
+        "Analista-10": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 30,
+            "tareas_vencidas": 30,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 30
+          },
+          "cola_atencion": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          }
+        },
+        "Analista-12": {
+          "conteos": {
+            "total_leads": 44,
+            "evaluacion_completa": 44,
+            "revisiones": 3,
+            "tareas_vencidas": 23,
+            "primera_atencion": 6,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 7,
+            "compromisos_cubren": 31,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 24,
+            "fuera_plazo_original": 4,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "tarea_vencida": 18,
+            "proxima_tarea": 20,
+            "primera_atencion": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 18,
+            "proxima_tarea": 19,
+            "primera_atencion": 6,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-13": {
+          "conteos": {
+            "total_leads": 35,
+            "evaluacion_completa": 35,
+            "revisiones": 11,
+            "tareas_vencidas": 27,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 10,
+            "compromisos_cubren": 23,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 20,
+            "fuera_plazo_original": 15,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 11,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 12,
+            "tarea_vencida": 16,
+            "proxima_tarea": 6,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 12,
+            "tarea_vencida": 16,
+            "proxima_tarea": 6,
+            "seguimiento": 1
+          }
+        },
+        "Analista-14": {
+          "conteos": {
+            "total_leads": 67,
+            "evaluacion_completa": 67,
+            "revisiones": 25,
+            "tareas_vencidas": 60,
+            "primera_atencion": 34,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 52,
+            "compromisos_cubren": 14,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 16,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 16,
+            "reingreso_etapa": 12
+          },
+          "cola_atencion": {
+            "tarea_vencida": 28,
+            "primera_atencion": 34,
+            "proxima_tarea": 5
+          },
+          "cola_supervision": {
+            "tarea_vencida": 28,
+            "primera_atencion": 34,
+            "revision_comercial": 1,
+            "proxima_tarea": 4
+          }
+        },
+        "Analista-15": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 55,
+            "tareas_vencidas": 52,
+            "primera_atencion": 36,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 55,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 55
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          }
+        },
+        "Analista-16": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 38,
+            "tareas_vencidas": 50,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 47,
+            "compromisos_cubren": 10,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 55,
+            "fuera_plazo_original": 40,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 38,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 33,
+            "seguimiento": 5,
+            "proxima_tarea": 5,
+            "primera_atencion": 18
+          },
+          "cola_supervision": {
+            "tarea_vencida": 33,
+            "seguimiento": 5,
+            "proxima_tarea": 5,
+            "primera_atencion": 18
+          }
+        },
+        "Analista-18": {
+          "conteos": {
+            "total_leads": 47,
+            "evaluacion_completa": 47,
+            "revisiones": 28,
+            "tareas_vencidas": 31,
+            "primera_atencion": 17,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 21,
+            "compromisos_cubren": 20,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 32,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 27,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 17,
+            "seguimiento": 5,
+            "tarea_vencida": 18,
+            "proxima_tarea": 7
+          },
+          "cola_supervision": {
+            "primera_atencion": 17,
+            "seguimiento": 5,
+            "tarea_vencida": 18,
+            "proxima_tarea": 6,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-19": {
+          "conteos": {
+            "total_leads": 2,
+            "evaluacion_completa": 2,
+            "revisiones": 1,
+            "tareas_vencidas": 2,
+            "primera_atencion": 0,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 1,
+            "compromisos_cubren": 1,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 2,
+            "fuera_plazo_original": 1,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 2
+          }
+        },
+        "Sin analista": {
+          "conteos": {
+            "total_leads": 3,
+            "evaluacion_parcial": 3,
+            "revisiones": 3,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 0,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 0,
+            "fuera_plazo_original": 3,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "sin_accion": 3
+          },
+          "cola_supervision": {
+            "por_repartir": 3
+          }
+        }
+      }
+    },
+    "72h": {
+      "global_": {
+        "conteos": {
+          "total_leads": 827,
+          "evaluacion_completa": 824,
+          "revisiones": 571,
+          "tareas_vencidas": 663,
+          "primera_atencion": 342,
+          "datos_incompletos": 3,
+          "seguimientos_pendientes": 750,
+          "compromisos_cubren": 70,
+          "cobertura_desconocida": 0,
+          "seguimientos_vencidos_sin_descontar_cobertura": 820,
+          "fuera_plazo_original": 577,
+          "revision_desconocida": 0,
+          "evaluacion_parcial": 3
+        },
+        "motivos_datos": {
+          "sin_asignacion": 3
+        },
+        "motivos_revision": {
+          "reingreso_etapa": 19,
+          "limite_operativo_agotado": 565,
+          "reprogramaciones_agotadas": 6
+        },
+        "cola_atencion": {
+          "primera_atencion": 342,
+          "tarea_vencida": 382,
+          "proxima_tarea": 42,
+          "seguimiento": 58,
+          "sin_accion": 3
+        },
+        "cola_supervision": {
+          "primera_atencion": 342,
+          "tarea_vencida": 382,
+          "proxima_tarea": 40,
+          "seguimiento": 58,
+          "revision_comercial": 2,
+          "por_repartir": 3
+        }
+      },
+      "por_etapa": {
+        "contactado": {
+          "conteos": {
+            "total_leads": 418,
+            "evaluacion_completa": 418,
+            "revisiones": 259,
+            "tareas_vencidas": 332,
+            "primera_atencion": 81,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 378,
+            "compromisos_cubren": 40,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 418,
+            "fuera_plazo_original": 267,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 255,
+            "reingreso_etapa": 13,
+            "reprogramaciones_agotadas": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 81,
+            "proxima_tarea": 30,
+            "tarea_vencida": 259,
+            "seguimiento": 48
+          },
+          "cola_supervision": {
+            "primera_atencion": 81,
+            "proxima_tarea": 28,
+            "tarea_vencida": 259,
+            "seguimiento": 48,
+            "revision_comercial": 2
+          }
+        },
+        "nuevo": {
+          "conteos": {
+            "total_leads": 272,
+            "evaluacion_completa": 269,
+            "revisiones": 272,
+            "tareas_vencidas": 215,
+            "primera_atencion": 244,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 269,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 269,
+            "fuera_plazo_original": 272,
+            "revision_desconocida": 0,
+            "evaluacion_parcial": 3
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 272,
+            "reprogramaciones_agotadas": 5,
+            "reingreso_etapa": 4
+          },
+          "cola_atencion": {
+            "primera_atencion": 244,
+            "tarea_vencida": 24,
+            "sin_accion": 3,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 244,
+            "tarea_vencida": 24,
+            "por_repartir": 3,
+            "seguimiento": 1
+          }
+        },
+        "propuesta_enviada": {
+          "conteos": {
+            "total_leads": 39,
+            "evaluacion_completa": 39,
+            "revisiones": 17,
+            "tareas_vencidas": 34,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 2,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 35,
+            "fuera_plazo_original": 17,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 17
+          },
+          "cola_atencion": {
+            "tarea_vencida": 29,
+            "primera_atencion": 5,
+            "seguimiento": 3,
+            "proxima_tarea": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 29,
+            "primera_atencion": 5,
+            "seguimiento": 3,
+            "proxima_tarea": 2
+          }
+        },
+        "reunion_agendada": {
+          "conteos": {
+            "total_leads": 98,
+            "evaluacion_completa": 98,
+            "revisiones": 23,
+            "tareas_vencidas": 82,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 70,
+            "compromisos_cubren": 28,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 98,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 2,
+            "limite_operativo_agotado": 21
+          },
+          "cola_atencion": {
+            "tarea_vencida": 70,
+            "primera_atencion": 12,
+            "proxima_tarea": 10,
+            "seguimiento": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 70,
+            "primera_atencion": 12,
+            "proxima_tarea": 10,
+            "seguimiento": 6
+          }
+        }
+      },
+      "por_analista": {
+        "Analista-01": {
+          "conteos": {
+            "total_leads": 59,
+            "evaluacion_completa": 59,
+            "revisiones": 19,
+            "tareas_vencidas": 19,
+            "primera_atencion": 1,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 52,
+            "compromisos_cubren": 7,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 59,
+            "fuera_plazo_original": 21,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 19
+          },
+          "cola_atencion": {
+            "tarea_vencida": 19,
+            "seguimiento": 33,
+            "primera_atencion": 1,
+            "proxima_tarea": 6
+          },
+          "cola_supervision": {
+            "tarea_vencida": 19,
+            "seguimiento": 33,
+            "primera_atencion": 1,
+            "proxima_tarea": 6
+          }
+        },
+        "Analista-02": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 15,
+            "tareas_vencidas": 31,
+            "primera_atencion": 11,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 28,
+            "compromisos_cubren": 4,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 32,
+            "fuera_plazo_original": 14,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 14,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 20,
+            "primera_atencion": 11,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 20,
+            "primera_atencion": 11,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          }
+        },
+        "Analista-03": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 9,
+            "tareas_vencidas": 27,
+            "primera_atencion": 5,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 25,
+            "compromisos_cubren": 8,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 9,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 9
+          },
+          "cola_atencion": {
+            "proxima_tarea": 6,
+            "tarea_vencida": 22,
+            "primera_atencion": 5
+          },
+          "cola_supervision": {
+            "proxima_tarea": 6,
+            "tarea_vencida": 22,
+            "primera_atencion": 5
+          }
+        },
+        "Analista-04": {
+          "conteos": {
+            "total_leads": 37,
+            "evaluacion_completa": 37,
+            "revisiones": 33,
+            "tareas_vencidas": 29,
+            "primera_atencion": 25,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 32,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 37,
+            "fuera_plazo_original": 37,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 32,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 25,
+            "tarea_vencida": 10,
+            "seguimiento": 1,
+            "revision_comercial": 1
+          }
+        },
+        "Analista-05": {
+          "conteos": {
+            "total_leads": 68,
+            "evaluacion_completa": 68,
+            "revisiones": 53,
+            "tareas_vencidas": 41,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 63,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 68,
+            "fuera_plazo_original": 54,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 53
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "proxima_tarea": 5,
+            "seguimiento": 7,
+            "tarea_vencida": 25
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "proxima_tarea": 5,
+            "seguimiento": 7,
+            "tarea_vencida": 25
+          }
+        },
+        "Analista-06": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 55,
+            "tareas_vencidas": 47,
+            "primera_atencion": 15,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 59,
+            "compromisos_cubren": 2,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 55,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 55
+          },
+          "cola_atencion": {
+            "tarea_vencida": 41,
+            "seguimiento": 4,
+            "primera_atencion": 15,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 41,
+            "seguimiento": 4,
+            "primera_atencion": 15,
+            "proxima_tarea": 1
+          }
+        },
+        "Analista-07": {
+          "conteos": {
+            "total_leads": 65,
+            "evaluacion_completa": 65,
+            "revisiones": 51,
+            "tareas_vencidas": 55,
+            "primera_atencion": 31,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 64,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 64,
+            "fuera_plazo_original": 51,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 51
+          },
+          "cola_atencion": {
+            "primera_atencion": 31,
+            "tarea_vencida": 32,
+            "seguimiento": 2
+          },
+          "cola_supervision": {
+            "primera_atencion": 31,
+            "tarea_vencida": 32,
+            "seguimiento": 2
+          }
+        },
+        "Analista-08": {
+          "conteos": {
+            "total_leads": 52,
+            "evaluacion_completa": 52,
+            "revisiones": 45,
+            "tareas_vencidas": 50,
+            "primera_atencion": 44,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 50,
+            "compromisos_cubren": 2,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 52,
+            "fuera_plazo_original": 44,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "reingreso_etapa": 1,
+            "limite_operativo_agotado": 44
+          },
+          "cola_atencion": {
+            "primera_atencion": 44,
+            "tarea_vencida": 7,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 44,
+            "tarea_vencida": 7,
+            "proxima_tarea": 1
+          }
+        },
+        "Analista-09": {
+          "conteos": {
+            "total_leads": 66,
+            "evaluacion_completa": 66,
+            "revisiones": 56,
+            "tareas_vencidas": 57,
+            "primera_atencion": 38,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 63,
+            "compromisos_cubren": 3,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 66,
+            "fuera_plazo_original": 57,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 56,
+            "reprogramaciones_agotadas": 6,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 38,
+            "tarea_vencida": 24,
+            "proxima_tarea": 3,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 38,
+            "tarea_vencida": 24,
+            "proxima_tarea": 3,
+            "seguimiento": 1
+          }
+        },
+        "Analista-10": {
+          "conteos": {
+            "total_leads": 33,
+            "evaluacion_completa": 33,
+            "revisiones": 30,
+            "tareas_vencidas": 30,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 33,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 33,
+            "fuera_plazo_original": 30,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 30
+          },
+          "cola_atencion": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 18,
+            "tarea_vencida": 14,
+            "seguimiento": 1
+          }
+        },
+        "Analista-12": {
+          "conteos": {
+            "total_leads": 44,
+            "evaluacion_completa": 44,
+            "revisiones": 6,
+            "tareas_vencidas": 35,
+            "primera_atencion": 6,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 28,
+            "compromisos_cubren": 16,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 44,
+            "fuera_plazo_original": 8,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 6
+          },
+          "cola_atencion": {
+            "tarea_vencida": 29,
+            "primera_atencion": 6,
+            "proxima_tarea": 8,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "tarea_vencida": 29,
+            "primera_atencion": 6,
+            "proxima_tarea": 8,
+            "seguimiento": 1
+          }
+        },
+        "Analista-13": {
+          "conteos": {
+            "total_leads": 35,
+            "evaluacion_completa": 35,
+            "revisiones": 20,
+            "tareas_vencidas": 33,
+            "primera_atencion": 12,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 30,
+            "compromisos_cubren": 5,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 35,
+            "fuera_plazo_original": 20,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 20,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 12,
+            "tarea_vencida": 22,
+            "seguimiento": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 12,
+            "tarea_vencida": 22,
+            "seguimiento": 1
+          }
+        },
+        "Analista-14": {
+          "conteos": {
+            "total_leads": 67,
+            "evaluacion_completa": 67,
+            "revisiones": 40,
+            "tareas_vencidas": 60,
+            "primera_atencion": 34,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 60,
+            "compromisos_cubren": 7,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 67,
+            "fuera_plazo_original": 37,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 37,
+            "reingreso_etapa": 12
+          },
+          "cola_atencion": {
+            "tarea_vencida": 28,
+            "primera_atencion": 34,
+            "proxima_tarea": 5
+          },
+          "cola_supervision": {
+            "tarea_vencida": 28,
+            "primera_atencion": 34,
+            "revision_comercial": 1,
+            "proxima_tarea": 4
+          }
+        },
+        "Analista-15": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 57,
+            "tareas_vencidas": 52,
+            "primera_atencion": 36,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 61,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 57,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 57
+          },
+          "cola_atencion": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          },
+          "cola_supervision": {
+            "tarea_vencida": 25,
+            "primera_atencion": 36
+          }
+        },
+        "Analista-16": {
+          "conteos": {
+            "total_leads": 61,
+            "evaluacion_completa": 61,
+            "revisiones": 44,
+            "tareas_vencidas": 51,
+            "primera_atencion": 18,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 57,
+            "compromisos_cubren": 4,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 61,
+            "fuera_plazo_original": 45,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 44,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 34,
+            "seguimiento": 5,
+            "proxima_tarea": 4,
+            "primera_atencion": 18
+          },
+          "cola_supervision": {
+            "tarea_vencida": 34,
+            "seguimiento": 5,
+            "proxima_tarea": 4,
+            "primera_atencion": 18
+          }
+        },
+        "Analista-18": {
+          "conteos": {
+            "total_leads": 47,
+            "evaluacion_completa": 47,
+            "revisiones": 34,
+            "tareas_vencidas": 44,
+            "primera_atencion": 17,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 43,
+            "compromisos_cubren": 2,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 45,
+            "fuera_plazo_original": 34,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 34,
+            "reingreso_etapa": 1
+          },
+          "cola_atencion": {
+            "primera_atencion": 17,
+            "tarea_vencida": 28,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          },
+          "cola_supervision": {
+            "primera_atencion": 17,
+            "tarea_vencida": 28,
+            "seguimiento": 1,
+            "proxima_tarea": 1
+          }
+        },
+        "Analista-19": {
+          "conteos": {
+            "total_leads": 2,
+            "evaluacion_completa": 2,
+            "revisiones": 1,
+            "tareas_vencidas": 2,
+            "primera_atencion": 0,
+            "datos_incompletos": 0,
+            "seguimientos_pendientes": 2,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 2,
+            "fuera_plazo_original": 1,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {},
+          "motivos_revision": {
+            "limite_operativo_agotado": 1
+          },
+          "cola_atencion": {
+            "tarea_vencida": 2
+          },
+          "cola_supervision": {
+            "tarea_vencida": 2
+          }
+        },
+        "Sin analista": {
+          "conteos": {
+            "total_leads": 3,
+            "evaluacion_parcial": 3,
+            "revisiones": 3,
+            "tareas_vencidas": 0,
+            "primera_atencion": 0,
+            "datos_incompletos": 3,
+            "seguimientos_pendientes": 0,
+            "compromisos_cubren": 0,
+            "cobertura_desconocida": 0,
+            "seguimientos_vencidos_sin_descontar_cobertura": 0,
+            "fuera_plazo_original": 3,
+            "revision_desconocida": 0
+          },
+          "motivos_datos": {
+            "sin_asignacion": 3
+          },
+          "motivos_revision": {
+            "limite_operativo_agotado": 3
+          },
+          "cola_atencion": {
+            "sin_accion": 3
+          },
+          "cola_supervision": {
+            "por_repartir": 3
+          }
+        }
+      }
+    }
+  },
+  "impactos": {
+    "avisos_seguimiento_evitados_por_contexto": 102,
+    "fuera_plazo_original_pero_ampliados_por_compromiso": 51,
+    "tarea_vencida_y_cobertura": 14,
+    "primera_atencion_y_cobertura": 56,
+    "revisiones_bucket_principal": 18,
+    "oportunidades_con_accion_analista": 811,
+    "oportunidades_con_accion_supervision": 815
+  },
+  "casos": [
+    {
+      "caso": "Cobertura respeta tarea vencida durante margen",
+      "lead": "L-73",
+      "etapa": "reunion_agendada",
+      "seguimiento": {
+        "vencido": true,
+        "limite_en": "2026-09-07T02:22:34.78482+00:00",
+        "referencia_en": "2026-09-02T21:31:20.168122+00:00",
+        "accion_pendiente": false
+      },
+      "compromiso": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-05T16:00:00+00:00",
+        "reprogramaciones": 0,
+        "hasta_en": "2026-09-07T16:00:00+00:00",
+        "cobertura": true
+      },
+      "limites": {
+        "techo_en": "2026-09-20T21:30:52.93061+00:00",
+        "motivos_revision": [],
+        "episodios_en_ciclo": 1,
+        "limite_original_en": "2026-09-17T21:30:52.93061+00:00",
+        "limite_operativo_en": "2026-09-17T21:30:52.93061+00:00"
+      },
+      "senales": {
+        "revisiones": false,
+        "tareas_vencidas": true,
+        "primera_atencion": false,
+        "datos_incompletos": false,
+        "seguimientos_pendientes": false
+      }
+    },
+    {
+      "caso": "Tarea futura no supera techo agotado",
+      "lead": "L-10",
+      "etapa": "nuevo",
+      "seguimiento": {
+        "vencido": true,
+        "limite_en": "2026-09-07T02:22:34.78482+00:00",
+        "referencia_en": "2026-09-03T22:32:50.924174+00:00",
+        "accion_pendiente": true
+      },
+      "compromiso": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-07T16:00:00+00:00",
+        "reprogramaciones": 0,
+        "hasta_en": "2026-09-05T16:08:22.081057+00:00",
+        "cobertura": false
+      },
+      "limites": {
+        "techo_en": "2026-09-05T16:08:22.081057+00:00",
+        "motivos_revision": [
+          "limite_operativo_agotado"
+        ],
+        "episodios_en_ciclo": 1,
+        "limite_original_en": "2026-09-03T16:08:22.081057+00:00",
+        "limite_operativo_en": "2026-09-05T16:08:22.081057+00:00"
+      },
+      "senales": {
+        "revisiones": true,
+        "tareas_vencidas": false,
+        "primera_atencion": true,
+        "datos_incompletos": false,
+        "seguimientos_pendientes": true
+      }
+    },
+    {
+      "caso": "Tercer ingreso requiere revision sin limite agotado",
+      "lead": "L-7",
+      "etapa": "reunion_agendada",
+      "seguimiento": {
+        "vencido": false,
+        "limite_en": "2026-09-07T22:40:14.61214+00:00",
+        "referencia_en": "2026-09-04T22:40:14.61214+00:00",
+        "accion_pendiente": false
+      },
+      "compromiso": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-05T15:00:00+00:00",
+        "reprogramaciones": 0,
+        "hasta_en": "2026-09-07T15:00:00+00:00",
+        "cobertura": true
+      },
+      "limites": {
+        "techo_en": "2026-09-22T22:36:24.869179+00:00",
+        "motivos_revision": [
+          "reingreso_etapa"
+        ],
+        "episodios_en_ciclo": 6,
+        "limite_original_en": "2026-09-19T22:36:24.869179+00:00",
+        "limite_operativo_en": "2026-09-19T22:36:24.869179+00:00"
+      },
+      "senales": {
+        "revisiones": true,
+        "tareas_vencidas": true,
+        "primera_atencion": true,
+        "datos_incompletos": false,
+        "seguimientos_pendientes": false
+      }
+    },
+    {
+      "caso": "Tercera reprogramacion no cubre",
+      "lead": "L-81",
+      "etapa": "nuevo",
+      "seguimiento": {
+        "vencido": true,
+        "limite_en": "2026-09-07T02:22:34.78482+00:00",
+        "referencia_en": "2026-08-28T21:39:05.098231+00:00",
+        "accion_pendiente": true
+      },
+      "compromiso": {
+        "tipo": "whatsapp",
+        "vence_en": "2026-09-05T14:54:36.407+00:00",
+        "reprogramaciones": 4,
+        "hasta_en": null,
+        "cobertura": false
+      },
+      "limites": {
+        "techo_en": "2026-08-25T14:03:18.72563+00:00",
+        "motivos_revision": [
+          "limite_operativo_agotado",
+          "reprogramaciones_agotadas"
+        ],
+        "episodios_en_ciclo": 1,
+        "limite_original_en": "2026-08-23T14:03:18.72563+00:00",
+        "limite_operativo_en": "2026-08-23T14:03:18.72563+00:00"
+      },
+      "senales": {
+        "revisiones": true,
+        "tareas_vencidas": true,
+        "primera_atencion": true,
+        "datos_incompletos": false,
+        "seguimientos_pendientes": true
+      }
+    },
+    {
+      "caso": "Cobertura no borra primera atencion",
+      "lead": "L-3",
+      "etapa": "contactado",
+      "seguimiento": {
+        "vencido": true,
+        "limite_en": "2026-09-07T02:22:34.78482+00:00",
+        "referencia_en": "2026-09-01T22:39:38.574927+00:00",
+        "accion_pendiente": false
+      },
+      "compromiso": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-07T15:00:00+00:00",
+        "reprogramaciones": 0,
+        "hasta_en": "2026-09-08T15:00:00+00:00",
+        "cobertura": true
+      },
+      "limites": {
+        "techo_en": "2026-09-18T14:34:05.866939+00:00",
+        "motivos_revision": [],
+        "episodios_en_ciclo": 1,
+        "limite_original_en": "2026-09-10T14:34:05.866939+00:00",
+        "limite_operativo_en": "2026-09-10T14:34:05.866939+00:00"
+      },
+      "senales": {
+        "revisiones": false,
+        "tareas_vencidas": false,
+        "primera_atencion": true,
+        "datos_incompletos": false,
+        "seguimientos_pendientes": false
+      }
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
 // Tests de integración de HOY del supervisor: reparto compacto y tarjeta
 // mensual de monto/conversión del equipo.
 //

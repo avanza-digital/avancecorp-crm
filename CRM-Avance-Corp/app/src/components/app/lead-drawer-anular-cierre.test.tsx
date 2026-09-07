@@ -40,6 +40,10 @@ vi.mock('@/data/crm-queries', () => ({
   }),
 }))
 
+vi.mock('@/data/sla-operacion-queries', () => ({
+  useEstadosSlaV2: () => ({ data: { modo: 'legado', filas: [] }, error: null }),
+}))
+
 const LEAD: Lead = {
   id: 'lead-anular-1',
   nombre_completo: 'ANA CIERRE PRUEBA',

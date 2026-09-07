@@ -1,3 +1,5 @@
+import { ColaSlaPanel, SlaOperacionBoundary } from '@/components/app/sla-operacion'
+import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
 // suyos), así que aquí no hay ni ranking ni datos de otros analistas — ni en
@@ -843,6 +845,7 @@ function PulsoCartera({
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
+  const modoSla = useModoSla()
   const {
     ambito,
     actividades,
@@ -1003,7 +1006,7 @@ export function HoyVendedor(): JSX.Element {
   // F1b: la cola la calcula el SERVIDOR (cola_accion_fn) — buckets, severidad,
   // relojes SLA y plan vigente incluidos; en demo, el espejo vivo (colaDe).
   // Todo el contrato anti-duplicado de abajo opera sobre los items mapeados.
-  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice)
+  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice, modoSla.legado)
   const colaDisponible = colaOp.cola != null
   const cola = useMemo(() => colaOp.cola?.items ?? [], [colaOp.cola])
   // Excedente que el servidor conoce y el recorte de p_limite dejó fuera: el
@@ -1162,7 +1165,7 @@ export function HoyVendedor(): JSX.Element {
       </header>
 
       <AvisoDegradacion
-        activo={Boolean(resumenOp.error || colaOp.error) && !yo?.demo}
+        activo={Boolean(resumenOp.error || (modoSla.legado && colaOp.error)) && !yo?.demo}
         queReintenta="de tus indicadores"
         onReintentar={() => {
           if (resumenOp.error) void resumenOp.recargar()
@@ -1174,7 +1177,7 @@ export function HoyVendedor(): JSX.Element {
 
       {/* El trabajo gana el primer pantallazo. Sin cartera, el vacío ofrece una
           salida real; con cartera, «Ahora» reemplaza la antigua fila de KPI. */}
-      {mios.length === 0 ? (
+      {modoSla.legado && (mios.length === 0 ? (
         <Card>
           <PanelVacio
             icono={Users}
@@ -1198,7 +1201,7 @@ export function HoyVendedor(): JSX.Element {
             if (tarea) setTareaACerrar(tarea)
           }}
         />
-      )}
+      ))}
 
       <AgendaClientesHoy
         eventos={agendaClientes}
@@ -1211,6 +1214,7 @@ export function HoyVendedor(): JSX.Element {
 
       {/* Después de las tres prioridades: solo el remanente. La proximidad
           separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
+      <SlaOperacionBoundary legado={(
       <div className="grid gap-5 lg:grid-cols-5">
         <AgendaHoy
           eventos={agendaDespues}
@@ -1342,13 +1346,14 @@ export function HoyVendedor(): JSX.Element {
                     ahora={ahora}
                     abrirLead={abrirLead}
                     onCerrar={() => setTareaACerrar(item.tarea)}
-                    onMarJue={() => {
-                      const destino = siguienteMarJue(ahora)
+                    onMarJue={async (destino) => {
                       const res = reprogramarTarea(item.tarea.id, destino)
-                      if (res.ok) {
+                      if (res.ok && await (res.persistido ?? Promise.resolve(true))) {
                         const cuando = tareaAEvento({ ...item.tarea, vence_en: destino }, ahora).cuando
                         toast.success(`Movida al ${cuando}${yo?.demo ? ' (demo)' : ''}`)
-                      } else toast.error(res.error ?? 'No se pudo mover')
+                        return true
+                      } else if (!res.ok) toast.error(res.error ?? 'No se pudo mover')
+                      return false
                     }}
                   />
                 ))}
@@ -1365,6 +1370,16 @@ export function HoyVendedor(): JSX.Element {
           </CardContent>
         </Card>
       </div>
+
+      )}>
+        <div className="space-y-4">
+          <ColaSlaPanel />
+          <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
+            onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
+            demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
+            vencidasAbajo={0} title="Tu agenda de hoy" />
+        </div>
+      </SlaOperacionBoundary>
 
       {mios.length > 0 && (
         <PulsoCartera
@@ -1694,8 +1709,11 @@ function FilaHigiene({
   ahora: number
   abrirLead: (id: string) => void
   onCerrar: () => void
-  onMarJue: () => void
+  onMarJue: (destino: string) => Promise<boolean>
 }): JSX.Element {
+  const [moviendo, setMoviendo] = useState(false)
+  const envioMovimiento = useRef(false)
+  const [destinoSinConfirmar, setDestinoSinConfirmar] = useState<string | null>(null)
   const t = item.tarea
   const ev = tareaAEvento(t, ahora)
   const vencida = item.k === 'vencida'
@@ -1753,15 +1771,21 @@ function FilaHigiene({
       ) : (
         <button
           type="button"
+          disabled={moviendo}
           title="Mover al siguiente mar–jue a las 10:00 (la franja que sí asiste)"
-          aria-label={`Mover a martes–jueves — ${ev.titulo}`}
+          aria-label={`${destinoSinConfirmar ? 'Reintentar reprogramación' : 'Mover a martes–jueves'} — ${ev.titulo}`}
           className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
-            onMarJue()
+            if (envioMovimiento.current) return
+            const destino = destinoSinConfirmar ?? siguienteMarJue(ahora)
+            envioMovimiento.current = true
+            setMoviendo(true)
+            void onMarJue(destino).then((confirmado) => setDestinoSinConfirmar(confirmado ? null : destino), () => setDestinoSinConfirmar(destino))
+              .finally(() => { setMoviendo(false); envioMovimiento.current = false })
           }}
         >
-          <CalendarClock className="mr-0.5 inline size-3" aria-hidden />→ mar–jue
+          <CalendarClock className="mr-0.5 inline size-3" aria-hidden />{moviendo ? 'Guardando…' : destinoSinConfirmar ? 'Reintentar' : '→ mar–jue'}
         </button>
       )}
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

@@ -199,11 +199,11 @@ describe('CerrarTareaDialog', () => {
     expect(completarTarea.mock.calls[0]?.[0]).toMatchObject({ estado: 'no_show' })
   })
 
-  it('una reunión de cliente espera el COMMIT clasificado antes de cerrar y avisar éxito', async () => {
+  it.each([TAREA_CLIENTE, { ...TAREA_CLIENTE, id: 't-lead', lead_id: 'l1', perfil_id: null }])('la reunión $id espera el COMMIT clasificado antes de avisar éxito', async (tarea) => {
     vi.mocked(toast.success).mockClear()
     const user = userEvent.setup()
     const commit = diferida<boolean>()
-    const { completarTarea, onCerrar } = montar(TAREA_CLIENTE, [], {
+    const { completarTarea, onCerrar } = montar(tarea, [], {
       ok: true,
       persistido: commit.promesa,
     })
@@ -215,7 +215,7 @@ describe('CerrarTareaDialog', () => {
 
     expect(completarTarea).toHaveBeenCalledWith(
       expect.objectContaining({
-        tarea_id: 't-cliente',
+        tarea_id: tarea.id,
         estado: 'completada',
         resultado_tipo: 'reunion_realizada',
         resultado_reunion: 'interesado',
@@ -232,11 +232,11 @@ describe('CerrarTareaDialog', () => {
     expect(onCerrar).toHaveBeenCalledTimes(1)
   })
 
-  it('si el servidor rechaza el cierre de cliente, no muestra éxito y deja el diálogo abierto', async () => {
+  it.each([TAREA_CLIENTE, { ...TAREA_CLIENTE, id: 't-lead', lead_id: 'l1', perfil_id: null }])('si el servidor rechaza el cierre de $id, conserva el diálogo y no muestra éxito', async (tarea) => {
     vi.mocked(toast.success).mockClear()
     const user = userEvent.setup()
     const commit = diferida<boolean>()
-    const { completarTarea, onCerrar } = montar(TAREA_CLIENTE, [], {
+    const { completarTarea, onCerrar } = montar(tarea, [], {
       ok: true,
       persistido: commit.promesa,
     })

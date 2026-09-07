@@ -1,3 +1,5 @@
+// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
 // Tests de integración de la pantalla "Hoy · gerencia" y sus metas mensuales.
 // Monto y conversión son las dos únicas metas visibles.
 //

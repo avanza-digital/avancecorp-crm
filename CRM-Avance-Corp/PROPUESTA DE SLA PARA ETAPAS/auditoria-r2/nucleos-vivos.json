@@ -1,0 +1,233 @@
+{
+  "fecha": "2026-09-06",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "alcance": "Inventario y tres definiciones de solo lectura para decidir reutilizacion de nucleos; no evalua toda la base",
+  "inventario": [
+    {
+      "esquema": "crm",
+      "funcion": "configuracion_sla_fn",
+      "argumentos": "",
+      "retorno": "jsonb",
+      "huella": "75e5bf241dbe538ad0e599de6a27a3b3"
+    },
+    {
+      "esquema": "crm",
+      "funcion": "estado_sla_leads_fn",
+      "argumentos": "",
+      "retorno": "TABLE(lead_id uuid, ciclo_politica_id uuid, ciclo_politica_version integer, primera_gestion_limite_en timestamp with time zone, primera_gestion_en timestamp with time zone, primer_contacto_limite_en timestamp with time zone, primer_contacto_en timestamp with time zone, ciclo_aproximado boolean, asignacion_id uuid, asignacion_politica_id uuid, asignacion_politica_version integer, asignacion_primera_gestion_limite_en timestamp with time zone, asignacion_primera_gestion_en timestamp with time zone, asignacion_primer_contacto_limite_en timestamp with time zone, asignacion_primer_contacto_en timestamp with time zone, etapa_politica_id uuid, etapa_politica_version integer, etapa text, etapa_iniciada_en timestamp with time zone, etapa_limite_en timestamp with time zone, etapa_objetivo_minutos integer, etapa_aproximada boolean)",
+      "huella": "11808483d300a97fb6ff8b3be2dab1fa"
+    },
+    {
+      "esquema": "crm",
+      "funcion": "metricas_sla_fn",
+      "argumentos": "p_desde date, p_hasta date",
+      "retorno": "jsonb",
+      "huella": "6789ae330d883912bdf1d7d6bbb67246"
+    },
+    {
+      "esquema": "crm",
+      "funcion": "publicar_politica_sla",
+      "argumentos": "p_expected_version integer, p_vigente_desde timestamp with time zone, p_config jsonb",
+      "retorno": "SETOF crm.sla_politicas",
+      "huella": "01ef37ba4638fbf46851bc4639d9d612"
+    },
+    {
+      "esquema": "private",
+      "funcion": "assert_analitica_leads_citas",
+      "argumentos": "",
+      "retorno": "text",
+      "huella": "0b474e7f58e1f668b62a02730b716457"
+    },
+    {
+      "esquema": "private",
+      "funcion": "capital_episodios",
+      "argumentos": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_global boolean, p_visibles uuid[]",
+      "retorno": "TABLE(tipo text, medida text, contrato_id uuid, cierre_externo_id uuid, lead_id uuid, cliente_id uuid, analista_id uuid, registrado_por uuid, en_roster boolean, moneda text, monto numeric, categoria text, mes_comercial date, fecha timestamp with time zone, fecha_vencimiento date, estado text, anulado boolean)",
+      "huella": "b8f375fbb377582835f4cfe222240c5b"
+    },
+    {
+      "esquema": "private",
+      "funcion": "citas_episodios",
+      "argumentos": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_ahora timestamp with time zone",
+      "retorno": "TABLE(tarea_id uuid, lead_id uuid, vendedor_id uuid, cancelada_por_id uuid, vence_en timestamp with time zone, estado text, modalidad text, resultado text, debio_ocurrir boolean, realizada boolean, no_show boolean, cancelada_asesor boolean, cancelada_sistema boolean, reprogramada boolean, pendiente_cierre boolean, programada_futura boolean)",
+      "huella": "ea636888a266941e959f26c6a5727216"
+    },
+    {
+      "esquema": "private",
+      "funcion": "conversion_episodios",
+      "argumentos": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric",
+      "retorno": "TABLE(tipo text, analista_id uuid, lead_id uuid, operacion_id uuid, fue_referido boolean, aproximado boolean, motivo text, anulado boolean, origen text, categoria text, mes_origen date, monto numeric, moneda text, fecha_divisor timestamp with time zone, fecha_numerador timestamp with time zone, aporte_divisor integer, aporte_numerador numeric)",
+      "huella": "8a2549dbfa59c732da04900ed90b6361"
+    },
+    {
+      "esquema": "private",
+      "funcion": "es_lector_global",
+      "argumentos": "",
+      "retorno": "boolean",
+      "huella": "c8be602f84348a0125617995802db618"
+    },
+    {
+      "esquema": "private",
+      "funcion": "huella_exenciones_analitica_lc",
+      "argumentos": "",
+      "retorno": "text",
+      "huella": "817926e696fa554d8485e8e1aa6e9b73"
+    },
+    {
+      "esquema": "private",
+      "funcion": "metricas_distribucion_leads_autorizada",
+      "argumentos": "p_desde date, p_hasta date, p_version smallint",
+      "retorno": "jsonb",
+      "huella": "8d4abfc9625c0c48ae39564db84cda0a"
+    },
+    {
+      "esquema": "private",
+      "funcion": "metricas_sla_global_core",
+      "argumentos": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "retorno": "jsonb",
+      "huella": "2353b10e1ff2104ffb14441485eb7dde"
+    },
+    {
+      "esquema": "private",
+      "funcion": "persona_vetada",
+      "argumentos": "p_lead_id uuid",
+      "retorno": "boolean",
+      "huella": "a70efe776fc56fd34d47e364e2e55571"
+    },
+    {
+      "esquema": "private",
+      "funcion": "sla_politica_vigente",
+      "argumentos": "p_instante timestamp with time zone",
+      "retorno": "uuid",
+      "huella": "72de82b922859c7aadf3f7e33de3514b"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_actividades_sla_versionado",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "acc83f5d34de8f695f12670285f54efb"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_analitica_lc_exenciones_no_borrar",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "f3790eab7326ba4060023936f33e99e3"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_analitica_lc_tope_no_truncar",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "c0d2b83f4817340d59303cb73bf297e5"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_analitica_lc_tope_solo_baja",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "965d3a68095ea8dfbac151d51a027d1b"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_asignacion_sla_hitos_guard",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "2e2971b4325c7aad4253387dad301400"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_asignaciones_completar_sla_global",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "06db9b26c49dcbc5018d1a45f435be7a"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_asignaciones_crear_sla_hitos",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "69a185706e4fbd2d07b433cfea48774a"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_asignaciones_sla_global_inmutable",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "2178a1864ddc6201a6bea2639e6ccb51"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_asignaciones_sla_versionado",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "f593b097f209f4f36ddab5b305a2d758"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_sla_ciclos_guard",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "04ce52eeb57ea8fde1fa71f9d021e025"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_lead_sla_etapas_guard",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "bdc42cc17888cffea22aaf63162344fe"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_leads_sla_global",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "8ba1ecd067fc02ee37afa786c9cf84da"
+    },
+    {
+      "esquema": "private",
+      "funcion": "trg_leads_sla_versionado",
+      "argumentos": "",
+      "retorno": "trigger",
+      "huella": "74df21e38824b23f01538ced70e21d52"
+    },
+    {
+      "esquema": "private",
+      "funcion": "vendedor_ids_visibles",
+      "argumentos": "p_perfil_id uuid",
+      "retorno": "SETOF uuid",
+      "huella": "85544c70a0920f3a7a1b5da06935f236"
+    },
+    {
+      "esquema": "private",
+      "funcion": "vigia_analitica_leads_citas",
+      "argumentos": "",
+      "retorno": "void",
+      "huella": "7aa37c8d1f207340ac17d9f162252a5c"
+    }
+  ],
+  "definiciones": [
+    {
+      "esquema": "crm",
+      "funcion": "estado_sla_leads_fn",
+      "argumentos": "",
+      "huella": "11808483d300a97fb6ff8b3be2dab1fa",
+      "definicion": "CREATE OR REPLACE FUNCTION crm.estado_sla_leads_fn()\n RETURNS TABLE(lead_id uuid, ciclo_politica_id uuid, ciclo_politica_version integer, primera_gestion_limite_en timestamp with time zone, primera_gestion_en timestamp with time zone, primer_contacto_limite_en timestamp with time zone, primer_contacto_en timestamp with time zone, ciclo_aproximado boolean, asignacion_id uuid, asignacion_politica_id uuid, asignacion_politica_version integer, asignacion_primera_gestion_limite_en timestamp with time zone, asignacion_primera_gestion_en timestamp with time zone, asignacion_primer_contacto_limite_en timestamp with time zone, asignacion_primer_contacto_en timestamp with time zone, etapa_politica_id uuid, etapa_politica_version integer, etapa text, etapa_iniciada_en timestamp with time zone, etapa_limite_en timestamp with time zone, etapa_objetivo_minutos integer, etapa_aproximada boolean)\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid uuid := (select auth.uid());\n  v_rol text;\n  v_lector_global boolean;\n  v_visibles uuid[];\nbegin\n  v_rol := private.rol_crm(v_uid);\n  v_lector_global := private.es_lector_global();\n  if v_uid is null or (v_rol is null and not v_lector_global) then\n    raise exception 'No autorizado' using errcode='42501';\n  end if;\n  v_visibles := array(select private.vendedor_ids_visibles(v_uid));\n\n  return query\n  select\n    l.id,\n    c.politica_id,\n    pc.version,\n    c.primera_gestion_limite_en,\n    c.primera_gestion_en,\n    c.primer_contacto_limite_en,\n    c.primer_contacto_en,\n    c.aproximado,\n    a.id,\n    a.sla_politica_asignacion_id,\n    pa.version,\n    a.primera_gestion_limite_en,\n    ah.primera_gestion_en,\n    a.primer_contacto_limite_en,\n    ah.primer_contacto_en,\n    e.politica_id,\n    pe.version,\n    e.etapa,\n    e.iniciado_en,\n    e.limite_en,\n    re.maximo_minutos,\n    e.aproximado\n  from crm.leads l\n  join crm.lead_sla_ciclos c\n    on c.lead_id=l.id and c.ciclo_n=l.ciclo_actual\n  join crm.sla_politicas pc on pc.id=c.politica_id\n  left join lateral (\n    select la.*\n    from crm.lead_asignaciones la\n    where la.lead_id=l.id and la.finalizado_en is null\n    order by la.episodio_n desc\n    limit 1\n  ) a on true\n  left join crm.sla_politicas pa on pa.id=a.sla_politica_asignacion_id\n  left join crm.lead_asignacion_sla_hitos ah on ah.lead_asignacion_id=a.id\n  left join crm.lead_sla_etapas e\n    on e.lead_id=l.id and e.ciclo_n=l.ciclo_actual and e.finalizado_en is null\n  left join crm.sla_politicas pe on pe.id=e.politica_id\n  left join crm.sla_politica_etapas re\n    on re.politica_id=e.politica_id and re.etapa=e.etapa\n  where l.activo is true\n    and (\n      l.vendedor_id = any(v_visibles)\n      or (\n        l.vendedor_id is null\n        and l.asignado_supervisor_id = any(v_visibles)\n      )\n      or v_rol='gerencia'\n      or v_lector_global\n    )\n  order by l.id;\nend;\n$function$\n"
+    },
+    {
+      "esquema": "private",
+      "funcion": "citas_episodios",
+      "argumentos": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_ahora timestamp with time zone",
+      "huella": "ea636888a266941e959f26c6a5727216",
+      "definicion": "CREATE OR REPLACE FUNCTION private.citas_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_ahora timestamp with time zone DEFAULT now())\n RETURNS TABLE(tarea_id uuid, lead_id uuid, vendedor_id uuid, cancelada_por_id uuid, vence_en timestamp with time zone, estado text, modalidad text, resultado text, debio_ocurrir boolean, realizada boolean, no_show boolean, cancelada_asesor boolean, cancelada_sistema boolean, reprogramada boolean, pendiente_cierre boolean, programada_futura boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select t.id,\n         t.lead_id,\n         t.vendedor_id,\n         t.cancelada_por_id,\n         t.vence_en,\n         t.estado,\n         coalesce(t.modalidad_reunion, 'sin_clasificar'),\n         coalesce(t.resultado_reunion, 'sin_clasificar'),\n         t.vence_en <= p_ahora,\n         t.estado = 'completada',\n         t.estado = 'no_show',\n         (t.estado = 'cancelada' and t.cancelada_por = 'asesor'),\n         (t.estado = 'cancelada' and t.cancelada_por is distinct from 'asesor'),\n         t.estado = 'reprogramada',\n         (t.estado = 'pendiente' and t.vence_en <= p_ahora),\n         (t.estado = 'pendiente' and t.vence_en > p_ahora)\n  from crm.tareas t\n  where t.tipo = 'reunion'\n    and t.activo\n    and t.vence_en >= p_ini\n    and t.vence_en < p_fin;\n$function$\n"
+    },
+    {
+      "esquema": "private",
+      "funcion": "metricas_sla_global_core",
+      "argumentos": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "huella": "2353b10e1ff2104ffb14441485eb7dde",
+      "definicion": "CREATE OR REPLACE FUNCTION private.metricas_sla_global_core(p_desde date, p_hasta date, p_ahora timestamp with time zone)\n RETURNS jsonb\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\nwith\nparametros as (\n  select\n    (p_desde::timestamp at time zone 'America/Lima') as inicio,\n    ((p_hasta + 1)::timestamp at time zone 'America/Lima') as fin,\n    p_ahora as ahora\n),\nciclos_ledger as (\n  select\n    la.lead_id,\n    la.ciclo_n,\n    min(la.sla_global_iniciado_en) as sla_iniciado_en,\n    bool_or(la.sla_global_aproximado) as aproximado,\n    case\n      when l.ciclo_actual = la.ciclo_n\n       and l.activo = true\n       and l.etapa in ('nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada')\n        then null\n      else coalesce(\n        max(la.resultado_en) filter (where la.resultado is not null),\n        max(la.finalizado_en)\n      )\n    end as ciclo_finalizado_en,\n    greatest(count(*) - 1, 0)::integer as reasignaciones\n  from crm.lead_asignaciones la\n  join crm.leads l on l.id = la.lead_id\n  group by\n    la.lead_id,\n    la.ciclo_n,\n    l.ciclo_actual,\n    l.activo,\n    l.etapa\n),\nciclos_sin_episodio as (\n  select\n    l.id as lead_id,\n    l.ciclo_actual as ciclo_n,\n    l.sla_global_iniciado_en as sla_iniciado_en,\n    l.sla_global_aproximado as aproximado,\n    null::timestamptz as ciclo_finalizado_en,\n    0::integer as reasignaciones\n  from crm.leads l\n  where l.activo = true\n    and l.etapa in ('nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada')\n    and not exists (\n      select 1\n      from crm.lead_asignaciones la\n      where la.lead_id = l.id\n        and la.ciclo_n = l.ciclo_actual\n    )\n),\nciclos as (\n  select * from ciclos_ledger\n  union all\n  select * from ciclos_sin_episodio\n),\ncontactos as (\n  select\n    c.lead_id,\n    c.ciclo_n,\n    c.sla_iniciado_en,\n    c.aproximado,\n    c.ciclo_finalizado_en,\n    c.reasignaciones,\n    min(a.creado_en) as primera_gestion_en\n  from ciclos c\n  cross join parametros p\n  left join crm.actividades a\n    on a.lead_id = c.lead_id\n   and a.tipo in (\n     'llamada_realizada',\n     'llamada_no_contestada',\n     'whatsapp_enviado',\n     'whatsapp_recibido',\n     'reunion_realizada'\n   )\n   and a.creado_en >= c.sla_iniciado_en\n   and (c.ciclo_finalizado_en is null or a.creado_en < c.ciclo_finalizado_en)\n   and a.creado_en <= p.ahora\n  group by\n    c.lead_id,\n    c.ciclo_n,\n    c.sla_iniciado_en,\n    c.aproximado,\n    c.ciclo_finalizado_en,\n    c.reasignaciones\n),\nmedidas as (\n  select\n    c.*,\n    case\n      when c.primera_gestion_en is not null\n        then extract(epoch from (c.primera_gestion_en - c.sla_iniciado_en)) / 60.0\n      else null\n    end as primera_gestion_minutos,\n    (\n      c.primera_gestion_en is not null\n      or coalesce(c.ciclo_finalizado_en, p.ahora)\n        >= c.sla_iniciado_en + interval '24 hours'\n    ) as sla_evaluable,\n    (\n      c.primera_gestion_en is not null\n      and c.primera_gestion_en <= c.sla_iniciado_en + interval '24 hours'\n    ) as sla_en_24h\n  from contactos c\n  cross join parametros p\n),\ncohorte as (\n  select m.*\n  from medidas m\n  cross join parametros p\n  where m.sla_iniciado_en >= p.inicio\n    and m.sla_iniciado_en < p.fin\n)\nselect jsonb_build_object(\n  'cohorte_ciclos', (select count(*) from cohorte),\n  'cohorte_leads_unicos', (select count(distinct lead_id) from cohorte),\n  'contactos', (select count(*) from cohorte where primera_gestion_en is not null),\n  'sla_evaluables', (select count(*) from cohorte where sla_evaluable),\n  'sla_en_24h', (select count(*) from cohorte where sla_en_24h),\n  'primer_contacto_mediana_minutos', (\n    select round((percentile_cont(0.5) within group (\n      order by primera_gestion_minutos\n    ))::numeric, 1)\n    from cohorte\n    where primera_gestion_minutos is not null\n  ),\n  'sin_contacto_vencidos_actuales', (\n    select count(*)\n    from medidas m\n    cross join parametros p\n    where m.ciclo_finalizado_en is null\n      and m.primera_gestion_en is null\n      and p.ahora >= m.sla_iniciado_en + interval '24 hours'\n  ),\n  'reasignaciones_cohorte', coalesce((select sum(reasignaciones) from cohorte), 0),\n  'ciclos_aproximados_cohorte', (select count(*) from cohorte where aproximado)\n);\n$function$\n"
+    }
+  ]
+}

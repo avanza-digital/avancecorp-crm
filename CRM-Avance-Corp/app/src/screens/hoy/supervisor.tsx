@@ -1,3 +1,5 @@
+import { ColaSlaPanel, SlaOperacionBoundary } from '@/components/app/sla-operacion'
+import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · SUPERVISOR — puesto de mando de SU equipo (F1c). El ámbito del store
 // ya trae: sus leads + los de sus analistas + parkeados de SU bandeja.
 // Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
@@ -106,6 +108,7 @@ function semaforoDias(d: number): string {
 }
 
 export function HoySupervisor(): JSX.Element {
+  const modoSla = useModoSla()
   const {
     ambito,
     actividades,
@@ -153,7 +156,7 @@ export function HoySupervisor(): JSX.Element {
   // cola + estancados + tile "sin responder"; metricas_vendedores_fn → ranking.
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
-  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice)
+  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice, modoSla.legado)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades)
   const rank = vendedoresOp.metricas?.filas ?? null
@@ -301,7 +304,7 @@ export function HoySupervisor(): JSX.Element {
   const totalPestanaActiva = pestana === 'todo' ? (cola?.total ?? 0) : urgenteTotal
 
   const errorIndicadores = !yo?.demo
-    && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
+    && Boolean(resumenOp.error || (modoSla.legado && colaOp.error) || vendedoresOp.error)
   const reintentarIndicadores = () => {
     if (resumenOp.error) void resumenOp.recargar()
     if (colaOp.error) void colaOp.recargar()
@@ -503,7 +506,7 @@ export function HoySupervisor(): JSX.Element {
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
       {/* ── F3: la franja manda — máximo tres intervenciones, luego consulta ── */}
-      <TresCosas cosas={cosas} onIrAPestana={irAPestanaCola} />
+      {modoSla.legado && <TresCosas cosas={cosas} onIrAPestana={irAPestanaCola} />}
 
       {/* ── KPIs del equipo — servidos por RPC (o espejo demo); sin dato: «—» ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -582,6 +585,7 @@ export function HoySupervisor(): JSX.Element {
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-3">
           {/* ── Cola del equipo (con dueño de cada item) ── */}
+          <SlaOperacionBoundary legado={(
           <Card className="overflow-hidden">
             <SectionHead
               icon={ListChecks}
@@ -821,6 +825,7 @@ export function HoySupervisor(): JSX.Element {
               </div>
             )}
           </Card>
+          )}><ColaSlaPanel /></SlaOperacionBoundary>
 
           {/* ── Agenda del equipo (Fase F — quién registra, cierra y arrastra) ── */}
           <AgendaEquipoPanel
