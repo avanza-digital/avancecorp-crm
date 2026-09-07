@@ -32,7 +32,7 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'F2.b D-20: la bandera resolver_en_puertas está ENCENDIDA; este lote aterriza apagado';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('cf1d8388fcf2aae71fd8e5e9c99c52d5', '64877be6eef07a8a3411ec0c9fc1c614') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('cf1d8388fcf2aae71fd8e5e9c99c52d5', '321770b5349d70af1767d7d27bcedc93') then
     raise exception 'F2.b D-20: crm.importar_lead_fn no es ni el texto vivo de producción (cf1d8388…) ni el de D-20';
   end if;
   if to_regprocedure('private.resolver_en_puertas_bajo_candado()') is null then
@@ -44,9 +44,15 @@ begin
   if to_regclass('crm.actividades_cliente') is null or to_regclass('crm.tareas') is null then
     raise exception 'F2.b D-20: faltan crm.actividades_cliente o crm.tareas';
   end if;
-  if not exists (select 1 from pg_trigger t where t.tgrelid = 'crm.tareas'::regclass
-                   and t.tgname = 'trg_tareas_00_before_insert' and t.tgenabled = 'O') then
-    raise exception 'F2.b D-20: falta el trigger que resuelve el analista de la cartera al crear una tarea de cliente';
+  if not exists (select 1 from pg_trigger t join pg_proc pr on pr.oid = t.tgfoid
+                  where t.tgrelid = 'crm.tareas'::regclass and t.tgname = 'trg_tareas_00_before_insert'
+                    and t.tgenabled = 'O' and pr.proname = 'trg_tareas_before_insert'
+                    and md5(pr.prosrc) = '293f17f12beccd952e65295a02c595b5') then
+    raise exception 'F2.b D-20: el trigger que resuelve el analista de la cartera no es el esperado (toda la atribución de la tarea depende de él)';
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'crm.actividades_cliente'::regclass
+                   and conname = 'actividades_cliente_responsable_check') then
+    raise exception 'F2.b D-20: falta el CHECK que exige responsable en la nota de la ficha';
   end if;
 end
 $guard$;
@@ -88,6 +94,15 @@ begin
   if not v_cliente.activo then
     raise exception 'Cliente inactivo: la solicitud no se registra' using errcode = 'P0409';
   end if;
+  -- Auditor D-20 #A2: los dos triggers de veto se EXIMEN cuando no hay sesión (auth.uid() null), que es justo el caso
+  -- del importador. La ley 29571 no puede depender de un razonamiento sobre el orden de los triggers: se comprueba aquí.
+  if private.persona_vetada_perfil(p_perfil) then
+    return pg_catalog.jsonb_build_object('ok', false, 'vetado', true, 'sin_tarea', true,
+      'error', 'La persona tiene la restricción «No insistir»: no se registra seguimiento');
+  end if;
+  -- Auditor #M6: la idempotencia se sostiene sola. Hoy el importador ya serializa por persona, pero el ayudante no
+  -- puede depender de quién lo llame.
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('solicitud_cliente:' || p_perfil::text));
 
   -- Huella de la solicitud SIN el número de fila (que cambia si alguien inserta una fila encima), igual que el
   -- reingreso: si la hoja reenvía la misma fila porque perdió la confirmación, no se duplica ni la nota ni la tarea.
@@ -99,14 +114,17 @@ begin
     || coalesce(' · distrito: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'distrito', '')), ''), '')
     || coalesce(' · canal: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'canal', '')), ''), '')
     || coalesce(' · teléfono: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'telefono', '')), ''), '')
-    || coalesce(' · nota: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'nota', '')), ''), '')
-    || ' · Ref: ' || v_huella;
+    || coalesce(' · nota: ' || nullif(pg_catalog.btrim(coalesce(p_datos->>'nota', '')), ''), '');
+  -- `detalle` y `nota` topan en 2000 caracteres, pero la nota del formulario no tiene límite: se recorta el cuerpo y
+  -- la huella se añade DESPUÉS, porque recortar por el final la destruiría y con ella la idempotencia (auditor #M1).
+  v_detalle := pg_catalog.left(v_detalle, 1900) || ' · Ref: ' || v_huella;
 
   select a.id into v_prev_act
     from crm.actividades_cliente a
    where a.cliente_id = p_perfil
      and a.tipo = 'nota'
      and pg_catalog.strpos(coalesce(a.detalle, ''), 'Ref: ' || v_huella) > 0
+     and a.creado_por is null   -- auditor #M2: solo cuenta la nota que escribió el importador, no una copiada a mano
      and a.creado_en > pg_catalog.now() - interval '7 days'
    order by a.creado_en desc
    limit 1;
@@ -118,12 +136,12 @@ begin
   -- analista de la cartera es el destino natural; si el perfil no lo tiene, se usa el responsable VIVO de su identidad
   -- (423 de los 424 clientes activos lo tienen). Sin ninguno de los dos no hay a quién atribuirla: se dice y ya.
   v_dest := v_cliente.asesor_perfil_id;
-  if v_dest is null or not exists (select 1 from crm.equipo e where e.perfil_id = v_dest and e.activo) then
+  if v_dest is null or not exists (select 1 from crm.equipo e where e.perfil_id = v_dest and e.activo and e.rol_crm in ('vendedor','supervisor')) then
     select r.responsable_id into v_dest
       from crm.inversionista_responsables r
       join crm.inversionistas i on i.id = r.inversionista_id
      where i.perfil_id = p_perfil and r.hasta is null
-       and exists (select 1 from crm.equipo e where e.perfil_id = r.responsable_id and e.activo)
+       and exists (select 1 from crm.equipo e where e.perfil_id = r.responsable_id and e.activo and e.rol_crm in ('vendedor','supervisor'))
      order by r.desde desc
      limit 1;
   end if;
@@ -195,6 +213,7 @@ declare
   v_datos      jsonb;
   v_prev       uuid;
   v_perfil     uuid;      -- F2.b [D-20]
+  v_lead_vivo  uuid;      -- F2.b [D-20]
   v_solicitud  jsonb;     -- F2.b [D-20]
 begin
   -- F2.b [D-4]: solo el importador (service_role, sin sesión de usuario), la misma regla que registrar_reingreso_lead_fn.
@@ -272,7 +291,13 @@ begin
   end;
 
   v_lead := nullif(v_veredicto->>'lead_id', '')::uuid;
-  if v_resultado = 'ya_cliente' and v_lead is not null then
+  -- F2.b [D-20] (auditor A1): `private.leads_de_personas` devuelve enlace ∪ puente ∪ sueltos, así que `v_lead`
+  -- también trae leads CONVERTIDOS y descartados. Anotar el reingreso en uno cerrado es escribir donde nadie mira.
+  -- La bifurcación va por el lead VIVO: solo ése es un trabajo que alguien tiene en su bandeja.
+  select l.id into v_lead_vivo
+    from crm.leads l
+   where l.id = v_lead and l.activo and l.etapa not in ('convertido', 'descartado');
+  if v_resultado = 'ya_cliente' and v_lead_vivo is not null then
     -- El reingreso en la MISMA transacción (hoy el edge lo pedía aparte tras leer el error). Si fallara de forma
     -- DEFINITIVA, la fila sigue siendo «ya cliente» y el edge lo dice en la hoja, como hoy.
     v_datos := pg_catalog.jsonb_build_object(
@@ -322,7 +347,7 @@ begin
     select i.perfil_id into v_perfil
       from crm.inversionistas i
      where i.id = private.inversionista_por_documento('DNI', v_dni) and i.perfil_id is not null;
-    if v_perfil is null then
+    if v_perfil is null and nullif(pg_catalog.btrim(coalesce(v_dni, '')), '') is not null then
       select p.id into v_perfil
         from public.perfiles p
        where p.rol = 'cliente' and p.activo
@@ -355,7 +380,7 @@ $function$;
 do $post$
 begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure
-                  and md5(p.prosrc) = '64877be6eef07a8a3411ec0c9fc1c614' and p.prosecdef and p.proowner = 'postgres'::regrole
+                  and md5(p.prosrc) = '321770b5349d70af1767d7d27bcedc93' and p.prosecdef and p.proowner = 'postgres'::regrole
                   and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']
                   and coalesce((select string_agg(a.grantee::regrole::text, ',' order by a.grantee::regrole::text) from aclexplode(p.proacl) a), 'null') = 'postgres,service_role') then
     raise exception 'POSTFLIGHT D-20: crm.importar_lead_fn no quedó como se esperaba (cuerpo, definer, dueño, config o permisos)';

@@ -152,11 +152,24 @@ export type ReingresoPuerta = {
   error?: string;
 } | null;
 
+/** F2.b [D-20]: lo que la puerta hizo con la solicitud de un cliente que ya no tiene lead vivo. */
+export type SolicitudPuerta = {
+  ok?: boolean;
+  repetido?: boolean;
+  actividad_id?: string;
+  tarea_id?: string;
+  sin_tarea?: boolean;
+  sin_ficha?: boolean;
+  vetado?: boolean;
+  error?: string;
+} | null;
+
 export type RespuestaPuerta = {
   resultado: "importado" | "duplicado" | "ya_cliente" | "rechazado";
   lead_id?: string | null;
   veredicto?: Record<string, unknown> | null;
   reingreso?: ReingresoPuerta;
+  solicitud?: SolicitudPuerta;
 };
 
 /** Texto de rechazo a partir del veredicto (el mismo que hoy sale del DETAIL del INSERT). */
@@ -226,6 +239,26 @@ export function clasificarRespuestaPuerta(
       estado = `${base}: NO se pudo anotar el reingreso en su ficha (${
         r.reingreso.error.slice(0, 60)
       })`;
+    } else if (r.solicitud) {
+      // F2.b [D-20] (auditor A3): el cliente ya no tiene lead vivo, así que la solicitud va a su ficha y a la agenda
+      // de su analista. Sin esto la hoja decía «YA ES CLIENTE» tanto si quedó tarea como si no quedó NADA, que es
+      // justo el agujero que D-20 viene a cerrar.
+      const s = r.solicitud;
+      if (s.ok === true && s.repetido === true) {
+        estado = `${base}: solicitud ya anotada en su ficha`;
+      } else if (s.ok === true && s.sin_tarea === true) {
+        estado = `${base}: solicitud anotada en su ficha, SIN analista para la tarea`;
+      } else if (s.ok === true) {
+        estado = `${base}: solicitud anotada y tarea para su analista`;
+      } else if (s.vetado === true) {
+        estado = `${base}: no se registra seguimiento («No insistir»)`;
+      } else if (s.sin_ficha === true) {
+        estado = `${base}: NO se pudo anotar (nadie a cargo de este cliente)`;
+      } else {
+        estado = `${base}: NO se pudo anotar la solicitud${
+          typeof s.error === "string" ? ` (${s.error.slice(0, 60)})` : ""
+        }`;
+      }
     }
     return {
       resultado: "ya_cliente",

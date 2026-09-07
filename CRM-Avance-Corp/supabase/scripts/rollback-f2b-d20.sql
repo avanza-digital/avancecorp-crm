@@ -15,7 +15,7 @@ begin
   if coalesce((select f.activo from crm.multiempresa_flags f where f.nombre = 'resolver_en_puertas'), false) then
     raise exception 'REVERSA D-20: la bandera resolver_en_puertas está ENCENDIDA; apágala antes de revertir';
   end if;
-  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('64877be6eef07a8a3411ec0c9fc1c614', 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
+  if coalesce((select md5(p.prosrc) from pg_proc p where p.oid = to_regprocedure('crm.importar_lead_fn(jsonb)')), '') not in ('321770b5349d70af1767d7d27bcedc93', 'cf1d8388fcf2aae71fd8e5e9c99c52d5') then
     raise exception 'REVERSA D-20: crm.importar_lead_fn no es ni el texto de D-20 ni el vivo de producción; no se pisa a ciegas';
   end if;
 end
@@ -179,8 +179,9 @@ do $post$
 begin
   if not exists (select 1 from pg_proc p where p.oid = 'crm.importar_lead_fn(jsonb)'::regprocedure
                   and md5(p.prosrc) = 'cf1d8388fcf2aae71fd8e5e9c99c52d5' and p.prosecdef and p.proowner = 'postgres'::regrole
-                  and p.proconfig @> array['search_path=""']) then
-    raise exception 'REVERSA D-20: crm.importar_lead_fn no volvió byte a byte a producción';
+                  and p.proconfig @> array['search_path=""'] and p.proconfig @> array['lock_timeout=5s']
+                  and coalesce((select string_agg(a.grantee::regrole::text, ',' order by a.grantee::regrole::text) from aclexplode(p.proacl) a), 'null') = 'postgres,service_role') then
+    raise exception 'REVERSA D-20: crm.importar_lead_fn no volvió byte a byte a producción (cuerpo, definer, dueño, config o permisos)';
   end if;
   if to_regprocedure('private.registrar_solicitud_cliente_fn(uuid,text,jsonb)') is not null then
     raise exception 'REVERSA D-20: private.registrar_solicitud_cliente_fn(uuid,text,jsonb) sigue viva';

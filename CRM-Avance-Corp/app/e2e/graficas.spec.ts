@@ -19,12 +19,12 @@ test('demo gerencia: el resumen analítico usa fixtures y no consulta Supabase',
   await entrarDemo(page, 'Gerencia')
 
   await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Resultados por semana de llegada' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Resultados por semana de ingreso' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Mejores analistas' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Resultados por origen' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Avance de metas' })).toBeVisible()
   await expect(
-    page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
+    page.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' }),
   ).toBeVisible()
   await expect(page.getByText('Datos de ejemplo').first()).toBeVisible()
   expect(requestsSupabase()).toBe(0)
@@ -58,7 +58,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(capital).toContainText('Cumplimiento confirmado no disponible')
     await expect(page.getByText('8 pactadas')).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
+      page.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' }),
     ).toBeVisible()
     const origenes = page.getByRole('heading', { name: 'Resultados por origen' }).locator('..')
     await expect(origenes.getByText('Referido', { exact: true })).toBeVisible()
@@ -80,7 +80,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(avance).toContainText('8 con señal de agenda o avance posterior · no confirma asistencia')
     await expect(page.getByText('Leads que llegaron a cita', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Avance comercial inferido' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Resultados por semana de llegada' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Resultados por semana de ingreso' })).toBeVisible()
     await expect(page.getByText(/no cierres ocurridos esa semana/)).toBeVisible()
     await page.mouse.move(1200, 70)
     await expect(page.getByRole('button', { name: 'Conversiones', exact: true })).toHaveAttribute('title', 'Conversiones')
@@ -149,7 +149,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
     await expect(page.getByText(/No pudimos cargar las metas mensuales de/)).toBeVisible()
     await expect(
-      page.getByRole('img', { name: 'Leads por semana de llegada y resultados' }),
+      page.getByRole('img', { name: 'Prospectos por semana de ingreso y resultados' }),
     ).toHaveCount(0)
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
   })

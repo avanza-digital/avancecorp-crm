@@ -351,3 +351,76 @@ Deno.test("D-4 v5: la misma fila reenviada → reingreso ya anotado (idempotente
     `texto: ${r.estado}`,
   );
 });
+
+// ── F2.b [D-20]: el cliente que vuelve y ya NO tiene lead vivo ────────────────────────────────────
+// Sin esto la hoja decía «YA ES CLIENTE» tanto si quedó tarea como si no quedó nada, que es justo el
+// agujero que D-20 cierra (auditor D-20 #A3).
+Deno.test("D-20: solicitud anotada y tarea para su analista", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    lead_id: null,
+    veredicto: { estado: "ya_es_cliente", via: "identidad", asesor: "Ana Pérez" },
+    reingreso: null,
+    solicitud: { ok: true, actividad_id: "act-1", tarea_id: "tar-1", repetido: false },
+  });
+  assert(
+    r.estado === "YA ES CLIENTE (asesor: Ana Pérez): solicitud anotada y tarea para su analista",
+    `texto: ${r.estado}`,
+  );
+});
+
+Deno.test("D-20: reenvío de la misma fila dice que ya estaba anotada", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    veredicto: { estado: "ya_es_cliente", via: "identidad" },
+    solicitud: { ok: true, repetido: true, actividad_id: "act-1" },
+  });
+  assert(r.estado === "YA ES CLIENTE: solicitud ya anotada en su ficha", `texto: ${r.estado}`);
+});
+
+Deno.test("D-20: sin analista para la tarea, la hoja lo dice", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    veredicto: { estado: "ya_es_cliente", via: "identidad" },
+    solicitud: { ok: true, actividad_id: "act-1", sin_tarea: true },
+  });
+  assert(
+    r.estado === "YA ES CLIENTE: solicitud anotada en su ficha, SIN analista para la tarea",
+    `texto: ${r.estado}`,
+  );
+});
+
+Deno.test("D-20: sin nadie a cargo, la hoja avisa de que NO se pudo anotar", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    veredicto: { estado: "ya_es_cliente", via: "identidad" },
+    solicitud: { ok: false, sin_ficha: true, sin_tarea: true, error: "nadie a cargo" },
+  });
+  assert(
+    r.estado === "YA ES CLIENTE: NO se pudo anotar (nadie a cargo de este cliente)",
+    `texto: ${r.estado}`,
+  );
+});
+
+Deno.test("D-20: persona con «No insistir» — se dice, no se inventa seguimiento", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    veredicto: { estado: "ya_es_cliente", via: "identidad" },
+    solicitud: { ok: false, vetado: true, sin_tarea: true },
+  });
+  assert(
+    r.estado === "YA ES CLIENTE: no se registra seguimiento («No insistir»)",
+    `texto: ${r.estado}`,
+  );
+});
+
+Deno.test("D-20: el reingreso en su lead vivo sigue mandando sobre la solicitud", () => {
+  const r = clasificarRespuestaPuerta({
+    resultado: "ya_cliente",
+    lead_id: "lead-1",
+    veredicto: { estado: "ya_es_cliente", via: "identidad" },
+    reingreso: { ok: true, actividad_id: "act-1" },
+    solicitud: null,
+  });
+  assert(r.estado === "YA ES CLIENTE: reingreso registrado en su ficha", `texto: ${r.estado}`);
+});
