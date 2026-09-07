@@ -1,4 +1,4 @@
-import { ColaSlaPanel, SlaOperacionBoundary } from '@/components/app/sla-operacion'
+import { SlaOperacionBoundary } from '@/components/app/sla-operacion'
 import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
@@ -1372,13 +1372,10 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       )}>
-        <div className="space-y-4">
-          <ColaSlaPanel />
-          <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
-            onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
-            demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
-            vencidasAbajo={0} title="Tu agenda de hoy" />
-        </div>
+        <AgendaHoy eventos={agenda} leadPorId={leadPorId} abrirLead={abrirLead}
+          onCompletar={(id) => { const tarea = tareas.find((item) => item.id === id); if (tarea) setTareaACerrar(tarea) }}
+          demo={false} nReuniones={reunionesAgendadas} nPropuestas={nPropuestas}
+          vencidasAbajo={0} title="Tu agenda de hoy" />
       </SlaOperacionBoundary>
 
       {mios.length > 0 && (

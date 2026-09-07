@@ -165,7 +165,7 @@ test('si RLS ya no devuelve la oportunidad, la cola informa el fallo y no abre u
   await expect(page).not.toHaveURL(new RegExp(`/lead/${lead.id}$`))
 })
 
-test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha', async ({ page }) => {
+test('Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas y abre la ficha', async ({ page }) => {
   const leads = Array.from({ length: 12 }, (_, i) => leadReal({
     id: `bbbbbbbb-0000-4000-8000-${String(i).padStart(12, '0')}`, vendedor_id: UID,
     nombre_completo: `OPORTUNIDAD SLA ${String(i + 1).padStart(2, '0')}`, etapa: 'contactado',
@@ -203,6 +203,11 @@ test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha'
   })
   await loginReal(page)
   await page.getByRole('button', { name: 'Hoy', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Tu agenda de hoy', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Seguimiento comercial', exact: true })).toHaveCount(0)
+  expect(pedidos).toHaveLength(0)
+  await page.screenshot({ path: '/private/tmp/hoy-analista-sin-seguimiento-desktop.png', fullPage: true })
+  await irASeguimiento(page)
   const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
   await expect(lista.locator(':scope > li')).toHaveCount(10)
   await expect(page.getByRole('combobox', { name: 'Analista', exact: true })).toHaveCount(0)
