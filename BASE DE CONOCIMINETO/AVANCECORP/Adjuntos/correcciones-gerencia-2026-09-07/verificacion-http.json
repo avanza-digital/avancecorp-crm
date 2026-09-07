@@ -1,0 +1,589 @@
+{
+  "fecha_utc": "2026-09-07T17:37:30.030233+00:00",
+  "release": "crm-20260907T173339Z-a6eefa74bfd2",
+  "commit": "a6eefa74bfd2a444233f7ccd55a3168904990cb9",
+  "build": {
+    "schema": 1,
+    "buildId": "build-20260907T173338443Z"
+  },
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "http": 403,
+      "hash_exacto": false,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "404.html",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/agenda-CfpnbGGE.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/agenda-vistas-oApZi6Pe.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/alertas-BB7_NsC5.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/aviso-degradacion-DMHmnaT_.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/card-Bxy2-VC7.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/cartera-DY9eTlyr.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-vEXUTPnw.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/config-DGLwh6aE.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/config-metas-Datk91_y.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/config-productos-BNBWCf6C.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/config-sla-Blnoergu.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/config-usuarios-BJ-VXzs7.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/configuracion-shell-CjfBEmvO.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/crm-api-DBd17aQX.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/data-vendor-CVus9pJE.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/derivaciones-DtVp-gDb.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/desglose-monedas-DZyb-7_X.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/echart-bar-BHPdSThz.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/echart-BSYShQpb.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/echart-line-DA1Frt_d.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/equipo-DVI73D1c.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/estado-panel-sWhQcu7t.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/gerencia-Cgubt3Gu.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/gerencia-DzGTLJ6A.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/hoy-Cw9jKJbV.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/index-BHEGS147.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/index-i8ZgwT31.css",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/lead-hover-card-zoPzZwGX.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/mi-cartera-DW8XMBup.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/paginacion-Cy0GMF4R.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/pipeline-C6x36qy_.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/plan-lead-4-RGyY_A.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/progress-CZBnoObr.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ranking-vendedores-Duk5O5WR.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/repartir-BXywrYhQ.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/rescate-carpeta-C1lMtkXU.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/rescate-descartados-BNDREZxw.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/section-head-CVzwtvng.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/seguimiento-D1_mzxRO.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/stat-strip-DOww6qK4.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/tabla-CB4Slflr.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/ui-vendor-Bz8RW2pg.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-BmPwSZde.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/use-periodo-derivaciones-BIrdEfl0.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-Cao8Ibh4.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-BW1UEgHV.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "assets/utils-CBiQGPGn.js",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "http": 200,
+      "hash_exacto": false,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "favicon.svg",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "icons.svg",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": true,
+      "correcto": true
+    },
+    {
+      "ruta": "index.html",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "robots.txt",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    },
+    {
+      "ruta": "version.json",
+      "http": 200,
+      "hash_exacto": true,
+      "imagen": false,
+      "correcto": true
+    }
+  ],
+  "versiones": [
+    {
+      "schema": 1,
+      "buildId": "build-20260907T173338443Z"
+    },
+    {
+      "schema": 1,
+      "buildId": "build-20260907T173338443Z"
+    },
+    {
+      "schema": 1,
+      "buildId": "build-20260907T173338443Z"
+    }
+  ],
+  "protecciones": [
+    {
+      "url": "https://crm.miavance.com/crm-20260907T173339Z-a6eefa74bfd2.zip",
+      "http": 404,
+      "correcto": true
+    },
+    {
+      "url": "https://miavance.com/crm-20260907T173339Z-a6eefa74bfd2.zip",
+      "http": 404,
+      "correcto": true
+    },
+    {
+      "url": "https://crm.miavance.com/.vite/license.md",
+      "http": 404,
+      "correcto": true
+    }
+  ],
+  "fallos": []
+}
