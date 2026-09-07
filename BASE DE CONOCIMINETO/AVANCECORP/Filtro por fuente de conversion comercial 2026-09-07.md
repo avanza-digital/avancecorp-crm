@@ -26,6 +26,14 @@ En Upgrade y Renovación se ocultan gráficos exclusivos del recorrido de prospe
 
 El cambio es de frontend y consume contratos existentes; no agrega funciones independientes ni modifica núcleos de negocio o RPC.
 
+## Publicación
+
+Publicado en `crm.miavance.com` el 07/09/2026 desde el commit `543a5af5ce7a29bc6da8d5541f0b4242584d85e5`, ya sincronizado con `avancecorp/main`. Release `crm-20260907T062744Z-543a5af5ce7a`, build `build-20260907T062744295Z`, ZIP SHA-256 `c34f7f3e1734cdb58f0dba3e6add13b7b98c01c8244db79bd9740934c81ebb48`.
+
+El gate de publicación pasó lint, tipos, cobertura, configuración pública, bundle y duplicación: 202 archivos y 2.944 pruebas. El pre-push completo pasó 209 archivos y 3.011 pruebas. La verificación viva terminó con 0 fallos: 65 archivos exactos, 12 imágenes optimizadas con HTTP 200, `.htaccess` protegido, ZIP 404 en CRM y portal, y tres lecturas estables del build. El shell productivo cargó sin errores de consola en la sesión disponible de Supervisor; la interacción específica de Gerencia se verificó antes en el checkout local y mediante pruebas de pantalla.
+
+El ZIP, manifiesto y detalle HTTP quedan conservados fuera del web root en `CRM-Avance-Corp/releases/` para trazabilidad y rollback.
+
 ## Relacionado
 
 - [[Conversion comercial - una sola tasa visible 2026-09-06]]
