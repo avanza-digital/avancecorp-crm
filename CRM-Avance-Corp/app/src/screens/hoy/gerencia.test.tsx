@@ -698,8 +698,8 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(meta.getByText(/S\/ .* \+ US\$/)).toBeInTheDocument()
     expect(meta.getByText(/TC S\/ 3\.5/)).toBeInTheDocument()
     expect(meta.getByText(/BCRP/)).toBeInTheDocument()
-    // Y la conversión es la de la EMPRESA; el detalle vive en Conversiones.
-    expect(meta.getByText('Conversión de la empresa')).toBeInTheDocument()
+    // El índice ponderado queda identificado como avance de la meta mensual.
+    expect(meta.getByText('Índice para la meta mensual')).toBeInTheDocument()
     expect(meta.getByText('El detalle por analista está en Conversiones.')).toBeInTheDocument()
   })
 

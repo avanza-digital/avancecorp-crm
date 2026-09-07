@@ -755,7 +755,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                                 : undefined}
                 />
                 <MetaItem
-                  label="Conversión de la empresa"
+                  label="Índice para la meta mensual"
                   actual={porcentajeConversionCanonica(conversionActual)}
                   objetivo={metaMensualRanking.errorCarga
                     ? 'meta no disponible'

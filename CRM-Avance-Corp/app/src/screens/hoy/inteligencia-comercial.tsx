@@ -6,7 +6,6 @@ import {
   Eye,
   RefreshCw,
   Target,
-  UserRoundCheck,
   WalletCards,
   X,
 } from 'lucide-react'
@@ -33,7 +32,6 @@ import {
   lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
-  totalConversionPublicable,
   type ConversionMensual,
 } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -60,10 +58,9 @@ interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
   /**
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`) alimenta el
-   * bloque «del mes» de la ficha del analista, metas y el fallback compatible
-   * cuando un servidor antiguo no trae `datos.nucleo`. Tri-estado:
+   * bloque «del mes» de la ficha del analista y Metas. Tri-estado:
    * `undefined` consultando · `null` no disponible (fail-closed, «—»/rótulo).
-   * El héroe real usa `datos.nucleo`, servido para el rango exacto.
+   * El héroe usa la cohorte de prospectos del rango (`datos.cohorte`).
    */
   conversionMensual: ConversionMensual | null | undefined
   /**
@@ -547,7 +544,6 @@ export function InteligenciaComercialPanel({
   origenFiltrado,
   equipo,
   equipoMensual,
-  metaConversion,
   metasVendedores,
   cumplimientoVendedores,
   metaMensual,
@@ -585,7 +581,6 @@ export function InteligenciaComercialPanel({
     : null
   const metaVendedor = vendedor ? metasVendedores[vendedor.vendedorId] ?? null : null
   const cumplimientoVendedor = vendedor ? cumplimientoVendedores[vendedor.vendedorId] ?? null : null
-  const metaConversionVisual = metaConversion > 0 ? metaConversion : 0
 
   const opcionEquipo = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
@@ -660,9 +655,7 @@ export function InteligenciaComercialPanel({
     ],
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
-  const clientes = datos?.cohorte.contratos ?? null
   const nucleoVerificado = datos?.nucleo != null && sondasNucleoVerificadas(datos.sondas)
-  const nucleo = nucleoVerificado ? datos.nucleo ?? null : null
   const lecturaAmpliadaVerificada = nucleoVerificado
     || (modoDemo && datos?.nucleo == null && datos?.sondas == null)
   const citasReales = datos?.citas_reales != null
@@ -692,17 +685,11 @@ export function InteligenciaComercialPanel({
   const cosechaLeads = datos?.cohorte.leads ?? null
   const cosechaCierres = datos?.cohorte.contratos ?? null
   const cosechaPct = datos?.cohorte.conversion_contratos_pct ?? null
-  // La cifra principal obedece al filtro visible: `nucleo` ya viene calculado
-  // por la RPC canónica para el rango exacto. No se divide ni se reconstruye en
-  // el navegador. La mensual sigue aparte para metas y detalle del analista.
+  // La lectura comercial principal es la cohorte servida para el rango y el
+  // origen visibles. El navegador no recalcula su porcentaje. El índice
+  // mensual ponderado queda reservado para Metas y el detalle del analista.
   const lecturaMensual = lecturaCobertura(conversionMensual?.cobertura)
-  const totalMensual = totalConversionPublicable(conversionMensual)
   const conversionMensualPublicable = lecturaMensual.mostrar
-  const conversionMesPct = totalMensual?.conversion_pct ?? null
-  const cierresMes = totalMensual == null
-    ? null
-    : totalMensual.cierres_no_referidos + totalMensual.cierres_referidos
-  const operacionesCarteraMes = totalMensual?.cartera.conversiones_clientes ?? null
   // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
   // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
   // no consulta el tipo de cambio y la casa prohíbe sumarlos a ciegas.
@@ -717,8 +704,6 @@ export function InteligenciaComercialPanel({
     ? { label: 'Capital vinculado a los prospectos', valor: capitalDisponible(capitalLotePen, 'PEN'), detalle: capitalLoteUsd == null ? 'Dato no disponible' : capitalLoteUsd > 0 ? money(capitalLoteUsd, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
     : { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
   const kpis = [
-    { label: 'Resultados de los leads del mes', valor: pct(cosechaPct), detalle: `${numeroDisponible(cosechaCierres)} cerrados de ${numeroDisponible(cosechaLeads)} leads`, icon: UserRoundCheck, color: C.blue },
-    { label: 'Leads del mes que cerraron', valor: numeroDisponible(clientes), detalle: `de ${numeroDisponible(cosechaLeads)} leads del mes`, icon: UserRoundCheck, color: C.green },
     citasReales != null
       ? { label: 'Prospectos con cita realizada', valor: numero(citasReales.leads_con_cita_real), detalle: `${numero(citasReales.citas_realizadas)} citas registradas como realizadas · de ${numero(citasReales.leads_base)} prospectos`, icon: CalendarCheck, color: C.teal }
       : { label: 'Reunión o avance posterior', valor: numeroDisponible(datos?.cohorte.reuniones_realizadas ?? null), detalle: `${numeroDisponible(datos?.cohorte.reuniones_agendadas ?? null)} con señal de agenda o avance posterior · no confirma asistencia`, icon: CalendarCheck, color: C.teal },
@@ -726,22 +711,23 @@ export function InteligenciaComercialPanel({
   ]
   const mensualEsperando = mensualCargando && conversionMensual === undefined
   const rangoEsperando = rangoCargando && datos === undefined
-  // Compatibilidad con respuestas antiguas y el mundo demo: si el payload no
-  // trae `nucleo`, se conserva la cifra mensual, pero con su rótulo mensual. En
-  // producción el contrato vigente sí trae el núcleo y por eso manda el rango.
-  const usaNucleoRango = datos?.nucleo != null || rangoEsperando
-  const conversionPrincipal = usaNucleoRango ? nucleo?.conversion_pct ?? null : conversionMesPct
-  const conversionPrincipalEsperando = usaNucleoRango ? rangoEsperando : mensualEsperando
-  const etiquetaConversionPrincipal = usaNucleoRango
-    ? `Conversión del rango${datos == null ? '' : ` · ${etiquetaPeriodo(datos.periodo)}`}`
-    : `Conversión del mes · ${metaMensual.etiqueta}`
   const cosechaHero = datos != null
     ? pct(cosechaPct)
     : rangoCargando
-      ? 'Cargando…'
+      ? 'Calculando…'
       : rangoError
         ? 'No disponible'
         : '—'
+  const prospectosRecibidosHero = datos != null
+    ? numeroDisponible(cosechaLeads)
+    : rangoCargando
+      ? 'Consultando…'
+      : '—'
+  const prospectosConvertidosHero = datos != null
+    ? numeroDisponible(cosechaCierres)
+    : rangoCargando
+      ? 'Consultando…'
+      : '—'
   const capitalLoteHero = capitalLotePen != null
     ? moneyCompacta(capitalLotePen, 'PEN')
     : rangoCargando
@@ -763,51 +749,31 @@ export function InteligenciaComercialPanel({
           <section
             data-gi-hero
             className="gi-summary-hero"
-            aria-label={usaNucleoRango ? 'Conversión canónica del rango' : 'Conversión mensual canónica'}
-            aria-busy={conversionPrincipalEsperando}
+            aria-label="Conversión de prospectos"
+            aria-busy={rangoEsperando}
           >
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">{etiquetaConversionPrincipal}</p>
+              <p className="gi-label text-white/65">Conversión de prospectos{datos == null ? '' : ` · ${etiquetaPeriodo(datos.periodo)}`}</p>
               <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">
-                {conversionPrincipalEsperando ? 'Calculando…' : porcentajeConversionCanonica(conversionPrincipal)}
+                {cosechaHero}
               </p>
               <p className="mt-2 text-xs text-white/65">
-                {usaNucleoRango
-                  ? rangoEsperando
-                    ? 'Todos los orígenes · consultando el núcleo del rango…'
-                    : nucleo == null
-                      ? 'Cifras en revisión: falta verificar la conversión del rango.'
-                      : `${nucleo.base === 'llegada_unica' ? 'Base:' : 'Base histórica ·'} ${numero(nucleo.divisor)} ${nucleo.base === 'llegada_unica' ? 'leads automáticos' : 'registros en la base histórica'} · ${numero(nucleo.cierres_no_referidos)} ${nucleo.base === 'llegada_unica' && nucleo.cierres_referidos === 0 ? 'cierres' : 'cierres no referidos'}`
-                        + (nucleo.cierres_referidos > 0 ? ` · ${numero(nucleo.cierres_referidos)} cierres referidos` : '')
-                        + (nucleo.operaciones_cartera > 0 ? ` · ${numero(nucleo.operaciones_cartera)} operaciones de cartera` : '')
-                  : mensualEsperando
-                    ? 'Todos los orígenes · consultando el núcleo mensual…'
-                    : `${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'Base:' : 'Base histórica ·'} ${totalMensual == null ? 'base no disponible' : `${numero(totalMensual.divisor)} ${conversionMensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'leads automáticos' : 'registros históricos'} · ${numero(cierresMes ?? 0)} cierres`}`
-                      + ((operacionesCarteraMes ?? 0) > 0 ? ` · ${numero(operacionesCarteraMes ?? 0)} operaciones de cartera` : '')}
+                {rangoEsperando
+                  ? 'Consultando los prospectos del período…'
+                  : datos == null
+                    ? 'Resultados del período no disponibles.'
+                    : `${numeroDisponible(cosechaCierres)} de ${numeroDisponible(cosechaLeads)} prospectos se convirtieron`}
               </p>
-              {usaNucleoRango && nucleo?.base === 'llegada_unica' && nucleo.llegadas != null && (
-                <p className="mt-1 text-xs text-white/65">{numero(nucleo.llegadas)} prospectos recibidos: {numero(nucleo.divisor)} automáticos · {nucleo.altas_manuales == null ? 'altas manuales no disponibles' : `${numero(nucleo.altas_manuales)} manuales`} · {numero(nucleo.referidos_recibidos)} {nucleo.referidos_recibidos === 1 ? 'referido' : 'referidos'}</p>
-              )}
-              {usaNucleoRango && nucleo?.peso_renovacion != null && (
-                <p className="mt-1 text-xs text-white/65">Peso: referidos y renovaciones ×{numero(nucleo.peso_renovacion, 2)} · Upgrades ×1</p>
-              )}
-              {usaNucleoRango && nucleo != null && !nucleo.incluye_cartera && (
-                <p className="mt-1 text-xs font-semibold text-amber-200">El rango parcial no incluye operaciones de cartera.</p>
-              )}
-              {!usaNucleoRango && !mensualEsperando && lecturaMensual.aviso && <p className="mt-1 text-xs font-semibold text-amber-200">{lecturaMensual.aviso}</p>}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <div className="gi-hero-metric"><span>Resultados de los leads del mes{hayFiltroOrigen ? ` · ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}</span><strong>{cosechaHero}</strong></div>
-              {/* Con filtro de origen, las cifras de EMPRESA se retiran del
-                  héroe: capital del mes y meta al lado de un lote recortado
-                  eran la contradicción vetada. */}
+              <div className="gi-hero-metric"><span>Prospectos recibidos</span><strong>{prospectosRecibidosHero}</strong></div>
+              <div className="gi-hero-metric"><span>Prospectos convertidos</span><strong>{prospectosConvertidosHero}</strong></div>
+              {/* Con filtro de origen, el capital de EMPRESA se retira y entra
+                  el capital vinculado al lote filtrado. */}
               {hayFiltroOrigen ? (
                 <div className="gi-hero-metric"><span>Capital vinculado a los prospectos</span><strong>{capitalLoteHero}</strong></div>
               ) : (
-                <>
-                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{mensualEsperando ? 'Consultando…' : capitalMesPen == null ? '—' : moneyCompacta(capitalMesPen, 'PEN')}</strong></div>
-                  <div className="gi-hero-metric"><span>Meta · {metaMensual.etiqueta}</span><strong>{mensualEsperando ? 'Consultando…' : metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
-                </>
+                <div className="gi-hero-metric"><span>Capital del mes</span><strong>{mensualEsperando ? 'Consultando…' : capitalMesPen == null ? '—' : moneyCompacta(capitalMesPen, 'PEN')}</strong></div>
               )}
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
@@ -871,10 +837,10 @@ export function InteligenciaComercialPanel({
           )}
 
           <p role="status" className="text-xs leading-relaxed text-[var(--gi-muted)]">
-            {hayFiltroOrigen ? `Origen: ${etiquetaOrigen(origenFiltrado ?? '')} · ` : ''}Los leads y sus resultados siguen el período seleccionado{hayFiltroOrigen ? ' y el origen elegido' : ''}. La conversión principal incluye toda la empresa; el detalle de metas es mensual.
+            {hayFiltroOrigen ? `Origen: ${etiquetaOrigen(origenFiltrado ?? '')} · ` : ''}Los prospectos y sus resultados siguen el período seleccionado{hayFiltroOrigen ? ' y el origen elegido' : ''}. El índice mensual está en Metas.
           </p>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             {kpis.map(({ label, valor, detalle, icon: Icono, color }) => {
               return <div key={label} data-gi-kpi className="gi-kpi-card" style={{ '--gi-kpi': color } as CSSProperties}><div className="flex justify-between gap-3"><p className="gi-label">{label}</p><Icono className="size-4" style={{ color }} /></div><p className="mt-2 text-3xl font-bold tracking-[-.03em] tabular-nums">{valor}</p><p className="mt-1 text-xs text-[var(--gi-muted)]">{detalle}</p></div>
             })}

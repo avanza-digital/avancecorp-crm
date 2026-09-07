@@ -305,7 +305,7 @@ function valorPrincipalHoy(container: HTMLElement): HTMLElement {
 }
 
 function tarjetaMetas(): HTMLElement {
-  const tarjeta = screen.getByText('Conversión de la empresa').closest('[data-gi-kpi]')
+  const tarjeta = screen.getByText('Índice para la meta mensual').closest('[data-gi-kpi]')
   if (!(tarjeta instanceof HTMLElement)) throw new Error('Metas no renderizó su tarjeta de conversión')
   return tarjeta
 }
