@@ -53,6 +53,8 @@ Antes de publicar deben coincidir sus commits; ver
 
 ## Notas
 
+- **Deploy 2026-09-07 — ocho correcciones de Citas de Gerencia.** Fuente limpia `431e926e6d8d01129d4d94d249aa6d7adfb4ea81`, idéntica a Main y `avancecorp/main` al construir/publicar. Release `crm-20260907T195955Z-431e926e6d8d`, build `build-20260907T195954340Z`, SHA-256 `cec0f833c57d401800e42a4bde41776160be3715f4f2516af982c271f6309d3b`. Incluye Primera atención, Rentabilidad y publicaciones anteriores; WIP UX preservado fuera del artefacto. Se amplió solo el agregador existente de Citas con bases/exclusiones y cierres anteriores; no se tocaron núcleos ni permisos. 3.030 pruebas, 4 recorridos de Citas y banco PostgreSQL con reversión aprobados. Tras purga: 79 archivos verificados, tres versiones estables y ZIP 404 en CRM/portal. La sesión hosted final era de Analista; Gerencia se verificó con las respuestas productivas reproducidas en navegador local. Detalle, límites, huellas y rollback en [[Citas de Gerencia - correcciones comerciales y bases 2026-09-07]].
+
 - **Deploy 2026-09-04 (verificado hasta 23:49 hora de Lima) — CRM: métricas de
   Gerencia y lectura de Cartera, puntos 2–3.** Todo el trabajo local quedó
   guardado en **`50f33a59b92b2263296863c857e4ef3e39619450`**, con Main local y

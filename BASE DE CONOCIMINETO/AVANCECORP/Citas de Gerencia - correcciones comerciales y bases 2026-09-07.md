@@ -39,4 +39,14 @@ El contrato frontend acepta las nuevas proyecciones como opcionales para permiti
 
 Evidencias locales completas (incluidas respuestas con datos internos): `CRM-Avance-Corp/releases/citas-ocho-evidencia/`. Banco reproducible: `supabase/scripts/test-citas-gerencia-local.py` con el JSON capturado de funciones y la migración. Reversión guardada: `supabase/scripts/rollback-citas-gerencia-bases-y-alcance.sql`, protegida por huella y permisos; el frontend tolera los campos ausentes después de revertir.
 
-Publicación del frontend y comprobación en sesión real: en curso. Se construirá desde un commit limpio idéntico a Main y `avancecorp/main`, conservando las publicaciones anteriores y el trabajo UX pendiente. Véase [[Deploy a Hostinger]] y [[Main unico - sincronizacion y publicacion 2026-09-04]].
+## Publicación verificada
+
+Frontend publicado en `crm.miavance.com` desde `431e926e6d8d01129d4d94d249aa6d7adfb4ea81`, idéntico a Main y `avancecorp/main` antes de construir y publicar. Release `crm-20260907T195955Z-431e926e6d8d`, build `build-20260907T195954340Z`, ZIP SHA-256 `cec0f833c57d401800e42a4bde41776160be3715f4f2516af982c271f6309d3b`, 1.946.309 bytes. El gate de publicación exigió que contuviera el release vivo anterior de Primera atención (`8a3169291601`), además de Rentabilidad y las mejoras previas. No se usó force push ni una rama de release.
+
+Configuración pública, acceso habilitado en preview, integridad de paquete y Ficha 360 verificadas. Despliegue mediante el MCP oficial de Hostinger con la credencial local y posterior purga. HTTP: 79 archivos comprobados (66 hashes exactos, 12 imágenes optimizadas y `.htaccess` protegido), tres versiones consecutivas coincidentes, ZIP 404 tanto en CRM como en portal. El portal no se desplegó.
+
+La sesión hosted disponible al final era de Analista y redirigió Citas a Hoy conforme al rol. No se cambió esa sesión ni se afirma haber probado visualmente la vista hosted con cuenta de Gerencia. Se verificaron las dos respuestas productivas por RPC, su contrato frontend y su presentación en dos recorridos adicionales de navegador local con los cortes reales de agosto y septiembre. Los cuatro recorridos de Citas (dos generales y dos de cortes reales) pasaron. Las respuestas internas y capturas permanecen en evidencia local, fuera del web root y del repositorio.
+
+El WIP visual existente en Main se preservó mediante fusión de tres vías, manteniendo indicadores, atención de citas, presentación móvil, valores accesibles y estados de carga junto con las nuevas reglas de presentación. Sus 23 pruebas de Citas pasan. Ese WIP no forma parte del artefacto publicado. Originales y fusión en `/private/tmp/citas-integracion-respaldo-20260907`; no se descartó trabajo de otros apartados.
+
+Rollback frontend: paquete previo `crm-20260907T193510Z-8a3169291601.zip`, confirmado en su manifiesto local. La ampliación del servidor es compatible con la interfaz anterior; su reversión separada está protegida por huella. Véase [[Deploy a Hostinger]] y [[Main unico - sincronizacion y publicacion 2026-09-04]].
