@@ -23,11 +23,11 @@ El cambio es únicamente de presentación en frontend. No modifica RPC, contrato
 
 Publicado y verificado en producción.
 
-- Commit fuente: `97dbc1176ce69690fd400a84f9349583b337cfad`.
-- Release: `crm-20260907T010701Z-97dbc1176ce6`.
-- Build: `build-20260907T010617899Z`.
-- SHA-256 del ZIP: `82b5a94d4eda11bbf3a2b4de8f0a87c7b6a657ec1610a882fd3a7790cec2c5c7`.
-- Validación: 97 pruebas enfocadas y 2,845 pruebas del checkout limpio; el pre-push aprobó 2,877 pruebas del árbol de trabajo integrado. También aprobaron tipos, lint, configuración pública, build y guardas del bundle.
+- Commit fuente final: `f9e1d1df7fbd482ad7e69129325593b98799c61b` (incluye la implementación `97dbc1176ce69690fd400a84f9349583b337cfad`).
+- Release: `crm-20260907T011933Z-f9e1d1df7fbd`.
+- Build: `build-20260907T011919854Z`.
+- SHA-256 del ZIP: `ef49d25dcd5ecbb1cecf7049cea7f00a72ba0e3f0903f6a3da6c7b38fd0a7247`.
+- Validación: 97 pruebas enfocadas para la implementación, 95 para la revisión final y 2,845 pruebas del checkout limpio; el pre-push aprobó 2,877 pruebas del árbol de trabajo integrado. También aprobaron tipos, lint, configuración pública, build y guardas del bundle.
 - Producción: 79 de 79 comprobaciones remotas correctas y tres lecturas estables de versión.
-- Revisión visual autenticada: Conversiones muestra 1.9%, 6 de 313 prospectos, 313 recibidos y 6 convertidos; no muestra 3.02% ni 15% en el encabezado. Metas muestra `Índice para la meta mensual · 3.02% de 15%`.
-- Rollback frontend conservado: `crm-20260907T004240Z-ff599df5ddcd`.
+- Revisión visual autenticada: Conversiones muestra 1.9%, 6 de 313 prospectos, 313 recibidos y 6 convertidos; no muestra 3.02% ni 15% en el encabezado. La cabecera explica que el origen filtra esa conversión. Metas muestra `Índice para la meta mensual · 3.02% de 15%`.
+- Rollback frontend inmediato conservado: `crm-20260907T010701Z-97dbc1176ce6`. El release anterior a esta tarea también permanece disponible: `crm-20260907T004240Z-ff599df5ddcd`.
