@@ -210,9 +210,31 @@ describe('cola SLA con páginas explícitas', () => {
     expect(screen.queryByText('Cola nueva')).not.toBeInTheDocument()
   })
   it('la ficha distingue compromiso cubierto y vencimiento de agenda', () => {
-    montar(<DetalleSla estado={{ ...estado, compromiso: { tarea: { id: 't1', tipo: 'llamada', vence_en: '2026-09-07T10:00:00Z', reprogramaciones: 0 }, validez: 'valido', cobertura_activa: true, hasta_en: '2026-09-08T10:00:00Z' } }} />)
-    expect(screen.getByText('Cubierto por compromiso')).toBeInTheDocument()
-    expect(screen.getByText(/La tarea vence a su hora en Agenda/)).toBeInTheDocument()
-    expect(screen.getByText('Revisión comercial pendiente')).toBeInTheDocument()
+    montar(<DetalleSla estado={{ ...estado,
+      seguimiento: { ...estado.seguimiento, limite_en: '2026-09-10T10:00:00Z', vencido: false, accion_pendiente: false },
+      compromiso: { tarea: { id: 't1', tipo: 'llamada', vence_en: '2026-09-07T10:00:00Z', reprogramaciones: 0 }, validez: 'valido', cobertura_activa: true, hasta_en: '2026-09-08T10:00:00Z' },
+      etapa: { ...estado.etapa, motivos_revision: ['reingreso_etapa'] },
+    }} />)
+    expect(screen.getByText('En espera por una actividad programada')).toBeInTheDocument()
+    // La cobertura puede terminar antes del próximo plazo habitual. No lo sustituye.
+    expect(screen.getByText(fechaSla('2026-09-10T10:00:00Z', 'completa'))).toBeInTheDocument()
+    expect(screen.getByText(fechaSla('2026-09-08T10:00:00Z', 'completa'))).toBeInTheDocument()
+    expect(screen.getByText(/La actividad conserva su fecha y hora de Agenda/)).toBeInTheDocument()
+    // Esperar por una actividad no elimina una revisión de etapa independiente.
+    expect(screen.getByText('Este caso necesita una decisión')).toBeInTheDocument()
+    expect(screen.getByText('La oportunidad ingresó a esta etapa tres veces o más en este proceso comercial')).toBeInTheDocument()
+    expect(screen.queryByText('Seguimiento vencido')).not.toBeInTheDocument()
+  })
+  it('los datos sin confirmar no se presentan como permiso de espera rechazado', () => {
+    montar(<DetalleSla estado={{ ...estado, evaluacion: 'parcial',
+      seguimiento: { ...estado.seguimiento, limite_en: null, vencido: null, accion_pendiente: null },
+      compromiso: { tarea: { id: 't1', tipo: 'llamada', vence_en: '2026-09-07T10:00:00Z', reprogramaciones: 0 }, validez: 'datos_incompletos', cobertura_activa: null, hasta_en: null },
+      etapa: { ...estado.etapa, revision_requerida: null, motivos_revision: [], prorrogas_usadas: 1, prorrogas_restantes: null },
+    }} />)
+    expect(screen.getByText('Seguimiento por confirmar')).toBeInTheDocument()
+    expect(screen.getByText(/Faltan datos para confirmar si esta actividad permite esperar/)).toBeInTheDocument()
+    expect(screen.getByText(/Disponibles: Por confirmar/)).toBeInTheDocument()
+    expect(screen.queryByText('Seguimiento vencido')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Esta actividad no permite aplazar/)).not.toBeInTheDocument()
   })
 })

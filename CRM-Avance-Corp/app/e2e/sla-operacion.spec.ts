@@ -60,6 +60,19 @@ async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
         revision_requerida: revision, motivos_revision: revision ? ['limite_operativo_agotado'] : [] } },
     }
   })
+  // Caso histórico como el que motivó aclarar los textos: seguimiento, etapa
+  // y Agenda tienen fechas distintas. La UI debe explicar cada una por separado.
+  const ejemplo = filas[0]!.estado
+  ejemplo.seguimiento = { ...ejemplo.seguimiento, limite_en: '2026-09-07T04:03:00Z', vencido: true, accion_pendiente: true }
+  ejemplo.compromiso = {
+    tarea: { id: 'eeeeeeee-0000-4000-8000-000000000001', tipo: 'llamada', vence_en: '2026-08-31T15:00:00Z', reprogramaciones: 0 },
+    validez: 'valido', cobertura_activa: false, hasta_en: '2026-08-31T19:00:00Z',
+  }
+  ejemplo.etapa = { ...ejemplo.etapa,
+    limite_original_en: '2026-09-01T15:00:00Z', limite_prorrogado_en: '2026-09-01T15:00:00Z',
+    limite_operativo_en: '2026-09-01T15:00:00Z', techo_en: '2026-09-02T16:21:00Z',
+    prorrogas_usadas: 0,
+  }
   await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
     const args = route.request().postDataJSON() as { p_lead_ids: string[] }
     await route.fulfill({ json: { ...muestraSql.estado, calculado_en: calculado,
@@ -215,8 +228,8 @@ test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha'
   expect(ancho.total).toBeLessThanOrEqual(ancho.visible)
   await lista.getByRole('button').first().click()
   const ficha = page.getByRole('dialog', { name: 'OPORTUNIDAD SLA 01' })
-  await expect(ficha.getByRole('region', { name: 'Plazos de seguimiento' })).toBeVisible()
-  await expect(ficha.getByText('Revisión comercial pendiente')).toBeVisible()
+  await expect(ficha.getByRole('region', { name: 'Seguimiento y plazos' })).toBeVisible()
+  await expect(ficha.getByText('Este caso necesita una decisión')).toBeVisible()
 })
 
 
@@ -298,7 +311,11 @@ for (const rol of ['gerencia', 'supervisor'] as const) {
     await lista.getByRole('button').first().click()
     const ficha = page.getByRole('dialog', { name: 'OPORTUNIDAD NORTE 01', exact: true })
     await expect(ficha).toBeVisible()
-    await expect(ficha.getByRole('region', { name: 'Plazos de seguimiento' })).toBeVisible()
+    const plazos = ficha.getByRole('region', { name: 'Seguimiento y plazos' })
+    await expect(plazos).toBeVisible()
+    await plazos.screenshot({ path: `/private/tmp/sla-plazos-${rol}-mobile.png`, animations: 'disabled' })
+    await page.setViewportSize({ width: 1192, height: 784 })
+    await plazos.screenshot({ path: `/private/tmp/sla-plazos-${rol}-desktop.png`, animations: 'disabled' })
     expect(errores).toEqual([])
   })
 }

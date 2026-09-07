@@ -136,7 +136,7 @@ export function ColaSlaPanel() {
                     <span className={`sla-etiqueta sla-etiqueta-${item.severidad}`}>{ACCIONES_SLA[item.bucket] ?? 'Revisar oportunidad'}</span>
                     {item.senales.revisiones && item.bucket !== 'revision_comercial' && <span className="sla-revision">Revisión comercial</span>}
                     {item.senales.revisiones && <span className="sla-motivo">{item.estado.etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}</span>}
-                    {item.estado.compromiso.cobertura_activa && <span className="sla-cobertura">Cubierto por compromiso</span>}
+                    {item.estado.compromiso.cobertura_activa && <span className="sla-cobertura">Seguimiento en espera por actividad programada</span>}
                   </span>
                   <span className="sla-fecha"><span>Referencia</span>{fechaSla(item.referencia_en)}</span>
                   <span className="sla-abrir"><span>Abrir ficha</span><ArrowUpRight aria-hidden /></span>
@@ -167,15 +167,57 @@ export function EstadoSlaFicha({ leadId }: { leadId: string }) {
   return <div className="space-y-3"><GuardadosSlaPendientes /><DetalleSla estado={estado} /></div>
 }
 export function DetalleSla({ estado }: { estado: EstadoSlaV2 }) {
-  return <section aria-label="Plazos de seguimiento" className="space-y-3 rounded-xl border p-3">
-    <h3 className="text-sm font-bold">Plazos de seguimiento</h3>
-    {estado.evaluacion === 'parcial' && <p role="status" className="text-xs text-amber-800">Faltan datos para confirmar todos los plazos. Solicita revisión al supervisor.</p>}
-    <dl className="grid gap-3 text-xs sm:grid-cols-2">
-      <div><dt className="text-muted-foreground">Seguimiento</dt><dd className="mt-1 font-semibold">{estado.compromiso.cobertura_activa ? 'Cubierto por compromiso' : estado.seguimiento.accion_pendiente ? 'Pendiente' : estado.seguimiento.accion_pendiente === false ? 'Dentro del plazo' : 'Sin confirmar'}</dd><dd>{fechaSla(estado.seguimiento.limite_en)}</dd></div>
-      <div><dt className="text-muted-foreground">Plazo operativo de etapa</dt><dd className="mt-1 font-semibold">{fechaSla(estado.etapa.limite_operativo_en)}</dd><dd>Tope: {fechaSla(estado.etapa.techo_en)}</dd></div>
-    </dl>
-    {estado.compromiso.tarea && <p className="text-xs">Compromiso: {fechaSla(estado.compromiso.tarea.vence_en)}.{estado.compromiso.cobertura_activa ? ` Cubre hasta ${fechaSla(estado.compromiso.hasta_en)}.` : ' No cubre el seguimiento actualmente.'} La tarea vence a su hora en Agenda.</p>}
-    {(estado.etapa.prorrogas_usadas ?? 0) > 0 && <p className="text-xs">{estado.etapa.prorrogas_usadas} prórroga(s) confirmada(s) · Plazo prorrogado: {fechaSla(estado.etapa.limite_prorrogado_en)} · {estado.etapa.prorrogas_restantes ?? 0} disponibles.</p>}
-    {estado.etapa.revision_requerida && <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900"><p className="font-bold">Revisión comercial pendiente</p><p>{estado.etapa.motivos_revision.map((motivo) => MOTIVOS_REVISION_SLA[motivo] ?? 'Revisión requerida').join(' · ')}. Supervisor o Gerencia decide el siguiente paso.</p></div>}
+  const { compromiso, seguimiento, etapa } = estado
+  const enEspera = compromiso.cobertura_activa === true
+  const pendiente = seguimiento.accion_pendiente === true
+  // Solo explicamos decisiones del núcleo; las fechas no se recalculan aquí.
+  let explicacionActividad = 'Esta actividad no permite aplazar el seguimiento del cliente.'
+  if (compromiso.cobertura_activa === null || compromiso.validez === 'datos_incompletos') {
+    explicacionActividad = 'Faltan datos para confirmar si esta actividad permite esperar antes de volver a gestionar al cliente.'
+  } else if (enEspera) {
+    explicacionActividad = 'Durante esta espera, el seguimiento no se marca como pendiente por falta de gestión. Las revisiones de la etapa se atienden por separado.'
+  } else if (compromiso.validez === 'reprogramaciones_agotadas') {
+    explicacionActividad = 'Esta actividad ya se reprogramó tres veces o más y no permite seguir aplazando el seguimiento.'
+  } else if (compromiso.validez === 'deshabilitado') {
+    explicacionActividad = 'En esta etapa, programar una actividad no aplaza el seguimiento del cliente.'
+  } else if (compromiso.validez === 'valido' && compromiso.hasta_en) {
+    explicacionActividad = `El tiempo de espera por esta actividad terminó el ${fechaSla(compromiso.hasta_en, 'completa')}`
+  }
+  return <section aria-label="Seguimiento y plazos" className="space-y-3 rounded-xl border p-3">
+    <div><h3 className="text-sm font-bold">Seguimiento y plazos</h3><p className="text-xs text-muted-foreground">Fechas y horas de Lima.</p></div>
+    {estado.evaluacion === 'parcial' && <p role="status" className="text-xs text-amber-800">Faltan datos para confirmar algunos plazos. El supervisor debe revisar la información de la ficha.</p>}
+    {etapa.revision_requerida && <div className="space-y-1 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+      <p className="font-bold">Este caso necesita una decisión</p>
+      {etapa.motivos_revision.length > 0 && <ul className="list-disc space-y-1 pl-4">{etapa.motivos_revision.map((motivo) => <li key={motivo}>{MOTIVOS_REVISION_SLA[motivo] ?? 'Hace falta revisar la gestión de esta etapa'}</li>)}</ul>}
+      <p>El supervisor o Gerencia debe revisar el caso y definir cómo continuar.</p>
+    </div>}
+    <div className="grid gap-4 text-xs sm:grid-cols-2">
+      <div className="space-y-1">
+        <h4 className="font-bold">Seguimiento de la oportunidad</h4>
+        <p className="font-semibold">{enEspera ? 'En espera por una actividad programada' : pendiente ? 'Seguimiento vencido' : seguimiento.accion_pendiente === false ? 'Seguimiento dentro de plazo' : 'Seguimiento por confirmar'}</p>
+        <dl><dt className="text-muted-foreground">{enEspera ? 'Plazo habitual para registrar otra gestión' : pendiente ? 'Debía registrar otra gestión antes de' : 'Fecha límite para la próxima gestión'}</dt>
+          <dd>{fechaSla(seguimiento.limite_en, 'completa')}</dd></dl>
+        {pendiente && !enEspera && <p>El responsable debe retomar el contacto y registrar la gestión en la ficha.</p>}
+      </div>
+      <div className="space-y-1">
+        <h4 className="font-bold">Permanencia en esta etapa</h4>
+        <dl className="space-y-2">
+          <div><dt className="text-muted-foreground">Fecha límite actual</dt><dd className="font-semibold">{fechaSla(etapa.limite_operativo_en, 'completa')}</dd></div>
+          <div><dt className="text-muted-foreground">Límite máximo permitido</dt><dd>{fechaSla(etapa.techo_en, 'completa')}</dd></div>
+        </dl>
+        <p>Rige la fecha límite actual. Cualquier ampliación debe respetar el máximo permitido.</p>
+      </div>
+    </div>
+    {compromiso.tarea && <div className="space-y-1 border-t pt-3 text-xs">
+      <h4 className="font-bold">Actividad pendiente en Agenda</h4>
+      <dl><dt className="text-muted-foreground">Fecha programada</dt><dd className="font-semibold">{fechaSla(compromiso.tarea.vence_en, 'completa')}</dd></dl>
+      {enEspera && <dl><dt className="text-muted-foreground">Espera del seguimiento por esta actividad hasta</dt><dd>{fechaSla(compromiso.hasta_en, 'completa')}</dd></dl>}
+      <p>{explicacionActividad}</p>
+      <p>La actividad conserva su fecha y hora de Agenda, aunque el seguimiento esté en espera.</p>
+    </div>}
+    {(etapa.prorrogas_usadas ?? 0) > 0 && <div className="space-y-1 border-t pt-3 text-xs">
+      <p>Ampliaciones aplicadas: {etapa.prorrogas_usadas} · Disponibles: {etapa.prorrogas_restantes ?? 'Por confirmar'}</p>
+      <dl><dt className="text-muted-foreground">Fecha con las ampliaciones aplicadas</dt><dd>{fechaSla(etapa.limite_prorrogado_en, 'completa')}</dd></dl>
+    </div>}
   </section>
 }

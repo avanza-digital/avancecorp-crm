@@ -44,11 +44,17 @@ export const ACCIONES_SLA: Record<string, string> = {
   proxima_tarea: 'Próxima tarea', por_repartir: 'Asignar analista',
 }
 export const MOTIVOS_REVISION_SLA: Record<string, string> = {
-  limite_operativo_agotado: 'Plazo operativo agotado', reprogramaciones_agotadas: 'Tercera reprogramación', reingreso_etapa: 'Tercer ingreso a esta etapa',
+  limite_operativo_agotado: 'Se venció el plazo de esta etapa',
+  reprogramaciones_agotadas: 'La actividad se reprogramó tres veces o más',
+  reingreso_etapa: 'La oportunidad ingresó a esta etapa tres veces o más en este proceso comercial',
 }
-export function fechaSla(valor: string | null): string {
+export function fechaSla(valor: string | null, formato: 'breve' | 'completa' = 'breve'): string {
   if (!valor || !Number.isFinite(Date.parse(valor))) return 'Sin fecha confirmada'
-  return new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(valor))
+  return new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima', day: formato === 'completa' ? 'numeric' : '2-digit',
+    month: formato === 'completa' ? 'long' : 'short', ...(formato === 'completa' ? { year: 'numeric' as const } : {}),
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(valor))
 }
 
 const reglaOperacion = v.object({ etapa: v.picklist(['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']),
