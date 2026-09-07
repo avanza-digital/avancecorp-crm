@@ -57,9 +57,10 @@ describe('ranking general de analistas', () => {
       conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
       fuenteConversion="upgrade"
       lecturaFuente={{
+        periodo: { desde: '2026-08-01', hasta: '2026-08-31' }, cierres: 0, operaciones: 2,
         fuente: 'upgrade', etiqueta: 'Upgrade', familia: 'cartera', divisor: 298,
         numerador: 2, porcentaje: 0.67, resultados: 2, peso: 1,
-        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 1, porcentaje: 10, resultados: 1 }]]),
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 1, porcentaje: 10, resultados: 1, cierres: 0, operaciones: 1 }]]),
       }}
       equipo={conversionEquipoDemo()}
       metasVendedores={metasConversionEquipoDemo()}

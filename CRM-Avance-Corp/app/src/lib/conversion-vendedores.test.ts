@@ -9,6 +9,7 @@ import {
 import {
   adaptarAporteConversionRango,
   adaptarConversionMensualPorFuente,
+  adaptarConversionMensual,
   adaptarConversionVendedores,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
@@ -61,6 +62,49 @@ function metricasConNucleo() {
 }
 
 describe('filtro por fuente del índice comercial', () => {
+  it('combina Landing, Formulario y Upgrade usando una sola base y los aportes servidos', () => {
+    const datos = metricasConNucleo()
+    const landing = structuredClone(datos)
+    const formulario = structuredClone(datos)
+    for (const [lectura, origen, cantidad] of [[landing, 'landing', 2], [formulario, 'formulario', 1]] as const) {
+      lectura.origen_filtrado = origen
+      Object.assign(lectura.cierres_por_semana!, { origen_filtrado: origen, cierres: cantidad, aporte_cierres: cantidad })
+      lectura.responsables = lectura.responsables!.map((fila, indice) => ({
+        ...fila, cierres_por_semana: [{ semana: 1, desde: '2026-09-01', hasta: '2026-09-07', cierres: indice === 0 ? cantidad : 0, aporte_cierres: indice === 0 ? cantidad : 0 }],
+      }))
+    }
+    const lectura = adaptarAporteConversionRango(datos, ['landing', 'formulario', 'upgrade'], { landing, formulario })
+    expect(lectura).toMatchObject({ divisor: 100, numerador: 4, porcentaje: 4, cierres: 3, operaciones: 1, resultados: 4 })
+    expect(lectura?.porVendedor.get('demo-v1')).toMatchObject({ divisor: 25, numerador: 3, porcentaje: 12, cierres: 3, operaciones: 0 })
+    expect(lectura?.porVendedor.get('demo-v2')).toMatchObject({ cierres: 0, operaciones: 1 })
+    expect(adaptarAporteConversionRango(datos, ['landing', 'formulario', 'upgrade'], { landing })).toBeNull()
+    formulario.periodo.hasta = '2026-09-06'
+    expect(adaptarAporteConversionRango(datos, ['landing', 'formulario'], { landing, formulario })).toBeNull()
+    expect(adaptarAporteConversionRango(datos, [])).toBeNull()
+  })
+
+  it('no usa un rango almacenado para sustituir los cierres o el índice mensual', () => {
+    const datos = metricasConNucleo()
+    const mensual = conversionMensualInteligenciaDemo(Date.parse('2026-09-07T12:00:00-05:00'))
+    const lectura = adaptarAporteConversionRango(datos, null)!
+    lectura.periodo.desde = '2026-09-04'
+    expect(adaptarConversionMensualPorFuente(mensual, conversionEquipoDemo(), null, lectura))
+      .toEqual(adaptarConversionMensual(mensual, conversionEquipoDemo()))
+  })
+
+  it('rechaza el rango parcial y la lectura viva para un mes sellado', () => {
+    const datos = metricasConNucleo()
+    const mensual = conversionMensualInteligenciaDemo(Date.parse('2026-09-07T12:00:00-05:00'))
+    const lectura = adaptarAporteConversionRango(datos, 'upgrade')!
+    lectura.periodo.desde = '2026-09-04'
+    expect(adaptarConversionMensualPorFuente(mensual, conversionEquipoDemo(), 'upgrade', lectura).responsablesDisponibles).toBe(false)
+    lectura.periodo.desde = '2026-09-01'
+    mensual.cierre = { cerrado: true }
+    expect(adaptarConversionMensualPorFuente(mensual, conversionEquipoDemo(), 'upgrade', lectura).vendedores.every((fila) => fila.detalle == null)).toBe(true)
+    expect(adaptarConversionMensualPorFuente(mensual, conversionEquipoDemo(), null, lectura))
+      .toEqual(adaptarConversionMensual(mensual, conversionEquipoDemo()))
+  })
+
   it('conserva el total servido y aísla las operaciones ya ponderadas', () => {
     const datos = metricasConNucleo()
 
@@ -124,7 +168,8 @@ describe('filtro por fuente del índice comercial', () => {
 
     expect(adaptada.responsablesDisponibles).toBe(true)
     expect(adaptada.vendedores.find((fila) => fila.vendedorId === 'demo-v2')?.detalle).toMatchObject({
-      clientes: 1,
+      clientes: 0,
+      operacionesCartera: 1,
       numerador: 1,
       divisor: 15,
       conversion_pct: 6.67,

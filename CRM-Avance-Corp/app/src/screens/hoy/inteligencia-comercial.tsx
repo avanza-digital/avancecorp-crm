@@ -41,11 +41,11 @@ import {
   adaptarConversionMensualPorFuente,
   adaptarConversionVendedores,
   clasificarRankingConversion,
-  FUENTES_CONVERSION,
+  etiquetaFuentesConversion,
   type AporteConversionRango,
   type ConversionVendedorAdaptada,
   type DetalleConversionMensual,
-  type FuenteConversion,
+  type FiltroFuentesConversion,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
@@ -83,7 +83,7 @@ interface InteligenciaComercialPanelProps {
    * Miguel vetó. El capital del lote filtrado sale de `origenes[]` (F1.3b). */
   origenFiltrado: string | null
   /** Fuente cuyo aporte al índice se está consultando. */
-  fuenteConversion?: FuenteConversion | null
+  fuenteConversion?: FiltroFuentesConversion
   /** Lectura ponderada del rango; `undefined` significa que sigue cargando. */
   lecturaFuente?: AporteConversionRango | null | undefined
   /** Población vigente de la RPC por rango. */
@@ -245,7 +245,7 @@ function DetalleVendedor({
   mensualCargando: boolean
   citasRealesDisponibles: boolean
   cierresSemanalesDisponibles: boolean
-  fuenteConversion: FuenteConversion | null
+  fuenteConversion: FiltroFuentesConversion
   onCerrar: () => void
 }): JSX.Element {
   const detalle = fila?.detalle ?? null
@@ -258,8 +258,8 @@ function DetalleVendedor({
   const conversionIndice = detalleIndice?.conversion_pct ?? null
   const etiquetaFuente = fuenteConversion == null
     ? null
-    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
-  const esFuenteCartera = fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion'
+    : etiquetaFuentesConversion(fuenteConversion)
+  const esFuenteCartera = fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' || Array.isArray(fuenteConversion)
   const capitalPen = detalle?.capital_pen ?? null
   const capitalUsd = detalle?.capital_usd ?? null
   const metaConversion = meta?.conversionObjetivo ?? 0
@@ -408,7 +408,7 @@ function DetalleVendedor({
                 <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
                   {detalleIndice == null
                     ? 'Dato no disponible'
-                    : `${numero(detalleIndice.clientes)} ${esFuenteCartera ? 'operaciones' : 'cierres'} · aporte ${numero(detalleIndice.numerador, 2)} ÷ base ${numero(detalleIndice.divisor)}`}
+                    : `${numero(detalleIndice.clientes)} cierres + ${numero(detalleIndice.operacionesCartera)} operaciones · aporte ${numero(detalleIndice.numerador, 2)} ÷ base ${numero(detalleIndice.divisor)}`}
                 </span>
               </div>
             </section>
@@ -574,12 +574,12 @@ export function InteligenciaComercialPanel({
   onReintentarRango,
 }: InteligenciaComercialPanelProps): JSX.Element {
   const fuenteActiva = fuenteConversion === undefined
-    ? origenFiltrado as FuenteConversion | null
+    ? origenFiltrado as FiltroFuentesConversion
     : fuenteConversion
   const etiquetaFuente = fuenteActiva == null
     ? null
-    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteActiva)?.etiqueta ?? fuenteActiva
-  const esFuenteCartera = fuenteActiva === 'upgrade' || fuenteActiva === 'renovacion'
+    : etiquetaFuentesConversion(fuenteActiva)
+  const esFuenteCartera = fuenteActiva === 'upgrade' || fuenteActiva === 'renovacion' || Array.isArray(fuenteActiva)
   const aporteRango = lecturaFuente === undefined
     ? adaptarAporteConversionRango(datos, fuenteActiva)
     : lecturaFuente
@@ -599,8 +599,9 @@ export function InteligenciaComercialPanel({
       equipoMensual ?? equipo,
       fuenteActiva,
       aporteRango,
+      datos?.periodo,
     ),
-    [aporteRango, conversionMensual, equipo, equipoMensual, fuenteActiva],
+    [aporteRango, conversionMensual, datos?.periodo, equipo, equipoMensual, fuenteActiva],
   )
   const ranking = useMemo(
     () => clasificarRankingConversion(adaptadaLectura.vendedores),
@@ -769,6 +770,7 @@ export function InteligenciaComercialPanel({
       </CardHeader>
       <ErrorPanel error={mensualError} onReintentar={onReintentarMensual} />
       <CardContent className="bg-[var(--gi-canvas)] p-4 sm:p-5">
+          {esFuenteCartera && <ErrorPanel error={rangoError} onReintentar={onReintentarRango} />}
           <section
             data-gi-hero
             className="gi-summary-hero"
@@ -791,12 +793,12 @@ export function InteligenciaComercialPanel({
                           ? 'Índice del período en revisión.'
                           : 'Aporte de la fuente no disponible.'
                         : `${numeroDisponible(cosechaCierres)} de ${numeroDisponible(cosechaLeads)} prospectos cerraron`
-                      : `${numero(aporteRango.resultados)} ${aporteRango.familia === 'cartera' ? 'operaciones' : 'cierres'} · aporte ${numero(aporteRango.numerador, 2)} ÷ base ${numero(aporteRango.divisor)}`}
+                      : `${numero(aporteRango.cierres)} cierres + ${numero(aporteRango.operaciones)} operaciones · aporte ${numero(aporteRango.numerador, 2)} ÷ base ${numero(aporteRango.divisor)}`}
               </p>
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Base automática</span><strong>{baseHero}</strong></div>
-              <div className="gi-hero-metric"><span>{fuenteActiva == null ? 'Cierres y operaciones' : aporteRango?.familia === 'cartera' ? 'Operaciones' : 'Cierres'}</span><strong>{resultadosHero}</strong></div>
+              <div className="gi-hero-metric"><span>{fuenteActiva == null || aporteRango?.familia === 'todos' ? 'Cierres y operaciones' : aporteRango?.familia === 'cartera' ? 'Operaciones' : 'Cierres'}</span><strong>{resultadosHero}</strong></div>
               <div className="gi-hero-metric"><span>{fuenteActiva == null ? 'Operaciones de cartera' : 'Peso por resultado'}</span><strong>{fuenteActiva == null ? numeroDisponible(datos?.nucleo?.operaciones_cartera ?? null) : pesoHero ?? '—'}</strong></div>
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
@@ -893,7 +895,7 @@ export function InteligenciaComercialPanel({
               </div>
               <p className="gi-caption mt-1 sm:hidden">Desliza el gráfico para ver todas las cifras.</p>
             </section>
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultados por origen</h3><p className="gi-caption mt-1">De los leads del mes en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>{nucleoVerificado ? <GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Resultados de los leads del mes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /> : <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>}{nucleoVerificado && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultados por origen</h3><p className="gi-caption mt-1">De los prospectos del período en cada origen, qué porcentaje cerró. No es la conversión ponderada.</p>{nucleoVerificado ? <GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Resultados de los prospectos del período por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /> : <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: los resultados por origen permanecen ocultos.</p>}{nucleoVerificado && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
               // D6: los referidos quedan FUERA de la base general del rango y sus
               // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">

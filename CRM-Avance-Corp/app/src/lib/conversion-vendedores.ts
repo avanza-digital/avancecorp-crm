@@ -124,22 +124,35 @@ export const FUENTES_CONVERSION = [
 ] as const
 
 export type FuenteConversion = (typeof FUENTES_CONVERSION)[number]['id']
+export type FiltroFuentesConversion = FuenteConversion | readonly FuenteConversion[] | null
+
+export function etiquetaFuentesConversion(fuente: FiltroFuentesConversion): string {
+  if (fuente == null) return 'Todas las fuentes'
+  const elegidas = typeof fuente === 'string' ? [fuente] : fuente
+  return FUENTES_CONVERSION.filter((opcion) => elegidas.includes(opcion.id))
+    .map((opcion) => opcion.etiqueta).join(' + ') || 'las fuentes elegidas'
+}
 
 export interface AporteConversionVendedor {
   divisor: number
   numerador: number
   porcentaje: number | null
   resultados: number
+  cierres: number
+  operaciones: number
 }
 
 export interface AporteConversionRango {
-  fuente: FuenteConversion | null
+  fuente: FiltroFuentesConversion
+  periodo: { desde: string; hasta: string }
   etiqueta: string
   familia: 'todos' | 'prospectos' | 'cartera'
   divisor: number
   numerador: number
   porcentaje: number | null
   resultados: number
+  cierres: number
+  operaciones: number
   peso: number | null
   porVendedor: ReadonlyMap<string, AporteConversionVendedor>
 }
@@ -152,11 +165,50 @@ export interface AporteConversionRango {
  */
 export function adaptarAporteConversionRango(
   datos: MetricasConversiones | null | undefined,
-  fuente: FuenteConversion | null,
+  fuente: FiltroFuentesConversion,
+  datosPorOrigen: Partial<Record<FuenteConversion, MetricasConversiones | null | undefined>> = {},
 ): AporteConversionRango | null {
   if (datos?.nucleo == null || !sondasNucleoVerificadas(datos.sondas)) return null
 
   const nucleo = datos.nucleo
+  if (fuente != null && typeof fuente !== 'string') {
+    const elegidas = FUENTES_CONVERSION.filter((opcion) => fuente.includes(opcion.id))
+    if (elegidas.length === 0) return null
+    const aportes = elegidas.map((opcion) => adaptarAporteConversionRango(
+      opcion.familia === 'cartera' ? datos : datosPorOrigen[opcion.id], opcion.id,
+    ))
+    if (aportes.some((aporte) => aporte == null
+      || aporte.periodo.desde !== datos.periodo.desde
+      || aporte.periodo.hasta !== datos.periodo.hasta
+      || aporte.divisor !== nucleo.divisor)) return null
+    const validos = aportes.filter((aporte) => aporte != null)
+    const primero = validos[0]!
+    const porVendedor = new Map<string, AporteConversionVendedor>()
+    for (const [id, base] of primero.porVendedor) {
+      const filas = validos.map((aporte) => aporte.porVendedor.get(id))
+      if (filas.some((fila) => fila == null || fila.divisor !== base.divisor)) continue
+      const numerador = filas.reduce((total, fila) => total + fila!.numerador, 0)
+      const cierres = filas.reduce((total, fila) => total + fila!.cierres, 0)
+      const operaciones = filas.reduce((total, fila) => total + fila!.operaciones, 0)
+      porVendedor.set(id, {
+        divisor: base.divisor, numerador, cierres, operaciones,
+        resultados: cierres + operaciones,
+        porcentaje: base.divisor > 0 ? Math.round((100 * numerador / base.divisor + Number.EPSILON) * 100) / 100 : null,
+      })
+    }
+    const numerador = validos.reduce((total, aporte) => total + aporte.numerador, 0)
+    const cierres = validos.reduce((total, aporte) => total + aporte.cierres, 0)
+    const operaciones = validos.reduce((total, aporte) => total + aporte.operaciones, 0)
+    return {
+      fuente, periodo: { desde: datos.periodo.desde, hasta: datos.periodo.hasta },
+      etiqueta: etiquetaFuentesConversion(fuente),
+      familia: elegidas.every((opcion) => opcion.familia === 'cartera') ? 'cartera'
+        : elegidas.every((opcion) => opcion.familia === 'prospectos') ? 'prospectos' : 'todos',
+      divisor: nucleo.divisor, numerador, cierres, operaciones, resultados: cierres + operaciones,
+      porcentaje: nucleo.divisor > 0 ? Math.round((100 * numerador / nucleo.divisor + Number.EPSILON) * 100) / 100 : null,
+      peso: null, porVendedor,
+    }
+  }
   const definicion = fuente == null
     ? null
     : FUENTES_CONVERSION.find((opcion) => opcion.id === fuente) ?? null
@@ -250,17 +302,22 @@ export function adaptarAporteConversionRango(
       numerador: aporte,
       porcentaje: pct,
       resultados: cantidad,
+      cierres: esOperacionCartera ? 0 : fuente == null ? cantidad - operaciones.cantidad : cantidad,
+      operaciones: esOrigenProspecto ? 0 : operaciones.cantidad,
     })
   }
 
   return {
     fuente,
+    periodo: { desde: datos.periodo.desde, hasta: datos.periodo.hasta },
     etiqueta: definicion?.etiqueta ?? 'Todos los aportes',
     familia: definicion?.familia ?? 'todos',
     divisor: nucleo.divisor,
     numerador,
     porcentaje,
     resultados,
+    cierres: esOperacionCartera ? 0 : fuente == null ? resultados - nucleo.operaciones_cartera : resultados,
+    operaciones: esOrigenProspecto ? 0 : fuente == null ? nucleo.operaciones_cartera : resultados,
     peso,
     porVendedor,
   }
@@ -524,13 +581,21 @@ export function adaptarConversionMensual(
 export function adaptarConversionMensualPorFuente(
   datos: ConversionMensual | null | undefined,
   equipo: readonly ConversionEquipoVendedor[],
-  fuente: FuenteConversion | null,
+  fuente: FiltroFuentesConversion,
   lecturaFuente: AporteConversionRango | null | undefined,
+  periodoRango?: { desde: string; hasta: string },
 ): ConversionVendedoresAdaptada<DetalleConversionMensual> {
   const mensual = adaptarConversionMensual(datos, equipo)
-  if (lecturaFuente == null && fuente == null) return mensual
+  // Un payload de rango que quede en caché nunca sustituye el total mensual.
+  if (fuente == null && periodoRango == null) return mensual
 
-  const lecturaValida = lecturaFuente?.fuente === fuente ? lecturaFuente : null
+  const mismoPeriodo = lecturaFuente != null && (periodoRango != null
+    ? lecturaFuente.periodo.desde === periodoRango.desde && lecturaFuente.periodo.hasta === periodoRango.hasta
+    : datos != null && !datos.cierre?.cerrado
+      && lecturaFuente.periodo.desde === `${datos.periodo.mes}-01`
+      && lecturaFuente.periodo.hasta.slice(0, 7) === datos.periodo.mes)
+  const lecturaValida = mismoPeriodo && etiquetaFuentesConversion(lecturaFuente?.fuente ?? null) === etiquetaFuentesConversion(fuente)
+    ? lecturaFuente : null
   const responsablesCompletos = mensual.responsablesDisponibles
     && lecturaValida != null
     && mensual.vendedores.every((fila) => lecturaValida.porVendedor.has(fila.vendedorId))
@@ -554,12 +619,12 @@ export function adaptarConversionMensualPorFuente(
       const detalle: DetalleConversionMensual = {
         ...fila.detalle,
         leads: aporte.divisor,
-        clientes: aporte.resultados,
+        clientes: aporte.cierres,
         conversion_pct: aporte.porcentaje,
         numerador: aporte.numerador,
         divisor: aporte.divisor,
         estado,
-        operacionesCartera: 0,
+        operacionesCartera: aporte.operaciones,
       }
 
       return {

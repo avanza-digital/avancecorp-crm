@@ -72,9 +72,9 @@ import {
 } from '@/lib/distribucion-lecturas'
 import { money, type Moneda } from '@/lib/format'
 import {
-  FUENTES_CONVERSION,
+  etiquetaFuentesConversion,
   type AporteConversionRango,
-  type FuenteConversion,
+  type FiltroFuentesConversion,
 } from '@/lib/conversion-vendedores'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { cn } from '@/lib/utils'
@@ -97,7 +97,7 @@ export interface DistribucionLeadsGerenciaProps {
   modoDemo?: boolean
   mostrarOperacion?: boolean
   mostrarPeriodo?: boolean
-  fuenteConversion?: FuenteConversion | null
+  fuenteConversion?: FiltroFuentesConversion
   lecturaFuente?: AporteConversionRango | null | undefined
   desde: string
   hasta: string
@@ -352,7 +352,7 @@ function ResumenDistribucion({
 }: {
   datos: MetricasDistribucionLeads
   mostrarOperacion: boolean
-  fuenteConversion: FuenteConversion | null
+  fuenteConversion: FiltroFuentesConversion
   lecturaFuente: AporteConversionRango | null | undefined
 }): JSX.Element {
   // Todo servido por la RPC V3 (F3): la puntería PEN/USD —incluida la suma de
@@ -365,7 +365,7 @@ function ResumenDistribucion({
   const sondas = estadoSondasDistribucion(datos)
   const etiquetaFuente = fuenteConversion == null
     ? null
-    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+    : etiquetaFuentesConversion(fuenteConversion)
   const lecturaComercialVisible = fuenteConversion == null
     ? sondas.mostrarNucleo
     : lecturaFuente != null
@@ -429,7 +429,7 @@ function ResumenDistribucion({
                   contra el servidor en el mismo snapshot antes de afirmarla
                   aquí). Si dejara de cuadrar, el aviso de sondas lo dice. */}
               {fuenteConversion != null && lecturaFuente != null
-                ? `${ENTERO.format(lecturaFuente.resultados)} ${lecturaFuente.familia === 'cartera' ? 'operaciones' : 'cierres'} · aporte ${lecturaFuente.numerador.toLocaleString('es-PE', { maximumFractionDigits: 2 })} ÷ base ${ENTERO.format(lecturaFuente.divisor)}.`
+                ? `${ENTERO.format(lecturaFuente.cierres)} cierres + ${ENTERO.format(lecturaFuente.operaciones)} operaciones de cartera · aporte ${lecturaFuente.numerador.toLocaleString('es-PE', { maximumFractionDigits: 2 })} ÷ base ${ENTERO.format(lecturaFuente.divisor)}.`
                 : datos.alcances.conversion_nucleo === 'LLEGADAS_UNICAS_PRIMER_ANALISTA'
                 ? 'Núcleo comercial: prospectos recibidos, referidos y renovaciones ponderados; upgrades ×1.'
                 : 'Base histórica con la definición anterior.'}

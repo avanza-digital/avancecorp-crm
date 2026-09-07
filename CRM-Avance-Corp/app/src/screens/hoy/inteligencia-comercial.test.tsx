@@ -310,7 +310,7 @@ describe('detalle de conversión por analista', () => {
     expect(screen.getByRole('region', { name: 'Índice comercial' })).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Índice comercial' })).getByText('9.2%')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Índice comercial por analista' })).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: 'Resultados de los leads del mes por origen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados de los prospectos del período por origen' })).not.toBeInTheDocument()
     expect(screen.getByText('Cifras en revisión: los resultados por origen permanecen ocultos.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(onReintentarMensual).toHaveBeenCalledTimes(1)
@@ -386,11 +386,11 @@ describe('detalle de conversión por analista', () => {
     expect(detalle).not.toHaveClass('max-w-[780px]')
 
     const contenido = within(detalle)
-    // El número grande usa el mismo índice ponderado visible en gerencia.
+    // Sin núcleo de rango no se reutiliza la cifra mensual como si fuera del rango.
     const conversionProspectos = within(contenido.getByRole('region', { name: 'Índice comercial del analista' }))
     expect(conversionProspectos.getByText('índice comercial')).toBeInTheDocument()
-    expect(conversionProspectos.getByText('31.50%')).toBeInTheDocument()
-    expect(conversionProspectos.getByText('4 cierres · aporte 3.15 ÷ base 10')).toBeInTheDocument()
+    expect(conversionProspectos.getByText('—')).toBeInTheDocument()
+    expect(conversionProspectos.getByText('Dato no disponible')).toBeInTheDocument()
     const semanal = contenido.getByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })
     expect(semanal).toHaveAttribute('data-meta-series', '[]')
     expect(contenido.getByText(/No se compara con la meta mensual ponderada/)).toBeInTheDocument()
@@ -455,7 +455,7 @@ describe('detalle de conversión por analista', () => {
     expect(chip).toHaveAttribute('title', 'julio 2026: Cierre anulado por gerencia (−1)')
   })
 
-  it('usa el mismo índice ponderado en el detalle y en la meta mensual', () => {
+  it('no sustituye un índice de rango ausente por el índice de la meta mensual', () => {
     const metas = metasConversionEquipoDemo()
     const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
     const metaAna = metas['demo-v1']
@@ -490,7 +490,7 @@ describe('detalle de conversión por analista', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
     const conversionProspectos = within(detalle.getByRole('region', { name: 'Índice comercial del analista' }))
-    expect(conversionProspectos.getByText('31.50%')).toBeInTheDocument()
+    expect(conversionProspectos.getByText('—')).toBeInTheDocument()
     expect(detalle.getByText('31.50% de 40%')).toBeInTheDocument()
     expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
     // El veredicto queda junto al índice mensual: 31.50 < 40.
@@ -756,7 +756,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const ana = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(within(ana.getByRole('region', { name: 'Índice comercial del analista' })).getByText('31.50%')).toBeInTheDocument()
+    expect(within(ana.getByRole('region', { name: 'Índice comercial del analista' })).getByText('—')).toBeInTheDocument()
     expect(ana.getByText(/Provisional: el registro empieza/)).toBeInTheDocument()
     expect(ana.queryByText('Sin datos del mes')).not.toBeInTheDocument()
   })
@@ -850,7 +850,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     const heroe = within(heroeRegion)
     expect(heroe.getByText(/Índice comercial · 01 ago\. 2026 al 27 ago\. 2026/)).toBeInTheDocument()
     expect(heroe.getByText('7.22%')).toBeInTheDocument()
-    expect(heroe.getByText('46 cierres · aporte 38.75 ÷ base 537')).toBeInTheDocument()
+    expect(heroe.getByText('17 cierres + 29 operaciones · aporte 38.75 ÷ base 537')).toBeInTheDocument()
     expect(heroe.getByText('Base automática').closest('.gi-hero-metric')).toHaveTextContent('537')
     expect(heroe.getByText('Cierres y operaciones').closest('.gi-hero-metric')).toHaveTextContent('46')
     expect(heroe.getByText('Operaciones de cartera').closest('.gi-hero-metric')).toHaveTextContent('29')
@@ -862,7 +862,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Índice comercial por analista' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Resultados de los leads del mes por origen' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Resultados de los prospectos del período por origen' })).toBeInTheDocument()
   })
 
   it('muestra una sola tasa comercial cuando la cohorte es 1.9% y el índice es 3.02%', () => {
@@ -926,7 +926,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     const heroe = within(heroeRegion)
     expect(heroe.getByText(/Índice comercial · 01 set\. 2026 al 06 set\. 2026/)).toBeInTheDocument()
     expect(heroe.getByText('3.02%')).toBeInTheDocument()
-    expect(heroe.getByText('9 cierres · aporte 9 ÷ base 298')).toBeInTheDocument()
+    expect(heroe.getByText('7 cierres + 2 operaciones · aporte 9 ÷ base 298')).toBeInTheDocument()
     expect(heroe.getByText('Base automática').closest('.gi-hero-metric')).toHaveTextContent('298')
     expect(heroe.getByText('Cierres y operaciones').closest('.gi-hero-metric')).toHaveTextContent('9')
     expect(heroe.getByText('Operaciones de cartera').closest('.gi-hero-metric')).toHaveTextContent('2')
@@ -945,7 +945,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(heroe.queryByText('7.22%')).not.toBeInTheDocument()
     expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Índice comercial por analista' })).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: 'Resultados de los leads del mes por origen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados de los prospectos del período por origen' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -960,7 +960,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(heroe.queryByText('Cifras en revisión: falta verificar la conversión del rango.')).not.toBeInTheDocument()
     expect(heroe.queryByText('7.22%')).not.toBeInTheDocument()
     expect(heroe.queryByText('23.06%')).not.toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: 'Resultados de los leads del mes por origen' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Resultados de los prospectos del período por origen' })).not.toBeInTheDocument()
   })
 
   it('mantiene el avance inferido sin presentarlo como citas o asistencia real', () => {
@@ -1146,7 +1146,7 @@ describe('filtro por fuente en Conversiones', () => {
       origenFiltrado: 'referido',
       fuenteConversion: 'referido',
       lecturaFuente: {
-        fuente: 'referido',
+        fuente: 'referido', periodo: { desde: '2026-08-01', hasta: '2026-08-27' }, cierres: 2, operaciones: 0,
         etiqueta: 'Referido',
         familia: 'prospectos',
         divisor: 100,
@@ -1154,13 +1154,13 @@ describe('filtro por fuente en Conversiones', () => {
         porcentaje: 0.3,
         resultados: 2,
         peso: 0.15,
-        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 0.15, porcentaje: 1.5, resultados: 1 }]]),
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 0.15, porcentaje: 1.5, resultados: 1, cierres: 1, operaciones: 0 }]]),
       },
     })
 
     const heroe = within(screen.getByRole('region', { name: 'Aporte de Referido al índice' }))
     expect(heroe.getByText('0.30%')).toBeInTheDocument()
-    expect(heroe.getByText('2 cierres · aporte 0.3 ÷ base 100')).toBeInTheDocument()
+    expect(heroe.getByText('2 cierres + 0 operaciones · aporte 0.3 ÷ base 100')).toBeInTheDocument()
     expect(heroe.getByText('Peso por resultado').closest('.gi-hero-metric')).toHaveTextContent('×0.15')
     expect(screen.getByRole('img', { name: 'Índice comercial por analista' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Avance comercial inferido' })).toBeInTheDocument()
@@ -1170,7 +1170,7 @@ describe('filtro por fuente en Conversiones', () => {
     renderAmpliaciones(metricasConversionesDemo('2026-08-01', '2026-08-27'), {
       fuenteConversion: 'upgrade',
       lecturaFuente: {
-        fuente: 'upgrade',
+        fuente: 'upgrade', periodo: { desde: '2026-08-01', hasta: '2026-08-27' }, cierres: 0, operaciones: 2,
         etiqueta: 'Upgrade',
         familia: 'cartera',
         divisor: 100,
@@ -1178,13 +1178,13 @@ describe('filtro por fuente en Conversiones', () => {
         porcentaje: 2,
         resultados: 2,
         peso: 1,
-        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 1, porcentaje: 10, resultados: 1 }]]),
+        porVendedor: new Map([['demo-v1', { divisor: 10, numerador: 1, porcentaje: 10, resultados: 1, cierres: 0, operaciones: 1 }]]),
       },
     })
 
     const heroe = within(screen.getByRole('region', { name: 'Aporte de Upgrade al índice' }))
     expect(heroe.getByText('2.00%')).toBeInTheDocument()
-    expect(heroe.getByText('2 operaciones · aporte 2 ÷ base 100')).toBeInTheDocument()
+    expect(heroe.getByText('0 cierres + 2 operaciones · aporte 2 ÷ base 100')).toBeInTheDocument()
     expect(heroe.getByText('Operaciones').closest('.gi-hero-metric')).toHaveTextContent('2')
     expect(screen.queryByRole('heading', { name: 'Avance comercial inferido' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Cierres por fecha de cierre' })).not.toBeInTheDocument()

@@ -33,6 +33,30 @@ function identidadSinMetricas() {
 }
 
 describe('rendimiento de Gerencia desde la conversión mensual', () => {
+  it('con fuentes combinadas conserva dos cierres y un upgrade en el total y en los equipos', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.parse('2026-09-07T15:00:00Z'))
+    render(<EquipoGerenciaPanel
+      conversionMensual={mensual}
+      conversiones={identidadSinMetricas()}
+      fuenteConversion={['landing', 'upgrade']}
+      lecturaFuente={{
+        fuente: ['landing', 'upgrade'], etiqueta: 'Landing + Upgrade', familia: 'todos',
+        periodo: { desde: '2026-09-01', hasta: '2026-09-07' },
+        divisor: 36, numerador: 3, porcentaje: 8.33, resultados: 3, cierres: 2, operaciones: 1, peso: null,
+        porVendedor: new Map(mensual.responsables.map((fila, indice) => [fila.vendedor_id, {
+          divisor: fila.divisor, numerador: indice === 0 ? 3 : 0, porcentaje: indice === 0 ? 30 : 0,
+          resultados: indice === 0 ? 3 : 0, cierres: indice === 0 ? 2 : 0, operaciones: indice === 0 ? 1 : 0,
+        }])),
+      }}
+    />)
+    const tarjeta = screen.getByText('Cierres del mes').closest('[data-gi-kpi]') as HTMLElement
+    expect(within(tarjeta).getByText('2', { exact: true })).toBeInTheDocument()
+    expect(within(tarjeta).getByText('+ 1 operaciones de cartera')).toBeInTheDocument()
+    const maria = screen.getByText('María Salazar').closest('section')!
+    expect(within(maria).getByText('2', { exact: true })).toBeInTheDocument()
+    expect(within(maria).getByText('Base automática: 10 · 2 cierres + 1 operaciones')).toBeInTheDocument()
+  })
+
   it('usa el store solo para identidad y TODOS los números vienen de la RPC mensual', () => {
     render(
       <EquipoGerenciaPanel

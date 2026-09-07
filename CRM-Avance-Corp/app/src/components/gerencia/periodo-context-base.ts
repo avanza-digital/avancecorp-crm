@@ -1,5 +1,5 @@
 import { createContext, type Dispatch, type SetStateAction } from 'react'
-import type { FuenteConversion } from '@/lib/conversion-vendedores'
+import type { FiltroFuentesConversion } from '@/lib/conversion-vendedores'
 import type { PeriodoGerencia } from './periodo'
 
 export interface PeriodoGerenciaContextValue {
@@ -7,8 +7,8 @@ export interface PeriodoGerenciaContextValue {
   setPeriodo: Dispatch<SetStateAction<PeriodoGerencia>>
   diaLima: string
   /** Fuente cuyo aporte al índice comercial se muestra. `null` = total. */
-  origenFiltrado: FuenteConversion | null
-  setOrigenFiltrado: Dispatch<SetStateAction<FuenteConversion | null>>
+  origenFiltrado: FiltroFuentesConversion
+  setOrigenFiltrado: Dispatch<SetStateAction<FiltroFuentesConversion>>
 }
 
 export const PeriodoGerenciaContext = createContext<PeriodoGerenciaContextValue | null>(null)

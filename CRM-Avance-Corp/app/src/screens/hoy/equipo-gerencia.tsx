@@ -12,11 +12,11 @@ import {
 import {
   adaptarConversionMensualPorFuente,
   clasificarRankingConversion,
-  FUENTES_CONVERSION,
+  etiquetaFuentesConversion,
   type AporteConversionRango,
   type ConversionVendedorAdaptada,
   type DetalleConversionMensual,
-  type FuenteConversion,
+  type FiltroFuentesConversion,
 } from '@/lib/conversion-vendedores'
 
 function pct(valor: number | null): string {
@@ -48,7 +48,7 @@ export function EquipoGerenciaPanel({
    */
   conversionMensual: ConversionMensual | null | undefined
   conversiones: ConversionEquipoVendedor[]
-  fuenteConversion?: FuenteConversion | null
+  fuenteConversion?: FiltroFuentesConversion
   lecturaFuente?: AporteConversionRango | null | undefined
 }): JSX.Element {
   const adaptada = useMemo(
@@ -71,7 +71,7 @@ export function EquipoGerenciaPanel({
   const total = totalConversionPublicable(conversionMensual)
   const etiquetaFuente = fuenteConversion == null
     ? null
-    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+    : etiquetaFuentesConversion(fuenteConversion)
   const base = fuenteConversion == null ? total?.divisor ?? null : lecturaFuente?.divisor ?? null
   const etiquetaBase = fuenteConversion != null
     ? 'Base automática'
@@ -82,7 +82,11 @@ export function EquipoGerenciaPanel({
       : 'Base histórica'
   const cierres = fuenteConversion == null
     ? total == null ? null : total.cierres_no_referidos + total.cierres_referidos
-    : lecturaFuente?.resultados ?? null
+    : lecturaFuente?.cierres ?? null
+  const operaciones = fuenteConversion == null
+    ? total?.cartera.conversiones_clientes ?? null
+    : lecturaFuente?.operaciones ?? null
+  const soloCartera = lecturaFuente?.familia === 'cartera'
   const conversion = fuenteConversion == null
     ? total?.conversion_pct ?? null
     : lecturaFuente?.porcentaje ?? null
@@ -100,7 +104,7 @@ export function EquipoGerenciaPanel({
     { label: 'Analistas', valor: numero(vendedores), icon: UsersRound, color: C.blue },
     { label: 'Supervisores', valor: numero(supervisores), icon: Target, color: C.amber },
     { label: etiquetaBase, valor: base == null ? '—' : numero(base), icon: Inbox, color: C.navy },
-    { label: fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'Operaciones' : 'Cierres del mes', valor: cierres == null ? '—' : numero(cierres), icon: UserRoundCheck, color: C.green },
+    { label: soloCartera ? 'Operaciones' : 'Cierres del mes', valor: (soloCartera ? operaciones : cierres) == null ? '—' : numero((soloCartera ? operaciones : cierres)!), detalle: !soloCartera && operaciones != null && operaciones > 0 ? `+ ${numero(operaciones)} operaciones de cartera` : null, icon: UserRoundCheck, color: C.green },
     { label: fuenteConversion == null ? 'Conversión del mes' : `Aporte de ${etiquetaFuente}`, valor: pct(conversion), icon: Target, color: C.teal },
   ]
 
@@ -167,8 +171,8 @@ export function EquipoGerenciaPanel({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {kpis.map(({ label, valor, icon: Icono, color }) => {
-          return <div key={label} data-gi-kpi className="gi-kpi-card" style={{ '--gi-kpi': color } as CSSProperties}><div className="flex justify-between"><p className="gi-label">{label}</p><Icono className="size-4" style={{ color }} /></div><p className="mt-2 text-3xl font-bold tabular-nums">{valor}</p></div>
+        {kpis.map(({ label, valor, detalle, icon: Icono, color }) => {
+          return <div key={label} data-gi-kpi className="gi-kpi-card" style={{ '--gi-kpi': color } as CSSProperties}><div className="flex justify-between"><p className="gi-label">{label}</p><Icono className="size-4" style={{ color }} /></div><p className="mt-2 text-3xl font-bold tabular-nums">{valor}</p>{detalle && <p className="gi-caption mt-1">{detalle}</p>}</div>
         })}
       </div>
 
@@ -201,21 +205,21 @@ export function EquipoGerenciaPanel({
             ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.divisor ?? 0), 0)
             : null
           const totalCierres = grupoDisponible
-            ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.clientes ?? 0), 0)
+            ? vendedoresGrupo.reduce((n, fila) => n + (lecturaFuente?.familia === 'cartera' ? fila.detalle?.operacionesCartera ?? 0 : fila.detalle?.clientes ?? 0), 0)
             : null
           const maximoGrupo = Math.max(1, ...vendedoresGrupo.map((fila) => fila.detalle?.conversion_pct ?? 0))
           return (
             <section key={supervisorId} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
                 <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} {vendedoresGrupo.length === 1 ? 'analista' : 'analistas'}</p></div>
-                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalBase == null ? 'Datos no disponibles' : `${fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'operaciones' : 'cierres del mes'} · ${etiquetaBase.toLowerCase()}: ${numero(totalBase)}`}</p></div>
+                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalBase == null ? 'Datos no disponibles' : `${lecturaFuente?.familia === 'cartera' ? 'operaciones' : 'cierres del mes'} · ${etiquetaBase.toLowerCase()}: ${numero(totalBase)}`}</p></div>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {vendedoresGrupo.map((fila) => {
                   const conversionFila = fila.detalle?.conversion_pct ?? null
                   return (
                     <div key={fila.vendedorId} className="rounded-xl border border-[var(--gi-line)] bg-white p-4">
-                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${etiquetaBase}: ${numero(fila.detalle.divisor)} · ${numero(fila.detalle.clientes)} ${fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'operaciones' : 'cierres'}`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
+                      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{fila.nombre}</p><p className="gi-caption mt-1">{fila.detalle == null ? 'Datos no disponibles' : `${etiquetaBase}: ${numero(fila.detalle.divisor)} · ${numero(lecturaFuente?.familia === 'cartera' ? fila.detalle.operacionesCartera : fila.detalle.clientes)} ${lecturaFuente?.familia === 'cartera' ? 'operaciones' : 'cierres'}${lecturaFuente?.familia !== 'cartera' && fila.detalle.operacionesCartera > 0 ? ` + ${numero(fila.detalle.operacionesCartera)} operaciones` : ''}`}</p></div><strong className="tabular-nums text-[var(--gi-blue)]">{etiquetaEstado(fila) ?? pct(conversionFila)}</strong></div>
                       {/* Barra RELATIVA al máximo del grupo: un 120 % no se disfraza de 100. */}
                       <div className="gi-track mt-3"><div className="gi-fill" style={{ width: `${conversionFila == null ? 0 : (conversionFila / maximoGrupo) * 100}%`, background: C.teal }} /></div>
                     </div>

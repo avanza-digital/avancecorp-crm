@@ -15,10 +15,10 @@ import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mens
 import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
   adaptarConversionMensualPorFuente,
-  FUENTES_CONVERSION,
+  etiquetaFuentesConversion,
   type AporteConversionRango,
   type DetalleConversionMensual,
-  type FuenteConversion,
+  type FiltroFuentesConversion,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
   type RankingCapitalTotalVendedores,
@@ -48,7 +48,7 @@ interface RankingVendedoresPanelProps {
   conversionError: string | null
   onReintentarConversion: () => void
   /** Fuente que reemplaza el total en la pestaña Conversión. */
-  fuenteConversion?: FuenteConversion | null
+  fuenteConversion?: FiltroFuentesConversion
   /** Aportes ponderados del mismo mes; `undefined` mientras se consultan. */
   lecturaFuente?: AporteConversionRango | null | undefined
   /**
@@ -337,7 +337,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
                   <th className="max-w-56 px-3 py-3 text-sm font-bold text-[var(--gi-navy)]" scope="row"><span className="block truncate">{fila.nombre}</span></th>
                   <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{fila.supervisorNombre}</span></td>
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.leads)}</td>
-                  <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.clientes)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(etiquetaResultados === 'Operaciones' ? fila.detalle.operacionesCartera : fila.detalle.clientes)}</td>
                   <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">
                     {pct(conversion)}
                     {/* H1 por fila (hallazgo de Grecia): un % positivo con
@@ -381,7 +381,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
                 <div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--gi-navy)]">{fila.nombre}</p><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--gi-muted)]">{fila.supervisorNombre}</p></div>
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
-              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{etiquetaBase}: {numero(fila.detalle.divisor)}</span><span>{numero(fila.detalle.clientes)} {etiquetaResultados.toLowerCase()}</span></div>
+              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{etiquetaBase}: {numero(fila.detalle.divisor)}</span><span>{numero(etiquetaResultados === 'Operaciones' ? fila.detalle.operacionesCartera : fila.detalle.clientes)} {etiquetaResultados.toLowerCase()}</span></div>
               {fila.detalle.operacionesCartera > 0 && (
                 <p className="ml-12 mt-1 text-[10px] font-semibold text-[var(--muted-foreground-strong)]">
                   {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
@@ -748,7 +748,7 @@ export function RankingVendedoresPanel({
       : cosechaCargando)
   const etiquetaFuente = fuenteConversion == null
     ? null
-    : FUENTES_CONVERSION.find((opcion) => opcion.id === fuenteConversion)?.etiqueta ?? fuenteConversion
+    : etiquetaFuentesConversion(fuenteConversion)
   const formulaConversion = fuenteConversion != null
     ? `${etiquetaFuente} aporta ${lecturaFuente?.peso == null ? 'según el peso comercial vigente' : `×${numero(lecturaFuente.peso, 2)} por resultado`} y se divide entre la misma base automática del índice.`
     : conversionMensual == null
@@ -834,7 +834,7 @@ export function RankingVendedoresPanel({
             : conversionMensual?.fuentes.divisor === 'crm.leads.creado_en'
             ? 'Base automática'
             : conversionMensual == null ? 'Base del mes' : 'Base histórica'}
-          etiquetaResultados={fuenteConversion === 'upgrade' || fuenteConversion === 'renovacion' ? 'Operaciones' : 'Cierres'}
+          etiquetaResultados={lecturaFuente?.familia === 'cartera' ? 'Operaciones' : 'Cierres'}
           etiquetaPorcentaje={fuenteConversion == null ? 'Conversión' : 'Aporte al índice'}
         />
       ) : tipo === 'cosecha' ? (

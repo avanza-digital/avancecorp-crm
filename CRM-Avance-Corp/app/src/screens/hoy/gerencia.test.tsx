@@ -146,6 +146,7 @@ vi.mock('./inteligencia-comercial', () => ({
 vi.mock('./ranking-vendedores', () => ({
   RankingVendedoresPanel: ({
     conversionError,
+    onReintentarConversion,
     capitalError,
     cosechaError,
     metaMensual,
@@ -159,6 +160,7 @@ vi.mock('./ranking-vendedores', () => ({
     etiquetaAlcance,
   }: {
     conversionError: string | null
+    onReintentarConversion: () => void
     capitalError: string | null
     cosechaError: string | null
     metaMensual: { etiqueta: string, comparable: boolean }
@@ -180,6 +182,7 @@ vi.mock('./ranking-vendedores', () => ({
       <output aria-label="Identidad mensual">{String(usarIdentidadSnapshot ?? false)}</output>
       <output aria-label="Estado de foto mensual">{estadoFotoMensual ?? 'vigente'}</output>
       <output aria-label="Alcance del ranking">{etiquetaAlcance ?? 'Equipo completo'}</output>
+      {conversionError && <button onClick={onReintentarConversion}>Reintentar conversión filtrada</button>}
       {fotoMensualError && <button type="button" onClick={onReintentarFotoMensual}>Reintentar foto mensual</button>}
     </div>
   ),
@@ -747,12 +750,53 @@ describe('Hoy · gerencia — meta del mes', () => {
 })
 
 describe('Hoy · gerencia — período del tablero', () => {
+  it.each(['ranking-vendedores', 'metas', 'rendimiento'] as const)('usa el mes completo en %s después de elegir un rango corto y varias fuentes', (destino) => {
+    CONVERSION_MENSUAL = conversionMensualDemo(MIERCOLES_10AM.getTime(), { alcance: 'global' })
+    const vista = montar({}, 'resumen')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-07-04' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Referido' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Renovación' }))
+    CONSULTAS.conversiones.mockClear()
+    vista.rerender(<PeriodoGerenciaProvider><HoyGerencia seccion={destino} /></PeriodoGerenciaProvider>)
+    expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-07')
+    expect(screen.getByRole('checkbox', { name: 'Upgrade' })).toBeChecked()
+    const activas = CONSULTAS.conversiones.mock.calls.filter(([activa]) => activa)
+    expect(activas).toContainEqual([true, '2026-07-01', '2026-07-15', null])
+    expect(activas).toContainEqual([true, '2026-07-01', '2026-07-15', 'landing'])
+    expect(activas).toContainEqual([true, '2026-07-01', '2026-07-15', 'formulario'])
+    expect(activas.some(([, desde]) => desde === '2026-07-04')).toBe(false)
+  })
+
+  it('un mes sellado no consulta episodios vivos ni permite cambiar su desglose', () => {
+    CONVERSION_MENSUAL = { ...conversionMensualDemo(MIERCOLES_10AM.getTime(), { alcance: 'global' }), cierre: { cerrado: true } }
+    const vista = montar({}, 'resumen')
+    for (const fuente of ['Landing', 'Formulario', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    CONSULTAS.conversiones.mockClear()
+    vista.rerender(<PeriodoGerenciaProvider><HoyGerencia seccion="metas" /></PeriodoGerenciaProvider>)
+    expect(screen.getByRole('checkbox', { name: 'Upgrade' })).toBeDisabled()
+    expect(screen.getByText(/Mes cerrado: el desglose por fuente no está disponible/)).toBeInTheDocument()
+    expect(CONSULTAS.conversiones.mock.calls.some(([activa]) => activa)).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Todas las fuentes' }))
+    expect(screen.getByRole('button', { name: 'Todas las fuentes' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('Reintentar en Ranking vuelve a consultar la fuente seleccionada que falló', () => {
+    CONVERSION_MENSUAL = conversionMensualDemo(MIERCOLES_10AM.getTime(), { alcance: 'global' })
+    ESTADO_CONVERSIONES.error = new Error('falló el origen')
+    montar({}, 'ranking-vendedores')
+    for (const fuente of ['Landing', 'Upgrade', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar conversión filtrada' }))
+    expect(ESTADO_CONVERSIONES.refetch).toHaveBeenCalledTimes(1)
+    expect(REFETCH_CONVERSION_MENSUAL).toHaveBeenCalledTimes(1)
+  })
+
   it('ofrece todas las fuentes que aportan al índice comercial', () => {
     montar({}, 'conversiones')
 
-    const selector = within(screen.getByLabelText('Fuente de conversión'))
-    expect(selector.getAllByRole('option').map((option) => option.getAttribute('value')).sort())
-      .toEqual(['', 'formulario', 'landing', 'referido', 'renovacion', 'upgrade'])
+    const selector = within(screen.getByRole('group', { name: 'Fuentes de conversión' }))
+    expect(selector.getAllByRole('checkbox').map((opcion) => opcion.getAttribute('aria-label')))
+      .toEqual(['Landing', 'Formulario', 'Upgrade', 'Referido', 'Renovación'])
   })
 
   it.each(['mes', 'revisión', 'cierre'] as const)('Resumen retira fotos con %s discordante sin ocultar el rango independiente', (discrepancia) => {
@@ -927,12 +971,13 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-05-01' } })
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeEnabled()
-    fireEvent.change(screen.getByLabelText('Fuente de conversión'), { target: { value: 'upgrade' } })
+    for (const fuente of ['Landing', 'Formulario', 'Referido', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
     fireEvent.click(screen.getByRole('button', { name: 'Ir a ranking' }))
 
     expect(screen.getByLabelText('Mes calendario')).toHaveValue('2026-06')
-    expect(screen.getByLabelText('Fuente de conversión')).toHaveValue('upgrade')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30', null)
+    expect(screen.getByRole('checkbox', { name: 'Upgrade' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Landing' })).not.toBeChecked()
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(false, '2026-06-01', '2026-06-30', null)
     expect(screen.queryByRole('button', { name: 'Aplicar' })).not.toBeInTheDocument()
   })
 })
@@ -1113,9 +1158,9 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     ESTADO_CUMPLIMIENTO_RANKING.error = new Error('foto mensual caída')
     montar({}, 'conversiones', new Date('2026-09-02T15:00:00Z'))
 
-    const origen = screen.getByLabelText('Fuente de conversión')
-    fireEvent.change(origen, { target: { value: 'referido' } })
-    expect(origen).toHaveValue('referido')
+    const origen = screen.getByRole('checkbox', { name: 'Referido' })
+    for (const fuente of ['Landing', 'Formulario', 'Upgrade', 'Renovación']) fireEvent.click(screen.getByRole('checkbox', { name: fuente }))
+    expect(origen).toBeChecked()
     expect(screen.getByLabelText('Error mensual de Conversiones')).not.toBeEmptyDOMElement()
     fireEvent.click(screen.getByRole('button', { name: 'Ver ejemplo' }))
 
@@ -1124,7 +1169,7 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
     expect(screen.getByLabelText('Meta mensual de Conversiones')).toHaveTextContent('setiembre 2026|ok|')
     expect(screen.getByLabelText('Meta mensual de Conversiones')).not.toHaveTextContent('|0')
     expect(origen).toBeDisabled()
-    expect(origen).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Todas las fuentes' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/Ejemplo.*filtro no disponible/)).toBeInTheDocument()
   })
 

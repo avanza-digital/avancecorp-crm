@@ -345,6 +345,7 @@ describe('DistribucionLeadsGerencia', () => {
       mostrarOperacion: false,
       fuenteConversion: 'renovacion',
       lecturaFuente: {
+        periodo: { desde: '2026-09-01', hasta: '2026-09-07' }, cierres: 0, operaciones: 2,
         fuente: 'renovacion', etiqueta: 'Renovación', familia: 'cartera', divisor: 298,
         numerador: 0.3, porcentaje: 0.1, resultados: 2, peso: 0.15, porVendedor: new Map(),
       },
@@ -352,7 +353,7 @@ describe('DistribucionLeadsGerencia', () => {
 
     const aporte = screen.getByText('Aporte de Renovación').parentElement!
     expect(aporte).toHaveTextContent('0.1%')
-    expect(aporte).toHaveTextContent('2 operaciones · aporte 0.3 ÷ base 298')
+    expect(aporte).toHaveTextContent('0 cierres + 2 operaciones de cartera · aporte 0.3 ÷ base 298')
     expect(screen.queryByText('Conversión del rango')).not.toBeInTheDocument()
   })
 
