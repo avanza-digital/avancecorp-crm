@@ -241,8 +241,10 @@ function DetalleVendedor({
   const leads = detalle?.leads ?? null
   const clientes = detalle?.clientes ?? null
   const reuniones = detalle?.reuniones_realizadas ?? null
-  // El número grande de la ficha es LA conversión del MES (la misma fórmula
-  // que el ranking y los tiles): el mismo nombre jamás puede valer dos cosas.
+  // La ficha responde por la cohorte atribuida al analista: clientes de esos
+  // prospectos ÷ prospectos recibidos. El índice mensual ponderado se conserva
+  // únicamente en su bloque de meta, con un rótulo distinto.
+  const conversionProspectos = detalle?.conversion_pct ?? null
   const detalleMes = filaMensual?.detalle ?? null
   const conversionMes = detalleMes?.conversion_pct ?? null
   const capitalPen = detalle?.capital_pen ?? null
@@ -255,10 +257,8 @@ function DetalleVendedor({
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const progresoCapitalPen = metasComparables ? progreso(capitalConfirmadoPen, metaCapitalPen) : null
   const progresoCapitalUsd = metasComparables ? progreso(capitalConfirmadoUsd, metaCapitalUsd) : null
-  // El progreso de conversión se mide con EL MISMO número grande de la ficha, no
-  // con `cumplimiento.conversionReal`: son dos fórmulas distintas (recibidos
-  // ponderados vs. resueltos crudos) y la ficha las pintaba juntas bajo el mismo
-  // nombre, justo lo que el comentario de arriba prohíbe.
+  // La meta mensual conserva su índice ponderado canónico. No se presenta como
+  // la conversión de la cohorte del analista porque responde otra pregunta.
   const progresoConversion = metasComparables ? progreso(conversionMes, metaConversion) : null
   const lecturaMensual = lecturaCobertura(mensual?.cobertura)
   const tendencia = useMemo(
@@ -268,8 +268,7 @@ function DetalleVendedor({
   const puntosTendencia = useMemo(() => tendencia ?? [], [tendencia])
   const enMeta = metasComparables && metaConversion > 0
     && conversionMes != null && conversionMes >= metaConversion
-  // La cadena arranca por los estados de la conversión MENSUAL (fuente del
-  // número grande) y solo si el analista es medible baja a los estados de meta.
+  // Este estado acompaña solo al índice usado para la meta mensual.
   const estado = mensual != null && !lecturaMensual.mostrar
     ? 'Sin datos del mes'
     : filaMensual == null || filaMensual.estadoConversion === 'indisponible'
@@ -393,44 +392,23 @@ function DetalleVendedor({
               </>
             ) : conversionPublicable ? (
               <>
-            <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
+            <section aria-label="Conversión de los prospectos del analista" className="rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{porcentajeConversionCanonica(conversionMes)}</strong>
-                <span className="text-xs font-semibold text-[var(--gi-muted)]">conversión del mes</span>
-                {detalleMes != null && (
-                  <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
-                    {mensual?.fuentes.divisor === 'crm.leads.creado_en' ? 'Base automática' : 'Base histórica'} {numero(detalleMes.divisor)} · cierres del mes {numero(detalleMes.clientes)}
-                  </span>
-                )}
-                {lecturaMensual.aviso && (
-                  <span className="w-full text-[11px] font-semibold text-amber-700">{lecturaMensual.aviso}</span>
-                )}
-                {(() => {
-                  // El MISMO porqué que el ranking: este % ya llega NETO de
-                  // anulaciones de meses cerrados. Sin esto, gerencia veía el
-                  // chip en el ranking, abría al mismo analista y la
-                  // explicación desaparecía (hallazgo #6 de la revisión).
-                  const descuento = descuentoArrastre(detalleMes?.ajuste)
-                  return descuento
-                    ? (
-                      <ChipArrastre
-                        descuento={descuento}
-                        className="w-full text-[11px] font-semibold text-[var(--muted-foreground-strong)]"
-                      />
-                    )
-                    : null
-                })()}
+                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{porcentajeConversionCanonica(conversionProspectos)}</strong>
+                <span className="text-xs font-semibold text-[var(--gi-muted)]">conversión de sus prospectos</span>
+                <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
+                  {numeroDisponible(clientes)} de {numeroDisponible(leads)} prospectos cerraron
+                </span>
               </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || !lecturaMensual.mostrar || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
             </section>
 
             <section aria-label="Resultados del periodo" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
               <dl className="grid grid-cols-3 divide-x divide-[var(--gi-line)]">
                 <DatoDetalle label="Prospectos del período" valor={numeroDisponible(leads)} />
-                <DatoDetalle label="Leads ya cerrados" valor={numeroDisponible(clientes)} />
+                <DatoDetalle label="Prospectos convertidos" valor={numeroDisponible(clientes)} />
                 <DatoDetalle label="Reunión o avance posterior" valor={numeroDisponible(reuniones)} />
               </dl>
-              <p className="px-4 py-2 text-[11px] text-[var(--gi-muted)]">Resultados de los leads del mes, atribuidos al primer analista. La señal de reunión puede inferirse de una propuesta o cierre; no confirma asistencia.</p>
+              <p className="px-4 py-2 text-[11px] text-[var(--gi-muted)]">Resultados de los prospectos del período, atribuidos al primer analista. La señal de reunión puede inferirse de una propuesta o cierre; no confirma asistencia.</p>
               {/* La atribución de capital del rango usa la cartera actual y
                   los episodios económicos; no comparte la atribución al
                   primer analista de las llegadas mostradas arriba. */}
@@ -442,9 +420,9 @@ function DetalleVendedor({
             </section>
 
             {detalleMes != null && (
-              <section aria-label="Conversión del mes" className="rounded-2xl border border-[var(--gi-line)] bg-white px-4 py-3">
+              <section aria-label="Índice comercial del mes" className="rounded-2xl border border-[var(--gi-line)] bg-white px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                  <span className="text-xs font-bold">Cierres del mes</span>
+                  <span className="text-xs font-bold">Cierres acreditados en el mes</span>
                   <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
                     {lineaProcedencia(detalleMes.procedencia, mensual?.periodo.anio ?? new Date().getFullYear()) || 'Sin cierres este mes'}
                   </span>
@@ -453,6 +431,15 @@ function DetalleVendedor({
                   <span className="text-xs font-bold">Referidos</span>
                   <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{lineaReferidos(detalleMes.referidos)}</span>
                 </div>
+                {lecturaMensual.aviso && (
+                  <p className="mt-2 text-[11px] font-semibold text-amber-700">{lecturaMensual.aviso}</p>
+                )}
+                {(() => {
+                  const descuento = descuentoArrastre(detalleMes.ajuste)
+                  return descuento
+                    ? <ChipArrastre descuento={descuento} className="mt-2 text-[11px] font-semibold text-[var(--muted-foreground-strong)]" />
+                    : null
+                })()}
                 <p className="mt-2 text-[11px] font-medium text-[var(--gi-muted)]">
                   {mensual == null
                     ? 'Fórmula servida por el núcleo comercial.'
@@ -489,8 +476,11 @@ function DetalleVendedor({
                 ))}
                 <div className="px-4 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                    <span className="text-xs font-bold">Meta de conversión</span>
-                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{meta == null ? 'Meta no disponible' : metaConversion > 0 ? `${porcentajeConversionCanonica(conversionMes)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
+                    <span className="text-xs font-bold">Índice para la meta mensual</span>
+                    <span className="flex flex-wrap items-center gap-2 text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
+                      {meta == null ? 'Meta no disponible' : metaConversion > 0 ? `${porcentajeConversionCanonica(conversionMes)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}
+                      <span className={`w-fit rounded-full px-2.5 py-1 font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || !lecturaMensual.mostrar || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
+                    </span>
                   </div>
                   <div
                     className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"

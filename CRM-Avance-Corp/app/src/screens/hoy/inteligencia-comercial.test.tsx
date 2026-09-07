@@ -383,10 +383,13 @@ describe('detalle de conversión por analista', () => {
     expect(detalle).not.toHaveClass('max-w-[780px]')
 
     const contenido = within(detalle)
-    // El número grande es LA conversión del MES (4.15÷12), no la del rango.
-    expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
-    expect(contenido.getByText('31.50%')).toBeInTheDocument()
-    expect(contenido.getByText('Base automática 10 · cierres del mes 4')).toBeInTheDocument()
+    // El número grande responde por los prospectos de Ana: 5÷42. El índice
+    // mensual ponderado conserva su lugar únicamente dentro de la meta.
+    const conversionProspectos = within(contenido.getByRole('region', { name: 'Conversión de los prospectos del analista' }))
+    expect(conversionProspectos.getByText('conversión de sus prospectos')).toBeInTheDocument()
+    expect(conversionProspectos.getByText('11.90%')).toBeInTheDocument()
+    expect(conversionProspectos.getByText('5 de 42 prospectos cerraron')).toBeInTheDocument()
+    expect(conversionProspectos.queryByText('31.50%')).not.toBeInTheDocument()
     const semanal = contenido.getByRole('img', { name: 'Resultados por semana de ingreso de Ana Torres' })
     expect(semanal).toHaveAttribute('data-meta-series', '[]')
     expect(contenido.getByText(/No se compara con la meta mensual ponderada/)).toBeInTheDocument()
@@ -451,11 +454,10 @@ describe('detalle de conversión por analista', () => {
     expect(chip).toHaveAttribute('title', 'julio 2026: Cierre anulado por gerencia (−1)')
   })
 
-  it('mide la meta con la conversión del mes, no con la del cumplimiento', () => {
+  it('separa la conversión de prospectos del índice ponderado usado por la meta mensual', () => {
     // Las dos fuentes discrepan A PROPÓSITO: la conversión del mes de Ana es
-    // 34.58 % (la que enseña su número grande) y el cumplimiento de metas dice
-    // 40 %, que es otra fórmula. Con meta 40 %, la leyenda de la barra delata
-    // cuál de las dos se está midiendo.
+    // 31.50 % y la cohorte de sus prospectos da 11.90 %. Con meta 40 %, la
+    // leyenda deja claro que el primero es solo el índice para esa meta.
     const metas = metasConversionEquipoDemo()
     const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
     const metaAna = metas['demo-v1']
@@ -489,9 +491,11 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    const conversionProspectos = within(detalle.getByRole('region', { name: 'Conversión de los prospectos del analista' }))
+    expect(conversionProspectos.getByText('11.90%')).toBeInTheDocument()
     expect(detalle.getByText('31.50% de 40%')).toBeInTheDocument()
     expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
-    // Y el veredicto de estado sale del mismo número: 34.58 < 40.
+    // El veredicto queda junto al índice mensual: 31.50 < 40.
     expect(detalle.getByText('Por alcanzar')).toBeInTheDocument()
   })
 
@@ -715,9 +719,11 @@ describe('detalle de conversión por analista', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const elena = within(screen.getByRole('dialog', { name: 'Elena Vega' }))
-    // Trabajó (recibió 2 referidos): rótulo propio, jamás «Sin muestra» ni «0 %».
+    // La cohorte muestra su conversión propia y el índice mensual conserva el
+    // rótulo que explica por qué no tiene base ponderada.
     expect(elena.getByText('Solo recibió referidos')).toBeInTheDocument()
-    expect(elena.getByText('—')).toBeInTheDocument()
+    expect(within(elena.getByRole('region', { name: 'Conversión de los prospectos del analista' })).getByText('8.30%')).toBeInTheDocument()
+    expect(elena.getByText('Índice para la meta mensual')).toBeInTheDocument()
     expect(elena.getByText(/2 registrados · 0 cerrados/)).toBeInTheDocument()
     unmount()
 
@@ -753,7 +759,7 @@ describe('detalle de conversión por analista', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const ana = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(ana.getByText('31.50%')).toBeInTheDocument()
+    expect(within(ana.getByRole('region', { name: 'Conversión de los prospectos del analista' })).getByText('11.90%')).toBeInTheDocument()
     expect(ana.getByText(/Provisional: el registro empieza/)).toBeInTheDocument()
     expect(ana.queryByText('Sin datos del mes')).not.toBeInTheDocument()
   })
