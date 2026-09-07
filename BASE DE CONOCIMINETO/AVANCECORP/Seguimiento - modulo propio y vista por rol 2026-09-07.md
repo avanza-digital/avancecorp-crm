@@ -4,7 +4,7 @@ Decisión de Miguel del 07/09/2026: mejorar la presentación del seguimiento y d
 
 Continúa [[SLA R2 - publicacion conjunta y recuperacion 2026-09-07]], [[Nucleo operativo SLA - arquitectura y consumidores 2026-09-06]] y [[Plan final SLA - seguimiento compromisos y etapas 2026-09-06]].
 
-Ruta `#/seguimiento`, menú «Seguimiento» para Gerencia, Supervisor y Analista. Gerencia retira toda la cola de Resumen. Supervisor sustituye la cola activa de Hoy por un acceso al módulo y conserva Agenda. Analista mantiene su cola de Hoy y también puede entrar al módulo. Directorio, Coordinador y Superadmin solo roles no ganan acceso; se respeta el gate de Leads.
+Ruta `#/seguimiento`, menú «Seguimiento» para Gerencia, Supervisor y Analista. Gerencia retira toda la cola de Resumen. Supervisor sustituye la cola activa de Hoy por un acceso al módulo y conserva Agenda. Analista accede a la cola desde el módulo: la copia de Hoy se retiró por la decisión posterior documentada en [[Hoy Analista - seguimiento solo en su modulo 2026-09-07]]. Directorio, Coordinador y Superadmin solo roles no ganan acceso; se respeta el gate de Leads.
 
 La presentación es común; el servidor conserva el alcance global de Gerencia, el subárbol recursivo del Supervisor y la cartera propia del Analista. Los filtros no reconstruyen jerarquías en el cliente. No hace falta otro núcleo ni nuevas calculadoras: se reutilizan las RPC y reglas SLA vigentes.
 

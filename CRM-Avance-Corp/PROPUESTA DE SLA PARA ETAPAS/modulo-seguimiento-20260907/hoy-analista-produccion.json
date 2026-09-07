@@ -1,0 +1,62 @@
+{
+  "release": "crm-20260907T143831Z-67400637f295",
+  "commit": "67400637f295b3cd5e43b2629dd37f01dc95f998",
+  "build": "build-20260907T143810607Z",
+  "cantidad_archivos": 78,
+  "manifiesto_sha256": "264eb2548cbd2895dd634bac1aa7cb092d3f7542a03ea470eb021393c2af5644",
+  "fuente_limpia": true,
+  "zip_local": {
+    "sha256": "afe12b1a1f55f81660ac40663d46f9c81584f51b170a81b617e465eba1ba78a6",
+    "bytes": 1923225,
+    "valido": true
+  },
+  "inicio": "2026-09-07T14:44:48.539Z",
+  "fin": "2026-09-07T14:44:50.787Z",
+  "agregados": {
+    "htaccess_protegido_403": 1,
+    "hash_exacto": 65,
+    "imagen_transformada_por_servidor": 12
+  },
+  "correcto": true,
+  "version_estable": true,
+  "zip_publico": [
+    {
+      "url": "https://crm.miavance.com/crm-20260907T143831Z-67400637f295.zip",
+      "status": 404
+    },
+    {
+      "url": "https://miavance.com/crm-20260907T143831Z-67400637f295.zip",
+      "status": 404
+    }
+  ],
+  "ui_produccion": {
+    "rol": "analista",
+    "sesion": "real",
+    "build_recargado": "build-20260907T143810607Z",
+    "hoy": {
+      "seguimiento_comercial_visible": false,
+      "agenda_visible": true,
+      "indicadores_visibles": true,
+      "metas_visibles": true,
+      "menu_seguimiento_visible": true
+    },
+    "modulo_seguimiento": {
+      "titulo_visible": true,
+      "lista_visible": true,
+      "filtro_etapa_visible": true,
+      "paginacion_visible": true
+    },
+    "ruta_final": "#/hoy",
+    "escrituras_de_negocio": 0
+  },
+  "pruebas": {
+    "unitarias_panel": 39,
+    "suite_general": 2945,
+    "archivos_suite_general": 202,
+    "e2e_analista": 1,
+    "tipos": "correcto",
+    "lint": "correcto",
+    "build": "correcto",
+    "verify_release": "correcto"
+  }
+}
