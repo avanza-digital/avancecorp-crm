@@ -20,6 +20,7 @@ import { normalizarCitasInternas, presentarCitas } from '@/lib/terminologia'
 const ETIQUETA_VISTA: Record<Vista, string> = {
   hoy: 'Hoy',
   alertas: 'Pendientes',
+  seguimiento: 'Seguimiento',
   conversiones: 'Conversiones',
   'ranking-vendedores': 'Ranking',
   reuniones: 'Citas',
@@ -56,9 +57,9 @@ export function AyudaVendedorPanel({
   onNavegar,
   onAbrirNuevoLead,
 }: AyudaVendedorPanelProps) {
-  // La ayuda del servidor todavía agrupa este flujo dentro del contexto
-  // histórico de equipo. La interfaz lo presenta como módulo independiente.
-  const contextoAyuda: Vista = vista === 'derivaciones' ? 'equipo' : vista
+  // Los módulos extraídos conservan el contexto que ya conoce el manual del
+  // servidor: reparto en Equipo y prioridades operativas en Hoy.
+  const contextoAyuda: Vista = vista === 'derivaciones' ? 'equipo' : vista === 'seguimiento' ? 'hoy' : vista
   const tituloId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const resultadoRef = useRef<HTMLHeadingElement>(null)

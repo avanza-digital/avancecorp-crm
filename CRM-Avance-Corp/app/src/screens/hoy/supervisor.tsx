@@ -1,4 +1,4 @@
-import { ColaSlaPanel, SlaOperacionBoundary } from '@/components/app/sla-operacion'
+import { SlaOperacionBoundary } from '@/components/app/sla-operacion'
 import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · SUPERVISOR — puesto de mando de SU equipo (F1c). El ámbito del store
 // ya trae: sus leads + los de sus analistas + parkeados de SU bandeja.
@@ -825,7 +825,19 @@ export function HoySupervisor(): JSX.Element {
               </div>
             )}
           </Card>
-          )}><ColaSlaPanel /></SlaOperacionBoundary>
+          )}>
+            <Card>
+              <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-bold">Seguimiento del equipo</h2>
+                  <p className="text-xs text-muted-foreground">Prioriza las gestiones y revisa los plazos de cada analista.</p>
+                </div>
+                <a href={hashDe('seguimiento')} className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-press focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
+                  Abrir seguimiento <ChevronRight className="size-4" aria-hidden />
+                </a>
+              </CardContent>
+            </Card>
+          </SlaOperacionBoundary>
 
           {/* ── Agenda del equipo (Fase F — quién registra, cierra y arrastra) ── */}
           <AgendaEquipoPanel

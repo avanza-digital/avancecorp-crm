@@ -3,6 +3,90 @@ import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } f
 import type { EstadoSlaV2 } from '../src/lib/sla-operacion'
 import muestraSql from '../src/data/sla-operacion-sql.fixture.json' with { type: 'json' }
 
+async function irASeguimiento(page: Page) {
+  await page.getByRole('button', { name: 'Seguimiento', exact: true }).click()
+  await expect(page).toHaveURL(/#\/seguimiento$/)
+  await expect(page.getByRole('heading', { name: 'Seguimiento comercial', exact: true })).toBeVisible()
+}
+
+type PedidoCola = {
+  p_cursor: { inicio: number } | null
+  p_limite: number
+  p_senal: string
+  p_etapa: string | null
+  p_analista_id: string | null
+}
+
+async function montarColaEquipo(page: Page, rolCrm: 'gerencia' | 'supervisor') {
+  const analistaUno = 'aaaaaaaa-0000-4000-8000-000000000001'
+  const analistaDos = 'aaaaaaaa-0000-4000-8000-000000000002'
+  const analistaAjeno = 'aaaaaaaa-0000-4000-8000-000000000003'
+  const equipoVisible = [
+    { perfil_id: analistaUno, nombre_completo: 'Analista Norte Uno', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
+    { perfil_id: analistaDos, nombre_completo: 'Analista Norte Dos', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
+    ...(rolCrm === 'gerencia' ? [{ perfil_id: analistaAjeno, nombre_completo: 'Analista Sur', rol_crm: 'vendedor', supervisor_id: null, activo: true }] : []),
+  ]
+  const cartera = Array.from({ length: 14 }, (_, i) => leadReal({
+    id: `cccccccc-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+    nombre_completo: `OPORTUNIDAD ${i < 12 ? 'NORTE' : 'SUR'} ${String(i + 1).padStart(2, '0')}`,
+    vendedor_id: i < 6 ? analistaUno : i < 12 ? analistaDos : analistaAjeno,
+    etapa: i % 4 < 2 ? 'contactado' : 'propuesta_enviada',
+  }))
+  // La respuesta simula el ámbito de la RPC, no autorización en el navegador.
+  // El banco SQL prueba RLS: aquí comprobamos que la UI conserva sus filas y
+  // envía filtros al servidor sin sustituirlos por una búsqueda del store.
+  const visibles = rolCrm === 'gerencia' ? cartera : cartera.slice(0, 12)
+  await montarBackendReal(page, { rolCrm, leads: visibles })
+  await page.route('**/rest/v1/rpc/equipo_visible_fn', (route) => route.fulfill({ json: [
+    { perfil_id: UID, nombre_completo: 'Responsable del equipo', rol_crm: rolCrm, supervisor_id: null, activo: true },
+    ...equipoVisible,
+  ] }))
+  const calculado = '2026-09-07T12:00:00.000Z'
+  const filas = visibles.map((lead, i) => {
+    const original = muestraSql.cola.items[0]!
+    const revision = i % 2 === 0
+    return {
+      ...original, lead_id: lead.id,
+      bucket: i % 3 === 0 ? 'primera_atencion' : i % 3 === 1 ? 'tarea_vencida' : 'seguimiento',
+      severidad: i % 3 === 0 ? 'critica' : 'media', prioridad: 10 + i,
+      referencia_en: calculado,
+      lead: { id: lead.id, nombre_completo: lead.nombre_completo, etapa: lead.etapa,
+        analista_id: lead.vendedor_id, analista_nombre: equipoVisible.find((miembro) => miembro.perfil_id === lead.vendedor_id)!.nombre_completo },
+      senales: { primera_atencion: i % 3 === 0, tareas_vencidas: i % 3 === 1,
+        seguimientos_pendientes: i % 3 === 2, revisiones: revision, datos_incompletos: false, por_repartir: false },
+      estado: { ...original.estado, lead_id: lead.id,
+        compromiso: i % 5 === 4 ? original.estado.compromiso : { tarea: null, validez: 'sin_tarea', hasta_en: null, cobertura_activa: false },
+        etapa: { ...original.estado.etapa,
+        revision_requerida: revision, motivos_revision: revision ? ['limite_operativo_agotado'] : [] } },
+    }
+  })
+  await page.route('**/rest/v1/rpc/estado_sla_leads_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as { p_lead_ids: string[] }
+    await route.fulfill({ json: { ...muestraSql.estado, calculado_en: calculado,
+      filas: args.p_lead_ids.map((id) => filas.find((fila) => fila.lead_id === id)?.estado ?? { ...muestraSql.estado.filas[0], lead_id: id }) } })
+  })
+  const pedidos: PedidoCola[] = []
+  await page.route('**/rest/v1/rpc/cola_accion_v2_fn', async (route) => {
+    const args = route.request().postDataJSON() as PedidoCola
+    pedidos.push(args)
+    const ambito = filas.filter((fila) => (!args.p_etapa || fila.lead.etapa === args.p_etapa)
+      && (!args.p_analista_id || fila.lead.analista_id === args.p_analista_id))
+    const filtradas = args.p_senal === 'todas' ? ambito : ambito.filter((fila) => fila.senales[args.p_senal as keyof typeof fila.senales])
+    const inicio = args.p_cursor?.inicio ?? 0
+    const items = filtradas.slice(inicio, inicio + args.p_limite)
+    const hayMas = inicio + items.length < filtradas.length
+    const totales = Object.fromEntries(Object.keys(filas[0]!.senales).map((senal) => [senal,
+      ambito.filter((fila) => fila.senales[senal as keyof typeof fila.senales]).length]))
+    await route.fulfill({ json: { ...muestraSql.cola, calculado_en: calculado, limite: args.p_limite,
+      filtros: { senal: args.p_senal, etapa: args.p_etapa, analista_id: args.p_analista_id },
+      total_items: filtradas.length, rango: { desde: items.length ? inicio + 1 : 0, hasta: inicio + items.length },
+      hay_mas: hayMas, cursor_siguiente: hayMas ? { inicio: inicio + items.length } : null,
+      totales, items,
+    } })
+  })
+  return { pedidos, analistaUno, analistaDos, analistaAjeno }
+}
+
 async function colaConLeadFueraDelLote(page: Page) {
   const lead = leadReal({ id: 'ffffffff-0000-4000-8000-000000002501', vendedor_id: UID,
     nombre_completo: 'OPORTUNIDAD FUERA DEL LOTE', telefono: '+51982224466', monto_estimado: 2000, etapa: 'propuesta_enviada' })
@@ -40,6 +124,7 @@ test('la cola abre una ficha completa fuera del lote inicial después de confirm
     await route.fulfill({ json: [lead] })
   })
   await loginReal(page)
+  await irASeguimiento(page)
   const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
   await lista.getByRole('button', { name: /OPORTUNIDAD FUERA DEL LOTE/ }).click()
   await expect.poll(() => consultasId).toBe(1)
@@ -60,6 +145,7 @@ test('si RLS ya no devuelve la oportunidad, la cola informa el fallo y no abre u
     await route.fulfill({ json: [] })
   })
   await loginReal(page)
+  await irASeguimiento(page)
   await page.getByRole('list', { name: 'Oportunidades de esta página' }).getByRole('button', { name: /OPORTUNIDAD FUERA DEL LOTE/ }).click()
   await expect(page.getByText('La oportunidad ya no está disponible en tu cartera.', { exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: /OPORTUNIDAD FUERA DEL LOTE/ })).toHaveCount(0)
@@ -106,19 +192,24 @@ test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha'
   await page.getByRole('button', { name: 'Hoy', exact: true }).click()
   const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
   await expect(lista.locator(':scope > li')).toHaveCount(10)
+  await expect(page.getByRole('combobox', { name: 'Analista', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Por repartir/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Anterior', exact: true })).toBeDisabled()
   await page.screenshot({ path: '/private/tmp/sla-ui-desktop.png', fullPage: true })
   await page.getByRole('button', { name: 'Siguiente', exact: true }).click()
   await expect(lista.locator(':scope > li')).toHaveCount(2)
   await expect(lista.getByText('OPORTUNIDAD SLA 01', { exact: true })).toHaveCount(0)
   await expect(lista.getByText('OPORTUNIDAD SLA 11', { exact: true })).toBeVisible()
-  await page.getByRole('combobox', { name: 'Mostrar', exact: true }).selectOption('revisiones')
+  const revision = page.getByRole('group', { name: 'Prioridades de seguimiento' }).getByRole('button', { name: /Revisión comercial/ })
+  await revision.click()
+  await expect(revision).toHaveAttribute('aria-pressed', 'true')
   await expect(lista.locator(':scope > li')).toHaveCount(10)
   await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('revisiones')
   expect(pedidos.at(-1)?.p_cursor).toBeNull()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
   await page.getByRole('heading', { name: 'Seguimiento comercial' }).scrollIntoViewIfNeeded()
+  await expect(page.getByRole('combobox', { name: 'Mostrar', exact: true })).toHaveValue('revisiones')
   await page.screenshot({ path: '/private/tmp/sla-ui-mobile.png', fullPage: true })
   const ancho = await page.evaluate(() => ({ total: document.documentElement.scrollWidth, visible: window.innerWidth }))
   expect(ancho.total).toBeLessThanOrEqual(ancho.visible)
@@ -128,6 +219,89 @@ test('SLA activo: pagina sin acumular filas, filtra en servidor y abre la ficha'
   await expect(ficha.getByText('Revisión comercial pendiente')).toBeVisible()
 })
 
+
+for (const rol of ['gerencia', 'supervisor'] as const) {
+  test(`${rol}: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada`, async ({ page }) => {
+    await page.setViewportSize({ width: 1192, height: 784 })
+    const { pedidos, analistaUno, analistaAjeno } = await montarColaEquipo(page, rol)
+    const errores: string[] = []
+    page.on('pageerror', (error) => errores.push(error.message))
+    await loginReal(page)
+    if (rol === 'gerencia') {
+      await expect(page.getByRole('heading', { name: 'Resumen', exact: true })).toBeVisible()
+    } else {
+      await expect(page.getByRole('link', { name: 'Abrir seguimiento', exact: true })).toBeVisible()
+    }
+    await expect(page.getByRole('list', { name: 'Oportunidades de esta página' })).toHaveCount(0)
+    expect(pedidos).toHaveLength(0)
+    await expect(page.getByRole('button', { name: 'Seguimiento', exact: true })).toBeVisible()
+    if (rol === 'supervisor') {
+      await page.getByRole('link', { name: 'Abrir seguimiento', exact: true }).click()
+      await expect(page).toHaveURL(/#\/seguimiento$/)
+    } else await irASeguimiento(page)
+    const lista = page.getByRole('list', { name: 'Oportunidades de esta página' })
+    const prioridades = page.getByRole('group', { name: 'Prioridades de seguimiento' })
+    await expect(lista.locator(':scope > li')).toHaveCount(10)
+    await expect(page.getByRole('button', { name: 'Todas las acciones', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const analistas = page.getByRole('combobox', { name: 'Analista', exact: true })
+    await expect(analistas.locator(`option[value="${UID}"]`)).toHaveCount(0)
+    await expect(analistas.locator(`option[value="${analistaAjeno}"]`)).toHaveCount(rol === 'gerencia' ? 1 : 0)
+    await expect(page.getByRole('combobox', { name: 'Mostrar', exact: true })).toBeHidden()
+    await page.screenshot({ path: `/private/tmp/sla-seguimiento-${rol}-desktop.png`, animations: 'disabled' })
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click()
+    await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 4 : 2)
+    await expect(lista.getByText('OPORTUNIDAD NORTE 01', { exact: true })).toHaveCount(0)
+    await expect(lista.getByText('OPORTUNIDAD SUR 13', { exact: true })).toHaveCount(rol === 'gerencia' ? 1 : 0)
+    const revision = prioridades.getByRole('button', { name: /Revisión comercial/ })
+    await revision.click()
+    await expect(revision).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('revisiones')
+    expect(pedidos.at(-1)?.p_cursor).toBeNull()
+    await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 7 : 6)
+    // Revisión se solapa con el bucket dominante: no queda limitada a filas
+    // cuyo título principal sea «Revisión comercial».
+    await expect(lista.getByText('OPORTUNIDAD NORTE 01', { exact: true })).toBeVisible()
+    await page.getByRole('combobox', { name: 'Etapa', exact: true }).selectOption('contactado')
+    await analistas.selectOption(analistaUno)
+    await expect.poll(() => pedidos.at(-1)?.p_analista_id).toBe(analistaUno)
+    expect(pedidos.at(-1)).toMatchObject({ p_senal: 'revisiones', p_etapa: 'contactado', p_cursor: null })
+    await expect(lista.locator(':scope > li')).toHaveCount(2)
+    await expect(lista.getByText('OPORTUNIDAD NORTE 05', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: 'Todas las acciones', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Etapa', exact: true }).selectOption('')
+    await analistas.selectOption('')
+    await page.getByRole('combobox', { name: 'Por página', exact: true }).selectOption('25')
+    await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 14 : 12)
+    expect(pedidos.at(-1)).toMatchObject({ p_senal: 'todas', p_etapa: null, p_analista_id: null, p_limite: 25, p_cursor: null })
+    await page.getByRole('combobox', { name: 'Por página', exact: true }).selectOption('10')
+    await expect(lista.locator(':scope > li')).toHaveCount(10)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Ocultar menú', exact: true }).click()
+    await page.getByRole('heading', { name: 'Seguimiento comercial', exact: true }).scrollIntoViewIfNeeded()
+    const mostrar = page.getByRole('combobox', { name: 'Mostrar', exact: true })
+    await expect(mostrar).toBeVisible()
+    const titulo = page.getByRole('heading', { name: 'Seguimiento', exact: true, level: 1 })
+    await expect(titulo).toBeVisible()
+    const anchoTitulo = await titulo.evaluate((elemento) => ({ contenido: elemento.scrollWidth, disponible: elemento.clientWidth }))
+    expect(anchoTitulo.contenido).toBeLessThanOrEqual(anchoTitulo.disponible)
+    await page.screenshot({ path: `/private/tmp/sla-seguimiento-${rol}-mobile.png`, animations: 'disabled' })
+    const ancho = await page.evaluate(() => ({ total: document.documentElement.scrollWidth, visible: window.innerWidth }))
+    expect(ancho.total).toBeLessThanOrEqual(ancho.visible)
+    await mostrar.selectOption('tareas_vencidas')
+    await expect.poll(() => pedidos.at(-1)?.p_senal).toBe('tareas_vencidas')
+    await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 5 : 4)
+    // Volver a una combinación ya consultada puede usar la caché vigente.
+    await mostrar.selectOption('revisiones')
+    await expect(mostrar).toHaveValue('revisiones')
+    await expect(lista.locator(':scope > li')).toHaveCount(rol === 'gerencia' ? 7 : 6)
+    await lista.getByRole('button').first().click()
+    const ficha = page.getByRole('dialog', { name: 'OPORTUNIDAD NORTE 01', exact: true })
+    await expect(ficha).toBeVisible()
+    await expect(ficha.getByRole('region', { name: 'Plazos de seguimiento' })).toBeVisible()
+    expect(errores).toEqual([])
+  })
+}
 
 test('el contacto y su siguiente tarea se confirman juntos antes de cerrar el diálogo', async ({ page }) => {
   const backend = await montarBackendReal(page, { leads: [leadReal({ vendedor_id: UID })] })

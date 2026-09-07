@@ -1,5 +1,6 @@
-// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
-vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
+// La operación activa se abre en su módulo; la cola histórica conserva su cobertura.
+const MODO_SLA = vi.hoisted(() => ({ activo: false }))
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: !MODO_SLA.activo, activo: MODO_SLA.activo, error: null }) }))
 // Tests de integración de HOY del supervisor: reparto compacto y tarjeta
 // mensual de monto/conversión del equipo.
 //
@@ -62,7 +63,7 @@ vi.mock('@/lib/store-context', () => ({
 }))
 // El panel de agenda del equipo vive de una RPC (TanStack) que no es lo que se
 // prueba aquí: se apaga junto con su consulta para no montar un QueryClient.
-vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
+vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => <section aria-label="Agenda del equipo" /> }))
 // La conversión mensual del equipo, controlable por test (sin QueryClient).
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
@@ -307,6 +308,7 @@ function instalarAlmacen(inicial: Record<string, string> = {}) {
 }
 
 beforeEach(() => {
+  MODO_SLA.activo = false
   instalarAlmacen()
   METRICAS_AGENDA = undefined
   CONVERSION_MENSUAL = null
@@ -356,6 +358,15 @@ it('nunca rotula la foto anterior como vigente y deja reintentar si el rollover 
 // actividad (seguimiento de severidad baja + estancado) y un «nuevo» del 13-jul
 // es «sin responder» de severidad media.
 describe('Hoy · supervisor — cola con pestañas', () => {
+  it('en modo activo abre el módulo de seguimiento y conserva la agenda sin duplicar la cola', () => {
+    MODO_SLA.activo = true
+    montar()
+    expect(screen.getByRole('link', { name: 'Abrir seguimiento' })).toHaveAttribute('href', '#/seguimiento')
+    expect(screen.getByRole('region', { name: 'Agenda del equipo' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Oportunidades de esta página' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Cola del equipo' })).not.toBeInTheDocument()
+  })
+
   const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
   const nuevo = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
 

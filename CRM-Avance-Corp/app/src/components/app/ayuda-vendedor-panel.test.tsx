@@ -142,6 +142,16 @@ beforeEach(() => {
 })
 
 describe('AyudaVendedorPanel — manual resuelto por el servidor', () => {
+  it('muestra Seguimiento y consulta el contexto operativo de Hoy que conoce el manual', async () => {
+    const user = userEvent.setup()
+    render(<AyudaControlada vista="seguimiento" />)
+    expect(await screen.findByText('Seguimiento')).toBeVisible()
+    expect(api.inicio).toHaveBeenCalledWith('hoy', expect.any(AbortSignal))
+    await user.type(screen.getByRole('textbox', { name: '¿Qué necesitas resolver?' }), 'Quiero revisar mis pendientes')
+    await user.click(screen.getByRole('button', { name: 'Buscar en el manual' }))
+    expect(api.consultar).toHaveBeenCalledWith('Quiero revisar mis pendientes', 'hoy', expect.any(AbortSignal))
+  })
+
   it('muestra Derivar leads pero reutiliza el contexto de ayuda de equipo', async () => {
     const user = userEvent.setup()
     render(<AyudaControlada vista="derivaciones" />)

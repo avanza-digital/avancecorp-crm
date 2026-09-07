@@ -1,5 +1,6 @@
-// Estas pruebas ejercitan la vista legada; la cola activa se verifica en sla-operacion.test.tsx.
-vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: () => ({ legado: true, activo: false, error: null }) }))
+// Resumen no debe consultar ni montar la operación SLA, incluso cuando está activa.
+const LEER_MODO_SLA = vi.hoisted(() => vi.fn(() => ({ legado: false, activo: true, error: null })))
+vi.mock('@/data/sla-operacion-queries', () => ({ useModoSla: LEER_MODO_SLA }))
 // Tests de integración de la pantalla "Hoy · gerencia" y sus metas mensuales.
 // Monto y conversión son las dos únicas metas visibles.
 //
@@ -403,6 +404,13 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+it.each(['resumen', 'completo'] as const)('la sección %s no monta ni consulta la cola de seguimiento', (seccion) => {
+  montar({}, seccion)
+  expect(LEER_MODO_SLA).not.toHaveBeenCalled()
+  expect(screen.queryByRole('heading', { name: 'Seguimiento comercial' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('list', { name: 'Oportunidades de esta página' })).not.toBeInTheDocument()
 })
 
 describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {

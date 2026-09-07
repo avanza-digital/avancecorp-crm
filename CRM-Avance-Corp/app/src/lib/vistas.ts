@@ -21,6 +21,7 @@ const VISTA_BASE_POR_ROL = {
 const CAPACIDAD_POR_VISTA = {
   hoy: null,
   alertas: 'verAlertas',
+  seguimiento: 'verLeads',
   conversiones: null,
   'ranking-vendedores': null,
   reuniones: null,
@@ -88,6 +89,9 @@ export function vistaPermitida(
   // «hoy» no exige capacidad, así que sin este corte la llave abierta se la
   // regalaría. Defensa en profundidad: config.ts tampoco la enciende para él.
   if (esVistaLeads(vista) && (!leadsVisibles || rol === 'coordinador')) return false
+  // La cola operativa se ofrece a quienes ya la tenían en Hoy. Directorio
+  // conserva su auditoría ejecutiva y no incorpora este módulo de gestión.
+  if (vista === 'seguimiento') return rol === 'gerencia' || rol === 'supervisor' || rol === 'vendedor'
 
   const capacidad = CAPACIDAD_POR_VISTA[vista]
   return capacidad === null || can(rol, capacidad)

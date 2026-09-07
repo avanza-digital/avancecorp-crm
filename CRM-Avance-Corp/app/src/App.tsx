@@ -38,6 +38,7 @@ export type { Vista } from '@/lib/router'
 // quedan estáticas: son la primera pintura, lazy solo las retrasaría.
 const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy })))
 const Alertas = lazy(() => import('@/screens/alertas').then((m) => ({ default: m.Alertas })))
+const Seguimiento = lazy(() => import('@/screens/seguimiento').then((m) => ({ default: m.Seguimiento })))
 const ConversionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ConversionesGerencia })))
 const RankingVendedoresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RankingVendedoresGerencia })))
 const ReunionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ReunionesGerencia })))
@@ -62,6 +63,7 @@ const ConfigSla = lazy(() => import('@/screens/config-sla').then((m) => ({ defau
 const PANTALLA_POR_VISTA = {
   hoy: Hoy,
   alertas: Alertas,
+  seguimiento: Seguimiento,
   conversiones: ConversionesGerencia,
   'ranking-vendedores': RankingVendedoresGerencia,
   reuniones: ReunionesGerencia,

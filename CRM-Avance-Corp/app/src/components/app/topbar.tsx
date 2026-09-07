@@ -44,6 +44,7 @@ const esPosibleTelefono = (q: string): boolean => {
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
   alertas: { t: 'Pendientes', s: 'Acciones y señales que requieren tu atención' },
+  seguimiento: { t: 'Seguimiento', s: 'Prioridades y plazos de la cartera activa' },
   conversiones: { t: 'Conversiones', s: 'Conversión de leads a clientes' },
   'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los analistas' },
   reuniones: { t: 'Citas', s: 'Pactadas, concretadas, no realizadas y modalidad' },
@@ -197,7 +198,7 @@ export function Topbar({
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-6 backdrop-blur-md">
+    <header className={cn('sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-6 backdrop-blur-md', vista === 'seguimiento' && 'max-sm:gap-2 max-sm:px-3')}>
       <div className="min-w-0 leading-tight">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-lg font-extrabold tracking-tight text-primary">{info.t}</h1>
@@ -381,8 +382,8 @@ export function Topbar({
         )}
 
         {leadsVisibles && puedeEscribir(yo?.rol) && (
-          <Button variant="accent" onClick={() => abrirNuevoLead()}>
-            <Plus /> Nuevo lead
+          <Button variant="accent" aria-label="Nuevo lead" title="Nuevo lead" onClick={() => abrirNuevoLead()}>
+            <Plus aria-hidden /> <span className={vista === 'seguimiento' ? 'sr-only sm:not-sr-only' : undefined}>Nuevo lead</span>
           </Button>
         )}
       </div>

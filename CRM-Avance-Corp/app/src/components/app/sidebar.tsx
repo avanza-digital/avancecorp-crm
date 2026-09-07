@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, Trophy, ArchiveRestore, SendHorizontal,
+  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -32,6 +32,7 @@ type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-car
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
   hoy: { label: 'Hoy', icon: LayoutDashboard, seccion: 'principal' },
+  seguimiento: { label: 'Seguimiento', icon: ListChecks, seccion: 'principal' },
   conversiones: { label: 'Conversiones', icon: BarChart3, seccion: 'principal' },
   'ranking-vendedores': { label: 'Ranking', icon: Trophy, seccion: 'principal' },
   reuniones: { label: 'Citas', icon: Handshake, seccion: 'principal' },

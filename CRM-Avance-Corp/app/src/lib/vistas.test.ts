@@ -9,9 +9,9 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 
 const VISTAS_POR_GATE = {
   abierto: {
-    vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
+    vendedor: ['hoy', 'alertas', 'seguimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
+    supervisor: ['hoy', 'alertas', 'seguimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
+    gerencia: ['hoy', 'alertas', 'seguimiento', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
     // «hoy» es la única vista de leads sin capacidad exigida y se la habría
@@ -75,6 +75,17 @@ describe('vistaPermitida — fuente única de acceso', () => {
 })
 
 describe('sanearVista — expulsión por URL', () => {
+  it('abre Seguimiento a los tres roles operativos y aplica gate y solo-roles antes de navegar', () => {
+    for (const rol of ['vendedor', 'supervisor', 'gerencia'] as const) {
+      expect(sanearVista('seguimiento', rol, true)).toBe('seguimiento')
+      expect(sanearVista('seguimiento', rol, false)).toBe(vistaBase(rol, false))
+    }
+    expect(sanearVista('seguimiento', 'coordinador', true)).toBe('repartir')
+    expect(sanearVista('seguimiento', 'directorio', true)).toBe('hoy')
+    expect(sanearVista('seguimiento', 'vendedor', true, 'superadmin')).toBe('config-usuarios')
+    expect(sanearVista('seguimiento', 'gerencia', true, 'superadmin')).toBe('seguimiento')
+  })
+
   it('reserva #/derivaciones al supervisor incluso con el gate de leads cerrado', () => {
     expect(sanearVista('derivaciones', 'supervisor', true)).toBe('derivaciones')
     expect(sanearVista('derivaciones', 'supervisor', false)).toBe('derivaciones')

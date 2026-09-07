@@ -1,4 +1,3 @@
-import { ColaSlaPanel, SlaOperacionBoundary } from '@/components/app/sla-operacion'
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -578,8 +577,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           alarma de un ciclo atascado no puede depender de qué pestaña se mire.
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
-
-      {esResumen && <SlaOperacionBoundary><ColaSlaPanel /></SlaOperacionBoundary>}
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={cumplimientoRankingCargando ? undefined : conversionMensualPaneles} origenFiltrado={modoDemo ? null : origenActivo} reuniones={datosReuniones} equipo={datosEquipoConversionRango} equipoMensual={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensualRanking} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || conversionMensualCargando || cumplimientoRankingCargando || estaCargando(sesionReal, reuniones)} rangoCargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} mensualCargando={!conversionesDeEjemplo && (conversionMensualCargando || cumplimientoRankingCargando)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); void qCumplimientoRanking.refetch(); reintentarReuniones(); tipoCambio.recargar() }} />}
 

@@ -25,6 +25,7 @@ describe('router por hash', () => {
   it.each([
     ['#/hoy', 'hoy'],
     ['#/alertas', 'alertas'],
+    ['#/seguimiento', 'seguimiento'],
     ['#pipeline', 'pipeline'],
     ['#/agenda/', 'agenda'],
     ['#/equipo///', 'equipo'],
@@ -120,12 +121,21 @@ describe('router por hash', () => {
   })
 
   it('registra Alertas justo después de Hoy como bandeja transversal', () => {
-    expect(VISTAS.slice(0, 3)).toEqual(['hoy', 'alertas', 'conversiones'])
+    expect(VISTAS.slice(0, 3)).toEqual(['hoy', 'alertas', 'seguimiento'])
     expect(VISTAS_GERENCIA[0]).toBe('conversiones')
     expect(VISTAS_GERENCIA).not.toContain('alertas')
     expect(esVistaGerencia('alertas')).toBe(false)
     expect(esVistaLeads('alertas')).toBe(false)
     expect(hashDe('alertas')).toBe('#/alertas')
+  })
+
+  it('separa Seguimiento de los informes de Gerencia y conserva ficha y gate de leads', () => {
+    expect(esVistaGerencia('seguimiento')).toBe(false)
+    expect(esVistaLeads('seguimiento')).toBe(true)
+    expect(esVistaInterna('seguimiento')).toBe(false)
+    expect(hashDe('seguimiento', 'l-1')).toBe('#/seguimiento/lead/l-1')
+    window.location.hash = '#/seguimiento/lead/l-1'
+    expect(leerHash()).toEqual({ vista: 'seguimiento', leadId: 'l-1' })
   })
 
   it('navega con historial normal y evita escrituras redundantes', () => {

@@ -118,6 +118,7 @@ describe('Sidebar — temporizadores del asomo', () => {
 
     const nombres = [
       'Resumen',
+      'Seguimiento',
       'Conversiones',
       'Ranking',
       'Citas',
@@ -154,6 +155,19 @@ describe('Sidebar — temporizadores del asomo', () => {
 
     fireEvent.click(derivaciones)
     expect(onNavegar).toHaveBeenCalledWith('derivaciones')
+  })
+
+  it.each(['gerencia', 'supervisor', 'vendedor'] as const)('%s navega a Seguimiento desde su entrada propia', (rol) => {
+    const { onNavegar } = montar({ movil: false, rol, vista: 'seguimiento' })
+    const acceso = screen.getByRole('button', { name: 'Seguimiento' })
+    expect(acceso).toBeVisible()
+    fireEvent.click(acceso)
+    expect(onNavegar).toHaveBeenCalledWith('seguimiento')
+  })
+
+  it.each(['directorio', 'coordinador'] as const)('no ofrece Seguimiento a %s', (rol) => {
+    montar({ movil: false, rol })
+    expect(screen.queryByRole('button', { name: 'Seguimiento' })).not.toBeInTheDocument()
   })
 
   it('Superadmin sin Gerencia ve y navega únicamente a Usuarios y roles', () => {
