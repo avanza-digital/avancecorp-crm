@@ -792,12 +792,12 @@ describe('Hoy · gerencia — período del tablero', () => {
       .toHaveTextContent('Se muestran los últimos datos disponibles, sin actualizar.')
   })
 
-  it('no promete que el origen filtre las citas globales del resumen', () => {
+  it('explica que el origen filtra la conversión de prospectos y no el índice mensual', () => {
     montar({}, 'resumen')
 
     expect(screen.getByText(/Rango: 01 jul\. 2026 al 15 jul\. 2026/))
       .toBeInTheDocument()
-    expect(screen.getByText(/El origen filtra los prospectos del período y sus resultados, no la conversión general ni las citas registradas/))
+    expect(screen.getByText(/El origen filtra los prospectos del período y su conversión\. El índice de Metas sigue siendo mensual/))
       .toBeInTheDocument()
     expect(screen.queryByText(/el rango y origen recortan Cosecha, citas y embudo/))
       .not.toBeInTheDocument()
