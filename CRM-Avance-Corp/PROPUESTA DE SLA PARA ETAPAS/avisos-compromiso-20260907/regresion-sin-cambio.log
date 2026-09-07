@@ -1,0 +1,99 @@
+Huella función: c0c7eb4b8e5b0c8a60eca3af3115ebe3
+test_compromiso_agendar_sin_intento_no_oculta_primera_atencion (__main__.PrimeraCompromiso) ... ok
+test_compromiso_avisa_al_vencer_sin_exigir_segundo_registro (__main__.PrimeraCompromiso) ... FAIL
+test_compromiso_cancelar_reactiva_sin_borrar_historial (__main__.PrimeraCompromiso) ... FAIL
+test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles (__main__.PrimeraCompromiso) ... test_compromiso_intento_previo_sin_respuesta_espera_tarea (__main__.PrimeraCompromiso) ... FAIL
+test_compromiso_invalido_no_silencia_atencion (__main__.PrimeraCompromiso) ... ok
+test_compromiso_migracion_solo_cambia_decision_y_conserva_contrato (__main__.PrimeraCompromiso) ... ok
+test_compromiso_tope_y_revision_siguen_vigentes (__main__.PrimeraCompromiso) ... ok
+test_compromiso_vencido_no_se_salta_a_futuro (__main__.PrimeraCompromiso) ... ok
+
+======================================================================
+FAIL: test_compromiso_avisa_al_vencer_sin_exigir_segundo_registro (__main__.PrimeraCompromiso)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 57, in test_compromiso_avisa_al_vencer_sin_exigir_segundo_registro
+    self.assertNotIn('primera_atencion', self.buckets(before['estado']))
+AssertionError: 'primera_atencion' unexpectedly found in ['primera_atencion']
+
+======================================================================
+FAIL: test_compromiso_cancelar_reactiva_sin_borrar_historial (__main__.PrimeraCompromiso)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 107, in test_compromiso_cancelar_reactiva_sin_borrar_historial
+    self.assertNotIn('primera_atencion', self.buckets(before))
+AssertionError: 'primera_atencion' unexpectedly found in ['primera_atencion']
+
+======================================================================
+FAIL: test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles (__main__.PrimeraCompromiso) (actor=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 122, in test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles
+    self.assertEqual(self.buckets(state), [])
+AssertionError: Lists differ: ['primera_atencion'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'primera_atencion'
+
+- ['primera_atencion']
++ []
+
+======================================================================
+FAIL: test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles (__main__.PrimeraCompromiso) (actor=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 122, in test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles
+    self.assertEqual(self.buckets(state), [])
+AssertionError: Lists differ: ['primera_atencion'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'primera_atencion'
+
+- ['primera_atencion']
++ []
+
+======================================================================
+FAIL: test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles (__main__.PrimeraCompromiso) (actor=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 122, in test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles
+    self.assertEqual(self.buckets(state), [])
+AssertionError: Lists differ: ['primera_atencion'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'primera_atencion'
+
+- ['primera_atencion']
++ []
+
+======================================================================
+FAIL: test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles (__main__.PrimeraCompromiso) (actor=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 122, in test_compromiso_ficha_cola_campana_coinciden_en_todos_los_roles
+    self.assertEqual(self.buckets(state), [])
+AssertionError: Lists differ: ['primera_atencion'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'primera_atencion'
+
+- ['primera_atencion']
++ []
+
+======================================================================
+FAIL: test_compromiso_intento_previo_sin_respuesta_espera_tarea (__main__.PrimeraCompromiso)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/avancecorp-sla-compromiso-avisos-20260907/CRM-Avance-Corp/supabase/scripts/test-sla-primera-compromiso-local.py", line 44, in test_compromiso_intento_previo_sin_respuesta_espera_tarea
+    self.assertFalse(row['senales']['primera_atencion'])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 9 tests in 2.058s
+
+FAILED (failures=7)
+Evidencia: /var/folders/jv/bdqzz_ks1_qd0j6lmm847thw0000gn/T/sla-nucleo-v0qqdb7c/resultados.json

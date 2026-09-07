@@ -1,0 +1,11 @@
+{
+  "migracion": "20260907194756_crm_sla_primera_atencion_respeta_compromiso.sql",
+  "sha256": "a0126d8089b07d743e58450145d4bb20b4e64da4c3cbf159f49a8b6428f29f89",
+  "postgres": "16.14 (Homebrew)",
+  "sin_cambio": false,
+  "pruebas": 64,
+  "fallos": 0,
+  "errores": 0,
+  "correcto": true,
+  "alcance": "PostgreSQL aislado; fixtures reducidos de autoridad y hechos. Sin red ni datos de producción."
+}

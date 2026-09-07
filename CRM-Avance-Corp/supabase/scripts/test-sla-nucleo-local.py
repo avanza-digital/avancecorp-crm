@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prueba la migracion REAL en PostgreSQL 16 aislado; sin red ni credenciales.
+"""Prueba la migracion REAL en PostgreSQL 16/17 aislado; sin red ni credenciales.
 Banco reducido: columnas y v1 reales, dobles explicitos de autoridad/veto.
 Cada caso clona una base plantilla propia. Nunca acepta una URL externa.
 """
@@ -64,8 +64,8 @@ class Bank:
 
     def start(self):
         version = self.command('postgres', ['--version'])
-        if version.returncode or ' 16.' not in version.stdout:
-            raise RuntimeError('Se requiere PostgreSQL 16 (SLA_PG_BIN)')
+        if version.returncode or not any(f' {major}.' in version.stdout for major in (16, 17)):
+            raise RuntimeError('Se requiere PostgreSQL 16 o 17 (SLA_PG_BIN)')
         result = self.command('initdb', ['-D', str(self.root / 'data'), '-U', 'sla_test_owner', '-A', 'trust', '--no-locale', '-E', 'UTF8'])
         if result.returncode:
             raise RuntimeError(result.stderr)
