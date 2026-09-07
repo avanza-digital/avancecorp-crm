@@ -1,6 +1,6 @@
 # Seguimiento: textos claros de plazos y Agenda
 
-Estado al 07/09/2026: revisión de textos implementada y verificada localmente, incluidos Gerencia y Supervisor en escritorio y móvil; **esta revisión todavía no está publicada**. El módulo ya publicado conserva su estado documentado en [[Seguimiento - modulo propio y vista por rol 2026-09-07]].
+Estado al 07/09/2026: **PUBLICADO Y VERIFICADO** en `crm.miavance.com`. Incluye pruebas de Gerencia y Supervisor en escritorio y móvil, y comprobación de los textos en una ficha real de Gerencia. Continúa el módulo documentado en [[Seguimiento - modulo propio y vista por rol 2026-09-07]].
 
 Continúa [[Nucleo operativo SLA - arquitectura y consumidores 2026-09-06]]. La decisión es explicar cada plazo y quién debe actuar con lenguaje comercial, utilizando las decisiones y fechas que entrega el núcleo. No se introduce otro núcleo, cálculo de fechas en el navegador ni cambio de backend.
 
@@ -32,3 +32,15 @@ La cobertura de una actividad solo afecta el seguimiento por falta de gestión. 
 `cobertura_activa = null` significa que no se puede confirmar la cobertura; no equivale a `false` ni a una actividad rechazada. Se informa que faltan datos. Del mismo modo, un seguimiento no evaluable se presenta «por confirmar», sin convertirlo en vencido o dentro de plazo.
 
 Las prórrogas automáticas confirmadas se llaman **«Ampliaciones aplicadas»**. Se muestra cuántas se aplicaron, cuántas quedan disponibles y su fecha resultante. El cambio de nombre no altera las reglas automáticas ni añade una solicitud o aprobación manual; una cantidad desconocida permanece «Por confirmar».
+
+## Publicación y comprobaciones
+
+Commit fuente `fc4e1a8f6b4d183d2c541a076b6ff51827727073`, sincronizado con Main y `avancecorp/main` antes de publicar. Build `build-20260907T133816534Z`, release `crm-20260907T133846Z-fc4e1a8f6b4d`. ZIP de 1.923.230 bytes, SHA-256 `da3c312f57443bb2241b5c0e7f419589448bb1a28849998d310a887206bbbbed`. Conserva el release anterior del filtro de conversión (`543a5af`) en su ascendencia; no modifica la base de datos.
+
+Pasaron 2.945 pruebas en 202 archivos, tipos y lint de los archivos afectados, compilación y verificación del paquete. Las dos pruebas E2E de Gerencia/Supervisor pasaron con inspección de capturas de la ficha en móvil y escritorio. La prueba de incertidumbre comprueba que `null` no se presenta como rechazo de espera ni como cero ampliaciones restantes; la de cobertura mantiene separadas una fecha habitual posterior y una espera que termina antes.
+
+La [verificación HTTP](../../CRM-Avance-Corp/PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/modulo-seguimiento-20260907/textos-plazos-produccion-http.json) confirma los 78 archivos sin fallos: 65 hashes exactos, 12 imágenes transformadas por Hostinger y `.htaccess` con 403. Build estable y ZIP inaccesible con 404 en CRM y portal.
+
+En una ficha real se verificó el caso planteado: seguimiento vencido desde el plazo del 6 de setiembre a las 11:03 p. m.; fecha límite de etapa del 1 de setiembre a las 10:00 a. m.; máximo del 2 de setiembre a las 11:21 a. m.; actividad programada para el 31 de agosto a las 10:00 a. m. El núcleo confirmó que la espera de esa actividad terminó el 1 de setiembre a las 10:00 a. m., mostrado ahora expresamente. Se comprobó el aviso «Este caso necesita una decisión» y la instrucción para Supervisor o Gerencia. Se cerró la ficha sin guardar gestiones y se restauraron los filtros. Cero errores de consola. La comprobación real fue de Gerencia; Supervisor se comprobó mediante E2E con datos sintéticos.
+
+Los commits documentales posteriores registran esta evidencia sin cambiar el artefacto servido.
