@@ -1219,7 +1219,7 @@ export function ContratoNuevo({
             demo={esDemo}
             disabled={enviando}
             idInput="ct-tasa"
-          />
+          >
           {!esCompuesto && (
             <div className="space-y-1.5">
               <Label htmlFor="ct-modalidad">Modalidad de pago</Label>
@@ -1237,6 +1237,7 @@ export function ContratoNuevo({
               </Select>
             </div>
           )}
+          </TasaPolitica>
         </div>
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

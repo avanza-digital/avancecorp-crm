@@ -13,7 +13,7 @@
 // El bloque NO calcula tasas: todo sale del servidor (regla de Miguel: un solo
 // núcleo). El candado definitivo es el de R4 en la base de datos; mientras llega,
 // el front ya no ofrece la tasa libre. En sesión DEMO no hay servidor: base fija.
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { CheckCircle2, Clock, Lock, RotateCcw, ShieldCheck, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -71,6 +71,8 @@ interface TasaPoliticaProps {
   demo: boolean
   disabled?: boolean
   idInput?: string
+  /** Campo contiguo a la tasa; la solicitud ocupa una fila completa debajo de ambos. */
+  children?: ReactNode
   /**
    * Corrección de un contrato ya creado: la «base» es la tasa VIGENTE del contrato
    * (cambiarla exige autorización de Gerencia); el núcleo no se consulta. `contratoId` viaja con la solicitud para que
@@ -112,6 +114,7 @@ export function TasaPolitica({
   demo,
   disabled = false,
   idInput = 'ct-tasa',
+  children,
   correccion,
 }: TasaPoliticaProps): JSX.Element {
   // En corrección la base es la tasa vigente del contrato: no hace falta el origen para bloquear.
@@ -321,6 +324,7 @@ export function TasaPolitica({
           : ''
 
   return (
+    <>
     <div ref={raizRef} tabIndex={-1} className="min-w-0 space-y-1.5 outline-none" data-testid="tasa-politica">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={idInput}>Tasa anual (%)</Label>
@@ -440,13 +444,19 @@ export function TasaPolitica({
         </p>
       )}
 
-      {/* Pedir una excepción (con base conocida y sin solicitud viva para ESTA intención; también en corrección si se conoce el origen) */}
-      {(puedePedir || pidiendo) && (
-        pidiendo ? (
-          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3" role="group" aria-label="Solicitar tasa superior">
-            <div className="grid min-w-0 grid-cols-1 gap-3">
+      {puedePedir && !pidiendo && (
+        <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setPidiendo(true)}>
+          Solicitar tasa superior
+        </Button>
+      )}
+    </div>
+    {children}
+    {/* Fuera de la media columna de la tasa: usa todo el ancho de la grilla del contrato. */}
+    {pidiendo && (
+          <div className="col-span-full min-w-0 space-y-2 rounded-lg border border-border bg-muted/30 p-3" role="group" aria-label="Solicitar tasa superior">
+            <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
               <div className="min-w-0 space-y-1">
-                <Label htmlFor={`${idInput}-pedida`}>Tasa solicitada (%)</Label>
+                <Label className="flex min-h-8 items-end sm:min-h-0" htmlFor={`${idInput}-pedida`}>Tasa solicitada (%)</Label>
                 <Input
                   ref={pedidaRef}
                   id={`${idInput}-pedida`}
@@ -467,8 +477,8 @@ export function TasaPolitica({
                 />
               </div>
               <div className="min-w-0 space-y-1">
-                <Label htmlFor={`${idInput}-motivo`}>Motivo comercial</Label>
-                <Textarea id={`${idInput}-motivo`} rows={3} className="min-h-28 resize-y" maxLength={500} aria-describedby={`${idInput}-motivo-ayuda`} value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={solicitar.isPending} placeholder="Explica por qué solicitas esta tasa para el cliente" />
+                <Label className="flex min-h-8 items-end sm:min-h-0" htmlFor={`${idInput}-motivo`}>Motivo comercial</Label>
+                <Textarea id={`${idInput}-motivo`} rows={2} className="min-h-16 resize-y" maxLength={500} aria-describedby={`${idInput}-motivo-ayuda`} value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={solicitar.isPending} placeholder="Explica por qué solicitas esta tasa para el cliente" />
                 <p id={`${idInput}-motivo-ayuda`} className="text-[11px] text-muted-foreground">Entre 5 y 500 caracteres · {motivo.length}/500</p>
               </div>
             </div>
@@ -477,12 +487,7 @@ export function TasaPolitica({
               <Button type="button" size="sm" className="min-h-10" onClick={() => void enviarSolicitud()} disabled={solicitar.isPending || !puedePedir}>Enviar a Gerencia</Button>
             </div>
           </div>
-        ) : (
-          <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setPidiendo(true)}>
-            Solicitar tasa superior
-          </Button>
-        )
       )}
-    </div>
+    </>
   )
 }

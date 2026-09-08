@@ -620,7 +620,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
             disabled={enviando || esVersionCatalogadaNoVigente}
             idInput="cc-tasa"
             correccion={{ tasaActual: contrato.tasa_anual, contratoId: contrato.id }}
-          />
+          >
           <div className="space-y-1.5">
             <Label htmlFor="cc-inicio">Fecha de inicio</Label>
             <Input
@@ -631,6 +631,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               disabled={enviando || esVersionCatalogadaNoVigente}
             />
           </div>
+          </TasaPolitica>
         </div>
 
         <div className="grid grid-cols-2 items-end gap-2.5">

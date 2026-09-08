@@ -10,7 +10,7 @@ Relacionado: [[Inicio]], [[Plan Rentabilidad server-side - tasa decidida por pol
 
 ## Decisión de negocio
 
-El analista puede escribir el motivo comercial en un campo amplio, de tres líneas, con saltos de línea y límite visible de 500 caracteres. La grilla anterior reservaba 9 rem para la tasa dentro de media columna del diálogo y comprimía el motivo a una franja difícil de utilizar; el control de texto sí actualizaba su valor. Ambos campos ahora se apilan.
+El analista puede escribir el motivo comercial con saltos de línea y límite visible de 500 caracteres. La grilla original reservaba 9 rem para la tasa dentro de media columna del diálogo y comprimía el motivo a una franja difícil de utilizar; el control de texto sí actualizaba su valor. La primera corrección apiló ambos campos. Después de probarla publicada, Miguel pidió un recuadro horizontal para compactar la ficha: esa es la distribución vigente elegida.
 
 Enviada una solicitud pendiente vigente, no puede crearse un contrato para el mismo cliente, categoría y origen, ni siquiera a la tasa base. Cambiar capital/plazo, reabrir el formulario o usar otro analista no evita el bloqueo del servidor. Otros clientes/categorías/orígenes conservan su comportamiento. La caducidad existente de la solicitud se conserva: una petición caducada deja de bloquear. No se altera R4: una aprobación debe coincidir con la intención y consumirse una vez; un tope necesita aceptación para usar una tasa superior; un rechazo permite continuar a la base.
 
@@ -84,3 +84,9 @@ Se usó una copia local limpia en detached HEAD, sin ramas de release ni cambios
 - Reversión frontend conservada: `crm-20260908T035714Z-b0896c3f8531.zip`; no se elimina el respaldo. El SQL tiene su script de reversión separado ya probado.
 
 Las notas de cierre posteriores no alteran la aplicación y no necesitan otro build. Miguel debe actualizar el CRM para ver el campo amplio y el botón bloqueado durante la espera de Gerencia.
+
+## Ajuste horizontal solicitado después de publicar
+
+Miguel: «haz el recuadro horizontal, no vertical». El selector permite un campo contiguo (modalidad en el alta, fecha de inicio en corrección) y coloca el recuadro de solicitud en una fila que ocupa las dos columnas. Tasa solicitada a la izquierda, motivo de dos líneas a la derecha y botones juntos debajo. También conserva esta distribución en móvil, sin reducir el motivo a una franja estrecha.
+
+Cambio exclusivamente visual, nivel 1, sin nueva revisión secundaria ni cambios SQL. Se conservan estados, validaciones y bloqueo de contrato. PASS: 67 pruebas existentes de los componentes y 2 E2E existentes a 1280/390 px; ambas capturas inspeccionadas. La publicación de este ajuste continúa bajo la autorización `/release-crm` ya recibida, sin mezclar los demás cambios locales.
