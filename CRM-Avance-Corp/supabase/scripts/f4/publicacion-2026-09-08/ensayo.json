@@ -1,0 +1,66 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "copia": "f4_pub_compatible_3205f8811493",
+  "terminadoEn": "2026-09-08T22:09:08.645Z",
+  "archivo": "20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql",
+  "sha256": "f0f28b032cfa7c4b65dc6734fb359e263f0feebaf174bf25537a215628a434ae",
+  "pruebas": [
+    {
+      "nombre": "Copia sintética reproduce las huellas capturadas de PDF R4 y corrección administrativa",
+      "conforme": true
+    },
+    {
+      "nombre": "Instalación íntegra conserva fuentes, capital, documentos y PDFs anteriores",
+      "conforme": true
+    },
+    {
+      "nombre": "48 cuerpos exactos y tablas nuevas cerradas al acceso directo",
+      "conforme": true
+    },
+    {
+      "nombre": "Usuarios no pueden encender banderas ni escribir política o ledger",
+      "conforme": true
+    },
+    {
+      "nombre": "Dos lectores del flag adquieren simultáneamente el candado compartido",
+      "conforme": true
+    },
+    {
+      "nombre": "Segunda instalación rechazada sin alterar fuentes",
+      "conforme": true
+    },
+    {
+      "nombre": "Escritores nuevos apagados y F2 global retirado al instalar",
+      "conforme": true
+    },
+    {
+      "nombre": "Alta vigente genera una inversión y un PDF v8; reintento no duplica",
+      "conforme": true
+    },
+    {
+      "nombre": "Confirmación rechaza una revisión distinta de la devuelta por el servidor",
+      "conforme": true
+    },
+    {
+      "nombre": "Upgrade por F4 conserva origen de R4, una persona y principal",
+      "conforme": true
+    },
+    {
+      "nombre": "La relación contractual es única y la falta de inversión aborta la cotitularidad",
+      "conforme": true
+    },
+    {
+      "nombre": "Núcleo R4 rechaza un contrato origen de otro cliente",
+      "conforme": true
+    },
+    {
+      "nombre": "Corrección documental mantiene la autorización de Administración",
+      "conforme": true
+    }
+  ],
+  "semantica": "Se emite este archivo únicamente al terminar todos los asserts. Un fallo aborta y no constituye evidencia nueva.",
+  "limites": [
+    "Copia SQL sintética; HTTP/Auth/PDF completos se verificaron en G4 y Deno.",
+    "No se enciende producción ni se alteran los bancos originales."
+  ]
+}

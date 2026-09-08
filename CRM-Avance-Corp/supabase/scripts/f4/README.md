@@ -6,7 +6,10 @@ nuevas**. **F4 terminada y G4 cerrado en alcance técnico sintético** tras conf
 Miguel que las comisiones se calculan fuera del sistema. No se implementa su
 cálculo/liquidación ni se exige contrastar pagos externos. El estado exacto está en
 [ESTADO-ACEPTACION.md](ESTADO-ACEPTACION.md), con pruebas y límites.
-No está aplicada ni encendida en producción.
+La publicación autorizada el 08/09 usa una revisión compatible con el servidor
+vigente. Su estado y ejecución se registran en
+[PUBLICACION-2026-09-08.md](PUBLICACION-2026-09-08.md). Los escritores y la ficha
+neutral permanecen apagados hasta las puertas siguientes del plan.
 
 El desarrollo vive en `/private/tmp/avancecorp-f4-desarrollo`, rama
 `codex/f4-cierre`. Se conserva la separación del checkout de Miguel, que tenía

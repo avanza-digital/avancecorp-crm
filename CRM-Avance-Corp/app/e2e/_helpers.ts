@@ -2214,6 +2214,32 @@ export async function montarBackendReal(
       return json(route, perfil && !perfilYaVersionado ? [...guardadas, perfil] : guardadas)
     }
 
+    // Política explícita del banco E2E. Las pruebas de solicitudes pueden
+    // sustituir estas rutas; las demás no deben simular un servidor sin R3/R4.
+    if (p === '/rest/v1/rpc/solicitudes_tasa_fn' && method === 'POST') return json(route, [])
+    if (p === '/rest/v1/rpc/resolver_tasa_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string; p_categoria?: string }
+      return json(route, {
+        cliente_id: body.p_cliente_id, categoria: body.p_categoria,
+        tasa_base: 15, regla: 'primera_inversion', contrato_origen: null,
+        contratos_previos: 0, contratos_activos: 0, prioridad_bandeja: false,
+        politica: { id: 'politica-e2e', version: 6, modo: 'enforcement', tasa_base_nueva: 15, tope_tecnico: 19, vigencia_solicitud_dias: 1 },
+      })
+    }
+    if (p === '/rest/v1/rpc/observacion_rentabilidad_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      return json(route, {
+        version: 1, periodo: { desde: body.p_desde, hasta: body.p_hasta },
+        politica: { version: 6, modo: 'enforcement', tasa_base_nueva: 15 },
+        totales: { observados: 0, contratos: 0, eventos: 0, divergentes: 0,
+          ceden: 0, retienen: 0, sin_regla: 0, correcciones: 0, puntos_promedio_cedido: 0,
+          cedido: { PEN: 0, USD: 0 }, retenido: { PEN: 0, USD: 0 } },
+        por_regla: [], por_analista: [], sin_regla: [], ultimos_divergentes: [],
+        metodo: 'Libro de observación del banco E2E', altas_sin_observar: 0,
+        coherente: true, generado_en: new Date().toISOString(),
+      })
+    }
+
     // ── RPC CRM: pre-vuelo legal del contrato + relleno del domicilio ──
     // Sin estas dos rutas, cada apertura de "Crear contrato" disparaba una
     // petición contra un backend inexistente: los e2e pasaban en verde SOLO

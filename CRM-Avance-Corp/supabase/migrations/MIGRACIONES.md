@@ -3,6 +3,8 @@
 > **F4 preparada — 08/09/2026, NO APLICADA en producción:** `20260907191832_crm_f4_inversiones_base_y_escritores.sql` se versiona como candidata técnica; 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas nuevas. Reconstrucción, pruebas y restauración sintéticas completadas. **G4 técnico cerrado:** Miguel excluyó el cálculo/liquidación de comisiones, que se realiza fuera del sistema. [Acta posterior](../scripts/evidencia-f4/cierre-g4-comisiones-externas-2026-09-08.json). La candidata SQL y su huella se conservan. Sin publicación ni encendido productivo. [Matriz y límites](../scripts/f4/ESTADO-ACEPTACION.md); [recuperación](../scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md). F2 global se retira al instalar F4, incluso apagada.
 
 
+> **Publicación F4 autorizada — 08/09/2026:** la revisión `20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql` sustituye a la candidata técnica **no aplicada**. Conserva las protecciones vigentes de Rentabilidad R4 y la corrección documental de Administración. SHA-256 `f0f28b032cfa7c4b65dc6734fb359e263f0feebaf174bf25537a215628a434ae`. Instalar solo esta revisión; no ejecutar ambas ni hacer replay global. [Paquete, ensayo y secuencia](../scripts/f4/PUBLICACION-2026-09-08.md). La autorización explícita de Miguel para publicar F4 incluye esta instalación; los escritores y la ficha neutral siguen apagados hasta las fases siguientes. El resultado productivo se añade tras verificarlo.
+
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).
 Ciclo obligatorio: **branch de Supabase → `npm run seed:demo` → aplicar → oráculo(s) →
 `scripts/test-rls.mjs` → advisors → merge**. ⚠️ El **seed va ANTES de aplicar**, y no es una
@@ -18,6 +20,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 
 | Versión | Qué toca de `public` | OK de Miguel |
 |---------|----------------------|--------------|
+| 20260908211349 — revisión publicable | Mismo alcance F4 sobre `public` que la candidata técnica; conserva además el origen de Rentabilidad R4 en el wrapper PDF. | Sí, 08/09: «publica f4 y dame el plan de implementacion para f5». Instalar con escritores/ficha neutral apagados; no constituye encendido comercial general. |
 | 20260907191832 — preparada, NO APLICADA | `public.crear_contrato`, excepción acotada en `public.proteger_campos_inmutables`, triggers de identidad/vínculo en contratos y procedencia en contrato_titulares; REVOKE API de `_sync_contrato_titulares`; referencias a las fuentes contractuales | Desarrollo y ensayos locales dentro del encargo explícito de terminar F4 (08/09). No constituye OK para aplicar/publicar/encender en producción ni cambiar el PDF. |
 | 20260711000001 | `perfiles_rol_check` acepta `'comercial'` | sí, 2026-07-11 |
 | 20260714000001 | `perfiles.tipo_documento` | sí, 2026-07-14 |

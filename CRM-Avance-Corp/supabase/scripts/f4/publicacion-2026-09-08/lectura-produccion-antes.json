@@ -1,0 +1,97 @@
+{
+  "capturadoEn": "2026-09-08T22:10:35.930Z",
+  "preflightCompatible": true,
+  "produccionAntes": {
+    "v8": true,
+    "huella": "418165f22711077cfdff43a5187bf076fe6e40c410d84167cecf2d21fe9dab7f",
+    "doc_md5": "45077ddc61bd59ab5f435116de292b05",
+    "banderas": {
+      "ficha_360_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false
+    },
+    "cantidades": {
+      "auth": 465,
+      "leads": 1342,
+      "cuotas": 4828,
+      "cierres": 16,
+      "personas": 439,
+      "contratos": 539,
+      "inversiones": 14
+    }
+  },
+  "permisosYLlamadores": {
+    "permisos": [
+      {
+        "rls": true,
+        "rol": "anon",
+        "tabla": "multiempresa_flags",
+        "lectura": false,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "anon",
+        "tabla": "ledger_rentabilidad",
+        "lectura": false,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "anon",
+        "tabla": "politica_rentabilidad",
+        "lectura": false,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "authenticated",
+        "tabla": "multiempresa_flags",
+        "lectura": false,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "authenticated",
+        "tabla": "ledger_rentabilidad",
+        "lectura": true,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "authenticated",
+        "tabla": "politica_rentabilidad",
+        "lectura": true,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "service_role",
+        "tabla": "multiempresa_flags",
+        "lectura": false,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "service_role",
+        "tabla": "ledger_rentabilidad",
+        "lectura": true,
+        "escritura": false
+      },
+      {
+        "rls": true,
+        "rol": "service_role",
+        "tabla": "politica_rentabilidad",
+        "lectura": true,
+        "escritura": false
+      }
+    ],
+    "cron_tabla": "cron.job",
+    "funciones_que_llaman_f2": []
+  },
+  "cron": {
+    "jobs_que_llaman_f2": 0,
+    "activos_que_llaman_f2": 0
+  },
+  "limite": "Solo lectura, antes de publicar. El preflight se repetirá inmediatamente antes de aplicar. No prueba actividad financiera real con F4 encendida."
+}

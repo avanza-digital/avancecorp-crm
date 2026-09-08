@@ -62,7 +62,8 @@ async function abrirFormContrato(page: Page): Promise<Locator> {
 async function llenarBase(form: Locator): Promise<void> {
   await form.locator('#ct-categoria').selectOption('nuevo')
   await form.locator('#ct-capital').fill('10000')
-  await form.locator('#ct-tasa').fill('15')
+  await expect(form.locator('#ct-tasa')).toHaveValue('15')
+  await expect(form.locator('#ct-tasa')).not.toBeEditable()
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
 }
 

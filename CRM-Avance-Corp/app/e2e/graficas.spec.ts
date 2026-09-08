@@ -47,9 +47,9 @@ test.describe('resumen de Gerencia en sesión real', () => {
     // contrato anterior: debe identificarlo como histórico, nunca inventar
     // llegadas ni volver a presentar asignaciones como captación.
     await expect(page.getByText('Base histórica · 20 registros en la base histórica · 2 cierres no referidos')).toBeVisible()
-    const conversion = page.locator('[data-gi-kpi]').filter({ hasText: 'Conversión del rango' })
+    const conversion = page.getByText(/Índice comercial del período/).locator('..')
     await expect(conversion).toContainText('10.00%')
-    await expect(conversion).toContainText('20 registros en la base histórica')
+    await expect(conversion).toContainText('Base histórica · 20 registros')
     await expect(page.getByText(/asignaciones contabilizadas/)).toHaveCount(0)
     // El capital confirmado viene de Cumplimiento/Metas, no se recompone desde
     // la RPC histórica de conversiones. Sin esa fuente, el vacío es explícito.
@@ -63,7 +63,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     const origenes = page.getByRole('heading', { name: 'Resultados por origen' }).locator('..')
     await expect(origenes.getByText('Referido', { exact: true })).toBeVisible()
     await expect(origenes).toContainText('No es la conversión ponderada.')
-    await expect(page.getByText('de 20 leads del mes')).toBeVisible()
+    await expect(page.getByText('de 20 prospectos del período')).toBeVisible()
     await expect(page.getByText('Datos de ejemplo')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('resumen-desktop.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 390, height: 844 })
@@ -88,7 +88,7 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.mouse.move(380, 70)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
-    const graficoAnalista = page.getByRole('region', { name: 'Gráfico de resultados por analista', exact: true })
+    const graficoAnalista = page.getByRole('region', { name: 'Gráfico del índice comercial por analista', exact: true })
     const graficoAvance = page.getByRole('region', { name: 'Gráfico de avance inferido', exact: true })
     for (const grafico of [graficoAnalista, graficoAvance]) {
       await expect(grafico).toHaveAttribute('tabindex', '0')
