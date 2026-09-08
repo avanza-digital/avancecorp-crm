@@ -365,3 +365,10 @@ La revisión y decisión documentadas están en
 `../evidencia-f4/auditoria-mantenimiento-2026-09-08/evaluacion-codex.md`.
 `verificar-estructura.mjs` compara módulos, candidata e instalación, y conserva
 MD5 de las funciones. G4 continúa abierto.
+
+
+La variante `probar-historicos-limite.mjs --mixto --sin-vinculo` combina cuatro
+contratos anteriores con 96 conversiones cooperativas nuevas (100 fuentes,
+97 personas en el banco actual) y repara los 96 enlaces. Pasó en 106.198 ms,
+con reintento de 0.494 ms. Comprueba ambas fuentes a tamaño máximo; no representa
+100 contratos Avance ni tiempos productivos. No sustituye el corpus F2 completo.

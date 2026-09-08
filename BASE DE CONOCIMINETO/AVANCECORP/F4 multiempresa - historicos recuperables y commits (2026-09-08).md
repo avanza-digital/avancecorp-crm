@@ -70,3 +70,10 @@ El verificador exige igualdad módulo/candidata/base para los cuerpos SQL y
 conserva las huellas de las 37 funciones. Sigue [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]: corpus F2, titularidad
 neutral, permisos, corrección de solicitudes, paridad financiera y reconstrucción
 con reversa. G4 abierto; ningún despliegue ni bandera productiva cambiada.
+
+
+Se amplió posteriormente la escala mixta: 4 contratos Avance anteriores y
+96 conversiones cooperativas nuevas, reparando los 96 enlaces (100 fuentes,
+97 personas). PASS, 106.198 ms y reintento 0.494 ms, dinero y banco original
+conservados. Esto completa la variante mixta que la revisión dejó NOT RUN;
+la medición de 100 contratos Avance y el corpus F2 completo siguen pendientes.
