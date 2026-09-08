@@ -4,6 +4,8 @@ Fecha: 2026-09-08. Continuación de la [primera propuesta](../propuesta-citas-lo
 
 Abrir: **http://127.0.0.1:4180/prototypes/citas-crm.html**.
 
+Actualización posterior: [inasistencias que terminaron en depósito](depositos/README.md), con conversión, montos por moneda y detalle de movimientos. Esa nota registra las verificaciones de la ampliación y sustituye la disposición anterior de las etapas en las capturas iniciales.
+
 Si el servidor está cerrado, ejecutar desde `CRM-Avance-Corp/app`:
 
 ```bash

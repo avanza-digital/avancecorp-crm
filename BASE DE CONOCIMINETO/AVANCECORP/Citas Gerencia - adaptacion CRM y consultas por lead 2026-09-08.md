@@ -28,3 +28,13 @@ Reutiliza marca, tipografía, tokens, formatos, Button, Card, Input, Select, Bad
 La integración requiere filas de citas, ids de lead estables y relaciones fiables de reprogramación. No cruzar breakdowns agregados independientes para fabricar una lista de citas. Los contratos comerciales productivos vigentes no se cambiaron.
 
 Guía, evidencia visual, revisión independiente evaluada y verificaciones: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/README.md`. Gate frontend ejecutado: lint, typecheck, 3.079 tests y build. Prueba táctil completa, lector de pantalla, backend y publicación no forman parte del resultado validado.
+
+## Ampliación: de inasistencia a depósito
+
+Miguel pidió saber cuántas inasistencias terminaron en depósito. La propuesta añade **Leads que depositaron**, porcentaje sobre leads únicos que faltaron, montos por moneda y ficha de movimientos confirmados. Un lead puede depositar con o sin nueva cita; la cifra no se limita a quienes volvieron a asistir.
+
+Se sigue al lead desde su primera inasistencia del conjunto filtrado hasta el corte. No se duplican leads ni ids de depósitos; se excluyen pendientes, anulados, previos y posteriores al corte. El depósito tiene fecha, confirmación e importe propios; no se deriva del cierre ni del monto estimado. Los filtros de fecha seleccionan las inasistencias, y pueden encontrarse depósitos posteriores fuera del mes o semana.
+
+Ejemplo ficticio: 2 de 4 leads depositaron (50%), S/ 35.000 y US$ 5.000 por separado. No se conectaron datos reales. La atribución temporal es una regla explícita de esta propuesta, pendiente de conciliar con el contrato productivo. Véase también [[Inventario de indicadores de Gerencia - Citas y operacion]].
+
+Guía y evidencia: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/depositos/README.md`. Gate local: 20 tests de propuesta, suite general de 3.091 tests, lint, typecheck y build PASS. El intento de revisión independiente de esta ampliación no devolvió un dictamen completo; no se considera aprobado.
