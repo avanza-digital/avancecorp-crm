@@ -42,6 +42,7 @@ create table crm.inversion_solicitudes (
   auth_contexto jsonb,
   hash_payload text not null check (hash_payload ~ '^[a-f0-9]{64}$'),
   datos jsonb not null check (jsonb_typeof(datos) = 'object'),
+  revision_datos integer not null default 0 check(revision_datos>=0),
   estado text not null default 'preparada' check (estado in ('preparada','confirmada','cancelada')),
   inversion_id uuid unique references crm.inversiones(id),
   resultado jsonb,
@@ -257,6 +258,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
     'identidad_fusionada',s.inversionista_id::text is distinct from p_contexto->>'inversionista_id',
     'responsable_esperado_id',s.responsable_esperado_id,'responsable_actual_id',p_contexto->>'responsable_id',
     'requiere_revision_responsable',s.estado='preparada' and s.responsable_esperado_id::text is distinct from p_contexto->>'responsable_id',
+    'revision_datos',s.revision_datos,'hash_datos',private.idem_hash(s.datos),
     'revision_responsable',coalesce((select max(r.revision) from crm.inversion_solicitud_revisiones r where r.solicitud_id=s.id),0),
     'resultado',case when s.resultado is not null then s.resultado||jsonb_build_object('inversionista_id',p_contexto->>'inversionista_id') end,
     'necesita_portal',e.requiere_portal and p_contexto->>'perfil_id' is null,
@@ -337,58 +339,7 @@ begin
     return private.inversion_solicitud_resultado(v_s.id,v_ctx);
   end if;
   v_ctx := private.inversion_persona_contexto(v_persona);
-  select * into v_e from crm.empresas where clave=p_datos->>'empresa' and activa for share;
-  if not found or v_e.clave not in ('avance','qorilazo','prodelco') then
-    raise exception 'Empresa no disponible para invertir' using errcode='22023';
-  end if;
-  if v_e.fuente_capital='cierres_externos' then
-    begin
-      v_monto := (p_datos->>'monto')::numeric;
-      v_fecha := (p_datos->>'fecha_comercial')::date;
-      v_vence := (p_datos->>'vence_en')::date;
-    exception when invalid_text_representation or invalid_datetime_format or datetime_field_overflow then
-      raise exception 'Revisa el monto y las fechas de la inversión' using errcode='22023';
-    end;
-    if v_monto is null or v_monto in ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
-       or v_monto<=0 or v_monto>999999999999.99 or v_monto<>trunc(v_monto,2) then
-      raise exception 'El monto debe ser positivo y tener como máximo dos decimales' using errcode='22023';
-    end if;
-    if p_datos->>'moneda' is distinct from 'PEN' or not ('PEN'=any(v_e.monedas)) then
-      raise exception 'Esta cooperativa registra inversiones en soles' using errcode='22023';
-    end if;
-    if v_fecha is null or not isfinite(v_fecha) or v_fecha>(statement_timestamp() at time zone 'America/Lima')::date
-       or v_vence is null or not isfinite(v_vence) or v_vence<=v_fecha then
-      raise exception 'La fecha comercial no puede ser futura y el vencimiento debe ser posterior' using errcode='22023';
-    end if;
-    if length(btrim(coalesce(p_datos->>'numero_transaccion',''))) not between 1 and 64
-       or length(btrim(coalesce(p_datos->>'referencia',''))) not between 1 and 64 then
-      raise exception 'El depósito y la referencia son obligatorios, con un máximo de 64 caracteres' using errcode='22023';
-    end if;
-    v_ruta := p_datos#>>'{evidencia,ruta}';
-    if v_ruta is null or v_ruta !~ ('^'||v_persona::text||'/'||p_clave::text||'/[a-zA-Z0-9_-]+\.(pdf|jpg|jpeg|png)$') then
-      raise exception 'El comprobante debe pertenecer a esta persona y solicitud' using errcode='22023';
-    end if;
-  else
-    if jsonb_typeof(p_datos->'contrato') is distinct from 'object'
-       or jsonb_typeof(p_datos->'cronograma') is distinct from 'array'
-       or jsonb_typeof(p_datos->'cuenta') is distinct from 'object' then
-      raise exception 'Avance requiere contrato, cronograma y cuenta de pago' using errcode='22023';
-    end if;
-    if p_datos#>>'{contrato,moneda}' is null or not (p_datos#>>'{contrato,moneda}'=any(v_e.monedas)) then
-      raise exception 'Moneda no admitida por Avance' using errcode='22023';
-    end if;
-    if p_datos#>>'{contrato,cliente_id}' is not null
-       and p_datos#>>'{contrato,cliente_id}' is distinct from v_ctx->>'perfil_id' then
-      raise exception 'El contrato debe pertenecer a esta persona' using errcode='P0409';
-    end if;
-    if v_ctx->>'perfil_id' is null or p_datos ? 'alta_portal' then
-      perform private.inversion_datos_portal(p_datos->'alta_portal');
-    end if;
-    if p_datos#>>'{contrato,analista_cierre_id}' is not null
-       and p_datos#>>'{contrato,analista_cierre_id}' is distinct from v_ctx->>'responsable_id' then
-      raise exception 'El analista debe corresponder al responsable de la persona al preparar la inversión' using errcode='P0409';
-    end if;
-  end if;
+  v_e.id:=private.inversion_validar_datos(p_clave,p_datos,v_ctx);
   insert into crm.inversion_solicitudes(id,inversionista_id,empresa_id,responsable_esperado_id,hash_payload,datos,creado_por)
   values(p_clave,v_persona,v_e.id,(v_ctx->>'responsable_id')::uuid,v_hash,p_datos,(select auth.uid()));
   return private.inversion_solicitud_resultado(p_clave,v_ctx);
@@ -424,7 +375,7 @@ create policy f4_comprobante_insert on storage.objects for insert to authenticat
 create or replace function private.f4_fuente_inmutable()
 returns trigger language plpgsql security definer set search_path='' as $$
 begin
-  if tg_table_name in ('inversion_ajustes_mes_cerrado','inversion_eventos','inversion_solicitud_revisiones') then
+  if tg_table_name in ('inversion_ajustes_mes_cerrado','inversion_eventos','inversion_solicitud_revisiones','inversion_solicitud_correcciones') then
     raise exception 'El historial de una inversión no se modifica ni se elimina' using errcode='P0409';
   end if;
   if new.es_cierre_inicial is distinct from old.es_cierre_inicial

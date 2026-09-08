@@ -1,0 +1,14 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-08T16:40:55.405Z",
+  "produccionModificada": false,
+  "funcionesPreviasComprobadas": 43,
+  "reemplazadas": [
+    "private.inversion_solicitud_resultado",
+    "crm.preparar_inversion_fn",
+    "private.f4_fuente_inmutable",
+    "crm.confirmar_inversion_fn"
+  ],
+  "sha256Modulo": "b672dd7e65e0a4337620a7abbaf7e73c18e14f05aaef9851bd8cbd839f4a4fe1",
+  "sha256Candidata": "3fb44f07cc4f32475e9b47d0410841aea018bb8aad56244e7f18cfa83791ec45"
+}

@@ -1,0 +1,58 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_multirrol_eb22ab7b6cde",
+  "terminadoEn": "2026-09-08T16:50:19.541Z",
+  "pruebas": [
+    {
+      "nombre": "Cambio real de rol Portal a comercial conserva membresía CRM explícita",
+      "conforme": true
+    },
+    {
+      "nombre": "Par Portal comercial/CRM vendedor no extiende el ámbito a otro equipo",
+      "conforme": true
+    },
+    {
+      "nombre": "Baja revoca también al actor multirrol; el rol Portal no mantiene escritura ni replay",
+      "conforme": true
+    },
+    {
+      "nombre": "Suspensión Portal retira permiso CRM efectivo sin reescribir membresía",
+      "conforme": true
+    },
+    {
+      "nombre": "Gerencia CRM activa funciona con su rol Portal admin separado",
+      "conforme": true
+    },
+    {
+      "nombre": "Superadmin Portal sin membresía comercial no recibe escritura F4",
+      "conforme": true
+    },
+    {
+      "nombre": "Cambio real a coordinador se impide con jerarquía comercial todavía activa",
+      "conforme": true
+    },
+    {
+      "nombre": "Tras baja, traslado y ajuste de jerarquía, el coordinador no recupera escritura",
+      "conforme": true
+    },
+    {
+      "nombre": "Invariantes impiden combinar Directorio Portal con vendedor CRM activo",
+      "conforme": true
+    },
+    {
+      "nombre": "Cliente y vendedor en la misma cuenta sigue siendo un par no declarado",
+      "conforme": true
+    },
+    {
+      "nombre": "Cliente sin membresía no puede autoasignarse rol comercial",
+      "conforme": true
+    },
+    {
+      "nombre": "Los ensayos con rollback conservan perfiles, equipo, atribución y fuentes",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "40a8d26bc6e719312772c2311e726b735d9e726b3365643ee2e6e4e07ccffeb6",
+  "limite": "Fixture Superadmin sintética sin login ni contraseña; cambios de perfil por UPDATE autorizado, rol y baja mediante RPC reales bajo claims SQL. Todos los casos revierten su transacción."
+}

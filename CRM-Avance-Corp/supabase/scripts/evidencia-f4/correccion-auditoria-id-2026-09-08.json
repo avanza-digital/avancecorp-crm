@@ -1,0 +1,10 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "fecha": "2026-09-08T16:45:00.318Z",
+  "tablaVaciaAntes": true,
+  "claveRenombradaAId": true,
+  "motivo": "El auditor general identifica fila_id mediante la columna id.",
+  "funcion": "crm.corregir_solicitud_inversion_fn",
+  "md5Anterior": "975d71bd0b8931371f2bd2d37add211a",
+  "produccionModificada": false
+}

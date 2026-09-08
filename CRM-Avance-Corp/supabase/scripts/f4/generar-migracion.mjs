@@ -114,12 +114,20 @@ for (const nombre of ['public.crear_contrato','crm.crear_contrato_con_cuenta','c
   cambiar(nombre,s=>{
     const i=s.indexOf('\nbegin\n');
     assert(i>=0,`Falta el BEGIN exterior de ${nombre}`);
-    return s.slice(0,i)+s.slice(i).replace('\nbegin\n',
+    s=s.slice(0,i)+s.slice(i).replace('\nbegin\n',
       '\nbegin\n  perform private.inversiones_escritura_bajo_candado(); -- F4: bandera antes de persona/cuenta/PDF\n');
+    if (nombre==='crm.crear_contrato_con_cuenta_pdf_v2') s=reemplazar(s,
+      '  v_pdf := private.crear_job_contrato_pdf_base(v_contrato_id, v_actor_id);',
+      `  v_pdf := private.crear_job_contrato_pdf_base(v_contrato_id, v_actor_id);
+  if private.inversiones_escritura_bajo_candado() then
+    perform private.inversion_cotitulares_vincular(
+      (select id from crm.inversiones where contrato_id=v_contrato_id),'alta');
+  end if;`);
+    return s;
   });
 }
 
-const mods=['01-base.sql','02-confirmacion.sql','03-coherencia.sql','04-avance.sql','05-acceso-portal.sql','06-revision-responsable.sql','07-historicos.sql','08-historicos-lote.sql','09-cotitular-puerta.sql'];
+const mods=['01-base.sql','02-confirmacion.sql','03-coherencia.sql','04-avance.sql','05-acceso-portal.sql','06-revision-responsable.sql','07-historicos.sql','08-historicos-lote.sql','09-cotitular-puerta.sql','10-cotitulares-neutrales.sql','11-correccion-solicitud.sql'];
 const cuerpos=mods.map(n=>readFileSync(new URL(n,import.meta.url),'utf8'));
 const firmasNuevas=[
   'private.inversiones_escritura_bajo_candado()', 'private.inversion_persona_contexto(uuid)',
@@ -133,13 +141,18 @@ const firmasNuevas=[
   'private.f4_alineacion_perfil_permitida(uuid,uuid)','crm.revisar_solicitud_inversion_fn(uuid,uuid,integer,text)',
   'private.inversion_historica_estado(text,uuid)','private.inversion_historica_aplicar(uuid,jsonb)',
   'private.f4_proteger_lote_historico()',
+  'private.inversion_validar_datos(uuid,jsonb,jsonb)', 'crm.solicitud_inversion_fn(uuid)',
+  'crm.corregir_solicitud_inversion_fn(uuid,uuid,integer,jsonb,text)', 'crm.confirmar_inversion_revisada_fn(uuid,integer)',
+  'private.f4_proteger_origen_cotitular()', 'private.inversion_cotitular_estado(uuid)',
+  'private.inversion_cotitulares_vincular(uuid,text)', 'crm.inversion_cotitulares_fn(uuid)',
+  'crm.conciliar_cotitulares_inversion_fn(uuid)', 'private.inversion_cotitulares_historicos(uuid)',
 ];
 const literal=s=>`'${s.replaceAll("'","''")}'`;
 const guardas=originales.map(f=>`  if md5(pg_get_functiondef(${literal(f.firma)}::regprocedure)) is distinct from ${literal(f.md5)} then
     raise exception 'F4: cambió la función %; recapturar y revisar antes de aplicar',${literal(f.firma)};
   end if;`).join('\n');
 const propietarios=firmasNuevas.map(f=>`alter function ${f} owner to postgres;`).join('\n')+
-  '\n'+['inversion_solicitudes','inversion_ajustes_mes_cerrado','inversion_eventos','inversion_solicitud_revisiones','inversion_backfill_lotes']
+  '\n'+['inversion_solicitudes','inversion_ajustes_mes_cerrado','inversion_eventos','inversion_solicitud_revisiones','inversion_backfill_lotes','inversion_cotitular_origenes','inversion_solicitud_correcciones']
     .map(t=>`alter table crm.${t} owner to postgres;`).join('\n');
 const salida=resolve(process.argv[2]??'');
 const raizMigraciones=fileURLToPath(new URL('../../migrations/',import.meta.url));

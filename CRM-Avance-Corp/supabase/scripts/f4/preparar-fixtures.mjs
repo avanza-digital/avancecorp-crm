@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
+import {paresAutoridadSql} from './configuracion-publicada.mjs';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { banco, sql, literal as q, usuarioAuth, guardar, leer, sesion, rpc } from './banco-local.mjs';
+
+// Configuración publicada que no viaja en un volcado de sólo esquema.
+sql(paresAutoridadSql);
 
 // No borra nada ni desactiva triggers/RLS. La primera ejecución exige base vacía;
 // una ejecución posterior solo reutiliza la semilla de este mismo banco.

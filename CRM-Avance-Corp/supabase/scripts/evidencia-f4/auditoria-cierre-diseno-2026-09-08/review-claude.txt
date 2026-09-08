@@ -1,0 +1,459 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Both contracts are directionally sound — neutral provenance as a separate immutable table, and payload correction as append-only revisions with an optimistic version — but each has at least one concrete defect that is visible in the attached evidence, not a stylistic preference. For (A), the proposed call site cannot satisfy the proposed schema: `inversion_id` does not exist yet at line 124 of `crm.crear_contrato_con_cuenta_pdf_v2`, and that call site is silently skipped on the writer's idempotent replay branch. For (B), the correction contract collides with two existing confirm-time invariants: `analista_cierre_id` is validated at confirm against the *initial* responsible (02-confirmacion.sql:162-172) while `preparar` validates against the *current* one (01-base.sql:387-389), and a legacy `confirmar_inversion_fn(uuid)` wrapper hard-coding expected revision 0 breaks the already-confirmed retry path (02-confirmacion.sql:97-107) for any corrected solicitud. Also, the RESTRICT FK plus immutability trigger makes the existing authorized contract-deletion path (`private.proteger_titulares_documentales` lines 6-10) unexecutable.
+
+FINDINGS:
+
+---
+
+[P1] Proposed link call site cannot supply `inversion_id`, and is skipped on idempotent replay
+
+File:
+CRM-Avance-Corp/.../02-confirmacion.sql; FUNCTION crm.crear_contrato_con_cuenta_pdf_v2
+
+Lines:
+crear_contrato_con_cuenta_pdf_v2:124-130; 02-confirmacion.sql:186-201
+
+Problem:
+The proposal places the private link helper "after `private.crear_job_contrato_pdf_base`" inside `crm.crear_contrato_con_cuenta_pdf_v2`. At that point the investment row does not exist: `private.inversion_vincular_fuente(...)` is only called at 02-confirmacion.sql:201, after the contract writer returns. A NOT NULL `inversion_id` FK on `crm.inversion_cotitular_origenes` is therefore unsatisfiable at the proposed insertion point.
+
+Evidence:
+`crear_contrato_con_cuenta_pdf_v2:124` — `v_pdf := private.crear_job_contrato_pdf_base(v_contrato_id, v_actor_id);` returns at line 131/132.
+`02-confirmacion.sql:194` — `v_contrato := (v_fuente->>'id')::uuid;`
+`02-confirmacion.sql:201` — `v_inversion := private.inversion_vincular_fuente(v_persona,v_contrato,v_cierre,v_uid,false);`
+Additionally, `crear_contrato_con_cuenta_pdf_v2:18-24` documents an idempotent replay ("si este actor ya registró un alta con esa clave, se devuelve el MISMO contrato en vez de crear otro"), and lines 126-130 only insert the idempotency row on the fresh path. Any helper at line 124 is unreachable on the replay branch (lines 20-109, elided).
+
+Impact:
+Either the schema must be weakened (nullable `inversion_id`, losing the relational anchor), or provenance is written in a state where the investment is not yet linked. Separately, coupling an F4-only concern to the shared contract writer means every non-F4 caller of `crear_contrato_con_cuenta_pdf_v2` also pays for it.
+
+Recommendation:
+Call the link helper from `crm.confirmar_inversion_fn` between lines 201 and 206 (after `v_inversion` exists, before the `inversion_eventos` insert), not inside the shared writer. Same transaction, same frozen sources, `v_contrato` and `v_inversion` both available, and it runs regardless of the contract writer's replay branch. Also state explicitly whether the `cierres_externos` branch (02-confirmacion.sql:115+, which never calls the contract writer) is intentionally out of provenance scope — documentary cotitulares presumably only exist for Avance contracts, but that should be a written decision, not an accident of call-site choice.
+
+---
+
+[P1] `RESTRICT` FK + immutability trigger blocks the existing authorized contract-deletion path
+
+File:
+FUNCTION private.proteger_titulares_documentales; proposed crm.inversion_cotitular_origenes
+
+Lines:
+proteger_titulares_documentales:6-10, 14-31
+
+Problem:
+`unique contrato_titular_id FK public.contrato_titulares RESTRICT` combined with "UPDATE/DELETE prohibited by immutable trigger" makes the authorized deletion of `contrato_titulares` rows impossible once provenance exists.
+
+Evidence:
+```
+if tg_op = 'DELETE'
+   and current_setting('crm.contrato_pdf_eliminacion_autorizada', true)
+         = old.contrato_id::text then
+  return old;
+end if;
+```
+This is an existing, deliberate escape hatch: authorized contract/PDF deletion deletes `contrato_titulares` rows. `private.contrato_en_eliminacion(...)` is likewise consulted at 02-confirmacion.sql:101. A RESTRICT FK will abort that path with SQLSTATE 23503 before the domain logic is reached, and the immutability trigger prevents deleting the origin row first.
+
+Impact:
+Irrecoverable state: contracts with recorded cotitular provenance can no longer be deleted through the sanctioned administrative path, and the failure surfaces as a raw FK violation rather than the designed 55000 message.
+
+Recommendation:
+Decide explicitly and encode it: either (a) provenance is deleted together with the source under the same `crm.contrato_pdf_eliminacion_autorizada` GUC — which requires the immutability trigger to honour the identical escape hatch, and should be an explicit `delete` in the deletion routine rather than `ON DELETE CASCADE` so it is auditable; or (b) provenance outlives the source, in which case drop the FK and rely on the denormalized snapshot columns from [P1 identifier snapshot] below. Do not ship RESTRICT + unconditional immutability together.
+
+---
+
+[P1] Correction of `analista_cierre_id` creates a permanently unconfirmable solicitud
+
+File:
+01-base.sql; 02-confirmacion.sql
+
+Lines:
+01-base.sql:387-390; 02-confirmacion.sql:162-176
+
+Problem:
+The two existing validations of `contrato.analista_cierre_id` use different reference values. `preparar` compares against the *current* responsible; `confirmar` compares against the *initial* responsible reconstructed from the first review row. If the extracted `private.inversion_validar_datos` is reused verbatim by the correction RPC, a payload that passes correction can be rejected forever at confirm.
+
+Evidence:
+`01-base.sql:387-389`
+```
+if p_datos#>>'{contrato,analista_cierre_id}' is not null
+   and p_datos#>>'{contrato,analista_cierre_id}' is distinct from v_ctx->>'responsable_id' then
+```
+`02-confirmacion.sql:162-171`
+```
+select r.responsable_anterior_id into v_responsable_inicial
+  from crm.inversion_solicitud_revisiones r where r.solicitud_id=v_s.id order by r.revision limit 1;
+v_responsable_inicial:=coalesce(v_responsable_inicial,v_s.responsable_esperado_id);
+...
+   and v_payload_contrato->>'analista_cierre_id' is distinct from v_responsable_inicial::text then
+  raise exception 'El analista del contenido original no corresponde al responsable con que se preparó la inversión' using errcode='P0409';
+```
+After a responsible review, `v_ctx->>'responsable_id'` ≠ `v_responsable_inicial`, so the two checks disagree.
+
+Impact:
+A correction performed after a responsible review, writing the current responsible into the payload, produces a solicitud that fails P0409 at every confirm attempt and cannot be corrected back (correction is only allowed while `preparada`, so it *is* recoverable by a second correction — but only if the operator diagnoses the cross-check). Worse, the reverse error (correction validating against the initial responsible while `preparar` validates against the current) means the extracted validator is not a single function.
+
+Recommendation:
+Forbid changing `contrato.analista_cierre_id` and `contrato.cliente_id` in corrections entirely. Both are unconditionally overwritten at confirm anyway (02-confirmacion.sql:175-176: `jsonb_build_object('cliente_id',v_ctx->>'perfil_id','analista_cierre_id',v_ctx->>'responsable_id')`), so they carry no durable meaning that a correction could usefully change. If they must remain editable, the extracted validator needs an explicit mode parameter and the correction path must use the `v_responsable_inicial` expression from 02-confirmacion.sql:162-164.
+
+---
+
+[P1] Legacy `confirmar_inversion_fn(uuid)` wrapper with hard-coded revision 0 breaks confirmed-retry idempotency
+
+File:
+02-confirmacion.sql
+
+Lines:
+93-108, 209-211
+
+Problem:
+The proposal keeps `crm.confirmar_inversion_fn(uuid)` as a wrapper passing expected revision 0, and states "confirmed replay must match revision". The existing function's confirmed-replay branch is a pure read that returns the stored result; gating it on a version check converts a successful retry into a hard error.
+
+Evidence:
+```
+if v_s.estado='confirmada' then
+  v_res:=v_s.resultado;
+  ...
+  return v_res||jsonb_build_object('inversionista_id',v_persona,'reintento',true);
+end if;
+```
+(02-confirmacion.sql:97-107). Sequence: prepare → correct (revision_datos=1) → confirm via new RPC with expected 1 (commits, `estado='confirmada'` at line 209) → client network retry through the unchanged legacy wrapper → wrapper passes 0 → 40001 on an operation that already succeeded.
+
+Impact:
+Loss of idempotent retry precisely for corrected investments — the case where the client is most likely to be uncertain about outcome. The stated goal "unedited callers/tests work as before" does not hold for corrected solicitudes.
+
+Recommendation:
+Place the expected-revision check strictly **after** the `estado='confirmada'` branch and after the `estado<>'preparada'` check at line 108, so it guards only the state transition and never the replay. Since corrections are only legal while `preparada`, revision_datos is frozen at confirm time and the replay needs no version at all. Additionally, do not name the new parameter `p_revision_esperada`: that name already means "responsible review number" in `crm.revisar_solicitud_inversion_fn` (06-revision-responsable.sql:31) and both counters start at 0, so a client passing the wrong one will be accepted silently. Use `p_revision_datos_esperada` / column `revision_datos`, or expose a single opaque etag combining both counters.
+
+---
+
+[P1] Correction RPC authorization is weaker than the operation's power
+
+File:
+01-base.sql; 02-confirmacion.sql; 06-revision-responsable.sql
+
+Lines:
+01-base.sql:326, 397-398; 02-confirmacion.sql:85-87, 214-215; 06-revision-responsable.sql:142-143
+
+Problem:
+The proposal specifies "authorize current canonical investor first" for `corregir_solicitud_inversion_fn` but does not mention the contract-management capability that `confirmar` requires. Rewriting monto, tasa, cronograma, cuenta and cotitulares of a pending investment is materially closer to confirming than to preparing.
+
+Evidence:
+`02-confirmacion.sql:85-87`
+```
+if v_uid is null or not private.puede_gestionar_contratos_crm() then
+  raise exception 'No autorizado para registrar inversiones' using errcode='42501';
+end if;
+```
+`preparar_inversion_fn` has no such gate (01-base.sql:326 only calls `private.inversion_persona_autorizada`) and is granted to `authenticated` (01-base.sql:398).
+
+Impact:
+If corrections inherit only the `preparar` gate, any principal that can prepare a request for a person can also rewrite that request's financial terms. That is a trust widening that the current design does not have, because today the only way to change terms is to abandon the key and start a new one under a fresh clave.
+
+Recommendation:
+Require `private.puede_gestionar_contratos_crm()` (or a stricter, correction-specific capability) in addition to `private.inversion_persona_autorizada`, and follow the established grant pattern: `revoke all ... from public,anon,authenticated,service_role; grant execute ... to authenticated`.
+
+---
+
+[P1] Correcting `evidencia.ruta` orphans an undeletable storage object and can render the solicitud unconfirmable
+
+File:
+01-base.sql
+
+Lines:
+367-370, 400-422
+
+Problem:
+The enumerated editable set ("financial terms/cotitulares/cuenta/cronograma") is silent about `evidencia`, `numero_transaccion` and `referencia` — the fields most likely to need correction on the `cierres_externos` branch. If `evidencia.ruta` is editable, the previously uploaded object becomes unreachable and unremovable.
+
+Evidence:
+`01-base.sql:411` — `and v_s.datos#>>'{evidencia,ruta}'=p_ruta` is the sole storage INSERT authorization.
+`01-base.sql:422` — `-- No UPDATE ni DELETE: el comprobante confirmado conserva sus bytes y su referencia.` No DELETE policy exists on the bucket for `authenticated`.
+`01-base.sql:368` — the path regex binds persona and `p_clave`.
+
+Impact:
+Orphaned private objects that no non-superuser can delete, plus a confirm-time failure if the client corrects the ruta without re-uploading. Conversely, if `evidencia` is *not* editable, a wrong deposit number can never be fixed — the proposal should say which.
+
+Recommendation:
+Make the decision explicit. Recommended: forbid changing `evidencia` in corrections; allow `numero_transaccion` and `referencia`. If `evidencia` must be editable, require the new object to already exist in `storage.objects` under this persona/solicitud prefix at correction time, and record the superseded path in the correction row for administrative cleanup.
+
+---
+
+[P1] Provenance FK to `crm.inversionista_identificadores` may not survive F3 identifier re-issue (hypothesis — evidence gap)
+
+File:
+FUNCTION crm.fusionar_inversionistas_fn
+
+Lines:
+33, 42-47, 180
+
+Problem:
+`identificador_origen_id` is proposed as a plain FK. The fusion function reports `'identificadores_reemitidos', v_n_ident` — "re-issued". If re-issue means insert-new + delete-old rather than an in-place `UPDATE ... set inversionista_id`, the FK either blocks fusion or the reference is redirected in a way that no longer proves which identifier matched at link time. The body computing `v_n_ident` (fusion lines ~60-155) is not in the attached evidence, so this is a hypothesis, not a fact.
+
+Evidence:
+`fusionar_inversionistas_fn:180` — `'identificadores_reemitidos', v_n_ident`.
+`fusionar_inversionistas_fn:42-47` filters `d.estado = 'vigente'` and re-checks the document set under 40001, showing identifier rows carry a mutable `estado`.
+
+Impact:
+Best case, the FK survives but provenance silently changes meaning after fusion (the identifier is now owned by the canonical person, and its `estado` may have moved off `vigente`). Worst case, fusion aborts on FK violation for any merged person who was ever recorded as a cotitular — a hard block on an already-production F3 operation.
+
+Recommendation:
+Regardless of which it is, store immutable snapshot columns alongside the FK: `tipo_documento`, `documento_normalizado` as matched, and the identifier `estado` at link time. Provenance should be readable and defensible without joining to mutable identity tables. Then the FK can be `NO ACTION` and purely advisory. Please confirm the `v_n_ident` semantics before finalizing.
+
+---
+
+[P2] `NOWAIT` lock failure must not abort the financial confirmation
+
+File:
+02-confirmacion.sql; FUNCTION crm.fusionar_inversionistas_fn
+
+Lines:
+02-confirmacion.sql:61 (`set lock_timeout='5s'`), 93, 113, 186-201; fusion:28-60
+
+Problem:
+The proposal takes a non-blocking advisory lock plus `FOR UPDATE NOWAIT` on cotitular persons late in the confirm transaction. Fusion acquires person locks early (line 35) and inversion/titular locks late (56-60); confirm acquires solicitud first (93) and person locks last. That is an inverted order. `NOWAIT` converts the deadlock into 55P03 — which, uncaught, aborts the entire confirmation including the contract and PDF job created at line 186.
+
+Evidence:
+`fusion:35` — `for v_row in select * from crm.inversionistas where id in (p_perdedora, p_canonica) order by id for update`
+`fusion:56-60` — inversiones then titulares `for update`
+`02-confirmacion.sql:93` — `select * into v_s from crm.inversion_solicitudes where id=p_solicitud for update;`
+
+Impact:
+A concurrent Gerencia fusion touching a cotitular's identity can fail an otherwise valid investment confirmation, with the operator seeing an opaque lock error on a financial write.
+
+Recommendation:
+Make the linkage best-effort and non-fatal: wrap it in a subtransaction and, on `lock_not_available` (and `deadlock_detected`), leave the cotitular `pendiente` for the administrative recover helper. This is consistent with the stated conservative default and with the invariant that provenance never blocks recording an otherwise valid contract. The codebase already uses this exact pattern (02-confirmacion.sql:185-192; 01-base.sql:322-325, 345-351; f4_comprobante_autorizado:412).
+
+---
+
+[P2] Attaching `private.f4_fuente_inmutable` to new tables may be a silent no-op
+
+File:
+01-base.sql
+
+Lines:
+424-427
+
+Problem:
+The immutability trigger function branches on a hard-coded table-name list. New tables (`crm.inversion_cotitular_origenes`, `crm.inversion_solicitud_correcciones`) will not match it.
+
+Evidence:
+```
+create or replace function private.f4_fuente_inmutable()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  if tg_table_name in ('inversion_ajustes_mes_cerrado','inversion_eventos','inversion_solicitud_revisiones') then
+```
+
+Impact:
+The migration attaches a trigger, tests pass because nobody tries to UPDATE the new tables, and immutability is not actually enforced. This is exactly the class of gap that a "no UPDATE/DELETE" claim in a design document will not catch.
+
+Recommendation:
+Either add both new table names to the list, or restructure so the default branch denies rather than permits. Add a test that a direct `update`/`delete` as `postgres` on each new table raises.
+
+---
+
+[P2] Changing `private.inversion_solicitud_resultado` alters the response shape of three existing RPCs
+
+File:
+01-base.sql; 02-confirmacion.sql; 06-revision-responsable.sql
+
+Lines:
+01-base.sql:337, 394; 06-revision-responsable.sql:139
+
+Problem:
+Exposing "computed current hash + revision_datos" via `private.inversion_solicitud_resultado` changes the payload returned by `preparar_inversion_fn` (both the replay branch at 337 and the fresh branch at 394) and by `revisar_solicitud_inversion_fn` (139), not only by the new correction RPC.
+
+Evidence:
+`01-base.sql:337` — `return private.inversion_solicitud_resultado(v_s.id,v_ctx);`
+`06-revision-responsable.sql:139` — `return private.inversion_solicitud_resultado(v_s.id,v_ctx)||jsonb_build_object('reintento',false);`
+
+Impact:
+Any existing test asserting exact JSON equality on these returns will break; any client doing strict schema validation will reject. Additive fields are usually safe, but this needs to be a stated, tested decision.
+
+Recommendation:
+Add the fields (additive is right — clients need the version to confirm safely) and grep the F4 test suite for exact-shape assertions on all three RPCs before declaring done.
+
+---
+
+[P2] Correction replay must be resolved before the expected-revision check
+
+File:
+proposed crm.corregir_solicitud_inversion_fn; 01-base.sql
+
+Lines:
+01-base.sql:328-338 (pattern)
+
+Problem:
+With `unique(solicitud, revision)` and an expected-revision precondition, a genuine replay of an already-applied correction carries `p_revision_esperada = N` while current revision is `N+1`. If the version check runs first, the retry returns 40001 instead of the receipt.
+
+Evidence:
+The existing creation path resolves the replay first and only then proceeds: `01-base.sql:329-338` selects `for update` and returns the stored result before any further validation. It also serializes same-key racers with `pg_advisory_xact_lock(hashtextextended('f4_solicitud:'||p_clave::text,0))` at line 328.
+
+Impact:
+Non-idempotent correction RPC under retry — the failure mode the correction key exists to prevent.
+
+Recommendation:
+Order: advisory lock on a distinct namespace (`'f4_correccion:'||p_clave_correccion`) → look up the correction key → if found, compare the full argument tuple (`p_solicitud`, `p_revision_esperada`, `p_datos` hash, `p_motivo`) and return the receipt or raise conflict → only if not found, apply the expected-revision precondition. Include `p_motivo` in the replay comparison, otherwise a retry with a different motivo silently returns the old receipt.
+
+---
+
+[P2] `source_sha256` is a low-entropy digest of a document number
+
+File:
+proposed crm.inversion_cotitular_origenes
+
+Problem:
+The source rows contain (name, type, document). An unsalted SHA-256 over that tuple is trivially brute-forceable — a national ID is 8 digits — so if the digest is ever exposed to staff reads or audit output, it becomes a confirmation oracle for "is person X a cotitular of investment Y".
+
+Evidence:
+Design statement: sources store name, type, document; the proposal exposes "private read returns masked IDs/states" and mentions "audited redacted fields", implying selective exposure.
+
+Impact:
+Defeats the masking on the same table.
+
+Recommendation:
+Keep `source_sha256` strictly private-only (never in audit output, never in any staff-facing read), or derive it with a server-side pepper. Given it exists only to detect source drift, private-only is sufficient and simpler.
+
+---
+
+[P2] Source-drift guard must not inherit the documentary escape hatch, and must respect the no-op short-circuit
+
+File:
+FUNCTION private.proteger_titulares_documentales
+
+Lines:
+11, 14-31
+
+Problem:
+The proposed `BEFORE UPDATE` guard comparing the stored sha coexists with an existing guard that *can* be bypassed by `private.mutacion_documental_autorizada(...)`. If the new guard uses the same escape hatch, an authorized documentary mutation can leave provenance asserting a source content that no longer exists.
+
+Evidence:
+```
+if tg_op = 'UPDATE' and new is not distinct from old then return new; end if;
+...
+and not private.mutacion_documental_autorizada(v_anterior)
+```
+
+Impact:
+"Immutable evidence" that silently stops matching its subject — the failure is invisible until an audit compares them.
+
+Recommendation:
+For rows with an existing origen, hard-block UPDATE of the identity-bearing columns unconditionally (no `mutacion_documental_autorizada` bypass), and require an explicit administrative "annul origen + relink" path instead. Adopt the same `new is not distinct from old` short-circuit at line 11 so no-op updates do not raise, but do not extend that leniency to any real column change. Note that BEFORE triggers on the same event fire in name order — since both raise, ordering is cosmetic, but pick a name that makes the sequence obvious in `\d`.
+
+---
+
+[P3] Provenance reads must canonicalize `persona_origen_id`
+
+File:
+06-revision-responsable.sql; FUNCTION crm.fusionar_inversionistas_fn
+
+Lines:
+06-revision-responsable.sql:9; fusion:41
+
+Problem:
+After a later fusion, the stored `persona_origen_id` is the losing identity. A raw join to `crm.inversionistas` will display a stale identity in any staff read.
+
+Evidence:
+`06-revision-responsable.sql:9` — `join crm.inversionistas i on i.id=private.inversionista_canonica(s.inversionista_id)` is the established idiom.
+`fusion:41` — `where i.inversionista_canonico_id = p_perdedora` confirms losers persist as rows pointing at the canonical, so the FK is safe but the value is not current.
+
+Recommendation:
+Route every read (private reader, admin recover helper, any future staff view) through `private.inversionista_canonica`. Keep the raw id stored — it is the historical evidence — but never surface it unresolved.
+
+---
+
+[P3] `linked_actor NULL` conflates "administrative" with "missing"
+
+File:
+proposed crm.inversion_cotitular_origenes
+
+Recommendation:
+Add a NOT NULL `origen_registro` discriminator (`'confirmacion'` | `'recuperacion_admin'`) so the null actor is explained by data rather than convention, and audits can distinguish an admin-recovered link from a row written before the column existed.
+
+---
+
+[P3] Decide `no_contactar` and `estado` semantics for cotitular matching deliberately
+
+File:
+06-revision-responsable.sql; FUNCTION crm.fusionar_inversionistas_fn
+
+Lines:
+06-revision-responsable.sql:15; fusion:44
+
+Problem:
+The proposal says "link only verified unambiguous active/canonical person" without stating the exact predicate.
+
+Evidence:
+`06-revision-responsable.sql:15` — `and i.estado='activo' and not i.no_contactar and i.responsable_relacion_id=p_responsable` (that predicate exists for a different purpose: profile alignment).
+`fusion:44` — identifier matching filters `d.estado = 'vigente'`.
+
+Recommendation:
+State the rule as: match on `estado='vigente'` identifiers with the same `tipo_documento` as the source row; canonicalize via `private.inversionista_canonica`; require cardinality exactly 1; require `i.estado='activo'`. Do **not** include `no_contactar` — it is a contact preference, not an identity-validity flag, and using it here would leave a legitimate cotitular permanently pending for an unrelated reason. Make that an explicit written decision either way.
+
+---
+
+TEST GAPS:
+
+- Provenance survives F3 fusion of the cotitular: link, fuse cotitular into a canonical identity, assert the origen row still exists, its `persona_origen_id` is unchanged, and the reader resolves to the canonical person. Same for fusion of the *principal*.
+- Authorized contract deletion with provenance present: exercise the `crm.contrato_pdf_eliminacion_autorizada` path end-to-end and assert the designed 55000/success, not 23503.
+- Direct `update` and `delete` as `postgres` on both new tables must raise (guards against the `f4_fuente_inmutable` hard-coded-list trap).
+- Idempotent confirm retry **after** a correction, through both the new RPC and the legacy `confirmar_inversion_fn(uuid)` wrapper: both must return `reintento=true` with the stored result, never 40001.
+- Correction replay: same `p_clave_correccion` + same arguments returns the receipt after the revision has advanced; differing arguments returns conflict; differing `p_motivo` alone returns conflict, not a stale receipt.
+- `preparar(clave, original_datos)` after a correction: must still return the stored state (no P0409) and must report the current hash and `revision_datos`, not the original.
+- Correction attempted in each non-`preparada` state (`confirmada`, `cancelada`) and with a stale `revision_datos` → rejected.
+- Correction attempted after `auth_claim_id` exists with an `alta_portal` change → rejected; without touching `alta_portal` → allowed.
+- Correction then confirm on the Avance branch, asserting the 02-confirmacion.sql:169-171 `analista_cierre_id` check still passes (this is the [P1] cross-check).
+- Concurrency: confirm-with-cotitular racing a Gerencia fusion of that cotitular — assert the confirmation commits and the cotitular is left pending, not that the confirmation aborts.
+- Two concurrent corrections on the same solicitud with different keys → exactly one applies, the other gets 40001 (not 23505).
+- Ambiguity: a document resolving to two canonical owners across current and historical identifier rows → stays pending, no origen row, contract still recorded.
+- Duplicate source rows with the same document → two origen rows, one membership pair, principal role preserved (per the stated contract).
+- Storage: assert no correction path can leave an object in `f4-comprobantes` that is unreferenced by `datos#>>'{evidencia,ruta}'`.
+- Authorization matrix for the correction RPC: `anon`, `authenticated` without `puede_gestionar_contratos_crm`, and a responsible for a different person — all rejected; plus `revoke`/`grant` assertions matching the pattern at 01-base.sql:397-398.
+
+ARCHITECTURE RISKS:
+
+- Placing F4 provenance inside `crm.crear_contrato_con_cuenta_pdf_v2` makes a general-purpose contract writer carry investment-domain semantics and inherits its idempotency replay branch. Confirm-side placement keeps the layering intact.
+- Two independent version counters (`inversion_solicitud_revisiones.revision` and `revision_datos`) with the same starting value and near-identical parameter names is a durable misuse hazard for every future caller.
+- Provenance that FKs into three mutable identity/contract tables while claiming immutability is fragile; snapshot columns make it self-contained and reduce coupling to F3.
+
+SECURITY RISKS:
+
+- Correction RPC granted at `preparar` authorization level would let a principal rewrite financial terms of a pending investment ([P1] above).
+- `source_sha256` as a document-confirmation oracle if ever exposed ([P2] above).
+- Confirm that the private admin recover helper's `current_user = postgres` check cannot be satisfied through a `security definer` chain; the codebase's `security definer` functions run as their owner, so a definer function owned by `postgres` will see `current_user = postgres` regardless of the caller. Prefer an explicit capability check plus `session_user`, or verify the helper is `security invoker`.
+
+REGRESSION RISKS:
+
+- Contract deletion path ([P1] RESTRICT FK).
+- Confirmed-retry idempotency for corrected solicitudes ([P1] wrapper).
+- Response shape of `preparar_inversion_fn` and `revisar_solicitud_inversion_fn` ([P2] `inversion_solicitud_resultado`).
+- Every existing caller of `crear_contrato_con_cuenta_pdf_v2` if the link helper lands there.
+- `crm.fusionar_inversionistas_fn`, already in production, if the identifier FK interacts badly with re-issue ([P1] hypothesis).
+
+DIRECT ANSWERS TO THE FOUR QUESTIONS:
+
+1. **Origin FK to the source, given frozen sources and F3 duplicate deletion.** Yes for `contrato_titular_id`, and you are right to refuse an FK to `crm.inversion_titulares` — fusion deletes duplicate membership rows at `fusion:161-174`. But `RESTRICT` is wrong given the authorized deletion hatch, and the identity FKs should be backed by snapshot columns.
+2. **Initial creation hash + separate revision as idempotency semantics.** Sufficient for *creation* (01-base.sql:329-338 stays intact and the original hash remains the key — good call). Insufficient for *confirmation* unless the version check sits after the confirmed-replay branch, and insufficient for *correction* unless key lookup precedes the version precondition.
+3. **Unsafe identity guessing.** The conservative pending default is correct and I would not weaken it. Tighten it into an explicit predicate (vigente + matching tipo_documento + canonicalize + cardinality 1 + estado activo) and decide `no_contactar` deliberately.
+4. **Irrecoverability / races.** Two: the RESTRICT + immutability combination blocking contract deletion, and `NOWAIT` aborting a financial confirmation because of a concurrent fusion. Both have concrete fixes above.
+
+RECOMMENDED NEXT ACTIONS:
+
+1. Move the cotitular link helper to `crm.confirmar_inversion_fn` between lines 201 and 206, and make it non-fatal on lock contention.
+2. Resolve the provenance-vs-deletion contract: drop RESTRICT, add snapshot columns (`tipo_documento`, `documento_normalizado`, identifier `estado` at link time), and decide whether provenance is deleted under `crm.contrato_pdf_eliminacion_autorizada` or outlives the contract.
+3. Freeze `contrato.analista_cierre_id` and `contrato.cliente_id` (and, unless you decide otherwise, `evidencia`) as non-correctable, so the extracted validator stays a single function.
+4. Place the expected-revision check after the confirmed-replay branch, rename the parameter to `p_revision_datos_esperada`, and order the correction RPC as advisory lock → key replay → version precondition.
+5. Add `private.puede_gestionar_contratos_crm()` to the correction RPC and add both new tables to `private.f4_fuente_inmutable`'s list.
+6. Retrieve the two evidence gaps below before the final review.
+
+EVIDENCE GAPS FOR THE COMPREHENSIVE REVIEW:
+
+- `crm.crear_contrato_con_cuenta_pdf_v2` lines 20-109 (the idempotent replay branch and `v_huella_previa` comparison).
+- `crm.fusionar_inversionistas_fn` lines 60-155 (how `v_n_ident` re-issues identifiers).
+- Bodies of `private.f4_fuente_inmutable` (beyond line 427), `private.inversion_solicitud_resultado`, `private.inversion_persona_autorizada`, `private.inversionista_canonica`, `private.idem_hash`, `private.mutacion_documental_autorizada`.
+- `06-revision-responsable.sql` lines 69-135 (the profile-alignment block).
+- DDL of `crm.inversion_solicitudes` and `public.contrato_titulares`, and the routine that sets `crm.contrato_pdf_eliminacion_autorizada`.
+
+CONFIDENCE:
+MEDIUM-HIGH. The four P1 findings tied to `crear_contrato_con_cuenta_pdf_v2:124` / `inversion_vincular_fuente:201`, `proteger_titulares_documentales:6-10`, `analista_cierre_id` at 01:387 vs 02:169, and the confirmed-replay branch at 02:97-107 are grounded in the attached lines and I hold them with high confidence. The `identificador_origen_id` finding is explicitly a hypothesis pending the elided fusion hunk. Assessments of RLS, the recover helper and the audit redaction are necessarily provisional since that code does not exist yet.

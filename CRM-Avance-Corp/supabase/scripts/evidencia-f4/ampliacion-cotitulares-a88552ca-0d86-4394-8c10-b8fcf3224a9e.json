@@ -1,0 +1,11 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-08T16:35:17.604Z",
+  "produccionModificada": false,
+  "funcionesPreviasComprobadas": 37,
+  "reemplazadas": [
+    "crm.crear_contrato_con_cuenta_pdf_v2"
+  ],
+  "sha256Modulo": "99749ef9e545c0b943dff457518bdb68516bbbf8320a7c6f028dbc6d943cfe73",
+  "sha256Candidata": "eb6504d921770b2cd18e8775dcf1804559f41fa5c55622805c31d80ba8165234"
+}

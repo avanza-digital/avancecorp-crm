@@ -15,7 +15,7 @@ for (const modulo of modulos) for (const f of funcionesDelSql(readFileSync(new U
 const originales = ['base-funciones.json', 'base-funciones-adicionales.json'].flatMap(n =>
   JSON.parse(readFileSync(new URL(n, import.meta.url), 'utf8')));
 const nuevas = funciones.filter(f => !originales.some(o => o.nombre === f.nombre));
-assert.equal(nuevas.length, 20);
+assert.equal(nuevas.length, 30);
 const vivas = JSON.parse(sql(`select jsonb_agg(jsonb_build_object('nombre',n.nspname||'.'||p.proname,
   'body',p.prosrc,'md5',md5(pg_get_functiondef(p.oid)),'owner',pg_get_userbyid(p.proowner),'securityDefiner',p.prosecdef,'config',p.proconfig,
   'anon',has_function_privilege('anon',p.oid,'EXECUTE'),
@@ -25,7 +25,7 @@ const vivas = JSON.parse(sql(`select jsonb_agg(jsonb_build_object('nombre',n.nsp
   where n.nspname||'.'||p.proname=any(array[${funciones.map(f => q(f.nombre)).join(',')}])`));
 assert.equal(vivas.length, funciones.length);
 const ejecutablesUsuario = new Set(['crm.preparar_inversion_fn', 'crm.confirmar_inversion_fn',
-  'crm.acceso_inversion_fn',
+  'crm.acceso_inversion_fn','crm.solicitud_inversion_fn','crm.corregir_solicitud_inversion_fn','crm.confirmar_inversion_revisada_fn','crm.inversion_cotitulares_fn','crm.conciliar_cotitulares_inversion_fn',
   'crm.revisar_solicitud_inversion_fn',
   'private.f4_comprobante_autorizado', 'private.f4_comprobante_visible']);
 for (const fn of funciones) {
@@ -35,14 +35,15 @@ for (const fn of funciones) {
   assert.equal(viva.owner, original?.owner ?? 'postgres');
   if (!original) {
     assert.equal(viva.securityDefiner, !['private.inversion_datos_portal','private.f4_alineacion_perfil_permitida',
-      'private.inversion_historica_estado','private.inversion_historica_aplicar','private.f4_proteger_lote_historico'].includes(fn.nombre));
+      'private.inversion_historica_estado','private.inversion_historica_aplicar','private.f4_proteger_lote_historico','private.inversion_cotitular_estado','private.inversion_validar_datos',
+      'private.inversion_cotitulares_vincular','private.inversion_cotitulares_historicos'].includes(fn.nombre));
     assert(viva.config.includes('search_path=""'), `search_path fijo ausente: ${fn.nombre}`);
     assert.equal(viva.anon, false);
     assert.equal(viva.service_role, false);
     assert.equal(viva.authenticated, ejecutablesUsuario.has(fn.nombre));
   }
 }
-for (const tabla of ['inversion_solicitudes', 'inversion_ajustes_mes_cerrado', 'inversion_eventos','inversion_solicitud_revisiones','inversion_backfill_lotes']) {
+for (const tabla of ['inversion_solicitudes', 'inversion_ajustes_mes_cerrado', 'inversion_eventos','inversion_solicitud_revisiones','inversion_backfill_lotes','inversion_cotitular_origenes','inversion_solicitud_correcciones']) {
   assert.equal(sql(`select relrowsecurity from pg_class where oid=${q(`crm.${tabla}`)}::regclass`), 't');
   for (const rol of ['anon', 'authenticated', 'service_role']) {
     assert.equal(sql(`select has_table_privilege(${q(rol)},${q(`crm.${tabla}`)},'SELECT,INSERT,UPDATE,DELETE')`), 'f');
@@ -64,7 +65,7 @@ const archivo = `estructura-${verificadoEn.replaceAll(':', '-')}.json`;
 writeFileSync(new URL(`../evidencia-f4/${archivo}`, import.meta.url), JSON.stringify({
   entorno: 'avancecorp-f4-bank', verificadoEn, funcionesComprobadas: funciones.length,
   funcionesNuevas: nuevas.length, cuerposIgualesACandidata: true, propietariosConservados: true,
-  rlsYGrantsDeLasCincoTablas: true, ejecutablesUsuario: [...ejecutablesUsuario],
+  rlsYGrantsTablasF4: true, ejecutablesUsuario: [...ejecutablesUsuario],
   fuenteYPrincipalCoherentes: true, cantidades,
   banderas: JSON.parse(sql('select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags')),
   auxiliarTitularesSinAccesoApi:true,
@@ -72,5 +73,5 @@ writeFileSync(new URL(`../evidencia-f4/${archivo}`, import.meta.url), JSON.strin
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'),
   limite: 'Comprobación estructural acotada: no sustituye las pruebas de comportamiento, los permisos dinámicos ni el gate G4.',
 }, null, 2) + '\n', { flag: 'wx' });
-console.log(`Estructura F4: ${funciones.length} cuerpos iguales a la candidata, ${nuevas.length} funciones nuevas con grants previstos y cinco tablas cerradas al acceso directo.`);
+console.log(`Estructura F4: ${funciones.length} cuerpos iguales a la candidata, ${nuevas.length} funciones nuevas con grants previstos y las tablas F4 cerradas al acceso directo.`);
 console.log(`Evidencia nueva, sin sobrescribir capturas anteriores: ${archivo}`);

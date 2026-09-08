@@ -212,3 +212,13 @@ el bloqueo PDF siguen funcionando. Candidata de nueve módulos y 37 funciones;
 solo cambió la ACL del auxiliar existente, no su cuerpo. Claude revisó y Codex
 evaluó/corrigió sus hallazgos; no es una aprobación integral de G4. Cotitularidad
 neutral y sus pendientes comerciales continúan en construcción.
+
+
+## Avance del cierre integral — 08/09/2026
+
+47 cuerpos, 30 funciones nuevas, 11 módulos y siete tablas F4 verificadas.
+Cotitularidad neutral: 15 grupos; corrección versionada: 20; permisos dinámicos:
+14; pares Portal/CRM y cambios de rol: 12. Evidencias UUID sin sobrescribir.
+Revisión de arquitectura evaluada; revisión integral final pendiente. Siguen
+pendientes corpus F2, inventario completo, matriz financiera, reconstrucción,
+restauración y tipos. G4 sigue abierto; esta sección no sustituye esas pruebas.

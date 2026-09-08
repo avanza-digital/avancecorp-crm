@@ -5,7 +5,13 @@ Continúa [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]] y
 El bloque de mantenimiento/escala quedó en `ccba953`, en la rama
 `codex/f4-cierre` del worktree `/private/tmp/avancecorp-f4-desarrollo`.
 
-## Estado y requisito previo
+## Estado actualizado — 08/09/2026
+
+La implementación y los 15 grupos SQL de cotitularidad ya están conformes en
+el banco aislado. Véase [[F4 multiempresa - cotitulares y correccion versionada (2026-09-08)]].
+El texto siguiente conserva el diagnóstico y diseño anteriores; G4 sigue abierto.
+
+## Diagnóstico anterior y requisito previo
 
 La cotitularidad neutral todavía no está implementada. El contrato y su snapshot
 conservan los cotitulares documentales; `crm.inversion_titulares` recibe únicamente

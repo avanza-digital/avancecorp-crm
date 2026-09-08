@@ -1,0 +1,90 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_correccion_datos_4bd7d8e26e44",
+  "terminadoEn": "2026-09-08T16:45:06.892Z",
+  "pruebas": [
+    {
+      "nombre": "Corrección cambia la misma solicitud, aumenta versión y conserva la huella inicial",
+      "conforme": true
+    },
+    {
+      "nombre": "Preparar original recupera los datos corregidos; misma clave con otros datos falla",
+      "conforme": true
+    },
+    {
+      "nombre": "Clave de corrección es idempotente y está ligada también al motivo",
+      "conforme": true
+    },
+    {
+      "nombre": "Edición obsoleta y confirmación antigua fallan antes de escribir fuentes",
+      "conforme": true
+    },
+    {
+      "nombre": "No se puede sustituir persona, empresa ni ruta del comprobante",
+      "conforme": true
+    },
+    {
+      "nombre": "Validador compartido rechaza importes, monedas, fechas y campos inválidos",
+      "conforme": true
+    },
+    {
+      "nombre": "No-op sin cambio no consume una revisión ni una clave",
+      "conforme": true
+    },
+    {
+      "nombre": "Confirmación revisada crea una única fuente con las condiciones corregidas",
+      "conforme": true
+    },
+    {
+      "nombre": "Confirmada conserva replay con versión antigua; nuevas correcciones se rechazan",
+      "conforme": true
+    },
+    {
+      "nombre": "Historial de correcciones es inmutable y la auditoría omite datos y motivos",
+      "conforme": true
+    },
+    {
+      "nombre": "Lectura y replay revalidan permisos actuales y no entregan datos a terceros",
+      "conforme": true
+    },
+    {
+      "nombre": "Segunda cooperativa confirma corrección con el mismo control de versión",
+      "conforme": true
+    },
+    {
+      "nombre": "Avance conserva cliente y analista originales en la corrección",
+      "conforme": true
+    },
+    {
+      "nombre": "Corrección Avance confirma capital, cronograma, cuenta y snapshot coherentes",
+      "conforme": true
+    },
+    {
+      "nombre": "Se puede corregir alta Portal antes de reservarla",
+      "conforme": true
+    },
+    {
+      "nombre": "Claim real congela datos Auth; corrección económica conserva token, versión y contexto",
+      "conforme": true
+    },
+    {
+      "nombre": "Cambio de responsable exige revisión explícita antes de corregir condiciones",
+      "conforme": true
+    },
+    {
+      "nombre": "Dos correcciones simultáneas sólo aceptan una revisión",
+      "conforme": true
+    },
+    {
+      "nombre": "Corrección antes de confirmar rechaza pantalla desactualizada",
+      "conforme": true
+    },
+    {
+      "nombre": "Confirmación antes de corregir conserva fuente y rechaza edición tardía",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "ff40c3a30018ed629da35f8dd4b5da99202068bf220dc7023e14c821f94f3598",
+  "limite": "SQL con rol/claims sintéticos y metadatos Storage del ensayo. Preparación, corrección, reserva Auth, revisión y confirmación por RPC real; no envía correo ni procesa bytes PDF."
+}

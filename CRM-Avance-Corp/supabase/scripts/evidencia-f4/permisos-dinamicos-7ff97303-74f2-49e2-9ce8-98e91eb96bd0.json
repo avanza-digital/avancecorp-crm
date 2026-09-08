@@ -1,0 +1,70 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_permisos_dinamicos_7ff9730374f2",
+  "terminadoEn": "2026-09-08T16:22:55.009Z",
+  "pruebas": [
+    {
+      "nombre": "vendedor vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "supervisor vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "gerencia vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "ajeno: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "supervisor_ajeno: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "directorio: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "cliente: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "Una baja real revoca preparación y replay aunque conserve rol Portal analista",
+      "conforme": true
+    },
+    {
+      "nombre": "Reemplazo recibe la relación y el replay; nueva preparación exige datos propios",
+      "conforme": true
+    },
+    {
+      "nombre": "Baja sin reemplazo se rechaza y conserva personas e historia",
+      "conforme": true
+    },
+    {
+      "nombre": "Persona sin responsable: no se inventa uno para permitir la operación",
+      "conforme": true
+    },
+    {
+      "nombre": "Directorio conserva agregados globales sin recibir filas, documentos ni escritura F4",
+      "conforme": true
+    },
+    {
+      "nombre": "Cliente conserva su Portal y no recibe rol comercial por ser inversionista",
+      "conforme": true
+    },
+    {
+      "nombre": "Apagado F4 rechaza nueva escritura y reintento por igual",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "fuentesEconomicasYSellosSinCambios": true,
+  "sha256Oraculo": "a79695d17b3c5178c5ad61689c7e7f4881b093a39d744e1eaab75c2a9e18daa3",
+  "limites": [
+    "SQL con rol/claims sintéticos; baja y traslado mediante RPC real. No simula una sesión HTTP.",
+    "Los cambios de rol Portal/CRM y la matriz multirrol se cubren en su oráculo complementario."
+  ]
+}

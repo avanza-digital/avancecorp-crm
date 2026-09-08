@@ -396,3 +396,24 @@ exige F4 apagada y los 37 cuerpos de la candidata, toma candados y aplica el mó
 sin sustituir cuerpos. Una reconstrucción usa la candidata completa de nueve
 módulos. Las evidencias anteriores de ocho módulos siguen siendo históricas.
 Revisión y evaluación en `../evidencia-f4/auditoria-cotitular-puerta-2026-09-08/`.
+
+
+## Cotitulares y corrección versionada — 08/09/2026
+
+La candidata actual reúne 11 módulos, 17 puertas adaptadas y 30 funciones nuevas
+(47 cuerpos), con siete tablas cerradas al acceso directo. Los recuentos anteriores
+son historial. G4 continúa abierto hasta reconstrucción y gates integrales.
+
+```sh
+node CRM-Avance-Corp/supabase/scripts/f4/probar-cotitulares-neutrales.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-correccion-solicitud.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-permisos-dinamicos.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-multirrol.mjs
+```
+
+15, 20, 14 y 12 grupos conformes respectivamente; copias SQL independientes del
+banco original, con sus límites de Auth/Storage declarados en cada evidencia.
+La semilla `configuracion-publicada.mjs` recupera los nueve pares Portal/CRM de
+la migración publicada que el volcado schema-only no incluye.
+`instalar-ampliacion-local.mjs` se usó para iterar el banco existente con sus
+copias privadas anteriores; una instalación nueva usa la candidata completa.

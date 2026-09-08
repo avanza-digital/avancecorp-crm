@@ -57,7 +57,7 @@ $$;
 revoke all on function private.inversion_vincular_fuente(uuid,uuid,uuid,uuid,boolean)
   from public,anon,authenticated,service_role;
 
-create or replace function crm.confirmar_inversion_fn(p_solicitud uuid)
+create or replace function crm.confirmar_inversion_revisada_fn(p_solicitud uuid,p_revision_datos_esperada integer)
 returns jsonb language plpgsql security definer set search_path='' set lock_timeout='5s' as $$
 declare
   v_uid uuid := (select auth.uid());
@@ -106,6 +106,9 @@ begin
     return v_res||jsonb_build_object('inversionista_id',v_persona,'reintento',true);
   end if;
   if v_s.estado<>'preparada' then raise exception 'La solicitud está cancelada' using errcode='P0409'; end if;
+  if p_revision_datos_esperada is distinct from v_s.revision_datos then
+    raise exception 'Los datos cambiaron; revisa la versión vigente antes de confirmar' using errcode='40001';
+  end if;
   v_ctx := private.inversion_persona_contexto(v_persona);
   if v_s.responsable_esperado_id is distinct from (v_ctx->>'responsable_id')::uuid then
     raise exception 'El responsable cambió; revisa esta misma solicitud antes de confirmarla' using errcode='P0409';
@@ -205,14 +208,25 @@ begin
   end if;
   insert into crm.inversion_eventos(inversion_id,tipo,creado_por) values(v_inversion,'registro',v_uid);
   v_res := jsonb_build_object('ok',true,'solicitud_id',v_s.id,'inversion_id',v_inversion,
-    'inversionista_id',v_persona,'lead_id',v_ctx->>'lead_id','empresa',v_e.clave,'fuente',v_fuente);
+    'inversionista_id',v_persona,'lead_id',v_ctx->>'lead_id','empresa',v_e.clave,'fuente',v_fuente,
+    'revision_datos',v_s.revision_datos);
   update crm.inversion_solicitudes set estado='confirmada',inversion_id=v_inversion,
     resultado=v_res,confirmado_por=v_uid,actualizado_en=statement_timestamp() where id=v_s.id;
   return v_res;
 end;
 $$;
+revoke all on function crm.confirmar_inversion_revisada_fn(uuid,integer) from public,anon,authenticated,service_role;
+grant execute on function crm.confirmar_inversion_revisada_fn(uuid,integer) to authenticated;
+
+-- Compatibilidad: una pantalla antigua sólo confirma solicitudes sin corrección.
+-- Una confirmada conserva su replay de lectura con cualquier revisión enviada.
+create or replace function crm.confirmar_inversion_fn(p_solicitud uuid)
+returns jsonb language sql security definer set search_path='' as $$
+  select crm.confirmar_inversion_revisada_fn(p_solicitud,0);
+$$;
 revoke all on function crm.confirmar_inversion_fn(uuid) from public,anon,authenticated,service_role;
 grant execute on function crm.confirmar_inversion_fn(uuid) to authenticated;
+
 
 create or replace function private.f4_comprobante_visible(p_ruta text)
 returns boolean language sql stable security definer set search_path='' as $$
