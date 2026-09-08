@@ -1,0 +1,444 @@
+{
+  "estado": "APLICADO_Y_VERIFICADO_EN_PRODUCCION",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "migracion": "20260908020020_crm_citas_repara_huella_control.sql",
+  "commit_fuente": "c9c31b469c462de8c66bd6339f49280dc3333ffe",
+  "main_y_remoto_iguales_antes_de_aplicar": true,
+  "sql_sha256": "ee5ea57693342b95172011254fb3ceb8f62ae14f3f07e1f4102d224b1f94e455",
+  "aplicado_en": "2026-09-08T02:03:47.365949+00:00",
+  "aplicado_en_lima": "2026-09-07 21:03:47 America/Lima",
+  "aplicacion": {
+    "success": true
+  },
+  "verificacion": {
+    "tope": {
+      "id": true,
+      "tope": 30,
+      "actualizado_en": "2026-08-30T05:10:47.285894+00:00"
+    },
+    "sello": {
+      "id": true,
+      "sello": "96e3eeda6722eed61315efa724e70e24",
+      "sellado_en": "2026-09-08T02:03:47.365949+00:00"
+    },
+    "vigia": [
+      {
+        "jobid": 26,
+        "active": true,
+        "schedule": "49 6 * * *"
+      }
+    ],
+    "fallos": [],
+    "fuentes": [
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "0b474e7f58e1f668b62a02730b716457",
+        "firma": "private.assert_analitica_leads_citas()",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "b8f375fbb377582835f4cfe222240c5b",
+        "firma": "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "ea636888a266941e959f26c6a5727216",
+        "firma": "private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "34e0ae16a95912e5a5eedd4da845e288",
+        "firma": "private.contadores_crudos_leads_citas()",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "8a2549dbfa59c732da04900ed90b6361",
+        "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "817926e696fa554d8485e8e1aa6e9b73",
+        "firma": "private.huella_exenciones_analitica_lc()",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "cec7ee9ec1c31ddd8fa17f1d42e88fc1",
+        "firma": "private.metricas_reuniones_implementacion(date,date)",
+        "propietario": "16388"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "md5": "3a80775b21767839e524880d419689f3",
+        "firma": "private.peso_referido_conversion(date)",
+        "propietario": "16388"
+      }
+    ],
+    "controles": {
+      "f7": "OK: 15 piezas vigiladas (observacion 11, permanentes 4, demolidas 0, liberadas 0)",
+      "citas": "OK: 29 contadores declarados y con su huella intacta, tope 30, 0 sin declarar",
+      "vigencia": "OK: 5 puertas declaradas y con su huella intacta, tope 6, 0 sin declarar",
+      "auditoria": "",
+      "sla_nucleo": "OK: nucleo SLA privado, adaptadores dependientes, entradas cerradas y auditadas",
+      "sla_comandos": "OK: comandos SLA privados, idempotentes y confirmados al commit",
+      "sla_operacion": "OK: publicacion atomica, captura y prorroga gobernadas por SLA"
+    },
+    "contadores": 29,
+    "exenciones": [
+      {
+        "tipo": "funcion",
+        "razon": "Operativa de reparto: cuenta la carga del dia para proponer la agenda; es inventario del momento, no una metrica historica de leads.",
+        "huella": "1f9c34766da91720d648020ebe3d0dcd",
+        "objeto": "crm.agenda_reparto_diaria(date,integer)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "El MOTOR DEL SELLO: su conversion viene de conversion_mensual_por_vendedor, que bebe del nucleo (transitividad verificada el 30/08); sus counts propios son cobertura del ledger (suelo, mes parcial), no otra conversion. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "89f0a020b19fa35b9ff259b12cf6f9f9",
+        "objeto": "crm.cerrar_periodo(date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Lista las cooperativas del mes para gerencia: listado operativo con su conteo de apoyo, no una calculadora comercial. Tras ATR-4 sus totales excluyen SOLO la demo declarada (misma exclusion por id que el nucleo): los anulados reales SIGUEN siendo dinero (regla 31/08).",
+        "huella": "9cf31d2ee85bd5e0af19ae77fd187187",
+        "objeto": "crm.cierres_externos_fn(date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "La cola de accion del vendedor: cuenta lo pendiente AHORA (inventario de trabajo), no responde ninguna pregunta historica de metricas.",
+        "huella": "63b24d13b37e13b82eed087dbe44e2d2",
+        "objeto": "crm.cola_accion_fn(integer)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Nucleo por TRANSITIVIDAD (llama a conversion_mensual_por_vendedor): sirve el mes sellado desde las tablas del cierre y, con el mes ABIERTO, calcula en vivo por el mismo puente; sus counts propios son cobertura y altas del periodo. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "e8308294375859236ecf03e8133c176e",
+        "objeto": "crm.conversion_mensual_sin_cartera_fn(date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Operativa de derivacion: cuenta para validar el lote que se deriva y dejar rastro; no es una pregunta de metricas. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "e210105f163365bb7265d56e42760045",
+        "objeto": "crm.derivar_leads_equipo_fn(uuid[],uuid[])",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Operativa de reparto: valida y persiste la agenda del dia; sus counts son de consistencia del lote, no metricas.",
+        "huella": "4f2a7712595f80dccac1b509bdfd317d",
+        "objeto": "crm.guardar_agenda_reparto_diaria(date,uuid,uuid)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Previa de offboarding: cuenta que dejaria huerfano una desactivacion (leads, tareas) como inventario del momento; no es metrica historica. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "1061acbef407ca9bf5c1852546ed0421",
+        "objeto": "crm.impacto_desactivacion_usuario_fn(uuid)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Panel de reparto: cuenta ingresos de leads del mes al reparto (inventario de flujo de entrada), pregunta distinta de la conversion.",
+        "huella": "c221fdbb26d2bb61ff83d563c13c8f55",
+        "objeto": "crm.ingresos_reparto_mes_fn(date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "MIXTA: la conversion sale del nucleo; sus counts crudos son los numeros del RANKING por vendedor (leads y clientes de la cohorte de entrada), pregunta de flujo distinta de la conversion mensual; el rotulo del front se afina en la F6.b.",
+        "huella": "6c4d920d0ff8c06492bcc564f071eb7d",
+        "objeto": "crm.metricas_conversiones_equipo_fn(date,date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Mide TIEMPOS de etapas (SLA), no cuantas citas o leads hay: sus counts agrupan hitos de SLA por etapa, incluida la etapa de reunion.",
+        "huella": "6958b41bfb6edea1284632b8dc24946b",
+        "objeto": "crm.metricas_sla_fn(date,date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "MIXTA: la metrica es MENSUAL y viene de crm.conversion_mensual_fn (nucleo por transitividad), rotulada ventana_metrica=mes_calendario; sus counts crudos son la VISTA de 45 dias (que convertidos siguen visibles en cartera) y estan rotulados como vista.",
+        "huella": "176007f70e6bea5cde0ac6a398a28078",
+        "objeto": "crm.metricas_vendedores_fn()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Panel operativo del reparto: cuenta lo repartible AHORA por supervisor; inventario del momento, no metrica historica.",
+        "huella": "d9c2c2a53d642be2b3ac18a40ef25323",
+        "objeto": "crm.panel_distribucion_reparto(uuid,uuid,text,boolean)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Reporte operativo de derivaciones: cuenta derivaciones y su estado en el periodo; es el rastro del reparto, no una calculadora de conversion.",
+        "huella": "055f8054f8e71ac1641730c6ba020e6e",
+        "objeto": "crm.reporte_derivaciones_equipo_fn(date,date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Operativa de rescate: valida el lote de descartados que se rescata; sus counts son de consistencia, no metricas. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "ce1208e6272299b3f6088d929b69d83c",
+        "objeto": "crm.rescatar_descartes(uuid[],uuid[],boolean)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Apoyo del rescate: cuenta descartados por mes para elegir de donde rescatar; inventario operativo, no metrica de conversion.",
+        "huella": "7d069f365d8cd530efa67e34fe00dabd",
+        "objeto": "crm.rescate_descartes_meses()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "MIXTA: convertidos y operaciones del MES salen del nucleo (F2.4/D1); sus counts crudos son la VISTA de 45 dias (embudo, capital estimado, % espejo del front) y estan rotulados como vista.",
+        "huella": "387f17e5974a8f13f164393981dc2690",
+        "objeto": "crm.resumen_cartera_fn()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Resumen operativo del reparto: cuenta lo por repartir AHORA; inventario del momento. Recertificada 2026-09-07 sobre fuente exacta revisada: conserva la puerta y la misma pregunta operativa; cambios presentes en producción, sin reescribir cuerpos.",
+        "huella": "5dd8b80544f775a1f0a3b7820c16045d",
+        "objeto": "crm.resumen_reparto_fn()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Resumen de tareas del vendedor: cuenta pendientes y vencidas AHORA (citas incluidas como carga de trabajo); inventario, no metrica de citas por vencimiento.",
+        "huella": "1a2ac24edc802b4953b4af76e8eeb0aa",
+        "objeto": "crm.resumen_tareas_fn()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "MIXTA: la conversion mensual OFICIAL viaja en conversion_mensual_pct (del nucleo, peso del mes); conversion_cohorte_pct es el espejo deliberado del front (decision de Miguel 27/08: la cifra grande es el BRUTO por mes de entrada) y su nombre ya dice su apellido. Los counts crudos restantes cuentan altas y cohorte de entrada.",
+        "huella": "364a56f330309e57c903867b1ac990cd",
+        "objeto": "crm.series_comerciales_fn(integer)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "SOLO informativa tras ATR-4 (payload/afecta_cuota — que significa «afecta la conversion» — y retroceso de etapa); compara por la atribucion efectiva de la cadena. Produccion y la deuda de mes sellado ya no le preguntan.",
+        "huella": "088fd0b4994c9b213ef75ceb4a71d26f",
+        "objeto": "private.contratos_afectados_por_anulacion(uuid)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Cuenta ACTIVIDAD del periodo (tareas cerradas por actualizado_en, creadas por creado_en, foto de pendientes): que HIZO el vendedor en el periodo, pregunta deliberadamente distinta de que citas VENCIAN (esa la responde el nucleo). Hallazgo D8 documentado.",
+        "huella": "d3df7a5aca8bf693f32e8f62c08990a4",
+        "objeto": "private.metricas_agenda_implementacion(date,date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "CONSUME EL NUCLEO DE CONVERSION Y EL NUCLEO DE CITAS. Conserva el embudo histórico por cohorte y añade contratos explícitos: llegadas únicas con cita realizada, operaciones seleccionadas por el núcleo vivo y cierres por su fecha real. No calcula pesos ni elige operaciones localmente.",
+        "huella": "235f0ae12fdc2d7ab9029056786eab76",
+        "objeto": "private.metricas_conversiones_implementacion(date,date,text)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "MIXTA: la conversion sale del nucleo; sus counts crudos miden el REPARTO del periodo (cuantos entraron y a quien) y el embudo de cohorte por lead - preguntas de flujo de entrada, distintas de la conversion mensual y de las citas por vencimiento; el rotulo del front las nombra sin apellido y se corrige en la F6.b.",
+        "huella": "18b6def416c163aa111855f705f6f130",
+        "objeto": "private.metricas_distribucion_leads_core(date,date,timestamp with time zone)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "CONSUME LOS DOS NUCLEOS (citas_episodios para banderas, conversion_episodios para cierres): agrega filas ya servidas por los núcleos y expone el divisor y sus exclusiones por modalidad; no reconstruye esas reglas.",
+        "huella": "4b28cc419c1b0d84fdbe43afdd5a0909",
+        "objeto": "private.metricas_reuniones_implementacion(date,date)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Mide TIEMPOS de etapas (SLA global), no cuantas citas o leads: counts de hitos por etapa.",
+        "huella": "1d1f2dfb584db2db857eaab24ff52b52",
+        "objeto": "private.metricas_sla_global_core(date,date,timestamp with time zone)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Cuenta contratos y capital por casilla (count/sum legitimos de produccion). Tras ATR-4 ya no neutraliza anulados: la sancion de anular vive SOLO en la conversion (regla de Miguel 31/08).",
+        "huella": "f28a9eea25c78504bec709fe9eac29dc",
+        "objeto": "private.produccion_mes_por_vendedor(timestamp with time zone,timestamp with time zone,uuid)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "El numerador del ajuste sale del EPISODIO del nucleo (F6.c). Tras ATR-4 la deuda de mes sellado es SOLO de conversion: capital_pen/usd/detalle van a cero por la regla firmada el 31/08 («solo la conversion, siempre»).",
+        "huella": "3d97f6a6f5dc7fdf853fb33d8bc0d1df",
+        "objeto": "private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Apoyo del reparto: cuenta la carga actual por supervisor para proponer destino; inventario del momento.",
+        "huella": "92f56e7303ec1db0aae87a0323d940be",
+        "objeto": "private.supervisores_para_reparto_implementacion()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      },
+      {
+        "tipo": "funcion",
+        "razon": "Trigger del LEDGER de asignaciones: sus counts mantienen la secuencia y la consistencia del ledger que alimenta al nucleo; es la fuente, no un consumidor.",
+        "huella": "c6cdf7508e21f0459f54e56c43f52291",
+        "objeto": "private.trg_leads_asignaciones()",
+        "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+      }
+    ],
+    "migraciones": [
+      {
+        "nombre": "crm_citas_repara_huella_control",
+        "sql_md5": "ad64689063e6cdc559ce6cf62d5511d5",
+        "version": "20260908020347",
+        "sentencias": 1,
+        "sql_caracteres": 5475
+      }
+    ],
+    "verificado_en": "2026-09-08T02:04:53.968647+00:00",
+    "sello_calculado": "96e3eeda6722eed61315efa724e70e24",
+    "reconstruccion_cerrada": true
+  },
+  "comparacion": {
+    "una_huella_actualizada": true,
+    "otras_29_exenciones_iguales": true,
+    "tope_igual": true,
+    "ocho_fuentes_y_permisos_iguales": true,
+    "sello_coincide": true,
+    "reconstruccion_cerrada": true
+  },
+  "registro_migracion": {
+    "version_inicial_asignada_por_mcp": "20260908020347",
+    "version_canonica": "20260908020020",
+    "nombre": "crm_citas_repara_huella_control",
+    "sql_md5": "ad64689063e6cdc559ce6cf62d5511d5",
+    "cantidad_sentencias": 1,
+    "solo_version_reconciliada": true
+  },
+  "cierre_final": {
+    "control": "OK: 29 contadores declarados y con su huella intacta, tope 30, 0 sin declarar",
+    "version": "20260908020020",
+    "name": "crm_citas_repara_huella_control",
+    "sql_md5": "ad64689063e6cdc559ce6cf62d5511d5",
+    "cantidad_sentencias": 1
+  },
+  "advisors": {
+    "antes": 210,
+    "despues": 210,
+    "nuevos": [],
+    "resueltos": [],
+    "errores_despues": 0,
+    "comparacion": "Se ignora únicamente observed_at (hora de ejecución del análisis)."
+  },
+  "lecturas_gerencia": [
+    {
+      "periodo": "agosto",
+      "resumen": {
+        "no_show": 18,
+        "pactadas": 48,
+        "canceladas": 7,
+        "realizadas": 6,
+        "reprogramadas": 1,
+        "no_concretadas": 25,
+        "pct_asistencia": 25,
+        "pct_realizacion": 15,
+        "debieron_ocurrir": 48,
+        "pendientes_cierre": 9,
+        "canceladas_sistema": 7,
+        "divisor_asistencia": 24,
+        "divisor_realizacion": 40,
+        "programadas_futuras": 0,
+        "reprogramadas_vencidas": 1,
+        "canceladas_sistema_vencidas": 7
+      },
+      "version": 1,
+      "conversion": {
+        "clientes": 0,
+        "contratos": 0,
+        "capital_pen": 0,
+        "capital_usd": 0,
+        "leads_reunidos": 6,
+        "conversion_cliente_pct": 0,
+        "conversion_contrato_pct": 0,
+        "leads_con_cierre_previo": 1
+      },
+      "generado_en": "2026-09-08T02:08:27.835012+00:00",
+      "origenes_cuadran": true,
+      "modalidades_cuadran": true,
+      "responsables_no_superan_global": true
+    },
+    {
+      "periodo": "septiembre",
+      "resumen": {
+        "no_show": 30,
+        "pactadas": 55,
+        "canceladas": 2,
+        "realizadas": 7,
+        "reprogramadas": 2,
+        "no_concretadas": 32,
+        "pct_asistencia": 18.9,
+        "pct_realizacion": 15.2,
+        "debieron_ocurrir": 55,
+        "pendientes_cierre": 7,
+        "canceladas_sistema": 7,
+        "divisor_asistencia": 37,
+        "divisor_realizacion": 46,
+        "programadas_futuras": 0,
+        "reprogramadas_vencidas": 2,
+        "canceladas_sistema_vencidas": 7
+      },
+      "version": 1,
+      "conversion": {
+        "clientes": 0,
+        "contratos": 0,
+        "capital_pen": 0,
+        "capital_usd": 0,
+        "leads_reunidos": 7,
+        "conversion_cliente_pct": 0,
+        "conversion_contrato_pct": 0,
+        "leads_con_cierre_previo": 1
+      },
+      "generado_en": "2026-09-08T02:08:27.835012+00:00",
+      "origenes_cuadran": true,
+      "modalidades_cuadran": true,
+      "responsables_no_superan_global": true
+    }
+  ],
+  "alcance": "Solo una huella de excepción y el sello con su fecha; reconciliación del identificador de migración. Sin modificaciones de funciones, permisos, reglas comerciales o frontend.",
+  "limites": [
+    "Las consultas verificadas concilian dos cortes mensuales; no constituyen una auditoría exhaustiva de cada cita ni de todo el proyecto.",
+    "Los 210 avisos de advisors ya existían; no se introdujo ni resolvió ninguno. No hay avisos de nivel ERROR.",
+    "El vigía sigue activo. Su aserción pasa; no se ejecutó ni modificó su histórico de alertas."
+  ]
+}
