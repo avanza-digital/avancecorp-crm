@@ -2,8 +2,9 @@
 
 Actualizado el 08/09/2026. Candidata completa versionada y probada con datos
 sintéticos: **48 funciones (18 adaptadas, 30 nuevas), 11 módulos y siete tablas
-nuevas**. **G4 sigue abierto por la comprobación de comisiones/liquidaciones**:
-no se identificó su fuente de pagos. El estado exacto está en
+nuevas**. **F4 terminada y G4 cerrado en alcance técnico sintético** tras confirmar
+Miguel que las comisiones se calculan fuera del sistema. No se implementa su
+cálculo/liquidación ni se exige contrastar pagos externos. El estado exacto está en
 [ESTADO-ACEPTACION.md](ESTADO-ACEPTACION.md), con pruebas y límites.
 No está aplicada ni encendida en producción.
 
@@ -15,6 +16,9 @@ Una vez versionado, no se modifica silenciosamente: una revisión posterior
 requiere dejar evidencia de un nuevo artefacto y repetir los gates afectados.
 
 ## Contrato de negocio para F5
+
+- Las comisiones son un proceso externo al CRM por decisión explícita de Miguel
+  del 08/09. Se conserva la atribución por inversión; no se calcula cuánto pagar.
 
 - Una persona puede invertir varias veces en Avance, Qorilazo o Prodelco sin
   otro lead ni otra identidad. La fuente económica sigue siendo contrato o

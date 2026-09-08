@@ -79,7 +79,8 @@ operaciones posteriores. No se incluye un DOWN que borre inversiones o reinstale
 
 ## Antes de una futura aplicación autorizada
 
-- Completar G4/comisiones y renovar recenso; el dato de 14 resueltos + 1 faltante
+- G4 técnico cerrado; renovar recenso antes de tratar datos reales. Las comisiones
+  se calculan fuera del sistema. El dato de 14 resueltos + 1 faltante
   productivo pertenece al 07/09 a las 11:32 Lima, no al estado actual.
 - Repetir ciclo de branch/seed antes de aplicar y gates/advisors del repositorio.
   Este ensayo local no sustituye los gates remotos de publicación.

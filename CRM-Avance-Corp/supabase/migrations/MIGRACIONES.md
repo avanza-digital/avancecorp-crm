@@ -1,6 +1,6 @@
 # Ledger de migraciones — esquema `crm`
 
-> **F4 preparada — 08/09/2026, NO APLICADA en producción:** `20260907191832_crm_f4_inversiones_base_y_escritores.sql` se versiona como candidata técnica; 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas nuevas. Reconstrucción, pruebas y restauración sintéticas completadas. **G4 abierto por comisiones/liquidaciones pendientes de identificar y contrastar.** Sin publicación ni encendido productivo. [Matriz y límites](../scripts/f4/ESTADO-ACEPTACION.md); [recuperación](../scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md). F2 global se retira al instalar F4, incluso apagada.
+> **F4 preparada — 08/09/2026, NO APLICADA en producción:** `20260907191832_crm_f4_inversiones_base_y_escritores.sql` se versiona como candidata técnica; 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas nuevas. Reconstrucción, pruebas y restauración sintéticas completadas. **G4 técnico cerrado:** Miguel excluyó el cálculo/liquidación de comisiones, que se realiza fuera del sistema. [Acta posterior](../scripts/evidencia-f4/cierre-g4-comisiones-externas-2026-09-08.json). La candidata SQL y su huella se conservan. Sin publicación ni encendido productivo. [Matriz y límites](../scripts/f4/ESTADO-ACEPTACION.md); [recuperación](../scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md). F2 global se retira al instalar F4, incluso apagada.
 
 
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).

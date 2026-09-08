@@ -1,7 +1,7 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f3-encendida-f4-en-construccion-local-G4-abierto
+estado: plan-vigente-f3-encendida-f4-tecnica-terminada-G4-cerrado-f5-pendiente
 actualizado: 2026-09-08
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
@@ -14,34 +14,39 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 > Un mismo cliente debe poder invertir una o varias veces en Avance Corp, COOPAC Qorilazo y COOPAC Prodelco, manteniendo una sola identidad, un solo lead y un solo historial comercial.
 
 > [!warning] Autorización
-> La construcción y el ensayo local de F4 con datos sintéticos ya fueron autorizados por Miguel y están en curso. Este documento registra ese avance; no aprueba G4 ni autoriza backfill productivo, dinero real o activación en producción. Las ejecuciones posteriores conservan los gates y autorizaciones del plan.
+> La construcción y el ensayo local de F4 con datos sintéticos ya fueron autorizados por Miguel y están completados. G4 técnico se cierra con la evidencia y la decisión de alcance del 08/09; no autoriza backfill productivo, dinero real o activación en producción. Las ejecuciones posteriores conservan los gates y autorizaciones del plan.
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — evidencia al 08/09/2026, 00:09 Lima
+## Estado vigente — cierre técnico al 08/09/2026
 
-**Estamos en F4.** El motor de nuevas inversiones ya tiene construcción y pruebas satisfactorias en el banco local. **G4 sigue abierto:** todavía falta completar sus requisitos de aceptación. La experiencia unificada desde la ficha corresponde a F5 y sigue pendiente.
+**F4 terminada y G4 cerrado en alcance técnico sintético.** Miguel confirmó que
+las comisiones se calculan fuera del sistema y no quiere ese módulo. Se excluyen
+su cálculo, liquidación y contraste de pagos externos de los requisitos del
+producto. La atribución por inversión y las reglas de Capital/conversión se
+conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 
 | Fase | Estado actual | Resultado o trabajo pendiente |
 |---|---|---|
-| F0 / G0 — reglas y base del plan | Aprobadas y firmadas | Reglas comerciales y arquitectura acordadas |
+| F0 / G0 — reglas y base del plan | Aprobadas y firmadas | Comisiones externas aclaradas el 08/09 |
 | F1 — cimientos | Publicada | Identidad neutral, empresas y relaciones |
-| F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; F4 debe ensayar y tratar solo faltantes comprobados |
+| F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
-| **F4 — motor de inversiones** | **En construcción local; G4 abierto** | Completar documentos, históricos, titularidad, permisos, paridad financiera y recuperación/reversa |
-| F5 — cartera y Ficha 360 | Pendiente | Integrar la ficha única y «Nueva inversión»; aceptar recorridos y permisos con datos sintéticos |
-| F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión desde la misma persona |
-| F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y comisión; firmar G6 |
-| F8 — piloto económico | Pendiente | Cumplir los volúmenes, recorridos, conciliaciones y firmas de G7 |
-| F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo operativo mensual completo y retirada de rutas antiguas en G8 |
+| **F4 — motor de inversiones** | **Terminada técnicamente; G4 cerrado** | Candidata probada y versionada; no aplicada/activada en producción |
+| F5 — cartera y Ficha 360 | Pendiente; siguiente fase | Integrar ficha única y «Nueva inversión» con datos sintéticos |
+| F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
+| F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
+| F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
+| F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
-El bloque PDF pasó **10 grupos adicionales con ocho contratos**: peticiones sin respuesta acotadas a 20 segundos, subida tardía tras la reserva real de 120 segundos, versiones incompatibles recibidas y dos antecedentes que conservan su régimen sin documento nuevo. Después pasó la regresión de **12 grupos con otros 10 contratos** por el servicio Deno real. Hay **42 pruebas** del handler/adaptador satisfactorias y revisión visual previa de 14 páginas de dos contratos ficticios. La auditoría de Claude también permitió corregir un reintento de inversiones ya confirmadas tras «No insistir». **El contenido del PDF permanece intacto. Cualquier incorporación relativa a cotitulares requiere mostrar texto y ubicación y recibir aprobación de Miguel antes de editar.**
-
-El censo y el lote histórico ya están instalados y ensayados en el banco ficticio: 7 grupos de censo, 19 de lote y 7 de concurrencia. La candidata tiene 37 funciones (20 nuevas) y cinco tablas nuevas. Continúan pendientes el corpus F2 completo, la cobertura de todos los escritores y el lote máximo. Detalle y punto de reanudación: [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]].
-
-El siguiente paso es completar esos límites, titularidad y permisos. Los bordes técnicos PDF ensayados ya pasaron; queda integrar toda la candidata sobre una reconstrucción limpia. F4 todavía no cumple todos los requisitos de cierre.
-
-Detalle actual: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]], [[F4 multiempresa - construccion y pruebas parciales (2026-09-07)]] y [[F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07)]]. Evidencia trazable: [checkpoint de F4](../../CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-bordes.json) y [matriz de aceptación](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
+Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;
+3050 tests frontend, 43 PDF Deno, reconstrucción y restauración, matrices de
+finanzas/permisos/cotitulares/correcciones/históricos completadas. Evidencia y
+límites en la [matriz de aceptación](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
+El PDF conserva su contenido: cualquier incorporación impresa de cotitulares
+requiere mostrar texto/ubicación y recibir aprobación de Miguel antes de editar.
+Los snapshots de auditoría y el manifiesto previo se conservan como historia;
+el acta de cierre registra la decisión posterior sin cambiar código ni SQL.
 
 ## 1. Qué se va a lograr
 
@@ -204,7 +209,7 @@ Reglas confirmadas en F0, con la aclaración de Miguel del 07/09: la conversión
 | Portal | Solo se crea por una inversión Avance que lo requiera |
 | Cooperativas | Se mantiene PEN mientras no exista una decisión distinta |
 | Responsable actual | Uno para la relación completa del grupo |
-| Atribución | Se conserva quién registró/cerró cada operación; la atribución efectiva sigue la política vigente de cada empresa y de las cadenas de upgrade. Meses sellados y comisiones pagadas no se reescriben |
+| Atribución | Se conserva quién registró/cerró cada operación; la atribución efectiva sigue la política vigente de cada empresa y de las cadenas de upgrade. Meses sellados no se reescriben; las comisiones/pagos se gestionan fuera del sistema |
 | Conversión comercial | La decide el núcleo existente. Upgrade elegible = 1; renovación elegible = peso de Referido del período; máximo una operación de cartera elegible por cliente/mes. No se impone una prohibición vitalicia ni se convierte cada inversión automáticamente |
 | Reinversión | Nunca crea lead ni vuelve a ejecutar la primera conversión |
 | Anulación comercial | Conserva fila, autor y motivo; reduce conversión según ATR-4 y conserva Capital, producción y AUM |
@@ -216,15 +221,15 @@ Reglas confirmadas en F0, con la aclaración de Miguel del 07/09: la conversión
 
 > [!success] Las 7 CONFIRMADAS por Miguel el 03/09/2026 con los valores recomendados (la 7 lo estaba desde el 02/09).
 
-1. Responsable comercial: **único para las tres empresas** (la comisión de cada inversión igual queda para quien la cerró). ✅
+1. Responsable comercial: **único para las tres empresas** (se conserva quién cerró cada inversión; las comisiones se resuelven fuera del sistema). ✅
 2. Cooperativas: **solo PEN** por ahora; Avance sigue en PEN y USD. ✅
 3. Documentos: **Avance, contrato PDF como hoy; cooperativas, comprobante de depósito, número de referencia y evidencia.** ✅
 4. Registran: **vendedor en sus clientes, supervisor en su equipo, Gerencia en todos; Directorio solo lee.** ✅
 5. Portal: **solo Avance**; no se crea acceso al Portal por invertir en cooperativa. ✅
-6. Comisión: **cada inversión liquida según la regla de su empresa**. **Precisión de Miguel del 07/09:** la conversión depende de la elegibilidad definida en el proyecto, incluidos renovaciones y upgrades; se retira la formulación general de conversión vitalicia. ✅
+6. Comisión: **proceso externo al sistema**, según aclaración expresa de Miguel del 08/09; no se implementa cálculo, liquidación ni registro de pagos en el CRM. **Precisión de Miguel del 07/09:** la conversión depende de la elegibilidad definida en el proyecto, incluidos renovaciones y upgrades; se retira la formulación general de conversión vitalicia. ✅
 7. si las inversiones en cooperativa llevan una fecha comercial propia, que puede ser anterior al registro pero nunca futura; Capital y conversión la usan igual que en Avance. Si cae en un mes ya sellado, entra como ajuste posterior, sin reescribir el mes (añadida el 02/09/2026 como decisión 9 de la lista de preguntas a Miguel; **CONFIRMADA por Miguel el 02/09/2026**).
 
-> [!info] Estado real al 07/09/2026, 21:26 Lima — F4 en curso
+> [!info] Antecedente histórico al 07/09/2026, 21:26 Lima — superado por el cierre técnico del 08/09
 > **F0/G0 están firmadas y F1, F2 y F3 están en producción**; la identidad unificada se encendió a las **10:09 Lima**.
 > **La puerta técnica de nueva inversión ya existe en la candidata local de F4 y tiene pruebas parciales satisfactorias.** No está desplegada: `inversiones_escritura` (F4) y `ficha_360_neutral` (F5) siguen apagados en producción. El recorrido unificado desde la ficha se integrará en F5.
 > En el recenso del encendido se observaron **930 de 937 leads vivos sin documento**; es una observación de esa hora, no un recenso nuevo. La modalidad de captura del documento en la web mejora la cobertura al entrar y sigue pendiente de decisión comercial; no bloquea construir y probar F4 con personas verificadas.
@@ -245,7 +250,7 @@ Se avanza por evidencia, sin esperas por calendario entre fases. Las estimacione
 - declarar reemplazadas las reglas antiguas que crean otro lead;
 - inventariar todas las escrituras: lead, importación, conversión, perfil/Auth, contrato, cierre externo, renovación, aumento y corrección;
 - levantar baseline de identidades, contratos, cierres, operaciones, demos y excepciones;
-- fijar cómo se medirán capital, producción, comisión y conversión por empresa.
+- fijar cómo se medirán capital, producción, atribución y conversión por empresa; comisiones externas fuera del producto (aclaración del 08/09).
 
 **Resultado visible:** todavía no cambia el CRM; queda acordado exactamente qué se construirá.
 
@@ -343,9 +348,10 @@ Todas deben usar la misma primitiva transaccional:
 ### F4 — motor de inversiones multiempresa (paquete técnico probado)
 
 **Estado al 08/09/2026:** candidata completa versionada, reconstruida y verificada
-con datos sintéticos. **G4 abierto: falta contrastar comisiones y comisiones ya
-liquidadas.** No se localizó la fuente de pagos; se preguntó a Miguel. No se
-cambia ese requisito ni se inventa una regla para declarar la fase terminada.
+con datos sintéticos. **F4 terminada; G4 técnico cerrado.** Miguel confirmó que las
+comisiones se calculan fuera del sistema y no quiere incorporar ese cálculo.
+La exclusión explícita resuelve el único pendiente externo; no se afirma un PASS
+de liquidaciones ni se modifica la evidencia previa.
 
 **Construido:** puerta canónica de nueva inversión por persona/empresa;
 Avance conserva contrato, cronograma, cuenta, PDF y Auth/Portal recuperable;
@@ -392,10 +398,10 @@ atómicos por operación; no se crea otro lead por inversión adicional.
    gates backend y 17 nodos de tipos introspectados. Claude revisó integralmente;
    Codex resolvió cada hallazgo con pruebas, sin atribuirle un PASS posterior.
 
-**Pendiente obligatorio para cerrar:** localizar sistema/archivo y reglas de
-comisiones, comprobar casos F4 y preservar liquidaciones ya pagadas. Si ese
-requisito no aplica al producto, Miguel debe decidir explícitamente el ajuste
-al plan. Todo el paquete restante está preparado para esa comprobación.
+**Cierre:** no quedan requisitos pendientes dentro del alcance técnico F4.
+Comisiones/liquidaciones son externas y no bloquean la fase. Se conserva la
+atribución por inversión, Capital, conversión, documentos y períodos sellados.
+Sigue F5; aplicación/activación productivas conservan sus gates posteriores.
 
 **Límites de alcance:** F4 no se publicó ni se aplicó en producción. La observación
 productiva de 14 vínculos resueltos y un faltante sigue siendo la del 07/09,
@@ -458,14 +464,14 @@ Fuentes vigentes: [matriz de aceptación F4](../../CRM-Avance-Corp/supabase/scri
 - inversionistas con una, dos o tres empresas;
 - primera inversión vs. reinversión;
 - conversión comercial por las reglas y aportes publicados del núcleo; la identidad única no elimina renovaciones/upgrades elegibles;
-- atribución y comisión por operación;
+- atribución por operación; cálculo/liquidación de comisiones externos al sistema;
 - vencimientos y oportunidades de cross-selling;
 - demos excluidos técnicamente; anulación comercial aplicada a conversión y Capital conservado según ATR-4;
 - meses sellados sin reescritura.
 
 **Resultado visible:** Gerencia sabe cuánto se produjo en cada empresa y cuántos clientes invierten en más de una.
 
-**Gate G6:** conciliación firmada de Capital, conversión, atribución y comisión; PEN/USD y empresas permanecen separados y ninguna inversión se cuenta dos veces. Recién entonces puede comenzar el piloto económico de F8.
+**Gate G6:** conciliación firmada de Capital, conversión y atribución; PEN/USD y empresas permanecen separados y ninguna inversión se cuenta dos veces. Recién entonces puede comenzar el piloto económico de F8.
 
 ### F8 — piloto económico real
 
@@ -495,7 +501,7 @@ No se aprueba por cumplir cinco días de calendario: termina cuando cumple la ev
 
 Cada ola avanza por evidencia de volumen, conciliación, seguridad y rendimiento. Se observa adopción, fricciones, oportunidades no atendidas y permisos. Las revisiones 30/60/90 son seguimiento comercial, no sustituyen los requisitos técnicos.
 
-**Gate G8:** al menos un ciclo operativo mensual completo que cubra cierre y conciliación, procesos programados, vencimientos, Capital, conversión, atribución, comisión y ausencia de incidencias graves, huérfanos y procesos vencidos. Un cambio material o P0/P1 reinicia la observación del alcance afectado.
+**Gate G8:** al menos un ciclo operativo mensual completo que cubra cierre y conciliación, procesos programados, vencimientos, Capital, conversión, atribución y ausencia de incidencias graves, huérfanos y procesos vencidos. Un cambio material o P0/P1 reinicia la observación del alcance afectado.
 
 Solo después se retiran definitivamente permisos y rutas antiguas. Incorporar otras empresas y transferencias legales de titularidad se decide por separado.
 
@@ -605,7 +611,7 @@ Numeración alineada con el maestro; los gates no son una renumeración de las f
 | G1 | Esquema F1 reconstruible, reversible y seguro |
 | G2 | Vinculación F2 clasificada y conciliada, sin fusiones ambiguas |
 | G3 | Puertas F3 sin rutas paralelas que eviten los controles canónicos |
-| G4 | Escritores F4 completos con datos sintéticos; concurrencia, idempotencia, permisos, documentos, recuperación, paridad financiera y reversa; sigue abierto y no autoriza dinero real |
+| G4 | Escritores F4 completos con datos sintéticos; concurrencia, idempotencia, permisos, documentos, recuperación, paridad financiera y reversa; **cerrado técnicamente el 08/09**, comisiones externas fuera del alcance; no autoriza dinero real |
 | G5 | Ficha y permisos F5 aceptados con datos sintéticos |
 | G6 | Métricas F7 conciliadas y firmadas; habilita solicitar el piloto económico |
 | G7 | Piloto F8 aceptado por volumen, conciliación, pruebas y firmas |
@@ -647,6 +653,8 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 
 ## 12. Fuera del alcance inicial
 
+- cálculo, liquidación, indicación de cuánto pagar y conciliación de pagos de comisiones dentro del sistema; proceso externo confirmado por Miguel el 08/09;
+
 - transferencias legales de titularidad;
 - consolidar contablemente empresas distintas;
 - convertir el Portal Avance en portal de todas las empresas;
@@ -655,16 +663,22 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 07/09/2026, 22:09 Lima
+## 13. Orden inmediato — actualizado al 08/09/2026
 
-1. Completar históricos, cotitularidad neutral y permisos dinámicos, preservando las vinculaciones F2 resueltas y la atribución histórica. Los bordes técnicos PDF ya pasaron; conservar el contenido y aprobar con Miguel cualquier incorporación de cotitulares antes de editarla.
-2. Cerrar la matriz financiera, las correcciones de solicitudes y el inventario de puertas/consumidores detallados en F4.
-3. Reconstruir y revertir el paquete completo en banco; reunir y revisar la evidencia exacta para cerrar **G4**.
-4. Continuar con **F5 → F6 → F7/G6 → F8/G7 → F9/G8**: ficha unificada, postventa, conciliación, piloto económico y activación progresiva con ciclo mensual completo.
+1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
+   posterior de comisiones externas. No repetir pendientes ya resueltos.
+2. Continuar con **F5**: ficha unificada, cartera y «Nueva inversión», validando
+   recorridos/permisos con datos sintéticos y manteniendo el contenido del PDF.
+3. Después: **F6 → F7/G6 → F8/G7 → F9/G8**: postventa, conciliación de métricas,
+   piloto económico y activación progresiva con ciclo mensual completo.
 
-F3 permanece encendida. Se conservan las fuentes de dinero y las reglas comerciales del proyecto, incluidos los upgrades que sí cumplen la elegibilidad. La modalidad de captura del documento en la web sigue pendiente de decisión comercial y no bloquea F4 con personas verificadas. Retoma y evidencia: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]].
+F3 permanece encendida según la observación previa; no hubo nuevo cambio
+productivo. La modalidad de captura de documento web sigue como decisión
+comercial independiente. Cierre y alcance: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 
 ## 14. Fuentes relacionadas
+
+- [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]];
 
 - [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]];
 

@@ -48,10 +48,10 @@ concurrencia tuvo timeouts; se conserva ese antecedente. Claude emitió
 CHANGES_REQUESTED; Codex contrastó cada observación, corrigió las confirmadas
 y documentó las refutadas. No hubo otra revisión después de los ajustes.
 
-**G4 continúa abierto únicamente por la comprobación de comisión/liquidación**:
-se trazaron metas, cierres y ajustes de conversión, pero no son un registro de
-pagos. Se preguntó a Miguel dónde se calculan/registran comisiones pagadas y
-sigue pendiente respuesta. No se inventa regla ni se elimina el requisito.
+**Actualización posterior — G4 cerrado:** Miguel confirmó que las comisiones se
+calculan fuera del sistema y no quiere ese módulo. Se retira el único pendiente
+externo del alcance de F4; no se afirma haber verificado pagos. Decisión vigente:
+[[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]. El resto de la evidencia técnica se conserva.
 
 La candidata queda versionada como preparada, no aplicada. No hubo push,
 publicación ni cambio de banderas productivas. 14 resueltos + 1 faltante sigue
