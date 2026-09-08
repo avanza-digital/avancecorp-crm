@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-08
-estado: propuesta-3-implementada-en-local
+estado: propuesta-3-local-no-aprobada-visualmente
 tags: [crm, citas, gerencia, ux, ui, propuesta]
 ---
 
@@ -41,3 +41,11 @@ Miguel eligió **la 3**, correspondiente a `ajuste-ux/detalle-a-demanda.png`. Se
 Se mantienen las bases y cifras descritas arriba. La asistencia de la ficha y la del flujo usan una misma condición validada. Los filtros globales recalculan todas las métricas; elegir una etapa solo cambia la tabla de personas. Meta 3/100%, objetivo 3.75/125% y 3+ por persona permanecen como lecturas distintas. Continúa siendo un ejemplo local, sin cambiar metas productivas ni conectar movimientos reales.
 
 Guía de uso, capturas y prueba de navegador: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/README.md`. QA visual: `CRM-Avance-Corp/app/design-qa.md`. PASS: gate integral (3106 tests), 32 tests del prototipo, revisión técnica evaluada, filtros/exportación/foco y adaptación 1672/1280/1024/768/390. NOT RUN: E2E completa de producción y backend real. Sigue el criterio de [[Fundamentos UX del CRM]] y la base funcional de [[Citas Gerencia - adaptacion CRM y consultas por lead 2026-09-08]].
+
+## Rechazo del aspecto implementado y búsqueda de recursos Figma
+
+Miguel indicó que el resultado no le gusta y no se parece a su CRM; pidió buscar mejores recursos en Figma y una recomendación. La selección previa de la imagen 3 y el QA técnico no significan aprobación de su implementación visual.
+
+Se capturaron Resumen, Ranking y Citas de la demo local actual a 1672×941, además del prototipo a la misma medida. La implementación cambió el marco de navegación, aplanó las superficies, introdujo pestañas diferentes y comprimió las filas. Recomendación: usar el aspecto real de Ranking/Metas, cabecera y paneles del CRM, y mejorar distribución y filtros conservando las reglas de negocio. IBM Plex Sans ya es la fuente del contenido actual de Gerencia; las notas históricas sobre otras fuentes no deben mandar sobre la referencia vigente.
+
+El Figma del proyecto contiene cabecera, pestañas, período, fila de Ranking y detalle lateral, pero también antecedentes que no están totalmente sincronizados. Se encontraron Obra Community y los recursos de filtros/tablas de Untitled UI como complementos concretos, sujetos a adaptación a la identidad propia. Evidencia, enlaces, diagnóstico y siguiente dirección: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/recursos-figma/README.md`. No se modificó código ni se creó una nueva propuesta de producto en esta revisión. Antes de otra implementación, mostrar la composición dentro del CRM real, según [[Fundamentos UX del CRM]].
