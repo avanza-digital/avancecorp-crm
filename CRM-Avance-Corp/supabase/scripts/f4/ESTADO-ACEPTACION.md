@@ -1,5 +1,7 @@
 # F4 — estado de aceptación
 
+> **Actualización posterior:** F4 fue publicada el 08/09 con escritores apagados. Esta matriz conserva el banco técnico original; la revisión compatible, verificación productiva y límites están en [PUBLICACION-2026-09-08.md](PUBLICACION-2026-09-08.md).
+
 **08/09/2026: F4 terminada; G4 cerrado en alcance técnico sintético.**
 Miguel confirmó que las comisiones se calculan fuera del sistema y no quiere
 incorporar ese cálculo. Su cálculo, liquidación y validación de pagos externos

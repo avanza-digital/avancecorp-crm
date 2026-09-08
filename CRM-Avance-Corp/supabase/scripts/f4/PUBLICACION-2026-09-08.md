@@ -59,4 +59,32 @@ borre inversiones. El ZIP anterior se conserva fuera del directorio público.
 El respaldo SQL no equivale a una restauración completa de producción ensayada;
 la restauración probada en G4 fue sintética.
 
-El resultado real de la publicación se registra después de verificar el servidor.
+## Resultado verificado
+
+**Publicada el 08/09/2026.** Frontend `crm-20260908T222023Z-264ece653320`,
+construido desde Main/remoto idénticos en `264ece6`; SQL canónico `20260908211349`;
+PDF Edge v14 y acceso Edge v1, activos con JWT obligatorio. Los 48 cuerpos,
+propietarios y permisos coinciden con el artefacto. Fuentes, cantidades, PDF v8,
+Administración y los 14 vínculos existentes se conservaron. F4/F5 continúan OFF.
+
+[Resultado y límites](publicacion-2026-09-08/resultado-produccion.json).
+79 recursos públicos responden 200; HTML/JS/CSS/fuentes/versiones coinciden con
+el ZIP. Siete PNG fueron recomprimidos sin cambiar píxeles y cinco logos fueron
+reducidos por el alojamiento a 1600px: los originales coinciden con el release
+anterior y la comparación visual normalizada es conforme. Las rutas internas
+responden 403/404. Login y Edges comprobados sin enviar credenciales de usuario.
+
+Los advisors añaden nueve avisos por las RPC `SECURITY DEFINER` autenticadas,
+previstas y comprobadas en el contrato de acceso; siete avisos informativos por
+RLS sin acceso directo y 21 por índices nuevos aún sin uso. No son permisos
+accidentales ni se eliminan índices para silenciarlos. Referencias del asesor:
+[RPC con privilegios del definidor](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable),
+[RLS sin políticas](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy),
+[índices sin uso](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
+
+Verificación del commit publicado: 3.090 unitarias; 49 Deno PDF; 13 grupos SQL;
+lint/typecheck/build/bundle y preflights backend conformes. Playwright: 136
+pasaron en el checkout de compilación y cuatro fallaron allí por acceso Vite a
+dependencias enlazadas/cargas tardías; esos cuatro pasaron en el worktree con
+dependencias propias, mismo commit y sin modificar aserciones. 26 SKIP
+preexistentes. La tanda completa previa de F4 pasó 140/140.

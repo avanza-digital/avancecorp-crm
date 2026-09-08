@@ -1,7 +1,7 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f3-encendida-f4-tecnica-terminada-G4-cerrado-f5-pendiente
+estado: plan-vigente-f4-publicada-escritores-apagados-G4-cerrado-f5-plan-preparado
 actualizado: 2026-09-08
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
@@ -14,13 +14,15 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 > Un mismo cliente debe poder invertir una o varias veces en Avance Corp, COOPAC Qorilazo y COOPAC Prodelco, manteniendo una sola identidad, un solo lead y un solo historial comercial.
 
 > [!warning] Autorización
-> La construcción y el ensayo local de F4 con datos sintéticos ya fueron autorizados por Miguel y están completados. G4 técnico se cierra con la evidencia y la decisión de alcance del 08/09; no autoriza backfill productivo, dinero real o activación en producción. Las ejecuciones posteriores conservan los gates y autorizaciones del plan.
+> La construcción, el ensayo y posteriormente la publicación de F4 fueron autorizados por Miguel y están completados. G4 técnico se cierra con la evidencia y la decisión de alcance del 08/09; no autoriza backfill productivo, dinero real o activación en producción. Las ejecuciones posteriores conservan los gates y autorizaciones del plan.
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — cierre técnico al 08/09/2026
+## Estado vigente — F4 publicada el 08/09/2026
 
-**F4 terminada y G4 cerrado en alcance técnico sintético.** Miguel confirmó que
+**F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
+
+ Miguel confirmó que
 las comisiones se calculan fuera del sistema y no quiere ese módulo. Se excluyen
 su cálculo, liquidación y contraste de pagos externos de los requisitos del
 producto. La atribución por inversión y las reglas de Capital/conversión se
@@ -32,8 +34,8 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F1 — cimientos | Publicada | Identidad neutral, empresas y relaciones |
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
-| **F4 — motor de inversiones** | **Terminada técnicamente; G4 cerrado** | Candidata probada y versionada; no aplicada/activada en producción |
-| F5 — cartera y Ficha 360 | Pendiente; siguiente fase | Integrar ficha única y «Nueva inversión» con datos sintéticos |
+| **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
+| F5 — cartera y Ficha 360 | Plan preparado; siguiente implementación | [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
@@ -231,7 +233,7 @@ Reglas confirmadas en F0, con la aclaración de Miguel del 07/09: la conversión
 
 > [!info] Antecedente histórico al 07/09/2026, 21:26 Lima — superado por el cierre técnico del 08/09
 > **F0/G0 están firmadas y F1, F2 y F3 están en producción**; la identidad unificada se encendió a las **10:09 Lima**.
-> **La puerta técnica de nueva inversión ya existe en la candidata local de F4 y tiene pruebas parciales satisfactorias.** No está desplegada: `inversiones_escritura` (F4) y `ficha_360_neutral` (F5) siguen apagados en producción. El recorrido unificado desde la ficha se integrará en F5.
+> **La puerta técnica de nueva inversión está publicada y verificada.** Está instalada con sus escritores apagados: `inversiones_escritura` (F4) y `ficha_360_neutral` (F5) siguen apagados en producción. El recorrido unificado desde la ficha se integrará en F5.
 > En el recenso del encendido se observaron **930 de 937 leads vivos sin documento**; es una observación de esa hora, no un recenso nuevo. La modalidad de captura del documento en la web mejora la cobertura al entrar y sigue pendiente de decisión comercial; no bloquea construir y probar F4 con personas verificadas.
 > Punto de retoma: [[RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07)]].
 
@@ -345,7 +347,7 @@ Todas deben usar la misma primitiva transaccional:
 
 **Gate F3:** no existe una puerta paralela que pueda crear persona o lead por fuera del núcleo.
 
-### F4 — motor de inversiones multiempresa (paquete técnico probado)
+### F4 — motor de inversiones multiempresa (publicada; escritores apagados)
 
 **Estado al 08/09/2026:** candidata completa versionada, reconstruida y verificada
 con datos sintéticos. **F4 terminada; G4 técnico cerrado.** Miguel confirmó que las
@@ -401,17 +403,16 @@ atómicos por operación; no se crea otro lead por inversión adicional.
 **Cierre:** no quedan requisitos pendientes dentro del alcance técnico F4.
 Comisiones/liquidaciones son externas y no bloquean la fase. Se conserva la
 atribución por inversión, Capital, conversión, documentos y períodos sellados.
-Sigue F5; aplicación/activación productivas conservan sus gates posteriores.
+Sigue F5; el motor F4 está instalado y la activación comercial conserva los gates posteriores.
 
-**Límites de alcance:** F4 no se publicó ni se aplicó en producción. La observación
-productiva de 14 vínculos resueltos y un faltante sigue siendo la del 07/09,
-11:32–11:33 Lima; requiere recenso nuevo antes de tratar datos reales. G4 no
-habilita dinero real ni el encendido general. F5 conserva su alcance siguiente.
+**Publicación del 08/09:** instalada la revisión compatible `20260908211349`, frontend y dos Edges verificados. Las fuentes económicas, 14 vínculos existentes, PDF v8 y la autorización administrativa se conservaron. No se ejecutó backfill. Escritores F4 y ficha F5 siguen apagados; G4 no habilita por sí solo el encendido comercial general. Cualquier completado histórico posterior exige censo vigente. [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
 Fuentes vigentes: [matriz de aceptación F4](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md),
 [[F4 multiempresa - reconstruccion, finanzas y lectura vigente (2026-09-08)]].
 
 ### F5 — cartera y Ficha 360 multiempresa
+
+Plan ejecutable: [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]].
 
 **Avance:** al completar la evidencia de esta fase.
 
