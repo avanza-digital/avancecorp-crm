@@ -1,5 +1,6 @@
 import {
   type BackendResult,
+  CONTRATO_PDF_MAX_BYTES,
   CONTRATO_PDF_TEMPLATE_VERSION,
   crearHandlerContratoPdfV2,
   type DependenciasContratoPdfV2,
@@ -118,6 +119,7 @@ type FakeOptions = {
   admin?: BackendResult[];
   uploadError?: { code?: string; message?: string; statusCode?: number } | null;
   deleteError?: { code?: string; message?: string; statusCode?: number } | null;
+  downloadError?: { code?: string; message?: string; statusCode?: number };
   downloads?: Array<Blob | null>;
   render?: RenderResult | Error;
 };
@@ -172,7 +174,7 @@ function fake(opciones: FakeOptions = {}) {
           : downloads[0] ?? null;
         return Promise.resolve({
           data,
-          error: data ? null : { message: "missing" },
+          error: data ? null : opciones.downloadError ?? { message: "missing" },
         });
       },
       firmar: () => {
@@ -190,6 +192,161 @@ function fake(opciones: FakeOptions = {}) {
   };
   return { deps, calls };
 }
+
+Deno.test("plantilla incompatible se informa antes de tomar el lease", async () => {
+  const { deps, calls } = fake({
+    admin: [{
+      data: estado("pendiente", { template_version: "contrato-aep-17-v6" }),
+      error: null,
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 409, "versión incompatible");
+  igual(
+    (await res.json()).codigo,
+    "PDF_VERSION_NO_SOPORTADA",
+    "explica la incompatibilidad",
+  );
+  igual(calls.includes("admin:contrato_pdf_reclamar"), false, "no reclama");
+  igual(
+    calls.includes("admin:contrato_pdf_marcar_error"),
+    false,
+    "no altera el job",
+  );
+  igual(calls.includes("render"), false, "no renderiza con otra plantilla");
+});
+
+Deno.test("versión cambiada entre reserva y reclamo libera el lease sin marcar corrupción", async () => {
+  const { deps, calls } = fake({
+    admin: [
+      { data: estado("pendiente"), error: null },
+      {
+        data: estado("procesando", {
+          adquirido: true,
+          lease_token: LEASE_TOKEN,
+          template_version: "contrato-aep-17-v6",
+          snapshot: SNAPSHOT,
+          renderizado_en: "2026-08-17T20:00:00Z",
+        }),
+        error: null,
+      },
+      {
+        data: estado("error_reintentable", {
+          template_version: "contrato-aep-17-v6",
+          reintentable: true,
+          lease_expira_en: null,
+        }),
+        error: null,
+      },
+    ],
+  });
+  const rpc = deps.rpcAdmin;
+  let codigo;
+  deps.rpcAdmin = (nombre, args) => {
+    if (nombre === "contrato_pdf_marcar_error") codigo = args.p_error_codigo;
+    return rpc(nombre, args);
+  };
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 409, "versión incompatible");
+  igual(
+    codigo,
+    "PLANTILLA_NO_SOPORTADA",
+    "la versión desconocida no se declara corrupta",
+  );
+  igual(calls.includes("render"), false, "no renderiza");
+  igual(calls.includes("upload"), false, "no sube");
+  igual(calls.includes("admin:contrato_pdf_finalizar"), false, "no sella");
+});
+
+Deno.test("respuesta de reclamo futura devuelve el lease identificable sin hacer I/O", async () => {
+  const { deps, calls } = fake({
+    admin: [
+      { data: estado("pendiente"), error: null },
+      {
+        data: estado("procesando", {
+          adquirido: true,
+          lease_token: LEASE_TOKEN,
+          template_version: "contrato-aep-17-v8",
+        }),
+        error: null,
+      },
+      {
+        data: estado("error_reintentable", { reintentable: true }),
+        error: null,
+      },
+    ],
+  });
+  const rpc = deps.rpcAdmin;
+  let codigo;
+  deps.rpcAdmin = (nombre, args) => {
+    if (nombre === "contrato_pdf_marcar_error") codigo = args.p_error_codigo;
+    return rpc(nombre, args);
+  };
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 502, "la metadata no validada se rechaza");
+  igual(
+    codigo,
+    "RESPUESTA_RECLAMO_INVALIDA",
+    "devuelve el lease sin declarar corrupción",
+  );
+  igual(
+    calls.includes("render"),
+    false,
+    "no interpreta el snapshot de otra versión",
+  );
+  igual(
+    calls.includes("download"),
+    false,
+    "no lee Storage desde metadata inválida",
+  );
+});
+
+Deno.test("render demasiado grande se rechaza antes de materializar su contenido", async () => {
+  let materializaciones = 0;
+  class BlobInstrumentado extends Blob {
+    override get size() {
+      return CONTRATO_PDF_MAX_BYTES + 1;
+    }
+    override arrayBuffer(): Promise<ArrayBuffer> {
+      materializaciones++;
+      return Promise.reject(
+        new Error("No debe materializar un archivo fuera del límite"),
+      );
+    }
+  }
+  const blob = new BlobInstrumentado(["%PDF-1.7\nficticio"]);
+  const { deps, calls } = fake({
+    admin: [
+      { data: estado("pendiente"), error: null },
+      {
+        data: estado("procesando", {
+          adquirido: true,
+          lease_token: LEASE_TOKEN,
+          snapshot: SNAPSHOT,
+          renderizado_en: "2026-08-17T20:00:00Z",
+        }),
+        error: null,
+      },
+      {
+        data: estado("error_reintentable", { reintentable: true }),
+        error: null,
+      },
+    ],
+    render: { blob, bytes: blob.size, sha256: "0".repeat(64) },
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 503, "render inválido recuperable");
+  igual(materializaciones, 0, "el tamaño se comprueba antes del arrayBuffer");
+  igual(calls.includes("upload"), false, "no sube un render fuera del límite");
+});
 
 function request(
   body: unknown,
@@ -785,6 +942,99 @@ Deno.test("ensure recupera conflicto sólo si los bytes son idénticos", async (
     "finaliza objeto idéntico",
   );
 });
+
+for (const caso of ["identico", "ausente", "no_disponible", "divergente"]) {
+  Deno.test(`reintento recupera objeto previo de forma segura: ${caso}`, async () => {
+    const blob = new Blob(["%PDF-1.7\noficial"]);
+    const hash = await sha256(blob);
+    const archivo = {
+      contrato_id: CONTRATO_ID,
+      job_id: JOB_ID,
+      storage_bucket: "contratos-generados",
+      storage_path: PATH,
+      nombre_archivo: "Contrato-2026-01-000777.pdf",
+      sha256: hash,
+      bytes: blob.size,
+      template_version: CONTRATO_PDF_TEMPLATE_VERSION,
+      generado_en: "2026-08-17T20:00:00Z",
+    };
+    const exito = caso === "identico" || caso === "ausente";
+    const { deps, calls } = fake({
+      admin: [
+        {
+          data: estado("error_reintentable", { reintentable: true }),
+          error: null,
+        },
+        {
+          data: estado("procesando", {
+            intentos: 2,
+            adquirido: true,
+            lease_token: LEASE_TOKEN,
+            snapshot: SNAPSHOT,
+            renderizado_en: "2026-08-17T20:00:00Z",
+          }),
+          error: null,
+        },
+        ...exito
+          ? [
+            {
+              data: estado("subido_verificado", {
+                sha256: hash,
+                bytes: blob.size,
+              }),
+              error: null,
+            },
+            {
+              data: estado("sellado", {
+                sha256: hash,
+                bytes: blob.size,
+                archivo,
+              }),
+              error: null,
+            },
+          ]
+          : [{
+            data: caso === "divergente"
+              ? estado("integridad_bloqueada", {
+                ok: false,
+                codigo: "PDF_INTEGRIDAD_BLOQUEADA",
+              })
+              : estado("error_reintentable", { reintentable: true }),
+            error: null,
+          }],
+      ],
+      render: { blob, sha256: hash, bytes: blob.size },
+      downloads: caso === "identico"
+        ? [blob]
+        : caso === "ausente"
+        ? [null, blob]
+        : caso === "divergente"
+        ? [new Blob(["%PDF-1.7\nalterado"])]
+        : [null],
+      downloadError: caso === "ausente"
+        ? { statusCode: 404, code: "NoSuchKey" }
+        : { statusCode: 503, code: "TEMPORAL" },
+    });
+    const res = await crearHandlerContratoPdfV2(deps)(
+      request({ action: "ensure", contratoId: CONTRATO_ID }),
+    );
+    igual(
+      res.status,
+      exito ? 200 : caso === "divergente" ? 409 : 503,
+      "estado coherente con el objeto recuperado",
+    );
+    igual(
+      calls.includes("upload"),
+      caso === "ausente",
+      "solo ausencia comprobada permite subir de nuevo",
+    );
+    igual(
+      calls.includes("admin:contrato_pdf_finalizar"),
+      exito,
+      "no se sella un objeto divergente o no disponible",
+    );
+  });
+}
 
 Deno.test("ensure bloquea integridad si el objeto existente difiere", async () => {
   const render = new Blob(["%PDF-1.7\noficial"]);

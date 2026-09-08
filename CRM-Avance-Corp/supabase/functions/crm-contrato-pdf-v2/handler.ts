@@ -808,9 +808,11 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
             503,
           );
         }
-        const fp = await fingerprint(descarga.data);
+        const fp = await pdfValido(descarga.data)
+          ? await fingerprint(descarga.data)
+          : null;
         if (
-          !await pdfValido(descarga.data) || fp.sha256 !== archivo.sha256 ||
+          !fp || fp.sha256 !== archivo.sha256 ||
           fp.bytes !== archivo.bytes
         ) {
           return json(
@@ -903,13 +905,41 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       );
     }
 
+    // Un servicio que no conoce la plantilla no debe tomar un lease y forzar
+    // a esperar su vencimiento. Tampoco debe invalidar un documento de otra versión.
+    if (reserva.estado.template_version !== CONTRATO_PDF_TEMPLATE_VERSION) {
+      return json(origin, origenes, {
+        error: "El PDF todavía no puede generarse; requiere revisión",
+        codigo: "PDF_VERSION_NO_SOPORTADA",
+        pdf: pdfPublico(reserva.estado),
+      }, 409);
+    }
+
     const reclamoRaw = await deps.rpcAdmin("contrato_pdf_reclamar", {
       p_contrato_id: contratoId,
       p_actor_id: sesion.id,
       p_lease_segundos: 120,
     });
+    const raw = esObjeto(reclamoRaw.data) ? reclamoRaw.data : {};
     const reclamoBase = respuestaBackend(reclamoRaw, contratoId);
     if (!reclamoBase.estado) {
+      // Incluso si una versión futura cambió la respuesta, devolver un lease
+      // identificable a su dueño evita bloquear la recuperación. No se lee ni
+      // escribe Storage usando metadata que este servicio no pudo validar.
+      if (
+        !reclamoRaw.error && raw.adquirido === true &&
+        raw.contrato_id === contratoId && uuidCanonico(raw.job_id) &&
+        uuidCanonico(raw.lease_token) &&
+        raw.storage_bucket === CONTRATO_PDF_BUCKET &&
+        raw.storage_path === `${contratoId}/v2/${raw.job_id}/contrato.pdf`
+      ) {
+        await deps.rpcAdmin("contrato_pdf_marcar_error", {
+          p_job_id: raw.job_id,
+          p_lease_token: raw.lease_token,
+          p_actor_id: sesion.id,
+          p_error_codigo: "RESPUESTA_RECLAMO_INVALIDA",
+        });
+      }
       return json(
         origin,
         origenes,
@@ -917,7 +947,6 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         reclamoBase.status,
       );
     }
-    const raw = esObjeto(reclamoRaw.data) ? reclamoRaw.data : {};
     const reclamo: ReclamoPdf = {
       ...reclamoBase.estado,
       adquirido: raw.adquirido === true,
@@ -939,10 +968,7 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       );
     }
     if (
-      !uuidCanonico(reclamo.job_id) || !uuidCanonico(reclamo.lease_token) ||
-      reclamo.template_version !== CONTRATO_PDF_TEMPLATE_VERSION ||
-      !fechaIso(reclamo.renderizado_en) || reclamo.snapshot === undefined ||
-      !reclamo.storage_path
+      !uuidCanonico(reclamo.job_id) || !uuidCanonico(reclamo.lease_token)
     ) {
       return json(
         origin,
@@ -964,12 +990,36 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       return respuestaBackend(resultado, contratoId).estado;
     };
 
+    // La revisión pudo cambiar entre reserva y reclamo. Liberar este lease sin
+    // clasificar como corrupción una plantilla que otro servicio sí soporte.
+    if (reclamo.template_version !== CONTRATO_PDF_TEMPLATE_VERSION) {
+      const estado = await marcarError("PLANTILLA_NO_SOPORTADA");
+      return json(origin, origenes, {
+        error: "El PDF todavía no puede generarse; requiere revisión",
+        codigo: "PDF_VERSION_NO_SOPORTADA",
+        ...(estado ? { pdf: pdfPublico(estado) } : {}),
+      }, 409);
+    }
+    if (
+      !fechaIso(reclamo.renderizado_en) || reclamo.snapshot === undefined ||
+      !reclamo.storage_path
+    ) {
+      const estado = await marcarError("INTEGRIDAD_JOB");
+      return json(origin, origenes, {
+        error: "Job PDF incoherente",
+        codigo: "INTEGRIDAD_JOB",
+        ...(estado ? { pdf: pdfPublico(estado) } : {}),
+      }, 409);
+    }
+
     let render: RenderResult;
     try {
       render = await deps.renderizar(reclamo.snapshot, reclamo.renderizado_en);
-      const fpRender = await fingerprint(render.blob);
+      const fpRender = await pdfValido(render.blob)
+        ? await fingerprint(render.blob)
+        : null;
       if (
-        !await pdfValido(render.blob) || render.bytes !== fpRender.bytes ||
+        !fpRender || render.bytes !== fpRender.bytes ||
         render.sha256 !== fpRender.sha256
       ) throw new Error("RENDER_INVALIDO");
     } catch (error) {
@@ -999,7 +1049,35 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         );
     }
 
-    if (reclamo.estado !== "subido_verificado") {
+    // Una respuesta perdida puede dejar el objeto guardado aunque el job siga
+    // procesando. En un nuevo intento se recuperan esos bytes antes de volver
+    // a subir: su huella se contrasta abajo con el render determinista. Nunca
+    // se sobrescribe el archivo ni se presupone que un error sea ausencia.
+    let descargaRecuperada: { data: Blob; error: null } | null = null;
+    if (reclamo.intentos > 1 && reclamo.estado !== "subido_verificado") {
+      const previa = await deps.storage.descargar(reclamo.storage_path);
+      if (!previa.error && previa.data) {
+        descargaRecuperada = { data: previa.data, error: null };
+      } else if (
+        previa.error?.statusCode !== 404 &&
+        previa.error?.code !== "NoSuchKey"
+      ) {
+        const estado = await marcarError("STORAGE_DESCARGA");
+        return estado
+          ? json(origin, origenes, { pdf: pdfPublico(estado) }, 503)
+          : json(
+            origin,
+            origenes,
+            {
+              error: "PDF no disponible temporalmente",
+              codigo: "STORAGE_DESCARGA",
+            },
+            503,
+          );
+      }
+    }
+
+    if (reclamo.estado !== "subido_verificado" && !descargaRecuperada) {
       const subida = await deps.storage.subir(
         reclamo.storage_path,
         render.blob,
@@ -1017,7 +1095,8 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       }
     }
 
-    const descarga = await deps.storage.descargar(reclamo.storage_path);
+    const descarga = descargaRecuperada ??
+      await deps.storage.descargar(reclamo.storage_path);
     if (descarga.error || !descarga.data) {
       const estado = await marcarError("STORAGE_DESCARGA");
       return estado
@@ -1032,9 +1111,11 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
           503,
         );
     }
-    const fpObjeto = await fingerprint(descarga.data);
+    const fpObjeto = await pdfValido(descarga.data)
+      ? await fingerprint(descarga.data)
+      : null;
     if (
-      !await pdfValido(descarga.data) || fpObjeto.sha256 !== render.sha256 ||
+      !fpObjeto || fpObjeto.sha256 !== render.sha256 ||
       fpObjeto.bytes !== render.bytes
     ) {
       const estado = await marcarError("INTEGRIDAD_OBJETO_DIVERGENTE");

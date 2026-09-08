@@ -2,13 +2,11 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import {
   type ActorContratoPdfV2,
-  type BackendError,
   type BackendResult,
-  CONTRATO_PDF_BUCKET,
   crearHandlerContratoPdfV2,
-  normalizarUrlFirmadaV2,
 } from "./handler.ts";
 import { renderizarContratoPdfV2 } from "./renderer.ts";
+import { crearStorageContratoPdfV2, errorBackend } from "./storage.ts";
 
 function env(nombre: string, alternativa?: string): string {
   const valor = Deno.env.get(nombre) ??
@@ -70,28 +68,6 @@ const admin = createClient(SUPABASE_URL, SECRET_KEY, {
     detectSessionInUrl: false,
   },
 });
-const storage = admin.storage.from(CONTRATO_PDF_BUCKET);
-
-function errorBackend(error: unknown): BackendError | null {
-  if (!error || typeof error !== "object") return null;
-  const valor = error as {
-    code?: unknown;
-    message?: unknown;
-    statusCode?: unknown;
-    status?: unknown;
-  };
-  const statusRaw = valor.statusCode ?? valor.status;
-  const statusCode = typeof statusRaw === "number"
-    ? statusRaw
-    : typeof statusRaw === "string" && /^\d{3}$/.test(statusRaw)
-    ? Number(statusRaw)
-    : undefined;
-  return {
-    ...(typeof valor.code === "string" ? { code: valor.code } : {}),
-    ...(typeof valor.message === "string" ? { message: valor.message } : {}),
-    ...(statusCode !== undefined ? { statusCode } : {}),
-  };
-}
 
 function resultado(data: unknown, error: unknown): BackendResult {
   return { data, error: errorBackend(error) };
@@ -145,45 +121,11 @@ const handler = crearHandlerContratoPdfV2({
     const { data, error } = await admin.schema("crm").rpc(nombre, argumentos);
     return resultado(data, error);
   },
-  storage: {
-    async subir(path, archivo) {
-      const { error } = await storage.upload(path, archivo, {
-        contentType: "application/pdf",
-        upsert: false,
-        cacheControl: "0",
-      });
-      return { error: errorBackend(error) };
-    },
-    async descargar(path) {
-      const { data, error } = await storage.download(path);
-      return {
-        data: error ? null : data,
-        error: errorBackend(error),
-      };
-    },
-    async firmar(path, segundos, solicitud) {
-      const { data, error } = await storage.createSignedUrl(path, segundos, {
-        download: false,
-      });
-      const url = error || !data?.signedUrl ? null : normalizarUrlFirmadaV2(
-        data.signedUrl,
-        resolverBasePublica(solicitud),
-        path,
-      );
-      if (!error && data?.signedUrl && !url) {
-        console.warn("[crm-contrato-pdf-v2] URL firmada no publicable");
-      }
-      return {
-        url,
-        error: errorBackend(error) ??
-          (url ? null : { code: "SIGNED_URL_INVALID" }),
-      };
-    },
-    async eliminar(bucket, paths) {
-      const { error } = await admin.storage.from(bucket).remove([...paths]);
-      return { error: errorBackend(error) };
-    },
-  },
+  storage: crearStorageContratoPdfV2({
+    supabaseUrl: SUPABASE_URL,
+    secretKey: SECRET_KEY,
+    basePublica: resolverBasePublica,
+  }),
 });
 
 Deno.serve(handler);
