@@ -1,0 +1,165 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The month/week wrapper, the unique-lead average and the explicit `citaAnteriorId` linkage are conceptually sound and correctly scoped as a local prototype: no writes, no RPCs, no auth surface, and the model reuse via `consultarCitas` keeps a single filtering path for all three views. The defects I can evidence are: (1) an unguarded `promedio === null` reaching the always-rendered KPI strip on a reachable empty-cohort path, (2) a navigation path (`verAnalista`) that does not reset filters even though its sibling `verAgenda` does, precisely for out-of-filter follow-up appointments, (3) a per-advisor `Leads con cita` column whose rows cannot sum to the footer, unexplained in the on-screen note, and (4) week-range tests that can pass vacuously and therefore do not actually prove the four tramos cover the month. Several `periodo: 'custom'` branches in `filtros.tsx` are now unreachable and silently ignored by `consultarCitas`.
+
+FINDINGS:
+
+[P2] Empty cohort renders `numero(null, 2)` in the summary strip
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.tsx
+Lines:
+75, 79, 147 (source: datos.ts:50)
+Problem:
+`resumenLeads` returns `promedio: number | null` (`datos.ts:50` returns `null` when `leads.length === 0`). `propuesta.tsx:79` passes it straight to `numero(resumen.promedio, 2)`. The KPI section at line 147 is rendered outside the results `Card` and is only guarded by `error ? '—' : item.valor` — the *error* case, not the *zero-results* case.
+Evidence:
+`propuesta.test.tsx:54-56` reaches exactly this state: selecting Mes `2026-08` yields `0 de 40` with no validation error, so `resumen.leads === 0`, `resumen.promedio === null`, and the KPI still renders. The sibling indicator at `propuesta.tsx:81` explicitly guards its own empty case (`inasistencias.length ? ... : '—'`), so the omission is inconsistent within the same array. No test asserts the KPI text in that state.
+Impact:
+Depending on `@/lib/format#numero`, the visible value is `NaN`, `0.00`, or a throw on a path any user can reach by changing the month. If `numero`'s parameter is typed `number`, `tsc --noEmit` should already be failing; that output was not attached.
+Recommendation:
+Guard the value at the source, e.g. `valor: resumen.leads ? numero(resumen.promedio, 2) : '—'`, and mirror it in `resultados.tsx:53` (tfoot) and `resultados.tsx:66`. Add an assertion on the KPI strip to the existing `2026-08` test.
+
+[P2] `verAnalista` keeps filters that can make the destination empty, unlike `verAgenda`
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.tsx
+Lines:
+106, 108, 170; resultados.tsx:38
+Problem:
+`verAgenda` (line 108) rebuilds the filter set from `defaults()` plus the appointment's own month, because the target appointment may be outside the current query. `verAnalista` (line 106) only sets `analista` and keeps `equipo`, `mes`, `semana`, `estados` and `leadId`.
+Evidence:
+`resultados.tsx:38` passes `fila.nueva` — an appointment resolved from the full `CITAS_CRM` and explicitly allowed to be outside the selected month/week (`resultados.tsx:31`) — into the shared `Ficha`. The Ficha footer (`propuesta.tsx:55`) offers `Citas de {nombre}` wired to `onAnalista` → `verAnalista`. If the follow-up appointment belongs to a different supervisor or a different month than the active filters, the resulting combination yields zero rows. The same applies when `leadId` is active from `verLead` (line 107) and the user then clicks another advisor in `Resultados`.
+Impact:
+The user is dropped on an empty "Todas las citas de tu consulta" with a generic "No hay citas con esta combinación", after an action that promised the advisor's appointments. `equipo` + `analista` can also be left in a mutually exclusive state that `cambiar` (line 93) only prevents when `equipo` is the field being changed.
+Recommendation:
+Make `verAnalista` accept the originating appointment (or at least align the context): `setFiltros({ ...defaults(), analista: cita.analista, mes: cita.fecha.slice(0,7) })` when invoked from the Ficha, and clear/realign `equipo` and `leadId` when the target analyst does not belong to the active supervisor. Add a test covering "open follow-up appointment outside the filter → Citas de X → non-empty result".
+
+[P2] The `Leads con cita` column cannot sum to its own footer, and the note only explains the average
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/resultados.tsx
+Lines:
+53 (tfoot), 55; datos.ts:48-55
+Problem:
+Per-advisor `leads`/`repetidos` come from `resumenLeads(citas.filter(c => c.analista === persona.id))` (`datos.ts:54`), while the footer uses `resumenLeads(citas)` over globally distinct ids. A lead attended by two advisors is counted once in the footer and once per advisor.
+Evidence:
+`datos.test.ts:17-26` deliberately constructs this case: `lead-a` has appointments with `ana` and `diego`; per-advisor leads are 1 and 2 (sum 3) while `resumenLeads(citas).leads` is 2. `CITAS_CRM` (`datos.ts:22-29`) rewrites only `nombre/telefono/origen/monto/moneda` and never `analista`, so repeated indices such as `24: 0` and `36: 0` can legitimately map appointments of different advisors onto the same `L-001`.
+Impact:
+In the same table, `Citas` sums to the footer but `Leads con cita` and `Leads con 2+ citas` do not. The on-screen note (`resultados.tsx:55`) explains only that the average is not an average of averages, so a manager auditing the column will read it as an arithmetic error.
+Recommendation:
+Extend the note to state that a lead attended by more than one advisor counts once in the total and once per advisor, and consider marking the footer cells for those two columns (e.g. "26 únicos") so the non-additive columns are visually distinguishable.
+
+[P2] `periodo: 'custom'` UI is unreachable and, if reached, silently ignored
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/filtros.tsx
+Lines:
+25, 26, 40, 53-57, 76; datos.ts:33
+Problem:
+`consultarCitas` overwrites `periodo`, `desde` and `hasta` unconditionally (`datos.ts:33`), so the Desde/Hasta inputs rendered at `filtros.tsx:53-57` have no effect on results. Meanwhile `errorFiltros(f)` at `propuesta.tsx:69` still validates the raw `f.desde/f.hasta`, so an invalid pair would block the whole query while being ignored by the query itself.
+Evidence:
+There is no control that sets `periodo` to `custom` or `todos` anymore after the compaction; the only writer is the chip removal at line 40 (`quitar: { periodo: 'mes' }`). Lines 25-26 build `errorFecha`/`errorMonto` by mutating unrelated fields (`{...f, moneda:''}` / `{...f, periodo:'todos'}`), which encodes an undocumented assumption about `errorFiltros`' internal branch order.
+Impact:
+Dead branches that a future integrator will read as supported behaviour, plus a latent validation/execution mismatch.
+Recommendation:
+Either remove the `custom` block, the `periodo` chip and the `errorFecha` derivation, or make `rangoConsulta` honour `periodo === 'custom'` by returning `[f.desde, f.hasta]`. Prefer removal for this prototype scope.
+
+[P3] `REPETICIONES` has an unenforced invariant: a value must not also be a key
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/datos.ts
+Lines:
+21-29
+Problem:
+`indiceLead = REPETICIONES[indice] ?? indice` is a single-level indirection. Today no value (`28,29,30,0,0,1,1,1,2,8,3,3,4,5`) is also a key (`10,11,18,24,36,19,25,37,20,26,21,27,22,23`), so identity is stable. Adding e.g. `5: 7` later would give appointment 23 `L-006` while appointment 5 itself becomes `L-008`, splitting one lead into two ids without any failure.
+Evidence:
+`CITAS[indiceLead]!` at line 24 also non-null-asserts an unvalidated index; an out-of-range entry throws at module load, i.e. at import time of the prototype entry.
+Impact:
+Silent corruption of the very identity the per-lead metrics depend on.
+Recommendation:
+Add a unit test asserting `Object.values(REPETICIONES).every(v => !(v in REPETICIONES) && v < CITAS.length)`, and that every `leadId` maps to exactly one `(nombre, telefono)` pair across `CITAS_CRM`.
+
+[P3] Mixed comparison styles inside the same successor predicate
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/datos.ts
+Lines:
+68-72
+Problem:
+Line 70 compares parsed timestamps (`Date.parse(`${actual.fecha}T${actual.hora}:00-05:00`)`) while line 71 compares the lexicographic string `` `${cita.fecha} ${cita.hora}` ``. The string comparison is only correct while every `hora` is zero-padded `HH:MM`; a single `9:00` in the source data would silently break ordering, and the two lines would then disagree.
+Impact:
+Hypothesis only — `model.mjs` was not attached, so I cannot confirm the `hora` format. Low likelihood, silent failure mode.
+Recommendation:
+Reuse one helper, e.g. `const instante = (c) => Date.parse(`${c.fecha}T${c.hora}:00-05:00`)`, and express both conditions with it.
+
+[P3] Ambiguous tie-break in the chain walk, undocumented and untested
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/datos.ts
+Lines:
+72
+Problem:
+When two appointments carry the same `citaAnteriorId`, the walk takes the most recent `reprogramadaEn` and discards the other branch entirely; the discarded branch is invisible in the funnel. The `visitadas` guard plus the strictly-increasing datetime condition do make cycles impossible, but neither behaviour is covered.
+Recommendation:
+Document the tie-break in the JSDoc at line 60-62 and add two tests: two siblings sharing `citaAnteriorId`, and a self-referencing `citaAnteriorId` to pin the cycle guard.
+
+[P3] Object URL and anchor leak on failure; hardcoded dataset facts drift
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.tsx
+Lines:
+118-131, 38, 145; resultados.tsx:31
+Problem:
+If `enlace.click()` throws after `createObjectURL`, the `catch` sets the message but the blob URL is never revoked and the anchor stays appended to `document.body`. Separately, "40 citas" (line 38) and "7 de septiembre de 2026, 13:00 Lima" (lines 38, 145 and `resultados.tsx:31`) are hardcoded in prose while `CITAS.length` and `CORTE` are available programmatically.
+Recommendation:
+Wrap the append/click/remove in `try/finally` with the revoke in `finally`; derive the count from `CITAS.length` and the cutoff string from `CORTE` (also for `consultaInicial`'s `'2026-09'` default, duplicated at `datos.ts:6`, `datos.ts:10` and `filtros.tsx:39` twice).
+
+[P3] Accessibility details worth confirming
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.tsx, filtros.tsx
+Lines:
+propuesta.tsx:148, 159; filtros.tsx:42
+Problem:
+`aria-label` on `Card` (a generic element unless `Card` renders a landmark or sets a role) is discarded by assistive technology; the `sr-only` `<h2>` at `filtros.tsx:43` suggests the team already worked around this in one place but not the other. `role="tabpanel" tabIndex={0}` at line 159 adds a tab stop to a panel that always contains focusable children.
+Recommendation:
+Confirm what element `Card` renders; if it is a `div`, name the regions with a heading or `role="region"`. Consider dropping `tabIndex={0}` on the panel. This is the natural scope for the repo's `revisor-a11y` under the same protocol and budget.
+
+[P3] `enfocarVista` depends on the Sheet's focus-restore timing
+File:
+CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.tsx
+Lines:
+102-105
+Problem:
+The double `requestAnimationFrame` exists only to win a race against the Sheet returning focus to its trigger (the comment says so). It holds for the current `Sheet` implementation and in jsdom (`propuesta.test.tsx:86` would fail otherwise), but it is an undocumented cross-component coupling that will break silently if `Sheet` moves its restore into a timeout or transition end.
+Recommendation:
+Expose an explicit `returnFocusTo`/`onCloseFocus` prop on `Sheet` (or pass `false` to disable auto-restore) instead of racing it.
+
+TEST GAPS:
+- `datos.test.ts:11` asserts `.every(...)` on week 2, which passes vacuously for an empty array and would still pass if a boundary day (08 or 14) were dropped. Nothing positively asserts that the four tramos partition the month. Add: the four weeks are pairwise disjoint and their union equals `consultarCitas` for the whole month, plus a fixture dated exactly on `hasta` for a 31-day month to prove upper-bound inclusivity in `filtrar`.
+- No assertion on the KPI strip when the query returns zero rows (the `numero(null, 2)` path above).
+- No test for `verAnalista` starting from a follow-up appointment that lies outside the active filters.
+- No test for the `Inasistencias` stage buttons when the selected stage becomes empty after a filter change (`resultados.tsx:22, 40`); the internal `grupo` state is never reset when `citas` changes.
+- No test that the exported CSV carries `leadId`. `propuesta.tsx:121` reuses `csv` from the unchanged `model.mjs` while the row type is now `CitaConLead`, so the per-lead dimension — the headline addition — is very likely absent from the export. Confirm and either extend the CSV or state the omission in the guide (`propuesta.tsx:36`).
+- No invariant test for `REPETICIONES` (see P3 above).
+- `resultados.tsx:53/54` render the same button accessible names in the desktop table and the mobile list; jsdom applies no Tailwind, so both trees are queryable. Existing tests scope with `within(...)`, but an unscoped `getByRole` will throw "found multiple" for a future author. Worth a comment or a `data-testid` on the table wrapper.
+
+ARCHITECTURE RISKS:
+- `datos.ts` reaches outside the Vite app root into `../../../prototypes/citas-assets/model.mjs` and relies on a hand-written `.d.mts` that was not attached. The declaration is now the only contract guarding `filtrar`, `agruparAnalistas`, `errorFiltros`, `ordenar` and `csv`; a drift between `model.mjs` and the declaration fails at runtime, not at build.
+- `resultadosConLeads` (`datos.ts:54`) spreads `resumenLeads` over the `agruparAnalistas` result. If that model function ever returns a `leads` or `promedio` key, it is silently overwritten. Prefer a nested key (`...persona, resumen: resumenLeads(...)`).
+- `seguimientoInasistencias` is computed twice per render (`propuesta.tsx:76` for the KPI and `resultados.tsx:18` for the funnel). Harmless at 40 rows, but the two call sites must stay on the same cohort; consider lifting it and passing it down.
+
+SECURITY RISKS:
+- None material within the reviewed scope: no network calls, no auth, no persistence, React escapes all interpolated fields, and the exported data is static fiction. The only note is generic CSV formula injection in `csv()` — out of scope here since no user-controlled field is exported, but it must be revisited if this export is ever pointed at real CRM data.
+
+REGRESSION RISKS:
+- Existing components (`Button`, `Card`, `Select`, `Input`, `Badge`, `BrandLockup`, `Sheet`) are imported unchanged and the new files are reachable only from `prototypes/citas-crm.html`, so blast radius on the CRM is limited to shared CSS. I could not verify the CSS: `citas-crm`, `citas-rail`, `citas-tabla` and `citas-crm-dialogo` were not attached. If any of those selectors live in the app-wide stylesheet rather than a prototype-scoped file, they can leak into the real module.
+- `datos.test.ts:12` (`semana '4'` → `[]`) and `datos.test.ts:32` (`{leads: 4, promedio: 1.75}`) are hard-coded to the current fixture; extending `CITAS` will break them. That is acceptable for a fixture-driven prototype but should be an intentional decision.
+
+EVIDENCE GAPS (limiting confidence, not blocking):
+- `prototypes/citas-assets/model.mjs` and its `.d.mts`: `filtrar` bound inclusivity, `defaults().periodo`, `errorFiltros` branch order, `agruparAnalistas`' returned shape, `csv` columns, `hora` format.
+- `src/prototypes/citas-crm/vistas.tsx` and `presentacion.tsx` (`Bandeja`, `Agenda`, `Estado`, `siguientePaso`, `contextoCita`) — changed files not reviewed.
+- `@/lib/format#numero` signature and nullish handling, and the `tsc --noEmit` / `vitest` output for this change.
+
+RECOMMENDED NEXT ACTIONS:
+1. Fix the empty-cohort average rendering (`propuesta.tsx:79`, `resultados.tsx:53/66`) and confirm `numero`'s null handling with `tsc --noEmit`.
+2. Align `verAnalista` with `verAgenda`'s reset semantics for appointments outside the active filters, and cover it with a test.
+3. Replace the vacuous week assertion with a partition test (disjoint + union equals the month) and add a boundary fixture on the last day of a 31-day month.
+4. Remove or wire up the unreachable `periodo: 'custom'` branches in `filtros.tsx`, and add the `REPETICIONES` invariant test.
+5. Clarify in `resultados.tsx:55` that `Leads con cita` and `Leads con 2+ citas` are per-advisor and do not sum to the unique-lead footer.
+
+CONFIDENCE:
+MEDIUM — high on the wrapper logic, the navigation/state findings and the test gaps, which are all evidenced in the attached files; lower on anything depending on `model.mjs`, `numero` and the unattached `vistas.tsx`/`presentacion.tsx`/CSS, which I marked as hypotheses.
