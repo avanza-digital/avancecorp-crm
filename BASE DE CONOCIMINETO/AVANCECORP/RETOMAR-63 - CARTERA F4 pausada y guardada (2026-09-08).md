@@ -7,6 +7,8 @@ codigo: RETOMAR-63
 
 # CARTERA — F4 guardada para la siguiente sesión
 
+> Antecedente histórico. Estado vigente y siguiente paso: [[RETOMAR-64 - CARTERA F4 terminada y avance guardado (2026-09-08)]].
+
 Miguel pidió parar y seguir mañana. **Desarrollo pausado a petición del usuario. F4/G4 sigue abierto.**
 
 - Commit del avance recuperado: **`79fda66` — Guarda avance F4 con históricos recuperables y banco aislado**.
