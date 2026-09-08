@@ -446,7 +446,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               id="cf-tipo-doc"
               value={tipoDoc}
               onChange={(e) => setTipoDoc(e.target.value as TipoDocumento)}
-              disabled={enviando}
+              disabled={enviando || esCorregir}
             >
               {TIPOS_DOCUMENTO_K.map((k) => (
                 <option key={k} value={k}>{TIPOS_DOCUMENTO[k].etiqueta}</option>
@@ -467,9 +467,13 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               style={{ textTransform: reglaDoc.mayusculas ? 'uppercase' : 'none' }}
               autoComplete="off"
               aria-describedby="cf-documento-hint"
-              disabled={enviando}
+              disabled={enviando || esCorregir}
             />
-            <p id="cf-documento-hint" className="text-[10px] text-muted-foreground">{reglaDoc.regla}</p>
+            <p id="cf-documento-hint" className="text-[10px] text-muted-foreground">
+              {esCorregir
+                ? 'Solo un usuario administrador puede corregirlo desde Administración > Clientes.'
+                : reglaDoc.regla}
+            </p>
           </div>
         </div>
 
