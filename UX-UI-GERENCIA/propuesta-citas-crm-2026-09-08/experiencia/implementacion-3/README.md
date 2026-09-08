@@ -1,5 +1,7 @@
 # Propuesta 3 implementada: detalle a demanda
 
+**Estado posterior:** Miguel no aprobó el aspecto de esta implementación porque se aleja de su CRM. Se conserva como antecedente funcional. La [revisión y búsqueda de recursos Figma](../recursos-figma/README.md) define la siguiente dirección; los PASS de esta página no equivalen a aprobación visual del cliente.
+
 Miguel eligió la tercera imagen del ajuste UX. Se adaptó el prototipo existente a [Detalle a demanda](../ajuste-ux/detalle-a-demanda.png), con los componentes y recursos del CRM. Es una consulta local con datos ficticios; no modifica las citas ni las metas de producción.
 
 [Abrir prototipo local](http://127.0.0.1:4180/prototypes/citas-crm.html).
