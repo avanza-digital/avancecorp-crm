@@ -6,7 +6,7 @@ Relacionado: [[Inicio]], [[Plan Rentabilidad server-side - tasa decidida por pol
 
 ## Estado
 
-**SQL aprobado y aplicado a producción el 08/09/2026 a las 11:57 de Lima. Frontend todavía sin publicar.** Miguel respondió «ok dale sii esta bien» al SQL mostrado. La validación general volvió a ejecutarse y pasó con 216 archivos / 3098 tests; el error ajeno de Citas ya estaba resuelto en el árbol actualizado, sin editarlo en esta tarea.
+**SQL y frontend publicados y verificados el 08/09/2026.** El SQL se aplicó a las 11:57 de Lima tras «ok dale sii esta bien»; el frontend se publicó después de que Miguel invocara `/release-crm`. Build vivo: `build-20260908T171616017Z`. El error ajeno de Citas ya estaba resuelto en el árbol actualizado, sin editarlo en esta tarea.
 
 ## Decisión de negocio
 
@@ -42,10 +42,14 @@ En el formulario se bloquea también durante la preparación/envío de la solici
 | `npm run check`, corrida final tras la aprobación | PASS, 216 archivos / 3098 tests, typecheck, cobertura, configuración de release, build, bundle y duplicación |
 | Lint final | PASS sin errores; cuatro avisos preexistentes en `coverflow-carousel.tsx` |
 | Gate de realidad y preflights RLS/seed | NOT RUN: falta SUPABASE_URL en el entorno; no sustituir por las pruebas SQL locales |
-| Suite RLS global, Storage/PDF real, matriz completa de renovación/upgrade por sus puertas, release | NOT RUN |
+| Suite RLS global, Storage/PDF real, matriz completa de renovación/upgrade por sus puertas | NOT RUN |
 | Postflight de producción | PASS; definiciones instaladas contienen exactamente el cambio aprobado, propietarios/ACL conservados, helpers cerrados a API y trigger diferido activo |
 | Helper sobre solicitudes productivas en transacción READ ONLY | PASS; una operación pendiente devuelve P0411; no crea ni modifica contratos/solicitudes |
 | Advisors seguridad antes/después | 211→211, cero hallazgos nuevos |
+| Gate del commit limpio del release | PASS, 215 archivos / 3079 tests; menor total al excluir trabajo local ajeno sin commitear |
+| E2E del commit del release | PASS, 2 (1280 y 390 px), sin backend productivo |
+| Artefacto y configuración productiva | PASS, manifiesto SHA-256, worktree_sucio=false, Supabase real correcto, sin fixtures demo/PDFMake, Ficha 360 presente |
+| Verificación HTTP después de publicar | PASS, 80 archivos: 67 exactos, 12 PNG optimizados accesibles y .htaccess protegido; 3 lecturas estables de versión y ambos ZIP públicos 404; cero fallos |
 
 Banco `qa_tasa_pendiente_20260908_v2`, base independiente dentro de Docker local. Snapshot sintético del banco F4 más siete definiciones R4 leídas de producción; la base `postgres` original del banco F4 solo se leyó. Restauración parcial sin Storage, con su FK ausente; no es una réplica íntegra de producción. Los ensayos fuerzan `resolver_en_puertas=false` e `inversiones_escritura=false` dentro de sus transacciones. Lectura productiva confirmó `resolver_en_puertas=true`, `inversiones_escritura=false`: no se declara cubierta toda la integración F4. La barrera probada es el trigger diferido de cualquier alta real.
 
@@ -66,8 +70,17 @@ No se aceptaron estas hipótesis como fallos demostrados:
 
 La modificación con anclas está versionada y evita reponer definiciones antiguas sobre las instaladas. Es una limitación de mantenimiento: futuras migraciones que sustituyan esas funciones deberán conservar las dos llamadas y ejecutar el banco de este cambio. No se declara que una comprobación textual por sí sola pruebe el comportamiento. El error genérico P0411 no expone el motivo ni la tasa solicitada por otro analista.
 
-## Siguiente paso
+## Publicación cerrada
 
 El SQL ya está aplicado; no pedir nuevamente esa aprobación ni volver a ejecutarlo. Evidencia saneada en `CRM-Avance-Corp/supabase/scripts/evidencia-tasa-pendiente/2026-09-08-produccion.json`.
 
-Miguel invocó `/release-crm` y autorizó la publicación de esta corrección. Guardar sus archivos en un commit, integrar los cambios remotos sin sobrescribir trabajo y comprobar Main igual a `avancecorp/main`. Construir y verificar desde una copia limpia de ese commit; conservar los cambios locales ajenos fuera del artefacto. No volver a pedir la aprobación ya recibida.
+La corrección quedó en el commit `2513f535b65aa166c74454f939be29b57a70d840`. Durante la sincronización apareció `33a8eda7a4c541732e0f7564e958b76f856800a2`, que solo añade documentación de Citas: ambos tienen el mismo árbol de `CRM-Avance-Corp/app` (`81982955198e45cb51f6d7b6d68859924bd9744e`). Main y `avancecorp/main` coincidían en `33a8eda` antes de construir y publicar.
+
+Se usó una copia local limpia en detached HEAD, sin ramas de release ni cambios de los demás trabajos. Gate general, build y prueba de navegador aprobados. El cliente MCP oficial de Hostinger confirmó la carga y aceptó el despliegue; la verificación HTTP posterior confirmó la versión efectiva.
+
+- Artefacto: `CRM-Avance-Corp/releases/crm-20260908T171616Z-33a8eda7a4c5.zip` y manifiesto hermano.
+- SHA-256: `3f3c03a36a9af3cc0683e03c755e4caf2abcfcb8d92ee08e09f7ad2d996160c7`.
+- Evidencia: `CRM-Avance-Corp/supabase/scripts/evidencia-tasa-pendiente/2026-09-08-publicacion.json`.
+- Reversión frontend conservada: `crm-20260908T035714Z-b0896c3f8531.zip`; no se elimina el respaldo. El SQL tiene su script de reversión separado ya probado.
+
+Las notas de cierre posteriores no alteran la aplicación y no necesitan otro build. Miguel debe actualizar el CRM para ver el campo amplio y el botón bloqueado durante la espera de Gerencia.

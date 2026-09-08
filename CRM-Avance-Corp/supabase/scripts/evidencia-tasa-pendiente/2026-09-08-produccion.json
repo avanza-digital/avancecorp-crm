@@ -68,7 +68,9 @@
     "archivos": 216,
     "tests": 3098
   },
-  "frontend_publicado": false,
+  "frontend_publicado": true,
+  "release_id": "crm-20260908T171616Z-33a8eda7a4c5",
+  "evidencia_publicacion": "2026-09-08-publicacion.json",
   "limites": [
     "Suite RLS global, Storage/PDF real y matriz completa de renovaciones/upgrades no ejecutadas en producción",
     "La comprobación productiva invoca el helper sin crear contratos; el alta por RPC y su RLS se verificaron en el banco aislado"
