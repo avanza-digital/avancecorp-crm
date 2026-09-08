@@ -1,0 +1,178 @@
+{
+  "capturado_en": "2026-09-07T19:25:45.863Z",
+  "estado": "banco_preparado_motor_f4_pendiente",
+  "banco": "Docker local avancecorp-f4-bank, API 56321, Postgres 56322",
+  "produccion": {
+    "id": "dctqcbznekcyxhjujuci",
+    "acceso": "solo lectura, esquema sin datos"
+  },
+  "version_postgresql": "17.6",
+  "version_cli": "2.117.0",
+  "esquema_sha256": "f6c46f3d52441f9255b3a3fb88682527cca73cd8b898fb0d2fe782fee91aaef0",
+  "censo_sintetico": {
+    "auth": 7,
+    "perfiles": 7,
+    "contratos": 0,
+    "identidades": 1,
+    "inversiones": 0,
+    "cierres_externos": 0
+  },
+  "funciones_verificadas": [
+    {
+      "firma": "crm.cierres_externos_fn(date)",
+      "md5": "337700989baed6b15f72349c021bb387",
+      "coincide": true
+    },
+    {
+      "firma": "private.leads_before_update()",
+      "md5": "213e284d9c50fde7f8cd136b4ecaa5d2",
+      "coincide": true
+    },
+    {
+      "firma": "private.cierre_anulado(uuid)",
+      "md5": "3149031d7e90e13cacbb4b56480afbf1",
+      "coincide": true
+    },
+    {
+      "firma": "private.puede_alta_cliente()",
+      "md5": "dd9c43d7be8b1c53f9c83f58e72e348b",
+      "coincide": true
+    },
+    {
+      "firma": "crm.cierres_estado_fn(uuid[])",
+      "md5": "1411c7395cf5579359d93565c42ce638",
+      "coincide": true
+    },
+    {
+      "firma": "crm.alta_cliente_identidad_fn(text,jsonb)",
+      "md5": "2d3a058e674281c8e59906897800ddaf",
+      "coincide": true
+    },
+    {
+      "firma": "crm.saga_conversion_fn(text,jsonb)",
+      "md5": "d744ebe8d9b6ccf00342201d886bd945",
+      "coincide": true
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)",
+      "md5": "79d9d316203ce217456a7d00f834c584",
+      "coincide": true
+    },
+    {
+      "firma": "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])",
+      "md5": "b8f375fbb377582835f4cfe222240c5b",
+      "coincide": true
+    },
+    {
+      "firma": "private.puede_gestionar_contratos_crm()",
+      "md5": "94b5fb2af92bf4187802b1f3d26659c5",
+      "coincide": true
+    },
+    {
+      "firma": "crear_contrato(jsonb,jsonb)",
+      "md5": "1cd2730dc75c966cfbd9ea8d95d4d1ed",
+      "coincide": true
+    },
+    {
+      "firma": "private.fusion_estado_jsonb(uuid,uuid)",
+      "md5": "9cc2996ce00e7b0ef73597b4a5800ee6",
+      "coincide": true
+    },
+    {
+      "firma": "crm.fusionar_inversionistas_fn(uuid,uuid,text,text)",
+      "md5": "6919e7ce8960f7d985ac03ba033c347e",
+      "coincide": true
+    },
+    {
+      "firma": "crm.fusion_previsualizar_fn(uuid,uuid)",
+      "md5": "814368bf22e2b9f2383bcce878a66fea",
+      "coincide": true
+    },
+    {
+      "firma": "crm.enlazar_lead_inversionista_fn(uuid,uuid,text)",
+      "md5": "50e64327a047171e2c4d37af7afdb9d5",
+      "coincide": true
+    },
+    {
+      "firma": "crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)",
+      "md5": "49d73e13f8969161060e2ce2b669a85a",
+      "coincide": true
+    },
+    {
+      "firma": "crm.altas_nuevas_por_analista_fn(integer)",
+      "md5": "2cd38241a1331e1ac335658fc7f653f5",
+      "coincide": true
+    },
+    {
+      "firma": "crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)",
+      "md5": "aeaead8aad9817e9790f6fc97448d25e",
+      "coincide": true
+    },
+    {
+      "firma": "crm.anular_cierre_externo(uuid,text)",
+      "md5": "f77ef584632cc37afc06ab3864d41805",
+      "coincide": true
+    },
+    {
+      "firma": "crm.corregir_cierre_externo(uuid,numeric,text,text,text,text,date,text)",
+      "md5": "73cccb38b57506b065b0eb903838b4a0",
+      "coincide": true
+    },
+    {
+      "firma": "crm.anular_cierre_avance(uuid,text)",
+      "md5": "9322f86beba6b40bb4a9c07186f0028f",
+      "coincide": true
+    },
+    {
+      "firma": "crm.fijar_dni_lead_fn(uuid,text)",
+      "md5": "0a3d6462b5f4e3fa43f4594647709a70",
+      "coincide": true
+    },
+    {
+      "firma": "private.metricas_conversiones_implementacion(date,date,text)",
+      "md5": "be4e1c283a1f3042828cbb8c66332252",
+      "coincide": true
+    },
+    {
+      "firma": "private.fusion_impacto(uuid,uuid)",
+      "md5": "8f48cae159dee0ea157ba45e2a833e04",
+      "coincide": true
+    },
+    {
+      "firma": "private.inversionista_resolver(text,text,boolean,text)",
+      "md5": "95d502fcae257bf2a439ec3e4aa6a2dc",
+      "coincide": true
+    },
+    {
+      "firma": "private.inversiones_empresa_coherente()",
+      "md5": "4873bebdf14f507e7f9200aa5b676b7f",
+      "coincide": true
+    },
+    {
+      "firma": "private.backfill_multiempresa_ejecutar()",
+      "md5": "930acfc792eb4db91df599f26e283f12",
+      "coincide": true
+    },
+    {
+      "firma": "private.idem_leer(text,text)",
+      "md5": "23d7a68762c0f5b1c2ac32fbd7d0382a",
+      "coincide": true
+    },
+    {
+      "firma": "private.idem_guardar(text,text,text,jsonb,uuid)",
+      "md5": "06110b525d03adc2d3af8ba54a33ac40",
+      "coincide": true
+    }
+  ],
+  "comprobaciones": [
+    "Restauración de esquema y propietarios completada",
+    "Creación mediante Auth API y login real con usuario ficticio",
+    "RPC CRM por HTTP con JWT de usuario ficticio",
+    "Semilla reejecutada sin recrear filas"
+  ],
+  "limitaciones": [
+    "El motor de nuevas inversiones F4 todavía no está construido",
+    "Esta evidencia no aprueba G4 ni una activación productiva",
+    "Endor no disponible: revisión del paquete de pruebas sin verificar"
+  ]
+}

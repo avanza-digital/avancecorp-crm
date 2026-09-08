@@ -1,0 +1,35 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "verificadoEn": "2026-09-08T01:51:03.129Z",
+  "funcionesComprobadas": 33,
+  "funcionesNuevas": 16,
+  "cuerposIgualesACandidata": true,
+  "propietariosConservados": true,
+  "rlsYGrantsDeLasCuatroTablas": true,
+  "ejecutablesUsuario": [
+    "crm.preparar_inversion_fn",
+    "crm.confirmar_inversion_fn",
+    "crm.acceso_inversion_fn",
+    "crm.revisar_solicitud_inversion_fn",
+    "private.f4_comprobante_autorizado",
+    "private.f4_comprobante_visible"
+  ],
+  "fuenteYPrincipalCoherentes": true,
+  "cantidades": {
+    "auth": 74,
+    "leads": 79,
+    "cierres": 94,
+    "personas": 92,
+    "contratos": 91,
+    "inversiones": 179,
+    "solicitudes": 120,
+    "pdfPendientes": 71
+  },
+  "banderas": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false
+  },
+  "sha256Candidata": "705546f0270242a19c6d126cd64f1b828aafc5bf15c5ed7b2945874754322b18",
+  "limite": "Comprobación estructural acotada: no sustituye las pruebas de comportamiento, los permisos dinámicos ni el gate G4."
+}

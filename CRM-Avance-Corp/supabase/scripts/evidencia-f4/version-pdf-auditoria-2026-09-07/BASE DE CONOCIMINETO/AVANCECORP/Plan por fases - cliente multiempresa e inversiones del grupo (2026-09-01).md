@@ -2,7 +2,7 @@
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
 estado: plan-vigente-f3-encendida-f4-en-construccion-local-G4-abierto
-actualizado: 2026-09-08
+actualizado: 2026-09-07
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — evidencia al 08/09/2026, 00:09 Lima
+## Estado vigente — evidencia al 07/09/2026, 21:26 Lima
 
 **Estamos en F4.** El motor de nuevas inversiones ya tiene construcción y pruebas satisfactorias en el banco local. **G4 sigue abierto:** todavía falta completar sus requisitos de aceptación. La experiencia unificada desde la ficha corresponde a F5 y sigue pendiente.
 
@@ -35,13 +35,11 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 | F8 — piloto económico | Pendiente | Cumplir los volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo operativo mensual completo y retirada de rutas antiguas en G8 |
 
-El bloque PDF pasó **10 grupos adicionales con ocho contratos**: peticiones sin respuesta acotadas a 20 segundos, subida tardía tras la reserva real de 120 segundos, versiones incompatibles recibidas y dos antecedentes que conservan su régimen sin documento nuevo. Después pasó la regresión de **12 grupos con otros 10 contratos** por el servicio Deno real. Hay **42 pruebas** del handler/adaptador satisfactorias y revisión visual previa de 14 páginas de dos contratos ficticios. La auditoría de Claude también permitió corregir un reintento de inversiones ya confirmadas tras «No insistir». **El contenido del PDF permanece intacto. Cualquier incorporación relativa a cotitulares requiere mostrar texto y ubicación y recibir aprobación de Miguel antes de editar.**
+El bloque PDF pasó **12 grupos de pruebas con 10 contratos**, incluida recuperación por el servicio Deno real. Se revisaron 14 páginas de dos contratos ficticios y pasaron 27 pruebas del handler. La auditoría de Claude permitió reproducir y corregir un reintento de inversiones ya confirmadas tras «No insistir»; pasaron las regresiones afectadas. **El contenido del PDF permanece intacto. Cualquier incorporación relativa a cotitulares requiere mostrar texto y ubicación y recibir aprobación de Miguel antes de editar.**
 
-El censo y el lote histórico ya están instalados y ensayados en el banco ficticio: 7 grupos de censo, 19 de lote y 7 de concurrencia. La candidata tiene 37 funciones (20 nuevas) y cinco tablas nuevas. Continúan pendientes el corpus F2 completo, la cobertura de todos los escritores y el lote máximo. Detalle y punto de reanudación: [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]].
+El siguiente paso es completar los bordes de recuperación documental señalados por la auditoría y avanzar los históricos, titularidad y permisos. F4 todavía no cumple todos los requisitos de cierre.
 
-El siguiente paso es completar esos límites, titularidad y permisos. Los bordes técnicos PDF ensayados ya pasaron; queda integrar toda la candidata sobre una reconstrucción limpia. F4 todavía no cumple todos los requisitos de cierre.
-
-Detalle actual: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]], [[F4 multiempresa - construccion y pruebas parciales (2026-09-07)]] y [[F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07)]]. Evidencia trazable: [checkpoint de F4](../../CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-bordes.json) y [matriz de aceptación](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
+Detalle actual: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]], [[F4 multiempresa - construccion y pruebas parciales (2026-09-07)]] y [[F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07)]]. Evidencia trazable: [checkpoint de F4](../../CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-auditoria.json) y [matriz de aceptación](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
 
 ## 1. Qué se va a lograr
 
@@ -361,22 +359,23 @@ Todas deben usar la misma primitiva transaccional:
 **Construido y comprobado en el banco local:**
 
 - Nueva inversión para persona existente: Avance→Qorilazo, Qorilazo→Prodelco y repetición en cooperativa; también contratos Avance en PEN/USD con perfil existente y acceso Qorilazo→Avance. Avance conserva términos libres; el catálogo no se vuelve obligatorio.
-- Fuente económica, inversión y titular principal coherentes; contratos, cuentas y cronogramas Avance creados; comprobantes de cooperativas cargados y descargados con los mismos bytes. PDF: 10 grupos adicionales/ocho contratos y regresión posterior de 12 grupos/10 contratos, con recuperación Deno, reserva de 120 segundos reales y un archivo/sello por contrato. Storage sin respuesta se acota a 20 segundos; la subida tardía y la incompatibilidad recibida se recuperan. Dos antecedentes sin job conservan su contrato sin generar un documento nuevo. Cuatro contratos de ensayos interrumpidos también se recuperaron.
+- Fuente económica, inversión y titular principal coherentes; contratos, cuentas y cronogramas Avance creados; comprobantes de cooperativas cargados y descargados con los mismos bytes. El PDF Avance ya se genera y descarga: 12 grupos/10 contratos, recuperación Deno de objetos ausentes o existentes, reserva de 120 segundos reales, sello y bytes sin duplicados. Cuatro contratos de ensayos interrumpidos también se recuperaron.
 - Repetición segura por clave y contenido, conflicto sin efectos, depósito único con solicitudes simultáneas y apagado que espera a la confirmación en curso.
 - Recuperación de Auth/Portal y cambio de responsable sin duplicar acceso, conservando la solicitud y la atribución histórica. Se probaron pérdida de respuestas, espera real de la reserva de acceso y recuperación por el equipo vigente.
 - Corrección de documento y fusión canónica: **7 + 8 + 6 = 21 grupos nuevos**, incluidas cuatro carreras reales contra la confirmación, doble fusión y compatibilidad con un contexto Auth anterior. Se respetan los bloqueos de F3: el acceso inconcluso se recupera antes de la corrección/fusión autorizada. Las regresiones de Portal, revisión de responsable y cooperativas pasaron después de estos cambios.
 - Paridad parcial sobre seis fuentes de referencia: S/8000 y 52 cuotas conservados; upgrade del mismo mes no aporta, uno elegible posterior sí y una segunda operación de cartera elegible del mismo cliente/mes no agrega conversión. Fecha comercial anterior y ajuste posterior a mes sellado probados; una inversión cooperativa adicional anulada conserva su capital e historia.
 - Auditoría adversaria de Claude contrastada con código y ejecución real. Se corrigió la relectura de inversiones confirmadas tras «No insistir», conservando los permisos actuales y el bloqueo de inversiones nuevas o pendientes. Pasaron nueve oráculos de regresión; la estructura actual tiene 34 funciones, 17 nuevas y cuatro tablas nuevas.
-- Plantilla, renderer, firma, fondo y fuentes PDF sin cambios; 42 pruebas del handler/adaptador y revisión visual previa de 14 páginas. La cotitularidad está en el registro contractual y snapshot, pero aún no se imprime. Miguel exige aprobación previa de texto y ubicación antes de cualquier incorporación. Claude no recibió las correcciones posteriores del worker; la auditoría no aprueba G4.
+- Plantilla, renderer, firma, fondo y fuentes PDF sin cambios. La cotitularidad está en el registro contractual y snapshot, pero aún no se imprime. Miguel exige aprobación previa de texto y ubicación antes de cualquier incorporación. La auditoría no aprueba G4.
 
 **Pendientes obligatorios para cerrar G4:**
 
-1. **Históricos y cotitulares:** ensayar la vinculación canónica de F2 con casos resueltos, faltantes y conflictivos; preparar el tratamiento acotado tras un recenso nuevo. Completar cotitularidad neutral y sus efectos ante corrección/fusión, sin propagar permisos. Conservar el cotitular en el contrato no demuestra todavía el vínculo neutral completo. Cualquier incorporación al PDF requiere aprobación previa de texto y ubicación por Miguel.
-2. **Permisos y lecturas:** cambios de rol, bajas, multirrol, personas sin responsable y lectores heredados. Separar el permiso del responsable actual de la atribución histórica de la inversión.
-3. **Reglas financieras completas:** renovaciones ponderadas, comisión y comisión liquidada, atribución, demos, anulación inicial y Avance, ajustes y consumidores de fechas. Probar también la carrera entre sellado mensual y nueva operación; preservar Capital, historia y períodos sellados.
-4. **Corrección de una solicitud preparada:** corregir términos o datos inválidos de forma trazable, conservando la repetición segura. La revisión de responsable ya probada no resuelve esta edición.
-5. **Cobertura de puertas:** completar el inventario de escritores y lectores afectados, incluidos los que presuponen un cierre externo por lead, y comprobar que ninguna ruta evade los controles.
-6. **Paquete final G4:** reconstruir la candidata completa desde un banco limpio, probar reversa/restauración, completar revisión adversaria integral y reunir el artefacto exacto con todas las pruebas de aceptación, incluida la integración documental final.
+1. **Bordes de recuperación PDF:** completar E/S que no termina, subida tardía y versión de plantilla incompatible. La generación/descarga y los fallos ensayados ya pasaron; no confundirlos con cobertura total. Conservar el contenido: cualquier incorporación de cotitulares requiere aprobación previa de Miguel.
+2. **Históricos y cotitulares:** ensayar la vinculación canónica de F2 con casos resueltos, faltantes y conflictivos; preparar el tratamiento acotado tras un recenso nuevo. Completar cotitularidad neutral y sus efectos ante corrección/fusión, sin propagar permisos. Conservar el cotitular en el contrato no demuestra todavía el vínculo neutral completo.
+3. **Permisos y lecturas:** cambios de rol, bajas, multirrol, personas sin responsable y lectores heredados. Separar el permiso del responsable actual de la atribución histórica de la inversión.
+4. **Reglas financieras completas:** renovaciones ponderadas, comisión y comisión liquidada, atribución, demos, anulación inicial y Avance, ajustes y consumidores de fechas. Probar también la carrera entre sellado mensual y nueva operación; preservar Capital, historia y períodos sellados.
+5. **Corrección de una solicitud preparada:** corregir términos o datos inválidos de forma trazable, conservando la repetición segura. La revisión de responsable ya probada no resuelve esta edición.
+6. **Cobertura de puertas:** completar el inventario de escritores y lectores afectados, incluidos los que presuponen un cierre externo por lead, y comprobar que ninguna ruta evade los controles.
+7. **Paquete final G4:** reconstruir la candidata completa desde un banco limpio, probar reversa/restauración, completar revisión adversaria integral y reunir el artefacto exacto con todas las pruebas de aceptación.
 
 **Casos de aceptación:**
 
@@ -642,12 +641,13 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 07/09/2026, 22:09 Lima
+## 13. Orden inmediato — actualizado al 07/09/2026, 21:26 Lima
 
-1. Completar históricos, cotitularidad neutral y permisos dinámicos, preservando las vinculaciones F2 resueltas y la atribución histórica. Los bordes técnicos PDF ya pasaron; conservar el contenido y aprobar con Miguel cualquier incorporación de cotitulares antes de editarla.
-2. Cerrar la matriz financiera, las correcciones de solicitudes y el inventario de puertas/consumidores detallados en F4.
-3. Reconstruir y revertir el paquete completo en banco; reunir y revisar la evidencia exacta para cerrar **G4**.
-4. Continuar con **F5 → F6 → F7/G6 → F8/G7 → F9/G8**: ficha unificada, postventa, conciliación, piloto económico y activación progresiva con ciclo mensual completo.
+1. Completar los **bordes técnicos de recuperación PDF** de la auditoría; la generación y recuperación ensayadas ya pasaron. No cambiar el contenido contractual. Mostrar y aprobar con Miguel cualquier incorporación de cotitulares antes de editarla.
+2. Completar históricos, cotitularidad neutral y permisos dinámicos, preservando las vinculaciones F2 resueltas y la atribución histórica.
+3. Cerrar la matriz financiera, las correcciones de solicitudes y el inventario de puertas/consumidores detallados en F4.
+4. Reconstruir y revertir el paquete completo en banco; reunir y revisar la evidencia exacta para cerrar **G4**.
+5. Continuar con **F5 → F6 → F7/G6 → F8/G7 → F9/G8**: ficha unificada, postventa, conciliación, piloto económico y activación progresiva con ciclo mensual completo.
 
 F3 permanece encendida. Se conservan las fuentes de dinero y las reglas comerciales del proyecto, incluidos los upgrades que sí cumplen la elegibilidad. La modalidad de captura del documento en la web sigue pendiente de decisión comercial y no bloquea F4 con personas verificadas. Retoma y evidencia: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]].
 

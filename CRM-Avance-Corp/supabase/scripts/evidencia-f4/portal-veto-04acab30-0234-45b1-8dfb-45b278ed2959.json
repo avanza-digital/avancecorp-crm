@@ -1,0 +1,36 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "04acab30-0234-45b1-8dfb-45b278ed2959",
+  "terminadoEn": "2026-09-07T21:30:29.414Z",
+  "pruebas": [
+    {
+      "corte": "auth",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "registrar_auth",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "crear_perfil",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "enlazar",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    }
+  ],
+  "limite": "Cubre No insistir entre pasos. Reasignación, cambio de documento, rol y fusión siguen pendientes."
+}

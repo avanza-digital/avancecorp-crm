@@ -23,7 +23,7 @@
       font-size: 16px;
       line-height: 1.62;
     }
-    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 80px; overflow-wrap: anywhere; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 80px; }
     h1, h2, h3 { color: #17233d; line-height: 1.22; }
     h1 { margin: 0 0 16px; font-size: clamp(34px, 6vw, 54px); letter-spacing: -.03em; }
     h2 { margin-top: 54px; padding-bottom: 8px; border-bottom: 2px solid #253b67; font-size: 28px; }
@@ -52,7 +52,6 @@
       .toc ol { columns: 1; }
       .signatures { grid-template-columns: 1fr; }
       table { font-size: 13px; }
-      th, td { padding: 8px; }
     }
     @media print {
       body { font-size: 11pt; }
@@ -66,7 +65,7 @@
 <body>
 <main>
   <header id="inicio">
-    <p class="meta"><strong>Estado con evidencia al 08/09/2026, 00:09 Lima:</strong> F0/G0 firmadas; F1, F2 y F3 publicadas. La identidad unificada está encendida desde las 10:09 Lima. <strong>Estamos en F4: motor construido parcialmente y probado en banco local; G4 sigue abierto.</strong> Escritura de inversiones y Ficha 360 neutral siguen apagadas en producción. <a href="#estado-actual-f4">Avance y pendientes actuales</a>; <a href="#bitacora">bitácora histórica</a>.</p>
+    <p class="meta"><strong>Estado con evidencia al 07/09/2026, 22:09 Lima:</strong> F0/G0 firmadas; F1, F2 y F3 publicadas. La identidad unificada está encendida desde las 10:09 Lima. <strong>Estamos en F4: motor construido parcialmente y probado en banco local; G4 sigue abierto.</strong> Escritura de inversiones y Ficha 360 neutral siguen apagadas en producción. <a href="#estado-actual-f4">Avance y pendientes actuales</a>; <a href="#bitacora">bitácora histórica</a>.</p>
     <h1>Plan maestro definitivo — Cliente multiempresa e inversiones del grupo</h1>
     <p><strong>Empresas iniciales:</strong> Avance Corp, COOPAC Qorilazo y COOPAC Prodelco.</p>
     <p><strong>Modo de ejecución:</strong> continuo y gobernado por gates, sin cronograma artificial. Cada fase avanza en cuanto cumple su evidencia y las tareas independientes se desarrollan en paralelo.</p>
@@ -132,7 +131,6 @@
       <li><strong>Auditoría adversaria de Claude:</strong> se contrastaron sus observaciones con el banco. Se corrigió la recuperación del resultado de una inversión confirmada tras «No insistir», conservando permisos y bloqueo de nuevas operaciones. Pasaron nueve oráculos de regresión; la candidata tiene 34 funciones, 17 nuevas y cuatro tablas nuevas.</li>
       <li><strong>PDF sin cambios de contenido:</strong> plantilla, renderer, firma, fondo y fuentes intactos; 42 pruebas del handler/Storage y revisión visual previa de 14 páginas de dos contratos ficticios. El cotitular está registrado, pero la plantilla vigente no lo imprime. Cualquier incorporación requiere aprobar previamente texto y ubicación con Miguel.</li>
     </ul>
-    <p><strong>Continuación del 08/09: históricos y recuperación.</strong> Censo administrativo, lote con huellas y acta auditada, rechazo de mapas obsoletos y recuperación sin duplicar. Banco ficticio: <strong>7 grupos de censo, 19 de lote y 7 de concurrencia</strong>; 37 funciones cotejadas, 20 nuevas y cinco tablas nuevas. Se conserva el banco original y las carreras usan una copia SQL. <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-08-continuacion-historicos.json">Checkpoint de históricos</a> y <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/evaluacion-codex.md">revisión y evaluación</a>. <strong>G4 sigue abierto.</strong> Faltan el corpus F2 completo, todos los escritores concurrentes, lote máximo y aceptación restante. Desarrollo guardado por commits en <code>codex/f4-cierre</code>.</p>
     <h3>F4: pendientes obligatorios para cerrar G4</h3>
     <ol>
       <li><strong>Históricos y cotitulares:</strong> ensayar el proceso canónico F2 con resueltos, faltantes y conflictos; renovar el recenso antes del tratamiento real acotado. Completar cotitularidad neutral y sus efectos ante corrección/fusión sin propagar permisos. Conservar el PDF y obtener aprobación de texto y ubicación antes de incorporar cotitulares.</li>
@@ -143,12 +141,12 @@
       <li><strong>Paquete final G4:</strong> reconstrucción desde banco limpio, reversa/restauración, revisión adversaria integral y artefacto exacto con toda la aceptación comprobada.</li>
     </ol>
     <p><strong>Al terminar F4:</strong> F5 → F6 → F7/G6 → F8/G7 → F9/G8. Los requisitos completos de esas fases y los umbrales del piloto se conservan <a href="#fases">más abajo</a>. La modalidad de captura del documento en la web sigue pendiente de decisión comercial y no bloquea F4 con personas verificadas.</p>
-    <p><strong>Evidencia al 07/09/2026, 22:09 Lima:</strong> <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-bordes.json">checkpoint anterior del bloque PDF con fuentes archivadas y pruebas</a>, <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-claude-2026-09-07/evaluacion-codex.md">auditoría de Claude y evaluación de sus hallazgos</a>, <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20PDF%20real,%20recuperacion%20y%20auditoria%20(2026-09-07).md">continuación de PDF y auditoría</a>, <a href="CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md">matriz de aceptación</a>, <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20construccion%20y%20pruebas%20parciales%20(2026-09-07).md">nota de construcción</a> y <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20objetivo%20de%20cierre%20y%20banco%20aislado%20(2026-09-07).md">objetivo completo de F4</a>. Escritor local apagado al terminar la tanda. Sin publicación ni cambios de bandera en producción.</p>
+    <p><strong>Evidencia al 07/09/2026, 22:09 Lima:</strong> <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-bordes.json">checkpoint vigente con fuentes archivadas y pruebas</a>, <a href="CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-claude-2026-09-07/evaluacion-codex.md">auditoría de Claude y evaluación de sus hallazgos</a>, <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20PDF%20real,%20recuperacion%20y%20auditoria%20(2026-09-07).md">continuación de PDF y auditoría</a>, <a href="CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md">matriz de aceptación</a>, <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20construccion%20y%20pruebas%20parciales%20(2026-09-07).md">nota de construcción</a> y <a href="BASE%20DE%20CONOCIMINETO/AVANCECORP/F4%20multiempresa%20-%20objetivo%20de%20cierre%20y%20banco%20aislado%20(2026-09-07).md">objetivo completo de F4</a>. Escritor local apagado al terminar la tanda. Sin publicación ni cambios de bandera en producción.</p>
   </section>
 
   <section id="bitacora">
     <h2>Bitácora de avance</h2>
-    <p class="meta">Última evidencia incorporada: 08/09/2026, 00:09 Lima. Las filas conservan el estado de su fecha; las autorizaciones y pendientes antiguos no sustituyen el <a href="#estado-actual-f4">estado vigente</a>.</p>
+    <p class="meta">Última evidencia incorporada: 07/09/2026, 22:09 Lima. Las filas conservan el estado de su fecha; las autorizaciones y pendientes antiguos no sustituyen el <a href="#estado-actual-f4">estado vigente</a>.</p>
     <table>
       <thead><tr><th>Cuándo</th><th>Avance</th><th>Evidencia</th><th>Estado</th></tr></thead>
       <tbody>

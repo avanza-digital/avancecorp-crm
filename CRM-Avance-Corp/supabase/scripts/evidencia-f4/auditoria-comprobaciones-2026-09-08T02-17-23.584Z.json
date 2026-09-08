@@ -1,0 +1,68 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "capturadoEn": "2026-09-08T02:17:23.584Z",
+  "headComparado": "e381c6c2609e06f8b91519c9ad38040d3c4829d4",
+  "manifiestoPdf": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/template-v2.ts",
+      "sha256": "11384670b98c28b4b1be0873cccfd0490c0d733ee01b4fd2e3a3a291b75e77c4",
+      "igualAHead": true
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/renderer.ts",
+      "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8",
+      "igualAHead": true
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/assets-v2.ts",
+      "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847",
+      "igualAHead": true
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+      "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4",
+      "igualAHead": true
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+      "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1",
+      "igualAHead": true
+    }
+  ],
+  "indices": [
+    {
+      "ddl": "CREATE UNIQUE INDEX inversiones_cierre_uidx ON crm.inversiones USING btree (cierre_externo_id) WHERE (cierre_externo_id IS NOT NULL)",
+      "nombre": "inversiones_cierre_uidx"
+    },
+    {
+      "ddl": "CREATE UNIQUE INDEX inversiones_contrato_uidx ON crm.inversiones USING btree (contrato_id) WHERE (contrato_id IS NOT NULL)",
+      "nombre": "inversiones_contrato_uidx"
+    },
+    {
+      "ddl": "CREATE UNIQUE INDEX inversionistas_perfil_uidx ON crm.inversionistas USING btree (perfil_id) WHERE ((perfil_id IS NOT NULL) AND (estado <> 'fusionado'::text))",
+      "nombre": "inversionistas_perfil_uidx"
+    }
+  ],
+  "consumidoresPrimeraConversion": [
+    "private.backfill_multiempresa_ejecutar",
+    "private.inversion_vincular_fuente"
+  ],
+  "jobs": [
+    {
+      "estado": "pendiente",
+      "cantidad": 101,
+      "template_version": "contrato-aep-17-v7"
+    },
+    {
+      "estado": "sellado",
+      "cantidad": 28,
+      "template_version": "contrato-aep-17-v7"
+    }
+  ],
+  "banderas": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false
+  },
+  "limite": "Captura local. No certifica inventario de clientes externos, tratamiento histórico ni todas las versiones futuras de plantilla."
+}

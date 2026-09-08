@@ -1,0 +1,12 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "instaladoEn": "2026-09-08T05:01:52.134Z",
+  "sha256Anterior": "6f3285665cee92f2c9bae575888d5f442b08c4c0cc36c1ceb4a4e87f4919785e",
+  "sha256Candidata": "31a30a090dc1add52cbf4691b2ce041696bddda417137016569bf402f5ced872",
+  "funcionesPreviasConservadas": 34,
+  "funcionesNuevas": 3,
+  "tablaNueva": "crm.inversion_backfill_lotes",
+  "lotesAplicados": 0,
+  "escritorApagado": true,
+  "produccionModificada": false
+}

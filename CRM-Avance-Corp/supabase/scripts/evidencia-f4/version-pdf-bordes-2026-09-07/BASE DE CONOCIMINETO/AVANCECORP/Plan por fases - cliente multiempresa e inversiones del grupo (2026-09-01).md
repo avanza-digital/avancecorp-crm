@@ -2,7 +2,7 @@
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
 estado: plan-vigente-f3-encendida-f4-en-construccion-local-G4-abierto
-actualizado: 2026-09-08
+actualizado: 2026-09-07
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — evidencia al 08/09/2026, 00:09 Lima
+## Estado vigente — evidencia al 07/09/2026, 22:09 Lima
 
 **Estamos en F4.** El motor de nuevas inversiones ya tiene construcción y pruebas satisfactorias en el banco local. **G4 sigue abierto:** todavía falta completar sus requisitos de aceptación. La experiencia unificada desde la ficha corresponde a F5 y sigue pendiente.
 
@@ -37,9 +37,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 
 El bloque PDF pasó **10 grupos adicionales con ocho contratos**: peticiones sin respuesta acotadas a 20 segundos, subida tardía tras la reserva real de 120 segundos, versiones incompatibles recibidas y dos antecedentes que conservan su régimen sin documento nuevo. Después pasó la regresión de **12 grupos con otros 10 contratos** por el servicio Deno real. Hay **42 pruebas** del handler/adaptador satisfactorias y revisión visual previa de 14 páginas de dos contratos ficticios. La auditoría de Claude también permitió corregir un reintento de inversiones ya confirmadas tras «No insistir». **El contenido del PDF permanece intacto. Cualquier incorporación relativa a cotitulares requiere mostrar texto y ubicación y recibir aprobación de Miguel antes de editar.**
 
-El censo y el lote histórico ya están instalados y ensayados en el banco ficticio: 7 grupos de censo, 19 de lote y 7 de concurrencia. La candidata tiene 37 funciones (20 nuevas) y cinco tablas nuevas. Continúan pendientes el corpus F2 completo, la cobertura de todos los escritores y el lote máximo. Detalle y punto de reanudación: [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]].
-
-El siguiente paso es completar esos límites, titularidad y permisos. Los bordes técnicos PDF ensayados ya pasaron; queda integrar toda la candidata sobre una reconstrucción limpia. F4 todavía no cumple todos los requisitos de cierre.
+El siguiente paso es completar la vinculación histórica, titularidad y permisos. Los bordes técnicos PDF ensayados ya pasaron; queda integrar toda la candidata sobre una reconstrucción limpia. F4 todavía no cumple todos los requisitos de cierre.
 
 Detalle actual: [[F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07)]], [[F4 multiempresa - construccion y pruebas parciales (2026-09-07)]] y [[F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07)]]. Evidencia trazable: [checkpoint de F4](../../CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-bordes.json) y [matriz de aceptación](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
 

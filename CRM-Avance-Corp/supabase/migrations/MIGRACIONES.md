@@ -1,5 +1,8 @@
 # Ledger de migraciones — esquema `crm`
 
+> **F4 en construcción — 08/09/2026:** el artefacto generado `20260907191832_crm_f4_inversiones_base_y_escritores.sql` todavía no se versiona ni se registra como migración aplicada. Los módulos revisables y su generador se conservan en `../scripts/f4/`. Banco local sintético: 37 funciones (20 nuevas) y cinco tablas nuevas. Sin publicación ni cambio de banderas productivas; G4 sigue abierto. Evidencia y limitaciones en `../scripts/evidencia-f4/2026-09-08-continuacion-historicos.json`.
+
+
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).
 Ciclo obligatorio: **branch de Supabase → `npm run seed:demo` → aplicar → oráculo(s) →
 `scripts/test-rls.mjs` → advisors → merge**. ⚠️ El **seed va ANTES de aplicar**, y no es una

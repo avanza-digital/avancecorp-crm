@@ -1,0 +1,98 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "17b24105-9e40-473a-9c54-5b333f950b60",
+  "terminadoEn": "2026-09-08T04:53:57.375Z",
+  "pruebas": [
+    {
+      "nombre": "Funciones y actas cerradas a los roles de la API",
+      "conforme": true
+    },
+    {
+      "nombre": "Aislamiento anterior a la espera se rechaza sin efectos",
+      "conforme": true
+    },
+    {
+      "nombre": "Entradas nulas, vacías, excesivas y repetidas se rechazan sin efectos",
+      "conforme": true
+    },
+    {
+      "nombre": "Cambiar huella, persona o empresa del censo no autoriza otro enlace",
+      "conforme": true
+    },
+    {
+      "nombre": "Deriva del mapa F2 invalida la previsualización anterior",
+      "conforme": true
+    },
+    {
+      "nombre": "El lote exige identidad encendida y escritor de inversiones apagado",
+      "conforme": true
+    },
+    {
+      "nombre": "Seis fuentes vinculadas conservan economía, PDF, identidad y atribución",
+      "conforme": true
+    },
+    {
+      "nombre": "La auditoría registra inicio y final sin copiar mapa ni resultado",
+      "conforme": true
+    },
+    {
+      "nombre": "Repetir el lote en otro orden devuelve el acta sin duplicar",
+      "conforme": true
+    },
+    {
+      "nombre": "Un censo nuevo reconoce lo resuelto y conserva sus filas exactas",
+      "conforme": true
+    },
+    {
+      "nombre": "Un vínculo anterior sin principal completa solo su titularidad",
+      "conforme": true
+    },
+    {
+      "nombre": "Cierre sin identidad vincula solo el puntero documentado y su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "Un fallo después de dos enlaces revierte todo y permite recuperar el lote",
+      "conforme": true
+    },
+    {
+      "nombre": "Las actas finalizadas son inmutables y una incompleta no puede confirmar",
+      "conforme": true
+    }
+  ],
+  "definiciones": [
+    {
+      "nombre": "07-historicos.sql",
+      "sha256": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670"
+    },
+    {
+      "nombre": "08-historicos-lote.sql",
+      "sha256": "b5c097948ad29f70075558cb553f704a3a4443ca1453559d597969900f30d31b"
+    }
+  ],
+  "sha256Oraculo": "06b99b6dee23b04d5148ff94fffcb53b356ac6fcd78c655826db6146ca088d3b",
+  "huellasAntesYDespues": {
+    "leads": "3f3a4e92f2d736017a86467fdd24e14460640e481c978a31f32c9b9702f882ae",
+    "cuotas": "c3537ff5222ac02d3865d5ef431d27c6c7027bfe28f18fad5918b472d48bd6e0",
+    "mapaF2": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "capital": "e6a2e856e0937763dc656570d8513e67869df63f833fb4ba842185ef3840e21a",
+    "cierres": "b310ae37ef1cd8eaa2cf888ddc0443ee0f6f8efdcde28d387ca7e8ba8d3f1971",
+    "jobsPdf": "9cabc16fcfdb9e7c4ee48f7d211f2838d0eb6c31bdbae9b72f360e70594c5f58",
+    "banderas": "59fb2953fd1a805b4175c5ddeeb6ed6a0b3a7f390d7b2803765af2d27f821a7c",
+    "perfiles": "8b70cbf3e2fd96df12d72178ac92863cade427786ffa6849893fbd087e4dbe06",
+    "personas": "2331a0efaae19ab7477fb3849b77998ec5c78479ddcf7ac05569c1f381aa30ee",
+    "contratos": "565bef7094faccee02e2cfb1b8555da1f41aabada20864f3501cb36bc1fe80e7",
+    "sellosPdf": "d49166848e032d32d920952054c0ceb8c7c0d17c1e25d59c88ca308c85cd8f50",
+    "titulares": "22c5415937deeb9879b443461b18cb011e078f03776c3cd5dfb2b908a909c14a",
+    "inversiones": "d1245989b7b63f5585af7b70e8b0ff0c328e19dd2d8fe1b02b2cd97382b7ebc0",
+    "identificadores": "54ccda066a679c216f4df8d7da08b635a83b2dad7dd496eb2cf9ecdac550a5b1"
+  },
+  "transaccionesRevertidas": true,
+  "probadoSobreInstalacionCompleta": false,
+  "limites": [
+    "Prueba transaccional del lote administrativo; las carreras entre sesiones tienen un oráculo separado.",
+    "Las fuentes son sintéticas y las fixtures se revierten; el pipeline F2 original todavía no se reconstruyó.",
+    "La prueba transaccional no sustituye la reconstrucción completa de la candidata ni su reversa.",
+    "Contenido PDF conservado; no se aprueba G4 ni se autoriza producción."
+  ]
+}

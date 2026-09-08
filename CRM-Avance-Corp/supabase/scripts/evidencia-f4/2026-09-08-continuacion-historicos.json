@@ -1,0 +1,337 @@
+{
+  "fecha": "2026-09-08T05:11:12.227Z",
+  "rama": "codex/f4-cierre",
+  "base": "52ec842",
+  "entorno": "avancecorp-f4-bank",
+  "G4": "ABIERTO",
+  "produccionModificada": false,
+  "banderasLocales": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false
+  },
+  "lotesDurablesEnBancoOriginal": 0,
+  "candidata": {
+    "ruta": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+    "versionada": false,
+    "regenerable": true,
+    "funciones": 37,
+    "nuevas": 20,
+    "tablasNuevas": 5
+  },
+  "pruebas": [
+    {
+      "archivo": "historicos-censo-c18abbd6-5ad0-4d79-99e3-88cb25606e57.json",
+      "grupos": 7,
+      "estado": "PASS"
+    },
+    {
+      "archivo": "historicos-lote-75cbce9e-4c6b-4fef-8863-11166333fdd5.json",
+      "grupos": 19,
+      "estado": "PASS"
+    },
+    {
+      "archivo": "historicos-concurrencia-732f3cb9-1c90-4115-9e80-aa208756cf40.json",
+      "grupos": 7,
+      "estado": "PASS"
+    }
+  ],
+  "gates": {
+    "sintaxisF4": "PASS, 49 mjs + handler Portal",
+    "checkScripts": "PASS, incluye 46/46 mutantes",
+    "seedPreflight": "PASS, offline con variables ficticias",
+    "rlsPreflight": "PASS, offline con variables ficticias",
+    "edgePreflight": "PASS, 49 Node + Deno check + 5 Deno tests",
+    "edgeF4DenoCheck": "PASS",
+    "estructura": "PASS, 37 cuerpos iguales y grants/RLS",
+    "frontend": "NOT RUN: frontend no modificado en esta rama",
+    "reconstruccionReversaIntegral": "NOT RUN: pendiente G4",
+    "rlsIntegralCorpusFinal": "NOT RUN: pendiente G4",
+    "loteMaximo": "NOT RUN: pendiente medición",
+    "advisorsFinales": "NOT RUN: pendiente candidata final"
+  },
+  "revision": {
+    "dictamen": "CHANGES_REQUESTED",
+    "evaluacion": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/evaluacion-codex.md"
+  },
+  "huellas": [
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/01-base.sql",
+      "sha256": "890b4b20d10e93ad2f21cdb59b2b167f94c7dd71ac5f8eddda250816033ab374"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql",
+      "sha256": "6388b0ffb57431142eb97903c43cd9e1f3f22cc6ed23a01549dc27005f07f00a"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/03-coherencia.sql",
+      "sha256": "5e8fff65c62e3a8d390f15ed3078d3ac5ed008957802572e527c58b61f95bf7c"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/04-avance.sql",
+      "sha256": "44914f732162e7f2bef87777de6f49c4ac32eec94dea8f1bb9176e88e375d3cb"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/05-acceso-portal.sql",
+      "sha256": "a0e49ab9e48dc2bd3efbce78fcfb6d1c700cfa356352a2cb3c7bfe0151e79f16"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/06-revision-responsable.sql",
+      "sha256": "ef31e704840aede00e35a9bef110b0ef4aa92aff40487cb8ee51811b76260e54"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql",
+      "sha256": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql",
+      "sha256": "b5c097948ad29f70075558cb553f704a3a4443ca1453559d597969900f30d31b"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/actualizar-funciones-local.mjs",
+      "sha256": "6b5441965f921d6aab85ac75ec0c9292fe97193f4527bb1fd39dc9a9f323950d"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/aplicar-candidato.mjs",
+      "sha256": "6cc6bdd5d3d4c50f9cccaf7932236207ea05dc8f073697122761913fae5b5341"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/banco-local.mjs",
+      "sha256": "927090e5ebd14953128b77ee2030cb92f0318120a792f4c6585f2f7fe32d66e2"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/base-funciones-adicionales.json",
+      "sha256": "8bcb0bfdebdce973121bf9c39d20394f505b79c957dbbc622c66070bbea88c49"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/base-funciones.json",
+      "sha256": "a440921923777812f73a5741655b3d54677b0c49a5a30970c7da4379d517861a"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/candados-prueba.mjs",
+      "sha256": "2eb1ef20070333017a8b5da1b02c8f508b0aac8e80c1ae1cfb9f783d00a8d546"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-adicionales.mjs",
+      "sha256": "392806483012b348dafac565cc2dedfee309c552fa4de6bf0bf3dcdac76c3a4e"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-auditoria-local.mjs",
+      "sha256": "6b7808c4222021f0312fe4f0dccbab865b9f06b5ec21dc8f8bc56e263659eacb"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-base.mjs",
+      "sha256": "7a9d41421d223b381e5d94d02a380c8254f1afd6349738e885e4a78605b37459"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-funciones.mjs",
+      "sha256": "57863c4429e4a80a561220bcd44c59dcb0807405fbc2b251dbce880ed7a013a5"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-paridad.mjs",
+      "sha256": "62c26e6d6e6a8d1b85a25aa2cfb5ae27546e9a470545083a06fbe2d0e76270e8"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/capturar-pdf-bordes-local.mjs",
+      "sha256": "91e9f3a71dda108825d116ab4e3e9015c20091402682b96d4e58a1c10c519c30"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/cargar-historicos-prueba.mjs",
+      "sha256": "fdd0f94240f7608862c636f9580bca26a264e720a6c74eb8850bb675338ec603"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/copia-sql-local.mjs",
+      "sha256": "81f8228a72a1f0422964a23e519860176cbbb1fc9ea9303ac70f93e5b8087355"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/fusion-fixture.mjs",
+      "sha256": "f07a145bf47fc56565492d7acbc8b8d5e6f7bee10574b3d235b54de37a710f9b"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/generar-migracion.mjs",
+      "sha256": "44fe0bc4a5c4ed682066fef79ba368c0dc6bd234eb2e8a8f84c0c6fb6c8c903c"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/instalar-acceso-portal-local.mjs",
+      "sha256": "3cc66062bfbd327514ebe16ff231b785cd18ea48d0deeb88e0dcf37bb73f5ff2"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/instalar-historicos-local.mjs",
+      "sha256": "05abc137e19d7bb00485d4e596541c98762e6356f2eee5daa0ee9daa7bce09d6"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/instalar-reintento-local.mjs",
+      "sha256": "bffa3477f0d9b9b926e6c327f092c6a7392783f24f5a5555865d3632a722b463"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/instalar-revision-local.mjs",
+      "sha256": "ec42593755a9aa479b3bebba1dc3306b5235af3dcea13978d3b6c2ebc32165a5"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/leer-funciones-sql.mjs",
+      "sha256": "5b4219a88a7940497721d70a0ea58d7c3cfbcd6b457d90adadaf0bd256b4336f"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/operaciones-fixture.mjs",
+      "sha256": "874d0bb69ef62bdd24a4a89a4de8591f8ffd08dd375d730e11d609e3d39c9bc0"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/pdf-fixture.mjs",
+      "sha256": "6f4f8573e4df54e194ac3496cfc5b6b0ccd88de64527e88c9ad483e026d6c716"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/portal-fixture.mjs",
+      "sha256": "b6919fe32d17db151f86ba3250b9d9a8d811383c9b99e880376740599a71e2e1"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/preparar-edge-portal-local.mjs",
+      "sha256": "cf9471727e266e4f34fa28f5b67fc6f78107528c746e1dc1a5ae9fab80cef5d8"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/preparar-fixtures.mjs",
+      "sha256": "4610755190e967436a16dbf7aedd871095e9bf3600ff8f22951e33a5684f416c"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/preparar-operaciones-base.mjs",
+      "sha256": "84d54e0d615511fd78117a9dfd7c1217e170afb1c322fdfd1cf5d77966642132"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/preparar-pdf-local.mjs",
+      "sha256": "d008a9c285c9434ed060dade2a0a0f99d13013f1270b9bd46f1d671ab5749ed7"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-avance-existente.mjs",
+      "sha256": "66d3730878da7bfa4005da310a3b1c4f0a9d34d2ba239ee50bd82d0e43edaf0a"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-concurrencia.mjs",
+      "sha256": "128a58e704fa6d4d45b5635da173f0c694b655a8bbf8ebf3bd279ead571cb99f"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-conservacion-historia.mjs",
+      "sha256": "8887a840aa39bf9c02a63a4e65c282f425e3bef05ffbd68cc2cea7e29ba114bd"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-cooperativas.mjs",
+      "sha256": "223ff8ecf635665794bc5b360ece20f575c08ee0307b240b6ee88c864e2b81b2"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-documento.mjs",
+      "sha256": "9cbe65c1bfe4ecafd7acd45b7b2a0545292de1da9ee1d7ec5cd43564424d974d"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-fechas-anulacion.mjs",
+      "sha256": "d503285113bcf81ba907c452334924ad072a600994ddfcd4b9c5a6f0279584fd"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-fusion.mjs",
+      "sha256": "07876e567538c9c7ccac57c89dd97744d000b19de744ae82fd5bd8336337a878"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-censo.mjs",
+      "sha256": "4965c6f032f0499904e4d68249cd7b77339cda9593a077a4d3889765340eeec6"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-concurrencia.mjs",
+      "sha256": "a92fae340581e6aebe19e1ff66ed68d9b887f417c2d40b6f6d38f2c346fae76d"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-lote.mjs",
+      "sha256": "25308a99ac6b000dbd06eb041cd13a1e33b14111a7fb2e1b73e3fc517e86413f"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-identidad-controles.mjs",
+      "sha256": "24f271665e888fea7a9c6c0d6417ad02f1cbf1671d46327c4053f5ced80226b1"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-bordes.mjs",
+      "sha256": "776f6bb95c3a219464f7fddd7cd71dae1fdad33c096597184dda1a91b200674c"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-real.mjs",
+      "sha256": "b20b9dbadf10418781e075de63c2fce7208f52903b12141759ebdbcfdc9110b2"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-edge.mjs",
+      "sha256": "7f0798d237840232c758162d9bd4c4de43b40143c068016f4ac666bc97eb676a"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-lease.mjs",
+      "sha256": "67ba304bce29a1df8cabb184cd7567915b46181cec557875767119a2221fd868"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-nuevo.mjs",
+      "sha256": "ac88ec195ebe8082a1826c1ead893cf01d11b7899dfebbb766e7b77bc161c3c3"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-veto.mjs",
+      "sha256": "bf537003d39c8431f11bbcce03cf9ac8b9e620fa5752e3b651cd885659b1bac8"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-reintento-confirmado.mjs",
+      "sha256": "18285f829c7ce94434682d412b104f516f2ce59c7b704635d1ac146302fac180"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-controles.mjs",
+      "sha256": "d92c0a960634da0d875d787ebdeaa7abcbd3a47b02134506bc12040eec159ade"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-lease.mjs",
+      "sha256": "2523527a537ec4a9e4299e5ddc532afbaf5f15e2748b79f0ef0b4f09260a6a31"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-responsable.mjs",
+      "sha256": "8b30463760c3d341f4aae81762d1e43b8a52309a31cd1b3a7b9150d9f4984aa7"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/regresion-reintento.mjs",
+      "sha256": "de42bc75341ad2f75358f0f9e22892b9c7ba7a350a54ed01ecb96831dd48de04"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/ultima-migracion.json",
+      "sha256": "be12fd72737bc7ba1a92ea161f3dca8dd2d4c5aa2314601eb74bdf2f04e16239"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f4/verificar-estructura.mjs",
+      "sha256": "48c5b71c870a6bc049047a94dfc3e74a0c6e382545f6191c51769c79f534a989"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-censo-c18abbd6-5ad0-4d79-99e3-88cb25606e57.json",
+      "sha256": "73b8e94ca819d0600ef75550dad04bc191b3c19adfd00666472f10db6bea8167"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-lote-75cbce9e-4c6b-4fef-8863-11166333fdd5.json",
+      "sha256": "16718f22bfb57df32467a7ffaaa48f835b422995594f52340101f2d7d294c968"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-concurrencia-732f3cb9-1c90-4115-9e80-aa208756cf40.json",
+      "sha256": "dcfe036e43f58c713dc37bcff644c20dca053c42e65c4bfc4a25cac176caf498"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/evaluacion-codex.md",
+      "sha256": "772a616427583645d88f4151b14a1fe2ebfc75fad4b28d6baea49622fcca7309"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/evidencia-complementaria.json",
+      "sha256": "7eadc1d85044aa87dcf014e92e1ef3c2876f3afbdf95cee3ab91ad78be1a7624"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/informe.txt",
+      "sha256": "5ac758d40b7555b60f7dc7a970411193fc7a9d25677baf1a6e8e10b3fb621ec7"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/manifiesto.json",
+      "sha256": "2b589ebb1113d7442bba9f063263fa5d4dc52a673dad30aa43663b86d381985f"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+      "sha256": "31a30a090dc1add52cbf4691b2ce041696bddda417137016569bf402f5ced872"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-historicos-2026-09-08/entrada.json",
+      "sha256": "f68b7c2e40ffc99f5084fc02616a2baec0c5656e2b5e9ad1d4cc0138be04b788"
+    }
+  ],
+  "pausaSolicitadaPorUsuario": true,
+  "siguienteSesion": "Retomar codex/f4-cierre; leer nota F4 multiempresa - historicos recuperables y commits (2026-09-08). G4 ABIERTO."
+}

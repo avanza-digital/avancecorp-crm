@@ -1,0 +1,53 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "terminadoEn": "2026-09-08T02:12:09.228Z",
+  "pruebas": [
+    {
+      "script": "probar-cooperativas.mjs",
+      "conforme": true,
+      "duracionMs": 1120
+    },
+    {
+      "script": "probar-portal-nuevo.mjs",
+      "conforme": true,
+      "duracionMs": 5259
+    },
+    {
+      "script": "probar-portal-veto.mjs",
+      "conforme": true,
+      "duracionMs": 2682
+    },
+    {
+      "script": "probar-revision-responsable.mjs",
+      "conforme": true,
+      "duracionMs": 5441
+    },
+    {
+      "script": "probar-documento.mjs",
+      "conforme": true,
+      "duracionMs": 10501
+    },
+    {
+      "script": "probar-fusion.mjs",
+      "conforme": true,
+      "duracionMs": 9177
+    },
+    {
+      "script": "probar-identidad-controles.mjs",
+      "conforme": true,
+      "duracionMs": 5544
+    },
+    {
+      "script": "probar-concurrencia.mjs",
+      "conforme": true,
+      "duracionMs": 1356
+    },
+    {
+      "script": "verificar-estructura.mjs",
+      "conforme": true,
+      "duracionMs": 779
+    }
+  ],
+  "sha256Candidata": "6f3285665cee92f2c9bae575888d5f442b08c4c0cc36c1ceb4a4e87f4919785e",
+  "limite": "Regresión de las puertas y candados afectados por la separación de autorización y operación. G4 completo continúa pendiente."
+}

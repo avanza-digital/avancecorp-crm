@@ -1,0 +1,53 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "dc9fe5b4-32f4-4790-a6f3-10d1bcbd9430",
+  "terminadoEn": "2026-09-08T00:54:59.959Z",
+  "pruebas": [
+    {
+      "corte": "sin_auth",
+      "equipoAnteriorRechazado": true,
+      "revisionUnica": true,
+      "datosHashYAuthIntactos": true,
+      "perfilAlineado": true,
+      "recuperadoSinDuplicados": true,
+      "atribucionConfirmadaConservadaTrasOtraReasignacion": true
+    },
+    {
+      "corte": "auth",
+      "equipoAnteriorRechazado": true,
+      "revisionUnica": true,
+      "datosHashYAuthIntactos": true,
+      "perfilAlineado": true,
+      "recuperadoSinDuplicados": true,
+      "atribucionConfirmadaConservadaTrasOtraReasignacion": true
+    },
+    {
+      "corte": "registrar_auth",
+      "equipoAnteriorRechazado": true,
+      "revisionUnica": true,
+      "datosHashYAuthIntactos": true,
+      "perfilAlineado": true,
+      "recuperadoSinDuplicados": true,
+      "atribucionConfirmadaConservadaTrasOtraReasignacion": true
+    },
+    {
+      "corte": "crear_perfil",
+      "equipoAnteriorRechazado": true,
+      "revisionUnica": true,
+      "datosHashYAuthIntactos": true,
+      "perfilAlineado": true,
+      "recuperadoSinDuplicados": true,
+      "atribucionConfirmadaConservadaTrasOtraReasignacion": true
+    },
+    {
+      "corte": "enlazar",
+      "equipoAnteriorRechazado": true,
+      "revisionUnica": true,
+      "datosHashYAuthIntactos": true,
+      "perfilAlineado": true,
+      "recuperadoSinDuplicados": true,
+      "atribucionConfirmadaConservadaTrasOtraReasignacion": true
+    }
+  ],
+  "limite": "Cubre reasignación con documento estable. Fusión, corrección de documento y PDF siguen pendientes."
+}

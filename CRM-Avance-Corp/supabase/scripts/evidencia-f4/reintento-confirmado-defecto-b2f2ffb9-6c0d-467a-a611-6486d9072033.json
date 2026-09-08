@@ -1,0 +1,34 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "b2f2ffb9-6c0d-467a-a611-6486d9072033",
+  "terminadoEn": "2026-09-08T02:06:57.657Z",
+  "pruebas": [
+    {
+      "empresa": "avance",
+      "vetoPorRpcVigente": true,
+      "actores": [
+        "vendedor",
+        "gerencia"
+      ],
+      "relecturaConfirmada": "defecto P0429 reproducido",
+      "nuevasYPreparadasBloqueadas": true,
+      "equipoAjenoRechazado": true,
+      "historiaPdfYAuthIntactos": true,
+      "conforme": false
+    },
+    {
+      "empresa": "qorilazo",
+      "vetoPorRpcVigente": true,
+      "actores": [
+        "vendedor",
+        "gerencia"
+      ],
+      "relecturaConfirmada": "defecto P0429 reproducido",
+      "nuevasYPreparadasBloqueadas": true,
+      "equipoAjenoRechazado": true,
+      "historiaPdfYAuthIntactos": true,
+      "conforme": false
+    }
+  ],
+  "limite": "Veto posterior a la confirmación en Avance y cooperativa. No sustituye los ensayos pendientes de cambio de rol, multirrol o baja del responsable. Quedan dos solicitudes ficticias preparadas intencionalmente."
+}

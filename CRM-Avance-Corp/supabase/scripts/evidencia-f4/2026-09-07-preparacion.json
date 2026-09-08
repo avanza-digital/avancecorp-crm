@@ -1,0 +1,65 @@
+{
+  "alcance": "Solo lectura; agregado sin nombres, documentos, correos ni identificadores de personas.",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "recenso_f4": {
+    "banderas": {
+      "ficha_360_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false
+    },
+    "cierres_f2": {
+      "clasificados_B": 14,
+      "sin_titular_coherente": 0,
+      "sin_inversion_enlazada": 0
+    },
+    "conversion": {
+      "md5": "8a2549dbfa59c732da04900ed90b6361",
+      "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+      "regla_cartera": "-- La primera operación ELEGIBLE por cliente/mes, antes de filtrar el rango\n-- o el ámbito. Renovación usa el mismo peso que Referido; Upgrade conserva 1.\n-- Un rango parcial incluye solo las operaciones efectivamente ocurridas allí.\nselect 'operacion'::text,\n  coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),\n  null::uuid, o.id, false, null::boolean, null::text, false,\n  null::text, o.tipo, o.periodo, null::numeric, o.moneda,\n  null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,\n  case when o.tipo = 'renovacion' then\n    case when p_periodo is not null then p_factor\n      else private.peso_referido_conversion(o.periodo) end\n    when o.tipo = 'upgrade' then 1 else 0 end\nfrom (\n  select o0.*, row_number() over (\n    partition by o0.cliente_id, o0.periodo\n    order by o0.fecha_operacion, o0.creado_en, o0.id\n  ) as orden_conversion\n  from crm.operaciones_cartera o0\n  where o0.elegible_conversion\n    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date\n    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date\n) o\nwhere o.orden_conversion = 1\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin\n  and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),\n                           o.vendedor_id) = any(p_visibles));\nend;\n"
+    },
+    "inversiones": {
+      "total": 14,
+      "avance": 0,
+      "externas": 14
+    },
+    "observado_en": "2026-09-07T16:32:57.646938+00:00",
+    "unicos_cierres": [
+      {
+        "nombre": "cierres_externos_un_cierre_por_lead",
+        "definicion": "UNIQUE (lead_id)"
+      }
+    ],
+    "funciones_con_inversiones": [
+      {
+        "md5": "aeaead8aad9817e9790f6fc97448d25e",
+        "firma": "crm.convertir_lead_externo(uuid,text,numeric,text,text,text,text,text,text,date,text)"
+      },
+      {
+        "md5": "930acfc792eb4db91df599f26e283f12",
+        "firma": "private.backfill_multiempresa_ejecutar()"
+      }
+    ],
+    "cierres_no_anulados_sin_inversion": 1
+  },
+  "detalle_f4": {
+    "faltante": [
+      {
+        "empresa": "qorilazo",
+        "clase_f2": null,
+        "regla_f2": null,
+        "registrado_en": "2026-09-03T20:32:23.931437+00:00",
+        "tiene_identidad": false,
+        "documento_valido": true
+      }
+    ],
+    "capital_md5": "b8f375fbb377582835f4cfe222240c5b",
+    "observado_en": "2026-09-07T16:33:26.163522+00:00",
+    "alta_contrato": [
+      {
+        "md5": "1cd2730dc75c966cfbd9ea8d95d4d1ed",
+        "firma": "crear_contrato(jsonb,jsonb)",
+        "regla_upgrade": "if v_categoria = 'upgrade' then\n      select min(date_trunc('month', c.fecha_cierre_comercial)::date)\n        into v_primer_periodo\n      from public.contratos c\n      where c.cliente_id = v_cliente_id;\n      v_upgrade_elegible := v_periodo > v_primer_periodo;\n    else\n      v_upgrade_elegible := true;\n    end if;\n\n    insert into crm.operaciones_cartera (\n      cliente_id, vendedor_id, tipo, contrato_origen_id, contrato_nuevo_id,\n      fecha_operacion, periodo, moneda, capital_renovado, capital_adicional,\n      elegible_conversion, desglose_completo, fuente, creado_por\n    ) values (\n      v_cliente_id, v_asesor_id, v_categoria, v_origen_id, v_contrato_id,\n      v_fecha_operacion, v_periodo, v_moneda,\n      case when v_categoria = 'renovacion' then v_capital_renovado end,\n      case when v_categoria = 'renovacion' then v_capital_adicional end,\n      v_upgrade_elegible, true, 'flujo_cartera', v_uid\n    ) returning id into v_operacion_id"
+      }
+    ]
+  }
+}

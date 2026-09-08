@@ -1,0 +1,16 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "instaladoEn": "2026-09-08T02:09:38.670Z",
+  "funciones": [
+    "private.inversion_persona_autorizada",
+    "private.inversion_persona_contexto",
+    "crm.preparar_inversion_fn",
+    "crm.confirmar_inversion_fn",
+    "crm.acceso_inversion_fn"
+  ],
+  "sha256Anterior": "705546f0270242a19c6d126cd64f1b828aafc5bf15c5ed7b2945874754322b18",
+  "sha256Candidata": "6f3285665cee92f2c9bae575888d5f442b08c4c0cc36c1ceb4a4e87f4919785e",
+  "soloFunciones": true,
+  "banderaInversiones": false,
+  "produccionModificada": false
+}

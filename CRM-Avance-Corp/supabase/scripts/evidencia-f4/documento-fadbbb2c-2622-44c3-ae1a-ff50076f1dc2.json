@@ -1,0 +1,86 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "fadbbb2c-2622-44c3-ae1a-ff50076f1dc2",
+  "terminadoEn": "2026-09-08T00:44:09.657Z",
+  "pruebas": [
+    {
+      "corte": "sin_auth",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": false,
+      "recuperacionAntesDeCorregir": false,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "reclamar",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": true,
+      "recuperacionAntesDeCorregir": true,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "auth",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": true,
+      "recuperacionAntesDeCorregir": true,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "registrar_auth",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": true,
+      "recuperacionAntesDeCorregir": true,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "crear_perfil",
+      "tipoNuevo": "CE",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": true,
+      "recuperacionAntesDeCorregir": true,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "enlazar",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": false,
+      "recuperacionAntesDeCorregir": false,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    },
+    {
+      "corte": "confirmada",
+      "tipoNuevo": "DNI",
+      "correccionReservadaAGerencia": true,
+      "claimPendienteBloqueaCorreccionSinEfectos": false,
+      "recuperacionAntesDeCorregir": false,
+      "mismaSolicitudConDocumentoCorregido": true,
+      "historiaEconomicaYReservaPreviaConservadas": true,
+      "accesoClaveYAtribucionConservados": true,
+      "sinDuplicados": true
+    }
+  ],
+  "correccionPublicadaSinCambios": "e83c8ef8e7f7d72d12880683b807d60f",
+  "limite": "No autoriza saltar la reserva Auth. Se recupera el acceso antes de corregir, sin reset automático de clave. PDF real y fusión se comprueban aparte."
+}

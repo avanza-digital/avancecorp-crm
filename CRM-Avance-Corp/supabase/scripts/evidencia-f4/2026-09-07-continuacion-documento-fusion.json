@@ -1,0 +1,80 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "capturadoEn": "2026-09-08T00:58:21.173Z",
+  "estado": "avance-parcial-G4-abierto",
+  "candidata": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "sha256Candidata": "705546f0270242a19c6d126cd64f1b828aafc5bf15c5ed7b2945874754322b18",
+  "pruebas": {
+    "documento": {
+      "archivo": "documento-fadbbb2c-2622-44c3-ae1a-ff50076f1dc2.json",
+      "terminadoEn": "2026-09-08T00:44:09.657Z",
+      "grupos": 7,
+      "sha256": "5ba27053fc316d52ec358ce6db37430c18b9ee865a972385612b5d88e8f74a55"
+    },
+    "fusion": {
+      "archivo": "fusion-9b908810-081b-4f66-9608-c2fdaf1c5642.json",
+      "terminadoEn": "2026-09-08T00:42:15.759Z",
+      "grupos": 8,
+      "sha256": "4ec413a79a131ccf1853597ae743539ee62e1cb2e0982eb53e4dfb94ade8b57f"
+    },
+    "identidad-controles": {
+      "archivo": "identidad-controles-9050f477-ae68-46aa-bbfe-6a829dd00bbb.json",
+      "terminadoEn": "2026-09-08T00:50:32.670Z",
+      "grupos": 6,
+      "sha256": "3718ca73cd842ea09a5a58220aca05db886879eef305c8fd9357a5c493c63e3a"
+    },
+    "portal-nuevo": {
+      "archivo": "portal-nuevo-82e8045f-c0e2-4408-b1d3-108cb5f062e0.json",
+      "terminadoEn": "2026-09-08T00:51:48.615Z",
+      "grupos": 8,
+      "sha256": "fccddecad071b6a2014dad53331d5b7d8a04d9afee8c72d7c93159c7a8fb4afd"
+    },
+    "revision-responsable": {
+      "archivo": "revision-responsable-dc9fe5b4-32f4-4790-a6f3-10d1bcbd9430.json",
+      "terminadoEn": "2026-09-08T00:54:59.959Z",
+      "grupos": 5,
+      "sha256": "d1e68f6cdf9f512630f7adfdbc0dfe241998d1307e70d9a31a4e9ac3556ebb9c"
+    },
+    "revision-controles": {
+      "archivo": "revision-controles-bdd7fe09-e89f-41f4-b67e-7a5c630b13a0.json",
+      "terminadoEn": "2026-09-08T00:56:12.688Z",
+      "sha256": "4790b22a386e71e4e3c224a7a1d9f471a0f0dc0cd4829f08dcfbec643abc2790"
+    },
+    "cooperativas": {
+      "archivo": "cooperativas-9827bbef-60e0-4902-91a9-3b39d53f1f93.json",
+      "terminadoEn": "2026-09-08T00:56:44.811Z",
+      "grupos": 16,
+      "sha256": "f1ff6cd6462cf8a252eda705e4b4850b9694037b7d3c4e157ec42855ccfac0a9"
+    }
+  },
+  "estructura": {
+    "archivo": "estructura-2026-09-08T01-51-03.129Z.json",
+    "sha256": "cc4508f824a6b8537a6d27889827f7b400a67c4d0c4c89ee5662de438fd744a0",
+    "verificadoEn": "2026-09-08T01:51:03.129Z",
+    "sustitucionDocumentada": {
+      "archivoOriginal": "2026-09-07-estructura-local.json",
+      "sha256CapturadaOriginalmente": "e3457fc16dfdc0437e9a6e02e1aa7beb29cd4f131d2685b7947a9d85a430f233",
+      "motivo": "El verificador anterior reutilizaba un nombre fijo y sobrescribió esa captura al comprobar el banco después de los ensayos PDF. La captura original no se conserva; esta referencia corresponde expresamente a la comprobación posterior. El verificador ahora usa nombres únicos y creación exclusiva."
+    }
+  },
+  "advisors": {
+    "archivo": "2026-09-07-advisors-fusion-local.json",
+    "advertencias": 6,
+    "nuevasRespectoDeLaBase": 0
+  },
+  "limites": [
+    "PDF real y recuperación de su worker",
+    "Vinculación histórica canónica y cotitularidad neutral completa",
+    "Roles dinámicos, multirrol, sin responsable y lectores heredados",
+    "Renovaciones, comisión, anulaciones y paridad financiera completa",
+    "Corrección de términos del payload, inventario de escritores, reconstrucción y reversa completas"
+  ],
+  "banderasFinales": {
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "ficha_360_neutral": false
+  },
+  "produccionModificada": false,
+  "candidataArchivada": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-claude-2026-09-07/entrada/CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "notaArchivoCandidata": "Se conserva esta copia exacta de la candidata histórica; el archivo de trabajo evolucionó después para corregir el reintento confirmado."
+}

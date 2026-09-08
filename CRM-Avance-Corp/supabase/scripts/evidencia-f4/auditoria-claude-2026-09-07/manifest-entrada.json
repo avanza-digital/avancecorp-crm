@@ -1,0 +1,26 @@
+[
+  {
+    "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts",
+    "sha256": "daa71ab883c4e1c113f73b5a51932c23ada993d4181332e0deee96285957366f"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-real.mjs",
+    "sha256": "2a44eb65c4701cbaa49f9a44a085eff56ead4c4719cd0b38029bbca2c14fcae2"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/scripts/f4/pdf-fixture.mjs",
+    "sha256": "0c0af217702f7e9765a42a9a6085edfaea8a6808d8f6f0bb157ec801788208a2"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.test.ts",
+    "sha256": "9ffd8b61184bb07786ebf653244d5df75e64d53efcfe83f1fe33d0d30bf4428f"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md",
+    "sha256": "1479d6b3ee74110502bbe3dbfa02b751688c3cf2f688c48729d465006e667c87"
+  },
+  {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+    "sha256": "705546f0270242a19c6d126cd64f1b828aafc5bf15c5ed7b2945874754322b18"
+  }
+]

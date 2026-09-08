@@ -1,0 +1,35 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "c0c1cf0b-0a2d-4cb4-9975-7613d34cebc5",
+  "terminadoEn": "2026-09-07T19:50:53.917Z",
+  "pruebas": [
+    {
+      "nombre": "Depósito simultáneo en Qorilazo y Prodelco, personas distintas",
+      "procesosCoincidentes": 2,
+      "fuentes": 1,
+      "reclamaciones": 1,
+      "inversionesConfirmadas": 1,
+      "perdedoraSinEfectosFinales": true
+    },
+    {
+      "nombre": "Misma confirmación simultánea",
+      "procesosCoincidentes": 2,
+      "mismoResultado": true,
+      "fuentes": 1
+    },
+    {
+      "nombre": "Misma clave con contenido distinto simultáneamente",
+      "procesosCoincidentes": 2,
+      "solicitudes": 1,
+      "conflictoSinSobrescritura": true
+    },
+    {
+      "nombre": "Apagado espera a la confirmación en vuelo y detiene nuevas operaciones",
+      "confirmacionesObservadas": 1,
+      "apagadosObservados": 1,
+      "operacionEnVueloCompleta": true,
+      "banderaFinal": false
+    }
+  ],
+  "criterio": "La coincidencia se comprobó en pg_stat_activity antes de soltar cada candado; no se infiere solo de Promise.all."
+}

@@ -1,0 +1,35 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "terminadoEn": "2026-09-08T01:47:24.606Z",
+  "resultados": [
+    {
+      "contratoId": "18af6a57-5f38-4f21-a5dc-f493a7e22b68",
+      "estadoAntes": "error_reintentable",
+      "estadoDespues": "sellado",
+      "sha256": "f64946d10ab44b4a8b159ce22f37411a64a8199160099f14b9e52f8c79c99e67",
+      "bytes": 871763
+    },
+    {
+      "contratoId": "911a8903-66cb-4274-937d-e01db291ec83",
+      "estadoAntes": "subido_verificado",
+      "estadoDespues": "sellado",
+      "sha256": "b57bd233b32aacb1ea521e960edd05bd796724689c1080ad4cf7718a37846aec",
+      "bytes": 871762
+    },
+    {
+      "contratoId": "13ecc6ad-8f94-4aaa-a148-3d5ff95d49e5",
+      "estadoAntes": "procesando",
+      "estadoDespues": "sellado",
+      "sha256": "e77eb42ddce434383a30cfb46d6b78a0344e00cf1100d8fe2d554b78d1a17dca",
+      "bytes": 871758
+    },
+    {
+      "contratoId": "adc4d971-82ac-44eb-af06-7614190f8709",
+      "estadoAntes": "pendiente",
+      "estadoDespues": "sellado",
+      "sha256": "33681871c8e2963908dac075ac5ff013e3cd5b918981c9cda9322bc30aad375e",
+      "bytes": 871767
+    }
+  ],
+  "sinNuevasFuentes": true
+}

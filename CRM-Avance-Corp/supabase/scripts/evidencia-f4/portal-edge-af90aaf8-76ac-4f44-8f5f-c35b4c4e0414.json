@@ -1,0 +1,12 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "af90aaf8-76ac-4f44-8f5f-c35b4c4e0414",
+  "terminadoEn": "2026-09-07T21:27:00.900Z",
+  "entrypointDenoPorHTTPReal": true,
+  "autorizacionReal": true,
+  "camposDeAutoridadNoAdmitidos": true,
+  "gerenciaConservaResponsableDeLaPersona": true,
+  "accesoContratoYReintentoUnicos": true,
+  "portalPropio": true,
+  "limite": "No prueba UI F5 ni el procesamiento del PDF ni publicación en producción."
+}

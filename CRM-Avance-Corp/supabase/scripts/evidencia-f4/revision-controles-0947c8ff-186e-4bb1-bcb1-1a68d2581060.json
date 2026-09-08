@@ -1,0 +1,15 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "0947c8ff-186e-4bb1-bcb1-1a68d2581060",
+  "terminadoEn": "2026-09-07T23:08:32.424Z",
+  "candadoRealDePerfil": true,
+  "revisionFallidaSinEfectos": true,
+  "reintentoTrasLiberar": true,
+  "gucReutilizadoNoAutorizaAlineacion": true,
+  "camposPrivilegiadosSiguenCongelados": true,
+  "revisionesNoSeEditanNiBorran": true,
+  "dosRevisionesConDatosHashYSagaIntactos": true,
+  "versionViejaRechazada": true,
+  "responsableRevisadoEnFuente": true,
+  "accesoEInversionUnicos": true
+}

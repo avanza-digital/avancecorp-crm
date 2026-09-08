@@ -1,0 +1,94 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "33fecba4-c37f-4cb9-aa33-bf4345b07f56",
+  "terminadoEn": "2026-09-08T01:43:58.777Z",
+  "pruebas": [
+    {
+      "nombre": "Generación Deno PEN y tres descargas idénticas",
+      "conforme": true,
+      "sha256": "07fdc1c523ba86e70693ea36f996e642df5d63fb3fe43af92cb4910420aeff9e",
+      "bytes": 871762,
+      "intentos": 1
+    },
+    {
+      "nombre": "Generación Deno USD y tres descargas idénticas",
+      "conforme": true,
+      "sha256": "fddb94915e253692e45363a21fc6886038e97c981623795633d7234083f925bc",
+      "bytes": 871996,
+      "intentos": 1
+    },
+    {
+      "nombre": "PDF privado y equipo ajeno rechazado",
+      "conforme": true
+    },
+    {
+      "nombre": "Recuperación tras fallo transitorio de renderizar",
+      "conforme": true,
+      "sha256": "5e767a52876e03c37c912cd0d6c13d9dc5001a06faf4fe97a1bc24c5d72190f4",
+      "bytes": 871762,
+      "intentos": 2
+    },
+    {
+      "nombre": "Recuperación tras fallo transitorio de subir",
+      "conforme": true,
+      "sha256": "3eefa2ba8b3fb3e93e36869ddfa516ad70883420ed60fefb26252ed156a5c7ad",
+      "bytes": 871761,
+      "intentos": 2
+    },
+    {
+      "nombre": "Recuperación tras fallo transitorio de descargar",
+      "conforme": true,
+      "sha256": "1e0236094b797e631bb3aff0b13bcaa4462b8b1bbc231f2f592997349ec21a24",
+      "bytes": 871761,
+      "intentos": 2
+    },
+    {
+      "nombre": "Recuperación tras fallo transitorio de firmar",
+      "conforme": true,
+      "sha256": "7c7a54501aae98fbf8017e5e89bb1eb81330ef012d008581f9002d624f6da2df",
+      "bytes": 871765,
+      "intentos": 1
+    },
+    {
+      "nombre": "Sello confirmado con respuesta perdida se reutiliza",
+      "conforme": true,
+      "sha256": "9e0e617582fbf921750dfe4489393cf2974438968f41a769cf897c8a84ce8f35",
+      "bytes": 871759,
+      "intentos": 1
+    },
+    {
+      "nombre": "Dos generadores simultáneos producen un solo PDF",
+      "conforme": true,
+      "sha256": "14c9ff64acce8aa91f12ce477437d02c58d59d6a4cb18df4c2d0ab396d8280b5",
+      "bytes": 871764,
+      "intentos": 1
+    },
+    {
+      "nombre": "Recuperación Respuesta perdida subir tras lease real",
+      "conforme": true,
+      "sha256": "680951fc5ca45729b1aa3dd554660cbfc1c491a7f43214b5fef9c4a56607684b",
+      "bytes": 871760,
+      "intentos": 2
+    },
+    {
+      "nombre": "Recuperación Respuesta perdida contrato_pdf_marcar_subido tras lease real",
+      "conforme": true,
+      "sha256": "b3a4e3440e03a718138d5b6a9523b185bd4d7faa1b64d8f6e290a7029c9f4d56",
+      "bytes": 871760,
+      "intentos": 2
+    },
+    {
+      "nombre": "Todas las operaciones del ensayo terminan con una fuente, un PDF sellado y su inversión",
+      "conforme": true
+    }
+  ],
+  "contratos": 10,
+  "fuentesSinDuplicados": true,
+  "generador": "Plantilla y renderer vigentes sin cambios; handler recupera el objeto existente antes de repetir su subida",
+  "limites": [
+    "Revisión visual de los dos archivos en paso separado",
+    "La plantilla vigente no imprime cotitulares; cualquier incorporación exige aprobación de Miguel",
+    "Antecedentes sin reserva y permisos dinámicos se cubren en bloques posteriores",
+    "Pruebas locales; G4 completo sigue abierto"
+  ]
+}

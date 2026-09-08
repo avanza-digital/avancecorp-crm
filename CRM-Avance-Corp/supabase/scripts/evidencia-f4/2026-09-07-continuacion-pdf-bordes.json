@@ -1,0 +1,311 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "capturadoEn": "2026-09-08T03:17:45.411Z",
+  "estado": "avance-parcial-G4-abierto",
+  "objetivo": "activo; no completado",
+  "candidata": {
+    "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+    "rutaTrabajo": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+    "sha256": "6f3285665cee92f2c9bae575888d5f442b08c4c0cc36c1ceb4a4e87f4919785e"
+  },
+  "funciones": 34,
+  "funcionesNuevas": 17,
+  "checkpointAnterior": {
+    "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/2026-09-07-continuacion-pdf-auditoria.json",
+    "sha256": "aad030f534d5c3000ee33165b2aee102028b9166018bdac4dd91981424546d79"
+  },
+  "referenciasAnterioresComprobadas": 43,
+  "pdf": {
+    "bordes": {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-bordes-de9b6514-ab69-416e-bd01-d4293f48ddaa.json",
+      "sha256": "f7990800c680bef0961fe558ca31ad3196340758552ae45dbbb4e9979169fddf",
+      "grupos": 10,
+      "contratos": 8,
+      "terminadoEn": "2026-09-08T03:04:53.448Z"
+    },
+    "regresion": {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-real-5c9cfcc2-b1c5-4930-8552-2337d1b0f49b.json",
+      "sha256": "f4f826fce9e37ff0cb8b2ce4982d808256d8ad4147ac2f783f5f7ba8f0b74e8e",
+      "grupos": 12,
+      "contratos": 10,
+      "terminadoEn": "2026-09-08T03:07:46.128Z"
+    },
+    "esperaLeaseSegundos": 120,
+    "plazoStorageMs": 20000,
+    "rangoCortesConHandlerMs": [
+      20195,
+      20269
+    ],
+    "subidaTardia": {
+      "tokenVencidoStatus": 409,
+      "colisionStatus": 503,
+      "colisionMs": 370,
+      "intentoFinal": 3
+    },
+    "pruebasUnitarias": {
+      "handler": 31,
+      "storage": 11,
+      "total": 42,
+      "estado": "PASS",
+      "fuente": "Salida de deno test observada por Codex en esta continuación (sesión 5690); este capturador no vuelve a ejecutarlas."
+    },
+    "validacionEstatica": {
+      "entrypointDenoCheck": "PASS",
+      "formatoCincoArchivos": "PASS",
+      "fuente": "Salidas de deno check del entrypoint y deno fmt --check observadas por Codex en esta continuación."
+    },
+    "revisionVisual": {
+      "nuevaRevision": false,
+      "anterior": [
+        {
+          "moneda": "PEN",
+          "ejecucion": "33fecba4-c37f-4cb9-aa33-bf4345b07f56",
+          "sha256Pdf": "07fdc1c523ba86e70693ea36f996e642df5d63fb3fe43af92cb4910420aeff9e",
+          "paginas": 7,
+          "revisionVisual": "Todas las páginas renderizadas y examinadas por Codex durante este bloque; sin recortes/desbordes observados.",
+          "sha256HojaDeRevision": "7d855581f3593ade584db6cb79aa52a6ade53143fd8e59847f653b61fc5633fd",
+          "ubicacion": "Carpeta privada del banco; no es documento para un cliente ni aprobación legal."
+        },
+        {
+          "moneda": "USD",
+          "ejecucion": "33fecba4-c37f-4cb9-aa33-bf4345b07f56",
+          "sha256Pdf": "fddb94915e253692e45363a21fc6886038e97c981623795633d7234083f925bc",
+          "paginas": 7,
+          "revisionVisual": "Todas las páginas renderizadas y examinadas por Codex durante este bloque; sin recortes/desbordes observados.",
+          "sha256HojaDeRevision": "abe501723b04da898b6e2a66cdf51b02d9fc375e7d5a0ed9bf70ee3e68f88cf2",
+          "ubicacion": "Carpeta privada del banco; no es documento para un cliente ni aprobación legal."
+        }
+      ],
+      "limite": "La revisión de 14 páginas corresponde a los dos archivos del bloque anterior; no se extrapola a cada PDF posterior."
+    },
+    "documentoSinCambios": [
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/template-v2.ts",
+        "sha256": "11384670b98c28b4b1be0873cccfd0490c0d733ee01b4fd2e3a3a291b75e77c4",
+        "igualAHead": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/renderer.ts",
+        "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8",
+        "igualAHead": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/assets-v2.ts",
+        "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847",
+        "igualAHead": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+        "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4",
+        "igualAHead": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+        "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1",
+        "igualAHead": true
+      }
+    ],
+    "archivosServidos": [
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/index.ts",
+        "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts",
+        "sha256": "d38dd6087fed98b4fa7145422ca942d0e8aa8e587ff048805553d45c05d79451",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.ts",
+        "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/renderer.ts",
+        "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/template-v2.ts",
+        "sha256": "11384670b98c28b4b1be0873cccfd0490c0d733ee01b4fd2e3a3a291b75e77c4",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/assets-v2.ts",
+        "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+        "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+        "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1",
+        "copiaServidaIdentica": true
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/deno.json",
+        "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0",
+        "copiaServidaIdentica": true
+      }
+    ]
+  },
+  "codigo": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/index.ts",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/index.ts",
+      "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts",
+      "sha256": "d38dd6087fed98b4fa7145422ca942d0e8aa8e587ff048805553d45c05d79451"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.test.ts",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.test.ts",
+      "sha256": "2d54c43f91f98ff46415bbd5f9c4fe825a169efbf9b4f8e6a3d00be9b308cb04"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.ts",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.ts",
+      "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.test.ts",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.test.ts",
+      "sha256": "efaadb4cee6512eacfb267a9d4aa2709adf357e265675f042ddfaaf5770096d1"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/deno.json",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/deno.json",
+      "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/banco-local.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/banco-local.mjs",
+      "sha256": "927090e5ebd14953128b77ee2030cb92f0318120a792f4c6585f2f7fe32d66e2"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/pdf-fixture.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/pdf-fixture.mjs",
+      "sha256": "6f4f8573e4df54e194ac3496cfc5b6b0ccd88de64527e88c9ad483e026d6c716"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/preparar-pdf-local.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/preparar-pdf-local.mjs",
+      "sha256": "d008a9c285c9434ed060dade2a0a0f99d13013f1270b9bd46f1d671ab5749ed7"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-bordes.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-bordes.mjs",
+      "sha256": "776f6bb95c3a219464f7fddd7cd71dae1fdad33c096597184dda1a91b200674c"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-real.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-real.mjs",
+      "sha256": "b20b9dbadf10418781e075de63c2fce7208f52903b12141759ebdbcfdc9110b2"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/capturar-pdf-bordes-local.mjs",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-pdf-bordes-local.mjs",
+      "sha256": "91e9f3a71dda108825d116ab4e3e9015c20091402682b96d4e58a1c10c519c30"
+    }
+  ],
+  "documentos": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/PLAN-MAESTRO-MULTIEMPRESA-movil.html",
+      "sha256": "86d33ea2f4e99b1b33ceba4f22f65ea55ef4b6f88eb5013703a7796f1c901f39",
+      "rutaTrabajo": "PLAN-MAESTRO-MULTIEMPRESA.html",
+      "versionPrevia": {
+        "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/PLAN-MAESTRO-MULTIEMPRESA.html",
+        "rutaTrabajo": "PLAN-MAESTRO-MULTIEMPRESA.html",
+        "sha256": "c7990572d3ac43374fc8a1b16535ed8b226828dea843ce24bb29fcba276b4181"
+      }
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/BASE DE CONOCIMINETO/AVANCECORP/Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01).md",
+      "rutaTrabajo": "BASE DE CONOCIMINETO/AVANCECORP/Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01).md",
+      "sha256": "808df206fc5950a763b53193abfea48f12fbfa9f87566a56cd171bd1b1b72fe4"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07).md",
+      "rutaTrabajo": "BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - PDF real, recuperacion y auditoria (2026-09-07).md",
+      "sha256": "4aeaef618097e6fa1ca524145f6dfb89c48d3f191fdf8ae72048c86b1b47b234"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - construccion y pruebas parciales (2026-09-07).md",
+      "rutaTrabajo": "BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - construccion y pruebas parciales (2026-09-07).md",
+      "sha256": "dc9dd16f9a37b67a6b5afc60e4ac72d6198406f1766ec425f3a2a3db3d985911"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07).md",
+      "rutaTrabajo": "BASE DE CONOCIMINETO/AVANCECORP/F4 multiempresa - objetivo de cierre y banco aislado (2026-09-07).md",
+      "sha256": "ab6ba784964aa2c35ed1180a97c477b819e55c168b7fdb16bc3dd506878cdfbf"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/BASE DE CONOCIMINETO/AVANCECORP/RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07).md",
+      "rutaTrabajo": "BASE DE CONOCIMINETO/AVANCECORP/RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07).md",
+      "sha256": "97f900519f1466800f0f1894476adc56d4eddab7ec64a86ff888606c429c094a"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md",
+      "sha256": "7238f652f6d20494733a6d74ec13242b7c249649da0f85aeca354b0268d74d55"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/f4/README.md",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/f4/README.md",
+      "sha256": "334513c90e3bb29836a8a3863d1bdddcfa232e86649aa82519304eff6d192017"
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/version-pdf-bordes-2026-09-07/CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-claude-2026-09-07/evaluacion-codex.md",
+      "rutaTrabajo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-claude-2026-09-07/evaluacion-codex.md",
+      "sha256": "913845d0894b5b48e6aeb6d45dd015757fc0d1fc8827d880f4899bbabe66af9d"
+    }
+  ],
+  "banderasFinales": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false
+  },
+  "servidorTemporalFunciones": "Detenido por SIGINT; sesión 52304 terminó con código 0.",
+  "produccionModificada": false,
+  "auditoria": {
+    "nuevaConsulta": false,
+    "alcance": "Claude revisó la versión anterior conservada; Codex implementó y comprobó estas correcciones posteriores."
+  },
+  "limites": [
+    "El timeout cubre Storage; no es un plazo global para Auth, RPC o render.",
+    "Se alteran respuestas para simular incompatibilidad; no se cambian estados, versión ni snapshot contractual en SQL.",
+    "Validar tamaño antes de la huella evita una copia adicional; el SDK aún materializa el cuerpo descargado.",
+    "No hay incorporación PDF de cotitulares aprobada ni aplicada: requiere texto, ubicación y aprobación previa de Miguel.",
+    "Históricos F2, cotitularidad neutral, roles dinámicos, multirrol, bajas, sin responsable y lectores heredados pendientes.",
+    "Renovaciones, comisión, demos, anulaciones y carrera de sello mensual pendientes.",
+    "Términos/correcciones S8/S9, inventario, reconstrucción y reversa completas pendientes.",
+    "Los jobs de estos dos ensayos terminan sellados; no se afirma que todos los jobs históricos del banco estén terminados."
+  ],
+  "presentacionPlan": {
+    "actualizadaEn": "2026-09-08T03:22:03.446293+00:00",
+    "cambio": "Se permite partir tokens largos y se reduce el relleno de celdas en móvil.",
+    "contenidoSinCambios": true,
+    "verificacion": {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/plan-pdf-bordes-qa.json",
+      "sha256": "d1e494380b1be7b0a5acdd0bf42b55bfc600e10339aa83356ab4fa863dcb4315"
+    },
+    "capturas": [
+      {
+        "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/plan-pdf-bordes-escritorio-corregido.png",
+        "sha256": "82c16a42b7ad36ed23b0f50c66b25e01ad079fb550ebd11053b14d54e9051c90"
+      },
+      {
+        "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/plan-pdf-bordes-movil-corregido.png",
+        "sha256": "449132120716060000f8c6e6685a53be02f03369e5ffba371d246eedb393e3f7"
+      }
+    ],
+    "revisionVisual": "Codex examinó las capturas; texto legible y sin recortes observados. Anchos 1440, 390 y 320 sin desborde horizontal."
+  }
+}

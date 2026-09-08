@@ -1,0 +1,16 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "momento": "antes",
+  "capturadoEn": "2026-09-07T19:36:24.797Z",
+  "sha256": "5112676c0417915b53bc90fc3ff925e806cf348fc9de0269fa56a1e4e9e12e2f",
+  "contratos": 4,
+  "cierres": 2,
+  "filasCapital": 6,
+  "cuotas": 52,
+  "capitalTotalPEN": 8000,
+  "upgradeMismoMes": 0,
+  "operacionesCarteraElegiblesSeptiembre": 1,
+  "aporteUpgrade": 1,
+  "fuentesYReglasIguales": false,
+  "alcance": "Paridad de antecedentes y upgrades. No cubre todavía renovación, comisión, Auth ni aceptación completa G4."
+}

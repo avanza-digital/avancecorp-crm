@@ -3,8 +3,8 @@ tags: [crm, multiempresa, identidad, activacion, retomar, roadmap]
 fecha: 2026-09-07
 estado: identidad-encendida-en-produccion
 codigo: RETOMAR-62
-actualizado: 2026-09-08
-continuacion: F4-historicos-recuperables-y-commits
+actualizado: 2026-09-07
+continuacion: F4-PDF-real-recuperacion-y-auditoria
 sustituye_a: RETOMAR-60
 ---
 
@@ -27,10 +27,6 @@ Todo cuelga de `~/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/`:
 ⚠️ La carpeta está escrita `CONOCIMINETO`, sin la «E». Es así de verdad, no es una errata al buscar.
 
 ## 1. Qué decir en una frase
-
-**Continuación vigente — 08/09/2026, 00:09 Lima:** recuperada la sesión CARTERA y continuado el desarrollo en el worktree `/private/tmp/avancecorp-f4-desarrollo`, rama `codex/f4-cierre`. Censo, lote histórico y concurrencia ampliados; 37 funciones cotejadas. **G4 sigue abierto y se guardan commits por bloques.** Estado, evidencia y pendientes: [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]].
-
-La continuación de las 22:09 que sigue es el antecedente documental del bloque PDF.
 
 **Continuación — 07/09/2026, 22:09 Lima, recuperación PDF ampliada:** F4 sigue en construcción
 local y G4 permanece abierto. Pasaron 10 grupos nuevos/ocho contratos (timeout,

@@ -1,0 +1,53 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_732f3cb91c90",
+  "ejecucion": "732f3cb9-1c90-4115-9e80-aa208756cf40",
+  "terminadoEn": "2026-09-08T05:05:06.497Z",
+  "pruebas": [
+    {
+      "nombre": "Mismo lote simultáneo: un acta y un resultado",
+      "procesosObservados": 2
+    },
+    {
+      "nombre": "Dos lotes diferentes sobre fuentes pendientes: uno gana y otro exige recenso",
+      "procesosObservados": 2
+    },
+    {
+      "nombre": "Mismo lote con mapas distintos: una ganadora y un conflicto",
+      "procesosObservados": 2
+    },
+    {
+      "nombre": "Confirmación real espera al commit del lote y luego observa F4 apagada",
+      "procesosObservados": 1
+    },
+    {
+      "nombre": "Fuente retenida: rechazo NOWAIT sin acta, reintento recuperable",
+      "rechazoSinEfectos": true
+    },
+    {
+      "nombre": "Cambio confirmado mientras espera: mapa antiguo rechazado y recenso recuperable",
+      "procesosObservados": 1
+    },
+    {
+      "nombre": "Conexión cerrada antes del commit: sin acta parcial y recuperación",
+      "desconexionReal": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "definiciones": [
+    {
+      "nombre": "07-historicos.sql",
+      "sha256": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670"
+    },
+    {
+      "nombre": "08-historicos-lote.sql",
+      "sha256": "b5c097948ad29f70075558cb553f704a3a4443ca1453559d597969900f30d31b"
+    }
+  ],
+  "sha256Oraculo": "a92fae340581e6aebe19e1ff66ed68d9b887f417c2d40b6f6d38f2c346fae76d",
+  "limites": [
+    "Copia SQL de datos sintéticos; no comprueba HTTP ni duplica el almacenamiento de archivos.",
+    "No duplica pg_cron ni replicación; aún no demuestra ausencia de interferencias de todos los trabajos programados.",
+    "La prueba conserva la instalación del banco original. G4 permanece abierto."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "60205dc6-9fd0-482b-aaa1-a1b5e9dd5924",
+  "terminadoEn": "2026-09-07T23:17:39.940Z",
+  "pruebas": [
+    {
+      "nombre": "Fallo de cotitular revierte contrato, cuenta, cuotas, relación y PDF completos",
+      "conforme": true
+    },
+    {
+      "nombre": "Nueva inversión Avance PEN",
+      "sinCatalogoObligatorio": true,
+      "principalYCoTitularDocumental": true,
+      "cronogramaYCuenta": true,
+      "portalPropio": true,
+      "reintentoUnico": true,
+      "pdfReservado": true,
+      "conforme": true
+    },
+    {
+      "nombre": "Nueva inversión Avance USD",
+      "sinCatalogoObligatorio": true,
+      "principalYCoTitularDocumental": true,
+      "cronogramaYCuenta": true,
+      "portalPropio": true,
+      "reintentoUnico": true,
+      "pdfReservado": true,
+      "conforme": true
+    },
+    {
+      "nombre": "Dos fuentes Avance adicionales sin recrear identidad, lead ni Auth",
+      "conforme": true
+    }
+  ],
+  "alcance": "Escritor Avance para perfil existente, cuenta/cronograma/titularidad documental/Portal. El job PDF se reserva; falta probar su generación y recuperación real y el alta Auth desde cooperativa."
+}

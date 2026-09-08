@@ -1,0 +1,82 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "de9b6514-ab69-416e-bd01-d4293f48ddaa",
+  "terminadoEn": "2026-09-08T03:04:53.448Z",
+  "pruebas": [
+    {
+      "nombre": "Timeout subir/cabeceras y recuperación Deno",
+      "conforme": true,
+      "duracionMs": 20220,
+      "intentos": 2,
+      "sha256": "436381a66cf81ac512b4eb63e42e29456ca03976aaeed7779df8e778077a3a9f",
+      "bytes": 871769
+    },
+    {
+      "nombre": "Timeout subir/cuerpo y recuperación Deno",
+      "conforme": true,
+      "duracionMs": 20195,
+      "intentos": 2,
+      "sha256": "99547830d9b06b9ebb53b62af80bff4aa72d9f86ac687d1658c519841ea01de8",
+      "bytes": 871768
+    },
+    {
+      "nombre": "Timeout descargar/cuerpo y recuperación Deno",
+      "conforme": true,
+      "duracionMs": 20269,
+      "intentos": 2,
+      "sha256": "3d587b68ddb0f60422be4ac9d80e92c93732f6edd54ce3af5f0efeb958d735a8",
+      "bytes": 871777
+    },
+    {
+      "nombre": "Timeout firmar/cuerpo y recuperación Deno",
+      "conforme": true,
+      "duracionMs": 20235,
+      "intentos": 1,
+      "sha256": "8d9e7da1096f88b34a3092aea7c8bf0bd50c22968b20404b92f1ef4e300e774a",
+      "bytes": 871777
+    },
+    {
+      "nombre": "Versión recibida incompatible en reserva contrato-aep-17-v6: reserva libre y recuperación",
+      "conforme": true,
+      "intentos": 1,
+      "sha256": "943a0deee31b029b7f67127c4e86ce4817f464d83c58e60e08172c4568145356",
+      "bytes": 871774
+    },
+    {
+      "nombre": "Versión recibida incompatible en reclamo contrato-aep-17-v6: reserva libre y recuperación",
+      "conforme": true,
+      "intentos": 2,
+      "sha256": "73793907ab741dce7a8409102a7d03d370cdf539542f676decab5048672ca300",
+      "bytes": 871777
+    },
+    {
+      "nombre": "Versión recibida incompatible en reclamo contrato-aep-17-v8: reserva libre y recuperación",
+      "conforme": true,
+      "intentos": 2,
+      "sha256": "ff6da4857580cae8428baddc16d7c5757e7cbee322fc894fd06311b6a2173f56",
+      "bytes": 871777
+    },
+    {
+      "nombre": "Subida tardía tras ausencia: lease viejo rechazado, colisión acotada y un solo PDF",
+      "conforme": true,
+      "respuestaColision": 503,
+      "duracionMs": 370,
+      "intentos": 3,
+      "sha256": "5799622627445d376dce379d85010ab4ccfbb2adecb98f1edcd3bd08f2d748ca",
+      "bytes": 871781
+    },
+    {
+      "nombre": "Régimen anterior F4-BASE-INICIAL: conserva contrato sin generar documento nuevo",
+      "conforme": true
+    },
+    {
+      "nombre": "Régimen anterior F4-BASE-UPGRADE-MISMO-MES: conserva contrato sin generar documento nuevo",
+      "conforme": true
+    }
+  ],
+  "contratos": 8,
+  "plazoStorageMs": 20000,
+  "plantillaModificada": false,
+  "estadosSqlFabricados": false,
+  "limite": "Las versiones incompatibles se inyectan en la respuesta al worker; no se edita la versión ni el snapshot contractual real. Prueba local, sin cierre de G4."
+}

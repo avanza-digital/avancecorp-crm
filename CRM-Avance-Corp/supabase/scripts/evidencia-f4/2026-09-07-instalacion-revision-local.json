@@ -1,0 +1,21 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-07T21:59:13.921Z",
+  "archivo": "20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "modificadas": [
+    "private.inversion_solicitud_resultado",
+    "crm.preparar_inversion_fn",
+    "crm.confirmar_inversion_fn",
+    "private.f4_fuente_inmutable",
+    "public.proteger_campos_inmutables"
+  ],
+  "nuevas": [
+    "private.f4_alineacion_perfil_permitida",
+    "crm.revisar_solicitud_inversion_fn"
+  ],
+  "sha256Anterior": "16f27675bd76bbb9f20ddd3d3a7ed86b694c75abce456d39c3b14aeb17550bae",
+  "sha256Candidata": "2d7fa98200e858821d7e5e96e10afd3da85908c2fed29e68d20181937f2774e8",
+  "tablaNueva": "crm.inversion_solicitud_revisiones",
+  "banderaInversiones": false,
+  "produccionModificada": false
+}

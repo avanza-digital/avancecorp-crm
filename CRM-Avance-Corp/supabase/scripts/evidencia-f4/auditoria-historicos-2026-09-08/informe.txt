@@ -1,0 +1,382 @@
+VERDICT:
+CHANGES_REQUESTED
+
+(Not `BLOCK`: the attached files are sufficient to review the block substantively. But four load‑bearing artifacts are missing, listed under EVIDENCE GAPS; promotion of this draft into the candidate migration should be blocked until they are attached.)
+
+SUMMARY:
+The two‑phase design (recensus → advisory flags → NOWAIT row locks → recensus → acta → link → per‑source reverification) is sound in shape, and the deferred‑constraint + `creado_xid` immutability pattern in `08-historicos-lote.sql:22-47` is a correct way to make "acta cannot commit unfinished" hold. Atomicity, replay‑by‑lote‑id, and hash‑of‑sorted‑map identity all check out on the attached code.
+
+The problems are on the edges the double‑check does not reach: (1) `es_primera_conversion` gets opposite semantics from the batch vs. the live writer; (2) the row locks cover the *canonical* person but not the raw identity pointers or the identifier/map tables the state function actually reads, leaving a window between the last per‑source verification and COMMIT; (3) the entire mutual‑exclusion premise ("writer OFF, identity writers drained") is asserted in comments but not demonstrated by any attached writer; (4) the immutability claim on the acta is DML‑only and the acta lives in the PostgREST‑exposed `crm` schema without `FORCE ROW LEVEL SECURITY`. The oracles are unusually good but do not exercise the demo exclusion, `contrato_en_eliminacion`, null `creado_por`, the new audit trigger, or a batch/HTTP‑writer race.
+
+FINDINGS:
+
+---
+
+[P1] `es_primera_conversion` gets opposite semantics from the historical batch and the live writer
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`, `CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`, `CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`
+
+Lines:
+`07-historicos.sql:44` and `07-historicos.sql:75`; `08-historicos-lote.sql:164`; `02-confirmacion.sql:44` and `02-confirmacion.sql:201`
+
+Problem:
+The batch propagates a real value for closures and a hardcoded `false` for contracts, while the live HTTP path hardcodes `false` for both.
+
+Evidence:
+- `07-historicos.sql:75` (closure branch): `v_inicial:=v_ce.es_cierre_inicial;`
+- `07-historicos.sql:44` (contract branch): `v_inicial:=false;` — unconditional, no derivation attempted.
+- `08-historicos-lote.sql:164` passes `(v_actual->>'inicial')::boolean` as `p_inicial`.
+- `02-confirmacion.sql:44` writes that into the `es_primera_conversion` column.
+- `02-confirmacion.sql:201`: `private.inversion_vincular_fuente(v_persona,v_contrato,v_cierre,v_uid,false)` — the live path always passes `false`, for cooperative closures too.
+
+Impact:
+After the backfill, `crm.inversiones.es_primera_conversion` means "was the first cooperative closure" for historical closures, "always false" for historical Avance contracts, and "always false" for everything created after F4. Any report or metric reading that column produces an incoherent mix — historical closures will look like first conversions and equivalent new ones will not. This is exactly the "historical attribution" the task is supposed to preserve.
+
+Recommendation:
+Pick one contract for the column and make both writers honor it. Either derive it in the preview (first `crm.inversiones` row per canonical person ordered by `fecha_comercial`, computed over the whole batch and existing rows, not per‑source), or stop writing a truth‑claiming `false` and make the column nullable/`unknown` for backfilled rows. Do not leave the two writers disagreeing.
+
+---
+
+[P1] Row locks cover the canonical person but not the raw identity pointers, leaving an uncovered window before COMMIT
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`
+
+Lines:
+`126-139` (lock set), `168-171` (final per‑source check), vs. `07-historicos.sql:81`, `07-historicos.sql:86-96`, `07-historicos.sql:100-105`
+
+Problem:
+`v_personas` is built only from `value->>'persona'`, which `07-historicos.sql:103-105` already collapsed through `private.inversionista_canonica`. The raw indicios (`v_ce.inversionista_id`, `v_l.inversionista_id`, the F2 map's `inversionista_id`, `v_perfil`) are never locked, so the canonicalization input can change under the batch.
+
+Evidence:
+- `08-historicos-lote.sql:126`: `array_agg(distinct (value->>'persona')::uuid)` — canonical only.
+- `08-historicos-lote.sql:133`: `perform 1 from crm.inversionistas where id=any(v_personas) order by id for update nowait;`
+- `07-historicos.sql:81`: `v_indicios:=array[v_ce.inversionista_id,v_l.inversionista_id];` — the raw pointer row is a different `crm.inversionistas` row when a merge is in play.
+- The final check at `08-historicos-lote.sql:168-171` runs once per source inside the loop. For every source except the last, and for the last source too, nothing re‑checks between that call and COMMIT.
+
+Impact:
+If a merge/unmerge commits after a source's line‑168 verification and before the batch commits, the transaction commits `crm.inversiones.inversionista_id` and `crm.inversion_titulares` pointing at a person that is no longer canonical, with no error. Same class applies to `crm.inversionista_identificadores` (read at `07-historicos.sql:115-118` and `146-149`, never locked) and `crm.backfill_multiempresa_mapa` (read at `07-historicos.sql:62-63` and `79-80`, never locked): a verified identifier revoked in that window commits a link that the preview would have rejected with `identidad_sin_documento_verificado`.
+
+Whether this is reachable in practice depends entirely on the unattached claim that every identity writer takes the shared `crm_flag_resolver_en_puertas` lock — see EVIDENCE GAPS. If that holds, this is defense‑in‑depth; if it does not, it is a live correctness bug.
+
+Recommendation:
+Expose the pre‑canonicalization indicios in the preview payload and include them in `v_personas` for the `FOR UPDATE NOWAIT` at line 133. Add `for share nowait` on `crm.inversionista_identificadores where inversionista_id=any(v_personas)` and on `crm.backfill_multiempresa_mapa` for the batch's `(fuente,fila_id)` pairs, next to lines 133‑139. Alternatively, move the final verification loop out of the write loop so it runs once, after all writes, immediately before returning.
+
+---
+
+[P1] The `contrato_en_eliminacion` guard is asserted to be serialized by the contract row lock, but nothing attached proves it
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`, `CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`
+
+Lines:
+`02-confirmacion.sql:30-34`; `07-historicos.sql:46` and `07-historicos.sql:121`; `08-historicos-lote.sql:136`
+
+Problem:
+The comment at `02-confirmacion.sql:30-31` states the guard protects historical linking "si el borrado se preparó antes de obtener el candado contractual". That only holds if the contract‑deletion writer takes a lock on `public.contratos` that conflicts with the batch's `FOR UPDATE`, before it publishes its deletion marker.
+
+Evidence:
+- `08-historicos-lote.sql:136`: `perform 1 from public.contratos where id=any(v_contratos) order by id for update nowait;`
+- `02-confirmacion.sql:32`: `if p_contrato is not null and private.contrato_en_eliminacion(p_contrato) then raise ... '55000'`
+- `private.contrato_en_eliminacion` and the deletion flow that populates whatever it reads are not attached. The table it reads is never locked at `08-historicos-lote.sql:133-139`.
+
+Impact:
+If the deletion flow marks a contract without touching `public.contratos`, a deletion prepared concurrently can commit right after `02-confirmacion.sql:32` returns false, destroying a contract (and, per the business constraint, its money and documents) that now has an investment and a titular attached. This is the single highest‑consequence failure mode in the block.
+
+Recommendation:
+Attach the deletion writer. If it does not take a conflicting lock on `public.contratos`, either make it do so, or have the batch take `for share nowait` on the deletion‑marker rows for `v_contratos` alongside line 136.
+
+---
+
+[P1] The whole "writer OFF / identity drained" premise is unevidenced by any attached writer
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`, `CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`
+
+Lines:
+`08-historicos-lote.sql:92-103`; `02-confirmacion.sql:60-215`
+
+Problem:
+The batch takes both flag advisory locks exclusively and then asserts flag state. That only excludes anything if the concurrent writers take the *shared* form of the same keys. `crm.confirmar_inversion_fn` — the production investment writer, in the same PR's file — takes neither, and does not consult either flag.
+
+Evidence:
+- `08-historicos-lote.sql:96-97`: `pg_advisory_xact_lock(hashtext('crm_flag_resolver_en_puertas'))` and `...('crm_flag_inversiones_escritura'))`.
+- `08-historicos-lote.sql:101-103`: rejects if `private.inversiones_escritura_bajo_candado()` is true.
+- `02-confirmacion.sql:60-215`: the only advisory locks are `pg_advisory_xact_lock(hashtext('crm.periodos_cerrados'), n)` at lines 129 and 134 — a different two‑key lock space. There is no `pg_advisory_xact_lock_shared` on either flag key and no flag read anywhere in the function.
+- `02-confirmacion.sql:201` calls `private.inversion_vincular_fuente` unconditionally, which inserts into the same `crm.inversiones` / `crm.inversion_titulares` the batch is writing.
+
+Impact:
+As attached, a `confirmar_inversion_fn` call can run concurrently with the batch. It creates *new* sources rather than linking existing ones, so the practical collision is narrow, and `inversion_vincular_fuente:20,25` takes `FOR SHARE` on the source rows, which does conflict with the batch's `FOR UPDATE` — so the batch's NOWAIT will fire and the batch loses, cleanly. That is acceptable behavior, but it is not the behavior the comments at `08-historicos-lote.sql:92-95` describe, and the identity‑drain claim remains entirely unbacked.
+
+Recommendation:
+Attach the F3 identity writer that takes the shared identity flag. If `confirmar_inversion_fn` is intended to be one of the "new F4 writers [that] take shared identity then investment flag", it needs the two `pg_advisory_xact_lock_shared` calls added before its first person/source lock. Either way, correct the comments to describe what is actually enforced.
+
+---
+
+[P2] Demo exclusion for closures is a hardcoded UUID, unlike the column‑driven contract path
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`
+
+Lines:
+`41` vs `72`
+
+Problem:
+Asymmetric exclusion rule.
+
+Evidence:
+- Line 41 (contracts): `v_demo:=v_c.es_demo;` — driven by a column.
+- Line 72 (closures): `v_demo:=v_ce.id='a112aead-184a-4979-9041-943978fadae4'::uuid;` — a single literal id.
+
+Impact:
+Any other demo/test closure — existing or created later — is not excluded and is eligible to be linked into real economic reporting. `private.capital_episodios` is in the transactional snapshot (`probar-historicos-lote.mjs:27-28`), so this feeds capital figures.
+
+Recommendation:
+Read the durable F2 exclusion from wherever F2 published it (a table or a flag), or add an `es_demo` column to `crm.cierres_externos` mirroring the contract path. A magic uuid in a linking function is not a durable exclusion.
+
+---
+
+[P2] `crm.inversiones.estado` is never reconciled with `cierres_externos.anulado_en` after linking
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`, `CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`
+
+Lines:
+`07-historicos.sql:74`, `07-historicos.sql:130-135`; `02-confirmacion.sql:16`, `02-confirmacion.sql:41-45`
+
+Problem:
+`estado` is derived from `anulado_en` at preview time and written only on INSERT; nothing updates it afterward, but the preview permanently compares against it.
+
+Evidence:
+- `07-historicos.sql:74`: `v_estado_economico:=case when v_ce.anulado_en is null then 'vigente' else 'anulada' end;`
+- `07-historicos.sql:132`: `or v_inv.estado is distinct from v_estado_economico` → `inversion_no_conciliada`.
+- `02-confirmacion.sql:41-45`: the `estado` value is only supplied in the `insert`; the `found` branch at `02-confirmacion.sql:37-40` never touches it.
+
+Impact:
+A closure annulled after being linked leaves `crm.inversiones.estado='vigente'` forever. The source of truth and the derived table diverge silently, and every future census of that source returns `revision` with no remediation path in F4. For contracts the divergence is structural: `07-historicos.sql:43` hardcodes `'vigente'` regardless of contract state.
+
+Recommendation:
+Out of scope to fix here, but decide explicitly: either add a reconciler for `estado`, or stop asserting `estado` in the conciliation comparison at line 132 and derive it in reads. Document the decision in the script header.
+
+---
+
+[P2] Acta immutability is DML‑only, in an exposed schema, without `FORCE ROW LEVEL SECURITY`
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`
+
+Lines:
+`3`, `17-18`, `44-47`; test at `probar-historicos-lote.mjs:99,103`
+
+Problem:
+Three gaps in the immutability/isolation claim of `08-historicos-lote.sql:16` ("Un lote completo es inmutable y no amplía permisos de usuario").
+
+Evidence:
+- Line 44: `create trigger trg_inversion_backfill_inmutable before update or delete` — no `before truncate` statement trigger, so `TRUNCATE crm.inversion_backfill_lotes` wipes the whole audit trail without tripping anything.
+- Line 17: `enable row level security` with no policies and no `force row level security`. The table owner therefore bypasses RLS entirely; the operator role is `postgres` per the guard at line 72. The test at `probar-historicos-lote.mjs:103` asserts only `relrowsecurity`, which reads stronger than it is.
+- Line 3: the table is created in `crm`, the schema PostgREST exposes — `02-confirmacion.sql:215` grants `crm.confirmar_inversion_fn` to `authenticated`, so `crm` is an exposed schema. The two new functions correctly live in `private`.
+- Line 18 revokes from `public,anon,authenticated,service_role` only; a role outside that list that receives a future blanket `grant ... on all tables in schema crm` is stopped by RLS‑with‑no‑policies (which is real protection), but only until someone adds a permissive policy to the table.
+
+Impact:
+Mostly defense‑in‑depth, since the operator is a superuser who can `alter table ... disable trigger` regardless. But the acta is presented as the audit record for a money‑adjacent backfill, and a superuser‑only threat model is not what the comment claims.
+
+Recommendation:
+Move the table to `private` for consistency with the functions, add `alter table ... force row level security`, add a `create policy ... using(false) with check(false)` so the denial is explicit rather than implied by absence, and add a `before truncate` statement trigger. In the test, assert `relforcerowsecurity` and that `relacl` grants nothing beyond the owner, instead of enumerating three role names.
+
+---
+
+[P2] Exclusive flag lock is held across up to ~300 heavyweight state evaluations while peers time out at 5s
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`
+
+Lines:
+`50`, `81-83`, `96-97`, `117-125`, `140-145`, `168`
+
+Problem:
+Every source is evaluated three times under an exclusive advisory lock that is supposed to stall all identity writers.
+
+Evidence:
+- Line 81: up to 100 sources per batch.
+- Lines 118, 141, 168: three `inversion_historica_estado` calls per source. That function runs roughly a dozen queries, including a `jsonb_agg` over all `crm.inversionista_identificadores` of every indicio (`07-historicos.sql:146-149`) and `to_jsonb` of the full source row for the huella.
+- Line 96 takes `pg_advisory_xact_lock` (exclusive) before any of that and holds it until COMMIT.
+- Line 50 sets `lock_timeout='5s'` on this function; `02-confirmacion.sql:61` sets the same on the HTTP writer.
+
+Impact:
+~3,600 queries under an exclusive lock. Once any writer that does take the shared flag lock starts waiting, it fails at 5s and surfaces as a 5xx. The batch is a maintenance operation, so a stall is acceptable — an unbounded one silently exceeding every peer's `lock_timeout` is not.
+
+Recommendation:
+Run the pre‑lock recensus (lines 117‑125) before acquiring the advisory locks, since its whole purpose is a cheap early reject and the authoritative check is the post‑lock loop at 140‑145. Lower the cap at line 81 to something with a measured upper bound, and add `set statement_timeout` to the function so the maintenance window is bounded by construction rather than by operator discipline.
+
+---
+
+[P2] Non‑idempotent DDL mixed with `create or replace` in the same scripts
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`, `CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`
+
+Lines:
+`08-historicos-lote.sql:3,19,44,46`; `02-confirmacion.sql:229,233,235,237,239`
+
+Problem:
+Functions use `create or replace`; the table, the three triggers and the five storage policies do not.
+
+Evidence:
+- `08-historicos-lote.sql:3` `create table`, `:19`/`:44`/`:46` `create trigger` — all fail on re‑run.
+- `02-confirmacion.sql:229-240` five `create policy` statements alongside `create or replace function` at lines 1, 60, 217.
+
+Impact:
+Re‑running either script — which the transactional oracle does per group inside `BEGIN/ROLLBACK`, and which a migration retry would do for real — fails at the first non‑idempotent statement.
+
+Recommendation:
+`create table if not exists`, `create or replace trigger` (PG14+), and `drop policy if exists` before each `create policy`, matching the convention already used for the functions.
+
+---
+
+[P3] `v_mapa->>'clase'<>'E'` silently drops map rows with a null class
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`
+
+Lines:
+`100-102`
+
+Evidence:
+`if v_mapa->>'inversionista_id' is not null and v_mapa->>'clase'<>'E' then`. If `clase` is NULL, `NULL <> 'E'` is NULL, the branch is skipped, and the map's `inversionista_id` is never added to `v_indicios`.
+
+Impact:
+An F2 map row with an unclassified class contributes no indicio, so it cannot raise `identidades_en_conflicto`. A genuine conflict is silently downgraded to "no conflict".
+
+Recommendation:
+`is distinct from 'E'`, or an explicit `coalesce(v_mapa->>'clase','') <> 'E'` if null class should also be excluded — state which one is intended.
+
+---
+
+[P3] Dead "incoherente" branch and a mismatched errcode for absent sources
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`
+
+Lines:
+`109-111`, `122-124`
+
+Evidence:
+- Lines 109‑111 can only be reached if a row with `finalizado_en is null` is visible; the deferred constraint at line 46 makes such a row uncommittable, and the `select` at line 104 precedes this transaction's own insert at line 149. Unreachable.
+- Line 122: a deleted source returns `estado='ausente'` from `07-historicos.sql:38/68` and is rejected with `P0409`, while every other "the world moved, re‑census" condition uses `40001` (lines 120, 143, 159).
+
+Impact:
+Minor. Callers keying retry logic on `40001` will not retry a source that was merely deleted, which is a legitimate re‑census case.
+
+Recommendation:
+Delete lines 109‑111 or convert to an assertion comment; raise `40001` for `'ausente'` specifically at line 122.
+
+---
+
+[P3] `set_config` restore turns an unset GUC into an explicit `'off'` for the rest of the transaction
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`
+
+Lines:
+`68`, `158`, `180`, `183`
+
+Evidence:
+`v_old_priv := current_setting('crm.op_privilegiada',true)` returns NULL when the GUC was never set; all three restores use `coalesce(v_old_priv,'off')`. Line 180 runs even when the privileged branch never executed.
+
+Impact:
+Downstream code that distinguishes "unset" from `'off'` sees a changed value for the remainder of the transaction. Nothing attached does, so this is a latent trap only.
+
+Recommendation:
+Skip the restore entirely when `v_old_priv is null` and the privileged branch never ran, or standardize on `'off'` meaning unset across the codebase and drop the distinction.
+
+---
+
+[P3] `OR` predicate on the locking select in `inversion_vincular_fuente`
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql`
+
+Lines:
+`35-36`
+
+Evidence:
+`select * into v_i from crm.inversiones where contrato_id=p_contrato or cierre_externo_id=p_cierre for update;` — exactly one parameter is non‑null (enforced at lines 11‑13), so one disjunct is always `NULL`.
+
+Impact:
+Correct (the null disjunct matches nothing), but the planner will typically produce a BitmapOr or a seq scan rather than a single unique‑index lookup, executed once per source, up to 100 times per batch.
+
+Recommendation:
+Branch on which parameter is non‑null and issue the matching single‑column predicate, mirroring the branch that already exists at lines 14‑26.
+
+---
+
+TEST GAPS:
+
+Ordered by what I would add first.
+
+- **The audit trigger is not covered at all, and the snapshot cannot see it.** `08-historicos-lote.sql:19-20` was added after the 12 transactional groups passed (per the PRIMARY's own note), and `pg_temp.foto_lotes()` at `probar-historicos-lote.mjs:41-44` hashes only `crm.inversion_backfill_lotes`. The `pg_temp.rechazar` invariant "El rechazo dejó efectos" (`:57`) therefore cannot detect audit rows written by rejected attempts. Add the audit table to `foto_lotes()` and add a group asserting what the trigger writes for the `mapa`/`resultado` columns.
+- **No batch‑vs‑HTTP‑writer race.** `probar-historicos-concurrencia.mjs` races the batch against itself (`:65`, `:74`), against a manually held row lock (`:83`), and against a raw `update` (`:104`). It never races it against `crm.confirmar_inversion_fn`, which is the writer the flag protocol is supposed to exclude. This is the central safety claim and it is untested.
+- **`contrato_en_eliminacion` is untested.** The guard appears at `07-historicos.sql:46`, `07-historicos.sql:121` and `02-confirmacion.sql:32`, protects contract money and documents, and no group exercises it.
+- **`excluido_demo` is untested.** `07-historicos.sql:142` and the rejection at `08-historicos-lote.sql:122-124` have no group. Add both a demo contract (`es_demo=true`) and the literal demo closure.
+- **Null `creado_por` is untested.** `08-historicos-lote.sql:164` passes `(v_actual->>'creado_por')::uuid` into `crm.inversiones.creado_por`. All six synthetic base sources presumably have it set. If the column is `not null`, a legacy source aborts the batch mid‑loop; if nullable, historical attribution is silently lost. Add a fixture with `creado_por is null`.
+- **Identity edge cases are untested:** `identidad_no_canonica` (`07-historicos.sql:112-114`), `identidad_sin_documento_verificado` (`:115-118`), `sin_identidad_inequivoca` (`:107-108`), and `titular_no_conciliado` with `v_n>1` (`:136`). The zero‑principal case is covered (`probar-historicos-lote.mjs:177-188`); the two‑principal case is not.
+- **The isolation guard is untested.** `08-historicos-lote.sql:75-77` raises `0A000` under anything other than READ COMMITTED. A one‑line group (`set transaction isolation level repeatable read`) would cover it.
+- **The `session_user` half of the privilege guard is untested.** `probar-historicos-lote.mjs:100` uses `set local role %I`, which changes `current_user` but leaves `session_user` as `postgres`. Only the `current_user<>'postgres'` clause of `08-historicos-lote.sql:72` is exercised.
+- **Two different lotes over overlapping sources is untested.** The most likely real operator error. Expected result is that the exclusive advisory lock serializes them and the second gets `40001` from the post‑lock recensus at `:143`, not a duplicate — worth pinning.
+- **The concurrency oracle's snapshot is narrower than the transactional one.** `probar-historicos-concurrencia.mjs:7-15` omits `crm.inversionista_identificadores`, `crm.leads`, `crm.inversion_titulares` and `private.capital_episodios`, all of which `probar-historicos-lote.mjs:13-29` includes. A concurrency‑induced mutation of identifiers or leads would pass unnoticed.
+- **Flaky‑by‑construction race window.** `copia-sql-local.mjs:61` gives `esperar` a 4500 ms budget while `08-historicos-lote.sql:50` sets `lock_timeout='5s'`. `carrera` (`:52-61`) polls `pg_stat_activity` for up to 4.5 s before releasing the gate, leaving under 500 ms of margin. On a loaded machine the contenders will hit `lock_timeout` and the assertions at `:66-67` will fail spuriously. Raise the function's `lock_timeout` for the ensayo or drop the poll budget well below it.
+- **pg_cron is excluded from the clone** (`copia-sql-local.mjs:27-28`). Any scheduled job that writes `crm.inversiones`, `crm.cierres_externos` or the PDF tables is absent from every concurrency scenario. Listed as a limit at `probar-historicos-concurrencia.mjs:135-136`, but it should be stated as a residual concurrency risk, not a footnote, since cron jobs are precisely the writers that will not honor a manual maintenance window.
+- **Savepoint vs. transaction rollback.** `probar-historicos-lote.mjs:205-211` proves rollback via `pg_temp.rechazar`'s exception handler, i.e. a subtransaction abort. That is a strictly finer‑grained check than a real abort, so the conclusion holds — but the group name claims "revierte todo", and it would be worth one group that aborts the outer transaction for real.
+
+---
+
+ARCHITECTURE RISKS:
+
+- The state function is the sole authority for both "what to write" and "did it work", called three times per source with different snapshots. That is defensible, but it means every future field added to the huella at `07-historicos.sql:157-160` silently widens the drift‑rejection surface, and every table read there but not locked at `08-historicos-lote.sql:133-139` silently widens the uncovered window. Consider deriving the lock set mechanically from the huella inputs rather than maintaining two lists by hand.
+- The date rule `coalesce(fecha_comercial,(creado_en at time zone 'America/Lima')::date)` is duplicated verbatim at `07-historicos.sql:73` and `02-confirmacion.sql:15`. If one drifts, every affected source becomes permanently `inversion_no_conciliada` with no way to converge. Extract it.
+- `08-historicos-lote.sql:112` returns a stored `resultado` on replay without re‑verifying that the links it describes still exist. Correct for an idempotency token, but the acta is also being presented as evidence of a completed link. Those are two different contracts sharing one return value.
+- Related to the PRIMARY's own prompt: a committed acta proves *intent plus a passing verification at line 168*, not a durable link. Nothing prevents the operator from continuing the same transaction after `inversion_historica_aplicar` returns and deleting the rows it created — the `before update` trigger protects the acta, not its subject. Superuser‑only, so not a security finding, but the acta should not be described as proof of the link.
+
+---
+
+SECURITY RISKS:
+
+- `08-historicos-lote.sql:72-74` is a correct invoker‑side guard, and `security invoker` on both new functions is the right call — the privileges are real, not borrowed. The revokes at `07-historicos.sql:163`, `08-historicos-lote.sql:43` and `:187` all include `public`, which is what actually matters for functions.
+- The `crm.op_privilegiada` window at `08-historicos-lote.sql:154-158` is correctly scoped to one statement and correctly restored on the exception path at `:182-184` (the subtransaction abort rolls the GUC back, and the handler sets it again). The remaining exposure is that any trigger on `crm.cierres_externos` fires inside that window with the bypass active, and cascades to whatever those triggers write. Not visible in the attached evidence.
+- `02-confirmacion.sql:234` references `private.f4_comprobante_autorizado(name)`, which is not defined in the attached file. If it does not exist, the migration fails at that statement; if it exists elsewhere, it is the authorization boundary for comprobante uploads and was not attached for review. Out of the requested scope, flagged because it sits in the same file.
+- No SQL injection surface in the oracles: `copia-sql-local.mjs:11` and `:43` validate their identifiers with anchored regexes, `literal()` is used for `application_name` at `:56`, and the SQL side uses `format('%I'/'%L')` throughout (`probar-historicos-lote.mjs:100-101`, `:107-113`).
+
+---
+
+REGRESSION RISKS:
+
+- `es_primera_conversion` (P1 above) is the one that alters the meaning of existing data rather than adding to it. Anything reading that column today changes behavior the moment the batch runs.
+- `08-historicos-lote.sql:136` takes `FOR UPDATE` — not `FOR SHARE` — on `public.contratos`. Any concurrent contract writer that takes a row lock on the same contract will block or fail for the batch's duration. `FOR SHARE` would suffice for the batch's purposes (it does not modify `public.contratos`) and would conflict with fewer peers, while still conflicting with the `FOR UPDATE` of a would‑be deleter.
+- The three new triggers (`08-historicos-lote.sql:19,44,46`) plus the constraint trigger add per‑row overhead on a table only the batch writes — negligible — but `trg_audit_inversion_backfill_lotes` fires on the `update` at `:179`, meaning the audit table receives both the insert and the completion, doubling whatever `mapa` costs to store.
+
+---
+
+EVIDENCE GAPS (these are what would turn this into `BLOCK` for a promotion decision):
+
+1. **The F3 identity writer** that takes the shared `crm_flag_resolver_en_puertas` lock. Everything in P1 #2 and P1 #4 hinges on it. Without it, the drain claim at `08-historicos-lote.sql:92-95` is unverifiable.
+2. **The contract‑deletion flow** and `private.contrato_en_eliminacion`. Required to evaluate P1 #3, the highest‑consequence finding.
+3. **`private.log_audit_sin_secretos`**, specifically whether `('mapa','resultado')` are the columns *redacted* or the columns *recorded*. The table's stated contract at `08-historicos-lote.sql:16` is "No copia dinero ni documentos"; if those arguments are an include‑list, the audit table receives the full census payload. Also unknown whether the audit table is itself protected from the API roles.
+4. **Volatility labels for `private.contrato_en_eliminacion`, `private.inversionista_por_documento`, `private.inversionista_canonica`, `private.documento_es_de_identidad`, `private.idem_hash`.** `07-historicos.sql:5` declares the caller `stable`; PostgreSQL does not enforce that its callees are at least as strict, and a `volatile` callee would make the marking unsound for planner caching.
+5. Minor: the schema of `crm.inversiones` (nullability of `creado_por`, presence of an `estado` check constraint) and `private.idem_hash`'s output format, which the `check (hash_mapa ~ '^[a-f0-9]{64}$')` at `08-historicos-lote.sql:5` assumes is lowercase hex.
+
+---
+
+RECOMMENDED NEXT ACTIONS:
+
+1. Resolve the `es_primera_conversion` divergence (P1 #1) — it is the only finding that writes wrong data on a clean, uncontended run, and it needs a product decision before more test work is worthwhile.
+2. Attach evidence gaps 1‑3. If the identity writer does not take the shared flag lock, or the deletion flow does not lock `public.contratos`, P1 #2 and P1 #3 become live bugs and the lock set at `08-historicos-lote.sql:133-139` must be widened before anything else proceeds.
+3. Widen the lock set to cover the raw indicios, `crm.inversionista_identificadores` and `crm.backfill_multiempresa_mapa`, and move the final verification out of the write loop so it runs once immediately before returning (P1 #2).
+4. Replace the hardcoded demo UUID at `07-historicos.sql:72` with the durable F2 exclusion (P2), and add the missing test groups in this order: audit trigger + snapshot, `contrato_en_eliminacion`, demo exclusion, null `creado_por`, isolation guard.
+5. Make the DDL idempotent, add `force row level security` + explicit denial policy + truncate guard, and decide whether the acta belongs in `private` rather than the PostgREST‑exposed `crm` (P2).
+6. Fix the 4500 ms / 5 s margin between `copia-sql-local.mjs:61` and `08-historicos-lote.sql:50` before this oracle is relied on in CI.
+
+---
+
+CONFIDENCE:
+MEDIUM‑HIGH on the findings internal to the three attached SQL files and the two oracles — those are read directly from the code and line‑referenced. MEDIUM on P1 #2 and LOW‑MEDIUM on P1 #3 and P1 #4, whose severity depends entirely on the four unattached artifacts; I have stated those as conditional rather than as confirmed defects. The transaction‑ordering and immutability analysis (deferred constraint, `creado_xid`, replay, atomicity) is HIGH confidence and I found no defect there.

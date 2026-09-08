@@ -1,0 +1,8 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "terminadoEn": "2026-09-07T20:06:21.612Z",
+  "borradoDeContratoVinculadoRechazadoAntesDeReservar": true,
+  "fuenteConBorradoReservadoNoSeVincula": true,
+  "contratosInversionesPdfEHistorialConservados": true,
+  "alcance": "Protección mutua entre enlace económico y preparación del borrado. No equivale al backfill histórico F2."
+}

@@ -1,0 +1,13 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "c8f61ac0-b2e0-4594-b41d-4ea49e458e0a",
+  "terminadoEn": "2026-09-07T21:30:42.105Z",
+  "perdidaDePrimerReclamoConfirmado": true,
+  "sinTokenRecuperadoPorElCliente": true,
+  "reintentoAntesDeLeaseRechazado": true,
+  "leaseOriginal": "2026-09-07T21:30:40.44223+00:00",
+  "leaseVersionYEstadoSinAlterarDuranteEspera": true,
+  "recuperadoSinTokenTrasVencimientoReal": true,
+  "authPerfilLeadYContratoUnicos": true,
+  "banderaInversiones": true
+}

@@ -1,0 +1,12 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-08T00:38:37.486Z",
+  "archivo": "20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "sha256Candidata": "705546f0270242a19c6d126cd64f1b828aafc5bf15c5ed7b2945874754322b18",
+  "funciones": [
+    "crm.acceso_inversion_fn"
+  ],
+  "cambioSoloFunciones": true,
+  "banderaInversiones": false,
+  "produccionModificada": false
+}

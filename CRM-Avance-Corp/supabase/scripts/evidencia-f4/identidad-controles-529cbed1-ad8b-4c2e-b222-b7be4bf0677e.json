@@ -1,0 +1,48 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "529cbed1-ad8b-4c2e-b222-b7be4bf0677e",
+  "terminadoEn": "2026-09-08T02:12:07.006Z",
+  "pruebas": [
+    {
+      "caso": "documento_correccion_primero",
+      "coincidenciaPostgresObservada": true,
+      "sinFinalParcialNiDuplicado": true,
+      "snapshotSegunOrdenReal": true,
+      "sagaIntacta": true
+    },
+    {
+      "caso": "documento_confirmacion_primero",
+      "coincidenciaPostgresObservada": true,
+      "sinFinalParcialNiDuplicado": true,
+      "snapshotSegunOrdenReal": true,
+      "sagaIntacta": true
+    },
+    {
+      "caso": "fusion_fusion_primero",
+      "coincidenciaPostgresObservada": true,
+      "revisionOHashCaducadoRespetados": true,
+      "unaInversionEnCanonica": true,
+      "atribucionSegunConfirmacion": true
+    },
+    {
+      "caso": "fusion_confirmacion_primero",
+      "coincidenciaPostgresObservada": true,
+      "revisionOHashCaducadoRespetados": true,
+      "unaInversionEnCanonica": true,
+      "atribucionSegunConfirmacion": true
+    },
+    {
+      "caso": "documento_y_fusion",
+      "contextoHistoricoNoBloqueaRevisionTerminal": true,
+      "accesoOriginalConDocumentoCorregido": true,
+      "unaInversion": true
+    },
+    {
+      "caso": "contexto_auth_anterior_real",
+      "sinFabricarFormato": true,
+      "mismoAuthYFuente": true,
+      "contextoYClaimSinReescribir": true
+    }
+  ],
+  "limite": "Carreras de corrección/fusión con la confirmación y compatibilidad de solicitudes históricas del banco. No cubre todos los lectores heredados ni el worker PDF."
+}

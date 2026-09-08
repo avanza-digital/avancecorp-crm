@@ -1,0 +1,85 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "c737ac7b-e7f8-4cb2-ae9d-f957a11e4616",
+  "terminadoEn": "2026-09-08T02:11:28.446Z",
+  "pruebas": [
+    {
+      "nombre": "Apagado impide preparar sin efectos",
+      "conforme": true
+    },
+    {
+      "nombre": "Ámbito y rol: ajeno no prepara",
+      "conforme": true
+    },
+    {
+      "nombre": "Ámbito y rol: supervisor_ajeno no prepara",
+      "conforme": true
+    },
+    {
+      "nombre": "Ámbito y rol: directorio no prepara",
+      "conforme": true
+    },
+    {
+      "nombre": "Ámbito y rol: cliente no prepara",
+      "conforme": true
+    },
+    {
+      "nombre": "Misma clave conserva solicitud y rechaza otro contenido",
+      "conforme": true
+    },
+    {
+      "nombre": "Sin comprobante no quedan fuente, inversión ni titular finales",
+      "conforme": true
+    },
+    {
+      "nombre": "Permisos se vuelven a comprobar al confirmar: ajeno",
+      "conforme": true
+    },
+    {
+      "nombre": "Permisos se vuelven a comprobar al confirmar: directorio",
+      "conforme": true
+    },
+    {
+      "nombre": "Permisos se vuelven a comprobar al confirmar: cliente",
+      "conforme": true
+    },
+    {
+      "nombre": "Avance a Qorilazo",
+      "monto": 700,
+      "moneda": "PEN",
+      "fuenteTitularHistoriaYComprobante": true,
+      "reintentoSinDuplicado": true,
+      "conforme": true
+    },
+    {
+      "nombre": "Qorilazo a Prodelco",
+      "monto": 800,
+      "moneda": "PEN",
+      "fuenteTitularHistoriaYComprobante": true,
+      "reintentoSinDuplicado": true,
+      "conforme": true
+    },
+    {
+      "nombre": "Segunda inversión Qorilazo",
+      "monto": 900,
+      "moneda": "PEN",
+      "fuenteTitularHistoriaYComprobante": true,
+      "reintentoSinDuplicado": true,
+      "conforme": true
+    },
+    {
+      "nombre": "Comprobante conservado y lectura limitada al ámbito comercial",
+      "conforme": true
+    },
+    {
+      "nombre": "Mismas personas, leads, Auth y contratos; tres nuevas fuentes e inversiones",
+      "conforme": true
+    },
+    {
+      "nombre": "Conversión existente conservada sin nuevos aportes por inversión cooperativa adicional",
+      "conforme": true
+    }
+  ],
+  "sha256ComprobanteSintetico": "77fa4b8efbe39f2ef7a8648498c1d47691a4365adf40951e95d38071db3418cd",
+  "alcance": "Circuito cooperativo y permisos por HTTP/Auth/Storage reales. Concurrencia, Auth Avance, historia, comisión y recuperación completa pendientes."
+}

@@ -1,0 +1,16 @@
+{
+  "rol": "SECONDARY_REVIEWER",
+  "primario": "Codex",
+  "modo": "plan no interactivo, sin herramientas ni delegación",
+  "resultado": "success",
+  "error": false,
+  "turnos": 1,
+  "duracionMs": 456087,
+  "modelos": [
+    "claude-haiku-4-5-20251001",
+    "claude-opus-5[1m]"
+  ],
+  "archivosRevisados": 6,
+  "limite": "Opinión estática sobre la captura de entrada. No ejecutó pruebas ni revisó la corrección SQL posterior de reintento confirmado. No aprueba G4.",
+  "antecedentes": "Un arranque se interrumpió al aplicar las nuevas reglas AGENTS; una primera consulta acotada agotó los turnos sin informe. La siguiente consulta recibió seis archivos inline y produjo este informe. No se solicitó otra revisión."
+}

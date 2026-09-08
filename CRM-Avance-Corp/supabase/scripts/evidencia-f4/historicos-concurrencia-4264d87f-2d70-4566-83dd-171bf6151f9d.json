@@ -1,0 +1,44 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_4264d87f2d70",
+  "ejecucion": "4264d87f-2d70-4566-83dd-171bf6151f9d",
+  "terminadoEn": "2026-09-08T04:31:16.077Z",
+  "pruebas": [
+    {
+      "nombre": "Mismo lote simultáneo: un acta y un resultado",
+      "procesosObservados": 2
+    },
+    {
+      "nombre": "Mismo lote con mapas distintos: una ganadora y un conflicto",
+      "procesosObservados": 2
+    },
+    {
+      "nombre": "Fuente retenida: rechazo NOWAIT sin acta, reintento recuperable",
+      "rechazoSinEfectos": true
+    },
+    {
+      "nombre": "Cambio confirmado mientras espera: mapa antiguo rechazado y recenso recuperable",
+      "procesosObservados": 1
+    },
+    {
+      "nombre": "Conexión cerrada antes del commit: sin acta parcial y recuperación",
+      "desconexionReal": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "definiciones": [
+    {
+      "nombre": "07-historicos.sql",
+      "sha256": "d624229c91027f51a73aca33f5c93d1178a6c5caf1b0e9c402b4a87af961371a"
+    },
+    {
+      "nombre": "08-historicos-lote.sql",
+      "sha256": "2d829a25d2feb6cc4d34acc302ef811b95e20d7f3d0bf8363f9e38fe61da6bd8"
+    }
+  ],
+  "sha256Oraculo": "0260474d3e2361c2e6f19fd98bd2c8051bdd3dac9acabaae501634fd673d2ac3",
+  "limites": [
+    "Copia SQL de datos sintéticos; no comprueba HTTP ni duplica el almacenamiento de archivos.",
+    "Los módulos históricos se instalaron solo en esta copia. G4 permanece abierto."
+  ]
+}
