@@ -1,0 +1,36 @@
+{
+  "entrada-incompleta.json": "4819d339730066262d608a05aa549f2ad3d9c0137e1c427c7b5673079a6ed72e",
+  "oraculo-previo.json": "bc81d84943695ea61600f7873638ea87dd5a96ff78897e19debd2ea110c07ce9",
+  "dependencias.json": "8406a2ebe5d3687761eb7a3c35a9788398803de1297829cc2dff00adef9934c4",
+  "hallazgo-previo.json": "321be9cffe8a3648c2c24cd5483effb860ca1d76cd868293322406a51ca30f07",
+  "entrada.json": "e6345fe8c067367fa138a19e8c7b9394bbfb14d82c7ea8a636f21bf158b7902a",
+  "intento-incompleto.txt": "996c0082cb4af1684c9392b4e3834cf77a875b9a963b9ae2dc55b2ee23dc5b0b",
+  "informe.txt": "1a5aff4ec4c65637b4c94bf1bbe5fa7d26adb57cad89dfd683546d151942bd34",
+  "evaluacion-codex.md": "f1a614d40516b93fd646cbe7d744d99f8eaf1f193439fe99f8fab102c73028f1",
+  "evidenciasPosteriores": [
+    {
+      "archivo": "../cotitular-api-27f149d0-ff9a-45b1-87a8-a4e4232d67af.json",
+      "sha256": "457c5a80ce9085165d0884cb8da184eb4e7a275808a3de88b453c91ab1de7c71"
+    },
+    {
+      "archivo": "../cotitular-api-8b2ebf44-3aae-45d9-94a4-7c3042706f6e.json",
+      "sha256": "c7a771b7991c1990a1aad2281c22a01ec8019af7604047b49c9b604230f048a9"
+    },
+    {
+      "archivo": "../cotitular-puerta-32badd0e-890a-4bca-b79a-9cf89bae09af.json",
+      "sha256": "de07674b1c4f8270e66cdef0fc766372b77012b203058fc8f5ce0de37db73749"
+    },
+    {
+      "archivo": "../cotitular-puerta-44bfd569-070e-4d13-8e8d-9c40c075ff80.json",
+      "sha256": "86c91835581d9ba52185cf10b361faebd49a2c6c3d2663c124a76b0b729b38df"
+    },
+    {
+      "archivo": "../cotitular-puerta-instalacion-161ee9bd-968b-45c1-8afd-af1172c4f0ca.json",
+      "sha256": "fc779404f8d96522555d00ba560b03699aeb92e7dbfc95ca0567199f1990ea54"
+    },
+    {
+      "archivo": "../cotitular-puerta-instalacion-90670b87-e692-4491-a519-e1def9e7484e.json",
+      "sha256": "188ac25ef025f6b5eeb888d4b28a4c2898016d3ee099a49d5d67936b9743287d"
+    }
+  ]
+}

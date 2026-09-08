@@ -119,7 +119,7 @@ for (const nombre of ['public.crear_contrato','crm.crear_contrato_con_cuenta','c
   });
 }
 
-const mods=['01-base.sql','02-confirmacion.sql','03-coherencia.sql','04-avance.sql','05-acceso-portal.sql','06-revision-responsable.sql','07-historicos.sql','08-historicos-lote.sql'];
+const mods=['01-base.sql','02-confirmacion.sql','03-coherencia.sql','04-avance.sql','05-acceso-portal.sql','06-revision-responsable.sql','07-historicos.sql','08-historicos-lote.sql','09-cotitular-puerta.sql'];
 const cuerpos=mods.map(n=>readFileSync(new URL(n,import.meta.url),'utf8'));
 const firmasNuevas=[
   'private.inversiones_escritura_bajo_candado()', 'private.inversion_persona_contexto(uuid)',

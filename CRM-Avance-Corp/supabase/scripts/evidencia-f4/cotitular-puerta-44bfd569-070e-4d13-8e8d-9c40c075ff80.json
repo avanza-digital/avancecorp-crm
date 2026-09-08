@@ -1,0 +1,50 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_cotitular_puerta_44bfd569070e",
+  "terminadoEn": "2026-09-08T15:35:07.532Z",
+  "pruebas": [
+    {
+      "nombre": "Grantee adicional impide dar por cerrado el auxiliar",
+      "postcondicionRechaza": true
+    },
+    {
+      "nombre": "Ejecutor sin derecho a revocar no puede declarar éxito",
+      "postcondicionRechaza": true
+    },
+    {
+      "nombre": "Llamada directa anon rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Llamada directa authenticated rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Llamada directa service_role rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Alta autorizada crea contrato y cotitular mediante helper interno",
+      "contrato": "7df32428-a8d2-4e55-9010-a0defae26970"
+    },
+    {
+      "nombre": "Corrección autorizada conserva el circuito de titulares"
+    },
+    {
+      "nombre": "Puertas canónicas rechazan usuario sin sesión, sin efectos"
+    },
+    {
+      "nombre": "La congelación documental sigue impidiendo modificar cotitulares"
+    }
+  ],
+  "cuerposSinModificar": {
+    "crear_contrato(jsonb,jsonb)": "2a01831a4a96158a89fbe8ffee6d7007",
+    "_sync_contrato_titulares(uuid,jsonb)": "833f09e11e2c1289739613074b07965b",
+    "actualizar_contrato(uuid,jsonb,jsonb)": "6184aad4be1b234db83b096e08e92428"
+  },
+  "sha256Modulo": "db3707ecbd05aeaef7eecb5eb54eec019ae39718fa23eaa28e36bbceb59223a2",
+  "sha256Oraculo": "c12bbada8af11d4ebdcf559abf4c621ff66316fae0955b14f6cb0112784266e7",
+  "bancoOriginalSinCambios": true,
+  "produccionModificada": false,
+  "limite": "Cierre ACL del auxiliar y llamadas SQL con roles/claims sintéticos; no vincula cotitulares neutrales ni cambia el PDF."
+}

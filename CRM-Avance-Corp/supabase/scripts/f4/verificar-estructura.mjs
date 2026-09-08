@@ -51,6 +51,9 @@ for (const tabla of ['inversion_solicitudes', 'inversion_ajustes_mes_cerrado', '
 assert.equal(sql(`select count(*) from crm.inversiones i where
   ((i.contrato_id is not null)::integer+(i.cierre_externo_id is not null)::integer)<>1
   or not exists(select 1 from crm.inversion_titulares t where t.inversion_id=i.id and t.rol='principal' and t.inversionista_id=i.inversionista_id)`), '0');
+for (const rol of ['anon','authenticated','service_role']) assert.equal(
+  sql(`select has_function_privilege(${q(rol)},'public._sync_contrato_titulares(uuid,jsonb)','EXECUTE')`),'f',
+  `El auxiliar de titulares no debe exponerse a ${rol}`);
 const cantidades = JSON.parse(sql(`select jsonb_build_object('auth',(select count(*) from auth.users),
   'personas',(select count(*) from crm.inversionistas),'leads',(select count(*) from crm.leads),
   'contratos',(select count(*) from public.contratos),'cierres',(select count(*) from crm.cierres_externos),
@@ -64,6 +67,7 @@ writeFileSync(new URL(`../evidencia-f4/${archivo}`, import.meta.url), JSON.strin
   rlsYGrantsDeLasCincoTablas: true, ejecutablesUsuario: [...ejecutablesUsuario],
   fuenteYPrincipalCoherentes: true, cantidades,
   banderas: JSON.parse(sql('select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags')),
+  auxiliarTitularesSinAccesoApi:true,
   modulosIgualesACandidata:modulos, huellasFunciones:vivas.map(({nombre,md5})=>({nombre,md5})),
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'),
   limite: 'Comprobación estructural acotada: no sustituye las pruebas de comportamiento, los permisos dinámicos ni el gate G4.',

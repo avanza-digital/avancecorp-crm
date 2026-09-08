@@ -1,0 +1,25 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "terminadoEn": "2026-09-08T15:32:46.367Z",
+  "pruebas": [
+    {
+      "rol": "anon",
+      "status": 401,
+      "codigo": "42501"
+    },
+    {
+      "rol": "authenticated",
+      "status": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "service_role",
+      "status": 403,
+      "codigo": "42501"
+    }
+  ],
+  "contratoInexistente": true,
+  "sha256Oraculo": "8f557414e1a74f1cbc390968987a6530a28692a4cba8de37f827648461bb5759",
+  "produccionModificada": false,
+  "limite": "Denegación HTTP de tres roles en API local; el login de la cuenta sintética puede actualizar datos de sesión Auth."
+}

@@ -202,3 +202,13 @@ Revisión evaluada en `../evidencia-f4/auditoria-mantenimiento-2026-09-08/`.
 El corpus F2 completo, escala máxima mixta, titularidad neutral, permisos,
 corrección trazable de solicitudes, matriz financiera y reconstrucción/reversa
 siguen pendientes. No hubo publicación ni aprobación G4.
+
+
+## Prerrequisito de cotitulares — 08/09/2026
+
+**PASS:** auxiliar documental sin EXECUTE para API, postcondición de permisos,
+nueve grupos SQL y tres denegaciones HTTP. Las llamadas internas autorizadas y
+el bloqueo PDF siguen funcionando. Candidata de nueve módulos y 37 funciones;
+solo cambió la ACL del auxiliar existente, no su cuerpo. Claude revisó y Codex
+evaluó/corrigió sus hallazgos; no es una aprobación integral de G4. Cotitularidad
+neutral y sus pendientes comerciales continúan en construcción.

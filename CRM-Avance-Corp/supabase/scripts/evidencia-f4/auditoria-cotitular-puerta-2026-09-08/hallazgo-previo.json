@@ -1,0 +1,14 @@
+{
+  "entorno": "copia SQL sintética",
+  "baseCopia": "f4_cotitular_puerta_9ae1d1fa503a",
+  "contrato": "61e83217-9cf5-4a92-8d19-71e07dadd7f8",
+  "resultado": {
+    "nombreCoincide": true,
+    "cotitularesTrasLlamada": 1
+  },
+  "rollbackVerificado": true,
+  "funcion": "public._sync_contrato_titulares(uuid,jsonb)",
+  "md5": "833f09e11e2c1289739613074b07965b",
+  "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+  "produccionModificada": false
+}

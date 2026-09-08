@@ -1,0 +1,9 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-08T15:35:48.143Z",
+  "cambioSoloAcl": true,
+  "produccionModificada": false,
+  "sha256Modulo": "db3707ecbd05aeaef7eecb5eb54eec019ae39718fa23eaa28e36bbceb59223a2",
+  "sha256Candidata": "94866c5fdd6adcb640031187418daf042a04ad6102e6fdce444bcf55bdd69ed1",
+  "funcionesSinCambios": 37
+}

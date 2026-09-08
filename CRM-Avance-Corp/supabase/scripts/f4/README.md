@@ -372,3 +372,27 @@ contratos anteriores con 96 conversiones cooperativas nuevas (100 fuentes,
 97 personas en el banco actual) y repara los 96 enlaces. Pasó en 106.198 ms,
 con reintento de 0.494 ms. Comprueba ambas fuentes a tamaño máximo; no representa
 100 contratos Avance ni tiempos productivos. No sustituye el corpus F2 completo.
+
+
+## Cierre del auxiliar documental de cotitulares — 08/09/2026
+
+`09-cotitular-puerta.sql` impide llamadas directas de API al auxiliar sin control
+propio; crear/actualizar contrato conservan sus llamadas internas autorizadas.
+Incluye guarda de definición y postcondición de ACL. No vincula cotitulares
+neutrales ni edita PDF.
+
+```sh
+node CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-puerta.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-api.mjs
+```
+
+El primero aplica el módulo en una copia y prueba nueve grupos SQL. El segundo
+exige la ACL cerrada en el banco y prueba tres denegaciones HTTP con UUID
+inexistente. El login sintético puede actualizar la sesión Auth. Ambos mantienen
+las claves dentro del banco.
+
+`instalar-cotitular-puerta-local.mjs` fue la iteración de ACL del banco existente:
+exige F4 apagada y los 37 cuerpos de la candidata, toma candados y aplica el módulo
+sin sustituir cuerpos. Una reconstrucción usa la candidata completa de nueve
+módulos. Las evidencias anteriores de ocho módulos siguen siendo históricas.
+Revisión y evaluación en `../evidencia-f4/auditoria-cotitular-puerta-2026-09-08/`.

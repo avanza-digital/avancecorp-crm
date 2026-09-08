@@ -1,0 +1,132 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The change is correct in direction and unusually well evidenced: `_sync_contrato_titulares` is a SECURITY DEFINER owner-`postgres` function that performs `DELETE FROM public.contrato_titulares` + re-`INSERT` with no authn/authz of its own (body lines 10, 33-35), and the BEFORE evidence shows it was directly executable by `anon` with an empty JWT. Revoking EXECUTE from the three API roles is the right minimal fix, and the callers keep working because they are SECURITY DEFINER owned by the same role that retains EXECUTE — proven by the seven post-revoke groups.
+
+Two things stop this from being a straight PASS. First, the module *enumerates grantees to revoke* but never *asserts the resulting ACL state*; `REVOKE` silently degrades to a warning when the executing role is not the grantor (or a member/owner/superuser), so a deployment run under a different role than the test harness can no-op and still exit 0. Second, the ACL is being closed once, but nothing in the standing suite prevents it from being re-opened, and the ACL signature strongly suggests it was opened by a blanket/default grant in the first place.
+
+FINDINGS:
+
+[P1] REVOKE has no post-condition; a non-grantor executor can silently no-op
+File:
+CRM-Avance-Corp/supabase/scripts/f4/09-cotitular-puerta.sql
+Lines:
+final `revoke all on function ... from public,anon,authenticated,service_role;`
+Problem:
+The module verifies the *pre-state* of the function (body md5 + owner) but never verifies the *post-state* of the thing it actually changes: the ACL. `REVOKE` only removes privileges granted by the current role (or roles it is a member of); a superuser or the owner is treated as the grantor, but any other executor gets `WARNING: no privileges could be revoked for "anon"` and the statement still succeeds. A migration harness that does not treat warnings as errors would report a clean apply with the door still open.
+Evidence:
+The recorded ACL is `{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}` — every grant has grantor `postgres`. The oracle's proof (`has_function_privilege(...) = 'f'`) is executed by the local bank harness connection, not by the role that will apply the final candidate in the real environment, so it does not transfer. The guard's own `do $cotitular_guard$` block demonstrates the team already accepts in-migration assertions, so the pattern is available.
+Impact:
+A security control believed to be applied may not be applied, with no failing signal.
+Recommendation:
+Add a post-condition in the same transaction, after the `revoke`, e.g. raise unless `not exists (select 1 from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public._sync_contrato_titulares(uuid,jsonb)'::regprocedure and a.grantee <> p.proowner and a.privilege_type = 'EXECUTE')`. This also converts the second half of [P2-a] into a hard failure and makes the module safe against a production ACL that has drifted (an extra grantee not in the hard-coded `from` list would be caught rather than left behind).
+
+[P2-a] The revoke is a one-shot; nothing prevents re-opening
+File:
+CRM-Avance-Corp/supabase/scripts/f4/09-cotitular-puerta.sql, plus the F4 regression suite
+Problem:
+Three roles holding identical `=X/postgres` EXECUTE on an underscore-prefixed internal helper is the signature of a blanket `grant execute on all functions in schema public to anon, authenticated, service_role` or of Supabase's `alter default privileges ... grant all on functions`. `CREATE OR REPLACE` preserves ACLs, but a future `DROP FUNCTION` + `CREATE`, or one more blanket grant statement, re-applies default privileges and silently restores anon EXECUTE.
+Evidence:
+Nothing in the helper's purpose justifies an explicit grant to `anon`; the identical grantor/privilege triple across exactly the three PostgREST roles points at a mechanical grant rather than a deliberate one. The same triple appears on `crear_contrato` and `actualizar_contrato`, where it *is* intended — i.e. one mechanism produced both.
+Impact:
+The vulnerability class reappears without any test noticing.
+Recommendation:
+Add a permanent assertion to the standing F4 suite (not only to this one-shot oracle) that `has_function_privilege('anon' | 'authenticated' | 'service_role', 'public._sync_contrato_titulares(uuid,jsonb)', 'EXECUTE')` is false. Also decide whether the source blanket grant exists in the migration chain; if it does, the same audit should list every other SECURITY DEFINER, owner-`postgres`, `_`-prefixed function carrying that ACL. I am flagging the blanket-grant origin as a **hypothesis** — the attached evidence does not include the migration that created the grants.
+
+[P2-b] `pg_get_functiondef` md5 pin is sensitive to PostgreSQL version formatting, not just to body changes
+File:
+CRM-Avance-Corp/supabase/scripts/f4/09-cotitular-puerta.sql, guard block
+Problem:
+`pg_get_functiondef` renders the full header (volatility, `PARALLEL`, `LEAKPROOF`, `SET search_path`, quoting/whitespace conventions). That rendering has changed across major versions. A minor/major PG upgrade between the synthetic bank and the target environment, or replaying the final candidate on a fresh database created by a different PG image, makes the md5 differ for a semantically identical function and hard-fails the migration — blocking every migration after it.
+Evidence:
+The pinned constant `833f09e11e2c1289739613074b07965b` was computed on the local bank; the primary states the final candidate is not yet deployed or versioned, so it has never been applied on the target engine. The guard's exception message ("Cambió el auxiliar de titulares") would mislead the operator into looking for a body change that does not exist.
+Impact:
+False-positive deployment block, with a diagnostically wrong message.
+Recommendation:
+Keep the fail-closed guard, but compare `prosrc` (raw body) instead of `pg_get_functiondef`, and assert the security-relevant header attributes explicitly and separately: `prosecdef = true`, `proowner = 'postgres'::regrole`, and `proconfig` (search_path). Include the observed md5 in the exception message so the operator can diff without re-deriving it.
+
+[P2-c] Caller inventory covered `pg_proc` bodies only
+File:
+review evidence, "pg_proc body inventory found only those two callers"
+Problem:
+A function reference can live outside `pg_proc`: RLS policy expressions (`pg_policy.polqual` / `polwithcheck`), column defaults (`pg_attrdef`), CHECK constraints (`pg_constraint.conbin`), views/rules (`pg_rewrite`), and index/generated-column expressions. A reference in an invoker-context site would now fail with 42501 for API roles.
+Evidence:
+The stated inventory method is `pg_proc` bodies + a focused frontend/edge grep. Neither reaches those catalogs.
+Impact:
+Low likelihood (the helper is `void`-returning and mutates a table, so it cannot legally appear in a default/CHECK/index expression), but a policy or rule reference would be a hard runtime break.
+Recommendation:
+One cheap confirmation: `select * from pg_depend where refobjid = 'public._sync_contrato_titulares(uuid,jsonb)'::regprocedure` and confirm the only dependent objects are the two caller functions. This is a single query, not a broad audit.
+
+[P3-a] Generated Supabase types still expose the helper as a callable RPC
+File:
+generated database types (the primary's search found the helper in "generated types")
+Problem:
+If `_sync_contrato_titulares` appears under `Database['public']['Functions']`, PostgREST was exposing it as `/rpc/_sync_contrato_titulares` and the type surface still advertises it. Post-revoke the types are stale and typed client code can still be written against a now-403 endpoint.
+Impact:
+Type/runtime drift; a future contributor gets compile-time green and runtime 403.
+Recommendation:
+Regenerate types as part of the same change set and confirm the entry disappears; optionally smoke-check the REST endpoint returns 404/403 for anon after deploy.
+
+[P3-b] Negative-test assertions depend on English server messages
+File:
+CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-puerta.mjs
+Evidence:
+`assert.match(r.error, /42501:.*permission denied for function _sync_contrato_titulares/)`.
+Impact:
+Breaks under a different `lc_messages`; the SQLSTATE alone is locale-independent.
+Recommendation:
+Match on `42501` and on the function name, and drop the localized phrase (the other two `rechazar` calls already do only `/42501/`).
+
+[P3-c] `creado_por` provenance not re-asserted on the authorized path
+File:
+CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-puerta.mjs
+Evidence:
+The helper's only identity capture is `v_uid uuid := auth.uid()` (line 3) written to `creado_por` (line 35). The oracle asserts row count and `nombre_completo`, not `creado_por`.
+Impact:
+Behavior is unchanged by an ACL-only edit, so this is not a regression — but since the whole change is about *who* may write titulares, asserting that the row is still attributed to the acting user (and not to `postgres`/NULL when reached through the SECURITY DEFINER caller) makes the evidence self-contained.
+Recommendation:
+Add `assert.equal(sql('select creado_por from public.contrato_titulares where contrato_id = ...'), f.usuarios.gerencia.id)`.
+
+[P3-d] Helper `search_path` hardening — unverifiable from attached evidence
+Problem:
+The pasted body starts at `DECLARE`; the `SET search_path` clause, if any, is not visible. A SECURITY DEFINER function without a pinned `search_path` is the classic escalation vector.
+Impact:
+After this revoke the residual surface is small (reachable only through two owner-`postgres` SECURITY DEFINER callers), so this is hardening, not a live hole.
+Recommendation:
+Check `proconfig`; if null, pin it in a separate change. Explicitly marked as a **hypothesis** — I cannot confirm it from the evidence provided.
+
+TEST GAPS:
+- No permanent regression assertion that the ACL stays closed; the check lives only in this one-shot oracle ([P2-a]).
+- No assertion of the final ACL state inside the module itself ([P1]).
+- No `pg_depend` confirmation that the two known callers are the only dependents ([P2-c]).
+- No REST-layer check that `/rpc/_sync_contrato_titulares` is no longer reachable for `anon`/`service_role`; the proof is SQL-only, which the primary correctly acknowledges as a limit.
+- `authenticator` and `dashboard_user` are not asserted. Note the existing assertions *are* stronger than they look: `has_function_privilege` accounts for PUBLIC grants and role membership, so `f` for the three API roles already proves PUBLIC holds no EXECUTE — the `revoke ... from public` term is a correct no-op, not dead weight.
+
+ARCHITECTURE RISKS:
+- The correct invariant is "internal `_`-prefixed helpers are never in the PostgREST-callable set." This change enforces that for one function by hand. Without the source of the blanket grant being addressed, the invariant remains unenforced at the schema level.
+- Hash-pinned migration guards are excellent for a single controlled apply and hostile to replay across engine versions; if the final candidate is expected to run on fresh `supabase db reset` databases, prefer the `prosrc` + attribute form ([P2-b]).
+
+SECURITY RISKS:
+- Residual, accepted: superusers (`supabase_admin`) bypass ACLs by design; `postgres` retains EXECUTE, which is required for the two callers.
+- The frozen-PDF trigger is correctly characterized as an immutability control, not an authorization control — the BEFORE evidence (anon replacing titulars on an unfrozen contract) demonstrates exactly that gap, and this change is the right remedy.
+
+REGRESSION RISKS:
+- `service_role` is the highest-risk revocation target: Edge Functions, backfill scripts, or webhook/automation code calling the helper directly would break in production. The primary's grep was focused and self-described as non-comprehensive.
+- Concrete, cheap pre-deploy evidence: query production `pg_stat_statements` for `%_sync_contrato_titulares%` and grep the whole repo (`supabase/functions`, `supabase/scripts`, any automation config) for the identifier. Absence of calls in the retention window is the only real answer to "any evidenced regression."
+- Deployment mechanics themselves are low risk: `REVOKE` is a catalog-only change, no rewrite, and the `pg_proc` invalidation it emits invalidates dependent cached plans, so no stale-grant window in long-lived PostgREST/pgbouncer sessions.
+
+RECOMMENDED NEXT ACTIONS:
+1. Add the post-`revoke` ACL assertion inside the module's transaction ([P1]) and re-run the oracle unchanged; this is the one blocking item.
+2. Before deploy, run the two evidence queries: `pg_depend` dependents ([P2-c]) and production `pg_stat_statements` for direct calls (service_role regression risk).
+3. Promote the `has_function_privilege = false` checks into the standing F4 suite ([P2-a]) and regenerate Supabase types ([P3-a]).
+4. Soften the drift guard to `prosrc` + `prosecdef`/`proowner`/`proconfig` and echo the observed hash in the error ([P2-b]).
+5. Optional, same session: `creado_por` assertion and locale-independent error matching ([P3-b], [P3-c]).
+
+Direct answers to the three questions:
+- **Is revoking PUBLIC + the three API grants sufficient?** For the ACL observed on the synthetic copy, yes — `has_function_privilege` transitively covers PUBLIC and role membership, and the owner-privilege path keeps both canonical callers working. It is *not* sufficient as written for an environment whose ACL has drifted or where the executor is not the grantor; that is what [P1] fixes.
+- **Any evidenced regression?** None in the attached evidence. The seven groups exercise both canonical write paths, both denial paths, and the frozen-PDF path, with unchanged function bodies and an unchanged original bank. The unproven surface is external `service_role` callers, which SQL-level testing cannot reach.
+- **Drift guard or permission issue?** The permission model is sound; the weaknesses are both in the guard: it pins the wrong artifact for durability ([P2-b]) and omits the post-condition on the artifact it actually mutates ([P1]).
+
+CONFIDENCE:
+MEDIUM-HIGH. High on the ACL semantics, the caller-privilege reasoning, and the REVOKE-grantor mechanics. Medium on caller completeness and on the blanket-grant origin, both of which depend on evidence not attached (migration chain, production telemetry, `proconfig`) and are marked as hypotheses above.

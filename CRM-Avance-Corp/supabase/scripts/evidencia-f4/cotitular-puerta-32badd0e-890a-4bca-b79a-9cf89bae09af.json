@@ -1,0 +1,42 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_cotitular_puerta_32badd0e890a",
+  "terminadoEn": "2026-09-08T15:22:35.995Z",
+  "pruebas": [
+    {
+      "nombre": "Llamada directa anon rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Llamada directa authenticated rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Llamada directa service_role rechazada",
+      "sqlstate": "42501"
+    },
+    {
+      "nombre": "Alta autorizada crea contrato y cotitular mediante helper interno",
+      "contrato": "928fffe6-122d-4631-90e4-e6abbb51d3e2"
+    },
+    {
+      "nombre": "Corrección autorizada conserva el circuito de titulares"
+    },
+    {
+      "nombre": "Puertas canónicas rechazan usuario sin sesión, sin efectos"
+    },
+    {
+      "nombre": "La congelación documental sigue impidiendo modificar cotitulares"
+    }
+  ],
+  "cuerposSinModificar": {
+    "crear_contrato(jsonb,jsonb)": "2a01831a4a96158a89fbe8ffee6d7007",
+    "_sync_contrato_titulares(uuid,jsonb)": "833f09e11e2c1289739613074b07965b",
+    "actualizar_contrato(uuid,jsonb,jsonb)": "6184aad4be1b234db83b096e08e92428"
+  },
+  "sha256Modulo": "27e290a918e580f90d9bb22d108b36f3dd5403e5fc45ecea174689ebd5a691a9",
+  "sha256Oraculo": "00ea00fa2e5115915b32e6171b6a2fa1b03a0f8ea511fdaf87ec758e4424e33b",
+  "bancoOriginalSinCambios": true,
+  "produccionModificada": false,
+  "limite": "Cierre ACL del auxiliar y llamadas SQL con roles/claims sintéticos; no vincula cotitulares neutrales ni cambia el PDF."
+}
