@@ -1,0 +1,70 @@
+{
+  "tipo": "datos ficticios verificados para propuesta visual",
+  "meta": 3,
+  "objetivo": 3.75,
+  "porcentajeObjetivo": 125,
+  "total": {
+    "citas": 40,
+    "leads": 26,
+    "promedio": 1.5384615384615385,
+    "cumplimiento": 51.28205128205129,
+    "leadsCon3": 3
+  },
+  "analistas": [
+    {
+      "analista": "ana",
+      "citas": 7,
+      "leads": 4,
+      "promedio": 1.75,
+      "cumplimiento": 58.333333333333336,
+      "leadsCon3": 1
+    },
+    {
+      "analista": "bruno",
+      "citas": 6,
+      "leads": 4,
+      "promedio": 1.5,
+      "cumplimiento": 50,
+      "leadsCon3": 0
+    },
+    {
+      "analista": "diego",
+      "citas": 7,
+      "leads": 4,
+      "promedio": 1.75,
+      "cumplimiento": 58.333333333333336,
+      "leadsCon3": 1
+    },
+    {
+      "analista": "lucia",
+      "citas": 7,
+      "leads": 5,
+      "promedio": 1.4,
+      "cumplimiento": 46.666666666666664,
+      "leadsCon3": 0
+    },
+    {
+      "analista": "mateo",
+      "citas": 7,
+      "leads": 5,
+      "promedio": 1.4,
+      "cumplimiento": 46.666666666666664,
+      "leadsCon3": 1
+    },
+    {
+      "analista": "valeria",
+      "citas": 6,
+      "leads": 4,
+      "promedio": 1.5,
+      "cumplimiento": 50,
+      "leadsCon3": 0
+    }
+  ],
+  "andrea": {
+    "citas": 2,
+    "leads": 1,
+    "promedio": 2,
+    "cumplimiento": 66.66666666666666,
+    "leadsCon3": 0
+  }
+}

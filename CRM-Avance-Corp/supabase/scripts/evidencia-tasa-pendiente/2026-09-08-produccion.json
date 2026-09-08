@@ -1,0 +1,78 @@
+{
+  "fecha_utc": "2026-09-08T16:57:06Z",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "autorizacion": "ok dale sii esta bien (respuesta al SQL mostrado)",
+  "version_preparada_por_cli": "20260908160127",
+  "version_aplicada": "20260908165706",
+  "sql_sin_modificaciones": true,
+  "postflight": {
+    "checks": [
+      {
+        "firma": "crm.solicitar_tasa_fn(jsonb)",
+        "propietario": "postgres",
+        "definer": true,
+        "permisos": "{postgres=X/postgres,authenticated=X/postgres}",
+        "soloCambiosAprobados": true
+      },
+      {
+        "firma": "private.trg_contratos_observar_rentabilidad()",
+        "propietario": "postgres",
+        "definer": true,
+        "permisos": "{postgres=X/postgres}",
+        "soloCambiosAprobados": true
+      },
+      {
+        "firma": "private.rentabilidad_bloquear_operacion(uuid,text,uuid)",
+        "propietario": "postgres",
+        "definer": false,
+        "permisos": "{postgres=X/postgres}"
+      },
+      {
+        "firma": "private.rentabilidad_exigir_respuesta(uuid,text,uuid)",
+        "propietario": "postgres",
+        "definer": false,
+        "permisos": "{postgres=X/postgres}"
+      }
+    ],
+    "advisorDiff": {
+      "antes": 211,
+      "despues": 211,
+      "nuevos": [],
+      "resueltos": []
+    },
+    "otros": [
+      {
+        "tipo": "trigger",
+        "dato": {
+          "definicion": "CREATE CONSTRAINT TRIGGER trg_contratos_zz_observar_rentabilidad AFTER INSERT OR UPDATE OF tasa_anual, categoria, cliente_id, capital, moneda, fecha_inicio, fecha_vencimiento, modalidad, tipo_interes, producto_condicion_id, es_demo ON public.contratos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_observar_rentabilidad()",
+          "habilitado": "O"
+        }
+      },
+      {
+        "tipo": "migracion",
+        "dato": {
+          "nombre": "crm_bloquear_contrato_tasa_pendiente",
+          "version": "20260908165706"
+        }
+      }
+    ]
+  },
+  "comprobacion_read_only": {
+    "operaciones_pendientes_bloqueadas": 1,
+    "error_esperado": "P0411",
+    "escrituras_de_negocio": 0
+  },
+  "verificacion_frontend": {
+    "comando": "npm run check",
+    "resultado": "PASS",
+    "archivos": 216,
+    "tests": 3098
+  },
+  "frontend_publicado": true,
+  "release_id": "crm-20260908T171616Z-33a8eda7a4c5",
+  "evidencia_publicacion": "2026-09-08-publicacion.json",
+  "limites": [
+    "Suite RLS global, Storage/PDF real y matriz completa de renovaciones/upgrades no ejecutadas en producción",
+    "La comprobación productiva invoca el helper sin crear contratos; el alta por RPC y su RLS se verificaron en el banco aislado"
+  ]
+}

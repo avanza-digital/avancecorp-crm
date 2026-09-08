@@ -166,9 +166,26 @@ Deno.test("template v7 reproduce la firma y numeración del modelo", () => {
     !contenido.includes("identificado con DNI N.°"),
     "el contrato actualizado no publica el DNI del analista",
   );
+  // Las imágenes se declaran UNA vez en el diccionario del documento y tanto el
+  // cuerpo como el fondo las referencian por nombre: pasarlas como data URI en
+  // cada página incrustaba el membrete tantas veces como hojas (4,5x el peso).
+  const imagenes = JSON.stringify(definicion.images);
   assert(
-    contenido.includes('"image":"data:image/png;base64,firma-kirk"'),
-    "incrusta la firma original de Kirk en el cuerpo",
+    imagenes.includes('"firmaAsociante":"data:image/png;base64,firma-kirk"'),
+    "incrusta la firma original de Kirk, declarada una sola vez",
+  );
+  assert(
+    imagenes.includes('"fondoContrato":"data:image/png;base64,fondo"'),
+    "declara el fondo una sola vez",
+  );
+  assert(
+    contenido.includes('"image":"firmaAsociante"'),
+    "el cuerpo referencia la firma por nombre",
+  );
+  const fondoPagina = (definicion.background as () => { image?: string })();
+  assert(
+    fondoPagina.image === "fondoContrato",
+    "cada página referencia el fondo por nombre, no por data URI",
   );
   assert(
     contenido.includes(
@@ -315,7 +332,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs v7 byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v8 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -331,10 +348,10 @@ Deno.test("PdfPrinter produce dos PDFs v7 byte-idénticos con fecha fija", async
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "88665f229db49280603d4d0ed7c0e260360e605dfc3d9acc4b0f4a0e092a58b2",
-    "golden byte a byte del template v7",
+    "e0a320531bc66882c9aec0c42b418af77dd08d23184c9ec79f13b792e35feb52",
+    "golden byte a byte del template v8",
   );
-  igual(primero.bytes, 871757, "tamaño golden del template v7");
+  igual(primero.bytes, 218672, "tamaño golden del template v8");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,

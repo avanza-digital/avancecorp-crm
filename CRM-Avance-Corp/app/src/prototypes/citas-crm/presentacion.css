@@ -1,0 +1,40 @@
+.citas-crm {
+  min-height: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.citas-crm .citas-rail {
+  background: linear-gradient(180deg, var(--sidebar), var(--sidebar-2));
+}
+
+.citas-tabla th,
+.citas-tabla td {
+  padding: 1rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.citas-tabla th {
+  font-weight: 600;
+  color: var(--muted-foreground-strong);
+}
+
+.citas-tabla tbody tr + tr {
+  border-top: 1px solid var(--border);
+}
+
+.citas-tabla tbody tr:hover {
+  background: var(--background);
+}
+
+.citas-crm-dialogo {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .citas-crm *, .citas-crm-dialogo * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

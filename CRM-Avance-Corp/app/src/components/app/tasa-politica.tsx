@@ -13,7 +13,7 @@
 // El bloque NO calcula tasas: todo sale del servidor (regla de Miguel: un solo
 // núcleo). El candado definitivo es el de R4 en la base de datos; mientras llega,
 // el front ya no ofrece la tasa libre. En sesión DEMO no hay servidor: base fija.
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { CheckCircle2, Clock, Lock, RotateCcw, ShieldCheck, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,8 @@ export interface RangoTasaPolitica {
   regla: ReglaTasa | null
   /** Solicitud viva del actor para esta intención (pendiente / autorizada / con tope), si la hay. */
   solicitud: SolicitudTasa | null
+  /** Motivo por el que todavía no se puede guardar el contrato, incluso a la base. */
+  bloqueoContrato: string | null
 }
 
 export interface IntencionParcial {
@@ -69,6 +71,8 @@ interface TasaPoliticaProps {
   demo: boolean
   disabled?: boolean
   idInput?: string
+  /** Campo contiguo a la tasa; la solicitud ocupa una fila completa debajo de ambos. */
+  children?: ReactNode
   /**
    * Corrección de un contrato ya creado: la «base» es la tasa VIGENTE del contrato
    * (cambiarla exige autorización de Gerencia); el núcleo no se consulta. `contratoId` viaja con la solicitud para que
@@ -110,12 +114,20 @@ export function TasaPolitica({
   demo,
   disabled = false,
   idInput = 'ct-tasa',
+  children,
   correccion,
 }: TasaPoliticaProps): JSX.Element {
   // En corrección la base es la tasa vigente del contrato: no hace falta el origen para bloquear.
   const listo = !!clienteId && !!categoria && (correccion != null || categoria === 'nuevo' || !!contratoOrigenId)
   const consultaNucleo = !demo && !correccion && listo
   const resolucion = useResolucionTasa(clienteId, categoria, contratoOrigenId, consultaNucleo)
+  const [pidiendo, setPidiendo] = useState(false)
+  const [tasaPedida, setTasaPedida] = useState('')
+  const [motivo, setMotivo] = useState('')
+  const [solicitudEnviada, setSolicitudEnviada] = useState<SolicitudTasa | null>(null)
+  const enviandoSolicitud = useRef(false)
+  const solicitar = useSolicitarTasa()
+  const responder = useResponderTopeTasa()
 
   // Reloj propio: una autorización caduca por vence_en aunque el formulario lleve horas abierto (no se confía solo en la caché).
   const [ahora, setAhora] = useState(() => Date.now())
@@ -127,8 +139,17 @@ export function TasaPolitica({
   // autorización); vivas y rechazadas (el analista tiene que enterarse del «no»). Se filtran a ESTA intención.
   const [hayPendiente, setHayPendiente] = useState(false)
   const solicitudes = useSolicitudesTasa(ESTADOS_SOLICITUD_TASA_SEGUIMIENTO, !demo && !!clienteId, hayPendiente ? REFRESCO_PENDIENTE_MS : 60_000, { soloMias: true, clienteId })
-  const { solicitud, otraViva, rechazada } = useMemo(() => {
-    const mias = (solicitudes.data ?? []).filter(
+  // La respuesta del envío conserva el candado aunque falle la relectura de la bandeja.
+  // En cuanto la consulta conoce ese id, vuelve a ser la fuente del estado (aprobación/rechazo).
+  useEffect(() => {
+    if (solicitudEnviada && solicitudes.data?.some((s) => s.id === solicitudEnviada.id)) setSolicitudEnviada(null)
+  }, [solicitudEnviada, solicitudes.data])
+  const { solicitud, otraViva, rechazada, pendiente } = useMemo(() => {
+    const filas = solicitudes.data ?? []
+    const conocidas = solicitudEnviada && !filas.some((s) => s.id === solicitudEnviada.id)
+      ? [...filas, solicitudEnviada]
+      : filas
+    const mias = conocidas.filter(
       (s) => s.es_mia && s.cliente_id === clienteId && s.categoria === categoria && (s.contrato_origen_id ?? null) === (contratoOrigenId ?? null),
     )
     const candidatas = mias.filter((s) => sigueVigente(s, ahora))
@@ -141,11 +162,17 @@ export function TasaPolitica({
       : mias
         .filter((s) => s.estado_efectivo === 'rechazada' && s.resuelta_en != null && ahora - new Date(s.resuelta_en).getTime() < DIAS_RECHAZO_VISIBLE * 86_400_000 && mismaIntencion(s, intencion))
         .sort((a, b) => new Date(b.resuelta_en ?? 0).getTime() - new Date(a.resuelta_en ?? 0).getTime())[0] ?? null
-    return { solicitud: coincidente, otraViva: otra, rechazada: rech }
-  }, [solicitudes.data, clienteId, categoria, contratoOrigenId, intencion, ahora])
+    // Cambiar capital o plazo no permite saltarse una petición pendiente de esta operación.
+    return { solicitud: coincidente, otraViva: otra, rechazada: rech, pendiente: candidatas.find((s) => s.estado_efectivo === 'pendiente') ?? null }
+  }, [solicitudes.data, solicitudEnviada, clienteId, categoria, contratoOrigenId, intencion, ahora])
   useEffect(() => {
-    setHayPendiente(solicitud?.estado_efectivo === 'pendiente')
-  }, [solicitud])
+    setHayPendiente(pendiente != null)
+  }, [pendiente])
+  useEffect(() => {
+    // Otra pestaña puede enviar la petición mientras este borrador está abierto.
+    // Cuando aparece, el borrador oculto ya no debe impedir continuar tras la respuesta.
+    if (solicitud || pendiente) setPidiendo(false)
+  }, [solicitud, pendiente])
 
   const base: number | null = demo
     ? BASE_DEMO
@@ -172,6 +199,13 @@ export function TasaPolitica({
               : 'base'
   const minimo = base
   const maximo = autorizada ? solicitud!.tasa_maxima_autorizada : base
+  const bloqueoContrato = demo ? null
+    : pendiente ? 'La solicitud de tasa está pendiente de Gerencia. Espera su respuesta antes de crear el contrato, incluso a la tasa base.'
+      : solicitar.isPending ? 'Enviando la solicitud de tasa a Gerencia. Espera antes de continuar.'
+        : solicitudes.isPending ? 'Consultando si hay solicitudes de tasa pendientes…'
+          : solicitudes.isError ? 'No se pudieron verificar las solicitudes de tasa. Reintenta antes de continuar.'
+            : pidiendo ? 'Envía la solicitud de tasa o cancela su preparación antes de crear el contrato.'
+              : null
 
   // El input SIGUE a la política: bloqueado en la base. `tasa` va en las dependencias a propósito: si otra parte
   // del formulario (p. ej. una condición de catálogo) escribe la tasa, la política la devuelve a su sitio.
@@ -192,20 +226,15 @@ export function TasaPolitica({
   }, [autorizacionId])
 
   useEffect(() => {
-    onRangoChange?.({ modo, base, minimo, maximo: maximo ?? null, regla, solicitud })
+    onRangoChange?.({ modo, base, minimo, maximo: maximo ?? null, regla, solicitud, bloqueoContrato })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modo, base, minimo, maximo, regla, solicitud?.id, solicitud?.estado_efectivo])
+  }, [modo, base, minimo, maximo, regla, solicitud?.id, solicitud?.estado_efectivo, bloqueoContrato])
 
   // ── Pedir una excepción ──
-  const [pidiendo, setPidiendo] = useState(false)
-  const [tasaPedida, setTasaPedida] = useState('')
-  const [motivo, setMotivo] = useState('')
-  const solicitar = useSolicitarTasa()
-  const responder = useResponderTopeTasa()
   const intencionCompleta = intencion.capital != null && intencion.capital >= 100 && !!intencion.fecha_inicio && !!intencion.fecha_vencimiento
   const tope = resolucion.data?.politica.tope_tecnico ?? 50
   // Pedir requiere una intención que el servidor pueda resolver: nuevo, o renovación/upgrade con su origen (también en corrección).
-  const puedePedir = !demo && !disabled && modo === 'base' && !solicitud && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId)
+  const puedePedir = !demo && !disabled && modo === 'base' && !solicitud && !pendiente && !solicitudes.isPending && !solicitudes.isError && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId)
 
   // Foco (a11y): al abrir el mini-formulario va a «Tasa solicitada»; al cancelar vuelve al botón que lo abrió
   // (el intercambio desmonta el nodo enfocado y Radix, dentro del diálogo, lo mandaría al contenedor). Tras
@@ -221,12 +250,12 @@ export function TasaPolitica({
   const cerrarSolicitud = () => { volviendo.current = true; setPidiendo(false) }
 
   const enviarSolicitud = async () => {
-    if (base == null || !categoria) return
+    if (enviandoSolicitud.current || solicitar.isPending || !puedePedir || base == null || !categoria) return
     const pedida = parseMonto(tasaPedida)
     if (pedida == null || !Number.isFinite(pedida)) { toast.error('Escribe la tasa que necesitas.'); return }
     if (pedida <= base) { toast.error(`La excepción debe ser superior a la tasa base de ${tasaTxt(base)}.`); return }
     if (pedida > tope) { toast.error(`La tasa no puede superar el tope técnico de ${tasaTxt(tope)}.`); return }
-    if (motivo.trim().length < 5) { toast.error('Explica el motivo comercial (al menos 5 caracteres).'); return }
+    if (motivo.trim().length < 5 || motivo.trim().length > 500) { toast.error('Explica el motivo comercial (entre 5 y 500 caracteres).'); return }
     if (!intencionCompleta || intencion.capital == null) { toast.error('Completa capital y plazo antes de pedir la tasa.'); return }
     const cuerpo: IntencionContrato = {
       cliente_id: clienteId,
@@ -241,8 +270,10 @@ export function TasaPolitica({
       fecha_vencimiento: intencion.fecha_vencimiento,
       ...(correccion?.contratoId ? { contrato_id: correccion.contratoId } : {}),
     }
+    enviandoSolicitud.current = true
     try {
-      await solicitar.mutateAsync({ intencion: cuerpo, tasaSolicitada: pedida, motivo: motivo.trim() })
+      const enviada = await solicitar.mutateAsync({ intencion: cuerpo, tasaSolicitada: pedida, motivo: motivo.trim() })
+      setSolicitudEnviada({ ...enviada, es_mia: true })
       toast.success(`Solicitud enviada a Gerencia: ${tasaTxt(pedida)}. Te avisamos aquí cuando decida.`)
       setPidiendo(false)
       setTasaPedida('')
@@ -250,6 +281,8 @@ export function TasaPolitica({
       raizRef.current?.focus()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.')
+    } finally {
+      enviandoSolicitud.current = false
     }
   }
 
@@ -291,8 +324,9 @@ export function TasaPolitica({
           : ''
 
   return (
-    <div ref={raizRef} tabIndex={-1} className="space-y-1.5 outline-none" data-testid="tasa-politica">
-      <div className="flex items-center justify-between gap-2">
+    <>
+    <div ref={raizRef} tabIndex={-1} className="min-w-0 space-y-1.5 outline-none" data-testid="tasa-politica">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={idInput}>Tasa anual (%)</Label>
         {modo === 'autorizada' && maximo != null && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
@@ -342,7 +376,15 @@ export function TasaPolitica({
           ? `La tasa debe estar entre ${tasaTxt(base)} y ${tasaTxt(maximo)} (autorizada por Gerencia).`
           : `Puedes usar cualquier tasa entre la base ${tasaTxt(base)} y el máximo autorizado ${tasaTxt(maximo)}.`)}
       </p>
-      <p role="status" className="sr-only">{resumenEstado}</p>
+      <p role="status" className="sr-only">{bloqueoContrato ?? resumenEstado}</p>
+      {!demo && bloqueoContrato && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {bloqueoContrato}
+          {solicitudes.isError && (
+            <Button type="button" size="sm" variant="outline" className="mt-2 min-h-10" onClick={() => void solicitudes.refetch()}>Reintentar solicitudes</Button>
+          )}
+        </p>
+      )}
 
       {/* Estado de la solicitud viva para ESTA intención (caja visible; la región viva es la línea sr-only de arriba) */}
       {!demo && solicitud && (
@@ -357,7 +399,7 @@ export function TasaPolitica({
           {solicitud.estado_efectivo === 'pendiente' && (
             <p className="flex items-start gap-1.5">
               <Clock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              <span>Solicitud de {tasaTxt(solicitud.tasa_solicitada)} pendiente de Gerencia. Vence el {fmtFecha(solicitud.vence_en)}. Puedes crear el contrato a la tasa base o esperar la decisión.</span>
+              <span>Solicitud de {tasaTxt(solicitud.tasa_solicitada)} pendiente de Gerencia. Vence el {fmtFecha(solicitud.vence_en)}.</span>
             </p>
           )}
           {solicitud.estado_efectivo === 'aprobada_con_tope' && solicitud.tasa_maxima_autorizada != null && (
@@ -402,18 +444,25 @@ export function TasaPolitica({
         </p>
       )}
 
-      {/* Pedir una excepción (con base conocida y sin solicitud viva para ESTA intención; también en corrección si se conoce el origen) */}
-      {puedePedir && (
-        pidiendo ? (
-          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3" role="group" aria-label="Solicitar tasa superior">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[9rem_1fr]">
-              <div className="space-y-1">
-                <Label htmlFor={`${idInput}-pedida`}>Tasa solicitada (%)</Label>
+      {puedePedir && !pidiendo && (
+        <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setPidiendo(true)}>
+          Solicitar tasa superior
+        </Button>
+      )}
+    </div>
+    {children}
+    {/* Fuera de la media columna de la tasa: usa todo el ancho de la grilla del contrato. */}
+    {pidiendo && (
+          <div className="col-span-full min-w-0 space-y-2 rounded-lg border border-border bg-muted/30 p-3" role="group" aria-label="Solicitar tasa superior">
+            <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+              <div className="min-w-0 space-y-1">
+                <Label className="flex min-h-8 items-end sm:min-h-0" htmlFor={`${idInput}-pedida`}>Tasa solicitada (%)</Label>
                 <Input
                   ref={pedidaRef}
                   id={`${idInput}-pedida`}
                   inputMode="decimal"
                   value={tasaPedida}
+                  disabled={solicitar.isPending}
                   onChange={(e) => setTasaPedida(e.target.value)}
                   placeholder={base != null ? String(base + 1) : ''}
                   // Este bloque vive DENTRO del <form> del contrato: Enter aquí haría el submit principal y crearía el
@@ -427,22 +476,18 @@ export function TasaPolitica({
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor={`${idInput}-motivo`}>Motivo comercial</Label>
-                <Textarea id={`${idInput}-motivo`} rows={2} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Por qué este cliente merece más que la base" />
+              <div className="min-w-0 space-y-1">
+                <Label className="flex min-h-8 items-end sm:min-h-0" htmlFor={`${idInput}-motivo`}>Motivo comercial</Label>
+                <Textarea id={`${idInput}-motivo`} rows={2} className="min-h-16 resize-y" maxLength={500} aria-describedby={`${idInput}-motivo-ayuda`} value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={solicitar.isPending} placeholder="Explica por qué solicitas esta tasa para el cliente" />
+                <p id={`${idInput}-motivo-ayuda`} className="text-[11px] text-muted-foreground">Entre 5 y 500 caracteres · {motivo.length}/500</p>
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={cerrarSolicitud} disabled={solicitar.isPending}>Cancelar</Button>
-              <Button type="button" size="sm" className="min-h-10" onClick={() => void enviarSolicitud()} disabled={solicitar.isPending}>Enviar a Gerencia</Button>
+              <Button type="button" size="sm" className="min-h-10" onClick={() => void enviarSolicitud()} disabled={solicitar.isPending || !puedePedir}>Enviar a Gerencia</Button>
             </div>
           </div>
-        ) : (
-          <Button ref={abrirRef} type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setPidiendo(true)}>
-            Solicitar tasa superior
-          </Button>
-        )
       )}
-    </div>
+    </>
   )
 }

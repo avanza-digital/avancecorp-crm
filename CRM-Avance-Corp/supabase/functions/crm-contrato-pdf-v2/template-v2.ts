@@ -99,6 +99,19 @@ const CENTENAS = [
   "NOVECIENTOS",
 ] as const;
 
+// Escala tipográfica del contrato. El cuerpo subió de 8.6 a 10 pt para que el
+// cliente lo lea sin esfuerzo; el resto acompaña en proporción y las firmas
+// quedan al mismo tamaño en las dos columnas (antes 8 pt vs 10.5 pt).
+const TIPOGRAFIA = {
+  cuerpo: 9.6,
+  clausula: 10.4,
+  titulo: 15,
+  tabla: 8.2,
+  firma: 10.5,
+  cabecera: 9.5,
+  pie: 8,
+} as const;
+
 function enteroEnLetras(numero: number): string {
   const n = Math.trunc(Math.abs(numero));
   if (n < 30) return UNIDADES[n] ?? "";
@@ -456,7 +469,7 @@ function tablaLiquidacion(): ContentTable {
       hLineWidth: () => 0.5,
       vLineWidth: () => 0.5,
     },
-    fontSize: 7,
+    fontSize: TIPOGRAFIA.tabla,
     margin: [0, 5, 0, 8],
   };
 }
@@ -712,19 +725,19 @@ export function construirContratoPdf(
               text: titular.nombreCompleto,
               bold: true,
               alignment: "center",
-              fontSize: 8,
+              fontSize: TIPOGRAFIA.firma,
             },
             {
               text: documento,
               bold: true,
               alignment: "center",
-              fontSize: 8,
+              fontSize: TIPOGRAFIA.firma,
             },
             {
               text: "EL ASOCIADO",
               bold: true,
               alignment: "center",
-              fontSize: 8,
+              fontSize: TIPOGRAFIA.firma,
             },
           ],
         },
@@ -732,7 +745,7 @@ export function construirContratoPdf(
           width: "48%",
           stack: [
             {
-              image: assets.firmaAsociante,
+              image: "firmaAsociante",
               cover: {
                 width: 93,
                 height: 65,
@@ -746,21 +759,21 @@ export function construirContratoPdf(
               text: "AVANCE CORP SAC",
               bold: true,
               alignment: "center",
-              fontSize: 10.5,
+              fontSize: TIPOGRAFIA.firma,
               lineHeight: 1,
             },
             {
               text: "RUC N° 20611392088",
               bold: true,
               alignment: "center",
-              fontSize: 10.5,
+              fontSize: TIPOGRAFIA.firma,
               lineHeight: 1,
             },
             {
               text: "EL ASOCIANTE",
               bold: true,
               alignment: "center",
-              fontSize: 10.5,
+              fontSize: TIPOGRAFIA.firma,
               lineHeight: 1,
             },
           ],
@@ -783,8 +796,15 @@ export function construirContratoPdf(
     pageMargins: [66, 126, 58, 94],
     // Ancla explícitamente el fondo al lienzo para que el contrato no dependa del
     // posicionamiento implícito de pdfmake en páginas de continuación.
+    // El fondo se declara UNA vez en `images` y las páginas lo referencian por
+    // nombre: pasarlo como data URI en cada página lo incrustaba tantas veces
+    // como hojas tuviera el contrato (8 copias de 106 KB en la muestra).
+    images: {
+      fondoContrato: assets.fondo,
+      firmaAsociante: assets.firmaAsociante,
+    },
     background: () => ({
-      image: assets.fondo,
+      image: "fondoContrato",
       width: 595.28,
       height: 841.89,
       absolutePosition: { x: 0, y: 0 },
@@ -794,32 +814,32 @@ export function construirContratoPdf(
       alignment: "right",
       color: "#183969",
       bold: true,
-      fontSize: 9,
+      fontSize: TIPOGRAFIA.cabecera,
       margin: [0, 82, 58, 0],
     }),
     footer: (pagina, total) => ({
       text: `${pagina} / ${total}`,
       alignment: "right",
       color: "#64748b",
-      fontSize: 7,
+      fontSize: TIPOGRAFIA.pie,
       margin: [0, 0, 58, 52],
     }),
     content: contenido,
     defaultStyle: {
       font: "Roboto",
-      fontSize: 8.6,
+      fontSize: TIPOGRAFIA.cuerpo,
       color: "#17233b",
       lineHeight: 1.16,
     },
     styles: {
       titulo: {
-        fontSize: 14,
+        fontSize: TIPOGRAFIA.titulo,
         bold: true,
         alignment: "center",
         color: "#183969",
       },
       clausula: {
-        fontSize: 9.4,
+        fontSize: TIPOGRAFIA.clausula,
         bold: true,
         color: "#183969",
       },

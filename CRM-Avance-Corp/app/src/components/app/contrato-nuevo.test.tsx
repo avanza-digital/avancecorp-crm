@@ -59,6 +59,8 @@ const legalesEstado = vi.hoisted(() => ({
   error: false,
   refetch: vi.fn(),
 }))
+const solicitudesEstado = vi.hoisted(() => ({ filas: [] as unknown[] }))
+beforeEach(() => { solicitudesEstado.filas = [] })
 
 vi.mock('@/data/crm-queries', () => ({
   // ATR-3: el aviso de cadena de upgrade no aplica en estos escenarios — sin dato.
@@ -69,7 +71,7 @@ vi.mock('@/data/crm-queries', () => ({
       politica: { version: 1, modo: 'observacion', tasa_base_nueva: 15, tope_tecnico: 50, vigencia_solicitud_dias: 7 } },
     isPending: false, isError: false, refetch: vi.fn(),
   })),
-  useSolicitudesTasa: vi.fn(() => ({ data: [], isPending: false, isError: false, refetch: vi.fn() })),
+  useSolicitudesTasa: vi.fn(() => ({ data: solicitudesEstado.filas, isPending: false, isError: false, refetch: vi.fn() })),
   useSolicitarTasa: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useResponderTopeTasa: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
   useDatosLegalesContrato: vi.fn((clienteId: string) => ({
@@ -204,6 +206,21 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     expect(boton()).toBeDisabled()
 
     await user.click(boton())
+    expect(crearContrato).not.toHaveBeenCalled()
+  })
+
+  it('con una solicitud pendiente bloquea también un submit directo del formulario', async () => {
+    solicitudesEstado.filas = [{
+      id: 'solicitud-pendiente', es_mia: true, cliente_id: 'cli-1', categoria: 'nuevo', contrato_origen_id: null,
+      vigente: true, estado_efectivo: 'pendiente', capital: 20000, moneda: 'PEN', tasa_solicitada: 17,
+      fecha_inicio: '2026-10-01', fecha_vencimiento: '2027-10-01', vence_en: '2099-01-01T00:00:00Z',
+    }]
+    const user = userEvent.setup()
+    montar()
+    await llenarBase(user)
+    expect(boton()).toBeDisabled()
+    fireEvent.submit(boton().closest('form')!)
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/pendiente de Gerencia/))
     expect(crearContrato).not.toHaveBeenCalled()
   })
 

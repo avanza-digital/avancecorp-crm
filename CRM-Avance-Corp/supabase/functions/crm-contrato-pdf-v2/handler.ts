@@ -1,6 +1,6 @@
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
 export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
-export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v7";
+export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v8";
 export const CONTRATO_PDF_MAX_BYTES = 10 * 1024 * 1024;
 export const CONTRATO_PDF_MAX_REQUEST_BYTES = 2 * 1024;
 
@@ -217,6 +217,7 @@ function versionJobLegible(valor: unknown): valor is string {
   return valor === "contrato-aep-17-v2" ||
     valor === "contrato-aep-17-v5" ||
     valor === "contrato-aep-17-v6" ||
+    valor === "contrato-aep-17-v7" ||
     valor === CONTRATO_PDF_TEMPLATE_VERSION;
 }
 

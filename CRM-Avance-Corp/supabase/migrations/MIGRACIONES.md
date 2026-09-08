@@ -8554,3 +8554,140 @@ Sustituye tres cuerpos existentes: `sla_operacion_leads`, `sla_operacion_autoriz
 Publicación frontend limpia desde `1e580d77f95efb014199ad3e7acbd45e0b514a76`, igual a Main/remoto al construir; build `build-20260907T231539249Z`. 78 archivos, dos ZIP 404 y tres versiones estables sin fallos. Dos analistas, supervisión y Gerencia verificados con lectores reales READ ONLY; ficha/cola/campana concordantes, acceso ajeno denegado y páginas sin duplicados. Fuentes, permisos, control y política comprobados; advisors 210→210 sin novedades. Reversión: [rollback-sla-accion-rol.sql](../scripts/rollback-sla-accion-rol.sql), después frontend anterior `crm-20260907T195955Z-431e926e6d8d.zip`.
 
 Seis controles y cierre de reconstrucción correctos. El control ampliado de analítica falla por una huella de excepción previa de Citas desactualizada tras `20260907194622`; se documenta y no se modifica ni se declara aprobado. Evidencia y límites en [produccion-verificacion.json](../../PROPUESTA%20DE%20SLA%20PARA%20ETAPAS/avisos-accion-rol-20260907/produccion-verificacion.json) y [[Control de Citas pendiente - huella de excepcion 2026-09-07]].
+
+
+## 20260908165706 — Solicitud de tasa pendiente bloquea el alta
+
+**Estado: SQL aprobado, aplicado y verificado en producción el 08/09/2026 a las 11:57 de Lima; frontend publicado y verificado.** El archivo preparado por CLI con versión `20260908160127` se renombró, sin cambiar su SQL, para coincidir con la versión `20260908165706` asignada por Supabase al aplicarlo.
+
+Petición de Miguel del 08/09/2026: el motivo comercial debe poder escribirse y, enviada la solicitud de tasa, no se puede crear el contrato mientras Gerencia no responda, tampoco a la base. El bloqueo se mantiene al reabrir el formulario y al cambiar capital/plazo. La caducidad existente de siete días se conserva.
+
+- Ámbito del servidor: cliente + categoría + contrato origen, para cualquier actor; no afecta otras operaciones. El modo observación tampoco permite saltarse una petición pendiente. Aprobar/rechazar libera la espera; el tope sigue requiriendo aceptación para una tasa superior y R4 conserva consumo único.
+- Dos helpers privados sin EXECUTE para API; una inserción acotada en `crm.solicitar_tasa_fn` para compartir el candado de operación, y otra fuera del manejador de errores de `private.trg_contratos_observar_rentabilidad`. No cambia DDL de tablas/triggers de public ni tasas históricas; sí cambia la validación de nuevas altas a través del trigger existente. Las firmas, propietarios y permisos existentes se conservan al modificar la definición instalada, con anclas exactas.
+- Error comercial: `P0411`, pendiente de Gerencia. Una excepción revierte también cuenta/PDF/contrato de la transacción.
+- Banco: `qa_tasa_pendiente_20260908_v2`, base separada en Docker local, fixtures ficticios; se copió el esquema y datos del banco F4 sin alterar su base `postgres`, y se cargaron allí las siete definiciones R4 leídas de producción. La restauración parcial no incluye Storage; ese subsistema/PDF real queda fuera de este ensayo.
+- PASS: `test-tasa-pendiente.sql`: 10 grupos, alta sin solicitud, pendiente en ambos modos, cambio de capital, otro actor, ausencia de altas parciales, ámbito, rechazo, aprobación/consumo, no reutilización, vencimiento y ACL. Incluye `SET LOCAL ROLE authenticated`: otro analista no ve la solicitud por RLS, pero el alta por RPC se bloquea igualmente. Ensayo con dos conexiones: una petición sin commit retiene el alta concurrente, que luego falla con P0411; cero contratos del cliente de ensayo.
+- Frontend: campo de motivo apilado de ancho completo, 3 líneas y hasta 500 caracteres; bloqueo durante preparación/envío, carga/error de consulta y solicitud pendiente; mensaje visible y defensa adicional en guardar.
+- PASS frontend específico final: 67 tests de los tres componentes de contrato/tasa y 2 E2E en 1280 px y 390 px. La respuesta RPC del E2E no trae los campos derivados de la consulta: el adaptador existente los normaliza y mantiene el bloqueo. Incluye foco/texto conservados ante fallo de relectura. Evidencia visual y comportamiento en `app/e2e/solicitud-tasa.spec.ts`.
+- Gate general final tras la aprobación: **PASS `npm run check`, 216 archivos / 3098 tests**, cobertura, configuración de release, build, bundle y duplicación. El error transitorio ajeno de `depositos.test.ts:61` ya no existe en el árbol actualizado; no se modificó Citas en esta tarea. Lint sin errores, con cuatro avisos preexistentes en `coverflow-carousel.tsx`.
+- NOT RUN: `gate:realidad`, `test:rls:preflight` y `seed:preflight` no disponen de SUPABASE_URL en esta sesión. La lectura MCP confirmó política productiva v6 en enforcement y una solicitud pendiente; no se modificaron datos reales. Suite RLS global/Storage no ejecutada. No hay cambios en tipos del API expuesto que regenerar.
+- Reversa: `supabase/scripts/rollback-tasa-pendiente.sql`, ejecutada en el banco: restauró exactamente ambas definiciones originales. Control negativo: sin la migración el alta pendiente se permitió; reaplicada la migración, la misma llamada volvió a fallar con P0411. Sin borrar decisiones ni contratos.
+- Una revisión independiente por `scripts/claude-review` produjo CHANGES_REQUESTED. Se corrigieron los problemas reproducibles y se evaluaron los demás con evidencia; no se pidió otra revisión para obtener conformidad. Dictamen del PRIMARY, límites y siguiente paso en [[Correccion solicitud de tasa - motivo y bloqueo de contrato 2026-09-08]].
+- Aprobación de Miguel: «ok dale sii esta bien», en respuesta al SQL mostrado. Preflight productivo con las mismas huellas probadas en banco; postflight confirma solo las dos inserciones aprobadas, owners/ACL conservados, helpers sin EXECUTE de API y trigger diferido activo. Consulta en transacción READ ONLY: una operación pendiente produce P0411. Advisors seguridad 211→211, cero hallazgos nuevos. Evidencia saneada: `supabase/scripts/evidencia-tasa-pendiente/2026-09-08-produccion.json`.
+- Release invocado por Miguel con `/release-crm`: `crm-20260908T171616Z-33a8eda7a4c5`, construido limpio desde Main=`avancecorp/main`=`33a8eda7a4c541732e0f7564e958b76f856800a2`. Gate del commit: 215 archivos / 3079 tests; E2E 2/2. Build público `build-20260908T171616017Z`; SHA-256 `3f3c03a36a9af3cc0683e03c755e4caf2abcfcb8d92ee08e09f7ad2d996160c7`. HTTP: 80 archivos comprobados, tres lecturas de versión correctas, dos ZIP 404, cero fallos. Evidencia `supabase/scripts/evidencia-tasa-pendiente/2026-09-08-publicacion.json`. Respaldo conservado: `crm-20260908T035714Z-b0896c3f8531.zip`.
+
+## 20260908173000 — Contrato PDF · plantilla v8: letra legible (APLICADA en producción)
+
+**Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 08/09/2026 (~12:4x Lima) por Miguel con
+`db query --linked --file` (migración + `scripts/registrar-pdf-v8.sql`); registro md5
+`a8237b70…` = archivo; **262 migraciones**. Edge `crm-contrato-pdf-v2` **v13** desplegada antes
+con `--use-api` (48/48 en verde justo antes de subir); smoke posterior: POST sin sesión → 401,
+OPTIONS con origen del CRM → 204. Verificación en solo lectura tras aplicar: default
+`'contrato-aep-17-v8'`, **0** funciones estampando la v7 y **2** la v8, trigger
+`contrato_pdf_jobs_transiciones_validas` en `tgenabled='O'`, los dos CHECK admitiendo la v8,
+**19 reservas** convertidas (todas `pendiente`, sin bytes y sin lease) y **49 jobs v7 intactos**
+(todos `sellado` y con bytes) sobre **124 PDFs sellados** sin tocar. Vuelta atrás:
+`scripts/rollback-pdf-v8.sql` + la edge del árbol actual con `TEMPLATE_VERSION = v7` conservando
+v8 en la lista de LECTURA (la edge v12 original NO lee la v8).**
+
+`20260908173000_crm_contrato_pdf_plantilla_v8_letra_legible.sql`. Sube el cuerpo del contrato de
+**8.6 a 9.6 puntos** (cláusulas 9.4→10.4, título 14→15, tabla de liquidación 7→8.2, cabecera 9→9.5,
+pie 7→8) y empareja las dos firmas: el nombre y el documento del asociado iban a 8 pt frente a los
+10.5 pt del bloque de Avance Corp. **Solo cambia el tamaño de la letra**: ni una palabra del
+contrato, ni márgenes, ni membrete. El contrato de muestra pasa de 7 a 8 páginas.
+
+**Qué hace en la base.** Declara `contrato-aep-17-v8` en los dos CHECK (`contrato_pdf_jobs` y
+`contrato_pdfs`), la fija como default, y convierte de v7 a v8 únicamente las reservas que todavía
+no representan bytes (sin lease, sin sha256, sin bytes, sin `subido_en`), con el trigger de
+inmutabilidad desactivado solo dentro de la transacción. **No crea revisiones**: a diferencia de la
+v7, ningún PDF sellado se regenera — los contratos ya firmados (v1..v7) se siguen descargando byte
+a byte como se emitieron.
+
+**Las funciones NO se retéclean.** Desde la v7 otras migraciones (`20260905190000`,
+`20260905234500`, `20260907093000`, `20260907191832`) tocaron esos cuerpos, así que copiar el texto
+del 01/09 los haría retroceder. El bloque toma el **cuerpo vivo** con `pg_get_functiondef` y
+sustituye solo el literal de versión, exigiendo **exactamente una ocurrencia por función** y
+abortando si encuentra otra cosa. `strpos` en vez de LIKE (en LIKE el guion bajo es comodín).
+
+**Guarda de `public`.** Antes de reescribir nada, una comprobación aborta si el literal v7 vive en
+alguna función fuera de `private`, con sus nombres: ninguna migración del CRM toca `public` sin OK
+explícito de Miguel. El barrido de reescritura se limita a `private`; el postcheck, en cambio, mira
+**todo el servidor** y exige cero funciones con v7.
+
+**Postcheck** (`CONTRATO_PDF_V8_MIGRATION_OK`): default en v8, cero reservas v7 sin bytes, cero
+funciones con v7 en cualquier esquema y al menos una con v8.
+
+**Edge.** `crm-contrato-pdf-v2` pasa a `CONTRATO_PDF_TEMPLATE_VERSION = 'contrato-aep-17-v8'` y
+añade v7 a las versiones que sabe LEER (v2/v5/v6/v7 + la propia), para que los sellados anteriores
+sigan descargándose. Golden byte a byte renovado
+(`e0a32053…`, **218 672 bytes**). Tests: **48/48** en la edge (deno), **26/26** en el front
+(vitest), typecheck limpio.
+
+**El archivo pesa 4,5 veces menos.** Auditando el PDF resultante apareció que el membrete se
+incrustaba **una vez por hoja** (8 copias de 106 KB: 980 KB de archivo, y creciendo con cada página
+que añade la letra grande). El fondo y la firma pasan al diccionario `images` del documento y las
+páginas los referencian por nombre: **980 084 → 218 672 bytes**, con las 8 páginas **idénticas
+píxel a píxel** (diferencia máxima por canal = 0 a 100 dpi). Cubierto por tests en las dos
+plantillas.
+
+**Front.** La plantilla del modo demo (`app/src/lib/contrato-pdf.ts`) es **gemela** de la de la edge
+y llevaba los mismos tamaños copiados a mano; se ajustó igual y ambas quedan con una tabla
+`TIPOGRAFIA` y un comentario cruzado. Es solo demo: no afecta al PDF que firma el cliente, y puede
+viajar en el siguiente release del CRM.
+
+**`auditor-rls` (1.ª ronda): NO APTA con un P0 REAL** — el archivo apagaba el trigger de
+inmutabilidad y rehacía dos CHECK **sin `begin`/`commit`**, y el carril productivo
+(`db query --linked --file`) no auto-envuelve (ledger 2767-2768): si el UPDATE fallaba, el trigger
+quedaba apagado en producción de forma indefinida y silenciosa, los CHECK podían quedar caídos y
+los `set local` eran un no-op. Cerrado, junto con los P1 (postcheck del trigger en `tgenabled='O'`;
+preflight de reservas v7 EN VUELO, que si no quedarían varadas al reclamar contra la edge v8), los
+P2 (conjunto EXACTO de funciones declarado en vez de «lo que encuentre»; propietario, ACL,
+`prosecdef`, `proconfig`, volatilidad y **OID** medidos antes y después en vez de afirmados) y los
+P3 (mismo predicado en UPDATE y postcheck, comentario de los `revoke` corregido, y `prosrc`
+sustituido por `pg_get_functiondef` para no ser ciego a un cuerpo SQL estándar `BEGIN ATOMIC`).
+
+**Ensayo en banco: 31/31 VERDE** (`supabase/scripts/banco-pdf-v8/`), PostgreSQL 17.6 local y
+aislado, sembrado con las FORMAS reales leídas de producción en solo lectura (columnas, los 14 + 9
+CHECK, el trigger). Cubre el camino feliz, la reserva con bytes que NO se toca, los sellados
+intactos, los atributos y el OID de las funciones, y **cinco mutantes**: el del P0 (se fuerza el
+fallo del UPDATE y el rollback devuelve trigger, CHECK, funciones y default a su estado previo —
+sin la transacción este mutante sobrevive), una tercera función de `private` con el literal, una
+función de `public` con el literal, dos ocurrencias en una función esperada, y la re-aplicación.
+Límite declarado: los cuerpos de las dos funciones son suplentes con la misma envoltura; los reales
+los toma la migración en vivo (producción confirmó que ninguno lleva `$$` ni `$function$`).
+Trampa cazada en el propio oráculo: una aserción daba verde sin medir nada por un error SQL
+silencioso (`text || "char"`); corregida y blindada con una aserción de «la huella no viene vacía».
+
+**Codex (SECONDARY_REVIEWER, LEVEL 3, 1 consulta): CHANGES_REQUESTED, 2 P1 + 1 P2, todos
+ACEPTADOS y cerrados.** (a) **P1 · el preflight se tomaba ANTES del candado que debía
+protegerlo**: bajo READ COMMITTED otra sesión podía reclamar un job v7 entre el conteo y el
+ACCESS EXCLUSIVE del primer ALTER, y ese job se saltaba tanto el UPDATE como el postcheck →
+ahora se toman los candados PRIMERO (advisory + las dos tablas, en el mismo orden que los
+ALTER), y el postcheck vuelve a contar reservas en vuelo. (b) **P1 · la reversa dejaba versiones
+incompatibles**: la edge v7 original NO sabe LEER la v8, así que redesplegar aquel binario
+dejaría sin descarga cualquier PDF ya sellado en v8; y revertir las funciones no revertía el
+default de la columna → `scripts/rollback-pdf-v8.sql`, que restaura el default, revierte las
+funciones por el mismo mecanismo del cuerpo vivo, deja los CHECK anchos (aditivos) para que un
+sellado v8 siga siendo legible, y documenta que la edge de reversa es la del árbol actual con
+`TEMPLATE_VERSION = v7` conservando v8 en la lista de LECTURA. (c) **P2 · el mensaje prometía una
+recuperación por tiempo que la consulta no garantizaba**: una reserva `procesando` con lease
+VENCIDO no se mueve sola → el preflight las cuenta aparte y lo dice. Codex también avisó de que
+actualizar el golden no demuestra que el texto no cambie: ver `comparar-texto.py`. Su
+verificación independiente fue NOT RUN (es advisor, sin shell): los PASS son del PRIMARY.
+
+**Ensayo ampliado a 45/45 VERDE** con los tres casos que pidió Codex: lease vencido,
+concurrencia (una sesión rival con un job v7 `procesando` sin cerrar: la migración no se cuela,
+falla cerrado y no deja el trigger apagado) y la reversa completa (default, funciones, reservas,
+ledger de sellados idéntico y CHECK que siguen admitiendo la v8).
+
+**«Ni una palabra cambia», demostrado y no afirmado:** `comparar-texto.py` extrae el texto de los
+dos PDFs, descuenta la paginación y compara: **22 233 caracteres, hash `80c69029404fdf9e` en los
+dos**. Efecto secundario bueno: a 8.6 pt la tabla de liquidación partía de hoja y a 9.6 pt cabe
+entera.
+
+**Orden de publicación previsto:** edge v8 → migración, seguidas y en ventana muerta. Entre una y
+otra, las reservas pendientes responden `PDF_VERSION_NO_SOPORTADA` (409) sin consumir lease; la
+migración las convierte, y su preflight 2 exige que no haya ninguna en vuelo. **Reversa:** redesplegar
+la edge anterior + `create or replace` con el literal v7 + reestampar a v7 las reservas v8 sin bytes;
+los CHECK ampliados pueden quedarse (son aditivos), como ya documentó la v6. Falta: revisión de Codex
+y el `!` de Miguel.
