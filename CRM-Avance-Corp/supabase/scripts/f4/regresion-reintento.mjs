@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -23,7 +24,7 @@ try {
 const terminadoEn = new Date().toISOString();
 const candidata = JSON.parse(readFileSync(new URL('./ultima-migracion.json', import.meta.url))).archivo;
 writeFileSync(new URL(`../evidencia-f4/regresion-reintento-${terminadoEn.replaceAll(':', '-')}.json`, import.meta.url),
-  JSON.stringify({ entorno: 'avancecorp-f4-bank', terminadoEn, pruebas,
+  JSON.stringify({ entorno, terminadoEn, pruebas,
     sha256Candidata: createHash('sha256').update(readFileSync(new URL(`../../migrations/${candidata}`, import.meta.url))).digest('hex'),
     limite: 'Regresión de las puertas y candados afectados por la separación de autorización y operación. G4 completo continúa pendiente.',
   }, null, 2) + '\n', { flag: 'wx' });

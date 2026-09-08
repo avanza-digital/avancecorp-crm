@@ -1,0 +1,83 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "828f2d80-8c4c-436a-a151-964c833e28c3",
+  "terminadoEn": "2026-09-08T17:31:37.766Z",
+  "pruebas": [
+    {
+      "datos": {
+        "fuentes": 14,
+        "procedencia": "operaciones F4 del banco; no se atribuyen a F2 productiva"
+      },
+      "nombre": "Catorce vínculos anteriores se reconocen sin otra escritura",
+      "conforme": true
+    },
+    {
+      "datos": [
+        "documento_sin_identidad_verificada",
+        "sin_identidad_inequivoca"
+      ],
+      "nombre": "Formato documental válido sin verificación no crea identidad",
+      "conforme": true
+    },
+    {
+      "datos": {},
+      "nombre": "Fuente ausente y tipo inválido rechazados",
+      "conforme": true
+    },
+    {
+      "datos": {
+        "estado": "pendiente"
+      },
+      "nombre": "Fuente sin vínculo se reconoce por documento verificado y lead",
+      "conforme": true
+    },
+    {
+      "datos": [
+        "identidades_en_conflicto",
+        "inversion_no_conciliada",
+        "titular_no_conciliado"
+      ],
+      "nombre": "Mapa en conflicto requiere revisión sin efectos",
+      "conforme": true
+    },
+    {
+      "datos": {
+        "estado": "resuelto"
+      },
+      "nombre": "Mapa F2 y vínculo coherentes conservados",
+      "conforme": true
+    },
+    {
+      "datos": {
+        "fuentes": 6
+      },
+      "nombre": "Seis antecedentes pendientes: censo sin escrituras",
+      "conforme": true
+    }
+  ],
+  "sha256Definicion": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670",
+  "huellasAntesYDespues": {
+    "leads": "e91f0541539866012a7ff792749f1b516d22552a104cb60b10bd12fed47e63cf",
+    "cuotas": "0b2b5ceb876e31ff9c2ee07ce966e9d744dc2e389721f3cc754b338878c05699",
+    "mapaF2": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "capital": "ae3f3518768493da24150b09d3cc6a5a636ce4fd35d1651bbc9f4624e835e605",
+    "cierres": "211607354e0588062e09452750eeafebacb30ddffb2b55fbc2cd79ad6eeb3253",
+    "jobsPdf": "e3f55cfdc85d5b9904ce64517d95b81a0e0c0a90e480440daed03e14b1613cfc",
+    "banderas": "f544cbbbe3eef92752cdc1e587b499692ae5fec70af3912a05aa3a0932c93c7f",
+    "perfiles": "46cfa4ec9e2ea0644a2bcb13da4498db5a4411bd7221ed726ddb37882aedc0be",
+    "personas": "c9727b4dc959410c35243781dad0cd3590040ca95338f82f02f0e67cba2c6bd9",
+    "contratos": "82a9cfa76f087d5989f449faee74a97555735219dedbfae8e6110e53b88c3bf7",
+    "sellosPdf": "d49166848e032d32d920952054c0ceb8c7c0d17c1e25d59c88ca308c85cd8f50",
+    "titulares": "ceef9abd4ab66ed9a08ac971d1a68da68aae5f5560694fb3577971ba45aedd49",
+    "inversiones": "09742e159ca165f09d657dc5bd637391cd5d0595d070199edc60b501c4646c18",
+    "identificadores": "a815f2177f9a9327548f72e56479713495289d9b5c6216249ed4b57ce1d06412"
+  },
+  "transaccionRevertida": true,
+  "limites": [
+    "Previsualización administrativa; todavía no aplica un lote histórico.",
+    "Los escenarios negativos y el mapa equivalente a F2 son fixtures explícitas dentro de una transacción revertida.",
+    "La reconstrucción con el pipeline F2 original y su reversa siguen pendientes.",
+    "El ensayo conserva la instalación inicial; no aplica ningún lote histórico fuera de la transacción revertida.",
+    "Contenido PDF intacto; G4 sigue abierto."
+  ]
+}

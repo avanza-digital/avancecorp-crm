@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -116,7 +117,7 @@ assert.deepEqual(conversion(), conversionAntes, 'Las inversiones adicionales no 
 bien('Mismas personas, leads, Auth y contratos; tres nuevas fuentes e inversiones');
 bien('Conversión existente conservada sin nuevos aportes por inversión cooperativa adicional');
 guardar(`cooperativas-${ejecucion}.json`, { resultados });
-const informe = { entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+const informe = { entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   sha256ComprobanteSintetico: createHash('sha256').update(png).digest('hex'),
   alcance: 'Circuito cooperativo y permisos por HTTP/Auth/Storage reales. Concurrencia, Auth Avance, historia, comisión y recuperación completa pendientes.',
 };

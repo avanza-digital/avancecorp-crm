@@ -1,0 +1,91 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "0fd24593-bf8d-475b-a009-a21ba6536310",
+  "terminadoEn": "2026-09-08T17:33:22.504Z",
+  "pruebas": [
+    {
+      "rama": "avance",
+      "corte": "sin_auth",
+      "fusionCanonicaReal": true,
+      "origenYHashConservados": true,
+      "ambitoActual": true,
+      "mismoPortal": true,
+      "fuenteYTitularEnCanonica": true,
+      "atribucionConfirmadaConservada": true,
+      "dobleFusionConClaimIntermedio": true
+    },
+    {
+      "rama": "avance",
+      "corte": "auth",
+      "fusionCanonicaReal": true,
+      "origenYHashConservados": true,
+      "ambitoActual": true,
+      "mismoPortal": true,
+      "fuenteYTitularEnCanonica": true,
+      "atribucionConfirmadaConservada": true,
+      "dobleFusionConClaimIntermedio": false
+    },
+    {
+      "rama": "avance",
+      "corte": "crear_perfil",
+      "fusionCanonicaReal": true,
+      "origenYHashConservados": true,
+      "ambitoActual": true,
+      "mismoPortal": true,
+      "fuenteYTitularEnCanonica": true,
+      "atribucionConfirmadaConservada": true,
+      "dobleFusionConClaimIntermedio": false
+    },
+    {
+      "rama": "avance",
+      "corte": "enlazar",
+      "fusionCanonicaReal": true,
+      "origenYHashConservados": true,
+      "ambitoActual": true,
+      "mismoPortal": true,
+      "fuenteYTitularEnCanonica": true,
+      "atribucionConfirmadaConservada": true,
+      "dobleFusionConClaimIntermedio": false
+    },
+    {
+      "rama": "avance",
+      "corte": "confirmada",
+      "fusionCanonicaReal": true,
+      "origenYHashConservados": true,
+      "ambitoActual": true,
+      "mismoPortal": true,
+      "fuenteYTitularEnCanonica": true,
+      "atribucionConfirmadaConservada": true,
+      "dobleFusionConClaimIntermedio": false
+    },
+    {
+      "rama": "cooperativa",
+      "corte": "antes_subir",
+      "fusionCanonicaReal": true,
+      "comprobanteOriginalConservado": true,
+      "permisosDeCanonica": true,
+      "depositoUnico": true,
+      "fuenteTitularYAtribucionCorrectos": true
+    },
+    {
+      "rama": "cooperativa",
+      "corte": "despues_subir",
+      "fusionCanonicaReal": true,
+      "comprobanteOriginalConservado": true,
+      "permisosDeCanonica": true,
+      "depositoUnico": true,
+      "fuenteTitularYAtribucionCorrectos": true
+    },
+    {
+      "rama": "cooperativa",
+      "corte": "confirmada",
+      "fusionCanonicaReal": true,
+      "comprobanteOriginalConservado": true,
+      "permisosDeCanonica": true,
+      "depositoUnico": true,
+      "fuenteTitularYAtribucionCorrectos": true
+    }
+  ],
+  "fusionPublicadaSinCambios": "04de1797b11de93502ecb63487565bf6",
+  "limite": "Fusión viable por F3: una sola ficha comercial y un solo perfil. Se mantiene el bloqueo por Auth no terminal; lectores heredados, carreras y PDF se verifican aparte."
+}

@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -135,7 +136,7 @@ try {
   assert.deepEqual(JSON.parse(sql(fotoSql)), antes, 'El ensayo debe revertir todas sus fixtures y conservar la foto inicial');
   assert.equal(sql(objetosHistoricosSql), objetosIniciales);
 }
-const resultado = { entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+const resultado = { entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   sha256Definicion: sha(fuente), huellasAntesYDespues: antes, transaccionRevertida: true,
   limites: ['Previsualización administrativa; todavía no aplica un lote histórico.',
     'Los escenarios negativos y el mapa equivalente a F2 son fixtures explícitas dentro de una transacción revertida.',

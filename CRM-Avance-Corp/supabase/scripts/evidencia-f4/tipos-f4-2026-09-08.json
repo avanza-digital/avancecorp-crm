@@ -1,0 +1,29 @@
+{
+  "antes": "86094e8ffae05dfdda3eb4519d91c9b35b6de3cf1e69db9ca851214ddd01c795",
+  "despues": "026c2583f2253b2d2f506f312a150c9032341dfb6ab6845ecb271449b95141ad",
+  "integrado": "89543309343e4467ab7e047b1aea6ec3f00a18cdac40d1c174b7e017e2f09f44",
+  "nodos": [
+    "crm.Functions.acceso_inversion_fn",
+    "crm.Functions.conciliar_cotitulares_inversion_fn",
+    "crm.Functions.confirmar_inversion_fn",
+    "crm.Functions.confirmar_inversion_revisada_fn",
+    "crm.Functions.corregir_solicitud_inversion_fn",
+    "crm.Functions.inversion_cotitulares_fn",
+    "crm.Functions.preparar_inversion_fn",
+    "crm.Functions.revisar_solicitud_inversion_fn",
+    "crm.Functions.solicitud_inversion_fn",
+    "crm.Tables.cierres_externos",
+    "crm.Tables.inversion_ajustes_mes_cerrado",
+    "crm.Tables.inversion_backfill_lotes",
+    "crm.Tables.inversion_cotitular_origenes",
+    "crm.Tables.inversion_eventos",
+    "crm.Tables.inversion_solicitud_correcciones",
+    "crm.Tables.inversion_solicitud_revisiones",
+    "crm.Tables.inversion_solicitudes"
+  ],
+  "procedimiento": "Introspección antes/después en banco reconstruido; solo delta F4, preserva tipos de otras migraciones presentes en la rama.",
+  "entorno": "avancecorp-f4-reconstruccion",
+  "generador": "Supabase CLI 2.117.0 / postgres-meta v0.99.0 (misma imagen para antes/después)",
+  "cli_red_personalizada": "--network-id avancecorp-f4-reconstruccion-red",
+  "limite": "El dump de esquema del 07/09 no contiene algunos RPC ya tipados de otras tareas; se integra solo el delta F4."
+}

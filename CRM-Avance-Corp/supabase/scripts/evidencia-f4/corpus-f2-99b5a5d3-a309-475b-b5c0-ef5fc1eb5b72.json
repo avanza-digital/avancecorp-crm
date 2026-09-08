@@ -1,0 +1,64 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "baseCopia": "f4_corpus_fdos_99b5a5d3a309",
+  "terminadoEn": "2026-09-08T17:08:36.508Z",
+  "pruebas": [
+    {
+      "nombre": "Corpus original y pipeline F2 completos con clases A, B, C y E",
+      "conforme": true
+    },
+    {
+      "nombre": "Oráculo F2 original: segunda pasada no cambia mapa, auditoría ni conteos",
+      "conforme": true
+    },
+    {
+      "nombre": "Candidata completa se instala sobre salidas F2 sin tocar fuentes ni mapa",
+      "conforme": true
+    },
+    {
+      "nombre": "Cierre original F2 resuelto mantiene exactamente inversión y principal",
+      "conforme": true
+    },
+    {
+      "nombre": "Demo excluido por F2 también queda excluido del censo F4",
+      "conforme": true
+    },
+    {
+      "nombre": "Documentos faltantes, inválidos y multirrol siguen en revisión sin inventar identidad",
+      "conforme": true
+    },
+    {
+      "nombre": "DNI, CE y pasaporte resueltos por F2 se vinculan mediante lote F4",
+      "conforme": true
+    },
+    {
+      "nombre": "Lead duplicado conserva un canónico y su puente histórico, discrepante sigue clase E",
+      "conforme": true
+    },
+    {
+      "nombre": "F4 rechaza una repetición global F2 antes de cualquier escritura",
+      "conforme": true
+    },
+    {
+      "nombre": "Lotes F4 conservan mapa y toda la foto económica del corpus",
+      "conforme": true
+    }
+  ],
+  "resultadoF2": {
+    "A": 5,
+    "B": 3,
+    "C": 6,
+    "E": 5,
+    "no_contactar": 0,
+    "responsables": 4
+  },
+  "sha256Semilla": "b79f44a70d4ad84b23c5f11ba82fa7fa0ed73c98fda351b10fa279a72e43ae35",
+  "sha256OraculoF2": "febb20d1752afd0625d894e2f840ad94298d880ae9f6a100beb5d10d6e4a02a5",
+  "sha256Candidata": "f624380fb8613fdf87bfcda0a8e356b593a6b882c858ae0c6271d5f7a146e4d4",
+  "bancoOriginalSinCambios": true,
+  "limites": [
+    "Corpus original sintético completo; no contiene registros productivos.",
+    "F2 se ejecuta globalmente sólo en la copia PRE-F4; después se usan lotes F4 acotados.",
+    "Fuentes contractuales adicionales son fixtures históricas SQL explícitas, sin PDF nuevo."
+  ]
+}

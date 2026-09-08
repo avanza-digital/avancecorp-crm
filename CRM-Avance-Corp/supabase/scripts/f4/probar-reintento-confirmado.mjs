@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -100,7 +101,7 @@ try {
   }
   const prefijo = caracterizar ? 'reintento-confirmado-defecto' : 'reintento-confirmado';
   writeFileSync(new URL(`../evidencia-f4/${prefijo}-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     limite: 'Veto posterior a la confirmación en Avance y cooperativa. No sustituye los ensayos pendientes de cambio de rol, multirrol o baja del responsable. Quedan dos solicitudes ficticias preparadas intencionalmente.',
   }, null, 2) + '\n', { flag: 'wx' });
 } finally {

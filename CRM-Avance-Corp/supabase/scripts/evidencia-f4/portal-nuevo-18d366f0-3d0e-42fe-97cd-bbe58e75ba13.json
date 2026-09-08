@@ -1,0 +1,46 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "18d366f0-3d0e-42fe-97cd-bbe58e75ba13",
+  "terminadoEn": "2026-09-08T17:22:37.539Z",
+  "pruebas": [
+    {
+      "nombre": "Datos legales inválidos y campos ajenos rechazados antes de Auth y de la solicitud",
+      "conforme": true
+    },
+    {
+      "nombre": "Qorilazo→Avance recuperado tras auth: un acceso, un contrato, responsable conservado y Portal autorizado",
+      "conforme": true
+    },
+    {
+      "nombre": "Qorilazo→Avance recuperado tras registrar_auth: un acceso, un contrato, responsable conservado y Portal autorizado",
+      "conforme": true
+    },
+    {
+      "nombre": "Qorilazo→Avance recuperado tras crear_perfil: un acceso, un contrato, responsable conservado y Portal autorizado",
+      "conforme": true
+    },
+    {
+      "nombre": "Qorilazo→Avance recuperado tras enlazar: un acceso, un contrato, responsable conservado y Portal autorizado",
+      "conforme": true
+    },
+    {
+      "nombre": "Dos ejecuciones simultáneas: el lease protege el alta y solo existe un Auth y un perfil",
+      "conforme": true
+    },
+    {
+      "nombre": "Un correo de otro Auth no se adopta ni enlaza a la persona",
+      "conforme": true
+    },
+    {
+      "nombre": "Ámbito, actor real, procedencia de Auth y columnas de auditoría verificados",
+      "conforme": true
+    }
+  ],
+  "transporte": "Handler de producción con Auth, PostgREST y Portal locales reales; pérdida deliberada de respuestas ya confirmadas",
+  "pendientes": [
+    "Reanudación sin token después del lease",
+    "Cambio de responsable/documento/veto entre pasos",
+    "Fusión",
+    "Generación y recuperación PDF"
+  ]
+}

@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -63,7 +64,7 @@ for (const corte of ['auth', 'registrar_auth', 'crear_perfil', 'enlazar']) {
   }
 }
 writeFileSync(new URL(`../evidencia-f4/portal-veto-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+  entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   limite: 'Cubre No insistir entre pasos. Reasignación, cambio de documento, rol y fusión siguen pendientes.',
 }, null, 2) + '\n');
 console.log('Veto dinámico F4: cuatro cortes por puertas vigentes, bloqueos y recuperación comprobados.');

@@ -1,0 +1,12 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "aplicadoEn": "2026-09-08T17:02:05.547Z",
+  "archivo": "20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "sha256Candidata": "f624380fb8613fdf87bfcda0a8e356b593a6b882c858ae0c6271d5f7a146e4d4",
+  "funciones": [
+    "private.backfill_multiempresa_ejecutar"
+  ],
+  "cambioSoloFunciones": true,
+  "banderaInversiones": false,
+  "produccionModificada": false
+}

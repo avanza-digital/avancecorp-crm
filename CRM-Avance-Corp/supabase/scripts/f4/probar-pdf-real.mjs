@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -205,7 +206,7 @@ try {
   bien('Todas las operaciones del ensayo terminan con una fuente, un PDF sellado y su inversión');
   guardar(`pdf-real-${ejecucion}.json`, { ejecucion, contratos, archivos: privados });
   writeFileSync(new URL(`../evidencia-f4/pdf-real-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     contratos: contratos.length, fuentesSinDuplicados: true,
     generador: 'Plantilla y renderer vigentes sin cambios; handler recupera el objeto existente antes de repetir su subida',
     limites: ['Revisión visual de los dos archivos en paso separado', 'La plantilla vigente no imprime cotitulares; cualquier incorporación exige aprobación de Miguel', 'Antecedentes sin reserva y permisos dinámicos se cubren en bloques posteriores', 'Pruebas locales; G4 completo sigue abierto'],

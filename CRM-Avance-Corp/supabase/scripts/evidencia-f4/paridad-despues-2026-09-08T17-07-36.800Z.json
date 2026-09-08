@@ -1,0 +1,16 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "momento": "despues",
+  "capturadoEn": "2026-09-08T17:07:36.799Z",
+  "sha256": "941b99a13b72cf0acc30acae9a1647aa1b6610a05c6c3dfe7679d21ac7157ae4",
+  "contratos": 4,
+  "cierres": 2,
+  "filasCapital": 6,
+  "cuotas": 52,
+  "capitalTotalPEN": 8000,
+  "upgradeMismoMes": 0,
+  "operacionesCarteraElegiblesSeptiembre": 1,
+  "aporteUpgrade": 1,
+  "fuentesYReglasIguales": true,
+  "alcance": "Paridad de antecedentes y upgrades. No cubre todavía renovación, comisión, Auth ni aceptación completa G4."
+}

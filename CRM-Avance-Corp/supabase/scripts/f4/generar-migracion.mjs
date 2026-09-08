@@ -21,6 +21,16 @@ function cambiar(nombre,transformar) {
   cambios.push({...f,definicion});
 }
 
+// La migración global F2 sólo corresponde al estado anterior a F4. Desde
+// esta instalación se usa censo y lote acotado, incluso con escritor apagado.
+cambiar('private.backfill_multiempresa_ejecutar',s=>reemplazar(s,'\nbegin\n',`
+begin
+  if to_regclass('crm.inversion_solicitudes') is not null then
+    raise exception 'F2 global ya fue sustituida por el censo y los lotes históricos F4'
+      using errcode='55000';
+  end if;
+`));
+
 cambiar('private.capital_episodios',s=>reemplazar(s,'ce.creado_en',fecha('ce'),5));
 cambiar('private.cierre_anulado',s=>reemplazar(s,'where ce.lead_id = p_lead_id',
   'where ce.lead_id = p_lead_id and ce.es_cierre_inicial'));
@@ -77,6 +87,17 @@ for (const nombre of ['crm.anular_cierre_externo','crm.corregir_cierre_externo']
 });
 
 cambiar('crm.cierres_externos_fn',s=>{
+  s=reemplazar(s,`'telefono', case when v_global or l.vendedor_id = any(v_visibles)
+                         then l.telefono end,`,
+    `'telefono', case when v_global or case
+          -- F3 conserva la tenencia del lead convertido como historia. El
+          -- teléfono vivo de una persona reconocida sigue su relación actual.
+          when ce.inversionista_id is not null then exists (
+            select 1 from crm.inversionistas ip
+            where ip.id=private.inversionista_canonica(ce.inversionista_id)
+              and ip.responsable_relacion_id=any(v_visibles))
+          else l.vendedor_id=any(v_visibles) end
+                         then l.telefono end,`,2);
   s=reemplazar(s,'join crm.leads l on l.id = ce.lead_id','left join crm.leads l on l.id = ce.lead_id',2);
   for (const a of ['ce','ce0']) {
     s=reemplazar(s,`${a}.creado_en >= v_ini and ${a}.creado_en < v_fin`,

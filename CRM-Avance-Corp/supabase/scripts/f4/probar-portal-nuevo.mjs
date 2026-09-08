@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -160,7 +161,7 @@ try {
     and jsonb_typeof(data_despues->'auth_contexto')='object'`), '0');
   bien('Ámbito, actor real, procedencia de Auth y columnas de auditoría verificados');
   writeFileSync(new URL(`../evidencia-f4/portal-nuevo-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     transporte: 'Handler de producción con Auth, PostgREST y Portal locales reales; pérdida deliberada de respuestas ya confirmadas',
     pendientes: ['Reanudación sin token después del lease', 'Cambio de responsable/documento/veto entre pasos', 'Fusión', 'Generación y recuperación PDF'],
   }, null, 2) + '\n');

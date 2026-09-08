@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -94,7 +95,7 @@ pruebas.push({ nombre: 'Apagado espera a la confirmación en vuelo y detiene nue
   operacionEnVueloCompleta: true, banderaFinal: false });
 
 writeFileSync(new URL(`../evidencia-f4/concurrencia-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+  entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   criterio: 'La coincidencia se comprobó en pg_stat_activity antes de soltar cada candado; no se infiere solo de Promise.all.',
 }, null, 2) + '\n');
 console.log('Concurrencia F4: 4 carreras observadas dentro de PostgreSQL, depósito único, idempotencia y apagado con operación en vuelo conformes.');

@@ -405,14 +405,18 @@ export type Database = {
         Row: {
           anulado_en: string | null
           anulado_por: string | null
+          comprobante_objeto_id: string | null
           cooperativa: string
           creado_en: string
           creado_por: string
           documento: string
           documento_tipo: string
+          es_cierre_inicial: boolean
+          fecha_comercial: string | null
+          fecha_imputacion: string | null
           id: string
           inversionista_id: string | null
-          lead_id: string
+          lead_id: string | null
           moneda: string
           monto: number
           motivo_anulacion: string | null
@@ -426,14 +430,18 @@ export type Database = {
         Insert: {
           anulado_en?: string | null
           anulado_por?: string | null
+          comprobante_objeto_id?: string | null
           cooperativa: string
           creado_en?: string
           creado_por: string
           documento: string
           documento_tipo: string
+          es_cierre_inicial?: boolean
+          fecha_comercial?: string | null
+          fecha_imputacion?: string | null
           id?: string
           inversionista_id?: string | null
-          lead_id: string
+          lead_id?: string | null
           moneda: string
           monto: number
           motivo_anulacion?: string | null
@@ -447,14 +455,18 @@ export type Database = {
         Update: {
           anulado_en?: string | null
           anulado_por?: string | null
+          comprobante_objeto_id?: string | null
           cooperativa?: string
           creado_en?: string
           creado_por?: string
           documento?: string
           documento_tipo?: string
+          es_cierre_inicial?: boolean
+          fecha_comercial?: string | null
+          fecha_imputacion?: string | null
           id?: string
           inversionista_id?: string | null
-          lead_id?: string
+          lead_id?: string | null
           moneda?: string
           monto?: number
           motivo_anulacion?: string | null
@@ -476,7 +488,7 @@ export type Database = {
           {
             foreignKeyName: "cierres_externos_lead_id_fkey"
             columns: ["lead_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -792,6 +804,356 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipo"
             referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
+      inversion_ajustes_mes_cerrado: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          fecha_imputacion: string
+          inversion_id: string
+          periodo_origen: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          fecha_imputacion: string
+          inversion_id: string
+          periodo_origen: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          fecha_imputacion?: string
+          inversion_id?: string
+          periodo_origen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_ajustes_mes_cerrado_inversion_id_fkey"
+            columns: ["inversion_id"]
+            isOneToOne: true
+            referencedRelation: "inversiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_ajustes_mes_cerrado_periodo_origen_fkey"
+            columns: ["periodo_origen"]
+            isOneToOne: false
+            referencedRelation: "periodos_cerrados"
+            referencedColumns: ["periodo"]
+          },
+        ]
+      }
+      inversion_backfill_lotes: {
+        Row: {
+          creado_en: string
+          creado_xid: unknown
+          finalizado_en: string | null
+          hash_mapa: string
+          id: string
+          mapa: Json
+          operador: unknown
+          resultado: Json | null
+        }
+        Insert: {
+          creado_en?: string
+          creado_xid?: unknown
+          finalizado_en?: string | null
+          hash_mapa: string
+          id: string
+          mapa: Json
+          operador?: unknown
+          resultado?: Json | null
+        }
+        Update: {
+          creado_en?: string
+          creado_xid?: unknown
+          finalizado_en?: string | null
+          hash_mapa?: string
+          id?: string
+          mapa?: Json
+          operador?: unknown
+          resultado?: Json | null
+        }
+        Relationships: []
+      }
+      inversion_cotitular_origenes: {
+        Row: {
+          contrato_titular_id: string
+          fuente_snapshot: Json
+          hash_fuente: string
+          id: string
+          identificador_origen_id: string
+          identificador_snapshot: Json
+          inversion_id: string
+          operador_sql: string
+          origen_registro: string
+          persona_origen_id: string
+          vinculado_en: string
+          vinculado_por: string | null
+        }
+        Insert: {
+          contrato_titular_id: string
+          fuente_snapshot: Json
+          hash_fuente: string
+          id?: string
+          identificador_origen_id: string
+          identificador_snapshot: Json
+          inversion_id: string
+          operador_sql?: string
+          origen_registro: string
+          persona_origen_id: string
+          vinculado_en?: string
+          vinculado_por?: string | null
+        }
+        Update: {
+          contrato_titular_id?: string
+          fuente_snapshot?: Json
+          hash_fuente?: string
+          id?: string
+          identificador_origen_id?: string
+          identificador_snapshot?: Json
+          inversion_id?: string
+          operador_sql?: string
+          origen_registro?: string
+          persona_origen_id?: string
+          vinculado_en?: string
+          vinculado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_cotitular_origenes_identificador_origen_id_fkey"
+            columns: ["identificador_origen_id"]
+            isOneToOne: false
+            referencedRelation: "inversionista_identificadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_cotitular_origenes_inversion_id_fkey"
+            columns: ["inversion_id"]
+            isOneToOne: false
+            referencedRelation: "inversiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_cotitular_origenes_persona_origen_id_fkey"
+            columns: ["persona_origen_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_eventos: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          id: string
+          inversion_id: string
+          motivo: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          inversion_id: string
+          motivo?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          inversion_id?: string
+          motivo?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_eventos_inversion_id_fkey"
+            columns: ["inversion_id"]
+            isOneToOne: false
+            referencedRelation: "inversiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_solicitud_correcciones: {
+        Row: {
+          corregido_en: string
+          corregido_por: string
+          datos_anteriores: Json
+          datos_nuevos: Json
+          hash_anterior: string
+          hash_nuevo: string
+          hash_peticion: string
+          id: string
+          motivo: string
+          revision: number
+          revision_anterior: number
+          solicitud_id: string
+        }
+        Insert: {
+          corregido_en?: string
+          corregido_por: string
+          datos_anteriores: Json
+          datos_nuevos: Json
+          hash_anterior: string
+          hash_nuevo: string
+          hash_peticion: string
+          id: string
+          motivo: string
+          revision: number
+          revision_anterior: number
+          solicitud_id: string
+        }
+        Update: {
+          corregido_en?: string
+          corregido_por?: string
+          datos_anteriores?: Json
+          datos_nuevos?: Json
+          hash_anterior?: string
+          hash_nuevo?: string
+          hash_peticion?: string
+          id?: string
+          motivo?: string
+          revision?: number
+          revision_anterior?: number
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_solicitud_correcciones_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "inversion_solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_solicitud_revisiones: {
+        Row: {
+          id: string
+          motivo: string
+          responsable_anterior_id: string
+          responsable_nuevo_id: string
+          revisado_en: string
+          revisado_por: string
+          revision: number
+          solicitud_id: string
+          transaccion: unknown
+        }
+        Insert: {
+          id?: string
+          motivo: string
+          responsable_anterior_id: string
+          responsable_nuevo_id: string
+          revisado_en?: string
+          revisado_por: string
+          revision: number
+          solicitud_id: string
+          transaccion?: unknown
+        }
+        Update: {
+          id?: string
+          motivo?: string
+          responsable_anterior_id?: string
+          responsable_nuevo_id?: string
+          revisado_en?: string
+          revisado_por?: string
+          revision?: number
+          solicitud_id?: string
+          transaccion?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_solicitud_revisiones_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "inversion_solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_solicitudes: {
+        Row: {
+          actualizado_en: string
+          auth_claim_id: string | null
+          auth_contexto: Json | null
+          confirmado_por: string | null
+          creado_en: string
+          creado_por: string
+          datos: Json
+          empresa_id: string
+          estado: string
+          hash_payload: string
+          id: string
+          inversion_id: string | null
+          inversionista_id: string
+          responsable_esperado_id: string
+          resultado: Json | null
+          revision_datos: number
+        }
+        Insert: {
+          actualizado_en?: string
+          auth_claim_id?: string | null
+          auth_contexto?: Json | null
+          confirmado_por?: string | null
+          creado_en?: string
+          creado_por: string
+          datos: Json
+          empresa_id: string
+          estado?: string
+          hash_payload: string
+          id: string
+          inversion_id?: string | null
+          inversionista_id: string
+          responsable_esperado_id: string
+          resultado?: Json | null
+          revision_datos?: number
+        }
+        Update: {
+          actualizado_en?: string
+          auth_claim_id?: string | null
+          auth_contexto?: Json | null
+          confirmado_por?: string | null
+          creado_en?: string
+          creado_por?: string
+          datos?: Json
+          empresa_id?: string
+          estado?: string
+          hash_payload?: string
+          id?: string
+          inversion_id?: string | null
+          inversionista_id?: string
+          responsable_esperado_id?: string
+          resultado?: Json | null
+          revision_datos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_solicitudes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_solicitudes_inversion_id_fkey"
+            columns: ["inversion_id"]
+            isOneToOne: true
+            referencedRelation: "inversiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_solicitudes_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2614,6 +2976,10 @@ export type Database = {
       }
     }
     Functions: {
+      acceso_inversion_fn: {
+        Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
+        Returns: Json
+      }
       actividades_del_ambito_fn: {
         Args: never
         Returns: {
@@ -2651,6 +3017,15 @@ export type Database = {
       actualizar_cliente_gerencia_con_domicilio: {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
+      }
+      conciliar_cotitulares_inversion_fn: {
+        Args: { p_inversion: string }
+        Returns: Json
+      }
+      confirmar_inversion_fn: { Args: { p_solicitud: string }; Returns: Json }
+      confirmar_inversion_revisada_fn: {
+        Args: { p_revision_datos_esperada: number; p_solicitud: string }
+        Returns: Json
       }
       corregir_documento_cliente_admin_fn: {
         Args: {
@@ -2912,6 +3287,21 @@ export type Database = {
       cola_accion_v2_fn: { Args: { p_limite?: number; p_senal?: string; p_etapa?: string | null; p_analista_id?: string | null; p_cursor?: Json | null }; Returns: Json }
       avisos_sla_resumen_v2_fn: { Args: Record<PropertyKey, never>; Returns: Json }
       configuracion_sla_v2_fn: { Args: never; Returns: Json }
+      corregir_solicitud_inversion_fn: {
+        Args: {
+          p_clave: string
+          p_datos: Json
+          p_motivo: string
+          p_revision_datos_esperada: number
+          p_solicitud: string
+        }
+        Returns: Json
+      }
+      inversion_cotitulares_fn: { Args: { p_inversion: string }; Returns: Json }
+      preparar_inversion_fn: {
+        Args: { p_clave: string; p_datos: Json }
+        Returns: Json
+      }
       publicar_reglas_sla_aprobadas_v2: { Args: { p_expected_version: number }; Returns: Json }
       cambiar_modo_sla_operacion: { Args: { p_expected_revision: number; p_modo: string }; Returns: Json }
       registrar_actividad_v2: { Args: { p_operacion_id: string; p_lead_id: string; p_tipo: string; p_detalle?: string | null; p_siguiente?: Json | null }; Returns: Json }
@@ -3694,12 +4084,22 @@ export type Database = {
         Args: { p_lead_id: string }
         Returns: Json
       }
+      revisar_solicitud_inversion_fn: {
+        Args: {
+          p_motivo: string
+          p_responsable_revisado: string
+          p_revision_esperada: number
+          p_solicitud: string
+        }
+        Returns: Json
+      }
       saga_conversion_fn: {
         Args: { p_paso: string; p_payload: Json }
         Returns: Json
       }
       series_comerciales_fn: { Args: { p_meses?: number }; Returns: Json }
       solicitar_tasa_fn: { Args: { p_solicitud: Json }; Returns: Json }
+      solicitud_inversion_fn: { Args: { p_solicitud: string }; Returns: Json }
       solicitudes_tasa_fn: {
         Args: { p_estados?: string[]; p_limite?: number; p_solo_mias?: boolean; p_cliente_id?: string }
         Returns: Json

@@ -1,0 +1,118 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "ejecucion": "11197ac3-e919-4f19-9cd0-6cfe0fb57e3d",
+  "terminadoEn": "2026-09-08T17:31:58.478Z",
+  "pruebas": [
+    {
+      "nombre": "Funciones y actas cerradas a los roles de la API",
+      "conforme": true
+    },
+    {
+      "nombre": "Aislamiento anterior a la espera se rechaza sin efectos",
+      "conforme": true
+    },
+    {
+      "nombre": "Entradas nulas, vacías, excesivas y repetidas se rechazan sin efectos",
+      "conforme": true
+    },
+    {
+      "nombre": "Cambiar huella, persona o empresa del censo no autoriza otro enlace",
+      "conforme": true
+    },
+    {
+      "nombre": "La reserva real de eliminación impide enlazar el contrato",
+      "conforme": true
+    },
+    {
+      "nombre": "Un contrato enlazado no entrega una reserva para borrar sus archivos",
+      "conforme": true
+    },
+    {
+      "nombre": "El cierre demo conserva la exclusión duradera publicada por F2",
+      "conforme": true
+    },
+    {
+      "nombre": "Un creador histórico desconocido se conserva sin inventar atribución",
+      "conforme": true
+    },
+    {
+      "nombre": "El contrato marcado demo se excluye sin generar inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "Deriva del mapa F2 invalida la previsualización anterior",
+      "conforme": true
+    },
+    {
+      "nombre": "El lote exige identidad encendida y escritor de inversiones apagado",
+      "conforme": true
+    },
+    {
+      "nombre": "Seis fuentes vinculadas conservan economía, PDF, identidad y atribución",
+      "conforme": true
+    },
+    {
+      "nombre": "La auditoría registra inicio y final sin copiar mapa ni resultado",
+      "conforme": true
+    },
+    {
+      "nombre": "Repetir el lote en otro orden devuelve el acta sin duplicar",
+      "conforme": true
+    },
+    {
+      "nombre": "Un censo nuevo reconoce lo resuelto y conserva sus filas exactas",
+      "conforme": true
+    },
+    {
+      "nombre": "Un vínculo anterior sin principal completa solo su titularidad",
+      "conforme": true
+    },
+    {
+      "nombre": "Cierre sin identidad vincula solo el puntero documentado y su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "Un fallo después de dos enlaces revierte todo y permite recuperar el lote",
+      "conforme": true
+    },
+    {
+      "nombre": "Las actas finalizadas son inmutables y una incompleta no puede confirmar",
+      "conforme": true
+    }
+  ],
+  "definiciones": [
+    {
+      "nombre": "07-historicos.sql",
+      "sha256": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670"
+    },
+    {
+      "nombre": "08-historicos-lote.sql",
+      "sha256": "32a0462ade19778ebb5c95c4ff24dd285ed1e9740b5b4912db6ff067e1e7ebdb"
+    }
+  ],
+  "sha256Oraculo": "8945ba82c6c345eee636db77a45025c31c4715805ffce432d51c3bdda72f27aa",
+  "huellasAntesYDespues": {
+    "leads": "e91f0541539866012a7ff792749f1b516d22552a104cb60b10bd12fed47e63cf",
+    "cuotas": "0b2b5ceb876e31ff9c2ee07ce966e9d744dc2e389721f3cc754b338878c05699",
+    "mapaF2": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "capital": "ae3f3518768493da24150b09d3cc6a5a636ce4fd35d1651bbc9f4624e835e605",
+    "cierres": "211607354e0588062e09452750eeafebacb30ddffb2b55fbc2cd79ad6eeb3253",
+    "jobsPdf": "e3f55cfdc85d5b9904ce64517d95b81a0e0c0a90e480440daed03e14b1613cfc",
+    "banderas": "08af83306b3ac6e7030a18957172c859fec438db67884017c59c1da41fb79645",
+    "perfiles": "46cfa4ec9e2ea0644a2bcb13da4498db5a4411bd7221ed726ddb37882aedc0be",
+    "personas": "c9727b4dc959410c35243781dad0cd3590040ca95338f82f02f0e67cba2c6bd9",
+    "contratos": "82a9cfa76f087d5989f449faee74a97555735219dedbfae8e6110e53b88c3bf7",
+    "sellosPdf": "d49166848e032d32d920952054c0ceb8c7c0d17c1e25d59c88ca308c85cd8f50",
+    "titulares": "ceef9abd4ab66ed9a08ac971d1a68da68aae5f5560694fb3577971ba45aedd49",
+    "inversiones": "09742e159ca165f09d657dc5bd637391cd5d0595d070199edc60b501c4646c18",
+    "identificadores": "a815f2177f9a9327548f72e56479713495289d9b5c6216249ed4b57ce1d06412"
+  },
+  "transaccionesRevertidas": true,
+  "probadoSobreInstalacionCompleta": true,
+  "limites": [
+    "Prueba transaccional del lote administrativo; las carreras entre sesiones tienen un oráculo separado.",
+    "Las fuentes son sintéticas y las fixtures se revierten; el pipeline F2 original todavía no se reconstruyó.",
+    "La prueba transaccional no sustituye la reconstrucción completa de la candidata ni su reversa.",
+    "Contenido PDF conservado; no se aprueba G4 ni se autoriza producción."
+  ]
+}

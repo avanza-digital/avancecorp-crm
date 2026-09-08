@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // El equipo nuevo recupera un Auth ya creado sin recibir el token del anterior.
 // Se espera el lease original; la revisión no lo cancela ni lo prolonga.
 import assert from 'node:assert/strict';
@@ -57,7 +58,7 @@ assert.equal(sql(`select count(*) from crm.inversiones where inversionista_id=${
 assert.equal((await rpc('confirmar_inversion_fn', { p_solicitud: c.solicitud }, anterior)).data.code, '42501');
 guardar(`revision-lease-${ejecucion}.json`, c);
 writeFileSync(new URL(`../evidencia-f4/revision-lease-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(),
+  entorno, ejecucion, terminadoEn: new Date().toISOString(),
   authCreadoAntesDeCambiarEquipo: true, sinTokenDelEquipoAnterior: true,
   leaseOriginal: inicial.leaseHasta, versionEstadoYLeaseSinAlterarPorRevision: true,
   equipoAnteriorRechazado: true, nuevoEquipoRecuperaTrasVencimientoReal: true,

@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Matriz SQL aislada. Las bajas usan la RPC vigente; no altera el banco original.
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
@@ -65,7 +66,35 @@ try {
   assert.equal(r,'f');
   const reporte=JSON.parse(como(f.usuarios.directorio.id,"select crm.cierres_externos_fn('2026-09-01')"));
   assert.equal(reporte.alcance,'global');assert.deepEqual(reporte.cierres,[]);
+  assert.deepEqual(reporte.cierres_mes,[]);
   deniega(f.usuarios.directorio.id,nuevo);
+ });
+ const externa=JSON.parse(sql(`select to_jsonb(ce) from crm.cierres_externos ce where ce.lead_id=${q(base.leads.avance)} and not ce.es_cierre_inicial order by ce.creado_en desc limit 1`));
+ assert(externa?.id,'Primero ejecutar cooperativas: antecedente Avance con inversión adicional');
+ const traslado=`${sesion(gerencia)}do $traslado$ begin perform crm.reasignar_responsable_relacion_fn(${q(persona)},${q(ajeno)},'Traslado ficticio para comprobar consumidores heredados');end;$traslado$;reset role;`;
+ caso('Lector heredado conserva foto del cierre propio, pero oculta teléfono vivo después del traslado',()=>{
+  const antes=JSON.parse(como(vendedor,"select crm.cierres_externos_fn('2026-09-01')"));
+  const despues=JSON.parse(como(vendedor,"select crm.cierres_externos_fn('2026-09-01')",traslado));
+  const a=antes.cierres.find(c=>c.cierre_id===externa.id),d=despues.cierres.find(c=>c.cierre_id===externa.id);
+  assert(a?.telefono);assert.equal(d.telefono,null);
+  assert.deepEqual({...d,telefono:a.telefono},a);
+  assert.deepEqual(despues.totales,antes.totales);
+  deniega(vendedor,repetir,traslado);
+  assert.equal(JSON.parse(como(ajeno,repetir,traslado)).inversion_id,s.inversion_id);
+ });
+ caso('Inversión adicional cooperativa no convierte el cierre original Avance en cooperativo',()=>{
+  const estados=JSON.parse(como(vendedor,`select crm.cierres_estado_fn(array[${q(base.leads.avance)}::uuid])`));
+  assert.equal(estados.some(e=>e.canal==='cooperativa'),false);
+ });
+ caso('Baja real también revoca lectores heredados de cierres y estados',()=>{
+  deniega(vendedor,"select crm.cierres_externos_fn('2026-09-01')",baja);
+  deniega(vendedor,`select crm.cierres_estado_fn(array[${q(base.leads.avance)}::uuid])`,baja);
+ });
+ caso('Las filas financieras y titulares no admiten DML directo de la API',()=>{
+  for(const t of ['crm.cierres_externos','crm.inversiones','crm.inversion_titulares']) {
+   deniega(gerencia,`delete from ${t} where false`);
+   deniega(vendedor,`delete from ${t} where false`);
+  }
  });
  caso('Cliente conserva su Portal y no recibe rol comercial por ser inversionista',()=>{
   assert.equal(como(f.usuarios.cliente.id,`select public.puede_ver_contrato(${q(s.resultado.fuente.id)})`),'t');
@@ -78,7 +107,7 @@ try {
  assert.equal(sql(foto),original,'La matriz conserva fuentes, importes, atribución y sellos');
 } finally {assert.equal(sqlOriginal(foto),original);}
 writeFileSync(new URL(`../evidencia-f4/permisos-dinamicos-${copia.id}.json`,import.meta.url),JSON.stringify({
- entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,
+ entorno,baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,
  bancoOriginalSinCambios:true,fuentesEconomicasYSellosSinCambios:true,
  sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
  limites:['SQL con rol/claims sintéticos; baja y traslado mediante RPC real. No simula una sesión HTTP.',

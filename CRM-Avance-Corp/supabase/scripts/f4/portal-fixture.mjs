@@ -1,3 +1,4 @@
+import { apiUrl } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID, randomInt } from 'node:crypto';
 import { sql, literal as q, rpc } from './banco-local.mjs';
@@ -43,7 +44,7 @@ export async function prepararPersonaPortal({ vendedor, token, etiqueta, correo 
 const uuidValido = valor => /^[a-f0-9-]{36}$/.test(valor);
 
 export async function llamarHandler(handler, solicitud, tokenUsuario, tokenSaga) {
-  const r = await handler(new Request('http://127.0.0.1:56321/functions/v1/crm-inversion-portal', {
+  const r = await handler(new Request(`${apiUrl}/functions/v1/crm-inversion-portal`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenUsuario}` },
     body: JSON.stringify({ solicitud_id: solicitud, ...(tokenSaga ? { token: tokenSaga } : {}) }),
   }));

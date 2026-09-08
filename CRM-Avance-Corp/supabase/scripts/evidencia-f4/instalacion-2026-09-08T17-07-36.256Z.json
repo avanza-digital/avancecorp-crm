@@ -1,0 +1,9 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "aplicadoEn": "2026-09-08T17:07:36.257Z",
+  "archivo": "20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+  "sha256": "f624380fb8613fdf87bfcda0a8e356b593a6b882c858ae0c6271d5f7a146e4d4",
+  "banderaInversiones": false,
+  "transaccionConfirmada": true,
+  "produccionModificada": false
+}

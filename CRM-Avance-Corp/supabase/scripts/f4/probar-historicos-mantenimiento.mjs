@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Mantenimiento F2 concurrente: usa su helper original, sin reejecutar F2 global.
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
@@ -116,7 +117,7 @@ try {
 
 } catch(error) {
   writeFileSync(new URL(`../evidencia-f4/historicos-mantenimiento-hallazgo-${copia.id}.json`,import.meta.url),JSON.stringify({
-    entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,ejecucion:copia.id,prueba:pruebaActual,
+    entorno,baseCopia:copia.nombre,ejecucion:copia.id,prueba:pruebaActual,
     md5Funcion:hashFuncion,error:error.message,funcionBajoPrueba:'private.inversion_historica_aplicar(uuid,jsonb)',
     produccionModificada:false,resultado:'FAIL',
   },null,2)+'\n',{flag:'wx'});
@@ -126,7 +127,7 @@ try {
   assert.equal(sqlOriginal(foto),original,'El banco original debe permanecer intacto');
 }
 writeFileSync(new URL(`../evidencia-f4/historicos-mantenimiento-${copia.id}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),pruebas,
+  entorno,baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),pruebas,
   md5Funcion:hashFuncion,bancoOriginalSinCambios:true,
   sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
   limite:'Cruces con el helper administrativo F2 de mapa e inserciones de sus tablas relacionadas; no autoriza reejecutar F2 global ni representa HTTP/Storage/cron.',

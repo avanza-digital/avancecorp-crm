@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomInt, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -165,7 +166,7 @@ try {
     mismoAuthYFuente: true, contextoYClaimSinReescribir: true });
   guardar(`identidad-controles-${ejecucion}.json`, casos);
   writeFileSync(new URL(`../evidencia-f4/identidad-controles-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     limite: 'Carreras de corrección/fusión con la confirmación y compatibilidad de solicitudes históricas del banco. No cubre todos los lectores heredados ni el worker PDF.',
   }, null, 2) + '\n');
   console.log('Conforme: corrección seguida de fusión y recuperación de un contexto Auth anterior real.');

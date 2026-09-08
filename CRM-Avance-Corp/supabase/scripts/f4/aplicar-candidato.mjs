@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Solo instalación inicial en el banco sintético validado por banco-local.mjs.
 // No registra historia de migraciones ni acepta otra base.
 import assert from 'node:assert/strict';
@@ -14,9 +15,9 @@ assert.equal(sql("select to_regclass('crm.inversion_solicitudes') is null"), 't'
 sql(contenido, { admin: true });
 assert.equal(sql("select to_regclass('crm.inversion_solicitudes') is not null"), 't');
 assert.equal(sql("select activo from crm.multiempresa_flags where nombre='inversiones_escritura'"), 'f');
-writeFileSync(new URL('../evidencia-f4/2026-09-07-instalacion-local.json', import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', aplicadoEn: new Date().toISOString(), archivo,
+writeFileSync(new URL(`../evidencia-f4/instalacion-${new Date().toISOString().replaceAll(':','-')}.json`, import.meta.url), JSON.stringify({
+  entorno, aplicadoEn: new Date().toISOString(), archivo,
   sha256: createHash('sha256').update(contenido).digest('hex'),
   banderaInversiones: false, transaccionConfirmada: true, produccionModificada: false,
-}, null, 2) + '\n');
+}, null, 2) + '\n', {flag:'wx'});
 console.log('Candidata F4 instalada íntegramente en el banco local; bandera aún apagada.');

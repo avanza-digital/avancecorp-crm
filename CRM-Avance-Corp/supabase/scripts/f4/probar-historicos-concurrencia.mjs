@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -171,7 +172,7 @@ try {
   assert.equal(sqlOriginal(foto),original,'El banco original debe permanecer intacto');
 }
 const sha=x=>createHash('sha256').update(x).digest('hex');
-const informe={entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,ejecucion:copia.id,
+const informe={entorno,baseCopia:copia.nombre,ejecucion:copia.id,
   terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,
   definiciones:definiciones.map(d=>({nombre:d.nombre,sha256:sha(d.contenido)})),
   sha256Oraculo:sha(readFileSync(new URL(import.meta.url))),

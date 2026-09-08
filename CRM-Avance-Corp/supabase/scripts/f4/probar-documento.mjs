@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -150,7 +151,7 @@ try {
   }
   assert.equal(sql("select md5(prosrc) from pg_proc where oid='crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)'::regprocedure"), huellaCorreccion);
   writeFileSync(new URL(`../evidencia-f4/documento-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     correccionPublicadaSinCambios: huellaCorreccion,
     limite: 'No autoriza saltar la reserva Auth. Se recupera el acceso antes de corregir, sin reset automático de clave. PDF real y fusión se comprueban aparte.',
   }, null, 2) + '\n');

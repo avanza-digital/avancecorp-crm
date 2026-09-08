@@ -1,0 +1,19 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "cb86e1fd-b52a-4683-947e-3664d929ff46",
+  "paginasInspeccionadas": 14,
+  "archivos": [
+    {
+      "moneda": "PEN",
+      "sha256": "3f24e0c3813bd7685f194419e99024c3e2e2cdd9e360828954983ecb4afb2c6e",
+      "paginas": 7
+    },
+    {
+      "moneda": "USD",
+      "sha256": "e6488e25c28d6fee43b341ecf20735f80b2a809ccad98af98629361effbc1ba0",
+      "paginas": 7
+    }
+  ],
+  "revision": "14 PNG a 85 dpi inspeccionados visualmente. Sin texto cortado, superposiciones ni glifos rotos; firmas, importes, moneda, pie y numeración legibles. Plantilla v7 vigente; cotitular no impreso y sin modificación de contenido.",
+  "limite": "Dos PDFs sintéticos de esta ejecución; no certificación legal ni inspección de todos los documentos del banco."
+}

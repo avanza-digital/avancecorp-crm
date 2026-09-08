@@ -1,10 +1,11 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { banco, http } from './banco-local.mjs';
 
 assert.match(readFileSync(join(banco, 'supabase/config.toml'), 'utf8'),
-  /project_id\s*=\s*"avancecorp-f4-bank"/);
+  new RegExp(`project_id\\s*=\\s*"${entorno}"`));
 const destino = join(banco, 'supabase/functions/crm-contrato-pdf-v2');
 mkdirSync(destino, { recursive: true });
 for (const archivo of ['index.ts', 'handler.ts', 'storage.ts', 'renderer.ts', 'template-v2.ts',

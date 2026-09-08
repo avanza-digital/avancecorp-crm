@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Iteración aditiva exclusiva del banco que ya contiene la candidata anterior.
 // No registra migraciones, importa filas ni admite bases remotas.
 import assert from 'node:assert/strict';
@@ -6,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { banco, sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
 
+assert.equal(entorno, 'avancecorp-f4-bank', 'El instalador de transición sólo corresponde al banco de desarrollo');
 const anterior = readFileSync(`${banco}/candidata-antes-portal.sql`, 'utf8');
 const { archivo, funciones: nombres } = JSON.parse(readFileSync(new URL('./ultima-migracion.json', import.meta.url), 'utf8'));
 const contenido = readFileSync(new URL(`../../migrations/${archivo}`, import.meta.url), 'utf8');
@@ -52,7 +54,7 @@ sql(`begin;
   notify pgrst,'reload schema';
   commit;`);
 writeFileSync(new URL('../evidencia-f4/2026-09-07-instalacion-portal-local.json', import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', aplicadoEn: new Date().toISOString(), archivo,
+  entorno, aplicadoEn: new Date().toISOString(), archivo,
   sha256Anterior: createHash('sha256').update(anterior).digest('hex'),
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'),
   nuevas: agregadas.map(f => f.nombre), modificadas: ['crm.preparar_inversion_fn'],

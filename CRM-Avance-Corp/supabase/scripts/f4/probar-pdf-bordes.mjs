@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Ejecutar con Deno y el deno.json del generador: usa su SDK y adaptador reales.
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
@@ -213,7 +214,7 @@ try {
   for (const c of contratos) assert.equal(estado(c.id).estado, 'sellado');
   guardar(`pdf-bordes-${ejecucion}.json`, { contratos, pruebas });
   writeFileSync(new URL(`../evidencia-f4/pdf-bordes-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     contratos: contratos.length, plazoStorageMs: STORAGE_PLAZO_MS,
     plantillaModificada: false, estadosSqlFabricados: false,
     limite: 'Las versiones incompatibles se inyectan en la respuesta al worker; no se edita la versión ni el snapshot contractual real. Prueba local, sin cierre de G4.',

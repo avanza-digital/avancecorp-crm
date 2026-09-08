@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -195,7 +196,7 @@ try {
   }
   assert.equal(sql("select md5(prosrc) from pg_proc where oid='crm.fusionar_inversionistas_fn(uuid,uuid,text,text)'::regprocedure"), huellaFusion);
   writeFileSync(new URL(`../evidencia-f4/fusion-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     fusionPublicadaSinCambios: huellaFusion,
     limite: 'Fusión viable por F3: una sola ficha comercial y un solo perfil. Se mantiene el bloqueo por Auth no terminal; lectores heredados, carreras y PDF se verifican aparte.',
   }, null, 2) + '\n');

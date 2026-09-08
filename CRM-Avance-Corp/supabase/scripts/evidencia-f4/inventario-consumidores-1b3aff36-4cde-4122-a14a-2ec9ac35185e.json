@@ -1,0 +1,1492 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "creadoEn": "2026-09-08T17:30:07.380Z",
+  "funcionesInspeccionadas": 546,
+  "consumidoresDirectos": [
+    {
+      "firma": "private.capital_episodios(timestamp with time zone, timestamp with time zone, boolean, uuid[])",
+      "md5": "c9e58c1da9dd7a5d52991c9e47dc19d5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Recorre todas las fuentes económicas con fecha_imputacion o fecha histórica; no suma dinero desde inversiones. Detalle de cierres conserva foto de atribución; teléfono vivo exige relación canónica actual. Directorio recibe agregados."
+    },
+    {
+      "firma": "private.cierre_anulado(uuid)",
+      "md5": "8427218ba089192bd9702e052492f70b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "private.leads_before_update()",
+      "md5": "e0b68ad528a15ddfe80197bdac1c180b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "private.inversion_solicitud_resultado(uuid, jsonb)",
+      "md5": "8dfe4fb7ee03e0726432d2561425e346",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Clasifica empresa/fuente; no presupone una fila por lead."
+    },
+    {
+      "firma": "private.inversion_vincular_fuente(uuid, uuid, uuid, uuid, boolean)",
+      "md5": "a05cc3b655d508fa1831b101632bd1f7",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Identifica fuente por UUID y persona canónica; censo y lote cerrado reemplazan mantenimiento global."
+    },
+    {
+      "firma": "private.inversion_persona_contexto(uuid)",
+      "md5": "3b950c0ed8f4faa07695bc8ea05d3f17",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Identifica fuente por UUID y persona canónica; censo y lote cerrado reemplazan mantenimiento global."
+    },
+    {
+      "firma": "private.inversion_validar_datos(uuid, jsonb, jsonb)",
+      "md5": "2013f9f76bb49864cb878c65af5b815d",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Clasifica empresa/fuente; no presupone una fila por lead."
+    },
+    {
+      "firma": "crm.confirmar_inversion_revisada_fn(uuid, integer)",
+      "md5": "b165a0fd3a8250a560dc78989ece8ccc",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Escritores autorizados y serializados: fuente UUID/deposito único. Solo convertir_lead_externo crea el cierre inicial."
+    },
+    {
+      "firma": "private.backfill_multiempresa_ejecutar()",
+      "md5": "2660569b15f9a8fcb73cae54ac52cef8",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Retirada desde instalación F4 (55000), incluso con escritor apagado; corpus original probado ANTES."
+    },
+    {
+      "firma": "private.inversion_historica_estado(text, uuid)",
+      "md5": "2b57432c993eaa8e1599bf874427b743",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Identifica fuente por UUID y persona canónica; censo y lote cerrado reemplazan mantenimiento global."
+    },
+    {
+      "firma": "private.inversion_historica_aplicar(uuid, jsonb)",
+      "md5": "a33595d4ac8c2c12ad6fcf9463db605e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Identifica fuente por UUID y persona canónica; censo y lote cerrado reemplazan mantenimiento global."
+    },
+    {
+      "firma": "crm.anular_cierre_avance(uuid, text)",
+      "md5": "23e3be1974e08a1ec8aa61abe53242c3",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "crm.altas_nuevas_por_analista_fn(integer)",
+      "md5": "ac3136ea697cc25fc7263cb8b23ad8f8",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "crm.anular_cierre_externo(uuid, text)",
+      "md5": "f568b78fc917d56cb00b5f88efd85deb",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Gerencia modifica cierre por UUID; triggers conservan procedencia y sincronizan empresa/estado/eventos. Anulación conserva Capital ATR-4."
+    },
+    {
+      "firma": "crm.cierres_estado_fn(uuid[])",
+      "md5": "5f6eca13b613aaa40b459ea56f7c8ac5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "crm.cierres_externos_fn(date)",
+      "md5": "c46cc5e818295f375671127d03516dd3",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Recorre todas las fuentes económicas con fecha_imputacion o fecha histórica; no suma dinero desde inversiones. Detalle de cierres conserva foto de atribución; teléfono vivo exige relación canónica actual. Directorio recibe agregados."
+    },
+    {
+      "firma": "crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid)",
+      "md5": "49d73e13f8969161060e2ce2b669a85a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "F3 recorre conjuntos completos por identidad, sin escalar por lead; conserva fuentes y fotos documentales, reasigna referencias canónicas."
+    },
+    {
+      "firma": "crm.corregir_cierre_externo(uuid, numeric, text, text, text, text, date, text)",
+      "md5": "7ba65cc72e57dd87bc17d7ce6e55bc53",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Gerencia modifica cierre por UUID; triggers conservan procedencia y sincronizan empresa/estado/eventos. Anulación conserva Capital ATR-4."
+    },
+    {
+      "firma": "crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)",
+      "md5": "27ec3f489e934163383e3eea8236c096",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Escritores autorizados y serializados: fuente UUID/deposito único. Solo convertir_lead_externo crea el cierre inicial."
+    },
+    {
+      "firma": "crm.fusion_previsualizar_fn(uuid, uuid)",
+      "md5": "814368bf22e2b9f2383bcce878a66fea",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "F3 recorre conjuntos completos por identidad, sin escalar por lead; conserva fuentes y fotos documentales, reasigna referencias canónicas."
+    },
+    {
+      "firma": "crm.fusionar_inversionistas_fn(uuid, uuid, text, text)",
+      "md5": "6919e7ce8960f7d985ac03ba033c347e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "F3 recorre conjuntos completos por identidad, sin escalar por lead; conserva fuentes y fotos documentales, reasigna referencias canónicas."
+    },
+    {
+      "firma": "crm.enlazar_lead_inversionista_fn(uuid, uuid, text)",
+      "md5": "1159aa8443c117c8c9384a2bcf17ae2b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "La conversión inicial usa es_cierre_inicial. Las inversiones adicionales no cambian canal ni sanción inicial."
+    },
+    {
+      "firma": "private.fusion_estado_jsonb(uuid, uuid)",
+      "md5": "9cc2996ce00e7b0ef73597b4a5800ee6",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "F3 recorre conjuntos completos por identidad, sin escalar por lead; conserva fuentes y fotos documentales, reasigna referencias canónicas."
+    },
+    {
+      "firma": "private.fusion_impacto(uuid, uuid)",
+      "md5": "8f48cae159dee0ea157ba45e2a833e04",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "F3 recorre conjuntos completos por identidad, sin escalar por lead; conserva fuentes y fotos documentales, reasigna referencias canónicas."
+    },
+    {
+      "firma": "private.inversiones_empresa_coherente()",
+      "md5": "4873bebdf14f507e7f9200aa5b676b7f",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Comprueba empresa contra fuente UUID; no lee una fuente escalar por lead."
+    },
+    {
+      "firma": "private.metricas_conversiones_implementacion(date, date, text)",
+      "md5": "a7bbf47ebc9e03a1ec67cf4088152382",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Recorre todas las fuentes económicas con fecha_imputacion o fecha histórica; no suma dinero desde inversiones. Detalle de cierres conserva foto de atribución; teléfono vivo exige relación canónica actual. Directorio recibe agregados."
+    }
+  ],
+  "escritores": [
+    {
+      "firma": "crm.confirmar_inversion_revisada_fn(uuid, integer)",
+      "md5": "b165a0fd3a8250a560dc78989ece8ccc",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Confirmación F4: ámbito, revisión, evidencia, período y depósito; fuente y principal atómicos."
+    },
+    {
+      "firma": "private.backfill_multiempresa_ejecutar()",
+      "md5": "2660569b15f9a8fcb73cae54ac52cef8",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Bloqueado por guarda 55000 desde F4."
+    },
+    {
+      "firma": "private.inversion_historica_aplicar(uuid, jsonb)",
+      "md5": "a33595d4ac8c2c12ad6fcf9463db605e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Administración sin API, escritor OFF, mapa y recenso bajo candados."
+    },
+    {
+      "firma": "crm.anular_cierre_externo(uuid, text)",
+      "md5": "f568b78fc917d56cb00b5f88efd85deb",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Gerencia y UUID; sanción inicial separada de adicional, Capital conservado."
+    },
+    {
+      "firma": "crm.contrato_eliminacion_finalizar(uuid, uuid, uuid)",
+      "md5": "5e398eaff1aef4a557e7ebb31d19fcf0",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Requiere reserva por preparar, que rechaza vínculo F4 antes de entregar rutas; FK impide borrar fuente vinculada."
+    },
+    {
+      "firma": "crm.corregir_cierre_externo(uuid, numeric, text, text, text, text, date, text)",
+      "md5": "7ba65cc72e57dd87bc17d7ce6e55bc53",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Gerencia y UUID; unicidad del depósito y trigger relacional."
+    },
+    {
+      "firma": "crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)",
+      "md5": "27ec3f489e934163383e3eea8236c096",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Una conversión inicial por lead; la segunda inversión usa otra puerta."
+    },
+    {
+      "firma": "crm.corregir_fecha_cierre_comercial(uuid, date, text)",
+      "md5": "fcfd9b4d59e2ee2190fc5d530b915d71",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Puerta publicada sujeta a congelación documental y atribución; no crea fuentes."
+    },
+    {
+      "firma": "crm.fusionar_inversionistas_fn(uuid, uuid, text, text)",
+      "md5": "6919e7ce8960f7d985ac03ba033c347e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Reapunta conjunto de identidades, conserva dinero y snapshots."
+    },
+    {
+      "firma": "crm.enlazar_lead_inversionista_fn(uuid, uuid, text)",
+      "md5": "1159aa8443c117c8c9384a2bcf17ae2b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "decision": "Repara solo cierre inicial; las adicionales ya tienen identidad propia."
+    },
+    {
+      "firma": "private.trg_restaurar_operacion_antes_borrar_contrato()",
+      "md5": "ccaa7f8e007f8a4feffaf9dea5c0d435",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ],
+      "decision": "Restauración legacy de cadena; borrado de fuente F4 no autorizado."
+    },
+    {
+      "firma": "public.actualizar_contrato(uuid, jsonb, jsonb)",
+      "md5": "6184aad4be1b234db83b096e08e92428",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Modificación publicada sujeta a snapshot PDF y procedencia inmutables."
+    },
+    {
+      "firma": "public.crear_contrato(jsonb, jsonb)",
+      "md5": "2a01831a4a96158a89fbe8ffee6d7007",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Puerta compartida F4 antes de persona/PDF; AFTER INSERT crea vínculo atómico."
+    },
+    {
+      "firma": "public.actualizar_numero_contrato(uuid, text, text, text)",
+      "md5": "84ba035d9888b7d4b5494c82b8e04b00",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Numeración administrativa; protege documento congelado."
+    },
+    {
+      "firma": "public.cerrar_contrato(uuid, text, uuid)",
+      "md5": "ddd192d8885e2ed03cb11b45a20f3041",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Estado/vigencia publicados; no borra inversión ni capital por sanción comercial."
+    },
+    {
+      "firma": "public.marcar_contrato_demo(uuid, boolean, text)",
+      "md5": "8f3ebaefbf88f1edfdc15e7f5444b1c0",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Marca auditada publicada; exclusión de Capital real conservada."
+    },
+    {
+      "firma": "public.marcar_contratos_vencidos()",
+      "md5": "445402aecf9f40e785b5923397bcb700",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Job publicado de vigencia; no crea ni duplica fuentes."
+    },
+    {
+      "firma": "public.reasignar_analista_contrato(uuid, uuid, text)",
+      "md5": "f37824754c5beb905065f47f8ef5fafe",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "decision": "Atribución efectiva de cadena; autor histórico y meses sellados conservados."
+    }
+  ],
+  "consumidoresTransitivos": [
+    {
+      "firma": "private.capital_episodios(timestamp with time zone, timestamp with time zone, boolean, uuid[])",
+      "md5": "c9e58c1da9dd7a5d52991c9e47dc19d5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.cierre_anulado(uuid)",
+      "md5": "8427218ba089192bd9702e052492f70b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.leads_before_update()",
+      "md5": "e0b68ad528a15ddfe80197bdac1c180b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_solicitud_resultado(uuid, jsonb)",
+      "md5": "8dfe4fb7ee03e0726432d2561425e346",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.preparar_inversion_fn(uuid, jsonb)",
+      "md5": "a81f43ed97a56df68a0dcdcaa5cb6376",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.f4_comprobante_autorizado(text)",
+      "md5": "d7b02ff3ce4806ecb370aa9eaebb5bac",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.f4_contrato_vincular()",
+      "md5": "bf2739e0311c0766868a249ea6408760",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_vincular_fuente(uuid, uuid, uuid, uuid, boolean)",
+      "md5": "a05cc3b655d508fa1831b101632bd1f7",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.confirmar_inversion_fn(uuid)",
+      "md5": "e69358303d4b6220354460965179c28d",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.acceso_inversion_fn(uuid, text, jsonb)",
+      "md5": "02cf922aff3aa75e86a09d2c53d328fc",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.revisar_solicitud_inversion_fn(uuid, uuid, integer, text)",
+      "md5": "40cc9950771ffcbcb7e4f5fe061d00ab",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_persona_contexto(uuid)",
+      "md5": "3b950c0ed8f4faa07695bc8ea05d3f17",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_validar_datos(uuid, jsonb, jsonb)",
+      "md5": "2013f9f76bb49864cb878c65af5b815d",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.corregir_solicitud_inversion_fn(uuid, uuid, integer, jsonb, text)",
+      "md5": "407a461cefe15ce207269561ada13828",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.solicitud_inversion_fn(uuid)",
+      "md5": "b7e3f9158400c7ef1f9f04eb4b365950",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.confirmar_inversion_revisada_fn(uuid, integer)",
+      "md5": "b165a0fd3a8250a560dc78989ece8ccc",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.backfill_multiempresa_ejecutar()",
+      "md5": "2660569b15f9a8fcb73cae54ac52cef8",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_fn(date, date)",
+      "md5": "3614ce10ba27543b9e6289b949c8aea9",
+      "owner": "crm_metricas_bridge",
+      "acl": [
+        "crm_metricas_bridge=X/crm_metricas_bridge"
+      ]
+    },
+    {
+      "firma": "private.registrar_ajuste_si_mes_cerrado(uuid, text, uuid)",
+      "md5": "548b517e2a4c64f36d787c22856b5ee3",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_historica_estado(text, uuid)",
+      "md5": "2b57432c993eaa8e1599bf874427b743",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversion_historica_aplicar(uuid, jsonb)",
+      "md5": "a33595d4ac8c2c12ad6fcf9463db605e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.actualizar_contrato_con_cuenta(uuid, jsonb, jsonb)",
+      "md5": "0d393f49dad1d1539e0a94e734e529b2",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.actualizar_contrato_con_cuenta_pdf_v3(uuid, jsonb, jsonb)",
+      "md5": "2315bb59725e3366fff1a7e04ce0fbad",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.actualizar_contrato_con_cuenta_producto(uuid, uuid, jsonb, jsonb)",
+      "md5": "956fb5f32191291d4b7ebafce5abbdb1",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.actualizar_contrato_producto(uuid, uuid, jsonb, jsonb)",
+      "md5": "1d884ef9f60a55dd4d0613a256e3ea71",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.actualizar_numero_contrato_pdf_v3(uuid, text, text, text)",
+      "md5": "e4f9db0d219d794d658de6ebfe6ec2f4",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.anular_cierre_avance(uuid, text)",
+      "md5": "23e3be1974e08a1ec8aa61abe53242c3",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.altas_nuevas_por_analista_fn(integer)",
+      "md5": "ac3136ea697cc25fc7263cb8b23ad8f8",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.anular_cierre_externo(uuid, text)",
+      "md5": "f568b78fc917d56cb00b5f88efd85deb",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cerrar_altas_legacy_productos(bigint)",
+      "md5": "2c9dd330ca73c95b381a27323348e117",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cerrar_periodo(date)",
+      "md5": "9efc07b35e9b34fdb8d84e9bad019d8e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.ciclo_cierre_mes()",
+      "md5": "459b9d42bf991712d044f63e494a2a52",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cierres_estado_fn(uuid[])",
+      "md5": "5f6eca13b613aaa40b459ea56f7c8ac5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cierres_externos_fn(date)",
+      "md5": "c46cc5e818295f375671127d03516dd3",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.contrato_eliminacion_finalizar(uuid, uuid, uuid)",
+      "md5": "5e398eaff1aef4a557e7ebb31d19fcf0",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.contratos_por_periodo_comercial_fn(date)",
+      "md5": "c5a98dc8879b519b9a094c50b45a9f01",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.conversion_mensual_fn(date)",
+      "md5": "e8b7bbfa62e46bcd5a680a9a5996a8d0",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.conversion_mensual_sin_cartera_fn(date)",
+      "md5": "e2e2bf8fe3c71620a3db01de3cddc33b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.corregir_documento_inversionista_fn(uuid, text, text, text, uuid)",
+      "md5": "49d73e13f8969161060e2ce2b669a85a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.corregir_cierre_externo(uuid, numeric, text, text, text, text, date, text)",
+      "md5": "7ba65cc72e57dd87bc17d7ce6e55bc53",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.convertir_lead_externo(uuid, text, numeric, text, text, text, text, text, text, date, text)",
+      "md5": "27ec3f489e934163383e3eea8236c096",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.corregir_fecha_cierre_comercial(uuid, date, text)",
+      "md5": "fcfd9b4d59e2ee2190fc5d530b915d71",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta_pdf_v2(jsonb, jsonb, jsonb)",
+      "md5": "5f1e76a8359332fad606a855171aac3a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta_producto(uuid, jsonb, jsonb, jsonb)",
+      "md5": "a93f2db825cc26c19b1756cde0cdc435",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.crear_contrato_producto(uuid, jsonb, jsonb)",
+      "md5": "230bcc46e72191600cbd5fc789e1d503",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cumplimiento_metas_sin_cartera_fn(date)",
+      "md5": "b7192138b237571c9955d021aff0920a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.crear_contrato_con_cuenta(jsonb, jsonb, jsonb)",
+      "md5": "e52e632b340992c18d09e8aad18ed67e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_vendedores_fn()",
+      "md5": "7462d4e1736ebe22fc2268b1cb71e105",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.cumplimiento_metas_fn(date)",
+      "md5": "0bde18875efbb757801633571e558ca2",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.fusion_previsualizar_fn(uuid, uuid)",
+      "md5": "814368bf22e2b9f2383bcce878a66fea",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.fusionar_inversionistas_fn(uuid, uuid, text, text)",
+      "md5": "6919e7ce8960f7d985ac03ba033c347e",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.enlazar_lead_inversionista_fn(uuid, uuid, text)",
+      "md5": "1159aa8443c117c8c9384a2bcf17ae2b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_conversiones_fn(date, date, text)",
+      "md5": "5edb160355011bd0485661485c9317df",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_capital_mes_fn(integer)",
+      "md5": "c872d4be13e8284a64e70861318cb9be",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_cartera_fn(date)",
+      "md5": "0bfcc0d49bec2f6fda3cc844b813118c",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_conversiones_equipo_fn(date, date)",
+      "md5": "d67db4c1204456b57d3271d6c94064b6",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_v2_fn(date, date)",
+      "md5": "4f9186ab5d73f9f4e9114f271aa78a15",
+      "owner": "crm_metricas_bridge",
+      "acl": [
+        "crm_metricas_bridge=X/crm_metricas_bridge"
+      ]
+    },
+    {
+      "firma": "crm.metricas_distribucion_leads_v3_fn(date, date)",
+      "md5": "4d443467e82f589f5e5059de97230c42",
+      "owner": "crm_metricas_bridge",
+      "acl": [
+        "crm_metricas_bridge=X/crm_metricas_bridge",
+        "authenticated=X/crm_metricas_bridge"
+      ]
+    },
+    {
+      "firma": "crm.metricas_reuniones_fn(date, date)",
+      "md5": "de328143bd9221fb19bfa6af46695290",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.metricas_vencimientos_fn(integer)",
+      "md5": "1d0a9f6e4e262f57fc94057c7246ca6d",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.resumen_cartera_clientes_fn()",
+      "md5": "d8551a70db3ac32e150e417648585a8a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.resumen_cartera_fn()",
+      "md5": "e69c9eb25ef352150404875f3b5687c5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "crm.series_comerciales_fn(integer)",
+      "md5": "91ea3ad984ce63060e21d8da51b75255",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.assert_analitica_leads_citas()",
+      "md5": "0b474e7f58e1f668b62a02730b716457",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.capital_autorizada(date, date, text)",
+      "md5": "ca5ff42cefa7a9d87a615883fb358b43",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.cierre_externo_anulado(uuid)",
+      "md5": "25764138a845f5f72e1eeb1d4fdd8ff5",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.contadores_crudos_leads_citas()",
+      "md5": "34e0ae16a95912e5a5eedd4da845e288",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.conversion_episodios(timestamp with time zone, timestamp with time zone, date, boolean, uuid[], numeric)",
+      "md5": "e75b09c50ce3743b6dc88fde9e57ac8a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.conversion_mensual_pct_para_series(date)",
+      "md5": "edba2730bb493ecb83323c9ba6697fda",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.conversion_mensual_por_vendedor(timestamp with time zone, timestamp with time zone, boolean, uuid[], numeric)",
+      "md5": "bbbf7c29e7fcf90945a0735bdc4ea25c",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.fusion_estado_jsonb(uuid, uuid)",
+      "md5": "9cc2996ce00e7b0ef73597b4a5800ee6",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.fusion_impacto(uuid, uuid)",
+      "md5": "8f48cae159dee0ea157ba45e2a833e04",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.inversiones_empresa_coherente()",
+      "md5": "4873bebdf14f507e7f9200aa5b676b7f",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_cartera_por_vendedor(date)",
+      "md5": "c1a0bab01e474af758f0feff8819414f",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_conversiones_implementacion(date, date, text)",
+      "md5": "a7bbf47ebc9e03a1ec67cf4088152382",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_distribucion_leads_autorizada(date, date, smallint)",
+      "md5": "8d4abfc9625c0c48ae39564db84cda0a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "crm_metricas_bridge=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_distribucion_leads_core(date, date, timestamp with time zone)",
+      "md5": "d14feacc69c28ed79215d9682459be47",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_distribucion_leads_v2_core(date, date, timestamp with time zone)",
+      "md5": "7408cb964af34dfb091108c5a7062cc4",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_distribucion_leads_v3_core(date, date, timestamp with time zone)",
+      "md5": "be2290576ef7f8947f3b4d3a9db846a7",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.metricas_reuniones_implementacion(date, date)",
+      "md5": "6e8935eae3cf1a4c049a93cb20e1f3bd",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.produccion_mes_por_vendedor(timestamp with time zone, timestamp with time zone, uuid)",
+      "md5": "b71910d2af0cb7a257d44faef612b8c9",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.trg_restaurar_operacion_antes_borrar_contrato()",
+      "md5": "ccaa7f8e007f8a4feffaf9dea5c0d435",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "private.vigia_analitica_leads_citas()",
+      "md5": "7aa37c8d1f207340ac17d9f162252a5c",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.actualizar_contrato(uuid, jsonb, jsonb)",
+      "md5": "6184aad4be1b234db83b096e08e92428",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.actualizar_contrato_con_cuenta_producto(uuid, uuid, jsonb, jsonb)",
+      "md5": "c786d25a9aca26f6a818dd57abe6ef72",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.crear_contrato(jsonb, jsonb)",
+      "md5": "2a01831a4a96158a89fbe8ffee6d7007",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.actualizar_contrato_producto(uuid, uuid, jsonb, jsonb)",
+      "md5": "7128b0ebb65497e67c56d5383988b512",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.actualizar_numero_contrato(uuid, text, text, text)",
+      "md5": "84ba035d9888b7d4b5494c82b8e04b00",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.cerrar_contrato(uuid, text, uuid)",
+      "md5": "ddd192d8885e2ed03cb11b45a20f3041",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.crear_contrato_producto(uuid, jsonb, jsonb)",
+      "md5": "58f41209f1cedf46198e7c76903f7bbb",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.dashboard_admin_metricas()",
+      "md5": "ef386335167a6357014a76706ebadd08",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.directorio_ranking_analistas()",
+      "md5": "7111bb424cdcf2fb1eb5329688a53e0b",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.directorio_top_clientes()",
+      "md5": "1f5c4c19aae1d7703f93fe35d6726f42",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.marcar_contrato_demo(uuid, boolean, text)",
+      "md5": "8f3ebaefbf88f1edfdc15e7f5444b1c0",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.marcar_contratos_vencidos()",
+      "md5": "445402aecf9f40e785b5923397bcb700",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.metricas_directorio()",
+      "md5": "01664e165d8740328d44d4bede07a44a",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "firma": "public.reasignar_analista_contrato(uuid, uuid, text)",
+      "md5": "f37824754c5beb905065f47f8ef5fafe",
+      "owner": "postgres",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "tabla": "crm.cierres_externos",
+      "nombre": "trg_audit_cierres_externos",
+      "funcion": "private.log_audit_sin_secretos()",
+      "definicion": "CREATE TRIGGER trg_audit_cierres_externos AFTER INSERT OR DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.log_audit_sin_secretos('documento')"
+    },
+    {
+      "tabla": "crm.inversion_titulares",
+      "nombre": "trg_audit_inversion_titulares",
+      "funcion": "private.log_audit_crm()",
+      "definicion": "CREATE TRIGGER trg_audit_inversion_titulares AFTER INSERT OR DELETE OR UPDATE ON crm.inversion_titulares FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "nombre": "trg_audit_inversiones",
+      "funcion": "private.log_audit_crm()",
+      "definicion": "CREATE TRIGGER trg_audit_inversiones AFTER INSERT OR DELETE OR UPDATE ON crm.inversiones FOR EACH ROW EXECUTE FUNCTION private.log_audit_crm()"
+    },
+    {
+      "tabla": "crm.cierres_externos",
+      "nombre": "trg_cierres_externos_00_inmutables",
+      "funcion": "private.trg_cierres_externos_inmutables()",
+      "definicion": "CREATE TRIGGER trg_cierres_externos_00_inmutables BEFORE DELETE OR UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.trg_cierres_externos_inmutables()"
+    },
+    {
+      "tabla": "crm.inversion_titulares",
+      "nombre": "trg_inversion_titular_coherente",
+      "funcion": "private.inversion_titular_coherente()",
+      "definicion": "CREATE TRIGGER trg_inversion_titular_coherente BEFORE INSERT OR UPDATE ON crm.inversion_titulares FOR EACH ROW EXECUTE FUNCTION private.inversion_titular_coherente()"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "nombre": "trg_inversiones_empresa_coherente",
+      "funcion": "private.inversiones_empresa_coherente()",
+      "definicion": "CREATE TRIGGER trg_inversiones_empresa_coherente BEFORE INSERT OR UPDATE ON crm.inversiones FOR EACH ROW EXECUTE FUNCTION private.inversiones_empresa_coherente()"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "nombre": "trg_inversiones_touch",
+      "funcion": "private.set_actualizado_en_crm()",
+      "definicion": "CREATE TRIGGER trg_inversiones_touch BEFORE UPDATE ON crm.inversiones FOR EACH ROW EXECUTE FUNCTION private.set_actualizado_en_crm()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_audit_contratos",
+      "funcion": "log_audit_change()",
+      "definicion": "CREATE TRIGGER trg_audit_contratos AFTER INSERT OR DELETE OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION log_audit_change()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_validar_transicion_estado",
+      "funcion": "validar_transicion_estado_contrato()",
+      "definicion": "CREATE TRIGGER trg_validar_transicion_estado BEFORE UPDATE OF estado ON public.contratos FOR EACH ROW EXECUTE FUNCTION validar_transicion_estado_contrato()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_00_documental_congelado",
+      "funcion": "private.proteger_contrato_documental()",
+      "definicion": "CREATE TRIGGER trg_contratos_00_documental_congelado BEFORE DELETE OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.proteger_contrato_documental()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_05_restaurar_operacion",
+      "funcion": "private.trg_restaurar_operacion_antes_borrar_contrato()",
+      "definicion": "CREATE TRIGGER trg_contratos_05_restaurar_operacion BEFORE DELETE ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.trg_restaurar_operacion_antes_borrar_contrato()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_actualizado_en",
+      "funcion": "set_actualizado_en()",
+      "definicion": "CREATE TRIGGER trg_contratos_actualizado_en BEFORE UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION set_actualizado_en()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_analista_solo_por_la_puerta",
+      "funcion": "private.trg_contratos_analista_solo_por_la_puerta()",
+      "definicion": "CREATE TRIGGER trg_contratos_analista_solo_por_la_puerta BEFORE UPDATE OF analista_cierre_id ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_analista_solo_por_la_puerta()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_demo_no_nace_marcado",
+      "funcion": "private.trg_contratos_demo_no_nace_marcado()",
+      "definicion": "CREATE TRIGGER trg_contratos_demo_no_nace_marcado BEFORE INSERT ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_demo_no_nace_marcado()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_demo_solo_por_la_puerta",
+      "funcion": "private.trg_contratos_demo_solo_por_la_puerta()",
+      "definicion": "CREATE TRIGGER trg_contratos_demo_solo_por_la_puerta BEFORE UPDATE OF es_demo ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_demo_solo_por_la_puerta()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_operacion_cartera_commit",
+      "funcion": "private.trg_contrato_exige_operacion_cartera()",
+      "definicion": "CREATE CONSTRAINT TRIGGER trg_contratos_operacion_cartera_commit AFTER INSERT ON public.contratos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.trg_contrato_exige_operacion_cartera()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_producto_snapshot",
+      "funcion": "private.trg_contratos_producto_snapshot()",
+      "definicion": "CREATE TRIGGER trg_contratos_producto_snapshot BEFORE INSERT OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_producto_snapshot()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_zz_observar_rentabilidad",
+      "funcion": "private.trg_contratos_observar_rentabilidad()",
+      "definicion": "CREATE CONSTRAINT TRIGGER trg_contratos_zz_observar_rentabilidad AFTER INSERT OR UPDATE OF tasa_anual, categoria, cliente_id, capital, moneda, fecha_inicio, fecha_vencimiento ON public.contratos DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION private.trg_contratos_observar_rentabilidad()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_definir_periodo_comercial_contrato",
+      "funcion": "private.definir_periodo_comercial_contrato()",
+      "definicion": "CREATE TRIGGER trg_definir_periodo_comercial_contrato BEFORE INSERT OR UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.definir_periodo_comercial_contrato()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_proteger_contratos",
+      "funcion": "proteger_campos_inmutables()",
+      "definicion": "CREATE TRIGGER trg_proteger_contratos BEFORE UPDATE ON public.contratos FOR EACH ROW EXECUTE FUNCTION proteger_campos_inmutables()"
+    },
+    {
+      "tabla": "crm.cierres_externos",
+      "nombre": "trg_cierres_f4_inmutables",
+      "funcion": "private.f4_fuente_inmutable()",
+      "definicion": "CREATE TRIGGER trg_cierres_f4_inmutables BEFORE UPDATE ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.f4_fuente_inmutable()"
+    },
+    {
+      "tabla": "crm.cierres_externos",
+      "nombre": "trg_cierres_f4_sincronizar",
+      "funcion": "private.f4_sincronizar_cierre()",
+      "definicion": "CREATE TRIGGER trg_cierres_f4_sincronizar AFTER UPDATE OF monto, moneda, cooperativa, numero_transaccion, referencia_externa, vence_en, nota, anulado_en ON crm.cierres_externos FOR EACH ROW EXECUTE FUNCTION private.f4_sincronizar_cierre()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_000_f4_reconocer",
+      "funcion": "private.f4_contrato_reconocer()",
+      "definicion": "CREATE TRIGGER trg_contratos_000_f4_reconocer BEFORE INSERT ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.f4_contrato_reconocer()"
+    },
+    {
+      "tabla": "contratos",
+      "nombre": "trg_contratos_f4_vincular",
+      "funcion": "private.f4_contrato_vincular()",
+      "definicion": "CREATE TRIGGER trg_contratos_f4_vincular AFTER INSERT ON public.contratos FOR EACH ROW EXECUTE FUNCTION private.f4_contrato_vincular()"
+    }
+  ],
+  "vistas": [],
+  "permisos": [
+    {
+      "acl": null,
+      "rls": true,
+      "tabla": "crm.cierres_externos"
+    },
+    {
+      "acl": null,
+      "rls": true,
+      "tabla": "crm.inversion_titulares"
+    },
+    {
+      "acl": null,
+      "rls": true,
+      "tabla": "crm.inversiones"
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "tabla": "contratos"
+    }
+  ],
+  "comisiones": {
+    "tablas": [],
+    "funciones": []
+  },
+  "limites": [
+    "Inventario de catálogo y referencias SQL explícitas; no es análisis dinámico de SQL arbitrario. Triggers genéricos se incluyen por pg_trigger.",
+    "No hay motor/registro de comisión identificado en este esquema; pendiente localizar fuente externa, no se inventa una regla de liquidación."
+  ],
+  "sha256Oraculo": "435b2db1b7bc2595ac24e8ec0ea2c46725f2811417b8e596bb83d29e8dcc003b"
+}

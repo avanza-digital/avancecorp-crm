@@ -1,0 +1,15 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "e47326c2-8a7b-4731-9751-76438ac481f2",
+  "terminadoEn": "2026-09-08T17:27:29.011Z",
+  "candadoRealDePerfil": true,
+  "revisionFallidaSinEfectos": true,
+  "reintentoTrasLiberar": true,
+  "gucReutilizadoNoAutorizaAlineacion": true,
+  "camposPrivilegiadosSiguenCongelados": true,
+  "revisionesNoSeEditanNiBorran": true,
+  "dosRevisionesConDatosHashYSagaIntactos": true,
+  "versionViejaRechazada": true,
+  "responsableRevisadoEnFuente": true,
+  "accesoEInversionUnicos": true
+}

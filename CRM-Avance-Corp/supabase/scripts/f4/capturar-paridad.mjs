@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { writeFileSync, existsSync } from 'node:fs';
@@ -44,7 +45,7 @@ if (modo === 'antes') {
   assert.deepEqual(foto, leer('paridad-antes.json'), 'F4 alteró el circuito o las cifras anteriores');
 }
 const evidencia = {
-  entorno: 'avancecorp-f4-bank', momento: modo, capturadoEn: new Date().toISOString(),
+  entorno, momento: modo, capturadoEn: new Date().toISOString(),
   sha256: createHash('sha256').update(JSON.stringify(foto)).digest('hex'),
   contratos: 4, cierres: 2, filasCapital: 6, cuotas: 52,
   capitalTotalPEN: foto.capital.reduce((s, x) => s + x.monto, 0),
@@ -52,5 +53,5 @@ const evidencia = {
   fuentesYReglasIguales: modo === 'despues',
   alcance: 'Paridad de antecedentes y upgrades. No cubre todavía renovación, comisión, Auth ni aceptación completa G4.',
 };
-writeFileSync(new URL(`../evidencia-f4/2026-09-07-paridad-${modo}.json`, import.meta.url), `${JSON.stringify(evidencia, null, 2)}\n`);
+writeFileSync(new URL(`../evidencia-f4/paridad-${modo}-${new Date().toISOString().replaceAll(':','-')}.json`, import.meta.url), `${JSON.stringify(evidencia, null, 2)}\n`,{flag:'wx'});
 console.log(`Paridad ${modo}: 6 fuentes, PEN 8000, 52 cuotas y elegibilidad de upgrades comprobados.`);

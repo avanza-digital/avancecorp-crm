@@ -1,9 +1,11 @@
+import { entorno } from './banco-local.mjs';
 // Iteraciones aditivas del banco sintético; la reconstrucción usa la candidata completa.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
+assert.equal(entorno, 'avancecorp-f4-bank', 'El instalador de transición sólo corresponde al banco de desarrollo');
 const opciones={
   cotitulares:{modulo:'10-cotitulares-neutrales.sql',antes:'candidata-antes-cotitular-neutral.sql',cambios:['crm.crear_contrato_con_cuenta_pdf_v2']},
   correcciones:{modulo:'11-correccion-solicitud.sql',antes:'candidata-antes-correccion.sql',cambios:['private.inversion_solicitud_resultado','crm.preparar_inversion_fn','crm.confirmar_inversion_fn','private.f4_fuente_inmutable']},
@@ -34,7 +36,7 @@ ${reemplazos.filter(f=>!delModulo.some(m=>m.nombre===f.nombre)).map(f=>f.definic
 ${process.argv[2]==='correcciones'?"revoke all on function crm.confirmar_inversion_revisada_fn(uuid,integer) from public,anon,authenticated,service_role;grant execute on function crm.confirmar_inversion_revisada_fn(uuid,integer) to authenticated;":''}
 notify pgrst,'reload schema';commit;`);
 writeFileSync(new URL(`../evidencia-f4/ampliacion-${process.argv[2]}-${randomUUID()}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',aplicadoEn:new Date().toISOString(),produccionModificada:false,
+  entorno,aplicadoEn:new Date().toISOString(),produccionModificada:false,
   funcionesPreviasComprobadas:antes.length,reemplazadas:reemplazos.map(f=>f.nombre),
   sha256Modulo:createHash('sha256').update(modulo).digest('hex'),sha256Candidata:createHash('sha256').update(candidata).digest('hex'),
 },null,2)+'\n',{flag:'wx'});

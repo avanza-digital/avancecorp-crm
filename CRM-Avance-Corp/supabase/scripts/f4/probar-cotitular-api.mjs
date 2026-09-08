@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Solo ensaya denegaciones sobre un UUID inexistente: nunca cambia un contrato.
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
@@ -16,7 +17,7 @@ for(const [rol,opciones] of [['anon',{}],['authenticated',{token}],['service_rol
  pruebas.push({rol,status:r.status,codigo:r.data.code});
 }
 writeFileSync(new URL(`../evidencia-f4/cotitular-api-${randomUUID()}.json`,import.meta.url),JSON.stringify({
- entorno:'avancecorp-f4-bank',terminadoEn:new Date().toISOString(),pruebas,contratoInexistente:true,
+ entorno,terminadoEn:new Date().toISOString(),pruebas,contratoInexistente:true,
  sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
  produccionModificada:false,limite:'Denegación HTTP de tres roles en API local; el login de la cuenta sintética puede actualizar datos de sesión Auth.',
 },null,2)+'\n',{flag:'wx'});

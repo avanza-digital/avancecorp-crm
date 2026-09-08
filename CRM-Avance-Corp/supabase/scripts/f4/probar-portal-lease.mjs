@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Simula que se perdió la respuesta del primer reclamo, antes de conocer su token.
 // Espera el lease REAL del servidor: no edita estados, versiones ni relojes SQL.
 import assert from 'node:assert/strict';
@@ -54,7 +55,7 @@ assert.equal(sql(`select count(*) from crm.inversiones where inversionista_id=${
 assert.equal(estadoAcceso(c.solicitud).saga, 'enlazado');
 guardar(`portal-lease-${ejecucion}.json`, c);
 writeFileSync(new URL(`../evidencia-f4/portal-lease-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(),
+  entorno, ejecucion, terminadoEn: new Date().toISOString(),
   perdidaDePrimerReclamoConfirmado: true, sinTokenRecuperadoPorElCliente: true,
   reintentoAntesDeLeaseRechazado: true, leaseOriginal: inicial.leaseHasta,
   leaseVersionYEstadoSinAlterarDuranteEspera: true, recuperadoSinTokenTrasVencimientoReal: true,

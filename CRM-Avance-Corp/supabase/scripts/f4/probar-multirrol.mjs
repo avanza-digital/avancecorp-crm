@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID,createHash} from 'node:crypto';
 import {readFileSync,writeFileSync} from 'node:fs';
@@ -78,7 +79,7 @@ try{
  });
  caso('Los ensayos con rollback conservan perfiles, equipo, atribución y fuentes',()=>assert.equal(sql(foto),antes));
 }finally{assert.equal(originalSql(foto),antes);}
-writeFileSync(new URL(`../evidencia-f4/multirrol-${copia.id}.json`,import.meta.url),JSON.stringify({entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,
+writeFileSync(new URL(`../evidencia-f4/multirrol-${copia.id}.json`,import.meta.url),JSON.stringify({entorno,baseCopia:copia.nombre,
  terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
  limite:'Fixture Superadmin sintética sin login ni contraseña; cambios de perfil por UPDATE autorizado, rol y baja mediante RPC reales bajo claims SQL. Todos los casos revierten su transacción.',
 },null,2)+'\n',{flag:'wx'});

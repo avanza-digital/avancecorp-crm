@@ -21,6 +21,7 @@
     "crm.preparar_inversion_fn",
     "crm.revisar_solicitud_inversion_fn",
     "crm.solicitud_inversion_fn",
+    "private.backfill_multiempresa_ejecutar",
     "private.capital_episodios",
     "private.cierre_anulado",
     "private.f4_alineacion_perfil_permitida",

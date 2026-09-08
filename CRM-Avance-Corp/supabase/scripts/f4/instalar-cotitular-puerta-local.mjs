@@ -1,9 +1,11 @@
+import { entorno } from './banco-local.mjs';
 // Solo la iteración ACL del banco sintético. La reconstrucción usa la candidata.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
+assert.equal(entorno, 'avancecorp-f4-bank', 'El instalador de transición sólo corresponde al banco de desarrollo');
 const modulo=readFileSync(new URL('./09-cotitular-puerta.sql',import.meta.url),'utf8');
 const {archivo}=JSON.parse(readFileSync(new URL('./ultima-migracion.json',import.meta.url),'utf8'));
 assert(/^\d{14}_crm_f4_.*\.sql$/.test(archivo));
@@ -25,7 +27,7 @@ sql(`begin;set local lock_timeout='5s';
   notify pgrst,'reload schema';commit;`);
 const aplicadoEn=new Date().toISOString();
 writeFileSync(new URL(`../evidencia-f4/cotitular-puerta-instalacion-${randomUUID()}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',aplicadoEn,cambioSoloAcl:true,produccionModificada:false,
+  entorno,aplicadoEn,cambioSoloAcl:true,produccionModificada:false,
   sha256Modulo:createHash('sha256').update(modulo).digest('hex'),
   sha256Candidata:createHash('sha256').update(candidata).digest('hex'),funcionesSinCambios:funciones.length,
 },null,2)+'\n',{flag:'wx'});

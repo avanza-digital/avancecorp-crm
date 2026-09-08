@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Checkpoint de la ampliación técnica PDF del 07/09/2026. No ejecuta oráculos.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -90,7 +91,7 @@ const documentos = [
 ].map(archivar);
 
 const checkpoint = {
-  entorno: 'avancecorp-f4-bank', capturadoEn: new Date().toISOString(),
+  entorno, capturadoEn: new Date().toISOString(),
   estado: 'avance-parcial-G4-abierto', objetivo: 'activo; no completado',
   candidata: archivar(candidataRuta), funciones: 34, funcionesNuevas: 17,
   checkpointAnterior: referencia(anteriorRuta), referenciasAnterioresComprobadas: referenciasAnteriores,

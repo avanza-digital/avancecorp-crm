@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -34,7 +35,7 @@ const capturadoEn = new Date().toISOString();
 const head = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
 assert.equal(head.status, 0);
 writeFileSync(new URL(`../evidencia-f4/auditoria-comprobaciones-${capturadoEn.replaceAll(':','-')}.json`, import.meta.url),
-  JSON.stringify({ entorno: 'avancecorp-f4-bank', capturadoEn, headComparado: head.stdout.trim(), manifiestoPdf, indices,
+  JSON.stringify({ entorno, capturadoEn, headComparado: head.stdout.trim(), manifiestoPdf, indices,
     consumidoresPrimeraConversion, jobs, banderas,
     limite: 'Captura local. No certifica inventario de clientes externos, tratamiento histórico ni todas las versiones futuras de plantilla.',
   }, null, 2) + '\n', { flag: 'wx' });

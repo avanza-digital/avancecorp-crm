@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -46,7 +47,7 @@ sql(`begin;
   commit;`);
 const aplicadoEn=new Date().toISOString();
 writeFileSync(new URL(`../evidencia-f4/iteracion-funciones-${aplicadoEn.replaceAll(':','-')}-${randomUUID()}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', aplicadoEn, archivo,
+  entorno, aplicadoEn, archivo,
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'), funciones: solicitadas,
   cambioSoloFunciones: true, banderaInversiones: false, produccionModificada: false,
 }, null, 2) + '\n', {flag:'wx'});

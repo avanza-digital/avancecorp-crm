@@ -1,3 +1,4 @@
+import { apiUrl } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { crearHandlerContratoPdfV2, normalizarUrlFirmadaV2 } from '../../functions/crm-contrato-pdf-v2/handler.ts';
 import { http } from './banco-local.mjs';
@@ -8,7 +9,7 @@ globalThis.self ??= globalThis;
 const { renderizarContratoPdfV2 } = await import('../../functions/crm-contrato-pdf-v2/renderer.ts');
 
 export const pdfBucket = 'contratos-generados';
-const origen = 'http://127.0.0.1:56321';
+const origen = apiUrl;
 const respuestaBackend = r => r.ok ? { data: r.data, error: null } : { data: null,
   error: { ...r.data, statusCode: Number(r.data?.statusCode ?? r.status) } };
 const rutaObjeto = path => `/storage/v1/object/${pdfBucket}/${path}`;

@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomInt, randomUUID, createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -123,7 +124,7 @@ try {
  });
 } finally {assert.equal(sqlOriginal('select private.idem_hash(coalesce(jsonb_agg(to_jsonb(t) order by id),\'[]\')) from crm.inversiones t'),fotoOriginal);}
 writeFileSync(new URL(`../evidencia-f4/cotitulares-neutrales-${copia.id}.json`,import.meta.url),JSON.stringify({
- entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,
+ entorno,baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,
  sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
  limite:'SQL con rol/claims sintéticos; alta y snapshot, corrección, fusión y conciliación por RPC reales. No procesa el PDF ni duplica Storage.',
 },null,2)+'\n',{flag:'wx'});

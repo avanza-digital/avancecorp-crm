@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -96,7 +97,7 @@ assert.equal(despues.jobs, antes.jobs + 2);
 bien('Dos fuentes Avance adicionales sin recrear identidad, lead ni Auth');
 guardar(`avance-existente-${ejecucion}.json`, resultados);
 writeFileSync(new URL(`../evidencia-f4/avance-existente-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+  entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   alcance: 'Escritor Avance para perfil existente, cuenta/cronograma/titularidad documental/Portal. El job PDF se reserva; falta probar su generación y recuperación real y el alta Auth desde cooperativa.',
 }, null, 2) + '\n');
 console.log(`Avance existente F4: ${pruebas.length} comprobaciones, contratos PEN/USD, Portal autorizado y recuperación transaccional conformes.`);

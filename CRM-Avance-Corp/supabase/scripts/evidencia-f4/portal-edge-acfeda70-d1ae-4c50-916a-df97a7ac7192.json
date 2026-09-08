@@ -1,0 +1,12 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "acfeda70-d1ae-4c50-916a-df97a7ac7192",
+  "terminadoEn": "2026-09-08T17:26:49.758Z",
+  "entrypointDenoPorHTTPReal": true,
+  "autorizacionReal": true,
+  "camposDeAutoridadNoAdmitidos": true,
+  "gerenciaConservaResponsableDeLaPersona": true,
+  "accesoContratoYReintentoUnicos": true,
+  "portalPropio": true,
+  "limite": "No prueba UI F5 ni el procesamiento del PDF ni publicación en producción."
+}

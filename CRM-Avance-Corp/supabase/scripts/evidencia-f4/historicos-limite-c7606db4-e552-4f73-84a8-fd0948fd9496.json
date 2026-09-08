@@ -1,0 +1,22 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_limite_c7606db4e552",
+  "ejecucion": "c7606db4-e552-4f73-84a8-fd0948fd9496",
+  "terminadoEn": "2026-09-08T17:35:42.720Z",
+  "resultado": {
+    "fuentes": 100,
+    "msCenso": 163.646,
+    "personas": 97,
+    "contratos": 4,
+    "msReintento": 1.305,
+    "msAplicacion": 473.018,
+    "fuentesSinPersona": 96,
+    "privilegioRestituido": true,
+    "presupuestoSentenciaMs": 4000
+  },
+  "md5Funcion": "a33595d4ac8c2c12ad6fcf9463db605e",
+  "sha256Oraculo": "c8975470397b6415503b3ede111c738d61d3fe84ee66abba4a094c8fb0edb5e7",
+  "bancoOriginalSinCambios": true,
+  "creacionPorRpcReal": true,
+  "limite": "Medición en copia SQL sintética local; no garantiza tiempo productivo ni sustituye el ensayo del corpus F2 histórico y del entorno final."
+}

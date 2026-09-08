@@ -1,0 +1,25 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "terminadoEn": "2026-09-08T17:33:40.950Z",
+  "pruebas": [
+    {
+      "rol": "anon",
+      "status": 401,
+      "codigo": "42501"
+    },
+    {
+      "rol": "authenticated",
+      "status": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "service_role",
+      "status": 403,
+      "codigo": "42501"
+    }
+  ],
+  "contratoInexistente": true,
+  "sha256Oraculo": "293f643182551244a9bc357c62fe6fe3921eba14d235421f87402891d8ba88b8",
+  "produccionModificada": false,
+  "limite": "Denegación HTTP de tres roles en API local; el login de la cuenta sintética puede actualizar datos de sesión Auth."
+}

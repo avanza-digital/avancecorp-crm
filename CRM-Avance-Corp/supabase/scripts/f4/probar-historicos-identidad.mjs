@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Carreras con las RPC reales de F3, exclusivamente en una copia SQL sintética.
 import assert from 'node:assert/strict';
 import { randomInt, randomUUID, createHash } from 'node:crypto';
@@ -136,7 +137,7 @@ try {
 }
 const sha=x=>createHash('sha256').update(x).digest('hex');
 writeFileSync(new URL(`../evidencia-f4/historicos-identidad-${copia.id}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),pruebas,
+  entorno,baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),pruebas,
   bancoOriginalSinCambios:true,funcionesF3SinModificar:huellasF3,huellasOriginales:JSON.parse(antes),
   sha256Oraculo:sha(readFileSync(new URL(import.meta.url))),
   limites:['RPC SQL reales con rol y claims ficticios; no es una prueba HTTP ni duplica Storage/cron/replicación.',

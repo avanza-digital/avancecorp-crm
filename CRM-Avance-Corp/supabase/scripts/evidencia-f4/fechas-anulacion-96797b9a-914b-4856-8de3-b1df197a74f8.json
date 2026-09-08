@@ -1,0 +1,34 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "96797b9a-914b-4856-8de3-b1df197a74f8",
+  "terminadoEn": "2026-09-08T17:21:10.124Z",
+  "pruebas": [
+    {
+      "nombre": "Fechas futuras/infinita y montos inválidos rechazados antes de preparar",
+      "casos": 5
+    },
+    {
+      "nombre": "Mes abierto: se usa la fecha comercial anterior al registro",
+      "monto": 450,
+      "moneda": "PEN",
+      "fechaComercial": "2026-08-20",
+      "fechaImputacion": "2026-08-20"
+    },
+    {
+      "nombre": "Mes sellado: ajuste posterior con fecha comercial conservada",
+      "monto": 450,
+      "moneda": "PEN",
+      "fechaComercial": "2026-07-15",
+      "fechaImputacion": "2026-09-08"
+    },
+    {
+      "nombre": "Anulación comercial conserva Capital, conversión inicial e historia, y sincroniza la inversión",
+      "capitalConservadoPEN": 450
+    },
+    {
+      "nombre": "Sello y fotografías anteriores idénticos después del ajuste y la anulación",
+      "sinReescritura": true
+    }
+  ],
+  "alcance": "Fechas cooperativas, meses sellados, lectura mensual y anulación de inversión adicional. Anulación inicial, renovaciones, comisión y carrera sello/alta aún requieren pruebas específicas."
+}

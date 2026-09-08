@@ -1,0 +1,70 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "baseCopia": "f4_cotitulares_1b43a86bba21",
+  "terminadoEn": "2026-09-08T17:48:32.663Z",
+  "pruebas": [
+    {
+      "nombre": "Alta real con snapshot vincula cotitular verificado aunque tenga No insistir",
+      "conforme": true
+    },
+    {
+      "nombre": "Dos filas documentales conservan dos procedencias y una sola membresía",
+      "conforme": true
+    },
+    {
+      "nombre": "Cotitular igual al principal conserva rol principal, Auth y leads",
+      "conforme": true
+    },
+    {
+      "nombre": "Datos de procedencia no se filtran en lector ni auditoría",
+      "conforme": true
+    },
+    {
+      "nombre": "Conciliación repetida no duplica relaciones ni reescribe fuentes",
+      "conforme": true
+    },
+    {
+      "nombre": "Procedencia y fuente quedan inmutables incluso con válvula documental",
+      "conforme": true
+    },
+    {
+      "nombre": "Corrección real F3 no vuelve a resolver el documento antiguo del cotitular",
+      "conforme": true
+    },
+    {
+      "nombre": "Documento histórico reutilizado no transfiere una procedencia existente",
+      "conforme": true
+    },
+    {
+      "nombre": "Fusión real F3 conserva el origen y sigue la canónica vigente",
+      "conforme": true
+    },
+    {
+      "nombre": "Fusión cotitular con principal deduplica membresía y conserva procedencias",
+      "conforme": true
+    },
+    {
+      "nombre": "Verificación posterior permite recuperar pendiente por RPC sin rehacer PDF",
+      "conforme": true
+    },
+    {
+      "nombre": "Fuera de ámbito, Directorio y cliente no leen ni concilian cotitularidad",
+      "conforme": true
+    },
+    {
+      "nombre": "Documento ocupado no rompe el alta financiera; queda recuperable",
+      "conforme": true
+    },
+    {
+      "nombre": "Tras liberar el candado se recupera una sola procedencia",
+      "conforme": true
+    },
+    {
+      "nombre": "Mantenimiento histórico exige SQL privilegiado y F4 apagada",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "f3653873c7c13595392138d42890774c037ae69e80d6910d9420c2c0d186267d",
+  "limite": "SQL con rol/claims sintéticos; alta y snapshot, corrección, fusión y conciliación por RPC reales. No procesa el PDF ni duplica Storage."
+}

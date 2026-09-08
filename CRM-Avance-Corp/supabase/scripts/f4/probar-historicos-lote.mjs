@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -306,7 +307,7 @@ probar('Las actas finalizadas son inmutables y una incompleta no puede confirmar
     gen_random_uuid(),repeat('0',64),'[]'),'23514');
 `);
 
-const resultado = { entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+const resultado = { entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   definiciones: definiciones.map(d => ({ nombre: d.nombre, sha256: sha(d.contenido) })),
   sha256Oraculo: sha(readFileSync(new URL(import.meta.url))), huellasAntesYDespues: antes,
   transaccionesRevertidas: true, probadoSobreInstalacionCompleta: carga.instalado,

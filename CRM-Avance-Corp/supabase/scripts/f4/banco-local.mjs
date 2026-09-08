@@ -4,14 +4,21 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 
-export const banco = '/private/tmp/avancecorp-f4-bank';
-export const contenedor = 'supabase_db_avancecorp-f4-bank';
+// Dos destinos cerrados: banco de desarrollo y reconstrucción independiente.
+// Nunca recibe una URL, ruta o nombre Docker elegido por el llamador.
+const seleccion = process.env.F4_BANCO ?? 'desarrollo';
+assert(['desarrollo','reconstruccion'].includes(seleccion), 'Banco F4 no permitido');
+export const entorno = seleccion === 'desarrollo' ? 'avancecorp-f4-bank' : 'avancecorp-f4-reconstruccion';
+export const banco = `/private/tmp/${entorno}`;
+export const contenedor = `supabase_db_${entorno}`;
+export const apiUrl = seleccion === 'desarrollo' ? 'http://127.0.0.1:56321' : 'http://127.0.0.1:57321';
+const dbUrl = seleccion === 'desarrollo' ? 'postgresql://postgres:postgres@127.0.0.1:56322/postgres' : 'postgresql://postgres:postgres@127.0.0.1:57322/postgres';
 const inicio = readFileSync(join(banco, 'start.log'), 'utf8').split('\n')
   .filter(linea => linea.startsWith('{')).map(linea => JSON.parse(linea))
   .find(dato => dato.API_URL && dato.SERVICE_ROLE_KEY);
 assert(inicio, 'Primero debe arrancarse el banco local F4');
-assert.equal(inicio.API_URL, 'http://127.0.0.1:56321');
-assert.equal(inicio.DB_URL, 'postgresql://postgres:postgres@127.0.0.1:56322/postgres');
+assert.equal(inicio.API_URL, apiUrl);
+assert.equal(inicio.DB_URL, dbUrl);
 assert.equal(JSON.parse(Buffer.from(inicio.SERVICE_ROLE_KEY.split('.')[1], 'base64url')).iss,
   'supabase-demo', 'El oráculo solo acepta las claves locales de Supabase');
 

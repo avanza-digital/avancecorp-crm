@@ -1,0 +1,248 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "verificadoEn": "2026-09-08T17:39:52.374Z",
+  "funcionesComprobadas": 48,
+  "funcionesNuevas": 30,
+  "cuerposIgualesACandidata": true,
+  "propietariosConservados": true,
+  "rlsYGrantsTablasF4": true,
+  "ejecutablesUsuario": [
+    "crm.preparar_inversion_fn",
+    "crm.confirmar_inversion_fn",
+    "crm.acceso_inversion_fn",
+    "crm.solicitud_inversion_fn",
+    "crm.corregir_solicitud_inversion_fn",
+    "crm.confirmar_inversion_revisada_fn",
+    "crm.inversion_cotitulares_fn",
+    "crm.conciliar_cotitulares_inversion_fn",
+    "crm.revisar_solicitud_inversion_fn",
+    "private.f4_comprobante_autorizado",
+    "private.f4_comprobante_visible"
+  ],
+  "fuenteYPrincipalCoherentes": true,
+  "cantidades": {
+    "auth": 41,
+    "leads": 43,
+    "cierres": 53,
+    "personas": 52,
+    "contratos": 52,
+    "inversiones": 99,
+    "solicitudes": 69,
+    "pdfPendientes": 36
+  },
+  "banderas": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": true
+  },
+  "auxiliarTitularesSinAccesoApi": true,
+  "modulosIgualesACandidata": [
+    "01-base.sql",
+    "02-confirmacion.sql",
+    "03-coherencia.sql",
+    "04-avance.sql",
+    "05-acceso-portal.sql",
+    "06-revision-responsable.sql",
+    "07-historicos.sql",
+    "08-historicos-lote.sql",
+    "09-cotitular-puerta.sql",
+    "10-cotitulares-neutrales.sql",
+    "11-correccion-solicitud.sql"
+  ],
+  "huellasFunciones": [
+    {
+      "nombre": "crm.anular_cierre_avance",
+      "md5": "23e3be1974e08a1ec8aa61abe53242c3"
+    },
+    {
+      "nombre": "crm.altas_nuevas_por_analista_fn",
+      "md5": "ac3136ea697cc25fc7263cb8b23ad8f8"
+    },
+    {
+      "nombre": "crm.cierres_estado_fn",
+      "md5": "5f6eca13b613aaa40b459ea56f7c8ac5"
+    },
+    {
+      "nombre": "crm.cierres_externos_fn",
+      "md5": "c46cc5e818295f375671127d03516dd3"
+    },
+    {
+      "nombre": "crm.acceso_inversion_fn",
+      "md5": "02cf922aff3aa75e86a09d2c53d328fc"
+    },
+    {
+      "nombre": "crm.convertir_lead_externo",
+      "md5": "27ec3f489e934163383e3eea8236c096"
+    },
+    {
+      "nombre": "crm.corregir_cierre_externo",
+      "md5": "7ba65cc72e57dd87bc17d7ce6e55bc53"
+    },
+    {
+      "nombre": "crm.crear_contrato_con_cuenta",
+      "md5": "e52e632b340992c18d09e8aad18ed67e"
+    },
+    {
+      "nombre": "crm.crear_contrato_con_cuenta_pdf_v2",
+      "md5": "5f1e76a8359332fad606a855171aac3a"
+    },
+    {
+      "nombre": "private.inversion_validar_datos",
+      "md5": "2013f9f76bb49864cb878c65af5b815d"
+    },
+    {
+      "nombre": "crm.inversion_cotitulares_fn",
+      "md5": "8bdd331bd4269ee0986aeec6ab2e1916"
+    },
+    {
+      "nombre": "crm.enlazar_lead_inversionista_fn",
+      "md5": "1159aa8443c117c8c9384a2bcf17ae2b"
+    },
+    {
+      "nombre": "crm.solicitud_inversion_fn",
+      "md5": "b7e3f9158400c7ef1f9f04eb4b365950"
+    },
+    {
+      "nombre": "private.inversiones_escritura_bajo_candado",
+      "md5": "cf559da325be6be049a70d67d6212d81"
+    },
+    {
+      "nombre": "private.inversion_persona_contexto",
+      "md5": "3b950c0ed8f4faa07695bc8ea05d3f17"
+    },
+    {
+      "nombre": "private.inversion_persona_autorizada",
+      "md5": "758d7a5b9f6e3aaacfa0b240d8e1d3c9"
+    },
+    {
+      "nombre": "crm.corregir_solicitud_inversion_fn",
+      "md5": "407a461cefe15ce207269561ada13828"
+    },
+    {
+      "nombre": "private.f4_alineacion_perfil_permitida",
+      "md5": "75cbe07adc5d6d2e5c694753d28b1946"
+    },
+    {
+      "nombre": "private.inversion_historica_estado",
+      "md5": "2b57432c993eaa8e1599bf874427b743"
+    },
+    {
+      "nombre": "private.inversion_historica_aplicar",
+      "md5": "a33595d4ac8c2c12ad6fcf9463db605e"
+    },
+    {
+      "nombre": "private.f4_contrato_vincular",
+      "md5": "bf2739e0311c0766868a249ea6408760"
+    },
+    {
+      "nombre": "private.inversion_datos_portal",
+      "md5": "170faaab19c7cc78e187909ffe039adb"
+    },
+    {
+      "nombre": "private.f4_proteger_lote_historico",
+      "md5": "eb5762796436c2fa1683c9b53a4d49b5"
+    },
+    {
+      "nombre": "crm.confirmar_inversion_revisada_fn",
+      "md5": "b165a0fd3a8250a560dc78989ece8ccc"
+    },
+    {
+      "nombre": "private.f4_proteger_origen_cotitular",
+      "md5": "7658f35a70db46d31f6dc0b5be522506"
+    },
+    {
+      "nombre": "private.inversion_cotitular_estado",
+      "md5": "c9d5903ba6d2e7ecdc241f5fc683059c"
+    },
+    {
+      "nombre": "private.inversion_cotitulares_vincular",
+      "md5": "b12325e29c1c17191abdc9645a56a20a"
+    },
+    {
+      "nombre": "crm.conciliar_cotitulares_inversion_fn",
+      "md5": "c590acb717f98bc458eb4790e99ebee0"
+    },
+    {
+      "nombre": "private.inversion_cotitulares_historicos",
+      "md5": "69e2079b2e269cd9fb6cc50470a1dc87"
+    },
+    {
+      "nombre": "private.backfill_multiempresa_ejecutar",
+      "md5": "2660569b15f9a8fcb73cae54ac52cef8"
+    },
+    {
+      "nombre": "private.capital_episodios",
+      "md5": "c9e58c1da9dd7a5d52991c9e47dc19d5"
+    },
+    {
+      "nombre": "private.cierre_anulado",
+      "md5": "8427218ba089192bd9702e052492f70b"
+    },
+    {
+      "nombre": "private.leads_before_update",
+      "md5": "e0b68ad528a15ddfe80197bdac1c180b"
+    },
+    {
+      "nombre": "public.crear_contrato",
+      "md5": "2a01831a4a96158a89fbe8ffee6d7007"
+    },
+    {
+      "nombre": "private.metricas_conversiones_implementacion",
+      "md5": "a7bbf47ebc9e03a1ec67cf4088152382"
+    },
+    {
+      "nombre": "crm.preparar_inversion_fn",
+      "md5": "a81f43ed97a56df68a0dcdcaa5cb6376"
+    },
+    {
+      "nombre": "crm.contrato_eliminacion_preparar",
+      "md5": "af442522c5e04ea7556c5d3e2ec25c22"
+    },
+    {
+      "nombre": "public.proteger_campos_inmutables",
+      "md5": "2354b43aa3eec47c6ccca035450e4d41"
+    },
+    {
+      "nombre": "crm.anular_cierre_externo",
+      "md5": "f568b78fc917d56cb00b5f88efd85deb"
+    },
+    {
+      "nombre": "crm.revisar_solicitud_inversion_fn",
+      "md5": "40cc9950771ffcbcb7e4f5fe061d00ab"
+    },
+    {
+      "nombre": "private.inversion_solicitud_resultado",
+      "md5": "8dfe4fb7ee03e0726432d2561425e346"
+    },
+    {
+      "nombre": "private.f4_comprobante_autorizado",
+      "md5": "d7b02ff3ce4806ecb370aa9eaebb5bac"
+    },
+    {
+      "nombre": "private.f4_fuente_inmutable",
+      "md5": "8297c2b4e954d79034629c13d200a353"
+    },
+    {
+      "nombre": "private.inversion_vincular_fuente",
+      "md5": "a05cc3b655d508fa1831b101632bd1f7"
+    },
+    {
+      "nombre": "crm.confirmar_inversion_fn",
+      "md5": "e69358303d4b6220354460965179c28d"
+    },
+    {
+      "nombre": "private.f4_comprobante_visible",
+      "md5": "37e470aecbb449ee51bd380d88ee0b17"
+    },
+    {
+      "nombre": "private.f4_sincronizar_cierre",
+      "md5": "e16aa6e51ab2981dd794496b9f0d5d88"
+    },
+    {
+      "nombre": "private.f4_contrato_reconocer",
+      "md5": "b73f3e61366b1b93f7be8258bd364b3f"
+    }
+  ],
+  "sha256Candidata": "8c91823548e8336a8fdef628186cf7cac8d63f727e1bc3d273e2e8c3240cfc07",
+  "limite": "Comprobación estructural acotada: no sustituye las pruebas de comportamiento, los permisos dinámicos ni el gate G4."
+}

@@ -1,0 +1,34 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "04141f57-3c14-4556-97a0-d212cb38ef0e",
+  "terminadoEn": "2026-09-08T17:33:38.897Z",
+  "pruebas": [
+    {
+      "empresa": "avance",
+      "vetoPorRpcVigente": true,
+      "actores": [
+        "vendedor",
+        "gerencia"
+      ],
+      "relecturaConfirmada": "mismo resultado",
+      "nuevasYPreparadasBloqueadas": true,
+      "equipoAjenoRechazado": true,
+      "historiaPdfYAuthIntactos": true,
+      "conforme": true
+    },
+    {
+      "empresa": "qorilazo",
+      "vetoPorRpcVigente": true,
+      "actores": [
+        "vendedor",
+        "gerencia"
+      ],
+      "relecturaConfirmada": "mismo resultado",
+      "nuevasYPreparadasBloqueadas": true,
+      "equipoAjenoRechazado": true,
+      "historiaPdfYAuthIntactos": true,
+      "conforme": true
+    }
+  ],
+  "limite": "Veto posterior a la confirmación en Avance y cooperativa. No sustituye los ensayos pendientes de cambio de rol, multirrol o baja del responsable. Quedan dos solicitudes ficticias preparadas intencionalmente."
+}

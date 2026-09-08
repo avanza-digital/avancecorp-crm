@@ -1,5 +1,7 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { sql, literal as q, leer, http } from './banco-local.mjs';
 
 const f = leer('fixtures.json');
@@ -38,11 +40,11 @@ sql(`begin;
 assert.equal(sql(`select jsonb_build_object('contratos',(select count(*) from public.contratos),
   'inversiones',(select count(*) from crm.inversiones),'borrados',(select count(*) from private.contrato_eliminaciones),
   'jobs',(select count(*) from private.contrato_pdf_jobs))`), antes);
-writeFileSync(new URL('../evidencia-f4/2026-09-07-conservacion-historia.json', import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', terminadoEn: new Date().toISOString(),
+writeFileSync(new URL(`../evidencia-f4/conservacion-historia-${randomUUID()}.json`, import.meta.url), JSON.stringify({
+  entorno, terminadoEn: new Date().toISOString(),
   borradoDeContratoVinculadoRechazadoAntesDeReservar: true,
   fuenteConBorradoReservadoNoSeVincula: true,
   contratosInversionesPdfEHistorialConservados: true,
   alcance: 'Protección mutua entre enlace económico y preparación del borrado. No equivale al backfill histórico F2.',
-}, null, 2) + '\n');
+}, null, 2) + '\n', {flag:'wx'});
 console.log('Historia F4: borrado rechazado antes de Storage y enlace rechazado si el borrado ya se preparó; cero efectos finales del ensayo.');

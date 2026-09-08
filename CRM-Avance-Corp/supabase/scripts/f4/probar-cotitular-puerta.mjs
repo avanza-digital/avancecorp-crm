@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -75,7 +76,7 @@ try {
   assert.deepEqual(JSON.parse(sql(funcionesSql)),cuerpos);
 } finally {assert.equal(sqlOriginal(foto),original,'Banco original sin cambios');}
 writeFileSync(new URL(`../evidencia-f4/cotitular-puerta-${copia.id}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,
+  entorno,baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,
   cuerposSinModificar:cuerpos,sha256Modulo:createHash('sha256').update(modulo).digest('hex'),
   sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
   bancoOriginalSinCambios:true,produccionModificada:false,

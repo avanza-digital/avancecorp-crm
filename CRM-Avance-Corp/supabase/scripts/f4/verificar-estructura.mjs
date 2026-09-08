@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -63,7 +64,7 @@ const cantidades = JSON.parse(sql(`select jsonb_build_object('auth',(select coun
 const verificadoEn = new Date().toISOString();
 const archivo = `estructura-${verificadoEn.replaceAll(':', '-')}.json`;
 writeFileSync(new URL(`../evidencia-f4/${archivo}`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', verificadoEn, funcionesComprobadas: funciones.length,
+  entorno, verificadoEn, funcionesComprobadas: funciones.length,
   funcionesNuevas: nuevas.length, cuerposIgualesACandidata: true, propietariosConservados: true,
   rlsYGrantsTablasF4: true, ejecutablesUsuario: [...ejecutablesUsuario],
   fuenteYPrincipalCoherentes: true, cantidades,

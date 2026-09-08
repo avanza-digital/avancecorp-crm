@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -92,7 +93,7 @@ assert.equal(lector.cierres_mes_total, Number(sql(`select count(*) from crm.cier
 pruebas.push({ nombre: 'Anulación comercial conserva Capital, conversión inicial e historia, y sincroniza la inversión', capitalConservadoPEN: 450 });
 pruebas.push({ nombre: 'Sello y fotografías anteriores idénticos después del ajuste y la anulación', sinReescritura: true });
 writeFileSync(new URL(`../evidencia-f4/fechas-anulacion-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+  entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   alcance: 'Fechas cooperativas, meses sellados, lectura mensual y anulación de inversión adicional. Anulación inicial, renovaciones, comisión y carrera sello/alta aún requieren pruebas específicas.',
 }, null, 2) + '\n');
 console.log('Fechas F4: registro anterior y mes sellado correctos; anulación conserva Capital e historia sin afectar el cierre inicial.');

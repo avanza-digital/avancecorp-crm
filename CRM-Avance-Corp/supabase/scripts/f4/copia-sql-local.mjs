@@ -7,7 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { banco, contenedor, literal } from './banco-local.mjs';
 
-export function crearCopiaSql(etiqueta) {
+export function crearCopiaSql(etiqueta, {baseOrigen='postgres'} = {}) {
+  assert(baseOrigen==='postgres'||/^f4_pre_fcuatro_[a-f0-9]{12}$/.test(baseOrigen), 'Origen de copia no permitido');
   assert(/^[a-z_]{1,24}$/.test(etiqueta));
   const id = randomUUID();
   const nombre = `f4_${etiqueta}_${id.replaceAll('-', '').slice(0,12)}`;
@@ -24,7 +25,7 @@ export function crearCopiaSql(etiqueta) {
   try {
     // pg_cron solo puede instalarse en la base del planificador; sus tareas y
     // replicación no forman parte de este ensayo y no deben arrancar duplicadas.
-    ejecutar(['pg_dump','-U','supabase_admin','-d','postgres','-Fc',
+    ejecutar(['pg_dump','-U','supabase_admin','-d',baseOrigen,'-Fc',
       '--exclude-extension=pg_cron','--exclude-schema=cron','--no-publications','--no-subscriptions'],
     { stdio: ['ignore',fd,'pipe'] });
   } finally { closeSync(fd); }
@@ -35,8 +36,8 @@ export function crearCopiaSql(etiqueta) {
       { stdio: [entrada,'pipe','pipe'] });
   } finally { closeSync(entrada); }
 
-  function sql(texto) {
-    return ejecutar(['psql','-X','-qAt','-U','postgres','-d',nombre,
+  function sql(texto, {admin=false} = {}) {
+    return ejecutar(['psql','-X','-qAt','-U',admin?'supabase_admin':'postgres','-d',nombre,
       '-v','ON_ERROR_STOP=1','-f','-'], { input: `set timezone='America/Lima';\n${texto}\n` });
   }
   function abrirSesion(aplicacion) {

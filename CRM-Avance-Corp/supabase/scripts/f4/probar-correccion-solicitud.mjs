@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -146,7 +147,7 @@ try {
  assert.equal(consulta(race3.id).estado,'confirmada');
 } finally {assert.equal(originalSql(fotoSql),original);}
 writeFileSync(new URL(`../evidencia-f4/correccion-solicitud-${copia.id}.json`,import.meta.url),JSON.stringify({
- entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,
+ entorno,baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,bancoOriginalSinCambios:true,
  sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
  limite:'SQL con rol/claims sintéticos y metadatos Storage del ensayo. Preparación, corrección, reserva Auth, revisión y confirmación por RPC real; no envía correo ni procesa bytes PDF.',
 },null,2)+'\n',{flag:'wx'});

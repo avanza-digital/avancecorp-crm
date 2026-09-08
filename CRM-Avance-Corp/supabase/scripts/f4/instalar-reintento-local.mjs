@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Iteración acotada del banco existente; una base nueva instala la candidata completa.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -5,6 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
 
+assert.equal(entorno, 'avancecorp-f4-bank', 'El instalador de transición sólo corresponde al banco de desarrollo');
 const anterior = readFileSync('/private/tmp/avancecorp-f4-bank/candidata-antes-reintento-confirmado.sql', 'utf8');
 const manifiesto = JSON.parse(readFileSync(new URL('./ultima-migracion.json', import.meta.url), 'utf8'));
 const candidata = readFileSync(new URL(`../../migrations/${manifiesto.archivo}`, import.meta.url), 'utf8');
@@ -44,7 +46,7 @@ sql(`begin;
 const instaladoEn = new Date().toISOString();
 const sha = texto => createHash('sha256').update(texto).digest('hex');
 writeFileSync(new URL(`../evidencia-f4/iteracion-reintento-${instaladoEn.replaceAll(':', '-')}.json`, import.meta.url),
-  JSON.stringify({ entorno: 'avancecorp-f4-bank', instaladoEn, funciones: cambios,
+  JSON.stringify({ entorno, instaladoEn, funciones: cambios,
     sha256Anterior: sha(anterior), sha256Candidata: sha(candidata),
     soloFunciones: true, banderaInversiones: false, produccionModificada: false }, null, 2) + '\n', { flag: 'wx' });
 console.log('Reintento F4 local: cuatro funciones ajustadas y un auxiliar privado; escritor apagado.');

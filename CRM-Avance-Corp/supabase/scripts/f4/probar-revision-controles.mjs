@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -99,7 +100,7 @@ assert.equal(sql(`select count(*) from auth.users where lower(email)=${q(c.datos
 assert.equal(sql(`select count(*) from crm.inversiones where inversionista_id=${q(c.persona)} and contrato_id is not null`), '1');
 guardar(`revision-controles-${ejecucion}.json`, c);
 writeFileSync(new URL(`../evidencia-f4/revision-controles-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(),
+  entorno, ejecucion, terminadoEn: new Date().toISOString(),
   candadoRealDePerfil: true, revisionFallidaSinEfectos: true, reintentoTrasLiberar: true,
   gucReutilizadoNoAutorizaAlineacion: true, camposPrivilegiadosSiguenCongelados: true,
   revisionesNoSeEditanNiBorran: true, dosRevisionesConDatosHashYSagaIntactos: true,

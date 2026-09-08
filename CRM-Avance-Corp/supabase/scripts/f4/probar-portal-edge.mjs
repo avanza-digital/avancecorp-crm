@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Comprueba el entrypoint Deno servido por el CLI, además del handler ensayado.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -36,7 +37,7 @@ assert.equal(sql(`select count(*) from auth.users where lower(email)=${q(c.datos
 assert.equal(sql(`select count(*) from crm.inversiones where inversionista_id=${q(c.persona)} and contrato_id is not null`), '1');
 guardar(`portal-edge-${ejecucion}.json`, c);
 writeFileSync(new URL(`../evidencia-f4/portal-edge-${ejecucion}.json`, import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(),
+  entorno, ejecucion, terminadoEn: new Date().toISOString(),
   entrypointDenoPorHTTPReal: true, autorizacionReal: true, camposDeAutoridadNoAdmitidos: true,
   gerenciaConservaResponsableDeLaPersona: true, accesoContratoYReintentoUnicos: true, portalPropio: true,
   limite: 'No prueba UI F5 ni el procesamiento del PDF ni publicación en producción.',

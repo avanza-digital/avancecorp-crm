@@ -1,0 +1,90 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_identidad_4abf77cea955",
+  "ejecucion": "4abf77ce-a955-4e53-9655-2bbd0a669214",
+  "terminadoEn": "2026-09-08T17:34:18.075Z",
+  "pruebas": [
+    {
+      "nombre": "Corrección primero: lote exige recenso y conserva dinero/PDF",
+      "esperaObservada": true,
+      "mapaObsoletoRechazado": true,
+      "recensoRecuperable": true
+    },
+    {
+      "nombre": "Lote primero: corrección posterior conserva inversión y documento contractual",
+      "esperaObservada": true,
+      "unaInversion": true,
+      "previsualizacionFusionRenovada": false
+    },
+    {
+      "nombre": "Fusión primero: recenso enlaza solo la identidad canónica",
+      "esperaObservada": true,
+      "mapaObsoletoRechazado": true,
+      "recensoRecuperable": true
+    },
+    {
+      "nombre": "Lote primero: fusión exige otra previsualización y conserva la misma inversión",
+      "esperaObservada": true,
+      "unaInversion": true,
+      "previsualizacionFusionRenovada": true
+    },
+    {
+      "nombre": "Reasignación primero: censo obsoleto rechazado sin cambiar atribución histórica",
+      "esperaObservada": true,
+      "mapaObsoletoRechazado": true,
+      "recensoRecuperable": true
+    },
+    {
+      "nombre": "Lote primero: reasignación posterior conserva la atribución original",
+      "esperaObservada": true,
+      "unaInversion": true,
+      "previsualizacionFusionRenovada": false
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "funcionesF3SinModificar": [
+    {
+      "md5": "49d73e13f8969161060e2ce2b669a85a",
+      "firma": "crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)"
+    },
+    {
+      "md5": "814368bf22e2b9f2383bcce878a66fea",
+      "firma": "crm.fusion_previsualizar_fn(uuid,uuid)"
+    },
+    {
+      "md5": "6919e7ce8960f7d985ac03ba033c347e",
+      "firma": "crm.fusionar_inversionistas_fn(uuid,uuid,text,text)"
+    },
+    {
+      "md5": "8d5f2dc4630ba00bf5dc26d7cbef82a8",
+      "firma": "crm.reasignar_responsable_relacion_fn(uuid,uuid,text)"
+    }
+  ],
+  "huellasOriginales": {
+    "crm.leads": "e91f0541539866012a7ff792749f1b516d22552a104cb60b10bd12fed47e63cf",
+    "crm.inversiones": "09742e159ca165f09d657dc5bd637391cd5d0595d070199edc60b501c4646c18",
+    "public.perfiles": "46cfa4ec9e2ea0644a2bcb13da4498db5a4411bd7221ed726ddb37882aedc0be",
+    "public.contratos": "82a9cfa76f087d5989f449faee74a97555735219dedbfae8e6110e53b88c3bf7",
+    "public.documentos": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "crm.inversionistas": "c9727b4dc959410c35243781dad0cd3590040ca95338f82f02f0e67cba2c6bd9",
+    "crm.cierres_externos": "211607354e0588062e09452750eeafebacb30ddffb2b55fbc2cd79ad6eeb3253",
+    "private.contrato_pdfs": "0a38631721b8ec1eeb18b726e080e55028a043a88808d0e9491a45deababb67e",
+    "crm.multiempresa_flags": "7145f5379c48d99470673e766e008802f80efe7a82ba8c1994326e39a11d6a5b",
+    "crm.inversion_titulares": "ceef9abd4ab66ed9a08ac971d1a68da68aae5f5560694fb3577971ba45aedd49",
+    "public.cronograma_pagos": "0b2b5ceb876e31ff9c2ee07ce966e9d744dc2e389721f3cc754b338878c05699",
+    "crm.inversion_solicitudes": "8cfcbf1fb23ae5f02a8485e12cc4ce629313e14f0957ed78ca8e3575c2b08c93",
+    "private.contrato_pdf_jobs": "e3f55cfdc85d5b9904ce64517d95b81a0e0c0a90e480440daed03e14b1613cfc",
+    "public.contrato_titulares": "154b4e6e8013f828b1ef548706b4ea3ec66fe0b6bb5d4ffa793fc5af43381c71",
+    "crm.inversionista_fusiones": "9de60a362cca8ab6c81094f7339a536ba59a7d60d9077b9403550a18b7221c5d",
+    "crm.inversion_backfill_lotes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "crm.inversionista_operaciones": "47c0bad52f7832f5e88532cc651920af3acb05848e318f740243dd3bbd217b78",
+    "crm.backfill_multiempresa_mapa": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "crm.inversionista_responsables": "cfb4f545dcb00b1e12795227c62ffb48bad3c13da6811b95690e8f00e98b9df6",
+    "crm.inversionista_identificadores": "a815f2177f9a9327548f72e56479713495289d9b5c6216249ed4b57ce1d06412"
+  },
+  "sha256Oraculo": "09eaf624b745b00e5a5703ef24ac0a5697aec44051215bfedc3b56fc268150e6",
+  "limites": [
+    "RPC SQL reales con rol y claims ficticios; no es una prueba HTTP ni duplica Storage/cron/replicación.",
+    "No cubre todavía todos los escritores administrativos ni constituye reconstrucción del corpus F2. G4 abierto."
+  ]
+}

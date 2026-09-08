@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
@@ -106,7 +107,7 @@ try {
     console.log(`Conforme: cambio de equipo en ${corte}, revisión y recuperación de la misma solicitud.`);
   }
   writeFileSync(new URL(`../evidencia-f4/revision-responsable-${ejecucion}.json`, import.meta.url), JSON.stringify({
-    entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+    entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
     limite: 'Cubre reasignación con documento estable. Fusión, corrección de documento y PDF siguen pendientes.',
   }, null, 2) + '\n');
   console.log('Revisión F4: cinco cortes, ámbito actual, historial y atribución conservados.');

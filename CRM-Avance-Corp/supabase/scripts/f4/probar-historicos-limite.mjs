@@ -1,3 +1,4 @@
+import { entorno } from './banco-local.mjs';
 // Lote máximo: 100 cierres distintos o 96 cierres y cuatro contratos anteriores.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -95,7 +96,7 @@ try {
     where ce.numero_transaccion like ${q(prefijo+'%')} and t.rol='principal'`),String(nCierres));
 } finally {assert.equal(sqlOriginal(foto),antes,'El banco original debe permanecer intacto');}
 writeFileSync(new URL(`../evidencia-f4/historicos-limite-${copia.id}.json`,import.meta.url),JSON.stringify({
-  entorno:'avancecorp-f4-bank',baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),resultado,
+  entorno,baseCopia:copia.nombre,ejecucion:copia.id,terminadoEn:new Date().toISOString(),resultado,
   md5Funcion:sql("select md5(pg_get_functiondef('private.inversion_historica_aplicar(uuid,jsonb)'::regprocedure))"),
   sha256Oraculo:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex'),
   bancoOriginalSinCambios:true,creacionPorRpcReal:true,
