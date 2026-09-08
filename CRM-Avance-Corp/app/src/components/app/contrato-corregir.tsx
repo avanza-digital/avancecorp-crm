@@ -321,6 +321,10 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const guardar = async () => {
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
     setError(null)
+    if (rangoTasa?.bloqueoContrato) {
+      setError(rangoTasa.bloqueoContrato)
+      return
+    }
     if (!productoCondicionId) {
       setError('El contrato no tiene una condición de producto confirmada.')
       return
@@ -822,7 +826,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           // (P0001). Mientras cargan los co-titulares NO se puede guardar — un
           // guardado muy rápido con el editor vacío los borraría (lección del portal).
           disabled={
-            enviando ||
+            enviando || !!rangoTasa?.bloqueoContrato ||
             estadoTitulares === 'cargando' ||
             !ventana.vigente ||
             (!esCondicionOriginal &&

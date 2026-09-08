@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SolicitudTasa } from '@/data/crm-api'
 
@@ -8,12 +9,15 @@ const dobles = vi.hoisted(() => ({
   solicitar: vi.fn(),
   responder: vi.fn(),
   refetch: vi.fn(),
+  refetchSolicitudes: vi.fn(),
+  solicitudesPending: false,
+  solicitudesError: false,
 }))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/data/crm-queries', () => ({
   useResolucionTasa: () => ({ refetch: dobles.refetch, ...dobles.resolucion }),
-  useSolicitudesTasa: () => ({ data: dobles.solicitudes, isPending: false, isError: false, refetch: vi.fn() }),
+  useSolicitudesTasa: () => ({ data: dobles.solicitudes, isPending: dobles.solicitudesPending, isError: dobles.solicitudesError, refetch: dobles.refetchSolicitudes }),
   useSolicitarTasa: () => ({ mutateAsync: dobles.solicitar, isPending: false }),
   useResponderTopeTasa: () => ({ mutateAsync: dobles.responder, isPending: false }),
 }))
@@ -46,12 +50,14 @@ import { useState } from 'react'
 function ArnesInterno({ demo, correccion, tasaInicial }: { demo: boolean; correccion?: { tasaActual: number }; tasaInicial: string }) {
   const [tasa, setTasa] = useState(tasaInicial)
   const [rango, setRango] = useState<string>('')
+  const [bloqueo, setBloqueo] = useState<string | null>(null)
   return (
     <>
       <TasaPolitica clienteId="cli-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION} tasa={tasa} onTasaChange={setTasa}
-        onRangoChange={(r) => setRango(`${r.modo}:${r.minimo}-${r.maximo}`)} demo={demo} {...(correccion ? { correccion } : {})} />
+        onRangoChange={(r) => { setRango(`${r.modo}:${r.minimo}-${r.maximo}`); setBloqueo(r.bloqueoContrato) }} demo={demo} {...(correccion ? { correccion } : {})} />
       <span data-testid="rango">{rango}</span>
       <span data-testid="tasa">{tasa}</span>
+      <button type="button" disabled={!!bloqueo}>Crear contrato</button>
     </>
   )
 }
@@ -60,8 +66,12 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
   beforeEach(() => {
     dobles.resolucion = { data: RES, isPending: false, isError: false }
     dobles.solicitudes = []
+    dobles.solicitudesPending = false
+    dobles.solicitudesError = false
     dobles.solicitar.mockReset()
     dobles.responder.mockReset()
+    dobles.refetch.mockReset()
+    dobles.refetchSolicitudes.mockReset()
   })
 
   it('bloquea la tasa en la base del núcleo y expone el rango [base, base]', async () => {
@@ -118,6 +128,85 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/pendiente de Gerencia/)
     expect(screen.queryByRole('button', { name: 'Solicitar tasa superior' })).toBeNull()
     expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+  })
+
+  it('el motivo admite escritura, espacios y saltos de línea, y el envío bloquea aunque la relectura quede vacía', async () => {
+    const user = userEvent.setup()
+    dobles.solicitar.mockResolvedValue(solicitud({ es_mia: false })) // la mutación SQL no incluye flags de lectura
+    render(<Arnes />)
+    await user.click(screen.getByRole('button', { name: 'Solicitar tasa superior' }))
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    await user.type(screen.getByLabelText('Tasa solicitada (%)'), '17')
+    const motivo = screen.getByLabelText('Motivo comercial')
+    await user.click(motivo)
+    await user.type(motivo, 'Cliente referido{Enter}Mantiene su inversión')
+    expect(motivo).toHaveFocus()
+    expect(motivo).toHaveValue('Cliente referido\nMantiene su inversión')
+    await user.click(screen.getByRole('button', { name: 'Enviar a Gerencia' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/pendiente de Gerencia/))
+    expect(dobles.solicitar).toHaveBeenCalledWith(expect.objectContaining({ motivo: 'Cliente referido\nMantiene su inversión' }))
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+  })
+
+  it('una pendiente con otro capital sigue bloqueando esta operación; la aprobación libera el bloqueo', () => {
+    dobles.solicitudes = [solicitud({ capital: 99999 })]
+    const vista = render(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    dobles.solicitudes = [solicitud({ estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 17 })]
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+    expect(screen.getByTestId('tasa')).toHaveTextContent('17')
+  })
+
+  it('una solicitud recibida desde otra pestaña cierra el borrador y su aprobación permite continuar', () => {
+    const vista = render(<Arnes />)
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar tasa superior' }))
+    dobles.solicitudes = [solicitud()]
+    vista.rerender(<Arnes />)
+    expect(screen.queryByLabelText('Motivo comercial')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    dobles.solicitudes = [solicitud({ estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 17 })]
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+  })
+
+  it.each(['rechazada', 'vencida'] as const)('una respuesta %s libera el contrato a la base', (estado) => {
+    dobles.solicitudes = [solicitud()]
+    const vista = render(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    dobles.solicitudes = [solicitud({ estado, estado_efectivo: estado, vigente: false, resuelta_en: new Date().toISOString() })]
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+    expect(screen.getByTestId('tasa')).toHaveTextContent('15')
+  })
+
+  it('sin poder consultar solicitudes no permite crear; permite reintentar', () => {
+    dobles.solicitudesPending = true
+    const vista = render(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    dobles.solicitudesPending = false
+    dobles.solicitudesError = true
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar solicitudes' }))
+    expect(dobles.refetchSolicitudes).toHaveBeenCalledTimes(1)
+    expect(dobles.refetch).not.toHaveBeenCalled()
+    dobles.solicitudesError = false
+    vista.rerender(<Arnes />)
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
+  })
+
+  it('un error al refrescar conserva el motivo y el foco del borrador', async () => {
+    const user = userEvent.setup()
+    const vista = render(<Arnes />)
+    await user.click(screen.getByRole('button', { name: 'Solicitar tasa superior' }))
+    await user.type(screen.getByLabelText('Motivo comercial'), 'Cliente referido')
+    dobles.solicitudesError = true
+    vista.rerender(<Arnes />)
+    expect(screen.getByLabelText('Motivo comercial')).toHaveValue('Cliente referido')
+    expect(screen.getByLabelText('Motivo comercial')).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Enviar a Gerencia' })).toBeDisabled()
   })
 
   it('con un tope de Gerencia, ofrece aceptar o declinar (D6)', async () => {

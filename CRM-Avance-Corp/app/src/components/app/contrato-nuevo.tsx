@@ -279,6 +279,11 @@ export function ContratoNuevo({
   // consulta, que puede quedarse con una foto vieja si la relectura falla.
   const [domicilioConfirmado, setDomicilioConfirmado] = useState(false)
   const esDemo = pdfDatosDemo != null
+  const bloqueoTasa = esDemo ? null : rangoTasa?.bloqueoContrato ?? (
+    !rangoTasa || rangoTasa.minimo == null || rangoTasa.maximo == null || ['cargando', 'error', 'incompleta'].includes(rangoTasa.modo)
+      ? 'Todavía no se conoce la tasa base de la política. Espera o reintenta antes de crear el contrato.'
+      : null
+  )
   // Sin useQueryClient a propósito. En la app real el provider existe (main.tsx
   // envuelve todo), pero varios arneses de prueba montan este componente suelto
   // y exigirlo los rompía. No hace falta: la ficha del cliente se refresca sola
@@ -506,6 +511,10 @@ export function ContratoNuevo({
     }
     if (bloqueoLegalAjeno) {
       reportarError(`${textoBloqueoLegalAjeno} Pídele a Gerencia que lo complete antes de emitir.`)
+      return
+    }
+    if (bloqueoTasa) {
+      reportarError(bloqueoTasa)
       return
     }
     // El N° debe ser EXACTAMENTE 6 dígitos (espejo de analista.js:800-805): sin
@@ -1402,7 +1411,7 @@ export function ContratoNuevo({
           type="submit"
           size="sm"
           disabled={
-            enviando ||
+            enviando || !!bloqueoTasa ||
             motivoCronograma !== null ||
             cuentasPendientes ||
             cuentasReintentando ||
