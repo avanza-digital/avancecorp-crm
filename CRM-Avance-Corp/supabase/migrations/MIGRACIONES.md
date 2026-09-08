@@ -8572,7 +8572,19 @@ Petición de Miguel del 08/09/2026: el motivo comercial debe poder escribirse y,
 - Aprobación de Miguel: «ok dale sii esta bien», en respuesta al SQL mostrado. Preflight productivo con las mismas huellas probadas en banco; postflight confirma solo las dos inserciones aprobadas, owners/ACL conservados, helpers sin EXECUTE de API y trigger diferido activo. Consulta en transacción READ ONLY: una operación pendiente produce P0411. Advisors seguridad 211→211, cero hallazgos nuevos. Evidencia saneada: `supabase/scripts/evidencia-tasa-pendiente/2026-09-08-produccion.json`.
 - Release invocado por Miguel con `/release-crm`: `crm-20260908T171616Z-33a8eda7a4c5`, construido limpio desde Main=`avancecorp/main`=`33a8eda7a4c541732e0f7564e958b76f856800a2`. Gate del commit: 215 archivos / 3079 tests; E2E 2/2. Build público `build-20260908T171616017Z`; SHA-256 `3f3c03a36a9af3cc0683e03c755e4caf2abcfcb8d92ee08e09f7ad2d996160c7`. HTTP: 80 archivos comprobados, tres lecturas de versión correctas, dos ZIP 404, cero fallos. Evidencia `supabase/scripts/evidencia-tasa-pendiente/2026-09-08-publicacion.json`. Respaldo conservado: `crm-20260908T035714Z-b0896c3f8531.zip`.
 
-## 20260908173000 — Contrato PDF · plantilla v8: letra legible (ESCRITA, SIN APLICAR)
+## 20260908173000 — Contrato PDF · plantilla v8: letra legible (APLICADA en producción)
+
+**Estado: ✅ APLICADA Y REGISTRADA EN PRODUCCIÓN el 08/09/2026 (~12:4x Lima) por Miguel con
+`db query --linked --file` (migración + `scripts/registrar-pdf-v8.sql`); registro md5
+`a8237b70…` = archivo; **262 migraciones**. Edge `crm-contrato-pdf-v2` **v13** desplegada antes
+con `--use-api` (48/48 en verde justo antes de subir); smoke posterior: POST sin sesión → 401,
+OPTIONS con origen del CRM → 204. Verificación en solo lectura tras aplicar: default
+`'contrato-aep-17-v8'`, **0** funciones estampando la v7 y **2** la v8, trigger
+`contrato_pdf_jobs_transiciones_validas` en `tgenabled='O'`, los dos CHECK admitiendo la v8,
+**19 reservas** convertidas (todas `pendiente`, sin bytes y sin lease) y **49 jobs v7 intactos**
+(todos `sellado` y con bytes) sobre **124 PDFs sellados** sin tocar. Vuelta atrás:
+`scripts/rollback-pdf-v8.sql` + la edge del árbol actual con `TEMPLATE_VERSION = v7` conservando
+v8 en la lista de LECTURA (la edge v12 original NO lee la v8).**
 
 `20260908173000_crm_contrato_pdf_plantilla_v8_letra_legible.sql`. Sube el cuerpo del contrato de
 **8.6 a 9.6 puntos** (cláusulas 9.4→10.4, título 14→15, tabla de liquidación 7→8.2, cabecera 9→9.5,
