@@ -1,10 +1,10 @@
 // Cierres en cooperativas (COOPAC Qorilazo / Prodelco) — el CONTRATO del front
 // con `crm.cierres_externos_fn` (migración 20260812000259).
 //
-// Qué es un cierre externo: el lead invirtió en una COOPERATIVA, no en Avance.
-// NO existe en el portal (sin perfil, sin correo); vive como lead convertido +
-// una foto inmutable (cooperativa, monto real, documento, quién cobró). Cuenta
-// en la conversión del mes y en la cuota como cualquier cierre Avance.
+// Fuente económica de una inversión en cooperativa. El cierre inicial conserva
+// el lead y su conversión; F4 admite inversiones adicionales sin otro lead,
+// incluso para una persona que ya tiene perfil Avance. El dinero se cuenta por
+// fuente; la conversión sigue las reglas del servidor.
 //
 // Decisiones de contrato que NO son estilo:
 // - `v.object` (no strict) A PROPÓSITO, como la conversión mensual: una clave
@@ -60,7 +60,8 @@ const MonedaSchema = v.picklist(['PEN', 'USD'])
 
 const CierreExternoSchema = v.object({
   cierre_id: UuidSchema,
-  lead_id: UuidSchema,
+  /** Inversión adicional F4: puede existir sin un nuevo lead. */
+  lead_id: v.nullable(UuidSchema),
   cooperativa: CooperativaSchema,
   monto: v.pipe(NumeroRpcSchema, v.minValue(0)),
   moneda: MonedaSchema,
@@ -79,6 +80,10 @@ const CierreExternoSchema = v.object({
   /** null si el perfil del analista ya no se puede resolver (left join). */
   vendedor_nombre: v.nullable(v.string()),
   creado_en: FechaHoraSchema,
+  /** Opcionales para seguir admitiendo la respuesta anterior a F4. */
+  fecha_comercial: v.optional(FechaSchema),
+  fecha_imputacion: v.optional(FechaSchema),
+  es_cierre_inicial: v.optional(v.boolean()),
   /** Anulado por gerencia (fraude o error). Las filas anuladas SÍ viajan —y se
    * marcan en pantalla— aunque no cuenten en `totales`: un analista tiene que
    * poder entender por qué le bajó el total, no encontrarse un hueco. */

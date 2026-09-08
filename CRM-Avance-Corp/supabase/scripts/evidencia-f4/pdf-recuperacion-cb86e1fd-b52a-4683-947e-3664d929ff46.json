@@ -1,0 +1,114 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "cb86e1fd-b52a-4683-947e-3664d929ff46",
+  "verificadoEn": "2026-09-08T18:17:13.073Z",
+  "ensayoOriginal": {
+    "estado": "FAIL",
+    "gruposTerminados": 9,
+    "error": {
+      "nombre": "AssertionError",
+      "mensaje": "PDF Respuesta perdida subir: {\"code\":\"WORKER_LIMIT\",\"message\":\"Worker failed to respond due to a resource limit (please check logs)\"}\n\nfalse !== true\n"
+    }
+  },
+  "recuperacion": {
+    "estado": "PASS",
+    "contratos": [
+      {
+        "etiqueta": "Deno PEN",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "3f24e0c3813bd7685f194419e99024c3e2e2cdd9e360828954983ecb4afb2c6e",
+        "bytes": 871763
+      },
+      {
+        "etiqueta": "Deno USD",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "e6488e25c28d6fee43b341ecf20735f80b2a809ccad98af98629361effbc1ba0",
+        "bytes": 871999
+      },
+      {
+        "etiqueta": "Respuesta perdida subir",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "006144f6dbd8ac28f8983043827fbbc39d2cedcfd3adfc4c762819229f8fefe3",
+        "bytes": 871763
+      },
+      {
+        "etiqueta": "Respuesta perdida contrato_pdf_marcar_subido",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "77220acbf00c56ca4a203c21929305b179ffa1222a5c1ce99877058b59ed6b5f",
+        "bytes": 871766
+      },
+      {
+        "etiqueta": "Fallo transitorio renderizar",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "876937c130195c1f7cffa154e777a3ecad4e38e5131ac88a80074b6c90c1ec93",
+        "bytes": 871762
+      },
+      {
+        "etiqueta": "Fallo transitorio subir",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "0144eafa02badd967de95e4068611fb710a5382f890dec8d63aca3127658d9ca",
+        "bytes": 871771
+      },
+      {
+        "etiqueta": "Fallo transitorio descargar",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "a6bd17f4340783e64cbeda1280ddc6714d882a83c620bb575c75fc9ce99f73fe",
+        "bytes": 871762
+      },
+      {
+        "etiqueta": "Fallo transitorio firmar",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "ddec8a98c79db4ba7e216696c1df20b377c9ebb524fa80645397b8bffc3c014d",
+        "bytes": 871768
+      },
+      {
+        "etiqueta": "Respuesta de sello perdida",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "3066442c9ddebdc0ea4790722e141282bf0530fd0577c9a81117e49bf6dbf28b",
+        "bytes": 871763
+      },
+      {
+        "etiqueta": "Dos generadores concurrentes",
+        "jobOriginalConservado": true,
+        "snapshotOriginalConservado": true,
+        "fuenteInversionPdfYObjetoUnicos": true,
+        "estado": "sellado",
+        "sha256": "8083c01f19bdc1e3753709b5af0c697e5b9e5383a63fd69ae888bcaa2349c171",
+        "bytes": 871761
+      }
+    ]
+  },
+  "procedimiento": "Tras vencer leases reales se reinició únicamente el runtime local con política per_worker predeterminada. Los dos ensure pendientes devolvieron 200; este readback verifica los diez trabajos y sus bytes.",
+  "limites": [
+    "No se cambió el renderer, la plantilla, los recursos, el presupuesto CPU, el reloj, los leases ni estados SQL.",
+    "Una recuperación y una regresión completa posterior no certifican rendimiento productivo ni determinan la causa raíz de WORKER_LIMIT."
+  ],
+  "sha256Oraculo": "38a12ff366e5430768eebaf0cbbececc17e16162443992ac586bd2ef34347c71"
+}

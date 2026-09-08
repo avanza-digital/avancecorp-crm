@@ -1,224 +1,70 @@
-# F4 — aceptación todavía abierta
+# F4 — estado de aceptación
 
-**Checkpoint vigente — 08/09/2026, 00:09 Lima:** históricos instalados en el banco ficticio; **37 funciones, 20 nuevas, cinco tablas nuevas**. Pasaron 7 grupos de censo, 19 de lote y 7 de concurrencia sobre la instalación actual. G4 sigue abierto. La matriz anterior se conserva como antecedente; esta ampliación cubre el lote administrativo y su recuperación, pero no el corpus F2 original ni todos los escritores concurrentes.
+**08/09/2026: candidata técnica implementada, reconstruida y probada; G4 abierto.**
+Falta identificar y contrastar la fuente de cálculo/registro de comisiones y
+comisiones ya liquidadas. Se consultó a Miguel; no se inventó una regla ni un
+registro de pagos. Las tablas de metas, cierres y ajustes de conversión fueron
+trazadas y sus bases selladas comprobadas, pero no acreditan un abono de comisión.
 
-Evidencia: `../evidencia-f4/2026-09-08-continuacion-historicos.json` y `../evidencia-f4/auditoria-historicos-2026-09-08/evaluacion-codex.md`. El desarrollo y sus commits continúan en `/private/tmp/avancecorp-f4-desarrollo` (`codex/f4-cierre`). La candidata SQL final es regenerable y permanece sin versionar; no está aplicada ni activada en producción.
+Artefacto preparado/versionado: `20260907191832_crm_f4_inversiones_base_y_escritores.sql`.
+48 funciones (18 adaptadas, 30 nuevas), 11 módulos y siete tablas nuevas.
+Desarrollo en `codex/f4-cierre`, checkout `/private/tmp/avancecorp-f4-desarrollo`.
+**Sin aplicación, publicación ni encendido productivos.**
 
+## Matriz vigente
 
-Actualizado: 07/09/2026, 22:09 Lima, recuperación PDF ampliada. Entorno exclusivo: `avancecorp-f4-bank`.
-Se construyó, instaló y probó parte del motor; quedan requisitos de cierre pendientes.
+| Requisito | Resultado y evidencia |
+|---|---|
+| Avance→Qorilazo, Qorilazo→Prodelco y segunda inversión sin otro lead | PASS HTTP real: cooperativas, clave/contenido, depósito único y Storage privado; una fuente/inversión/principal. Ensayos originales y reconstrucción independiente. |
+| Contratos Avance PEN/USD y paso Qorilazo→Avance | PASS: contrato, cuenta, cronograma, Auth/Portal y atribución del responsable. Respuestas perdidas y entradas simultáneas conservan una cuenta y fuente. |
+| Permisos, baja, reasignación, sin responsable, lectores heredados | **19 grupos PASS**, [permisos](../evidencia-f4/permisos-dinamicos-6d36b142-c04a-4d80-a2e6-0d7027597c8c.json). Teléfono vivo sigue responsable actual, foto histórica permanece. Directorio solo agregados. Multirrol: 12 grupos, parejas de autoridad publicadas. |
+| Cotitularidad neutral, corrección y fusión | **16 grupos PASS**, [cotitulares](../evidencia-f4/cotitulares-neutrales-ab46e469-e0f0-46ba-8ee6-4e0755f24ec0.json). Procedencia inmutable, duplicados documentales, identidad pendiente/ocupada/reutilizada, fusión y principal. Caso explícito: cotitular de equipo ajeno no obtiene lectura de contrato, inversión ni principal. |
+| Corrección de solicitud preparada | **20 grupos PASS** en ambos bancos: revisión/hash/clave, replay, datos inválidos, autorización, Auth reservado y carreras confirmar/corregir/revisar. La confirmación versionada exige datos vistos; replay confirmado conserva resultado. |
+| Corpus original F2 e históricos | **12 grupos PASS**, [corpus](../evidencia-f4/corpus-f2-d87a38ba-8e92-4a74-a0dd-e65aac22ed47.json): siembra y oráculo originales antes de F4, casos A/B/C/E, resueltos/faltantes/conflictivos, DNI/CE/pasaporte, mapa y capital intactos. Históricos: censo 7, lote 19, concurrencia 7, identidad 6, mantenimiento 8 y límite mixto 100. F2 global rechazado desde instalación. |
+| Renovación, conversión, atribución, demos, anulaciones y fechas | **13 grupos PASS**, [finanzas](../evidencia-f4/finanzas-integral-dd43179a-8770-4d2e-8a5a-8ccffe75036b.json): peso 0.15, una operación elegible por cliente/mes, rango parcial, PEN/USD, anulación inicial Avance/cooperativa, stock conservado, cadena atribuida y ambas carreras sello/alta. Mes lejano abierto mantiene la regla comercial sin tocar sellos ni resultado de metas sellado. |
+| Comisión y comisión ya liquidada | **PENDIENTE**: no se identificó fuente de pagos/regla de comisión. [Catálogo contrastado](../evidencia-f4/revision-integral-catalogo-2026-09-08.json) y evaluación explican por qué `ajustes_mes_cerrado` de conversión no demuestra liquidación. |
+| Inventario de escritores/lectores | PASS: 546 funciones, 26 consumidores directos clasificados, 18 escritores financieros, 97 transitivos y 24 triggers. Guarda de instalación de 20 matches previos con huellas; nuevos consumidores/vistas provocan rollback comprobado por dos mutantes. SQL dinámico arbitrario no queda certificado por este inventario. |
+| Recuperación de acceso y cambio de responsable | PASS Auth/API reales; dos ensayos de reserva de diez minutos reales completos. Regresión posterior al endurecimiento de Portal: alta/reintentos/concurrencia, cuatro vetos y entrypoint Deno PASS. Sin adoptar usuarios ajenos ni editar leases. |
+| PDF real y bytes | **12 grupos / 10 contratos PASS**, [tanda completa](../evidencia-f4/pdf-real-56c6b388-fb71-4f40-8fdb-e3bf88535698.json): Deno, render/upload/download/firma, concurrencia, respuestas perdidas y lease real. Bordes anteriores: 10 grupos / 8 contratos, incluidos antecedentes sin job. |
+| Recuperación después de WORKER_LIMIT | El ensayo `cb86e1fd` original sigue **FAIL tras nueve grupos**. Recuperados sus pendientes; [readback de diez trabajos](../evidencia-f4/pdf-recuperacion-cb86e1fd-b52a-4683-947e-3664d929ff46.json) PASS, mismo job/snapshot/fuente/objeto y bytes. No se modificaron renderer, CPU, reloj ni estado SQL. No se certifica rendimiento productivo. |
+| Presentación documental | PASS inspección de 14 páginas PEN/USD; plantilla, textos, firma, fondo y fuentes intactos. Cotitularidad neutral no se imprimió. Cualquier texto/ubicación nuevos requieren aprobación previa de Miguel. |
+| Compatibilidad con pantalla existente | PASS regresión: el parser admite `lead_id:null` explícito y fechas F4, conserva payload antiguo, rechaza ausencia/UUID inválido. La mini-ficha muestra fecha comercial y no afirma que la persona carece de Portal o genera otra conversión. No sustituye F5. |
+| Reconstrucción y paridad | PASS banco Supabase independiente desde esquema sin datos; semilla Auth/RPC antes de aplicar; candidata íntegra. Cuatro contratos, dos cierres, 52 cuotas, PEN 8000 conservados. Instalaciones completas adicionales en copias pre-F4 para corpus y finanzas. |
+| Reversa operativa/restauración | **6 grupos PASS**, [restauración](../evidencia-f4/restauracion-02a32c29-de01-4532-ab83-2f9d3dc719db.json): F4 OFF, 133 tablas + 27 archivos restaurados en DB/volumen nuevos, datos/cuerpos/ACL/RLS/bytes iguales. No es tercera pila HTTP ni restauración de cron/replicación. No hay DOWN destructivo que borre historia. |
+| Revisión independiente | Claude **CHANGES_REQUESTED**; [evaluación Codex](../evidencia-f4/auditoria-cierre-integral-2026-09-08/evaluacion-codex.md) resuelve cada hallazgo con evidencia, acepta y corrige los confirmados. No hubo revisión adicional de Claude tras esos cambios. G4 no se declara aprobado por el revisor. |
 
-## Objetivo completo
+## Gate de verificación
 
-Una persona identificada registra nuevas inversiones en Avance, Qorilazo y
-Prodelco sin duplicar identidad, lead ni Portal, con fuentes, documentos,
-titularidad, atribución y reglas comerciales correctas. El cierre exige todos
-los recorridos, permisos, concurrencia, recuperación y paridad del plan.
-Las pruebas parciales siguientes **no aprueban G4**.
+El manifiesto `../evidencia-f4/paquete-tecnico-2026-09-08.json` identifica hashes
+del artefacto, módulos, worker, frontend y evidencia seleccionada.
 
-## Lo construido
+- Cuatro gates backend (`check:scripts`, `seed:preflight`, `test:rls:preflight`,
+  `test:edge-preflight`): PASS. Los preflight no sustituyen SQL/HTTP/RLS reales.
+- Handler Portal: ocho tests nuevos de CORS, límite por bytes/stream, errores
+  internos, errores contractuales y conservación del token. Integrados en preflight.
+- Deno PDF: **43 pruebas PASS**; check y formato PASS. El test nuevo comprueba
+  que el rechazo a borrar una inversión explica la conservación antes de Storage.
+- Frontend: lint/typecheck, **3050 tests PASS con dos workers**, configuración
+  de release, build, bundle y duplicados. Cuatro avisos de accesibilidad previos.
+  La primera tanda con máxima concurrencia falló por timeouts; se conserva el
+  hecho y no se cambiaron tests para conseguir la ejecución estable.
+- Tipos DB: 17 nodos introspectados antes/después; se preservaron tipos de otras
+  tareas ausentes del dump del 07/09. No se reemplazó el esquema frontend entero.
+- Estructura: 48 cuerpos iguales a candidata, 30 funciones nuevas con permisos
+  esperados, RLS/grants de siete tablas, auxiliar cotitular sin acceso API.
+- **NOT RUN:** Playwright completo de UI F5 (no se implementó esa fase),
+  aplicación/advisors/gates remotos productivos, comisiones pagadas. No se presentan
+  como aprobados. El build local no constituye publicación.
 
-- Migración candidata `20260907191832_crm_f4_inversiones_base_y_escritores.sql`:
-  preparación por clave/contenido y confirmación transaccional; documentos de
-  cooperativas mediante Storage privado; fuentes y titular principal atómicos.
-- Cierres externos iniciales separados de inversiones adicionales. Índice
-  único solo para el cierre inicial y adaptación acotada de lectores/escritores.
-- Avance usa la puerta publicada `crear_contrato_con_cuenta_pdf_v2`, con flujo
-  libre y snapshot técnico; catálogo opcional. No se vuelve obligatorio.
-- Fecha comercial de cooperativa e imputación posterior cuando su mes está
-  sellado, sin copiar dinero a la tabla relacional ni reescribir el sello.
-- Anulación/corrección externa sincroniza el estado/empresa de la inversión y
-  deja eventos; conserva las reglas ATR-4 de Capital.
-- Contrato vinculado no puede preparar borrado de sus archivos. Una fuente
-  cuyo borrado ya está reservado tampoco puede recibir un vínculo nuevo.
-- `crm.acceso_inversion_fn` vincula el alta del Portal con la solicitud de
-  inversión. Reutiliza la saga Auth de F3: marca de servidor, token, versión y
-  lease. El perfil toma el responsable de la persona aunque registre un superior.
-- Edge `crm-inversion-portal` con actor verificado por Auth y pasos SQL con su
-  JWT. No recibe documento, asesor ni perfil arbitrarios; no almacena el token
-  en claro ni manda correos. Conserva la política de clave temporal del Portal.
-- `crm.revisar_solicitud_inversion_fn` acepta al responsable vigente desde su
-  ámbito actual y registra una revisión inmutable. Conserva datos, hash y saga.
-  Alinea el asesor del perfil bajo una excepción de una sola columna ligada a
-  la revisión de esa transacción; las escrituras directas siguen protegidas.
-- La solicitud conserva la identidad de origen y su contenido. Después de una
-  fusión canónica, autorización, nuevas fuentes, titulares y lectura de
-  comprobantes usan la identidad vigente. Un resultado repetido informa esa
-  identidad sin reescribir la respuesta histórica almacenada.
-- El contexto Auth nuevo conserva además la persona donde se reclamó el acceso.
-  Se recupera su claim original incluso con dos fusiones posteriores; sigue
-  admitiéndose el contexto anterior que no tenía ese campo.
-- Generación PDF real con la plantilla vigente intacta; recuperación que consulta
-  el objeto antes de repetir su subida y verifica sus bytes antes de sellar.
-- Storage tiene un límite de 20 segundos por operación, incluida la lectura del
-  cuerpo, con cancelación independiente por petición. La versión incompatible
-  no toma reserva o devuelve la que pudo identificar; no modifica el documento.
-  El tamaño se valida antes de calcular su huella.
-- Relectura de inversiones confirmadas separada de las condiciones para crear
-  otra inversión. Conserva ámbito vigente; No insistir continúa bloqueando altas
-  nuevas y solicitudes pendientes. El origen se comprueba tras bloquear la solicitud.
+## Criterio para cerrar G4
 
-## Evidencia y límites por requisito
+Localizar la fuente y regla de comisiones, contrastar inversiones adicionales,
+renovaciones/anulaciones, fechas/atribución y una liquidación ya pagada; registrar
+paridad o la corrección necesaria y su prueba. Si el requisito se considera ajeno
+al producto actual, hace falta una decisión explícita del dueño para cambiar
+el plan; no se elimina unilateralmente para dar F4 por terminada.
 
-| Requisito del objetivo | Evidencia actual | Veredicto y trabajo restante |
-|---|---|---|
-| Avance→Qorilazo, Qorilazo→Prodelco, segunda cooperativa | `probar-cooperativas.mjs`, informe `cooperativas-*.json`: tres recorridos con JWT y Storage reales | Probado para esas personas/equipo del banco |
-| Repetir Avance en PEN/USD | `probar-avance-existente.mjs`, informes `avance-existente-*.json` | Probado con perfil Avance existente |
-| Qorilazo→Avance, Auth/Portal una sola vez | Cortes Auth, Deno HTTP, cinco momentos de reasignación, siete de documento y cinco de fusión Avance | Probado en esos recorridos, también con doble fusión y un contexto Auth anterior real |
-| Empresa, monto, moneda, fechas, depósito, referencia y titular principal | Aserciones SQL + HTTP en cooperativas/Avance; comprobante descargado con los mismos bytes | Probado en las operaciones nuevas ensayadas |
-| Cotitularidad y titularidad neutral completa | Contrato y snapshot conservan cotitular; inversión tiene principal; la plantilla v7 no lo imprime | **Parcial**: completar vínculo neutral y corrección/fusión sin ampliar permisos. Miguel exige aprobar previamente texto y ubicación de cualquier incorporación al PDF; contenido actual intacto |
-| Contrato, cronograma, cuenta y PDF | Regresión de 12 grupos/10 contratos, más 10 grupos/8 contratos de bordes; 42 pruebas (31 handler + 11 Storage); revisión visual previa de 14 páginas | **Probado en los casos ensayados**: peticiones sin respuesta, subida tardía, incompatibilidad recibida y dos antecedentes sin job. Un archivo/sello por contrato; la plantilla conserva su contenido. Integración final y cotitularidad siguen en sus requisitos propios |
-| Históricos correctamente vinculados | Referencia económica de cuatro contratos y dos cierres anteriores; fuentes conservadas | **Incompleto**: ejecutar el proceso canónico F2 con casos ya enlazados/faltantes/conflictivos y preparar tratamiento acotado del faltante productivo |
-| Misma clave y contenido, conflicto sin efectos | Reintentos SQL y dos ejecuciones Auth solapadas; el segundo proceso no roba un lease vigente | Probado en casos ensayados, incluido Auth y relectura confirmada tras veto con permisos actuales; completar cambios de rol/baja e inventario de puertas heredadas |
-| Depósito único simultáneo entre empresas/personas | `probar-concurrencia.mjs`: una fuente y una reclamación, perdedora preparada sin inversión | Probado con dos solicitudes realmente coincidentes en PostgreSQL |
-| Roles/ámbitos y evidencia | Rechazos estáticos y veto; ámbito actual tras reasignación/fusión; comprobantes conservan ruta y bytes con permisos de la canónica; campos privilegiados siguen protegidos | **Parcial**: falta cambio de rol, multirrol, sin responsable y lectores heredados |
-| Recuperar errores sin finales incompletos | Cortes Auth, lease real, veto, cambio de equipo, documento y fusión; cuatro carreras reales con confirmación, en ambos órdenes; bordes PDF y regresión satisfactorios | **Parcial**: resta corrección de términos/datos del payload e integración de todos los recorridos sobre la candidata final |
-| Detener nuevas confirmaciones | Apagado observado esperando la confirmación en vuelo; luego nuevas solicitudes rechazadas | Probado en banco; falta paquete de reversa/restauración completo |
-| Capital y conversión previa | Paridad antes/después: seis fuentes, S/8000, 52 cuotas; upgrade mismo mes no aporta, uno elegible posterior sí y el segundo del mes no | **Parcial**: añadir renovaciones ponderadas, atribución reasignada, anulaciones iniciales, demos y comisión con su fuente vigente |
-| Fechas anteriores y meses sellados | `probar-fechas-anulacion.mjs`: agosto abierto conserva fecha; julio sellado imputa después; sello/fotos intactos | Probado secuencialmente; falta carrera entre sello y alta y conciliación completa de consumidores |
-| Anulación comercial | Inversión adicional anulada conserva S/450 y su historia; cierre inicial y conversión previa intactos | **Parcial**: extender a anulación inicial/Avance/ajustes y comisión liquidada |
-| Candidata íntegra, permisos y recuperación | 34 funciones, 17 nuevas y cuatro tablas; nueve oráculos de regresión tras corregir la relectura; auditoría de Claude evaluada con evidencia | **Parcial**: reconstrucción limpia final, reversa completa, revisión adversaria integral e inventario completo de consumidores |
-
-## Hallazgos que determinan la siguiente acción
-
-1. **Auth ya integrado y ensayado.** `05-acceso-portal.sql` y el nuevo edge usan
-   `saga_auth_reclamar` / `saga_auth_avanzar` vigentes. El perfil se inserta en SQL
-   y su avance de saga se confirma en la misma transacción. El oráculo provoca
-   pérdida de respuestas de servicios reales; nunca fabrica sus estados.
-2. **Reasignación implementada y ensayada.** La revisión conserva el contenido
-   original y el contexto Auth; la atribución de la nueva inversión utiliza al
-   responsable aceptado en esa revisión. Dos revisiones previas a confirmar
-   siguen conservando la huella inicial. Después de confirmar, otra reasignación
-   no cambia la atribución de la fuente. El perfil creado pero aún no enlazado
-   se alinea sin modificar los demás campos ni el token/versión/lease de Auth.
-   La excepción del trigger exige ejecutor `postgres` y una revisión protegida
-   del actor en la transacción actual, identificada por `xid8`; un GUC solo
-   no concede ese permiso. Se probaron escrituras directas y contexto reutilizado.
-3. **Documento y fusión recuperables en los casos ensayados.** Las RPC de F3
-   permanecen iguales al volcado: mientras Auth no esté enlazado, la corrección
-   y la fusión se rechazan sin efectos. Se recupera ese acceso y luego Gerencia
-   corrige/fusiona antes de confirmar la misma solicitud. La clave no se resetea
-   automáticamente (decisión del 06/09). También se probaron operaciones ya
-   confirmadas, dos fusiones, corrección seguida de fusión, claims anteriores y
-   cuatro carreras observadas en PostgreSQL. Si la confirmación gana la carrera,
-   su atribución y reserva documental se conservan; si gana el cambio de identidad,
-   se recarga/revisa antes de confirmar. La fusión con dos leads/perfiles mantiene
-   los bloqueos de F3 y su tratamiento previsto en F5.
-4. Revisar los lectores externos y RLS que autorizan por vendedor histórico:
-   sus agregados de atribución y el acceso actual a datos de persona son ámbitos
-   diferentes. La prueba estática de otro equipo no demuestra una reasignación.
-5. La candidata tiene una ampliación Auth aditiva y revisiones locales posteriores
-   a la primera instalación. Ensayarla completa desde una base nueva al terminar;
-   no publicar ni registrar la candidata parcial como migración aplicada.
-6. Los bordes PDF señalados por Claude se corrigieron y ensayaron localmente.
-   Cuatro cortes de transporte terminaron en 20,195–20,269 segundos y pudieron
-   recuperarse por Deno. Ante la subida tardía, el worker vencido recibió 409,
-   la colisión devolvió 503 en 370 ms y el tercer intento selló el mismo job con
-   un solo archivo. Se probaron tres incompatibilidades de metadata recibida,
-   sin cambiar versión ni snapshot en SQL. Los dos antecedentes
-   `F4-BASE-INICIAL` y `F4-BASE-UPGRADE-MISMO-MES` devuelven `sin_reserva`, no
-   reintentable, sin modificar contrato ni crear job. Esto conserva su régimen
-   documental; no demuestra todavía su vinculación histórica neutral. La
-   plantilla, renderer, firma, fondo y fuentes no cambiaron. Antes de incorporar
-   cotitulares, presentar texto/ubicación y obtener aprobación de Miguel.
-   El límite de Storage no es un límite global de Auth, SQL o render; comprobar
-   tamaño antes de la huella tampoco evita por sí solo descargar un objeto
-   privilegiadamente alterado. La reconstrucción integral sigue pendiente.
-
-7. Se reprodujo y corrigió el hallazgo S1 de Claude: relectura tras veto de una
-   operación confirmada, conservando controles para operaciones nuevas/pendientes
-   y equipo ajeno. El revisor no recibió la versión SQL posterior. Sus hipótesis
-   sobre índices ausentes y uso financiero de `es_primera_conversion` se refutaron
-   con el banco. S8/S9 permanecen pendientes del bloque de validación/correcciones.
-
-## Fuentes y ejecución
-
-- `base-funciones.json`: 15 originales; `base-funciones-adicionales.json`: dos,
-  preparación de borrado y protección de perfiles, comparadas con el volcado.
-- `ultima-migracion.json`: inventario de las 34 funciones, incluidos nombres
-  con dígitos. El parser y la comparación exigen cobertura exacta del inventario.
-- `../evidencia-f4/`: informes sin claves ni documentos reales; snapshots de
-  prueba completos permanecen en `/private/tmp/avancecorp-f4-bank`.
-- `2026-09-07-advisors-local.json`: seis advertencias sobre objetos previos
-  de `public` (políticas múltiples y `pg_net`). No sustituye la revisión de las
-  nuevas tablas CRM, cuyos grants/RLS se comprobaron por separado.
-- `2026-09-07-advisors-portal-local.json`: resultado idéntico después del módulo
-  Auth. No se interpreta como auditoría completa de G4.
-- `2026-09-07-advisors-revision-local.json` y `2026-09-07-advisors-fusion-local.json`:
-  mismas seis advertencias anteriores, sin nuevas en esos diagnósticos.
-- `portal-nuevo-*.json`, `portal-lease-*.json`, `portal-edge-*.json` y
-  `portal-veto-*.json`: recuperación Auth, lease real, Deno HTTP y veto dinámico.
-- `revision-responsable-*.json` y `revision-controles-*.json`: cinco cortes,
-  dos revisiones previas a confirmar, bloqueo real de ficha, historial inmutable,
-  contexto no reutilizable y atribución conservada.
-- `revision-lease-*.json`: cambio de equipo y recuperación sin token del anterior,
-  después del plazo original real, con un solo Auth/perfil/contrato.
-- `documento-*.json`: siete momentos de corrección, incluida DNI→CE, con historia,
-  credencial inicial y atribución conservadas; corrección publicada sin cambios.
-- `fusion-*.json`: cinco recorridos Avance y tres cooperativos; fuente/titular en
-  la canónica, solicitud original, comprobante conservado y ámbito actual.
-- `identidad-controles-*.json`: cuatro carreras reales, documento seguido de fusión
-  y compatibilidad con un contexto Auth anterior realmente existente en el banco.
-- `2026-09-07-continuacion-documento-fusion.json`: candidata y evidencias enlazadas
-  por SHA-256. Las regresiones de Portal, revisión y cooperativas pasaron después
-  de esta ampliación. Conserva expresamente los requisitos de G4 aún pendientes.
-- `2026-09-07-continuacion-pdf-auditoria.json`: checkpoint anterior, SHA de
-  candidata/worker, pruebas PDF, reintento confirmado y regresiones.
-- `2026-09-07-continuacion-pdf-bordes.json`: checkpoint vigente, fuentes archivadas,
-  42 pruebas, 10 grupos de bordes y regresión de 12 grupos sobre la candidata
-  actual de 34 funciones. No hubo otra revisión de Claude de esta versión.
-- `auditoria-claude-2026-09-07/evaluacion-codex.md`: informe original y decisión
-  sobre cada hallazgo; entradas de la candidata anterior conservadas.
-- La captura estructural antigua se sobrescribió por su nombre fijo; el checkpoint
-  de documento/fusión explica la sustitución por una comprobación posterior y
-  conserva la huella original. Las nuevas capturas no sobrescriben las anteriores.
-- `README.md`: comandos y orden. Los oráculos que escriben se ejecutan uno
-  después de otro; las cifras crecen al repetir recorridos ficticios.
-
-No hubo publicación ni cambio de bandera en producción. El recenso productivo
-de 14 enlaces resueltos y un faltante sigue siendo la observación de las 11:32
-del 07/09; se deberá revalidar antes del tratamiento de datos real.
-
-Al cerrar esta tanda el escritor local queda apagado y `functions serve` fue
-detenido. El banco conserva los datos ficticios; los informes no afirman que
-todas sus solicitudes preparadas o todos sus jobs PDF estén terminados.
-
-## Ampliación de históricos — 08/09/2026, 09:54 Lima
-
-**PASS:** seis carreras con corrección, fusión y reasignación mediante las RPC
-reales de F3, ambas precedencias, sin duplicación ni alteración financiera/PDF.
-Evidencia: `../evidencia-f4/historicos-identidad-68cc610d-f23c-4c4e-928f-0facea7e6ba2.json`.
-Siguen pendientes el mantenimiento F2, el lote máximo, la reconstrucción y demás
-requisitos de G4; la ampliación no cierra la fase.
-
-
-## Mapa F2 y escala — 08/09/2026
-
-**PASS:** defecto del mapa reproducido y corregido; ocho cruces administrativos,
-regresión de 39 grupos y dos lotes de 100 personas (93.132 ms con vínculo previo;
-112.545 ms reparando 100 enlaces). Fuentes económicas y PDF conservados. La
-estructura comprueba 37 cuerpos, los ocho módulos y cinco tablas cerradas a API.
-Revisión evaluada en `../evidencia-f4/auditoria-mantenimiento-2026-09-08/`.
-El corpus F2 completo, escala máxima mixta, titularidad neutral, permisos,
-corrección trazable de solicitudes, matriz financiera y reconstrucción/reversa
-siguen pendientes. No hubo publicación ni aprobación G4.
-
-
-## Prerrequisito de cotitulares — 08/09/2026
-
-**PASS:** auxiliar documental sin EXECUTE para API, postcondición de permisos,
-nueve grupos SQL y tres denegaciones HTTP. Las llamadas internas autorizadas y
-el bloqueo PDF siguen funcionando. Candidata de nueve módulos y 37 funciones;
-solo cambió la ACL del auxiliar existente, no su cuerpo. Claude revisó y Codex
-evaluó/corrigió sus hallazgos; no es una aprobación integral de G4. Cotitularidad
-neutral y sus pendientes comerciales continúan en construcción.
-
-
-## Avance del cierre integral — 08/09/2026
-
-47 cuerpos, 30 funciones nuevas, 11 módulos y siete tablas F4 verificadas.
-Cotitularidad neutral: 15 grupos; corrección versionada: 20; permisos dinámicos:
-14; pares Portal/CRM y cambios de rol: 12. Evidencias UUID sin sobrescribir.
-Revisión de arquitectura evaluada; revisión integral final pendiente. Siguen
-pendientes corpus F2, inventario completo, matriz financiera, reconstrucción,
-restauración y tipos. G4 sigue abierto; esta sección no sustituye esas pruebas.
+F3 productiva estaba ON y F4/F5 OFF en la observación previa. El censo productivo
+de **14 resueltos + 1 faltante** es del 07/09 11:32 Lima, no un recenso actual.
+La siguiente aplicación real requiere recenso, ciclo/gates del repositorio y
+habilitación correspondiente. [Procedimiento de recuperación](RECONSTRUCCION-Y-RESTAURACION.md).

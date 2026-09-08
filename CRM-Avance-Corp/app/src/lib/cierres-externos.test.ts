@@ -57,6 +57,25 @@ describe('CierresExternosSchema', () => {
     expect(r.success).toBe(true)
   })
 
+  it('acepta una inversión F4 sin lead en histórico y revisión mensual', () => {
+    const adicional = { ...CIERRE, lead_id: null, telefono: null,
+      fecha_comercial: '2026-07-15', fecha_imputacion: '2026-08-12', es_cierre_inicial: false }
+    const r = v.safeParse(CierresExternosSchema, { ...PAYLOAD, cierres: [adicional], cierres_mes: [adicional] })
+    expect(r.success).toBe(true)
+    if (r.success) {
+      expect(r.output.cierres[0]?.lead_id).toBeNull()
+      expect(r.output.cierres_mes[0]?.lead_id).toBeNull()
+      expect(r.output.cierres_mes[0]?.fecha_comercial).toBe('2026-07-15')
+      expect(r.output.cierres_mes[0]?.es_cierre_inicial).toBe(false)
+    }
+  })
+
+  it('un lead ausente o mal formado no se confunde con null deliberado', () => {
+    for (const lead_id of [undefined, '', 'no-es-uuid']) {
+      expect(v.safeParse(CierresExternosSchema, { ...PAYLOAD, cierres: [{ ...CIERRE, lead_id }] }).success).toBe(false)
+    }
+  })
+
   it('normaliza los numeric que PostgREST sirva como string', () => {
     const conStrings = {
       ...PAYLOAD,

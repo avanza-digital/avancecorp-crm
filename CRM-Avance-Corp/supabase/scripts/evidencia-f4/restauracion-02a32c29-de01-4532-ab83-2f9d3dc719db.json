@@ -1,0 +1,576 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "terminadoEn": "2026-09-08T17:51:57.994Z",
+  "baseRestaurada": "f4_restauracion_02a32c29de01",
+  "volumenRestaurado": "f4_restauracion_storage_02a32c29de014532ab832f9d3dc719db",
+  "pruebas": [
+    {
+      "nombre": "Reversa operativa OFF rechaza altas y conserva todo el historial confirmado",
+      "conforme": true
+    },
+    {
+      "nombre": "Backup/restore SQL conserva todas las tablas de negocio, Auth y metadata Storage",
+      "conforme": true
+    },
+    {
+      "nombre": "Restauración conserva cuerpos, propietarios, ACL y RLS de aplicación",
+      "conforme": true
+    },
+    {
+      "nombre": "Storage restaurado en volumen nuevo conserva cada archivo con los mismos bytes",
+      "conforme": true
+    },
+    {
+      "nombre": "Metadata restaurada encuentra el comprobante o PDF correspondiente en Storage",
+      "conforme": true
+    },
+    {
+      "nombre": "Ensayo no modifica la base original ni enciende F4",
+      "conforme": true
+    }
+  ],
+  "tablas": {
+    "crm.leads": {
+      "hash": "dcee5730851de2c1c419b4a877a048601bb3283a0a0f4c752200527b90889107",
+      "filas": 43
+    },
+    "auth.users": {
+      "hash": "4e3b2797e67e3562af94dc03c8c75c4957fc6295b2fbb32c377c878ef9689604",
+      "filas": 41
+    },
+    "crm.equipo": {
+      "hash": "caba7e857862043795cd6ac05c2517272fff76d25034f5853a46596e34a666a6",
+      "filas": 6
+    },
+    "crm.tareas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.empresas": {
+      "hash": "7cfce4d41113fa8fb8d949eb3e802d7487fcfa03805982cefb514f7ab172f0c5",
+      "filas": 3
+    },
+    "auth.sessions": {
+      "hash": "590a99005fef9ccfae23ccb867b324748fb58c9d31d3fc25323fd46862e69ede",
+      "filas": 70
+    },
+    "auth.instances": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.agenda_ics": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.flow_state": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.identities": {
+      "hash": "b7877d0a4c5566f534bc30228b3d0f07af648c6a961c5cfa03c94c848e584cb3",
+      "filas": 41
+    },
+    "crm.actividades": {
+      "hash": "95e2b2b7e9529a8612a4aa7ce53710c912840e14e0458c5352807f16362df458",
+      "filas": 132
+    },
+    "crm.inversiones": {
+      "hash": "79bd393540eb1af22a3a3be27d47e360a390d8e64d0d999c0baeac7cb1b128b4",
+      "filas": 100
+    },
+    "public.asesores": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "public.perfiles": {
+      "hash": "c6601b2f4f99aebd892ee9f9d227615cc57a6bf6e72ed59706ce71c368119e84",
+      "filas": 41
+    },
+    "storage.buckets": {
+      "hash": "5c6e9e887ef1355f113bf3eecd2e60f84fb565039cc9e491ff225f4c9c0e1ee7",
+      "filas": 2
+    },
+    "storage.objects": {
+      "hash": "6bc183c0573d16d5af056bd5be54c3a460cbf9d2285f7f7d84c98f1ceb77036c",
+      "filas": 27
+    },
+    "auth.mfa_factors": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.sso_domains": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "public.audit_log": {
+      "hash": "5855f3a7410c611a6c6aaf1057e283875db929ea8295ae1edacae4163ba98af6",
+      "filas": 2939
+    },
+    "public.contratos": {
+      "hash": "c219201d621c025c1798cb9e8bae26000da409f165100eeece8de84b43b17bbc",
+      "filas": 53
+    },
+    "public.novedades": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.meta_periodos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.sla_politicas": {
+      "hash": "5c8386df408efa7516ca53aa4ccbbbf3e2366dde3df501e09bf1fb34a3d6e753",
+      "filas": 1
+    },
+    "public.documentos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.oauth_clients": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.sso_providers": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversionistas": {
+      "hash": "b1cb3ed41f94ad91596d7774217edc0177df7791202863b2644b7bb7cbc9f9cb",
+      "filas": 52
+    },
+    "crm.metas_vendedor": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.migrations": {
+      "hash": "6bf0f5c5689d2344efd5accde8f2feed13e3171a99a2260ea9d0f7f4d8049fda",
+      "filas": 68
+    },
+    "auth.mfa_amr_claims": {
+      "hash": "2d0c46fb6cacf9d39821b745201b9466fabe565e9b431a02ee6a159fb300baa5",
+      "filas": 70
+    },
+    "auth.mfa_challenges": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.oauth_consents": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.refresh_tokens": {
+      "hash": "65855c2e66bf1435a4c8467c95efb08a82b12214e1f1ceb4844e3171c1677e84",
+      "filas": 70
+    },
+    "auth.saml_providers": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.lead_sla_ciclos": {
+      "hash": "94da61c13b32dea29cd6c443d212247932cb8b9ccff841f41af5e6a3976a92bc",
+      "filas": 43
+    },
+    "crm.lead_sla_etapas": {
+      "hash": "7716bc6163d36d3aca97215cc2dc3fb655b8eeb421c42714238d7d267711701a",
+      "filas": 43
+    },
+    "crm.usuario_eventos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.one_time_tokens": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.cierres_externos": {
+      "hash": "2db7639b7276b9164b8c543dea4e74d1b72ecaffab9b43a02710fc9cbb9c6537",
+      "filas": 53
+    },
+    "crm.conversion_pesos": {
+      "hash": "0169729e37e6096d0faa3acc74c01d1dbfd33e483631513081c0bd5efe7fb5dc",
+      "filas": 1
+    },
+    "crm.solicitudes_tasa": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.cuentas_bancarias": {
+      "hash": "1f5b3723f59f61ccb60457f7916851ae1c890f4c17d9ca5e58a44da3e68f08d8",
+      "filas": 33
+    },
+    "crm.inversion_eventos": {
+      "hash": "1aacb7d0fd592d1b9ea6221c2034235ae1e9e5d633deaf56c1b3f208ac37b63e",
+      "filas": 61
+    },
+    "crm.lead_asignaciones": {
+      "hash": "c03ab3e6ef96ad27bdccbef6bdcf11861b139145d6deb491a5078e6fdb651782",
+      "filas": 43
+    },
+    "crm.periodos_cerrados": {
+      "hash": "914c0a37a726374931bd604f514fd10acdf96e949c270575bd7ed9b005dde8a8",
+      "filas": 1
+    },
+    "crm.politica_abandono": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.contrato_pdfs": {
+      "hash": "93a4842d6b2afef81d99ca2f5a403a63374b71103e6e980f33f4f62e0644446d",
+      "filas": 11
+    },
+    "private.vigia_alertas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.audit_log_entries": {
+      "hash": "7f24011b9bdf03f3c787e024a370953f30318d9ceebf1b076f95951658a40c49",
+      "filas": 111
+    },
+    "auth.saml_relay_states": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.schema_migrations": {
+      "hash": "0d23d9b6a347ce0a28ddc8c29a0cd21d97d24dcbdc00e2696c01389531e2188f",
+      "filas": 77
+    },
+    "crm.multiempresa_flags": {
+      "hash": "f9700018a3bb7f1cb33e497a714e3a6f633bfa62c5cca9f2c8be50f1dd8d5285",
+      "filas": 3
+    },
+    "crm.producto_versiones": {
+      "hash": "86abd635b6398c261bf221439c01b517992ca05bd25d3cc69573203d35639dce",
+      "filas": 54
+    },
+    "crm.rentabilidad_hitos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.tarea_sla_contexto": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.iceberg_tables": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.vector_indexes": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.actividades_cliente": {
+      "hash": "e56107484a937821606dabe7c9801f5639ec50a708d8593bba3da4ff13617433",
+      "filas": 13
+    },
+    "crm.ajustes_mes_cerrado": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.cierre_mes_vendedor": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.conversion_reservas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_titulares": {
+      "hash": "e48d6b815dc6f7cfed79a04870c529412507938da275a04afade2936e7073ca3",
+      "filas": 118
+    },
+    "crm.inversionista_leads": {
+      "hash": "389681d01f0f39afc1d82c62c5ab4ec10d009eeb4ebfb8805f71145f1df8a455",
+      "filas": 43
+    },
+    "crm.ledger_rentabilidad": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.operaciones_cartera": {
+      "hash": "5693e01252d3f24a42758aab0a2b4b798ea48dcee4028deb8dfe92f577f51fd9",
+      "filas": 3
+    },
+    "crm.productos_inversion": {
+      "hash": "827eba7faf8043760297ce38826e05a5496d46fcf08975d4bec61f71ac87c2d9",
+      "filas": 2
+    },
+    "crm.sla_politica_etapas": {
+      "hash": "ad2d3317a2cd74f59989248f5839502866dda64330ca6ab01d2d8f06b3c4830b",
+      "filas": 4
+    },
+    "crm.verificaciones_lead": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.auditoria_sello": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.ayuda_consultas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.pares_autoridad": {
+      "hash": "4a421fc1878f9c995399801bc2dedceba3dca0a9aa430dc9967079afcf5014aa",
+      "filas": 9
+    },
+    "public.cronograma_pagos": {
+      "hash": "ba158b1d799ac58f705549f693f6ace7506ed7ea9cdd51b4dc9574b20d43c860",
+      "filas": 689
+    },
+    "public.novedades_leidas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.buckets_vectors": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.oauth_client_states": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.webauthn_challenges": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.depositos_reclamados": {
+      "hash": "8a4f0cfbd27cc52b2ebeb3a7886019d9dc45a97b1357421e75f97a9858ab809e",
+      "filas": 53
+    },
+    "crm.producto_condiciones": {
+      "hash": "103722870296be3242787aa5ede82c9ab2886529550ddb3bf9c3d65686c22220",
+      "filas": 59
+    },
+    "auth.oauth_authorizations": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.webauthn_credentials": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.contrato_cuentas_pago": {
+      "hash": "7866827f165ea8c1e4b9a20ff3783dc52820dd1f82252fac4521b9f9f3a3e81a",
+      "filas": 53
+    },
+    "crm.enfriamiento_politica": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_solicitudes": {
+      "hash": "7ef38f3f2fb1ef76874844a726d76676aed594bb1a4d86336c6e645504761dac",
+      "filas": 70
+    },
+    "crm.politica_rentabilidad": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.sla_operacion_control": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.sla_operacion_recibos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.auditoria_alertas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.ayuda_expresiones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.ayuda_intenciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.contrato_pdf_jobs": {
+      "hash": "913354405eafc26da124b93b476adc00409270e0d72847520cb80bddbeb33514",
+      "filas": 51
+    },
+    "public.contrato_titulares": {
+      "hash": "e7b2e91efa88bd5e323b9d6e484673bf73baeb5d46a0ae63c73a75f133198cb3",
+      "filas": 18
+    },
+    "public.suscripciones_push": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.buckets_analytics": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversionista_fusiones": {
+      "hash": "3a258df5623c761678ae8324eb3bfa4a6aa654f3d7363a741d15db573a26c86b",
+      "filas": 9
+    },
+    "crm.lead_sla_etapa_ajustes": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.metas_vendedor_detalle": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.analitica_lc_sello": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.iceberg_namespaces": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "auth.custom_oauth_providers": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.alertas_reconocimientos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.cierres_avance_anulados": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.reasignaciones_analista": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.membresias_purgadas": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_backfill_lotes": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.objetivos_legacy_archivo": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.auditoria_exenciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.s3_multipart_uploads": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversionista_operaciones": {
+      "hash": "779f1c32a203a2995d4f00d29db46f8951edd0c2ffa306db4928b37270456fe2",
+      "filas": 21
+    },
+    "crm.lead_asignacion_sla_hitos": {
+      "hash": "3bc78ac5f7b0bea324b5d00a24f7100e5b01d88591c1bd46a94184b5016041f6",
+      "filas": 43
+    },
+    "crm.multiempresa_idempotencia": {
+      "hash": "8e5523d93ebf382289be5e2ebc789990d00e878a84de23bdcadb9e6a35f03ed1",
+      "filas": 78
+    },
+    "private.agenda_reparto_diaria": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.backfill_multiempresa_mapa": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversionista_responsables": {
+      "hash": "07b3bba87317004b184bd8831b4eb8303ee27c428ba8225847ccab9bcf171676",
+      "filas": 64
+    },
+    "private.agenda_reparto_cambios": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.analista_vigencia_tope": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.auditoria_condicionada": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.contrato_eliminaciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.agenda_reparto_destinos": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.ayuda_reglas_aclaracion": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_cotitular_origenes": {
+      "hash": "2009616c89afcaf260a4cb65b0bac4a95ac7e2104e9fc2b9e40eba85d2970336",
+      "filas": 18
+    },
+    "crm.recordatorios_disponibilidad": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.f7_piezas_en_observacion": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_ajustes_mes_cerrado": {
+      "hash": "006a4cbca77659caf295b9623ab8a4d50eea2a2fdf94baa8c45808eb1659e580",
+      "filas": 1
+    },
+    "crm.inversionista_identificadores": {
+      "hash": "26915a8d9bac8cae81c86bdd6c626f60d001af67766dd7871a136838b67ca83d",
+      "filas": 74
+    },
+    "crm.sla_politica_etapas_operacion": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.inversion_solicitud_revisiones": {
+      "hash": "30eda74f67b135c377c1d7cd25647fdd2d65cce72791e0b0a1141f1f70d0129c",
+      "filas": 14
+    },
+    "private.analitica_leads_citas_tope": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "storage.s3_multipart_uploads_parts": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.contrato_altas_idempotentes": {
+      "hash": "aa3b3f74a75cf1627f577fe1a26a0d951d232b2db0c68a46ec5001bd41fe20a2",
+      "filas": 49
+    },
+    "crm.inversion_solicitud_correcciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.analista_vigencia_exenciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "crm.objetivos_vendedores_legacy_archivo": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    },
+    "private.analitica_leads_citas_exenciones": {
+      "hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "filas": 0
+    }
+  },
+  "huellaEstructura": "f5ce4bfb23a091b876ee503def01a78807e9136afe2b84855fd75bc7ce9b8f1e",
+  "backupSqlSha256": "68786dc1f196afaf472cc8dfd7e07bf27d68f5076dd38369d25f2a07c1d9f339",
+  "backupStorageSha256": "73564afdf59d303c20d5a95548bef563838efb123e1a597074297cfca1d98932",
+  "archivosStorage": 27,
+  "objetos": 27,
+  "limites": [
+    "Restauración SQL y archivos en destinos nuevos; no es un tercer stack HTTP independiente.",
+    "Los jobs cron, publicaciones y suscripciones no se duplican. La recuperación operativa conserva F4 instalado y apagado; no elimina historia ni reinstala F2 global.",
+    "Copias privadas contienen únicamente datos sintéticos. La restauración productiva requiere respaldo coherente de DB, Storage y configuración del entorno."
+  ]
+}

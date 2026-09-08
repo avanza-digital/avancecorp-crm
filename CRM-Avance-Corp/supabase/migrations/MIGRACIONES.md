@@ -1,6 +1,6 @@
 # Ledger de migraciones — esquema `crm`
 
-> **F4 en construcción — 08/09/2026:** el artefacto generado `20260907191832_crm_f4_inversiones_base_y_escritores.sql` todavía no se versiona ni se registra como migración aplicada. Los módulos revisables y su generador se conservan en `../scripts/f4/`. Banco local sintético: 37 funciones (20 nuevas) y cinco tablas nuevas. Sin publicación ni cambio de banderas productivas; G4 sigue abierto. Evidencia y limitaciones en `../scripts/evidencia-f4/2026-09-08-continuacion-historicos.json`.
+> **F4 preparada — 08/09/2026, NO APLICADA en producción:** `20260907191832_crm_f4_inversiones_base_y_escritores.sql` se versiona como candidata técnica; 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas nuevas. Reconstrucción, pruebas y restauración sintéticas completadas. **G4 abierto por comisiones/liquidaciones pendientes de identificar y contrastar.** Sin publicación ni encendido productivo. [Matriz y límites](../scripts/f4/ESTADO-ACEPTACION.md); [recuperación](../scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md). F2 global se retira al instalar F4, incluso apagada.
 
 
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).
@@ -18,6 +18,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 
 | Versión | Qué toca de `public` | OK de Miguel |
 |---------|----------------------|--------------|
+| 20260907191832 — preparada, NO APLICADA | `public.crear_contrato`, excepción acotada en `public.proteger_campos_inmutables`, triggers de identidad/vínculo en contratos y procedencia en contrato_titulares; REVOKE API de `_sync_contrato_titulares`; referencias a las fuentes contractuales | Desarrollo y ensayos locales dentro del encargo explícito de terminar F4 (08/09). No constituye OK para aplicar/publicar/encender en producción ni cambiar el PDF. |
 | 20260711000001 | `perfiles_rol_check` acepta `'comercial'` | sí, 2026-07-11 |
 | 20260714000001 | `perfiles.tipo_documento` | sí, 2026-07-14 |
 | 20260728044338 | trigger sobre `public.perfiles` | sí, 2026-07-27 |

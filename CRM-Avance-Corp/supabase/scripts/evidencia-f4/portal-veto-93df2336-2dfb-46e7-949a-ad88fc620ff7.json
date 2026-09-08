@@ -1,0 +1,36 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "93df2336-2dfb-46e7-949a-ad88fc620ff7",
+  "terminadoEn": "2026-09-08T18:17:33.342Z",
+  "pruebas": [
+    {
+      "corte": "auth",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "registrar_auth",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "crear_perfil",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    },
+    {
+      "corte": "enlazar",
+      "vetoPorRpcVigente": true,
+      "inversionBloqueada": true,
+      "soloGerenciaLevanta": true,
+      "recuperadaSinDuplicados": true
+    }
+  ],
+  "limite": "Cubre No insistir entre pasos. Reasignación, cambio de documento, rol y fusión siguen pendientes."
+}

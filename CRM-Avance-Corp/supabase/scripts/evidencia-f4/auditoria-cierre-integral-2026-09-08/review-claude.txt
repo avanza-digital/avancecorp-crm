@@ -1,0 +1,353 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The candidate is unusually disciplined for its size: fail-closed authorization helpers, consistent advisory-lock ordering (flag → identity → hierarchy → documents → person → source), append-only history with immutability triggers, restrictive Storage policies, and md5 pinning of every adapted original. I found no P0 I can prove from the attached evidence. I did find two financial-integrity issues worth blocking on before G4 (an incomplete adaptation inventory for `crm.cierres_externos` consumers, and an unbounded `fecha_comercial`), plus a set of P2 regressions that are flag-gated but real: contract creation for non-F4 paths, demo-contract deletion, the phone-visibility fix, permanent freezing of `public.contrato_titulares`, read RPCs taking write locks, and two edge-function hardening gaps. Separately: on the PDF worker question, my read is that **no implementation change is warranted for recoverability** — the invariants already hold; only the hardcoded 120 s lease is worth tuning. Commission reconciliation is *not* unfindable; I point below at the symbols that appear in your own attached evidence.
+
+---
+
+FINDINGS:
+
+**[P1] Adaptation/guard inventory for `crm.cierres_externos` is not proven complete — conversion & commission basis at risk**
+
+File:
+`CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql`
+
+Lines:
+10–63 (guard block), 3927–3929 (`drop constraint cierres_externos_un_cierre_por_lead` → partial unique index)
+
+Problem:
+Dropping the one-closure-per-lead constraint changes the cardinality of `crm.cierres_externos` from 1:1-per-lead to 1:N. Every reader that previously relied on that invariant must now either filter `es_cierre_inicial` or be provably per-lead. The migration adapts and md5-pins 18 functions, but the guard list is a hand-picked allowlist, not a derived closure over all consumers.
+
+Evidence:
+The guard block pins exactly 18 symbols. Functions that appear in the attached bodies and almost certainly touch `crm.cierres_externos` or its per-lead assumption are **absent** from both the guard list and the adaptation list:
+- `private.conversion_episodios` (used at 2191–2203, 2365–2367; the `'cierre'` episode type with `anulado`)
+- `private.conversion_mensual_por_vendedor` (2365)
+- `private.registrar_ajuste_si_mes_cerrado` (1253, 1735)
+- `private.vendedor_acreditado_del_cierre` (1249)
+- `private.contratos_afectados_por_anulacion` (1245, 1454, 1458)
+- `crm.cumplimiento_metas_fn` (referenced by the comment at 2093–2096: *"capital_real ya INCLUYE los externos tras esta migración"*)
+- `crm.cartera_pagina_fn` (referenced at 1102, 1115)
+- `private.leads_de_identidades`, `private.leads_de_personas` (1341, 3080, 3087)
+
+That you *had* to adapt `private.cierre_anulado` (989–1005) is direct evidence this class of bug is live: without `and ce.es_cierre_inicial`, annulling a *non-initial* F4 investment would have marked the lead's original conversion as annulled. There is no argument in the artifact that the same shape does not exist in the eight symbols above.
+
+Impact:
+If any of these derives a `'cierre'` episode, an `anulado` flag, an accredited seller, or a monthly capital window from `crm.cierres_externos` without `es_cierre_inicial`, then a second F4 investment on an existing lead silently duplicates a conversion numerator or an annulment sanction. `metricas_conversiones_implementacion` sums `aporte_numerador` **undeduplicated** (2336, 2486, 2574–2580) while it dedupes cierre *counts* by `lead_id` — so a duplicate episode inflates conversion % and, downstream, the commission basis, without changing any count anyone would eyeball.
+
+Recommendation:
+Add a mechanical inventory step, not a judgement call: enumerate every `pg_proc` whose `prosrc` matches `cierres_externos` (and every view/policy), and assert each is either (a) in the md5 guard list *and* adapted, or (b) recorded in an explicit `no_requiere_adaptacion` allowlist with a one-line reason. Fail the migration if the set is non-empty and unclassified. Do the same for `crm.inversiones` before any consumer starts reading `inversiones.estado` (see P3-b).
+
+---
+
+**[P1] `fecha_comercial` has no lower bound: an in-scope vendedor can retro-date capital into any month that was never sealed**
+
+File:
+`CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql`
+
+Lines:
+4918–4921 (`inversion_validar_datos`), 592–599 (`confirmar_inversion_revisada_fn`), 92–99 (`cierres_f4_fechas_validas`)
+
+Problem:
+The only temporal guards on `fecha_comercial` are `isfinite()` and *not in the future*:
+
+```sql
+if v_fecha is null or not isfinite(v_fecha) or v_fecha>(statement_timestamp() at time zone 'America/Lima')::date
+   or v_vence is null or not isfinite(v_vence) or v_vence<=v_fecha then
+```
+
+and the table CHECK only enforces `fecha_comercial <= fecha_imputacion <= creado_en::date`. The sealed-period path (596–606) is the *sole* protection, and it only fires when `crm.periodos_cerrados` has a row for `date_trunc('month', fecha_comercial)`.
+
+Evidence:
+`private.capital_episodios` now windows cooperativa rows by `coalesce(fecha_imputacion…, creado_en)` (968–985). When the origin month is unsealed, `v_ajuste` is false and `v_imputacion := v_fecha` (599) — so the row lands in that historical month. `crm.corregir_solicitud_inversion_fn` also permits moving `fecha_comercial` freely (it is not in the frozen-fields list at 5034–5042), re-validated only by the same unbounded `inversion_validar_datos`.
+
+Impact:
+Any month that was never sealed — every month before sealing was introduced, plus any gap month — accepts new capital dated into it. This is not merely a reporting artifact: it moves the monthly capital aggregate that `cierres_externos_fn.por_empresa` (2113) and, per your own comment at 2093–2096, `cumplimiento_metas_fn`'s `capital_real` are built from. This is the commission basis. A vendedor in scope, not Gerencia, can do it.
+
+Recommendation:
+Bound `fecha_comercial` in `inversion_validar_datos`: current month, or `>= now() - N days`, with anything older routed through an explicit Gerencia-authorized path that always produces an `inversion_ajustes_mes_cerrado`-style trace regardless of seal state. Alternatively, make *any* `fecha_comercial` outside the open month produce an ajuste row even when the month is unsealed, so the retro-dating is at least append-only and visible.
+
+---
+
+**[P2] Flag-on identity triggers make every insert into `public.contratos` fail-closed on identity, including non-F4 paths**
+
+File:
+same migration
+
+Lines:
+3937–3965 (`private.f4_contrato_reconocer`, `private.f4_contrato_vincular` + their triggers)
+
+Problem:
+`trg_contratos_000_f4_reconocer` (BEFORE INSERT) and `trg_contratos_f4_vincular` (AFTER INSERT) are unconditional on the statement and gated only by `inversiones_escritura_bajo_candado()`. `f4_contrato_vincular` raises `P0409 'F4: falta la identidad del contrato'` when no non-fusionado `crm.inversionistas` row exists for `new.cliente_id`.
+
+Evidence:
+Contrast with `public.crear_contrato` line 3309–3313, where the identity prepuerta is deliberately gated on `puede_registrar_ventas()` and on the client existing and being active — the inline comment `[auditor A1]` explains that gating as intentional. The trigger reintroduces the ungated call at INSERT time for every writer, including `service_role` edges and seed paths.
+
+Impact:
+With the flag on, a contract for a client whose `dni`/`tipo_documento` cannot be resolved by `asegurar_identidad_perfil` now fails the whole alta. This affects demo seeding, `importar-clientes`-style bulk paths, and any legacy client with a malformed document — none of which are F4 features. Your test corpus creates clients with well-formed synthetic DNIs (`probar-finanzas-integral.mjs:22–24`), so this class is not exercised.
+
+Recommendation:
+Either exempt `new.es_demo` and non-`authenticated` writers, or convert `f4_contrato_vincular`'s hard `P0409` into a recorded "pendiente" state reconcilable by the census, matching how `inversion_cotitulares_vincular` degrades to `identidad_ocupada` (4825–4828) rather than aborting.
+
+---
+
+**[P2] Demo/test contracts become undeletable, and the reason is invisible to the operator**
+
+File:
+migration lines 1519–1522; `CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts` lines 300–317
+
+Problem:
+Two independent issues on the same path.
+
+(a) `contrato_eliminacion_preparar` rejects any contract with a row in `crm.inversiones`. `f4_contrato_vincular` creates that row for **every** contract inserted while the flag is on — including `es_demo`. There is no `es_demo` exemption anywhere in `inversion_vincular_fuente` (465–520).
+
+(b) The new message *"El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda"* is not in `MENSAJES_ELIMINACION_PUBLICOS`. `statusErrorBackend` maps `55000` → 409, and `mensajeErrorEliminacion` replaces the message with the generic fallback *"No se pudo autorizar la eliminación del contrato"*.
+
+Evidence:
+`probar-finanzas-integral.mjs:88` marks a contract demo *after* creation and asserts only that `capital_episodios` excludes it — the `crm.inversiones` row survives and the deletion path is never exercised for a demo.
+
+Impact:
+Superadmin loses the ability to clean up demo/mistaken contracts, and gets an opaque error that reads like an authorization failure rather than a business rule.
+
+Recommendation:
+Exempt `es_demo` from the eliminación block (or from `f4_contrato_vincular` entirely), and add the new message to `MENSAJES_ELIMINACION_PUBLICOS`.
+
+---
+
+**[P2] The phone-visibility fix regresses rows whose canonical person has no current responsable**
+
+File:
+migration lines 1970–1978 and 2030–2038 (`crm.cierres_externos_fn`)
+
+Problem:
+The new rule replaces `l.vendedor_id = any(v_visibles)` with an `exists` on `inversionistas.responsable_relacion_id`. When the canonical person's `responsable_relacion_id` is `NULL`, the `exists` returns false and the phone is masked — even for the vendedor who legitimately owns the closure snapshot and never lost the relationship.
+
+Evidence:
+`private.backfill_multiempresa_ejecutar` only sets `responsable_relacion_id` when `r.vendedor_id is not null` **and** there is no open `inversionista_responsables` tramo (812–818, 772–779). Fusion and `reasignar_responsable_relacion_fn` can also leave a canonical without one. Meanwhile the *row* filter is unchanged (`ce0.vendedor_id = any(v_visibles)`, 1998), so the row is still visible — only the phone vanishes.
+
+Impact:
+Silent data loss in "Mi cartera" for legacy closures. `probar-permisos-dinamicos.mjs:76–83` only asserts the reassignment case (`assert(a?.telefono); assert.equal(d.telefono,null)`), never the null-responsable case.
+
+Recommendation:
+Fall back explicitly rather than fail closed on a missing responsable:
+```sql
+when ce.inversionista_id is not null and exists (
+       select 1 from crm.inversionistas ip
+       where ip.id=private.inversionista_canonica(ce.inversionista_id)
+         and ip.responsable_relacion_id is not null)
+  then exists (…responsable_relacion_id=any(v_visibles))
+else l.vendedor_id=any(v_visibles) end
+```
+
+---
+
+**[P2] Provenance permanently freezes `public.contrato_titulares`, including the wholesale `_sync` path**
+
+File:
+migration lines 4723–4741
+
+Problem:
+`private.f4_proteger_origen_cotitular` raises `55000` on any UPDATE or DELETE of a `public.contrato_titulares` row that has an `inversion_cotitular_origenes` record. It is attached unconditionally (`trg_titular_procedencia_inmutable`), so it survives turning the F4 flag off.
+
+Evidence:
+`probar-cotitulares-neutrales.mjs:68–76` confirms both UPDATE and DELETE raise `55000` even under `crm.op_privilegiada='on'`. The migration's own comment (4666–4668) states the helper is called by *"Crear/actualizar contrato"* — implying an update path exists that replaces titulares wholesale.
+
+Impact:
+Provenance is recorded only for titulares whose document resolves to a verified identity, so within one contract some rows are frozen and some are not. A `_sync_contrato_titulares` that deletes-and-reinserts will abort on the first frozen row, taking the entire contract update with it. Correcting a typo in a cotitular's name becomes impossible with no supported remediation path.
+
+Recommendation:
+Freeze only the *identity-bearing* columns (`tipo_documento`, `documento`) rather than the whole row, and allow DELETE when the corresponding `inversion_cotitular_origenes` row is also being retired through an explicit Gerencia RPC. Alternatively snapshot the document into `inversion_cotitular_origenes` (you already store `fuente_snapshot`) and drop the freeze on `public.contrato_titulares` entirely — the snapshot is what makes provenance durable, not the source row.
+
+---
+
+**[P2] Read-only RPCs acquire `FOR UPDATE` on `crm.inversionistas`**
+
+File:
+migration lines 203–246 (`inversion_persona_autorizada`, `select * into v_i … for update` at 228), 4837–4850, 4979–4991
+
+Problem:
+`crm.inversion_cotitulares_fn` and `crm.solicitud_inversion_fn` are pure reads that call `inversion_persona_autorizada`, which takes a row-level write lock on the person plus `identidad_bloquear_documentos_de`, held to commit.
+
+Impact:
+Two concurrent UI reads of the same person serialize; a read also blocks (or is blocked by, with the 5 s `lock_timeout`) a concurrent correction, fusion or reassignment. This will surface as sporadic 5 s timeouts in F5, not as a correctness bug, which makes it expensive to diagnose later.
+
+Recommendation:
+Split a `private.inversion_persona_autorizada_lectura(uuid)` that performs the identical authorization and canonical resolution with `FOR SHARE` (or no row lock), and use it from the two read RPCs. Keep `FOR UPDATE` on the write paths.
+
+---
+
+**[P2] `crm-inversion-portal` edge: wildcard CORS and raw server-error passthrough**
+
+File:
+`_supabase_functions/functions/crm-inversion-portal/handler.mjs` lines 5–10, 54–58, 121–127
+
+Problem:
+(a) `'Access-Control-Allow-Origin': '*'` on a function that holds `SUPABASE_SERVICE_ROLE_KEY` and creates Auth users. Every other edge in this repo uses an allowlist — compare `crm-contrato-pdf-v2/handler.ts:114–151` (`ORIGENES_PRODUCCION` + `Vary: Origin`).
+
+(b) Error passthrough:
+```js
+error.status = crm ? statusDeErrorSaga(error) : (…);
+…
+return respuesta(error.status ?? 503, {
+  error: error.status ? error.message : 'No se pudo completar el acceso…',
+```
+`statusDeErrorSaga` **always** returns a number (500 for unmapped codes), so `error.status` is always truthy for RPC failures and `error.message` is always returned verbatim. Any SQLSTATE outside the mapped set (`23505`, `23514`, `55P03`, `P0001`, `no_data_found` from a `SELECT … INTO STRICT`) leaks the raw PostgreSQL message — constraint names, column names, row detail.
+
+Recommendation:
+Adopt the `crm-contrato-pdf-v2` origin allowlist, and return `error.message` only for the codes `statusDeErrorSaga` explicitly recognises as business-facing (`P0409`, `P0429`, `22023`, `P0002`, `42501`); everything else → generic text + server-side log.
+
+---
+
+**[P2] Wedged-saga dead end: `alta_portal` is immutable once a claim exists, and no cancellation path is implemented**
+
+File:
+migration lines 5043–5045, 4059–4066, 111 (`estado` CHECK)
+
+Problem:
+Once `auth_claim_id` is set, `corregir_solicitud_inversion_fn` rejects any change to `alta_portal`:
+```sql
+if v_s.auth_claim_id is not null and p_datos->'alta_portal' is distinct from v_s.datos->'alta_portal' then
+  raise exception 'El acceso Avance ya está reservado; conserva sus datos de alta' using errcode='P0409';
+```
+And a *new* solicitud cannot take over: `acceso_inversion_fn` rejects both a different solicitud holding the claim and a different payload hash (4059–4066). Meanwhile `estado text … check (estado in ('preparada','confirmada','cancelada'))` declares a `'cancelada'` state that **no function in this migration ever sets** — grep the 48 bodies: it is only ever read (572, 4014).
+
+Impact:
+If the `public.perfiles` INSERT at 4136–4141 fails deterministically — e.g. a `telefono` or `domicilio` CHECK that `inversion_datos_portal` (336–364) does not replicate; it only bounds length and rejects control characters — the person is permanently stuck at `auth_creado` with an orphan Auth user, and there is no supported operation to unstick them. The F3 edges have a compensation path (`decidirTrasFalloPerfil` in `_shared/saga-auth.mjs:65–72`); this handler never calls it.
+
+Recommendation:
+Implement `crm.cancelar_solicitud_inversion_fn` (Gerencia, motivo required, refuses if `estado='confirmada'`, compensates the claim via the existing `saga_auth_avanzar(…,'reclamado',…)` transition at 33 of that function), or at minimum wire `decidirTrasFalloPerfil` into the new handler so a `23514` compensates instead of wedging.
+
+---
+
+**[P2] Deployment: ACCESS EXCLUSIVE on `storage.objects` under a 5 s `lock_timeout`, plus an FK into a vendor-managed schema**
+
+File:
+migration lines 4–5, 73, 436–437, 707–718
+
+Problem:
+`set local lock_timeout='5s'` applies to a transaction that (a) adds `comprobante_objeto_id uuid references storage.objects(id)` and (b) creates six policies on `storage.objects` — each requiring ACCESS EXCLUSIVE on that table.
+
+Impact:
+Under production Storage traffic the migration will very likely time out and roll back the whole 5 000-line transaction, and while it holds the lock it stalls every Storage operation. Separately, the FK has no `ON DELETE` clause, so the Storage service cannot delete a referenced comprobante — intentional for byte preservation, but it will surface as an opaque 500 from the Storage API, and Supabase has historically restructured `storage.objects`.
+
+Recommendation:
+Document a maintenance window and a retry policy for the apply step. Consider replacing the FK with a recorded `(bucket, path, sha256/etag)` triple plus the restrictive delete policy you already have (717–718), which achieves byte preservation without coupling a business table to a vendor-managed one.
+
+---
+
+**[P2] `conciliar_cotitulares_inversion_fn` lets any in-scope vendedor bind third-party identities — impact not verifiable from attached evidence**
+
+File:
+migration lines 4852–4863, 4788–4834
+
+Problem:
+Authorization is `inversion_persona_autorizada(v_i.inversionista_id)` — the *principal's* scope. The cotitular documents come from `p_datos.contrato.titulares`, which is arbitrary vendedor-supplied JSON flowing through `preparar_inversion_fn` → `crear_contrato` → `_sync_contrato_titulares` (3476–3478). A vendedor can therefore create permanent, immutable `crm.inversion_titulares` + `crm.inversion_cotitular_origenes` rows linking any verified CRM identity to an investment that person has no relationship with.
+
+Evidence / limitation:
+Whether this is an escalation depends entirely on the RLS on `crm.inversiones` and `crm.inversion_titulares`, **neither of which is attached**. I am flagging this as a hypothesis, not a fact. `f4_comprobante_visible` (695–708) scopes by `responsable_relacion_id`, not by titularidad, which is reassuring but not dispositive.
+
+Recommendation:
+Attach the policies on `crm.inversiones` / `crm.inversion_titulares` and confirm no read path keys off titularidad. If any does, require the cotitular's canonical identity to be within the actor's `vendedor_ids_visibles`, or restrict `conciliar_cotitulares_inversion_fn` to Gerencia.
+
+---
+
+**[P2] No rollback path for a pending G4**
+
+File:
+migration lines 82–99, 3927–3929, 733–736
+
+Problem:
+The migration is one-way: it drops `cierres_externos_un_cierre_por_lead`, makes `lead_id` nullable, and disables `private.backfill_multiempresa_ejecutar` with `55000` as soon as `crm.inversion_solicitudes` exists — *even with every flag off*.
+
+Impact:
+If G4 is rejected after apply, reverting requires a hand-written down-migration that can only run if no lead has more than one closure and no `lead_id` is null. Your restore rehearsal (`probar-restauracion.mjs`) is a full DB+Storage restore, which its own `limites` block correctly declares is not the same thing (lines 65–67: *"La recuperación operativa conserva F4 instalado y apagado"*). Meanwhile the replacement for the global F2 backfill is capped at 100 sources per lote (4552–4554) and requires `resolver_en_puertas` ON with `inversiones_escritura` OFF plus a `SHARE NOWAIT` on `backfill_multiempresa_mapa` — so re-running a full reconciliation after a restore is a many-batch, serialized manual operation.
+
+Recommendation:
+Ship the down-migration alongside the up, with its own preconditions checked as a `do $$` guard, and rehearse it against the fresh clone. State explicitly in the G4 packet that F2's global backfill is retired at *install* time, not at *enable* time.
+
+---
+
+**[P3] Assorted**
+
+- (a) `crm.inversiones.estado` is set to `'anulada'` by `f4_sincronizar_cierre` (3902–3919) while `capital_episodios` deliberately keeps annulled cooperativa capital as `'stock'` (957–975, ATR-4). Two sources of truth that disagree by design; pin this in a comment on `crm.inversiones.estado` before F5 reads it.
+- (b) `f4_sincronizar_cierre` only writes an `inversion_eventos` row `if … not new.es_cierre_inicial` (3910), so annulling an *initial* closure updates `inversiones.estado` with no event trace.
+- (c) `private.inversion_datos_portal` is declared `IMMUTABLE` (337) but calls `crm.normalizar_domicilio_legal`. Verify that callee is `IMMUTABLE`; otherwise downgrade to `STABLE`.
+- (d) The `p_datos` key allowlist is duplicated verbatim in `preparar_inversion_fn` (383–388) and `inversion_validar_datos` (4893–4898). Drift risk; extract one constant function.
+- (e) The `do $cotitular_acl$` self-verification block (4685–4697) is an excellent pattern — it asserts the REVOKE actually took effect rather than trusting a possible WARNING. It is applied to exactly one function. Apply it to all 30 new symbols; a future `GRANT ALL ON ALL FUNCTIONS IN SCHEMA crm TO service_role` would silently reopen every one of them.
+- (f) `f4_comprobante_visible` joins on `s.datos#>>'{evidencia,ruta}'` with no supporting expression index; every `SELECT` on the bucket seq-scans `inversion_solicitudes`.
+- (g) `inversion_cotitulares_vincular` swallows `deadlock_detected` (4825) alongside `lock_not_available`, degrading to `identidad_ocupada`. Legal, but it will mask a genuine lock-ordering defect. Log or distinguish it.
+- (h) Missing-solicitud error codes are inconsistent: `solicitud_inversion_fn` and `confirmar_inversion_revisada_fn` raise `P0002`, while `acceso_inversion_fn` (4001) and `revisar_solicitud_inversion_fn` (4212) omit the `found` check and surface `42501` from the person lookup instead.
+- (i) `crm.inversion_ajustes_mes_cerrado.periodo_origen references crm.periodos_cerrados(periodo)` (156) with no `ON DELETE` — if a period-reopen path exists, this makes it impossible once an ajuste is recorded.
+- (j) `handler.mjs` buffers the whole body via `req.text()` before checking `texto.length > 4096` (32); the PDF handler's `leerJsonLimitado` (handler.ts:532–572) enforces the limit *while* reading. Use the stricter in-house pattern.
+- (k) `metricas_conversiones_implementacion.produccion.contratos` counts cooperativa rows with **no** `es_cierre_inicial` filter (2388–2390), while `sin_rastro` two blocks below **does** filter it (2410–2411). If the asymmetry is intentional ("an additional investment is a production event"), say so in a comment; otherwise it is a bug.
+
+---
+
+TEST GAPS:
+- No test for a `fecha_comercial` in a distant **unsealed** month (P1-2). Every dated test uses 2026-06/07/08/09 with explicit seals.
+- No test that `crm.cierres_externos_fn` still shows the phone when `responsable_relacion_id is null` (P2, phone rule).
+- No test that contract creation still works with the flag ON for non-F4 writers: `es_demo` seed, `service_role` import, a client with a malformed/absent document (P2, identity triggers).
+- No test that a demo contract remains deletable with the flag ON (P2).
+- No test of `_sync_contrato_titulares` on a contract whose titulares already carry provenance (P2, freeze). The existing test only exercises direct DML.
+- No negative RLS test asserting that a `crm.inversion_titulares` cotitular row confers **no** additional read access to `crm.inversiones` or the contract.
+- No test of the wedged-saga scenario (deterministic `perfiles` INSERT failure) or of any cancellation path; `estado='cancelada'` is never produced by any test.
+- No test asserting the edge does not return raw PostgreSQL messages for an unmapped SQLSTATE.
+- No mechanical inventory assertion over `pg_proc.prosrc ~ 'cierres_externos'` (P1-1). This is the single highest-value test to add.
+- No down-migration rehearsal on the fresh clone.
+
+---
+
+ARCHITECTURE RISKS:
+- The md5 guard set is an allowlist, not a derived closure — it pins what you remembered to pin. Same structural weakness as the ACL block being applied to one function.
+- Two authoritative representations of an annulled cooperativa investment (`inversiones.estado` vs `capital_episodios` measure) will diverge in F5 unless the contract is written down now.
+- F2's global backfill is retired at install time, not enable time, and its replacement is bounded at 100 sources per manually-curated lote. Reconciliation capacity after a restore is materially lower than before.
+- FK from a business table into Supabase's `storage.objects`.
+
+SECURITY RISKS:
+- Wildcard CORS + verbatim error passthrough on the service-key-holding edge (P2).
+- Third-party identity binding via cotitulares — impact unverifiable without the RLS on `crm.inversiones` / `crm.inversion_titulares` (P2). This is the one gap I would most like closed before G4.
+- Positive notes, for the record: the storage policies are correctly restrictive-as-well-as-permissive so a legacy permissive policy on another bucket cannot open `f4-comprobantes`; `auth_user_id` is caller-supplied but re-verified against `raw_app_meta_data.claim_id` **and** the email in both the RPC (4123–4127) and `saga_auth_avanzar`; and the `f4_alineacion_perfil_permitida` escape hatch is correctly narrowed by `current_user='postgres'` + `pg_current_xact_id()` + `revisado_por=auth.uid()`, so a GUC alone cannot open it from an `authenticated` UPDATE.
+
+REGRESSION RISKS:
+- Public payload change in `crm.cierres_externos_fn`: `cierres[].lead_id` and `cierres_mes[].lead_id` can now be **null** (the `join crm.leads` became a `left join`, 2002/2060), `telefono` is masked in new cases, and three keys are added. Any current UI that dereferences `lead_id` to navigate will break. Your 17-node typed delta covers the *shape*; it does not cover nullability assumptions in consuming components.
+- `public.crear_contrato` / `crm.crear_contrato_con_cuenta_pdf_v2` now take two shared advisory locks on every alta before any other lock. Correct for flag stability, but it serializes altas against flag flips and adds a `crm.multiempresa_flags` lookup to the hot path.
+- `f4_contrato_reconocer` calls `asegurar_identidad_perfil` a second time for altas that already resolved it at `crear_contrato:3312` — redundant work per alta.
+
+---
+
+ON THE PDF WORKER QUESTION (asked explicitly; **not** a pass — the dense run did not pass):
+
+My assessment is that **no implementation change is warranted for recoverability**. The invariants in `crm-contrato-pdf-v2/handler.ts` already hold under an abrupt worker death:
+- render precedes upload (1015–1050); upload is `upsert:false` (storage.ts:111) and a conflict is tolerated, never overwritten (`esConflictoObjeto`, 1085);
+- on a retry the possibly-orphaned object is downloaded and its SHA-256/bytes compared against the deterministic render, and a mismatch produces `INTEGRIDAD_OBJETO_DIVERGENTE` → 409 (1114–1133) — **no success on integrity mismatch**, confirmed;
+- the `intentos > 1` gate on the recovery download (1057) is not load-bearing: if `intentos` is still 1 the code falls through to `subir` → conflict tolerated → download → verify, reaching the same check;
+- `lease_expira_en` / `reintentable` are surfaced to the caller, so the user-visible retry story is intact.
+
+The one code-side item I would change is a tunable, not a fix: `p_lease_segundos: 120` is hardcoded (921). If the platform terminates a worker on a CPU budget shorter than 120 s wall-clock, every kill costs a fixed 120 s of unavailability for that contract. Derive the lease from the worker's actual remaining budget, or shorten it and let a live worker renew. Everything else about the observed `WORKER_LIMIT` / CPU-hard-limit failures reads as environmental (render cost per invocation on a `oneshot` request policy), not as a defect in this handler.
+
+---
+
+ON COMMISSION RECONCILIATION (you reported "not found"; I disagree with the premise):
+
+The commission ledger is very likely reachable from symbols already present in your attached evidence — you do not need the user to answer to start:
+- `crm.cierre_mes_vendedor` and `crm.periodos_cerrados` — snapshotted at seal; queried directly in `probar-permisos-dinamicos.mjs:9–11` and `probar-finanzas-integral.mjs:39–41`.
+- `crm.metas_vendedor` / `crm.meta_periodos` — the `en_roster` subqueries in `private.capital_episodios` (889–896, 964–971).
+- `private.registrar_ajuste_si_mes_cerrado` — its own comment is explicit: *"nace la deuda que el vendedor arrastrará al mes vivo hasta saldarla"* (1251–1252). That is a commission clawback ledger by another name.
+- `crm.cumplimiento_metas_fn` — named in your own comment at 2093–2096 as the owner of `capital_real`.
+
+This matters directly for G4 because **P1-2 above moves that basis**: `capital_episodios` now windows cooperativa capital by `fecha_imputacion`, and an unbounded `fecha_comercial` can push new capital into an unsealed past month. I agree with your decision not to declare G4 complete while this is unverified — but I would reframe it from "we cannot find the engine" to "we have four named symbols and must prove the F4 date semantics do not move an already-paid basis."
+
+---
+
+RECOMMENDED NEXT ACTIONS:
+1. Add the mechanical `pg_proc.prosrc ~ 'cierres_externos'` inventory assertion to the migration guard and classify every hit (P1-1). Do the same for `crm.inversiones` before F5.
+2. Bound `fecha_comercial` in `inversion_validar_datos`, or force an ajuste trace for any out-of-open-month date regardless of seal state (P1-2); then re-run the finance corpus with a deliberately backdated unsealed month.
+3. Trace `crm.cierre_mes_vendedor` / `cumplimiento_metas_fn` / `registrar_ajuste_si_mes_cerrado` and prove the `fecha_imputacion` windowing cannot move an already-sealed or already-paid basis. Do not wait on the user's answer.
+4. Attach the RLS on `crm.inversiones` and `crm.inversion_titulares` and close the cotitular escalation question (P2).
+5. Fix the four contained P2s that are cheap and unambiguous: demo-contract exemption + `MENSAJES_ELIMINACION_PUBLICOS` entry; the null-responsable phone fallback; the edge origin allowlist + error-message allowlist; the read-only authorization variant.
+6. Decide and document the `contrato_titulares` freeze scope (column-level vs row-level) and the saga cancellation path before enabling the flag anywhere.
+7. Ship and rehearse the down-migration; state in the G4 packet that F2's global backfill retires at install, not at enable.
+
+CONFIDENCE:
+MEDIUM-HIGH on everything derived from the attached migration, edge handlers and oracles — the SQL is complete enough to reason about precisely, and each finding above cites a line I can point at.
+LOW on three specific areas, stated as limitations rather than facts: (a) the eight unattached `cierres_externos` consumers behind P1-1; (b) the RLS on `crm.inversiones` / `crm.inversion_titulares` behind the cotitular question; (c) `identidad_bloquear_documentos_de`, `asegurar_identidad_perfil`, `contrato_documental_congelado`, `crm.normalizar_domicilio_legal` and the PDF renderer, none of which were attached — so I can neither confirm nor challenge the "PDF template/render/fonts/assets identical to HEAD" claim, and I have not tried to.

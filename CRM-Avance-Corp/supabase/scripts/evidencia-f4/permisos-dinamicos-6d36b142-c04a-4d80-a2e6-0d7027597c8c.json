@@ -1,0 +1,90 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "baseCopia": "f4_permisos_dinamicos_6d36b142c04a",
+  "terminadoEn": "2026-09-08T18:15:07.305Z",
+  "pruebas": [
+    {
+      "nombre": "vendedor vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "supervisor vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "gerencia vigente: prepara y recupera su inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "ajeno: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "supervisor_ajeno: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "directorio: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "cliente: sin permiso de escritura sobre la relación",
+      "conforme": true
+    },
+    {
+      "nombre": "Una baja real revoca preparación y replay aunque conserve rol Portal analista",
+      "conforme": true
+    },
+    {
+      "nombre": "Reemplazo recibe la relación y el replay; nueva preparación exige datos propios",
+      "conforme": true
+    },
+    {
+      "nombre": "Baja sin reemplazo se rechaza y conserva personas e historia",
+      "conforme": true
+    },
+    {
+      "nombre": "Persona sin responsable: no se inventa uno para permitir la operación",
+      "conforme": true
+    },
+    {
+      "nombre": "Directorio conserva agregados globales sin recibir filas, documentos ni escritura F4",
+      "conforme": true
+    },
+    {
+      "nombre": "Lector heredado conserva foto del cierre propio, pero oculta teléfono vivo después del traslado",
+      "conforme": true
+    },
+    {
+      "nombre": "Sin responsable actual no se recupera teléfono vivo usando tenencia histórica",
+      "conforme": true
+    },
+    {
+      "nombre": "Inversión adicional cooperativa no convierte el cierre original Avance en cooperativo",
+      "conforme": true
+    },
+    {
+      "nombre": "Baja real también revoca lectores heredados de cierres y estados",
+      "conforme": true
+    },
+    {
+      "nombre": "Las filas financieras y titulares no admiten DML directo de la API",
+      "conforme": true
+    },
+    {
+      "nombre": "Cliente conserva su Portal y no recibe rol comercial por ser inversionista",
+      "conforme": true
+    },
+    {
+      "nombre": "Apagado F4 rechaza nueva escritura y reintento por igual",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "fuentesEconomicasYSellosSinCambios": true,
+  "sha256Oraculo": "6f424f92b92f0576a419b551ea9416bc1aa7ca50d2634cbe4ee1893fe3b2c2bd",
+  "limites": [
+    "SQL con rol/claims sintéticos; baja y traslado mediante RPC real. No simula una sesión HTTP.",
+    "Los cambios de rol Portal/CRM y la matriz multirrol se cubren en su oráculo complementario."
+  ]
+}

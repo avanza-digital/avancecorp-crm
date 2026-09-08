@@ -1,0 +1,116 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "ejecucion": "56c6b388-fb71-4f40-8fdb-e3bf88535698",
+  "terminadoEn": "2026-09-08T18:02:35.326Z",
+  "pruebas": [
+    {
+      "nombre": "Generación Deno PEN y tres descargas idénticas",
+      "conforme": true,
+      "sha256": "1edbd4a46920a5b74037e4f91a5231bef3a390e6e1abb1f641c38e31bea6d75b",
+      "bytes": 871760,
+      "intentos": 1,
+      "adaptador": "Deno real",
+      "duracionMs": 319
+    },
+    {
+      "nombre": "Generación Deno USD y tres descargas idénticas",
+      "conforme": true,
+      "sha256": "b2aebce841955c8097dd48f03b1fc945c77a4ed6cb000d66d658d72df924f723",
+      "bytes": 871997,
+      "intentos": 1,
+      "adaptador": "Deno real",
+      "duracionMs": 259
+    },
+    {
+      "nombre": "PDF privado y equipo ajeno rechazado",
+      "conforme": true
+    },
+    {
+      "nombre": "Recuperación Deno tras fallo transitorio de renderizar",
+      "conforme": true,
+      "objetosAntes": 0,
+      "sha256": "fd2511d7ca6d9440cd31a633bd089aa2f6106919ed638a25c3e80517f7c2bda2",
+      "bytes": 871762,
+      "intentos": 2,
+      "adaptador": "Deno real",
+      "duracionMs": 225
+    },
+    {
+      "nombre": "Recuperación Deno tras fallo transitorio de subir",
+      "conforme": true,
+      "objetosAntes": 0,
+      "sha256": "080f3b0081e7adb6ba6e3237577a66f619bf340259de722c950130433fc2bbac",
+      "bytes": 871761,
+      "intentos": 2,
+      "adaptador": "Deno real",
+      "duracionMs": 217
+    },
+    {
+      "nombre": "Recuperación Deno tras fallo transitorio de descargar",
+      "conforme": true,
+      "objetosAntes": 1,
+      "sha256": "b2a638368262d215de9cc150c7d9c54eec62fafe09ac21ac3ebd1416ddb86f6b",
+      "bytes": 871759,
+      "intentos": 2,
+      "adaptador": "Deno real",
+      "duracionMs": 204
+    },
+    {
+      "nombre": "Recuperación Deno tras fallo transitorio de firmar",
+      "conforme": true,
+      "objetosAntes": 1,
+      "sha256": "5c2bf5e3c22da9a29ceec8bea4263bb99b6f4875ed967030f027943c57c0a630",
+      "bytes": 871763,
+      "intentos": 1,
+      "adaptador": "Deno real",
+      "duracionMs": 41
+    },
+    {
+      "nombre": "Sello confirmado con respuesta perdida se reutiliza",
+      "conforme": true,
+      "sha256": "e4e6074e395bf3440d11c47387478bf208c6037d10f229c0b072d4666ec9ea35",
+      "bytes": 871761,
+      "intentos": 1,
+      "adaptador": "Deno real",
+      "duracionMs": 40
+    },
+    {
+      "nombre": "Dos generadores simultáneos producen un solo PDF",
+      "conforme": true,
+      "sha256": "6a8d15561546f091d80c3eaf0ee6b2acd08a93b71290e5502fe2b926ee256323",
+      "bytes": 871761,
+      "intentos": 1
+    },
+    {
+      "nombre": "Recuperación Respuesta perdida subir tras lease real",
+      "conforme": true,
+      "sha256": "320ccfe4cb734fb8dd8e444c9d8854e45674b9b7d6614059f41107b323647643",
+      "bytes": 871763,
+      "intentos": 2,
+      "adaptador": "Deno real",
+      "duracionMs": 388
+    },
+    {
+      "nombre": "Recuperación Respuesta perdida contrato_pdf_marcar_subido tras lease real",
+      "conforme": true,
+      "sha256": "5645dcfa613f46781af230e5fb732fd8fded329221f7a118ee6841aaba2ee020",
+      "bytes": 871762,
+      "intentos": 2,
+      "adaptador": "Deno real",
+      "duracionMs": 266
+    },
+    {
+      "nombre": "Todas las operaciones del ensayo terminan con una fuente, un PDF sellado y su inversión",
+      "conforme": true
+    }
+  ],
+  "contratos": 10,
+  "fuentesSinDuplicados": true,
+  "generador": "Plantilla y renderer vigentes sin cambios; handler recupera el objeto existente antes de repetir su subida",
+  "limites": [
+    "Revisión visual de los dos archivos en paso separado",
+    "La plantilla vigente no imprime cotitulares; cualquier incorporación exige aprobación de Miguel",
+    "Antecedentes sin reserva y permisos dinámicos se cubren en bloques posteriores",
+    "Pruebas locales; G4 completo sigue abierto"
+  ]
+}

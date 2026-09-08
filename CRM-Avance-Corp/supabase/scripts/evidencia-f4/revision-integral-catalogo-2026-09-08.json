@@ -1,0 +1,519 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "fecha": "2026-09-08T18:18:01.677Z",
+  "funciones": [
+    {
+      "md5": "4bbfd838ef6665f3bdad4603fa400e65",
+      "firma": "crm.cartera_pagina_fn(integer,timestamp with time zone,uuid,text,uuid,boolean,text)",
+      "nombre": "crm.cartera_pagina_fn",
+      "definicion": "CREATE OR REPLACE FUNCTION crm.cartera_pagina_fn(p_limite integer DEFAULT 50, p_antes_de timestamp with time zone DEFAULT NULL::timestamp with time zone, p_antes_id uuid DEFAULT NULL::uuid, p_etapa text DEFAULT NULL::text, p_vendedor_id uuid DEFAULT NULL::uuid, p_sin_asignar boolean DEFAULT false, p_texto text DEFAULT NULL::text)\n RETURNS TABLE(id uuid, nombre_completo text, telefono text, telefono_alternativo text, telefono_alternativo_crudo text, correo text, dni text, genero text, fecha_nacimiento date, distrito text, origen text, etapa text, motivo_descarte text, monto_estimado numeric, moneda text, categoria_interes text, vendedor_id uuid, asignado_supervisor_id uuid, creado_en timestamp with time zone, tenencia_desde timestamp with time zone, convertido_en timestamp with time zone, contrato_id uuid, actualizado_en timestamp with time zone, activo boolean, nota text, no_contactar boolean, ultimo_contacto_en timestamp with time zone)\n LANGUAGE plpgsql\n STABLE\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid uuid := (select auth.uid());\n  v_rol text;\n  v_lector boolean;\n  v_visibles uuid[];\n  v_corte timestamptz := now() - interval '45 days'; -- ventana_convertidos_dias\n  v_texto text;\n  v_digitos text;\n  v_patron_texto text;\n  v_patron_digitos text;\nbegin\n  -- Guardia de ADMISION (el ALCANCE lo pone la RLS, ver 20260810141953).\n  v_rol := private.rol_crm(v_uid);\n  v_lector := private.es_lector_global();\n  if v_uid is null or (v_rol is null and not v_lector) then\n    raise exception 'No autorizado' using errcode = '42501';\n  end if;\n  -- Se resuelve UNA vez (la policy lo evalua como SubPlan en cada fila).\n  v_visibles := array(select private.vendedor_ids_visibles(v_uid));\n\n  if p_limite is null or p_limite < 1 or p_limite > 200 then\n    raise exception 'Parametro p_limite invalido' using errcode = '22023';\n  end if;\n\n  -- Cursor A MEDIAS = paginas que se saltan filas en silencio. O los dos\n  -- componentes o ninguno: el desempate por id es parte del cursor, no un extra.\n  if (p_antes_de is null) <> (p_antes_id is null) then\n    raise exception 'Cursor incompleto: p_antes_de y p_antes_id viajan juntos'\n      using errcode = '22023';\n  end if;\n\n  if p_etapa is not null and p_etapa not in (\n    'nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada',\n    'convertido', 'descartado'\n  ) then\n    raise exception 'Parametro p_etapa invalido' using errcode = '22023';\n  end if;\n\n  -- \"Sin asignar\" y \"de este vendedor\" son mutuamente excluyentes: pedir ambos\n  -- solo puede ser un bug del llamante, y devolver 0 filas lo esconderia.\n  if coalesce(p_sin_asignar, false) and p_vendedor_id is not null then\n    raise exception 'Filtro contradictorio: p_sin_asignar con p_vendedor_id'\n      using errcode = '22023';\n  end if;\n\n  v_texto := nullif(btrim(coalesce(p_texto, '')), '');\n  if v_texto is not null then\n    if length(v_texto) < 2 then\n      raise exception 'Parametro p_texto invalido: minimo 2 caracteres'\n        using errcode = '22023';\n    end if;\n    v_texto := left(v_texto, 80);\n    v_digitos := left(regexp_replace(v_texto, '\\D', '', 'g'), 15);\n    -- El texto del usuario es un LITERAL, no un patron: `\\`, `%` y `_` se\n    -- escapan antes de envolverlo en comodines (la barra PRIMERO, o se\n    -- re-escaparian las que introducen los otros dos replace). Los `ilike` de\n    -- abajo declaran `escape` explicitamente en vez de confiar en el default:\n    -- asi la intencion no depende de `standard_conforming_strings`.\n    v_patron_texto := '%' || replace(replace(replace(v_texto, E'\\\\', E'\\\\\\\\'), '%', E'\\\\%'), '_', E'\\\\_') || '%';\n    v_patron_digitos := case when length(v_digitos) >= 3 then '%' || v_digitos || '%' end;\n  end if;\n\n  return query\n  select l.id,\n         l.nombre_completo,\n         l.telefono,\n         -- EL CAMBIO DE ESTA MIGRACION. Sin esta linea la ficha del lead no\n         -- puede dibujar el segundo numero aunque la base lo tenga guardado.\n         l.telefono_alternativo,\n         -- EL CAMBIO DE ESTA MIGRACION. La ficha se sirve del store, no de esta\n         -- pagina, asi que tecnicamente podria vivir sin la columna — pero\n         -- entonces `Lead` tendria DOS formas segun de donde venga la fila, y esa\n         -- divergencia es exactamente como se pierde un dato sin que nadie lo vea.\n         l.telefono_alternativo_crudo,\n         l.correo,\n         l.dni,\n         l.genero,\n         l.fecha_nacimiento,\n         l.distrito,\n         l.origen,\n         l.etapa,\n         l.motivo_descarte,\n         l.monto_estimado,\n         l.moneda,\n         l.categoria_interes,\n         l.vendedor_id,\n         l.asignado_supervisor_id,\n         l.creado_en,\n         l.tenencia_desde,\n         l.convertido_en,\n         l.contrato_id,\n         l.actualizado_en,\n         l.activo,\n         l.nota,\n         l.no_contactar,\n         uc.creado_en as ultimo_contacto_en\n  from crm.leads l\n  -- Ultimo CONTACTO real (semaforo del kanban): los 5 tipos de TIPOS_CONTACTO,\n  -- jamas cualquier fila del timeline. Mismo criterio que cola_accion_fn — que\n  -- este dato viaje YA en la pagina es lo que deja a F3 sin migraciones.\n  left join lateral (\n    select act.creado_en\n    from crm.actividades act\n    where act.lead_id = l.id\n      and act.tipo in ('llamada_realizada', 'llamada_no_contestada',\n                       'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada')\n    order by act.creado_en desc\n    limit 1\n  ) uc on true\n  -- Redundante para todos los roles menos el lector global, que es justamente a\n  -- quien le mezclaba filas con sus tiles (20260810151433).\n  where l.activo is true\n    and (l.etapa <> 'convertido' or l.convertido_en >= v_corte)\n    -- Pista de ambito: REDUNDANTE con la policy. Solo puede restar filas; lo\n    -- que se ve lo sigue decidiendo `leads_select`.\n    and (\n      v_lector\n      or v_rol = 'gerencia'\n      or l.vendedor_id = any(v_visibles)\n      or (l.vendedor_id is null and l.asignado_supervisor_id = any(v_visibles))\n    )\n    -- Keyset. Los sentidos del orden son MIXTOS (actualizado_en desc, id asc),\n    -- asi que la comparacion NO puede escribirse como tupla `(a, b) < (x, y)`:\n    -- esa forma solo es correcta cuando ambas columnas ordenan igual.\n    and (\n      p_antes_de is null\n      or l.actualizado_en < p_antes_de\n      or (l.actualizado_en = p_antes_de and l.id > p_antes_id)\n    )\n    and (p_etapa is null or l.etapa = p_etapa)\n    and (p_vendedor_id is null or l.vendedor_id = p_vendedor_id)\n    and (not coalesce(p_sin_asignar, false) or l.vendedor_id is null)\n    and (\n      v_texto is null\n      or l.nombre_completo ilike v_patron_texto escape E'\\\\'\n      or (v_patron_digitos is not null\n          and (l.telefono ilike v_patron_digitos escape E'\\\\'\n               -- Buscar por el SEGUNDO numero. Sin esto, el vendedor que recibe\n               -- una llamada del alternativo escribe ese numero y el buscador le\n               -- responde que el lead no existe.\n               or l.telefono_alternativo ilike v_patron_digitos escape E'\\\\'\n               or l.dni ilike v_patron_digitos escape E'\\\\'))\n    )\n  order by l.actualizado_en desc, l.id asc\n  limit p_limite;\nend;\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "0bde18875efbb757801633571e558ca2",
+      "firma": "crm.cumplimiento_metas_fn(date)",
+      "nombre": "crm.cumplimiento_metas_fn",
+      "definicion": "CREATE OR REPLACE FUNCTION crm.cumplimiento_metas_fn(p_periodo date)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid uuid := (select auth.uid());\n  v_rol text := private.rol_crm(v_uid);\n  v_lector boolean := private.es_lector_global();\n  v_base jsonb;\n  v_vendedores jsonb;\n  v_fuera_ranking jsonb := '[]'::jsonb;\n  v_cerrado boolean;\n  v_global boolean;\n  v_periodo_id uuid;\n  v_ini timestamptz;\n  v_fin timestamptz;\n  v_factor numeric;\nbegin\n  if v_uid is null or (v_rol is null and not v_lector) then\n    raise exception 'No autorizado' using errcode = '42501';\n  end if;\n\n  v_base := crm.cumplimiento_metas_sin_cartera_fn(p_periodo);\n  v_cerrado := coalesce((v_base #>> '{cierre,cerrado}')::boolean, false);\n\n  -- Solo Gerencia y el lector global reciben identidades fuera del ranking.\n  -- Para un mes cerrado salen del JSON append-only del sello; para uno abierto\n  -- se proyectan en vivo desde los mismos nucleos de conversion, produccion y\n  -- cartera. Los demás roles reciben siempre un arreglo vacío.\n  v_global := coalesce(v_rol = 'gerencia', false) or v_lector;\n  if v_global and v_cerrado then\n    select coalesce(pc.cobertura->'fuera_ranking', '[]'::jsonb)\n      into v_fuera_ranking\n    from crm.periodos_cerrados pc\n    where pc.periodo = p_periodo;\n  elsif v_global then\n    v_ini := p_periodo::timestamp at time zone 'America/Lima';\n    v_fin := (p_periodo + interval '1 month')::timestamp at time zone 'America/Lima';\n    v_factor := private.peso_referido_conversion(p_periodo);\n    select mp.id into v_periodo_id\n    from crm.meta_periodos mp\n    where mp.periodo = p_periodo\n    order by mp.revision desc\n    limit 1;\n\n    with conv as materialized (\n      select cm.*\n      from private.conversion_mensual_por_vendedor(\n        v_ini, v_fin, true, '{}'::uuid[], v_factor\n      ) cm\n    ), prod as materialized (\n      select r.*\n      from private.produccion_mes_por_vendedor(v_ini, v_fin, v_periodo_id) r\n    ), car as materialized (\n      select m.* from private.metricas_cartera_por_vendedor(p_periodo) m\n  ), personas as (\n    select c.analista_id as persona_id from conv c where c.analista_id is not null\n      union\n      select p.vendedor_id from prod p where p.vendedor_id is not null\n      union\n      select c.vendedor_id from car c where c.vendedor_id is not null\n    ), dentro as (\n      select (e.value->>'vendedor_id')::uuid as persona_id\n      from jsonb_array_elements(coalesce(v_base->'vendedores', '[]'::jsonb)) e\n    ), fuera as (\n      select\n        p.persona_id,\n        coalesce(nullif(btrim(pf.nombre_completo), ''),\n                 '(sin nombre · ' || left(p.persona_id::text, 8) || ')') as nombre,\n        coalesce(eq.rol_crm, 'fuera_equipo') as rol_crm,\n        case\n          when eq.rol_crm = 'vendedor' and sup.perfil_id is not null\n            then 'analista_sin_meta'\n          when eq.rol_crm = 'vendedor' then 'analista_sin_supervisor'\n          when eq.rol_crm = 'supervisor' then 'supervisor'\n          when eq.rol_crm = 'gerencia' then 'gerencia'\n          else 'fuera_estructura'\n        end as motivo\n      from personas p\n      left join crm.equipo eq on eq.perfil_id = p.persona_id\n      left join crm.equipo sup\n        on sup.perfil_id = eq.supervisor_id and sup.rol_crm = 'supervisor'\n      left join public.perfiles pf on pf.id = p.persona_id\n      where not exists (\n        select 1 from dentro d where d.persona_id = p.persona_id\n      )\n    )\n    select coalesce(jsonb_agg(jsonb_build_object(\n      'persona_id', f.persona_id,\n      'nombre', f.nombre,\n      'rol_crm', f.rol_crm,\n      'motivo', f.motivo,\n      'conversion', case when cv.analista_id is null then null else jsonb_build_object(\n        'divisor', coalesce(cv.divisor, 0),\n        'divisor_aproximado', coalesce(cv.divisor_aproximado, 0),\n        'divisor_por_motivo', coalesce(cv.divisor_por_motivo, '{}'::jsonb),\n        'cierres_no_referidos', coalesce(cv.cierres_no_referidos, 0),\n        'cierres_referidos', coalesce(cv.cierres_referidos, 0),\n        'cierres_de_arrastre', coalesce(cv.cierres_de_arrastre, 0),\n        'referidos_recibidos', coalesce(cv.referidos_recibidos, 0),\n        'numerador', coalesce(cv.numerador, 0)\n      ) end,\n      'detalles', det.detalles,\n      'cartera', jsonb_build_object(\n        'conversiones_clientes', coalesce(car.conversiones_clientes, 0),\n        'conversiones_renovacion', coalesce(car.conversiones_renovacion, 0),\n        'conversiones_upgrade', coalesce(car.conversiones_upgrade, 0),\n        'operaciones_renovacion', coalesce(car.operaciones_renovacion, 0),\n        'operaciones_upgrade', coalesce(car.operaciones_upgrade, 0),\n        'capital_renovado_pen', coalesce(car.capital_renovado_pen, 0),\n        'capital_renovado_usd', coalesce(car.capital_renovado_usd, 0),\n        'capital_adicional_pen', coalesce(car.capital_adicional_pen, 0),\n        'capital_adicional_usd', coalesce(car.capital_adicional_usd, 0),\n        'renovaciones_sin_desglose', coalesce(car.renovaciones_sin_desglose, 0)\n      )\n    ) order by f.nombre, f.persona_id), '[]'::jsonb)\n      into v_fuera_ranking\n    from fuera f\n    left join conv cv on cv.analista_id = f.persona_id\n    left join car on car.vendedor_id = f.persona_id\n    left join lateral (\n      select jsonb_agg(jsonb_build_object(\n        'categoria', d.categoria,\n        'moneda', d.moneda,\n        'capital_objetivo', 0,\n        'capital_real', coalesce(pr.capital_real, 0),\n        'capital_cumplimiento_pct', null,\n        'contratos_objetivo', 0,\n        'contratos_real', coalesce(pr.contratos_real, 0),\n        'contratos_cumplimiento_pct', null,\n        'capital_ajuste', 0,\n        'contratos_ajuste', 0\n      ) order by array_position(\n        array['nuevo','renovacion','upgrade'], d.categoria\n      ), d.moneda) as detalles\n      from (values\n        ('nuevo'::text, 'PEN'::text), ('nuevo', 'USD'),\n        ('renovacion', 'PEN'), ('renovacion', 'USD'),\n        ('upgrade', 'PEN'), ('upgrade', 'USD')\n      ) d(categoria, moneda)\n      left join prod pr on pr.vendedor_id = f.persona_id\n        and pr.categoria = d.categoria and pr.moneda = d.moneda\n    ) det on true;\n  end if;\n\n  with m as materialized (\n    select x.*\n    from private.metricas_cartera_por_vendedor(p_periodo) x\n    where not v_cerrado\n    union all\n    select\n      f.vendedor_id,\n      (f.cartera->>'conversiones_clientes')::int,\n      (f.cartera->>'conversiones_renovacion')::int,\n      (f.cartera->>'conversiones_upgrade')::int,\n      (f.cartera->>'operaciones_renovacion')::int,\n      (f.cartera->>'operaciones_upgrade')::int,\n      (f.cartera->>'capital_renovado_pen')::numeric,\n      (f.cartera->>'capital_renovado_usd')::numeric,\n      (f.cartera->>'capital_adicional_pen')::numeric,\n      (f.cartera->>'capital_adicional_usd')::numeric,\n      (f.cartera->>'renovaciones_sin_desglose')::int\n    from private.cierre_mes_visible(p_periodo, v_uid) f\n    where v_cerrado\n  )\n  select coalesce(jsonb_agg(\n    jsonb_set(\n      e.value,\n      '{convertidos}',\n      to_jsonb(coalesce((e.value->>'convertidos')::int, 0)\n               + coalesce(m.conversiones_clientes, 0)),\n      true\n    ) order by e.ord\n  ), '[]'::jsonb) into v_vendedores\n  from jsonb_array_elements(coalesce(v_base->'vendedores','[]'::jsonb))\n       with ordinality e(value, ord)\n  left join m on m.vendedor_id = (e.value->>'vendedor_id')::uuid;\n\n  v_base := jsonb_set(v_base, '{vendedores}', v_vendedores, true);\n  return jsonb_set(v_base, '{fuera_ranking}', v_fuera_ranking, true);\nend;\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "42696f049d18b6ba8cbb08c60fafb75d",
+      "firma": "crm.normalizar_domicilio_legal(text)",
+      "nombre": "crm.normalizar_domicilio_legal",
+      "definicion": "CREATE OR REPLACE FUNCTION crm.normalizar_domicilio_legal(p_domicilio text)\n RETURNS text\n LANGUAGE plpgsql\n IMMUTABLE\n SET search_path TO ''\nAS $function$\ndeclare\n  -- Espacios exoticos que SI ocupan sitio: se convierten en espacio normal.\n  v_espacios constant text := U&'\\00A0\\2007\\202F\\3000\\1680\\2000\\2001\\2002\\2003\\2004\\2005\\2006\\2008\\2009\\200A\\205F';\n  -- Invisibles de ancho CERO y controles de direccion: no se normalizan, se\n  -- RECHAZAN. Escritos con escapes Unicode a proposito — pegarlos literales\n  -- volveria este fichero ilegible y no auditable.\n  v_invisibles constant text :=\n    U&'[\\00AD\\180E\\200B\\200C\\200D\\200E\\200F\\2028\\2029\\202A\\202B\\202C\\202D\\202E\\2060\\2061\\2062\\2063\\2064\\FEFF]';\n  v_min constant int := 15;\n  v_max constant int := 240;\n  v_out text;\n  v_plano text;\nbegin\n  v_out := coalesce(p_domicilio, '');\n  v_out := translate(v_out, v_espacios, repeat(' ', length(v_espacios)));\n  v_out := btrim(regexp_replace(v_out, '\\s+', ' ', 'g'));\n\n  if v_out = '' then\n    raise exception 'Completa el domicilio legal del cliente.'\n      using errcode = '22023';\n  end if;\n  if v_out ~ v_invisibles then\n    raise exception 'El domicilio legal contiene caracteres invisibles que no se imprimirian en el contrato.'\n      using errcode = '22023';\n  end if;\n  -- length() sobre text cuenta CARACTERES, igual que el Array.from() del\n  -- navegador.\n  if length(v_out) not between v_min and v_max or v_out ~ '[[:cntrl:]]' then\n    raise exception\n      'El domicilio legal debe tener entre % y % caracteres válidos; escribe la calle, el número y el distrito.',\n      v_min, v_max\n      using errcode = '22023';\n  end if;\n\n  -- Al menos un digito. Los 19 domicilios reales de produccion lo cumplen sin\n  -- excepcion, y es lo que separa una direccion de un relleno: `LIMA.`,\n  -- `PENDIENTE`, `no tiene`, `Su casa` caen todos aqui.\n  if v_out !~ '[0-9]' then\n    raise exception\n      'El domicilio legal necesita el número de la calle, el lote o la manzana.'\n      using errcode = '22023';\n  end if;\n\n  -- Un unico caracter repetido: `.....`, `xxxxxxxxxxxxxxxx`, `----------------`.\n  if length(regexp_replace(v_out, '[^[:alnum:]]', '', 'g')) > 0\n     and (select count(distinct c) from regexp_split_to_table(\n            regexp_replace(lower(v_out), '[^[:alnum:]]', '', 'g'), '') as t(c)) = 1 then\n    raise exception 'El domicilio legal no puede ser un solo carácter repetido.'\n      using errcode = '22023';\n  end if;\n\n  -- La direccion de la PROPIA Avance Corp. Se compara en plano (sin tildes, sin\n  -- mayusculas, sin puntuacion) para que no la salve un acento o un «N.°».\n  v_plano := lower(translate(v_out,\n    'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'));\n  v_plano := regexp_replace(v_plano, '[^a-z0-9 ]', '', 'g');\n  v_plano := regexp_replace(v_plano, '\\s+', ' ', 'g');\n  if v_plano like '%republica de panama%' and v_plano like '%3635%' then\n    raise exception\n      'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.'\n      using errcode = '22023';\n  end if;\n\n  return v_out;\nend;\n$function$\n",
+      "volatilidad": "i"
+    },
+    {
+      "md5": "efbe1fbb1ceb1a1bb8b5d5c03baf3897",
+      "firma": "private.contratos_afectados_por_anulacion(uuid)",
+      "nombre": "private.contratos_afectados_por_anulacion",
+      "definicion": "CREATE OR REPLACE FUNCTION private.contratos_afectados_por_anulacion(p_lead_id uuid)\n RETURNS SETOF uuid\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n\n  select c.id\n  from crm.leads l\n  cross join lateral (\n    -- La FOTO manda. El calculo vivo solo sirve de respaldo: para cierres en\n    -- cooperativa (que no pasan por esta tabla) y para responder ANTES de anular.\n    select coalesce(\n      (select ca.acreditado_a from crm.cierres_avance_anulados ca where ca.lead_id = l.id),\n      private.vendedor_acreditado_del_cierre(l.id)\n    ) as acreditado_a\n  ) q\n  join public.contratos c\n    on (\n      -- (a) enlace directo, cuando alguien lo rellena (legado o manual)\n      c.id = l.contrato_id\n      -- (b) el enlace del flujo REAL: el lead apunta al CLIENTE.\n      or (l.perfil_id is not null\n          and l.perfil_id = c.cliente_id\n          and l.convertido_en is not null\n          -- SUELO: un contrato ANTERIOR a la conversion no lo produjo este\n          -- cierre. `crm.convertir_lead` admite un cliente que YA existia, asi\n          -- que su cartera previa es de otra historia comercial y no se toca.\n          and c.creado_en >= l.convertido_en\n          -- TECHO: y deja de reclamar en cuanto ese mismo cliente vuelve a\n          -- cerrarse. Sin esto un cierre anulado se quedaba con TODO el futuro\n          -- del cliente para siempre — incluida la venta legitima que ese mismo\n          -- vendedor le hiciera un ano despues.\n          and not exists (\n            select 1\n            from crm.leads l_post\n            where l_post.perfil_id = l.perfil_id\n              and l_post.id <> l.id\n              and l_post.convertido_en is not null\n              -- Orden TOTAL, no parcial: `now()` es constante dentro de una\n              -- transaccion, asi que dos conversiones del mismo cliente pueden\n              -- empatar al microsegundo. Con `>` a secas ninguna cerraria el\n              -- techo de la otra y AMBAS reclamarian los mismos contratos.\n              and (l_post.convertido_en, l_post.id) > (l.convertido_en, l.id)\n              and l_post.convertido_en <= c.creado_en\n          ))\n    )\n   -- Y solo afecta a quien lo tiene. ATR-4: la verdad de la atribucion es la\n   -- CADENA (ATR-1/2) con su caida a analista_cierre_id — `creado_por` era el\n   -- REGISTRADOR, no el dueño del merito (leccion del 28/08). Esta funcion es\n   -- SOLO INFORMATIVA desde ATR-4 (payload/afecta_cuota — que ahora significa\n   -- «afecta la CONVERSION» — y retroceso de etapa): produccion y la deuda de\n   -- mes sellado ya no le preguntan.\n   and coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id) = q.acreditado_a\n   -- Lo que la cuota NO mira, esto tampoco puede prometerlo: sin estos dos\n   -- filtros, un contrato en otra moneda o de categoria no contable entraba en\n   -- `contratos_afectados` y ponia `afecta_cuota` en true sin que bajara un sol.\n   and c.categoria in ('nuevo','renovacion','upgrade')\n   and c.moneda in ('PEN','USD')\n   -- Y la MISMA regla de ambiguedad que aplica la cuota: un contrato enlazado a\n   -- leads de vendedores DISTINTOS ya queda sin atribuir alli, asi que anular no\n   -- movera un sol. Sin esto, `afecta_cuota` decia true y no bajaba nada.\n   and not exists (\n     select 1\n     from crm.leads le\n     where le.contrato_id = c.id\n       and le.vendedor_id is not null\n     having count(distinct le.vendedor_id) > 1\n   )\n  where l.id = p_lead_id\n\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "e75b09c50ce3743b6dc88fde9e57ac8a",
+      "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+      "nombre": "private.conversion_episodios",
+      "definicion": "CREATE OR REPLACE FUNCTION private.conversion_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric)\n RETURNS TABLE(tipo text, analista_id uuid, lead_id uuid, operacion_id uuid, fue_referido boolean, aproximado boolean, motivo text, anulado boolean, origen text, categoria text, mes_origen date, monto numeric, moneda text, fecha_divisor timestamp with time zone, fecha_numerador timestamp with time zone, aporte_divisor integer, aporte_numerador numeric)\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n#variable_conflict use_column\nbegin\nreturn query\nselect 'recibido'::text, primera.analista_id, l.id, null::uuid,\n  l.origen = 'referido', coalesce(primera.aproximado, false),\n  'llegada'::text, false, l.origen, null::text,\n  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,\n  null::numeric, null::text, l.creado_en, null::timestamptz,\n  case when l.origen in ('landing', 'formulario') and not l.alta_manual\n    then 1 else 0 end, 0::numeric\nfrom crm.leads l\nleft join lateral (\n  select la.analista_id, la.aproximado\n  from crm.lead_asignaciones la\n  where la.lead_id = l.id\n  order by la.asignado_en, la.ciclo_n, la.episodio_n, la.id\n  limit 1\n) primera on true\nwhere l.creado_en >= p_ini and l.creado_en < p_fin\n  and l.origen in ('landing', 'formulario', 'referido')\n  and (p_global or primera.analista_id = any(p_visibles))\n\nunion all\n\nselect 'cierre'::text, la.analista_id, la.lead_id, null::uuid,\n  l.origen = 'referido', null::boolean, null::text,\n  private.cierre_externo_anulado(la.lead_id), l.origen, null::text,\n  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,\n  null::numeric, null::text, null::timestamptz,\n  coalesce(la.resultado_en, la.finalizado_en), 0,\n  case when private.cierre_externo_anulado(la.lead_id) then 0\n    when l.origen = 'referido' then\n      case when p_periodo is not null then p_factor else\n        private.peso_referido_conversion(date_trunc('month',\n          coalesce(la.resultado_en, la.finalizado_en) at time zone 'America/Lima')::date) end\n    when l.origen in ('landing', 'formulario') then 1\n    else 0 end\nfrom crm.lead_asignaciones la\njoin crm.leads l on l.id = la.lead_id\nwhere la.resultado = 'convertido'\n  and coalesce(la.resultado_en, la.finalizado_en) >= p_ini\n  and coalesce(la.resultado_en, la.finalizado_en) < p_fin\n  and (p_global or la.analista_id = any(p_visibles))\n\nunion all\n\nselect 'operacion'::text,\n  coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),\n  null::uuid, o.id, false, null::boolean, null::text, false,\n  null::text, o.tipo, o.periodo, null::numeric, o.moneda,\n  null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,\n  case when o.tipo = 'renovacion' then\n    case when p_periodo is not null then p_factor\n      else private.peso_referido_conversion(o.periodo) end\n    when o.tipo = 'upgrade' then 1 else 0 end\nfrom (\n  select o0.*, row_number() over (\n    partition by o0.cliente_id, o0.periodo\n    order by o0.fecha_operacion, o0.creado_en, o0.id\n  ) as orden_conversion\n  from crm.operaciones_cartera o0\n  where o0.elegible_conversion\n    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date\n    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date\n) o\nwhere o.orden_conversion = 1\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini\n  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin\n  and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),\n                           o.vendedor_id) = any(p_visibles));\nend;\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "bbbf7c29e7fcf90945a0735bdc4ea25c",
+      "firma": "private.conversion_mensual_por_vendedor(timestamp with time zone,timestamp with time zone,boolean,uuid[],numeric)",
+      "nombre": "private.conversion_mensual_por_vendedor",
+      "definicion": "CREATE OR REPLACE FUNCTION private.conversion_mensual_por_vendedor(p_ini timestamp with time zone, p_fin timestamp with time zone, p_global boolean, p_visibles uuid[], p_factor numeric)\n RETURNS TABLE(analista_id uuid, divisor integer, divisor_aproximado integer, divisor_por_motivo jsonb, cierres_no_referidos integer, cierres_referidos integer, cierres_de_arrastre integer, numerador numeric, conversion_pct numeric, procedencia jsonb, referidos_recibidos integer, referidos_aporta_pct numeric)\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n#variable_conflict use_column\nbegin\nreturn query\nwith ep as (\n  select e.* from private.conversion_episodios(\n    p_ini, p_fin,\n    case when date_trunc('month', p_ini at time zone 'America/Lima') =\n      date_trunc('month', (p_fin - interval '1 microsecond') at time zone 'America/Lima')\n      then date_trunc('month', p_ini at time zone 'America/Lima')::date end,\n    p_global, p_visibles, p_factor\n  ) e\n), recibidos as (\n  select e.analista_id, e.lead_id, e.fue_referido, e.motivo, e.aproximado, e.aporte_divisor\n  from ep e where e.tipo = 'recibido'\n), cierres as (\n  select e.analista_id, e.lead_id, e.fue_referido, e.mes_origen,\n    date_trunc('month', p_ini at time zone 'America/Lima')::date as mes_periodo\n  from ep e where e.tipo = 'cierre' and not e.anulado\n    and e.origen in ('landing', 'formulario', 'referido')\n), motivos as (\n  select r.analista_id, r.motivo, count(*)::int as n\n  from recibidos r where r.aporte_divisor > 0\n  group by r.analista_id, r.motivo\n), motivos_json as (\n  select m.analista_id, jsonb_object_agg(m.motivo, m.n) as divisor_por_motivo\n  from motivos m group by m.analista_id\n), agg_div as (\n  select r.analista_id,\n    sum(r.aporte_divisor)::int as divisor,\n    coalesce(sum(r.aporte_divisor) filter (where r.aproximado), 0)::int as divisor_aproximado,\n    count(*) filter (where r.fue_referido)::int as referidos_recibidos\n  from recibidos r group by r.analista_id\n), agg_cie as (\n  select c.analista_id,\n    count(distinct c.lead_id) filter (where not c.fue_referido)::int as cierres_no_referidos,\n    count(distinct c.lead_id) filter (where c.fue_referido)::int as cierres_referidos,\n    count(distinct c.lead_id) filter (where c.mes_origen < c.mes_periodo)::int as cierres_de_arrastre\n  from cierres c group by c.analista_id\n), aportes as (\n  select e.analista_id,\n    sum(e.aporte_divisor)::int as divisor,\n    sum(e.aporte_numerador) as numerador,\n    coalesce(sum(e.aporte_numerador) filter (where e.tipo = 'cierre' and e.fue_referido), 0) as aporte_referidos\n  from ep e group by e.analista_id\n), proc as (\n  select c.analista_id, c.mes_cubo,\n    (count(distinct c.lead_id) filter (where not c.fue_referido)\n     + count(distinct c.lead_id) filter (where c.fue_referido))::int as cierres,\n    count(distinct c.lead_id) filter (where c.fue_referido)::int as cierres_referidos\n  from (\n    select c0.analista_id, c0.lead_id, c0.fue_referido,\n      case when\n        (extract(year from p_ini at time zone 'America/Lima')::int * 12\n         + extract(month from p_ini at time zone 'America/Lima')::int)\n        - (extract(year from c0.mes_origen)::int * 12\n           + extract(month from c0.mes_origen)::int) <= 11\n      then c0.mes_origen end as mes_cubo\n    from cierres c0\n  ) c\n  group by c.analista_id, c.mes_cubo\n), proc_json as (\n  select p.analista_id,\n    jsonb_agg(jsonb_build_object(\n      'mes', case when p.mes_cubo is not null then to_char(p.mes_cubo, 'YYYY-MM') end,\n      'mes_nombre', case when p.mes_cubo is not null\n        then private.etiqueta_mes_es(p.mes_cubo) else 'anteriores' end,\n      'anio', case when p.mes_cubo is not null then extract(year from p.mes_cubo)::int end,\n      'cierres', p.cierres, 'cierres_referidos', p.cierres_referidos\n    ) order by p.mes_cubo desc nulls last) as procedencia\n  from proc p group by p.analista_id\n)\nselect\n  a.analista_id,\n  a.divisor,\n  coalesce(d.divisor_aproximado, 0),\n  coalesce(mj.divisor_por_motivo, '{}'::jsonb),\n  coalesce(c.cierres_no_referidos, 0),\n  coalesce(c.cierres_referidos, 0),\n  coalesce(c.cierres_de_arrastre, 0),\n  a.numerador,\n  case when a.divisor > 0 then round(100.0 * a.numerador / a.divisor, 2) end,\n  coalesce(pj.procedencia, '[]'::jsonb),\n  coalesce(d.referidos_recibidos, 0),\n  case when a.divisor > 0 then round(100.0 * a.aporte_referidos / a.divisor, 2) end\nfrom aportes a\nleft join agg_div d on d.analista_id is not distinct from a.analista_id\nleft join agg_cie c on c.analista_id is not distinct from a.analista_id\nleft join motivos_json mj on mj.analista_id is not distinct from a.analista_id\nleft join proc_json pj on pj.analista_id is not distinct from a.analista_id;\nend;\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "170faaab19c7cc78e187909ffe039adb",
+      "firma": "private.inversion_datos_portal(jsonb)",
+      "nombre": "private.inversion_datos_portal",
+      "definicion": "CREATE OR REPLACE FUNCTION private.inversion_datos_portal(p_datos jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n IMMUTABLE\n SET search_path TO ''\nAS $function$\ndeclare v_correo text; v_nombre text; v_domicilio text;\nbegin\n  if jsonb_typeof(p_datos) is distinct from 'object' then\n    raise exception 'Completa los datos para el acceso Avance de esta persona' using errcode='22023';\n  end if;\n  if exists(select 1 from jsonb_object_keys(p_datos) k where k not in\n    ('correo','nombre_completo','apellidos','nombres','telefono','domicilio'))\n    or exists(select 1 from jsonb_each(p_datos) d where jsonb_typeof(d.value) not in ('string','null')) then\n    raise exception 'El alta Avance contiene campos no admitidos; documento y responsable los determina el servidor' using errcode='22023';\n  end if;\n  v_correo:=lower(btrim(p_datos->>'correo'));\n  v_nombre:=upper(btrim(p_datos->>'nombre_completo'));\n  if v_correo is null or length(v_correo)>254 or v_correo !~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'\n     or v_nombre is null or length(v_nombre) not between 2 and 240 or v_nombre ~ '[[:cntrl:]]' then\n    raise exception 'Completa el nombre legal y un correo válido para el acceso Avance' using errcode='22023';\n  end if;\n  if exists(select 1 from jsonb_each_text(p_datos) d where d.key in ('apellidos','nombres','telefono')\n    and (length(d.value)>240 or d.value ~ '[[:cntrl:]]')) then\n    raise exception 'Revisa los nombres y el teléfono del cliente' using errcode='22023';\n  end if;\n  v_domicilio:=crm.normalizar_domicilio_legal(p_datos->>'domicilio');\n  return jsonb_build_object('correo',v_correo,'nombre_completo',v_nombre,\n    'apellidos',nullif(upper(btrim(p_datos->>'apellidos')),''),\n    'nombres',nullif(upper(btrim(p_datos->>'nombres')),''),\n    'telefono',nullif(btrim(p_datos->>'telefono'),''),'domicilio',v_domicilio);\nend;\n$function$\n",
+      "volatilidad": "i"
+    },
+    {
+      "md5": "2421b2b78b02b8e93fd01598e2f54128",
+      "firma": "private.leads_de_identidades(uuid[])",
+      "nombre": "private.leads_de_identidades",
+      "definicion": "CREATE OR REPLACE FUNCTION private.leads_de_identidades(p_ids uuid[])\n RETURNS SETOF uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select l.id from crm.leads l where l.inversionista_id = any(p_ids)\n  union\n  select il.lead_id from crm.inversionista_leads il where il.inversionista_id = any(p_ids)\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "6eded477639796c1053f0190f6decc18",
+      "firma": "private.leads_de_personas(uuid[])",
+      "nombre": "private.leads_de_personas",
+      "definicion": "CREATE OR REPLACE FUNCTION private.leads_de_personas(p_ids uuid[])\n RETURNS SETOF uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select x from private.leads_de_identidades(p_ids) x\n  union\n  select l.id\n  from crm.leads l\n  join crm.inversionista_identificadores d\n    on d.tipo_documento = 'DNI' and d.estado = 'vigente' and d.verificado = true and d.documento_normalizado = l.dni\n  where d.inversionista_id = any(p_ids)\n    and l.inversionista_id is null\n    and l.activo = true\n    and l.etapa <> 'descartado'\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "548b517e2a4c64f36d787c22856b5ee3",
+      "firma": "private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)",
+      "nombre": "private.registrar_ajuste_si_mes_cerrado",
+      "definicion": "CREATE OR REPLACE FUNCTION private.registrar_ajuste_si_mes_cerrado(p_lead_id uuid, p_motivo text, p_por uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n\ndeclare\n  v_lead        crm.leads%rowtype;\n  v_periodo     date;\n  v_acreditado  uuid;\n  v_referido    boolean;\n  v_peso        numeric;\n  v_numerador   numeric;\n  v_n_episodios integer;\n  v_periodo_episodio date;\n  v_pen         numeric := 0;\n  v_usd         numeric := 0;\n  v_detalle     jsonb := '[]'::jsonb;\n  v_id          uuid;\nbegin\n  select * into v_lead from crm.leads where id = p_lead_id;\n  if not found or v_lead.convertido_en is null then\n    return null;\n  end if;\n\n  v_periodo := date_trunc('month', v_lead.convertido_en at time zone 'America/Lima')::date;\n\n  -- ⚠️ EL CERROJO, antes de mirar si el mes esta cerrado. Sin el, una anulacion\n  -- concurrente con el sellado de ESE mes lee «abierto» —porque el sello aun no\n  -- ha commiteado—, devuelve NULL, y el cierre anulado se queda pagado para\n  -- siempre. Misma clave que en `crm.cerrar_periodo`.\n  perform pg_catalog.pg_advisory_xact_lock(\n    pg_catalog.hashtext('crm.periodos_cerrados'),\n    (v_periodo - date '2000-01-01')::integer\n  );\n\n  -- Mes ABIERTO: no hay deuda que registrar. El mes se recalcula y el cierre\n  -- desaparece de el, que es el comportamiento de siempre.\n  if not exists (select 1 from crm.periodos_cerrados pc where pc.periodo = v_periodo) then\n    return null;\n  end if;\n\n  -- A quien se le descuenta: el mismo acreditado que usa la cuota.\n  v_acreditado := coalesce(\n    (select ca.acreditado_a from crm.cierres_avance_anulados ca where ca.lead_id = p_lead_id),\n    private.vendedor_acreditado_del_cierre(p_lead_id));\n  if v_acreditado is null then\n    -- Sin acreditado no hay a quien descontarle. No se inventa un deudor.\n    return null;\n  end if;\n\n  -- Lo que valia el cierre en la conversion. El origen sale del LEDGER (la foto\n  -- del episodio), no de `crm.leads.origen`, que es una columna viva.\n  -- F6.c (v2, tras el P1 de Codex): EL EPISODIO MANDA. El cierre puede caer a\n  -- caballo del mes (convertido_en usa now() de transaccion y el ledger\n  -- statement_timestamp(), caso documentado): se localiza el episodio canonico\n  -- del lead SIN depender del mes de leads.convertido_en, y de el salen el\n  -- PERIODO real, el referido y el peso. Cero episodios => la sancion de\n  -- conversion vale CERO (nunca 1 en silencio) y queda alerta; mas de uno =>\n  -- excepcion de integridad (el ledger solo permite una conversion por lead).\n  select count(*),\n         coalesce(bool_or(e.fue_referido), false),\n         min(date_trunc('month', (e.fecha_numerador at time zone 'America/Lima'))::date)\n    into v_n_episodios, v_referido, v_periodo_episodio\n  from private.conversion_episodios(\n         '1900-01-01'::timestamptz, '2100-01-01'::timestamptz,\n         null::date, true, '{}'::uuid[], 1) e\n  where e.lead_id = p_lead_id and e.tipo = 'cierre';\n\n  if v_n_episodios > 1 then\n    raise exception 'Integridad: el lead % tiene % episodios de cierre en el ledger', p_lead_id, v_n_episodios;\n  end if;\n  if v_n_episodios = 1 and v_periodo_episodio is distinct from v_periodo then\n    -- El mes REAL del cierre es el del episodio: el cerrojo y la foto del mes\n    -- sellado se toman sobre ese periodo (se re-toma el candado por si acaso).\n    v_periodo := v_periodo_episodio;\n    perform pg_catalog.pg_advisory_xact_lock(\n      pg_catalog.hashtext('crm.periodos_cerrados'),\n      (v_periodo - date '2000-01-01')::integer);\n    if not exists (select 1 from crm.periodos_cerrados pc where pc.periodo = v_periodo) then\n      return null;\n    end if;\n  end if;\n  if v_n_episodios = 0 then\n    insert into private.vigia_alertas (fase, motivo)\n    values ('f6c_ajuste_sin_episodio',\n            format('lead %s: sin episodio de cierre en el ledger; la sancion de conversion vale 0', p_lead_id));\n  end if;\n\n  v_peso := private.peso_referido_conversion(v_periodo);\n  v_numerador := case when v_n_episodios = 0 then 0\n                       when v_referido then v_peso else 1 end;\n\n  -- ATR-4 (Miguel 31/08): «solo la conversion, siempre». La deuda de un mes\n  -- sellado ya NO carga capital: el capital del analista se queda en su\n  -- produccion y el de la empresa en el AUM. Solo se descuenta la conversion.\n  v_pen := 0; v_usd := 0; v_detalle := '[]'::jsonb;\n\n  -- Con capital siempre 0, la deuda existe SOLO si la conversion valia algo.\n  -- numerador 0 (cierre sin episodio) => NULL POR DISENO declarado: el rastro\n  -- queda en la alerta del vigia (f6c_ajuste_sin_episodio) y en la anulacion\n  -- misma; no se fabrica una deuda vacia.\n  if v_numerador <= 0 and v_pen = 0 and v_usd = 0 then\n    return null;\n  end if;\n\n  insert into crm.ajustes_mes_cerrado (\n    vendedor_id, periodo_origen, lead_id, motivo, creado_por,\n    numerador, capital_pen, capital_usd, detalle,\n    pendiente_numerador, pendiente_pen, pendiente_usd, pendiente_detalle\n  ) values (\n    v_acreditado, v_periodo, p_lead_id, p_motivo, p_por,\n    v_numerador, v_pen, v_usd, v_detalle,\n    v_numerador, v_pen, v_usd, v_detalle\n  )\n  on conflict (lead_id) do nothing\n  returning id into v_id;\n\n  return v_id;\nend;\n\n$function$\n",
+      "volatilidad": "v"
+    },
+    {
+      "md5": "4875f15c1a5e0a7115e6e35135097178",
+      "firma": "private.vendedor_acreditado_del_cierre(uuid)",
+      "nombre": "private.vendedor_acreditado_del_cierre",
+      "definicion": "CREATE OR REPLACE FUNCTION private.vendedor_acreditado_del_cierre(p_lead_id uuid)\n RETURNS uuid\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  select coalesce(\n    (select la.analista_id\n       from crm.lead_asignaciones la\n      where la.lead_id = p_lead_id\n        and la.resultado = 'convertido'\n      order by coalesce(la.resultado_en, la.finalizado_en) desc\n      limit 1),\n    (select l.vendedor_id from crm.leads l where l.id = p_lead_id)\n  )\n$function$\n",
+      "volatilidad": "s"
+    },
+    {
+      "md5": "6184aad4be1b234db83b096e08e92428",
+      "firma": "actualizar_contrato(uuid,jsonb,jsonb)",
+      "nombre": "public.actualizar_contrato",
+      "definicion": "CREATE OR REPLACE FUNCTION public.actualizar_contrato(p_id uuid, p_contrato jsonb, p_cronograma jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_uid uuid := (select auth.uid());\n  v_es_analista boolean := (select public.es_analista());\n  v_es_gestor_cartera boolean := (select public.es_gestor_cartera());\n  v_rol_crm text := private.rol_crm(v_uid);\n  v_es_gerencia_crm boolean := coalesce(v_rol_crm = 'gerencia', false);\n  v_es_crm_catalogado boolean :=\n    coalesce(v_rol_crm in ('vendedor', 'supervisor'), false)\n    and nullif(\n      current_setting('crm.producto_condicion_id', true), ''\n    ) is not null;\n  v_row public.contratos%rowtype;\n  v_cuota jsonb;\n  v_numero text;\nbegin\n  select *\n    into v_row\n  from public.contratos c\n  where c.id = p_id;\n  if not found then\n    raise exception 'Contrato no encontrado' using errcode = 'P0002';\n  end if;\n\n  if v_es_gestor_cartera or v_es_gerencia_crm then\n    -- P04 (2026-08-09): una membresía CRM REVOCADA prevalece sobre el poder de\n    -- portal también para CORREGIR términos, no solo para la banca y el alta.\n    -- Se pregunta por la revocación y NO por el guard bancario completo: ese\n    -- exige cliente activo, y desactivar a un cliente no debe impedir corregir\n    -- sus contratos históricos.\n    if (select private.membresia_crm_revocada()) then\n      raise insufficient_privilege using\n        message = 'Tu membresia CRM fue revocada; no puedes corregir contratos';\n    end if;\n  elsif v_es_analista or v_es_crm_catalogado then\n    if v_row.creado_por is distinct from v_uid then\n      raise insufficient_privilege using\n        message = 'Solo puedes corregir contratos que tu creaste';\n    end if;\n    if v_row.creado_en <= now() - interval '5 hours' then\n      raise insufficient_privilege using\n        message = 'La ventana de correccion de 5 horas ya vencio para este contrato';\n    end if;\n    if not (select private.puede_registrar_ventas()) then\n      raise insufficient_privilege using\n        message = 'Este cliente ya no esta en tu cartera; no puedes corregir su contrato';\n    end if;\n  else\n    raise insufficient_privilege using message = 'No autorizado';\n  end if;\n\n  if v_row.estado in ('renovado', 'retirado')\n     and not (select public.es_superadmin()) then\n    raise exception\n      'El contrato esta cerrado (%): no se pueden editar sus terminos',\n      v_row.estado;\n  end if;\n\n  if (p_contrato->>'capital')::numeric < 100\n     or (p_contrato->>'capital')::numeric > 100000000 then\n    raise exception 'El capital debe estar entre 100 y 100,000,000';\n  end if;\n  if (p_contrato->>'tasa_anual')::numeric <= 0\n     or (p_contrato->>'tasa_anual')::numeric > 50 then\n    raise exception 'La tasa anual debe estar entre 0 y 50%%';\n  end if;\n\n  if (p_contrato->>'categoria') is not null\n     and (p_contrato->>'categoria') not in (\n       'nuevo', 'renovacion', 'upgrade'\n     ) then\n    raise exception 'Categoria invalida';\n  end if;\n\n  v_numero := nullif(btrim(p_contrato->>'numero_contrato'), '');\n  if v_numero is not null\n     and v_numero is distinct from v_row.numero_contrato then\n    if exists (\n      select 1\n      from public.contratos c\n      where c.numero_contrato = v_numero\n        and c.id <> p_id\n    ) then\n      raise exception\n        'El N de contrato % ya existe en otro contrato',\n        v_numero;\n    end if;\n  end if;\n\n  update public.contratos\n     set numero_contrato = coalesce(v_numero, numero_contrato),\n         capital = (p_contrato->>'capital')::numeric,\n         moneda = coalesce(nullif(p_contrato->>'moneda', ''), moneda),\n         tasa_anual = (p_contrato->>'tasa_anual')::numeric,\n         modalidad = p_contrato->>'modalidad',\n         tipo_interes = coalesce(\n           nullif(p_contrato->>'tipo_interes', ''),\n           tipo_interes\n         ),\n         fecha_inicio = (p_contrato->>'fecha_inicio')::date,\n         fecha_vencimiento = (p_contrato->>'fecha_vencimiento')::date,\n         notas_internas = nullif(\n           btrim(coalesce(p_contrato->>'notas_internas', '')),\n           ''\n         ),\n         categoria = coalesce(\n           nullif(p_contrato->>'categoria', ''),\n           categoria\n         )\n   where id = p_id;\n\n  if p_cronograma is not null\n     and jsonb_array_length(p_cronograma) > 0 then\n    if not exists (\n      select 1\n      from public.cronograma_pagos cp\n      where cp.contrato_id = p_id\n        and (cp.estado = 'pagado' or cp.monto_pagado is not null)\n    ) then\n      delete from public.cronograma_pagos cp\n      where cp.contrato_id = p_id;\n\n      for v_cuota in\n        select value from jsonb_array_elements(p_cronograma)\n      loop\n        insert into public.cronograma_pagos (\n          contrato_id,\n          numero_cuota,\n          fecha_programada,\n          monto_programado,\n          estado,\n          tipo\n        ) values (\n          p_id,\n          (v_cuota->>'numero_cuota')::integer,\n          (v_cuota->>'fecha_programada')::date,\n          (v_cuota->>'monto_programado')::numeric,\n          'pendiente',\n          coalesce(nullif(v_cuota->>'tipo', ''), 'cuota')\n        );\n      end loop;\n    else\n      delete from public.cronograma_pagos cp\n      where cp.contrato_id = p_id\n        and not (cp.estado = 'pagado' or cp.monto_pagado is not null);\n\n      for v_cuota in\n        select je.value\n        from jsonb_array_elements(p_cronograma) as je(value)\n        where not exists (\n          select 1\n          from public.cronograma_pagos cp\n          where cp.contrato_id = p_id\n            and (cp.estado = 'pagado' or cp.monto_pagado is not null)\n            and cp.numero_cuota = (je.value->>'numero_cuota')::integer\n        )\n      loop\n        insert into public.cronograma_pagos (\n          contrato_id,\n          numero_cuota,\n          fecha_programada,\n          monto_programado,\n          estado,\n          tipo\n        ) values (\n          p_id,\n          (v_cuota->>'numero_cuota')::integer,\n          (v_cuota->>'fecha_programada')::date,\n          (v_cuota->>'monto_programado')::numeric,\n          'pendiente',\n          coalesce(nullif(v_cuota->>'tipo', ''), 'cuota')\n        );\n      end loop;\n    end if;\n  end if;\n\n  if p_contrato ? 'titulares' then\n    perform public._sync_contrato_titulares(\n      p_id,\n      p_contrato->'titulares'\n    );\n  end if;\n\n  return jsonb_build_object('id', p_id, 'ok', true);\nend;\n$function$\n",
+      "volatilidad": "v"
+    }
+  ],
+  "columnas": [
+    {
+      "data_type": "uuid",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "id",
+      "ordinal_position": 1
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "vendedor_id",
+      "ordinal_position": 2
+    },
+    {
+      "data_type": "date",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "periodo_origen",
+      "ordinal_position": 3
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "lead_id",
+      "ordinal_position": 4
+    },
+    {
+      "data_type": "text",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "motivo",
+      "ordinal_position": 5
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "creado_por",
+      "ordinal_position": 6
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "creado_en",
+      "ordinal_position": 7
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "numerador",
+      "ordinal_position": 8
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "capital_pen",
+      "ordinal_position": 9
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "capital_usd",
+      "ordinal_position": 10
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "detalle",
+      "ordinal_position": 11
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "pendiente_numerador",
+      "ordinal_position": 12
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "pendiente_pen",
+      "ordinal_position": 13
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "pendiente_usd",
+      "ordinal_position": 14
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "pendiente_detalle",
+      "ordinal_position": 15
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "ajustes_mes_cerrado",
+      "column_name": "saldado_en",
+      "ordinal_position": 16
+    },
+    {
+      "data_type": "date",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "periodo",
+      "ordinal_position": 1
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "vendedor_id",
+      "ordinal_position": 2
+    },
+    {
+      "data_type": "text",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "nombre_completo",
+      "ordinal_position": 3
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "supervisor_id",
+      "ordinal_position": 4
+    },
+    {
+      "data_type": "text",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "supervisor_nombre",
+      "ordinal_position": 5
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "divisor",
+      "ordinal_position": 6
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "divisor_aproximado",
+      "ordinal_position": 7
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "divisor_por_motivo",
+      "ordinal_position": 8
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "cierres_no_referidos",
+      "ordinal_position": 9
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "cierres_referidos",
+      "ordinal_position": 10
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "cierres_de_arrastre",
+      "ordinal_position": 11
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "numerador",
+      "ordinal_position": 12
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "conversion_pct",
+      "ordinal_position": 13
+    },
+    {
+      "data_type": "text",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "estado",
+      "ordinal_position": 14
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "referidos_recibidos",
+      "ordinal_position": 15
+    },
+    {
+      "data_type": "integer",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "referidos_dados_de_alta",
+      "ordinal_position": 16
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "referidos_aporta_pct",
+      "ordinal_position": 17
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "procedencia",
+      "ordinal_position": 18
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "ajuste_numerador",
+      "ordinal_position": 19
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "ajuste_pen",
+      "ordinal_position": 20
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "ajuste_usd",
+      "ordinal_position": 21
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "conversion_objetivo",
+      "ordinal_position": 22
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "detalles",
+      "ordinal_position": 23
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "cierre_mes_vendedor",
+      "column_name": "cartera",
+      "ordinal_position": 24
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meta_periodos",
+      "column_name": "id",
+      "ordinal_position": 1
+    },
+    {
+      "data_type": "date",
+      "table_name": "meta_periodos",
+      "column_name": "periodo",
+      "ordinal_position": 2
+    },
+    {
+      "data_type": "integer",
+      "table_name": "meta_periodos",
+      "column_name": "revision",
+      "ordinal_position": 3
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meta_periodos",
+      "column_name": "revision_anterior_id",
+      "ordinal_position": 4
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "meta_periodos",
+      "column_name": "publicada_por",
+      "ordinal_position": 5
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "meta_periodos",
+      "column_name": "publicada_en",
+      "ordinal_position": 6
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "metas_vendedor",
+      "column_name": "id",
+      "ordinal_position": 1
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "metas_vendedor",
+      "column_name": "meta_periodo_id",
+      "ordinal_position": 2
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "metas_vendedor",
+      "column_name": "vendedor_id",
+      "ordinal_position": 3
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "metas_vendedor",
+      "column_name": "supervisor_id",
+      "ordinal_position": 4
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "metas_vendedor",
+      "column_name": "conversion_objetivo",
+      "ordinal_position": 5
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "metas_vendedor",
+      "column_name": "creado_en",
+      "ordinal_position": 6
+    },
+    {
+      "data_type": "date",
+      "table_name": "periodos_cerrados",
+      "column_name": "periodo",
+      "ordinal_position": 1
+    },
+    {
+      "data_type": "timestamp with time zone",
+      "table_name": "periodos_cerrados",
+      "column_name": "cerrado_en",
+      "ordinal_position": 2
+    },
+    {
+      "data_type": "uuid",
+      "table_name": "periodos_cerrados",
+      "column_name": "cerrado_por",
+      "ordinal_position": 3
+    },
+    {
+      "data_type": "boolean",
+      "table_name": "periodos_cerrados",
+      "column_name": "automatico",
+      "ordinal_position": 4
+    },
+    {
+      "data_type": "numeric",
+      "table_name": "periodos_cerrados",
+      "column_name": "ponderacion_referido",
+      "ordinal_position": 5
+    },
+    {
+      "data_type": "integer",
+      "table_name": "periodos_cerrados",
+      "column_name": "meta_revision",
+      "ordinal_position": 6
+    },
+    {
+      "data_type": "jsonb",
+      "table_name": "periodos_cerrados",
+      "column_name": "cobertura",
+      "ordinal_position": 7
+    }
+  ],
+  "perfilesRestricciones": [
+    {
+      "nombre": "perfiles_asesor_id_fkey",
+      "definicion": "FOREIGN KEY (asesor_id) REFERENCES asesores(id) ON DELETE SET NULL"
+    },
+    {
+      "nombre": "perfiles_asesor_perfil_id_fkey",
+      "definicion": "FOREIGN KEY (asesor_perfil_id) REFERENCES perfiles(id) ON DELETE SET NULL"
+    },
+    {
+      "nombre": "perfiles_cci_check",
+      "definicion": "CHECK (((cci IS NULL) OR (cci ~ '^[0-9]{20}$'::text)))"
+    },
+    {
+      "nombre": "perfiles_correo_key",
+      "definicion": "UNIQUE (correo)"
+    },
+    {
+      "nombre": "perfiles_creado_por_fkey",
+      "definicion": "FOREIGN KEY (creado_por) REFERENCES perfiles(id) ON DELETE SET NULL"
+    },
+    {
+      "nombre": "perfiles_domicilio_legal_valido",
+      "definicion": "CHECK (((domicilio IS NULL) OR ((domicilio = btrim(domicilio)) AND ((length(domicilio) >= 5) AND (length(domicilio) <= 240)) AND (domicilio !~ '[[:cntrl:]]'::text))))"
+    },
+    {
+      "nombre": "perfiles_id_fkey",
+      "definicion": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "nombre": "perfiles_pkey",
+      "definicion": "PRIMARY KEY (id)"
+    },
+    {
+      "nombre": "perfiles_rol_check",
+      "definicion": "CHECK ((rol = ANY (ARRAY['cliente'::text, 'analista'::text, 'admin'::text, 'superadmin'::text, 'directorio'::text, 'comercial'::text, 'operaciones'::text])))"
+    },
+    {
+      "nombre": "perfiles_tipo_cuenta_check",
+      "definicion": "CHECK (((tipo_cuenta IS NULL) OR (tipo_cuenta = ANY (ARRAY['ahorros'::text, 'corriente'::text]))))"
+    },
+    {
+      "nombre": "perfiles_tipo_documento_check",
+      "definicion": "CHECK ((tipo_documento = ANY (ARRAY['DNI'::text, 'CE'::text, 'PASAPORTE'::text])))"
+    }
+  ],
+  "rls": [
+    {
+      "cmd": "SELECT",
+      "qual": "private.es_gerencia_crm_activa()",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "inversion_titulares",
+      "permissive": "PERMISSIVE",
+      "policyname": "inversion_titulares_select_gerencia",
+      "schemaname": "crm",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "private.es_gerencia_crm_activa()",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "inversiones",
+      "permissive": "PERMISSIVE",
+      "policyname": "inversiones_select_gerencia",
+      "schemaname": "crm",
+      "with_check": null
+    }
+  ],
+  "limites": "Solo catálogo y código, sin datos de personas ni pagos reales. Las metas y ajustes de conversión no acreditan liquidación de comisiones."
+}

@@ -148,7 +148,7 @@ describe('SeccionEnCooperativas', () => {
     expect(within(seccion).getByText(/Mostrando los 1 más recientes de 3/)).toBeInTheDocument()
   })
 
-  it('la mini-ficha abre con documento, referencia y la explicación sin-portal', async () => {
+  it('la mini-ficha abre con documento, referencia y explicación de la inversión', async () => {
     const user = userEvent.setup()
     consultaCierres.mockReturnValue(q(PAYLOAD_REAL))
     montar(<SeccionEnCooperativas demo={false} />)
@@ -158,7 +158,20 @@ describe('SeccionEnCooperativas', () => {
     const ficha = await screen.findByRole('dialog')
     expect(within(ficha).getByText('DNI 41000001')).toBeInTheDocument()
     expect(within(ficha).getByText('QOR-2026-001')).toBeInTheDocument()
-    expect(within(ficha).getByText(/no tiene cuenta en el portal/)).toBeInTheDocument()
+    expect(within(ficha).getByText(/La cooperativa administra esta inversión/)).toBeInTheDocument()
+  })
+
+  it('muestra una inversión sin lead con fecha comercial y sin atribuir estado del Portal', async () => {
+    const user = userEvent.setup()
+    consultaCierres.mockReturnValue(q({ ...PAYLOAD_REAL, cierres: [{ ...CIERRE_REAL,
+      lead_id: null, telefono: null, fecha_comercial: '2026-07-15', fecha_imputacion: '2026-08-12', es_cierre_inicial: false,
+    }] }))
+    montar(<SeccionEnCooperativas demo={false} />)
+    await user.click(screen.getByRole('button', { name: 'Ver detalle — Cliente Qorilazo Uno' }))
+    const ficha = await screen.findByRole('dialog')
+    expect(within(ficha).getByText(/15.*07.*2026|15.*jul.*2026/i)).toBeInTheDocument()
+    expect(within(ficha).queryByText(/no tiene cuenta en el portal/)).not.toBeInTheDocument()
+    expect(within(ficha).queryByText('Teléfono')).not.toBeInTheDocument()
   })
 
   it('si la carga real falla, avisa con Reintentar — nunca un hueco mudo', () => {

@@ -1,0 +1,923 @@
+{
+  "fecha": "2026-09-08T18:33:18.307Z",
+  "rama": "codex/f4-cierre",
+  "commitBaseTrabajo": "36725bd",
+  "estadoG4": "ABIERTO",
+  "pendiente": "Identificar fuente/regla de comisiones y demostrar conservación de liquidaciones pagadas; consulta a Miguel pendiente.",
+  "candidata": {
+    "archivo": "CRM-Avance-Corp/supabase/migrations/20260907191832_crm_f4_inversiones_base_y_escritores.sql",
+    "sha256": "84f8b3b407812363ebe9705aaaab46b8620d48a79dc7d6d38cc285a18a293afe",
+    "bytes": 271642
+  },
+  "estructura": {
+    "funciones": 48,
+    "adaptadas": 18,
+    "nuevas": 30,
+    "modulos": 11,
+    "tablasNuevas": 7
+  },
+  "fuentes": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/01-base.sql",
+      "sha256": "037b187eb32b80c90163725a713a5e72138ba1392be7d24018667ef09290bf67",
+      "bytes": 23509
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/02-confirmacion.sql",
+      "sha256": "d36092a5d8ee9792968691c4bf00f3143e05f95f2c208b2c83dd1f6eeb72d105",
+      "bytes": 15387
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/03-coherencia.sql",
+      "sha256": "5e8fff65c62e3a8d390f15ed3078d3ac5ed008957802572e527c58b61f95bf7c",
+      "bytes": 1892
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/04-avance.sql",
+      "sha256": "44914f732162e7f2bef87777de6f49c4ac32eec94dea8f1bb9176e88e375d3cb",
+      "bytes": 1554
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/05-acceso-portal.sql",
+      "sha256": "a0e49ab9e48dc2bd3efbce78fcfb6d1c700cfa356352a2cb3c7bfe0151e79f16",
+      "bytes": 11698
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/06-revision-responsable.sql",
+      "sha256": "ef31e704840aede00e35a9bef110b0ef4aa92aff40487cb8ee51811b76260e54",
+      "bytes": 8746
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql",
+      "sha256": "cb3f88d2123b9f1a9c4548ee1a1b274b780d48a17b66647808fbb389374cc670",
+      "bytes": 8256
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql",
+      "sha256": "32a0462ade19778ebb5c95c4ff24dd285ed1e9740b5b4912db6ff067e1e7ebdb",
+      "bytes": 10831
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/09-cotitular-puerta.sql",
+      "sha256": "db3707ecbd05aeaef7eecb5eb54eec019ae39718fa23eaa28e36bbceb59223a2",
+      "bytes": 1644
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/10-cotitulares-neutrales.sql",
+      "sha256": "99749ef9e545c0b943dff457518bdb68516bbbf8320a7c6f028dbc6d943cfe73",
+      "bytes": 11267
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/11-correccion-solicitud.sql",
+      "sha256": "d3650c5cb5fae3146bc5b8ae7baef104e232a1a4e02b5ad1bb81930a98c8973d",
+      "bytes": 11852
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md",
+      "sha256": "fe96201b4b7b4d8e05e840db9216fb788d88c56756aef017f2915bb6ce7670bb",
+      "bytes": 8552
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/README.md",
+      "sha256": "7228c524022569d5d47a6bae0932a4dc9223585be4cc9f3ad797a9872eb82ef2",
+      "bytes": 7952
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md",
+      "sha256": "583eeac9114561e1dd40a3e71600bf5bce95bab91b97f505d20fbfb81368fc9a",
+      "bytes": 5836
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/actualizar-funciones-local.mjs",
+      "sha256": "ff2907c36cad3e13ca8f2ac0b274e45f59b36915c309d5360416b185ade02c96",
+      "bytes": 3544
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/actualizar-tipos-local.mjs",
+      "sha256": "c30aa194cd2ee25b065c376a292a7ddb6273ea6654aab6593ef4958a0152af01",
+      "bytes": 4060
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/aplicar-candidato.mjs",
+      "sha256": "ec24500e25f69c0ad215aef7a9540ab1e58785c7ad38a276dfc9b4f751267ae4",
+      "bytes": 1644
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/banco-local.mjs",
+      "sha256": "dd661da455db1cd11701d1379070c153dbcbbb8a0f1bcc7680ecd2354922ab7d",
+      "bytes": 5578
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/base-funciones-adicionales.json",
+      "sha256": "91ae16787713160331a0386fbb9f782383ec7baedd002909c6b0b9bbd7036108",
+      "bytes": 15291
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/base-funciones.json",
+      "sha256": "a440921923777812f73a5741655b3d54677b0c49a5a30970c7da4379d517861a",
+      "bytes": 140785
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/base-inventario-consumidores.json",
+      "sha256": "90ad81165ec221df207bbaea2def4d6e956c096e4625b229b67955fa3f2bcf04",
+      "bytes": 2791
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/candados-prueba.mjs",
+      "sha256": "2eb1ef20070333017a8b5da1b02c8f508b0aac8e80c1ae1cfb9f783d00a8d546",
+      "bytes": 2610
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-adicionales.mjs",
+      "sha256": "392806483012b348dafac565cc2dedfee309c552fa4de6bf0bf3dcdac76c3a4e",
+      "bytes": 1618
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-auditoria-local.mjs",
+      "sha256": "8c3cee75a2120bd82f56bc978d8b6f0d9e736a5c4fea8ccb785f506591709a71",
+      "bytes": 2853
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-base.mjs",
+      "sha256": "7a9d41421d223b381e5d94d02a380c8254f1afd6349738e885e4a78605b37459",
+      "bytes": 2863
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-funciones.mjs",
+      "sha256": "57863c4429e4a80a561220bcd44c59dcb0807405fbc2b251dbce880ed7a013a5",
+      "bytes": 1745
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-paridad.mjs",
+      "sha256": "aacda721ec71ebaded296fee0a3ae53e39dc32cf2a5b33657dd6637964c131ef",
+      "bytes": 3498
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/capturar-pdf-bordes-local.mjs",
+      "sha256": "73d87d7db8b17d6373f0a2027e828d410520369fc6551cf5d032a5e9de84306a",
+      "bytes": 7753
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/cargar-historicos-prueba.mjs",
+      "sha256": "fdd0f94240f7608862c636f9580bca26a264e720a6c74eb8850bb675338ec603",
+      "bytes": 1865
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/configuracion-publicada.mjs",
+      "sha256": "a4af78317c6fa2262ca890c109c47732046ac6c0f7830dde5f12f666d9a6be10",
+      "bytes": 816
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/copia-sql-local.mjs",
+      "sha256": "81341af6cc759a00c54a2820e632bc359fb8a8e488599eecc9fc0954a4e07a13",
+      "bytes": 3622
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/fusion-fixture.mjs",
+      "sha256": "f07a145bf47fc56565492d7acbc8b8d5e6f7bee10574b3d235b54de37a710f9b",
+      "bytes": 2554
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/generar-migracion.mjs",
+      "sha256": "fffa2b20804a8162ed48c0d1a067ac4349f8746c03ac1af304b66802ae5871ca",
+      "bytes": 13980
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-acceso-portal-local.mjs",
+      "sha256": "20b491569251539e1f8fb026e0539fbdfc5482a739b281cec5ea8a8edc44e74c",
+      "bytes": 4597
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-ampliacion-local.mjs",
+      "sha256": "35f631b7a2f6b855d90c599418851f423717d2baefa5cb76ced9a2e7dfc1d248",
+      "bytes": 3577
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-cotitular-puerta-local.mjs",
+      "sha256": "1c31e3c11f21bfc637498b492d6cac23405e47ec2d20a28b27e0ba7092a3e624",
+      "bytes": 2364
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-historicos-local.mjs",
+      "sha256": "4c752afefc216e3e2ae146d06cb5b5ded1df9c3a75c804b2eae734d99021fc3a",
+      "bytes": 3058
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-reintento-local.mjs",
+      "sha256": "27c300e33f0284963cfdf1429c406b64f476e07511f03bab10286129f58e4d13",
+      "bytes": 3722
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/instalar-revision-local.mjs",
+      "sha256": "2a69616a48ac511d96405ce94baacd461572c3e188c4878c9b82e64dc9634ee9",
+      "bytes": 4738
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/inventariar-consumidores.mjs",
+      "sha256": "435b2db1b7bc2595ac24e8ec0ea2c46725f2811417b8e596bb83d29e8dcc003b",
+      "bytes": 8666
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/leer-funciones-sql.mjs",
+      "sha256": "5b4219a88a7940497721d70a0ea58d7c3cfbcd6b457d90adadaf0bd256b4336f",
+      "bytes": 1122
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/operaciones-fixture.mjs",
+      "sha256": "874d0bb69ef62bdd24a4a89a4de8591f8ffd08dd375d730e11d609e3d39c9bc0",
+      "bytes": 1610
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/pdf-fixture.mjs",
+      "sha256": "dd49cb5ef95e2300cc30a5af354c7e16e699a775185c8e1e933bd645d7ce9306",
+      "bytes": 4342
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/portal-fixture.mjs",
+      "sha256": "a1f1e2aa05bc7870e50eccf14ece1573c940905e03a56038879ba35b631236a2",
+      "bytes": 3849
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/preparar-edge-portal-local.mjs",
+      "sha256": "3e9c9828875492e5f08bb11f74fd153a2449c30a0b8015fe8f41c3e78f65b59b",
+      "bytes": 966
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/preparar-fixtures.mjs",
+      "sha256": "10a7136a579bd253b7ef52f29beab1e85a91057971f51ae37f3c023ee19092b6",
+      "bytes": 4732
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/preparar-operaciones-base.mjs",
+      "sha256": "84d54e0d615511fd78117a9dfd7c1217e170afb1c322fdfd1cf5d77966642132",
+      "bytes": 6170
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/preparar-pdf-local.mjs",
+      "sha256": "934d6dd6be0034b81a79595858e15debb3dc560da2ac1fe48223749f9b3b6606",
+      "bytes": 1939
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-avance-existente.mjs",
+      "sha256": "4f3ece052daf5bf13f0acd0a18ecabc55bf56938fc52fe9f14ca4cd995b71621",
+      "bytes": 6956
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-concurrencia.mjs",
+      "sha256": "9bd8fadadca14a8151abd70403d3f17b8cf3d6652216954a18fa965e5fa2de77",
+      "bytes": 6596
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-conservacion-historia.mjs",
+      "sha256": "137ced9670c37c4d71205a1b6dfec9a4ebdc9ea7ed2c61dd9212f8bb12eea58e",
+      "bytes": 3154
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-cooperativas.mjs",
+      "sha256": "71b591b34960a690fb0a823972f5dabaad4ef16d5d6268d40410e5dc547878b9",
+      "bytes": 8491
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-corpus-f2.mjs",
+      "sha256": "063d5e9a7175be3810df74fae7025b50b6b2f2e1a8a33f5ccbb5c545d1e2e0f5",
+      "bytes": 8739
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-correccion-solicitud.mjs",
+      "sha256": "c5f76effb56571c9a1cd03afb3f738e777a49a302b806bb699c240198afb7b44",
+      "bytes": 13180
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-api.mjs",
+      "sha256": "293f643182551244a9bc357c62fe6fe3921eba14d235421f87402891d8ba88b8",
+      "bytes": 1774
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-cotitular-puerta.mjs",
+      "sha256": "ecd8198c239f6235f23e1f81a3680751c07eb6640365d015fc388b1e58c97b79",
+      "bytes": 6768
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-cotitulares-neutrales.mjs",
+      "sha256": "403a1565f4bee4dae6be03b9c36aac600cafcb409183507195515e6a8c12c46b",
+      "bytes": 12455
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-documento.mjs",
+      "sha256": "5849eb0725d96b45228d80ebf2a1ce21535d16ef56bc1aaa5fb88047c514a466",
+      "bytes": 12359
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-fechas-anulacion.mjs",
+      "sha256": "575c15353e363777a3c6747b79d9d3ad43576f44e96ccf44b7a5d83f192ddf17",
+      "bytes": 7203
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-finanzas-integral.mjs",
+      "sha256": "9a3177b8f393f6c0b693b5e09753dda89bdb7128b7ee11ab9233bffd543d59ee",
+      "bytes": 15080
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-fusion.mjs",
+      "sha256": "10048d969458c2e9c81a0624af8dc4afb4d290dd38a1f6a134dc985a27114bf5",
+      "bytes": 14719
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-censo.mjs",
+      "sha256": "1ebc8754788bd20e52efa6b18113f0867819deee26fbfeba3ebf82af250c70e2",
+      "bytes": 10115
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-concurrencia.mjs",
+      "sha256": "7e39d77d1852adc3c7c7819b26821802dd861b3393a5ed3ca69a4cccfb34a988",
+      "bytes": 12155
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-identidad.mjs",
+      "sha256": "09eaf624b745b00e5a5703ef24ac0a5697aec44051215bfedc3b56fc268150e6",
+      "bytes": 10362
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-limite.mjs",
+      "sha256": "c8975470397b6415503b3ede111c738d61d3fe84ee66abba4a094c8fb0edb5e7",
+      "bytes": 7952
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-lote.mjs",
+      "sha256": "8945ba82c6c345eee636db77a45025c31c4715805ffce432d51c3bdda72f27aa",
+      "bytes": 21725
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-mantenimiento.mjs",
+      "sha256": "fa9ed3389390d59e0914131aa6592053e37252aa8bd38917c9ad23416334a04b",
+      "bytes": 10295
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-identidad-controles.mjs",
+      "sha256": "e6774dd6ef9b673d925c9b3d9b8d92d19bd4fba7198263ec81713025ece41f04",
+      "bytes": 12391
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-multirrol.mjs",
+      "sha256": "8c931191ae442ac1d673450105ebfe2c4a4bb44b54733b09a13d823432a0de76",
+      "bytes": 7061
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-bordes.mjs",
+      "sha256": "348fb8859348c530de98a7dd2676cb9283225aad0b1bd4ea392c93bd5a73ae8e",
+      "bytes": 13045
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-pdf-real.mjs",
+      "sha256": "62b2384d44a1119c843edac8d19d199b6fa4bf1ab5a00bf53f8e0b708f53c964",
+      "bytes": 11977
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-permisos-dinamicos.mjs",
+      "sha256": "6f424f92b92f0576a419b551ea9416bc1aa7ca50d2634cbe4ee1893fe3b2c2bd",
+      "bytes": 9055
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-edge.mjs",
+      "sha256": "e48b07e757c77081edad11112f0ebb2f956cc360ba663b48a6d99296261ce625",
+      "bytes": 3482
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-lease.mjs",
+      "sha256": "f3288f5354f740cf1dc762a8c344e8716fc3f385449ce8c46698200a0657e5ae",
+      "bytes": 4027
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-nuevo.mjs",
+      "sha256": "d00b44e76291db7a5e510122c1331c9caccab593a1f5e13598a436d748027107",
+      "bytes": 11031
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-portal-veto.mjs",
+      "sha256": "f6a2c0602f64c6ac931690680a5854367954070d27f87c83c4390874d4f12546",
+      "bytes": 4603
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-reintento-confirmado.mjs",
+      "sha256": "67ab163eadebbf9367f0f9f25d589f206e7d2cd63b3fe96e3e2f2860e8083daf",
+      "bytes": 6839
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-restauracion.mjs",
+      "sha256": "4e20095a72cc5f186273c5f4670899f979b2bbe46b0d3271d6b99a6d4f72bf7f",
+      "bytes": 6818
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-controles.mjs",
+      "sha256": "fbb9c9171d03de724bed41494ffbaee6dd141ba692e729a7af0f9c2d393cf9e5",
+      "bytes": 7893
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-lease.mjs",
+      "sha256": "6b0708a1d3ccc9d55469c5eb6a6def38c9747be14394bfd8928288b5c898c17a",
+      "bytes": 4810
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/probar-revision-responsable.mjs",
+      "sha256": "bec7ce19cbc8cea6e00a113c3877c2fa5d590dad6afad69a5c155ff44a9ab345",
+      "bytes": 8964
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/regresion-reintento.mjs",
+      "sha256": "d51f46a6904c1859913bf521267c67d121ae8d82e1da82ac3c6d313149f57cbb",
+      "bytes": 1830
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/ultima-migracion.json",
+      "sha256": "aab499e494439c39f7427671ff97996b8d0ab7474ab0c591d8dd556fd9649b9c",
+      "bytes": 1977
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/verificar-estructura.mjs",
+      "sha256": "efd57abf9d764232765dd0d073c1bb2cdc90c664bbcde129289cd9ab684f985c",
+      "bytes": 6130
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/f4/verificar-pdf-interrumpido.mjs",
+      "sha256": "38a12ff366e5430768eebaf0cbbececc17e16162443992ac586bd2ef34347c71",
+      "bytes": 3195
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/index.ts",
+      "sha256": "134025c9666487ed8e19030c7f602bd0450fe4b6a45175a96046d175f23d90b4",
+      "bytes": 4032
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.ts",
+      "sha256": "e419203681d4592d1b2eb09c4e016d1490e02c4537ff7e0aab5c99a1ed630b33",
+      "bytes": 37778
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/handler.test.ts",
+      "sha256": "25797b9166ef5323ddd0e62097f41a4a1ca9994fe903414e6887a936620c45f5",
+      "bytes": 36873
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.ts",
+      "sha256": "30c8bf80300f00427fc773f33ba0ebefb60ceed821df19ca2e9c652f8363741f",
+      "bytes": 5223
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/storage.test.ts",
+      "sha256": "efaadb4cee6512eacfb267a9d4aa2709adf357e265675f042ddfaaf5770096d1",
+      "bytes": 5740
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/renderer.ts",
+      "sha256": "712adb249115fed1a1e52153289e9bb56198c50bf0d9020d40c15a3f492d99b8",
+      "bytes": 17247
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/template-v2.ts",
+      "sha256": "11384670b98c28b4b1be0873cccfd0490c0d733ee01b4fd2e3a3a291b75e77c4",
+      "bytes": 42224
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/assets-v2.ts",
+      "sha256": "e0e9af03fe59feb5b0749cd56f2422c3ca718148b8fea9666fe84a4f1ca34847",
+      "bytes": 189957
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/pdfmake-0.2.20-pdfprinter.js",
+      "sha256": "0d223658ea3a32d3999916a3bfad06dc4354a5bf444aa8353d4c85814eeb53e4",
+      "bytes": 1331324
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/vfs-fonts-0.2.20.js",
+      "sha256": "3231b43cfdd7efdca80d54be634fc12d28b7dd3fb5ae69efe0fd3eb569e660d1",
+      "bytes": 830106
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/functions/crm-contrato-pdf-v2/deno.json",
+      "sha256": "0a4985479370feb93aaa5a1321ceb6d813288c9ce3e9dce54ef94dc5be4292e0",
+      "bytes": 303
+    },
+    {
+      "archivo": "_supabase_functions/functions/crm-inversion-portal/index.ts",
+      "sha256": "47e5a51cf3c905823a32bb5ab3e7e2ebfe4a8ac249f401c081f7b8d91db68179",
+      "bytes": 417
+    },
+    {
+      "archivo": "_supabase_functions/functions/crm-inversion-portal/handler.mjs",
+      "sha256": "8cbb43f642aa043e09a6ceffa0ab7c8911581087d73ab9356fc3db1a4a0b0b40",
+      "bytes": 8672
+    },
+    {
+      "archivo": "_supabase_functions/functions/crm-inversion-portal/handler.test.mjs",
+      "sha256": "bbc7bc73ad7c3195da00bf4825a6e67d891ce676cb7ffab95bf18b3430ca6835",
+      "bytes": 3701
+    },
+    {
+      "archivo": "_supabase_functions/functions/_shared/documento.ts",
+      "sha256": "c4fe41e8691cb0f46cdf62ff116cc3838802373495dc3280059df122b3632891",
+      "bytes": 3701
+    },
+    {
+      "archivo": "_supabase_functions/functions/_shared/domicilio.mjs",
+      "sha256": "4e361fa011a9392e9a3d98f778d72e880db5a77a1d5b6447617d48f41ae89107",
+      "bytes": 3530
+    },
+    {
+      "archivo": "_supabase_functions/functions/_shared/saga-auth.mjs",
+      "sha256": "8ab2504042cd56a55d428ec0dd1e6be9d9fcae982753af28f15499da8ab379ca",
+      "bytes": 4109
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/database.types.ts",
+      "sha256": "89543309343e4467ab7e047b1aea6ec3f00a18cdac40d1c174b7e017e2f09f44",
+      "bytes": 153933
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/cierres-externos.ts",
+      "sha256": "00dc30e9bd4db8e57cb0582ae1c12a3502c871ef487caccb6c6c9a031faac428",
+      "bytes": 6959
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/cierres-externos.test.ts",
+      "sha256": "89b40c701c3b2b4211e8e248532d810c2d6d37f12a748ea478fb84a646fb07d4",
+      "bytes": 5670
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/cierres-externos-seccion.tsx",
+      "sha256": "e6daa85f4de692c3ae7ae9ae07d88877e675dee6071b02caad2a107d1804828c",
+      "bytes": 30445
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/cierres-externos-seccion.test.tsx",
+      "sha256": "a3971808cdf365ea173ba345417f06339ba07981bd35261e76c9035e105b4ed3",
+      "bytes": 18033
+    }
+  ],
+  "evidencias": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/corpus-f2-d87a38ba-8e92-4a74-a0dd-e65aac22ed47.json",
+      "sha256": "a0af937ecf203bc3d76f925da55df39c0adb8ab744e0405e307ab84171243ccc",
+      "bytes": 2374
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/cotitulares-neutrales-ab46e469-e0f0-46ba-8ee6-4e0755f24ec0.json",
+      "sha256": "f0a561ed0ace2f1c5204a2019401cc3de72983f61b1fb6094de294c710639a64",
+      "bytes": 2432
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/finanzas-integral-dd43179a-8770-4d2e-8a5a-8ccffe75036b.json",
+      "sha256": "f3db76646c23e376047f107625edde669eb6e757e4219b88b923b85177e267b1",
+      "bytes": 2407
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/permisos-dinamicos-6d36b142-c04a-4d80-a2e6-0d7027597c8c.json",
+      "sha256": "d533ece5cd92bbd3d5d037afab243500b27a0b52171eb227a576d46267fcd6ad",
+      "bytes": 2884
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-real-56c6b388-fb71-4f40-8fdb-e3bf88535698.json",
+      "sha256": "1457ccd0ced6ad2043608f4f1132aaa66eb4a5d4f8823599a95986a57d27eb2b",
+      "bytes": 3885
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-recuperacion-cb86e1fd-b52a-4683-947e-3664d929ff46.json",
+      "sha256": "8dff89c8c2b9990bd8c63e35087a5bc7369d105eeee0990e6662e21dbbea1cd5",
+      "bytes": 4488
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-visual-reconstruccion-2026-09-08.json",
+      "sha256": "88e67509618f1765e562b78d68f9d0780d6b5eaae27f6d9a04f4a2cffa95366c",
+      "bytes": 806
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/restauracion-02a32c29-de01-4532-ab83-2f9d3dc719db.json",
+      "sha256": "c97265ef8cbf67eae88d39f1a3a81559ac4f7678ee6d186374129082f521ae15",
+      "bytes": 20366
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/portal-edge-d7bf8675-1d8a-4df7-80b0-5b2df34562e7.json",
+      "sha256": "5c4ec741183c6ab5bc627c6172fd22263b53bcf18d39de6cf3690fcd47b4299e",
+      "bytes": 460
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/portal-nuevo-b087fa51-6694-4994-9260-5c1931a458aa.json",
+      "sha256": "2a4966eca45db36b0249bc3790c4fdd22d092e4e9647c412a4822f099de06c4f",
+      "bytes": 1683
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/portal-veto-93df2336-2dfb-46e7-949a-ad88fc620ff7.json",
+      "sha256": "8f1e91b0c58ea2277fcc26fd79f30324f840177f9b00f27dca1e137b3ea02dce",
+      "bytes": 1007
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/revision-integral-catalogo-2026-09-08.json",
+      "sha256": "0e822c5911ea79e464aaaeb6279893cbd39e167384b41d37f3771a06971346b6",
+      "bytes": 60063
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/revision-lease-0aca01a9-a50e-4865-ad65-9ba4df55dc70.json",
+      "sha256": "d783a23610b727b2947cdf79f90478fd5ce7c26018cfaaf33e05b20000cb09b6",
+      "bytes": 497
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/portal-lease-969cf95a-4f33-49e0-a0e6-0059c75c8340.json",
+      "sha256": "8ff9ffc1dcb41808f1076c7aa0aa884110239958761933cab9853ed4262f50d9",
+      "bytes": 494
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/tipos-da610869-b5b8-4fcf-9058-9d7d698f644a.json",
+      "sha256": "e5f7f4c4012ea92894e84073026df7c8b45d1e71767014863fd1ce23933d32a3",
+      "bytes": 1343
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-cierre-integral-2026-09-08/entrada-exacta.json",
+      "sha256": "371d45201fc2a3272abcffd409643e31e25b9bd5d1ae8325c6ba86b61ae9d964",
+      "bytes": 478292
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-cierre-integral-2026-09-08/review-claude.txt",
+      "sha256": "caef8b5d114a305b9d77a23a1131cd4d6085b7c5258d131b05de9a7b144f1558",
+      "bytes": 32401
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/auditoria-cierre-integral-2026-09-08/evaluacion-codex.md",
+      "sha256": "fea029bf285e905db126a6c0f478cdbb8acb8f46131328aef9fb674925453021",
+      "bytes": 11786
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/estructura-2026-09-08T18-21-45.972Z.json",
+      "sha256": "8b8314b3551890c0eccc28f6d186b01ab51616b08df785fa604c533ae7ce2d92",
+      "bytes": 7071
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/correccion-solicitud-c85dcfb4-e883-4f89-ad9a-490b248abf20.json",
+      "sha256": "4df48a86674297eb3cce88a8df8175d1a094fd5f780097dbbf9014028f6c071f",
+      "bytes": 3031
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/multirrol-a67fa0b0-81c8-4695-86bd-a66067ec360c.json",
+      "sha256": "2c0ea5ff30b9d8037d49ed727d9f497edd4b4b8fec41216745cb5560448de95e",
+      "bytes": 2008
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/inventario-consumidores-1b3aff36-4cde-4122-a14a-2ec9ac35185e.json",
+      "sha256": "10686189bb54426709ed40e4222ba84649d0f131a1843586162f9d7271bd093b",
+      "bytes": 49036
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-censo-828f2d80-8c4c-436a-a151-964c833e28c3.json",
+      "sha256": "b53e6fefe5158438ace937f10f81a115d6c2191046db81ea7bc19bb7956de935",
+      "bytes": 3269
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-lote-11197ac3-e919-4f19-9cd0-6cfe0fb57e3d.json",
+      "sha256": "596449fed090d5f0fd6f2d19fc06460029fcc1937cd054fc19fd23943dc8c354",
+      "bytes": 4543
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-concurrencia-25d4d39a-f711-4543-8523-d4a569e20f6c.json",
+      "sha256": "19df96db60a697aa76ffb2bb7f62f710c02fcadb6e8181a100ab1ec815cbd94c",
+      "bytes": 1849
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-identidad-4abf77ce-a955-4e53-9655-2bbd0a669214.json",
+      "sha256": "9a80d662d425f49b22fe68b69f9e6457b5fa2e163b93425f3ca0170c21ef07d9",
+      "bytes": 4390
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-mantenimiento-e8cef39f-58b6-43ca-b5c8-ee28ea9e122d.json",
+      "sha256": "05e7088fcc30523d8ef030949473d78ff859803a4718f3bd236c6b75b0042156",
+      "bytes": 1894
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-limite-c7606db4-e552-4f73-84a8-fd0948fd9496.json",
+      "sha256": "da8ec4c0927569de827217304c1a445c76d7a46973ce4c9001ee0a625ff292fa",
+      "bytes": 809
+    }
+  ],
+  "gates": [
+    {
+      "nombre": "frontend cobertura",
+      "estado": "PASS",
+      "comando": "npm run test:coverage -- --maxWorkers=2",
+      "pruebas": 3050,
+      "archivos": 211,
+      "archivoLocal": "/private/tmp/f4-app-final-coverage.log",
+      "sha256": "908200b06628ac33d0f8ee29d27db3054be79f3cae6f2d90a784da31295eef42",
+      "extracto": [
+        " Test Files  211 passed (211)",
+        "      Tests  3050 passed (3050)",
+        "   Duration  76.56s (transform 3.07s, setup 9.04s, import 12.41s, tests 67.24s, environment 41.79s)",
+        "Statements   : 76.65% ( 14041/18318 )",
+        "Branches     : 73.61% ( 15271/20744 )",
+        "Functions    : 75.17% ( 3558/4733 )",
+        "Lines        : 79.31% ( 12558/15834 )"
+      ]
+    },
+    {
+      "nombre": "frontend lint",
+      "estado": "PASS",
+      "advertenciasPrevias": 4,
+      "archivoLocal": "/private/tmp/f4-app-final-lint.log",
+      "sha256": "04217cec4abe78875a84ca4a10085f386dfb1da6c252eaa8333684ef8e7084a3",
+      "extracto": [
+        "src/components/ui/coverflow-carousel.tsx:299:11: warning jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements. help: The `tabIndex` attribute should be removed.",
+        "src/components/ui/coverflow-carousel.tsx:297:10: warning jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role. help: Add a role attribute to this element, or use a semantic HTML element instead.",
+        "src/components/ui/coverflow-carousel.tsx:327:15: warning jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener. help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.",
+        "src/components/ui/coverflow-carousel.tsx:327:16: warning jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners. help: Move the handler to an interactive element, or use an appropriate interactive role."
+      ]
+    },
+    {
+      "nombre": "frontend typecheck",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-app-final-typecheck.log",
+      "sha256": "ba2b43a004e23d146df99c7b208872a3b253e0fd282931c06fae7710f77bf944",
+      "extracto": [
+        "npm notice run app@0.0.0 typecheck",
+        "npm notice run tsc -b --pretty false"
+      ]
+    },
+    {
+      "nombre": "release-config, build, bundle y dup",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-app-final-release-gates.log",
+      "sha256": "628a5daafcbf18b93c1ee757fd014029c6a058af1cb8e7535f186afd2a20edc9",
+      "extracto": [
+        "\u001b[2K\rtransforming...✓ 2800 modules transformed.",
+        "✓ built in 326ms",
+        "│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │",
+        "│ Total:     │ 262            │ 85558       │ 486517       │ 38           │ 545 (0.64%)      │ 3894 (0.80%)      │",
+        "Found 38 clones."
+      ]
+    },
+    {
+      "nombre": "PDF Deno handler y Storage",
+      "estado": "PASS",
+      "pruebas": 43,
+      "archivoLocal": "/private/tmp/f4-deno-review.log",
+      "sha256": "3e8adbdf5c7a0649325b41383b65f7748fb625b65baa2bdcbc9faee1ece9144a",
+      "extracto": [
+        "ok | 43 passed | 0 failed (399ms)"
+      ]
+    },
+    {
+      "nombre": "Portal/PDF typecheck Deno",
+      "estado": "PASS",
+      "comandos": [
+        "deno check --frozen index.ts (cwd del PDF, usa deno.json propio)",
+        "deno check --node-modules-dir=auto --frozen ../_supabase_functions/functions/crm-inversion-portal/index.ts (cwd CRM)"
+      ],
+      "logs": [
+        {
+          "archivoLocal": "/private/tmp/f4-pdf-final-check-configurado.log",
+          "sha256": "fd1eed79beb010e85d0946a3829a11aee0827ff6ec4cbe9647fe853f7b02f2cf",
+          "extracto": [
+            "Check index.ts"
+          ]
+        },
+        {
+          "archivoLocal": "/private/tmp/f4-portal-final-check.log",
+          "sha256": "0613438b7bb3125146ad39ff37083d6e1be0aab5b7b9e5580d943e37536490f3",
+          "extracto": [
+            "Check ../_supabase_functions/functions/crm-inversion-portal/index.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "PDF formato",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-pdf-final-formato.log",
+      "sha256": "f1ceb13c7c95afab86ef305e6680ede5175e5cebb631874e9595f77b66cca5ca",
+      "extracto": [
+        "Checked 3 files"
+      ]
+    },
+    {
+      "nombre": "edge-preflight",
+      "estado": "PASS",
+      "testsNode": 57,
+      "incluyePortal": 8,
+      "archivoLocal": "/private/tmp/f4-edge-review-preflight.log",
+      "sha256": "40d25f1bd3124923ba0decff306da27117cfebe81607d54058b42962e13b68b9",
+      "extracto": [
+        "ℹ tests 57",
+        "ℹ pass 57",
+        "ℹ fail 0",
+        "running 5 tests from ./supabase/functions/crm-tipo-cambio/handler.test.ts",
+        "ok | 5 passed | 0 failed (29ms)"
+      ]
+    },
+    {
+      "nombre": "check-scripts",
+      "comando": "npm run check:scripts",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-final-check-scripts.log",
+      "sha256": "d4d141b23dfab4cfa56192563f8b302fa30f60b74f6d0a58699a57c98e0116e8",
+      "extracto": [
+        "✔ help y preflight no abren conexion (255.109583ms)",
+        "ℹ fail 0",
+        "ok | 37 passed | 0 failed (139ms)",
+        "ℹ fail 0",
+        "ℹ fail 0"
+      ]
+    },
+    {
+      "nombre": "seed-preflight",
+      "comando": "npm run seed:preflight",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-final-seed-preflight.log",
+      "sha256": "7df840a77034ef337666782fe121353de30b15f5c3b3f947a1d3a8a7c17ab203",
+      "extracto": [
+        "Preflight terminado; no se abrio ninguna conexion.",
+        "npm notice run avancecorp-crm-tools@0.0.0 seed:preflight",
+        "npm notice run node supabase/scripts/seed-demo.mjs --preflight"
+      ]
+    },
+    {
+      "nombre": "test-rls-preflight",
+      "comando": "npm run test:rls:preflight",
+      "estado": "PASS",
+      "archivoLocal": "/private/tmp/f4-final-test-rls-preflight.log",
+      "sha256": "f5d4e192eacfb060a98fe7870b54ed776ad6180c77336adf845ee50c350db264",
+      "extracto": [
+        "Preflight terminado; no se abrio ninguna conexion.",
+        "npm notice run avancecorp-crm-tools@0.0.0 test:rls:preflight",
+        "npm notice run node supabase/scripts/test-rls.mjs --preflight"
+      ]
+    }
+  ],
+  "fallosPrevios": [
+    {
+      "nombre": "Parser rechazaba lead_id:null",
+      "estado": "FAIL reproducido y corregido",
+      "archivoLocal": "/private/tmp/f4-frontend-null-antes-real.log",
+      "sha256": "ccf592d12e5a0aee5e64589415affa7d67edfe3870085425fdcb3a514fd9c9e5",
+      "extracto": [
+        " ❯ src/lib/cierres-externos.test.ts (13 tests | 1 failed) 5ms",
+        "AssertionError: expected false to be true // Object.is equality",
+        "- true",
+        "+ false",
+        "     64|     expect(r.success).toBe(true)",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 12 passed (13)"
+      ]
+    },
+    {
+      "nombre": "Deno con cwd/config raíz incorrectos",
+      "estado": "FAIL de invocación; corregido usando configuración propia PDF",
+      "archivoLocal": "/private/tmp/f4-deno-final-check.log",
+      "sha256": "cab477b63e5ad93c8d2f4a956ba901c1ea04b90fca73b7adf75f8f103cdad10d",
+      "extracto": [
+        "TS2307 [ERROR]: Import \"@supabase/functions-js/edge-runtime.d.ts\" not a dependency",
+        "TS2307 [ERROR]: Import \"pdfmake/interfaces\" not a dependency",
+        "TS2307 [ERROR]: Import \"pdfmake/interfaces\" not a dependency",
+        "Found 5 errors.",
+        "error: Type checking failed."
+      ]
+    },
+    {
+      "nombre": "PDF WORKER_LIMIT",
+      "estado": "FAIL original conservado; readback recuperado y nueva tanda completa PASS",
+      "evidencia": "CRM-Avance-Corp/supabase/scripts/evidencia-f4/pdf-recuperacion-cb86e1fd-b52a-4683-947e-3664d929ff46.json"
+    },
+    {
+      "nombre": "Frontend máxima concurrencia inicial",
+      "estado": "FAIL por timeout; reejecución sin cambiar pruebas con dos workers PASS",
+      "logLocal": "/private/tmp/f4-app-check.log"
+    },
+    {
+      "nombre": "Restauración ACL explícita/default",
+      "estado": "FAIL del comparador; normalización de privilegios equivalentes y restore nuevo PASS"
+    }
+  ],
+  "banderasLocales": [
+    {
+      "entorno": "avancecorp-f4-bank",
+      "banderas": {
+        "ficha_360_neutral": false,
+        "resolver_en_puertas": true,
+        "inversiones_escritura": false
+      }
+    },
+    {
+      "entorno": "avancecorp-f4-reconstruccion",
+      "banderas": {
+        "ficha_360_neutral": false,
+        "resolver_en_puertas": true,
+        "inversiones_escritura": false
+      }
+    }
+  ],
+  "notRun": [
+    "Comisiones liquidadas: fuente no identificada",
+    "Playwright completo UI F5",
+    "Aplicación, advisors y gates productivos"
+  ],
+  "limites": [
+    "Solo datos sintéticos, sin publicación/push/encendido productivo.",
+    "Los logs locales se referencian por huella y extracto; no se afirma que se versionen íntegros.",
+    "No hubo PASS posterior de Claude; evaluación y correcciones por Codex.",
+    "No hay certificado de rendimiento productivo ni DOWN destructivo."
+  ]
+}

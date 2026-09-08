@@ -82,6 +82,12 @@ try {
   deniega(vendedor,repetir,traslado);
   assert.equal(JSON.parse(como(ajeno,repetir,traslado)).inversion_id,s.inversion_id);
  });
+ caso('Sin responsable actual no se recupera teléfono vivo usando tenencia histórica',()=>{
+  const r=JSON.parse(como(vendedor,"select crm.cierres_externos_fn('2026-09-01')",sinResponsable));
+  assert.equal(r.cierres.find(c=>c.cierre_id===externa.id).telefono,null);
+  const global=JSON.parse(como(gerencia,"select crm.cierres_externos_fn('2026-09-01')",sinResponsable));
+  assert(global.cierres.find(c=>c.cierre_id===externa.id).telefono);
+ });
  caso('Inversión adicional cooperativa no convierte el cierre original Avance en cooperativo',()=>{
   const estados=JSON.parse(como(vendedor,`select crm.cierres_estado_fn(array[${q(base.leads.avance)}::uuid])`));
   assert.equal(estados.some(e=>e.canal==='cooperativa'),false);

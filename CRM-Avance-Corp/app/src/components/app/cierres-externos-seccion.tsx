@@ -119,8 +119,8 @@ function MiniFicha({ fila, onClose }: { fila: FilaCoop; onClose: () => void }) {
           </p>
         )}
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Este inversionista no tiene cuenta en el portal: su inversión la administra la
-          cooperativa. El cierre cuenta en la cuota y la conversión del analista.
+          La cooperativa administra esta inversión. Este registro conserva el monto,
+          los datos de la operación y quién realizó el cierre.
         </p>
       </DialogBody>
       <DialogFooter>
@@ -166,7 +166,7 @@ export function SeccionEnCooperativas({ demo }: { demo: boolean }) {
       moneda: c.moneda,
       telefono: c.telefono,
       numeroTransaccion: c.numero_transaccion,
-      creadoEn: c.creado_en,
+      creadoEn: c.fecha_comercial ?? c.creado_en,
       anuladoEn: c.anulado_en,
       motivoAnulacion: c.motivo_anulacion,
       detalle: c,
@@ -488,7 +488,7 @@ function RevisionDelMes({
                     {anulado && <ChipAnulado />}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {fmtFecha(c.creado_en)} · {c.vendedor_nombre ?? 'Analista sin nombre'}
+                    {fmtFecha(c.fecha_comercial ?? c.creado_en)} · {c.vendedor_nombre ?? 'Analista sin nombre'}
                   </p>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs">

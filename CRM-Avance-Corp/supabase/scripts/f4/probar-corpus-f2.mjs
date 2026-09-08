@@ -22,6 +22,18 @@ const original=originalSql(fuenteFoto);
 function caso(nombre,fn){fn();pruebas.push({nombre,conforme:true});console.log('PASS: '+nombre);}
 try{
  sql("update crm.multiempresa_flags set activo=false where nombre in ('resolver_en_puertas','inversiones_escritura')");
+ caso('Inventario nuevo de funciones rechaza instalación sin dejar tablas F4',()=>{
+  sql("create function private.f4_consumidor_no_clasificado() returns bigint language sql as $$ select count(*) from crm.cierres_externos $$",{admin:true});
+  assert.throws(()=>sql(candidata,{admin:true}),/cambió el inventario de consumidores/);
+  assert.equal(sql("select to_regclass('crm.inversion_solicitudes') is null"),'t');
+  sql('drop function private.f4_consumidor_no_clasificado()',{admin:true});
+ });
+ caso('Vista consumidora nueva rechaza instalación sin modificar historia',()=>{
+  sql('create view private.f4_vista_no_clasificada as select id from crm.cierres_externos',{admin:true});
+  assert.throws(()=>sql(candidata,{admin:true}),/vista o política consumidora sin clasificar/);
+  assert.equal(sql("select to_regclass('crm.inversion_solicitudes') is null"),'t');
+  sql('drop view private.f4_vista_no_clasificada',{admin:true});
+ });
  sql(semilla);
  const resultadoF2=JSON.parse(sql('select private.backfill_multiempresa_ejecutar()'));
  caso('Corpus original y pipeline F2 completos con clases A, B, C y E',()=>{

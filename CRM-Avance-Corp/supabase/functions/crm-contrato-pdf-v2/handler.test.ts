@@ -472,6 +472,24 @@ Deno.test("delete exige Admin/Superadmin antes de tocar Storage", async () => {
   );
 });
 
+Deno.test("delete explica la conservación del historial F4 antes de tocar Storage", async () => {
+  const mensaje =
+    "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda";
+  const { deps, calls } = fake({
+    admin: [{ data: null, error: { code: "55000", message: mensaje } }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 409, "conflicto de conservación");
+  igual((await res.json()).error, mensaje, "explica la alternativa comercial");
+  igual(
+    calls.join("|"),
+    "auth|admin:contrato_eliminacion_preparar",
+    "no entrega rutas ni elimina bytes",
+  );
+});
+
 Deno.test("delete no filtra diagnósticos internos inesperados del backend", async () => {
   const { deps } = fake({
     admin: [{

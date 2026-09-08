@@ -2,17 +2,42 @@ import { claveTemporalDesdeDocumento } from '../_shared/documento.ts';
 import { validarDomicilioLegal } from '../_shared/domicilio.mjs';
 import { authTieneMarca, correoYaRegistrado, interpretarReclamo, statusDeErrorSaga } from '../_shared/saga-auth.mjs';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const respuesta = (status, body) => new Response(JSON.stringify(body), {
-  status, headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },
-});
+const origenesProduccion = new Set([
+  'https://crm.miavance.com', 'https://www.crm.miavance.com',
+  'https://miavance.com', 'https://www.miavance.com',
+]);
+const erroresPublicosRpc = new Set(['P0409', 'P0429', '22023', 'P0002', '42501']);
+const errorPublico = (message, status) => Object.assign(new Error(message), { status, publico: true });
 
+// Mismo límite en bytes con y sin Content-Length; no acumula cuerpos arbitrarios.
+async function leerSolicitud(req) {
+  const longitud = req.headers.get('Content-Length');
+  if (longitud !== null && (!/^\d+$/.test(longitud) || !Number.isSafeInteger(Number(longitud)))) {
+    throw errorPublico('Envía una solicitud JSON válida.', 400);
+  }
+  if (longitud !== null && Number(longitud) > 4096) throw errorPublico('Solicitud demasiado grande.', 400);
+  if (!req.body) throw errorPublico('Envía una solicitud JSON válida.', 400);
+  const reader = req.body.getReader(), chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > 4096) {
+        await reader.cancel();
+        throw errorPublico('Solicitud demasiado grande.', 400);
+      }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+  catch { throw errorPublico('Envía una solicitud JSON válida.', 400); }
+}
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * La misma función se usa en Deno y en el oráculo HTTP del banco. fetchImpl solo
  * permite observar/pérder respuestas reales en las pruebas; no inventa estados.
@@ -21,6 +46,16 @@ const respuesta = (status, body) => new Response(JSON.stringify(body), {
 export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, fetchImpl = fetch }) {
   const base = supabaseUrl.replace(/\/$/, '');
   return async function atender(req) {
+    const origin = req.headers.get('Origin');
+    const cors = {
+      'Access-Control-Allow-Origin': origin && origenesProduccion.has(origin) ? origin : 'https://crm.miavance.com',
+      'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Cache-Control': 'no-store', 'Vary': 'Origin', 'X-Content-Type-Options': 'nosniff',
+    };
+    const respuesta = (status, body) => new Response(JSON.stringify(body), {
+      status, headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },
+    });
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (req.method !== 'POST') return respuesta(405, { error: 'Usa POST para completar el acceso.' });
     const authorization = req.headers.get('Authorization');
@@ -28,11 +63,7 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
     let solicitud;
     let tokenRecuperacion;
     try {
-      const texto = await req.text();
-      if (texto.length > 4096) return respuesta(400, { error: 'Solicitud demasiado grande.' });
-      try { solicitud = JSON.parse(texto); } catch {
-        return respuesta(400, { error: 'Envía una solicitud JSON válida.' });
-      }
+      solicitud = await leerSolicitud(req);
       if (!solicitud || typeof solicitud !== 'object' || Array.isArray(solicitud)
         || Object.keys(solicitud).some(k => !['solicitud_id', 'token'].includes(k))
         || typeof solicitud.solicitud_id !== 'string' || !uuid.test(solicitud.solicitud_id)
@@ -55,6 +86,7 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
           const error = new Error(data.message ?? data.msg ?? data.error_description ?? 'No se pudo completar el acceso.');
           error.code = data.code ?? data.error_code;
           error.status = crm ? statusDeErrorSaga(error) : (res.status === 401 || res.status === 403 ? 401 : 409);
+          error.publico = crm && erroresPublicosRpc.has(error.code);
           throw error;
         }
         return data;
@@ -75,11 +107,11 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
       tokenRecuperacion = estado.token;
       const datos = reclamo.datos_portal;
       const domicilio = validarDomicilioLegal(datos?.domicilio);
-      if (!domicilio.ok) throw Object.assign(new Error(domicilio.error), { status: 400 });
+      if (!domicilio.ok) throw errorPublico(domicilio.error, 400);
       const contextoPaso = () => ({ token: tokenRecuperacion, version: estado.version });
       const comprobarUsuario = user => {
         if (!authTieneMarca(user, estado.claimId) || user.email?.toLowerCase() !== datos.correo) {
-          throw Object.assign(new Error('Ese acceso no pertenece a esta solicitud; requiere revisión.'), { status: 409 });
+          throw errorPublico('Ese acceso no pertenece a esta solicitud; requiere revisión.', 409);
         }
         return user;
       };
@@ -98,7 +130,7 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
             admin: true, crm: true, body: { p_correo: datos.correo },
           });
           if (!encontrado.id || !authTieneMarca(encontrado, estado.claimId)) {
-            throw Object.assign(new Error('El correo ya pertenece a otro acceso; requiere revisión de Gerencia.'), { status: 409 });
+            throw errorPublico('El correo ya pertenece a otro acceso; requiere revisión de Gerencia.', 409);
           }
           auth = await llamar(`/auth/v1/admin/users/${encontrado.id}`, { admin: true, method: 'GET' });
         }
@@ -120,7 +152,7 @@ export function crearHandlerAccesoInversion({ supabaseUrl, anonKey, serviceKey, 
       return respuesta(200, { ok: true, solicitud_id: solicitud.solicitud_id, perfil_id: estado.perfilId, reintento: false });
     } catch (error) {
       return respuesta(error.status ?? 503, {
-        error: error.status ? error.message : 'No se pudo completar el acceso. Retoma esta misma solicitud.',
+        error: error.publico === true ? error.message : 'No se pudo completar el acceso. Retoma esta misma solicitud.',
         ...(solicitud?.solicitud_id ? { solicitud_id: solicitud.solicitud_id } : {}),
         ...(tokenRecuperacion ? { token: tokenRecuperacion } : {}),
       });

@@ -1,0 +1,65 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "baseCopia": "f4_finanzas_integral_dd43179a8770",
+  "terminadoEn": "2026-09-08T18:15:09.717Z",
+  "pruebas": [
+    {
+      "nombre": "Renovación F4 mantiene peso 0.15, divisor cero y desglose sin duplicar stock",
+      "conforme": true
+    },
+    {
+      "nombre": "Segunda operación del cliente/mes conserva capital sin otro aporte de conversión",
+      "conforme": true
+    },
+    {
+      "nombre": "Rango parcial no promueve la segunda operación del mes",
+      "conforme": true
+    },
+    {
+      "nombre": "PEN y USD siguen separados y cada fuente tiene una sola inversión",
+      "conforme": true
+    },
+    {
+      "nombre": "Anular conversión inicial Avance con inversión cooperativa adicional conserva Capital",
+      "conforme": true
+    },
+    {
+      "nombre": "Anular cierre inicial cooperativo reduce conversión sin borrar su capital ni la inversión posterior",
+      "conforme": true
+    },
+    {
+      "nombre": "Contrato demo conserva registro pero no participa del Capital real ni del censo histórico",
+      "conforme": true
+    },
+    {
+      "nombre": "Alta gana al sello: junio incluye la inversión confirmada antes del cierre",
+      "conforme": true
+    },
+    {
+      "nombre": "Alta anterior al sello no crea ajuste tardío y conserva fecha comercial junio",
+      "conforme": true
+    },
+    {
+      "nombre": "Reasignación real de cabeza mueve atribución viva de su renovación sin tocar autor ni mes sellado",
+      "conforme": true
+    },
+    {
+      "nombre": "Sello gana al alta: julio se congela y el alta espera su resultado",
+      "conforme": true
+    },
+    {
+      "nombre": "Alta posterior conserva julio comercial, imputa al mes vivo y deja ajuste único",
+      "conforme": true
+    },
+    {
+      "nombre": "Fecha lejana en mes abierto conserva imputación declarada sin modificar sellos existentes",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "9a3177b8f393f6c0b693b5e09753dda89bdb7128b7ee11ab9233bffd543d59ee",
+  "limites": [
+    "Fixtures SQL explícitas para perfiles/leads y metadatos Storage; operaciones, renovaciones, anulación, atribución y sellado mediante RPC reales.",
+    "No se encontró registro de comisiones pagadas en este esquema; su ubicación se consultó al usuario. Este oráculo no simula ni afirma liquidación de comisiones."
+  ]
+}

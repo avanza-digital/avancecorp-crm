@@ -1,0 +1,74 @@
+{
+  "entorno": "avancecorp-f4-reconstruccion",
+  "baseCopia": "f4_cotitulares_ab46e469e0f0",
+  "terminadoEn": "2026-09-08T18:16:38.035Z",
+  "pruebas": [
+    {
+      "nombre": "Alta real con snapshot vincula cotitular verificado aunque tenga No insistir",
+      "conforme": true
+    },
+    {
+      "nombre": "Dos filas documentales conservan dos procedencias y una sola membresía",
+      "conforme": true
+    },
+    {
+      "nombre": "Cotitular igual al principal conserva rol principal, Auth y leads",
+      "conforme": true
+    },
+    {
+      "nombre": "Datos de procedencia no se filtran en lector ni auditoría",
+      "conforme": true
+    },
+    {
+      "nombre": "Cotitular fuera de ámbito no obtiene lectura de inversión, principal ni contrato",
+      "conforme": true
+    },
+    {
+      "nombre": "Conciliación repetida no duplica relaciones ni reescribe fuentes",
+      "conforme": true
+    },
+    {
+      "nombre": "Procedencia y fuente quedan inmutables incluso con válvula documental",
+      "conforme": true
+    },
+    {
+      "nombre": "Corrección real F3 no vuelve a resolver el documento antiguo del cotitular",
+      "conforme": true
+    },
+    {
+      "nombre": "Documento histórico reutilizado no transfiere una procedencia existente",
+      "conforme": true
+    },
+    {
+      "nombre": "Fusión real F3 conserva el origen y sigue la canónica vigente",
+      "conforme": true
+    },
+    {
+      "nombre": "Fusión cotitular con principal deduplica membresía y conserva procedencias",
+      "conforme": true
+    },
+    {
+      "nombre": "Verificación posterior permite recuperar pendiente por RPC sin rehacer PDF",
+      "conforme": true
+    },
+    {
+      "nombre": "Fuera de ámbito, Directorio y cliente no leen ni concilian cotitularidad",
+      "conforme": true
+    },
+    {
+      "nombre": "Documento ocupado no rompe el alta financiera; queda recuperable",
+      "conforme": true
+    },
+    {
+      "nombre": "Tras liberar el candado se recupera una sola procedencia",
+      "conforme": true
+    },
+    {
+      "nombre": "Mantenimiento histórico exige SQL privilegiado y F4 apagada",
+      "conforme": true
+    }
+  ],
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "403a1565f4bee4dae6be03b9c36aac600cafcb409183507195515e6a8c12c46b",
+  "limite": "SQL con rol/claims sintéticos; alta y snapshot, corrección, fusión y conciliación por RPC reales. No procesa el PDF ni duplica Storage."
+}

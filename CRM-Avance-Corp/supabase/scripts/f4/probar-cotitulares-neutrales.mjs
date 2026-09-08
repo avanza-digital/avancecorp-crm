@@ -61,6 +61,18 @@ try {
   assert.equal(auditoria.length,3);for(const fila of auditoria) for(const campo of ['hash_fuente','fuente_snapshot','identificador_snapshot']) assert.equal(fila[campo],'***');
   for(const rol of ['anon','authenticated','service_role']) assert.equal(sql(`select has_table_privilege(${q(rol)},'crm.inversion_cotitular_origenes','SELECT,INSERT,UPDATE,DELETE')`),'f');
  });
+ caso('Cotitular fuera de ámbito no obtiene lectura de inversión, principal ni contrato',()=>{
+  // Relación del cotitular asignada al equipo ajeno por la RPC real. Su
+  // membresía neutral en esta inversión no propaga el permiso del principal.
+  rpc('reasignar_responsable_relacion_fn',[q(a.id),q(f.usuarios.ajeno.id),"'Separación ficticia de ámbitos del cotitular'"]);
+  for(const tabla of ['crm.inversiones','crm.inversion_titulares']) {
+   const filtro=tabla.endsWith('inversiones')?'id':'inversion_id';
+   assert.throws(()=>como(f.usuarios.ajeno.id,`select count(*) from ${tabla} where ${filtro}=${q(op.inversion)}`),/42501/);
+  }
+  assert.equal(como(f.usuarios.ajeno.id,`select public.puede_ver_contrato(${q(op.contrato)})`),'f');
+  assert.throws(()=>rpc('inversion_cotitulares_fn',[q(op.inversion)],f.usuarios.ajeno.id),/42501/);
+  rpc('reasignar_responsable_relacion_fn',[q(a.id),q(vendedor),"'Fin de separación ficticia de ámbitos del cotitular'"]);
+ });
  caso('Conciliación repetida no duplica relaciones ni reescribe fuentes',()=>{
   const antes=foto(tablas);conciliar(op.inversion);conciliar(op.inversion);assert.equal(foto(tablas),antes);
  });

@@ -5,7 +5,10 @@ import {crearCopiaSql} from './copia-sql-local.mjs';
 import {entorno,leer,sql as originalSql,literal as q} from './banco-local.mjs';
 import {contratoPrueba} from './operaciones-fixture.mjs';
 const f=leer('fixtures.json'),base=leer('operaciones-base.json'),g=f.usuarios.gerencia.id,v=f.usuarios.vendedor.id,ajeno=f.usuarios.ajeno.id;
-const copia=crearCopiaSql('finanzas_integral'),{sql}=copia,pruebas=[];
+assert.equal(entorno,'avancecorp-f4-reconstruccion');
+const copia=crearCopiaSql('finanzas_integral',{baseOrigen:leer('respaldo-pre-f4.json').nombre}),{sql}=copia,pruebas=[];
+const {archivo}=JSON.parse(readFileSync(new URL('./ultima-migracion.json',import.meta.url),'utf8'));
+sql(readFileSync(new URL(`../../migrations/${archivo}`,import.meta.url),'utf8'),{admin:true});
 const j=x=>q(JSON.stringify(x)),claims=a=>`set local request.jwt.claims=${j({sub:a,role:'authenticated'})};set local role authenticated;`;
 const llamada=(fn,args,schema='crm')=>`select ${schema}.${fn}(${args.join(',')})`;
 const como=(consulta,a=g)=>sql(`\\set VERBOSITY verbose
@@ -125,6 +128,20 @@ try{
   assert.equal(c.fecha_comercial,'2026-07-15');assert.equal(c.fecha_imputacion,sql("select (now() at time zone 'America/Lima')::date"));
   assert.equal(sql(`select count(*) from crm.inversion_ajustes_mes_cerrado a join crm.inversion_solicitudes s on s.inversion_id=a.inversion_id where s.id=${q(jul.id)}`),'1');
   const antes=sello('2026-07-01');jul.confirmar();assert.equal(sello('2026-07-01'),antes);assert.equal(sello('2026-06-01'),selloJun);
+ });
+ caso('Fecha lejana en mes abierto conserva imputación declarada sin modificar sellos existentes',()=>{
+  const antesJun=sello('2026-06-01'),antesJul=sello('2026-07-01');
+  const informeJun=rpc('cumplimiento_metas_fn',["'2026-06-01'"]);
+  const ajustes=sql("select private.idem_hash(coalesce(jsonb_agg(to_jsonb(a) order by id),'[]')) from crm.ajustes_mes_cerrado a");
+  assert.equal(sql("select count(*) from crm.periodos_cerrados where periodo='2001-01-01'"),'0');
+  const antigua=coop(base.identidades.qorilazo,'2001-01-15',777),resultado=antigua.confirmar();
+  const cierre=JSON.parse(sql(`select to_jsonb(c) from crm.cierres_externos c where id=${q(resultado.fuente.cierre_id)}`));
+  assert.equal(cierre.fecha_comercial,'2001-01-15');assert.equal(cierre.fecha_imputacion,'2001-01-15');
+  assert.equal(sql(`select count(*) from crm.inversion_ajustes_mes_cerrado where inversion_id=${q(resultado.inversion_id)}`),'0');
+  assert.equal(cap(`cierre_externo_id=${q(resultado.fuente.cierre_id)} and medida='stock'`)[0].monto,777);
+  assert.equal(sello('2026-06-01'),antesJun);assert.equal(sello('2026-07-01'),antesJul);
+  assert.deepEqual(rpc('cumplimiento_metas_fn',["'2026-06-01'"]),informeJun);
+  assert.equal(sql("select private.idem_hash(coalesce(jsonb_agg(to_jsonb(a) order by id),'[]')) from crm.ajustes_mes_cerrado a"),ajustes);
  });
 }finally{assert.equal(originalSql(fotoSql),original);}
 writeFileSync(new URL(`../evidencia-f4/finanzas-integral-${copia.id}.json`,import.meta.url),JSON.stringify({entorno,baseCopia:copia.nombre,terminadoEn:new Date().toISOString(),pruebas,

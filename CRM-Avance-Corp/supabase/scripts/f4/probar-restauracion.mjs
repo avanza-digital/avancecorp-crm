@@ -19,7 +19,9 @@ const estructura=`select private.idem_hash(jsonb_build_object('funciones',(selec
  'md5',md5(pg_get_functiondef(p.oid)),'acl',p.proacl,'owner',pg_get_userbyid(p.proowner)) order by n.nspname,p.proname,oidvectortypes(p.proargtypes))
  from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','crm','private') and p.prokind='f'),
  'policies',(select jsonb_agg(to_jsonb(p) order by schemaname,tablename,policyname) from pg_policies p where schemaname in ('public','crm','private','storage')),
- 'tablas',(select jsonb_agg(jsonb_build_object('tabla',format('%I.%I',n.nspname,c.relname),'acl',c.relacl,'rls',c.relrowsecurity,'owner',pg_get_userbyid(c.relowner)) order by n.nspname,c.relname)
+ -- pg_dump representa el ACL del propietario por defecto como NULL. Comparar
+ -- los permisos efectivos evita confundirlo con pérdida de grants.
+ 'tablas',(select jsonb_agg(jsonb_build_object('tabla',format('%I.%I',n.nspname,c.relname),'acl',coalesce(c.relacl,acldefault('r',c.relowner)),'rls',c.relrowsecurity,'owner',pg_get_userbyid(c.relowner)) order by n.nspname,c.relname)
  from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','crm','private') and c.relkind='r'))) `;
 const antes=sql(foto),forma=sql(estructura);
 caso('Reversa operativa OFF rechaza altas y conserva todo el historial confirmado',()=>{

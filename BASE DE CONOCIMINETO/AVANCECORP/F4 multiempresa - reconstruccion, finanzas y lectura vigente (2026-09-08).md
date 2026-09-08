@@ -1,57 +1,64 @@
 # F4 — reconstrucción, finanzas y lectura vigente
 
-Continuación del encargo de Miguel: terminar F4 y guardar commits. Codex es
-PRIMARY, Claude es reviewer sin herramientas. Desarrollo en
-`/private/tmp/avancecorp-f4-desarrollo`, rama `codex/f4-cierre`.
+Miguel pidió terminar F4 y guardar commits. Codex es PRIMARY; Claude revisó
+sin herramientas ni escritura. Trabajo en `/private/tmp/avancecorp-f4-desarrollo`,
+rama `codex/f4-cierre`, preservando cambios ajenos del checkout principal.
 
-Se construyó un segundo banco Supabase independiente, `avancecorp-f4-reconstruccion`
-(API 57321, PG 57322), desde el volcado de solo esquema del 07/09 y fixtures
-sintéticas creadas mediante Auth y RPC reales. La candidata completa tiene
-48 funciones (18 adaptadas, 30 nuevas), 11 módulos y siete tablas. La paridad
-conservó cuatro contratos, dos cierres, 52 cuotas y PEN 8000.
+La candidata completa tiene 48 funciones (18 adaptadas, 30 nuevas), 11 módulos
+y siete tablas. Se reconstruyó un segundo banco Supabase independiente
+`avancecorp-f4-reconstruccion` (API 57321, PG 57322) desde esquema del 07/09 sin
+filas reales. Auth/RPC ficticios antes de instalar; paridad: cuatro contratos,
+dos cierres, 52 cuotas, PEN 8000. Corpus original F2: 12 grupos; finanzas: 13;
+cotitulares: 16; corrección versionada: 20; permisos: 19; multirrol: 12.
 
-El corpus original F2 pasó diez grupos, incluyendo su siembra y oráculo de
-idempotencia originales antes de F4. F4 conserva los resueltos, clasifica los
-faltantes/conflictivos y vincula DNI/CE/pasaporte mediante lote acotado. Desde
-la instalación, F2 global se rechaza con 55000 incluso si F4 está apagada.
+F2 global queda bloqueada 55000 desde instalar F4, incluso apagada. Censo/lote
+cerrado sustituye mantenimiento global. El inventario mecánico clasifica 26
+consumidores directos, 18 escritores y 97 transitivos entre 546 funciones; la
+migración compara las 20 referencias previas y rechaza deriva antes del DDL.
 
-La matriz financiera pasó doce grupos: renovación 0.15, elegibilidad por
-cliente/mes, rango parcial, PEN/USD, anulaciones iniciales Avance/cooperativa,
-demos, reasignación efectiva de cadena y ambas precedencias sello/confirmación.
-No se alteraron Capital, snapshots ni meses sellados. El esquema y el código
-no contienen un motor/registro identificado de comisión pagada; se preguntó
-a Miguel por su ubicación y sigue pendiente su respuesta. No se inventa una
-regla ni se afirma conciliación de pagos.
+Se corrigieron dos defectos reproducidos: el asesor histórico veía teléfono
+vivo tras trasladar la relación, y el parser frontend rechazaba una inversión
+sin lead. El teléfono sigue al responsable canónico actual; sin responsable no
+se inventa permiso. La pantalla conserva historial y admite fechas comerciales
+F4, sin afirmar que toda persona de cooperativa carece de Portal.
 
-La revisión de consumidores encontró un defecto: el lead convertido conserva
-tenencia histórica después de reasignar la relación, por lo que
-`cierres_externos_fn` seguía mostrando teléfono vivo al asesor anterior.
-La corrección consulta el responsable canónico para ese dato; la foto del
-cierre y su atribución histórica se conservan. Se reprodujo el fallo antes y
-pasaron 18 grupos después. El inventario clasifica 26 consumidores directos,
-18 escritores, 97 consumidores transitivos y 24 triggers entre 546 funciones.
+Portal ahora limita cuerpo durante su lectura, usa los orígenes publicados y
+oculta errores internos conservando token/solicitud. Ocho tests de transporte,
+regresiones Auth/Portal/veto/HTTP real y ambas reservas reales de diez minutos
+PASS. El PDF muestra el motivo público al impedir borrar una fuente vinculada;
+no se tocó plantilla, texto contractual, firma, fondo, fuentes ni renderer.
 
-Se introspectaron los tipos antes/después con el mismo postgres-meta v0.99.0.
-Solo se integraron los 17 nodos F4: el dump del 07/09 no contiene algunos RPC
-de otras tareas que ya estaban tipados en la rama. Typecheck y build PASS;
-3047 tests frontend PASS con dos workers, 42 tests PDF Deno PASS y los cuatro
-preflights backend PASS. La primera ejecución frontend a máxima concurrencia
-falló por timeouts; no se modificaron tests para conseguir el segundo resultado.
+El ensayo PDF cb86e1fd falló por WORKER_LIMIT tras nueve grupos y se conserva
+como FAIL. Tras vencer leases reales y reiniciar solo el runtime local con
+per_worker predeterminado, se recuperaron los pendientes. Readback de diez jobs:
+mismo snapshot, una fuente/inversión/objeto y bytes verificados. La tanda nueva
+56c6b388 pasó 12 grupos/10 contratos; 14 páginas PEN/USD inspeccionadas. No se
+certifica carga productiva ni se atribuye una causa raíz definitiva al límite CPU.
 
-Estado aún abierto: revisión integral Claude, restauración pareada DB/Storage,
-regresiones finales y límite de CPU observado en el runtime PDF local. Una
-reconstrucción HTTP ya pasó Portal, cooperativas, Avance, documento, fusión,
-revisión de responsable y reintentos. Los PDFs PEN/USD nuevos se revisaron en
-14 páginas, sin modificar su contenido, pero la tanda de recuperación Deno
-se interrumpió por WORKER_LIMIT; no se presenta como PASS completo. El modo
-oneshot tampoco eliminó ese fallo. Los contratos interrumpidos conservan sus
-reservas/objetos para recuperación, no se editan sus leases ni se borran filas.
+Restauración pareada PASS: 133 tablas y 27 archivos hacia DB/volumen nuevos,
+seis grupos, datos/cuerpos/privilegios/RLS/bytes iguales. Normalización de ACL
+owner explícita vs predeterminada evitó un falso negativo del primer oráculo;
+no se cambiaron grants. Se omiten cron/replicación y no se afirma tercera pila HTTP.
+La reversa operativa apaga F4 y conserva toda la historia, no borra el modelo.
 
-G4 continúa abierto hasta resolver/verificar los puntos anteriores. No hubo
-publicación ni modificación de banderas productivas. La observación de 14
-vínculos resueltos y un faltante productivo sigue siendo la del 07/09 11:32;
-no es un recenso actual.
+Verificación: 3050 tests frontend PASS con dos workers, lint/typecheck/build/
+bundle/duplicados, cuatro gates backend, 43 tests PDF Deno y 17 nodos de tipos
+antes/después sin borrar tipos ajenos. La tanda frontend inicial a máxima
+concurrencia tuvo timeouts; se conserva ese antecedente. Claude emitió
+CHANGES_REQUESTED; Codex contrastó cada observación, corrigió las confirmadas
+y documentó las refutadas. No hubo otra revisión después de los ajustes.
 
+**G4 continúa abierto únicamente por la comprobación de comisión/liquidación**:
+se trazaron metas, cierres y ajustes de conversión, pero no son un registro de
+pagos. Se preguntó a Miguel dónde se calculan/registran comisiones pagadas y
+sigue pendiente respuesta. No se inventa regla ni se elimina el requisito.
+
+La candidata queda versionada como preparada, no aplicada. No hubo push,
+publicación ni cambio de banderas productivas. 14 resueltos + 1 faltante sigue
+siendo el censo observado el 07/09 11:32; no es un dato productivo actualizado.
+
+Detalle y evidencia: [matriz F4](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md),
+[reconstrucción/restauración](../../CRM-Avance-Corp/supabase/scripts/f4/RECONSTRUCCION-Y-RESTAURACION.md).
 Relacionadas: [[F4 multiempresa - cotitulares y correccion versionada (2026-09-08)]],
 [[F4 multiempresa - historicos recuperables y commits (2026-09-08)]],
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].

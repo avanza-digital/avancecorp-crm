@@ -340,57 +340,70 @@ Todas deben usar la misma primitiva transaccional:
 
 **Gate F3:** no existe una puerta paralela que pueda crear persona o lead por fuera del núcleo.
 
-### F4 — motor de inversiones multiempresa (ensayo técnico aislado)
+### F4 — motor de inversiones multiempresa (paquete técnico probado)
 
-**Estado:** en construcción y ensayo local con datos sintéticos; **G4 abierto**. La candidata no se ha publicado ni registrado como migración aplicada en producción.
+**Estado al 08/09/2026:** candidata completa versionada, reconstruida y verificada
+con datos sintéticos. **G4 abierto: falta contrastar comisiones y comisiones ya
+liquidadas.** No se localizó la fuente de pagos; se preguntó a Miguel. No se
+cambia ese requisito ni se inventa una regla para declarar la fase terminada.
 
-**Qué se construye:**
+**Construido:** puerta canónica de nueva inversión por persona/empresa;
+Avance conserva contrato, cronograma, cuenta, PDF y Auth/Portal recuperable;
+Qorilazo/Prodelco conservan monto, depósito único, referencia, fecha comercial,
+vencimiento y evidencia privada. Una fuente económica, inversión y principal
+atómicos por operación; no se crea otro lead por inversión adicional.
+48 funciones (18 adaptadas, 30 nuevas), 11 módulos, siete tablas nuevas.
 
-- puerta canónica «registrar nueva inversión» para una persona existente y selección de empresa;
-- rama Avance: reutilizar contrato, cronograma, titularidad y recuperación de Auth/Portal;
-- rama Qorilazo/Prodelco: un cierre económico por inversión, con monto, depósito, referencia, fecha comercial, vencimiento y evidencia;
-- relación atómica entre persona, empresa, fuente e inversión utilizando la estructura de F1;
-- autorización por rol/ámbito, veto, documento y estado; control de operaciones simultáneas;
-- repetición idempotente por clave y contenido, depósito único y conflicto sin efectos ante datos diferentes;
-- anulación comercial sin borrado y con Capital intacto, conforme a ATR-4;
-- evolución controlada de `UNIQUE(lead_id)` y de los consumidores que hoy presuponen un cierre externo por lead;
-- preservación de las reglas de conversión publicadas: primera operación de cartera elegible por cliente/mes, upgrade fuera del mes del primer contrato y peso de renovación del período.
+**Requisitos técnicos comprobados:**
 
-**Base productiva observada el 07/09 a las 11:32–11:33 Lima:** 14 cierres de F2 ya tienen inversión y titular coherentes; existe 1 cierre adicional sin vincular. No se repiten las 14 vinculaciones. El faltante requiere clasificación y tratamiento acotado por el proceso canónico. No se considera resuelto por el solo formato válido del documento. Se deberá renovar el recenso antes de tratar datos reales.
+1. Avance→Qorilazo, Qorilazo→Prodelco, repetición de cooperativa, Avance PEN/USD
+   y Qorilazo→Avance con un solo Auth/Portal. Clave/contenido, depósito,
+   concurrencia y apagado seguros. Dos reservas de acceso de diez minutos reales
+   recuperadas; documento/fusión y revisión de responsable conservan el proceso.
+2. Cotitularidad neutral: 16 grupos, procedencia inmutable, pendientes/documentos
+   ocupados/reutilizados, corrección y fusión. Un cotitular del equipo ajeno no
+   obtiene permiso sobre el principal, inversión o contrato. El PDF sigue igual;
+   cualquier agregado impreso exige aprobación previa de Miguel de texto/ubicación.
+3. Solicitudes preparadas: 20 grupos de corrección versionada, auditoría,
+   repetición, revisión vieja, Auth reservado y carreras. Permisos: 19 grupos +
+   multirrol 12; bajas, traslados, sin responsable y lectores heredados. Teléfono
+   vivo sigue la relación actual; atribución del cierre conserva su historia.
+4. F2 original e históricos: 12 grupos sobre corpus/semilla/oráculo publicados;
+   censo 7, lote 19, concurrencia 7, identidad 6, mantenimiento 8 y máximo mixto
+   de 100 fuentes. F2 global se retira al instalar F4, incluso apagada. Censo y
+   lote acotado sustituyen una repetición global que ya no admite cardinalidad 1:N.
+5. Finanzas: 13 grupos, renovación ponderada 0.15, elegibilidad por cliente/mes,
+   rango parcial, PEN/USD, demos, anulación inicial Avance/cooperativa, Capital
+   intacto, atribución de cadena y ambas carreras sello/confirmación. Fecha antigua
+   en mes abierto mantiene imputación declarada; mes sellado conserva su foto y
+   produce ajuste al vivo. Metas/ajustes de conversión no prueban comisión pagada.
+6. Inventario: 546 funciones, 26 consumidores directos, 18 escritores, 97
+   transitivos y 24 triggers; guarda de instalación contra deriva y dos mutantes
+   rechazados. La pantalla existente admite inversión sin lead, fecha comercial
+   y persona con Portal, sin adelantar el desarrollo de F5.
+7. Reconstrucción independiente desde esquema sin datos; semilla real antes de
+   aplicar candidata completa, paridad de cuatro contratos/dos cierres/52 cuotas/
+   PEN 8000. Restauración hacia destinos nuevos: 133 tablas y 27 archivos, seis
+   grupos PASS. Reversa operativa OFF conserva historia; no hay DOWN destructivo.
+8. PDF: última tanda 12 grupos/10 contratos PASS y lectura de diez trabajos
+   recuperados tras WORKER_LIMIT. El ensayo interrumpido conserva su FAIL original.
+   Sin cambiar recursos/renderer/reloj; 43 tests Deno y revisión visual de 14
+   páginas. Frontend completo 3050 tests, lint/typecheck/build/bundle, cuatro
+   gates backend y 17 nodos de tipos introspectados. Claude revisó integralmente;
+   Codex resolvió cada hallazgo con pruebas, sin atribuirle un PASS posterior.
 
-**Construido y comprobado en el banco local:**
+**Pendiente obligatorio para cerrar:** localizar sistema/archivo y reglas de
+comisiones, comprobar casos F4 y preservar liquidaciones ya pagadas. Si ese
+requisito no aplica al producto, Miguel debe decidir explícitamente el ajuste
+al plan. Todo el paquete restante está preparado para esa comprobación.
 
-- Nueva inversión para persona existente: Avance→Qorilazo, Qorilazo→Prodelco y repetición en cooperativa; también contratos Avance en PEN/USD con perfil existente y acceso Qorilazo→Avance. Avance conserva términos libres; el catálogo no se vuelve obligatorio.
-- Fuente económica, inversión y titular principal coherentes; contratos, cuentas y cronogramas Avance creados; comprobantes de cooperativas cargados y descargados con los mismos bytes. PDF: 10 grupos adicionales/ocho contratos y regresión posterior de 12 grupos/10 contratos, con recuperación Deno, reserva de 120 segundos reales y un archivo/sello por contrato. Storage sin respuesta se acota a 20 segundos; la subida tardía y la incompatibilidad recibida se recuperan. Dos antecedentes sin job conservan su contrato sin generar un documento nuevo. Cuatro contratos de ensayos interrumpidos también se recuperaron.
-- Repetición segura por clave y contenido, conflicto sin efectos, depósito único con solicitudes simultáneas y apagado que espera a la confirmación en curso.
-- Recuperación de Auth/Portal y cambio de responsable sin duplicar acceso, conservando la solicitud y la atribución histórica. Se probaron pérdida de respuestas, espera real de la reserva de acceso y recuperación por el equipo vigente.
-- Corrección de documento y fusión canónica: **7 + 8 + 6 = 21 grupos nuevos**, incluidas cuatro carreras reales contra la confirmación, doble fusión y compatibilidad con un contexto Auth anterior. Se respetan los bloqueos de F3: el acceso inconcluso se recupera antes de la corrección/fusión autorizada. Las regresiones de Portal, revisión de responsable y cooperativas pasaron después de estos cambios.
-- Paridad parcial sobre seis fuentes de referencia: S/8000 y 52 cuotas conservados; upgrade del mismo mes no aporta, uno elegible posterior sí y una segunda operación de cartera elegible del mismo cliente/mes no agrega conversión. Fecha comercial anterior y ajuste posterior a mes sellado probados; una inversión cooperativa adicional anulada conserva su capital e historia.
-- Auditoría adversaria de Claude contrastada con código y ejecución real. Se corrigió la relectura de inversiones confirmadas tras «No insistir», conservando los permisos actuales y el bloqueo de inversiones nuevas o pendientes. Pasaron nueve oráculos de regresión; la estructura actual tiene 34 funciones, 17 nuevas y cuatro tablas nuevas.
-- Plantilla, renderer, firma, fondo y fuentes PDF sin cambios; 42 pruebas del handler/adaptador y revisión visual previa de 14 páginas. La cotitularidad está en el registro contractual y snapshot, pero aún no se imprime. Miguel exige aprobación previa de texto y ubicación antes de cualquier incorporación. Claude no recibió las correcciones posteriores del worker; la auditoría no aprueba G4.
+**Límites de alcance:** F4 no se publicó ni se aplicó en producción. La observación
+productiva de 14 vínculos resueltos y un faltante sigue siendo la del 07/09,
+11:32–11:33 Lima; requiere recenso nuevo antes de tratar datos reales. G4 no
+habilita dinero real ni el encendido general. F5 conserva su alcance siguiente.
 
-**Pendientes obligatorios para cerrar G4:**
-
-1. **Históricos y cotitulares:** ensayar la vinculación canónica de F2 con casos resueltos, faltantes y conflictivos; preparar el tratamiento acotado tras un recenso nuevo. Completar cotitularidad neutral y sus efectos ante corrección/fusión, sin propagar permisos. Conservar el cotitular en el contrato no demuestra todavía el vínculo neutral completo. Cualquier incorporación al PDF requiere aprobación previa de texto y ubicación por Miguel.
-2. **Permisos y lecturas:** cambios de rol, bajas, multirrol, personas sin responsable y lectores heredados. Separar el permiso del responsable actual de la atribución histórica de la inversión.
-3. **Reglas financieras completas:** renovaciones ponderadas, comisión y comisión liquidada, atribución, demos, anulación inicial y Avance, ajustes y consumidores de fechas. Probar también la carrera entre sellado mensual y nueva operación; preservar Capital, historia y períodos sellados.
-4. **Corrección de una solicitud preparada:** corregir términos o datos inválidos de forma trazable, conservando la repetición segura. La revisión de responsable ya probada no resuelve esta edición.
-5. **Cobertura de puertas:** completar el inventario de escritores y lectores afectados, incluidos los que presuponen un cierre externo por lead, y comprobar que ninguna ruta evade los controles.
-6. **Paquete final G4:** reconstruir la candidata completa desde un banco limpio, probar reversa/restauración, completar revisión adversaria integral y reunir el artefacto exacto con todas las pruebas de aceptación, incluida la integración documental final.
-
-**Casos de aceptación:**
-
-1. cliente Avance registra inversión Qorilazo;
-2. inversionista Qorilazo registra inversión Prodelco;
-3. inversionista Qorilazo pasa a Avance y recibe el acceso autorizado sin duplicarse;
-4. cliente registra segunda inversión en la misma empresa sin otro lead;
-5. misma solicitud repetida devuelve su resultado; misma clave con datos diferentes entra en conflicto sin efectos;
-6. anulación comercial conserva historia, capital y tratamiento vigente de conversión;
-7. upgrade elegible en otro mes sigue aportando; el no elegible y la segunda operación de cartera del mismo cliente/mes no generan aportes adicionales.
-
-**Resultado exigido para terminar:** circuito técnico completo de nuevas inversiones probado con datos sintéticos, cumpliendo todos los casos y pendientes anteriores.
-
-**Gate G4 — todavía abierto:** casos anteriores, concurrencia, permisos, recuperación, reconstrucción/reversa y paridad financiera/conversión en verde. La bandera `inversiones_escritura` se prueba solo en el entorno aislado y quedó apagada al cerrar esta tanda. G4 no autoriza dinero real ni el encendido productivo general. Evidencia y límites: [matriz de aceptación F4](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md).
+Fuentes vigentes: [matriz de aceptación F4](../../CRM-Avance-Corp/supabase/scripts/f4/ESTADO-ACEPTACION.md),
+[[F4 multiempresa - reconstruccion, finanzas y lectura vigente (2026-09-08)]].
 
 ### F5 — cartera y Ficha 360 multiempresa
 

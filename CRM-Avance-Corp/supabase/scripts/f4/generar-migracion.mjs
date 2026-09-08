@@ -169,6 +169,23 @@ const firmasNuevas=[
   'crm.conciliar_cotitulares_inversion_fn(uuid)', 'private.inversion_cotitulares_historicos(uuid)',
 ];
 const literal=s=>`'${s.replaceAll("'","''")}'`;
+const inventario=JSON.parse(readFileSync(new URL('./base-inventario-consumidores.json',import.meta.url),'utf8'));
+assert.equal(inventario.vistas.length,0);assert.equal(inventario.politicas.length,0);
+const guardaInventario=`
+  -- Inventario mecánico completo ANTES del cambio de cardinalidad. Incluye
+  -- consumidores sin adaptación y referencias en comentarios (conservador).
+  if (select jsonb_agg(jsonb_build_object('firma',format('%I.%I(%s)',n.nspname,p.proname,oidvectortypes(p.proargtypes)),
+       'md5',md5(pg_get_functiondef(p.oid))) order by n.nspname,p.proname,oidvectortypes(p.proargtypes))
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('crm','private','public') and p.prokind='f' and p.prosrc ilike '%cierres_externos%')
+      is distinct from ${literal(JSON.stringify(inventario.funciones))}::jsonb then
+    raise exception 'F4: cambió el inventario de consumidores; recapturar y clasificar antes de aplicar';
+  end if;
+  if exists(select 1 from pg_views where schemaname in ('crm','private','public') and definition ilike '%cierres_externos%')
+     or exists(select 1 from pg_policies where schemaname in ('crm','private','public') and
+       (tablename='cierres_externos' or qual ilike '%cierres_externos%' or with_check ilike '%cierres_externos%')) then
+    raise exception 'F4: hay una vista o política consumidora sin clasificar';
+  end if;`;
 const guardas=originales.map(f=>`  if md5(pg_get_functiondef(${literal(f.firma)}::regprocedure)) is distinct from ${literal(f.md5)} then
     raise exception 'F4: cambió la función %; recapturar y revisar antes de aplicar',${literal(f.firma)};
   end if;`).join('\n');
@@ -189,6 +206,7 @@ do $guard$
 begin
   if to_regclass('crm.inversion_solicitudes') is not null then raise exception 'F4 ya está instalada'; end if;
 ${guardas}
+${guardaInventario}
 end;
 $guard$;
 ${cuerpos[0]}

@@ -298,6 +298,7 @@ function statusErrorBackend(error: BackendError | null): number {
 }
 
 const MENSAJES_ELIMINACION_PUBLICOS = new Set([
+  "El contrato forma parte del historial de inversiones; conserva el registro y utiliza la anulación comercial que corresponda",
   "Solo Admin o Superadmin puede eliminar contratos",
   "Este contrato tiene pagos; solo Superadmin puede eliminarlo",
   "Contrato no encontrado",
