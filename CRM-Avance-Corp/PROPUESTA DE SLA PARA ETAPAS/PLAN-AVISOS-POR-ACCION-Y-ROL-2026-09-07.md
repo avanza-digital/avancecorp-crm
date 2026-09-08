@@ -1,7 +1,7 @@
 # Plan de implementación: avisos por acción y rol
 
 Fecha: 2026-09-07.
-Estado: **APROBADO, IMPLEMENTADO Y PUBLICADO. Validación, cierre productivo y límite del control heredado de Citas en [entrega](avisos-accion-rol-20260907/README.md).**
+Estado: **APROBADO, IMPLEMENTADO, PUBLICADO Y VERIFICADO. El pendiente heredado de Citas quedó cerrado; los siete controles ejecutados están aprobados. Validación y cierre productivo en [entrega](avisos-accion-rol-20260907/README.md).**
 
 ## Resultado esperado
 
