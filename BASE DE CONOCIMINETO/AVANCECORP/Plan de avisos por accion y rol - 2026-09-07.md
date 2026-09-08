@@ -1,6 +1,6 @@
 # Plan de avisos por acción y rol — 2026-09-07
 
-Miguel aprobó implementar el plan con «dale hazlo». Implementación y validación locales terminadas; producción sigue con la corrección anterior. Falta mostrar y confirmar el SQL exacto conforme a [[Inicio]]. No afirmar que está publicado.
+Miguel aprobó implementar el plan con «dale hazlo», confirmó el SQL exacto con «sii haz deploy» y retomó con «sigue» después de una pausa. **Publicado y verificado en el alcance SLA.** Interfaz desde fuente limpia `1e580d77f95efb014199ad3e7acbd45e0b514a76`, coincidente con Main y remoto antes del build; release `crm-20260907T231539Z-1e580d77f95e`, build `build-20260907T231539249Z`. SQL aplicado el 07/09 a las 19:26:39 Lima, cuerpo y versión canónica comprobados. El cierre documental no requiere otro build.
 
 Decisión comercial: una gestión reconocida cuenta aunque el cliente no responda. Primera gestión pertenece a la asignación actual. Agenda organiza el siguiente intento; la cobertura de política no invalida una tarea futura. Actividad vencida es la acción principal; revisión por etapa, reprogramaciones o reingreso corresponde a supervisión. Cancelar no crea gestión ni vuelve a primera atención; reasignar/reabrir usa el contexto nuevo.
 
@@ -10,4 +10,8 @@ Entrega y SQL: `CRM-Avance-Corp/PROPUESTA DE SLA PARA ETAPAS/avisos-accion-rol-2
 
 Plan completo: `CRM-Avance-Corp/PROPUESTA DE SLA PARA ETAPAS/PLAN-AVISOS-POR-ACCION-Y-ROL-2026-09-07.md`.
 
-Relacionadas: [[Seguimiento - propuesta de avisos por momento y rol 2026-09-07]], [[Main unico - sincronizacion y publicacion 2026-09-04]], [[Inicio]].
+Producción: 78 archivos, dos ZIP 404 y tres versiones estables, sin fallos. Ficha/cola/campana concilian para dos analistas, supervisión y Gerencia; acceso ajeno denegado, paginación sin duplicados, ambas próximas tareas preservadas. La etapa agotada mantiene revisión de Gerencia sin pedir otra llamada inmediata al analista. Seis controles y cierre SLA aprobados; advisors 210→210 sin novedades. El control ampliado de Citas tiene un pendiente previo documentado en [[Control de Citas pendiente - huella de excepcion 2026-09-07]]; no presentar la entrega como una aprobación de todos los controles del sistema. No se alteraron sus reglas ni se ocultó el fallo.
+
+Evidencia productiva: `avisos-accion-rol-20260907/produccion-verificacion.json` y `produccion-http.json`. Reversión: SQL `rollback-sla-accion-rol.sql` primero, release anterior `crm-20260907T195955Z-431e926e6d8d.zip` después.
+
+Relacionadas: [[Seguimiento - propuesta de avisos por momento y rol 2026-09-07]], [[Main unico - sincronizacion y publicacion 2026-09-04]], [[Deploy a Hostinger]], [[Inicio]].

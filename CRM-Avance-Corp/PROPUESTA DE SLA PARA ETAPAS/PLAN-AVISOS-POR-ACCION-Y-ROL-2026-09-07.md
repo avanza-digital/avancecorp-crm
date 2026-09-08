@@ -1,7 +1,7 @@
 # Plan de implementación: avisos por acción y rol
 
 Fecha: 2026-09-07.
-Estado: **APROBADO E IMPLEMENTADO LOCALMENTE. Validación en [entrega](avisos-accion-rol-20260907/README.md). Pendiente de confirmación del SQL exacto y publicación.**
+Estado: **APROBADO, IMPLEMENTADO Y PUBLICADO. Validación, cierre productivo y límite del control heredado de Citas en [entrega](avisos-accion-rol-20260907/README.md).**
 
 ## Resultado esperado
 

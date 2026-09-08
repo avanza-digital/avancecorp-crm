@@ -1,0 +1,369 @@
+{
+  "estado": "PUBLICADO_Y_VERIFICADO_EN_ALCANCE_SLA",
+  "autorizacion": "sii haz deploy; retomado con sigue tras la pausa solicitada",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "commit_artefacto": "1e580d77f95efb014199ad3e7acbd45e0b514a76",
+  "release": "crm-20260907T231539Z-1e580d77f95e",
+  "build": "build-20260907T231539249Z",
+  "zip_sha256": "84d71bd5f91bf4a1f023d60581e298f91a4d3efeec7dd9e0cc0c30e18fe8d3f6",
+  "fuente": "Worktree aislado limpio; Main local, remoto y fuente coincidían al construir. Cambios ajenos preservados.",
+  "migracion": "20260907212612_crm_sla_avisos_por_accion_y_rol.sql",
+  "sql_sha256": "30e60b0e1a3af9944ab2c20715c010a7cd97351c7ea0af6d569406ed60897bed",
+  "version_mcp": "20260908002639",
+  "version_canonica": "20260907212612",
+  "ledger": {
+    "name": "crm_sla_avisos_por_accion_y_rol",
+    "sha256": "30e60b0e1a3af9944ab2c20715c010a7cd97351c7ea0af6d569406ed60897bed",
+    "version": "20260907212612"
+  },
+  "reconciliacion": "Una fila de metadata: solo version; nombre, versión anterior, SHA exacto y destino libre comprobados; sin reaplicar SQL ni cambiar hechos.",
+  "aplicado_en": "2026-09-08T00:26:39Z",
+  "aplicado_lima": "2026-09-07 19:26:39",
+  "autoridad_intacta": true,
+  "politica_intacta": true,
+  "control": {
+    "modo": "activo",
+    "revision": 1,
+    "primera_activacion_en": "2026-09-07T04:03:49.941009+00:00"
+  },
+  "fuentes": [
+    {
+      "md5": "7b5f75dfb6ac3e480659bdef3dc5ac0f",
+      "firma": "crm.avisos_sla_resumen_v2_fn()",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": true,
+      "provolatile": "s"
+    },
+    {
+      "md5": "ef9b56eddeaad5c4297ac0e20777799c",
+      "firma": "crm.cola_accion_v2_fn(integer,text,text,uuid,jsonb)",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": true,
+      "provolatile": "s"
+    },
+    {
+      "md5": "b50bf8c3f41770618a67d94b01b1ca42",
+      "firma": "crm.estado_sla_leads_v2_fn(uuid[])",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": true,
+      "provolatile": "s"
+    },
+    {
+      "md5": "6bc541b2e3ba1549b4b4ed419c22d455",
+      "firma": "private.assert_sla_nucleo()",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": true,
+      "provolatile": "s"
+    },
+    {
+      "md5": "0591814007ab1ebc39be1708d147f15e",
+      "firma": "private.sla_hechos_actuales(uuid[],boolean,uuid[])",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": false,
+      "provolatile": "s"
+    },
+    {
+      "md5": "ea7ee548df90a8ce4f64d3349e37fb25",
+      "firma": "private.sla_operacion_autorizada(uuid[],boolean)",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": true,
+      "provolatile": "s"
+    },
+    {
+      "md5": "6151f05563abd1b9cf3cd58e60596086",
+      "firma": "private.sla_operacion_leads(uuid[],boolean,uuid[],timestamp with time zone)",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": false,
+      "provolatile": "s"
+    },
+    {
+      "md5": "01fc105bddefa202b4a910938c65c052",
+      "firma": "private.sla_tareas_hechos(uuid[],boolean,uuid[])",
+      "owner": "postgres",
+      "proacl": "{postgres=X/postgres}",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "prosecdef": false,
+      "provolatile": "s"
+    }
+  ],
+  "controles_sla": "OK: seis controles y cierre de reconstruccion; analitica de Citas revisada por separado",
+  "control_ampliado": {
+    "resultado": "FALLO_PREEXISTENTE_AJENO_AL_SLA",
+    "funcion": "private.assert_analitica_leads_citas()",
+    "objeto": "private.metricas_reuniones_implementacion(date,date)",
+    "motivo": "La huella declarada de una excepción no se actualizó con la publicación anterior de Citas.",
+    "huella_actual": "cec7ee9ec1c31ddd8fa17f1d42e88fc1",
+    "prueba_origen": "El cuerpo actual coincide exactamente con la migración 20260907194622_crm_citas_gerencia_bases_y_alcance.sql ya registrada; la entrega SLA solo reemplaza sus tres funciones.",
+    "accion": "Registrado para auditar y corregir la declaración de Citas por separado; no se desactivó ni relajó el control.",
+    "schema_local": "El banco integral restaura el esquema completo preparado para las pruebas SLA. Su agregador de Citas era anterior a la ampliación del 07/09; no debe presentarse como un espejo de todas las funciones productivas actuales."
+  },
+  "lectores_autenticados": [
+    {
+      "rol": "analista",
+      "fichas": 1,
+      "modelo": 3,
+      "cola_items": 0,
+      "cola_rango": {
+        "desde": 0,
+        "hasta": 0
+      },
+      "cola_total": 0,
+      "cola_modelo": 3,
+      "calculado_en": "2026-09-08T00:34:25.261254+00:00",
+      "cola_totales": {
+        "pendientes": 0,
+        "revisiones": 0,
+        "por_repartir": 0,
+        "tareas_vencidas": 0,
+        "primera_atencion": 0,
+        "datos_incompletos": 0,
+        "seguimientos_pendientes": 0
+      },
+      "current_user": "authenticated",
+      "campana_total": 0,
+      "campana_grupos": [],
+      "proxima_accion": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-08T15:00:00+00:00"
+      },
+      "aviso_principal": null,
+      "avisos_mostrados": [],
+      "proximo_cambio_en": "2026-09-08T05:00:00+00:00",
+      "caso": "tarea_futura_y_etapa_agotada"
+    },
+    {
+      "rol": "analista",
+      "fichas": 1,
+      "modelo": 3,
+      "cola_items": 9,
+      "cola_rango": {
+        "desde": 1,
+        "hasta": 9
+      },
+      "cola_total": 9,
+      "cola_modelo": 3,
+      "calculado_en": "2026-09-08T00:34:19.760128+00:00",
+      "cola_totales": {
+        "pendientes": 9,
+        "revisiones": 0,
+        "por_repartir": 0,
+        "tareas_vencidas": 9,
+        "primera_atencion": 0,
+        "datos_incompletos": 0,
+        "seguimientos_pendientes": 3
+      },
+      "current_user": "authenticated",
+      "campana_total": 9,
+      "campana_grupos": [
+        {
+          "total": 9,
+          "bucket": "tarea_vencida"
+        },
+        {
+          "total": 3,
+          "bucket": "seguimiento"
+        }
+      ],
+      "proxima_accion": {
+        "tipo": "whatsapp",
+        "vence_en": "2026-09-08T17:46:00+00:00"
+      },
+      "aviso_principal": null,
+      "avisos_mostrados": [],
+      "proximo_cambio_en": "2026-09-08T05:00:00+00:00",
+      "caso": "tarea_futura_y_etapa_vigente"
+    },
+    {
+      "rol": "supervisor",
+      "fichas": 1,
+      "modelo": 3,
+      "cola_items": 10,
+      "cola_rango": {
+        "desde": 1,
+        "hasta": 10
+      },
+      "cola_total": 208,
+      "cola_modelo": 3,
+      "calculado_en": "2026-09-08T00:34:26.634278+00:00",
+      "cola_totales": {
+        "pendientes": 208,
+        "revisiones": 129,
+        "por_repartir": 0,
+        "tareas_vencidas": 156,
+        "primera_atencion": 34,
+        "datos_incompletos": 0,
+        "seguimientos_pendientes": 121
+      },
+      "current_user": "authenticated",
+      "campana_total": 208,
+      "campana_grupos": [
+        {
+          "total": 34,
+          "bucket": "primera_atencion"
+        },
+        {
+          "total": 156,
+          "bucket": "tarea_vencida"
+        },
+        {
+          "total": 121,
+          "bucket": "seguimiento"
+        },
+        {
+          "total": 129,
+          "bucket": "revision_comercial"
+        }
+      ],
+      "proxima_accion": {
+        "tipo": "whatsapp",
+        "vence_en": "2026-09-08T17:46:00+00:00"
+      },
+      "aviso_principal": null,
+      "avisos_mostrados": [],
+      "proximo_cambio_en": "2026-09-08T05:00:00+00:00",
+      "caso": "tarea_futura_y_etapa_vigente"
+    },
+    {
+      "rol": "gerencia",
+      "fichas": 1,
+      "modelo": 3,
+      "cola_items": 10,
+      "cola_rango": {
+        "desde": 1,
+        "hasta": 10
+      },
+      "cola_total": 624,
+      "cola_modelo": 3,
+      "calculado_en": "2026-09-08T00:34:30.189373+00:00",
+      "cola_totales": {
+        "pendientes": 624,
+        "revisiones": 438,
+        "por_repartir": 0,
+        "tareas_vencidas": 460,
+        "primera_atencion": 109,
+        "datos_incompletos": 0,
+        "seguimientos_pendientes": 418
+      },
+      "current_user": "authenticated",
+      "campana_total": 624,
+      "campana_grupos": [
+        {
+          "total": 109,
+          "bucket": "primera_atencion"
+        },
+        {
+          "total": 460,
+          "bucket": "tarea_vencida"
+        },
+        {
+          "total": 418,
+          "bucket": "seguimiento"
+        },
+        {
+          "total": 438,
+          "bucket": "revision_comercial"
+        }
+      ],
+      "proxima_accion": {
+        "tipo": "llamada",
+        "vence_en": "2026-09-08T15:00:00+00:00"
+      },
+      "aviso_principal": null,
+      "avisos_mostrados": [
+        "revision_comercial"
+      ],
+      "proximo_cambio_en": "2026-09-08T05:00:00+00:00",
+      "caso": "tarea_futura_y_etapa_agotada"
+    }
+  ],
+  "metodo_lectores": "SET LOCAL ROLE authenticated y claim sub de perfiles reales en transacciones READ ONLY con ROLLBACK. Sin crear ni alterar tareas o gestiones.",
+  "paginacion": {
+    "modelo": 3,
+    "pagina_1": {
+      "desde": 1,
+      "hasta": 10
+    },
+    "pagina_2": {
+      "desde": 11,
+      "hasta": 20
+    },
+    "duplicados": 0,
+    "total_igual": true
+  },
+  "acceso_ajeno_denegado": true,
+  "advisors": {
+    "before": 210,
+    "after": 210,
+    "added": [],
+    "removed": []
+  },
+  "limites": [
+    "Los conteos corresponden al instante de cada lectura; la cartera cambia con la actividad real.",
+    "Las variantes de cancelación, cierre, reasignación y fronteras se verificaron en los bancos locales declarados; no se escribieron datos de prueba en producción.",
+    "Se publicaron frontend y la migración SLA aprobada. El control heredado de Citas se informa separadamente."
+  ],
+  "http": {
+    "evidencia": "produccion-http.json",
+    "entries": 78,
+    "exact": 65,
+    "optimizedImages": 12,
+    "protected": 1,
+    "archive404": 2,
+    "stableVersionReads": 3,
+    "failures": 0
+  },
+  "ui": {
+    "metodo": "Chrome CUA, sesión real de Gerencia, consulta de ambas fichas y capturas; sin gestiones ni cambios de sesión iniciados por el agente.",
+    "tarea_futura_etapa_agotada": {
+      "aviso": "Revisa el caso y define el siguiente paso",
+      "motivo": "Se venció el plazo de esta etapa",
+      "contacto_inmediato_ausente": true,
+      "proxima_tarea": "Mañana · 10:00",
+      "badge": "En Agenda"
+    },
+    "tarea_futura_etapa_vigente": {
+      "avisos_mostrados": [],
+      "plazos_plegados": true,
+      "proxima_tarea": "Mañana · 12:46",
+      "badge": "En Agenda"
+    },
+    "errores_o_advertencias_consola_observados": [],
+    "limite": "Tras las comprobaciones autenticadas, la pestaña volvió al acceso. No se diagnosticó la causa del cambio de sesión ni se ingresaron credenciales. Analistas y supervisor se verificaron por RPC autenticadas; no se afirma una sesión visual propia de cada rol."
+  },
+  "rollback": {
+    "sql": "rollback-sla-accion-rol.sql",
+    "sql_sha256": "c2bfff226c7535ef50f44bbde563907938b8916fc9a14eda7daa7e9fa798bfd3",
+    "frontend": "crm-20260907T195955Z-431e926e6d8d.zip",
+    "orden": "SQL primero; frontend anterior después"
+  }
+}

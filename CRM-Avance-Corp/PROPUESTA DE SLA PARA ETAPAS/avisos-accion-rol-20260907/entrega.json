@@ -1,5 +1,5 @@
 {
-  "estado": "Implementado y validado localmente. SQL productivo pendiente de confirmación expresa tras mostrar este archivo.",
+  "estado": "Publicado y verificado en el alcance SLA. Incidencia previa del control de Citas documentada por separado.",
   "base_git": "58402b893fcd4f783d1503561f13d8eba25cfb33",
   "migracion": "20260907212612_crm_sla_avisos_por_accion_y_rol.sql",
   "sha256": "30e60b0e1a3af9944ab2c20715c010a7cd97351c7ea0af6d569406ed60897bed",
@@ -12,7 +12,10 @@
   },
   "postgres": "17",
   "schema_base_sha256": "bec81064d045b32721ed93e67593b07e9962b688ff0081dddc9d284aed1fab55",
-  "produccion_modificada": false,
+  "produccion_modificada": true,
+  "commit_artefacto": "1e580d77f95efb014199ad3e7acbd45e0b514a76",
+  "release": "crm-20260907T231539Z-1e580d77f95e",
+  "evidencia_produccion": "produccion-verificacion.json",
   "version_rpc": 2,
   "modelo_avisos": 3
 }

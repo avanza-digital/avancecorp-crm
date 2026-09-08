@@ -1,6 +1,6 @@
 # Avisos por acción y rol — entrega del 7 de septiembre de 2026
 
-Estado: **implementado y validado localmente; no publicado**. Falta confirmar el SQL exacto según `Inicio.md`, aplicar exclusivamente esta migración y verificar el artefacto servido.
+Estado: **publicado y verificado en producción**. Miguel confirmó el SQL exacto con «sii haz deploy» y retomó la publicación con «sigue» después de su pausa. El control ampliado detectó además una incidencia previa de Citas, documentada al final; no se declara que todo el sistema tenga sus controles aprobados.
 
 ## Comportamiento
 
@@ -49,9 +49,16 @@ Foto única: 7 de septiembre, 16:45:17 Lima. **1.272 oportunidades y 863 tareas*
 
 Los grupos por causa se solapan y no deben sumarse como oportunidades. Cambian 248 acciones principales: 214 pasan de primera atención a la tarea vencida, 17 a próxima tarea, 6 a seguimiento y 11 de seguimiento a próxima tarea. Todas las transiciones se explican y verifican; no se pierden tareas vencidas ni revisiones. Los campos históricos, compromiso, seguimiento de política y etapa son iguales antes/después. Los dos patrones reportados conservan su próxima tarea: la etapa agotada mantiene revisión de supervisión y la etapa vigente no la inventa.
 
-## Publicación pendiente
+## Publicación verificada
 
-1. Confirmar el SQL exacto enlazado arriba; una aprobación anterior no cubre esta migración todavía no mostrada.
-2. Comprobar nuevamente fuentes, remoto y Main; construir el artefacto desde el commit limpio coincidente con `avancecorp/main`.
-3. Publicar la interfaz compatible, aplicar solo la migración confirmada y verificar huellas/gates/lectores reales/artefacto servido y casos reportados.
-4. Registrar cierre productivo, advisory antes/después y versión. Este documento **no acredita un deploy**.
+Fuente limpia `1e580d77f95efb014199ad3e7acbd45e0b514a76`, idéntica a Main y `avancecorp/main` antes de construir. Release `crm-20260907T231539Z-1e580d77f95e`, build `build-20260907T231539249Z`, ZIP SHA-256 `84d71bd5f91bf4a1f023d60581e298f91a4d3efeec7dd9e0cc0c30e18fe8d3f6`. Se preservan los cambios de trabajo ajenos y la ascendencia del release anterior de Citas `431e926e6d8d`.
+
+La interfaz compatible se publicó primero. Después de la pausa se purgó caché y verificaron 78 archivos (65 hashes exactos, 12 imágenes optimizadas y configuración protegida), ZIP 404 en CRM/portal y tres lecturas estables de versión, sin fallos. Evidencia: [produccion-http.json](produccion-http.json).
+
+SQL aplicado el 07/09 a las 19:26:39 Lima, con cuerpo exacto. MCP asignó `20260908002639`; se alineó únicamente su versión de ledger a `20260907212612`, comprobando nombre, SHA, origen único, destino libre y demás campos intactos. No se reaplicaron efectos. Se verificaron tres fuentes nuevas, cinco protegidas, autoridad, política y control activo/revisión 1.
+
+Cuatro lecturas autenticadas reales (dos analistas, supervisión y Gerencia) concilian ficha, cola y campana. Los dos patrones reportados conservan la próxima tarea sin aviso de contacto inmediato; la etapa agotada mantiene solo la revisión autorizada para Gerencia. La lectura de otro analista devuelve cero filas. Páginas 1–10 y 11–20 sin duplicados y con total concordante. Los conteos son del instante observado. La sesión disponible de Gerencia permitió comprobar ambas fichas en Chrome; no se ingresaron credenciales ni se realizaron gestiones de prueba.
+
+Los seis controles de vigencia, auditoría, F7 y SLA, más el cierre de reconstrucción, pasan. Advisors de seguridad: 210 antes y después, sin altas/bajas ni errores. El control ampliado `assert_analitica_leads_citas` falla por una huella de excepción desactualizada del agregador de Citas: su cuerpo coincide con la migración de Citas ya publicada antes de esta entrega. Se conserva el rechazo y se registra el pendiente separado en el vault; no se relaja el control. El banco integral usado para SLA conserva la versión anterior de ese agregador de Citas, por lo que no es un espejo de todas las funciones productivas actuales.
+
+Evidencia completa y límites: [produccion-verificacion.json](produccion-verificacion.json). Reversión de esta entrega: aplicar primero el rollback SQL guardado y después recuperar el frontend anterior `crm-20260907T195955Z-431e926e6d8d.zip`. El commit de cierre solo documenta esta publicación y su reconciliación de metadata; no altera el artefacto.
