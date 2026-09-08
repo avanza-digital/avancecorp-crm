@@ -1,0 +1,223 @@
+{
+  "estado": "VERIFICADO_EN_LECTURA; CORRECCION_NO_APLICADA",
+  "verificacion": {
+    "tope": {
+      "id": true,
+      "tope": 30,
+      "actualizado_en": "2026-08-30T05:10:47.285894+00:00"
+    },
+    "sello": {
+      "id": true,
+      "sello": "d5d0c9dbc362f9897b89199a87a3a4be",
+      "sellado_en": "2026-09-07T03:58:18.118887+00:00"
+    },
+    "fallos": [
+      {
+        "tipo": "funcion",
+        "objeto": "private.metricas_reuniones_implementacion(date,date)",
+        "declarada": true,
+        "huella_ok": false
+      }
+    ],
+    "fuentes": [
+      {
+        "md5": "0b474e7f58e1f668b62a02730b716457",
+        "firma": "private.assert_analitica_leads_citas()"
+      },
+      {
+        "md5": "ea636888a266941e959f26c6a5727216",
+        "firma": "private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone)"
+      },
+      {
+        "md5": "34e0ae16a95912e5a5eedd4da845e288",
+        "firma": "private.contadores_crudos_leads_citas()"
+      },
+      {
+        "md5": "8a2549dbfa59c732da04900ed90b6361",
+        "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)"
+      },
+      {
+        "md5": "817926e696fa554d8485e8e1aa6e9b73",
+        "firma": "private.huella_exenciones_analitica_lc()"
+      },
+      {
+        "md5": "cec7ee9ec1c31ddd8fa17f1d42e88fc1",
+        "firma": "private.metricas_reuniones_implementacion(date,date)"
+      }
+    ],
+    "excepcion": {
+      "tipo": "funcion",
+      "razon": "CONSUME LOS DOS NUCLEOS (citas_episodios para banderas, conversion_episodios para cierres): agrega filas ya servidas por los núcleos y expone el divisor y sus exclusiones por modalidad; no reconstruye esas reglas.",
+      "huella": "48702e1a8028340b3a26137027182c98",
+      "objeto": "private.metricas_reuniones_implementacion(date,date)",
+      "declarado_en": "2026-08-30T05:10:47.285894+00:00"
+    },
+    "contadores": 29,
+    "exenciones": 30,
+    "verificado_en": "2026-09-08T01:47:48.170852+00:00",
+    "sello_calculado": "d5d0c9dbc362f9897b89199a87a3a4be"
+  },
+  "comprobaciones_revision_independiente": {
+    "columnas_exenciones": [
+      {
+        "columna": "objeto",
+        "not_null": true
+      },
+      {
+        "columna": "tipo",
+        "not_null": true
+      },
+      {
+        "columna": "huella",
+        "not_null": true
+      },
+      {
+        "columna": "razon",
+        "not_null": true
+      },
+      {
+        "columna": "declarado_en",
+        "not_null": true
+      }
+    ],
+    "fuentes_adicionales": [
+      {
+        "firma": "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])",
+        "md5": "b8f375fbb377582835f4cfe222240c5b"
+      },
+      {
+        "firma": "private.peso_referido_conversion(date)",
+        "md5": "3a80775b21767839e524880d419689f3"
+      }
+    ],
+    "censo_plan": {
+      "Plan": {
+        "Node Type": "Function Scan",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Function Name": "contadores_crudos_leads_citas",
+        "Alias": "contadores_crudos_leads_citas",
+        "Startup Cost": 0.25,
+        "Total Cost": 10.25,
+        "Plan Rows": 1000,
+        "Plan Width": 66,
+        "Actual Rows": 29,
+        "Actual Loops": 1
+      },
+      "Planning Time": 0.076,
+      "Triggers": [],
+      "Execution Time": 256.703
+    },
+    "registros_relacionados": {
+      "registros": [
+        "analista_vigencia_exenciones",
+        "analitica_lc_sello",
+        "analitica_leads_citas_exenciones",
+        "auditoria_exenciones",
+        "auditoria_sello"
+      ],
+      "controles_relacionados": [
+        "private.assert_analitica_leads_citas()"
+      ],
+      "referencias_con_huella": [
+        "private.assert_analitica_leads_citas()"
+      ]
+    }
+  },
+  "migracion_previa": {
+    "archivo": "20260907194622_crm_citas_gerencia_bases_y_alcance.sql",
+    "sha256": "615e9e8cb8dc63729899ca6e719755bbfdfcd9947583f8ad64164b7b86f42665",
+    "coincide_con_definicion_productiva": true
+  },
+  "metricas": {
+    "cortes_verificados": [
+      {
+        "periodo": "agosto",
+        "resumen": {
+          "no_show": 18,
+          "pactadas": 48,
+          "canceladas": 7,
+          "realizadas": 6,
+          "reprogramadas": 1,
+          "no_concretadas": 25,
+          "pct_asistencia": 25,
+          "pct_realizacion": 15,
+          "debieron_ocurrir": 48,
+          "pendientes_cierre": 9,
+          "canceladas_sistema": 7,
+          "divisor_asistencia": 24,
+          "divisor_realizacion": 40,
+          "programadas_futuras": 0,
+          "reprogramadas_vencidas": 1,
+          "canceladas_sistema_vencidas": 7
+        },
+        "version": 1,
+        "conversion": {
+          "clientes": 0,
+          "contratos": 0,
+          "capital_pen": 0,
+          "capital_usd": 0,
+          "leads_reunidos": 6,
+          "conversion_cliente_pct": 0,
+          "conversion_contrato_pct": 0,
+          "leads_con_cierre_previo": 1
+        },
+        "generado_en": "2026-09-08T01:24:14.265509+00:00",
+        "origenes_cuadran": true,
+        "modalidades_cuadran": true,
+        "responsables_no_superan_global": true
+      },
+      {
+        "periodo": "septiembre",
+        "resumen": {
+          "no_show": 30,
+          "pactadas": 55,
+          "canceladas": 2,
+          "realizadas": 7,
+          "reprogramadas": 2,
+          "no_concretadas": 32,
+          "pct_asistencia": 18.9,
+          "pct_realizacion": 15.2,
+          "debieron_ocurrir": 55,
+          "pendientes_cierre": 7,
+          "canceladas_sistema": 7,
+          "divisor_asistencia": 37,
+          "divisor_realizacion": 46,
+          "programadas_futuras": 0,
+          "reprogramadas_vencidas": 2,
+          "canceladas_sistema_vencidas": 7
+        },
+        "version": 1,
+        "conversion": {
+          "clientes": 0,
+          "contratos": 0,
+          "capital_pen": 0,
+          "capital_usd": 0,
+          "leads_reunidos": 7,
+          "conversion_cliente_pct": 0,
+          "conversion_contrato_pct": 0,
+          "leads_con_cierre_previo": 1
+        },
+        "generado_en": "2026-09-08T01:24:14.265509+00:00",
+        "origenes_cuadran": true,
+        "modalidades_cuadran": true,
+        "responsables_no_superan_global": true
+      }
+    ]
+  },
+  "vigia": {
+    "definicion": "CREATE OR REPLACE FUNCTION private.vigia_analitica_leads_citas()\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nbegin\n  begin\n    perform private.assert_analitica_leads_citas();\n  exception when others then\n    insert into private.vigia_alertas (fase, motivo)\n    values ('f6a_analitica_leads_citas', sqlerrm);\n  end;\nend;\n$function$\n",
+    "cron": [
+      {
+        "jobid": 26,
+        "active": true,
+        "schedule": "49 6 * * *"
+      }
+    ],
+    "ejecutado_por_esta_revision": false
+  },
+  "limites": [
+    "Se comprobaron respuesta y conciliación de dos cortes mensuales; no es una auditoría exhaustiva de cada cita o fórmula.",
+    "La propuesta no se ejecutó en producción. El control sigue rechazando la referencia antigua."
+  ]
+}

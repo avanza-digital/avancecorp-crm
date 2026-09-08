@@ -1,0 +1,26 @@
+{
+  "resultado": "VERIFICADO_LOCALMENTE",
+  "sql_sha256": "ee5ea57693342b95172011254fb3ceb8f62ae14f3f07e1f4102d224b1f94e455",
+  "pruebas": [
+    "Reproduce exactamente el rechazo inicial",
+    "Error antes de commit revierte referencia y sello",
+    "Bloquea una declaración alterada sin resellar",
+    "Cuerpos, permisos, leads, tareas, actividades, otras excepciones y tope idénticos",
+    "Rechaza reaplicación",
+    "Siete controles y cierre de reconstrucción aprobados",
+    "Diez fallos simulados detectados y revertidos"
+  ],
+  "veredicto": "OK: 30 contadores declarados y con su huella intacta, tope 30, 0 sin declarar",
+  "produccion_modificada": false,
+  "banco": {
+    "postgres": "17.10",
+    "tcp": false,
+    "base": "citas_control_20260907",
+    "origen": "Copia del esquema integral con seis definiciones vigentes y la declaración de Citas capturadas de producción",
+    "limites": [
+      "30 contadores en banco frente a 29 en producción; ambos respetan tope 30",
+      "Metadata de nueve jobs apunta al nombre del banco; no hay scheduler ni HTTP administrado",
+      "La comparación de datos usa fixtures locales, no la cartera productiva"
+    ]
+  }
+}
