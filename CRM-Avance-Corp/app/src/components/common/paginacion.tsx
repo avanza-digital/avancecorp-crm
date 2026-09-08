@@ -10,6 +10,7 @@ export function Paginacion({
   total,
   onCambio,
   ariaLabel,
+  mostrarSiempre = false,
 }: {
   /** Página vigente YA clampeada (sale de paginar()). */
   paginaActual: number
@@ -19,8 +20,10 @@ export function Paginacion({
   onCambio: (pagina: number) => void
   /** aria-label del <nav>, por pantalla ('Paginación de clientes', …). */
   ariaLabel: string
+  /** La cartera con paginación del servidor conserva los controles visibles. */
+  mostrarSiempre?: boolean
 }): JSX.Element | null {
-  if (paginas <= 1) return null
+  if (paginas <= 1 && !mostrarSiempre) return null
   return (
     <nav className="flex items-center justify-between gap-3" aria-label={ariaLabel}>
       <p className="text-xs tabular-nums text-muted-foreground">
