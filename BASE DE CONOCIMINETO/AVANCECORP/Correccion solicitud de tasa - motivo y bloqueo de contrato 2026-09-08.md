@@ -6,7 +6,7 @@ Relacionado: [[Inicio]], [[Plan Rentabilidad server-side - tasa decidida por pol
 
 ## Estado
 
-**SQL y frontend publicados y verificados el 08/09/2026.** El SQL se aplicó a las 11:57 de Lima tras «ok dale sii esta bien»; el frontend se publicó después de que Miguel invocara `/release-crm`. Build vivo: `build-20260908T171616017Z`. El error ajeno de Citas ya estaba resuelto en el árbol actualizado, sin editarlo en esta tarea.
+**SQL y frontend publicados y verificados el 08/09/2026.** El SQL se aplicó a las 11:57 de Lima tras «ok dale sii esta bien»; el frontend se publicó después de que Miguel invocara `/release-crm`. Build vivo con el ajuste horizontal: `build-20260908T180309097Z`. El error ajeno de Citas ya estaba resuelto en el árbol actualizado, sin editarlo en esta tarea.
 
 ## Decisión de negocio
 
@@ -90,3 +90,17 @@ Las notas de cierre posteriores no alteran la aplicación y no necesitan otro bu
 Miguel: «haz el recuadro horizontal, no vertical». El selector permite un campo contiguo (modalidad en el alta, fecha de inicio en corrección) y coloca el recuadro de solicitud en una fila que ocupa las dos columnas. Tasa solicitada a la izquierda, motivo de dos líneas a la derecha y botones juntos debajo. También conserva esta distribución en móvil, sin reducir el motivo a una franja estrecha.
 
 Cambio exclusivamente visual, nivel 1, sin nueva revisión secundaria ni cambios SQL. Se conservan estados, validaciones y bloqueo de contrato. PASS: 67 pruebas existentes de los componentes y 2 E2E existentes a 1280/390 px; ambas capturas inspeccionadas. La publicación de este ajuste continúa bajo la autorización `/release-crm` ya recibida, sin mezclar los demás cambios locales.
+
+### Publicación del ajuste horizontal
+
+Publicado y verificado en `crm.miavance.com`. Main local y `avancecorp/main` coincidían en `1cb442e9a958e8577312cecab87061d043397af1` antes de construir y publicar. La copia independiente de compilación tenía el árbol limpio y HEAD separado, sin crear ramas ni worktrees.
+
+- Artefacto: `CRM-Avance-Corp/releases/crm-20260908T180309Z-1cb442e9a958.zip` y manifiesto hermano.
+- SHA-256: `e5a9b03d66582d3f1a8350770da6c04e4eb9bf9ba36fc26a422ba3e760a7c3f3`.
+- Build: `build-20260908T180309097Z`.
+- Gate del commit limpio: PASS, `npm run check`, 215 archivos / 3079 tests, lint, typecheck, cobertura, configuración, build, bundle y duplicación. E2E del mismo commit: PASS, 2/2, backend simulado.
+- Manifiesto: PASS, `worktree_sucio=false`, commit y SHA-256 verificados. Hostinger aceptó el despliegue mediante su MCP oficial.
+- Verificación HTTP: PASS, 80 archivos, 67 coincidencias exactas, 12 PNG optimizados accesibles y `.htaccess` protegido; versión estable en tres lecturas, ZIP 404 en CRM y portal, cero fallos. Evidencia en `CRM-Avance-Corp/supabase/scripts/evidencia-tasa-pendiente/2026-09-08-publicacion-horizontal.json`.
+- Reversión frontend conservada: `crm-20260908T171616Z-33a8eda7a4c5.zip`, que ya contiene el bloqueo y la primera corrección del motivo. No se modifica ni reaplica SQL en este ajuste.
+
+Este cierre de la nota y la evidencia HTTP no cambia la aplicación ni requiere reconstruir el artefacto. Después del despliegue apareció en Main el commit independiente `6175616c8c58fe77f5e48df3ed386a0b30955411`, correspondiente al PDF; ese trabajo no está incluido en el ZIP horizontal. El origen exacto de este release sigue siendo `1cb442e9a958e8577312cecab87061d043397af1`. Para ver la distribución horizontal basta actualizar el CRM.
