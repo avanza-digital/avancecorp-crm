@@ -3482,6 +3482,10 @@ export type Database = {
         }
         Returns: Json
       }
+      historial_decisiones_tasa_gerencia_fn: {
+        Args: { p_busqueda?: string; p_cursor_id?: string; p_cursor_resuelta_en?: string; p_decision?: string; p_limite?: number; p_periodo_dias?: number }
+        Returns: Json
+      }
       politica_rentabilidad_fn: { Args: never; Returns: Json }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }
       productos_inversion_seleccion_fn: {

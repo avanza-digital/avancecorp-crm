@@ -6,7 +6,7 @@
 // política vigente, su historial versionado e inmutable, y permite a Gerencia publicar
 // una revisión nueva (crm.publicar_politica_rentabilidad_fn, control optimista por versión).
 // El modo siempre es «observación» hasta que R4 encienda el candado del servidor.
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { Check, Lock, Percent, RefreshCw, Save, ShieldCheck, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
@@ -23,6 +23,8 @@ import { fechaHora } from '@/lib/format'
 import { parseMonto } from '@/lib/numero'
 import { detalleModoPolitica, etiquetaModoPolitica, tasaTxt } from '@/lib/rentabilidad'
 import { usePoliticaRentabilidad, usePublicarPoliticaRentabilidad } from '@/data/crm-queries'
+
+const HistorialDecisionesTasaGerencia = lazy(() => import('@/components/app/historial-decisiones-tasa-gerencia').then((m) => ({ default: m.HistorialDecisionesTasaGerencia })))
 
 interface Borrador {
   tasaBaseNueva: string
@@ -52,10 +54,12 @@ export function ConfigRentabilidad(): JSX.Element {
   const publicar = usePublicarPoliticaRentabilidad()
   const [borrador, setBorrador] = useState<Borrador | null>(null)
   const [confirmando, setConfirmando] = useState(false)
+  const [historialActivo, setHistorialActivo] = useState<'politica' | 'decisiones'>('politica')
   // Tras publicar, Radix devuelve el foco a «Publicar nueva versión», que pasa a deshabilitado (→ body): se posa en «Reglas vigentes».
   const reglasRef = useRef<HTMLDivElement>(null)
 
   const vigente = consulta.data?.vigente ?? null
+  const puedeVerDecisiones = yo?.rol === 'gerencia' && !esDemo
   useEffect(() => {
     if (vigente) {
       setBorrador({
@@ -252,28 +256,49 @@ export function ConfigRentabilidad(): JSX.Element {
         </Card>
       )}
 
-      {consulta.data && consulta.data.historial.length > 0 && (
+      {consulta.data && (consulta.data.historial.length > 0 || puedeVerDecisiones) && (
         <Card>
           <CardHeader className="border-b border-border/70 pb-3">
-            <CardTitle className="flex items-center gap-2"><ShieldCheck className="size-4 text-accent" aria-hidden /> Historial de la política</CardTitle>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck className="size-4 text-accent" aria-hidden /> Historial de rentabilidad</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">Cambios generales y decisiones de tasa permanecen separados, pero se consultan en el mismo lugar.</p>
+              </div>
+              {puedeVerDecisiones && (
+                <div role="tablist" aria-label="Tipo de historial de rentabilidad" className="flex rounded-lg border border-border bg-muted/30 p-1">
+                  <button type="button" role="tab" aria-selected={historialActivo === 'politica'} aria-controls="historial-politica-panel" onClick={() => setHistorialActivo('politica')} className={cn('min-h-8 rounded-md px-3 text-xs font-bold transition-colors', historialActivo === 'politica' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Cambios de política</button>
+                  <button type="button" role="tab" aria-selected={historialActivo === 'decisiones'} aria-controls="historial-decisiones-panel" onClick={() => setHistorialActivo('decisiones')} className={cn('min-h-8 rounded-md px-3 text-xs font-bold transition-colors', historialActivo === 'decisiones' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Decisiones de tasa</button>
+                </div>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="pt-4">
-            {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
-            <ol role="list" className="divide-y divide-border/60" aria-label="Versiones de la política de rentabilidad">
-              {consulta.data.historial.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-xs">
-                  <div className="min-w-0">
-                    <span className="font-bold text-foreground">v{p.version}</span>
-                    <span className="text-muted-foreground"> · base {tasaTxt(p.tasa_base_nueva)} · tope {tasaTxt(p.tope_tecnico)} · {p.vigencia_solicitud_dias} días · {etiquetaModoPolitica(p.modo)}</span>
-                    {p.nota && <p className="mt-0.5 truncate text-muted-foreground" title={p.nota}>{p.nota}</p>}
-                  </div>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {fechaHora(p.publicada_en)}{p.publicada_por_nombre ? ` · ${p.publicada_por_nombre}` : ''}{p.es_vigente ? ' · vigente' : ''}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
+          {historialActivo === 'politica' || !puedeVerDecisiones ? (
+            <CardContent id="historial-politica-panel" role="tabpanel" className="pt-4">
+              {consulta.data.historial.length > 0 ? (
+                <>
+                  {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles */}
+                  <ol role="list" className="divide-y divide-border/60" aria-label="Versiones de la política de rentabilidad">
+                    {consulta.data.historial.map((p) => (
+                      <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="font-bold text-foreground">v{p.version}</span>
+                          <span className="text-muted-foreground"> · base {tasaTxt(p.tasa_base_nueva)} · tope {tasaTxt(p.tope_tecnico)} · {p.vigencia_solicitud_dias} días · {etiquetaModoPolitica(p.modo)}</span>
+                          {p.nota && <p className="mt-0.5 truncate text-muted-foreground" title={p.nota}>{p.nota}</p>}
+                        </div>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{fechaHora(p.publicada_en)}{p.publicada_por_nombre ? ` · ${p.publicada_por_nombre}` : ''}{p.es_vigente ? ' · vigente' : ''}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              ) : <p className="py-5 text-center text-sm text-muted-foreground">Todavía no hay versiones anteriores de la política.</p>}
+            </CardContent>
+          ) : (
+            <div id="historial-decisiones-panel" role="tabpanel">
+              <Suspense fallback={<div className="px-5 py-8 text-center text-sm text-muted-foreground">Cargando historial de decisiones…</div>}>
+                <HistorialDecisionesTasaGerencia />
+              </Suspense>
+            </div>
+          )}
         </Card>
       )}
 

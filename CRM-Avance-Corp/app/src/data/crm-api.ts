@@ -4206,6 +4206,51 @@ export async function listarSolicitudesTasa(estados: EstadoSolicitudTasa[] | nul
   return r.output.map(aSolicitudTasa)
 }
 
+export const TAMANO_PAGINA_HISTORIAL_DECISIONES_TASA = 10
+export type DecisionHistorialTasa = 'aprobada' | 'aprobada_con_tope' | 'rechazada'
+export interface CursorHistorialDecisionesTasa { resueltaEn: string; id: string }
+export interface FiltrosHistorialDecisionesTasa { periodoDias: 0 | 7 | 30 | 90; decision: 'todas' | DecisionHistorialTasa; busqueda: string | null }
+export interface FilaHistorialDecisionTasa {
+  id: string; decision: DecisionHistorialTasa; estado_actual: EstadoSolicitudTasa; categoria: CategoriaContrato; cliente_nombre: string
+  contrato_origen_numero: string | null; contrato_numero: string | null; capital: number; moneda: MonedaContrato; modalidad: ModalidadContrato
+  tipo_interes: TipoInteres; fecha_inicio: string; fecha_vencimiento: string; tasa_base: number; regla_base: ReglaTasa; tasa_solicitada: number
+  tasa_maxima_autorizada: number | null; motivo: string; motivo_resolucion: string | null; solicitante_nombre: string; solicitada_en: string
+  vence_en: string; resolutor_nombre: string; resuelta_en: string; respondida_por_analista_en: string | null; consumida_en: string | null; politica_version: number | null
+}
+export interface PaginaHistorialDecisionesTasa { items: FilaHistorialDecisionTasa[]; total: number; siguienteCursor: CursorHistorialDecisionesTasa | null }
+
+const DecisionHistorialTasaSchema = v.picklist(['aprobada', 'aprobada_con_tope', 'rechazada'])
+const EstadoHistorialTasaSchema = v.picklist(['pendiente', 'aprobada', 'aprobada_con_tope', 'rechazada', 'aceptada_por_analista', 'declinada_por_analista', 'consumida', 'vencida'])
+const FilaHistorialDecisionTasaSchema = v.object({
+  id: v.string(), decision: DecisionHistorialTasaSchema, estado_actual: EstadoHistorialTasaSchema, categoria: v.string(), cliente_nombre: v.string(),
+  contrato_origen_numero: v.nullable(v.string()), contrato_numero: v.nullable(v.string()), capital: NumericoRpc, moneda: v.string(), modalidad: v.string(), tipo_interes: v.string(),
+  fecha_inicio: v.string(), fecha_vencimiento: v.string(), tasa_base: NumericoRpc, regla_base: ReglaTasaSchema, tasa_solicitada: NumericoRpc, tasa_maxima_autorizada: v.nullable(NumericoRpc),
+  motivo: v.string(), motivo_resolucion: v.nullable(v.string()), solicitante_nombre: v.string(), solicitada_en: v.string(), vence_en: v.string(), resolutor_nombre: v.string(),
+  resuelta_en: v.string(), respondida_por_analista_en: v.nullable(v.string()), consumida_en: v.nullable(v.string()), politica_version: v.nullable(v.number()),
+})
+const PaginaHistorialDecisionesTasaSchema = v.object({ version: v.literal(1), total: v.number(), items: v.array(FilaHistorialDecisionTasaSchema), siguiente_cursor: v.nullable(v.object({ resuelta_en: v.string(), id: v.string() })) })
+
+/** Historial completo de las decisiones tomadas por la Gerencia autenticada, paginado por fecha+UUID. */
+export async function listarHistorialDecisionesTasaGerencia(filtros: FiltrosHistorialDecisionesTasa, cursor: CursorHistorialDecisionesTasa | null, signal?: AbortSignal): Promise<PaginaHistorialDecisionesTasa> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('historial_decisiones_tasa_gerencia_fn', {
+    p_periodo_dias: filtros.periodoDias, p_limite: TAMANO_PAGINA_HISTORIAL_DECISIONES_TASA,
+    ...(filtros.decision !== 'todas' ? { p_decision: filtros.decision } : {}), ...(filtros.busqueda ? { p_busqueda: filtros.busqueda } : {}),
+    ...(cursor ? { p_cursor_resuelta_en: cursor.resueltaEn, p_cursor_id: cursor.id } : {}),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rentabilidad.historial_decisiones_fallido')
+  const r = v.safeParse(PaginaHistorialDecisionesTasaSchema, data)
+  if (!r.success) { const fallo = new CrmApiError('El historial de decisiones de tasa no tiene el formato esperado.', 'HISTORIAL_DECISIONES_TASA_CONTRACT'); registrarError('crm.rentabilidad.historial_decisiones_fuera_de_contrato', fallo); throw fallo }
+  return {
+    total: r.output.total,
+    siguienteCursor: r.output.siguiente_cursor ? { resueltaEn: r.output.siguiente_cursor.resuelta_en, id: r.output.siguiente_cursor.id } : null,
+    items: r.output.items.map((fila) => ({ ...fila, categoria: fila.categoria as CategoriaContrato, capital: numEstricto(fila.capital, 'capital'), moneda: fila.moneda as MonedaContrato, modalidad: fila.modalidad as ModalidadContrato, tipo_interes: fila.tipo_interes as TipoInteres, tasa_base: numEstricto(fila.tasa_base, 'tasa_base'), tasa_solicitada: numEstricto(fila.tasa_solicitada, 'tasa_solicitada'), tasa_maxima_autorizada: fila.tasa_maxima_autorizada == null ? null : numEstricto(fila.tasa_maxima_autorizada, 'tasa_maxima_autorizada') })),
+  }
+}
+
 const HistorialTasaClienteSchema = v.object({
   version: v.literal(1),
   cliente_id: v.string(),
