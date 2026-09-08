@@ -2652,6 +2652,15 @@ export type Database = {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
       }
+      corregir_documento_cliente_admin_fn: {
+        Args: {
+          p_cliente_id: string
+          p_documento: string
+          p_motivo: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       actualizar_contrato_con_cuenta: {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: undefined

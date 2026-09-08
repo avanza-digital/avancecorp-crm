@@ -27,6 +27,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     ...actual, // conserva CrmApiError real
     crearClientePortal: vi.fn(),
     actualizarClientePortal: vi.fn(),
+    corregirDocumentoClienteAdmin: vi.fn(),
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
   }
@@ -37,6 +38,7 @@ const { CrmApiError } = crmApi
 
 const crearCliente = vi.mocked(crmApi.crearClientePortal)
 const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
+const corregirDocumento = vi.mocked(crmApi.corregirDocumentoClienteAdmin)
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
 
@@ -102,6 +104,7 @@ interface PropsParciales {
   modo?: 'crear' | 'corregir'
   clienteId?: string
   rol?: Rol
+  rolPortal?: string
   queryClient?: QueryClient
 }
 
@@ -118,6 +121,7 @@ function montar(props: PropsParciales = {}) {
       id: rol === 'gerencia' ? 'gerencia' : 'yo',
       nombre_completo: rol === 'gerencia' ? 'GERENCIA' : 'ANALISTA',
       rol,
+      ...(props.rolPortal ? { rol_portal: props.rolPortal } : {}),
       demo: false,
       puede_contratar: true,
     },
@@ -285,6 +289,8 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(correo).toBeDisabled()
     expect(screen.getByText(/cuenta de acceso/)).toBeInTheDocument()
     expect(screen.getByLabelText('Apellidos *')).toHaveValue('PORTAL UNO')
+    expect(screen.getByLabelText('Tipo de documento *')).toBeDisabled()
+    expect(screen.getByLabelText('Documento *')).toBeDisabled()
     const domicilio = screen.getByLabelText('Domicilio legal completo *')
     expect(domicilio).toHaveValue('Av. Javier Prado Este 123, San Isidro, Lima')
     expect(screen.getByText(/solo a contratos futuros/)).toBeInTheDocument()
@@ -307,14 +313,15 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(id).toBe('cli-1')
     expect(patch).toMatchObject({
       nombre_completo: 'PORTAL UNO CLIENTE',
-      tipo_documento: 'DNI',
-      dni: '45781234', // sin tocar → grandfathering (pasa tal cual)
       telefono: '988777666',
       domicilio: 'Jr. Los Cedros 456, Miraflores, Lima',
       banco: 'BCP',
       cci: '00219112345678901234',
       banco_usd: null,
     })
+    expect(patch).not.toHaveProperty('tipo_documento')
+    expect(patch).not.toHaveProperty('dni')
+    expect(corregirDocumento).not.toHaveBeenCalled()
     expect(toast.success).toHaveBeenCalledWith('Datos del cliente corregidos.')
   })
 
@@ -556,8 +563,42 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
     expect(actualizarCliente).toHaveBeenCalledWith(
       'cli-1',
-      expect.objectContaining({ dni: '45781234' }),
+      expect.not.objectContaining({ dni: expect.anything() }),
       true,
+    )
+    expect(corregirDocumento).not.toHaveBeenCalled()
+  })
+
+  it('Admin corrige el documento desde el CRM con motivo y RPC auditada', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    corregirDocumento.mockResolvedValue(undefined)
+    const { onListo } = montar({
+      modo: 'corregir',
+      clienteId: 'cli-1',
+      rol: 'gerencia',
+      rolPortal: 'admin',
+    })
+
+    expect(await screen.findByText('Corrección administrativa auditada')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tipo de documento *')).toBeEnabled()
+    const documento = screen.getByLabelText('Documento *')
+    expect(documento).toBeEnabled()
+    await user.clear(documento)
+    await user.type(documento, '87654321')
+    await user.type(screen.getByLabelText('Motivo de la corrección *'), 'Error de digitación')
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
+    const [, patch] = actualizarCliente.mock.calls[0]!
+    expect(patch).not.toHaveProperty('tipo_documento')
+    expect(patch).not.toHaveProperty('dni')
+    expect(corregirDocumento).toHaveBeenCalledWith(
+      'cli-1',
+      'DNI',
+      '87654321',
+      'Error de digitación',
     )
   })
 

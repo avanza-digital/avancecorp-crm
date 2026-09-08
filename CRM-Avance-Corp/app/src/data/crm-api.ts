@@ -3039,6 +3039,38 @@ export async function actualizarClientePortal(
   return (data?.length ?? 0) > 0
 }
 
+/**
+ * Corrige tipo y numero de documento por la puerta administrativa auditada.
+ * El servidor vuelve a exigir rol Portal admin/superadmin y sincroniza la
+ * identidad CRM cuando el cliente ya fue reconocido como persona.
+ */
+export async function corregirDocumentoClienteAdmin(
+  id: string,
+  tipo: TipoDocumento,
+  documento: string,
+  motivo: string,
+): Promise<void> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc('corregir_documento_cliente_admin_fn', {
+      p_cliente_id: id,
+      p_tipo: tipo,
+      p_documento: documento,
+      p_motivo: motivo,
+    })
+  if (error) throw aErrorApi(error, 'crm.clientes.correccion_documento_admin_fallida')
+
+  const respuesta = data as { ok?: unknown } | null
+  if (!respuesta || Array.isArray(respuesta) || respuesta.ok !== true) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmo la correccion del documento.',
+      'CORRECCION_DOCUMENTO_SIN_CONFIRMACION',
+    )
+    registrarError('crm.clientes.correccion_documento_admin_sin_confirmacion', fallo)
+    throw fallo
+  }
+}
+
 // ── Datos legales que el contrato exige ANTES de intentar emitirlo ────────────
 // El PDF se reserva dentro de la MISMA transacción del alta, así que un dato
 // legal ausente revierte el contrato entero con 'Faltan datos legales

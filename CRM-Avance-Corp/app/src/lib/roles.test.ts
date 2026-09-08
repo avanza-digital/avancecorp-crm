@@ -6,6 +6,7 @@ import {
   can,
   puedeAdministrarRolesCrm,
   puedeAdministrarUsuariosCrm,
+  puedeCorregirDocumentoCliente,
   puedeEliminarContratos,
   puedeEscribir,
   puedeOrganizarJerarquiaCrm,
@@ -136,6 +137,14 @@ describe('capacidades por rol', () => {
 })
 
 describe('capacidades administrativas Portal ↔ CRM', () => {
+  it('reserva la correccion del documento para Admin y Superadmin del Portal', () => {
+    expect(puedeCorregirDocumentoCliente({ rol: 'gerencia', rol_portal: 'admin' })).toBe(true)
+    expect(puedeCorregirDocumentoCliente({ rol: 'directorio', rol_portal: 'superadmin' })).toBe(true)
+    expect(puedeCorregirDocumentoCliente({ rol: 'gerencia', rol_portal: 'directorio' })).toBe(false)
+    expect(puedeCorregirDocumentoCliente({ rol: 'vendedor', rol_portal: 'analista' })).toBe(false)
+    expect(puedeCorregirDocumentoCliente(null)).toBe(false)
+  })
+
   it('reserva la eliminación contractual para Admin y Superadmin del Portal', () => {
     expect(puedeEliminarContratos({ rol: 'vendedor', rol_portal: 'analista' })).toBe(false)
     expect(puedeEliminarContratos({ rol: 'gerencia', rol_portal: 'directorio' })).toBe(false)

@@ -22,9 +22,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   actualizarClientePortal,
+  corregirDocumentoClienteAdmin,
   crearClientePortal,
   mensajeDeError,
   CrmApiError,
@@ -36,6 +38,7 @@ import type { ClienteDetalle, CuentaBancariaSeleccionable } from '@/lib/clientes
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { useVentana } from '@/lib/ventana'
 import { useAuth } from '@/lib/auth-context'
+import { puedeCorregirDocumentoCliente } from '@/lib/roles'
 import {
   SECCION_BANCARIA_VACIA,
   hayCuentaEnLedger,
@@ -75,12 +78,14 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const esCorregir = modo === 'corregir'
   const { yo } = useAuth()
   const esGerencia = yo?.rol === 'gerencia'
+  const puedeCorregirDocumento = esCorregir && puedeCorregirDocumentoCliente(yo)
 
   // Identidad
   const [apellidos, setApellidos] = useState('')
   const [nombres, setNombres] = useState('')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('DNI')
   const [documento, setDocumento] = useState('')
+  const [motivoDocumento, setMotivoDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
   const [correo, setCorreo] = useState('')
   const [domicilio, setDomicilio] = useState('')
@@ -260,6 +265,20 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
       throw new Error(r.error)
     }
     const c = r.cliente
+    const documentoCambio = esCorregir && detalle !== null && (
+      c.tipo_documento !== detalle.tipo_documento || c.dni !== (detalle.dni ?? '')
+    )
+    if (documentoCambio && !puedeCorregirDocumento) {
+      const mensaje = 'Solo un usuario administrador puede corregir el documento de un cliente.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
+    const motivoDocumentoLimpio = motivoDocumento.trim()
+    if (documentoCambio && (motivoDocumentoLimpio.length < 3 || motivoDocumentoLimpio.length > 500)) {
+      const mensaje = 'Indica un motivo de entre 3 y 500 caracteres para corregir el documento.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
     setEnviando(true)
     onEnviandoCambio?.(true)
     try {
@@ -271,8 +290,6 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           clienteId as string,
           {
             nombre_completo: c.nombre_completo,
-            tipo_documento: c.tipo_documento,
-            dni: c.dni,
             telefono: c.telefono,
             domicilio: c.domicilio,
             // En un legacy sin separar (ambos vacíos) van null y se conserva su
@@ -287,6 +304,20 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         if (!guardo) {
           setError(MSG_VENTANA_VENCIDA)
           throw new ErrorYaMostrado(MSG_VENTANA_VENCIDA)
+        }
+        if (documentoCambio) {
+          try {
+            await corregirDocumentoClienteAdmin(
+              clienteId as string,
+              c.tipo_documento,
+              c.dni,
+              motivoDocumentoLimpio,
+            )
+          } catch (e) {
+            const mensaje = `Los demás datos se guardaron, pero el documento no pudo corregirse: ${mensajeDeError(e, 'No se pudo corregir el documento.')}`
+            setError(mensaje)
+            throw new ErrorYaMostrado(mensaje)
+          }
         }
         toast.success('Datos del cliente corregidos.')
         onListo(clienteId as string)
@@ -329,14 +360,19 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           : <UserRoundPlus className="size-4 text-primary" aria-hidden />}
         {esCorregir ? 'Corregir cliente' : 'Nuevo cliente'}
       </DialogTitle>
-      {esCorregir && detalle && !esGerencia && (
+      {esCorregir && detalle && !esGerencia && !puedeCorregirDocumento && (
         // Cuenta regresiva visual; la ventana REAL la decide el servidor, por eso
         // el guardado no se bloquea aquí (espejo del portal: el modal no gatea).
         <p className={`text-[11px] font-semibold ${ventana.vigente ? 'text-primary' : 'text-destructive'}`}>
           Ventana de corrección: {ventana.texto}
         </p>
       )}
-      {esCorregir && detalle && esGerencia && (
+      {esCorregir && detalle && puedeCorregirDocumento && (
+        <p className="text-[11px] font-semibold text-primary">
+          Corrección administrativa auditada
+        </p>
+      )}
+      {esCorregir && detalle && esGerencia && !puedeCorregirDocumento && (
         <p className="text-[11px] font-semibold text-primary">
           Corrección autorizada por Gerencia
         </p>
@@ -388,6 +424,9 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   }
 
   const reglaDoc = TIPOS_DOCUMENTO[tipoDoc]
+  const documentoEditado = esCorregir && detalle !== null && (
+    tipoDoc !== detalle.tipo_documento || documento.trim() !== (detalle.dni ?? '')
+  )
   const esLegacySinSeparar = esCorregir && detalle !== null
     && !detalle.apellidos && !detalle.nombres && !!detalle.nombre_completo
 
@@ -446,7 +485,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               id="cf-tipo-doc"
               value={tipoDoc}
               onChange={(e) => setTipoDoc(e.target.value as TipoDocumento)}
-              disabled={enviando || esCorregir}
+              disabled={enviando || (esCorregir && !puedeCorregirDocumento)}
             >
               {TIPOS_DOCUMENTO_K.map((k) => (
                 <option key={k} value={k}>{TIPOS_DOCUMENTO[k].etiqueta}</option>
@@ -467,15 +506,36 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               style={{ textTransform: reglaDoc.mayusculas ? 'uppercase' : 'none' }}
               autoComplete="off"
               aria-describedby="cf-documento-hint"
-              disabled={enviando || esCorregir}
+              disabled={enviando || (esCorregir && !puedeCorregirDocumento)}
             />
             <p id="cf-documento-hint" className="text-[10px] text-muted-foreground">
               {esCorregir
-                ? 'Solo un usuario administrador puede corregirlo desde Administración > Clientes.'
+                ? puedeCorregirDocumento
+                  ? 'Puedes corregirlo como administrador; el motivo quedará registrado en auditoría.'
+                  : 'Solo un usuario administrador puede corregirlo.'
                 : reglaDoc.regla}
             </p>
           </div>
         </div>
+
+        {puedeCorregirDocumento && documentoEditado && (
+          <div className="space-y-1.5">
+            <Label htmlFor="cf-documento-motivo">Motivo de la corrección *</Label>
+            <Textarea
+              id="cf-documento-motivo"
+              value={motivoDocumento}
+              onChange={(e) => setMotivoDocumento(e.target.value)}
+              rows={2}
+              minLength={3}
+              maxLength={500}
+              placeholder="Por qué se corrige el documento"
+              disabled={enviando}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Entre 3 y 500 caracteres. Se guardará en la auditoría administrativa.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2.5">
           <div className="space-y-1.5">

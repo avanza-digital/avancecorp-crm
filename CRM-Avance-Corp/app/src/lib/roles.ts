@@ -167,6 +167,13 @@ export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null
   return identidad?.rol_portal === 'admin' || identidad?.rol_portal === 'superadmin'
 }
 
+/** La correccion auditada del documento pertenece a Admin/Superadmin del Portal. */
+export function puedeCorregirDocumentoCliente(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.rol_portal === 'admin' || identidad?.rol_portal === 'superadmin'
+}
+
 /**
  * Quién puede pasar una venta de un analista a otro (P-055 Fase 3).
  *
