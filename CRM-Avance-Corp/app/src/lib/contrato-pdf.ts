@@ -290,10 +290,23 @@ function tablaLiquidacion(): ContentTable {
       hLineWidth: () => 0.5,
       vLineWidth: () => 0.5,
     },
-    fontSize: 7,
+    fontSize: TIPOGRAFIA.tabla,
     margin: [0, 5, 0, 8],
   }
 }
+
+// Escala tipográfica del contrato. Gemela de TIPOGRAFIA en la plantilla de la
+// edge `crm-contrato-pdf-v2`: si una cambia, la otra también, o el PDF de la
+// demostración deja de parecerse al que firma el cliente.
+const TIPOGRAFIA = {
+  cuerpo: 9.6,
+  clausula: 10.4,
+  titulo: 15,
+  tabla: 8.2,
+  firma: 10.5,
+  cabecera: 9.5,
+  pie: 8,
+} as const
 
 export function nombreArchivoContrato(datos: ContratoPdfDatos): string {
   const nombre = datos.titular.nombreCompleto
@@ -371,18 +384,18 @@ export function construirContratoPdf(
           width: '48%',
           stack: [
             { text: '\n____________________________', alignment: 'center' },
-            { text: titular.nombreCompleto, bold: true, alignment: 'center', fontSize: 8 },
-            { text: documento, alignment: 'center', fontSize: 8 },
-            { text: 'EL ASOCIADO', bold: true, alignment: 'center', fontSize: 8 },
+            { text: titular.nombreCompleto, bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+            { text: documento, alignment: 'center', fontSize: TIPOGRAFIA.firma },
+            { text: 'EL ASOCIADO', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
           ],
         },
         {
           width: '48%',
           stack: [
             ...(assets.firmaAsociante
-              ? [{ image: assets.firmaAsociante, width: 92, height: 85, alignment: 'center', margin: [0, 0, 0, -14] }]
+              ? [{ image: 'firmaAsociante', width: 92, height: 85, alignment: 'center', margin: [0, 0, 0, -14] }]
               : [{ text: 'FIRMA OMITIDA · DEMOSTRACIÓN', italics: true, alignment: 'center', fontSize: 7, margin: [0, 36, 0, 26] }]),
-            { text: 'EL ASOCIANTE', bold: true, alignment: 'center', fontSize: 8 },
+            { text: 'EL ASOCIANTE', bold: true, alignment: 'center', fontSize: TIPOGRAFIA.firma },
           ],
         },
       ],
@@ -401,8 +414,14 @@ export function construirContratoPdf(
     },
     pageSize: 'A4',
     pageMargins: [66, 126, 58, 94],
+    // Gemelo del arreglo de la edge: el fondo se declara una sola vez y las
+    // páginas lo referencian por nombre, en vez de incrustarlo en cada hoja.
+    images: {
+      fondoContrato: assets.fondo,
+      ...(assets.firmaAsociante ? { firmaAsociante: assets.firmaAsociante } : {}),
+    },
     background: () => ({
-      image: assets.fondo,
+      image: 'fondoContrato',
       width: 595.28,
       height: 841.89,
       absolutePosition: { x: 0, y: 0 },
@@ -412,32 +431,32 @@ export function construirContratoPdf(
       alignment: 'right',
       color: '#183969',
       bold: true,
-      fontSize: 9,
+      fontSize: TIPOGRAFIA.cabecera,
       margin: [0, 82, 58, 0],
     }),
     footer: (pagina, total) => ({
       text: `${pagina} / ${total}`,
       alignment: 'right',
       color: '#64748b',
-      fontSize: 7,
+      fontSize: TIPOGRAFIA.pie,
       margin: [0, 0, 58, 52],
     }),
     content: contenido,
     defaultStyle: {
       font: 'Roboto',
-      fontSize: 8.6,
+      fontSize: TIPOGRAFIA.cuerpo,
       color: '#17233b',
       lineHeight: 1.16,
     },
     styles: {
       titulo: {
-        fontSize: 14,
+        fontSize: TIPOGRAFIA.titulo,
         bold: true,
         alignment: 'center',
         color: '#183969',
       },
       clausula: {
-        fontSize: 9.4,
+        fontSize: TIPOGRAFIA.clausula,
         bold: true,
         color: '#183969',
       },

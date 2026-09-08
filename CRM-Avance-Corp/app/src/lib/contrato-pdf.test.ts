@@ -187,8 +187,14 @@ describe('contrato PDF legal', () => {
     const background = definicion.background as unknown as () => Record<string, unknown>
 
     expect(background()).toMatchObject({
-      image: 'data:image/png;base64,FONDO',
+      image: 'fondoContrato',
       absolutePosition: { x: 0, y: 0 },
+    })
+    // El fondo se declara UNA vez: referenciarlo por nombre evita incrustar el
+    // membrete en cada hoja (multiplicaba por 4,5 el peso del archivo).
+    expect(definicion.images).toMatchObject({
+      fondoContrato: 'data:image/png;base64,FONDO',
+      firmaAsociante: 'data:image/png;base64,FIRMA',
     })
   })
 })

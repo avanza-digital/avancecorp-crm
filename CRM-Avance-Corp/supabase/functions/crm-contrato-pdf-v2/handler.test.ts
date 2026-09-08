@@ -270,7 +270,7 @@ Deno.test("respuesta de reclamo futura devuelve el lease identificable sin hacer
         data: estado("procesando", {
           adquirido: true,
           lease_token: LEASE_TOKEN,
-          template_version: "contrato-aep-17-v8",
+          template_version: "contrato-aep-17-v9",
         }),
         error: null,
       },
