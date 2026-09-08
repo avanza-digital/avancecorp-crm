@@ -325,3 +325,12 @@ envío productivas.
 
 La revisión auxiliar Endor del CLI temporal quedó UNKNOWN por ausencia de MCP
 y `endorctl`. No se afirma que esa dependencia haya sido aprobada por Endor.
+
+## Carreras de históricos con identidad — 08/09/2026
+
+`node CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-identidad.mjs`
+comprueba corrección, fusión y reasignación en ambos órdenes frente al lote: seis
+carreras con RPC SQL reales, sin alterar sus definiciones. Exige la instalación
+exacta, trabaja en una copia sintética y compara el banco original al terminar.
+Conserva dinero, PDF, atribución, inversión única y principal. Es complemento
+del oráculo de concurrencia, no una prueba HTTP ni del mantenimiento F2 completo.

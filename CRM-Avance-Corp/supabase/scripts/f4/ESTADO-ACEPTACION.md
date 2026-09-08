@@ -182,3 +182,11 @@ del 07/09; se deberá revalidar antes del tratamiento de datos real.
 Al cerrar esta tanda el escritor local queda apagado y `functions serve` fue
 detenido. El banco conserva los datos ficticios; los informes no afirman que
 todas sus solicitudes preparadas o todos sus jobs PDF estén terminados.
+
+## Ampliación de históricos — 08/09/2026, 09:54 Lima
+
+**PASS:** seis carreras con corrección, fusión y reasignación mediante las RPC
+reales de F3, ambas precedencias, sin duplicación ni alteración financiera/PDF.
+Evidencia: `../evidencia-f4/historicos-identidad-68cc610d-f23c-4c4e-928f-0facea7e6ba2.json`.
+Siguen pendientes el mantenimiento F2, el lote máximo, la reconstrucción y demás
+requisitos de G4; la ampliación no cierra la fase.

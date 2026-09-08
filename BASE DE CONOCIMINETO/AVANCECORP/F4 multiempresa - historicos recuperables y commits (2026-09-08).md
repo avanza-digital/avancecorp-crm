@@ -41,3 +41,9 @@ Relacionadas: [[RETOMAR-62 - identidad unificada ENCENDIDA, sigue F4 (2026-09-07
 ## Pausa solicitada por Miguel
 
 El 08/09 Miguel pidió parar y seguir mañana. Se guarda el checkpoint local y se detiene el desarrollo después del commit. No hay publicación pendiente en ejecución. Retomar esta rama y esta matriz, sin repetir F2 ni interpretar las pruebas parciales como cierre de G4.
+
+## Reanudación — 08/09/2026, 09:54 Lima
+
+Miguel pidió continuar. Pasaron **seis carreras adicionales con las RPC reales de F3**: corrección de documento, fusión y reasignación, cada una antes y después del lote histórico. Si el cambio de identidad gana, el lote exige recenso; si el lote gana, la fusión exige una nueva previsualización. Se conserva una sola inversión y su titular principal, el dinero, los PDFs y la atribución histórica. Las funciones F3 no se modificaron.
+
+Evidencia: `CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-identidad-68cc610d-f23c-4c4e-928f-0facea7e6ba2.json`. Script: `scripts/f4/probar-historicos-identidad.mjs`. Se usó una copia SQL con rol/claims ficticios; el banco original quedó intacto. Continúa el inventario de mantenimiento F2 y la medición del lote máximo. G4 abierto.
