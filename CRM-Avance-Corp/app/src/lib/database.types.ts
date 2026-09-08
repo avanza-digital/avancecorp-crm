@@ -14,6 +14,38 @@ export type Database = {
   }
   crm: {
     Tables: {
+      cartera_lecturas: {
+        Row: {
+          actor_id: string
+          creado_en: string
+          id: string
+          inversionista_id: string | null
+          tipo: string
+        }
+        Insert: {
+          actor_id: string
+          creado_en?: string
+          id?: string
+          inversionista_id?: string | null
+          tipo: string
+        }
+        Update: {
+          actor_id?: string
+          creado_en?: string
+          id?: string
+          inversionista_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_lecturas_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       actividades: {
         Row: {
           creado_en: string
@@ -2976,6 +3008,34 @@ export type Database = {
       }
     }
     Functions: {
+      inversionista_documento_fn: {
+        Args: { p_documento: string; p_fuente: string; p_inversionista: string }
+        Returns: Json
+      }
+      inversionista_cuentas_fn: {
+        Args: { p_inversionista: string; p_moneda: string; p_perfil: string }
+        Returns: Json
+      }
+      inversionista_ficha_fn: {
+        Args: {
+          p_inversionista: string
+          p_pagina_historial?: number
+          p_pagina_inversiones?: number
+        }
+        Returns: Json
+      }
+      cartera_inversionistas_fn: {
+        Args: {
+          p_empresa?: string
+          p_pagina?: number
+          p_responsable?: string
+          p_sin_responsable?: boolean
+          p_tamano?: number
+          p_texto?: string
+        }
+        Returns: Json
+      }
+      cartera_inversionistas_estado_fn: { Args: never; Returns: Json }
       acceso_inversion_fn: {
         Args: { p_paso: string; p_payload?: Json; p_solicitud: string }
         Returns: Json
