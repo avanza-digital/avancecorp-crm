@@ -1,0 +1,53 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_mapa_c014fd6535a8",
+  "ejecucion": "c014fd65-35a8-4126-ac11-53375c546e95",
+  "terminadoEn": "2026-09-08T15:13:01.480Z",
+  "pruebas": [
+    {
+      "nombre": "Mapa F2 insertado sin confirmar: lote NOWAIT rechaza y luego recupera",
+      "rechazoSinActa": true,
+      "recuperacion": true
+    },
+    {
+      "nombre": "Lote primero: insertar mapa espera hasta el commit",
+      "esperaObservada": true
+    },
+    {
+      "nombre": "UPDATE de mapa existente sin confirmar también impide el lote",
+      "reintentoSinReescribirInversion": true
+    },
+    {
+      "nombre": "DELETE del mapa sin confirmar rechaza sin acta",
+      "rechazoSinActa": true
+    },
+    {
+      "nombre": "INSERT de inversión sin confirmar: FK impide que el lote confirme",
+      "relacionBloqueada": "inversionistas",
+      "rechazoSinActa": true,
+      "reintentoTrasRollback": true
+    },
+    {
+      "nombre": "INSERT de identificador sin confirmar: FK impide que el lote confirme",
+      "relacionBloqueada": "inversionistas",
+      "rechazoSinActa": true,
+      "reintentoTrasRollback": true
+    },
+    {
+      "nombre": "INSERT de cotitular sin confirmar: FK impide que el lote confirme",
+      "relacionBloqueada": "inversiones",
+      "rechazoSinActa": true,
+      "reintentoTrasRollback": true
+    },
+    {
+      "nombre": "Lote primero: INSERT legado espera y unicidad rechaza la segunda inversión",
+      "esperaObservada": true,
+      "sqlstate": "23505",
+      "unaInversion": true
+    }
+  ],
+  "md5Funcion": "a33595d4ac8c2c12ad6fcf9463db605e",
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "f73cfef552e329694e44c6ceb8d8ce3bb0dc1d034e40cb4c5e61fe1ab60c8d7b",
+  "limite": "Cruces con el helper administrativo F2 de mapa e inserciones de sus tablas relacionadas; no autoriza reejecutar F2 global ni representa HTTP/Storage/cron."
+}

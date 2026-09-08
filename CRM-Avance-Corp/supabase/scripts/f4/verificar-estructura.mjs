@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
@@ -8,12 +8,16 @@ const manifiesto = JSON.parse(readFileSync(new URL('./ultima-migracion.json', im
 const contenido = readFileSync(new URL(`../../migrations/${manifiesto.archivo}`, import.meta.url), 'utf8');
 const funciones = funcionesDelSql(contenido);
 assert.deepEqual(funciones.map(f => f.nombre).sort(), manifiesto.funciones);
+const modulos = readdirSync(new URL('.',import.meta.url)).filter(n=>/^\d{2}-.+\.sql$/.test(n));
+for (const modulo of modulos) for (const f of funcionesDelSql(readFileSync(new URL(modulo,import.meta.url),'utf8'))) {
+  assert.equal(funciones.find(c=>c.nombre===f.nombre)?.body,f.body,`Módulo/candidata diferentes: ${f.nombre}`);
+}
 const originales = ['base-funciones.json', 'base-funciones-adicionales.json'].flatMap(n =>
   JSON.parse(readFileSync(new URL(n, import.meta.url), 'utf8')));
 const nuevas = funciones.filter(f => !originales.some(o => o.nombre === f.nombre));
 assert.equal(nuevas.length, 20);
 const vivas = JSON.parse(sql(`select jsonb_agg(jsonb_build_object('nombre',n.nspname||'.'||p.proname,
-  'body',p.prosrc,'owner',pg_get_userbyid(p.proowner),'securityDefiner',p.prosecdef,'config',p.proconfig,
+  'body',p.prosrc,'md5',md5(pg_get_functiondef(p.oid)),'owner',pg_get_userbyid(p.proowner),'securityDefiner',p.prosecdef,'config',p.proconfig,
   'anon',has_function_privilege('anon',p.oid,'EXECUTE'),
   'authenticated',has_function_privilege('authenticated',p.oid,'EXECUTE'),
   'service_role',has_function_privilege('service_role',p.oid,'EXECUTE')))
@@ -60,6 +64,7 @@ writeFileSync(new URL(`../evidencia-f4/${archivo}`, import.meta.url), JSON.strin
   rlsYGrantsDeLasCincoTablas: true, ejecutablesUsuario: [...ejecutablesUsuario],
   fuenteYPrincipalCoherentes: true, cantidades,
   banderas: JSON.parse(sql('select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags')),
+  modulosIgualesACandidata:modulos, huellasFunciones:vivas.map(({nombre,md5})=>({nombre,md5})),
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'),
   limite: 'Comprobación estructural acotada: no sustituye las pruebas de comportamiento, los permisos dinámicos ni el gate G4.',
 }, null, 2) + '\n', { flag: 'wx' });

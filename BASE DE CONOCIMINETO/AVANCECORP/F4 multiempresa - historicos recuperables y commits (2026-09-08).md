@@ -47,3 +47,26 @@ El 08/09 Miguel pidió parar y seguir mañana. Se guarda el checkpoint local y s
 Miguel pidió continuar. Pasaron **seis carreras adicionales con las RPC reales de F3**: corrección de documento, fusión y reasignación, cada una antes y después del lote histórico. Si el cambio de identidad gana, el lote exige recenso; si el lote gana, la fusión exige una nueva previsualización. Se conserva una sola inversión y su titular principal, el dinero, los PDFs y la atribución histórica. Las funciones F3 no se modificaron.
 
 Evidencia: `CRM-Avance-Corp/supabase/scripts/evidencia-f4/historicos-identidad-68cc610d-f23c-4c4e-928f-0facea7e6ba2.json`. Script: `scripts/f4/probar-historicos-identidad.mjs`. Se usó una copia SQL con rol/claims ficticios; el banco original quedó intacto. Continúa el inventario de mantenimiento F2 y la medición del lote máximo. G4 abierto.
+
+
+## Mantenimiento y escala, continuación del 08/09
+
+Se reprodujo un lote histórico que confirmaba mientras el mantenimiento F2 tenía
+un mapa nuevo sin confirmar. La candidata ahora bloquea el conjunto del mapa con
+SHARE NOWAIT; ocho cruces prueban INSERT/UPDATE/DELETE y las tablas relacionadas.
+Las FK e índices existentes ya protegen las inserciones concurrentes de
+inversión, identificadores y titulares. En el orden inverso, la inversión legado
+espera y la unicidad rechaza el duplicado. No se amplió el bloqueo a todas esas
+tablas ni se reejecutó F2 global.
+
+Pasaron otra vez los 39 grupos de históricos/identidad. Se midieron 100 personas
+distintas creadas por conversiones cooperativas SQL reales: 93.132 ms con enlace
+previo y 112.545 ms reparando 100 enlaces. El privilegio temporal vuelve a off;
+el dinero/PDF y el banco original permanecen iguales. Estas cifras no garantizan
+producción ni representan 100 contratos Avance. La revisión secundaria y su
+evaluación quedan en `supabase/scripts/evidencia-f4/auditoria-mantenimiento-2026-09-08/`.
+
+El verificador exige igualdad módulo/candidata/base para los cuerpos SQL y
+conserva las huellas de las 37 funciones. Sigue [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]: corpus F2, titularidad
+neutral, permisos, corrección de solicitudes, paridad financiera y reconstrucción
+con reversa. G4 abierto; ningún despliegue ni bandera productiva cambiada.

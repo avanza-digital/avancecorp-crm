@@ -334,3 +334,34 @@ carreras con RPC SQL reales, sin alterar sus definiciones. Exige la instalación
 exacta, trabaja en una copia sintética y compara el banco original al terminar.
 Conserva dinero, PDF, atribución, inversión única y principal. Es complemento
 del oráculo de concurrencia, no una prueba HTTP ni del mantenimiento F2 completo.
+
+
+## Mantenimiento F2 concurrente y escala — 08/09/2026
+
+```sh
+node CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-mantenimiento.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-limite.mjs
+node CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-limite.mjs --sin-vinculo
+node CRM-Avance-Corp/supabase/scripts/f4/verificar-estructura.mjs
+```
+
+Ejecutar secuencialmente. Ocho cruces administrativos comprueban el mapa F2
+(inserción, actualización y borrado) y las FK/índices de inversión, identificador
+y cotitular. Un SHARE NOWAIT protege el mapa ausente; las otras tablas mantienen
+los candados de fila y restricciones ya existentes. No reejecuta F2 global.
+Los lotes de 100 personas se crean mediante conversiones cooperativas SQL reales;
+la variante sin vínculo obliga a reparar los 100 enlaces de persona. Ambas
+conservan las fuentes económicas y el banco original. No representan 100
+contratos Avance ni el corpus histórico productivo.
+
+El llamador debe fijar `statement_timeout`: `lock_timeout=5s` solo limita cada
+espera. Ante 55P03/40001/23505/40P01/57014, hacer rollback, comprobar el acta por
+UUID y volver a censar antes de repetir si corresponde. Una respuesta de la
+función dentro de BEGIN no equivale a COMMIT. Mantener F4 apagada durante el
+procedimiento y no solaparlo con mantenimiento F2. El replay confirmado por
+mismo UUID/mapa devuelve el acta anterior sin volver a enlazar.
+
+La revisión y decisión documentadas están en
+`../evidencia-f4/auditoria-mantenimiento-2026-09-08/evaluacion-codex.md`.
+`verificar-estructura.mjs` compara módulos, candidata e instalación, y conserva
+MD5 de las funciones. G4 continúa abierto.

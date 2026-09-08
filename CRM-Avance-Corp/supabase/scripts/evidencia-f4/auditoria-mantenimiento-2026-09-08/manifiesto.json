@@ -1,0 +1,30 @@
+{
+  "entradaOriginalSha256": "90329cf232813661458cd91507736976e12b05c1cffe17f59a592a9eb9a7a532",
+  "informeSha256": "de5bd700ea6ac2b295cf32f0713240f89e5ace97029a21d23231e99a86552d57",
+  "evidencias": [
+    {
+      "archivo": "../estructura-2026-09-08T15-13-41.744Z.json",
+      "sha256": "b8390efe615cbf93baef1b827f909773d553f9fd4ed930ebcd0cb92db4552617"
+    },
+    {
+      "archivo": "../historicos-limite-719cc981-1cd7-44af-ac46-ce59a9621693.json",
+      "sha256": "0d7f03c95eeffd5096a675cd1e0843467bab33e74802ab1dcb0c1ce57e57f48e"
+    },
+    {
+      "archivo": "../historicos-limite-ee8ed967-6171-4eb1-b679-57eb57368fe4.json",
+      "sha256": "37c362308c8b6741b17ad73a7ddd24f2a93e140057a2aedbeafc5e1d057ca2e6"
+    },
+    {
+      "archivo": "../historicos-mantenimiento-c014fd65-35a8-4126-ac11-53375c546e95.json",
+      "sha256": "4477f852acaa9a80b379a50bad5a808ec8102123207989c9b0bd178247d0ffcc"
+    },
+    {
+      "archivo": "../historicos-mantenimiento-hallazgo-a9bea754-e82e-4648-b706-ae8666acbf23.json",
+      "sha256": "e125126c992bbf3daac4a0b1d3d2035d63ee57c5163092612b99d27ef5513a34"
+    },
+    {
+      "archivo": "../historicos-mantenimiento-hallazgo-b19459de-2cac-47fb-9f62-bb3ca95012f3.json",
+      "sha256": "8275da6e6f09ba3b885d314141e77351ed5cfd1d6ef862c003bd2f2c27f91008"
+    }
+  ]
+}

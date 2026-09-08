@@ -1,0 +1,25 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_mapa_ad281d0e1e1b",
+  "ejecucion": "ad281d0e-1e1b-4c10-9d19-81051e9e2905",
+  "terminadoEn": "2026-09-08T14:58:45.322Z",
+  "pruebas": [
+    {
+      "nombre": "Mapa F2 insertado sin confirmar: lote NOWAIT rechaza y luego recupera",
+      "rechazoSinActa": true,
+      "recuperacion": true
+    },
+    {
+      "nombre": "Lote primero: insertar mapa espera hasta el commit",
+      "esperaObservada": true
+    },
+    {
+      "nombre": "UPDATE de mapa existente sin confirmar también impide el lote",
+      "reintentoSinReescribirInversion": true
+    }
+  ],
+  "md5Funcion": "a33595d4ac8c2c12ad6fcf9463db605e",
+  "bancoOriginalSinCambios": true,
+  "sha256Oraculo": "08b386238c46f25db9bafc6301152bd6a335581960ef638fe19b20c41c158d9d",
+  "limite": "Cruces con el helper administrativo F2 de mapa; no autoriza reejecutar F2 global ni representa HTTP/Storage/cron."
+}

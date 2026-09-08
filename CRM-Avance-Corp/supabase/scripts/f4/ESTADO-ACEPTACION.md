@@ -190,3 +190,15 @@ reales de F3, ambas precedencias, sin duplicación ni alteración financiera/PDF
 Evidencia: `../evidencia-f4/historicos-identidad-68cc610d-f23c-4c4e-928f-0facea7e6ba2.json`.
 Siguen pendientes el mantenimiento F2, el lote máximo, la reconstrucción y demás
 requisitos de G4; la ampliación no cierra la fase.
+
+
+## Mapa F2 y escala — 08/09/2026
+
+**PASS:** defecto del mapa reproducido y corregido; ocho cruces administrativos,
+regresión de 39 grupos y dos lotes de 100 personas (93.132 ms con vínculo previo;
+112.545 ms reparando 100 enlaces). Fuentes económicas y PDF conservados. La
+estructura comprueba 37 cuerpos, los ocho módulos y cinco tablas cerradas a API.
+Revisión evaluada en `../evidencia-f4/auditoria-mantenimiento-2026-09-08/`.
+El corpus F2 completo, escala máxima mixta, titularidad neutral, permisos,
+corrección trazable de solicitudes, matriz financiera y reconstrucción/reversa
+siguen pendientes. No hubo publicación ni aprobación G4.

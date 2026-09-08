@@ -112,6 +112,12 @@ begin
     return v_previo.resultado;
   end if;
 
+  -- El mantenimiento F2 legado no participa en las banderas de identidad.
+  -- Bloquear filas existentes no cubre un mapa todavía ausente: SHARE fija
+  -- también ese conjunto frente a INSERT/UPDATE/DELETE hasta COMMIT. NOWAIT
+  -- rechaza otra intervención administrativa sin crear un ciclo de espera.
+  lock table crm.backfill_multiempresa_mapa in share mode nowait;
+
   -- Revalidar referencias antes de usarlas para bloquear; nunca confiar en los
   -- IDs de persona/empresa o en el estado que envíe el consumidor del censo.
   for v_r in select value from jsonb_array_elements(v_mapa) loop

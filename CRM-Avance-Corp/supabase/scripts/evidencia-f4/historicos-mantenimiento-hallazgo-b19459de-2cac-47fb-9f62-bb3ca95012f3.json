@@ -1,0 +1,11 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_mapa_b19459de2cac",
+  "ejecucion": "b19459de-2cac-47fb-9f62-bb3ca95012f3",
+  "prueba": "Mapa F2 insertado sin confirmar: lote NOWAIT rechaza y luego recupera",
+  "md5Funcion": "81f911594e1a3ae5951f7035020ff315",
+  "error": "El lote confirmó mientras el mapa F2 tenía una inserción en curso",
+  "funcionBajoPrueba": "private.inversion_historica_aplicar(uuid,jsonb)",
+  "produccionModificada": false,
+  "resultado": "FAIL"
+}

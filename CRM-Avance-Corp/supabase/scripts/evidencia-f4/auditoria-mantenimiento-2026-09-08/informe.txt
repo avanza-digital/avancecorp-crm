@@ -1,0 +1,161 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The minimal fix is correct for the defect it targets. `LOCK TABLE crm.backfill_multiempresa_mapa IN SHARE MODE NOWAIT` is the right instrument for a phantom (absent-row) hazard that `FOR UPDATE` cannot cover, it is placed correctly (after the idempotent replay return, before the first census validation), it cannot introduce a wait cycle because the batch never blocks on it, and the before/after evidence is unusually clean: the FAIL artifact carries `md5Funcion=81f9115…` and the PASS artifact `a33595d…`, so the two artifacts genuinely bracket a body change.
+
+The problem is scope, not correctness. The attached body of `private.backfill_multiempresa_ejecutar` — the legacy F2 path whose non-participation in the identity flags caused this bug — writes **four** distinct census inputs, of which the fix now guards one. The same absent-row race the primary just reproduced against `crm.backfill_multiempresa_mapa` is reachable, by the same writer, against `crm.inversiones` / `crm.inversion_titulares` and `crm.inversionista_identificadores`. Whether that produces a clean 23505 abort or a duplicated financial row depends on unique constraints that are not in the attached evidence.
+
+FINDINGS:
+
+**[P1] The phantom guard closes one of four census inputs written by the same unguarded legacy path**
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/08-historicos-lote.sql`, `CRM-Avance-Corp/supabase/scripts/f4/07-historicos.sql`
+
+Lines:
+`08-historicos-lote.sql:119`, `08-historicos-lote.sql:132-145`; `07-historicos.sql:64`, `07-historicos.sql:97`, `07-historicos.sql:115-118`, `07-historicos.sql:123-128`
+
+Problem:
+`v_inversiones := array_agg(distinct (value->>'inversion')::uuid)` is `{NULL}` for every `pendiente` source, so lines 143-144 lock nothing. `crm.inversionista_identificadores` is never locked at all. Both are absent-row cases — exactly the class the new `SHARE` lock exists to cover for the mapa.
+
+Evidence:
+The attached live body of `private.backfill_multiempresa_ejecutar` writes, in one transaction and without any advisory flag lock:
+- `crm.backfill_multiempresa_mapa` via `private.f2_mapear` — now guarded;
+- `crm.inversionistas` and `crm.inversionista_identificadores` via `private.inversionista_resolver(r.tipo, r.dnorm, true, 'backfill-A'|'backfill-B')` with create=true — **unguarded**;
+- `insert into crm.inversiones (…) where not exists (select 1 from crm.inversiones inv where inv.cierre_externo_id = r.id)` and the matching `crm.inversion_titulares` insert — **unguarded for the absent-row case**.
+
+The `cierres_externos` row lock does not cover this. In class B the executor runs `update crm.cierres_externos set inversionista_id = v_inv where id = r.id and inversionista_id is null`; when `inversionista_id` is already set the UPDATE matches zero rows and acquires **no** row lock, then proceeds to `insert into crm.inversiones`. That state — cierre with `inversionista_id` set, no inversion row — is precisely `estado='pendiente'` in the census (`07-historicos.sql:97`, `129`), i.e. an accepted batch input.
+
+The census re-reads at `07-historicos.sql:64/97` use `select … into v_inv`, which silently takes an arbitrary row if two inversions exist for the same source, so the post-link reconciliation at `08-historicos-lote.sql:174-177` is not a reliable backstop.
+
+Impact:
+An uncommitted concurrent F2 insert is invisible to both census passes and unblocked by every lock the function takes. If `crm.inversiones` has no unique constraint on `cierre_externo_id`/`contrato_id`, the outcome is two inversion rows for one source — a duplicated financial record, strictly worse than the mapa defect just fixed. If the constraint exists, the outcome is a bounded wait then 23505 and a clean rollback, which is acceptable but currently undocumented and untested.
+
+Recommendation:
+1. Establish the constraint facts first: `\d crm.inversiones` / `\d crm.inversion_titulares` (unique on `cierre_externo_id`, on `contrato_id`, and on `(inversion_id, rol='principal')`).
+2. If the uniqueness holds, this reduces to documentation plus a test; state the 23505 path explicitly in the runbook.
+3. If it does not, extend the guard symmetrically — `lock table crm.inversiones, crm.inversion_titulares, crm.inversionista_identificadores in share mode nowait` alongside line 119. This is cheap here specifically because the function already requires `inversiones_escritura` OFF (`08-historicos-lote.sql:101-103`), and `probar-historicos-limite.mjs` demonstrates that 100 real `crm.convertir_lead_externo` calls with F4 OFF produce zero inversion rows — so the only writer excluded by that lock is the legacy F2 maintenance you are already trying to exclude.
+
+---
+
+**[P2] Post-fix regression suites are asserted but their function fingerprint is not shown**
+
+Evidence:
+The two attached artifacts both carry `md5Funcion`, which is what makes the before/after argument verifiable (`81f9115…` FAIL → `a33595d…` PASS, and `historicos-limite` independently on `a33595d…`). The suites cited in the request (censo 7, lote 19, concurrencia 7, identidad 6, estructura 37) correspond to untracked artifacts listed in git status but were not attached, and none of their `md5Funcion` values are quoted.
+
+Impact:
+I cannot distinguish "regressions re-run against the fixed body" from "regressions run before the fix". This is the single highest-value piece of missing evidence in the packet.
+
+Recommendation:
+Quote the `md5Funcion` (or equivalent `pg_get_functiondef` hash) from `historicos-censo-b3ec6afe…`, `historicos-lote-016aefa3…`, `historicos-concurrencia-9aa01939…`, `historicos-identidad-b4db31e3…` and `estructura-2026-09-08T15-00-03…` and confirm all equal `a33595d4ac8c2c12ad6fcf9463db605e`. Note that `estructura-…` is timestamped 15:00:03 and `historicos-limite` at 15:02:50 — ordering alone does not establish which body each ran against.
+
+---
+
+**[P2] The fix lives in a second copy of the function; the authoritative copy is unverified**
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/actualizar-funciones-local.mjs:9-13`, `:27-31`
+
+Evidence:
+The updater reads function bodies from `migrations/${archivo}` (the untracked candidate `20260907191832_crm_f4_inversiones_base_y_escritores.sql`), not from `scripts/f4/08-historicos-lote.sql`. The reviewed `LOCK TABLE` line is shown to me only in the script copy; the migration was not attached.
+
+Impact:
+Two sources of truth for one body. A fix present in the script and absent from the migration would pass this review and ship without the lock. The `estructura` suite presumably catches divergence, but that is the artifact whose fingerprint is also missing (see above).
+
+Recommendation:
+Confirm the migration contains line 119 verbatim, and add a cheap invariant asserting that the `f4/*.sql` scripts and the candidate migration produce byte-identical bodies — or generate one from the other.
+
+---
+
+**[P2] The 100-source scale test does not exercise the privileged UPDATE branch, nor `contrato` sources**
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-limite.mjs`
+
+Lines:
+`:40-43`, `:77-80`
+
+Evidence:
+Line 78 excludes only `crm.inversiones`, `crm.inversion_titulares` and `crm.inversion_backfill_lotes` from the invariance check; `crm.cierres_externos` is asserted **unchanged** at line 79 and the test passes. Therefore no source in the 100 took the `fuente_persona is null` branch at `08-historicos-lote.sql:159-166`, so the `set_config('crm.op_privilegiada','on')` window, the `row_count<>1` guard and the 40001 path are never measured at scale. All 100 fixtures are `cierre`; the `contrato` branch of the census (`07-historicos.sql:35-64`, including `private.contrato_en_eliminacion`) is absent from the timing evidence entirely.
+
+Impact:
+`msAplicacion=93.132ms` is a lower bound for the cheapest branch mix, not for a representative one. The 4 s statement budget still has three orders of magnitude of headroom, so this is a coverage gap rather than a suspected regression.
+
+Recommendation:
+Add a variant where the 100 fixtures leave `cierres_externos.inversionista_id` null (and a mixed contrato/cierre variant), and assert the privileged GUC is `off` immediately after the call.
+
+---
+
+**[P3] `actualizar-funciones-local.mjs` matches functions by name, not by signature**
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/actualizar-funciones-local.mjs:14-19`
+
+Evidence:
+The catalogue query keys on `n.nspname||'.'||p.proname = any(...)`, and the only cardinality check is `assert.equal(vivas.length, funciones.length)` (line 19). Two overloads of one name plus zero rows for another name satisfy that equality; the guard loop then does `vivas.find(x => x.nombre === fn.nombre)`, which returns the wrong overload, or `undefined` for a name that is skipped by the `solicitadas` filter at line 22.
+
+Impact:
+Local tooling only, and the in-transaction `md5(pg_get_functiondef(firma::regprocedure))` recheck at line 39 is the real safety net — but the set of signatures it rechecks is derived from this ambiguous match.
+
+Recommendation:
+Key on `p.oid::regprocedure` and assert a 1:1 name↔row mapping (`vivas` grouped by name, each group of size exactly 1) before proceeding. Note also that the evidence file is written after `commit` (lines 43-49), so a `wx` collision leaves an applied but unrecorded change.
+
+---
+
+**[P3] The NOWAIT assertion does not pin the relation that rejected**
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f4/probar-historicos-mantenimiento.mjs:42`, `:62`
+
+Evidence:
+`assert.match(r.error,/could not obtain lock/)` matches both the table-level message and the row-level `could not obtain lock on row in relation "…"` produced by the pre-existing `for update nowait` at lines 139-145.
+
+Impact:
+By construction the mapa is the only possible source in these two cases, so the tests are sound today. The assertion would silently accept a rejection from an unrelated lock after any future change to the lock set.
+
+Recommendation:
+Assert `/relation "backfill_multiempresa_mapa"/` and `errcode 55P03`.
+
+---
+
+**[P3] Caller `statement_timeout` pre-empts the function's `lock_timeout`; the 5 s is per-wait, not per-transaction**
+
+File:
+`08-historicos-lote.sql:50`; `probar-historicos-limite.mjs:50`
+
+Evidence:
+The function sets `lock_timeout='5s'`; the limit harness sets `statement_timeout='4s'` on the outer statement. Under that caller, a real lock wait is cancelled at 4 s with 57014, not 55P03/40001. Conversely, `lock_timeout` bounds each individual wait, so a 100-source batch that contends repeatedly in the write loop (FK key-share on `crm.empresas`, unique-index waits) has a worst case of many multiples of 5 s, unbounded by the function itself.
+
+Impact:
+Retry logic or runbooks keyed only on 55P03/40001 will not recognise 57014. Not a correctness defect.
+
+Recommendation:
+Document the intended caller budget, and state that the transaction-level bound is the caller's `statement_timeout`, not `lock_timeout`.
+
+TEST GAPS:
+- No test mirroring `probar-historicos-mantenimiento.mjs` with an uncommitted `insert into crm.inversiones` (or `crm.inversion_titulares`, or `crm.inversionista_identificadores`) for a source the batch will link — the direct analogue of the P1 finding, and the cheapest way to settle it.
+- No `DELETE` on the mapa in the concurrency matrix; only INSERT (line 39) and ON CONFLICT UPDATE (line 59) are covered. `SHARE` conflicts with `ROW EXCLUSIVE` so this should pass, but it is untested.
+- No test that a full `private.backfill_multiempresa_ejecutar` in progress deterministically rejects the batch. That executor holds ROW EXCLUSIVE on the mapa for its entire run, so the batch can never start while it runs — correct-by-design fail-fast, but it deserves an explicit test and a runbook line, since the operator-facing message is the generic `could not obtain lock`.
+- No test that the advisory waits at lines 96-97 are bounded. Both are unconditional `pg_advisory_xact_lock` (waiting, not `_try`); a stalled administrative session holding `crm_flag_resolver_en_puertas` blocks the batch. I have not verified from the attached evidence that `lock_timeout` bounds advisory-lock waits — treat that as a hypothesis and test it rather than assume it.
+- No batch-vs-batch test (same `p_lote` and different `p_lote` concurrently). The advisory locks should serialise them; `SHARE` is self-compatible, so the mapa lock contributes nothing to batch-vs-batch exclusion — worth stating, because the code comment at lines 117-118 ("NOWAIT rechaza otra intervención administrativa") reads as if the table lock provides that exclusion when in fact the advisory locks do.
+
+ARCHITECTURE RISKS:
+- The function's real invariant is "every input the census reads is either locked or provably immutable for the transaction". That invariant is currently enforced input-by-input and re-derived by hand at each iteration; this review found the same class recurring in a sibling table one commit after it was fixed in the first. Consider expressing it once — an explicit, commented list of census inputs mapped to the lock that covers each, and a structural test that fails when the census reads a relation not on that list.
+- Duplicated function bodies across `scripts/f4/*.sql` and the candidate migration (see P2).
+
+SECURITY RISKS:
+- No new surface. `SECURITY INVOKER`, the `session_user`/`current_user` gate at lines 72-74 and the REVOKEs are intact; the `crm.op_privilegiada` window at lines 160-164 is correctly narrowed to the single UPDATE and does not span `inversion_vincular_fuente`. The `when others` handler at 188-190 only restores a transaction-local GUC that a rollback would restore anyway — harmless, and it re-raises rather than swallowing.
+- One deployment check: `LOCK TABLE … IN SHARE MODE` requires UPDATE/DELETE/TRUNCATE (or MAINTAIN) on the relation, a privilege `ACCESS SHARE` did not require. It works in the bank, but the bank is a `pg_dump`/`pg_restore` copy; confirm `postgres` holds it on `crm.backfill_multiempresa_mapa` in the real target, otherwise the first production run fails 42501 at line 119.
+
+REGRESSION RISKS:
+- The table-level `SHARE` blocks every writer of `crm.backfill_multiempresa_mapa` for the batch duration (~93 ms measured, uncontended, 100 sources). Confirm the writer set is limited to `private.f2_mapear` callers and contains no request-path function; the attached evidence is consistent with that (mapa count is 0 after `cargarHistoricosPrueba`, and the mapa snapshot is inside the invariance check at `probar-historicos-limite.mjs:77-80`) but does not enumerate writers exhaustively.
+- Deadlock exposure is low and correctly bounded: every lock the batch takes explicitly is NOWAIT, so the batch cannot participate in a cycle through them. Residual cycles remain possible through implicit locks in the write loop (FK key-share on `crm.empresas`, unique-index waits) while the batch holds the mapa `SHARE`; the deadlock detector resolves them and the acta is written in the same transaction, so any abort is atomic. Acceptable.
+
+RECOMMENDED NEXT ACTIONS:
+1. Settle P1: dump the constraints on `crm.inversiones`/`crm.inversion_titulares`, then either add the symmetric `SHARE` locks or document and test the 23505 path. Add the mirror-image concurrency test with an uncommitted `insert into crm.inversiones` for a cierre that already has `inversionista_id` set.
+2. Attach the `md5Funcion` of the five post-fix suite artifacts and confirm all equal `a33595d4ac8c2c12ad6fcf9463db605e`; confirm the candidate migration carries line 119 verbatim.
+3. Address the P2 coverage gap (privileged UPDATE branch and `contrato` sources at scale) and the P3 test/tooling nits (relation-pinned NOWAIT assertion, signature-keyed function match).
+
+CONFIDENCE:
+MEDIUM — high on the correctness and placement of the reviewed lock, and on the P1 mechanism, which is read directly from the attached `backfill_multiempresa_ejecutar` body. The severity of P1 depends on unique constraints not present in the evidence, and the post-fix regression suites could not be fingerprinted; both are stated as hypotheses with a concrete way to resolve them. This review does not close G4.

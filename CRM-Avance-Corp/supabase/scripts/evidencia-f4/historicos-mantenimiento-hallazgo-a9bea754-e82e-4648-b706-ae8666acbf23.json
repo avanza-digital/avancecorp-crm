@@ -1,0 +1,11 @@
+{
+  "entorno": "avancecorp-f4-bank",
+  "baseCopia": "f4_historicos_mapa_a9bea754e82e",
+  "ejecucion": "a9bea754-e82e-4648-b706-ae8666acbf23",
+  "prueba": "Mapa F2 insertado sin confirmar: lote NOWAIT rechaza y luego recupera",
+  "md5Funcion": "a33595d4ac8c2c12ad6fcf9463db605e",
+  "error": "The input did not match the regular expression /55P03:.*relation \\\"backfill_multiempresa_mapa\\\"/. Input:\n\n'psql:<stdin>:3: ERROR:  55P03: could not obtain lock on relation \"crm.backfill_multiempresa_mapa\"\\n' +\n  'CONTEXT:  SQL statement \"lock table crm.backfill_multiempresa_mapa in share mode nowait\"\\n' +\n  'PL/pgSQL function private.inversion_historica_aplicar(uuid,jsonb) line 70 at SQL statement\\n' +\n  'LOCATION:  RangeVarGetRelidExtended, namespace.c:598\\n'\n",
+  "funcionBajoPrueba": "private.inversion_historica_aplicar(uuid,jsonb)",
+  "produccionModificada": false,
+  "resultado": "FAIL"
+}

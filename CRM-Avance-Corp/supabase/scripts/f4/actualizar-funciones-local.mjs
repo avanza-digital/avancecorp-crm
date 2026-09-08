@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { sql, literal as q } from './banco-local.mjs';
 import { funcionesDelSql } from './leer-funciones-sql.mjs';
 
@@ -17,6 +17,9 @@ const vivas = JSON.parse(sql(`select jsonb_agg(jsonb_build_object('nombre',n.nsp
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname||'.'||p.proname=any(array[${funciones.map(f => q(f.nombre)).join(',')}])`));
 assert.equal(vivas.length, funciones.length);
+for (const fn of funciones) assert.equal(vivas.filter(v=>v.nombre===fn.nombre).length,1,
+  `Se exige una sola firma instalada para ${fn.nombre}`);
+assert.equal(new Set(solicitadas).size,solicitadas.length,'No repitas funciones');
 for (const fn of funciones) {
   const actual = vivas.find(x => x.nombre === fn.nombre);
   if (!solicitadas.includes(fn.nombre)) assert.equal(actual.body, fn.body,
@@ -30,16 +33,21 @@ const actualizar = solicitadas.map(nombre => {
   return f.definicion;
 });
 sql(`begin;
+  set local lock_timeout='5s';
+  select pg_advisory_xact_lock(hashtext('crm_flag_resolver_en_puertas'));
   select pg_advisory_xact_lock(hashtext('crm_flag_inversiones_escritura'));
   do $guard$ begin
+  if private.inversiones_escritura_bajo_candado() then
+    raise exception 'El escritor se encendió antes de la iteración'; end if;
   ${vivas.map(f => `if md5(pg_get_functiondef(${q(f.firma)}::regprocedure))<>${q(f.md5)} then raise exception 'Cambió una función mientras se preparaba la iteración'; end if;`).join('\n')}
   end; $guard$;
   ${actualizar.join('\n')}
   notify pgrst,'reload schema';
   commit;`);
-writeFileSync(new URL('../evidencia-f4/2026-09-07-iteracion-local.json', import.meta.url), JSON.stringify({
-  entorno: 'avancecorp-f4-bank', aplicadoEn: new Date().toISOString(), archivo,
+const aplicadoEn=new Date().toISOString();
+writeFileSync(new URL(`../evidencia-f4/iteracion-funciones-${aplicadoEn.replaceAll(':','-')}-${randomUUID()}.json`, import.meta.url), JSON.stringify({
+  entorno: 'avancecorp-f4-bank', aplicadoEn, archivo,
   sha256Candidata: createHash('sha256').update(contenido).digest('hex'), funciones: solicitadas,
   cambioSoloFunciones: true, banderaInversiones: false, produccionModificada: false,
-}, null, 2) + '\n');
+}, null, 2) + '\n', {flag:'wx'});
 console.log(`Iteración F4 local: ${solicitadas.length} funciones actualizadas; las otras ${funciones.length - solicitadas.length} coinciden con la candidata.`);

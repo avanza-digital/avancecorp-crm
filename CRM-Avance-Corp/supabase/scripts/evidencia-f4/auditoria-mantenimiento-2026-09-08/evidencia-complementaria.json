@@ -1,0 +1,139 @@
+{
+  "capturadoEn": "2026-09-08T15:14:57.311998+00:00",
+  "entorno": "avancecorp-f4-bank",
+  "produccionModificada": false,
+  "indices": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversion_titulares_pkey ON crm.inversion_titulares USING btree (id)",
+      "indexname": "inversion_titulares_pkey",
+      "tablename": "inversion_titulares"
+    },
+    {
+      "indexdef": "CREATE INDEX inversion_titulares_inv_idx ON crm.inversion_titulares USING btree (inversionista_id)",
+      "indexname": "inversion_titulares_inv_idx",
+      "tablename": "inversion_titulares"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversion_titulares_par_uidx ON crm.inversion_titulares USING btree (inversion_id, inversionista_id)",
+      "indexname": "inversion_titulares_par_uidx",
+      "tablename": "inversion_titulares"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversion_titulares_principal_uidx ON crm.inversion_titulares USING btree (inversion_id) WHERE (rol = 'principal'::text)",
+      "indexname": "inversion_titulares_principal_uidx",
+      "tablename": "inversion_titulares"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversiones_pkey ON crm.inversiones USING btree (id)",
+      "indexname": "inversiones_pkey",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversiones_cierre_uidx ON crm.inversiones USING btree (cierre_externo_id) WHERE (cierre_externo_id IS NOT NULL)",
+      "indexname": "inversiones_cierre_uidx",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversiones_contrato_uidx ON crm.inversiones USING btree (contrato_id) WHERE (contrato_id IS NOT NULL)",
+      "indexname": "inversiones_contrato_uidx",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE INDEX inversiones_empresa_idx ON crm.inversiones USING btree (empresa_id)",
+      "indexname": "inversiones_empresa_idx",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE INDEX inversiones_estado_idx ON crm.inversiones USING btree (estado)",
+      "indexname": "inversiones_estado_idx",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE INDEX inversiones_inv_idx ON crm.inversiones USING btree (inversionista_id)",
+      "indexname": "inversiones_inv_idx",
+      "tablename": "inversiones"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversionista_identificadores_pkey ON crm.inversionista_identificadores USING btree (id)",
+      "indexname": "inversionista_identificadores_pkey",
+      "tablename": "inversionista_identificadores"
+    },
+    {
+      "indexdef": "CREATE INDEX inversionista_identificadores_inv_idx ON crm.inversionista_identificadores USING btree (inversionista_id)",
+      "indexname": "inversionista_identificadores_inv_idx",
+      "tablename": "inversionista_identificadores"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inversionista_identificadores_vigente_uidx ON crm.inversionista_identificadores USING btree (tipo_documento, documento_normalizado) WHERE (estado = 'vigente'::text)",
+      "indexname": "inversionista_identificadores_vigente_uidx",
+      "tablename": "inversionista_identificadores"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "tabla": "crm.inversion_titulares",
+      "conname": "inversion_titulares_creado_por_fkey",
+      "definicion": "FOREIGN KEY (creado_por) REFERENCES perfiles(id)"
+    },
+    {
+      "tabla": "crm.inversion_titulares",
+      "conname": "inversion_titulares_inversion_id_fkey",
+      "definicion": "FOREIGN KEY (inversion_id) REFERENCES crm.inversiones(id)"
+    },
+    {
+      "tabla": "crm.inversion_titulares",
+      "conname": "inversion_titulares_inversionista_id_fkey",
+      "definicion": "FOREIGN KEY (inversionista_id) REFERENCES crm.inversionistas(id)"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "conname": "inversiones_cierre_externo_id_fkey",
+      "definicion": "FOREIGN KEY (cierre_externo_id) REFERENCES crm.cierres_externos(id) ON DELETE RESTRICT"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "conname": "inversiones_contrato_id_fkey",
+      "definicion": "FOREIGN KEY (contrato_id) REFERENCES contratos(id) ON DELETE RESTRICT"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "conname": "inversiones_creado_por_fkey",
+      "definicion": "FOREIGN KEY (creado_por) REFERENCES perfiles(id)"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "conname": "inversiones_empresa_id_fkey",
+      "definicion": "FOREIGN KEY (empresa_id) REFERENCES crm.empresas(id)"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "conname": "inversiones_inversionista_id_fkey",
+      "definicion": "FOREIGN KEY (inversionista_id) REFERENCES crm.inversionistas(id)"
+    },
+    {
+      "tabla": "crm.inversionista_identificadores",
+      "conname": "inversionista_identificadores_creado_por_fkey",
+      "definicion": "FOREIGN KEY (creado_por) REFERENCES perfiles(id)"
+    },
+    {
+      "tabla": "crm.inversionista_identificadores",
+      "conname": "inversionista_identificadores_inversionista_id_fkey",
+      "definicion": "FOREIGN KEY (inversionista_id) REFERENCES crm.inversionistas(id)"
+    }
+  ],
+  "huellasConsultadasAhora": [
+    {
+      "base": "postgres",
+      "md5Aplicar": "a33595d4ac8c2c12ad6fcf9463db605e"
+    },
+    {
+      "base": "f4_historicos_9aa019392ea6",
+      "md5Aplicar": "a33595d4ac8c2c12ad6fcf9463db605e"
+    },
+    {
+      "base": "f4_historicos_identidad_b4db31e328b4",
+      "md5Aplicar": "a33595d4ac8c2c12ad6fcf9463db605e"
+    }
+  ],
+  "limiteHuellas": "Consulta posterior de copias conservadas, no se presenta como captura contemporánea del test. Los oráculos censo/lote/concurrencia exigen cuerpos exactos y guardan SHA de módulos; identidad exige exactitud al inicio y conserva SHA de su oráculo."
+}
