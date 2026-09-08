@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-08
-estado: propuesta-visual-pendiente-de-eleccion
+estado: propuesta-3-implementada-en-local
 tags: [crm, citas, gerencia, ux, ui, propuesta]
 ---
 
@@ -33,3 +33,11 @@ Miguel encontró las tres propuestas con metas algo cargadas y pidió simplifica
 La nueva revisión aplica proximidad, jerarquía y detalle contextual de [[Fundamentos UX del CRM]]: recorrido de recuperación primero; comparación de analistas después; una sola referencia compartida de meta 3/100% y objetivo 3.75/125%; total del equipo una sola vez. Se quitan contenedores, iconos, estados y acciones repetidos. Las fechas completas se consultan por persona y las métricas complementarias siguen disponibles como columnas opcionales. La ficha es un detalle que se abre al seleccionar, no un panel permanente.
 
 Las tres revisiones mantienen los datos del mismo ejemplo y están en `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/ajuste-ux/README.md`, con enlaces a las imágenes, correspondencia de datos y límites de la verificación visual. Continúan pendientes de elección; no se cambió el módulo ejecutable ni se publicó.
+
+## Elección e implementación local de la tercera revisión
+
+Miguel eligió **la 3**, correspondiente a `ajuste-ux/detalle-a-demanda.png`. Se adaptó el prototipo ejecutable existente, abierto por defecto en Resultados: flujo horizontal, tabla de personas, metas por analista y ficha a demanda. Se reutilizan BrandLockup, IBM Plex Sans, tokens, Button, Select y Sheet del CRM; las métricas complementarias siguen disponibles en Columnas. En pantallas amplias la ficha permite operar la consulta; en ventanas menores es modal.
+
+Se mantienen las bases y cifras descritas arriba. La asistencia de la ficha y la del flujo usan una misma condición validada. Los filtros globales recalculan todas las métricas; elegir una etapa solo cambia la tabla de personas. Meta 3/100%, objetivo 3.75/125% y 3+ por persona permanecen como lecturas distintas. Continúa siendo un ejemplo local, sin cambiar metas productivas ni conectar movimientos reales.
+
+Guía de uso, capturas y prueba de navegador: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/README.md`. QA visual: `CRM-Avance-Corp/app/design-qa.md`. PASS: gate integral (3106 tests), 32 tests del prototipo, revisión técnica evaluada, filtros/exportación/foco y adaptación 1672/1280/1024/768/390. NOT RUN: E2E completa de producción y backend real. Sigue el criterio de [[Fundamentos UX del CRM]] y la base funcional de [[Citas Gerencia - adaptacion CRM y consultas por lead 2026-09-08]].

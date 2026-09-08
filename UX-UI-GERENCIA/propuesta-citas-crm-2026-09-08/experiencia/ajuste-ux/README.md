@@ -2,6 +2,8 @@
 
 Revisión del 8 de septiembre de 2026, solicitada por Miguel después de ver las tres propuestas con meta. Conserva las composiciones y los datos necesarios; modifica su jerarquía y la cantidad de elementos que compiten por atención. Son imágenes estáticas pendientes de elección, no cambios en el módulo ejecutable.
 
+**Actualización:** Miguel eligió la **3, Detalle a demanda**. Ya está [implementada y verificada en el prototipo local](../implementacion-3/README.md). Las imágenes y verificaciones siguientes documentan la exploración anterior a esa elección.
+
 ## Abrir las versiones revisadas
 
 En el mismo orden en que se mostraron en la conversación:

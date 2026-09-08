@@ -1,0 +1,62 @@
+{
+  "resultado": "PASS",
+  "pruebas": [
+    "Flujo 4/3/1/1 y base 40/26 conservada al elegir etapa; ficha no modal, meta y fechas; Escape devuelve foco; tablas completas a 1672x941",
+    "Cambio de analista cierra la ficha sin robar foco; semana 1 conserva seguimiento de nueva cita en semana 2; semana 4 y agosto muestran vacío y exportación inhabilitada",
+    "Columnas opcionales; filtro de estado conserva datos entre bandeja/agenda/resultados; navegación de pestañas por teclado; CSV de las 40 citas desde página 2",
+    "Recorrido -> cita vinculada -> agenda operable",
+    "1280, 1024 y 768 px sin desborde de página",
+    "Móvil 390x844 sin desborde de página; tablas con desplazamiento propio; ficha de ancho completo, foco contenido y cierre con Escape"
+  ],
+  "errores": [],
+  "geometria": {
+    "viewport": [
+      1672,
+      941
+    ],
+    "documento": [
+      1672,
+      941
+    ],
+    "ficha": {
+      "x": 1288,
+      "y": 84,
+      "width": 384,
+      "height": 857,
+      "top": 84,
+      "right": 1672,
+      "bottom": 941,
+      "left": 1288
+    },
+    "tablas": [
+      {
+        "titulo": "Personas del flujo de recuperación",
+        "rect": {
+          "x": 232,
+          "y": 386.1875,
+          "width": 1032,
+          "height": 185.28125,
+          "top": 386.1875,
+          "right": 1264,
+          "bottom": 571.46875,
+          "left": 232
+        }
+      },
+      {
+        "titulo": "Resultados por analista de las citas filtradas",
+        "rect": {
+          "x": 232,
+          "y": 664.65625,
+          "width": 1032,
+          "height": 252.140625,
+          "top": 664.65625,
+          "right": 1264,
+          "bottom": 916.796875,
+          "left": 232
+        }
+      }
+    ],
+    "fuente": "\"IBM Plex Sans\", sans-serif",
+    "seleccion": "color(srgb 0.931608 0.951059 0.993725)"
+  }
+}

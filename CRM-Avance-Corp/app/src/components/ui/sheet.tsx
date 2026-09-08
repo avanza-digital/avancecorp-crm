@@ -22,16 +22,19 @@ interface SheetProps {
   ariaLabel?: string
   /** Clases extra para el panel (p. ej. ancho distinto). */
   className?: string
+  /** Un inspector no modal permite seguir consultando la pantalla de fondo. */
+  modal?: boolean
 }
 
-export function Sheet({ open, onClose, children, ariaLabel, className }: SheetProps) {
+export function Sheet({ open, onClose, children, ariaLabel, className, modal = true }: SheetProps) {
   // Radix solo restaura el foco automáticamente cuando conoce un Dialog.Trigger.
   // Los drawers del CRM se abren desde filas y acciones globales, así que no
   // tienen Trigger declarativo: capturamos el origen justo antes del autofocus
   // y lo recuperamos al cerrar si el nodo sigue en la página.
   const origenFoco = useRef<HTMLElement | null>(null)
+  const contenido = useRef<HTMLDivElement | null>(null)
   return (
-    <RadixDialog.Root open={open} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
+    <RadixDialog.Root open={open} modal={modal} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay
           data-slot="sheet-overlay"
@@ -39,6 +42,7 @@ export function Sheet({ open, onClose, children, ariaLabel, className }: SheetPr
           style={{ animation: 'ac-sheet-overlay 0.25s ease both' }}
         />
         <RadixDialog.Content
+          ref={contenido}
           onOpenAutoFocus={() => {
             const activo = document.activeElement
             origenFoco.current = activo instanceof HTMLElement ? activo : null
@@ -46,10 +50,20 @@ export function Sheet({ open, onClose, children, ariaLabel, className }: SheetPr
           onCloseAutoFocus={(evento) => {
             const destino = origenFoco.current
             origenFoco.current = null
+            if (!modal) {
+              evento.preventDefault()
+              // Si el usuario ya pasó a un filtro u otro panel, conserva ese
+              // foco. El inspector no tiene focus trap ni necesita diferirlo.
+              if (document.activeElement === document.body || contenido.current?.contains(document.activeElement)) {
+                if (destino?.isConnected) destino.focus()
+              }
+              return
+            }
             if (!destino?.isConnected) return
             evento.preventDefault()
             requestAnimationFrame(() => destino.focus())
           }}
+          onInteractOutside={(evento) => { if (!modal) evento.preventDefault() }}
           aria-label={ariaLabel}
           aria-describedby={undefined}
           data-slot="sheet"

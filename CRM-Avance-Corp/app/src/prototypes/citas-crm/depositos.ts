@@ -33,6 +33,15 @@ export function montosDepositados(depositos: DepositoEjemplo[]): Record<Moneda, 
   }, { PEN: 0, USD: 0 })
 }
 
+/** La ficha y el flujo deben reconocer exactamente la misma asistencia. */
+export function asistioTrasInasistencia(original: CitaConLead, cita: CitaConLead, corte = CORTE) {
+  const asistencia = Date.parse(cita.asistioEn ?? '')
+  return cita.estado === 'realizada'
+    && asistencia > Date.parse(`${original.fecha}T${original.hora}:00-05:00`)
+    && asistencia >= Date.parse(cita.reprogramadaEn ?? '')
+    && asistencia <= Date.parse(corte)
+}
+
 /** Flujo de conjuntos anidados de leads: inasistencia → reprogramación
  * vinculada → asistencia registrada → depósito confirmado posterior.
  * Cada lead y movimiento se cuenta una vez. Una etapa nunca incorpora
@@ -55,7 +64,7 @@ export function depositosDeInasistencias(citas: CitaConLead[], depositos = DEPOS
     // Haber asistido sigue siendo un paso cumplido aunque haya otra cita posterior.
     for (const cita of fila.recorrido) {
       const asistencia = Date.parse(cita.asistioEn ?? '')
-      if (cita.estado !== 'realizada' || !(asistencia > instante(original) && asistencia >= Date.parse(cita.reprogramadaEn ?? '') && asistencia <= limite)) continue
+      if (!asistioTrasInasistencia(original, cita, corte)) continue
       const previa = recuperadas.get(original.leadId)
       const orden = previa ? asistencia - Date.parse(previa.nueva!.asistioEn!) || ordenarOrigen(fila, previa) || cita.id.localeCompare(previa.nueva!.id) : -1
       if (orden < 0) recuperadas.set(original.leadId, { ...fila, nueva: cita, estado: 'recuperada' })
