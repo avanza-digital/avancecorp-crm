@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Citas · Propuesta local de Gerencia</title>
+  <link rel="stylesheet" href="./citas-assets/citas.css">
+  <script type="module" src="./citas-assets/citas.js"></script>
+</head>
+<body>
+  <a class="skip" href="#consulta">Ir a la consulta de citas</a>
+  <aside class="rail" aria-label="Avance Corp, Gerencia comercial">
+    <div class="brand">avance<span>corp</span></div>
+    <span class="rail-label">Gerencia comercial</span>
+    <a class="rail-active" href="#consulta" aria-current="page"><img src="./citas-assets/calendar-days.svg" alt=""> Citas</a>
+    <div class="rail-note">Una agenda.<br>Todo el equipo.</div>
+    <div class="rail-foot"><span class="avatar">GC</span><div>Gerencia comercial<small>Vista de ejemplo</small></div></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>Gerencia <span class="slash">/</span> <strong>Citas</strong></span><span class="prototype"><span class="dot"></span> Propuesta local · datos ficticios</span></header>
+    <main>
+      <div class="page-heading"><div><h1>Citas del equipo</h1><p>Encuentra una cita, detecta pendientes y revisa qué pasó.</p></div><button class="button" id="proposal-open"><img src="./citas-assets/panels-top-left.svg" alt=""> Las 3 propuestas</button></div>
+      <div class="scenario"><img src="./citas-assets/info.svg" alt=""><span>Estás probando un escenario al <strong>7 set. 2026, 13:00 · Lima</strong>. Los nombres y las citas son de ejemplo.</span></div>
+
+      <section class="query" id="consulta" tabindex="-1" aria-label="Consulta de citas">
+        <div class="query-top"><div class="query-title"><img src="./citas-assets/sliders-horizontal.svg" alt=""><h2>Tu consulta</h2></div><button class="text-button" id="clear">Restablecer consulta</button></div>
+        <form id="filters" novalidate>
+          <div class="filters-main">
+            <label class="search-field">Buscar una cita<div class="input-icon"><img src="./citas-assets/search.svg" alt=""><input type="search" id="search" name="q" placeholder="Prospecto, teléfono o código" autocomplete="off"></div></label>
+            <label>Supervisor<select name="equipo" id="equipo"><option value="">Todos</option></select></label>
+            <label>Analista<select name="analista" id="analista"><option value="">Todos</option></select></label>
+            <label>Fecha prevista<select name="periodo" id="periodo"><option value="mes">Septiembre completo</option><option value="hoy">Hoy · 7 de septiembre</option><option value="semana">Esta semana · 7–13 sep.</option><option value="pasada">Semana pasada · 31 ago.–6 sep.</option><option value="todos">Todo el ejemplo</option><option value="custom">Rango personalizado</option></select></label>
+          </div>
+          <div id="custom-dates" class="custom-dates" hidden><label>Desde<input type="date" name="desde" id="desde" value="2026-09-01"></label><label>Hasta<input type="date" name="hasta" id="hasta" value="2026-09-30"></label><span id="date-help">Las fechas incluyen todo el día, en hora de Lima.</span></div>
+          <details class="advanced" id="advanced"><summary><img src="./citas-assets/list-filter.svg" alt=""><span id="more-label">Más filtros</span><span class="summary-hint">Estado, modalidad, origen, resultado y monto</span><img class="chevron" src="./citas-assets/chevron-down.svg" alt=""></summary>
+            <div class="advanced-body">
+              <fieldset class="status-fieldset"><legend>Estado de la cita <small>Puedes elegir varios</small></legend><div id="status-options" class="checkboxes"></div></fieldset>
+              <div class="advanced-grid">
+                <label>Modalidad<select name="modalidad" id="modalidad"><option value="">Todas las modalidades</option><option>Presencial</option><option>Virtual</option><option>Sin clasificar</option></select></label>
+                <label>Origen del prospecto<select name="origen" id="origen"><option value="">Todos los orígenes</option></select></label>
+                <label>Resultado registrado<select name="resultado" id="resultado"><option value="">Todos los resultados</option></select></label>
+                <label>Seguimiento comercial<select name="seguimiento" id="seguimiento"><option value="">Cualquier seguimiento</option><option value="pendiente">Con seguimiento pendiente</option><option value="cerrado">Con cierre posterior</option><option value="sin_cierre">Sin cierre posterior</option></select></label>
+                <label>Moneda del monto estimado<select name="moneda" id="moneda"><option value="">Soles y dólares</option><option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option></select></label>
+                <div class="amount-fields"><label>Monto desde<input type="number" name="min" id="min" min="0" step="any" placeholder="Sin mínimo" disabled></label><label>Monto hasta<input type="number" name="max" id="max" min="0" step="any" placeholder="Sin máximo" disabled></label></div>
+              </div>
+              <p class="field-help" id="amount-help">Elige una moneda para filtrar el monto estimado. Soles y dólares se consultan por separado.</p>
+            </div>
+          </details>
+          <p class="validation" id="filter-error" role="alert" hidden></p>
+        </form>
+        <div class="active-row"><span id="scope"></span><div class="chips" id="chips" aria-label="Filtros aplicados"></div></div>
+      </section>
+
+      <section class="summary-strip" aria-label="Resumen de las citas filtradas" id="stats"></section>
+
+      <section class="results-shell" aria-label="Resultados de la consulta">
+        <div class="viewbar"><div role="tablist" aria-label="Cómo ver las citas"><button role="tab" aria-selected="true" aria-controls="view-panel" id="tab-bandeja" data-view="bandeja"><img src="./citas-assets/list.svg" alt="">Bandeja comercial</button><button role="tab" aria-selected="false" aria-controls="view-panel" tabindex="-1" id="tab-agenda" data-view="agenda"><img src="./citas-assets/calendar-days.svg" alt="">Agenda</button><button role="tab" aria-selected="false" aria-controls="view-panel" tabindex="-1" id="tab-resultados" data-view="resultados"><img src="./citas-assets/chart-no-axes-combined.svg" alt="">Resultados</button></div><button class="button export" id="export"><img src="./citas-assets/download.svg" alt="">Exportar citas</button></div>
+        <div class="results-tools"><div><h2 id="view-title">Todas las citas</h2><p id="result-count" role="status" aria-live="polite" aria-atomic="true"></p></div><label class="sort-label">Ordenar por<select id="sort"><option value="prioridad">Pendientes primero</option><option value="fecha">Más antiguas primero</option><option value="reciente">Más recientes primero</option><option value="nombre">Prospecto A–Z</option></select></label></div>
+        <div class="quick-filters" aria-label="Consultas rápidas por estado" id="quick-filters"></div>
+        <div id="view-panel" role="tabpanel" aria-labelledby="tab-bandeja" tabindex="0"></div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+      <footer class="page-footer"><span><img src="./citas-assets/shield-check.svg" alt=""> Solo exploración: ninguna acción modifica citas reales.</span><span id="footer-total"></span></footer>
+    </main>
+  </div>
+  <dialog class="drawer" id="detail" aria-labelledby="detail-title"><div id="detail-content"></div></dialog>
+  <dialog class="proposal-dialog" id="proposals" aria-labelledby="proposal-title"><div class="dialog-heading"><div><p class="eyebrow">Diseñadas para Gerencia comercial</p><h2 id="proposal-title">Tres formas de trabajar las citas</h2></div><button class="icon-button" data-close="proposals" aria-label="Cerrar propuestas"><img src="./citas-assets/x.svg" alt=""></button></div><p class="intro">Las tres comparten la misma consulta. Cambias de vista sin perder tus filtros.</p><div class="proposal-grid"><article><img src="./citas-assets/list.svg" alt=""><span class="recommended">Vista principal recomendada</span><h3>Bandeja comercial</h3><p>Para responder «¿qué pasó y quién debe actuar?». Una fila por cita, responsable visible, estado y siguiente paso.</p><button class="button primary" data-proposal="bandeja">Probar bandeja</button></article><article><img src="./citas-assets/calendar-days.svg" alt=""><h3>Agenda por día</h3><p>Para revisar la carga del equipo. Citas agrupadas por fecha, con hora, modalidad y acceso al detalle.</p><button class="button" data-proposal="agenda">Probar agenda</button></article><article><img src="./citas-assets/chart-no-axes-combined.svg" alt=""><h3>Resultados del equipo</h3><p>Para comparar analistas. Conteos claros por estado y un clic para abrir las citas de cada persona.</p><button class="button" data-proposal="resultados">Probar resultados</button></article></div><div class="proposal-note"><strong>Para llevarlo al CRM</strong><p>La consulta actual entrega totales. Esta propuesta usa citas ficticias para probar los cruces; el detalle por cita debe conectarse a la consulta autorizada del servidor. Los porcentajes comerciales conservarán sus fórmulas y bases actuales.</p></div></dialog>
+  <div class="toast" aria-hidden="true" id="toast" hidden></div>
+  <div class="sr-only" role="status" aria-live="polite" id="announcement"></div>
+</body>
+</html>
