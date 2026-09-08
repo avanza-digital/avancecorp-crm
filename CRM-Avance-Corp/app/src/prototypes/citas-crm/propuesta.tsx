@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CalendarDays, ChartNoAxesCombined, ChevronLeft, ChevronRight, CircleHelp, Download, List, SearchX, X } from 'lucide-react'
-import { BrandLockup } from '@/components/app/brand'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
@@ -13,6 +12,7 @@ import { Filtros } from './filtros'
 import { Agenda, Bandeja, Estado } from './vistas'
 import { Resultados, DetalleLeads } from './resultados'
 import { nombreAnalista, siguientePaso, contextoCita } from './presentacion'
+import { MenuCRM } from './marco'
 
 type VistaCitas = 'bandeja' | 'agenda' | 'resultados'
 const VISTAS = [
@@ -127,34 +127,29 @@ export function PropuestaCitasCRM() {
     } catch { setExportacion('No se pudo descargar el archivo. Vuelve a intentarlo.') }
   }
 
-  return <div className="citas-crm flex bg-card text-foreground">
+  return <div className="citas-crm flex bg-background text-foreground">
     <a href="#consulta-citas" className="sr-only z-50 focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:rounded-lg focus:bg-white focus:p-3 focus:text-accent">Ir a la consulta de citas</a>
-    <aside className="citas-rail sticky top-0 hidden h-screen w-[208px] shrink-0 flex-col border-r border-sidebar-border p-4 text-sidebar-foreground xl:flex" aria-label="Gerencia comercial">
-      <BrandLockup tone="dark" subtitle="CRM Comercial" />
-      <p className="mt-10 px-3 text-xs text-sidebar-foreground">Gerencia comercial</p>
-      <a href="#consulta-citas" aria-current="page" className="ac-nav-item is-active mt-3 flex items-center gap-3 rounded-lg bg-sidebar-primary px-3 py-3 text-sm font-semibold text-white"><CalendarDays aria-hidden className="size-[18px]" />Citas</a>
-    </aside>
+    <MenuCRM />
     <div className="min-w-0 flex-1">
       <header className="citas-cabecera">
-        <div><h1 className="text-2xl font-bold tracking-tight text-primary">Citas del equipo</h1>
-          <p className="citas-nota">Origen: {fmtFecha(desde)}–{fmtFecha(hasta)} · Seguimiento al 7 sep. 2026, 13:00 Lima</p>
+        <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="text-lg font-extrabold tracking-tight text-primary">Citas</h1><span className="citas-ejemplo" title="Vista previa local con datos ficticios">Demo</span></div>
+          <p className="text-xs text-muted-foreground hidden sm:block">Seguimiento, recuperación y metas del equipo</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="citas-ejemplo">Ejemplo · datos ficticios</span>
-          <Button variant="ghost" size="icon" aria-label="Cómo usar Citas" title="Cómo usar Citas" onClick={() => setGuia(true)}><CircleHelp aria-hidden /></Button>
-          <Button variant="ghost" size="icon" aria-label="Exportar citas" title="Exportar citas" disabled={Boolean(error) || !citas.length} onClick={exportar}><Download aria-hidden /></Button>
+          <Button variant="outline" size="sm" aria-label="Cómo usar Citas" onClick={() => setGuia(true)}><CircleHelp aria-hidden /><span className="hidden sm:inline">Ayuda</span></Button>
+          <Button variant="outline" size="sm" aria-label="Exportar citas" disabled={Boolean(error) || !citas.length} onClick={exportar}><Download aria-hidden /><span className="hidden sm:inline">Exportar citas</span></Button>
         </div>
       </header>
-      <main id="consulta-citas" tabIndex={-1} className={cn('citas-contenido outline-none', leadAbierto && 'citas-con-ficha')}>
+      <main id="consulta-citas" tabIndex={-1} className="gerencia-inteligencia citas-contenido outline-none">
         <Filtros filtros={filtros} onCambiar={cambiar} onRestablecer={restablecer} />
-        <div className="citas-vistas" role="tablist" tabIndex={-1} aria-label="Cómo ver las citas" onKeyDown={tecladoVista}>
+        <div className="citas-controles-vista"><div className="citas-vistas" role="tablist" tabIndex={-1} aria-label="Cómo ver las citas" onKeyDown={tecladoVista}>
           {VISTAS.map(item => <Button key={item.id} id={'citas-tab-' + item.id} ref={elemento => { pestañas.current[item.id] = elemento }}
             role="tab" aria-controls="citas-panel" aria-selected={vista === item.id} tabIndex={vista === item.id ? 0 : -1}
             variant="ghost" className={cn('citas-pestana', vista === item.id && 'citas-pestana-activa')} onClick={() => cambiarVista(item.id)}>
             <item.icono aria-hidden />{item.titulo}
           </Button>)}
-        </div>
-        <section aria-label="Resultados de la consulta">
+        </div><p className="citas-corte">Citas: {fmtFecha(desde)}–{fmtFecha(hasta)}<span>Seguimiento al 7 sep. 2026, 13:00 Lima</span></p></div>
+        <section className={vista === 'resultados' ? undefined : 'gi-card citas-vista-operativa'} aria-label="Resultados de la consulta">
           <div className={vista === 'resultados' ? 'sr-only' : 'flex flex-wrap items-center justify-between gap-3 py-4'}>
             <div><h2 className="text-base font-semibold">{vista === 'agenda' ? 'Agenda por día' : vista === 'resultados' ? 'Resultados por analista' : 'Todas las citas de tu consulta'}</h2>
               <p className="citas-nota" data-testid="conteo-citas">{textoConteo}</p>

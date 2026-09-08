@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Columns3, Info, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { Sheet, SheetHeader, SheetTitle, SheetBody } from '@/components/ui/sheet'
 import { numero } from '@/lib/format'
 import { citasPorLead, resultadosConLeads, type CitaConLead } from './datos'
@@ -36,7 +37,7 @@ export function Resultados({ citas, onAnalista, onDesglose, onDetalle, leadAbier
   const total = metaCitas(citas)
   return <div className="citas-resultados">
     <Inasistencias citas={citas} onDetalle={onDetalle} leadAbierto={leadAbierto} onLead={onLead} />
-    <section className="citas-analistas" aria-label="Citas por lead y analista">
+    <section className="gi-card citas-analistas" aria-label="Citas por lead y analista">
       <div className="citas-cabecera-seccion">
         <div><h2 className="citas-titulo-seccion">Citas por lead y analista</h2>
           <p className="citas-nota">Meta {META_CITAS_POR_LEAD} = 100% · Objetivo {numero(OBJETIVO_CITAS_POR_LEAD, 2)} = {OBJETIVO_CUMPLIMIENTO}%</p>
@@ -52,14 +53,15 @@ export function Resultados({ citas, onAnalista, onDesglose, onDetalle, leadAbier
           </details>
         </div>
       </div>
-      <div className="citas-tabla-scroll" role="region" aria-label="Tabla de citas por lead y analista">
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Región desplazable: el foco habilita consultar sus columnas con las flechas del teclado. */}
+      <div className="citas-tabla-scroll" role="region" tabIndex={0} aria-label="Tabla de citas por lead y analista">
         <table className="citas-tabla citas-tabla-compacta citas-tabla-metas w-full text-sm">
           <caption className="sr-only">Resultados por analista de las citas filtradas</caption>
           <thead><tr><th scope="col">Analista</th>{columnas.supervisor && <th scope="col">Supervisor</th>}<th scope="col">Citas / leads</th><th scope="col">Citas por lead</th><th scope="col">Cumplimiento</th><th scope="col">Leads con 3+ citas</th>{columnas.repetidos && <th scope="col">Leads con 2+ citas</th>}{columnas.realizadas && <th scope="col">Realizadas</th>}<th scope="col"><span className="sr-only">Detalle por lead</span></th></tr></thead>
           <tbody>{filas.map(fila => <tr key={fila.id}>
             <th scope="row"><Button variant="link" className="citas-enlace-analista" onClick={() => onAnalista(fila.id)}>{fila.nombre}</Button></th>
             {columnas.supervisor && <td>{fila.supervisor}</td>}
-            <td>{fila.citas} / {fila.leads}</td><td>{numero(fila.promedio, 2)}</td><td>{fila.cumplimiento === null ? '—' : numero(fila.cumplimiento, 1) + '%'}</td><td>{fila.leadsConMeta} de {fila.leads}</td>
+            <td>{fila.citas} / {fila.leads}</td><td className="citas-promedio">{numero(fila.promedio, 2)}</td><td aria-label={fila.cumplimiento === null ? "Sin base" : `${numero(fila.cumplimiento, 1)}%`}><div className="citas-cumplimiento"><strong>{fila.cumplimiento === null ? '—' : numero(fila.cumplimiento, 1) + '%'}</strong><div className="citas-barra-meta" aria-hidden="true"><Progress value={(fila.cumplimiento ?? 0) / OBJETIVO_CUMPLIMIENTO * 100} color="var(--gi-blue)" /><span title="Meta 100%" /></div></div></td><td>{fila.leadsConMeta} de {fila.leads}</td>
             {columnas.repetidos && <td>{fila.repetidos}</td>}{columnas.realizadas && <td>{fila.realizadas}</td>}
             <td><Button variant="ghost" size="icon" aria-label={'Ver detalle por lead de ' + fila.nombre} onClick={() => onDesglose(fila.id)}><ChevronRight aria-hidden /></Button></td>
           </tr>)}</tbody>

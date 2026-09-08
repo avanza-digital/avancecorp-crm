@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetBody, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -9,14 +8,6 @@ import { asistioTrasInasistencia, type DepositoEjemplo } from './depositos'
 import { metaCitas } from './metas'
 import { nombreAnalista } from './presentacion'
 
-const PANTALLA_AMPLIA = '(min-width: 1536px)'
-function suscribirsePantalla(cambiar: () => void) {
-  const consulta = window.matchMedia?.(PANTALLA_AMPLIA)
-  consulta?.addEventListener('change', cambiar)
-  return () => consulta?.removeEventListener('change', cambiar)
-}
-const esPantallaAmplia = () => window.matchMedia?.(PANTALLA_AMPLIA).matches ?? false
-
 export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   fila: Recuperacion | null
   depositos: DepositoEjemplo[]
@@ -24,9 +15,8 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   onCerrar: () => void
   onCita: (cita: CitaConLead) => void
 }) {
-  const amplia = useSyncExternalStore(suscribirsePantalla, esPantallaAmplia, () => false)
   const meta = metaCitas(citas.filter(cita => cita.leadId === fila?.original.leadId))
-  return <Sheet open={Boolean(fila)} onClose={onCerrar} modal={!amplia} className="citas-crm-dialogo citas-ficha-recorrido">
+  return <Sheet open={Boolean(fila)} onClose={onCerrar} className="gerencia-inteligencia citas-crm-dialogo citas-ficha-recorrido">
     <SheetHeader className="citas-ficha-cabecera">
       <div className="flex items-start justify-between gap-3">
         <div><SheetTitle className="text-xl">{fila?.original.nombre ?? 'Recorrido del lead'}</SheetTitle>
@@ -35,7 +25,7 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
         <Button variant="ghost" size="icon" aria-label="Cerrar recorrido" onClick={onCerrar}><X aria-hidden /></Button>
       </div>
     </SheetHeader>
-    {fila && <SheetBody id="citas-recorrido" className="citas-ficha-cuerpo">
+    {fila && <SheetBody className="citas-ficha-cuerpo">
       <section aria-label="Meta de citas del lead" className="pb-6">
         <p className="text-lg font-semibold tabular-nums">{meta.citas} {meta.citas === 1 ? 'cita' : 'citas'} · {numero(meta.cumplimiento, 1)}% de la meta</p>
         <p className="mt-1 text-sm text-muted-foreground-strong">Meta del lead: 3 citas · consulta actual</p>

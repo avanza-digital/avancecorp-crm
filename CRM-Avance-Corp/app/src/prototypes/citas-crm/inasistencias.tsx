@@ -39,8 +39,13 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
   ] as const
   function cambiarGrupo(nuevo: Grupo) { setGrupo(nuevo); onLead(null) }
 
-  return <section className="citas-recuperacion" aria-label="Seguimiento de inasistencias">
-    <h2 className="citas-titulo-seccion">¿Qué pasó con quienes no asistieron?</h2>
+  return <section className="gi-card citas-recuperacion" aria-label="Seguimiento de inasistencias">
+    <div className="citas-cabecera-seccion citas-cabecera-recuperacion"><h2 className="citas-titulo-seccion">¿Qué pasó con quienes no asistieron?</h2>
+      {flujo.base > 0 && <div className="flex items-center gap-2">
+        {grupo !== 'todas' && <Button variant="ghost" size="sm" onClick={() => cambiarGrupo('todas')}>Ver las {flujo.base} personas</Button>}
+        <Button variant="ghost" size="sm" aria-pressed={grupo === 'sin_reprogramar'} onClick={() => cambiarGrupo(grupo === 'sin_reprogramar' ? 'todas' : 'sin_reprogramar')}>Sin nueva cita</Button>
+      </div>}
+    </div>
     <div className="citas-flujo-resumen">
       <div className="citas-flujo" role="group" aria-label="Etapas de recuperación">
         {etapas.map((etapa, indice) => <div className="citas-flujo-etapa" key={etapa.id}>
@@ -57,14 +62,9 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
           {flujo.convertidos > 0 && <span> · {textoMontos(flujo.montos)}</span>}</p>
       </div>
     </div>
-    <div className="citas-cabecera-seccion">
-      <h3 className="citas-titulo-seccion">Personas del flujo</h3>
-      {flujo.base > 0 && <div className="flex items-center gap-2">
-        {grupo !== 'todas' && <Button variant="ghost" size="sm" onClick={() => cambiarGrupo('todas')}>Ver las {flujo.base} personas</Button>}
-        <Button variant="ghost" size="sm" aria-pressed={grupo === 'sin_reprogramar'} onClick={() => cambiarGrupo(grupo === 'sin_reprogramar' ? 'todas' : 'sin_reprogramar')}>Sin nueva cita</Button>
-      </div>}
-    </div>
-    {visibles.length ? <div className="citas-tabla-scroll" role="region" aria-label="Tabla de personas del flujo">
+    <h3 className="sr-only">Personas del flujo</h3>
+    {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- El contenedor con desplazamiento horizontal necesita foco para usar las flechas del teclado. */}
+    {visibles.length ? <div className="citas-tabla-scroll" role="region" tabIndex={0} aria-label="Tabla de personas del flujo">
       <table className="citas-tabla citas-tabla-compacta citas-tabla-flujo w-full text-sm">
         <caption className="sr-only">Personas del flujo de recuperación</caption>
         <thead><tr><th scope="col">Persona</th><th scope="col">Analista</th><th scope="col">Nueva cita</th><th scope="col">Asistencia</th><th scope="col">Depósito del flujo</th><th scope="col"><span className="sr-only">Recorrido</span></th></tr></thead>
@@ -72,20 +72,19 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
           const movimientos = flujo.leads.find(lead => lead.original.leadId === fila.original.leadId)?.depositos ?? []
           const asistencia = recuperadas.find(item => item.original.leadId === fila.original.leadId)?.nueva
           return <tr key={fila.original.leadId} className={cn(leadAbierto === fila.original.leadId && 'citas-fila-seleccionada')}>
-            <th scope="row"><Button variant="link" className="citas-enlace-persona" aria-expanded={leadAbierto === fila.original.leadId} aria-controls={leadAbierto === fila.original.leadId ? 'citas-recorrido' : undefined} onClick={() => onLead(fila.original.leadId)}>{fila.original.nombre}</Button></th>
+            <th scope="row"><Button variant="link" className="citas-enlace-persona" aria-haspopup="dialog" onClick={() => onLead(fila.original.leadId)}>{fila.original.nombre}</Button></th>
             <td>{nombreAnalista(fila.original.analista)}</td>
             <td>{fila.nueva ? <span className="whitespace-nowrap">{fmtFecha(fila.nueva.fecha)} · {fila.nueva.hora}</span> : <span className="citas-excepcion">Sin nueva cita</span>}</td>
             <td>{asistencia ? <span className="whitespace-nowrap">{fmtFecha(asistencia.asistioEn!)} · {asistencia.asistioEn!.slice(11, 16)}</span>
               : fila.estado === 'pendiente' ? 'Pendiente' : fila.estado === 'otra_inasistencia' ? 'Volvió a faltar'
                 : fila.estado === 'cancelada' ? 'Cita cancelada' : fila.estado === 'sin_resultado' ? 'Sin resultado' : '—'}</td>
             <td>{movimientos.length ? <><span className="whitespace-nowrap">{textoMontos(montosDepositados(movimientos))}</span><span className="citas-fecha-secundaria">{movimientos.length > 1 ? movimientos.length + ' depósitos · desde ' : ''}{fmtFecha(movimientos[0]!.depositadoEn)}</span></> : '—'}</td>
-            <td><Button variant="ghost" size="icon" aria-label={'Ver recorrido de ' + fila.original.nombre} aria-expanded={leadAbierto === fila.original.leadId} aria-controls={leadAbierto === fila.original.leadId ? 'citas-recorrido' : undefined} onClick={() => onLead(fila.original.leadId)}><ChevronRight aria-hidden /></Button></td>
+            <td><Button variant="ghost" size="icon" aria-label={'Ver recorrido de ' + fila.original.nombre} aria-haspopup="dialog" onClick={() => onLead(fila.original.leadId)}><ChevronRight aria-hidden /></Button></td>
           </tr>
         })}</tbody>
       </table>
     </div> : <p className="citas-vacio-flujo">{!flujo.base ? 'No hay inasistencias con estos filtros.' : grupo === 'depositaron' ? 'Ningún lead completó el flujo hasta un depósito confirmado después de asistir.' : grupo === 'sin_reprogramar' ? 'Todas las personas reprogramaron.' : 'No hay personas en esta etapa.'}</p>}
     <p className="citas-nota">—: etapa aún no completada · Fechas e historial al abrir una persona.</p>
-    <p role="status" className="sr-only">{abierta ? 'Mostrando recorrido de ' + abierta.original.nombre : ''}</p>
     <FichaRecorrido fila={abierta ? contexto(abierta) : null} depositos={depositosAbiertos} citas={citas} onCerrar={() => onLead(null)} onCita={onDetalle} />
   </section>
 }
