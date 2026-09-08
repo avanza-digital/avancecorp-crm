@@ -135,7 +135,7 @@ describe('propuesta de Citas con componentes reales del CRM', () => {
     await usuario.click(screen.getByRole('button', { name: 'No asistieron 4' }))
     await usuario.click(screen.getByRole('tab', { name: 'Resultados' }))
     const recuperacion = screen.getByRole('region', { name: 'Seguimiento de inasistencias' })
-    expect(recuperacion).toHaveTextContent('3 de 4 inasistencias tienen una reprogramación vinculada')
+    expect(recuperacion).toHaveTextContent('Reprogramaron: 3 de 4')
     await usuario.click(within(recuperacion).getByRole('button', { name: /Se reprogramaron/ }))
     expect(within(within(recuperacion).getByRole('list', { name: 'Detalle de inasistencias' })).getAllByRole('listitem')).toHaveLength(3)
     await usuario.click(within(recuperacion).getByRole('button', { name: 'Ver nueva cita de Mónica Silva' }))

@@ -1,6 +1,6 @@
 import { CITAS, CORTE, defaults, agruparAnalistas, filtrar, type CitaEjemplo, type FiltrosCitas } from '../../../prototypes/citas-assets/model.mjs'
 
-export interface CitaConLead extends CitaEjemplo { leadId: string; citaAnteriorId?: string; reprogramadaEn?: string }
+export interface CitaConLead extends CitaEjemplo { leadId: string; citaAnteriorId?: string; reprogramadaEn?: string; asistioEn?: string }
 export interface ConsultaCitas extends FiltrosCitas { leadId?: string; mes?: string; semana?: string }
 
 export function consultaInicial(): ConsultaCitas { return { ...defaults(), mes: '2026-09', semana: '' } }
@@ -24,7 +24,7 @@ export const CITAS_CRM: CitaConLead[] = CITAS.map((cita, indice) => {
   const lead = CITAS[indiceLead]!
   const vinculo = indice === 10 ? { citaAnteriorId: CITAS[28]!.id, reprogramadaEn: '2026-09-06T10:00:00-05:00' }
     : indice === 11 ? { citaAnteriorId: CITAS[29]!.id, reprogramadaEn: '2026-09-07T10:00:00-05:00' }
-      : indice === 18 ? { citaAnteriorId: CITAS[30]!.id, reprogramadaEn: '2026-09-01T17:00:00-05:00', fecha: '2026-09-03', hora: '11:00' } : {}
+      : indice === 18 ? { citaAnteriorId: CITAS[30]!.id, reprogramadaEn: '2026-09-01T17:00:00-05:00', fecha: '2026-09-03', hora: '11:00', asistioEn: '2026-09-03T11:05:00-05:00' } : {}
   return { ...cita, ...vinculo, leadId: `L-${String(indiceLead + 1).padStart(3, '0')}`, nombre: lead.nombre, telefono: lead.telefono, origen: lead.origen, monto: lead.monto, moneda: lead.moneda }
 })
 
@@ -55,7 +55,7 @@ export function resultadosConLeads(citas: CitaConLead[]) {
 }
 
 export type EstadoRecuperacion = 'sin_reprogramar' | 'pendiente' | 'recuperada' | 'otra_inasistencia' | 'cancelada' | 'sin_resultado'
-export interface Recuperacion { original: CitaConLead; nueva: CitaConLead | null; estado: EstadoRecuperacion }
+export interface Recuperacion { original: CitaConLead; nueva: CitaConLead | null; estado: EstadoRecuperacion; recorrido: CitaConLead[] }
 
 /** La cohorte son las inasistencias filtradas. El seguimiento mira relaciones
  * explícitas hasta el corte, aunque la nueva fecha esté fuera del período.
@@ -65,6 +65,7 @@ export interface Recuperacion { original: CitaConLead; nueva: CitaConLead | null
 export function seguimientoInasistencias(cohorte: CitaConLead[], todas = CITAS_CRM, corte = CORTE): Recuperacion[] {
   return cohorte.filter(cita => cita.estado === 'no_show').map(original => {
     let actual = original
+    const recorrido: CitaConLead[] = []
     const visitadas = new Set([original.id])
     while (true) {
       const siguiente = todas.filter(cita => cita.citaAnteriorId === actual.id && cita.leadId === original.leadId
@@ -74,12 +75,13 @@ export function seguimientoInasistencias(cohorte: CitaConLead[], todas = CITAS_C
         .sort((a, b) => Date.parse(b.reprogramadaEn!) - Date.parse(a.reprogramadaEn!) || a.id.localeCompare(b.id))[0]
       if (!siguiente) break
       visitadas.add(siguiente.id)
+      recorrido.push(siguiente)
       actual = siguiente
     }
     const nueva = actual.id === original.id ? null : actual
     const estado: EstadoRecuperacion = !nueva ? 'sin_reprogramar' : nueva.estado === 'realizada' ? 'recuperada'
       : nueva.estado === 'no_show' ? 'otra_inasistencia' : ['cancelada', 'sistema'].includes(nueva.estado) ? 'cancelada'
         : Date.parse(`${nueva.fecha}T${nueva.hora}:00-05:00`) > Date.parse(corte) ? 'pendiente' : 'sin_resultado'
-    return { original, nueva, estado }
+    return { original, nueva, estado, recorrido }
   })
 }

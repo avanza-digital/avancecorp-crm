@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetHeader, SheetTitle, SheetBody } from '@/components/ui/sheet'
 import { numero, fmtFecha, money, type Moneda } from '@/lib/format'
-import { seguimientoInasistencias, type CitaConLead, type EstadoRecuperacion } from './datos'
+import { type CitaConLead, type EstadoRecuperacion } from './datos'
 import { depositosDeInasistencias, montosDepositados, type LeadConDeposito } from './depositos'
 import { nombreAnalista } from './presentacion'
 
@@ -26,8 +26,13 @@ function DetalleDepositos({ lead, onCerrar }: { lead: LeadConDeposito | null; on
       <Button variant="ghost" size="icon" aria-label="Cerrar depósitos" onClick={onCerrar}><X aria-hidden /></Button>
     </div></SheetHeader>
     {lead && <SheetBody className="space-y-5">
-      <p className="text-sm text-muted-foreground-strong">{lead.original.leadId} · {nombreAnalista(lead.original.analista)}. Inasistencia de la consulta: {fmtFecha(lead.original.fecha)}.</p>
-      <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="mb-1 text-xs text-muted-foreground-strong">Monto depositado después de la inasistencia</p><Montos montos={montosDepositados(lead.depositos)} /></div>
+      <p className="text-sm text-muted-foreground-strong">{lead.original.leadId} · {nombreAnalista(lead.original.analista)}</p>
+      <ol className="space-y-2 text-sm" aria-label="Recorrido hasta el depósito">
+        <li>No asistió: {fmtFecha(lead.original.fecha)} · {lead.original.hora} Lima</li>
+        <li>Reprogramó: {fmtFecha(lead.asistencia.reprogramadaEn!)} · {lead.asistencia.reprogramadaEn!.slice(11, 16)} Lima</li>
+        <li>Asistió a la nueva cita: {fmtFecha(lead.asistencia.asistioEn!)} · {lead.asistencia.asistioEn!.slice(11, 16)} Lima</li>
+      </ol>
+      <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="mb-1 text-xs text-muted-foreground-strong">Monto depositado después de asistir</p><Montos montos={montosDepositados(lead.depositos)} /></div>
       <ul className="divide-y divide-border" aria-label="Depósitos confirmados del lead">{lead.depositos.map(deposito => <li key={deposito.id} className="space-y-2 py-4">
         <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">{deposito.id}</h3><Badge color="var(--success-text)">Confirmado</Badge></div>
         <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -44,12 +49,9 @@ function DetalleDepositos({ lead, onCerrar }: { lead: LeadConDeposito | null; on
 export function Inasistencias({ citas, onDetalle }: { citas: CitaConLead[]; onDetalle: (cita: CitaConLead) => void }) {
   const [grupo, setGrupo] = useState<'todas' | 'reprogramadas' | 'recuperada' | 'sin_reprogramar' | 'depositaron'>('todas')
   const [leadAbierto, setLeadAbierto] = useState<string | null>(null)
-  const seguimiento = seguimientoInasistencias(citas)
   const depositos = depositosDeInasistencias(citas)
-  const reprogramadas = seguimiento.filter(fila => fila.nueva)
-  const recuperadas = seguimiento.filter(fila => fila.estado === 'recuperada')
-  const sinNueva = seguimiento.filter(fila => fila.estado === 'sin_reprogramar')
-  const visibles = seguimiento.filter(fila => grupo === 'todas' || (grupo === 'reprogramadas' ? Boolean(fila.nueva) : fila.estado === grupo))
+  const { inasistencias: seguimiento, reprogramadas, recuperadas, sinNueva } = depositos
+  const visibles = grupo === 'reprogramadas' ? reprogramadas : grupo === 'recuperada' ? recuperadas : grupo === 'sin_reprogramar' ? sinNueva : seguimiento
   const etapas = [
     { id: 'todas', titulo: 'No asistieron', cantidad: seguimiento.length },
     { id: 'reprogramadas', titulo: 'Se reprogramaron', cantidad: reprogramadas.length },
@@ -59,19 +61,19 @@ export function Inasistencias({ citas, onDetalle }: { citas: CitaConLead[]; onDe
 
   return <section className="mt-6 border-t border-border pt-5" aria-label="Seguimiento de inasistencias">
     <h3 className="flex items-center gap-2 text-base font-semibold"><CalendarClock aria-hidden className="size-4 text-accent" />¿Qué pasó con quienes no asistieron?</h3>
-    <p className="mt-1 text-xs leading-relaxed text-muted-foreground-strong">Parte de las inasistencias de tu consulta y sigue sus citas y depósitos hasta el 7 sep. 2026, 13:00 Lima. La nueva cita o el depósito pueden estar fuera del mes o semana seleccionados.</p>
+    <p className="mt-1 text-xs leading-relaxed text-muted-foreground-strong">Cada paso parte del anterior: leads que faltaron, reprogramaron, asistieron a la nueva cita y después depositaron. Seguimiento hasta el 7 sep. 2026, 13:00 Lima, aunque la nueva cita o el depósito estén fuera del mes o semana seleccionados.</p>
     {seguimiento.length === 0 ? <p className="mt-4 rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground-strong">No hay inasistencias con estos filtros. Elige «Todas» o «No asistieron» para revisarlas.</p> : <>
       <div className="my-4 grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Etapas de recuperación">{etapas.map((etapa, indice) => <Button key={etapa.id} variant={grupo === etapa.id ? 'secondary' : 'outline'} className="h-auto justify-start whitespace-normal px-3 py-3 text-left" aria-pressed={grupo === etapa.id} onClick={() => setGrupo(etapa.id)}>
-        <span className="text-2xl font-semibold tabular-nums">{etapa.cantidad}</span><span className="text-xs leading-4">{etapa.titulo}{etapa.id === 'depositaron' && <span className="mt-1 block font-normal text-muted-foreground-strong">Con o sin nueva cita</span>}</span>{indice < 2 && <ArrowRight aria-hidden className="ml-auto hidden sm:block" />}
+        <span className="text-2xl font-semibold tabular-nums">{etapa.cantidad}</span><span className="text-xs leading-4">{etapa.titulo}{etapa.id === 'depositaron' && <span className="mt-1 block font-normal text-muted-foreground-strong">Después de asistir</span>}</span>{indice < 3 && <ArrowRight aria-hidden className="ml-auto hidden sm:block" />}
       </Button>)}</div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm"><p><strong>{reprogramadas.length} de {seguimiento.length}</strong> inasistencias tienen una reprogramación vinculada. <strong>{recuperadas.length} de {reprogramadas.length}</strong> terminaron en asistencia.</p><Button size="sm" variant={grupo === 'sin_reprogramar' ? 'secondary' : 'outline'} aria-pressed={grupo === 'sin_reprogramar'} onClick={() => setGrupo('sin_reprogramar')}>Sin nueva cita {sinNueva.length}</Button></div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm"><p>Reprogramaron: <strong>{reprogramadas.length} de {seguimiento.length}</strong>. Asistieron después: <strong>{recuperadas.length} de {reprogramadas.length}</strong>.</p><Button size="sm" variant={grupo === 'sin_reprogramar' ? 'secondary' : 'outline'} aria-pressed={grupo === 'sin_reprogramar'} onClick={() => setGrupo('sin_reprogramar')}>Sin nueva cita {sinNueva.length}</Button></div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm" aria-label="Conversión de inasistencias a depósito" role="region">
-        <p><strong>{depositos.convertidos} de {depositos.base} leads</strong> que faltaron depositaron <strong>({numero(depositos.porcentaje, 1)}%)</strong>.</p>
+        <p>Conversión del flujo: <strong>{depositos.convertidos} de {depositos.base}</strong> leads <strong>({numero(depositos.porcentaje, 1)}%)</strong>.</p>
         {depositos.convertidos > 0 && <p className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="text-xs text-muted-foreground-strong">Monto depositado</span><Montos montos={depositos.montos} /></p>}
       </div>
       {grupo === 'depositaron' ? <>
-        <p className="mb-3 text-xs text-muted-foreground-strong">Leads únicos con depósitos confirmados desde su primera inasistencia de la consulta. Se excluyen pendientes y anulados; no requieren otra cita.</p>
-        {depositos.leads.length === 0 ? <p className="py-4 text-sm text-muted-foreground-strong">Ningún lead de estas inasistencias tiene un depósito confirmado posterior.</p> : <ul className="divide-y divide-border rounded-lg border border-border" aria-label="Leads que depositaron">{depositos.leads.map(lead => <li key={lead.original.leadId} className="flex flex-wrap items-center justify-between gap-3 p-3">
+        <p className="mb-3 text-xs text-muted-foreground-strong">Solo aparecen quienes asistieron a una cita reprogramada vinculada y luego hicieron un depósito confirmado. Se excluyen pendientes y anulados.</p>
+        {depositos.leads.length === 0 ? <p className="py-4 text-sm text-muted-foreground-strong">Ningún lead completó el flujo hasta un depósito confirmado después de asistir.</p> : <ul className="divide-y divide-border rounded-lg border border-border" aria-label="Leads que depositaron">{depositos.leads.map(lead => <li key={lead.original.leadId} className="flex flex-wrap items-center justify-between gap-3 p-3">
           <div><h4 className="text-sm font-semibold">{lead.original.nombre}</h4><p className="mt-1 text-xs text-muted-foreground-strong">{nombreAnalista(lead.original.analista)} · No asistió: {fmtFecha(lead.original.fecha)}</p></div>
           <div className="flex flex-wrap items-center gap-3 text-sm"><Montos montos={montosDepositados(lead.depositos)} /><Button variant="outline" size="sm" aria-label={`Ver depósitos de ${lead.original.nombre}`} onClick={() => setLeadAbierto(lead.original.leadId)}>Ver depósitos <ChevronRight aria-hidden /></Button></div>
         </li>)}</ul>}
@@ -83,7 +85,7 @@ export function Inasistencias({ citas, onDetalle }: { citas: CitaConLead[]; onDe
         </li>)}</ul>
         {visibles.length === 0 && <p className="py-4 text-sm text-muted-foreground-strong">No hay citas en esta etapa.</p>}
       </>}
-      <p className="mt-3 text-xs text-muted-foreground-strong">Cada inasistencia se cuenta una vez. La conversión a depósito usa leads únicos, con o sin reprogramación. Los montos son depósitos confirmados de esos leads, separados por moneda.</p>
+      <p className="mt-3 text-xs text-muted-foreground-strong">Cada lead cuenta una vez por etapa. Solo avanza si cumplió el paso anterior. La conversión usa como base los leads que faltaron al inicio; los montos corresponden a los depósitos posteriores a la asistencia.</p>
     </>}
     <DetalleDepositos lead={depositos.leads.find(lead => lead.original.leadId === leadAbierto) ?? null} onCerrar={() => setLeadAbierto(null)} />
   </section>
