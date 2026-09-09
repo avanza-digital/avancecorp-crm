@@ -8,8 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {join,resolve} from 'node:path';
 const crm=fileURLToPath(new URL('../../../',import.meta.url));
 const root=resolve(crm,'..');
-const run=(cmd,args,cwd=root)=>{
- const r=spawnSync(cmd,args,{cwd,encoding:'utf8',maxBuffer:16*1024*1024});
+const run=(cmd,args,cwd=root,env=process.env)=>{
+ const r=spawnSync(cmd,args,{cwd,env,encoding:'utf8',maxBuffer:16*1024*1024});
  assert.equal(r.status,0,r.stderr||r.stdout);return r.stdout.trim();
 };
 const commit=run('git',['rev-parse','HEAD']);
@@ -38,13 +38,17 @@ function inventariar(dir,prefijo=''){
  }
 }
 inventariar(join(crm,'app/dist'));
-run('tar',['-czf',join(carpeta,'frontend.tar.gz'),'-C',join(crm,'app/dist'),'.']);
+// bsdtar en macOS añade AppleDouble (._*) sin esta variable: no son fuentes del build.
+run('tar',['-czf',join(carpeta,'frontend.tar.gz'),'-C',join(crm,'app/dist'),'.'],root,{...process.env,COPYFILE_DISABLE:'1'});
 const sql='20260908230249_crm_f5_cartera_ficha_multiempresa.sql';
 copyFileSync(join(crm,'supabase/migrations',sql),join(carpeta,sql));
+const reversa='reversa-operativa.sql';
+copyFileSync(join(crm,'supabase/scripts/f5',reversa),join(carpeta,reversa));
 for(const n of ['handler.mjs','index.ts'])copyFileSync(join(root,'_supabase_functions/functions/crm-inversion-documento',n),join(carpeta,`documento-${n}`));
 verificar();verificarFuentes();assert.equal(run('git',['rev-parse','HEAD']),commit);
 const manifiesto={estado:'PREPARADO, SIN PUBLICAR',commit,main:commit,remoto:'avancecorp/main',node:process.version,
  sql:{archivo:sql,sha256:hash(readFileSync(join(carpeta,sql)))},
+ reversa:{archivo:reversa,sha256:hash(readFileSync(join(carpeta,reversa)))},
  frontend:{archivo:'frontend.tar.gz',sha256:hash(readFileSync(join(carpeta,'frontend.tar.gz'))),archivos:archivos.sort((a,b)=>a.ruta.localeCompare(b.ruta))},
  funciones:{'crm-inversion-documento':Object.fromEntries(['handler.mjs','index.ts'].map(n=>[n,hash(readFileSync(join(carpeta,`documento-${n}`)))]))},
  banderasProductivasModificadas:false,construidoEn:new Date().toISOString()};
