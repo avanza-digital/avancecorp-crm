@@ -1,3 +1,4 @@
+import { limpiarIntentosInversion } from './inversion-solicitud'
 // AuthGate del CRM — wrapper React delgado sobre lib/auth-maquina.ts (XState).
 //   init → anon → resolviendo → listo | no_enrolado | error
 // crm.mi_acceso_fn resuelve el rol así: membresía activa en crm.equipo →
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // bloquear el cliente (deadlock documentado por Supabase).
     const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
       if (cancelado) return
-      if (_evento === 'SIGNED_OUT') limpiarIntencionesSla()
+      if (_evento === 'SIGNED_OUT') {limpiarIntencionesSla(); limpiarIntentosInversion()}
       const userId = session?.user.id ?? null
       diferir(() => actor.send({ type: 'SESION_CAMBIO', userId }))
     })
@@ -281,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const salir = async () => {
     const eraDemo = yoRef.current?.demo === true
     limpiarIntencionesSla()
+    limpiarIntentosInversion()
     limpiarSesionDemo()
     // SALIR cancela cualquier verificación en vuelo ANTES del signOut: una
     // respuesta tardía ya no puede recolocar la identidad anterior.

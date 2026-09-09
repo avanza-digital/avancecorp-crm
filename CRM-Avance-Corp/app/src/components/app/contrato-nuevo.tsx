@@ -184,6 +184,9 @@ export interface ContratoNuevoProps {
   onConfirmado?: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   /** Bloquea el cierre externo durante create + archivo y durante cada reintento. */
   onEnviandoCambio?: (enCurso: boolean) => void
+  /** F5 prepara/revisa la misma inversión antes de confirmar su fuente. */
+  onRevisar?: (input: CrearContratoInput, cronograma: CuotaCronograma[]) => Promise<void>
+  borrador?: CrearContratoInput | undefined
   onCreado: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   onOmitir: () => void
 }
@@ -205,6 +208,8 @@ export function ContratoNuevo({
   onEnviandoCambio,
   onCreado,
   onOmitir,
+  onRevisar,
+  borrador,
 }: ContratoNuevoProps) {
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
@@ -212,40 +217,41 @@ export function ContratoNuevo({
   const [analistaCierre, setAnalistaCierre] = useState<string>(() =>
     analistaInicial && (analistas ?? []).some((a) => a.perfil_id === analistaInicial) ? analistaInicial : '',
   )
-  const categoriaInicial = renovacionOrigen ? 'renovacion' : (categoriaFija ?? '')
+  const categoriaInicial = renovacionOrigen ? 'renovacion' : (borrador?.categoria ?? categoriaFija ?? '')
   const [categoria, setCategoria] = useState<CategoriaContrato | ''>(categoriaInicial)
-  const [tipoInteres, setTipoInteres] = useState<TipoInteres>('simple')
-  const [modalidad, setModalidad] = useState<ModalidadContrato>('mensual')
+  const [tipoInteres, setTipoInteres] = useState<TipoInteres>(borrador?.tipo_interes ?? 'simple')
+  const [modalidad, setModalidad] = useState<ModalidadContrato>(borrador?.modalidad ?? 'mensual')
   const [capital, setCapital] = useState(
-    renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
+    borrador ? String(borrador.capital) : renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
   )
-  const [capitalRenovado, setCapitalRenovado] = useState(renovacionOrigen ? String(renovacionOrigen.capital) : '')
-  const [capitalAdicional, setCapitalAdicional] = useState(renovacionOrigen ? '0' : '')
+  const [capitalRenovado, setCapitalRenovado] = useState(borrador?.capital_renovado != null ? String(borrador.capital_renovado) : renovacionOrigen ? String(renovacionOrigen.capital) : '')
+  const [capitalAdicional, setCapitalAdicional] = useState(borrador?.capital_adicional != null ? String(borrador.capital_adicional) : renovacionOrigen ? '0' : '')
   // ATR-3: si el contrato que se renueva pertenece a una cadena de upgrade, la
   // renovación contará al analista de esa cadena — se avisa junto al selector.
   const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
   const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
-  const [moneda, setMoneda] = useState<Moneda>(renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
+  const [moneda, setMoneda] = useState<Moneda>(borrador?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
   // Rentabilidad R3: la tasa la fija la POLÍTICA (bloque TasaPolitica); arranca en 15 solo hasta que el núcleo responde.
-  const [tasa, setTasa] = useState('15')
+  const [tasa, setTasa] = useState(borrador ? String(borrador.tasa_anual) : '15')
   const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
   const [origenUpgrade, setOrigenUpgrade] = useState<string>(
-    contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : '',
+    borrador?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
   )
-  const [fechaInicio, setFechaInicio] = useState(hoyLocal())
-  const [plazo, setPlazo] = useState<string>('12')
-  const [vencManual, setVencManual] = useState('')
+  const [fechaInicio, setFechaInicio] = useState(borrador?.fecha_inicio ?? hoyLocal())
+  const [plazo, setPlazo] = useState<string>(borrador ? PLAZO_PERSONALIZADO : '12')
+  const [vencManual, setVencManual] = useState(borrador?.fecha_vencimiento ?? '')
   // Solo los 6 dígitos: el prefijo 2026-01- está pintado fijo en el form.
-  const [numero, setNumero] = useState('')
-  const [notas, setNotas] = useState('')
+  const [numero, setNumero] = useState(borrador?.numero_contrato?.replace(PREFIJO_CONTRATO, '') ?? '')
+  const [notas, setNotas] = useState(borrador?.notas_internas ?? '')
   // La selección se reinicia al cambiar moneda: jamás se traslada implícitamente
   // una cuenta PEN a USD (o viceversa).
-  const [cuentaSeleccionada, setCuentaSeleccionada] = useState('')
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState(borrador?.cuenta_pago.tipo === 'nueva' ? CUENTA_NUEVA : '')
   const [cuentaNueva, setCuentaNueva] = useState<SeccionBancariaForm>({
     ...SECCION_BANCARIA_VACIA,
+    ...(borrador?.cuenta_pago.tipo === 'nueva' ? {...borrador.cuenta_pago, beneficiario_nombre: borrador.cuenta_pago.beneficiario_nombre ?? '', beneficiario_dni: borrador.cuenta_pago.beneficiario_dni ?? ''} : {}),
   })
   // Co-titulares (cuentas mancomunadas, máx 5) — filas crudas del editor.
-  const [titulares, setTitulares] = useState<TitularBorrador[]>([])
+  const [titulares, setTitulares] = useState<TitularBorrador[]>(borrador?.titulares ?? [])
   const [enviando, setEnviando] = useState(false)
   const [creado, setCreado] = useState<ContratoCreado | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -624,9 +630,9 @@ export function ContratoNuevo({
       reportarError(tit.error)
       return
     }
-    const claveIdempotencia = (claveIntento.current ??= claveIdempotenciaPendiente(ambitoIdempotencia))
+    const claveIdempotencia = onRevisar ? undefined : (claveIntento.current ??= claveIdempotenciaPendiente(ambitoIdempotencia))
     const input: CrearContratoInput = {
-      clave_idempotencia: claveIdempotencia,
+      ...(claveIdempotencia ? {clave_idempotencia: claveIdempotencia} : {}),
       cliente_id: clienteId,
       capital: capitalNum,
       moneda,
@@ -673,6 +679,10 @@ export function ContratoNuevo({
     setEnviando(true)
     onEnviandoCambio?.(true)
     try {
+      if (onRevisar) {
+        await onRevisar(input, cronograma)
+        return
+      }
       const r = pdfDatosDemo
         ? {
             id: crearIdContratoDemo(),
@@ -1426,8 +1436,8 @@ export function ContratoNuevo({
         >
           <BadgeCheck />{' '}
           {enviando
-            ? 'Creando…'
-            : categoria === 'renovacion'
+            ? (onRevisar ? 'Preparando revisión…' : 'Creando…')
+            : onRevisar ? 'Revisar inversión' : categoria === 'renovacion'
               ? 'Crear renovación'
               : categoria === 'upgrade'
                 ? 'Crear upgrade'

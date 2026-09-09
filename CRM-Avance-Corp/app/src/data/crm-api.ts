@@ -2499,10 +2499,8 @@ const PdfAltaSchema = v.looseObject({
   reintentable: v.boolean(),
 })
 
-export async function crearContrato(
-  input: CrearContratoInput,
-  cronograma: CuotaCronograma[],
-): Promise<CrearContratoResultado> {
+/** Mismo contenido económico en el alta publicada y en la revisión F4. */
+export function prepararPayloadContrato(input: CrearContratoInput): Record<string, unknown> {
   const p_contrato: Record<string, unknown> = {
     cliente_id: input.cliente_id,
     capital: input.capital,
@@ -2531,6 +2529,14 @@ export async function crearContrato(
   if (input.analista_cierre_id) p_contrato.analista_cierre_id = input.analista_cierre_id
   // Transporte, no dato del contrato: el wrapper la lee y la quita antes de bajar.
   if (input.clave_idempotencia) p_contrato.clave_idempotencia = input.clave_idempotencia
+  return p_contrato
+}
+
+export async function crearContrato(
+  input: CrearContratoInput,
+  cronograma: CuotaCronograma[],
+): Promise<CrearContratoResultado> {
+  const p_contrato = prepararPayloadContrato(input)
   const p_cronograma = cronograma as unknown as Json[]
   const { data, error } = await cliente()
     .schema('crm')
