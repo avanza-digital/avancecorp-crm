@@ -3,6 +3,7 @@
 // botones (mismo criterio que tenían las copias locales). La matemática
 // (clamp, recorte) vive en lib/paginacion.paginar; aquí solo la navegación.
 import type { JSX } from 'react'
+import { Button } from '@/components/ui/button'
 
 export function Paginacion({
   paginaActual,
@@ -25,27 +26,31 @@ export function Paginacion({
 }): JSX.Element | null {
   if (paginas <= 1 && !mostrarSiempre) return null
   return (
-    <nav className="flex items-center justify-between gap-3" aria-label={ariaLabel}>
+    <nav className="flex flex-wrap items-center justify-between gap-3" aria-label={ariaLabel}>
       <p className="text-xs tabular-nums text-muted-foreground">
         Página {paginaActual + 1} de {paginas} · {total} registros
       </p>
-      <div className="flex gap-2">
-        <button
+      <div className="flex shrink-0 gap-2">
+        <Button
           type="button"
-          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          variant="outline"
+          size="sm"
+          className="min-h-10 sm:min-h-8"
           disabled={paginaActual === 0}
           onClick={() => onCambio(Math.max(0, paginaActual - 1))}
         >
           Anterior
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          variant="outline"
+          size="sm"
+          className="min-h-10 sm:min-h-8"
           disabled={paginaActual >= paginas - 1}
           onClick={() => onCambio(Math.min(paginas - 1, paginaActual + 1))}
         >
           Siguiente
-        </button>
+        </Button>
       </div>
     </nav>
   )

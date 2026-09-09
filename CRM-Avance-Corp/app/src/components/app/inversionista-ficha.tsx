@@ -19,7 +19,7 @@ import { fechaHora, fmtFecha, money } from '@/lib/format'
 import { fechaLima } from '@/lib/agenda-derivada'
 
 export function ResumenEmpresas({totales}: {totales: ResumenEmpresa[]}) {
-  return <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  return <div className="@container/resumen"><dl className="grid gap-3 @md/resumen:grid-cols-2 @3xl/resumen:grid-cols-3">
     {totales.map(t => <div key={`${t.empresa}:${t.moneda}`} className="min-w-0 border-l-2 border-accent/30 pl-3">
       <dt className="text-xs text-muted-foreground">{EMPRESA_NOMBRE[t.empresa]} · {t.moneda}</dt>
       <dd className="text-lg font-semibold tabular-nums [overflow-wrap:anywhere]">
@@ -27,7 +27,7 @@ export function ResumenEmpresas({totales}: {totales: ResumenEmpresa[]}) {
       </dd>
       <dd className="text-xs text-muted-foreground">{t.empresa === 'avance' ? 'Capital activo' : 'Capital registrado'} · {t.cantidad} {t.cantidad === 1 ? 'inversión' : 'inversiones'}</dd>
     </div>)}
-  </dl>
+  </dl></div>
 }
 
 function CuentasAvance({actor, identidad, perfil, onRevocado}: {

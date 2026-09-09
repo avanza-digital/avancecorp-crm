@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Sheet } from '@/components/ui/sheet'
-import { PanelCargando, PanelError } from '@/components/common/estado-panel'
+import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 import { SectionHead } from '@/components/common/section-head'
 import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversionista-ficha'
@@ -87,17 +87,17 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     <p className="text-sm text-muted-foreground">Consulta cronogramas y gestiona los clientes y contratos Avance existentes.</p>
     {gestionAvance}
   </div>
-  return <div className="space-y-5">
+  return <div className="@container/cartera mx-auto max-w-[1240px] space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
         <p className="mt-1 text-sm text-muted-foreground">Una ficha por persona, con sus inversiones en cada empresa.</p></div>
       <Button variant="outline" size="sm" onClick={() => {setSeleccion(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button>
     </div>
     {aviso && <p role="status" className="rounded-lg bg-muted p-3 text-sm">{aviso}</p>}
-    <Card>
+    <Card className="overflow-hidden">
       <SectionHead icon={Users2} title="Inversionistas" right={<Button variant="ghost" size="sm" aria-label="Actualizar cartera"
         disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>} />
-      <div className="grid gap-3 px-5 pb-4 sm:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_auto]">
+      <div className="grid gap-3 px-5 pb-4 @lg/cartera:grid-cols-2 @4xl/cartera:grid-cols-[2fr_1fr_1fr_auto]">
         <div className="min-w-0 space-y-1"><Label htmlFor="f5-buscar">Buscar persona</Label><div className="relative">
           <Search aria-hidden className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
           <Input id="f5-buscar" type="search" placeholder="Nombre, documento, contacto o empresa" className="pl-9" maxLength={120}
@@ -114,10 +114,10 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
         : !datos ? <PanelCargando filas={6} /> : <>
           <div className="border-t border-border px-5 py-4"><ResumenEmpresas totales={datos.totales} /></div>
           <p role="status" className="border-t border-border px-5 py-3 text-xs text-muted-foreground">{datos.total} {datos.total === 1 ? 'persona' : 'personas'} · página {datos.pagina}</p>
-          {datos.filas.length === 0 ? <div className="space-y-3 px-5 py-8 text-center">
-            <p className="text-sm">{datos.total === 0 ? 'No hay personas que coincidan con estos filtros.' : 'Esta página ya no tiene resultados.'}</p>
-            <Button variant="outline" onClick={() => {setBusqueda(''); setFiltros(FILTROS_INVERSIONISTAS_INICIALES)}}>Restablecer filtros</Button>
-          </div> : <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
+          {datos.filas.length === 0 ? <PanelVacio icono={Users2}
+            titulo={datos.total === 0 ? 'No hay personas que coincidan con estos filtros.' : 'Esta página ya no tiene resultados.'}>
+            <Button variant="outline" size="sm" className="mt-2 min-h-10" onClick={() => {setBusqueda(''); setFiltros(FILTROS_INVERSIONISTAS_INICIALES)}}>Restablecer filtros</Button>
+          </PanelVacio> : <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
             <button type="button" className="grid min-h-20 w-full gap-2 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:grid-cols-[2fr_1fr_1fr]"
               onClick={() => {setAviso(''); setDescargando(false); setSeleccion(p.inversionista_id)}} aria-label={`Abrir ficha de ${p.nombre}`}>
               <span className="min-w-0"><span className="block text-sm font-semibold [overflow-wrap:anywhere]">{p.nombre}</span>

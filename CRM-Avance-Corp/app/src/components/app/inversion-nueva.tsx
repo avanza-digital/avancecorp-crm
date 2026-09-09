@@ -118,7 +118,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   }
   const cabecera = (titulo: string) => <DialogHeader><DialogTitle>{titulo}</DialogTitle>
     {ficha && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{ficha.persona.nombre}</p>}</DialogHeader>
-  const alerta = error && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive [overflow-wrap:anywhere]">{error}</p>
+  const alerta = error && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive-text [overflow-wrap:anywhere]">{error}</p>
   let cuerpo
   if (!ficha || recuperando) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody>
     {fichaQ.isError ? <PanelError mensaje={mensajeDeError(fichaQ.error, 'No se pudo verificar el acceso.')}
@@ -139,7 +139,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   else if (guardado.error || !empresa) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
     {guardado.error ? <div className="space-y-3">
       <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
-      <Button variant="outline" onClick={() => {
+      <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" onClick={() => {
         limpiarIntentosInversion(actor, persona); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
       }}>Descartar el borrador local ilegible</Button>
       <p className="text-xs text-muted-foreground">Descartarlo no cancela una solicitud que ya esté registrada en el servidor.</p>
@@ -181,10 +181,10 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   else if (intento?.correccion) cuerpo = <>{cabecera('Actualización pendiente')}<DialogBody className="space-y-4">
     <p className="text-sm">Estos son los datos que enviaste. Recupera esta actualización antes de continuar.</p>
     <ResumenRevision datos={intento.correccion.datos} />
-    <Button disabled={ocupado} onClick={() => void ejecutar(async () => {
+    <Button className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
       recibir(await corregirSolicitudInversion(intento)); const i = {...intento}; delete i.correccion; guardar(i); setEditar(false)
     })}>Recuperar actualización pendiente</Button>
-    <Button variant="outline" disabled={ocupado} onClick={() => void ejecutar(async () => {
+    <Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={() => void ejecutar(async () => {
       recibir(await consultarSolicitudInversion(intento.clave)); const i = {...intento}; delete i.correccion; guardar(i); setEditar(false)
     })}>Descartar esta corrección y revisar la versión del servidor</Button>{alerta}
   </DialogBody></>
@@ -235,10 +235,10 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
       {!archivo && <Input id="f5-comprobante-revision" type="file" accept="application/pdf,image/jpeg,image/png" disabled={ocupado}
         onChange={e => setArchivo(e.target.files?.[0] ?? null)} />}
       {archivo && <Button variant="outline" size="sm" disabled={ocupado} onClick={() => setArchivo(null)}>Elegir otro comprobante</Button>}
-      <p className="text-xs text-muted-foreground">{archivo ? `Archivo seleccionado: ${archivo.name}` : 'Si ya se cargó, el servidor comprobará el archivo al confirmar.'}</p></div>}
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={ocupado} onClick={() => {setEditar(true); setError(null)}}>Corregir datos</Button>
-      <Button disabled={ocupado || !solicitud || solicitud.necesita_portal} onClick={() => void ejecutar(async () => {
+      <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{archivo ? `Archivo seleccionado: ${archivo.name}` : 'Si ya se cargó, el servidor comprobará el archivo al confirmar.'}</p></div>}
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <Button variant="outline" className="min-h-10" disabled={ocupado} onClick={() => {setEditar(true); setError(null)}}>Corregir datos</Button>
+      <Button className="min-h-10" disabled={ocupado || !solicitud || solicitud.necesita_portal} onClick={() => void ejecutar(async () => {
         if (!solicitud || !intento) return
         if (archivo && solicitud.comprobante_ruta) await subirComprobanteInversion(solicitud.comprobante_ruta, archivo)
         const resultado = await confirmarSolicitudInversion(solicitud.solicitud_id, solicitud.revision_datos)
@@ -251,7 +251,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   </DialogBody></>
   return <Dialog open onClose={cerrar} ariaLabel="Nueva inversión" className="w-[760px]">
     {cuerpo}
-    <DialogFooter><Button variant="outline" disabled={ocupado} onClick={cerrar}>{confirmacion ? 'Volver a la ficha' : 'Cerrar y continuar después'}</Button></DialogFooter>
+    <DialogFooter><Button variant="outline" className="h-auto min-h-10 max-w-full whitespace-normal" disabled={ocupado} onClick={cerrar}>{confirmacion ? 'Volver a la ficha' : 'Cerrar y continuar después'}</Button></DialogFooter>
   </Dialog>
 }
 
@@ -270,7 +270,7 @@ function AltaAvance({nombre, correo, telefono, ocupado, onContinuar}: {
       <Label htmlFor={`f5-alta-${k}`}>{campos[k]}</Label><Input id={`f5-alta-${k}`} type={k === 'correo' ? 'email' : 'text'} required
         value={datos[k]} disabled={ocupado} maxLength={k === 'domicilio' ? 300 : 180}
         onChange={e => setDatos({...datos, [k]: e.target.value})} /></div>)}
-    {error && <p role="alert" className="text-sm text-destructive sm:col-span-2">{error}</p>}
+    {error && <p role="alert" className="text-sm text-destructive-text sm:col-span-2">{error}</p>}
     <Button type="submit" className="sm:col-span-2" disabled={ocupado}>Revisar acceso Avance</Button>
   </form>
 }
@@ -300,16 +300,16 @@ function InversionCooperativa({datos, ocupado, correccion, motivo, onMotivo, onG
   }
   return <form onSubmit={enviar} className="space-y-3">
     <div className="grid gap-3 sm:grid-cols-2">
-      <div><Label htmlFor="f5-monto">Capital en soles (PEN)</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
-      <div><Label htmlFor="f5-deposito">Número de operación del depósito</Label><Input id="f5-deposito" required maxLength={64} value={deposito} onChange={e => setDeposito(e.target.value)} disabled={ocupado} /></div>
-      <div><Label htmlFor="f5-fecha">Fecha comercial</Label><Input id="f5-fecha" type="date" required max={formatDateLocal(new Date())} value={fecha} onChange={e => setFecha(e.target.value)} disabled={ocupado} /></div>
-      <div><Label htmlFor="f5-vence">Vencimiento</Label><Input id="f5-vence" type="date" required min={fecha} value={vence} onChange={e => setVence(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-monto">Capital en soles (PEN)</Label><Input id="f5-monto" inputMode="decimal" required value={monto} onChange={e => setMonto(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-deposito">Número de operación del depósito</Label><Input id="f5-deposito" required maxLength={64} value={deposito} onChange={e => setDeposito(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-fecha">Fecha comercial</Label><Input id="f5-fecha" type="date" required max={formatDateLocal(new Date())} value={fecha} onChange={e => setFecha(e.target.value)} disabled={ocupado} /></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor="f5-vence">Vencimiento</Label><Input id="f5-vence" type="date" required min={fecha} value={vence} onChange={e => setVence(e.target.value)} disabled={ocupado} /></div>
     </div>
-    <div><Label htmlFor="f5-referencia-externa">Referencia de la inversión</Label><Input id="f5-referencia-externa" required maxLength={64} value={referencia} onChange={e => setReferencia(e.target.value)} disabled={ocupado} /></div>
-    <div><Label htmlFor="f5-comprobante">Comprobante PDF, JPG o PNG (hasta 10 MB)</Label><Input id="f5-comprobante" type="file" accept="application/pdf,image/jpeg,image/png"
+    <div className="space-y-1"><Label htmlFor="f5-referencia-externa">Referencia de la inversión</Label><Input id="f5-referencia-externa" required maxLength={64} value={referencia} onChange={e => setReferencia(e.target.value)} disabled={ocupado} /></div>
+    <div className="space-y-1"><Label htmlFor="f5-comprobante">Comprobante PDF, JPG o PNG (hasta 10 MB)</Label><Input id="f5-comprobante" type="file" accept="application/pdf,image/jpeg,image/png"
       required={!datos.evidencia} onChange={e => setArchivo(e.target.files?.[0] ?? null)} disabled={ocupado} /></div>
-    {correccion && <div><Label htmlFor="f5-motivo">Motivo de la corrección, sin datos personales</Label><Input id="f5-motivo" required minLength={10} maxLength={500} value={motivo} onChange={e => onMotivo(e.target.value)} /></div>}
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    {correccion && <div className="space-y-1"><Label htmlFor="f5-motivo">Motivo de la corrección, sin datos personales</Label><Input id="f5-motivo" required minLength={10} maxLength={500} value={motivo} onChange={e => onMotivo(e.target.value)} /></div>}
+    {error && <p role="alert" className="text-sm text-destructive-text">{error}</p>}
     <Button type="submit" disabled={ocupado}>Revisar inversión</Button>
   </form>
 }
@@ -317,7 +317,7 @@ function ResumenRevision({datos}: {datos: DatosInversion}) {
   const c = datos.contrato
   const capital = datos.empresa === 'avance' ? Number(c?.capital) : datos.monto
   const moneda = datos.empresa === 'avance' ? c?.moneda : datos.moneda
-  return <dl className="grid gap-3 rounded-lg border border-border p-4 text-sm sm:grid-cols-2 [overflow-wrap:anywhere]">
+  return <dl className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 text-sm sm:grid-cols-2 [overflow-wrap:anywhere]">
     <div><dt className="text-muted-foreground">Empresa</dt><dd className="font-medium">{EMPRESA_NOMBRE[datos.empresa]}</dd></div>
     <div><dt className="text-muted-foreground">Capital</dt><dd className="font-semibold">{capital != null && Number.isFinite(capital) ? money(capital, moneda === 'USD' ? 'USD' : 'PEN') : 'Pendiente de completar'}</dd></div>
     <div><dt className="text-muted-foreground">Fecha comercial</dt><dd>{fmtFecha(String(c?.fecha_inicio ?? datos.fecha_comercial ?? ''))}</dd></div>
