@@ -1,0 +1,102 @@
+{
+  "antes": {
+    "INFO": 52,
+    "WARN": 178
+  },
+  "banco": {
+    "INFO": 53,
+    "WARN": 182
+  },
+  "nuevas": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`crm.cartera_lecturas\\` has RLS enabled, but no policies exist",
+      "metadata": {
+        "name": "cartera_lecturas",
+        "type": "table",
+        "schema": "crm"
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.cartera_inversionistas_estado_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cartera_inversionistas_estado_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "cartera_inversionistas_estado_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "",
+        "security_definer": true
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.cartera_inversionistas_fn(p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cartera_inversionistas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "cartera_inversionistas_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_pagina integer, p_tamano integer, p_texto text, p_empresa text, p_responsable uuid, p_sin_responsable boolean",
+        "security_definer": true
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.inversionista_cuentas_fn(p_inversionista uuid, p_perfil uuid, p_moneda text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_cuentas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "inversionista_cuentas_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_inversionista uuid, p_perfil uuid, p_moneda text",
+        "security_definer": true
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.inversionista_documento_fn(p_inversionista uuid, p_fuente uuid, p_documento uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_documento_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "inversionista_documento_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_inversionista uuid, p_fuente uuid, p_documento uuid",
+        "security_definer": true
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.inversionista_ficha_fn(p_inversionista uuid, p_pagina_inversiones integer, p_pagina_historial integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/inversionista_ficha_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+      "metadata": {
+        "name": "inversionista_ficha_fn",
+        "schema": "crm",
+        "language": "plpgsql",
+        "arguments": "p_inversionista uuid, p_pagina_inversiones integer, p_pagina_historial integer",
+        "security_definer": true
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    }
+  ],
+  "ausentes": [
+    {
+      "name": "extension_in_public",
+      "level": "WARN",
+      "detail": "Extension \\`pg_net\\` is installed in the public schema. Move it to another schema.",
+      "metadata": {
+        "name": "pg_net",
+        "type": "extension",
+        "schema": "public"
+      },
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public"
+    }
+  ],
+  "base": "Padre con Tasa, 266 migraciones"
+}

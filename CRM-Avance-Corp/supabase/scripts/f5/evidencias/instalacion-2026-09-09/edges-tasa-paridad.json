@@ -1,0 +1,87 @@
+[
+  {
+    "nombre": "crear-cliente",
+    "archivos": 7,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crear-admin",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "enviar-comunicado",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "enviar-push",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "diagnostico-push",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "resetear-password",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "eliminar-cliente",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "notificar-pagos",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "importar-clientes",
+    "archivos": 3,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "ciclo-contratos",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-convertir-lead",
+    "archivos": 6,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-tipo-cambio",
+    "archivos": 2,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-agenda-ics",
+    "archivos": 1,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-importar-leads",
+    "archivos": 6,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-usuarios",
+    "archivos": 3,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-contrato-pdf-v2",
+    "archivos": 9,
+    "estado": "PASS"
+  },
+  {
+    "nombre": "crm-inversion-portal",
+    "archivos": 5,
+    "estado": "PASS"
+  }
+]

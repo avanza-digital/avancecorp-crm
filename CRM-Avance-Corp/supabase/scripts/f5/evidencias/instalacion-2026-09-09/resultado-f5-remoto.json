@@ -1,6 +1,6 @@
 {
   "estado": "PASS",
-  "terminadoEn": "2026-09-09T17:22:32.310Z",
+  "terminadoEn": "2026-09-09T17:41:26.692Z",
   "entorno": "Supabase branch exclusivo F5; Auth/REST/Storage/Edge reales, datos sintéticos",
   "resultados": [
     {

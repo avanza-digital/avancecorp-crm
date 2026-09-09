@@ -1,0 +1,275 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+La corrección SQL es técnicamente correcta y está bien fundada: el helper publicado `private.resolver_en_puertas_bajo_candado()` toma el compartido antes de leer la bandera, y declarar la capacidad `VOLATILE` es exactamente lo que hace falta para que la recomprobación posterior a la espera (líneas 37-42) vea el valor confirmado y no el snapshot de llamada (xfunc-volatility, PG17). El preflight con md5 fijo, el postflight de volatilidad/proconfig/ACL y la prueba con dos sesiones reales y evidencia de `pg_locks` son controles serios y por encima del estándar habitual. El Edge también es correcto: `redirect:'error'`, allowlist de buckets, saneo de ruta por segmentos, `encodeURIComponent`, doble descriptor y verificación de integridad; el envío de la clave opaca solo por `apikey` coincide con la documentación de Supabase y con el fallo reproducido.
+
+Dicho esto, la evidencia **no alcanza todavía** para respaldar la instalación completa en producción por dos motivos concretos y verificables, ambos fuera del cuerpo de las funciones y por eso invisibles en los 15 checks remotos: (1) `reversa-operativa.sql` se empaqueta y se ejecuta en el replay pero no se adjunta, y la aserción de paridad del replay **excluye por nombre** justamente las funciones F5, de modo que nada comprueba en qué estado queda la capacidad corregida después de revertir; (2) la secuencia de merge frente a la tarea concurrente de Tasa no está atada a una comprobación ejecutable. El SQL en sí y el Edge sí están listos para instalar con F5 apagada una vez cerrados esos dos puntos.
+
+FINDINGS:
+
+[P1] La reversa no está cubierta por ninguna aserción sobre las funciones F5
+File:
+CRM-Avance-Corp/supabase/scripts/f5/replay-local.mjs
+Lines:
+28-33, 44, 48-51
+Problem:
+`firmas` excluye explícitamente `cartera_inversionistas_estado_fn` y las demás funciones F5 del universo comparado. Tras ejecutar `reversa-operativa.sql` (línea 49) el replay vuelve a comparar `firmas` y `fuentes` (línea 51), pero por construcción esa comparación **no puede** observar la capacidad corregida.
+Evidence:
+Línea 32-33: `and p.proname not in ('cartera_f5_fuentes', ..., 'cartera_inversionistas_estado_fn', ...)`. Línea 51: `assert.equal(fuentes(),antes);assert.equal(sql(firmas),cuerpos);` — ambos ciegos a esa función. El texto de `reversa-operativa.sql` no está adjunto.
+Impact:
+Si la reversa recrea, degrada o deja a medias `crm.cartera_inversionistas_estado_fn()` (p. ej. restaurando el cuerpo previo sin candado, o dejándola `STABLE`), se reintroduce silenciosamente el defecto D-19 en la ruta de reversión, que es precisamente la que se usa bajo incidente. El censo remoto D-19 tampoco lo detectaría si la reversa elimina la lectura de la bandera en vez de dejarla suelta.
+Recommendation:
+Adjuntar `reversa-operativa.sql` para revisión y añadir aserciones post-reversa explícitas en `replay-local.mjs`: o bien `to_regprocedure('crm.cartera_inversionistas_estado_fn()') is null` (si la reversa la retira), o bien `provolatile='v'`, `proconfig @> array['search_path=""','lock_timeout=5s']`, `strpos(prosrc,'resolver_en_puertas_bajo_candado')>0` y censo D-19 = 0 (si la conserva). Sin una de las dos, la reversa no es revisable.
+
+[P1] La precondición de merge frente a la tarea Tasa no está atada a un check ejecutable
+File:
+CRM-Avance-Corp/supabase/scripts/f5/preparar-paquete.mjs
+Lines:
+15-17, 51
+Problem:
+El branch se creó desde parent con 265 migraciones. El propio PRIMARY reconoce que otra tarea concurrente tiene código de Tasa en Main sin instalar. El script solo compara refs de git; nada comprueba el estado del historial del parent en el momento del merge.
+Evidence:
+Línea 16 valida `main` y `avancecorp/main` contra HEAD; el manifiesto (líneas 52-59) registra commit, hashes y `ordenSql`, pero ningún dato del parent (`schema_migrations`, recuento 265, hashes de los 17 Edges).
+Impact:
+Si las migraciones de Tasa se instalan en el parent entre la creación del branch y el merge, el merge del branch puede regresar o entrar en conflicto con estado que el branch nunca vio. Esto afecta a esquema y funciones fuera del alcance F5.
+Recommendation:
+Convertir el "recheck antes de merge" en una comprobación que falle sola: registrar en el manifiesto el recuento y el hash del historial del parent al crear el branch, y exigir igualdad inmediatamente antes del merge (y que los 17 Edges existentes sigan byte-idénticos). Si el parent avanzó, no mergear: rehacer la paridad.
+
+[P2] La aserción central del subtest 1 no distingue lectura fresca de lectura obsoleta
+File:
+CRM-Avance-Corp/supabase/scripts/f5/candado-estado.test.mjs
+Lines:
+31, 36, 45
+Problem:
+El bloque deja `ficha_360_neutral=false` para toda la prueba (línea 31). El escritor apaga `resolver_en_puertas` (línea 36). Con F5 apagada, la función devuelve `habilitada:false` **por la vía `not v_f5`** con independencia de si `v_f3` se leyó fresco o del snapshot anterior. La aserción de la línea 45 (`habilitada===false`, `escritura_habilitada===false`) pasaría igual con una implementación `STABLE`.
+Evidence:
+Migración línea 44: `if not v_f3 or not v_f5 then return ... 'habilitada',false`. Con `v_f5=false`, el valor de `v_f3` es irrelevante para el resultado observado.
+Impact:
+Lo único realmente demostrado por este subtest es la espera (`pg_locks`, líneas 40-42), no la parte que da nombre a la prueba ("devuelve su estado confirmado"). Un futuro `CREATE OR REPLACE ... STABLE` seguiría verde aquí; solo lo atraparía la aserción de `provolatile` del subtest 4, que es un check censal y no de comportamiento.
+Recommendation:
+Hacer que el resultado dependa de `v_f3`: en ese subtest poner `ficha_360_neutral=true` con fixtures de cobertura conocida, que el escritor apague `resolver_en_puertas` de true→false, y afirmar `motivo === 'La cartera multiempresa aún no está habilitada'`. Con lectura obsoleta (`v_f3=true`) el flujo caería a la rama de cobertura y `motivo` sería otro, de modo que la prueba discrimina de verdad.
+
+[P2] El gate remoto general no protege la volatilidad ni el `lock_timeout` de la nueva capacidad
+File:
+CRM-Avance-Corp/supabase/scripts/test-rls.mjs
+Lines:
+9433-9451
+Problem:
+El invariante censal (línea 9433) solo exige que quien mencione `resolver_en_puertas` pase por el ayudante; la lista nominal de 34 firmas (líneas 9437-9451) no incluye la nueva función. Nada en las 1655 pruebas afirma que `crm.cartera_inversionistas_estado_fn()` sea `VOLATILE` ni que conserve `lock_timeout=5s`.
+Evidence:
+Esas aserciones solo existen en el postflight de la migración (líneas 67-73) y en `candado-estado.test.mjs` líneas 85-86, que es una prueba local de F5, no del gate general.
+Impact:
+Un `CREATE OR REPLACE` posterior que conserve la llamada al ayudante pero pierda `VOLATILE` deja el censo D-19 en cero y el gate general en verde, mientras la recomprobación de membresía (línea 37) y la lectura de `ficha_360_neutral` (líneas 41-42) vuelven a servirse de un snapshot previo a la espera. Es exactamente el defecto que esta corrección arregla, reintroducible sin señal roja.
+Recommendation:
+Añadir a `testIdentidadF2bD19` una comprobación con `to_regprocedure` (para que se salte limpiamente donde F5 no esté) de `provolatile='v'`, `prosecdef`, `proowner='postgres'::regrole` y `proconfig @> array['search_path=""','lock_timeout=5s']` sobre `crm.cartera_inversionistas_estado_fn()`, y actualizar el comentario de la línea 9436 que hoy dice "las 34 firmas".
+
+[P2] La detección de clave opaca por prefijo `sb_secret_` es frágil ante formatos futuros
+File:
+_supabase_functions/functions/crm-inversion-documento/handler.mjs
+Lines:
+73-77
+Problem:
+El discriminante es una allowlist de un solo prefijo con semántica invertida: cualquier cosa que **no** empiece por `sb_secret_` se envía como `Authorization: Bearer`. Es la condición peligrosa la que actúa por defecto.
+Evidence:
+Línea 76: `...(serviceKey.startsWith('sb_secret_') ? {} : {Authorization: \`Bearer ${serviceKey}\`})`. El test (documento.test.mjs líneas 55, 64) cubre exactamente los dos casos conocidos hoy, no un tercer formato.
+Impact:
+Si Supabase emite otro formato opaco (o si la variable se rellena con una clave de otra clase), se reproduce el mismo fallo original: clave opaca en `Bearer`, Storage devuelve 400/404 y el handler lo presenta como `404 'El archivo no está disponible.'`. El síntoma vuelve a ser indistinguible de un archivo inexistente.
+Recommendation:
+Invertir la prueba: enviar `Bearer` **solo** cuando la clave tenga forma de JWT (`/^ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./`) y en cualquier otro caso usar solo `apikey`. El comportamiento hoy es idéntico y el modo de fallo por defecto pasa a ser el seguro.
+
+[P2] Un fallo de Storage no deja rastro del estado real; el diagnóstico se repite desde cero
+File:
+_supabase_functions/functions/crm-inversion-documento/handler.mjs
+Lines:
+78, 89
+Problem:
+`if (!objeto.ok) throw fallo(404, 'El archivo no está disponible.')` colapsa 400/401/403/404/5xx en un único 404 sin registro alguno.
+Evidence:
+Es precisamente el enmascaramiento que obligó a la reproducción manual descrita ("Storage 400 Bucket not found (proxy mapped 404)").
+Impact:
+La próxima regresión de credenciales o de bucket costará el mismo trabajo de diagnóstico externo, y en producción con F5 encendida se manifestará como documentos "inexistentes" para los usuarios.
+Recommendation:
+Añadir un `console.warn` con `objeto.status`, `d.bucket` y la longitud de la ruta (sin ruta completa, sin nombre, sin cabeceras, sin claves) antes del `throw`. La respuesta al cliente no cambia.
+
+[P2] La verificación de integridad es opcional por contrato
+File:
+_supabase_functions/functions/crm-inversion-documento/handler.mjs
+Lines:
+82
+Problem:
+`if ((d.sha256 && d.sha256 !== sha) || (d.bytes != null && d.bytes !== bytes.length))` solo comprueba lo que el descriptor decida enviar. Si la RPC deja de devolver `sha256` y `bytes`, la comprobación desaparece sin error.
+Evidence:
+El doble por defecto de `documento.test.mjs` línea 12 no incluye ninguno de los dos campos y el flujo devuelve 200; los casos de integridad (líneas 37-41) los inyectan explícitamente.
+Impact:
+Un cambio en `crm.inversionista_documento_fn` que omita esos campos degrada silenciosamente el proxy a un pasa-bytes sin verificación, y ninguna prueba se pone roja.
+Recommendation:
+Exigir el contrato en el propio handler: si falta `sha256` (o al menos `bytes`), fallar con 409 «La ubicación del documento requiere revisión» junto al resto de validaciones del descriptor (líneas 66-69), y añadir un caso de prueba para el descriptor incompleto.
+
+[P2] Reaplicar la corrección falla con un mensaje engañoso
+File:
+CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql
+Lines:
+10-13
+Problem:
+El preflight compara `md5(prosrc)` contra el cuerpo **anterior**. Una segunda ejecución del mismo archivo (escenario plausible: aplicación manual y revisable en producción, reintento tras un timeout de red, duda sobre si la sentencia llegó a confirmarse) aborta con `'La capacidad F5 cambió: revisar antes de sustituirla'`.
+Evidence:
+Ese mensaje describe un cambio no autorizado de la capacidad; en el caso de doble aplicación el cuerpo cambió porque **esta misma migración** lo cambió.
+Impact:
+Durante una ventana de instalación, el operador recibe una alerta de manipulación cuando la realidad es idempotencia. Es el peor momento posible para un mensaje ambiguo.
+Recommendation:
+Comprobar antes el md5 del cuerpo nuevo y, si coincide, `raise notice 'La corrección D-19 ya está aplicada'` y salir sin error (o abortar con un mensaje inequívoco de "ya aplicada"). Registrar además ambos md5 (previo y resultante) en `manifiesto.json`.
+
+[P2] `git rev-parse avancecorp/main` puede estar obsoleto
+File:
+CRM-Avance-Corp/supabase/scripts/f5/preparar-paquete.mjs
+Lines:
+15-17, 51
+Problem:
+`avancecorp/main` es una referencia de seguimiento local; su valor es el del último `fetch`, no el del remoto.
+Evidence:
+Línea 16: `for(const ref of ['main','avancecorp/main']) assert.equal(run('git',['rev-parse',ref]),commit,...)`. No hay `fetch` ni `ls-remote` en el script.
+Impact:
+El artefacto puede declarar en el manifiesto (línea 52, `remoto:'avancecorp/main'`) una sincronía con el remoto que no se comprobó contra el remoto, contradiciendo el requisito explícito "Main local must equal avancecorp/main".
+Recommendation:
+Sustituir por `git ls-remote avancecorp refs/heads/main` (solo lectura, sin modificar refs) y comparar el sha, o ejecutar `git fetch avancecorp main` antes de la primera verificación.
+
+[P2] No hay prueba de la rama «El documento cambió»
+File:
+CRM-Avance-Corp/supabase/scripts/f5/documento.test.mjs
+Lines:
+48-53
+Problem:
+Ninguna prueba unitaria ejercita la línea 84 del handler (`JSON.stringify(actual) !== JSON.stringify(d)` → 409) con un segundo descriptor **distinto pero exitoso**.
+Evidence:
+El doble de `banco()` devuelve siempre el mismo descriptor. Los casos remotos de reasignación cubren la revocación (la segunda RPC falla → 403), que es otra rama distinta.
+Impact:
+La lógica que "cierra el intervalo de descarga" ante un cambio de descriptor (bucket/ruta/sha distintos con acceso aún válido) no está cubierta por ninguna prueba, ni local ni remota.
+Recommendation:
+Añadir un caso con `fetchImpl` que devuelva un descriptor en la primera RPC y otro en la segunda, y afirmar 409 y que no se devuelven bytes.
+
+[P3] Lecturas de `ficha_360_neutral` e `inversiones_escritura` fuera del candado (hipótesis)
+File:
+CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql
+Lines:
+41-42, 57
+Problem:
+Solo `resolver_en_puertas` tiene invariante de candado. Las otras dos banderas se leen sin serialización frente a su propio cambio de modo.
+Evidence:
+No dispongo del SQL de encendido de esas banderas, así que lo marco como hipótesis, no como hecho.
+Impact:
+Acotado: la función es de solo lectura y `escritura_habilitada` debería ser una pista de UI, no una autorización. Si alguna escritura F5 confía en este JSON en vez de reverificar, el impacto sube.
+Recommendation:
+Confirmar que las RPC de escritura F5 revalidan `inversiones_escritura` y el permiso por su cuenta; si no, tratar `escritura_habilitada` como no vinculante y documentarlo.
+
+[P3] `bool_or` y subconsulta escalar tratan los duplicados de forma opuesta
+File:
+CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql
+Lines:
+41-42 vs 57 (y 14)
+Problem:
+`coalesce(bool_or(activo),false)` para `ficha_360_neutral` es permisivo ante filas duplicadas (basta una en `true`); la subconsulta escalar de `inversiones_escritura` erraría. El preflight (línea 14) usa a su vez la forma escalar.
+Impact:
+Solo relevante si `crm.multiempresa_flags.nombre` no es único; en ese caso la forma permisiva podría dar F5 por encendida.
+Recommendation:
+Confirmar el índice único sobre `nombre` y unificar el estilo (preferiblemente la forma escalar, que falla ruidosamente).
+
+[P3] El md5 fijado no tiene procedencia en el archivo ni en el manifiesto
+File:
+CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql
+Lines:
+10-13
+Recommendation:
+Añadir un comentario indicando que `f8da95a1...` es el md5 de `prosrc` tal y como lo instala `20260908230249_...`, y registrarlo en `manifiesto.json` para que el aprobador pueda recalcularlo sin leer la base.
+
+[P3] Nuevos modos de fallo introducidos en la ruta que producción sí ejecuta (F5 apagada)
+File:
+CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql
+Lines:
+24, 35
+Problem:
+Con F5 OFF, el ayudante se invoca igual (línea 35, antes del corto-circuito de la línea 44). La capacidad pasa a poder devolver `0A000` (aislamiento distinto de READ COMMITTED) y `55P03` (`lock_timeout` de 5 s), errores que este endpoint de lectura no producía antes.
+Evidence:
+El subtest 3 (líneas 74-80) demuestra el `0A000` precisamente con F5 apagada.
+Impact:
+Bajo con PostgREST (READ COMMITTED por defecto, compartido no contendido entre lectores). No nulo si algún otro objeto SQL o job llama a esta función dentro de una transacción REPEATABLE READ, o si el frontend no maneja un 500 durante el cambio de bandera.
+Recommendation:
+Confirmar con CodeGraph que no existe ningún otro llamador SQL de `crm.cartera_inversionistas_estado_fn()`, y valorar capturar `sqlstate '55P03'` devolviendo el JSON neutro (fail-closed y sin 500 visible) en lugar de propagar el error.
+
+[P3] Coacción de tipos en la validación de UUID del Edge
+File:
+_supabase_functions/functions/crm-inversion-documento/handler.mjs
+Lines:
+50-53
+Problem:
+`uuid.test(input[k] ?? '')` convierte a cadena; un array de un elemento (`["<uuid>"]`) supera la validación y llega a la RPC como array.
+Impact:
+Cierra en falso (PostgREST rechaza → 409), pero con un código y mensaje que no corresponden a una entrada inválida.
+Recommendation:
+`typeof input[k]==='string' && uuid.test(input[k])`.
+
+[P3] El subtest de REPEATABLE READ acepta cualquier `0A000`
+File:
+CRM-Avance-Corp/supabase/scripts/f5/candado-estado.test.mjs
+Lines:
+74-80
+Recommendation:
+Afirmar también el texto (`La identidad unificada requiere READ COMMITTED`) para que otro `feature_not_supported` ajeno no produzca un falso verde.
+
+[P3] Directorio de paquete predecible en `/private/tmp` sin modo explícito
+File:
+CRM-Avance-Corp/supabase/scripts/f5/preparar-paquete.mjs
+Lines:
+27-28
+Problem:
+`mkdirSync(carpeta,{recursive:true})` acepta un directorio preexistente (o un enlace simbólico) y no fija permisos, mientras que `replay-local.mjs` línea 54 sí escribe con `mode:0o600`. Incoherencia dentro del mismo conjunto.
+Impact:
+Bajo en un equipo de un solo usuario; el artefacto es el que se despliega.
+Recommendation:
+`mkdtempSync` o crear con `{mode:0o700}` verificando que no existía previamente, y aplicar `mode:0o600` a `manifiesto.json` y a los `.sql` copiados.
+
+[P3] Comparación de descriptores por `JSON.stringify`
+File:
+_supabase_functions/functions/crm-inversion-documento/handler.mjs
+Lines:
+84
+Problem:
+Depende del orden de claves. Hoy es estable porque `jsonb` normaliza el orden de forma determinista; dejaría de serlo si la RPC pasara a devolver `json`.
+Recommendation:
+Comparar campo a campo (`bucket`, `ruta`, `sha256`, `bytes`, `nombre`) o dejar constancia en comentario de la dependencia con `jsonb`.
+
+TEST GAPS:
+- Rama post-reversa de las funciones F5 (P1): sin ninguna aserción.
+- Discriminación fresco/obsoleto en el subtest 1 (P2): la aserción actual no la ejerce.
+- `VOLATILE` + `lock_timeout` de la nueva capacidad en el gate general de 1655 (P2).
+- Rama 409 «El documento cambió» del segundo descriptor (P2).
+- Descriptor sin `sha256`/`bytes` (P2): hoy pasa a 200 sin verificar integridad.
+- `redirect:'error'`: no hay prueba de que una redirección de Storage no filtre la clave de servicio (el código es correcto; falta la regresión).
+- Saneo de `X-Document-Name`: truncado a 140, `slice` antes del `replace` de extensión, fallback `bin`, caracteres de control. Lógica no trivial y sin cobertura.
+- No se reejecutaron las 1655 pruebas remotas tras la corrección más los nuevos fixtures. Es una decisión defendible (alteraría los recuentos globales), pero implica que **no existe una sola corrida** que muestre el conjunto completo con la corrección instalada. Los 5 PASS dirigidos y el censo remoto en 0 cubren el invariante concreto, no el resto de la superficie.
+
+ARCHITECTURE RISKS:
+- El invariante D-19 se sostiene sobre dos controles complementarios: censo de `prosrc` (gate general) y volatilidad/`proconfig` (solo postflight y prueba local F5). El segundo no está en el gate diario; ver [P2].
+- La corrección reescribe el cuerpo completo de la función. Las partes no relacionadas con D-19 (cobertura, `escritura_habilitada`) quedan cubiertas por comportamiento (44 locales, 15 remotos) pero no por ninguna comparación textual con el cuerpo original, y `replay-local.mjs` excluye esa función de `firmas`. Un diff explícito viejo/nuevo `prosrc` adjunto al paquete cerraría el hueco a coste cero.
+- La lista nominal de 34 firmas D-19 queda desfasada respecto a la realidad (35 llamadores). El censo compensa, pero el comentario de la línea 9436 induce a error.
+
+SECURITY RISKS:
+- La clave de servicio se envía ahora en `apikey` hacia Storage. Las mitigaciones están y son las correctas: `redirect:'error'`, allowlist de buckets, `base` desde entorno, ruta validada por segmentos y codificada, y `apikey` anónima intacta en Auth y en ambas RPC. La superficie residual es la fragilidad del prefijo ([P2]).
+- El delta de advisors (+5 WARN de RPC SECURITY DEFINER expuestas a `authenticated`, +1 INFO de tabla de auditoría deny-all, 0 ERROR) es coherente con F5 original, no con esta corrección. La desaparición del WARN de pg_net-in-public en el branch está explicada como metadatos de extensión gestionada; es una explicación plausible, no una comprobación, y conviene confirmarla en el parent tras el merge.
+- No detecto escritura financiera ni ampliación de superficie API: firma, JSON de retorno y ACL (`authenticated` sí; `anon`, `service_role`, PUBLIC no) se conservan y el postflight lo verifica de forma sólida — `has_function_privilege('anon',...)=false` cubre además el caso PUBLIC.
+
+REGRESSION RISKS:
+- Nuevos `0A000`/`55P03` en un endpoint de lectura que producción ejecutará con F5 apagada ([P3]).
+- La reversa, si toca las funciones F5, es hoy el camino menos verificado del conjunto ([P1]).
+- Merge del branch (creado en parent=265) frente a las migraciones de Tasa aún no instaladas ([P1]).
+- `CREATE OR REPLACE` sobre una función propiedad de `postgres`: si el rol que aplica el SQL en producción no es `postgres` ni miembro suyo, la migración falla (de forma segura, pero bloquea la ventana). Conviene confirmarlo antes, no durante.
+
+RECOMMENDED NEXT ACTIONS:
+1. Adjuntar `reversa-operativa.sql` y añadir en `replay-local.mjs` las aserciones post-reversa sobre `crm.cartera_inversionistas_estado_fn()` (existencia, `provolatile`, `proconfig`, llamada al ayudante) y censo D-19 = 0. Sin esto, la instalación queda sin ruta de vuelta revisada.
+2. Convertir el "recheck del parent antes de merge" en una comprobación que falle sola: recuento e historial de migraciones del parent y hashes de los 17 Edges existentes registrados en el manifiesto y verificados inmediatamente antes de mergear.
+3. Corregir el subtest 1 de `candado-estado.test.mjs` para que el resultado dependa de `v_f3` (F5 encendida en ese subtest, aserción sobre `motivo`), y añadir a `testIdentidadF2bD19` las aserciones de `VOLATILE` y `lock_timeout` de la nueva capacidad.
+4. En el handler: invertir la detección de clave a "JWT ⇒ Bearer, en otro caso solo apikey", registrar `objeto.status` en los fallos de Storage, exigir `sha256`/`bytes` en el descriptor y endurecer la validación de UUID a `typeof === 'string'`. Añadir la prueba del segundo descriptor divergente.
+5. Antes de la ventana: hacer idempotente el preflight ante doble aplicación, sustituir `rev-parse avancecorp/main` por `ls-remote`, confirmar que ningún otro objeto SQL llama a `cartera_inversionistas_estado_fn()`, y confirmar el rol que aplicará el `CREATE OR REPLACE` en producción.
+
+CONFIDENCE:
+MEDIUM — Alta sobre los cinco archivos adjuntos, que he podido leer íntegros. Media en el conjunto: no dispongo de `reversa-operativa.sql`, del cuerpo de la migración F5 original (fuera de alcance por decisión explícita), de `banco-local.mjs`, ni del consumidor frontend del endpoint, y no existe una corrida completa de las 1655 pruebas remotas con la corrección instalada. La valoración de riesgo proporcional del PRIMARY sobre los 65 fallos preexistentes me parece honesta y bien delimitada; no los interpreto como resueltos.

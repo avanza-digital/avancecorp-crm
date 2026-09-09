@@ -42,7 +42,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Frontend publicado; servidor ensayado, F5 apagada | VoiceOver aprobado. SQL original y banco autorizados; 44 pruebas locales y 15 remotas PASS. Correcciones de candado y descarga preparadas; falta confirmar el SQL adicional e instalar. Los 15 huecos reales bloquean el encendido. [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]] |
+| F5 — cartera y Ficha 360 | Frontend publicado; servidor ensayado, F5 apagada | VoiceOver aprobado. SQL original y banco autorizados; 46 pruebas locales y 15 remotas PASS. Correcciones de candado y descarga preparadas; falta confirmar el SQL adicional e instalar. Los 15 huecos reales bloquean el encendido. [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |

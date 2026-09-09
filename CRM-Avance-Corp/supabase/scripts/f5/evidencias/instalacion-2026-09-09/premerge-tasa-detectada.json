@@ -1,0 +1,7 @@
+{
+  "estado": "PASS",
+  "rechazoEsperado": true,
+  "motivo": "Producción cambió de esquema o historial",
+  "migracionesBase": 265,
+  "migracionesActuales": 266
+}

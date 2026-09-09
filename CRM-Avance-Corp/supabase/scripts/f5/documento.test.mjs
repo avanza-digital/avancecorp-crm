@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {crearHandlerDocumentoInversion} from '../../../../_supabase_functions/functions/crm-inversion-documento/handler.mjs';
 const id='11111111-1111-4111-8111-111111111111';
 const entrada={inversionista_id:id,fuente_id:id,documento_id:id};
-const config={supabaseUrl:'https://banco.example',anonKey:'anon-sintetico',serviceKey:'servicio-sintetico'};
+const config={supabaseUrl:'https://banco.example',anonKey:'anon-sintetico',serviceKey:'eyJficticio.payload.firma'};
 const json=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'Content-Type':'application/json'}});
 const req=(body=entrada,headers={})=>new Request('https://banco.example/functions/v1/crm-inversion-documento',{
   method:'POST',headers:{Authorization:'Bearer sesion-sintetica',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
@@ -20,7 +20,8 @@ function banco(descriptor={bucket:'f4-comprobantes',ruta:`${id}/archivo.png`,nom
 }
 test('G5 documento: JSON/UUID/campos/origen/tamaño inválidos no llegan a Auth ni Storage',async()=>{
   const b=banco();
-  for(const input of ['{',[],{...entrada,documento_id:'inválido'},{...entrada,ruta:'archivo-ajeno'},'x'.repeat(1025)]) {
+  for(const input of ['{',[],{...entrada,documento_id:'inválido'},{...entrada,documento_id:[id]},
+    {...entrada,fuente_id:17},{...entrada,ruta:'archivo-ajeno'},'x'.repeat(1025)]) {
     assert.ok([400,413].includes((await b.handler(req(input))).status));
   }
   assert.equal((await b.handler(req(entrada,{Origin:'https://ajeno.example'}))).status,403);
@@ -48,11 +49,11 @@ test('G5 documento: integridad, archivo vacío y límite de streaming fallan sin
 test('G5 documento: sesión vigente y descriptor se revalidan; solo Storage usa service role',async()=>{
   const b=banco();const r=await b.handler(req());assert.equal(r.status,200);
   assert.equal(r.headers.get('Cache-Control'),'private, no-store');assert.equal(b.llamadas.length,4);
-  for(const x of b.llamadas) assert.equal(x.init.headers.Authorization,x.url.includes('/storage/')?'Bearer servicio-sintetico':'Bearer sesion-sintetica');
+  for(const x of b.llamadas) assert.equal(x.init.headers.Authorization,x.url.includes('/storage/')?`Bearer ${config.serviceKey}`:'Bearer sesion-sintetica');
   assert.equal(await r.text(),'\u0001\u0002\u0003');
 });
 test('G5 documento: Storage admite clave opaca y JWT sin elevar Auth ni las RPC',async()=>{
-  for(const serviceKey of ['sb_secret_ficticia_no_es_una_credencial','eyJ.jwt_ficticio.firma_ficticia']) {
+  for(const serviceKey of ['sb_secret_ficticia_no_es_una_credencial','eyJ.jwt_ficticio.firma_ficticia','otra_clave_opaca_ficticia']) {
     const llamadas=[];
     const handler=crearHandlerDocumentoInversion({...config,serviceKey,fetchImpl:async(url,init)=>{
       llamadas.push(url);
@@ -61,7 +62,7 @@ test('G5 documento: Storage admite clave opaca y JWT sin elevar Auth ni las RPC'
         // La pasarela resuelve la clave opaca desde apikey; una clave pública
         // aquí convierte la descarga privada en un falso «bucket ausente».
         assert.equal(headers.get('apikey'),serviceKey);
-        assert.equal(headers.get('authorization'),serviceKey.startsWith('sb_secret_')?null:`Bearer ${serviceKey}`);
+        assert.equal(headers.get('authorization'),serviceKey.startsWith('eyJ.')?`Bearer ${serviceKey}`:null);
         return new Response(new Uint8Array([1,2,3]));
       }
       assert.equal(headers.get('apikey'),config.anonKey);
@@ -71,4 +72,25 @@ test('G5 documento: Storage admite clave opaca y JWT sin elevar Auth ni las RPC'
     const r=await handler(req());assert.equal(r.status,200,await r.clone().text());
     assert.equal(llamadas.length,4);assert.deepEqual(new Uint8Array(await r.arrayBuffer()),new Uint8Array([1,2,3]));
   }
+});
+test('G5 documento: cambio de descriptor con acceso válido descarta los bytes',async()=>{
+  let consultas=0;
+  const handler=crearHandlerDocumentoInversion({...config,fetchImpl:async url=>{
+    if(url.endsWith('/auth/v1/user'))return json({id});
+    if(url.includes('/rpc/'))return json({bucket:'documentos',ruta:++consultas===1?'anterior.pdf':'actual.pdf'});
+    return new Response(new Uint8Array([1,2,3]));
+  }});
+  const r=await handler(req());assert.equal(r.status,409);assert.equal(consultas,2);
+  assert.equal((await r.json()).error,'El documento cambió. Vuelve a consultarlo.');
+});
+test('G5 documento: fallo Storage registra solo estado y bucket, sin ruta ni credenciales',async t=>{
+  const aviso=t.mock.method(console,'warn',()=>{});
+  const handler=crearHandlerDocumentoInversion({...config,fetchImpl:async url=>{
+    if(url.endsWith('/auth/v1/user'))return json({id});
+    if(url.includes('/rpc/'))return json({bucket:'documentos',ruta:'persona/documento-privado.pdf'});
+    return json({message:'mensaje interno'},503);
+  }});
+  const r=await handler(req());assert.equal(r.status,404);
+  assert.deepEqual(aviso.mock.calls.map(x=>x.arguments),[['f5_documento_storage_error',{status:503,bucket:'documentos'}]]);
+  assert.equal((await r.json()).error,'El archivo no está disponible.');
 });

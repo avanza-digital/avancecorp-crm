@@ -19,7 +19,7 @@ La prueba remota encontró dos defectos:
   apikey pública. Se corrigió solo la credencial de Storage; Auth y consultas
   documentales conservan la sesión del usuario y la comprobación vigente.
 
-Resultado: **44 pruebas locales y 15 remotas PASS**, incluida descarga exacta,
+Resultado: **46 pruebas locales y 15 remotas PASS**, incluida descarga exacta,
 reasignación, baja, integridad de importes y permisos. Replay, reversa, tipos
 y preflights PASS. El gate general remoto dio 1.589 PASS/66 FAIL: 65 coinciden
 exactamente con los fallos anteriores de Citas y el adicional era D-19.
@@ -48,4 +48,3 @@ Relacionados: [[F5 - prepublicacion y salto de cartera (2026-09-09)]],
 [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]],
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]],
 [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
-

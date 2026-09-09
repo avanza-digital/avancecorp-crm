@@ -1,0 +1,195 @@
+{
+  "capturadoEn": "2026-09-09T17:41:33.866Z",
+  "esquema": [
+    {
+      "categoria": "1. columnas",
+      "n": 1046,
+      "huella": "e5200e5d599d265e3c02392cfcc500fb"
+    },
+    {
+      "categoria": "2. funciones",
+      "n": 570,
+      "huella": "3eebd05997dea83d1dc7708c43342fcb"
+    },
+    {
+      "categoria": "3. disparadores",
+      "n": 243,
+      "huella": "ed6709fb39af5d6641011a3a4866b41b"
+    },
+    {
+      "categoria": "4. politicas RLS",
+      "n": 97,
+      "huella": "99132642df5b06e4afbc1c937e2163df"
+    },
+    {
+      "categoria": "5. RLS por tabla",
+      "n": 100,
+      "huella": "daff32c4d712e3e540a04769e87ddff8"
+    },
+    {
+      "categoria": "6. indices",
+      "n": 396,
+      "huella": "d6aa4fb38710afe0584ecf2d68c1435a"
+    },
+    {
+      "categoria": "7. restricciones",
+      "n": 783,
+      "huella": "1bec7eb916cf4fa655e634a566c321c3"
+    },
+    {
+      "categoria": "8. registro",
+      "n": 266,
+      "huella": "b4008d2c16d80caf368ee0574991e86c"
+    },
+    {
+      "categoria": "9. vistas",
+      "n": 3,
+      "huella": "5e0c6d0fc127806f65bd9733cd9865e6"
+    }
+  ],
+  "acl": [
+    {
+      "n": 266,
+      "huella": "eb42c6aff05f6716440955e52cb68271",
+      "categoria": "arrays_historial"
+    },
+    {
+      "n": 44,
+      "huella": "29b881419ef378fa22460cd232029b57",
+      "categoria": "columnas"
+    },
+    {
+      "n": 17,
+      "huella": "633eebecdcccb5c5a3f1a1b2f99772db",
+      "categoria": "esquemas"
+    },
+    {
+      "n": 1097,
+      "huella": "5a2d80c6a0f6a04a805d88c882b71504",
+      "categoria": "tablas"
+    }
+  ],
+  "version": 1,
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "edges": [
+    {
+      "nombre": "ciclo-contratos",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "af8403edf26bbc18e63fd4eccc637546c278d6630ec45204bbcae36fef1bf9f4"
+    },
+    {
+      "nombre": "crear-admin",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/crear-admin/index.ts",
+      "sha256": "b3a849826e5974fd8c9be9213f47b57cd54cae90d222c44a2d88c308bf404282"
+    },
+    {
+      "nombre": "crear-cliente",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/crear-cliente/index.ts",
+      "sha256": "22a7bdeee010c22604f4a4e18a0481180670518202a1eb24ecfd67408181eb81"
+    },
+    {
+      "nombre": "crm-agenda-ics",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrada": "CRM-Avance-Corp/supabase/functions/crm-agenda-ics/index.ts",
+      "sha256": "83bc6a67bfa9eaa6345101802815e2301178b2ab2a82facfa02b6f3d485df1d1"
+    },
+    {
+      "nombre": "crm-contrato-pdf-v2",
+      "verify_jwt": true,
+      "import_map": true,
+      "entrada": "supabase/functions/crm-contrato-pdf-v2/index.ts",
+      "sha256": "a1dfc2fb8103c895de420c3e870b17a1450877b93ee14b55fad15740699f311b"
+    },
+    {
+      "nombre": "crm-convertir-lead",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "functions/crm-convertir-lead/index.ts",
+      "sha256": "a3995cd36027daecefeda709ac4164e4b02e15a7df90ef6c8fcd859b99db7eff"
+    },
+    {
+      "nombre": "crm-importar-leads",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/crm-importar-leads/index.ts",
+      "sha256": "474bf75a6c30f4d5ad4fbfedd177eec0d53f593504482da504c58e1fda092521"
+    },
+    {
+      "nombre": "crm-inversion-portal",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "functions/crm-inversion-portal/index.ts",
+      "sha256": "0b8662a3c6dead8bf4489053b2e7c0bf6ae2e47204fa8997455a9945755c7438"
+    },
+    {
+      "nombre": "crm-tipo-cambio",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/crm-tipo-cambio/index.ts",
+      "sha256": "e1927f600b65853831f16ace8d0c747b3c90cc77dedd78ca4907edb1ee9925bb"
+    },
+    {
+      "nombre": "crm-usuarios",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "d6b53a6d8e48d99fc5e9eb1ccc161e8c0eb8307d6294747bcfcbcd10c4ff88f7"
+    },
+    {
+      "nombre": "diagnostico-push",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "7de999777e5498456ffb8eeb43fcd0c9fb8b11638167db279fd105710a5317a6"
+    },
+    {
+      "nombre": "eliminar-cliente",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/eliminar-cliente/index.ts",
+      "sha256": "ed9a26c5be7fb7381d59c5283093306f5ebd65d5fa3a42bf1bc381764051919f"
+    },
+    {
+      "nombre": "enviar-comunicado",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "06e83a66093eaf2cfcefc1f83ebfd8e2838f0a062f30cb3b44f4d527ec48380a"
+    },
+    {
+      "nombre": "enviar-push",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "6ef6d7178eceb662a6ed518263ceefe679858925e05b6df94fae3d0a7751ddb9"
+    },
+    {
+      "nombre": "importar-clientes",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "supabase/functions/importar-clientes/index.ts",
+      "sha256": "8e8db448148a2976d989423ef258d78c0a2c94e3841ed87452251339a0a5ebe0"
+    },
+    {
+      "nombre": "notificar-pagos",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "16182712feb85d7efc0fb7a0f2cb25be4fcbb226a3dd1b891bc6f26ffa585220"
+    },
+    {
+      "nombre": "resetear-password",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrada": "index.ts",
+      "sha256": "79617f04333f65da6c43966de2329cb249d5c23063ea2e880d3cc0a6e5e137ca"
+    }
+  ]
+}

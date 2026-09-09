@@ -75,18 +75,27 @@ porque otra tarea está preparando Tasa sobre el mismo Main.
 
 ## Resultados
 
+**Integración posterior de Tasa:** el padre avanzó a 266 migraciones
+(`20260909165815_crm_solicitud_tasa_lead_preconversion`). El control premerge
+rechazó el cambio real de la base anterior. Se ejecutó `rebase_branch`, se
+cotejaron las 1.353 funciones/restricciones del padre y las 17 Edge/50 archivos
+y se repitieron las 15 comprobaciones remotas con PASS. El banco tiene 268
+migraciones: las 266 del padre más las dos F5. La base versionada corresponde
+ahora a esa integración, conservando los tres CHECK equivalentes documentados.
+
 | Verificación | Resultado |
 | --- | --- |
-| Nueve grupos locales F5, secuenciales, después de ambas correcciones | **PASS: 44 pruebas** |
+| Nueve grupos locales F5, secuenciales, después de ambas correcciones | **PASS: 46 pruebas** |
 | Auth, REST, RLS, Storage y entrypoint Edge remoto con datos ficticios | **PASS: 15 comprobaciones** |
 | D-19 antes/después, dos conexiones reales, revocación durante espera | FAIL del original → **PASS: 5 pruebas**, censo remoto cero |
 | Descarga con claves opacas y JWT heredados | FAIL del original → **PASS**; descarga remota de bytes/SHA idénticos |
 | Replay de ambos SQL en copia sintética nueva y reversa | **PASS**; funciones ajenas, Auth, fuentes, dinero y banderas conservados |
 | Tipos generados desde `public,crm` del banco remoto | **PASS**: seis nodos F5 coinciden exactamente |
 | Sintaxis/scripts, seed y RLS preflight, Edge preflight, Deno check, generadores | **PASS** |
+| Gate previo al merge: historial/esquema/permisos/Edge/Main/banderas y captura reciente | **PASS: cinco pruebas**; detectó el cambio real de Tasa |
+| Rutina D-19 exacta del gate general con la nueva aserción F5, ejecutada en banco remoto | **PASS: siete checks** |
 | RLS general remoto antes de corregir D-19 | **FAIL: 1.589 PASS / 66 FAIL de 1.655** |
 | Repetición completa del RLS general después de añadir fixtures F5 | **NOT RUN**; se ejecutaron D-19 y la matriz F5 después del arreglo |
-| Build de artefacto desde Main sincronizado tras el commit | Pendiente |
 | Instalación, comprobación de producción y eliminación del banco | Pendiente |
 
 De los 66 fallos generales, **65 coinciden exactamente** con la línea base de
@@ -117,6 +126,27 @@ TypeScript/React ni exige otra subida de la web.
 
 ## Publicación pendiente y continuación
 
+Evaluación de Claude y decisiones del PRIMARY:
+[REVISION-INSTALACION-2026-09-09.md](REVISION-INSTALACION-2026-09-09.md).
+Después del rebase, advisors: padre 0 ERROR/178 WARN/52 INFO;
+banco 0 ERROR/182 WARN/53 INFO. Se conserva el mismo delta F5 explicado arriba.
+Rendimiento del banco: 0 ERROR/5 WARN/145 INFO.
+
+El manifiesto final incluye `baseProductiva`, las dos huellas SQL y los MD5
+de la capacidad antes/después. Antes y después del build se compara también
+el Main remoto vivo con `git ls-remote`. El control de instalación se ejecuta
+con una captura recién recogida:
+
+```sh
+node supabase/scripts/f5/preflight-merge.mjs /ruta/manifiesto.json /ruta/captura-actual.json
+```
+
+La captura usa `estado-esquema.sql`, los permisos de `estado-permisos.sql`,
+las banderas y las fuentes actuales de las 17 Edge. Si se reutiliza una lectura
+de archivos, su versión/paquete/entrada/JWT deben reconfirmarse contra el
+inventario vivo. Un FAIL impide el merge; no se renueva la base para ocultarlo.
+Después de integrar se verifican otra vez SQL/Edge/datos/banderas.
+
 Antes del merge: confirmar el segundo SQL, guardar commits e integrar Main remoto,
 construir desde Main verificado, cotejar historial/esquema/Edge del padre y guardar
 huellas de las tablas de negocio. Integrar solo esta rama; cotejar los dos SQL,
@@ -131,4 +161,3 @@ El desarrollo no sustituye esas verificaciones operativas.
 
 Evidencia privada: `/private/tmp/avancecorp-f5-instalacion-20260909/`.
 Las credenciales no forman parte del paquete ni del repositorio.
-

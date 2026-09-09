@@ -30,6 +30,7 @@ test('D-19 F5: capacidad serializada con el cambio de modo',async t=>{
  try {
   sql("update crm.multiempresa_flags set activo=true where nombre='resolver_en_puertas'; update crm.multiempresa_flags set activo=false where nombre='ficha_360_neutral';");
   await t.test('la consulta espera al apagado y devuelve su estado confirmado',async()=>{
+   sql("update crm.multiempresa_flags set activo=true where nombre='ficha_360_neutral'");
    const nombre=`f5_lector_${randomUUID()}`;
    const escritor=conexion(`f5_escritor_${randomUUID()}`);let lector;
    try {
@@ -43,10 +44,12 @@ test('D-19 F5: capacidad serializada con el cambio de modo',async t=>{
     escritor.p.stdin.end('commit;\n');assert.equal((await escritor.termina).codigo,0);
     const r=await lector.termina;assert.equal(r.codigo,0,r.error);
     const estado=JSON.parse(r.salida.trim());assert.equal(estado.habilitada,false);assert.equal(estado.escritura_habilitada,false);
+    assert.equal(estado.motivo,'La cartera multiempresa aún no está habilitada');
    } finally {
     if(!escritor.p.stdin.writableEnded)escritor.p.stdin.end('rollback;\n');
     await escritor.termina;if(lector)await lector.termina;
     sql("update crm.multiempresa_flags set activo=true where nombre='resolver_en_puertas'");
+    sql("update crm.multiempresa_flags set activo=false where nombre='ficha_360_neutral'");
    }
   });
   await t.test('una baja durante la espera invalida la autorización inicial',async()=>{

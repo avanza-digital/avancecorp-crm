@@ -45,11 +45,18 @@ assert.equal(sql(firmas),cuerpos,'Una función publicada ajena a F5 cambió');
 assert.equal(fuentes(),antes,'La migración cambió fuentes, identidades, Auth o banderas');
 assert.equal(sql("select has_function_privilege('anon','crm.inversionista_ficha_fn(uuid,integer,integer)','execute')"),'f');
 // Reversa ensayada sobre la copia, sin borrar la lectura ni los datos.
+const firmasF5=firmas.replace('p.proname not in','p.proname in');
+const corregidas=sql(firmasF5);
 sql("update crm.multiempresa_flags set activo=true where nombre='ficha_360_neutral'");
 sql(readFileSync(new URL('reversa-operativa.sql',import.meta.url),'utf8'));
 assert.equal(sql("select activo from crm.multiempresa_flags where nombre='ficha_360_neutral'"),'f');
 assert.equal(fuentes(),antes);assert.equal(sql(firmas),cuerpos);
+assert.equal(sql(firmasF5),corregidas,'La reversa alteró una función F5 corregida o sus permisos');
+assert.equal(sql(`select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname in ('crm','private','public') and strpos(p.prosrc,'resolver_en_puertas')>0
+ and strpos(p.prosrc,'crm_flag_resolver_en_puertas')=0 and strpos(p.prosrc,'resolver_en_puertas_bajo_candado')=0`),'0');
 const hash=x=>createHash('sha256').update(x).digest('hex');
 writeFileSync(`${banco}/evidencia-replay.json`,JSON.stringify({estado:'PASS',db,baseSintetica:hash(dump),
- sql:hash(candidato),correccion:hash(correccion),funcionesPublicadasConservadas:true,fuentesBanderasAuthConservadas:true,reversa:'PASS'},null,2)+'\n',{mode:0o600});
+ sql:hash(candidato),correccion:hash(correccion),funcionesPublicadasConservadas:true,fuentesBanderasAuthConservadas:true,
+ funcionesF5CorregidasConservadas:true,d19TrasReversa:0,reversa:'PASS'},null,2)+'\n',{mode:0o600});
 console.log('Replay F5 PASS: copia sintética nueva, migración exacta y reversa; funciones publicadas y dinero intactos.');
