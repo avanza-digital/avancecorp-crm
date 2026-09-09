@@ -51,3 +51,24 @@ test('G5 documento: sesión vigente y descriptor se revalidan; solo Storage usa 
   for(const x of b.llamadas) assert.equal(x.init.headers.Authorization,x.url.includes('/storage/')?'Bearer servicio-sintetico':'Bearer sesion-sintetica');
   assert.equal(await r.text(),'\u0001\u0002\u0003');
 });
+test('G5 documento: Storage admite clave opaca y JWT sin elevar Auth ni las RPC',async()=>{
+  for(const serviceKey of ['sb_secret_ficticia_no_es_una_credencial','eyJ.jwt_ficticio.firma_ficticia']) {
+    const llamadas=[];
+    const handler=crearHandlerDocumentoInversion({...config,serviceKey,fetchImpl:async(url,init)=>{
+      llamadas.push(url);
+      const headers=new Headers(init.headers);
+      if(url.includes('/storage/')) {
+        // La pasarela resuelve la clave opaca desde apikey; una clave pública
+        // aquí convierte la descarga privada en un falso «bucket ausente».
+        assert.equal(headers.get('apikey'),serviceKey);
+        assert.equal(headers.get('authorization'),serviceKey.startsWith('sb_secret_')?null:`Bearer ${serviceKey}`);
+        return new Response(new Uint8Array([1,2,3]));
+      }
+      assert.equal(headers.get('apikey'),config.anonKey);
+      assert.equal(headers.get('authorization'),'Bearer sesion-sintetica');
+      return json(url.endsWith('/auth/v1/user')?{id}:{bucket:'documentos',ruta:'ficticio.png'});
+    }});
+    const r=await handler(req());assert.equal(r.status,200,await r.clone().text());
+    assert.equal(llamadas.length,4);assert.deepEqual(new Uint8Array(await r.arrayBuffer()),new Uint8Array([1,2,3]));
+  }
+});

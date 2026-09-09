@@ -1,0 +1,14 @@
+▶ D-19 F5: capacidad serializada con el cambio de modo
+  ✔ la consulta espera al apagado y devuelve su estado confirmado (230.495917ms)
+  ✔ una baja durante la espera invalida la autorización inicial (234.750875ms)
+  ✔ rechaza snapshots de REPEATABLE READ aunque F5 esté apagada (40.512041ms)
+  ✔ censo D-19 en cero, bloqueo limitado y mismos permisos (170.334833ms)
+✔ D-19 F5: capacidad serializada con el cambio de modo (974.356709ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1016.438666

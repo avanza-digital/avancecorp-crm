@@ -1,0 +1,67 @@
+{
+  "estado": "PASS",
+  "terminadoEn": "2026-09-09T17:22:32.310Z",
+  "entorno": "Supabase branch exclusivo F5; Auth/REST/Storage/Edge reales, datos sintéticos",
+  "resultados": [
+    {
+      "nombre": "OFF conserva capacidad apagada y rechaza la cartera neutral",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "ON exige cobertura completa de las fuentes sintéticas",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Anon, cliente, coordinador e inactivo no acceden ni enumeran",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Gerencia pagina personas únicas y concilia importes por empresa y moneda",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Vendedor y supervisor ven su cooperativa sin crear perfil Portal",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Otro equipo no descubre la persona por ficha ni búsqueda",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Filtros, paginación y texto literal respetan límites del servidor",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Directorio solo lee Avance, sin bancos, documentos ni nuevas inversiones",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Proxy desplegado entrega bytes exactos, sin caché ni URL firmada",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Proxy deniega documento a otro equipo, Directorio, cliente y anónimo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Proxy rechaza rutas añadidas, UUID inválido y origen externo",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Reasignar revoca inmediatamente ficha, búsqueda, bancos y documento",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Token vigente pierde acceso al desactivar su membresía",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "RPC/tablas auxiliares cerradas y registro sin PII",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "Las lecturas y reasignaciones no cambian capital, fuentes, cuotas ni Auth",
+      "estado": "PASS"
+    }
+  ]
+}

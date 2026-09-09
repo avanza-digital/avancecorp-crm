@@ -71,7 +71,9 @@ export function crearHandlerDocumentoInversion({supabaseUrl, anonKey, serviceKey
       };
       const d = await descriptor();
       const objeto = await llamar(`/storage/v1/object/${d.bucket}/${d.ruta.split('/').map(encodeURIComponent).join('/')}`, {
-        headers: {apikey: anonKey, Authorization: `Bearer ${serviceKey}`},
+        // Las claves opacas se resuelven desde apikey. Solo los JWT heredados
+        // se envían también como Bearer; Auth y las RPC conservan la sesión.
+        headers: {apikey: serviceKey, ...(serviceKey.startsWith('sb_secret_') ? {} : {Authorization: `Bearer ${serviceKey}`})},
       });
       if (!objeto.ok) throw fallo(404, 'El archivo no está disponible.');
       const bytes = await leerBytes(objeto, maxBytes);

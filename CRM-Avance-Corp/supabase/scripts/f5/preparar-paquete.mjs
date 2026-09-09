@@ -17,6 +17,7 @@ const verificar=()=>{for(const ref of ['main','avancecorp/main']) assert.equal(r
 verificar();
 const rutas=['CRM-Avance-Corp/app','CRM-Avance-Corp/supabase/scripts/f5',
  'CRM-Avance-Corp/supabase/migrations/20260908230249_crm_f5_cartera_ficha_multiempresa.sql',
+ 'CRM-Avance-Corp/supabase/migrations/20260909170900_crm_f5_candado_estado_cartera.sql',
  '_supabase_functions/functions/crm-inversion-documento'];
 const verificarFuentes=()=>{
  assert.equal(run('git',['diff','--name-only','HEAD','--',...rutas]),'','El código debe estar guardado en commits');
@@ -42,12 +43,16 @@ inventariar(join(crm,'app/dist'));
 run('tar',['-czf',join(carpeta,'frontend.tar.gz'),'-C',join(crm,'app/dist'),'.'],root,{...process.env,COPYFILE_DISABLE:'1'});
 const sql='20260908230249_crm_f5_cartera_ficha_multiempresa.sql';
 copyFileSync(join(crm,'supabase/migrations',sql),join(carpeta,sql));
+const correccion='20260909170900_crm_f5_candado_estado_cartera.sql';
+copyFileSync(join(crm,'supabase/migrations',correccion),join(carpeta,correccion));
 const reversa='reversa-operativa.sql';
 copyFileSync(join(crm,'supabase/scripts/f5',reversa),join(carpeta,reversa));
 for(const n of ['handler.mjs','index.ts'])copyFileSync(join(root,'_supabase_functions/functions/crm-inversion-documento',n),join(carpeta,`documento-${n}`));
 verificar();verificarFuentes();assert.equal(run('git',['rev-parse','HEAD']),commit);
 const manifiesto={estado:'PREPARADO, SIN PUBLICAR',commit,main:commit,remoto:'avancecorp/main',node:process.version,
  sql:{archivo:sql,sha256:hash(readFileSync(join(carpeta,sql)))},
+ correccion:{archivo:correccion,sha256:hash(readFileSync(join(carpeta,correccion)))},
+ ordenSql:[sql,correccion],
  reversa:{archivo:reversa,sha256:hash(readFileSync(join(carpeta,reversa)))},
  frontend:{archivo:'frontend.tar.gz',sha256:hash(readFileSync(join(carpeta,'frontend.tar.gz'))),archivos:archivos.sort((a,b)=>a.ruta.localeCompare(b.ruta))},
  funciones:{'crm-inversion-documento':Object.fromEntries(['handler.mjs','index.ts'].map(n=>[n,hash(readFileSync(join(carpeta,`documento-${n}`)))]))},

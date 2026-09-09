@@ -1,0 +1,12 @@
+{
+  "estado": "FAIL",
+  "aserciones": 1655,
+  "aprobadas": 1589,
+  "fallidas": 66,
+  "diferencias_ante_citas": [
+    "✗ D-19 ninguna función lee la bandera sin su candado compartido (hoy 1)"
+  ],
+  "commit_del_gate_general": "a9de56dcea2b99e305e07036dae9e3ce5941f516",
+  "fallos_linea_base": 65,
+  "posterior": "D-19 cero y matriz F5 PASS; general completo NOT RUN tras las correcciones"
+}

@@ -1,5 +1,10 @@
 # F5 — prepublicación y corrección del salto de cartera
 
+Actualización: Miguel confirmó el SQL original y el banco temporal. La prueba
+remota está terminada y dejó dos correcciones documentadas en
+[INSTALACION-2026-09-09.md](INSTALACION-2026-09-09.md). Se conserva abajo el
+registro de la publicación de la web; sus pendientes reflejan aquel momento.
+
 Fecha: 2026-09-09. Codex PRIMARY; Claude SECONDARY_REVIEWER solo de lectura.
 
 ## Alcance y autorización

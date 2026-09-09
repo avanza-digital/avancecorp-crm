@@ -1,10 +1,15 @@
 ---
 tags: [crm, cartera, F5, publicacion, regresion]
 fecha: 2026-09-09
-estado: salto-corregido-publicado-sql-f5-pendiente
+estado: salto-publicado-banco-f5-ensayado
 ---
 
 # F5 — prepublicación y salto de cartera
+
+Actualización: Miguel confirmó el SQL original y el banco remoto. El ensayo
+terminó con 44 pruebas locales y 15 remotas aprobadas y dos correcciones
+adicionales. Estado vigente: [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
+El relato siguiente conserva el momento anterior a esa confirmación.
 
 Miguel aprobó el recorrido guiado de VoiceOver y pidió seguir el plan. Reportó
 un salto de pantalla en cartera y autorizó publicar su corrección.

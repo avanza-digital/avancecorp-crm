@@ -1,0 +1,53 @@
+{
+  "estado": "PASS",
+  "entorno": "Banco cerrado F5: Auth/PostgREST/Storage reales y datos sintéticos",
+  "terminadoEn": "2026-09-09T17:22:07.410Z",
+  "resultados": [
+    {
+      "grupo": "lecturas",
+      "estado": "PASS",
+      "tests": 12
+    },
+    {
+      "grupo": "flujo",
+      "estado": "PASS",
+      "tests": 7
+    },
+    {
+      "grupo": "fusion",
+      "estado": "PASS",
+      "tests": 1
+    },
+    {
+      "grupo": "lecturas-bordes",
+      "estado": "PASS",
+      "tests": 8
+    },
+    {
+      "grupo": "fechas",
+      "estado": "PASS",
+      "tests": 1
+    },
+    {
+      "grupo": "pdf",
+      "estado": "PASS",
+      "tests": 3
+    },
+    {
+      "grupo": "documento",
+      "estado": "PASS",
+      "tests": 5
+    },
+    {
+      "grupo": "concurrencia",
+      "estado": "PASS",
+      "tests": 2
+    },
+    {
+      "grupo": "candado-estado",
+      "estado": "PASS",
+      "tests": 5
+    }
+  ],
+  "totalTests": 44
+}

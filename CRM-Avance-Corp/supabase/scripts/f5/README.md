@@ -17,6 +17,9 @@ Las comisiones se calculan fuera del CRM. No se enciende producción con este pa
   de descargar. Nunca recibe una ruta arbitraria del navegador ni entrega URL firmada.
 - Migración exacta `20260908230249_crm_f5_cartera_ficha_multiempresa.sql`, tipos
   cotejados por introspección y `reversa-operativa.sql` sin borrado de fuentes.
+- Corrección aditiva `20260909170900_crm_f5_candado_estado_cartera.sql`:
+  la capacidad espera al cambio de modo y vuelve a comprobar la membresía.
+  Conserva el SQL original, sus contratos y las banderas apagadas.
 
 ## Verificación reproducible
 
@@ -30,6 +33,7 @@ Desde `CRM-Avance-Corp`, con el banco F4 sintético restaurado:
 
 ```sh
 node supabase/scripts/f5/generar-migracion.mjs --check
+node supabase/scripts/f5/generar-candado.mjs --check
 node supabase/scripts/f5/replay-local.mjs
 node supabase/scripts/f5/verificar-banco.mjs
 node supabase/scripts/f5/verificar-tipos.mjs
@@ -41,12 +45,13 @@ npm run test:edge-preflight
 
 Los preflights de seed/RLS reciben únicamente variables del banco local.
 `replay-local.mjs` restaura una copia nueva, con `pgcrypto`, `uuid-ossp`,
-`btree_gist` y `pg_trgm`, aplica **en una sola transacción** el archivo exacto,
+`btree_gist` y `pg_trgm`, aplica los dos archivos exactos en orden,
+cada uno en una transacción,
 compara todas las funciones publicadas ajenas a F5, fuentes, Auth e identidades
 y ensaya la reversa. No hace replay global del ledger histórico. El banco HTTP
 debe tener el mismo módulo instalado; no sustituye ese ensayo por mocks.
 
-`verificar-banco.mjs` ejecuta secuencialmente ocho grupos (38 pruebas). Sus
+`verificar-banco.mjs` ejecuta secuencialmente nueve grupos (44 pruebas). Sus
 fixtures crean antecedentes e inversiones ficticias; devuelven las banderas
 al estado anterior en `finally`. No lanzar los archivos en paralelo.
 
@@ -79,10 +84,12 @@ verifica el bundle y deja frontend, SQL, función y manifiesto SHA-256 en
 2. Revisar y autorizar el SQL exacto antes de instalarlo en producción. Mantener
    `ficha_360_neutral=false` e `inversiones_escritura=false`. Prerrequisito: F4
    **publicada** `20260908211349`; su candidata anterior no se vuelve a ejecutar.
-3. Instalar únicamente esta migración con transacción única, comprobar nueve
+3. Instalar las dos migraciones en el orden de `ordenSql` del manifiesto,
+   cada una con transacción única, comprobar nueve
    funciones, ACL, RLS, auditoría, tipos y fuentes; ejecutar advisors del destino.
-4. Publicar la función documental desde `_supabase_functions/functions/` y el
-   frontend del commit verificado. F5 apagada mantiene la cartera anterior;
+4. Publicar la función documental desde `_supabase_functions/functions/`.
+   El frontend con el arreglo del salto ya está publicado; esta corrección de
+   servidor no exige otra entrega de la web. F5 apagada mantiene la cartera anterior;
    antes de instalar la RPC, la respuesta `PGRST202` conserva esa compatibilidad.
 5. Conciliar los huecos de identidad del censo mediante los lotes F4 revisados.
    La cobertura incompleta bloquea el encendido; no mostrar cifras parciales.
@@ -95,6 +102,13 @@ Los escritores F4 tienen su propia reversa con sus candados publicados.
 
 ## Decisiones operativas
 
+- Las claves de servicio opacas (`sb_secret_`) se envían a Storage en `apikey`;
+  los JWT heredados conservan también `Authorization`. Auth y las dos consultas
+  documentales usan siempre la sesión del usuario. El entrypoint desplegado fue
+  ensayado con la clave opaca real del banco y sin exponerla.
+- La capacidad comparte el candado transaccional de F3, con espera máxima de
+  cinco segundos, snapshot actualizado y revalidación del rol tras la espera.
+  El censo D-19 vuelve a cero sin excepciones nuevas en el test general.
 - La consulta de capacidad reutiliza la validación F4. Si otra sesión bloquea
   el lead/persona, la ficha sigue disponible y desactiva temporalmente la nueva
   inversión. La confirmación siempre vuelve a validar bajo los candados F4.

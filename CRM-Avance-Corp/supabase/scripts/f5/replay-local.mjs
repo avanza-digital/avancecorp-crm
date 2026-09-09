@@ -39,6 +39,8 @@ const fuentes=()=>sql(`select jsonb_build_object('contratos',(select count(*) fr
 const cuerpos=sql(firmas),antes=fuentes();
 const candidato=readFileSync(new URL('../../migrations/20260908230249_crm_f5_cartera_ficha_multiempresa.sql',import.meta.url),'utf8');
 sql(candidato,true);
+const correccion=readFileSync(new URL('../../migrations/20260909170900_crm_f5_candado_estado_cartera.sql',import.meta.url),'utf8');
+sql(correccion,true);
 assert.equal(sql(firmas),cuerpos,'Una función publicada ajena a F5 cambió');
 assert.equal(fuentes(),antes,'La migración cambió fuentes, identidades, Auth o banderas');
 assert.equal(sql("select has_function_privilege('anon','crm.inversionista_ficha_fn(uuid,integer,integer)','execute')"),'f');
@@ -49,5 +51,5 @@ assert.equal(sql("select activo from crm.multiempresa_flags where nombre='ficha_
 assert.equal(fuentes(),antes);assert.equal(sql(firmas),cuerpos);
 const hash=x=>createHash('sha256').update(x).digest('hex');
 writeFileSync(`${banco}/evidencia-replay.json`,JSON.stringify({estado:'PASS',db,baseSintetica:hash(dump),
- sql:hash(candidato),funcionesPublicadasConservadas:true,fuentesBanderasAuthConservadas:true,reversa:'PASS'},null,2)+'\n',{mode:0o600});
+ sql:hash(candidato),correccion:hash(correccion),funcionesPublicadasConservadas:true,fuentesBanderasAuthConservadas:true,reversa:'PASS'},null,2)+'\n',{mode:0o600});
 console.log('Replay F5 PASS: copia sintética nueva, migración exacta y reversa; funciones publicadas y dinero intactos.');

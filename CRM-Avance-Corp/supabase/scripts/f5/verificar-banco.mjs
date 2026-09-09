@@ -3,7 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {banco} from './banco-local.mjs';
-const archivos=['lecturas','flujo','fusion','lecturas-bordes','fechas','pdf','documento','concurrencia'];
+const archivos=['lecturas','flujo','fusion','lecturas-bordes','fechas','pdf','documento','concurrencia','candado-estado'];
 const resultados=[];
 for(const nombre of archivos) {
  const r=spawnSync(process.execPath,['--test',fileURLToPath(new URL(`${nombre}.test.mjs`,import.meta.url))],{encoding:'utf8',maxBuffer:8*1024*1024});

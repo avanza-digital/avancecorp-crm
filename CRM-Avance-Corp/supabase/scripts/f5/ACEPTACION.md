@@ -1,5 +1,12 @@
 # G5 — evidencia de aceptación sintética
 
+Actualización del 09/09: la preparación de instalación detectó y corrigió
+el candado D-19 de capacidad y la descarga con claves opacas de Storage.
+**44 pruebas locales y 15 comprobaciones remotas pasan** con ambas correcciones.
+El resultado general RLS conserva fallos anteriores y se declara por separado;
+no se presenta como aprobado. Ver [acta de instalación](INSTALACION-2026-09-09.md).
+El bloque siguiente conserva la evidencia histórica del cierre del 08/09.
+
 Fecha local: 08/09/2026. Candidata funcional implementada, con F4/F5 productivas
 apagadas. No se usaron personas, depósitos ni cuentas reales como fixtures.
 

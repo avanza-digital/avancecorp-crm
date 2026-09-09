@@ -1,8 +1,8 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f5-implementada-candidata-sin-publicar
-actualizado: 2026-09-08
+estado: plan-vigente-f5-web-publicada-servidor-ensayado
+actualizado: 2026-09-09
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -22,12 +22,12 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
-**F5 implementada y probada con datos sintéticos, sin publicar ni encender.**
+**F5 implementada, frontend publicado y servidor probado en banco, sin encender.**
 Cartera, ficha neutral y nueva inversión integradas con F4. Main y su remoto
 conservan los commits; el paquete incluye SQL exacto, tipos, frontend, función
 documental, evidencia y reversa. Miguel valoró favorablemente las pantallas y
 se completó su adaptación visual a los componentes del CRM. Acta vigente:
-[[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]].
+[[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
 
  Miguel confirmó que
 las comisiones se calculan fuera del sistema y no quiere ese módulo. Se excluyen
@@ -42,7 +42,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Implementada y probada; frontend publicado con F5 apagada | Recorrido guiado de VoiceOver aprobado. Salto de cartera corregido y publicado el 09/09. SQL/banco temporal pendientes de confirmación; 15 huecos de identidad bloquean el encendido. [[F5 - prepublicacion y salto de cartera (2026-09-09)]] |
+| F5 — cartera y Ficha 360 | Frontend publicado; servidor ensayado, F5 apagada | VoiceOver aprobado. SQL original y banco autorizados; 44 pruebas locales y 15 remotas PASS. Correcciones de candado y descarga preparadas; falta confirmar el SQL adicional e instalar. Los 15 huecos reales bloquean el encendido. [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
@@ -685,13 +685,15 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 08/09/2026
+## 13. Orden inmediato — actualizado al 09/09/2026
 
 1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
    posterior de comisiones externas. No repetir pendientes ya resueltos.
-2. **F5 implementada y ensayada:** conservar la candidata, revisar sus capturas
-   con Miguel y preparar su publicación autorizada. No adelantar el encendido
-   económico; evidencia en [[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
+2. **F5 ensayada también en Supabase remoto:** la revisión manual está aprobada
+   y el salto de la web ya se publicó. Terminar la revisión/confirmación del SQL
+   correctivo adicional y la instalación apagada. Conservar los 65 fallos anteriores
+   del gate general como pendientes explícitos, sin etiquetarlo PASS.
+   Evidencia en [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
 3. Después: **F6 → F7/G6 → F8/G7 → F9/G8**: postventa, conciliación de métricas,
    piloto económico y activación progresiva con ciclo mensual completo.
 
