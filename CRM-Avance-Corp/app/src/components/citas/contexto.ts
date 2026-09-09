@@ -4,6 +4,7 @@ import type { CitaConLead } from './datos'
 import type { DepositoEjemplo } from './depositos'
 export interface DatosCitas {
   citas: CitaConLead[]; corte: string; depositos: DepositoEjemplo[]; depositosDisponibles: boolean;
+  depositoPorConversion?: boolean;
   mesInicial: string; modoDemo: boolean; meses: string[];
   cargando?: boolean; error?: string | null; onReintentar?: () => void;
   onMes?: (mes: string) => void; onAbrirLead?: (id: string, tareaId: string) => void;

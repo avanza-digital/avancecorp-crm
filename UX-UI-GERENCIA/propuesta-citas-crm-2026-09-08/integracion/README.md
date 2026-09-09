@@ -1,5 +1,7 @@
 # Integración local de Citas en Gerencia
 
+**Actualización:** Miguel confirmó que convertir el lead en cliente acredita el depósito. La fuente ya está conectada y probada en local: [regla, implementación y evidencia actual](conversion-cliente/README.md). La publicación remota continúa pendiente. Este documento conserva las verificaciones de la integración inicial.
+
 Miguel autorizó comenzar el desarrollo el 08/09/2026. El módulo ya se monta dentro del CRM, con su menú, cabecera, componentes, filtros y ficha real del prospecto. Esta entrega es local: la migración nueva no se ha aplicado al servidor remoto ni se ha publicado el frontend.
 
 ## Cómo verlo
@@ -20,7 +22,7 @@ Capturas con datos ficticios y transporte simulado: [inicio móvil](citas-mobile
 4. Las citas de origen pertenecen al mes/semana seleccionado. Su seguimiento puede salir del período y llegar hasta el corte visible del servidor. Se incluye el historial activo de esos leads, pero sus otras citas no se suman a la consulta del período.
 5. Abrir una persona muestra el recorrido; abrir una cita permite consultar su ficha y entrar a la ficha real del prospecto. Bandeja y Agenda mantienen los filtros. Exportar descarga todas las citas coincidentes, incluidas las de otras páginas, con protección de fórmulas en CSV.
 
-**Depósitos pendientes de definición:** los registros revisados no aportan una fecha de depósito y una confirmación bancaria identificables. La API devuelve `disponibilidad_depositos: sin_registro`; el módulo muestra **— / Sin verificar**, nunca 0 ni un cierre comercial convertido en depósito. Se preguntó a Miguel dónde registran el abono y quién lo confirma. Esa respuesta y su integración siguen pendientes. La cadena de depósitos confirmados del prototipo está preparada, pero no se atribuye a datos reales.
+**Depósitos: definición resuelta.** Miguel aclaró que convertir el lead en cliente acredita el depósito. El contrato V2 usa esa conversión y su fecha, excluye anuladas y no infiere importes. [Implementación actual](conversion-cliente/README.md). La respuesta V1 y la demo sin vínculo al cliente conservan **— / Sin verificar**, nunca un cero supuesto.
 
 Los responsables son los registrados en la cita, no necesariamente quienes la crearon. El supervisor se resuelve con la pertenencia disponible, sin afirmar que sea una foto histórica del equipo. Citas postventa se cuentan aparte y remiten a Agenda; no entran en citas por lead.
 
@@ -68,4 +70,4 @@ Se detectó Exportar recortado a 390 px: las acciones ahora envuelven a otra lí
 
 ## Siguiente entrega
 
-Definir con Miguel la fuente/confirmación del depósito y conectarla sin perder las condiciones temporales ni duplicar personas. Después, ensayar la migración en el entorno remoto autorizado, validar con una sesión real y publicar solo mediante el procedimiento vigente de `avancecorp/main`. Esta tarea no ejecuta esa publicación.
+La fuente del depósito quedó definida e implementada en local mediante conversión a cliente. Sigue ensayar ambas migraciones en el entorno remoto autorizado, validar con una sesión real y publicar solo mediante el procedimiento vigente de `avancecorp/main`. Esta tarea no ejecuta esa publicación.

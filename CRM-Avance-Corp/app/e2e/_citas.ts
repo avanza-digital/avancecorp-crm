@@ -14,6 +14,8 @@ export async function montarConsultaCitas(page: Page) {
       reagendada_de:n===2 ? id(1) : null,creado_en:n===2 ? `${mes}-01T18:00:00Z` : `${mes}-01T15:00:00Z`,
       asistencia_registrada_en:n===2 ? `${mes}-03T16:30:00Z` : null,cierre_posterior:false,
     }))
-    await route.fulfill({json:{version:1,periodo:{desde,hasta},generado_en:'2026-09-04T15:00:00Z',citas,depositos:[],disponibilidad_depositos:'sin_registro',citas_clientes:0}})
+    await route.fulfill({json:{version:2,periodo:{desde,hasta},generado_en:'2026-09-04T15:00:00Z',citas,
+      conversiones:[{lead_id:id(10),perfil_id:id(50),convertido_en:'2026-09-04T14:00:00Z'}],
+      disponibilidad_depositos:'conversion_cliente',citas_clientes:0}})
   })
 }

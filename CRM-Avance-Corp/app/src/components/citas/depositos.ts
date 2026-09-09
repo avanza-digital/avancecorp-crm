@@ -1,16 +1,15 @@
 import type { Moneda } from '@/lib/format'
 import { seguimientoInasistencias, type CitaConLead, type Recuperacion } from './datos'
 
-/** Movimientos confirmados: no se deducen de cerrado ni del monto estimado de la cita. */
-export interface DepositoEjemplo {
+/** Evidencia del depósito. Regla CRM: conversión a cliente, sin importe inferido. */
+export type DepositoEjemplo = {
   id: string
   leadId: string
-  monto: number
-  moneda: Moneda
   depositadoEn: string
   confirmadoEn: string | null
   anuladoEn?: string
-}
+} & ({ fuente?: 'movimiento'; monto: number; moneda: Moneda }
+  | { fuente: 'conversion_cliente'; monto: null; moneda: null })
 
 export interface LeadConDeposito {
   original: CitaConLead
@@ -20,6 +19,7 @@ export interface LeadConDeposito {
 
 export function montosDepositados(depositos: DepositoEjemplo[]): Record<Moneda, number> {
   return depositos.reduce((montos, deposito) => {
+    if (deposito.fuente === 'conversion_cliente') return montos
     montos[deposito.moneda] += deposito.monto
     return montos
   }, { PEN: 0, USD: 0 })
@@ -68,7 +68,8 @@ export function depositosDeInasistencias(citas: CitaConLead[], depositos: Deposi
     const recuperada = recuperadas.get(deposito.leadId)
     const fecha = Date.parse(deposito.depositadoEn)
     const confirmacion = Date.parse(deposito.confirmadoEn ?? '')
-    if (!recuperada || !Number.isFinite(deposito.monto) || deposito.monto <= 0) continue
+    if (!recuperada) continue
+    if (deposito.fuente !== 'conversion_cliente' && (!Number.isFinite(deposito.monto) || deposito.monto <= 0)) continue
     if (!(fecha > Date.parse(recuperada.nueva!.asistioEn!) && fecha <= limite && confirmacion >= fecha && confirmacion <= limite)) continue
     if (deposito.anuladoEn && !(Date.parse(deposito.anuladoEn) > limite)) continue
     movimientos.set(deposito.id, deposito)
