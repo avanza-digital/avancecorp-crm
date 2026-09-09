@@ -1,0 +1,81 @@
+npm notice run app@0.0.0 build
+npm notice run tsc -b && vite build
+vite v8.1.4 building client environment for production...
+[2Ktransforming...✓ 3167 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/version.json                                             0.05 kB │ gzip:   0.06 kB
+dist/index.html                                               1.37 kB │ gzip:   0.52 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff     22.10 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff     22.28 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2    22.58 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2    22.83 kB
+dist/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff     23.87 kB
+dist/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff     23.91 kB
+dist/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2    24.18 kB
+dist/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2    24.25 kB
+dist/.vite/license.md                                        87.03 kB
+dist/assets/gerencia-BFae_Z8_.css                             9.80 kB │ gzip:   2.45 kB
+dist/assets/index-D-FYVn4g.css                              141.92 kB │ gzip:  23.32 kB
+dist/assets/rescate-carpeta-DnSoqgE4.js                       0.20 kB │ gzip:   0.16 kB
+dist/assets/use-periodo-gerencia-CAeLv6Cu.js                  0.28 kB │ gzip:   0.21 kB
+dist/assets/clientes-vista-BT9wOPoj.js                        0.30 kB │ gzip:   0.21 kB
+dist/assets/progress-CZXrUvyg.js                              0.42 kB │ gzip:   0.30 kB
+dist/assets/section-head-_Co9GJDH.js                          0.43 kB │ gzip:   0.29 kB
+dist/assets/use-resumen-cartera-operativo-4QQVRq46.js         0.52 kB │ gzip:   0.35 kB
+dist/assets/rolldown-runtime-QTnfLwEv.js                      0.69 kB │ gzip:   0.42 kB
+dist/assets/tabla-C28KsQuC.js                                 0.70 kB │ gzip:   0.36 kB
+dist/assets/desglose-monedas-BDLlDT8_.js                      0.70 kB │ gzip:   0.42 kB
+dist/assets/card-B7IWtMCG.js                                  0.73 kB │ gzip:   0.33 kB
+dist/assets/seguimiento-Bc9WL_6g.js                           0.81 kB │ gzip:   0.45 kB
+dist/assets/paginacion-Cy0GMF4R.js                            1.07 kB │ gzip:   0.54 kB
+dist/assets/aviso-degradacion-Zl1IN-on.js                     1.19 kB │ gzip:   0.63 kB
+dist/assets/use-metricas-vendedores-operativas-C2195tQh.js    1.56 kB │ gzip:   0.81 kB
+dist/assets/configuracion-shell-Mp39EzEn.js                   1.75 kB │ gzip:   0.83 kB
+dist/assets/estado-panel-D8iJeQSz.js                          2.97 kB │ gzip:   0.97 kB
+dist/assets/stat-strip-DuVnRZkl.js                            3.03 kB │ gzip:   1.32 kB
+dist/assets/use-periodo-derivaciones-FmIdqVWC.js              3.04 kB │ gzip:   1.18 kB
+dist/assets/agenda-vistas-BATKMSdf.js                         3.64 kB │ gzip:   1.64 kB
+dist/assets/cartera-DqSv_z_H.js                              11.36 kB │ gzip:   4.23 kB
+dist/assets/config-Dbovd4Or.js                               11.61 kB │ gzip:   4.08 kB
+dist/assets/dist-DAse8jiX.js                                 12.57 kB │ gzip:   4.48 kB
+dist/assets/derivaciones-C7jNVbg4.js                         13.06 kB │ gzip:   4.44 kB
+dist/assets/historial-decisiones-tasa-gerencia-CqsiEZ4a.js   14.21 kB │ gzip:   3.95 kB
+dist/assets/config-rentabilidad-Bxu6o6yL.js                  14.40 kB │ gzip:   4.70 kB
+dist/assets/cierres-externos-seccion-CAktr9lX.js             14.82 kB │ gzip:   4.54 kB
+dist/assets/pipeline-BUiG8NoC.js                             15.20 kB │ gzip:   5.47 kB
+dist/assets/alertas-B2irrgN7.js                              15.25 kB │ gzip:   5.09 kB
+dist/assets/config-metas-FIla5ZI7.js                         16.00 kB │ gzip:   5.52 kB
+dist/assets/config-sla-D7ywwCd0.js                           17.13 kB │ gzip:   5.44 kB
+dist/assets/plan-lead-gtgZTbT0.js                            20.88 kB │ gzip:   7.76 kB
+dist/assets/echart-bar-CpitBQtY.js                           21.98 kB │ gzip:   8.34 kB
+dist/assets/config-usuarios-B0SgmOGR.js                      23.83 kB │ gzip:   6.47 kB
+dist/assets/equipo-mXakB6zj.js                               26.16 kB │ gzip:   7.64 kB
+dist/assets/utils-N-kSCgcH.js                                26.93 kB │ gzip:   8.59 kB
+dist/assets/config-productos-Bo3Cjiek.js                     27.07 kB │ gzip:   7.35 kB
+dist/assets/agenda-Bu7AzRSt.js                               30.53 kB │ gzip:   8.62 kB
+dist/assets/rescate-descartados-DbIJEWUa.js                  30.80 kB │ gzip:   7.92 kB
+dist/assets/lead-hover-card-Bs02tCJL.js                      33.81 kB │ gzip:  12.64 kB
+dist/assets/ranking-vendedores-D-SSRKOE.js                   36.60 kB │ gzip:   8.70 kB
+dist/assets/echart-line-0XtUj4fd.js                          45.31 kB │ gzip:  16.14 kB
+dist/assets/repartir-ButaDhx1.js                             46.34 kB │ gzip:  11.98 kB
+dist/assets/gerencia-ClqSjOSH.js                             62.76 kB │ gzip:  17.35 kB
+dist/assets/esm-BofDk75c.js                                  84.55 kB │ gzip:  28.62 kB
+dist/assets/ui-vendor-CfRU5akh.js                            88.29 kB │ gzip:  19.65 kB
+dist/assets/hoy-CDneL-kN.js                                  93.29 kB │ gzip:  25.53 kB
+dist/assets/mi-cartera-y1xOWV-C.js                          142.40 kB │ gzip:  36.34 kB
+dist/assets/crm-api-C080NsPL.js                             182.94 kB │ gzip:  48.57 kB
+dist/assets/react-vendor-BXy-oECh.js                        190.81 kB │ gzip:  60.00 kB
+dist/assets/gerencia-Ceqwb5tL.js                            196.34 kB │ gzip:  48.11 kB
+dist/assets/data-vendor-CVus9pJE.js                         241.28 kB │ gzip:  62.74 kB
+dist/assets/echart-DBFgYLkA.js                              487.20 kB │ gzip: 165.23 kB
+dist/assets/index-DhB-9r--.js                               571.45 kB │ gzip: 174.17 kB
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/lib/demo-config.ts is dynamically imported by src/data/crm-config-queries.ts but also statically imported by src/lib/demo-sla.ts, dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.80s

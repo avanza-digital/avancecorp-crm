@@ -2,6 +2,7 @@
 // de conversiones/reuniones con Metas versionadas; las antiguas gráficas
 // financieras ya no forman parte de la navegación.
 import { expect, test } from '@playwright/test'
+import { montarConsultaCitas } from './_citas'
 import {
   bloquearSupabase,
   conversionMensualReal,
@@ -103,22 +104,27 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await page.screenshot({ path: testInfo.outputPath('conversiones-mobile-avance.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1280, height: 900 })
 
+    await montarConsultaCitas(page)
     await page.getByRole('button', { name: 'Citas', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Citas del equipo' })).toBeVisible()
-    await expect(page.locator('[data-gi-hero]')).toContainText('Realización de citas')
-    await expect(page.locator('[data-gi-hero]')).toContainText('1 próximas dentro del período')
-    await expect(page.locator('[data-gi-hero]')).toContainText('Vencidas sin resultado0')
-    await page.getByText('Ver bases y asistencia', { exact: true }).click()
-    await expect(page.getByText('Citas por fecha prevista. Un prospecto puede tener varias citas; las pactadas incluyen las canceladas.')).toBeVisible()
-    await expect(page.locator('[data-gi-kpi]').filter({ hasText: 'Canceladas por sistema' })).toContainText('Incluidas en pactadas')
-    await expect(page.locator('[data-gi-kpi]').filter({ hasText: 'Reprogramadas' })).toContainText('Con una nueva fecha')
-    await expect(page.getByRole('row', { name: 'Fuera del desglose actual 8 6 0 —' })).toBeVisible()
-    await expect(page.getByRole('img', { name: 'Comparación de citas pactadas y realizadas por modalidad' })).toBeVisible()
+    await expect(page.getByRole('button',{name:'No asistieron 2'})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Reprogramaron 1'})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Asistió 1'})).toBeVisible()
+    await expect(page.getByRole('button',{name:'Depositó —'})).toBeDisabled()
+    await expect(page.getByRole('region',{name:'Conversión de inasistencias a depósito'})).toContainText('Sin verificar')
+    await expect(page.getByRole('table',{name:'Resultados por analista de las citas filtradas'})).toContainText('3 / 2')
     await expect(page.getByText('Reunión o avance posterior', { exact: true })).toHaveCount(0)
+    await page.mouse.move(1200,70)
+    await expect(page.getByRole('button',{name:'Citas',exact:true})).toHaveAttribute('title','Citas')
     await page.screenshot({ path: testInfo.outputPath('citas-desktop.png'), fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 390, height: 844 })
+    await page.mouse.move(380,70)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
-    const tabla = page.getByRole('region', { name: 'Resultados por analista', exact: true })
+    await page.getByRole('heading',{name:'Citas del equipo'}).scrollIntoViewIfNeeded()
+    const exportar = await page.getByRole('button',{name:'Exportar citas'}).boundingBox()
+    expect(exportar!.x+exportar!.width).toBeLessThanOrEqual(390)
+    await page.screenshot({ path: testInfo.outputPath('citas-mobile-inicio.png'), fullPage: true, animations: 'disabled' })
+    const tabla = page.getByRole('region', { name: 'Tabla de citas por lead y analista', exact: true })
     await tabla.focus()
     await page.keyboard.press('ArrowRight')
     await expect.poll(() => tabla.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)

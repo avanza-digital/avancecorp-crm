@@ -1,5 +1,7 @@
 # QA de Citas: identidad del CRM recuperada
 
+**Continuación: integración local autorizada.** La propuesta ahora comparte sus componentes con Gerencia → Citas dentro de la app real. [QA, capturas y verificación de integración](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/README.md). Se verificaron permisos y consulta en una base local aislada; la migración sigue sin publicarse y el indicador de depósitos reales está pendiente de definir su fuente. El registro que sigue corresponde a la adaptación visual previa del prototipo.
+
 Fecha: 2026-09-08. Miguel autorizó aplicar la recomendación tras rechazar el aspecto de la propuesta 3. Este QA reemplaza el anterior: una prueba técnica o una comparación contra el concepto previo no equivale a aprobación visual del cliente.
 
 ## Referencia y comparación

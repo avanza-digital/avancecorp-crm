@@ -1,0 +1,14 @@
+# Evaluación de la revisión independiente
+
+Codex PRIMARY; Claude SECONDARY_REVIEWER, sin herramientas ni escrituras mediante `scripts/claude-review`. Una entrega extensa no produjo VERDICT válido; se reintentó con evidencia acotada y se recibió `CHANGES_REQUESTED`. No hubo revisión recursiva ni un segundo implementador.
+
+1. **P1 campos nulos: descartado con evidencia.** `crm.leads` tiene NOT NULL en nombre_completo, telefono, origen, moneda y monto_estimado. CHECK moneda limita PEN/USD; CHECK monto exige positivo, máximo y dos decimales. El banco comprueba NOT NULL. No se aplica la sugerencia de inventar PEN/0 para datos inválidos. La frontera estricta se conserva.
+2. **P1 cierre histórico: aceptado.** El rango original de cierres no cubría toda la historia devuelta. Se consulta la evidencia de cierre canónica para los leads de la cohorte sin recortar al inicio del mes. Se evita además que un lector de existencia de cierres dependa de pesos de conversión. SQL prueba un cierre de agosto visto al consultar septiembre; también comprueba que un cierre previo a la cita no es un cierre posterior.
+3. **P2 postventa: aceptado parcialmente.** Se añade creado_en <= corte. Cuenta citas, como indica `citas_clientes` y el texto visible. `tareas_un_solo_sujeto` impide que una fila tenga lead_id y perfil_id simultáneamente, por lo que la hipótesis de solapamiento se descarta. No usa leads.activo porque se trata de citas de perfiles; no se mezcla con la base de leads únicos.
+4. **P2 formato timestamptz: descartado con reproducción.** `jsonb_build_object('fecha','2026-09-08 15:00:00+00'::timestamptz)` devuelve `2026-09-08T15:00:00+00:00`, con T, no el formato textual de psql. SQL comprueba la T en la RPC y el frontend prueba el offset devuelto. No se truncan microsegundos mediante to_char innecesario.
+5. **P2 búsqueda cuadrática de sucesoras: aceptado.** `adaptarCitas` indexa sucesoras por cita anterior y lead antes de adaptar. La frontera mantiene el límite de 10.000 y se añadió prueba de 10.000/10.001 tanto en servidor como en cliente. La consulta limita la agregación a 10.001 para rechazar exceso, sin presentar una historia truncada.
+6. **P3 comentario de caché: aceptado.** Se sitúa junto a la clave por actor/mes y ausencia deliberada de placeholderData.
+
+Además, Codex sustituyó la guardia inicial por `private.rol_crm`, coherente con las incompatibilidades de roles del proyecto. El banco comprueba explícitamente que portal Directorio + CRM Gerencia no obtiene identidades. Se corrigieron contadores y anuncios durante error/carga, y el botón Exportar recortado en móvil.
+
+La revisión no es una declaración PASS del código final. Las correcciones están respaldadas por el banco SQL, las 3.130 pruebas del gate frontend y las 7 pruebas de navegación específicas. Los pendientes de publicación, fuente de depósitos y fallos ajenos de la suite general permanecen documentados en README.
