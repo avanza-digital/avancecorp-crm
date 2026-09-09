@@ -1,0 +1,119 @@
+{
+  "estado": "PASS desarrollo sintético; producción sin instalar/encender",
+  "sql": "a13c7ec388993b8cba5299d61e33d9db1cff7d148146b06cbd0cd99cdcce22e5",
+  "banco": {
+    "estado": "PASS",
+    "entorno": "Banco cerrado F5: Auth/PostgREST/Storage reales y datos sintéticos",
+    "terminadoEn": "2026-09-09T01:45:52.131Z",
+    "resultados": [
+      {
+        "grupo": "lecturas",
+        "estado": "PASS",
+        "tests": 12
+      },
+      {
+        "grupo": "flujo",
+        "estado": "PASS",
+        "tests": 7
+      },
+      {
+        "grupo": "fusion",
+        "estado": "PASS",
+        "tests": 1
+      },
+      {
+        "grupo": "lecturas-bordes",
+        "estado": "PASS",
+        "tests": 8
+      },
+      {
+        "grupo": "fechas",
+        "estado": "PASS",
+        "tests": 1
+      },
+      {
+        "grupo": "pdf",
+        "estado": "PASS",
+        "tests": 3
+      },
+      {
+        "grupo": "documento",
+        "estado": "PASS",
+        "tests": 4
+      },
+      {
+        "grupo": "concurrencia",
+        "estado": "PASS",
+        "tests": 2
+      }
+    ],
+    "totalTests": 38
+  },
+  "app": {
+    "archivos": 221,
+    "tests": 3120,
+    "checkAll": "PASS",
+    "playwright": {
+      "pass": 146,
+      "skip": 26
+    },
+    "playwrightTresEmpresasAdicional": "PASS (1)"
+  },
+  "replay": {
+    "estado": "PASS",
+    "db": "f5_replay_caabef224a82",
+    "baseSintetica": "032c8d1419f38d82c02cd1d1917eaafb0d8788c4353a2dd0e92fb0c0adb6025a",
+    "sql": "a13c7ec388993b8cba5299d61e33d9db1cff7d148146b06cbd0cd99cdcce22e5",
+    "funcionesPublicadasConservadas": true,
+    "fuentesBanderasAuthConservadas": true,
+    "reversa": "PASS"
+  },
+  "tipos": {
+    "estado": "PASS",
+    "generador": "postgres-meta v0.99.0",
+    "introspeccion": "ae4f3607ef860a81521f28aaa0782492575b2fd0b9929f7634351f90b6d7b916",
+    "integrado": "0b3a8f0406d0a6e1a3b9dcb38fd6eead5664f58761117d3dfc8a29b0512743d1",
+    "nodos": [
+      "crm.Tables.cartera_lecturas",
+      "crm.Functions.cartera_inversionistas_estado_fn",
+      "crm.Functions.cartera_inversionistas_fn",
+      "crm.Functions.inversionista_ficha_fn",
+      "crm.Functions.inversionista_cuentas_fn",
+      "crm.Functions.inversionista_documento_fn"
+    ]
+  },
+  "logsPrivados": {
+    "check-all-final.log": "c64790650aa740ff6978be74a9749bf3f16d2f8530ee0e4fbfad8c0af2c9aced",
+    "g5-banco-final.log": "6983f0caf804b851bd1fcd1ee5b7eef9fae67c6c20cfbd0caad3b41c6b4044a2",
+    "check-scripts-final.log": "3d3dc5158334b6ab60a9f7fd5bc19d15a51136937d692de102db40ef79f674cc",
+    "edge-preflight-final.log": "a950383925ccc66dcb5da9ef54d56bf1022f6c105f927e975401f807771962c5",
+    "seed-preflight-final.log": "3827614647c458e5871a75ace4144549ca1b29116813d06a6a18c7ab64e1601f",
+    "rls-preflight-final.log": "3970c6fe992f4c9f79703bedd8a1325f21cb63fc835d2cc3961c8a642326202d",
+    "db-lint-final.log": "c4b749e650a6987501c55e8296628bf98be978f94ee1862e468a9f05d748c367",
+    "replay-test.log": "93783e5e1d59f95ad82e597c3b4b4ccdf4934aa88470e5ece86d447dd80019ad",
+    "tipos-test.log": "b8c8936cb999b875115a763583a28e03a5c8853e9d38f7321a73baa72979b71d",
+    "f5-multiempresa-e2e.log": "1c4691e95e07c61ff0ab9545771562659174dbc547e10b16e397605f2b112d6e",
+    "documento-deno-check.log": "e20eba29667f454d1cec4e3dd9ed4dc81880dc02e184b0147d79c16850ecac42"
+  },
+  "capturas": {
+    "f5-directorio-ficha.png": "eb7e34f2a4661dff564df2799d5203b99468087ebcf2c14fd6a85d378e039f67",
+    "f5-gerencia-ficha.png": "f92ca8fe577dc0eb124f1c179934fc04478d003925ba9cf2ec5a689b8c9a66ed",
+    "f5-movil-cartera.png": "4c637d38e9941e1dff113798494c1616363e9e1273079c7d2638501535cb3755",
+    "f5-movil-revision.png": "606420ef583876cdf8dea132d05b7bbfbab993d9547ba5e7014a654392d34f70",
+    "f5-supervisor-ficha.png": "cfce166a766af47ee023d7fa22d35962b48dc7735762b47f80af0144a2c1ab7b",
+    "f5-tres-empresas.png": "ee0fc5a2fb734f12f017eee6520859fc2472d47c106f0c57b18208ea40173549",
+    "f5-vendedor-ficha.png": "d4580ac7a149653730cb9b6c87b6abf2b9119e81d8734344a4bedefc9b7fed96"
+  },
+  "pdf": {
+    "version": "contrato-aep-17-v8",
+    "plantillaFontsAssetsSinCambios": true,
+    "paginasPorArchivo": 8,
+    "PEN_USD": "revisados; bytes idénticos tras recuperación"
+  },
+  "notRun": [
+    "Lector de pantalla manual",
+    "Advisors/carga/datos en destino productivo F5",
+    "Despliegue/encendido F5"
+  ],
+  "commitCodigoVerificado": "f7a425f3a94025fbc4d610c324c6989e98a9e25f"
+}

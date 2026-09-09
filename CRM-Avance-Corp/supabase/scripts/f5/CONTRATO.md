@@ -1,6 +1,6 @@
 # F5.1 — contrato de cartera y ficha multiempresa
 
-Estado: diseño para implementación y aceptación sintética G5. F4 publicada en
+Estado: implementación y aceptación sintética documentadas en `ACEPTACION.md`. F4 publicada en
 `20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql`; F4/F5 apagadas.
 La autorización de desarrollo no enciende producción ni autoriza un piloto.
 
@@ -123,7 +123,7 @@ Nueva inversión abre el diálogo existente con empresa, datos, revisión y resu
 Foco de retorno, etiquetas explícitas, errores anunciados y acciones alcanzables
 con teclado; textos largos parten línea. No se cambia la marca ni el PDF.
 
-## Evidencias para G5 (pendientes hasta ejecutar)
+## Evidencias de G5 (ejecución en ACEPTACION.md)
 
 - SQL/HTTP: identidad única, fuentes históricas sin enlace, cobertura incompleta,
   fusiones/multirrol, matriz por rol, búsquedas ajenas, bajas, reasignación viva,
@@ -138,4 +138,10 @@ con teclado; textos largos parten línea. No se cambia la marca ni el PDF.
 - Gates completos, tipos, revisión Claude evaluada, commits por entregable,
   manifiesto SQL/artefacto, documentación de encendido y reversa sin borrar datos.
 
-F5.2–F5.7 permanecen pendientes. Este contrato no acredita pruebas ni publicación.
+F5.2–F5.5 implementadas. Pruebas G5, preparación F5.7 y límites en `ACEPTACION.md` y `README.md`. No hay encendido productivo.
+
+Decisión de revisión: la auditoría registra una consulta continuada por actor,
+persona y categoría cada 60 segundos; las comprobaciones de acceso siguen cada
+15 segundos. Una contención en la validación F4 bloquea solo la nueva inversión,
+conservando la ficha. La fusión vigente admite un solo perfil contractual y
+conserva ese mismo perfil en el aumento; no se modificó el motor F4.

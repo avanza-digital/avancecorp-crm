@@ -1,10 +1,14 @@
 ---
 tags: [crm, cartera, multiempresa, F5, implementacion]
 fecha: 2026-09-08
-estado: plan-preparado-implementacion-pendiente
+estado: implementada-candidata-sin-publicacion
 ---
 
 # F5 — cartera y ficha única del inversionista
+
+Actualización 08/09: implementación y evidencia sintética guardadas en
+[[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
+No se activó producción; se mantienen los límites y las puertas de este plan.
 
 Miguel pidió publicar F4 y recibir el plan de implementación de F5. Este documento
 define el trabajo siguiente; no declara F5 implementada ni autoriza por sí mismo

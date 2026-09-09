@@ -1,5 +1,7 @@
 # Ledger de migraciones — esquema `crm`
 
+> **F5 candidata — 08/09/2026, NO APLICADA en producción:** `20260908230249_crm_f5_cartera_ficha_multiempresa.sql`: cinco RPC de lectura autorizada, cuatro helpers privados y `crm.cartera_lecturas` cerrada con auditoría. Reutiliza F4 publicada y conserva fuentes, PDF y escritores. Sin ALTER de tablas/triggers/policies `public`, sin backfill ni encendido. [Paquete y reversa](../scripts/f5/README.md), [38 pruebas de banco y gates](../scripts/f5/ACEPTACION.md). SQL reproducible desde `scripts/f5/generar-migracion.mjs`; instalar solo en transacción única después de revisar el destino.
+
 > **F4 PUBLICADA — 08/09/2026:** revisión canónica `20260908211349_crm_f4_publicacion_compatible_rentabilidad.sql` aplicada y comprobada contra su huella exacta; 48 cuerpos, propietarios/ACL y siete tablas RLS verificados. Fuentes y cantidades conservadas. F3 ON; escritores F4 y ficha F5 OFF. Frontend desde `264ece6`, PDF Edge v14 (plantilla v8 conservada) y acceso Edge v1. [Resultado verificable](../scripts/f4/publicacion-2026-09-08/resultado-produccion.json). El MCP asignó temporalmente `20260908222625`; se normalizó únicamente ese registro tras comprobar el SQL completo, sin marcar aplicada la candidata original.
 
 Registro previo de la candidata técnica (histórico):

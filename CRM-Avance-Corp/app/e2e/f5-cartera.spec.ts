@@ -1,6 +1,6 @@
 import {expect, test, type Page} from '@playwright/test'
 import {loginReal, montarBackendReal, irAMiCartera} from './_helpers'
-import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5} from '../src/test/fixtures/f5'
+import {carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, inversionF5} from '../src/test/fixtures/f5'
 
 async function montarF5(page:Page, rol:'vendedor'|'supervisor'|'gerencia'|'directorio'='vendedor') {
   const backend=await montarBackendReal(page,{rolCrm:rol,rolPortal:rol==='directorio'?'directorio':'analista',clientes:[],contratos:[]})
@@ -98,4 +98,23 @@ test('revocación con ficha abierta retira identidad y evita reutilizar datos an
   await expect(page.getByText('ana.f5@pruebas.example')).toHaveCount(0,{timeout:18000})
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText(/El acceso cambió/)).toBeVisible()
+})
+test('tres empresas y dos monedas: la ficha mantiene cada capital separado',async({page},testInfo)=>{
+  await montarF5(page)
+  await page.route('**/rest/v1/rpc/inversionista_ficha_fn',route=>{
+    const monedas=[['avance','PEN',15000],['avance','USD',3000],['qorilazo','PEN',1200],['prodelco','PEN',2000]] as const
+    return route.fulfill({json:{...fichaF5,inversiones_total:4,
+      inversiones:monedas.map(([empresa,moneda,capital],n)=>({...inversionF5,empresa,moneda,capital,
+        estado:empresa==='avance'?'activo':'vigente',numero_transaccion:empresa==='avance'?null:inversionF5.numero_transaccion,
+        fuente_id:`55555555-5555-4555-8555-${String(n+1).padStart(12,'0')}`,numero:`INVERSIÓN SINTÉTICA ${empresa.toUpperCase()} ${moneda}`})),
+      totales:monedas.map(([empresa,moneda,capital])=>({empresa,moneda,cantidad:1,capital_registrado:capital,capital_activo:empresa==='avance'?capital:null}))}})
+  })
+  await page.setViewportSize({width:1440,height:1200})
+  await page.getByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}).click()
+  const dialog=page.getByRole('dialog',{name:'ANA SINTÉTICA F5'})
+  for(const nombre of ['Avance · PEN','Avance · USD','Qorilazo · PEN','Prodelco · PEN']) {
+    await expect(dialog.getByRole('heading',{name:nombre,exact:true})).toHaveCount(1)
+  }
+  await expect(dialog.getByText('4 inversiones en esta ficha')).toBeVisible()
+  await page.screenshot({path:testInfo.outputPath('f5-tres-empresas.png'),fullPage:true})
 })

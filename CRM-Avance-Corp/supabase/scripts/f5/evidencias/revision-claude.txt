@@ -1,0 +1,389 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The authorization architecture is sound: current-relationship scoping precedes search/count/pagination, `private.cartera_f5_personas_visibles()` is the single authorization surface, Directorio is filtered to `empresa='avance'` on every path, the document proxy re-checks the descriptor after fetching bytes, and the client re-hashes. I found no P0 and no unauthenticated or cross-tenant read path in the attached code. However there is one high-severity availability defect (a read RPC taking `FOR UPDATE` / `FOR SHARE NOWAIT` locks with uncaught lock errors, amplified by a 15 s poll), an audit-volume defect driven by the same poll, and a set of concrete UI-state and money/PII-scoping defects. Writer-side SQL (`preparar_/corregir_/confirmar_/revisar_*_fn`, `inversion_persona_autorizada`, `crm-inversion-portal`) was not attached; findings that depend on it are marked as evidence gaps rather than asserted.
+
+FINDINGS:
+
+---
+
+[P1] Lock errors from the write-path probe abort the whole read-only ficha
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+267–275 (specifically 269 and the handler at 271–272)
+
+Problem:
+`inversionista_ficha_fn` calls `private.inversion_persona_contexto(v_id)` purely to compute a capability flag, but that function takes real locks and can raise SQLSTATEs the handler does not catch.
+
+Evidence:
+Attached published SQL for `private.inversion_persona_contexto` shows `SET lock_timeout TO '5s'`, `select * into v_i from crm.inversionistas where id=v_persona for update;` and `select * into v_l from crm.leads where id=v_leads[1] for share nowait;`.
+The handler at `01-lecturas.sql:271-272` catches only `sqlstate 'P0409'`, `sqlstate 'P0429'` and `insufficient_privilege`.
+`FOR SHARE NOWAIT` raises `55P03 lock_not_available` **immediately** on any conflicting lock; `lock_timeout` raises the same code after 5 s. `40P01 deadlock_detected` is likewise uncaught.
+
+Impact:
+A concurrent edit of the person's lead — an ordinary CRM operation — makes the entire ficha read fail rather than degrading `nueva_inversion` to `false`. The client surfaces a generic error (`inversion-nueva.tsx:88`, `inversionista-ficha.tsx:113`) because the code is not `42501`. On the success path the `FOR UPDATE` row lock on `crm.inversionistas` is held for the remainder of the RPC, which includes three full scans of `cartera_f5_fuentes()` (see the perf finding below), so read traffic serializes against F4 writers. `inversionistas-queries.ts:17` sets `refetchInterval: 15_000`, so every open ficha re-acquires this write lock four times per minute.
+
+Recommendation:
+Add `when lock_not_available or deadlock_detected then v_operable := false; v_motivo := '<retry message>';` to the same block. Better: introduce a read-only sibling of `inversion_persona_contexto` that performs the identical validations without `for update` / `for share nowait`, and reserve the locking version for the actual write path. Add a bank test that holds `select ... from crm.leads where id=... for update` in one session and asserts the ficha still returns with `nueva_inversion=false`.
+
+---
+
+[P1] Read-audit amplification: polling turns `cartera_lecturas` into an unbounded write stream
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`, `CRM-Avance-Corp/app/src/data/inversionistas-queries.ts`
+
+Lines:
+`01-lecturas.sql:14-16, 244, 351-352, 376-377, 419-420`; `inversionistas-queries.ts:14-18`
+
+Problem:
+Every list/ficha/cuentas/documento RPC inserts a `cartera_lecturas` row, and that table has an `after insert` trigger into the CRM audit log. The client polls all of these on a 15 s interval.
+
+Evidence:
+`01-lecturas.sql:15-16` — `create trigger trg_audit_cartera_lecturas after insert ... execute function private.log_audit_crm();`
+`inversionistas-queries.ts:14-18` — `lecturaVigente` sets `refetchInterval: 15_000`, `refetchOnWindowFocus: 'always'`, `refetchOnReconnect: 'always'`, and is spread into `useInversionistas`, `useFichaInversionista` and `useCuentasInversionista`.
+The document proxy calls the RPC **twice** per download (`handler.mjs:72` and `handler.mjs:81`), producing two `documento` rows per single download.
+
+Impact:
+One user with a ficha open and the banking section expanded generates ~12 `cartera_lecturas` rows plus ~12 audit rows per minute, all recording the same access. The table has no retention policy and only a `(actor_id, creado_en desc)` index. Beyond storage growth, this destroys the signal the audit trail exists to provide: a genuine access review cannot distinguish a deliberate consultation from a background poll.
+
+Recommendation:
+Log the *first* read of an `(actor, tipo, inversionista)` within a time bucket rather than every RPC (e.g. an `on conflict do nothing` against a unique partial index over a truncated timestamp), or suppress logging on refetches by passing an explicit "deliberate open" parameter. Separately, decide whether the proxy's second descriptor call (`handler.mjs:81`) should log at all — it is a verification, not an access. Add a retention/partition plan and an index on `inversionista_id`.
+
+---
+
+[P2] `descargando` can latch to `true`, silently disabling all further document downloads
+
+File:
+`CRM-Avance-Corp/app/src/screens/cartera-inversionistas.tsx`
+
+Lines:
+46, 63–64, 79, 130
+
+Problem:
+The abort effect keyed on `nueva` cancels an in-flight download without clearing `descargando`, and the `finally` deliberately skips the reset when aborted.
+
+Evidence:
+Line 46: `useEffect(() => () => {documento.current?.abort()}, [actor, seleccion, nueva])` — aborts, no `setDescargando(false)`.
+Line 79: `finally {if (!abort.signal.aborted) setDescargando(false)}`.
+Line 64: `if (!seleccion || descargando) return` — the guard for starting a download.
+Reproduction: start a document download, then click "Nueva inversión" before it completes (`onNuevaInversion` → `setNueva(...)`, line 132). The effect aborts; `descargando` stays `true`. Closing the dialog restores the sheet via `onCerrar` (line 137) → `setSeleccion(nueva.persona)`, which does **not** reset the flag (only the row button at line 118 and `onClose` at line 129 do).
+
+Impact:
+The sheet permanently shows `role="status"` "Comprobando acceso y descargando documento…" (line 130) and every subsequent document click returns silently at line 64 with no feedback. The user must close and reopen the sheet, with no indication why.
+
+Recommendation:
+Reset by controller identity instead of abort state: `finally {if (documento.current === abort) setDescargando(false)}`, and add `setDescargando(false)` to the cleanup at line 46.
+
+---
+
+[P2] `CuentasAvance` is remounted on every 15 s poll, blanking the bank panel and duplicating requests
+
+File:
+`CRM-Avance-Corp/app/src/components/app/inversionista-ficha.tsx`
+
+Lines:
+165–167
+
+Problem:
+The React `key` includes `q.dataUpdatedAt`, which changes on every successful ficha refetch.
+
+Evidence:
+Line 166: `key={`${perfil}:${p.responsable_id}:${q.dataUpdatedAt}`}`.
+The ficha query refetches every 15 s (`inversionistas-queries.ts:17`), so `dataUpdatedAt` advances on each poll.
+`lecturaVigente` sets `gcTime: 0` and `refetchOnMount: 'always'`, so a remount drops the cached accounts and re-issues both PEN and USD requests; `inversionista-ficha.tsx:44` then renders `<PanelCargando filas={2} />` until both resolve.
+
+Impact:
+While the "Cuentas de pago Avance" section is open, the panel visibly blanks to a skeleton every 15 seconds. It also doubles `inversionista_cuentas_fn` traffic and adds two `cartera_lecturas` rows of `tipo='cuentas'` per cycle per open section, compounding the audit finding above.
+
+Recommendation:
+Drop `q.dataUpdatedAt` from the key: `key={`${perfil}:${p.responsable_id}`}`. Freshness is already guaranteed by `staleTime: 0` + `refetchInterval` on the accounts queries themselves, and revocation is handled by the `42501` effect at line 41.
+
+---
+
+[P2] No-op change detection is key-order sensitive; the server-provided `hash_datos` is never used
+
+File:
+`CRM-Avance-Corp/app/src/components/app/inversion-nueva.tsx`, `CRM-Avance-Corp/app/src/lib/inversion-solicitud.ts`
+
+Lines:
+`inversion-nueva.tsx:100-104`; `inversion-solicitud.ts:14-16, 34, 77-83`
+
+Problem:
+`if (JSON.stringify(datos) === JSON.stringify(solicitud.datos))` compares two objects whose nested `contrato`/`cuenta` payloads have different key orders by construction, so the "nothing changed" branch is effectively unreachable.
+
+Evidence:
+`contrato` and `cuenta` are declared as `v.record(v.string(), v.unknown())` (`inversion-solicitud.ts:14, 16`), and valibot `record` preserves the *input* key order — for `solicitud.datos` that is PostgREST's `jsonb` order (length-then-bytewise), for the locally built object it is whatever `prepararPayloadContrato(input)` emits (`inversion-nueva.tsx:212` → `datosAvanceRevisados` → `{...contrato}`, `inversion-solicitud.ts:78`).
+`SolicitudInversionSchema` already declares `hash_datos: v.string()` (`inversion-solicitud.ts:34`), and no attached file reads it.
+
+Impact:
+Reopening "Corregir datos" and saving without editing anything forces the user to type a ≥10-character motivo (line 103), issues a correction RPC, advances `revision_datos`, and writes a meaningless motivo into the audit trail. It also means the guard cannot be relied on to prevent an accidental double-submit of identical data.
+
+Recommendation:
+Compare canonically (recursively sorted-key serialization) or, preferably, compute the same digest the server already publishes as `hash_datos` and compare against it — that removes the client/server serialization mismatch entirely. If the client cannot reproduce the server's hashing, at minimum stabilize both sides through a shared normalizer before `JSON.stringify`.
+
+---
+
+[P2] Corrupt `sessionStorage` leaves the investment flow with no recovery affordance
+
+File:
+`CRM-Avance-Corp/app/src/components/app/inversion-nueva.tsx`, `CRM-Avance-Corp/app/src/lib/inversion-solicitud.ts`
+
+Lines:
+`inversion-nueva.tsx:32-35, 139`; `inversion-solicitud.ts:55-63`
+
+Problem:
+When `leerIntentoInversion` throws, the component renders a terminal branch that offers only "Cerrar", and that branch is evaluated *before* the branch containing the reference-recovery form.
+
+Evidence:
+`inversion-solicitud.ts:62` throws `'No se pudo leer la solicitud pendiente…'` for any unparseable stored value (schema drift, tampering, truncated write).
+`inversion-nueva.tsx:139`: `else if (guardado.error) cuerpo = <>{cabecera('Solicitud pendiente')}<DialogBody>{alerta}</DialogBody></>` — no actions.
+The "Retomar una solicitud por su referencia" form lives at lines 140–154, in the `else if (!empresa)` branch that line 139 pre-empts.
+`guardado` comes from a lazy `useState` initializer (line 32), so the state is fixed for the component's lifetime and reopening the dialog re-reads the same corrupt key.
+
+Impact:
+For that `(actor, persona)` pair the user cannot start a new investment and cannot recover an existing one for the rest of the browser session — the exact failure mode the recovery design exists to prevent. Failing closed is correct; failing closed with no exit is not.
+
+Recommendation:
+Render the reference-recovery form (and an explicit "descartar el borrador ilegible" action calling `limpiarIntentosInversion(actor, persona)`) inside the `guardado.error` branch. Keep the fail-closed default — just make the two supported exits reachable.
+
+---
+
+[P2] Revocation deletes the pending solicitud reference before the user can record it
+
+File:
+`CRM-Avance-Corp/app/src/screens/cartera-inversionistas.tsx`, `CRM-Avance-Corp/app/src/data/inversionistas-api.ts`
+
+Lines:
+`cartera-inversionistas.tsx:47-58, 61`; `inversionistas-api.ts:50`
+
+Problem:
+Any `42501` — including a ficha that merely became non-visible — purges the local recovery record, and the reference UUID is only ever displayed inside the dialog that is simultaneously unmounted.
+
+Evidence:
+`inversionistas-api.ts:50`: `if (!ficha) throw new CrmApiError('Esta persona ya no está disponible en tu cartera.', '42501')` — the SQL returns `null` for *not visible* (`01-lecturas.sql:264, 348-350`), which the client converts into the revocation code.
+`cartera-inversionistas.tsx:48-49`: `setNueva(null)` then `limpiarIntentosInversion(actor, nueva?.persona ?? seleccion ?? undefined)`.
+The reference is rendered only at `inversion-nueva.tsx:245` (`Referencia: {intento?.clave}`), inside the unmounted dialog.
+`revocar` is wired to the list query (`cartera-inversionistas.tsx:61`), the ficha query (`inversionista-ficha.tsx:107`) and both accounts queries (`inversionista-ficha.tsx:41`), all of which poll every 15 s.
+
+Impact:
+A reassignment or transient permission blip during a prepared-but-unconfirmed solicitud leaves the user with no way to reach that solicitud again — the "retomar por referencia" path at `inversion-nueva.tsx:144-148` requires a UUID they no longer possess. This directly weakens the stated "preserves retries / no economic success before confirmation" property.
+
+Recommendation:
+Purging the stored payload on revocation is correct for PII, but the `clave` is not PII. Before calling `limpiarIntentosInversion`, read the pending `clave` and surface it in the existing `aviso` (line 92) — e.g. "El acceso cambió. Si tenías una solicitud en curso, su referencia es `<uuid>`." Consider also distinguishing "person no longer visible" from "authorization revoked" with a distinct code so a routine reassignment does not trigger a full session-wide purge.
+
+---
+
+[P2] `es_demo` is treated asymmetrically and can silently under-report registered capital
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+34, 54, 227, 336
+
+Problem:
+The Avance branch passes `c.es_demo` through unguarded while the external branch always yields a non-null boolean; the aggregates use `filter (where not f.es_demo)`, which drops NULL rows.
+
+Evidence:
+Line 34: `iv.es_primera_conversion, c.es_demo,` — no `coalesce`.
+Line 54: `ce.id='a112aead-...'::uuid,` — always `true`/`false`, never NULL.
+Line 227: `sum(f.capital) filter(where not f.es_demo) capital_registrado`; line 336 the same in the ficha. `filter(where not NULL)` excludes the row.
+
+Impact:
+If `public.contratos.es_demo` is nullable, any contract with a NULL value is counted in `cantidad` (`count(*)`, unfiltered) but omitted from `capital_registrado` — the totals shown to users under-report real capital with no indication. This is a money-display correctness issue, not merely defensive style.
+
+Recommendation:
+`coalesce(c.es_demo, false)` at line 34. Add a bank test with a NULL `es_demo` contract asserting `cantidad` and `capital_registrado` stay consistent. (If the column is `not null`, the coalesce is free and removes the asymmetry visible in the diff.)
+
+Related, same area — line 54: the external demo marker is a hardcoded UUID literal embedded in a money filter. This will not survive a re-seed, a second demo closure, or an environment other than the one it was written against. Recommendation: add an `es_demo` column to `crm.cierres_externos` (or a small marker table) and read it, matching the Avance branch.
+
+---
+
+[P2] `enlaces.perfiles` is not restricted to `rol='cliente'` for non-Directorio actors
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+161–162, 169–173, 290, 293
+
+Problem:
+The canonical group's profile array is built with no role filter; the role filter is applied only in the lector branch.
+
+Evidence:
+Lines 161–162: `array(select distinct h.perfil_id from crm.inversionistas h where h.perfil_id is not null and private.inversionista_canonica(h.id)=i.id)` — no `rol` predicate.
+Line 171: `and (not i.lector or p0.rol='cliente')` — the restriction applies **only** when `i.lector` is true.
+The published `private.inversion_persona_contexto` enforces the opposite invariant on the write path: `if not found or v_p.activo is not true or v_p.rol <> 'cliente' then raise exception 'El perfil Avance requiere revisión antes de operar'`.
+Lines 290 and 293 consume the same unfiltered array: `a.cliente_id=any(v_p.perfil_ids)` and `t.perfil_id=any(v_p.perfil_ids)`.
+
+Impact (hypothesis — depends on whether a non-`cliente` profile can be linked as `crm.inversionistas.perfil_id`): if such a link exists, the `p` lateral at lines 169–173 can select a staff profile as the identity source, exposing that profile's `dni`, `telefono`, `correo` and `nombre_completo` through the cartera list and ficha, and pulling its `actividades_cliente` and `tareas` into the person's history. `cuentas_perfil_ids` is safe because `puede_gestionar_cuentas_cliente` independently requires `cli.rol='cliente'` (confirmed in the attached published SQL).
+
+Recommendation:
+Apply the write path's invariant to the read path: restrict `enlaces.perfiles` to profiles with `rol='cliente'`, or move the filter out of the lector-only condition at line 171 so it applies to every role. Add a bank test that links a non-`cliente` profile into a canonical group and asserts it contributes nothing to identity, historial or tareas.
+
+---
+
+[P2] Directorio's identity fields may come from a group profile outside its visible client set
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+138–141 vs 150–154, 169–173
+
+Problem:
+Authorization for a lector is established by the existence of *one* group member matching `cliente_ids_visibles_crm()`, but the rendered fields are drawn from *any* `rol='cliente'` profile in the group, chosen by a different ordering.
+
+Evidence:
+Lines 138–141 (authorization): `or (a.lector and exists (select 1 from crm.inversionistas h join private.cliente_ids_visibles_crm() v on v.cliente_id=h.perfil_id where private.inversionista_canonica(h.id)=i.id))`.
+Lines 169–173 (rendering): `select p0.* from public.perfiles p0 where p0.id=any(enlaces.perfiles) and (not i.lector or p0.rol='cliente') order by (p0.id=i.perfil_id) desc, p0.activo desc, p0.id limit 1` — no join back to `cliente_ids_visibles_crm()`.
+Lines 150–154 then read `p.tipo_documento`, `p.dni`, `p.telefono`, `p.correo` from that row.
+
+Impact:
+Where a canonical identity spans two Avance client profiles and the Directorio's scope covers only one, the displayed document and contact data can be the other profile's. Same natural person, but a profile the reader is not authorized to see — which is a scope expansion against the stated "Directorio retains existing Avance-only reader scope, no expansion" constraint.
+
+Recommendation:
+For `i.lector`, restrict the `p` lateral to profiles that are also in `private.cliente_ids_visibles_crm()`, and prefer that same set in the ordering. Add a bank test with a two-profile canonical identity where only one profile is in the Directorio's scope.
+
+---
+
+[P2] Cotitular documents are exposed without the `puede_leer_contrato_pdf` gate that guards the contract itself
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+308, 311, 321–324
+
+Problem:
+The PDF and the document list are both gated on `private.puede_leer_contrato_pdf(f.fuente_id)`; the cotitular block is gated only on `not v_lector`.
+
+Evidence:
+Line 308: `'pdf', case when f.empresa='avance' and not v_lector and private.puede_leer_contrato_pdf(f.fuente_id) then ...`
+Line 311: `'documentos', case when v_lector or (f.empresa='avance' and not private.puede_leer_contrato_pdf(f.fuente_id)) then '[]'::jsonb ...`
+Line 321: `'cotitulares', case when f.empresa='avance' and not v_lector then coalesce((select jsonb_agg(... 'tipo_documento',t.tipo_documento,'documento',t.documento ...) from public.contrato_titulares t where t.contrato_id=f.fuente_id),'[]')`
+
+Impact:
+An actor who owns the current relationship but fails `puede_leer_contrato_pdf` still receives every co-holder's document type and number — third-party PII that is otherwise contained inside the very PDF the gate withholds. The gating is inconsistent with itself within a single `jsonb_build_object`.
+
+Recommendation:
+Add `and private.puede_leer_contrato_pdf(f.fuente_id)` to line 321, matching lines 308 and 311. Add a role-matrix test asserting `cotitulares == []` for an actor denied `puede_leer_contrato_pdf`.
+
+---
+
+[P2] Directorio guard is applied to lead-side history but not to client-side history and tasks
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+286–294
+
+Problem:
+The lead-derived rows carry `and not v_lector`; the client-derived rows do not.
+
+Evidence:
+Line 287: `from crm.actividades a where a.lead_id=any(v_p.lead_ids) and not v_lector`
+Line 290: `from crm.actividades_cliente a where a.cliente_id=any(v_p.perfil_ids)` — no guard.
+Line 293–294: `where t.activo and (t.perfil_id=any(v_p.perfil_ids) or (not v_lector and t.lead_id=any(v_p.lead_ids)))` — the guard is inside the lead branch only.
+
+Impact (hypothesis — depends on Directorio's published read scope): if `crm.actividades_cliente` and `crm.tareas` are not part of the existing Directorio reader scope, this is an expansion. The deliberate asymmetry within the same CTE suggests it was a decision rather than an omission, but the evidence attached does not establish which.
+
+Recommendation:
+Either confirm against the published Directorio scope and add a comment at line 290 recording that client-side activities and tasks are in scope, or add `and not v_lector` to both. Add an explicit assertion to the role-matrix test either way — right now the intent is not recoverable from the code.
+
+---
+
+[P2] The coverage gate is global and re-scans every source on every call
+
+File:
+`CRM-Avance-Corp/supabase/scripts/f5/01-lecturas.sql`
+
+Lines:
+87–92, 101–109, 201, 209–213, 257, 267, 347
+
+Problem:
+`cartera_f5_exigir()` runs an unscoped `not exists` over all of `public.contratos` ∪ `crm.cierres_externos`, with a correlated `private.inversionista_canonica()` call per candidate row, and is invoked on every read.
+
+Evidence:
+Lines 87–92: the gate joins `private.cartera_f5_fuentes()` (a full scan of both source tables, each with a `cross join lateral` performing `array_agg(distinct private.inversionista_canonica(...))`) against `crm.inversionistas`.
+`inversionista_ficha_fn` invokes it at line 257, again indirectly at line 267 via `cartera_inversionistas_estado_fn()`, and a third time at line 347 — plus two full evaluations of `cartera_f5_personas_visibles()` (lines 263, 348) and one of `cartera_f5_fuentes()` (line 280). That is roughly six full source scans per ficha load, at `refetchInterval: 15_000`.
+Line 213 calls `private.es_lector_global()` inside a row predicate (`where not private.es_lector_global() or f.empresa='avance'`) rather than hoisting it into the materialized `actor` CTE the way `cartera_f5_personas_visibles()` does at lines 122–125 — so the same STABLE lookup re-executes per row.
+
+Impact:
+Two distinct problems. (a) Availability coupling: a *single* source row anywhere in the system with `identidad_coherente=false`, a missing `crm.inversionistas` row, or a non-canonical link flips `habilitada=false` for every user. Note that legacy Avance contract creation is still reachable from this same screen (`cartera-inversionistas.tsx:81-85`, `gestionAvance`), so a contract created without a canonical link takes the whole cartera down until reconciled. (b) Cost: the per-call scan is O(all contracts + all closures) and grows with the book, not with the page.
+
+Recommendation:
+For (a), confirm — and test — that every contract-creation path guarantees a canonical `crm.inversionistas` link; if it cannot, consider whether the gate should be scoped to the actor's visible set rather than global, and surface *which* sources are unreconciled through an operator-facing view. For (b), materialize the coverage verdict (a small table or matview refreshed on write, or a cached flag), evaluate the gate once per RPC rather than three times in `inversionista_ficha_fn`, and hoist `es_lector_global()` at line 213 into the `fuentes` CTE the way lines 122–125 already do.
+
+---
+
+[P3] Miscellaneous
+
+- `01-lecturas.sql:32` — for Avance, `fecha_imputacion` is set to `c.fecha_cierre_comercial`, identical to `fecha_comercial`. The "Fecha de imputación" row at `inversionista-ficha.tsx:68` is therefore structurally unreachable for Avance rows. If `public.contratos` carries a distinct accounting date, it is being discarded; if not, the field is dead weight for that branch.
+- `01-lecturas.sql:150-152` — for a lector, `documento_tipo`/`documento` come from `p` while `documento_verificado` comes from the `d` lateral over `crm.inversionista_identificadores`. The badge at `inversionista-ficha.tsx:127` can therefore assert verification of a document the reader is not looking at.
+- `01-lecturas.sql:426-438` — `create or replace function` grants `EXECUTE` to `PUBLIC` by default for newly created functions; the `revoke` statements only run afterwards. Safe if the script is applied in a single transaction; confirm the migration wrapper guarantees that.
+- `handler.mjs:80` — `d.sha256` / `d.bytes` are only populated on the sealed-PDF path (`01-lecturas.sql:407`). For `public.documentos` and external comprobantes the integrity comparison is skipped, and the `X-Document-Sha256` the client verifies (`inversionistas-api.ts:79-81`) is computed over whatever was fetched — transport integrity only, not provenance. Worth a comment so the guarantee is not over-read.
+- `handler.mjs:5, 77` — a 20 MB ceiling buffered fully in memory plus a SHA-256 over the buffer; under concurrency this is the function's memory profile. Consider streaming with an incremental digest, or lowering the ceiling to the actual maximum (10 MB for comprobantes per `inversion-solicitud-api.ts:60`).
+- `inversion-nueva.tsx:144` — `/^[0-9a-f-]{36}$/i` accepts strings like 36 hyphens. Harmless (PostgREST rejects a malformed uuid), but the pattern does not do what the message claims.
+- `inversion-nueva.tsx:64-69` — duplicates the confirmed-state logic of `recibir` (lines 56–60) inline because the guard differs (`abort.signal.aborted` vs `cerro.current`). Two copies of the "economic success detected" branch is exactly the code you least want duplicated.
+- `inversion-nueva.tsx:298` / `InversionCooperativa:293` — currency is hardcoded to `'PEN'` while `crm.cierres_externos.moneda` and the read path (`01-lecturas.sql:47`) support USD. Fine if intentional; record it.
+- `inversionista-ficha.tsx:76` — `key={c.orden}` for cotitulares, but the SQL orders by `t.orden, t.id` (line 323), implying `orden` may not be unique per contract. Use `c.orden`+identifier.
+- `inversion-solicitud-api.ts:70` — `'statusCode' in error && String(error.statusCode) === '409'` couples the duplicate-upload recovery path to a specific supabase-js error shape. A shape change silently degrades an idempotent retry into a permanent "COMPROBANTE_PENDIENTE".
+- `inversionistas-api.ts:84-88` — the anchor is never attached to the document before `.click()`; this works in current browsers but is worth a note. `decodeURIComponent` at line 86 is outside any `catch`.
+- `cartera-inversionistas.tsx:101-102` — the empresa filter offers Qorilazo/Prodelco to Directorio, but `01-lecturas.sql:213` filters those sources out, so the result is always an empty list with a "no matches" message. Consider restricting the options for lectores.
+- `01-lecturas.sql:298` / `inversionista-ficha.tsx:133` — `identidad_fusionada` is `p_inversionista is distinct from v_id`, but `cartera_f5_personas_visibles()` only ever emits canonical rows (line 130), and both UI entry points pass canonical ids (`cartera-inversionistas.tsx:132-133`). The banner is unreachable from this UI; confirm whether a non-canonical entry point (deep link, saved reference) is intended.
+
+---
+
+TEST GAPS:
+
+- No test asserting ficha behaviour under lock contention: hold `for update` on the person's `crm.leads` row in a second session and assert the ficha returns with `nueva_inversion=false` rather than raising (P1 #1).
+- No test asserting audit-row volume: N polls of the same ficha should not produce N `cartera_lecturas` rows (P1 #2).
+- No UI test for the abort-then-reopen sequence that latches `descargando` (P2 #3) — the stated UI suite covers "cache purging, postmount gating, prepare vs confirm, response loss/reload" but not abort interleaving between the sheet and the dialog.
+- No test asserting the bank panel does not remount on a ficha poll (P2 #4).
+- No test for "correct without changing anything" — should not require a motivo and should not advance `revision_datos` (P2 #5).
+- No test for a corrupt `sessionStorage` value reaching a usable recovery path (P2 #6).
+- No test asserting the pending reference is still obtainable after a revocation (P2 #7).
+- No bank test with `contratos.es_demo IS NULL` (P2 #8) or with a second external demo closure (hardcoded UUID).
+- No role-matrix case for a canonical group containing a non-`cliente` profile (P2 #9), a two-profile group where the Directorio sees only one (P2 #10), or an actor denied `puede_leer_contrato_pdf` asserting `cotitulares == []` (P2 #11).
+- The stated "12 read tests" and "8 border tests" may already cover some of these; I cannot confirm from the attached evidence, since the test files were not included.
+
+ARCHITECTURE RISKS:
+
+- A read RPC depending on a write-path function that takes locks (`inversion_persona_contexto`) couples read availability to write concurrency. The comment at `01-lecturas.sql:265-266` acknowledges the lock but scopes the exemption to Directorio only.
+- The coverage gate makes cartera availability a global, all-or-nothing property of the entire source corpus. Correct as a safety stance; operationally fragile without an operator view of what is blocking it.
+- `cartera_f5_fuentes()` is a full-corpus function invoked on every request path (gate, list, ficha, documento). Every feature added to F5 multiplies this scan.
+- The 15 s `refetchInterval` applied uniformly via `lecturaVigente` is the amplifier behind three separate findings (locks, audit volume, bank-panel remounts). Consider whether live revocation needs polling at all, or whether an on-focus + on-action refresh with a longer interval achieves the same guarantee.
+
+SECURITY RISKS:
+
+- The proxy reads Storage with the service-role key (`handler.mjs:73-74`), so the RPC descriptor is the sole authorization boundary for arbitrary object reads within three buckets. The path validation (bucket allowlist, no leading `/`, no empty/`.`/`..` segments, no control chars or backslash, per-segment `encodeURIComponent`, `redirect: 'error'`) is thorough and I found no bypass. This is acceptable, but it means every future change to `inversionista_documento_fn`'s return shape is a security change.
+- Third-party PII (cotitular documents) is gated more weakly than the document containing it — P2 #11.
+- Directorio scope expansion is plausible in two places (P2 #10, P2 #12); neither is demonstrated, both are cheap to close or to document.
+- No secrets, tokens or PII appear in log paths in the attached code. `inversionistas-api.ts:23-24` explicitly avoids sending validator issues to telemetry; `inversion-solicitud-api.ts:52` avoids logging the error body. Good.
+- `handler.mjs:43` permits requests with no `Origin`; correct for a Bearer-token API with no cookie auth.
+
+REGRESSION RISKS:
+
+- `descargando` latching (P2 #3) is a live regression in the new screen with no error surface.
+- Bank-panel remounting (P2 #4) is a visible regression against the published `CuentasClienteMoneda` behaviour.
+- Legacy Avance contract creation remains reachable at `cartera-inversionistas.tsx:81-85`; if that path can create a contract without a canonical `crm.inversionistas` link, it will disable the F5 cartera globally via the coverage gate.
+- `01-lecturas.sql` uses `create or replace` on `crm.*` functions; if any of these names already exist in production with different signatures, the old overload survives alongside the new one. The explicit `revoke`/`grant` list covers only the new signatures.
+
+RECOMMENDED NEXT ACTIONS:
+
+1. Fix P1 #1 — catch `lock_not_available` / `deadlock_detected` at `01-lecturas.sql:271`, and preferably split a lock-free read variant out of `inversion_persona_contexto`. Add the concurrent-lead-lock bank test.
+2. Fix P1 #2 — deduplicate `cartera_lecturas` writes so a 15 s poll does not produce an audit row, and decide whether the proxy's verification call at `handler.mjs:81` should log.
+3. Fix the two client-state defects: `descargando` reset by controller identity (`cartera-inversionistas.tsx:79`) and drop `q.dataUpdatedAt` from the `CuentasAvance` key (`inversionista-ficha.tsx:166`).
+4. Close the three gating gaps in SQL: `coalesce(c.es_demo,false)` (line 34), `puede_leer_contrato_pdf` on cotitulares (line 321), and `rol='cliente'` on `enlaces.perfiles` (line 161) — plus a decision (code or comment) on the lector guard at lines 290/293.
+5. Replace the `JSON.stringify` no-op comparison with `hash_datos`, and make the reference-recovery form reachable from the corrupt-storage branch.
+6. Provide, for a second pass if one is warranted: `preparar_inversion_fn`, `corregir_solicitud_inversion_fn`, `confirmar_inversion_revisada_fn`, `revisar_solicitud_inversion_fn`, `private.inversion_persona_autorizada`, `private.inversion_solicitud_resultado`, the `crm-inversion-portal` handler, and `20260908230249_crm_f5_cartera_ficha_multiempresa.sql`. Three questions currently rest on unattached evidence: (a) whether `corregirSolicitudInversion` is idempotent on `p_clave` when `revision_datos` has already advanced (`inversion-nueva.tsx:179-181`); (b) whether confirm rejects a cooperative solicitud whose comprobante object was never uploaded, since the client skips the upload when `solicitud.comprobante_ruta` is null (`inversion-nueva.tsx:238`); (c) whether `public.contratos.es_demo` and `cliente_id` are nullable.
+
+CONFIDENCE:
+MEDIUM-HIGH for the findings grounded in the attached files (P1 #1 and #2, P2 #3–#8, #11, #12 are directly readable from the evidence). MEDIUM for P2 #9 and #10, which depend on data shapes I could not verify. LOW on anything touching the writer path, which was not attached — I did not review it and no finding above asserts a defect in it.
