@@ -4072,7 +4072,14 @@ export type Database = {
         Returns: Json
       }
       historial_decisiones_tasa_gerencia_fn: {
-        Args: { p_busqueda?: string; p_cursor_id?: string; p_cursor_resuelta_en?: string; p_decision?: string; p_limite?: number; p_periodo_dias?: number }
+        Args: {
+          p_busqueda?: string
+          p_cursor_id?: string
+          p_cursor_resuelta_en?: string
+          p_decision?: string
+          p_limite?: number
+          p_periodo_dias?: number
+        }
         Returns: Json
       }
       politica_rentabilidad_fn: { Args: never; Returns: Json }
@@ -4316,7 +4323,12 @@ export type Database = {
       solicitar_tasa_fn: { Args: { p_solicitud: Json }; Returns: Json }
       solicitud_inversion_fn: { Args: { p_solicitud: string }; Returns: Json }
       solicitudes_tasa_fn: {
-        Args: { p_estados?: string[]; p_limite?: number; p_solo_mias?: boolean; p_cliente_id?: string }
+        Args: {
+          p_cliente_id?: string
+          p_estados?: string[]
+          p_limite?: number
+          p_solo_mias?: boolean
+        }
         Returns: Json
       }
       supervisores_para_reparto: {

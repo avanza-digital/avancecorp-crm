@@ -56,7 +56,7 @@ for (const bandera of [false, true]) {
   for (const codigo of ['P0411', 'P0410', 'PGRST202']) {
     test(`identidad ${bandera}: ${codigo} impide Auth, perfiles y correo antes de convertir`, async () => {
       const { respuesta, llamadas } = await ejecutar(bandera, { code: codigo, message: 'Validación de tasa bloqueada' });
-      assert.ok(respuesta.status >= 400);
+      assert.equal(respuesta.status, codigo === 'PGRST202' ? 503 : 409);
       assert.equal((await respuesta.json()).error, codigo === 'PGRST202'
         ? 'No se pudo verificar la tasa. Intenta nuevamente en unos minutos.' : 'Validación de tasa bloqueada');
       assert.equal(llamadas.length, 3);
@@ -67,7 +67,7 @@ for (const bandera of [false, true]) {
   }
   test(`identidad ${bandera}: omitir la propuesta no evita preguntar al servidor`, async () => {
     const { respuesta, llamadas } = await ejecutar(bandera, { code: 'P0411', message: 'Pendiente' }, true);
-    assert.ok(respuesta.status >= 400);
+    assert.equal(respuesta.status, 409);
     assert.equal(llamadas.length, 3);
     assert.equal((await respuesta.json()).error, 'Pendiente');
   });

@@ -70,7 +70,11 @@ de publicar, hay que reconciliar y repetir las verificaciones pertinentes.
 | Recorrido nuevo Playwright | PASS a 1.440 y 390 px; solicitud, bloqueo, reapertura y aprobación. |
 | Suite Playwright general | Primera ejecución: 144 PASS, 5 FAIL, 26 SKIP. Se corrigieron tres selectores ambiguos y el entorno local de fuentes. Revalidación posterior: 34/34 PASS, incluidos los cinco fallos. No se presenta como una segunda ejecución integral. |
 | Revisión independiente de implementación | CHANGES_REQUESTED recibido; hallazgos evaluados/corregidos y comprobados por el PRIMARY. Ver `REVISION.md`. |
-| Rama remota, matriz RLS completa y advisors | NOT RUN para esta migración. |
+| SQL remoto específico | PASS: quince grupos con rollback en `ehzftpvxuwuzinvkyhzz`. |
+| HTTP remoto | PASS: sesión real de analista/Gerencia; solicitud, contraoferta, aceptación, equipo ajeno, pendiente/base/omisión/documento en ambas banderas, sin efectos parciales. |
+| Tipos desde esquema remoto | Generados con CLI; once bloques del alcance comparados e incorporados sin retirar los tipos F5 pendientes. Typecheck PASS. |
+| Advisors | Tres nuevas RPC authenticated previstas; una función existente cambia a wrapper SQL. Los avisos de DEFINER se evalúan junto con la matriz de permisos. Sin nuevos avisos de rendimiento. |
+| Matriz RLS completa | Referencia antes de migrar: 1.775 PASS / 41 FAIL de 1.816; comparación posterior en curso. |
 | Aplicación, Edge y frontend productivos | NOT RUN. |
 
 El banco parte de la estructura de pruebas vigente, con los actores sintéticos
@@ -112,3 +116,21 @@ Si ya hay solicitudes de lead o reservas con condiciones, se conserva el modelo
 y se corrige hacia delante. Una UI antigua que exige `cliente_id` no nulo no es
 una reversión compatible con esos datos. No borrar solicitudes, reservas,
 identidades ni contratos para volver a un estado anterior.
+
+## Hallazgos del banco remoto
+
+El fixture específico fijaba su política una hora antes. Tras la matriz RLS,
+otra revisión de observación más reciente prevalecía. Se corrigió el fixture
+para publicar su política en el instante actual; los quince grupos pasaron.
+No se cambió el SQL aprobado por ese ajuste.
+
+`testRentabilidadR1` intentaba limpiar con `estado='vencida'`, que no es un estado
+persistido, y ocultaba el error con `tolerante`. La segunda matriz quedó bloqueada
+por una solicitud dejada por la primera. La limpieza ahora modifica las fechas
+bajo el GUC de prueba y exige éxito; conserva historia y no rebaja permisos.
+
+La prueba HTTP encontró que P0410/P0411 de la reserva con identidad devolvían
+500 pese a bloquear correctamente. La Edge devuelve 409 en esos casos. Los
+tests exigen el estado exacto (409; 503 si falta RPC); gate Edge 67 Node + 5 Deno
+y HTTP real con ambas banderas PASS. La migración aprobada conserva SHA-256
+`113a436ec25f13105d7321f527bbeb583d74c09feffb408ab3a8616ea418ca55`.

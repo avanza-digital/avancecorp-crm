@@ -9695,10 +9695,11 @@ async function testRentabilidadR1(sessions, seed) {
     await expectBlockedMutation('R1 gerencia no inserta en el ledger por la tabla', sessions.gerencia.client.schema('crm').from('ledger_rentabilidad').insert({ contrato_id: '00000000-0000-4000-8000-0000000000a3', numero_contrato: 'X', cliente_id: clienteId, tasa_base: 15, tasa_final: 15, regla: 'sin_regla', origen: 'observacion' }), ['42501']);
     await expectBlockedMutation('R1 gerencia no inserta en la política por la tabla', sessions.gerencia.client.schema('crm').from('politica_rentabilidad').insert({ version: 999, vigente_desde: new Date().toISOString(), tasa_base_nueva: 1 }), ['42501']);
   } finally {
-    // Las solicitudes no se borran (historia): se dejan caducadas por la vía fuera de banda, bajo el GUC de la puerta.
+    // La caducidad se calcula por vence_en: «vencida» no es un estado persistido.
+    // Se conserva el historial y se exige que la limpieza termine (sin ocultar errores).
     const ids = [solicitudId, solicitudV1].filter((x) => typeof x === 'string');
     if (ids.length) {
-      ejecutarFueraDeBanda('R1 limpieza', `select set_config('crm.solicitud_tasa_por_puerta','on',true); update crm.solicitudes_tasa set estado = 'vencida' where id in (${ids.map((x) => `'${x}'`).join(',')}) and estado in ('pendiente','aprobada','aprobada_con_tope','aceptada_por_analista');`, { tolerante: true });
+      ejecutarFueraDeBanda('R1 limpieza', `select set_config('crm.solicitud_tasa_por_puerta','on',true); update crm.solicitudes_tasa set solicitada_en = clock_timestamp() - interval '8 days', vence_en = clock_timestamp() - interval '1 second' where id in (${ids.map((x) => `'${x}'`).join(',')}) and estado in ('pendiente','aprobada','aprobada_con_tope','aceptada_por_analista');`);
     }
   }
 }

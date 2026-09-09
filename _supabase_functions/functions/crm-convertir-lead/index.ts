@@ -381,9 +381,13 @@ Deno.serve(async (req: Request) => {
       const { data: reserva, error: reservaErr } = await rpc("reservar_conversion_lead", {
         p_lead_id: lead_id, p_tipo_documento: tipoDoc, p_documento: dniLimpio, p_payload: payloadSaga,
       });
-      if (reservaErr) return json(cors, { error: reservaErr.code === "PGRST202"
-        ? "No se pudo verificar la tasa. Intenta nuevamente en unos minutos."
-        : reservaErr.message }, reservaErr.code === "PGRST202" ? 503 : statusDeErrorSaga(reservaErr));
+      if (reservaErr) {
+        const status = reservaErr.code === "P0410" || reservaErr.code === "P0411"
+          ? 409 : statusDeErrorSaga(reservaErr);
+        return json(cors, { error: reservaErr.code === "PGRST202"
+          ? "No se pudo verificar la tasa. Intenta nuevamente en unos minutos."
+          : reservaErr.message }, status);
+      }
       const rr = (reserva && typeof reserva === "object") ? reserva as Record<string, unknown> : {};
       let saga = interpretarReclamo(reserva);
       if (saga.paso === "listo") {

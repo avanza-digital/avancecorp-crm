@@ -15,8 +15,9 @@ insert into crm.leads(id,nombre_completo,telefono,dni,origen,monto_estimado,vend
 values ('d7090000-0000-4000-8000-000000000001','QA TASA LEAD UNO','+51999009001','70909001','otro',20000,'f3000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001'),
  ('d7090000-0000-4000-8000-000000000002','QA TASA LEAD DOS','+51999009002','70909002','otro',20000,'f3000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001');
 update public.perfiles set telefono='+51999009999',correo='qa-analista-tasa@example.invalid' where id='f3000000-0000-0000-0000-000000000001';
+-- La prueba debe ser la política vigente también después del gate RLS, que publica versiones.
 insert into crm.politica_rentabilidad(version,vigente_desde,tasa_base_nueva,tope_tecnico,vigencia_solicitud_dias,modo)
-select coalesce(max(version),0)+1,clock_timestamp()-interval '1 hour',15,50,7,'enforcement' from crm.politica_rentabilidad;
+select coalesce(max(version),0)+1,clock_timestamp(),15,50,7,'enforcement' from crm.politica_rentabilidad;
 
 create function pg_temp.actor(p_id text) returns void language sql as $$
  select set_config('request.jwt.claims',jsonb_build_object('sub',p_id,'role','authenticated')::text,true);
