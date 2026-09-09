@@ -1,0 +1,146 @@
+[
+  {
+    "ruta": "aliados/belysh.png",
+    "dimensiones_servidor": [
+      1600,
+      1484
+    ],
+    "dimensiones_paquete": [
+      3508,
+      3253
+    ],
+    "pixeles_identicos": false
+  },
+  {
+    "ruta": "aliados/clinica-alvarez.png",
+    "dimensiones_servidor": [
+      852,
+      368
+    ],
+    "dimensiones_paquete": [
+      852,
+      368
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "aliados/mascapital.png",
+    "dimensiones_servidor": [
+      1600,
+      1484
+    ],
+    "dimensiones_paquete": [
+      3508,
+      3253
+    ],
+    "pixeles_identicos": false
+  },
+  {
+    "ruta": "aliados/ntc-agency.png",
+    "dimensiones_servidor": [
+      1600,
+      1484
+    ],
+    "dimensiones_paquete": [
+      3508,
+      3253
+    ],
+    "pixeles_identicos": false
+  },
+  {
+    "ruta": "aliados/phoenix.png",
+    "dimensiones_servidor": [
+      1600,
+      1484
+    ],
+    "dimensiones_paquete": [
+      3508,
+      3253
+    ],
+    "pixeles_identicos": false
+  },
+  {
+    "ruta": "aliados/prodelco.png",
+    "dimensiones_servidor": [
+      1187,
+      267
+    ],
+    "dimensiones_paquete": [
+      1187,
+      267
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "aliados/qorilazo.png",
+    "dimensiones_servidor": [
+      1600,
+      1484
+    ],
+    "dimensiones_paquete": [
+      3508,
+      3253
+    ],
+    "pixeles_identicos": false
+  },
+  {
+    "ruta": "brand/avance-icon-512.png",
+    "dimensiones_servidor": [
+      512,
+      512
+    ],
+    "dimensiones_paquete": [
+      512,
+      512
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "brand/avance-icon.png",
+    "dimensiones_servidor": [
+      512,
+      512
+    ],
+    "dimensiones_paquete": [
+      512,
+      512
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "brand/avance-logo-full.png",
+    "dimensiones_servidor": [
+      1200,
+      1200
+    ],
+    "dimensiones_paquete": [
+      1200,
+      1200
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "brand/favicon-32.png",
+    "dimensiones_servidor": [
+      32,
+      32
+    ],
+    "dimensiones_paquete": [
+      32,
+      32
+    ],
+    "pixeles_identicos": true
+  },
+  {
+    "ruta": "contrato/fondo-corporativo.png",
+    "dimensiones_servidor": [
+      1449,
+      2048
+    ],
+    "dimensiones_paquete": [
+      1449,
+      2048
+    ],
+    "pixeles_identicos": true
+  }
+]

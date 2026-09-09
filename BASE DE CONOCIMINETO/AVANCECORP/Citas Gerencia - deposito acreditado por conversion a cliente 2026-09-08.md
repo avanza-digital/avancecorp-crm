@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-08
-estado: regla-confirmada-implementada-local-sin-publicar
+estado: publicado-verificado-2026-09-09
 tags: [crm, citas, gerencia, conversion, regla-negocio]
 ---
 
@@ -18,4 +18,6 @@ La fecha visible es **Fecha de conversión**, no una hora bancaria inferida. El 
 
 Migración local nueva `20260909015744_crm_citas_deposito_por_conversion_cliente.sql`; no modifica la anterior versionada. Frontend admite V1 y V2; fuente V1 conserva «Sin verificar». La demo general no modela el vínculo cliente, por lo que sigue sin evidencia de conversión; las pruebas de V2 sí simulan la secuencia completa dentro de la app.
 
-PASS: gate frontend, 3.150 pruebas, 7 E2E y banco SQL de permisos/consulta/volumen/conversiones. Revisión Claude evaluada por Codex. **No publicado ni aplicado en remoto**. Evidencia: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/conversion-cliente/README.md`.
+Ensayo inicial local: gate frontend, 3.150 pruebas, 7 E2E y banco SQL de permisos/consulta/volumen/conversiones. Revisión Claude evaluada por Codex. Evidencia inicial: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/conversion-cliente/README.md`.
+
+**Publicado y aplicado en producción el 9 de septiembre.** Ver [[Citas Gerencia - publicacion y verificacion 2026-09-09]] para commit, versiones remotas, ensayos específicos, prueba de lectura real y las limitaciones del banco general (65 fallos; no se declaró aprobado). El artefacto limpio finalmente publicado pasó 3.127 tests y 147 E2E, con 26 omitidas por la suite. El banco temporal autorizado fue eliminado.

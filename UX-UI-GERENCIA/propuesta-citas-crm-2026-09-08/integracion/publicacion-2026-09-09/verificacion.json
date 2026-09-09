@@ -1,0 +1,161 @@
+{
+  "release": "crm-20260909T045534Z-887bef6e1bda",
+  "commit": "887bef6e1bda65f2eb65b8cb9ae00d093f2bf883",
+  "zip_sha256": "57c12c4a3bf7c4513088f7b079dcc50e767a787fcd568be740ee0ea5c3fdd0b4",
+  "control_antes": {
+    "citas": null,
+    "nuevas": null,
+    "historial_base": {
+      "n": 263,
+      "hash": "3f6845ddc8c01a2353fc189d9a140e75"
+    },
+    "funciones_anteriores": {
+      "n": 557,
+      "hash": "995623e1ac9a44ebfac90ca79437eeb2"
+    }
+  },
+  "control_despues": {
+    "citas": [
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres"
+        ],
+        "hash": "d4b9a8e782397aa70634879688a22426",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "nombre": "citas_gerencia_consulta",
+        "schema": "private",
+        "definer": true
+      },
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "authenticated=X/postgres"
+        ],
+        "hash": "944fda17ec7bb1b8b1ae96e2b6aa1c89",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "nombre": "citas_gerencia_consulta_fn",
+        "schema": "crm",
+        "definer": false
+      }
+    ],
+    "nuevas": [
+      {
+        "nombre": "crm_citas_gerencia_consulta_detallada",
+        "version": "20260909031832",
+        "statements_md5": "9d76c4309ad1db824c65ca14f4fcc90e"
+      },
+      {
+        "nombre": "crm_citas_deposito_por_conversion_cliente",
+        "version": "20260909031848",
+        "statements_md5": "64fdf8d7f02cb35a2438ffc9de5d4102"
+      }
+    ],
+    "historial_base": {
+      "n": 263,
+      "hash": "3f6845ddc8c01a2353fc189d9a140e75"
+    },
+    "funciones_anteriores": {
+      "n": 557,
+      "hash": "995623e1ac9a44ebfac90ca79437eeb2"
+    }
+  },
+  "lectura_produccion": {
+    "citas": 115,
+    "fuente": "conversion_cliente",
+    "periodo": {
+      "desde": "2026-09-01",
+      "hasta": "2026-09-30"
+    },
+    "version": 2,
+    "conversiones": 2,
+    "citas_clientes": 0,
+    "ids_citas_unicos": true,
+    "conversiones_unicas": true,
+    "sin_conversion_futura": true,
+    "conversiones_en_cohorte": true
+  },
+  "seguridad_sin_nuevos_avisos": true,
+  "edge_fuentes_verificadas": [
+    {
+      "slug": "crear-cliente",
+      "files": 7,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "eliminar-cliente",
+      "files": 1,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "importar-clientes",
+      "files": 3,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "files": 6,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "files": 2,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-importar-leads",
+      "files": 6,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "files": 9,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "files": 5,
+      "same": true,
+      "jwt": true,
+      "import_map": true
+    }
+  ],
+  "branch_eliminado": "16078235-a133-4ffa-908f-55dade1414c0",
+  "gates": {
+    "frontend": {
+      "check_all": "PASS",
+      "unit": 3127,
+      "e2e_pass": 147,
+      "e2e_skipped": 26
+    },
+    "consulta_sql": "PASS",
+    "conversion_sql": "PASS",
+    "api_roles": "PASS",
+    "general_rls": {
+      "estado": "FAIL",
+      "pass": 1590,
+      "fail": 65,
+      "total": 1655
+    }
+  }
+}

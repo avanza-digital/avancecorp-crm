@@ -1,0 +1,8 @@
+{"rol":"gerencia","status":200,"version":2,"citas":0,"conversiones":0,"mes_invalido":"22023","resultado":"PASS"}
+{"rol":"sup1","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"vend1","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"coordinador","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"directorio","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"clientBank","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"vendInactive","status":403,"codigo":"42501","resultado":"PASS"}
+{"rol":"anon","status":401,"codigo":"42501","resultado":"PASS"}

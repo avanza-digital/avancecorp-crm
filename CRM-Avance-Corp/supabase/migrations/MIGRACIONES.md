@@ -8741,3 +8741,32 @@ cambios; contenido JSON validado por contrato V2. Gate frontend: 3.150 pruebas;
 El nuevo bundle admite V1/V2. Publicar de forma coordinada: un bundle intermedio
 que sólo admita V1 rechazaría V2. Evidencia en
 `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/conversion-cliente/README.md`.
+
+## 20260909 — Citas de Gerencia publicadas: consulta V2
+
+Miguel autorizó completar implementación/publicación y el banco temporal.
+Aplicación por rama Supabase → ensayos → advisors → merge, con lectura real
+posterior en producción. Los archivos versionados se conservaron intactos:
+
+| Archivo local | Registro de producción |
+| --- | --- |
+| `20260909003243_crm_citas_gerencia_consulta_detallada.sql` | `20260909031832` |
+| `20260909015744_crm_citas_deposito_por_conversion_cliente.sql` | `20260909031848` |
+
+Esta entrada actualiza el estado local/pendiente de las dos entradas anteriores.
+Sólo se añaden los dos lectores de Citas; las 557 funciones previas, permisos,
+tablas, triggers y políticas productivas conservaron sus huellas. Seguridad:
+sin avisos nuevos. Fuente del depósito: conversión vigente a cliente; fecha
+de conversión y ninguna cuantía bancaria inferida.
+
+PASS: matrices SQL específicas de consulta/conversión, REST por roles, firma
+TypeScript generada, lectura productiva V2 y frontend del commit publicado
+(3.127 tests, 147 E2E, 26 omitidas). **Matriz RLS general FAIL: 65/1.655**,
+con configuraciones faltantes y contratos de prueba anteriores a cambios ya
+publicados; no se acredita como aprobada. La decisión acotada del PRIMARY,
+evidencia de invariancia y límites están documentados en
+`UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/publicacion-2026-09-09/README.md`.
+
+Release `crm-20260909T045534Z-887bef6e1bda`, Main/avancecorp/main coincidentes
+en `887bef6e1bda65f2eb65b8cb9ae00d093f2bf883` al publicar. Banco temporal
+`plaeuugsybujzymrcvgj` eliminado; no se modificó banco-f7.

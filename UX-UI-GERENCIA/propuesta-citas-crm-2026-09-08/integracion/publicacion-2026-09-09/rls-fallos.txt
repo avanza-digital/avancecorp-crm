@@ -1,0 +1,65 @@
+  ✗ la sonda de borrados necesita al menos un lead inactivo: sin el no prueba nada
+  ✗ vend1 registra un contacto real sobre el lead transitorio: query fallo — P0002 · query returned no rows
+  ✗ agendar la reunion subio el lead a reunion_agendada — etapa=contactado
+  ✗ P04 true/true: conserva los siete motivos de enfriamiento
+  ✗ F1 lead libre: la fila única trae Y=7 y X=7 — filas=[]
+  ✗ F1 lead libre: gerencia SÍ edita las perillas: query fallo — PGRST116 · Cannot coerce the result to a single JSON object · The result contains 0 rows
+  ✗ vend1 obtiene resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup1 obtiene resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup2 obtiene resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia obtiene resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ directorio obtiene resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup2 lee metricas de analistas sin cruzar de subarbol: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ vend1 lee metricas de analistas: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia lee metricas de analistas del roster completo: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia obtiene series_comerciales_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ coordinador llama resumen_cartera_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ coordinador llama metricas_vendedores_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ coordinador llama series_comerciales_fn: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia obtiene el ranking de conversion global: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ directorio (lector global) obtiene el ranking global: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup1 obtiene el ranking de SU equipo: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup2 obtiene el ranking de SU equipo: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup1Nested obtiene el ranking de su rama: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia obtiene las metricas de conversiones globales: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ directorio (lector global) obtiene las metricas de conversiones: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia filtra las conversiones por origen: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ gerencia filtra por 'sin_origen' (rama del coalesce): query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ un origen inexistente devuelve lote vacio con forma estable: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ vend1 registra una llamada realizada sobre su lead: query fallo — P0002 · query returned no rows
+  ✗ gerencia lee la distribucion v3 con las claves nuevas: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ directorio (lector global) lee la distribucion v3 con las claves nuevas: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ el doble cierre externo se rechaza — sin detalle
+  ✗ vend1 no reserva un lead del equipo ajeno — P0409 · Con la identidad unificada encendida, la conversión a cliente va por persona (documento y datos): actualiza el CRM y vuelve a intentarlo · crm.reservar_conversion_lead(p_lead_id, p_tipo_documento, p_documento, p_payload)
+  ✗ no se reserva un lead ya convertido (asi la edge se entera ANTES de crear nada) — P0409 · Con la identidad unificada encendida, la conversión a cliente va por persona (documento y datos): actualiza el CRM y vuelve a intentarlo · crm.reservar_conversion_lead(p_lead_id, p_tipo_documento, p_documento, p_payload)
+  ✗ un monto NaN por la Data API se rechaza (envenenaba la cuota del equipo) — P0409 · La misma operacion llego con datos distintos; no se puede reintentar asi
+  ✗ #2 el cliente bancario (ya con identidad y lead) no convierte un SEGUNDO lead → P0409: la operacion fue aceptada
+  ✗ #2: el segundo lead quedó tocado
+  ✗ b5 OFF gerencia corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF vend1 corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF sup1 corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF coordinador corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF directorio corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF vendInactive corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 OFF clientBank corregir_documento_inversionista_fn → P0409 apagada: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON vend1 corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON sup1 corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON coordinador corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON directorio corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON vendInactive corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON clientBank corregir_documento_inversionista_fn → 42501 (solo Gerencia): rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ b5 ON gerencia corregir una persona inexistente → P0002: rechazo distinto al esperado — 42501 · permission denied for function corregir_documento_inversionista_fn
+  ✗ E4 ON: el propio cliente reconocido cambia su DNI → P0409 (solo Gerencia lo corrige): rechazo distinto al esperado — 42501 · Solo un usuario administrador puede corregir el documento de un cliente
+  ✗ E4 ON: el propio cliente reconocido envía id+dni juntos → P0409 (candado por OLD.id): rechazo distinto al esperado — 42501 · Solo un usuario administrador puede corregir el documento de un cliente
+  ✗ D-9 el sello de exenciones cuadra (la migración no toca las listas)
+  ✗ gerencia fotografia la conversion del mes ANTES de sembrar (linea base): query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sin linea base no se puede aseverar ni una delta: el bloque de conversion se aborta
+  ✗ gerencia lee el cumplimiento de metas: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ el snapshot de metas del gate NO esta vacio (si no, el resto pasa por vacuidad) — {"vendedores":0}
+  ✗ fuentes_reales.conversion declara una de las dos fuentes conocidas — undefined
+  ✗ sup1 lee el cumplimiento de su equipo: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ sup1 recibe al menos un analista de su equipo
+  ✗ vend1 lee su cumplimiento: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ coordinador pasa el gate de cumplimiento: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ directorio (lector global) lee el cumplimiento: query fallo — 55000 · crm.conversion_pesos esta vacia: no hay peso del referido con el que calcular la conversion
+  ✗ la marca no se reflejo en la ficha
