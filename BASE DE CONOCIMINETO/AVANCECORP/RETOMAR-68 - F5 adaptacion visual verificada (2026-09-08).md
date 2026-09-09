@@ -46,9 +46,10 @@ F4 permanece publicada; F5 está desarrollada, probada y ajustada visualmente.
 No se instaló SQL F5, no se publicó la nueva interfaz ni se activaron nuevas
 operaciones en producción durante este ajuste. El 09/09 Miguel realizó el
 recorrido básico de teclado y confirmó la lectura de cartera/ficha con
-VoiceOver; sigue pendiente la revisión manual del formulario y sus estados.
+VoiceOver. Después confirmó que funciona la lectura de los campos de Nueva
+inversión en Qorilazo; queda aprobado el recorrido manual guiado.
 Detalle: [[F5 - prueba manual de VoiceOver iniciada (2026-09-09)]].
-Quedan esos casos manuales y los gates del destino para publicar. La activación económica
+Quedan los gates del destino y del artefacto para publicar. La activación económica
 conserva F6, F7/G6, F8/G7 y F9/G8; no adelantar el piloto real.
 
 Relacionados: [[F5 - revision visual e integracion con el CRM (2026-09-08)]],
