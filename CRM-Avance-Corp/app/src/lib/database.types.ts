@@ -3900,6 +3900,10 @@ export type Database = {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      citas_gerencia_consulta_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       metricas_sla_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json

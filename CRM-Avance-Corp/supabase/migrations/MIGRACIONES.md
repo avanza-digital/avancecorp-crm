@@ -8698,3 +8698,23 @@ migración las convierte, y su preflight 2 exige que no haya ninguna en vuelo. *
 la edge anterior + `create or replace` con el literal v7 + reestampar a v7 las reservas v8 sin bytes;
 los CHECK ampliados pueden quedarse (son aditivos), como ya documentó la v6. Falta: revisión de Codex
 y el `!` de Miguel.
+
+## 20260909003243 — Consulta detallada de Citas de Gerencia (local)
+
+`20260909003243_crm_citas_gerencia_consulta_detallada.sql` incorpora
+`private.citas_gerencia_consulta(date,date)` y su fachada invocadora
+`crm.citas_gerencia_consulta_fn(date,date)`. Lectura de citas activas de leads del
+mes y su historial; seguimiento por vínculos explícitos y resultado asociado.
+Guardia canónica `private.rol_crm = gerencia`; no modifica escritores ni objetos
+del schema public. Cierres comerciales no se convierten en depósitos: devuelve
+`disponibilidad_depositos: sin_registro` hasta definir su fuente confirmada.
+
+Estado: **probada exclusivamente en base local aislada, NO aplicada en remoto**.
+Banco `supabase/scripts/test-citas-gerencia-consulta.sql`: PASS para roles/ACL,
+cohorte, vínculo del mismo lead, asistencia, ISO, cierre anterior al mes,
+postventa al corte y límite completo 10.000/10.001. Rollback de todos los datos
+ficticios. Firma TypeScript generada mediante Supabase CLI contra el banco local.
+Revisión de Claude evaluada por Codex; detalles y límites de los gates en
+`UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/README.md` (raíz del repo).
+Pendientes: definición de la confirmación del depósito y ensayo/publicación
+remota mediante el procedimiento autorizado. Esta entrada no autoriza publicar.

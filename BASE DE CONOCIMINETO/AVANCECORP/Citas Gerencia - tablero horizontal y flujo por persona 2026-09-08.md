@@ -1,6 +1,6 @@
 ---
 fecha: 2026-09-08
-estado: propuesta-3-local-no-aprobada-visualmente
+estado: adaptacion-identidad-local-pendiente-revision-visual
 tags: [crm, citas, gerencia, ux, ui, propuesta]
 ---
 
@@ -49,3 +49,13 @@ Miguel indicó que el resultado no le gusta y no se parece a su CRM; pidió busc
 Se capturaron Resumen, Ranking y Citas de la demo local actual a 1672×941, además del prototipo a la misma medida. La implementación cambió el marco de navegación, aplanó las superficies, introdujo pestañas diferentes y comprimió las filas. Recomendación: usar el aspecto real de Ranking/Metas, cabecera y paneles del CRM, y mejorar distribución y filtros conservando las reglas de negocio. IBM Plex Sans ya es la fuente del contenido actual de Gerencia; las notas históricas sobre otras fuentes no deben mandar sobre la referencia vigente.
 
 El Figma del proyecto contiene cabecera, pestañas, período, fila de Ranking y detalle lateral, pero también antecedentes que no están totalmente sincronizados. Se encontraron Obra Community y los recursos de filtros/tablas de Untitled UI como complementos concretos, sujetos a adaptación a la identidad propia. Evidencia, enlaces, diagnóstico y siguiente dirección: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/recursos-figma/README.md`. No se modificó código ni se creó una nueva propuesta de producto en esta revisión. Antes de otra implementación, mostrar la composición dentro del CRM real, según [[Fundamentos UX del CRM]].
+
+## Aplicación local de la identidad del CRM
+
+Miguel autorizó aplicar la recomendación y mostrarla en local. Se adaptó el prototipo de Citas con Sidebar real, cabecera de64 px con acciones de la consulta, paneles gi-card y tokens vigentes de Gerencia, pestañas agrupadas, filas legibles y barras azules de cumplimiento. No se monta el Topbar conectado al store; la identidad del Sidebar es estática, sin iniciar sesión ni consultar servicios. Los recursos Figma encontrados sirven como apoyo de organización y componentes, sin importar un tema diferente.
+
+La ficha del recorrido vuelve a ser el Sheet modal del CRM: se abre a demanda y no reduce las tablas. Se conserva la lógica de recuperación, filtros, métricas y límites del ejemplo. En escritorio el flujo es horizontal; bajo900 px pasa a dos filas y las tablas se desplazan dentro de su panel. Se abrevian meses para mantener el año visible. Se conserva la meta3=100%, objetivo3.75=125% y el corte del seguimiento. La vista completa a1672 px mide1173 px de alto; se permite desplazamiento vertical para mantener filas cómodas.
+
+Guía, capturas y pruebas: `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/README.md`. El navegador comprobó filtros, flujo, exportación, fichas, foco y tamaños. Gate integral y31 tests específicos pasan; se retiró una parametrización duplicada al volver al Sheet modal. El usuario preguntó si se estaba usando Claude; se explicó que Codex implementaba y Claude haría una revisión independiente. La revisión técnica no sustituye la aprobación visual de Miguel. Sigue siendo local con datos ficticios; no se publica ni se conecta una política de metas productiva. Continúa [[Fundamentos UX del CRM]] y sustituye la apariencia rechazada de la propuesta3.
+
+Claude entregó una revisión técnica: se aplicaron semántica de diálogo, ajustes de filtros y navegación por teclado. Se descartó la hipótesis de desborde de la barra porque Progress ya limita su valor. Evaluación completa y evidencia en `adaptacion-identidad/revision.md`. La revisión se contrastó con CodeGraph, componentes compartidos y pruebas; no se tomó como autoridad sobre la aprobación del cliente.

@@ -31,20 +31,22 @@ describe('tablero horizontal elegido para Citas', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('15 citas entre 4 leads')
   })
 
-  it('mantiene la consulta operable con la ficha no modal y la cierra al cambiar su base sin robar el foco', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+  it('abre la ficha modal del CRM y devuelve el foco antes de cambiar de persona o consulta', async () => {
     const usuario = userEvent.setup()
     render(<PropuestaCitasCRM />)
+    expect(screen.getByRole('button', { name: 'Ver recorrido de Andrea Peralta' })).toHaveAttribute('aria-haspopup', 'dialog')
     await usuario.click(screen.getByRole('button', { name: 'Ver recorrido de Andrea Peralta' }))
     const ficha = screen.getByRole('dialog', { name: 'Andrea Peralta' })
-    expect(document.querySelector('[data-slot="sheet-overlay"]')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeInTheDocument()
     expect(ficha).toHaveTextContent('2 citas · 66.7% de la meta')
     expect(ficha).toHaveTextContent('10:00')
     expect(ficha).toHaveTextContent('10:05 Lima')
+    await usuario.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ver recorrido de Andrea Peralta' })).toHaveFocus())
     await usuario.click(screen.getByRole('button', { name: 'Mónica Silva' }))
     expect(screen.getByRole('dialog', { name: 'Mónica Silva' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mónica Silva' })).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Mostrando recorrido de Mónica Silva')).toHaveAttribute('role', 'status')
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar recorrido' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByLabelText('Analista')).toBeVisible()
     await usuario.selectOptions(screen.getByLabelText('Analista'), 'valeria')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -53,12 +55,11 @@ describe('tablero horizontal elegido para Citas', () => {
     expect(screen.getByRole('region', { name: 'Conversión de inasistencias a depósito' })).toHaveTextContent('0% a depósito0 de 1 leads')
   })
 
-  it.each([true, false])('entrega el foco a la cita vinculada desde un inspector amplio=%s', async amplia => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: amplia, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+  it('entrega el foco del recorrido a la ficha modal de la cita vinculada', async () => {
     const usuario = userEvent.setup()
     render(<PropuestaCitasCRM />)
     await usuario.click(screen.getByRole('button', { name: 'Ver recorrido de Andrea Peralta' }))
-    expect(Boolean(document.querySelector('[data-slot="sheet-overlay"]'))).toBe(!amplia)
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeInTheDocument()
     await usuario.click(screen.getByRole('button', { name: 'Ver cita vinculada' }))
     await screen.findByRole('button', { name: 'Ubicar en agenda' })
     // La ficha de cita conserva el modo modal predeterminado del CRM.

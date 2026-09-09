@@ -1,0 +1,32 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/citas-gerencia.spec.ts e2e/graficas.spec.ts
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:1479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 7 tests using 7 workers
+
+(node:1486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1487) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1483) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/graficas.spec.ts:163:3 › resumen de Gerencia en sesión real › un rango vacío con foto mensual ausente no inventa metas ni series demo (3.8s)
+  ✓  3 [chromium] › e2e/graficas.spec.ts:17:1 › demo gerencia: el resumen analítico usa fixtures y no consulta Supabase (3.9s)
+  ✓  6 [chromium] › e2e/graficas.spec.ts:134:3 › resumen de Gerencia en sesión real › sin paridad del rango no publica su conversión ni la reemplaza con el mes (4.0s)
+  ✓  2 [chromium] › e2e/graficas.spec.ts:175:3 › resumen de Gerencia en sesión real › ranking real de Gerencia consulta agosto como mes calendario completo (5.0s)
+  ✓  5 [chromium] › e2e/citas-gerencia.spec.ts:27:1 › una consulta no habilitada muestra el error y se recupera sin recurrir a cifras de ejemplo (5.9s)
+  ✓  4 [chromium] › e2e/citas-gerencia.spec.ts:5:1 › Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vistas (6.7s)
+  ✓  7 [chromium] › e2e/graficas.spec.ts:35:3 › resumen de Gerencia en sesión real › distingue base, llegadas, avance inferido y citas en las lecturas simuladas (6.9s)
+
+  7 passed (8.4s)

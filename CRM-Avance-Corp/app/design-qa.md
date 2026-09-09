@@ -1,44 +1,56 @@
-# QA de Citas: propuesta 3
+# QA de Citas: identidad del CRM recuperada
 
-Fecha: 2026-09-08. Fuente visual: [Detalle a demanda](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/ajuste-ux/detalle-a-demanda.png). Implementación: [ficha de Andrea](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/ficha-andrea.png), en `http://127.0.0.1:4180/prototypes/citas-crm.html`.
+**Continuación: integración local autorizada.** La propuesta ahora comparte sus componentes con Gerencia → Citas dentro de la app real. [QA, capturas y verificación de integración](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/README.md). Se verificaron permisos y consulta en una base local aislada; la migración sigue sin publicarse y el indicador de depósitos reales está pendiente de definir su fuente. El registro que sigue corresponde a la adaptación visual previa del prototipo.
 
-## Comparación
+Fecha: 2026-09-08. Miguel autorizó aplicar la recomendación tras rechazar el aspecto de la propuesta 3. Este QA reemplaza el anterior: una prueba técnica o una comparación contra el concepto previo no equivale a aprobación visual del cliente.
 
-Fuente e implementación abiertas juntas en una misma entrada de comparación. Ambas miden **1672 × 941 px**, viewport CSS **1672 × 941**, densidad 1, sin marco de navegador ni escalado. Estado: Resultados, septiembre completo, todos los analistas, cuatro personas, Andrea seleccionada y ficha abierta. Fuentes cargadas antes de capturar y movimiento reducido. Se repitió la comparación tras corregir la densidad.
+## Referencia y comparación
 
-La comparación completa permite leer nombres, horas, porcentajes y controles al tamaño original; no fue necesario un recorte de detalle. Se inspeccionaron especialmente la fila de Andrea, el total del equipo y la cronología del depósito.
+Fuente visual vigente: [Ranking actual del CRM](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/recursos-figma/02-ranking-crm.png). Implementación: [Citas](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/tablero.png), en `http://127.0.0.1:4180/prototypes/citas-crm.html`.
 
-| Superficie | Resultado y adaptación deliberada |
+Ambas imágenes se abrieron juntas en una misma entrada de comparación, a **1672×941 px**, viewport CSS **1672×941**, densidad **1**, fuentes cargadas, tema claro y sin marco de navegador. Fuente: Ranking de la demo local; implementación: Resultados de Citas, septiembre completo, todos los analistas y sin ficha abierta. Son módulos y datos diferentes: se compara identidad, geometría, controles, tipografía y densidad, no igualdad píxel a píxel del contenido. Las cabeceras globales conservan sus 64 px y el menú mide 240 px.
+
+Se inspeccionaron a resolución original los textos, filas, pestañas, campos, barras y márgenes en la misma entrada. Los detalles son legibles a esa resolución; no se necesitó un recorte de detalle adicional. También se comparó [la vista completa](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/tablero-completo.png) y se abrió la [ficha de Andrea](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/ficha-andrea.png).
+
+## Cinco superficies de fidelidad
+
+| Superficie | Evaluación |
 | --- | --- |
-| Tipografía | IBM Plex Sans real del CRM, comprobada en estilos computados. Jerarquía de títulos, cifras, datos y metadatos conservada. Cuerpo de tabla de 14 px y metadatos de 12 px; no se encogió el texto para que cupieran las filas. Formato numérico del CRM, sin ceros decimales de relleno. |
-| Espaciado y composición | Flujo primero, personas después, comparación de analistas debajo. Sin tarjetas ni KPI duplicados. Inspector de 384 px; rail real del CRM de 208 px frente a 190 del dibujo. Las dos tablas y su total terminan a 916.8 px y caben en los 941 px de alto. |
-| Colores y tokens | Superficie blanca, texto navy, azul para selección/acciones y ámbar para Sin nueva cita. Usa los tokens del CRM; fila seleccionada con mezcla del accent al 8%. La jerarquía de color se conserva sin introducir estados de alarma por estar bajo la meta. |
-| Recursos e iconos | BrandLockup y logo reales del CRM, nítidos, sin estiramiento; iconos de Lucide existentes. No se reconstruyen los destinos incidentales del rail de la imagen. Campos y botones conservan los componentes, radios y estados del CRM. |
-| Contenido | Flujo 4/3/1/1, 25%=1/4 y S/35,000; total 40/26, 1.54, 51.3% y 3 de 26. Andrea 2 citas/66.7%, depósito 4 sep. 10:00 y confirmación 10:05. Se explicitan las distintas bases de consulta e historial. Ayudas y datos secundarios quedan accesibles a demanda. |
+| Tipografía | IBM Plex Sans comprobada en estilos computados. Títulos navy de 20 px para secciones; texto de tablas 13 px, encabezados y fechas secundarias 11 px, formato numérico del CRM. No se fuerza la fuente histórica del vault sobre la referencia vigente. |
+| Espaciado y composición | Menú real, cabecera de 64 px, margen de 24 px, paneles de radio 16 px y separación de 16 px. Se devuelve aire a las filas: al menos 44 px. Se elimina la cabecera intermedia de personas. Documento completo 1672×1173 px: el total de analistas requiere desplazarse 232 px; es una decisión deliberada de legibilidad, no se afirma que todo cabe en 941 px. |
+| Colores y tokens | Variables y gi-card vigentes de Gerencia: superficies blancas, bordes cálidos, títulos navy, azul discreto en barras y selección; ámbar solo en Sin nueva cita. Los campos y las pestañas recuperan el fondo suave del CRM. |
+| Recursos | Sidebar, BrandLockup, Avatar, iconos Lucide, Button, Select, Progress y Sheet existentes. Sin imágenes reconstruidas ni nuevo tema importado. La cabecera se compone con la geometría del Topbar, pero usa acciones locales de Citas y no monta su store. |
+| Contenido | Flujo 4→3→1→1, 25%=1/4 y S/35,000. Equipo 40/26, promedio 1.54, cumplimiento 51.3%, 3 de 26 leads con 3+. Meta 3=100% y objetivo 3.75=125%, escala de barras hasta 125% y marca100%. Los filtros y cálculos son los del ejemplo anterior. Fecha de origen y corte visibles. |
 
-## Hallazgos e iteraciones
+## Iteraciones
 
-1. **P2, densidad de escritorio:** [primera captura](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/antes-escritorio.png) cortaba los últimos analistas y total; la fuente sí los mostraba. Se redujeron alturas de filas, botones y separaciones, conservando el cuerpo de 14 px. Recaptura y comparación: [ficha final](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/ficha-andrea.png), total visible y documento de 1672 × 941. Resuelto.
-2. **P2, desborde tras navegación y cambio a móvil:** la página de 390 px llegaba a scrollWidth 822 por etiquetas absolutas de la tabla. Se hizo relativo el contenedor de desplazamiento para contener también esos elementos. [Móvil final](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/movil.png): scrollWidth 390, las tablas conservan su propio desplazamiento. Resuelto.
-3. **P2, etapas superpuestas a 768 px:** [tablet anterior](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/antes-tablet.png) mostraba la flecha de Reprogramaron sobre el número de Asistió. Hasta 1100 px la conversión ahora pasa debajo y el flujo usa el ancho disponible. [Tablet final](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/tablet.png) y medidas de botones/flechas comprueban separación. Resuelto.
+1. **P1 — deriva de identidad en el antecedente:** [implementación rechazada](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/recursos-figma/04-propuesta-no-aprobada.png) usaba un rail reducido de 208 px, lienzo plano y pestañas subrayadas. Se sustituyó por Sidebar real y composición de Gerencia. Comparación final con Ranking: resuelto en esta propuesta; pendiente la opinión visual de Miguel.
+2. **P2 — etapas cruzadas en anchos intermedios:** la primera prueba de geometría detectó un borde de flecha en 422.7 px frente al siguiente botón en 396.5 px. Las etiquetas ahora pasan debajo del número a 1279 px y el flujo usa dos filas bajo 900 px. Las pruebas de geometría finales pasan en 1280/1024/768; [1024](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/ancho-1024.png) y [768](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/ancho-768.png) inspeccionadas. Resuelto.
+3. **P2 — mes recortado en filtros estrechos:** [tablet anterior](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/antes-filtro-tablet.png) y [móvil anterior](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/antes-filtro-movil.png). Se amplían las columnas a dos y se abrevia el nombre del mes conservando el año. Capturas finales de 768 y [390 px](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/movil.png): mes y semana completos. Resuelto.
 
-El raster solo define escritorio. Tablet y móvil son adaptaciones del mismo contenido, no comparaciones píxel a píxel con una fuente móvil inexistente. Capturas de página completa: tablet 768 × 1076, móvil 390 × 1529; viewport 768 × 941 y 390 × 844 respectivamente. [Ficha móvil](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/movil-ficha.png): 390 × 844. Todas a densidad 1.
+Tablet y móvil son adaptaciones del contenido: no se dispone de una fuente móvil de Citas para comparación exacta. Los viewports son 768×941 y 390×844, densidad 1, capturas de página completa. En ventanas estrechas las tablas conservan desplazamiento propio; las regiones son enfocables para recorrer columnas con flechas. El menú mantiene el comportamiento del componente compartido. La [ficha móvil](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/movil-ficha.png) mide 390×844.
 
-## Interacción y accesibilidad
+## Verificación
 
-PASS en Chromium aislado autorizado: filtros de analista, mes y semana; seguimiento vinculado fuera de la semana; vacío y exportación deshabilitada; columnas opcionales; conservación de filtros entre las tres vistas; CSV completo desde página 2; recorrido → cita → agenda; fichas modal/no modal, retorno y conservación del foco, tabulación y Escape; anchos 1672/1280/1024/768/390 sin desborde; cero errores de consola. [Evidencia reproducible](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/interacciones.json).
+PASS: [recorrido en Chromium aislado](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/interacciones.json): filtros globales, etapa sin cambiar base, estados vacíos, seguimiento fuera de semana, columnas, CSV de 40 citas desde página 2, teclado, retorno de foco, ficha modal, recorrido→cita→agenda y anchos 1672/1366/1280/1024/768/390. Cero errores de consola. En un intento el script enfocó el selector antes de completarse el retorno de foco del modal; otro, concurrente con el gate integral, no confirmó el foco de retorno. Se añadió comprobación explícita del foco dentro del diálogo antes de cerrarlo y del foco devuelto antes de continuar; se guardará un diagnóstico si vuelve a fallar. La secuencia final aislada pasa. No se cambió el Sheet compartido.
 
-Los selectores tienen nombre accesible explícito; el cambio de persona se anuncia y sus botones expresan expansión/control. Se respeta movimiento reducido y objetivos táctiles de 44 px en móvil. No se realizó una auditoría exhaustiva con lector de pantalla, zoom de todas las pantallas ni medición automática de todos los contrastes.
+PASS: `npm run check` integral final, 218 archivos y 3112 pruebas. Después de los últimos ajustes, 31 tests del prototipo, TypeScript/build y lint. Cuatro advertencias previas de coverflow, ninguna nueva en Citas. Las dos expectativas antiguas de panel no modal se actualizaron al comportamiento modal deliberado.
 
-PASS: `npm run check`, 218 archivos/3106 tests. Última validación tras CSS y copy: lint, 32 tests del prototipo y build con TypeScript. Cuatro advertencias previas en `coverflow-carousel.tsx`. NOT RUN: E2E completa de producción y backend real, fuera del alcance de este prototipo ficticio.
+NOT RUN: E2E completa de producción, datos/backend reales, lector de pantalla exhaustivo y medición automática de todos los contrastes. Este prototipo no inicia sesión ni registra citas o depósitos reales.
 
-## Cierre
+No quedan diferencias visuales P0/P1/P2 accionables en las capturas inspeccionadas. La aprobación visual del cliente continúa pendiente.
 
-- [x] Composición y datos comparados contra la propuesta elegida.
-- [x] Hallazgos P2 corregidos y recapturados.
-- [x] Filtros, estados vacíos, exportación y fichas verificados.
-- [x] Revisión técnica evaluada y correcciones verificadas: [registro](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/implementacion-3/revision.md).
 
-No quedan diferencias P0/P1/P2 accionables. Refinamiento P3: al cambiar de ancho mientras la ficha está abierta puede reiniciarse su desplazamiento interno al cambiar de modalidad.
+Revisión de Claude recibida y evaluada por Codex: [registro](../../UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/experiencia/adaptacion-identidad/revision.md). Se aplicaron los ajustes respaldados por evidencia y se descartaron las hipótesis resueltas por los componentes compartidos.
+
+Dimensiones de los PNG finales (densidad 1):
+
+- tablero.png: 1672×941 px.
+- tablero-completo.png: 1672×1173 px.
+- ancho-1366.png: 1366×1241 px.
+- ancho-1024.png: 1024×1361 px.
+- ancho-768.png: 768×1568 px.
+- movil.png: 390×1767 px.
+- movil-ficha.png: 390×844 px.
 
 final result: passed
