@@ -32,6 +32,7 @@ const { mutarAnular, estadoActual } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/data/crm-queries', () => ({
+  useSolicitudesTasa: () => ({ data: [], isPending: true, isError: false }),
   useCierresEstado: () => ({ data: estadoActual.filas }),
   useAnularCierreAvance: () => ({ mutateAsync: mutarAnular }),
   useConvertirLeadExterno: () => ({ mutateAsync: vi.fn() }),

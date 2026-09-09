@@ -68,6 +68,7 @@ function TarjetaSolicitud({ s, onDecidir, ocupada }: {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p id={idCliente} className="truncate text-sm font-extrabold text-foreground" title={s.cliente_nombre}>{s.cliente_nombre}</p>
+          {s.lead_id && <span className="text-[10px] font-semibold text-primary">Solicitud desde lead</span>}
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             {CATEGORIA_TXT[s.categoria] ?? s.categoria}{s.contrato_origen_numero ? ` de ${s.contrato_origen_numero}` : ''} · {money(s.capital, s.moneda)} · {fmtFecha(s.fecha_inicio)} <span aria-hidden>→</span><span className="sr-only">al</span> {fmtFecha(s.fecha_vencimiento)}
           </p>

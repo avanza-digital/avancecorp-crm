@@ -1,0 +1,83 @@
+[
+  {
+    "nspname": "crm",
+    "proname": "convertir_lead",
+    "signature": "crm.convertir_lead(uuid,uuid)",
+    "md5": "ad50d4455dd4a4378128d69c4d1cce7a",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "historial_decisiones_tasa_gerencia_fn",
+    "signature": "crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid)",
+    "md5": "459410c023ff68c2aad3e4cdbadf9b11",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "marcar_efectos_conversion",
+    "signature": "crm.marcar_efectos_conversion(uuid,uuid,text)",
+    "md5": "667f74f36e2e3549da698cae9d504abb",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "marcar_efectos_conversion",
+    "signature": "crm.marcar_efectos_conversion(uuid)",
+    "md5": "a90403390cf88422b5740ee35855ef43",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "reservar_conversion_lead",
+    "signature": "crm.reservar_conversion_lead(uuid,text,text,jsonb)",
+    "md5": "3f9d4526fe274a6327910445be03f1f9",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "reservar_conversion_lead",
+    "signature": "crm.reservar_conversion_lead(uuid)",
+    "md5": "c9fc656c5f9b57d0688a5ecccd747e73",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "solicitar_tasa_fn",
+    "signature": "crm.solicitar_tasa_fn(jsonb)",
+    "md5": "eaff51ed11684ffc61237599c3281759",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "crm",
+    "proname": "solicitudes_tasa_fn",
+    "signature": "crm.solicitudes_tasa_fn(text[],integer,boolean,uuid)",
+    "md5": "4ac920401c596e255efb93715a74b603",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+  },
+  {
+    "nspname": "private",
+    "proname": "resolver_tasa",
+    "signature": "private.resolver_tasa(uuid,text,uuid,timestamp with time zone,uuid)",
+    "md5": "7f84c52e47c26caddaea6f04582de2cd",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres}"
+  },
+  {
+    "nspname": "private",
+    "proname": "resolver_tasa",
+    "signature": "private.resolver_tasa(uuid,text,uuid,timestamp with time zone)",
+    "md5": "a39c2fbf240888c925d93ffcae3d96e5",
+    "owner": "postgres",
+    "acl": "{postgres=X/postgres}"
+  }
+]
+

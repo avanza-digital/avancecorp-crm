@@ -14,6 +14,138 @@ export type Database = {
   }
   crm: {
     Tables: {
+      solicitudes_tasa: {
+        Row: {
+          actualizado_en: string
+          capital: number
+          categoria: string
+          cliente_id: string | null
+          consumida_en: string | null
+          contrato_id: string | null
+          contrato_origen_id: string | null
+          contrato_origen_numero: string | null
+          contratos_previos: number
+          documento_lead: string | null
+          estado: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          huella: string
+          huella_preconversion: string | null
+          id: string
+          lead_id: string | null
+          modalidad: string
+          moneda: string
+          motivo: string
+          motivo_analista: string | null
+          motivo_resolucion: string | null
+          politica_id: string
+          prioridad_bandeja: boolean
+          producto_condicion_id: string | null
+          regla_base: string
+          respondida_por_analista_en: string | null
+          resuelta_en: string | null
+          resuelta_por: string | null
+          solicitada_en: string
+          solicitada_por: string
+          tasa_base: number
+          tasa_maxima_autorizada: number | null
+          tasa_solicitada: number
+          tipo_interes: string
+          vence_en: string
+        }
+        Insert: {
+          actualizado_en?: string
+          capital: number
+          categoria: string
+          cliente_id?: string | null
+          consumida_en?: string | null
+          contrato_id?: string | null
+          contrato_origen_id?: string | null
+          contrato_origen_numero?: string | null
+          contratos_previos?: number
+          documento_lead?: string | null
+          estado?: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          huella: string
+          huella_preconversion?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad: string
+          moneda: string
+          motivo: string
+          motivo_analista?: string | null
+          motivo_resolucion?: string | null
+          politica_id: string
+          prioridad_bandeja?: boolean
+          producto_condicion_id?: string | null
+          regla_base: string
+          respondida_por_analista_en?: string | null
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          solicitada_en?: string
+          solicitada_por: string
+          tasa_base: number
+          tasa_maxima_autorizada?: number | null
+          tasa_solicitada: number
+          tipo_interes: string
+          vence_en: string
+        }
+        Update: {
+          actualizado_en?: string
+          capital?: number
+          categoria?: string
+          cliente_id?: string | null
+          consumida_en?: string | null
+          contrato_id?: string | null
+          contrato_origen_id?: string | null
+          contrato_origen_numero?: string | null
+          contratos_previos?: number
+          documento_lead?: string | null
+          estado?: string
+          fecha_inicio?: string
+          fecha_vencimiento?: string
+          huella?: string
+          huella_preconversion?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad?: string
+          moneda?: string
+          motivo?: string
+          motivo_analista?: string | null
+          motivo_resolucion?: string | null
+          politica_id?: string
+          prioridad_bandeja?: boolean
+          producto_condicion_id?: string | null
+          regla_base?: string
+          respondida_por_analista_en?: string | null
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          solicitada_en?: string
+          solicitada_por?: string
+          tasa_base?: number
+          tasa_maxima_autorizada?: number | null
+          tasa_solicitada?: number
+          tipo_interes?: string
+          vence_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_tasa_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_tasa_politica_id_fkey"
+            columns: ["politica_id"]
+            isOneToOne: false
+            referencedRelation: "politica_rentabilidad"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartera_lecturas: {
         Row: {
           actor_id: string
@@ -589,6 +721,7 @@ export type Database = {
       conversion_reservas: {
         Row: {
           claim_id: string | null
+          condiciones_tasa: Json | null
           efectos_iniciados_en: string | null
           expira_en: string
           hash_payload: string | null
@@ -601,6 +734,7 @@ export type Database = {
         }
         Insert: {
           claim_id?: string | null
+          condiciones_tasa?: Json | null
           efectos_iniciados_en?: string | null
           expira_en: string
           hash_payload?: string | null
@@ -613,6 +747,7 @@ export type Database = {
         }
         Update: {
           claim_id?: string | null
+          condiciones_tasa?: Json | null
           efectos_iniciados_en?: string | null
           expira_en?: string
           hash_payload?: string | null
@@ -4126,6 +4261,22 @@ export type Database = {
           }
       resolver_solicitud_tasa_fn: {
         Args: { p_solicitud_id: string; p_decision: string; p_tasa_maxima?: number; p_motivo?: string }
+        Returns: Json
+      }
+      resolver_tasa_lead_fn: {
+        Args: {
+          p_categoria?: string
+          p_contrato_origen_id?: string
+          p_lead_id: string
+        }
+        Returns: Json
+      }
+      solicitudes_tasa_lead_fn: {
+        Args: { p_estados?: string[]; p_lead_id: string; p_limite?: number }
+        Returns: Json
+      }
+      reservar_conversion_lead_tasa_fn: {
+        Args: { p_condiciones: Json; p_lead_id: string }
         Returns: Json
       }
       resolver_tasa_fn: {

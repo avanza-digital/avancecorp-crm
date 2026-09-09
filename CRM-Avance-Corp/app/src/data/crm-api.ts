@@ -2226,6 +2226,7 @@ export async function reprogramarReunion(
 export type TipoDocumentoCliente = 'DNI' | 'CE' | 'PASAPORTE'
 
 export interface ConvertirLeadInput {
+  condiciones_tasa?: CondicionesTasaLead
   lead_id: string
   correo: string
   tipo_documento: TipoDocumentoCliente
@@ -3889,7 +3890,8 @@ const ResolucionTasaSchema = v.object({
   tasa_base: NumericoRpc,
   regla: ReglaTasaSchema,
   categoria: v.string(),
-  cliente_id: v.string(),
+  cliente_id: v.nullable(v.string()),
+  bloqueo_conversion: v.optional(v.nullable(v.string()), null),
   contrato_origen: v.nullable(v.object({
     id: v.string(),
     numero_contrato: v.string(),
@@ -3912,6 +3914,7 @@ const ResolucionTasaSchema = v.object({
   }),
 })
 export interface ResolucionTasa {
+  bloqueo_conversion?: string | null
   tasa_base: number
   regla: ReglaTasa
   contrato_origen: { id: string; numero_contrato: string; tasa_anual: number; estado: string } | null
@@ -3921,7 +3924,8 @@ export interface ResolucionTasa {
 }
 
 export interface IntencionContrato {
-  cliente_id: string
+  lead_id?: string
+  cliente_id: string | null
   categoria: CategoriaContrato
   contrato_origen_id: string | null
   /**
@@ -3941,15 +3945,20 @@ export interface IntencionContrato {
 }
 
 
+export type CondicionesTasaLead = Omit<IntencionContrato, 'cliente_id' | 'lead_id' | 'contrato_id'> & { tasa_anual: number }
+
 /** Pregunta al núcleo qué tasa base corresponde a un contrato en intención (42501 si el cliente no está en el ámbito). */
 export async function resolverTasa(
   clienteId: string,
   categoria: CategoriaContrato,
   contratoOrigenId: string | null,
   signal?: AbortSignal,
+  leadId?: string,
 ): Promise<ResolucionTasa> {
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('resolver_tasa_fn', {
+  let consulta = leadId ? cliente().schema('crm').rpc('resolver_tasa_lead_fn', {
+    p_lead_id: leadId, p_categoria: categoria, ...(contratoOrigenId ? { p_contrato_origen_id: contratoOrigenId } : {}),
+  }) : cliente().schema('crm').rpc('resolver_tasa_fn', {
     p_cliente_id: clienteId,
     p_categoria: categoria,
     ...(contratoOrigenId ? { p_contrato_origen_id: contratoOrigenId } : {}),
@@ -3966,6 +3975,7 @@ export async function resolverTasa(
   }
   const o = r.output
   return {
+    bloqueo_conversion: o.bloqueo_conversion,
     tasa_base: numEstricto(o.tasa_base, 'tasa_base'),
     regla: o.regla,
     contrato_origen: o.contrato_origen
@@ -3989,7 +3999,8 @@ const SolicitudTasaSchema = v.object({
   estado_efectivo: v.optional(v.picklist(['pendiente', 'aprobada', 'aprobada_con_tope', 'rechazada', 'aceptada_por_analista', 'declinada_por_analista', 'consumida', 'vencida'])),
   vigente: v.optional(v.boolean()),
   categoria: v.string(),
-  cliente_id: v.optional(v.string()),
+  cliente_id: v.optional(v.nullable(v.string())),
+  lead_id: v.optional(v.nullable(v.string())),
   cliente_nombre: v.optional(v.string()),
   contrato_origen_id: v.nullable(v.string()),
   contrato_origen_numero: v.nullable(v.string()),
@@ -4024,6 +4035,7 @@ const SolicitudTasaSchema = v.object({
   puede_responder: v.optional(v.boolean()),
 })
 export interface SolicitudTasa {
+  lead_id?: string | null
   id: string
   estado: EstadoSolicitudTasa
   /** Una viva con vence_en pasado se declara vencida aunque la fila aún no lleve el sello. */
@@ -4086,6 +4098,7 @@ function aSolicitudTasa(o: v.InferOutput<typeof SolicitudTasaSchema>): Solicitud
     vigente: o.vigente ?? (vivo && !vencida),
     categoria: o.categoria as CategoriaContrato,
     cliente_id: o.cliente_id ?? null,
+    lead_id: o.lead_id ?? null,
     cliente_nombre: o.cliente_nombre ?? 'Cliente',
     contrato_origen_id: o.contrato_origen_id,
     contrato_origen_numero: o.contrato_origen_numero,
@@ -4134,7 +4147,7 @@ function parsearSolicitudTasa(data: unknown, contexto: string): SolicitudTasa {
 export async function solicitarTasa(intencion: IntencionContrato, tasaSolicitada: number, motivo: string): Promise<SolicitudTasa> {
   const { data, error } = await cliente().schema('crm').rpc('solicitar_tasa_fn', {
     p_solicitud: {
-      cliente_id: intencion.cliente_id,
+      ...(intencion.lead_id ? { lead_id: intencion.lead_id } : { cliente_id: intencion.cliente_id }),
       categoria: intencion.categoria,
       contrato_origen_id: intencion.contrato_origen_id,
       producto_condicion_id: intencion.producto_condicion_id ?? null,
@@ -4184,6 +4197,7 @@ export async function responderTopeTasa(solicitudId: string, acepta: boolean, mo
 }
 
 export interface OpcionesSolicitudesTasa {
+  leadId?: string | null
   /** Solo las que pidió el actor (el formulario y el aviso del analista): el servidor filtra ANTES del límite. */
   soloMias?: boolean
   /** Solo las de este cliente. */
@@ -4193,7 +4207,9 @@ export interface OpcionesSolicitudesTasa {
 /** Solicitudes visibles para el actor (Gerencia: todas; analista: las suyas; supervisor: su subárbol), filtradas en el servidor. */
 export async function listarSolicitudesTasa(estados: EstadoSolicitudTasa[] | null, signal?: AbortSignal, opciones: OpcionesSolicitudesTasa = {}): Promise<SolicitudTasa[]> {
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('solicitudes_tasa_fn', {
+  let consulta = opciones.leadId ? cliente().schema('crm').rpc('solicitudes_tasa_lead_fn', {
+    p_lead_id: opciones.leadId, ...(estados ? { p_estados: estados } : {}), p_limite: opciones.limite ?? 200,
+  }) : cliente().schema('crm').rpc('solicitudes_tasa_fn', {
     ...(estados ? { p_estados: estados } : {}),
     p_limite: opciones.limite ?? 200,
     ...(opciones.soloMias ? { p_solo_mias: true } : {}),

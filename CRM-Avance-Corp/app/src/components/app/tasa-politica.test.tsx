@@ -86,6 +86,32 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     await waitFor(() => expect(screen.getByTestId('rango')).toHaveTextContent('base:15-15'))
   })
 
+  it('conserva la tasa elegida en el lead cuando llega la autorización y después de un fallo de relectura', () => {
+    const cambiar = vi.fn()
+    const props = { clienteId: 'cli-1', categoria: 'nuevo' as const, contratoOrigenId: null, intencion: INTENCION, tasa: '17', tasaPreseleccionada: 17, onTasaChange: cambiar, demo: false }
+    dobles.solicitudesPending = true
+    const vista = render(<TasaPolitica {...props} />)
+    expect(cambiar).not.toHaveBeenCalled()
+    dobles.solicitudesPending = false
+    dobles.solicitudes = [solicitud({ estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 18 })]
+    vista.rerender(<TasaPolitica {...props} />)
+    expect(cambiar).toHaveBeenLastCalledWith('17')
+    cambiar.mockClear()
+    dobles.solicitudesError = true
+    vista.rerender(<TasaPolitica {...props} />)
+    dobles.solicitudesError = false
+    vista.rerender(<TasaPolitica {...props} />)
+    expect(cambiar).not.toHaveBeenCalled()
+  })
+
+  it('respeta el bloqueo del cliente ya identificado aunque la petición venga de otra ficha', () => {
+    dobles.resolucion = { data: { ...RES, bloqueo_conversion: 'La solicitud de tasa está pendiente de Gerencia.' }, isPending: false, isError: false }
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="" leadId="lead-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION} tasa="15" onTasaChange={vi.fn()} onRangoChange={rango} demo={false} />)
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: 'La solicitud de tasa está pendiente de Gerencia.' }))
+    expect(screen.queryByRole('button', { name: 'Solicitar tasa superior' })).toBeNull()
+  })
+
   it('mientras el núcleo responde, el rango está cargando y el input bloqueado', () => {
     dobles.resolucion = { data: undefined, isPending: true, isError: false }
     render(<Arnes />)
@@ -216,6 +242,16 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/ofrece hasta 16%/)
     fireEvent.click(screen.getByRole('button', { name: /Aceptar y continuar/ }))
     await waitFor(() => expect(dobles.responder).toHaveBeenCalledWith({ solicitudId: 's-1', acepta: true, motivo: null }))
+  })
+
+  it('al reasignar el lead identifica al solicitante que debe responder y no permite suplantarlo', () => {
+    dobles.solicitudes = [solicitud({ cliente_id: null, lead_id: 'lead-1', es_mia: false, solicitante_nombre: 'ANA', estado: 'aprobada_con_tope', estado_efectivo: 'aprobada_con_tope', tasa_maxima_autorizada: 16 })]
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="" leadId="lead-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION} tasa="15" onTasaChange={vi.fn()} onRangoChange={rango} demo={false} />)
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: 'ANA debe aceptar o declinar el tope desde su bandeja de tasas antes de convertir el lead.' }))
+    expect(screen.getByRole('button', { name: /Aceptar/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /No cerrar a ese tope/ })).toBeDisabled()
+    expect(dobles.responder).not.toHaveBeenCalled()
   })
 
   it('con autorización vigente, habilita el input entre la base y la tasa autorizada y arranca en el máximo', async () => {

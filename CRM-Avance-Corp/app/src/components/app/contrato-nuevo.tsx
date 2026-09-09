@@ -21,7 +21,7 @@ import { Select } from '@/components/ui/select'
 import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { money, fmtFecha, type Moneda } from '@/lib/format'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
-import { completarDomicilioCliente, crearContrato, CrmApiError, type CrearContratoInput } from '@/data/crm-api'
+import { completarDomicilioCliente, crearContrato, CrmApiError, type CrearContratoInput, type CondicionesTasaLead } from '@/data/crm-api'
 import { claveIdempotenciaPendiente, liberarClaveIdempotencia } from '@/lib/idempotencia'
 import {
   esCuotaDeInteres,
@@ -146,6 +146,7 @@ function listarCampos(campos: readonly string[]): string {
 }
 
 export interface ContratoNuevoProps {
+  condicionesIniciales?: CondicionesTasaLead | undefined
   clienteId: string
   clienteNombre: string
   montoSugerido?: number | null
@@ -210,6 +211,7 @@ export function ContratoNuevo({
   onOmitir,
   onRevisar,
   borrador,
+  condicionesIniciales,
 }: ContratoNuevoProps) {
   // De quién es la venta. Arranca en quien registra si esa persona está en la
   // lista; si no está (una administrativa, por ejemplo), arranca vacío y hay que
@@ -217,12 +219,12 @@ export function ContratoNuevo({
   const [analistaCierre, setAnalistaCierre] = useState<string>(() =>
     analistaInicial && (analistas ?? []).some((a) => a.perfil_id === analistaInicial) ? analistaInicial : '',
   )
-  const categoriaInicial = renovacionOrigen ? 'renovacion' : (borrador?.categoria ?? categoriaFija ?? '')
+  const categoriaInicial = renovacionOrigen ? 'renovacion' : (borrador?.categoria ?? condicionesIniciales?.categoria ?? categoriaFija ?? '')
   const [categoria, setCategoria] = useState<CategoriaContrato | ''>(categoriaInicial)
-  const [tipoInteres, setTipoInteres] = useState<TipoInteres>(borrador?.tipo_interes ?? 'simple')
-  const [modalidad, setModalidad] = useState<ModalidadContrato>(borrador?.modalidad ?? 'mensual')
+  const [tipoInteres, setTipoInteres] = useState<TipoInteres>(borrador?.tipo_interes ?? condicionesIniciales?.tipo_interes ?? 'simple')
+  const [modalidad, setModalidad] = useState<ModalidadContrato>(borrador?.modalidad ?? condicionesIniciales?.modalidad ?? 'mensual')
   const [capital, setCapital] = useState(
-    borrador ? String(borrador.capital) : renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
+    borrador ? String(borrador.capital) : condicionesIniciales ? String(condicionesIniciales.capital) : renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
   )
   const [capitalRenovado, setCapitalRenovado] = useState(borrador?.capital_renovado != null ? String(borrador.capital_renovado) : renovacionOrigen ? String(renovacionOrigen.capital) : '')
   const [capitalAdicional, setCapitalAdicional] = useState(borrador?.capital_adicional != null ? String(borrador.capital_adicional) : renovacionOrigen ? '0' : '')
@@ -230,16 +232,16 @@ export function ContratoNuevo({
   // renovación contará al analista de esa cadena — se avisa junto al selector.
   const qAtrOrigen = useAtribucionContrato(renovacionOrigen?.id ?? '', Boolean(renovacionOrigen))
   const cadenaOrigen = qAtrOrigen.data?.atribucion_efectiva ?? null
-  const [moneda, setMoneda] = useState<Moneda>(borrador?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
+  const [moneda, setMoneda] = useState<Moneda>(borrador?.moneda ?? condicionesIniciales?.moneda ?? renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
   // Rentabilidad R3: la tasa la fija la POLÍTICA (bloque TasaPolitica); arranca en 15 solo hasta que el núcleo responde.
-  const [tasa, setTasa] = useState(borrador ? String(borrador.tasa_anual) : '15')
+  const [tasa, setTasa] = useState(borrador ? String(borrador.tasa_anual) : condicionesIniciales ? String(condicionesIniciales.tasa_anual) : '15')
   const [rangoTasa, setRangoTasa] = useState<RangoTasaPolitica | null>(null)
   const [origenUpgrade, setOrigenUpgrade] = useState<string>(
-    borrador?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
+    borrador?.contrato_origen_id ?? condicionesIniciales?.contrato_origen_id ?? (contratosActivos && contratosActivos.length === 1 && categoriaFija === 'upgrade' ? contratosActivos[0]?.id ?? '' : ''),
   )
-  const [fechaInicio, setFechaInicio] = useState(borrador?.fecha_inicio ?? hoyLocal())
-  const [plazo, setPlazo] = useState<string>(borrador ? PLAZO_PERSONALIZADO : '12')
-  const [vencManual, setVencManual] = useState(borrador?.fecha_vencimiento ?? '')
+  const [fechaInicio, setFechaInicio] = useState(borrador?.fecha_inicio ?? condicionesIniciales?.fecha_inicio ?? hoyLocal())
+  const [plazo, setPlazo] = useState<string>(borrador || condicionesIniciales ? PLAZO_PERSONALIZADO : '12')
+  const [vencManual, setVencManual] = useState(borrador?.fecha_vencimiento ?? condicionesIniciales?.fecha_vencimiento ?? '')
   // Solo los 6 dígitos: el prefijo 2026-01- está pintado fijo en el form.
   const [numero, setNumero] = useState(borrador?.numero_contrato?.replace(PREFIJO_CONTRATO, '') ?? '')
   const [notas, setNotas] = useState(borrador?.notas_internas ?? '')
@@ -1224,6 +1226,7 @@ export function ContratoNuevo({
               fecha_vencimiento: fechaVencimiento,
             }}
             tasa={tasa}
+            tasaPreseleccionada={condicionesIniciales?.tasa_anual}
             onTasaChange={setTasa}
             onRangoChange={setRangoTasa}
             demo={esDemo}

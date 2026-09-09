@@ -8770,3 +8770,35 @@ evidencia de invariancia y límites están documentados en
 Release `crm-20260909T045534Z-887bef6e1bda`, Main/avancecorp/main coincidentes
 en `887bef6e1bda65f2eb65b8cb9ae00d093f2bf883` al publicar. Banco temporal
 `plaeuugsybujzymrcvgj` eliminado; no se modificó banco-f7.
+
+## 20260909042103 — Solicitud de tasa desde el lead, antes de convertir (local)
+
+`20260909042103_crm_solicitud_tasa_lead_preconversion.sql` permite solicitar
+aprobación sin crear primero al cliente. Conserva política y decisiones de
+Gerencia, vincula la solicitud al lead y después al cliente resuelto. La
+conversión valida estado, vigencia, identidad y condiciones antes de sus efectos;
+la autorización se consume una sola vez cuando se crea el contrato.
+
+Amplía `crm.solicitudes_tasa` y `crm.conversion_reservas`, mantiene las firmas
+previas y añade RPC de lectura/resolución por lead. No cambia objetos de `public`
+ni banderas multiempresa. Transacción con preflight de las diez funciones vivas,
+RLS por ámbito, helpers privados y ACL explícitas. Rechaza deriva de definiciones.
+
+**Estado: banco remoto en curso; todavía sin publicación productiva.** Miguel
+aprobó el SQL concreto y el costo de la rama con «hazlo». La rama temporal
+es `ehzftpvxuwuzinvkyhzz`. Revisión de implementación recibida y evaluada,
+con correcciones verificadas; matriz RLS/advisors en ejecución.
+
+PASS local: quince grupos SQL, concurrencia entre dos sesiones, rechazo de
+política alterada, reversión sin uso y reaplicación, 3.136 pruebas de
+frontend, 67 Node + 5 Deno de Edge, 38 pruebas enfocadas y recorrido de la función
+en escritorio/móvil. Playwright general: 144 PASS/5 FAIL/26 SKIP inicialmente;
+los cinco fallos quedaron resueltos y revalidados dentro de 34/34 PASS posteriores.
+Tras integrar Mi cartera hasta `e60d631`: gate frontend PASS, 223 archivos y
+3.140 pruebas; Playwright completo 152 PASS y 26 SKIP. Preflight RLS sin
+conexión PASS; matriz remota completa en ejecución.
+
+Alcance, límites, definiciones de partida y reversión condicionada en
+`supabase/scripts/tasa-lead/README.md`. Publicación coordinada SQL → Edge → UI,
+desde un artefacto de `main` igual a `avancecorp/main`. Esta entrada no acredita
+publicación ni autoriza aplicar otras migraciones locales pendientes.

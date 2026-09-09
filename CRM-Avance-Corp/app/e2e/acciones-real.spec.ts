@@ -105,7 +105,7 @@ test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await drawer.getByRole('button', { name: /editar/i }).click()
+  await drawer.getByRole('button', { name: 'Editar', exact: true }).click()
   await drawer.locator('#ld-telefono').fill('999111222')
   await drawer.getByRole('button', { name: /^Guardar$/ }).click()
 

@@ -42,7 +42,7 @@ export function TasasAutorizadasAnalistaPanel(): JSX.Element | null {
     setHuboAccion(true)
     try {
       await responder.mutateAsync({ solicitudId: s.id, acepta, motivo: null })
-      toast.success(acepta ? `Aceptaste ${tasaTxt(s.tasa_maxima_autorizada ?? 0)} para ${s.cliente_nombre}: crea el contrato con esa tasa.` : `Declinaste el tope para ${s.cliente_nombre}.`)
+      toast.success(acepta ? `Aceptaste ${tasaTxt(s.tasa_maxima_autorizada ?? 0)} para ${s.cliente_nombre}: ${s.lead_id ? 'continúa desde la ficha del lead' : 'crea el contrato con esa tasa'}.` : `Declinaste el tope para ${s.cliente_nombre}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo responder.')
     } finally {
@@ -64,6 +64,7 @@ export function TasasAutorizadasAnalistaPanel(): JSX.Element | null {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p id={`aut-${s.id}-cliente`} className="truncate text-sm font-bold text-foreground" title={s.cliente_nombre}>{s.cliente_nombre}</p>
+                    {s.lead_id && <span className="text-[10px] font-semibold text-primary">Solicitud desde lead</span>}
                     <p className="text-[11px] text-muted-foreground">
                       Contrato {CATEGORIA_TXT[s.categoria] ?? s.categoria} · {money(s.capital, s.moneda)} · pediste {tasaTxt(s.tasa_solicitada)} (base {tasaTxt(s.tasa_base)}) · vence {fmtFecha(s.vence_en)}
                     </p>

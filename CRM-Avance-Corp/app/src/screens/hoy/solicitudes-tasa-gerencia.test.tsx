@@ -67,6 +67,17 @@ describe('SolicitudesTasaGerenciaPanel (bandeja R3)', () => {
     await waitFor(() => expect(dobles.decidir).toHaveBeenCalledWith({ solicitudId: 's-1', decision: 'rechazar', tasaMaxima: null, motivo: null }))
   })
 
+  it('muestra y aprueba una solicitud de lead que todavía no tiene cliente', async () => {
+    const s = solicitud({ cliente_id: null, lead_id: 'lead-1', cliente_nombre: 'LEAD SIN CLIENTE', prioridad_bandeja: false, contratos_previos: 0 })
+    ok([s])
+    dobles.decidir.mockResolvedValue({ ...s, estado: 'aprobada', tasa_maxima_autorizada: 18 })
+    render(<SolicitudesTasaGerenciaPanel />)
+    expect(screen.getByRole('list')).toHaveTextContent('LEAD SIN CLIENTE')
+    expect(screen.getByText('Solicitud desde lead')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Aprobar 18%/ }))
+    await waitFor(() => expect(dobles.decidir).toHaveBeenCalledWith({ solicitudId: 's-1', decision: 'aprobar', tasaMaxima: null, motivo: null }))
+  })
+
   it('Aprobar hasta X% exige un tope entre la base y lo pedido (D6)', async () => {
     ok([solicitud()])
     dobles.decidir.mockResolvedValue(solicitud({ estado: 'aprobada_con_tope', tasa_maxima_autorizada: 16 }))

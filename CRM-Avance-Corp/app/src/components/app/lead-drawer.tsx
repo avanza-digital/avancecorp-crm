@@ -1,3 +1,5 @@
+import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
+import type { CondicionesTasaLead } from '@/data/crm-api'
 import { fechaSla, type AvisoSla } from '@/lib/sla-operacion'
 import { useEstadosSlaV2 } from '@/data/sla-operacion-queries'
 import { EstadoSlaFicha } from '@/components/app/sla-operacion'
@@ -198,6 +200,8 @@ function Ficha({ l }: { l: Lead }) {
     escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista))
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
+  const [condicionesLead, setCondicionesLead] = useState<EstadoCondicionesLead | null>(null)
+  const bloqueoTasa = condicionesLead?.bloqueo ?? (condicionesLead ? null : 'Verifica las condiciones de inversión antes de convertir.')
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
   // de la sección Datos sin duplicar su estado (contador incremental).
   const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
@@ -280,6 +284,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         <div ref={refEtapa} tabIndex={-1} className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring">{esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}</div>
+        {!esTerminal && tieneAnalista && <CondicionesTasaLeadPanel lead={l} demo={Boolean(yo?.demo)} puedeEditar={puedeConvertir} onCambio={setCondicionesLead} />}
         {!esTerminal && <EstadoSlaFicha leadId={l.id} onActuar={escribe ? actuarSobreAviso : undefined} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
         {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
@@ -296,7 +301,7 @@ function Ficha({ l }: { l: Lead }) {
       </SheetBody>
 
       {escribe && !esTerminal && (
-        <SheetFooter className="justify-between">
+        <SheetFooter className="flex-wrap justify-between">
           <Button
             variant="outline"
             size="sm"
@@ -306,7 +311,7 @@ function Ficha({ l }: { l: Lead }) {
             <XCircle /> Descartar
           </Button>
           {puedeConvertir ? (
-            <Button size="sm" onClick={() => setDialogo('convertir')}>
+            <Button size="sm" disabled={!!bloqueoTasa} aria-describedby={bloqueoTasa ? `lead-${l.id}-bloqueo-tasa` : undefined} onClick={() => setDialogo('convertir')}>
               <BadgeCheck /> Convertir a cliente{yo?.demo ? ' (demo)' : ''}
             </Button>
           ) : (
@@ -318,11 +323,15 @@ function Ficha({ l }: { l: Lead }) {
                 : 'El alta del cliente la registra el analista.'}
             </p>
           )}
+          {puedeConvertir && bloqueoTasa && <div className="w-full space-y-1 text-[11px] text-muted-foreground-strong">
+            <p id={`lead-${l.id}-bloqueo-tasa`}>{bloqueoTasa}</p>
+            <button type="button" className="cursor-pointer rounded font-semibold text-primary underline underline-offset-2" onClick={() => setDialogo('convertir')}>Registrar inversión en cooperativa</button>
+          </div>}
         </SheetFooter>
       )}
 
       <CerrarTareaDialog tarea={tareaAviso} onCerrar={() => setTareaAviso(null)} />
-      {dialogo === 'convertir' && <DialogConvertir l={l} onClose={() => setDialogo(null)} />}
+      {dialogo === 'convertir' && <DialogConvertir l={l} condicionesTasa={condicionesLead?.condiciones} bloqueoTasa={bloqueoTasa} onClose={() => setDialogo(null)} />}
       {dialogo === 'descartar' && <DialogDescartar l={l} onClose={() => setDialogo(null)} />}
     </>
   )
@@ -349,7 +358,7 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
   }
 
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Etapa del lead">
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-2" role="group" aria-label="Etapa del lead">
       {pidiendoCapital && (
         <DialogCapitalPropuesta lead={l} onClose={() => setPidiendoCapital(false)} />
       )}
@@ -1676,7 +1685,8 @@ function sugerirIdentidadDelLead(nombreCompleto: string): IdentidadSugerida {
 }
 
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
-export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
+export function DialogConvertir({ l, onClose, condicionesTasa, bloqueoTasa }: { l: Lead; onClose: () => void; condicionesTasa?: CondicionesTasaLead | undefined; bloqueoTasa?: string | null }) {
+  const [condicionesConfirmadas, setCondicionesConfirmadas] = useState<CondicionesTasaLead>()
   const { convertir, convertirExterno, recargar, equipo } = useCRMData()
   const { yo } = useAuth()
   const queryClient = useQueryClient()
@@ -1800,6 +1810,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
 
   const confirmarReal = async () => {
     if (enviando) return // guard anti doble-submit
+    if (bloqueoTasa) { setError(bloqueoTasa); return }
     setError(null)
     if (!l.vendedor_id) {
       setError('Asigna el lead a un analista antes de convertirlo')
@@ -1849,8 +1860,10 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       // lead. Hasta 2026-07-27 los bancarios iban en un UPDATE posterior desde
       // aquí, y si ese segundo paso fallaba quedaba un cliente real —con su
       // correo ya enviado— sin cuenta donde cobrar. Ese estado ya no existe.
+      setCondicionesConfirmadas(condicionesTasa)
       const r = await convertirLead({
         lead_id: l.id,
+        ...(condicionesTasa ? { condiciones_tasa: condicionesTasa } : {}),
         correo: correoLimpio,
         tipo_documento: tipoDoc,
         documento: docLimpio,
@@ -2113,6 +2126,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
     return (
       <Dialog open onClose={onClose} ariaLabel="Crear contrato del cliente">
         <ContratoNuevo
+          condicionesIniciales={condicionesConfirmadas ?? condicionesTasa}
           clienteId={perfilId}
           clienteNombre={l.nombre_completo}
           montoSugerido={l.monto_estimado ?? null}
@@ -2153,11 +2167,12 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           <button
             type="button"
             className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+            disabled={!!bloqueoTasa}
             onClick={() => setPaso('convertir')}
           >
             <span className="block text-sm font-bold text-foreground">Avance Corp</span>
             <span className="block text-xs text-muted-foreground">
-              Crea su cuenta del portal, le llega el correo de bienvenida y sigues al contrato.
+              {bloqueoTasa ?? 'Crea su cuenta del portal, le llega el correo de bienvenida y sigues al contrato.'}
             </span>
           </button>
           {(['qorilazo', 'prodelco'] as const).map((c) => (
@@ -2395,6 +2410,13 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
               Se creará la <b className="text-foreground">cuenta del cliente en el portal</b> y se le
               enviará su correo de bienvenida con el acceso. Revisa y completa sus datos:
             </p>
+            {condicionesTasa && (
+              <section aria-label="Condiciones confirmadas de inversión" className="rounded-xl border border-primary/20 bg-primary/[0.035] p-3 text-xs">
+                <p className="font-bold text-foreground">{money(condicionesTasa.capital, condicionesTasa.moneda)} · {condicionesTasa.tasa_anual}% anual</p>
+                <p className="mt-1 text-muted-foreground">{fmtFecha(condicionesTasa.fecha_inicio)} – {fmtFecha(condicionesTasa.fecha_vencimiento)} · Pago {condicionesTasa.modalidad}</p>
+                <p className="mt-1 text-muted-foreground">Estas condiciones pasarán al contrato del cliente.</p>
+              </section>
+            )}
             <section className="rounded-xl border border-primary/20 bg-primary/[0.035] p-3" aria-label="Identidad para pagos">
               <div className="flex items-start gap-2.5">
                 <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary [&_svg]:size-3.5">

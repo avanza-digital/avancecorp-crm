@@ -123,8 +123,8 @@ export const crmQueryKeys = {
   rentabilidad: () => [...crmQueryKeys.raiz, 'rentabilidad'] as const,
   resolucionTasa: (clienteId: string, categoria: string, origenId: string | null) =>
     [...crmQueryKeys.rentabilidad(), 'resolver', clienteId, categoria, origenId ?? null] as const,
-  solicitudesTasa: (estados: readonly string[] | null, opciones?: { soloMias?: boolean; clienteId?: string | null; limite?: number }) =>
-    [...crmQueryKeys.rentabilidad(), 'solicitudes', estados ? [...estados].sort().join(',') : 'todas', opciones?.soloMias ? 'mias' : 'ambito', opciones?.clienteId ?? 'todos', opciones?.limite ?? 200] as const,
+  solicitudesTasa: (estados: readonly string[] | null, opciones?: OpcionesSolicitudesTasa) =>
+    [...crmQueryKeys.rentabilidad(), 'solicitudes', estados ? [...estados].sort().join(',') : 'todas', opciones?.soloMias ? 'mias' : 'ambito', opciones?.clienteId ?? 'todos', opciones?.limite ?? 200, ...(opciones?.leadId ? ['lead', opciones.leadId] : [])] as const,
   historialTasaCliente: (clienteId: string) => [...crmQueryKeys.rentabilidad(), 'historial', clienteId] as const,
   politicaRentabilidad: () => [...crmQueryKeys.rentabilidad(), 'politica'] as const,
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
@@ -544,12 +544,13 @@ export function useObservacionRentabilidad(habilitada: boolean, dias = 30) {
 }
 
 /** Rentabilidad: qué tasa base dice el núcleo para un contrato en intención (solo con cliente y categoría). */
-export function useResolucionTasa(clienteId: string, categoria: CategoriaContrato | '', contratoOrigenId: string | null, habilitada: boolean) {
+export function useResolucionTasa(clienteId: string, categoria: CategoriaContrato | '', contratoOrigenId: string | null, habilitada: boolean, leadId?: string) {
   return useQuery({
-    queryKey: crmQueryKeys.resolucionTasa(clienteId, categoria, contratoOrigenId),
-    queryFn: ({ signal }) => resolverTasa(clienteId, categoria as CategoriaContrato, contratoOrigenId, signal),
-    enabled: habilitada && !!clienteId && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId),
+    queryKey: [...crmQueryKeys.resolucionTasa(clienteId, categoria, contratoOrigenId), ...(leadId ? ['lead', leadId] : [])],
+    queryFn: ({ signal }) => resolverTasa(clienteId, categoria as CategoriaContrato, contratoOrigenId, signal, leadId),
+    enabled: habilitada && (!!clienteId || !!leadId) && !!categoria && (categoria === 'nuevo' || !!contratoOrigenId),
     staleTime: 30_000,
+    refetchInterval: leadId ? 30_000 : false,
   })
 }
 

@@ -87,6 +87,6 @@ test("las dos edges validan antes de efectos y persisten el valor normalizado", 
   );
   assert.ok(
     convertir.indexOf("validarDomicilioLegal(") <
-      convertir.indexOf('.rpc("reservar_conversion_lead"'),
+      convertir.indexOf('.rpc("reservar_conversion_lead_tasa_fn"'),
   );
 });

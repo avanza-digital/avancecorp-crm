@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const {
       lead_id, correo, tipo_documento, documento,
-      nombre_completo, apellidos, nombres, telefono, domicilio, bancarios,
+      nombre_completo, apellidos, nombres, telefono, domicilio, bancarios, condiciones_tasa,
     } = body || {};
 
     if (!lead_id) return json(cors, { error: "Falta lead_id" }, 400);
@@ -174,6 +174,9 @@ Deno.serve(async (req: Request) => {
     }
     const errDoc = validarDocumento(tipoDoc, dniLimpio);
     if (errDoc) return json(cors, { error: errDoc }, 400);
+    if (condiciones_tasa && lead.dni && (tipoDoc !== "DNI" || dniLimpio !== lead.dni)) {
+      return json(cors, { error: "El documento no coincide con el lead. Revisa sus datos y la solicitud de tasa antes de convertir." }, 409);
+    }
 
     // DATOS BANCARIOS — FRONTERA (2026-07-27). La cuenta donde se le deposita el
     // interés al cliente deja de ser una regla del navegador: se exige AQUÍ, antes
@@ -229,20 +232,12 @@ Deno.serve(async (req: Request) => {
       // Se toma con la sesión del que llama: la reserva no puede ser una puerta
       // más ancha que la conversión (mismos gates de rol y de ámbito).
       const { error: reservaErr } = await userClient
-        .schema("crm").rpc("reservar_conversion_lead", { p_lead_id: lead_id });
+        .schema("crm").rpc("reservar_conversion_lead_tasa_fn", { p_lead_id: lead_id, p_condiciones: condiciones_tasa ?? null });
       if (reservaErr) {
-        // PGRST202 = la función no existe todavía: la migración aún no se mergeó.
-        // Es la ventana de despliegue (servidor primero, edge después) y NO puede
-        // matar la conversión Avance de todo el mundo con un error de PostgREST
-        // en crudo. Se degrada: sin reserva no hay protección de carrera, que es
-        // exactamente como funcionaba hasta hoy.
-        if (reservaErr.code === "PGRST202") {
-          console.warn("crm-convertir-lead: reservar_conversion_lead no desplegada aún; se continúa sin reserva");
-        } else {
-          // 409: o el lead se cerró mientras tanto, o hay otra conversión en
-          // vuelo. El mensaje del servidor ya está en idioma de negocio.
-          return json(cors, { error: reservaErr.message }, 409);
-        }
+        // Fail-closed: la base se publica antes que esta edge. Sin la puerta de tasa no hay alta.
+        return json(cors, { error: reservaErr.code === "PGRST202"
+          ? "No se pudo verificar la tasa. Intenta nuevamente en unos minutos."
+          : reservaErr.message }, reservaErr.code === "PGRST202" ? 503 : 409);
       }
 
       // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
@@ -381,11 +376,14 @@ Deno.serve(async (req: Request) => {
       const payloadSaga = {
         correo: emailNormalizado, nombre_completo: nombreNormalizado, apellidos: apellidosNorm, nombres: nombresNorm,
         telefono: telefonoNorm, domicilio: domicilioLegal, bancarios,
+        ...(condiciones_tasa ? { condiciones_tasa } : {}),
       };
       const { data: reserva, error: reservaErr } = await rpc("reservar_conversion_lead", {
         p_lead_id: lead_id, p_tipo_documento: tipoDoc, p_documento: dniLimpio, p_payload: payloadSaga,
       });
-      if (reservaErr) return json(cors, { error: reservaErr.message }, statusDeErrorSaga(reservaErr));
+      if (reservaErr) return json(cors, { error: reservaErr.code === "PGRST202"
+        ? "No se pudo verificar la tasa. Intenta nuevamente en unos minutos."
+        : reservaErr.message }, reservaErr.code === "PGRST202" ? 503 : statusDeErrorSaga(reservaErr));
       const rr = (reserva && typeof reserva === "object") ? reserva as Record<string, unknown> : {};
       let saga = interpretarReclamo(reserva);
       if (saga.paso === "listo") {

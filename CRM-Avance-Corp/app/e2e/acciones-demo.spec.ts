@@ -34,7 +34,7 @@ test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
-  await drawer.getByRole('button', { name: /editar/i }).click()
+  await drawer.getByRole('button', { name: 'Editar', exact: true }).click()
   await drawer.locator('#ld-monto').fill('99999')
   await drawer.getByRole('button', { name: /^Guardar$/ }).click()
 
@@ -49,7 +49,7 @@ test('editar lead: capital y moneda conservan espacio en un drawer estrecho', as
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
-  await drawer.getByRole('button', { name: /editar/i }).click()
+  await drawer.getByRole('button', { name: 'Editar', exact: true }).click()
   // Equivale al caso de la foto: pantalla angosta o zoom alto. Antes, el
   // wrapper `w-full` del selector reclamaba la fila y dejaba el monto casi en 0.
   await page.setViewportSize({ width: 390, height: 844 })
