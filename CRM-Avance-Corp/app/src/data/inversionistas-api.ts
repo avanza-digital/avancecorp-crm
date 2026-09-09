@@ -3,7 +3,7 @@ import { sb } from '@/lib/supabase'
 import { CrmApiError } from './crm-api'
 import {
   CarteraInversionistasSchema, EstadoCarteraInversionistasSchema, FichaInversionistaSchema,
-  validarPaginaInversionistas, type FiltrosInversionistas,
+  validarPaginaInversionistas, type EstadoCarteraInversionistas, type FiltrosInversionistas,
 } from '@/lib/inversionistas'
 
 function cliente() {
@@ -25,8 +25,14 @@ export function respuestaInversionistas<T>(schema: v.GenericSchema<unknown, T>, 
   }
   return resultado.output
 }
-export async function obtenerEstadoCarteraInversionistas(signal: AbortSignal) {
+export async function obtenerEstadoCarteraInversionistas(signal: AbortSignal): Promise<EstadoCarteraInversionistas> {
   const r = await cliente().schema('crm').rpc('cartera_inversionistas_estado_fn').abortSignal(signal)
+  // Antes de instalar F5, la ausencia de su RPC es un estado compatible.
+  // Guardarlo como dato evita pasar de error a pendiente cada 15 s y desmontar
+  // la cartera Avance. Los errores de acceso/red siguen su tratamiento normal.
+  if (r.error?.code === 'PGRST202') {
+    return { version: 1, habilitada: false, escritura_habilitada: false, motivo: null }
+  }
   return respuestaInversionistas(EstadoCarteraInversionistasSchema, r)
 }
 export async function listarInversionistas(filtros: FiltrosInversionistas, signal: AbortSignal) {

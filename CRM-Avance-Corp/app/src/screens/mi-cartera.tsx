@@ -55,7 +55,6 @@ import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion
 import { useAuth } from '@/lib/auth-context'
 import { useEstadoCarteraInversionistas } from '@/data/inversionistas-queries'
 import { CarteraInversionistas } from './cartera-inversionistas'
-import { CrmApiError } from '@/data/crm-api'
 import { useCRMData } from '@/lib/store-context'
 import { can, puedeEliminarContratos, puedeEscribir, puedeReasignarVenta } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
@@ -1820,8 +1819,6 @@ export function MiCartera() {
 }
 function CarteraSegunBandera({actor}: {actor: string}) {
   const q = useEstadoCarteraInversionistas(actor)
-  // Compatibilidad de despliegue: antes de aplicar F5 la RPC aún no existe.
-  if (q.error instanceof CrmApiError && q.error.code === 'PGRST202') return <MiCarteraAvance />
   if (q.isError) return <PanelError mensaje={mensajeDeError(q.error, 'No pudimos comprobar la cartera.')}
     onReintentar={() => void q.refetch()} reintentando={q.isFetching} />
   if (!q.isFetchedAfterMount || !q.isSuccess) return <PanelCargando />
