@@ -25,6 +25,14 @@ apagadas. No se usaron personas, depósitos ni cuentas reales como fixtures.
 | Advisors / gate de datos / carga en producción y despliegue F5 | NOT RUN: fase de desarrollo sintético, sin instalación ni encendido productivo. Ejecutar con el destino y artefacto aprobados |
 
 Las ocho suites de banco suman **38 pruebas** y se ejecutan secuencialmente.
+
+El primer CI remoto (`257af26`, ejecución `34302179500`) aprobó calidad y los
+siete recorridos F5; fallaron ocho casos antiguos de Seguimiento exclusivamente
+al escribir capturas en `/private/tmp`, que no existe en el runner Linux.
+Se sustituyen por `test.info().outputPath`, aislado por prueba/reintento, y CI
+conserva también `test-results/`. Se mantiene el fallo original en el respaldo;
+la comprobación remota posterior se registra en el manifiesto privado de cierre.
+
 La UI incluye recuperación tras respuesta perdida, recarga, corrección pendiente,
 borrador corrupto, revocación con ficha abierta, retorno de foco y filtros,
 descarga cancelada y banca estable al refrescar. Una inversión no se anuncia
