@@ -24,6 +24,7 @@ import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
+import { AreaConsultaGerencia } from '@/components/gerencia/area-consulta-gerencia'
 import { AlertasCRMProvider } from '@/lib/alertas-provider'
 import { Login } from '@/screens/login'
 import { NoEnrolado } from '@/screens/no-enrolado'
@@ -436,14 +437,14 @@ function Workspace() {
               ayudaAbierta={ayudaAbierta}
               onAlternarAyuda={() => setAyudaAbierta((actual) => !actual)}
             />
-            <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
+            <AreaConsultaGerencia vista={vista} habilitada={yo?.rol === 'gerencia'} key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>
                 <Suspense fallback={<PantallaCargando />}>
                   <Pantalla />
                 </Suspense>
               </ErrorBoundary>
-            </div>
+            </AreaConsultaGerencia>
           </PeriodoGerenciaProvider>
         </main>
         <AyudaVendedorPanel

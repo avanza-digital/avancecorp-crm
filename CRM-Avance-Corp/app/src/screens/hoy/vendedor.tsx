@@ -407,7 +407,7 @@ function AgendaVacia({
           {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
           {nReuniones > 0 && nPropuestas > 0 && ' · '}
           {nPropuestas > 0 &&
-            `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
+            `${nPropuestas} ${nPropuestas === 1 ? 'entrevista por cerrar' : 'entrevistas por cerrar'}`}
         </p>
       )}
     </div>
@@ -548,7 +548,7 @@ function AgendaHoy({
                         `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
                       {nReuniones > 0 && nPropuestas > 0 && ' · '}
                       {nPropuestas > 0 &&
-                        `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
+                        `${nPropuestas} ${nPropuestas === 1 ? 'entrevista por cerrar' : 'entrevistas por cerrar'}`}
                     </p>
                   )}
                 </div>
@@ -1404,14 +1404,14 @@ export function HoyVendedor(): JSX.Element {
               sub: 'Abiertos en tu cartera',
             },
             {
-              label: 'Propuestas',
+              label: 'Entrevistas realizadas',
               value: resumen ? String(nPropuestas) : '—',
               icon: FileText,
               sub:
                 resumen == null
                   ? 'Sin dato por ahora'
                   : nPropuestas > 0
-                    ? 'Esperando respuesta del cliente'
+                    ? 'Entrevista hecha, cierre pendiente'
                     : (nAbiertos ?? 0) > 0
                       ? 'Ninguna enviada — revisa tus citas'
                       : 'Sin leads abiertos por ahora',

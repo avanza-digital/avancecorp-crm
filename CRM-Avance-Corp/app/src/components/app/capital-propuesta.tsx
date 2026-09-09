@@ -43,7 +43,7 @@ export function DialogCapitalPropuesta({
       return
     }
     onClose()
-    toast.success(`Propuesta enviada por ${money(valor, moneda)}`)
+    toast.success(`Entrevista realizada · capital propuesto ${money(valor, moneda)}`)
   }
 
   return (

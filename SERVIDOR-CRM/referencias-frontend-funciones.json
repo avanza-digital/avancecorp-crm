@@ -1,0 +1,2474 @@
+[
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/rescate-descartados.tsx",
+    "line": 380,
+    "context": "&& miembro.rol_crm === 'vendedor'"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/cartera.tsx",
+    "line": 43,
+    "context": "// F1: los KPIs vienen del servidor (RPC resumen_cartera_fn) o del espejo demo"
+  },
+  {
+    "name": "leads_por_repartir",
+    "path": "CRM-Avance-Corp/app/src/screens/repartir.tsx",
+    "line": 335,
+    "context": "tiene su propia fuente (leads_por_repartir). En demo el hook ya"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/equipo.tsx",
+    "line": 511,
+    "context": "// vencimientos llegan resueltos dentro de cola_accion_fn)."
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/equipo.tsx",
+    "line": 587,
+    "context": "// «Hoy» (`crm.conversion_mensual_fn`, alcance equipo por rol) — el payload"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/equipo.tsx",
+    "line": 877,
+    "context": "// ── F1b: ranking y comparativa llegan de metricas_vendedores_fn (o del"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/equipo.tsx",
+    "line": 894,
+    "context": "if (m.rol_crm !== 'vendedor' || !m.activo || m.supervisor_id == null) continue"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/equipo.tsx",
+    "line": 902,
+    "context": ".filter((m) => m.rol_crm === 'supervisor' && m.activo)"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/pipeline.tsx",
+    "line": 307,
+    "context": "// ── KPIs del tablero — F1: servidos por resumen_cartera_fn (o espejo demo"
+  },
+  {
+    "name": "vendedor_ids_visibles",
+    "path": "CRM-Avance-Corp/app/src/screens/mi-cartera.tsx",
+    "line": 1240,
+    "context": "// La RLS/RPC de Supervisión trabaja con vendedor_ids_visibles: su cartera"
+  },
+  {
+    "name": "puede_gestionar_cuentas_cliente",
+    "path": "CRM-Avance-Corp/app/src/screens/mi-cartera.tsx",
+    "line": 1255,
+    "context": "// private.puede_gestionar_cuentas_cliente. Los dados de baja siguen en la"
+  },
+  {
+    "name": "cliente_detalle_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/mi-cartera.tsx",
+    "line": 2309,
+    "context": "/** Espejo local del contrato de `cliente_detalle_fn` para Directorio. Aunque"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 216,
+    "context": "if (usuario.rol_crm == null) {"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 219,
+    "context": "if (usuario.rol_crm === 'vendedor' && usuario.supervisor_id == null) {"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 264,
+    "context": "&& usuario.rol_crm === 'supervisor'), [catalogo.data])"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 268,
+    "context": "const rolesPermitidos = modal.usuario.rol_crm === 'vendedor'"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 270,
+    "context": ": modal.usuario.rol_crm === 'supervisor'"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 277,
+    "context": "&& usuario.rol_crm != null"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 278,
+    "context": "&& rolesPermitidos.has(usuario.rol_crm))"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 295,
+    "context": "setRol(usuario.rol_crm ?? 'vendedor')"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 299,
+    "context": "const admiteSupervisor = usuario.rol_crm === 'vendedor' || usuario.rol_crm === 'supervisor'"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 424,
+    "context": "toast.success(modal.usuario.rol_crm ? 'Rol CRM actualizado.' : 'Rol CRM asignado; Gerencia debe completar jerarquía y activación.')"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 483,
+    "context": "&& usuario.rol_crm === modal.usuario.rol_crm)"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 547,
+    "context": "{usuario.rol_crm ? <Badge variant=\"outline\">{ROL_LABEL[usuario.rol_crm]}</Badge> : <span className=\"text-warning\">Sin asignar</span>}"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 607,
+    "context": "{opcionesJerarquia.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo} · {item.rol_crm ? ROL_LABEL[item.rol_crm] : ''}</option>)}"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 609,
+    "context": "{modal?.tipo === 'jerarquia' && modal.usuario.rol_crm === 'vendedor' && !supervisorId && <p className=\"mt-2 text-xs font-semibold text-warning\">Un analista debe tener supervisor antes de activarse.</p>}"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/screens/config-usuarios.tsx",
+    "line": 610,
+    "context": "{modal?.tipo === 'jerarquia' && modal.usuario.rol_crm != null && !['vendedor', 'supervisor'].includes(modal.usuario.rol_crm) && <p className=\"mt-2 text-xs text-muted-foreground\">Este rol pertenece a la raíz operativa y no admite supervisor.</p>}"
+  },
+  {
+    "name": "observacion_rentabilidad_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/observacion-rentabilidad.tsx",
+    "line": 13,
+    "context": "// crm.observacion_rentabilidad_fn (una sola fuente, el ledger). El servidor manda una"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 123,
+    "context": "// esos vencimientos ya llegan resueltos dentro de cola_accion_fn, así que el"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 152,
+    "context": "// resumen_cartera_fn → tiles de capital/activos/parkeados; cola_accion_fn →"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 152,
+    "context": "// resumen_cartera_fn → tiles de capital/activos/parkeados; cola_accion_fn →"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 153,
+    "context": "// cola + estancados + tile \"sin responder\"; metricas_vendedores_fn → ranking."
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 335,
+    "context": "// (crm.conversion_mensual_fn), no el cumplimiento: la definición acordada"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/supervisor.tsx",
+    "line": 456,
+    "context": "// ── Fase F — Agenda del equipo (RPC crm.metricas_agenda_fn) ──"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx",
+    "line": 268,
+    "context": "// `metricas_conversiones_fn` alimenta inteligencia/resumen, NO el ranking."
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx",
+    "line": 296,
+    "context": "// LA CONVERSIÓN DEL MES de la empresa (crm.conversion_mensual_fn). La RPC es"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx",
+    "line": 60,
+    "context": "* La conversión mensual ponderada (`crm.conversion_mensual_fn`) alimenta el"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx",
+    "line": 88,
+    "context": "/** Estado exclusivo de `crm.conversion_mensual_fn` y su foto mensual. */"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx",
+    "line": 91,
+    "context": "/** Estado exclusivo de `crm.metricas_conversiones_fn` (rango/Cosecha). */"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/vendedor.tsx",
+    "line": 860,
+    "context": "// vencimientos llegan resueltos dentro de cola_accion_fn (ni se pide el RPC)."
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/vendedor.tsx",
+    "line": 890,
+    "context": "// ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/vendedor.tsx",
+    "line": 929,
+    "context": "// LA CONVERSIÓN DEL MES — de `crm.conversion_mensual_fn` (la definición"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/vendedor.tsx",
+    "line": 1003,
+    "context": "// F1b: la cola la calcula el SERVIDOR (cola_accion_fn) — buckets, severidad,"
+  },
+  {
+    "name": "altas_nuevas_por_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/altas-nuevas-analista.tsx",
+    "line": 13,
+    "context": "//  - Sesión REAL: RPC crm.altas_nuevas_por_analista_fn vía TanStack Query"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx",
+    "line": 47,
+    "context": "* La conversión mensual ponderada (`crm.conversion_mensual_fn`) alimenta"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx",
+    "line": 66,
+    "context": "/** Estado exclusivo de `crm.metricas_conversiones_fn` (rango). */"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/equipo-gerencia.tsx",
+    "line": 39,
+    "context": "* La conversión mensual ponderada (`crm.conversion_mensual_fn`) — única"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/agenda-equipo.tsx",
+    "line": 1,
+    "context": "// Agenda del equipo (Fase F) — panel sobre la RPC crm.metricas_agenda_fn,"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/ranking-vendedores.tsx",
+    "line": 38,
+    "context": "* (`crm.conversion_mensual_fn`) — tri-estado como `tc`:"
+  },
+  {
+    "name": "metricas_conversiones_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/ranking-vendedores.tsx",
+    "line": 50,
+    "context": "* Segunda lectura POR COSECHA del ranking (`crm.metricas_conversiones_equipo_fn`,"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/directorio.tsx",
+    "line": 117,
+    "context": "// vivo). resumen_cartera_fn → KPIs, embudo, donut y descartes;"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/directorio.tsx",
+    "line": 118,
+    "context": "// metricas_vendedores_fn.equipos → comparativa. La VISTA sigue recortada a"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/screens/hoy/directorio.tsx",
+    "line": 200,
+    "context": "{/* KPIs ejecutivos — servidos por resumen_cartera_fn; sin dato: «—» */}"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/components/app/cerrar-tarea.tsx",
+    "line": 9,
+    "context": "// La escritura real es la RPC atómica crm.cerrar_tarea (cierre + log +"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/components/app/cerrar-tarea.tsx",
+    "line": 289,
+    "context": "// entonces `crm.cerrar_tarea` ya no encontraría la suya (`for update` exige"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/components/app/cerrar-tarea.tsx",
+    "line": 384,
+    "context": "// reunión de cliente necesita que cerrar_tarea confirme también el motivo"
+  },
+  {
+    "name": "trg_tareas_before_update",
+    "path": "CRM-Avance-Corp/app/src/components/app/cerrar-tarea.tsx",
+    "line": 624,
+    "context": "Un cierre es irreversible en el servidor (`trg_tareas_before_update`"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/components/app/contacto.tsx",
+    "line": 391,
+    "context": "// escritura: la RPC `crm.cerrar_tarea` ya inserta la actividad del"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx",
+    "line": 967,
+    "context": "const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx",
+    "line": 1640,
+    "context": "* esto la ficha prometía a ciegas un contrato que `public.crear_contrato`"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/components/app/lead-drawer.tsx",
+    "line": 1900,
+    "context": "//  2. «Continuar al contrato»: `public.crear_contrato` exige que el cliente"
+  },
+  {
+    "name": "cliente_detalle_fn",
+    "path": "CRM-Avance-Corp/app/src/components/app/cliente-detalle.tsx",
+    "line": 2,
+    "context": "// `crm.cliente_detalle_fn`: devuelve cero filas fuera del ámbito y separa banca"
+  },
+  {
+    "name": "cliente_detalle_fn",
+    "path": "CRM-Avance-Corp/app/src/components/app/cliente-detalle.tsx",
+    "line": 52,
+    "context": "* cuentas solo se solicitan cuando `cliente_detalle_fn` confirma la capacidad"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/components/app/lead-nuevo.tsx",
+    "line": 243,
+    "context": "const vendedores = ambito.vendedores.filter((m) => m.rol_crm === 'vendedor' && m.activo)"
+  },
+  {
+    "name": "crear_lead_si_disponible",
+    "path": "CRM-Avance-Corp/app/src/components/app/lead-nuevo.tsx",
+    "line": 691,
+    "context": "// sigue siendo UX; crear_lead_si_disponible cierra la carrera al guardar."
+  },
+  {
+    "name": "contrato_documental_regimen",
+    "path": "CRM-Avance-Corp/app/src/components/app/contrato-nuevo.tsx",
+    "line": 291,
+    "context": "// servidor aplica la misma frontera (`private.contrato_documental_regimen`)."
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/components/app/contrato-nuevo.tsx",
+    "line": 600,
+    "context": "// Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas)."
+  },
+  {
+    "name": "mi_acceso_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 32,
+    "context": "/** Valida en runtime el jsonb de crm.mi_acceso_fn antes de convertirlo en UX. */"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 77,
+    "context": "Object.hasOwn(valor, 'rol_crm')"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 105,
+    "context": "if (!esRol(valor.rol_crm)) {"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 110,
+    "context": "&& (valor.rol_crm !== 'directorio' || valor.rol_portal !== 'directorio')"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 116,
+    "context": "&& ((valor.rol_crm === 'directorio') !== (valor.rol_portal === 'directorio'))"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 120,
+    "context": "if (valor.estado === 'miembro' && !ROLES_MIEMBRO.has(valor.rol_crm)) {"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 123,
+    "context": "if (valor.estado === 'miembro' && valor.rol_portal === 'superadmin' && valor.rol_crm !== 'gerencia') {"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/acceso-crm.ts",
+    "line": 133,
+    "context": "rol: valor.rol_crm,"
+  },
+  {
+    "name": "mi_acceso_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/auth.tsx",
+    "line": 3,
+    "context": "// crm.mi_acceso_fn resuelve el rol así: membresía activa en crm.equipo →"
+  },
+  {
+    "name": "mi_acceso_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/auth.tsx",
+    "line": 60,
+    "context": "const { data, error } = await cliente.schema('crm').rpc('mi_acceso_fn')"
+  },
+  {
+    "name": "resumen_reparto_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/resumen-reparto.ts",
+    "line": 1,
+    "context": "// lib/resumen-reparto.ts — contrato y espejo de crm.resumen_reparto_fn (F1b tanda 3)."
+  },
+  {
+    "name": "leads_por_repartir_implementacion",
+    "path": "CRM-Avance-Corp/app/src/lib/resumen-reparto.ts",
+    "line": 5,
+    "context": "// private.leads_por_repartir_implementacion (activo, sin analista NI supervisor,"
+  },
+  {
+    "name": "resumen_reparto_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/resumen-reparto.ts",
+    "line": 38,
+    "context": "* Espejo puro de crm.resumen_reparto_fn sobre una cola YA cargada. `ahoraMs`"
+  },
+  {
+    "name": "anular_cierre_avance",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 130,
+    "context": "// Anulación de un cierre de AVANCE (espejo de `crm.anular_cierre_avance`)."
+  },
+  {
+    "name": "cumplimiento_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 302,
+    "context": "* Resultado mensual autoritativo de `crm.cumplimiento_metas_fn`: capital y"
+  },
+  {
+    "name": "retroceso_por_anular_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 367,
+    "context": "*  `private.retroceso_por_anular_reunion`: anular la última reunión viva sin"
+  },
+  {
+    "name": "convertir_lead_externo",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 386,
+    "context": "*  camino se veta (la ficha llama a crm.convertir_lead_externo, que deja la"
+  },
+  {
+    "name": "anular_cierre_externo",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 397,
+    "context": "/** Anulación de gerencia — SOLO demo (en real es crm.anular_cierre_externo)."
+  },
+  {
+    "name": "anular_cierre_avance",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 402,
+    "context": "*  `crm.anular_cierre_avance`). Va por LEAD y no por cierre porque en Avance no"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 409,
+    "context": "*  que devuelve `crm.cierres_estado_fn`. Que las dos fuentes tengan una sola"
+  },
+  {
+    "name": "cerrar_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 556,
+    "context": "// cerrar_reunion sigue siendo el motor especializado del mundo LEAD. Para"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 557,
+    "context": "// clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y"
+  },
+  {
+    "name": "supervisores_para_reparto",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 781,
+    "context": "// su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite"
+  },
+  {
+    "name": "equipo_visible_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 782,
+    "context": "// listarEquipo porque equipo_visible_fn puede RAISE para su rol y el"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 878,
+    "context": "// `cartera_pagina_fn` por cursor. Sin esta segunda invalidación, crear o"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1142,
+    "context": "vendedores: equipo.filter((m) => m.rol_crm === 'vendedor'),"
+  },
+  {
+    "name": "vendedor_ids_visibles",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1148,
+    "context": "// la RLS real usa un subárbol RECURSIVO (vendedor_ids_visibles) e"
+  },
+  {
+    "name": "vendedor_ids_visibles",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1243,
+    "context": "// analistas). Gerencia pasa siempre (vendedor_ids_visibles = todos) y el"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1591,
+    "context": "// que los ejecuta el servidor: `crm.cerrar_tarea` inserta primero la"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1659,
+    "context": "// REAL: la RPC crm.cerrar_tarea hace las tres escrituras EN UNA"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1806,
+    "context": "// CERO MIGRACIONES: `crm.cerrar_tarea` acepta `p_estado='cancelada'`"
+  },
+  {
+    "name": "retroceso_por_anular_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 1860,
+    "context": "// Espejo optimista de `private.retroceso_por_anular_reunion` (pedido de Miguel,"
+  },
+  {
+    "name": "editar_lead_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 2136,
+    "context": "// (crm.editar_lead_fn, INVOKER: el UPDATE de hoy con la RLS de quien edita)."
+  },
+  {
+    "name": "descartar_lead",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 2246,
+    "context": "// RPC crm.descartar_lead) llega con el bloque 6, que ya toca la BD."
+  },
+  {
+    "name": "convertir_lead_externo",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 2333,
+    "context": "// En real la ficha llama a crm.convertir_lead_externo (deja la foto"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 2463,
+    "context": "// DERIVADO, no un segundo almacén: la misma forma que `crm.cierres_estado_fn`"
+  },
+  {
+    "name": "trg_leads_reasignacion",
+    "path": "CRM-Avance-Corp/app/src/lib/store.tsx",
+    "line": 2623,
+    "context": "// La actividad real la emite el trigger trg_leads_reasignacion."
+  },
+  {
+    "name": "cierre_mes_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-de-mes.ts",
+    "line": 6,
+    "context": "* El estado de la MAQUINARIA del cierre de mes (`crm.cierre_mes_estado_fn`):"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-metricas-agenda.ts",
+    "line": 2,
+    "context": "// subárbol de SUPERVISOR UNO tal como lo devolvería crm.metricas_agenda_fn"
+  },
+  {
+    "name": "conversion_punteria",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-metricas-distribucion.ts",
+    "line": 10,
+    "context": "* Espejo demo de `private.conversion_punteria` (F2.3b): el fixture calcula lo"
+  },
+  {
+    "name": "conversion_punteria",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-metricas-distribucion.ts",
+    "line": 297,
+    "context": "conversion_punteria: 'CERRADOS_ENTRE_RESUELTOS',"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-config.ts",
+    "line": 42,
+    "context": "rol: UsuarioAdministrable['rol_crm'],"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-config.ts",
+    "line": 57,
+    "context": "rol_crm: rol,"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 22,
+    "context": "{ perfil_id: 'd-ger', nombre_completo: 'GERENCIA DEMO', rol_crm: 'gerencia', supervisor_id: null, activo: true },"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 23,
+    "context": "{ perfil_id: 'd-sup1', nombre_completo: 'SUPERVISOR UNO', rol_crm: 'supervisor', supervisor_id: null, activo: true },"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 24,
+    "context": "{ perfil_id: 'd-sup2', nombre_completo: 'SUPERVISOR DOS', rol_crm: 'supervisor', supervisor_id: null, activo: true },"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 25,
+    "context": "{ perfil_id: 'd-v1', nombre_completo: 'ANALISTA UNO', rol_crm: 'vendedor', supervisor_id: 'd-sup1', activo: true },"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 26,
+    "context": "{ perfil_id: 'd-v2', nombre_completo: 'ANALISTA DOS', rol_crm: 'vendedor', supervisor_id: 'd-sup1', activo: true },"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 27,
+    "context": "{ perfil_id: 'd-v3', nombre_completo: 'ANALISTA TRES', rol_crm: 'vendedor', supervisor_id: 'd-sup2', activo: true },"
+  },
+  {
+    "name": "series_comerciales_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/demo.ts",
+    "line": 156,
+    "context": "// POR MONEDA (espejo de series_comerciales_fn), no este formato."
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/cronograma.ts",
+    "line": 4,
+    "context": "// public.crear_contrato es la que persiste. Si cambia la regla en el portal,"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-estado.ts",
+    "line": 2,
+    "context": "// `crm.cierres_estado_fn` (migración 20260814100746)."
+  },
+  {
+    "name": "anular_cierre_avance",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-estado.ts",
+    "line": 5,
+    "context": "// (`crm.anular_cierre_avance`, 20260813235119), pero la tabla donde eso queda"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-estado.ts",
+    "line": 41,
+    "context": "/** El tope que impone `crm.cierres_estado_fn`: esto sirve a una página en"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-estado.ts",
+    "line": 42,
+    "context": "*  pantalla, no a un volcado. Alineado con `p_limite` de `cartera_pagina_fn`. */"
+  },
+  {
+    "name": "anular_cierre_avance",
+    "path": "CRM-Avance-Corp/app/src/lib/cierre-estado.ts",
+    "line": 93,
+    "context": "*   además guarda la foto de lo anulado; `crm.anular_cierre_avance` lo rechaza a"
+  },
+  {
+    "name": "resumen_cartera_clientes_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/clientes-tipos.ts",
+    "line": 10,
+    "context": "/** Respuesta existente de crm.resumen_cartera_clientes_fn, sin fórmulas UI. */"
+  },
+  {
+    "name": "cliente_detalle_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/clientes-tipos.ts",
+    "line": 60,
+    "context": "* Detalle comercial scopeado por `crm.cliente_detalle_fn`: identidad, los"
+  },
+  {
+    "name": "cuentas_bancarias_cliente_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/clientes-tipos.ts",
+    "line": 81,
+    "context": "/** Capacidad exacta para consultar `crm.cuentas_bancarias_cliente_fn`. */"
+  },
+  {
+    "name": "cuentas_bancarias_cliente_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/clientes-tipos.ts",
+    "line": 102,
+    "context": "* Cuenta que la RPC `crm.cuentas_bancarias_cliente_fn` permite elegir para un"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/agenda-equipo-vista.ts",
+    "line": 2,
+    "context": "// la fotografía de crm.metricas_agenda_fn para leerse como la supervisión de"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/usuarios-config.ts",
+    "line": 27,
+    "context": "rol_crm: v.nullable(v.picklist(ROLES)),"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/usuarios-config.ts",
+    "line": 73,
+    "context": "rol_crm: v.picklist(ROLES),"
+  },
+  {
+    "name": "series_comerciales_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/series-comerciales.ts",
+    "line": 7,
+    "context": "// SERVIDOR (crm.series_comerciales_fn, SIN ventana de 45 d). Este módulo queda"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 34,
+    "context": "* Los payloads viejos (metricas_conversiones_fn / _equipo_fn) no traen estado"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 49,
+    "context": "* (`metricas_conversiones_fn`, que trae mucho más) y el del equipo del supervisor"
+  },
+  {
+    "name": "metricas_conversiones_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 50,
+    "context": "* (`metricas_conversiones_equipo_fn`, que a propósito trae solo esto — menos"
+  },
+  {
+    "name": "cumplimiento_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 125,
+    "context": "* de `cumplimiento_metas_fn` y no debe depender de que haya cargado ninguna"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 127,
+    "context": "* por `adaptarConversionVendedores(metricas_conversiones_fn, ...)`; una caída"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-vendedores.ts",
+    "line": 283,
+    "context": "* Adapta el payload de `crm.conversion_mensual_fn` al ranking. MISMO"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/clientes-vista.ts",
+    "line": 26,
+    "context": "* (crear_contrato y perfiles_analista_update): manda asesor_perfil_id y, solo"
+  },
+  {
+    "name": "conversion_punteria",
+    "path": "CRM-Avance-Corp/app/src/lib/distribucion-lecturas.ts",
+    "line": 217,
+    "context": "* (`private.conversion_punteria`, F2.3b): aquí solo se formatea. pct NULL"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/resumen-cartera.ts",
+    "line": 1,
+    "context": "// lib/resumen-cartera.ts — contrato y espejo demo de crm.resumen_cartera_fn (F1)."
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/resumen-cartera.ts",
+    "line": 92,
+    "context": "* Espejo demo de crm.resumen_cartera_fn sobre el ámbito VIVO de la sesión demo."
+  },
+  {
+    "name": "cierres_externos_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierres-externos.ts",
+    "line": 2,
+    "context": "// con `crm.cierres_externos_fn` (migración 20260812000259)."
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/tres-cosas.ts",
+    "line": 43,
+    "context": "/** Total autorizado por resumen_cartera_fn (null = sin dato). */"
+  },
+  {
+    "name": "normalizar_domicilio_legal",
+    "path": "CRM-Avance-Corp/app/src/lib/cliente-form-logica.ts",
+    "line": 95,
+    "context": "* Normaliza igual que `crm.normalizar_domicilio_legal` en el servidor. Sin"
+  },
+  {
+    "name": "cuentas_bancarias_cliente_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cliente-form-logica.ts",
+    "line": 216,
+    "context": "* ¿El ledger (RPC cuentas_bancarias_cliente_fn) trae alguna cuenta REAL del"
+  },
+  {
+    "name": "umbral_estancamiento",
+    "path": "CRM-Avance-Corp/app/src/lib/cadencia.ts",
+    "line": 26,
+    "context": "* mismo plazo que la BD da a `contactado` (72 h en `private.umbral_estancamiento`)."
+  },
+  {
+    "name": "retroceso_por_anular_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/avance-automatico.ts",
+    "line": 14,
+    "context": "//   · retrocesoPorAnularReunion ↔ private.retroceso_por_anular_reunion (INLINE al"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/avance-automatico.ts",
+    "line": 15,
+    "context": "//                                  final de crm.cerrar_tarea, no un trigger: así"
+  },
+  {
+    "name": "retroceso_por_anular_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/avance-automatico.ts",
+    "line": 102,
+    "context": "* Espejo de `private.retroceso_por_anular_reunion`. La única regla del sistema"
+  },
+  {
+    "name": "inicio_ciclo_lead",
+    "path": "CRM-Avance-Corp/app/src/lib/avance-automatico.ts",
+    "line": 124,
+    "context": "* `exists` al inicio del CICLO vigente del lead (`private.inicio_ciclo_lead`)"
+  },
+  {
+    "name": "clientes_basicos_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cliente-ficha-modelo.ts",
+    "line": 62,
+    "context": "// La lista del supervisor ya viene recortada por clientes_basicos_fn. No"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/cliente-ficha-modelo.ts",
+    "line": 79,
+    "context": ": responsable.activo && (responsable.rol_crm === 'vendedor' || responsable.rol_crm === 'supervisor'))"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/objetivos.ts",
+    "line": 326,
+    "context": "rol_crm: v.picklist(["
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/objetivos.ts",
+    "line": 544,
+    "context": "* (conversion_mensual_fn y los motores F2) — el agregado del navegador quedó"
+  },
+  {
+    "name": "configuracion_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/objetivos.ts",
+    "line": 619,
+    "context": "* `objetivos` describe el roster VIVO (lo que devuelve `configuracion_metas_fn`,"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/objetivos.ts",
+    "line": 656,
+    "context": "rolCrm: fila.rol_crm,"
+  },
+  {
+    "name": "metricas_altas_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-metricas.ts",
+    "line": 91,
+    "context": "// Espejo de crm.metricas_altas_analista_fn:"
+  },
+  {
+    "name": "altas_nuevas_por_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-metricas.ts",
+    "line": 113,
+    "context": "//    crm.altas_nuevas_por_analista_fn, F7). A diferencia de (c), cuenta CONTRATOS"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 227,
+    "context": "* de crm.cola_accion_fn (F1). Cada bucket usa su subconjunto; el resto llega"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 251,
+    "context": "* la campana de alertas hasta F3) y el mapper de crm.cola_accion_fn (sesión"
+  },
+  {
+    "name": "trg_leads_reasignacion",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 338,
+    "context": "* `private.trg_leads_reasignacion` en el servidor + copia optimista del store),"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 618,
+    "context": "// Desempate por id: espejo del ORDER BY del servidor (cola_accion_fn) —"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 698,
+    "context": "// Desempate por perfil_id: espejo del ORDER BY de metricas_vendedores_fn."
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 705,
+    "context": "// preguntas las responden resumen_cartera_fn y metricas_conversiones_fn."
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 705,
+    "context": "// preguntas las responden resumen_cartera_fn y metricas_conversiones_fn."
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 730,
+    "context": "// Desempate por id: espejo del bloque estancados de cola_accion_fn."
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/inteligencia.ts",
+    "line": 748,
+    "context": ".filter((m) => m.rol_crm === 'supervisor' && m.activo)"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cola-accion.ts",
+    "line": 1,
+    "context": "// lib/cola-accion.ts — contrato, mapper y espejo demo de crm.cola_accion_fn (F1b)."
+  },
+  {
+    "name": "metricas_conversiones_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-conversiones-equipo.ts",
+    "line": 2,
+    "context": "// EQUIPO de un supervisor (RPC crm.metricas_conversiones_equipo_fn)."
+  },
+  {
+    "name": "tomar_lead_libre",
+    "path": "CRM-Avance-Corp/app/src/lib/disponibilidad-lead.ts",
+    "line": 97,
+    "context": "*  crm.tomar_lead_libre) — jamás sobre tomado/enfriamiento/cliente, y sobre"
+  },
+  {
+    "name": "tomar_lead_libre",
+    "path": "CRM-Avance-Corp/app/src/lib/disponibilidad-lead.ts",
+    "line": 107,
+    "context": "/** Respuesta autoritativa de crm.tomar_lead_libre: o la toma confirmada, o el"
+  },
+  {
+    "name": "descartar_lead",
+    "path": "CRM-Avance-Corp/app/src/lib/descarte-evidencia.ts",
+    "line": 12,
+    "context": "// GLOBAL con `crm.descartar_lead` — leads sin dueño y SIN NINGUNA actividad,"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/lib/nota-no-show.ts",
+    "line": 4,
+    "context": "// `resultado_tipo: null`, así que `crm.cerrar_tarea` no insertaba NINGUNA"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/roles.ts",
+    "line": 8,
+    "context": "* NUNCA como fila de roster visible (ver Miembro.rol_crm en tipos.ts). */"
+  },
+  {
+    "name": "tomar_lead_libre",
+    "path": "CRM-Avance-Corp/app/src/lib/roles.ts",
+    "line": 34,
+    "context": "// del guard de crm.tomar_lead_libre: supervisión"
+  },
+  {
+    "name": "vendedor_ids_visibles",
+    "path": "CRM-Avance-Corp/app/src/lib/roles.ts",
+    "line": 96,
+    "context": "// private.vendedor_ids_visibles devuelve vacío para este rol). No tiene cartera"
+  },
+  {
+    "name": "reasignar_analista_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/roles.ts",
+    "line": 174,
+    "context": "* `public.reasignar_analista_contrato`: gestor de cartera del portal (admin o"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-vendedores.ts",
+    "line": 2,
+    "context": "// crm.metricas_vendedores_fn (F1b). El payload viaja SIN nombres de personas"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-vendedores.ts",
+    "line": 3,
+    "context": "// (precedente metricas_conversiones_fn): el front une por id con su roster —"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-vendedores.ts",
+    "line": 134,
+    "context": "rol_crm: v.picklist(['vendedor', 'supervisor', 'gerencia']),"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-vendedores.ts",
+    "line": 457,
+    "context": "&& miembro.rol_crm === 'vendedor'"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-mensual.ts",
+    "line": 2,
+    "context": "// `crm.conversion_mensual_fn` (migración 20260811154434)."
+  },
+  {
+    "name": "trg_leads_cambio_etapa",
+    "path": "CRM-Avance-Corp/app/src/lib/cierres-del-mes.ts",
+    "line": 11,
+    "context": "// `trg_leads_cambio_etapa` en la MISMA transacción del paso a `convertido`, y"
+  },
+  {
+    "name": "leads_before_update",
+    "path": "CRM-Avance-Corp/app/src/lib/cierres-del-mes.ts",
+    "line": 12,
+    "context": "// que `leads_before_update` restaura desde OLD ante cualquier escritura del"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cierres-del-mes.ts",
+    "line": 30,
+    "context": "// `crm.metricas_agenda_fn`: los convertidos ya no se mueven; los descartados"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-equipo.ts",
+    "line": 50,
+    "context": ".filter((miembro) => miembro.activo && miembro.rol_crm === 'supervisor')"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-equipo.ts",
+    "line": 55,
+    "context": ".filter((vendedor) => vendedor.activo && vendedor.rol_crm === 'vendedor')"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-equipo.ts",
+    "line": 69,
+    "context": "// Gerencia migró a crm.metricas_conversiones_fn — y dejarlo vivo invitaba a"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-equipo.ts",
+    "line": 71,
+    "context": "// cubría lo sirven metricas_conversiones_fn y metricas_vendedores_fn."
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/conversion-equipo.ts",
+    "line": 71,
+    "context": "// cubría lo sirven metricas_conversiones_fn y metricas_vendedores_fn."
+  },
+  {
+    "name": "contrato_documental_regimen",
+    "path": "CRM-Avance-Corp/app/src/lib/contrato-pdf-archivo.ts",
+    "line": 27,
+    "context": "* Espejo EXACTO de `private.contrato_documental_regimen` en el servidor, que es"
+  },
+  {
+    "name": "contrato_documental_regimen",
+    "path": "CRM-Avance-Corp/app/src/lib/contrato-pdf-archivo.ts",
+    "line": 55,
+    "context": "* Espejo de `private.contrato_documental_regimen`, que es quien manda."
+  },
+  {
+    "name": "vendedor_ids_visibles",
+    "path": "CRM-Avance-Corp/app/src/lib/config.ts",
+    "line": 112,
+    "context": "*    `private.vendedor_ids_visibles`) y su único destino es «Repartir leads»."
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/titulares.ts",
+    "line": 9,
+    "context": "// viajan DENTRO de p_contrato como 'titulares' (la RPC crear_contrato /"
+  },
+  {
+    "name": "actualizar_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/titulares.ts",
+    "line": 10,
+    "context": "// actualizar_contrato ya los procesa vía _sync_contrato_titulares)."
+  },
+  {
+    "name": "_sync_contrato_titulares",
+    "path": "CRM-Avance-Corp/app/src/lib/titulares.ts",
+    "line": 10,
+    "context": "// actualizar_contrato ya los procesa vía _sync_contrato_titulares)."
+  },
+  {
+    "name": "reprogramar_reunion",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 277,
+    "context": "/** Respuesta autoritativa de crm.reprogramar_reunion (F2). La validación"
+  },
+  {
+    "name": "trg_leads_cambio_etapa",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 372,
+    "context": "* Sello del CIERRE GANADO, puesto por el trigger `trg_leads_cambio_etapa` en"
+  },
+  {
+    "name": "leads_before_update",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 374,
+    "context": "* el cliente API (`leads_before_update` lo restaura desde OLD salvo operación"
+  },
+  {
+    "name": "set_actualizado_en_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 382,
+    "context": "/** Última escritura de CUALQUIER columna (trigger `set_actualizado_en_crm`)."
+  },
+  {
+    "name": "leads_por_repartir",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 397,
+    "context": "* (`crm.leads_por_repartir` la excluye), pero NO viajaba al navegador — por"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 406,
+    "context": "* sirve la página keyset de la cartera (`crm.cartera_pagina_fn`, F2): el"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 419,
+    "context": "rol_crm: Exclude<Rol, 'directorio' | 'coordinador'>"
+  },
+  {
+    "name": "leads_por_repartir",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 425,
+    "context": "* Fila de la COLA de reparto (C1) — proyección de `crm.leads_por_repartir()`."
+  },
+  {
+    "name": "leads_descartados",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 524,
+    "context": "* `crm.leads_descartados()`. Como la cola, SIN PII de contacto. `comentario`"
+  },
+  {
+    "name": "deshacer_descarte",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 527,
+    "context": "* servidor re-valida en `deshacer_descarte`."
+  },
+  {
+    "name": "supervisores_para_reparto",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 581,
+    "context": "/** Destino de reparto — proyección de `crm.supervisores_para_reparto()`. */"
+  },
+  {
+    "name": "mi_acceso_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 596,
+    "context": "/** Capacidades vivas calculadas por `crm.mi_acceso_fn`; la RLS/RPC manda. */"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/lib/tipos.ts",
+    "line": 609,
+    "context": "* 1. `crear_contrato` pide ADEMÁS que el cliente sea de tu cartera. Este flag"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cartera-keyset.ts",
+    "line": 6,
+    "context": "* El SERVIDOR (`crm.cartera_pagina_fn`) es quien pagina y filtra en sesión"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/cartera-keyset.ts",
+    "line": 76,
+    "context": "/** Espejo demo del WHERE de `crm.cartera_pagina_fn` (sin la RLS: el store ya la aplicó). */"
+  },
+  {
+    "name": "trg_leads_cambio_etapa",
+    "path": "CRM-Avance-Corp/app/src/lib/antiguedad-etapa.ts",
+    "line": 11,
+    "context": "// `private.trg_leads_cambio_etapa`), pero la RPC que alimenta al navegador"
+  },
+  {
+    "name": "actividades_del_ambito_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/antiguedad-etapa.ts",
+    "line": 12,
+    "context": "// —`actividades_del_ambito_fn`— NO la devuelve, y la frontera Valibot de"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-agenda.ts",
+    "line": 4,
+    "context": "* Contrato runtime de `crm.metricas_agenda_fn` (JSON V1) — la fotografía"
+  },
+  {
+    "name": "metricas_distribucion_leads_v2_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-distribucion.ts",
+    "line": 4,
+    "context": "* Contrato runtime de `crm.metricas_distribucion_leads_v2_fn` (JSON V2)."
+  },
+  {
+    "name": "metricas_distribucion_leads_v3_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-distribucion.ts",
+    "line": 253,
+    "context": "// Contrato runtime de `crm.metricas_distribucion_leads_v3_fn` (F2.3b,"
+  },
+  {
+    "name": "conversion_punteria",
+    "path": "CRM-Avance-Corp/app/src/lib/metricas-distribucion.ts",
+    "line": 344,
+    "context": "conversion_punteria: v.literal('CERRADOS_ENTRE_RESUELTOS'),"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/alertas.ts",
+    "line": 363,
+    "context": "(miembro) => miembro.activo && miembro.rol_crm === 'vendedor',"
+  },
+  {
+    "name": "consultar_ayuda_vendedor",
+    "path": "CRM-Avance-Corp/app/src/lib/ayuda-vendedor.ts",
+    "line": 55,
+    "context": "* Contrato público y cerrado de crm.consultar_ayuda_vendedor()."
+  },
+  {
+    "name": "conversion_mensual_por_vendedor",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-conversion-mensual.ts",
+    "line": 6,
+    "context": "// `private.conversion_mensual_por_vendedor` (divisor = llegadas automáticas"
+  },
+  {
+    "name": "conversion_con_ajuste",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-conversion-mensual.ts",
+    "line": 130,
+    "context": "// (`private.conversion_con_ajuste`) que la lectura real aplica al servir."
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-conversion-mensual.ts",
+    "line": 207,
+    "context": "* El derivador común: mismo contrato que `crm.conversion_mensual_fn`, mismo"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/lib/demo-conversion-mensual.ts",
+    "line": 311,
+    "context": ".filter((miembro) => miembro.rol_crm === 'vendedor')"
+  },
+  {
+    "name": "usuarios_administrables_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 139,
+    "context": "let consulta = cliente().schema('crm').rpc('usuarios_administrables_fn', sinIndefinidos({"
+  },
+  {
+    "name": "actualizar_usuario_administrable_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 202,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('actualizar_usuario_administrable_fn', {"
+  },
+  {
+    "name": "asignar_rol_usuario_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 223,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('asignar_rol_usuario_fn', {"
+  },
+  {
+    "name": "actualizar_jerarquia_usuario_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 238,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('actualizar_jerarquia_usuario_fn', {"
+  },
+  {
+    "name": "impacto_desactivacion_usuario_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 251,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('impacto_desactivacion_usuario_fn', {"
+  },
+  {
+    "name": "fijar_membresia_activa_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 264,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('fijar_membresia_activa_fn', {"
+  },
+  {
+    "name": "productos_inversion_gestion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 294,
+    "context": "let consulta = cliente().schema('crm').rpc('productos_inversion_gestion_fn')"
+  },
+  {
+    "name": "productos_inversion_seleccion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 306,
+    "context": "let consulta = cliente().schema('crm').rpc('productos_inversion_seleccion_fn')"
+  },
+  {
+    "name": "crear_producto_inversion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 325,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('crear_producto_inversion', {"
+  },
+  {
+    "name": "crear_version_producto_inversion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 340,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('crear_version_producto_inversion', {"
+  },
+  {
+    "name": "actualizar_borrador_producto_inversion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 356,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('actualizar_borrador_producto_inversion', {"
+  },
+  {
+    "name": "publicar_version_producto_inversion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 370,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('publicar_version_producto_inversion', {"
+  },
+  {
+    "name": "archivar_producto_inversion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 382,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('archivar_producto_inversion', {"
+  },
+  {
+    "name": "cerrar_altas_legacy_productos",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 391,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('cerrar_altas_legacy_productos', {"
+  },
+  {
+    "name": "configuracion_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 405,
+    "context": "let consulta = cliente().schema('crm').rpc('configuracion_metas_fn', { p_periodo: periodo })"
+  },
+  {
+    "name": "publicar_metas_vendedores",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 418,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('publicar_metas_vendedores', {"
+  },
+  {
+    "name": "configuracion_sla_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 447,
+    "context": "let consulta = cliente().schema('crm').rpc('configuracion_sla_fn')"
+  },
+  {
+    "name": "publicar_politica_sla",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 470,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('publicar_politica_sla', {"
+  },
+  {
+    "name": "metricas_sla_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 500,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_sla_fn', { p_desde: desde, p_hasta: hasta })"
+  },
+  {
+    "name": "estado_sla_leads_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-config-api.ts",
+    "line": 510,
+    "context": "let consulta = cliente().schema('crm').rpc('estado_sla_leads_fn')"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/data/use-metricas-vendedores-operativas.ts",
+    "line": 23,
+    "context": "* Une crm.metricas_vendedores_fn con su espejo demo (F1b). El payload real"
+  },
+  {
+    "name": "resumen_reparto_fn",
+    "path": "CRM-Avance-Corp/app/src/data/use-resumen-reparto-operativo.ts",
+    "line": 15,
+    "context": "* Une el StatStrip de «Repartir» con el RPC crm.resumen_reparto_fn (F1b tanda"
+  },
+  {
+    "name": "ayuda_vendedor_inicio",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 337,
+    "context": "let peticion = cliente().schema('crm').rpc('ayuda_vendedor_inicio', {"
+  },
+  {
+    "name": "consultar_ayuda_vendedor",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 369,
+    "context": "let peticion = cliente().schema('crm').rpc('consultar_ayuda_vendedor', {"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 663,
+    "context": "let consulta = cliente().schema('crm').rpc('cartera_pagina_fn', argumentos)"
+  },
+  {
+    "name": "equipo_visible_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 734,
+    "context": "// ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────"
+  },
+  {
+    "name": "equipo_visible_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 735,
+    "context": "// 'coordinador' (C1) es OFF-ROSTER, como 'directorio': equipo_visible_fn no debe"
+  },
+  {
+    "name": "rol_crm",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 742,
+    "context": "rol_crm: v.picklist(ROLES_EQUIPO),"
+  },
+  {
+    "name": "equipo_visible_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 748,
+    "context": "let consulta = cliente().schema('crm').rpc('equipo_visible_fn')"
+  },
+  {
+    "name": "configuracion_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 775,
+    "context": "let consulta = cliente().schema('crm').rpc('configuracion_metas_fn', { p_periodo: periodo })"
+  },
+  {
+    "name": "cumplimiento_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 795,
+    "context": "let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })"
+  },
+  {
+    "name": "cierre_mes_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 810,
+    "context": "* El estado de la MAQUINARIA del cierre de mes (`crm.cierre_mes_estado_fn`):"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 813,
+    "context": "* ⚠️ No confundir con `cierres_estado_fn`, que es de los cierres de VENTA."
+  },
+  {
+    "name": "cierre_mes_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 816,
+    "context": "let consulta = cliente().schema('crm').rpc('cierre_mes_estado_fn')"
+  },
+  {
+    "name": "leads_por_repartir",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 945,
+    "context": "let consulta = cliente().schema('crm').rpc('leads_por_repartir')"
+  },
+  {
+    "name": "historial_derivaciones",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 973,
+    "context": ".rpc('historial_derivaciones', {"
+  },
+  {
+    "name": "agenda_reparto_diaria",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1008,
+    "context": ".rpc('agenda_reparto_diaria', {"
+  },
+  {
+    "name": "guardar_agenda_reparto_diaria",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1043,
+    "context": "let consulta = cliente().schema('crm').rpc('guardar_agenda_reparto_diaria', {"
+  },
+  {
+    "name": "panel_distribucion_reparto",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1095,
+    "context": "let consulta = cliente().schema('crm').rpc('panel_distribucion_reparto', argumentos)"
+  },
+  {
+    "name": "supervisores_para_reparto",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1121,
+    "context": "let consulta = cliente().schema('crm').rpc('supervisores_para_reparto')"
+  },
+  {
+    "name": "ingresos_reparto_mes_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1149,
+    "context": "let consulta = cliente().schema('crm').rpc('ingresos_reparto_mes_fn', { p_mes: pMes })"
+  },
+  {
+    "name": "repartir_lead",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1171,
+    "context": "const { error } = await cliente().schema('crm').rpc('repartir_lead', {"
+  },
+  {
+    "name": "descartar_lead",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1187,
+    "context": ".rpc('descartar_lead', {"
+  },
+  {
+    "name": "deshacer_descarte",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1198,
+    "context": "const { error } = await cliente().schema('crm').rpc('deshacer_descarte', {"
+  },
+  {
+    "name": "leads_descartados",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1229,
+    "context": "let consulta = cliente().schema('crm').rpc('leads_descartados')"
+  },
+  {
+    "name": "rescate_descartes_meses",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1272,
+    "context": "let consulta = cliente().schema('crm').rpc('rescate_descartes_meses')"
+  },
+  {
+    "name": "rescate_descartes_mes",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1287,
+    "context": "let consulta = cliente().schema('crm').rpc('rescate_descartes_mes', { p_mes: mes })"
+  },
+  {
+    "name": "rescatar_descartes",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1310,
+    "context": "const { error } = await cliente().schema('crm').rpc('rescatar_descartes', {"
+  },
+  {
+    "name": "actividades_del_ambito_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1318,
+    "context": "// ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)"
+  },
+  {
+    "name": "actividades_del_ambito_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1329,
+    "context": "// Espejo del LIMIT de crm.actividades_del_ambito_fn (migración 20260808163638):"
+  },
+  {
+    "name": "actividades_del_ambito_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1334,
+    "context": "let consulta = cliente().schema('crm').rpc('actividades_del_ambito_fn')"
+  },
+  {
+    "name": "crear_lead_si_disponible",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1354,
+    "context": "* resuelve después dentro de crear_lead_si_disponible; los índices únicos son"
+  },
+  {
+    "name": "verificar_disponibilidad_lead",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1366,
+    "context": "'verificar_disponibilidad_lead',"
+  },
+  {
+    "name": "tomar_lead_libre",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1560,
+    "context": "* crm.tomar_lead_libre. Es una MUTACIÓN — a diferencia del precheck"
+  },
+  {
+    "name": "tomar_lead_libre",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1570,
+    "context": "'tomar_lead_libre',"
+  },
+  {
+    "name": "crear_lead_si_disponible",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1589,
+    "context": "type CrearLeadArgs = Database['crm']['Functions']['crear_lead_si_disponible']['Args']"
+  },
+  {
+    "name": "contrato_pdf_snapshot_v2_base",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1654,
+    "context": "// El RAISE de private.contrato_pdf_snapshot_v2_base. Caía en el genérico"
+  },
+  {
+    "name": "repartir_lead",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1667,
+    "context": "// Veto LEGAL (Ley 29571 \"No Insista\") de crm.repartir_lead — código propio,"
+  },
+  {
+    "name": "crear_lead_si_disponible",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1787,
+    "context": "'crear_lead_si_disponible',"
+  },
+  {
+    "name": "reabrir_lead_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1837,
+    "context": "const { error } = await cliente().schema('crm').rpc('reabrir_lead_fn', { p_lead_id: leadId })"
+  },
+  {
+    "name": "editar_lead_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1843,
+    "context": "* (`crm.editar_lead_fn`, SECURITY INVOKER: el UPDATE corre con la RLS y los grants"
+  },
+  {
+    "name": "fijar_dni_lead_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1846,
+    "context": "* puerta (`fijar_dni_lead_fn`: candados documento → persona → fila, juicio y"
+  },
+  {
+    "name": "editar_lead_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 1854,
+    "context": ".rpc('editar_lead_fn', { p_lead_id: leadId, p_cambios: cambios as Json })"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2053,
+    "context": "* Cierre atómico por la RPC crm.cerrar_tarea: resultado al log + tarea"
+  },
+  {
+    "name": "cerrar_tarea",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2060,
+    "context": "'cerrar_tarea',"
+  },
+  {
+    "name": "cerrar_reunion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2089,
+    "context": "'cerrar_reunion',"
+  },
+  {
+    "name": "reprogramar_reunion",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2142,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('reprogramar_reunion', {"
+  },
+  {
+    "name": "convertir_lead",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2154,
+    "context": "//    privilegiada crm.convertir_lead). El navegador nunca crea usuarios ni envía"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2247,
+    "context": "// cronograma y co-titulares a public.crear_contrato (motor del portal). Así se"
+  },
+  {
+    "name": "cuentas_bancarias_cliente_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2280,
+    "context": "let consulta = cliente().schema('crm').rpc('cuentas_bancarias_cliente_fn', {"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2333,
+    "context": "* crear_contrato ya los persiste vía _sync_contrato_titulares. Ausente o []"
+  },
+  {
+    "name": "_sync_contrato_titulares",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2333,
+    "context": "* crear_contrato ya los persiste vía _sync_contrato_titulares. Ausente o []"
+  },
+  {
+    "name": "crear_contrato_con_cuenta_pdf_v2",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2349,
+    "context": "* wrapper `crear_contrato_con_cuenta_pdf_v2` que la conoce devuelve el MISMO"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2351,
+    "context": "* conoce la ignora (`public.crear_contrato` solo lee sus propias claves)."
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2393,
+    "context": "// 1. La PRUEBA del alta: `id` + `numero_contrato`. `public.crear_contrato` solo los"
+  },
+  {
+    "name": "contrato_pdf_estado_base",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2421,
+    "context": "// La forma que emite `private.contrato_pdf_estado_base` en TODAS sus ramas:"
+  },
+  {
+    "name": "crear_contrato_con_cuenta_pdf_v2",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2465,
+    "context": ".rpc('crear_contrato_con_cuenta_pdf_v2', {"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2519,
+    "context": "// public.crear_contrato/actualizar_contrato, RLS con ventana de 5 h) YA está en"
+  },
+  {
+    "name": "actualizar_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2519,
+    "context": "// public.crear_contrato/actualizar_contrato, RLS con ventana de 5 h) YA está en"
+  },
+  {
+    "name": "resumen_cartera_clientes_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2594,
+    "context": "let consulta = cliente().schema('crm').rpc('resumen_cartera_clientes_fn')"
+  },
+  {
+    "name": "cliente_ficha_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2684,
+    "context": "let consulta = cliente().schema('crm').rpc('cliente_ficha_fn', { p_cliente_id: id })"
+  },
+  {
+    "name": "cliente_detalle_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2791,
+    "context": "let consulta = cliente().schema('crm').rpc('cliente_detalle_fn', { p_cliente_id: id })"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2820,
+    "context": "* que va a decidir `public.crear_contrato`, porque las dos reglas son la misma:"
+  },
+  {
+    "name": "actualizar_cliente_gerencia_con_domicilio",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2957,
+    "context": ".rpc('actualizar_cliente_gerencia_con_domicilio', {"
+  },
+  {
+    "name": "actualizar_cliente_gerencia_con_domicilio",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 2959,
+    "context": "p_patch: patch as Database['crm']['Functions']['actualizar_cliente_gerencia_con_domicilio']['Args']['p_patch'],"
+  },
+  {
+    "name": "datos_legales_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3004,
+    "context": "let consulta = cliente().schema('crm').rpc('datos_legales_contrato_fn', {"
+  },
+  {
+    "name": "completar_domicilio_cliente",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3047,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('completar_domicilio_cliente', {"
+  },
+  {
+    "name": "cronograma_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3288,
+    "context": "// RPC con ámbito (crm.cronograma_contrato_fn): fuera de ámbito = 0 filas."
+  },
+  {
+    "name": "cronograma_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3292,
+    "context": ".rpc('cronograma_contrato_fn', { p_contrato_id: contratoId })"
+  },
+  {
+    "name": "titulares_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3328,
+    "context": ".rpc('titulares_contrato_fn', { p_contrato_id: contratoId })"
+  },
+  {
+    "name": "actualizar_contrato_con_cuenta_pdf_v3",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3398,
+    "context": ".rpc('actualizar_contrato_con_cuenta_pdf_v3', {"
+  },
+  {
+    "name": "atribucion_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3473,
+    "context": "let consulta = cliente().schema('crm').rpc('atribucion_contrato_fn', { p_contrato_id: contratoId })"
+  },
+  {
+    "name": "reasignar_analista_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3493,
+    "context": "const { error } = await cliente().rpc('reasignar_analista_contrato', {"
+  },
+  {
+    "name": "metricas_capital_mes_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3559,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_capital_mes_fn', { p_meses: pMeses })"
+  },
+  {
+    "name": "altas_nuevas_por_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3584,
+    "context": "// Altas de contratos NUEVOS por el analista que cierra (crm.altas_nuevas_por_analista_fn,"
+  },
+  {
+    "name": "metricas_altas_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3585,
+    "context": "// F7: sustituye a metricas_altas_analista_fn). El servidor ya resolvió el ámbito"
+  },
+  {
+    "name": "altas_nuevas_por_analista_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3600,
+    "context": "let consulta = cliente().schema('crm').rpc('altas_nuevas_por_analista_fn', { p_meses: pMeses })"
+  },
+  {
+    "name": "observacion_rentabilidad_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3624,
+    "context": "// ─── Rentabilidad R2: la tarjeta de observación (crm.observacion_rentabilidad_fn) ───"
+  },
+  {
+    "name": "observacion_rentabilidad_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3769,
+    "context": "let consulta = cliente().schema('crm').rpc('observacion_rentabilidad_fn', { p_desde: desde, p_hasta: hasta })"
+  },
+  {
+    "name": "metricas_pagos_mes_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3829,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_pagos_mes_fn', { p_meses: pMeses })"
+  },
+  {
+    "name": "metricas_vencimientos_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3858,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_vencimientos_fn', { p_dias: pDias })"
+  },
+  {
+    "name": "metricas_distribucion_leads_v3_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3950,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_v3_fn', {"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3977,
+    "context": "* Fotografía atómica V1 de la agenda del equipo (crm.metricas_agenda_fn):"
+  },
+  {
+    "name": "metricas_agenda_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 3995,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_agenda_fn', {"
+  },
+  {
+    "name": "metricas_conversiones_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4026,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_conversiones_fn', {"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4059,
+    "context": "* La conversión mensual ponderada del analista (crm.conversion_mensual_fn) — LA"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4087,
+    "context": "let consulta = cliente().schema('crm').rpc('conversion_mensual_fn', {"
+  },
+  {
+    "name": "metricas_conversiones_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4130,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_conversiones_equipo_fn', {"
+  },
+  {
+    "name": "metricas_reuniones_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4164,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_reuniones_fn', {"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4185,
+    "context": "* Resumen agregado del ámbito operativo (RPC crm.resumen_cartera_fn, F1):"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4194,
+    "context": "let consulta = cliente().schema('crm').rpc('resumen_cartera_fn')"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4209,
+    "context": "* Cola de acción servida (RPC crm.cola_accion_fn, F1b): la cascada de buckets,"
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4217,
+    "context": "let consulta = cliente().schema('crm').rpc('cola_accion_fn', { p_limite: pLimite })"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4232,
+    "context": "* Métricas por analista + comparativa de equipos (RPC crm.metricas_vendedores_fn,"
+  },
+  {
+    "name": "metricas_vendedores_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4248,
+    "context": "let consulta = cliente().schema('crm').rpc('metricas_vendedores_fn')"
+  },
+  {
+    "name": "reporte_derivaciones_coordinacion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4307,
+    "context": "let consulta = cliente().schema('crm').rpc('reporte_derivaciones_coordinacion_fn', {"
+  },
+  {
+    "name": "reporte_derivaciones_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4352,
+    "context": "let consulta = cliente().schema('crm').rpc('reporte_derivaciones_equipo_fn', {"
+  },
+  {
+    "name": "derivar_leads_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4400,
+    "context": ".rpc('derivar_leads_equipo_fn', {"
+  },
+  {
+    "name": "revertir_derivacion_equipo_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4431,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('revertir_derivacion_equipo_fn', {"
+  },
+  {
+    "name": "resumen_reparto_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4454,
+    "context": "* Resumen agregado de la cola GLOBAL de reparto (RPC crm.resumen_reparto_fn,"
+  },
+  {
+    "name": "leads_por_repartir",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4457,
+    "context": "* `leads_por_repartir`. No hay ventana ni argumento que certificar contra el"
+  },
+  {
+    "name": "resumen_reparto_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4464,
+    "context": "let consulta = cliente().schema('crm').rpc('resumen_reparto_fn')"
+  },
+  {
+    "name": "actualizar_capacidad_leads_objetivo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4494,
+    "context": ".rpc('actualizar_capacidad_leads_objetivo', {"
+  },
+  {
+    "name": "convertir_lead_externo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4542,
+    "context": "/** Respuesta de crm.convertir_lead_externo — eco verificado contra lo pedido. */"
+  },
+  {
+    "name": "convertir_lead_externo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4613,
+    "context": "'convertir_lead_externo',"
+  },
+  {
+    "name": "corregir_cierre_externo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4700,
+    "context": ".rpc('corregir_cierre_externo', {"
+  },
+  {
+    "name": "anular_cierre_externo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4763,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('anular_cierre_externo', {"
+  },
+  {
+    "name": "anular_cierre_avance",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4834,
+    "context": "const { data, error } = await cliente().schema('crm').rpc('anular_cierre_avance', {"
+  },
+  {
+    "name": "anular_cierre_externo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4845,
+    "context": "// traducir: «Ese lead cerró en cooperativa: usa crm.anular_cierre_externo»,"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4880,
+    "context": "* El estado del cierre de unos leads (`crm.cierres_estado_fn`): qué canal y si"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4910,
+    "context": ".rpc('cierres_estado_fn', {"
+  },
+  {
+    "name": "cierres_externos_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4928,
+    "context": "* La fotografía de cierres externos (crm.cierres_externos_fn): filas para la"
+  },
+  {
+    "name": "cierres_externos_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-api.ts",
+    "line": 4942,
+    "context": "let consulta = cliente().schema('crm').rpc('cierres_externos_fn', {"
+  },
+  {
+    "name": "resumen_cartera_fn",
+    "path": "CRM-Avance-Corp/app/src/data/use-resumen-cartera-operativo.ts",
+    "line": 19,
+    "context": "* Une el RPC crm.resumen_cartera_fn con su espejo demo (F1). En sesión real la"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/data/use-cartera-paginada.ts",
+    "line": 26,
+    "context": "* Une la RPC `crm.cartera_pagina_fn` (cursor keyset, F2) con su espejo demo."
+  },
+  {
+    "name": "cola_accion_fn",
+    "path": "CRM-Avance-Corp/app/src/data/use-cola-accion-operativa.ts",
+    "line": 28,
+    "context": "* Une crm.cola_accion_fn con su espejo demo (F1b). En sesión real el servidor"
+  },
+  {
+    "name": "actualizar_contrato",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 88,
+    "context": "// (matching jerárquico de TanStack) — actualizar_contrato REGENERA el"
+  },
+  {
+    "name": "cierres_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 235,
+    "context": "// El chip «CIERRE ANULADO» de la cartera sale de cierres_estado_fn, que"
+  },
+  {
+    "name": "cronograma_contrato_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 310,
+    "context": "/** Cronograma del contrato (RPC cronograma_contrato_fn; RLS fail-closed: ajeno = 0 filas). */"
+  },
+  {
+    "name": "cartera_pagina_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 478,
+    "context": "* Páginas de la cartera servidas por `crm.cartera_pagina_fn`. SOLO sesión real:"
+  },
+  {
+    "name": "conversion_mensual_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 626,
+    "context": "* La conversión mensual ponderada (crm.conversion_mensual_fn). No pasa por"
+  },
+  {
+    "name": "cumplimiento_metas_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 646,
+    "context": "* Meta y producción del MISMO snapshot mensual (`crm.cumplimiento_metas_fn`)."
+  },
+  {
+    "name": "cierre_mes_estado_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 689,
+    "context": "* El estado de la maquinaria del cierre de mes (`crm.cierre_mes_estado_fn`)."
+  },
+  {
+    "name": "cerrar_periodo",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 692,
+    "context": "* guardias de `cerrar_periodo`), y el fallo solo apaga avisos."
+  },
+  {
+    "name": "cierres_externos_fn",
+    "path": "CRM-Avance-Corp/app/src/data/crm-queries.ts",
+    "line": 809,
+    "context": "* La fotografía de cierres externos (crm.cierres_externos_fn): la sección"
+  },
+  {
+    "name": "es_admin",
+    "path": "public_html/js/auth.js",
+    "line": 223,
+    "context": "* La UX solo refleja lo que la RLS ya decide: `es_admin()` frente a"
+  },
+  {
+    "name": "es_gestor_cartera",
+    "path": "public_html/js/auth.js",
+    "line": 224,
+    "context": "* `es_gestor_cartera()`. Lo que aqui se oculta, la base tambien lo niega."
+  },
+  {
+    "name": "obtener_mi_asesor",
+    "path": "public_html/js/perfil.js",
+    "line": 56,
+    "context": "// resuelve por la función segura `obtener_mi_asesor` (devuelve solo el contacto)."
+  },
+  {
+    "name": "obtener_mi_asesor",
+    "path": "public_html/js/perfil.js",
+    "line": 57,
+    "context": "const { data: ases } = await supabase.rpc('obtener_mi_asesor')"
+  },
+  {
+    "name": "obtener_mi_asesor",
+    "path": "public_html/js/dashboard.js",
+    "line": 209,
+    "context": "// El asesor se resuelve aparte por la función segura `obtener_mi_asesor`."
+  },
+  {
+    "name": "obtener_mi_asesor",
+    "path": "public_html/js/dashboard.js",
+    "line": 210,
+    "context": "const { data: ases } = await supabase.rpc('obtener_mi_asesor')"
+  },
+  {
+    "name": "admin_pagos_resumen",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 12,
+    "context": "*  - El resumen por contrato lo computa la RPC `admin_pagos_resumen()` server-side."
+  },
+  {
+    "name": "admin_pagos_metricas",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 13,
+    "context": "*  - Las métricas globales (cards arriba) las computa `admin_pagos_metricas()`."
+  },
+  {
+    "name": "admin_pagos_resumen",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 32,
+    "context": "let CONTRATOS_CACHE   = []          // array de contratos (shape de admin_pagos_resumen)"
+  },
+  {
+    "name": "admin_pagos_resumen",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 80,
+    "context": "const { data, error } = await supabase.rpc('admin_pagos_resumen')"
+  },
+  {
+    "name": "admin_pagos_metricas",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 86,
+    "context": "const { data, error } = await supabase.rpc('admin_pagos_metricas')"
+  },
+  {
+    "name": "cuentas_pago_contratos_fn",
+    "path": "public_html/js/admin/pagos.js",
+    "line": 172,
+    "context": ".rpc('cuentas_pago_contratos_fn', { p_contrato_ids: contratoIds })"
+  },
+  {
+    "name": "bandeja_actividad",
+    "path": "public_html/js/admin/bandeja.js",
+    "line": 7,
+    "context": "* `bandeja_actividad` (que lee `audit_log` y solo deja pasar a es_admin())."
+  },
+  {
+    "name": "es_admin",
+    "path": "public_html/js/admin/bandeja.js",
+    "line": 7,
+    "context": "* `bandeja_actividad` (que lee `audit_log` y solo deja pasar a es_admin())."
+  },
+  {
+    "name": "bandeja_actividad",
+    "path": "public_html/js/admin/bandeja.js",
+    "line": 129,
+    "context": "const { data, error } = await supabase.rpc('bandeja_actividad', { p_limit: 200, p_offset: 0 })"
+  },
+  {
+    "name": "es_admin",
+    "path": "public_html/js/admin/documentos.js",
+    "line": 414,
+    "context": "// consola, la RLS (`documentos_admin_elimina` sigue en `es_admin()`) lo niega."
+  },
+  {
+    "name": "crear_contrato",
+    "path": "public_html/js/admin/analista.js",
+    "line": 7,
+    "context": "*   2) Crear el contrato de ese cliente + su cronograma → RPC `crear_contrato` (atómica)."
+  },
+  {
+    "name": "actualizar_contrato_con_cuenta_pdf_v3",
+    "path": "public_html/js/admin/analista.js",
+    "line": 855,
+    "context": "const { error } = await supabase.schema('crm').rpc('actualizar_contrato_con_cuenta_pdf_v3', {"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "public_html/js/admin/analista.js",
+    "line": 881,
+    "context": "const { data, error } = await supabase.rpc('crear_contrato', {"
+  },
+  {
+    "name": "productos_inversion_seleccion_fn",
+    "path": "public_html/js/admin/productos-contrato-ui.js",
+    "line": 141,
+    "context": "const { data, error } = await supabase.rpc('productos_inversion_seleccion_fn', {"
+  },
+  {
+    "name": "cuentas_pago_contratos_fn",
+    "path": "public_html/js/admin/cuentas-pago-core.js",
+    "line": 44,
+    "context": "* Asocia las filas recortadas de `crm.cuentas_pago_contratos_fn` a las cuotas."
+  },
+  {
+    "name": "metricas_directorio",
+    "path": "public_html/js/admin/directorio.js",
+    "line": 8,
+    "context": "Datos: 4 RPC SECURITY DEFINER (metricas_directorio + 3 de detalle)."
+  },
+  {
+    "name": "metricas_directorio",
+    "path": "public_html/js/admin/directorio.js",
+    "line": 55,
+    "context": "supabase.rpc('metricas_directorio'),"
+  },
+  {
+    "name": "directorio_ranking_analistas",
+    "path": "public_html/js/admin/directorio.js",
+    "line": 56,
+    "context": "supabase.rpc('directorio_ranking_analistas'),"
+  },
+  {
+    "name": "directorio_top_clientes",
+    "path": "public_html/js/admin/directorio.js",
+    "line": 57,
+    "context": "supabase.rpc('directorio_top_clientes'),"
+  },
+  {
+    "name": "directorio_morosidad",
+    "path": "public_html/js/admin/directorio.js",
+    "line": 58,
+    "context": "supabase.rpc('directorio_morosidad')"
+  },
+  {
+    "name": "es_admin",
+    "path": "public_html/js/admin/_helpers.js",
+    "line": 141,
+    "context": "* Espejo exacto de `verificarAdmin()` en auth.js y de `es_admin()` en la RLS."
+  },
+  {
+    "name": "es_gestor_cartera",
+    "path": "public_html/js/admin/_helpers.js",
+    "line": 210,
+    "context": "// puerta real es verificarGestorCartera() + la RLS (`es_gestor_cartera`)."
+  },
+  {
+    "name": "dashboard_admin_metricas",
+    "path": "public_html/js/admin/dashboard.js",
+    "line": 15,
+    "context": "const { data, error } = await supabase.rpc('dashboard_admin_metricas')"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 53,
+    "context": "// (crear_contrato vs actualizar_contrato) y el validador de duplicados (para no"
+  },
+  {
+    "name": "actualizar_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 53,
+    "context": "// (crear_contrato vs actualizar_contrato) y el validador de duplicados (para no"
+  },
+  {
+    "name": "es_admin",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 515,
+    "context": "// y es de Gloria — la RPC `cerrar_contrato` sigue exigiendo `es_admin()`."
+  },
+  {
+    "name": "cerrar_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 515,
+    "context": "// y es de Gloria — la RPC `cerrar_contrato` sigue exigiendo `es_admin()`."
+  },
+  {
+    "name": "actualizar_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 818,
+    "context": "// `actualizar_contrato` ya permite a admin/superadmin editar cualquier contrato"
+  },
+  {
+    "name": "actualizar_numero_contrato_pdf_v3",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1001,
+    "context": "// actualizar_numero_contrato_pdf_v3, que NO toca co-titulares → se oculta el"
+  },
+  {
+    "name": "actualizar_contrato_con_cuenta_pdf_v3",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1258,
+    "context": "const { error } = await supabase.schema('crm').rpc('actualizar_contrato_con_cuenta_pdf_v3', {"
+  },
+  {
+    "name": "crear_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1274,
+    "context": "const { error } = await supabase.rpc('crear_contrato', {"
+  },
+  {
+    "name": "actualizar_numero_contrato_pdf_v3",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1327,
+    "context": "const { error } = await supabase.schema('crm').rpc('actualizar_numero_contrato_pdf_v3', {"
+  },
+  {
+    "name": "contrato_tiene_pagos",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1495,
+    "context": "const { data, error } = await supabase.rpc('contrato_tiene_pagos', { p_contrato_id: contratoId })"
+  },
+  {
+    "name": "contrato_tiene_pagos",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1496,
+    "context": "if (error) { console.warn('[contratos] contrato_tiene_pagos:', error); return false }"
+  },
+  {
+    "name": "cerrar_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1594,
+    "context": "RPC `cerrar_contrato` (solo admin); aquí solo armamos la confirmación fuerte."
+  },
+  {
+    "name": "cerrar_contrato",
+    "path": "public_html/js/admin/contratos.js",
+    "line": 1735,
+    "context": "const { error } = await supabase.rpc('cerrar_contrato', {"
+  },
+  {
+    "name": "proteger_campos_inmutables",
+    "path": "public_html/js/admin/clientes.js",
+    "line": 33,
+    "context": "*  `proteger_campos_inmutables`, que responde con un error claro; esto evita"
+  },
+  {
+    "name": "proteger_campos_inmutables",
+    "path": "public_html/js/admin/clientes.js",
+    "line": 1665,
+    "context": "// `proteger_campos_inmutables` lo corta con un error claro, asi que el"
+  }
+]

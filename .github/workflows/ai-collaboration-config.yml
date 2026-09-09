@@ -1,0 +1,94 @@
+name: AI collaboration config
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.ai/**'
+      - '.claude/settings.json'
+      - '.claude/hooks/**'
+      - '.claude/agents/**'
+      - '.mcp.json'
+      - 'scripts/claude-review'
+      - 'scripts/codex-review-mcp'
+      - 'scripts/ai-collaboration.test.mjs'
+      - '.github/workflows/ai-collaboration-config.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.ai/**'
+      - '.claude/settings.json'
+      - '.claude/hooks/**'
+      - '.claude/agents/**'
+      - '.mcp.json'
+      - 'scripts/claude-review'
+      - 'scripts/codex-review-mcp'
+      - 'scripts/ai-collaboration.test.mjs'
+      - '.github/workflows/ai-collaboration-config.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Validate JSON and shell syntax
+        run: |
+          jq empty .claude/settings.json .mcp.json
+          for script in scripts/claude-review scripts/codex-review-mcp .claude/hooks/*.sh; do
+            bash -n "$script"
+          done
+          scripts/claude-review --help >/dev/null
+          scripts/codex-review-mcp --help >/dev/null
+
+      - name: Validate reviewer isolation and delivery contracts
+        run: node --test scripts/ai-collaboration.test.mjs
+
+      - name: Verify secret-file hook
+        run: |
+          printf '%s\n' '{"tool_name":"Read","tool_input":{"file_path":"/repo/src/config.ts"}}' | .claude/hooks/proteger-archivos.sh
+          if printf '%s\n' '{"tool_name":"Read","tool_input":{"file_path":"/repo/.env"}}' | .claude/hooks/proteger-archivos.sh; then
+            echo 'Expected .env access to be blocked' >&2
+            exit 1
+          fi
+
+      - name: Verify dangerous-command hook
+        run: |
+          printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"npm run check"}}' | .claude/hooks/proteger-comandos.sh
+          if printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git reset --hard HEAD"}}' | .claude/hooks/proteger-comandos.sh; then
+            echo 'Expected git reset --hard to be blocked' >&2
+            exit 1
+          fi
+          if printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"rm --recursive --force /"}}' | .claude/hooks/proteger-comandos.sh; then
+            echo 'Expected broad recursive removal to be blocked' >&2
+            exit 1
+          fi
+
+      - name: Verify Codex reviewer hook
+        run: |
+          printf '%s\n' '{"tool_name":"mcp__codex__codex","tool_input":{"sandbox":"read-only","approval-policy":"never","prompt":"ROLE: SECONDARY_REVIEWER. Do not modify files. Do not implement the task. Do not invoke Claude. Do not delegate. Do not create another review chain."}}' | .claude/hooks/validar-codex-review.sh
+          if printf '%s\n' '{"tool_name":"mcp__codex__codex","tool_input":{"sandbox":"workspace-write","approval-policy":"never","prompt":"ROLE: SECONDARY_REVIEWER. Do not modify files. Do not implement the task. Do not invoke Claude. Do not delegate. Do not create another review chain."}}' | .claude/hooks/validar-codex-review.sh; then
+            echo 'Expected writable Codex review to be blocked' >&2
+            exit 1
+          fi
+
+      - name: Verify protocol links
+        run: |
+          test -f .ai/REVIEW_PROTOCOL.md
+          test -f .ai/VERIFICATION.md
+          grep -q 'scripts/claude-review' AGENTS.md
+          grep -q 'mcp__codex__codex' CLAUDE.md

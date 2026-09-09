@@ -112,7 +112,7 @@ const ETAPA_LABEL: Record<MetricasConversiones['embudo'][number]['etapa'], strin
   contactados: 'Contacto o avance posterior',
   reuniones_agendadas: 'Agenda o avance posterior',
   reuniones_realizadas: 'Reunión o avance posterior',
-  propuestas: 'Propuesta o cierre',
+  propuestas: 'Entrevista o cierre',
   clientes: 'Perfiles creados',
   contratos: 'Leads cerrados',
 }

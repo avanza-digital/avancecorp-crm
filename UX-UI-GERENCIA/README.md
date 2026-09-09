@@ -1,14 +1,19 @@
 # UI y UX de Gerencia — Avance Corp
 
+> **Actualización 06/09/2026 (tarde).** Miguel descartó el plan anterior y el trabajo de Figma previo. Lo vigente es el **[plan de mejora del usuario Gerencia](PLAN-GERENCIA-2026-09-06.md)**, basado en el CRM publicado y en `UI-UX.pdf`, con evidencias en [08-produccion-2026-09-06](08-produccion-2026-09-06/) y dos archivos **nuevos** de Figma: [flujos (FigJam)](https://www.figma.com/board/TAdFQI94B2DABzSLU8I9kI) y [mockups (Design)](https://www.figma.com/design/1OD5qEmCz7CI1IuNBm642E). Las carpetas 01–07 quedan como antecedente.
+
 Punto de entrada del trabajo `AVC-UX-GERENCIA-FIGMA-20260905-R1`. Organización actualizada el 6 de septiembre de 2026.
 
 **Objetivo:** un dashboard dinámico y sencillo de leer comercialmente, conservando la identidad, el desarrollo y las librerías del CRM.
 
-**Estado:** UX1 del bloque A preparada y nueva revisión UX2 de Resumen/Conversiones disponible en Figma. Se conserva la dirección de Resumen escritorio elegida. F0 mantiene pendientes prioridades de uso y observación humana. Implementación pausada hasta la revisión visual prevista.
+**Estado:** reinicio de la propuesta visual solicitado por Miguel. Se toma su CRM actual como referencia principal y se prepara una nueva composición en Figma antes de extender código. El intento local está [conservado aparte](07-implementacion/bloque-a-2026-09-06/intento-no-aprobado/README.md); aún no se ha restaurado el frontend activo. Se mantienen el plan por fases y los componentes útiles.
 
 ## Abrir primero
 
-- [Revisión vigente: Resumen y Conversiones, escritorio y móvil](04-propuestas/revision-ux1-ux2-2026-09-06/README.md).
+- [Reinicio visual y siguiente paso](PROXIMO-PASO.md).
+- [Registro de decisiones](01-plan/DECISIONES.md).
+
+- [Antecedente: Resumen y Conversiones, escritorio y móvil](04-propuestas/revision-ux1-ux2-2026-09-06/README.md).
 - [Qué sigue y qué falta para cerrar F0](PROXIMO-PASO.md).
 - [Plan maestro por fases](01-plan/PLAN-MAESTRO.md).
 - [Índice de Figma y estado de las propuestas](ENLACES-FIGMA.md).
@@ -26,6 +31,7 @@ Punto de entrada del trabajo `AVC-UX-GERENCIA-FIGMA-20260905-R1`. Organización 
 | [04-propuestas](04-propuestas/README.md) | Accesos a las propuestas de Figma y sus imágenes exportadas. |
 | [05-validacion](05-validacion/README.md) | Guion de prueba, línea base y verificaciones técnicas. |
 | [06-continuidad](06-continuidad/README.md) | Serial, estado vigente y memoria para la siguiente sesión. |
+| [07-implementacion](07-implementacion/bloque-a-2026-09-06/intento-no-aprobado/README.md) | Evidencias de implementación, línea base e intento visual no aprobado conservado. |
 
 ## Antecedentes conservados
 

@@ -1,0 +1,110 @@
+{
+  "fields": [
+    {
+      "height": 36,
+      "label": "Nombre completo *",
+      "tag": "INPUT",
+      "width": 306
+    },
+    {
+      "height": 36,
+      "label": "Teléfono *",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Teléfono alternativo",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "DNI",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Género",
+      "tag": "SELECT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Fecha de nacimiento",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Correo",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Distrito",
+      "tag": "INPUT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Origen *",
+      "tag": "SELECT",
+      "width": 147
+    },
+    {
+      "height": 36,
+      "label": "Capital estimado *",
+      "tag": "INPUT",
+      "width": 43
+    },
+    {
+      "height": 36,
+      "label": "Moneda",
+      "tag": "SELECT",
+      "width": 96
+    },
+    {
+      "height": 36,
+      "label": "Analista asignado",
+      "tag": "SELECT",
+      "width": 306
+    },
+    {
+      "height": 25,
+      "label": "Nuevo",
+      "tag": "BUTTON",
+      "width": 61
+    },
+    {
+      "height": 25,
+      "label": "Renovación",
+      "tag": "BUTTON",
+      "width": 90
+    },
+    {
+      "height": 25,
+      "label": "Upgrade",
+      "tag": "BUTTON",
+      "width": 74
+    },
+    {
+      "height": 36,
+      "label": "Cancelar",
+      "tag": "BUTTON",
+      "width": 92
+    },
+    {
+      "height": 36,
+      "label": " Crear lead",
+      "tag": "BUTTON",
+      "width": 126
+    }
+  ],
+  "viewport": {
+    "height": 844,
+    "width": 390
+  }
+}

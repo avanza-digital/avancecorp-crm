@@ -5,6 +5,8 @@ actualizado: 2026-08-07
 
 # Acceso y roles del CRM (crm.miavance.com)
 
+> **2026-09-07:** el antiguo **SUPERVISOR CRM (DEMO)** ahora es una cuenta real de **KATHERINNE DE LA CRUZ**, activa como supervisora con `katherinne@groupmascapital.com`. Las referencias demo de esta nota son históricas para esa identidad. Ver [[Cuenta real de Katherinne - conversion del supervisor demo 2026-09-07]].
+
 El CRM tiene **5 roles de aplicación** — fuente única en `CRM-Avance-Corp/app/src/lib/roles.ts` (`ROLES`, `CAPS`, `can()`): **vendedor** (solo su cartera), **supervisor** (equipo, filtra/reasigna/reparte), **gerencia** (opera globalmente y edita configuración), **directorio** (ve todo en solo-lectura absoluta) y **coordinador** (off-roster; reparte la cola global). `can()` es UX; la seguridad real es la RLS del esquema `crm`. Regla de oro: lo que `can()` oculta, la RLS también lo niega.
 
 ## Cómo se resuelve el acceso (`crm.mi_acceso_fn` → `resolverRol`)

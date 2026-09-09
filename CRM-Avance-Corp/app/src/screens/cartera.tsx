@@ -24,6 +24,7 @@ import { ChipAnulado } from '@/components/app/chip-anulado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
@@ -33,6 +34,8 @@ type FiltroVendedor = string
 
 export function Cartera() {
   const { yo } = useAuth()
+  const memoriaGerencia = useConsultaGerencia()
+  const desdeRendimiento = yo?.rol === 'gerencia' ? memoriaGerencia?.consulta.gestionAnalista : null
   const { ambito, actividadesDelAmbito, cierresEstado } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
@@ -43,7 +46,7 @@ export function Cartera() {
   const resumen = resumenOp.resumen
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
-  const [fVend, setFVend] = useState<FiltroVendedor>('todos')
+  const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
   const filtrarVendedor = can(yo?.rol, 'filtrarPorVendedor')
@@ -138,6 +141,14 @@ export function Cartera() {
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+      {desdeRendimiento && <section aria-label="Consulta desde Rendimiento" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold">Leads de {desdeRendimiento.nombre}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Listado actual, con todas las etapas. Los indicadores superiores conservan el ámbito general; el mes de Rendimiento no filtra esta lista.</p>
+          {fVend !== desdeRendimiento.id && <p role="status" className="mt-1 text-xs">Cambiaste el filtro del listado. La consulta original de Rendimiento se conserva al volver.</p>}
+        </div>
+        <a href="#/rendimiento" className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => memoriaGerencia?.setConsulta((actual) => ({ ...actual, gestionAnalista: null }))}>Volver a Rendimiento</a>
+      </section>}
       {/* Mini-KPIs de la cartera */}
       <StatStrip stats={stats} />
       <p className="text-xs text-muted-foreground">
@@ -195,6 +206,7 @@ export function Cartera() {
           <div className="w-[210px]">
             <Select aria-label="Filtrar por analista" value={fVend} onChange={(e) => { setFVend(e.target.value) }}>
               <option value="todos">Todos los analistas</option>
+              {desdeRendimiento && !ambito.vendedores.some((miembro) => miembro.perfil_id === desdeRendimiento.id) && <option value={desdeRendimiento.id}>{desdeRendimiento.nombre} · fuera del listado actual de analistas</option>}
               {ambito.vendedores.map((m) => (
                 <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>
               ))}

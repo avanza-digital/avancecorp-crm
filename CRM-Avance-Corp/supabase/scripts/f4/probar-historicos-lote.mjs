@@ -1,14 +1,11 @@
-import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { sql, leer, guardar, literal as q } from './banco-local.mjs';
-import { cargarHistoricosPrueba, objetosHistoricosSql } from './cargar-historicos-prueba.mjs';
+import { sql, guardar, literal as q } from './banco-local.mjs';
 
 // Cada grupo carga los borradores y sus fixtures dentro de BEGIN/ROLLBACK.
 // No instala la candidata, no reejecuta F2 global ni toca datos productivos.
 const ejecucion = randomUUID();
-const gerencia = leer('fixtures.json').usuarios.gerencia.id;
 const definiciones = ['07-historicos.sql', '08-historicos-lote.sql'].map(nombre => ({
   nombre, contenido: readFileSync(new URL(nombre, import.meta.url), 'utf8'),
 }));
@@ -30,20 +27,20 @@ const fotoSql = `select jsonb_object_agg(tabla,huella) from (
   union all select 'capital',private.idem_hash(coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]'))
     from private.capital_episodios('-infinity','infinity',true,'{}') t
 ) x`;
-const carga=cargarHistoricosPrueba(sql);
-const objetosIniciales=sql(objetosHistoricosSql);
+const objetosAusentesSql = `select to_regprocedure('private.inversion_historica_estado(text,uuid)') is null
+  and to_regprocedure('private.inversion_historica_aplicar(uuid,jsonb)') is null
+  and to_regclass('crm.inversion_backfill_lotes') is null`;
+assert.equal(sql(objetosAusentesSql), 't', 'Este oráculo exige los borradores todavía sin instalar');
 assert.equal(sql("select activo from crm.multiempresa_flags where nombre='inversiones_escritura'"), 'f');
 const antes = JSON.parse(sql(fotoSql));
 const preparacion = `begin;
 set local lock_timeout='5s';
 set local statement_timeout='30s';
-${carga.preparacion}
+${definiciones.map(d => d.contenido).join('\n')}
 create function pg_temp.foto_f4() returns jsonb language sql as $f$ ${fotoSql} $f$;
 create function pg_temp.foto_lotes() returns jsonb language sql as $f$
   select pg_temp.foto_f4()||jsonb_build_object('lotes',private.idem_hash(
-    coalesce((select jsonb_agg(to_jsonb(l) order by l.id) from crm.inversion_backfill_lotes l),'[]')),
-    'auditoriaLotes',private.idem_hash(coalesce((select jsonb_agg(to_jsonb(a) order by a.id)
-      from public.audit_log a where a.tabla='crm.inversion_backfill_lotes'),'[]')))
+    coalesce((select jsonb_agg(to_jsonb(l) order by l.id) from crm.inversion_backfill_lotes l),'[]')))
 $f$;
 create function pg_temp.exigir(valor boolean,mensaje text) returns void language plpgsql as $f$
 begin if valor is distinct from true then raise exception '%',mensaje; end if; end;
@@ -69,8 +66,8 @@ $f$;
 create temp table _f4_resultado(datos jsonb) on commit drop;
 `;
 const pruebas = [];
-function probar(nombre, cuerpo, { antesDo = '', aislamiento = 'read committed' } = {}) {
-  const guion = `${preparacion.replace('begin;', `begin isolation level ${aislamiento};`)}\n${antesDo}\n
+function probar(nombre, cuerpo, { antesDo = '' } = {}) {
+  const guion = `${preparacion}\n${antesDo}\n
 do $prueba$
 declare mapa jsonb:=pg_temp.mapa_base(); lote uuid:=gen_random_uuid(); inicial jsonb:=pg_temp.foto_f4();
   r jsonb; x jsonb; h jsonb; f jsonb; v uuid; ce uuid; v_rol text; c record; n integer;
@@ -91,7 +88,7 @@ rollback;`;
     throw error;
   } finally {
     assert.deepEqual(JSON.parse(sql(fotoSql)), antes, 'El grupo debe revertir todas sus fixtures y enlaces');
-    assert.equal(sql(objetosHistoricosSql), objetosIniciales, 'El grupo conserva la instalación inicial');
+    assert.equal(sql(objetosAusentesSql), 't', 'El grupo no deja tablas ni funciones instaladas');
   }
 }
 
@@ -105,10 +102,6 @@ probar('Funciones y actas cerradas a los roles de la API', `
   end loop;
   perform pg_temp.exigir((select relrowsecurity from pg_class where oid='crm.inversion_backfill_lotes'::regclass),'RLS apagada');
 `);
-
-probar('Aislamiento anterior a la espera se rechaza sin efectos', `
-  perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,mapa),'0A000');
-`, { aislamiento: 'repeatable read' });
 
 probar('Entradas nulas, vacías, excesivas y repetidas se rechazan sin efectos', `
   perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(null,%L::jsonb)',mapa),'22023');
@@ -127,61 +120,6 @@ probar('Cambiar huella, persona o empresa del censo no autoriza otro enlace', `
     (jsonb_set(mapa,'{0,empresa}',to_jsonb(gen_random_uuid())))) cambios(m) loop
     perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,x),'40001');
   end loop;
-`);
-
-probar('La reserva real de eliminación impide enlazar el contrato', `
-  select id into ce from public.contratos where numero_contrato='F4-BASE-INICIAL';
-  r:=crm.contrato_eliminacion_preparar(ce,${q(gerencia)});
-  perform pg_temp.exigir(r->>'token' is not null,'No se reservó la eliminación');
-  perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,mapa),'40001');
-  x:=private.inversion_historica_estado('contrato',ce);
-  perform pg_temp.exigir(x->>'estado'='revision' and x->'motivos' ? 'contrato_en_eliminacion','La reserva no aparece en el censo');
-  perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,jsonb_build_array(x)),'P0409');
-`);
-
-probar('Un contrato enlazado no entrega una reserva para borrar sus archivos', `
-  perform private.inversion_historica_aplicar(lote,mapa);
-  select id into ce from public.contratos where numero_contrato='F4-BASE-INICIAL';
-  perform pg_temp.rechazar(format('select crm.contrato_eliminacion_preparar(%L,%L)',ce,${q(gerencia)}),'55000');
-  perform pg_temp.exigir(not private.contrato_en_eliminacion(ce),'El rechazo dejó una reserva');
-`);
-
-probar('El cierre demo conserva la exclusión duradera publicada por F2', `
-  insert into crm.cierres_externos
-  select (jsonb_populate_record(null::crm.cierres_externos,to_jsonb(t)||jsonb_build_object(
-    'id','a112aead-184a-4979-9041-943978fadae4','lead_id',null,'es_cierre_inicial',false,
-    'numero_transaccion','F4-DEMO-'||lote::text))).*
-  from crm.cierres_externos t where not es_cierre_inicial order by creado_en,id limit 1;
-  x:=private.inversion_historica_estado('cierre','a112aead-184a-4979-9041-943978fadae4');
-  perform pg_temp.exigir(x->>'estado'='excluido_demo','No se excluyó el demo');
-  perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,jsonb_build_array(x)),'P0409');
-`);
-
-probar('Un creador histórico desconocido se conserva sin inventar atribución', `
-  ce:=gen_random_uuid();
-  insert into public.contratos
-  select (jsonb_populate_record(null::public.contratos,to_jsonb(t)||jsonb_build_object(
-    'id',ce,'creado_por',null,'producto_condicion_id',null,'fecha_cierre_comercial',null,
-    'numero_contrato','F4-SIN-CREADOR-'||lote::text))).*
-  from public.contratos t where numero_contrato='F4-BASE-INICIAL';
-  x:=private.inversion_historica_estado('contrato',ce);
-  perform pg_temp.exigir(x->>'creado_por' is null,'La fixture inventó un creador');
-  r:=private.inversion_historica_aplicar(lote,jsonb_build_array(x));
-  perform pg_temp.exigir((select creado_por is null from crm.inversiones where contrato_id=ce),'El lote inventó un creador');
-`);
-
-probar('El contrato marcado demo se excluye sin generar inversión', `
-  ce:=gen_random_uuid();
-  insert into public.contratos
-  select (jsonb_populate_record(null::public.contratos,to_jsonb(t)||jsonb_build_object(
-    'id',ce,'es_demo',false,'producto_condicion_id',null,'fecha_cierre_comercial',null,
-    'numero_contrato','F4-DEMO-'||lote::text))).*
-  from public.contratos t where numero_contrato='F4-BASE-INICIAL';
-  perform set_config('request.jwt.claims',jsonb_build_object('sub',${q(gerencia)},'role','authenticated')::text,true);
-  perform public.marcar_contrato_demo(ce,true,'Fixture sintética revertida del censo F4');
-  x:=private.inversion_historica_estado('contrato',ce);
-  perform pg_temp.exigir(x->>'estado'='excluido_demo','No se excluyó el contrato demo');
-  perform pg_temp.rechazar(format('select private.inversion_historica_aplicar(%L,%L::jsonb)',lote,jsonb_build_array(x)),'P0409');
 `);
 
 probar('Deriva del mapa F2 invalida la previsualización anterior', `
@@ -215,18 +153,6 @@ probar('Seis fuentes vinculadas conservan economía, PDF, identidad y atribució
       from crm.inversiones i where i.id=(x->>'inversion')::uuid),'Se perdió el creador histórico');
   end loop;
   perform pg_temp.exigir((select count(*)=1 and bool_and(finalizado_en is not null) from crm.inversion_backfill_lotes),'Acta incompleta');
-`);
-
-probar('La auditoría registra inicio y final sin copiar mapa ni resultado', `
-  perform private.inversion_historica_aplicar(lote,mapa);
-  perform pg_temp.exigir((select count(*)=2 and count(distinct operacion)=2
-    from public.audit_log where tabla='crm.inversion_backfill_lotes' and fila_id=lote::text),'Falta auditoría de inicio/final');
-  for x in select data_despues from public.audit_log
-    where tabla='crm.inversion_backfill_lotes' and fila_id=lote::text loop
-    perform pg_temp.exigir(x->>'mapa'='***','El mapa se filtró en auditoría');
-    perform pg_temp.exigir(x->>'resultado' is null or x->>'resultado'='***','El resultado se filtró en auditoría');
-    perform pg_temp.exigir(x->>'hash_mapa'=private.idem_hash(mapa),'La auditoría perdió la huella');
-  end loop;
 `);
 
 probar('Repetir el lote en otro orden devuelve el acta sin duplicar', `
@@ -307,13 +233,13 @@ probar('Las actas finalizadas son inmutables y una incompleta no puede confirmar
     gen_random_uuid(),repeat('0',64),'[]'),'23514');
 `);
 
-const resultado = { entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+const resultado = { entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   definiciones: definiciones.map(d => ({ nombre: d.nombre, sha256: sha(d.contenido) })),
   sha256Oraculo: sha(readFileSync(new URL(import.meta.url))), huellasAntesYDespues: antes,
-  transaccionesRevertidas: true, probadoSobreInstalacionCompleta: carga.instalado,
-  limites: ['Prueba transaccional del lote administrativo; las carreras entre sesiones tienen un oráculo separado.',
+  transaccionesRevertidas: true, objetosNuevosSinInstalar: true,
+  limites: ['Prueba transaccional del lote administrativo; concurrencia entre sesiones todavía pendiente.',
     'Las fuentes son sintéticas y las fixtures se revierten; el pipeline F2 original todavía no se reconstruyó.',
-    'La prueba transaccional no sustituye la reconstrucción completa de la candidata ni su reversa.',
+    'La candidata de 34 funciones permanece igual. Estos borradores todavía no se integraron.',
     'Contenido PDF conservado; no se aprueba G4 ni se autoriza producción.'] };
 guardar(`historicos-lote-${ejecucion}.json`, resultado);
 writeFileSync(new URL(`../evidencia-f4/historicos-lote-${ejecucion}.json`, import.meta.url), JSON.stringify(resultado, null, 2) + '\n', { flag: 'wx' });

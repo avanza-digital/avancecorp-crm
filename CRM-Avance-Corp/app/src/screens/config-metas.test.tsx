@@ -193,6 +193,8 @@ describe('ConfigMetas', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Hay cambios sin publicar')
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
 
+    expect(dobles.publicar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmar publicación' }))
     await waitFor(() => expect(dobles.publicar).toHaveBeenCalledOnce())
     expect(dobles.publicar).toHaveBeenCalledWith({
       periodo: '2026-08-01',
@@ -215,6 +217,37 @@ describe('ConfigMetas', () => {
       },
     })
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Metas de agosto de 2026 publicadas.')
+  })
+
+  it('ante una respuesta incierta consulta la revisión sin repetir la publicación', async () => {
+    const user = userEvent.setup()
+    const refetch = vi.fn().mockResolvedValue({ isError: false, data: configuracion({ revision: 5 }) })
+    dobles.consulta = consultaCon(configuracion(), { refetch })
+    dobles.publicar.mockRejectedValueOnce(new Error('Respuesta interrumpida'))
+    render(<ConfigMetas />)
+    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA ANALISTA'), { target: { value: '500000' } })
+    await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
+    expect(dobles.publicar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmar publicación' }))
+    expect(await screen.findByText(/No se confirmó una nueva publicación/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publicar revisión' })).toBeDisabled()
+    expect(dobles.toastSuccess).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Comprobar revisión publicada' }))
+    expect(await screen.findByText(/Revisión 5 consultada para agosto/)).toBeInTheDocument()
+    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(dobles.publicar).toHaveBeenCalledTimes(1)
+  })
+
+  it('cierra la revisión al cambiar el borrador para que deba revisarse de nuevo', async () => {
+    const user = userEvent.setup()
+    render(<ConfigMetas />)
+    const campo = await screen.findByLabelText('Meta mensual total de ANA ANALISTA')
+    fireEvent.change(campo, { target: { value: '500000' } })
+    await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
+    expect(screen.getByRole('button', { name: 'Confirmar publicación' })).toBeInTheDocument()
+    fireEvent.change(campo, { target: { value: '600000' } })
+    expect(screen.queryByRole('button', { name: 'Confirmar publicación' })).not.toBeInTheDocument()
+    expect(dobles.publicar).not.toHaveBeenCalled()
   })
 
   it('rechaza valores fuera del contrato antes de mutar', async () => {
@@ -278,6 +311,8 @@ describe('ConfigMetas', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
 
+    expect(dobles.publicar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmar publicación' }))
     await waitFor(() => expect(dobles.publicar).toHaveBeenCalledOnce())
     const enviado = dobles.publicar.mock.calls[0]?.[0] as { metas: Record<string, unknown> }
     // Solo el roster: quien no tiene supervisor no cabe en crm.metas_vendedor.
@@ -443,6 +478,8 @@ describe('ConfigMetas', () => {
     // de cambios ignoraba este campo y el botón se quedaba deshabilitado.
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
 
+    expect(dobles.publicar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmar publicación' }))
     await waitFor(() => expect(dobles.publicar).toHaveBeenCalledOnce())
     const enviado = dobles.publicar.mock.calls[0]?.[0] as {
       metas: Record<string, { conversion_objetivo: number }>

@@ -1,17 +1,15 @@
-import { entorno } from './banco-local.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { sql, leer, guardar, literal as q } from './banco-local.mjs';
-import { cargarHistoricosPrueba, objetosHistoricosSql } from './cargar-historicos-prueba.mjs';
 
 const base = leer('operaciones-base.json');
 const ejecucion = randomUUID();
 const fuente = readFileSync(new URL('./07-historicos.sql', import.meta.url), 'utf8');
 const sha = x => createHash('sha256').update(x).digest('hex');
 assert.equal(sql("select activo from crm.multiempresa_flags where nombre='inversiones_escritura'"), 'f');
-const carga=cargarHistoricosPrueba(sql);
-const objetosIniciales=sql(objetosHistoricosSql);
+assert.equal(sql("select to_regprocedure('private.inversion_historica_estado(text,uuid)') is null"), 't',
+  'Este primer oráculo ensaya la definición dentro de una transacción que se revierte');
 const fotoSql = `select jsonb_object_agg(tabla,huella) from (
   select 'contratos' tabla,private.idem_hash(coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]')) huella from public.contratos t
   union all select 'cuotas',private.idem_hash(coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]')) from public.cronograma_pagos t
@@ -33,7 +31,7 @@ const antes = JSON.parse(sql(fotoSql));
 const guion = `begin;
 set local lock_timeout='5s';
 set local statement_timeout='30s';
-${carga.preparacion}
+${fuente}
 create function pg_temp.foto_f4() returns jsonb language sql as $f$ ${fotoSql} $f$;
 create temp table _f4_censo_pruebas(nombre text,datos jsonb) on commit drop;
 do $pruebas$
@@ -134,14 +132,14 @@ try {
   throw error;
 } finally {
   assert.deepEqual(JSON.parse(sql(fotoSql)), antes, 'El ensayo debe revertir todas sus fixtures y conservar la foto inicial');
-  assert.equal(sql(objetosHistoricosSql), objetosIniciales);
+  assert.equal(sql("select to_regprocedure('private.inversion_historica_estado(text,uuid)') is null"), 't');
 }
-const resultado = { entorno, ejecucion, terminadoEn: new Date().toISOString(), pruebas,
+const resultado = { entorno: 'avancecorp-f4-bank', ejecucion, terminadoEn: new Date().toISOString(), pruebas,
   sha256Definicion: sha(fuente), huellasAntesYDespues: antes, transaccionRevertida: true,
   limites: ['Previsualización administrativa; todavía no aplica un lote histórico.',
     'Los escenarios negativos y el mapa equivalente a F2 son fixtures explícitas dentro de una transacción revertida.',
     'La reconstrucción con el pipeline F2 original y su reversa siguen pendientes.',
-    'El ensayo conserva la instalación inicial; no aplica ningún lote histórico fuera de la transacción revertida.',
+    'La candidata de 34 funciones no cambió; la definición nueva no quedó instalada.',
     'Contenido PDF intacto; G4 sigue abierto.'] };
 guardar(`historicos-censo-${ejecucion}.json`, resultado);
 writeFileSync(new URL(`../evidencia-f4/historicos-censo-${ejecucion}.json`, import.meta.url), JSON.stringify(resultado, null, 2) + '\n', { flag: 'wx' });

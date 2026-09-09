@@ -1,12 +1,15 @@
 import type { Moneda } from './format'
 import type { Rol } from './roles'
 
-// Pipeline de inversión (espejo del CHECK de crm.leads.etapa)
+// Pipeline de inversión (espejo del CHECK de crm.leads.etapa).
+// OJO: la clave `propuesta_enviada` es el valor GUARDADO en la base y no se
+// toca; el rótulo comercial es «Entrevista realizada» (pedido de Miguel,
+// 2026-09-07), igual que `reunion_agendada` se muestra como «Cita agendada».
 export const ETAPAS = [
   { k: 'nuevo',              label: 'Nuevo',             color: '#8b95a7' },
   { k: 'contactado',         label: 'Contactado',        color: '#2563eb' },
   { k: 'reunion_agendada',   label: 'Cita agendada',     color: '#7c3aed' },
-  { k: 'propuesta_enviada',  label: 'Propuesta enviada', color: '#d97706' },
+  { k: 'propuesta_enviada',  label: 'Entrevista realizada', color: '#d97706' },
 ] as const
 
 export const TERMINALES = [

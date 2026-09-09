@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { metricasReunionesDemo } from '@/lib/demo-inteligencia-comercial'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
@@ -54,7 +54,7 @@ describe('resumen de reuniones de Gerencia', () => {
     datos.responsables = []
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const sistema = screen.getByText('Canceladas por sistema').closest('[data-gi-kpi]') as HTMLElement
+    const sistema = screen.getByText('Canceladas por sistema').parentElement as HTMLElement
     expect(within(sistema).getByText('4')).toBeInTheDocument()
     expect(within(screen.getByText('No asistieron').closest('[data-gi-kpi]') as HTMLElement).getByText('16')).toBeInTheDocument()
     expect(screen.getByText('20.8%')).toBeInTheDocument()
@@ -71,7 +71,7 @@ describe('resumen de reuniones de Gerencia', () => {
     Object.assign(modalidad, { realizadas: 4, debieron_ocurrir: 21, pct_realizacion: 23.5 })
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const virtual = screen.getByText('Virtual').closest('section') as HTMLElement
+    const virtual = screen.getByRole('region', { name: 'Resultados de citas Virtual' }) as HTMLElement
     expect(within(virtual).getByText('23.5%')).toBeInTheDocument()
     expect(within(virtual).getByText('4 realizadas')).toBeInTheDocument()
     expect(within(virtual).getByText('Base y exclusiones no disponibles.')).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe('resumen de reuniones de Gerencia', () => {
     }]
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const tarjeta = screen.getByText(nombre).closest('section') as HTMLElement
+    const tarjeta = screen.getByRole('region', { name: `Resultados de citas ${nombre}` }) as HTMLElement
     expect(within(tarjeta).getByText('23.5%')).toBeInTheDocument()
     expect(within(tarjeta).getByText('4 realizadas de 17 computables')).toBeInTheDocument()
     expect(within(tarjeta).getByText('Excluidas: 4 canceladas por sistema · 0 reprogramadas')).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('resumen de reuniones de Gerencia', () => {
     })
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const tarjeta = screen.getByText('Virtual').closest('section') as HTMLElement
+    const tarjeta = screen.getByRole('region', { name: 'Resultados de citas Virtual' }) as HTMLElement
     expect(within(tarjeta).getByText('24.9%')).toBeInTheDocument()
     expect(within(tarjeta).getByText('4 realizadas de 16 computables')).toBeInTheDocument()
     expect(within(tarjeta).getByText('Excluidas: 4 canceladas por sistema · 1 reprogramadas')).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('resumen de reuniones de Gerencia', () => {
       delete modalidad[campo]
       render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-      const tarjeta = screen.getByText('Virtual').closest('section') as HTMLElement
+      const tarjeta = screen.getByRole('region', { name: 'Resultados de citas Virtual' }) as HTMLElement
       expect(within(tarjeta).getByText('23.5%')).toBeInTheDocument()
       expect(within(tarjeta).getByText('4 realizadas')).toBeInTheDocument()
       expect(within(tarjeta).getByText('Base y exclusiones no disponibles.')).toBeInTheDocument()
@@ -146,7 +146,7 @@ describe('resumen de reuniones de Gerencia', () => {
     })
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const tarjeta = screen.getByText('Virtual').closest('section') as HTMLElement
+    const tarjeta = screen.getByRole('region', { name: 'Resultados de citas Virtual' }) as HTMLElement
     expect(within(tarjeta).getByText('—')).toBeInTheDocument()
     expect(within(tarjeta).getByText('0 realizadas · sin citas computables')).toBeInTheDocument()
     expect(within(tarjeta).getByText('Excluidas: 4 canceladas por sistema · 2 reprogramadas')).toBeInTheDocument()
@@ -161,7 +161,7 @@ describe('resumen de reuniones de Gerencia', () => {
     })
     render(<ReunionesGerenciaPanel datos={datos} cargando={false} error={null} modoDemo={false} puedeAlternarEjemplo={false} onAlternarEjemplo={vi.fn()} onReintentar={vi.fn()} />)
 
-    const tarjeta = screen.getByText('Virtual').closest('section') as HTMLElement
+    const tarjeta = screen.getByRole('region', { name: 'Resultados de citas Virtual' }) as HTMLElement
     expect(within(tarjeta).getByText('0%')).toBeInTheDocument()
     expect(within(tarjeta).getByText('0 realizadas de 7 computables')).toBeInTheDocument()
     expect(within(tarjeta).getByText('Excluidas: 0 canceladas por sistema · 0 reprogramadas')).toBeInTheDocument()
@@ -252,5 +252,48 @@ describe('resumen de reuniones de Gerencia', () => {
     expect(screen.getByRole('heading', { name: 'Resultado registrado de la cita' })).toBeInTheDocument()
     expect(screen.getAllByText('Capital asociado a estos cierres')).toHaveLength(2)
     expect(screen.getAllByText('Acumulado, sin recorte por fecha.')).toHaveLength(2)
+  })
+})
+
+
+describe('F2: evidencia, estados y navegación de Citas', () => {
+  const props = { cargando: false, error: null, modoDemo: false, puedeAlternarEjemplo: false, onAlternarEjemplo: vi.fn(), onReintentar: vi.fn() }
+  it('presenta cuatro indicadores principales y lleva el foco a sus responsables', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={metricasReunionesDemo('2026-09-01', '2026-09-05')} />)
+    expect(document.querySelectorAll('[data-gi-hero] [data-gi-kpi]')).toHaveLength(4)
+    expect(screen.getByRole('region', { name: 'Realizadas' })).toHaveTextContent('58')
+    expect(screen.getByRole('region', { name: 'Pactadas' })).toHaveTextContent('82')
+    fireEvent.click(screen.getByRole('button', { name: 'Ver responsables' }))
+    expect(screen.getByRole('region', { name: 'Resultados por analista' })).toHaveFocus()
+  })
+  it('distingue cero pendiente confirmado de una actualización fallida con datos anteriores', () => {
+    const datos = metricasReunionesDemo('2026-09-01', '2026-09-05')
+    datos.resumen.pendientes_cierre = 0
+    datos.responsables.forEach((fila) => { fila.pendientes_cierre = 0 })
+    const { rerender } = render(<ReunionesGerenciaPanel {...props} datos={datos} />)
+    expect(screen.getByText('Sin citas vencidas sin resultado')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver responsables' })).not.toBeInTheDocument()
+    rerender(<ReunionesGerenciaPanel {...props} datos={datos} error="Fallo al actualizar" />)
+    expect(screen.getByText('Revisión de citas no disponible')).toBeInTheDocument()
+    expect(screen.queryByText('Sin citas vencidas sin resultado')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('última respuesta del 01 set. 2026 al 05 set. 2026')
+    expect(screen.getByRole('region', { name: 'Realizadas' })).toHaveTextContent('58')
+  })
+  it('una respuesta ausente no afirma que no hay citas y permite reintentar', () => {
+    const reintentar = vi.fn()
+    render(<ReunionesGerenciaPanel {...props} datos={undefined} onReintentar={reintentar} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Datos de citas no disponibles')
+    expect(screen.queryByText('Aún no hay citas en este período')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reintentar).toHaveBeenCalledOnce()
+  })
+  it('los valores accesibles de los gráficos conservan los datos servidos', () => {
+    render(<ReunionesGerenciaPanel {...props} datos={metricasReunionesDemo('2026-09-01', '2026-09-05')} />)
+    fireEvent.click(screen.getByText('Ver valores por modalidad'))
+    const tabla = screen.getByRole('table', { name: 'Valores de citas por modalidad', hidden: true })
+    expect(within(tabla).getByText('49')).toBeInTheDocument()
+    expect(within(tabla).getByText('37')).toBeInTheDocument()
+    expect(within(tabla).getByText('33')).toBeInTheDocument()
+    expect(within(tabla).getByText('21')).toBeInTheDocument()
   })
 })

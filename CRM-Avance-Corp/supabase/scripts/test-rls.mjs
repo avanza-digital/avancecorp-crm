@@ -6967,6 +6967,137 @@ async function testLentesAtribucion(sessions, seed) {
   }
 }
 
+// El CORREO DE ACCESO de un cliente (puerta del superadmin, 08/09/2026).
+//
+// El correo no es un dato de contacto: vive a la vez en `auth.users`,
+// `auth.identities` y `public.perfiles.correo`, y moverlo mal deja al cliente
+// sin poder entrar SIN ningun error visible. Por eso su puerta es mas estrecha
+// que la del documento (que admite `admin`): aqui solo `superadmin`.
+//
+// ⚠️ ALCANCE: el arnes no tiene sesion `admin` ni `superadmin` del Portal, asi
+// que la mitad PERMITIDA no se ejerce aqui — es un item NOMBRADO del ciclo de
+// banco (ver MIGRACIONES.md 20260908221500). Lo que si se prueba entero es la
+// mitad que protege a los clientes: que ningun rol del CRM pueda llamar la
+// puerta ni saltarsela por el atajo del UPDATE.
+async function testCorreoAccesoCliente(sessions, seed) {
+  console.log('\n— Correo de acceso del cliente (puerta del superadmin) —');
+  const FN = 'corregir_correo_cliente_admin_fn';
+  const clienteId = seed.profileIdByKey.clientBank;
+
+  // Salto RUIDOSO si la puerta no esta desplegada: sin esto, en un banco sin la
+  // migracion todo el bloque se pondria rojo sin decir por que (el molde de
+  // testAltasNuevasPorAnalista hace lo mismo con PGRST202).
+  {
+    const { error } = await sessions.gerencia.client.schema('crm').rpc(FN, {
+      p_cliente_id: clienteId, p_correo: 'sonda@correo.pe', p_motivo: 'sonda de despliegue',
+    });
+    if (error?.code === 'PGRST202') {
+      const exigir = process.env.CRM_RLS_EXIGE_CORREO === '1';
+      check(!exigir, `${FN} NO esta desplegada — bloque OMITIDO${exigir ? ' (y CRM_RLS_EXIGE_CORREO=1 lo exige)' : ''}`);
+      return;
+    }
+  }
+
+  // El correo VIVO del fixture: el invariante que se comprueba abajo es que
+  // ninguno de los atajos lo mueva, y si alguno lo moviera hay que devolverlo
+  // (dejarlo corrupto rompe el login del fixture y CREA justo la desviacion que
+  // esta funcionalidad existe para eliminar).
+  const { data: antes } = await sessions.gerencia.client
+    .from('perfiles').select('correo').eq('id', clienteId).single();
+  const correoVivo = antes?.correo ?? null;
+
+  try {
+    // A. La PUERTA: todo rol del CRM (y el propio cliente) recibe 42501.
+    for (const key of ['gerencia', 'coordinador', 'directorio', 'vend1', 'clientBank']) {
+      const { error } = await sessions[key].client
+        .schema('crm').rpc(FN, {
+          p_cliente_id: clienteId,
+          p_correo: 'intruso@correo.pe',
+          p_motivo: 'intento no autorizado del arnes de pruebas',
+        });
+      check(error?.code === '42501',
+        `${key} NO puede llamar ${FN} (${error?.code ?? 'PASO — FUGA'})`);
+    }
+
+    // B. El ATAJO: el UPDATE directo de perfiles.correo. Este es el agujero real
+    //    —`authenticated` tiene grant de UPDATE por COLUMNA— y hasta el candado
+    //    lo unico que lo tapaba era que el formulario no mandara el campo.
+    //
+    //    🔑 NO basta con aceptar «42501 o 0 filas»: para `vend1` un 0 filas puede
+    //    venir de que su ventana de 5 h esta vencida, y el test se pintaria verde
+    //    sin haber probado el candado. El invariante que SIEMPRE vale, venga el
+    //    rechazo de donde venga, es que el correo NO se movio: eso se relee.
+    for (const key of ['gerencia', 'coordinador', 'vend1', 'clientBank']) {
+      const { data, error } = await sessions[key].client
+        .from('perfiles')
+        .update({ correo: 'atajo@correo.pe' })
+        .eq('id', clienteId)
+        .select('id');
+      const rechazado = error !== null || (data?.length ?? 0) === 0;
+      const { data: despues } = await sessions.gerencia.client
+        .from('perfiles').select('correo').eq('id', clienteId).single();
+      check(rechazado && despues?.correo === correoVivo,
+        `${key} NO mueve perfiles.correo por UPDATE directo (${error?.code ?? (data?.length ?? 0) + ' filas'} · correo=${despues?.correo === correoVivo ? 'intacto' : 'CAMBIADO — FUGA'})`);
+    }
+
+    // C. El rastro NO es publico: guarda dos direcciones (PII) y su motivo, y lo
+    //    lee solo el superadmin. Ni siquiera gerencia ni el lector global entran.
+    for (const key of ['gerencia', 'coordinador', 'directorio', 'vend1', 'clientBank']) {
+      const { data, error } = await sessions[key].client
+        .schema('crm').from('correcciones_correo_cliente').select('id');
+      check(error !== null || (data?.length ?? 0) === 0,
+        `${key} no ve el rastro de correcciones de correo (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+    }
+
+    // D. Y NADIE escribe el rastro a mano: no hay policy de INSERT, asi que la
+    //    unica via es la RPC SECURITY DEFINER.
+    {
+      const { error } = await sessions.gerencia.client
+        .schema('crm').from('correcciones_correo_cliente').insert({
+          cliente_id: clienteId,
+          correo_anterior: 'a@correo.pe',
+          correo_nuevo: 'b@correo.pe',
+          motivo: 'insercion directa que no debe pasar',
+        });
+      check(error !== null,
+        `gerencia NO puede escribir el rastro a mano (${error?.code ?? 'PASO — FUGA'})`);
+    }
+
+    // E. El acuse tambien es del superadmin: si lo pudiera cerrar cualquiera, el
+    //    detector de desviaciones se podria silenciar sin arreglar nada.
+    {
+      const { error } = await sessions.gerencia.client
+        .schema('crm').rpc('confirmar_correccion_correo_fn', {
+          p_rastro_id: '00000000-0000-0000-0000-000000000000',
+        });
+      check(error?.code === '42501',
+        `gerencia NO puede cerrar el acuse de una correccion (${error?.code ?? 'PASO — FUGA'})`);
+    }
+
+    // F. El DETECTOR es la premisa del diseño hecha comprobable: los tres sitios
+    //    se mueven juntos. Para quien no es superadmin devuelve VACIO (el gate va
+    //    dentro del where), no una lista de correos.
+    {
+      const { data, error } = await sessions.gerencia.client
+        .schema('crm').rpc('desviaciones_correo_cliente_fn');
+      check(!error && Array.isArray(data) && data.length === 0,
+        `gerencia recibe el detector VACIO, no la lista de correos (${error?.code ?? data?.length + ' filas'})`);
+    }
+  } finally {
+    // Restauracion incondicional: si algun atajo hubiera pasado, el fixture no
+    // se queda con el correo corrupto.
+    if (correoVivo !== null) {
+      const { data: final } = await sessions.gerencia.client
+        .from('perfiles').select('correo').eq('id', clienteId).single();
+      if (final?.correo !== correoVivo) {
+        console.log(`  ⚠️  restaurando perfiles.correo del fixture a ${correoVivo}`);
+        await sessions.gerencia.client
+          .from('perfiles').update({ correo: correoVivo }).eq('id', clienteId);
+      }
+    }
+  }
+}
+
 // P-055 F7 — el SUSTITUTO de metricas_altas_analista_fn (altas de contratos NUEVOS
 // por el analista que cierra). Es una VERJA de visibilidad, NO un cierre: el no
 // autorizado recibe 0 filas, no un 42501. (auditor-rls 04/09, hallazgo M-1.)
@@ -12780,6 +12911,7 @@ async function main() {
       await testF7Ola1(sessions);
       await testAltasNuevasPorAnalista(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
+      await testCorreoAccesoCliente(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

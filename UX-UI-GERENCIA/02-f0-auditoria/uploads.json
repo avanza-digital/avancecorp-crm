@@ -1,0 +1,198 @@
+[
+  {
+    "step": 1,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/01-resumen-desktop.jpg",
+    "targetNodeId": "128:12",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "2e279b44efc569915d1b0d5dba0e372e712cc2a6",
+      "sizeBytes": 119967,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:12"
+    },
+    "error": null
+  },
+  {
+    "step": 2,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/02-conversiones-desktop.jpg",
+    "targetNodeId": "128:17",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "4f309b943d2969c6de5d8320d4860ca6b1d48186",
+      "sizeBytes": 118467,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:17"
+    },
+    "error": null
+  },
+  {
+    "step": 3,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/03-comparacion-desktop.jpg",
+    "targetNodeId": "128:22",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "36c5b2b59b331f563f2b7857500274b7239a95d6",
+      "sizeBytes": 96597,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:22"
+    },
+    "error": null
+  },
+  {
+    "step": 4,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/04-ranking-capital-desktop.jpg",
+    "targetNodeId": "128:27",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "743c2eff8ee632a96c6dae6ae973bd4907cd3783",
+      "sizeBytes": 115448,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:27"
+    },
+    "error": null
+  },
+  {
+    "step": 5,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/05-ranking-detalle-desktop.jpg",
+    "targetNodeId": "128:32",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "f0568cd2390577f265f92ca3f2507e8c7d115fcc",
+      "sizeBytes": 64193,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:32"
+    },
+    "error": null
+  },
+  {
+    "step": 6,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/06-cartera-desktop.jpg",
+    "targetNodeId": "128:37",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "ef31823fe1943d323f69b52fe48fdca77a5a8fb3",
+      "sizeBytes": 107142,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:37"
+    },
+    "error": null
+  },
+  {
+    "step": 7,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/07-cartera-detalle-desktop.jpg",
+    "targetNodeId": "128:42",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "437261645c733c62c7994777341390a5ec79c131",
+      "sizeBytes": 83288,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:42"
+    },
+    "error": null
+  },
+  {
+    "step": 8,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/08-nuevo-lead-desktop.jpg",
+    "targetNodeId": "128:47",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "daf869effab9c0097ab8bbf49b54c66accca06d7",
+      "sizeBytes": 73538,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:47"
+    },
+    "error": null
+  },
+  {
+    "step": 9,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/09-nuevo-lead-mobile.jpg",
+    "targetNodeId": "128:52",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "75c5ed6622bc57e0f820cd4a330d409a85128b31",
+      "sizeBytes": 38767,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:52"
+    },
+    "error": null
+  },
+  {
+    "step": 10,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/10-cartera-mobile.jpg",
+    "targetNodeId": "128:57",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "07872da465bfb188f83aa675b2cb91c89a9c951d",
+      "sizeBytes": 49411,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:57"
+    },
+    "error": null
+  },
+  {
+    "step": 11,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/11-resumen-mobile.jpg",
+    "targetNodeId": "128:62",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "f037cf5504d1cdab00a7ce2a89148d64b80f7b95",
+      "sizeBytes": 43362,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:62"
+    },
+    "error": null
+  },
+  {
+    "step": 12,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/12-conversiones-mobile.jpg",
+    "targetNodeId": "128:67",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "11594f8c9c93dfd02687652bf38369b0ce315a74",
+      "sizeBytes": 42042,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:67"
+    },
+    "error": null
+  },
+  {
+    "step": 13,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/13-ranking-mobile.jpg",
+    "targetNodeId": "128:72",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "b3b79b60d5ee6a3863ccdbdd932097cd81cf92e8",
+      "sizeBytes": 44758,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:72"
+    },
+    "error": null
+  },
+  {
+    "step": 14,
+    "file": "output/ux-gerencia-ux0-uiux2-2026-09-05/evidencia/14-ranking-detalle-mobile.jpg",
+    "targetNodeId": "128:77",
+    "exitCode": 0,
+    "response": {
+      "success": true,
+      "imageHash": "163551ab60234261d638a6bdb0da5fed66670a17",
+      "sizeBytes": 24810,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "128:77"
+    },
+    "error": null
+  }
+]

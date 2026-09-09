@@ -175,6 +175,24 @@ export function puedeCorregirDocumentoCliente(
 }
 
 /**
+ * El CORREO es mas estrecho que el documento: SOLO superadmin.
+ *
+ * No es un dato de contacto, es la CREDENCIAL DE ACCESO al portal, y vive a la
+ * vez en `auth.users`, `auth.identities` y `perfiles.correo`. Un cambio mal
+ * hecho deja al cliente sin poder entrar sin ningun error visible, asi que la
+ * puerta la abre una sola persona (decision de Miguel, 08/09/2026).
+ *
+ * Espejo exacto del gate del servidor (`public.es_superadmin()` dentro de
+ * `crm.corregir_correo_cliente_admin_fn`): esto no decide nada, solo evita
+ * ofrecer un campo que iba a terminar en «no autorizado».
+ */
+export function puedeCorregirCorreoCliente(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.rol_portal === 'superadmin'
+}
+
+/**
  * Quién puede pasar una venta de un analista a otro (P-055 Fase 3).
  *
  * Es el ESPEJO EXACTO del gate del servidor en

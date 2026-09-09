@@ -1,20 +1,19 @@
-import { useMemo, type JSX } from 'react'
+import { useMemo, useRef, type JSX, type RefObject } from 'react'
 import type { EChartsOption } from 'echarts'
 import {
   AlertTriangle,
   CalendarCheck,
-  CalendarClock,
   Eye,
   RefreshCw,
-  UserRoundX,
-  type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GerenciaEChart } from '@/components/gerencia/echart-lazy'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
-import { money, numero } from '@/lib/format'
+import { AtencionCitas } from '@/components/gerencia/atencion-citas'
+import { IndicadorGerencia } from '@/components/gerencia/indicador-gerencia'
+import { money, numero, fmtFecha } from '@/lib/format'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { presentarCitas } from '@/lib/terminologia'
 
@@ -58,11 +57,7 @@ function Vacio(): JSX.Element {
   return <CardContent className="py-14 text-center"><CalendarCheck className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">Aún no hay citas en este período</p></CardContent>
 }
 
-function Kpi({ label, value, detail, Icon, color }: { label: string; value: string; detail: string; Icon: LucideIcon; color: string }): JSX.Element {
-  return <div data-gi-kpi className="gi-kpi-card" style={{ '--gi-kpi': color } as React.CSSProperties}><div className="flex justify-between gap-2"><p className="gi-label">{label}</p><Icon className="size-4" style={{ color }} /></div><p className="mt-2 text-3xl font-bold tracking-[-.03em] tabular-nums">{value}</p><p className="mt-1 text-xs text-[var(--gi-muted)]">{detail}</p></div>
-}
-
-function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Element {
+function ResultadosPorVendedor({ datos, destino }: { datos: MetricasReuniones; destino: RefObject<HTMLElement | null> }): JSX.Element {
   const visibles = datos.responsables.reduce((total, fila) => ({
     pactadas: total.pactadas + fila.pactadas,
     realizadas: total.realizadas + fila.realizadas,
@@ -77,12 +72,12 @@ function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Ele
   }
   const concilia = Object.values(fuera).every((valor) => valor >= 0)
   return (
-    <section data-gi-panel className="gi-card min-w-0 overflow-hidden">
+    <section ref={destino} id="citas-resultados-analistas" tabIndex={-1} aria-label="Resultados por analista" data-gi-panel className="gi-card min-w-0 scroll-mt-4 overflow-hidden focus-visible:ring-[3px] focus-visible:ring-accent/40">
       <div className="border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4"><h3 className="gi-title">Resultados por analista</h3></div>
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- El área desplazable necesita foco para navegar con las flechas. */}
-      <div className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2" role="region" aria-label="Resultados por analista" tabIndex={0}>
+      <div className="hidden overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 md:block" role="region" aria-label="Tabla de resultados por analista" tabIndex={0}>
         <table className="w-full min-w-[680px] text-xs">
-          <thead className="text-left text-[10px] uppercase tracking-wide text-[var(--gi-muted)]"><tr><th scope="col" className="px-5 py-3">Analista</th><th scope="col" className="px-3 py-3">Supervisor</th><th scope="col" className="px-3 py-3 text-right">Pactadas</th><th scope="col" className="px-3 py-3 text-right">Realizadas</th><th scope="col" className="px-3 py-3 text-right">Sin resultado</th><th scope="col" className="px-5 py-3 text-right">Realización</th></tr></thead>
+          <caption className="sr-only">Citas por analista en el período consultado</caption><thead className="text-left text-xs text-[var(--muted-foreground-strong)]"><tr><th scope="col" className="px-5 py-3">Analista</th><th scope="col" className="px-3 py-3">Supervisor</th><th scope="col" className="px-3 py-3 text-right">Pactadas</th><th scope="col" className="px-3 py-3 text-right">Realizadas</th><th scope="col" className="px-3 py-3 text-right">Sin resultado</th><th scope="col" className="px-5 py-3 text-right">Realización</th></tr></thead>
           <tbody className="divide-y divide-[var(--gi-line)]">{datos.responsables.map((fila) => {
             const tieneBase = fila.divisor_realizacion != null && fila.debieron_ocurrir != null
               && fila.canceladas_sistema_vencidas != null && fila.canceladas_ajenas_vencidas != null
@@ -115,6 +110,8 @@ function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Ele
           </tfoot>
         </table>
       </div>
+      <ul className="divide-y divide-[var(--gi-line)] md:hidden" aria-label="Citas por analista">{datos.responsables.map((fila) => <li key={fila.responsable_id ?? fila.nombre} className="space-y-3 p-4"><div><h4 className="text-sm font-semibold">{fila.nombre}</h4><p className="text-xs text-[var(--muted-foreground-strong)]">{fila.supervisor_nombre}</p></div><dl className="grid grid-cols-2 gap-3 text-xs">{[['Pactadas', numero(fila.pactadas)], ['Realizadas', numero(fila.realizadas)], ['Sin resultado', numero(fila.pendientes_cierre)], ['Realización', pct(fila.pct_realizacion)]].map(([etiqueta, valor]) => <div key={etiqueta}><dt className="text-[var(--muted-foreground-strong)]">{etiqueta}</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{valor}</dd></div>)}</dl><p className="text-xs text-[var(--gi-muted)]">{fila.divisor_realizacion == null ? 'Base no disponible' : `${numero(fila.realizadas)} de ${numero(fila.divisor_realizacion)} computables`}</p></li>)}</ul>
+      <div className="space-y-2 border-t border-[var(--gi-line)] p-4 text-xs md:hidden">{concilia && Object.values(fuera).some((valor) => valor > 0) && <p>Fuera del desglose actual: {numero(fuera.pactadas)} pactadas · {numero(fuera.realizadas)} realizadas · {numero(fuera.pendientes_cierre)} sin resultado.</p>}<p className="font-semibold">Total del período: {numero(datos.resumen.pactadas)} pactadas · {numero(datos.resumen.realizadas)} realizadas · {numero(datos.resumen.pendientes_cierre)} sin resultado.</p></div>
       {!concilia && <p role="alert" className="px-5 py-3 text-sm text-destructive">El desglose no concilia con el total de citas.</p>}
       <p className="border-t border-[var(--gi-line)] px-5 py-3 text-xs text-[var(--gi-muted)]">Cada base descuenta las canceladas por sistema, por otro asesor y las reprogramadas. Las citas fuera del desglose se conservan en el total.</p>
     </section>
@@ -122,6 +119,8 @@ function ResultadosPorVendedor({ datos }: { datos: MetricasReuniones }): JSX.Ele
 }
 
 export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puedeAlternarEjemplo, onAlternarEjemplo, onReintentar }: ReunionesGerenciaPanelProps): JSX.Element {
+  const resultadosRef = useRef<HTMLElement>(null)
+  const verResponsables = () => { resultadosRef.current?.focus(); resultadosRef.current?.scrollIntoView?.({ block: 'start' }) }
   const modalidades = useMemo(() => (datos?.modalidades ?? []).map((fila) => ({ ...fila, nombre: MODALIDAD[fila.modalidad] })), [datos])
   const opcionModalidades = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
@@ -154,20 +153,21 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
     : 'no disponible'
 
   return (
-    <Card className="gi-card overflow-hidden border-0 shadow-none">
-      <CardHeader className="border-b border-[var(--gi-line)] bg-white px-5 py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="gi-label">Citas</p><CardTitle className="mt-1 text-lg">Citas del equipo</CardTitle></div>{puedeAlternarEjemplo && <Button type="button" variant={modoDemo ? 'default' : 'outline'} size="sm" onClick={onAlternarEjemplo}><Eye aria-hidden /> {modoDemo ? 'Ver datos reales' : 'Ver ejemplo'}</Button>}</div></CardHeader>
+    <Card className="gap-4 border-0 bg-transparent py-0 shadow-none">
+      <CardHeader className="px-0 py-0"><div className="flex flex-wrap items-center justify-between gap-3"><div className="space-y-2"><CardTitle className="text-2xl font-bold leading-8 tracking-[-.025em] text-[var(--gi-navy)]">Citas del equipo</CardTitle><p className="text-xs leading-[18px] text-[var(--muted-foreground-strong)]">Citas por fecha prevista. Un prospecto puede tener varias citas; las pactadas incluyen las canceladas.{modoDemo ? ' Datos de ejemplo.' : ''}</p></div>{puedeAlternarEjemplo && <Button type="button" variant={modoDemo ? 'default' : 'outline'} className="min-h-11" onClick={onAlternarEjemplo}><Eye aria-hidden /> {modoDemo ? 'Ver datos reales' : 'Ver ejemplo'}</Button>}</div></CardHeader>
       <ErrorPanel error={error} onReintentar={onReintentar} />
-      {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos || datos.resumen.pactadas === 0 ? <Vacio /> : (
-        <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
-          <section data-gi-hero className="gi-summary-hero">
-            <div><p className="gi-label text-white/80">Realización de citas</p><p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white">{pct(datos.resumen.pct_realizacion)}</p><p className="mt-2 text-sm text-white/80">{baseGlobalDisponible ? `${numero(datos.resumen.realizadas)} de ${numero(datos.resumen.divisor_realizacion!)} citas computables` : `${numero(datos.resumen.realizadas)} realizadas · base no disponible`}</p></div>
-            <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <div className="gi-hero-metric"><span>Pactadas</span><strong>{numero(datos.resumen.pactadas)}</strong><span className="text-xs">{numero(datos.resumen.programadas_futuras)} próximas dentro del período</span></div>
-              <div className="gi-hero-metric"><span>Realizadas</span><strong>{numero(datos.resumen.realizadas)}</strong></div>
-              <div className="gi-hero-metric"><span>Vencidas sin resultado</span><strong>{numero(datos.resumen.pendientes_cierre)}</strong></div>
-            </div>
-            {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
-          </section>
+      {datos && (cargando || error) && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{cargando ? 'Actualizando citas.' : 'No se pudo confirmar la actualización.'} Las cifras visibles corresponden a la última respuesta del {fmtFecha(datos.periodo.desde)} al {fmtFecha(datos.periodo.hasta)}.</p>}
+      {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos ? <CardContent className="space-y-3 px-0"><p role="status">Datos de citas no disponibles. Una respuesta ausente no demuestra que el período esté vacío.</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></CardContent> : datos.resumen.pactadas === 0 ? <Vacio /> : (
+        <CardContent className="space-y-4 px-0">
+          <div className="flex flex-col gap-4">
+            <section data-gi-hero className="order-2 grid items-start gap-4 sm:order-1 sm:grid-cols-2 xl:grid-cols-4">
+              <IndicadorGerencia etiqueta="Realización de citas" valor={pct(datos.resumen.pct_realizacion)} contexto={baseGlobalDisponible ? `${numero(datos.resumen.realizadas)} de ${numero(datos.resumen.divisor_realizacion!)} citas computables` : `${numero(datos.resumen.realizadas)} realizadas · base no disponible`} />
+              <IndicadorGerencia etiqueta="Pactadas" valor={numero(datos.resumen.pactadas)} contexto={`${numero(datos.resumen.programadas_futuras)} próximas dentro del período`} />
+              <IndicadorGerencia etiqueta="Realizadas" valor={numero(datos.resumen.realizadas)} contexto="Con resultado registrado" />
+              <IndicadorGerencia etiqueta="Vencidas sin resultado" valor={numero(datos.resumen.pendientes_cierre)} contexto="Pendientes de registrar su resultado" />
+            </section>
+            <div className="order-1 sm:order-2"><AtencionCitas datos={datos} cargando={cargando} error={error} onVerResponsables={verResponsables} /></div>
+          </div>
 
           <details className="gi-card px-5 py-3 text-sm">
             <summary className="cursor-pointer font-semibold focus-visible:outline-2">Ver bases y asistencia</summary>
@@ -175,24 +175,24 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
               <div><p className="font-semibold">Realización</p><p className="gi-caption mt-1">Citas realizadas sobre citas vencidas, excluyendo las reprogramadas y canceladas por el sistema.</p>{baseGlobalDisponible && <p className="gi-caption mt-1">{numero(datos.resumen.debieron_ocurrir)} vencidas · {numero(datos.resumen.canceladas_sistema_vencidas!)} canceladas por sistema · {numero(datos.resumen.reprogramadas_vencidas!)} reprogramadas.</p>}</div>
               <div><p className="font-semibold">Asistencia</p><p className="mt-1 text-xl font-bold">{pct(datos.resumen.pct_asistencia)}</p><p className="gi-caption mt-1">{datos.resumen.divisor_asistencia != null ? `${numero(datos.resumen.realizadas)} de ${numero(datos.resumen.divisor_asistencia)} citas con asistencia o inasistencia registrada.` : 'Base no disponible.'} {numero(datos.resumen.no_show)} no asistieron.</p></div>
             </div>
-            <p className="gi-caption mt-3">Citas por fecha prevista. Un prospecto puede tener varias citas; las pactadas incluyen las canceladas.</p>
           </details>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="No asistieron" value={numero(datos.resumen.no_show)} detail="Inasistencia registrada" Icon={UserRoundX} color={C.red} />
-            <Kpi label="Canceladas por asesor" value={numero(datos.resumen.canceladas)} detail="Dentro del período" Icon={UserRoundX} color={C.red} />
-            <Kpi label="Reprogramadas" value={numero(datos.resumen.reprogramadas)} detail="Con una nueva fecha" Icon={CalendarClock} color={C.amber} />
-            <Kpi label="Canceladas por sistema" value={numero(datos.resumen.canceladas_sistema)} detail="Incluidas en pactadas" Icon={CalendarClock} color={C.muted} />
+            <IndicadorGerencia etiqueta="No asistieron" valor={numero(datos.resumen.no_show)} contexto="Inasistencia registrada" />
+            <IndicadorGerencia etiqueta="Canceladas por asesor" valor={numero(datos.resumen.canceladas)} contexto="Dentro del período" />
+            <IndicadorGerencia etiqueta="Reprogramadas" valor={numero(datos.resumen.reprogramadas)} contexto="Con una nueva fecha" />
+            <IndicadorGerencia etiqueta="Canceladas por sistema" valor={numero(datos.resumen.canceladas_sistema)} contexto="Incluidas en pactadas" />
           </div>
 
+          <ResultadosPorVendedor datos={datos} destino={resultadosRef} />
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,.85fr)]">
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de citas pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /></section>
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de citas pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /><details className="mt-3 text-xs"><summary className="w-fit cursor-pointer py-2 font-semibold text-[var(--gi-blue)]">Ver valores por modalidad</summary><table className="w-full text-left"><caption className="sr-only">Valores de citas por modalidad</caption><thead><tr><th scope="col" className="p-2">Modalidad</th><th scope="col" className="p-2">Pactadas</th><th scope="col" className="p-2">Realizadas</th></tr></thead><tbody>{modalidades.map((fila) => <tr key={fila.modalidad}><th scope="row" className="p-2 font-medium">{fila.nombre}</th><td className="p-2">{numero(fila.pactadas)}</td><td className="p-2">{numero(fila.realizadas)}</td></tr>)}</tbody></table></details></section>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => {
               const detalleRealizacionDisponible = fila.divisor_realizacion != null
                 && fila.canceladas_sistema_vencidas != null
                 && fila.reprogramadas_vencidas != null
               return (
-                <section key={fila.modalidad} data-gi-panel className="gi-card p-5">
+                <section key={fila.modalidad} aria-label={`Resultados de citas ${fila.nombre}`} data-gi-panel className="gi-card p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="gi-label">{fila.nombre}</p>
@@ -226,12 +226,12 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
               {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Permite recorrer con teclado el gráfico en pantallas pequeñas. */}
               <div role="region" aria-label="Gráfico de cierres posteriores por origen" tabIndex={0} className="mt-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2"><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Cierres posteriores a citas por origen" className="min-w-[430px] w-full" style={{ height: Math.max(220, origenes.length * 50) }} /></div>
               {origenes.filter((fila) => fila.conversion_contrato_pct == null).map((fila) => <p key={fila.origen} className="gi-caption">{fila.origen}: — (sin base para calcular)</p>)}
+              <details className="mt-3 text-xs"><summary className="w-fit cursor-pointer py-2 font-semibold text-[var(--gi-blue)]">Ver valores por origen</summary><table className="w-full text-left"><caption className="sr-only">Cierres posteriores a citas por origen</caption><thead><tr><th scope="col" className="p-2">Origen</th><th scope="col" className="p-2">Conversión</th></tr></thead><tbody>{origenes.map((fila) => <tr key={fila.origen}><th scope="row" className="p-2 font-medium">{fila.origen}</th><td className="p-2">{pct(fila.conversion_contrato_pct)}</td></tr>)}</tbody></table></details>
               <details className="mt-3 border-t border-[var(--gi-line)] pt-3 text-sm"><summary className="cursor-pointer font-semibold focus-visible:outline-2">Qué cierres y capital incluye</summary><p className="gi-caption mt-2">Cierres registrados desde la hora programada de la última cita realizada de cada prospecto. El seguimiento incluye cierres posteriores al período. Los cierres anteriores se buscan desde el inicio del período. El capital reúne los importes asociados a esos cierres, en la moneda del prospecto y sin recorte por fecha.</p>{datos.conversion.leads_con_cierre_previo == null && <p className="gi-caption mt-2">El detalle de cierres anteriores no está disponible.</p>}<p className="gi-caption mt-2">Seguimiento al {corte} (Lima).</p></details>
             </section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultado registrado de la cita</h3><div className="mt-4 flex flex-wrap gap-2">{datos.resultados.map((fila) => <span key={fila.resultado} className="rounded-full border border-[var(--gi-line)] bg-[var(--gi-soft)] px-3 py-1.5 text-xs"><strong>{numero(fila.cantidad)}</strong> · {textoResultado(fila.resultado)}</span>)}</div></section>
           </div>
 
-          <ResultadosPorVendedor datos={datos} />
         </CardContent>
       )}
     </Card>

@@ -49,8 +49,8 @@ export function DesgloseMonedas({
     <span className={cn('block text-[11px] font-medium', tc != null ? paleta.conTc : paleta.sinTc)}>
       <span className="sr-only">Desglose: </span>
       {tc != null
-        ? `${fmt(pen, 'PEN')} + ${fmt(usd, 'USD')}`
-        : `+ ${fmt(usd, 'USD')} aparte (sin TC)`}
+        ? `${fmt(pen, 'PEN').replace(' ', '\u00a0')} + ${fmt(usd, 'USD').replace(' ', '\u00a0')}`
+        : `+ ${fmt(usd, 'USD').replace(' ', '\u00a0')} aparte (sin TC)`}
     </span>
   )
 }

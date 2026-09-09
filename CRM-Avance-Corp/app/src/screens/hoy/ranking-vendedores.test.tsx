@@ -51,6 +51,80 @@ function fuentesRankingSinError() {
   }
 }
 
+describe('consulta de Ranking F1', () => {
+  const datos = () => ({
+    conversionMensual: conversionMensualInteligenciaDemo(Date.now()),
+    equipo: conversionEquipoDemo(),
+    metasVendedores: metasConversionEquipoDemo(),
+    cumplimientoVendedores: cumplimientoMetasConversionEquipoDemo().porVendedor,
+    metaMensual: { etiqueta: 'setiembre 2026', comparable: true },
+    tc: { promedio: 3.751, fuente: 'demo · prom. 7d' },
+    ...fuentesRankingSinError(),
+  })
+
+  it('permite recorrer las pestañas con teclado y mantiene todos los destinos ARIA', () => {
+    render(<RankingVendedoresPanel {...datos()} />)
+    const conversion = screen.getByRole('tab', { name: 'Conversión general' })
+    const capital = screen.getByRole('tab', { name: 'Capital total' })
+    const cosecha = screen.getByRole('tab', { name: 'Resultados de los leads del mes' })
+    for (const tab of [conversion, capital, cosecha]) {
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
+    }
+    fireEvent.keyDown(conversion, { key: 'ArrowRight' })
+    expect(capital).toHaveFocus()
+    expect(capital).toHaveAttribute('aria-selected', 'true')
+    expect(conversion).toHaveAttribute('tabindex', '-1')
+    fireEvent.keyDown(capital, { key: 'End' })
+    expect(cosecha).toHaveFocus()
+    fireEvent.keyDown(cosecha, { key: 'Home' })
+    expect(conversion).toHaveFocus()
+  })
+
+  it('abre el capital de la misma fila y envía la identidad real a Conversiones', () => {
+    const props = datos()
+    const original = structuredClone(props.cumplimientoVendedores)
+    const abrirConversiones = vi.fn()
+    render(<RankingVendedoresPanel {...props} tipoSeleccionado="capital-total" onAbrirConversiones={abrirConversiones} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle de Carla Mendoza' })[0]!)
+    const detalle = screen.getByRole('dialog', { name: 'Carla Mendoza' })
+    for (const cifra of ['S/ 317,518', 'S/ 250,024', '127.00%']) {
+      expect(within(detalle).getByText(cifra)).toBeInTheDocument()
+    }
+    expect(within(detalle).getByText(/Mes calendario · setiembre 2026/)).toBeInTheDocument()
+    expect(within(detalle).getByText(/TC S\/ 3.751/)).toBeInTheDocument()
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Abrir Conversiones' }))
+    expect(abrirConversiones).toHaveBeenCalledWith('demo-v3')
+    expect(props.cumplimientoVendedores).toEqual(original)
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Volver a Ranking' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Capital total' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('no conserva cifras aparentemente vigentes si falla o cambia la base mensual del detalle', () => {
+    const props = datos()
+    const view = render(<RankingVendedoresPanel {...props} tipoSeleccionado="capital-total" />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle de Carla Mendoza' })[0]!)
+    view.rerender(<RankingVendedoresPanel {...props} tipoSeleccionado="capital-total" capitalError="No se pudo consultar capital" />)
+    const detalle = screen.getByRole('dialog')
+    expect(within(detalle).getByRole('alert')).toHaveTextContent('No se pudo consultar capital')
+    expect(within(detalle).queryByText('S/ 317,518')).not.toBeInTheDocument()
+    fireEvent.click(within(detalle).getByRole('button', { name: 'Reintentar' }))
+    expect(props.onReintentarCapital).toHaveBeenCalledOnce()
+    view.rerender(<RankingVendedoresPanel {...props} tipoSeleccionado="capital-total" metaMensual={{ etiqueta: 'otro mes', comparable: false }} />)
+    expect(within(screen.getByRole('dialog')).queryByText('S/ 317,518')).not.toBeInTheDocument()
+  })
+
+  it('explica US$ aparte cuando no hay tipo de cambio disponible', () => {
+    render(<RankingVendedoresPanel {...datos()} tipoSeleccionado="capital-total" tc={null} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle de Carla Mendoza' })[0]!)
+    const detalle = screen.getByRole('dialog', { name: 'Carla Mendoza' })
+    expect(within(detalle).getByText('S/ 250,000')).toBeInTheDocument()
+    expect(within(detalle).getByText(/Tipo de cambio no disponible/)).toBeInTheDocument()
+    expect(within(detalle).getAllByText(/aparte \(sin TC\)/)).toHaveLength(2)
+    expect(within(detalle).queryByText('S/ 317,518')).not.toBeInTheDocument()
+  })
+})
+
 describe('ranking general de analistas', () => {
   it('mantiene el aporte de Upgrade con la misma base y el mismo peso comercial', () => {
     render(<RankingVendedoresPanel
@@ -155,7 +229,7 @@ describe('ranking general de analistas', () => {
       />,
     )
 
-    expect(screen.getByText('6 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('6 analistas')).toBeInTheDocument()
     const bloque = screen.getByRole('complementary', { name: 'Producción fuera del ranking' })
     expect(within(bloque).getByText('Supervisor con inversión propia')).toBeInTheDocument()
     expect(within(bloque).getByText('Producción atribuida a supervisor')).toBeInTheDocument()
@@ -248,7 +322,7 @@ describe('ranking general de analistas', () => {
       />,
     )
 
-    expect(screen.getByText('7 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('7 analistas')).toBeInTheDocument()
     expect(screen.getByText('Mes calendario · agosto 2026')).toBeInTheDocument()
     expect(screen.getByText(/renovaciones ×0.15.*prospectos automáticos de Landing\/Formulario/)).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
@@ -362,7 +436,7 @@ describe('ranking general de analistas', () => {
     )
 
     expect(screen.getByText('Consultando identidad, metas y capital del mes…')).toBeInTheDocument()
-    expect(screen.getByText('— analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('— analistas')).toBeInTheDocument()
     expect(screen.queryByText('Sin meta')).not.toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Ranking de capital total en soles' })).not.toBeInTheDocument()
 
@@ -396,7 +470,7 @@ describe('ranking general de analistas', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('No se pudo cargar la foto mensual.')
       fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     }
-    expect(screen.getByText('— analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('— analistas')).toBeInTheDocument()
     expect(reintentarFoto).toHaveBeenCalledTimes(3)
   })
 
@@ -573,7 +647,7 @@ describe('ranking general de analistas', () => {
       />,
     )
 
-    expect(screen.getByText('2 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('2 analistas')).toBeInTheDocument()
     expect(screen.queryByText('Bruno Díaz')).not.toBeInTheDocument()
     expect(screen.queryByText('Analista no identificado')).not.toBeInTheDocument()
     const fueraConversion = screen.getByRole('region', { name: 'Analistas sin posición en conversión' })
@@ -610,7 +684,7 @@ describe('ranking general de analistas', () => {
       />,
     )
 
-    expect(screen.getByText('0 analistas · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('0 analistas')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
     expect(screen.getByText('Aún no hay analistas para mostrar')).toBeInTheDocument()
     expect(screen.queryByText('Ana Torres')).not.toBeInTheDocument()

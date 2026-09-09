@@ -1,0 +1,19 @@
+{
+  "fileKey": "f5AcRzzIk3KS6CCOmKC0df",
+  "sections": [
+    "32:395",
+    "34:395"
+  ],
+  "diagramShapes": 12,
+  "diagramConnectors": 8,
+  "reviewCards": 10,
+  "overflow": [],
+  "verified": "Structural bounds and visual screenshots checked; shorter capital title read back.",
+  "productionChanges": false,
+  "limitations": {
+    "track_functions": "none",
+    "externalBridgeConsumer": "unverified",
+    "installedGoogleAppsScript": "not inspected",
+    "candidateEntrypoints": 10
+  }
+}

@@ -8703,6 +8703,193 @@ la edge anterior + `create or replace` con el literal v7 + reestampar a v7 las r
 los CHECK ampliados pueden quedarse (son aditivos), como ya documentó la v6. Falta: revisión de Codex
 y el `!` de Miguel.
 
+## 20260908221500 — Corrección del correo de acceso de un cliente (PENDIENTE de aplicar)
+
+**Pedido de Miguel (08/09/2026):** «quiero que desde mi usuario admin, poder editar los correos».
+
+**Lo que se midió antes de escribir una línea.** El correo de un cliente no es un dato de
+contacto: es su CREDENCIAL. Vive en TRES sitios que tienen que moverse juntos —
+`auth.users.email`, `auth.identities` (donde GoTrue busca de verdad al usuario al iniciar
+sesión) y `public.perfiles.correo`. Medición en producción: **435 clientes, los tres
+alineados, 0 desviaciones**. Cambiar solo uno deja al cliente sin acceso EN SILENCIO.
+
+**Decisiones de Miguel:** la corrección es **silenciosa** (no se avisa al cliente por correo,
+ni a la dirección vieja ni a la nueva) y la puede hacer **solo el superadmin** — no `admin`,
+que sí corrige documentos.
+
+**Qué instala** (todo dentro del esquema `crm`, sin tocar `public`):
+- `crm.correcciones_correo_cliente` — el rastro (quién, cuándo, de qué correo a cuál y POR QUÉ).
+  `public.audit_log` ya guarda el antes/después de la fila entera, pero el MOTIVO no cabe ahí y
+  es justo lo que hay que poder buscar cuando un cliente reclama que no puede entrar. RLS ON +
+  FORCE, SELECT solo `es_admin()`, sin políticas de escritura (la única vía es la RPC DEFINER),
+  y trigger de auditoría con los tres verbos para pasar el trinquete.
+- `crm.corregir_correo_cliente_admin_fn(uuid, text, text)` — la puerta: `public.es_superadmin()`,
+  motivo 3–500, correo único en el espejo, todo en una transacción. Mueve SOLO `perfiles.correo`.
+
+**No cambia ninguna conducta por sí sola:** la mitad de `auth` la mueve la edge
+`corregir-correo-cliente` (`auth.admin.updateUserById`, que es la única forma de mover `users` e
+`identities` a la vez). Sin esa edge desplegada, el front no llama a nada.
+
+**Precedente del mecanismo:** `supabase/scripts/cambiar-dominio-correo-crm.mjs:325-335` ya hace
+exactamente ese par (`updateUserById` + `perfiles.correo`) para el personal del CRM.
+
+**Huellas ancladas en la guarda:** `public.es_superadmin()` = `12a443a1fd1597612d12a696ba501671`,
+`private.log_audit_crm()` = `2d1b31c407d6eb882047112224792e73`.
+
+## 20260908221501 — El candado del correo (🔴 REQUIERE OK EXPLÍCITO DE MIGUEL, sin aplicar)
+
+**🔴 TOCA `public.perfiles`** (trigger `trg_perfiles_zz_correo_protegido`). Ninguna migración del
+CRM toca objetos de `public` sin OK explícito de Miguel anotado aquí. **Ese OK todavía NO existe:
+esta migración está escrita y NO se aplica hasta tenerlo.** Por eso viaja separada de la 221500,
+que solo vive en `crm` y no lo necesita.
+
+**El agujero que tapa, medido el 08/09/2026:** el rol `authenticated` tiene GRANT de UPDATE sobre
+`public.perfiles.correo` **a nivel de columna**. Lo único que hoy impide que un analista, dentro
+de su ventana de corrección de 5 h, desalinee la identidad de su cliente es que el formulario del
+CRM no manda ese campo en el patch. Eso es una defensa de PANTALLA, no de servidor: una llamada a
+PostgREST hecha a mano la salta entera y el cliente queda sin poder entrar, sin ningún error en
+ninguna parte.
+
+**Molde:** `trg_perfiles_zz_documento_protegido` / `private.trg_perfiles_documento_protegido`, que
+resuelve exactamente esto para el documento, con las mismas dos llaves de paso en la transacción
+(`crm.op_privilegiada` + `crm.correccion_correo`).
+
+**Qué NO rompe**, comprobado contra los flujos vivos: el ALTA escribe el correo en un INSERT y el
+trigger es BEFORE UPDATE; los guiones de operador con `service_role` corren sin `auth.uid()` y
+siguen pasando; y el UPDATE de «corregir cliente» del analista no manda `correo` (y si lo mandara
+con el mismo valor tampoco dispararía: compara VALOR, no presencia — PostgREST pone todas las
+columnas en el SET).
+
+**Orden obligatorio:** 221500 antes que 221501 (la guarda de la 221501 aborta si falta la puerta,
+para no dejar al superadmin sin ninguna vía de corregir el correo).
+
+### Auditoría RLS (08/09, CHANGES_REQUESTED → resuelto)
+
+El subagente `auditor-rls` devolvió 2 P1, 5 P2 y 6 P3. **Aceptados y aplicados todos los que
+cambiaban la seguridad**, en particular los dos P1:
+
+- **P1-1 — el candado cerraba por ROL, no por CANAL.** Un superadmin seguía pudiendo mover
+  `perfiles.correo` con un `PATCH` suelto a PostgREST: sin rastro, sin motivo y sin tocar
+  `auth`. Es el accidente que la migración existe para impedir, ejecutado por la única persona
+  autorizada a usar la pantalla. La 221501 lleva ahora una cláusula `P0409` incondicional para
+  `old.rol='cliente'`, igual que el molde del documento ⇒ la RPC es el **único** canal.
+- **P1-2 — el rastro guardaba la INTENCIÓN, no el RESULTADO.** Una caída entre el paso del
+  espejo y el de `auth` dejaba una fila indistinguible de un éxito. Se añaden
+  `auth_confirmado_en`, la RPC de acuse `crm.confirmar_correccion_correo_fn` (que la edge llama
+  DESPUÉS del OK de `auth`) y el detector `crm.desviaciones_correo_cliente_fn`, que convierte
+  «los tres se mueven juntos» de foto puntual en comprobación repetible.
+
+También aplicados: **P2-1** la edge ya no falla cerrado tras una escritura commiteada (el
+testigo es `ok`, no `correo_anterior`: un legacy con correo vacío es un caso válido) —
+lección `alta-confirmada-nunca-es-error`; **P2-2** postflight con RLS/FORCE/policies de
+escritura/grants por `aclexplode`/trinquete de auditoría, y la dependencia de `BYPASSRLS`
+**medida** (`postgres` = true) en vez de inferida; **P2-3** el `revoke` de la función del
+trigger + su assert; **P2-4/P2-5** la suite RLS ahora relee el correo tras cada atajo (un
+«0 filas» de `vend1` podía venir de su ventana vencida y pintarse verde), restaura el fixture
+en `finally`, salta con ruido si la puerta no está desplegada (`CRM_RLS_EXIGE_CORREO=1` la
+exige) y añade los casos del acuse, del detector y del rastro frente a directorio/coordinador;
+**P3-1** las llaves se guardan y se restauran (`crm.op_privilegiada` es una válvula
+compartida); **P3-2** el correo se normaliza en el trigger; **P3-3** `unique_violation`
+traducida; **P3-4** `on delete set null` en vez de CASCADE (`eliminar_cliente_fn` hace
+hard-delete de perfiles y se llevaría por delante el motivo); **P3-5** el rastro lo lee solo
+`es_superadmin()`, no `es_admin()` — coherente con que Miguel excluyera a `admin` de la
+operación.
+
+**P3-6 (ubicación de la edge), decisión del PRIMARY:** se queda en `_supabase_functions/`, con
+`crear-cliente`, `eliminar-cliente` y `resetear-password`. Es la familia del ciclo de vida del
+cliente del Portal y toca `auth` + `public.perfiles`, aunque hoy su único consumidor sea el CRM.
+
+**El auditor confirmó, con cinco evidencias, que las llaves `crm.op_privilegiada` +
+`crm.correccion_correo` NO se pueden falsificar desde PostgREST** (`pg_catalog.set_config` no es
+alcanzable; ninguna función expuesta acepta el nombre de un GUC; una petición no encadena
+sentencias; solo la puerta escribe la segunda llave; `is_local => true`). 🔑 **INVARIANTE: nunca
+cambiar ese tercer argumento a `false`** — las llaves sobrevivirían en un backend reutilizado del
+pool y se filtrarían a la siguiente petición de cualquier usuario.
+
+**Ítem NOMBRADO del ciclo de banco** (el arnés no tiene sesión de superadmin, así que esto no se
+puede probar en `test-rls.mjs`): sembrar un superadmin a mano → llamar la RPC → comprobar las
+CUATRO cosas: fila de rastro con su motivo, `auth_confirmado_en` cerrado, `auth.users.email`
+movido y **`auth.identities` movido**. Ese último assert es el que valida la premisa entera.
+
+### Revisión de Codex (08/09, CHANGES_REQUESTED → resuelto)
+
+Segunda consulta justificada por evidencia nueva (las dos migraciones y la edge se reescribieron
+tras el `auditor-rls`). Se le pidió REFUTAR el arreglo, no aprobarlo. Devolvió 4 P1 y 1 P2; **los
+cuatro P1 eran reales** y tres de ellos escapaban al primer review porque no miran el mismo plano:
+el auditor revisó los permisos, Codex revisó los INTERCALADOS.
+
+- **P1-D — la reversión a ciegas podía dejar al cliente FUERA. El peor hallazgo del día.**
+  `updateUserById` podía COMMITEAR y perderse la respuesta; la edge lo leía como fallo y revertía
+  el espejo. Resultado: acceso en el correo NUEVO, ficha en el VIEJO y el cliente —que usa el
+  viejo— sin poder entrar. Era el único desenlace que el diseño declaraba inaceptable, y era
+  alcanzable. Ahora la edge **relee `auth` con `getUserById` antes de compensar**: si el cambio
+  se aplicó, lo cierra como el éxito que fue.
+- **P1-A — el acuse se podía firmar sin prueba.** `confirmar_correccion_correo_fn` cerraba la fila
+  por decreto, así que un superadmin llamando las RPC a mano podía mover el espejo y marcarlo
+  «confirmado» sin que `auth` se moviera nunca: una desviación disfrazada de éxito. Ahora el
+  UPDATE lleva un `EXISTS` contra `auth.users`: **la fila solo se cierra si el correo del rastro
+  es de verdad el que abre la puerta.**
+- **P1-C — una caída a medias dejaba la operación ATASCADA.** La RPC preguntaba «¿ya está puesto?»
+  al ESPEJO; tras una caída el espejo ya tenía el correo nuevo, así que el reintento moría con
+  «es el mismo que el actual» y el acceso se quedaba atrás para siempre. Ahora **pregunta a
+  `auth`, que es la verdad**, y el reintento se convierte en el camino de REPARACIÓN.
+- **P1-B — dos correcciones simultáneas podían cruzarse.** Se añade `FOR UPDATE` en la lectura del
+  perfil (sin él, dos llamadas leen el mismo «anterior» y el rastro miente).
+- **P2 — el detector miraba dos sitios de tres.** Ahora compara los TRES (incluida
+  `auth.identities`, que es donde GoTrue busca de verdad) y usa LEFT JOIN, porque un cliente SIN
+  cuenta de acceso es la peor desviación posible y el INNER JOIN la escondía. Se separa
+  `crm.correcciones_correo_sin_acuse_fn`: «sin acuse» no es lo mismo que «desviado».
+
+**Bug latente que Codex cazó de paso:** `GET DIAGNOSTICS v_ok = ROW_COUNT` con `v_ok boolean`.
+`ROW_COUNT` es entero y esa conversión no está garantizada; `check_function_bodies` no lo ve
+porque solo valida sintaxis. Habría reventado en ejecución. Ahora va a `bigint` y se compara.
+
+**Residual ACEPTADO, con su razón (decisión del PRIMARY):**
+- **El orden espejo→auth se mantiene.** Codex observa que invertirlo «solo mueve la ventana de
+  fallo», y es cierto — pero las dos ventanas no cuestan lo mismo. Con espejo→auth, una caída
+  deja el acceso en el correo VIEJO, que es el que el cliente usa: sigue entrando. Con
+  auth→espejo, la caída le cambia la llave sin que nadie se lo diga (la corrección es silenciosa
+  por decisión de Miguel) y se queda fuera. Se elige la ventana que nunca deja a un cliente
+  fuera.
+- **P1-B en su forma completa** (dos superadmins corrigiendo el MISMO cliente en la misma ventana
+  de segundos) necesitaría coordinación entre dos llamadas HTTP distintas. No se implementa:
+  Miguel decidió que solo hay UN superadmin, y si ocurriera, el detector lo enseña. Anotado como
+  límite conocido, no como cosa resuelta.
+- **Un superadmin puede llamar la RPC a mano y mover solo el espejo.** No se puede impedir sin
+  quitarle el gate al servidor. Lo que sí se hizo es que no pueda DISFRAZARLO de éxito (P1-A) y
+  que el detector lo enseñe.
+
+### PROBADO EN VIVO (08/09, 7/7) — Miguel preguntó «¿el cliente sí va a poder entrar?»
+
+La duda que dejaron abiertas las dos revisiones —que `email_confirm: true` moviera de verdad
+`auth.identities`, y que la puerta se abriera después— **ya no es una duda**. En producción había
+evidencia de que el dato se movía bien (4 cuentas cambiadas por el mismo mecanismo, identidades
+alineadas) pero CERO evidencia de un inicio de sesión posterior: ninguna de las 4 había vuelto a
+entrar, y `auth.audit_log_entries` está vacío.
+
+`supabase/scripts/prueba-cambio-correo-acceso.mjs --probar`, sobre una cuenta desechable que crea
+y borra él mismo (sin perfil: `auth.users` no tiene triggers, comprobado ⇒ no entra en ningún
+conteo del negocio ni en el cierre de mes). Corrido por Miguel el 08/09: **7/7 en verde**.
+
+1. línea base: entra con el correo original;
+2. el cambio se aplica sin error;
+3. `auth.users` queda con el correo nuevo;
+4. **la IDENTIDAD de acceso también** — la duda de Codex, resuelta contra la version de GoTrue viva;
+5. el correo nuevo queda CONFIRMADO (no le pide verificación al cliente);
+6. **ENTRA CON EL CORREO NUEVO**, con su MISMA contraseña de siempre;
+7. el correo anterior deja de abrir: `Invalid login credentials`.
+
+El guion queda versionado y es repetible: vuelve a correrse antes de desplegar, y sirve de
+regresión si algún día cambia la versión de GoTrue.
+
+Lo que este guion NO cubre y sigue siendo cierto: una sesión ya abierta del cliente no se cierra
+—su JWT conserva el correo anterior hasta renovarse y el `sub` no cambia—, así que el cambio se
+nota en el PRÓXIMO inicio de sesión, no al instante.
+
+**Estado:** ambas PENDIENTES. No se aplican durante el congelamiento 08–10/09 (sello del mes).
+Falta: el ciclo de banco, `npm run gen:types` tras aplicar, y el `!` de Miguel (más el OK
+explícito para la 221501, que toca `public.perfiles`).
+
 ## 20260909003243 — Consulta detallada de Citas de Gerencia (local)
 
 `20260909003243_crm_citas_gerencia_consulta_detallada.sql` incorpora

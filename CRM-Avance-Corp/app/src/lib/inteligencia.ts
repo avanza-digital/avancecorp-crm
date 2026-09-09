@@ -144,7 +144,7 @@ const PESO_SEV: Record<ItemCola['sev'], number> = { critica: 0, media: 1, baja: 
 export const BUCKET_LABEL: Record<BucketCola, string> = {
   sin_responder: 'Sin responder',
   insistir: 'Insistir',
-  propuesta_sin_respuesta: 'Propuesta sin respuesta',
+  propuesta_sin_respuesta: 'Entrevista sin avance',
   seguimiento: 'Seguimiento',
   sin_avance: 'Sin avance',
   plan_vencido: 'Plan vencido',
@@ -296,7 +296,7 @@ export function redactarMotivoCola(
           : `Último intento ${haceTexto(diasIntento)}, sin respuesta — cambia de canal`
     }
     case 'propuesta_sin_respuesta':
-      return `Propuesta enviada ${haceTexto(dias)} y sin respuesta`
+      return `Entrevista realizada ${haceTexto(dias)} y sin avance`
     case 'seguimiento':
       return `Sin actividad ${haceTexto(dias)} — toca retomar el seguimiento`
     case 'plan_vencido':

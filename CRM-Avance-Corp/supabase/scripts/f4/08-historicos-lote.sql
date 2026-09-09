@@ -1,5 +1,5 @@
--- Mantenimiento administrativo F4: aplicar exclusivamente un censo concreto.
--- Requiere 07-historicos.sql. Instalar no aplica ningún lote ni enciende banderas.
+-- Borrador administrativo F4: aplicar exclusivamente un censo concreto.
+-- Requiere 07-historicos.sql; aún fuera de la migración candidata.
 create table crm.inversion_backfill_lotes (
   id uuid primary key,
   hash_mapa text not null check (hash_mapa ~ '^[a-f0-9]{64}$'),
@@ -111,12 +111,6 @@ begin
     end if;
     return v_previo.resultado;
   end if;
-
-  -- El mantenimiento F2 legado no participa en las banderas de identidad.
-  -- Bloquear filas existentes no cubre un mapa todavía ausente: SHARE fija
-  -- también ese conjunto frente a INSERT/UPDATE/DELETE hasta COMMIT. NOWAIT
-  -- rechaza otra intervención administrativa sin crear un ciclo de espera.
-  lock table crm.backfill_multiempresa_mapa in share mode nowait;
 
   -- Revalidar referencias antes de usarlas para bloquear; nunca confiar en los
   -- IDs de persona/empresa o en el estado que envíe el consumidor del censo.

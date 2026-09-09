@@ -49,7 +49,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los analistas' },
   reuniones: { t: 'Citas', s: 'Pactadas, concretadas, no realizadas y modalidad' },
   metas: { t: 'Metas', s: 'Objetivos individuales y suma automática de la organización' },
-  rendimiento: { t: 'Equipo', s: 'Desempeño comercial por responsable' },
+  rendimiento: { t: 'Rendimiento', s: 'Desempeño comercial por responsable' },
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
   cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Citas, llamadas y vencimientos' },
@@ -199,21 +199,21 @@ export function Topbar({
   }
 
   return (
-    <header className={cn('sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-6 backdrop-blur-md', vista === 'seguimiento' && 'max-sm:gap-2 max-sm:px-3')}>
-      <div className="min-w-0 leading-tight">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 px-3 backdrop-blur-md sm:gap-4 sm:px-6">
+      <div className="min-w-0 flex-1 leading-tight">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-lg font-extrabold tracking-tight text-primary">{info.t}</h1>
           {/* Chip discreto: deja claro que los datos son de demostración */}
           {yo?.demo && (
-            <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-px text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-px text-[9px] max-[380px]:hidden font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Demo
             </span>
           )}
         </div>
-        <p className="truncate text-xs text-muted-foreground">{info.s}</p>
+        <p className="hidden truncate text-xs text-muted-foreground sm:block">{info.s}</p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         {leadsVisibles && (
         <div className="relative hidden md:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -341,7 +341,7 @@ export function Topbar({
             onClick={onAlternarAyuda}
             aria-label={ayudaAbierta ? 'Minimizar ayuda del analista' : 'Abrir ayuda del analista'}
             aria-pressed={ayudaAbierta}
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card text-xs font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:h-9 sm:w-auto sm:px-2.5"
           >
             <HelpCircle className="size-4 text-accent" aria-hidden />
             <span className="hidden lg:inline">Ayuda</span>
@@ -365,7 +365,7 @@ export function Topbar({
               ? `Abrir pendientes: ${pendientes} ${pendientes === 1 ? 'activo' : 'activos'}`
               : 'Abrir pendientes'}
             aria-current={vista === 'alertas' ? 'page' : undefined}
-            className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="relative inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:size-9"
           >
             <Bell className="size-4" aria-hidden />
             {pendientes > 0 && (
@@ -383,8 +383,8 @@ export function Topbar({
         )}
 
         {leadsVisibles && puedeEscribir(yo?.rol) && (
-          <Button variant="accent" aria-label="Nuevo lead" title="Nuevo lead" onClick={() => abrirNuevoLead()}>
-            <Plus aria-hidden /> <span className={vista === 'seguimiento' ? 'sr-only sm:not-sr-only' : undefined}>Nuevo lead</span>
+          <Button variant="accent" className="size-11 shrink-0 px-0 sm:h-9 sm:w-auto sm:px-3" aria-label="Nuevo lead" title="Nuevo lead" onClick={() => abrirNuevoLead()}>
+            <Plus aria-hidden /> <span className="hidden sm:inline">Nuevo lead</span>
           </Button>
         )}
       </div>

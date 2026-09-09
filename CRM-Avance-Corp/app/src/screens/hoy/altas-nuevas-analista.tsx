@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { useAuth } from '@/lib/auth-context'
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import { cn } from '@/lib/utils'
 import { numero } from '@/lib/format'
 import { registrarError } from '@/lib/observabilidad'
@@ -62,7 +63,7 @@ function TabsHorizonte({
           // asi el lector no oye «tres eme» (2.5.3 Label in Name).
           aria-label={`${h} meses`}
           className={cn(
-            'rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors',
+            'min-h-11 min-w-11 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors',
             'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
             valor === h
               ? 'border-transparent bg-primary text-primary-foreground'
@@ -85,7 +86,13 @@ export function AltasNuevasAnalistaPanel(): JSX.Element {
   // query queda inerte y NINGÚN request sale hacia Supabase.
   const sesionReal = !!yo && !esDemo
 
-  const [horizonte, setHorizonte] = useState<Horizonte>(HORIZONTE_INICIAL)
+  const consultaGerencia = useConsultaGerencia()
+  const [horizonteLocal, setHorizonteLocal] = useState<Horizonte>(HORIZONTE_INICIAL)
+  const horizonte = consultaGerencia?.consulta.horizonteAltas ?? horizonteLocal
+  const setHorizonte = (valor: Horizonte) => {
+    setHorizonteLocal(valor)
+    consultaGerencia?.setConsulta((actual) => ({ ...actual, horizonteAltas: valor }))
+  }
 
   const [filasDemo, setFilasDemo] = useState<FilaAltasAnalista[] | null>(null)
   useEffect(() => {

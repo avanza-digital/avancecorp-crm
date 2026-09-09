@@ -216,7 +216,7 @@ describe('señales comerciales', () => {
       expect(redactarMotivoCola('insistir', 1, 'nuevo', { ultimo_intento_dias: 40 / 1440 }))
         .toBe('Último intento hace 40 minutos, sin respuesta — cambia de canal')
       expect(redactarMotivoCola('propuesta_sin_respuesta', 5, 'propuesta_enviada', {}))
-        .toBe('Propuesta enviada hace 5 días y sin respuesta')
+        .toBe('Entrevista realizada hace 5 días y sin avance')
     })
 
     it('diasTxt/haceCortoTexto: misma escala, abreviada («hoy» ya no tapa 24 horas)', () => {

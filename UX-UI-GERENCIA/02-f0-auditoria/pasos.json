@@ -1,0 +1,128 @@
+[
+  {
+    "step": 1,
+    "file": "01-resumen-desktop.jpg",
+    "title": "Resumen · escritorio",
+    "health": "Mejorar jerarquía",
+    "notes": "Los indicadores explicitan mes y base. El gráfico de evolución queda al final de la primera pantalla. Priorizar lectura visual y conservar las aclaraciones. UX0-01.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 2,
+    "file": "02-conversiones-desktop.jpg",
+    "title": "Conversiones · escritorio",
+    "health": "Prioridad alta",
+    "notes": "El bloque principal y el texto anteceden a los gráficos. Capital del mes muestra sólo S/ 1.48 M; revisar la etiqueta y el desglose sin cambiar cálculos. UX0-02 / UX0-03.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 3,
+    "file": "03-comparacion-desktop.jpg",
+    "title": "Comparar Carla y Bruno",
+    "health": "Base aprovechable",
+    "notes": "Selección de ambos analistas comprobada. Misma base mensual explícita, valores distintos y acceso a detalle. Conservar la comparación existente; no confundir conversión con cumplimiento.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 4,
+    "file": "04-ranking-capital-desktop.jpg",
+    "title": "Ranking · Capital total",
+    "health": "Base aprovechable",
+    "notes": "Orden por cumplimiento declarado. Las barras llenas no diferencian 108.74–127%; el verde se revisará frente a la regla visual documentada. Mantener importes y orden. UX0-08.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 5,
+    "file": "05-ranking-detalle-desktop.jpg",
+    "title": "Detalle de Carla · escritorio",
+    "health": "Recorrido comprobado",
+    "notes": "Al volver se conservan Capital total, setiembre 2026 y el foco en Carla. Reutilizar esta mejora de G-F1. No se modifica ningún dato.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 6,
+    "file": "06-cartera-desktop.jpg",
+    "title": "Cartera · escritorio",
+    "health": "Ajustar acciones",
+    "notes": "Cuatro acciones por fila compiten con nombres largos. Separar la acción habitual de las secundarias. Los indicadores explicitan qué filtros afectan a cada uno. UX0-07.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 7,
+    "file": "07-cartera-detalle-desktop.jpg",
+    "title": "Buscar NADIA → Ver detalle",
+    "health": "Revisar foco",
+    "notes": "La búsqueda se conserva al cerrar. El foco vuelve a BODY, no al botón que abrió la ficha: hallazgo confirmado por DOM. Datos sintéticos de demo. UX0-06.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 8,
+    "file": "08-nuevo-lead-desktop.jpg",
+    "title": "Nuevo lead · escritorio",
+    "health": "Reordenar campos",
+    "notes": "Hay cuatro obligatorios; seis opcionales se intercalan antes de Origen y Capital. Nombre recibe el foco y el pie de acciones permanece visible. No se envió el formulario. UX0-05.",
+    "width": 1440,
+    "height": 960
+  },
+  {
+    "step": 9,
+    "file": "09-nuevo-lead-mobile.jpg",
+    "title": "Nuevo lead · móvil",
+    "health": "Prioridad alta",
+    "notes": "Capital estimado mide 43 × 36 px a 390 × 844; resulta demasiado estrecho para revisar un importe. Mantener campo y moneda, darles espacio suficiente. Escape cierra. UX0-04.",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "step": 10,
+    "file": "10-cartera-mobile.jpg",
+    "title": "Cartera · móvil",
+    "health": "Ajustar densidad",
+    "notes": "Lista adaptada a móvil, sin tabla horizontal. La captura muestra filtros y primera ficha después de desplazar. El nombre queda abreviado y persisten cuatro acciones. UX0-07.",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "step": 11,
+    "file": "11-resumen-mobile.jpg",
+    "title": "Resumen · móvil",
+    "health": "Prioridad alta",
+    "notes": "Captura desde scroll 0. El bloque de período y la atención preceden a los KPI; la evolución empieza en y≈1785. Compactar contexto y acercar indicadores/gráficos. UX0-01.",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "step": 12,
+    "file": "12-conversiones-mobile.jpg",
+    "title": "Conversiones · móvil",
+    "health": "Prioridad alta",
+    "notes": "Comparación cerrada. El título se abrevia y el bloque principal se prolonga más allá del primer pliegue; Resultados por analista aparece en y≈3764. UX0-02 / UX0-09.",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "step": 13,
+    "file": "13-ranking-mobile.jpg",
+    "title": "Ranking · Capital total / móvil",
+    "health": "Base aprovechable",
+    "notes": "Pestañas y listas legibles; primera ficha desde y≈615. Mes y selección conservados al navegar. Revisar densidad y representación de cumplimiento. UX0-08.",
+    "width": 390,
+    "height": 844
+  },
+  {
+    "step": 14,
+    "file": "14-ranking-detalle-mobile.jpg",
+    "title": "Detalle de Carla · móvil",
+    "health": "Teclado focal comprobado",
+    "notes": "Enter abre. Shift+Tab recorre el límite del diálogo; Escape cierra y devuelve el foco a Carla conservando Capital total. No acredita accesibilidad completa.",
+    "width": 390,
+    "height": 844
+  }
+]

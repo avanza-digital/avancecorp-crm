@@ -35,6 +35,8 @@ node_modules/
 .codex/
 output/
 tmp/
+/supabase/.temp/
+/_supabase_functions/.temp/
 
 # Superpowers brainstorming (mockups locales)
 .superpowers/

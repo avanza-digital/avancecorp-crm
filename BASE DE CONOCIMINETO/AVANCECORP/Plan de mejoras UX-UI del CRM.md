@@ -1,8 +1,10 @@
 # Plan de mejoras UX/UI del CRM
 
+**Actualización vigente, 2026-09-05:** Miguel pidió pausar implementación y adaptar el documento UI-UX (2). El orden, la conservación de avances, la cobertura del CRM y los criterios de cierre están en [[Plan maestro UI UX del CRM - adaptacion UI-UX 2 2026-09-05]]. Ver también [[Replanteamiento UI UX con UI-UX 2 - 2026-09-05]]. Figma MCP está verificado; la nueva página de propuesta conserva la evidencia y muestra Resumen/Conversiones en escritorio y móvil. La aprobación visual y la validación integral siguen pendientes.
+
 Plan por fases para aplicar los fundamentos UX/UI (más allá de Gestalt y color) al CRM. Cada fase entrega algo visible y sirve de base para la siguiente. Pantallas de referencia: Hoy, Agenda, Pipeline, Mi Cartera, Repartir, Derivaciones, Gerencia y los flujos de lead-drawer / contrato-nuevo.
 
-**Plan específico de Gerencia:** [[Plan de mejora UX de Gerencia - revision 2026-09-05]] recupera su PDF por rol y actualiza prioridades, fases y validación. Es el seguimiento de experiencia del usuario de Gerencia; el plan de corrección de métricas conserva su propio alcance.
+**Plan específico de Gerencia:** [[Plan de mejora UX de Gerencia - revision 2026-09-05]] conserva el alcance G-F0–G-F5 y la auditoría experta de 14 capturas como base. El nuevo plan maestro documenta su correspondencia con UX0–UX6 del PDF y el estado real de los avances. El alcance es diseño y frontend, sin modificar backend ni fórmulas. El plan de corrección de métricas conserva su propio seguimiento.
 
 ## Lo que ya está a favor
 

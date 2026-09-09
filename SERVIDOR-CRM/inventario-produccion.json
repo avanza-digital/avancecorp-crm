@@ -1,0 +1,3623 @@
+{
+  "projectId": "dctqcbznekcyxhjujuci",
+  "queriedAt": "2026-09-07T00:39:47.572Z",
+  "objects": [
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "actividades",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "actividades_cliente",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "agenda_ics",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "ajustes_mes_cerrado",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "alertas_reconocimientos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "backfill_multiempresa_mapa",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "cierre_mes_vendedor",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "cierres_avance_anulados",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "cierres_externos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "contrato_cuentas_pago",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "conversion_pesos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "conversion_reservas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "cuentas_bancarias",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "depositos_reclamados",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "empresas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "enfriamiento_politica",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "equipo",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversion_titulares",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversiones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionista_fusiones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionista_identificadores",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionista_leads",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionista_operaciones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionista_responsables",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "inversionistas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "lead_asignacion_sla_hitos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "lead_asignaciones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "lead_sla_ciclos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "lead_sla_etapas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "leads",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "ledger_rentabilidad",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "meta_periodos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "metas_vendedor",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "metas_vendedor_detalle",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "multiempresa_flags",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "multiempresa_idempotencia",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "objetivos_legacy_archivo",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "objetivos_vendedores_legacy_archivo",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "operaciones_cartera",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "periodos_cerrados",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "politica_abandono",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "politica_rentabilidad",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "producto_condiciones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "producto_versiones",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "productos_inversion",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "reasignaciones_analista",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "recordatorios_disponibilidad",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "rentabilidad_hitos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "sla_politica_etapas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "sla_politicas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "solicitudes_tasa",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "tareas",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "usuario_eventos",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "r",
+      "name": "verificaciones_lead",
+      "rls": true
+    },
+    {
+      "schema": "crm",
+      "kind": "v",
+      "name": "alertas_reconocimientos_vigentes",
+      "rls": false
+    },
+    {
+      "schema": "crm",
+      "kind": "v",
+      "name": "clientes_basicos",
+      "rls": false
+    },
+    {
+      "schema": "crm",
+      "kind": "v",
+      "name": "contratos_cartera",
+      "rls": false
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "agenda_reparto_cambios",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "agenda_reparto_destinos",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "agenda_reparto_diaria",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "analista_vigencia_exenciones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "analista_vigencia_tope",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "analitica_lc_sello",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "analitica_leads_citas_exenciones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "analitica_leads_citas_tope",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "auditoria_alertas",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "auditoria_condicionada",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "auditoria_exenciones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "auditoria_sello",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "ayuda_consultas",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "ayuda_expresiones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "ayuda_intenciones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "ayuda_reglas_aclaracion",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "contrato_altas_idempotentes",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "contrato_eliminaciones",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "contrato_pdf_jobs",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "contrato_pdfs",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "f7_piezas_en_observacion",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "membresias_purgadas",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "pares_autoridad",
+      "rls": true
+    },
+    {
+      "schema": "private",
+      "kind": "r",
+      "name": "vigia_alertas",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "asesores",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "audit_log",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "contrato_titulares",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "contratos",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "cronograma_pagos",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "documentos",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "novedades",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "novedades_leidas",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "perfiles",
+      "rls": true
+    },
+    {
+      "schema": "public",
+      "kind": "r",
+      "name": "suscripciones_push",
+      "rls": true
+    }
+  ],
+  "functions": [
+    {
+      "schema": "crm",
+      "name": "abandonar_conversion_gerencia_fn",
+      "args": "p_lead_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actividades_del_ambito_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_borrador_producto_inversion",
+      "args": "p_version_id uuid, p_expected_revision bigint, p_nombre text, p_descripcion text, p_vigente_desde date, p_vigente_hasta date, p_condiciones jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_capacidad_leads_objetivo",
+      "args": "p_analista_id uuid, p_capacidad_leads_objetivo integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_cliente_gerencia",
+      "args": "p_cliente_id uuid, p_patch jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_cliente_gerencia_con_domicilio",
+      "args": "p_cliente_id uuid, p_patch jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_contrato_con_cuenta",
+      "args": "p_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_contrato_con_cuenta_pdf_v3",
+      "args": "p_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_contrato_con_cuenta_producto",
+      "args": "p_id uuid, p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_contrato_producto",
+      "args": "p_id uuid, p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_jerarquia_usuario_fn",
+      "args": "p_perfil_id uuid, p_supervisor_id uuid, p_version_equipo timestamp with time zone, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_numero_contrato_pdf_v3",
+      "args": "p_id uuid, p_numero text, p_notas text, p_categoria text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "actualizar_usuario_administrable_fn",
+      "args": "p_perfil_id uuid, p_nombre_completo text, p_tipo_documento text, p_documento text, p_telefono text, p_whatsapp text, p_cargo text, p_version_perfil timestamp with time zone, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "agenda_ics_feed_fn",
+      "args": "p_token uuid, p_desde timestamp with time zone",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "agenda_reparto_diaria",
+      "args": "p_desde date, p_dias integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "alertas_reconocimientos_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "alertas_reconocimientos_sellar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "alta_cliente_identidad_fn",
+      "args": "p_paso text, p_payload jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "altas_nuevas_por_analista_fn",
+      "args": "p_meses integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "anular_cierre_avance",
+      "args": "p_lead_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "anular_cierre_externo",
+      "args": "p_cierre_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "archivar_producto_inversion",
+      "args": "p_producto_id uuid, p_expected_revision bigint",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "asignar_rol_usuario_fn",
+      "args": "p_perfil_id uuid, p_rol_crm text, p_version_equipo timestamp with time zone, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "atribucion_contrato_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "auth_usuario_por_correo_fn",
+      "args": "p_correo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "ayuda_vendedor_inicio",
+      "args": "p_vista text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "bandera_activa",
+      "args": "p_nombre text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "buscar_candidato_por_correo_fn",
+      "args": "p_correo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cartera_pagina_fn",
+      "args": "p_limite integer, p_antes_de timestamp with time zone, p_antes_id uuid, p_etapa text, p_vendedor_id uuid, p_sin_asignar boolean, p_texto text",
+      "security_definer": false
+    },
+    {
+      "schema": "crm",
+      "name": "cerrar_altas_legacy_productos",
+      "args": "p_expected_revision bigint",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cerrar_periodo",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cerrar_reunion",
+      "args": "p_tarea_id uuid, p_estado text, p_resultado_reunion text, p_motivo_no_realizada text, p_detalle text, p_siguiente jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cerrar_tarea",
+      "args": "p_tarea_id uuid, p_estado text, p_resultado_tipo text, p_resultado_detalle text, p_siguiente jsonb, p_resultado_reunion text, p_motivo_no_realizada text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "ciclo_cierre_mes",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cierre_mes_estado_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cierres_estado_fn",
+      "args": "p_lead_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cierres_externos_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cliente_detalle_fn",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cliente_eliminable_fn",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cliente_ficha_fn",
+      "args": "p_cliente_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "crm",
+      "name": "clientes_basicos_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cola_accion_fn",
+      "args": "p_limite integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "completar_domicilio_cliente",
+      "args": "p_cliente_id uuid, p_domicilio text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "configuracion_metas_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "configuracion_sla_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "consultar_ayuda_vendedor",
+      "args": "p_consulta text, p_vista text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_eliminacion_finalizar",
+      "args": "p_contrato_id uuid, p_token uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_eliminacion_preparar",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_archivo_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_estado_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_finalizar",
+      "args": "p_job_id uuid, p_lease_token uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_marcar_error",
+      "args": "p_job_id uuid, p_lease_token uuid, p_actor_id uuid, p_error_codigo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_marcar_subido",
+      "args": "p_job_id uuid, p_lease_token uuid, p_actor_id uuid, p_sha256 text, p_bytes bigint",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_reclamar",
+      "args": "p_contrato_id uuid, p_actor_id uuid, p_lease_segundos integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_reservar",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contrato_pdf_snapshot_v2",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contratos_cartera_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contratos_cartera_v2_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "contratos_por_periodo_comercial_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "conversion_mensual_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "conversion_mensual_sin_cartera_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "convertir_lead",
+      "args": "p_lead_id uuid, p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "convertir_lead_con_domicilio",
+      "args": "p_lead_id uuid, p_perfil_id uuid, p_domicilio text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "convertir_lead_externo",
+      "args": "p_lead_id uuid, p_cooperativa text, p_monto numeric, p_moneda text, p_documento_tipo text, p_documento text, p_nombre text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "corregir_cierre_externo",
+      "args": "p_cierre_id uuid, p_monto numeric, p_moneda text, p_cooperativa text, p_numero_transaccion text, p_referencia text, p_vence_en date, p_nota text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "corregir_documento_inversionista_fn",
+      "args": "p_inversionista uuid, p_tipo text, p_documento text, p_motivo text, p_identificador_anterior uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "corregir_fecha_cierre_comercial",
+      "args": "p_contrato_id uuid, p_fecha date, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_contrato_con_cuenta",
+      "args": "p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_contrato_con_cuenta_pdf_v2",
+      "args": "p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_contrato_con_cuenta_producto",
+      "args": "p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb, p_cuenta jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_contrato_producto",
+      "args": "p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_lead_si_disponible",
+      "args": "p_nombre_completo text, p_telefono text, p_origen text, p_monto_estimado numeric, p_moneda text, p_id uuid, p_correo text, p_dni text, p_genero text, p_fecha_nacimiento date, p_distrito text, p_etapa text, p_categoria_interes text, p_vendedor_id uuid, p_nota text, p_telefono_alternativo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_producto_inversion",
+      "args": "p_codigo text, p_nombre text, p_descripcion text, p_vigente_desde date, p_vigente_hasta date, p_condiciones jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "crear_version_producto_inversion",
+      "args": "p_producto_id uuid, p_expected_revision bigint, p_nombre text, p_descripcion text, p_vigente_desde date, p_vigente_hasta date, p_condiciones jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cronograma_contrato_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cuentas_bancarias_cliente_fn",
+      "args": "p_cliente_id uuid, p_moneda text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cuentas_pago_contratos_fn",
+      "args": "p_contrato_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cumplimiento_metas_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "cumplimiento_metas_sin_cartera_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "datos_legales_contrato_fn",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "derivar_leads_equipo_fn",
+      "args": "p_lead_ids uuid[], p_asesor_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "descartar_lead",
+      "args": "p_lead uuid, p_motivo text, p_nota text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "deshacer_descarte",
+      "args": "p_lead uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "destinos_importacion_por_correo_fn",
+      "args": "p_correos text[]",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "editar_lead_fn",
+      "args": "p_lead_id uuid, p_cambios jsonb",
+      "security_definer": false
+    },
+    {
+      "schema": "crm",
+      "name": "eliminar_cliente_fn",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "enlazar_lead_inversionista_fn",
+      "args": "p_lead_id uuid, p_inversionista uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "equipo_visible_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "estado_sla_leads_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "existe_cliente_por_dni",
+      "args": "p_dni text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "fijar_dni_lead_fn",
+      "args": "p_lead_id uuid, p_dni text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "fijar_membresia_activa_fn",
+      "args": "p_perfil_id uuid, p_activo boolean, p_reemplazo_id uuid, p_version_equipo timestamp with time zone, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "fusion_previsualizar_fn",
+      "args": "p_perdedora uuid, p_canonica uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "fusionar_inversionistas_fn",
+      "args": "p_perdedora uuid, p_canonica uuid, p_motivo text, p_hash text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "guardar_agenda_reparto_diaria",
+      "args": "p_fecha date, p_landing uuid, p_formulario uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "historial_derivaciones",
+      "args": "p_limite integer, p_derivado_antes timestamp with time zone, p_actividad_antes uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "impacto_desactivacion_usuario_fn",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "importar_lead_fn",
+      "args": "p_fila jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "ingresos_reparto_mes_fn",
+      "args": "p_mes date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "leads_descartados",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "leads_por_repartir",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "levantar_no_contactar",
+      "args": "p_lead_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "marcar_efectos_conversion",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "marcar_efectos_conversion",
+      "args": "p_lead_id uuid, p_claim_id uuid, p_token text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "marcar_no_contactar",
+      "args": "p_lead_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_agenda_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_altas_analista_fn",
+      "args": "p_meses integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_capital_mes_fn",
+      "args": "p_meses integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_cartera_fn",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_conversiones_equipo_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_conversiones_fn",
+      "args": "p_desde date, p_hasta date, p_origen text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_distribucion_leads_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_distribucion_leads_v2_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_distribucion_leads_v3_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_pagos_mes_fn",
+      "args": "p_meses integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_reuniones_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_sla_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_vencimientos_fn",
+      "args": "p_dias integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "metricas_vendedores_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "mi_acceso_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "normalizar_domicilio_legal",
+      "args": "p_domicilio text",
+      "security_definer": false
+    },
+    {
+      "schema": "crm",
+      "name": "observacion_rentabilidad_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "panel_distribucion_reparto",
+      "args": "p_supervisor uuid, p_analista uuid, p_origen text, p_solo_activos boolean",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "politica_abandono_sellar_autoria",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "productos_inversion_gestion_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "productos_inversion_seleccion_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "publicar_metas_vendedores",
+      "args": "p_periodo date, p_expected_revision integer, p_metas jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "publicar_politica_rentabilidad_fn",
+      "args": "p_expected_version integer, p_config jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "publicar_politica_sla",
+      "args": "p_expected_version integer, p_vigente_desde timestamp with time zone, p_config jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "publicar_version_producto_inversion",
+      "args": "p_version_id uuid, p_expected_revision bigint",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "purgar_membresia_crm",
+      "args": "p_perfil_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reabrir_lead_fn",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reasignar_responsable_relacion_fn",
+      "args": "p_inversionista uuid, p_nuevo_responsable uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "recordatorios_disponibilidad_sellar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "registrar_candidato_usuario_fn",
+      "args": "p_perfil_id uuid, p_correo text, p_nombre_completo text, p_tipo_documento text, p_documento text, p_telefono text, p_whatsapp text, p_cargo text, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "registrar_reingreso_lead_fn",
+      "args": "p_lead_id uuid, p_origen text, p_datos jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "registrar_vendedor_usuario_fn",
+      "args": "p_perfil_id uuid, p_correo text, p_nombre_completo text, p_tipo_documento text, p_documento text, p_telefono text, p_whatsapp text, p_cargo text, p_supervisor_id uuid, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "repartir_lead",
+      "args": "p_lead uuid, p_supervisor uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reporte_derivaciones_coordinacion_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reporte_derivaciones_equipo_fn",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reprogramar_reunion",
+      "args": "p_tarea_id uuid, p_vence_en timestamp with time zone, p_nueva_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "rescatar_descartes",
+      "args": "p_episodios uuid[], p_analistas_destino uuid[], p_evitar_asesor_origen boolean",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "rescate_descartes_mes",
+      "args": "p_mes date",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "rescate_descartes_meses",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reservar_conversion_lead",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "reservar_conversion_lead",
+      "args": "p_lead_id uuid, p_tipo_documento text, p_documento text, p_payload jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resolver_solicitud_tasa_fn",
+      "args": "p_solicitud_id uuid, p_decision text, p_tasa_maxima numeric, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resolver_tasa_fn",
+      "args": "p_cliente_id uuid, p_categoria text, p_contrato_origen_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "responder_tope_tasa_fn",
+      "args": "p_solicitud_id uuid, p_acepta boolean, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resumen_cartera_clientes_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resumen_cartera_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resumen_reparto_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "resumen_tareas_fn",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "retomar_conversion_gerencia_fn",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "revertir_derivacion_equipo_fn",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "saga_conversion_fn",
+      "args": "p_paso text, p_payload jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "series_comerciales_fn",
+      "args": "p_meses integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "solicitar_tasa_fn",
+      "args": "p_solicitud jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "supervisores_para_reparto",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "titulares_contrato_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "tomar_lead_libre",
+      "args": "p_telefono text, p_dni text",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "usuarios_administrables_fn",
+      "args": "p_busqueda text, p_limite integer, p_desde integer",
+      "security_definer": true
+    },
+    {
+      "schema": "crm",
+      "name": "verificar_disponibilidad_lead",
+      "args": "p_telefono text, p_dni text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "actualizar_capacidad_leads_objetivo_implementacion",
+      "args": "p_analista_id uuid, p_capacidad_leads_objetivo integer",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "agenda_ics_feed_implementacion",
+      "args": "p_token uuid, p_desde timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "ajuste_pendiente_por_vendedor",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "analista_atribuido_cadena",
+      "args": "p_contrato_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "asegurar_identidad_perfil",
+      "args": "p_perfil_id uuid, p_fuente text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "assert_analista_vigencia",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "assert_analitica_leads_citas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "assert_auditoria",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "assert_f7_piezas_cerradas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "backfill_multiempresa_ejecutar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_borrado_domicilio_legal",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_contactos_lead",
+      "args": "p_telefonos text[], p_dnis text[]",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_contratos_hijo_documental",
+      "args": "p_contrato_a uuid, p_contrato_b uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_fila_contrato_pdf",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_leads_nowait",
+      "args": "p_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_mutacion_contrato_pdf",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "bloquear_personas_de_leads",
+      "args": "p_leads uuid[], p_dni_extra text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "caducar_alertas_reconocimientos",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "caducar_recordatorios_disponibilidad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "cancelar_tareas_pendientes_lead",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "canonizar_contacto",
+      "args": "p text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "capital_autorizada",
+      "args": "p_desde date, p_hasta date, p_medida text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "capital_episodios",
+      "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_global boolean, p_visibles uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "cierre_anulado",
+      "args": "p_lead_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "cierre_externo_anulado",
+      "args": "p_lead_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "cierre_mes_pendiente",
+      "args": "p_antes_de date",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "cierre_mes_ventana_desde",
+      "args": "p_periodo date",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "cierre_mes_visible",
+      "args": "p_periodo date, p_uid uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "citas_episodios",
+      "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_ahora timestamp with time zone",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "clasificar_movimiento_tenencia",
+      "args": "p_vendedor_anterior uuid, p_vendedor_nuevo uuid, p_supervisor_anterior uuid, p_supervisor_nuevo uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "cliente_ficha_autorizada_fn",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "cliente_ids_visibles_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "consulta_contiene_termino_ayuda",
+      "args": "p_consulta_normalizada text, p_termino text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "contadores_crudos_leads_citas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_documental_congelado",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_documental_regimen",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_en_eliminacion",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_pdf_archivo_base",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_pdf_estado_base",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contrato_pdf_snapshot_v2_base",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "contratos_afectados_por_anulacion",
+      "args": "p_lead_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "conversion_con_ajuste",
+      "args": "p_numerador numeric, p_pendiente numeric",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "conversion_episodios",
+      "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "conversion_mensual_pct_para_series",
+      "args": "p_mes date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "conversion_mensual_por_vendedor",
+      "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_global boolean, p_visibles uuid[], p_factor numeric",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "conversion_punteria",
+      "args": "p_convertidos integer, p_descartados integer",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "crear_job_contrato_pdf_base",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "crear_revision_contrato_pdf_base",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "crear_siguiente_tarea",
+      "args": "p_anterior crm.tareas, p_siguiente jsonb, p_reagendada_de uuid, p_uid uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "crear_snapshot_producto_legacy",
+      "args": "p_contrato_id uuid, p_categoria text, p_moneda text, p_modalidad text, p_tipo_interes text, p_capital numeric, p_tasa_anual numeric, p_fecha_inicio date, p_fecha_vencimiento date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "cumple_grupos_ayuda",
+      "args": "p_consulta_normalizada text, p_grupos jsonb",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "definir_periodo_comercial_contrato",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "descartar_lead_implementacion",
+      "args": "p_lead uuid, p_motivo text, p_nota text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "deshacer_descarte_implementacion",
+      "args": "p_lead uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "documento_es_de_identidad",
+      "args": "p_inv uuid, p_tipo text, p_documento text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "enlazar_lead_reabierto",
+      "args": "p_lead_id uuid, p_inv uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "enmascarar_claves",
+      "args": "p_fila jsonb, p_claves text[]",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "es_analista_vigente",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "es_destino_crm_activo",
+      "args": "p_perfil_id uuid, p_roles text[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "es_directorio_crm_activo",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "es_gerencia_crm_activa",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "es_lector_global",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "es_superadmin_portal_activo",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "etiqueta_mes_es",
+      "args": "p_mes date",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "f2_mapear",
+      "args": "p_fuente text, p_fila uuid, p_inv uuid, p_clase text, p_regla text, p_confianza text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "filtrar_desglose_sujetos_crm",
+      "args": "p_payload jsonb, p_clave text, p_clave_id text, p_roles text[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "fusion_bloqueos",
+      "args": "p_perdedora uuid, p_canonica uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "fusion_estado_jsonb",
+      "args": "p_a uuid, p_b uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "huella_exenciones",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "huella_exenciones_analitica_lc",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "huella_solicitud_tasa",
+      "args": "p_cliente_id uuid, p_categoria text, p_contrato_origen_id uuid, p_producto_condicion_id uuid, p_capital numeric, p_moneda text, p_modalidad text, p_tipo_interes text, p_fecha_inicio date, p_fecha_vencimiento date",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "idem_guardar",
+      "args": "p_clave text, p_tipo text, p_hash text, p_resultado jsonb, p_por uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "idem_hash",
+      "args": "p_payload jsonb",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "idem_leer",
+      "args": "p_clave text, p_hash text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "identidad_bloquear_documento",
+      "args": "p_tipo text, p_documento text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "identidad_bloquear_documentos_de",
+      "args": "p_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "identidad_bloquear_persona",
+      "args": "p_tipo text, p_documento text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inicio_ciclo_lead",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "insertar_condiciones_producto",
+      "args": "p_version_id uuid, p_condiciones jsonb, p_actor uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversion_titular_coherente",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversiones_empresa_coherente",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_canonica",
+      "args": "p_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_fusion_destino_activo",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_fusiones_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_operaciones_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_por_documento",
+      "args": "p_tipo text, p_documento text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "inversionista_resolver",
+      "args": "p_tipo text, p_documento text, p_verificado boolean, p_fuente text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "juicio_persona",
+      "args": "p_inv uuid, p_excluir_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "juicio_reapertura",
+      "args": "p_lead_id uuid, p_telefono text, p_dni_tecleado text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "lead_dentro_de_bloqueo",
+      "args": "p_lead_id uuid, p_bloqueo jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "lead_persona_reabrir",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_before_insert",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_before_update",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_de_identidades",
+      "args": "p_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_de_persona_veto",
+      "args": "p_inv uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_de_personas",
+      "args": "p_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_descartados_implementacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_por_repartir_implementacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_protege_inversionista_id",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "leads_vetados_persona",
+      "args": "p_lead_ids uuid[]",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "log_audit_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "log_audit_sin_secretos",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "membresia_crm_revocada",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metadata_condicion_producto",
+      "args": "p_condicion_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_agenda_implementacion",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_cartera_por_vendedor",
+      "args": "p_periodo date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_conversiones_implementacion",
+      "args": "p_desde date, p_hasta date, p_origen text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_distribucion_leads_autorizada",
+      "args": "p_desde date, p_hasta date, p_version smallint",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_distribucion_leads_core",
+      "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "metricas_distribucion_leads_v2_core",
+      "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "metricas_distribucion_leads_v3_core",
+      "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "metricas_reuniones_implementacion",
+      "args": "p_desde date, p_hasta date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "metricas_sla_global_core",
+      "args": "p_desde date, p_hasta date, p_ahora timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "motivo_sin_documento",
+      "args": "p_motivo text, p_docs text[]",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "mutacion_documental_autorizada",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "nombre_archivo_contrato_pdf",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "normalizar_consulta_ayuda",
+      "args": "p_texto text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "normalizar_telefono",
+      "args": "p text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "normalizar_texto_ayuda",
+      "args": "p_texto text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "par_autoridad_valido",
+      "args": "p_rol_portal text, p_rol_crm text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "persona_en_conversion",
+      "args": "p_inv uuid, p_excluir_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "persona_vetada",
+      "args": "p_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "persona_vetada_perfil",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "personas_de_perfil",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "peso_referido_conversion",
+      "args": "p_mes date",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "poder_eliminar_contrato_como",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "politica_rentabilidad_vigente",
+      "args": "p_instante timestamp with time zone",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "produccion_mes_por_vendedor",
+      "args": "p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "producto_inversion_tiene_version_visible",
+      "args": "p_producto_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_contrato_documental",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_cronograma_documental",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_documento_contrato_eliminacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_job_contrato_pdf",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_titulares_documentales",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "proteger_version_publicada_ayuda",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "puede_acceder_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_alta_cliente",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_asignar_destino_tarea",
+      "args": "p_vendedor_id uuid, p_supervisor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_consultar_cliente_ficha",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_gestionar_contratos_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_gestionar_cuentas_cliente",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_gestionar_tarea_cliente",
+      "args": "p_cliente_id uuid, p_vendedor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_leer_contrato_pdf",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_leer_contrato_pdf_como",
+      "args": "p_contrato_id uuid, p_actor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_listar_usuarios_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_operar_reparto_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_operar_tasa_cliente",
+      "args": "p_cliente_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_registrar_ventas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_ver_cartera",
+      "args": "p_perfil_id uuid, p_propietario_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puede_ver_catalogo_productos",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "puertas_analista_sin_vigencia",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "rango_capital_pen",
+      "args": "p_monto numeric",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "redactar_consulta_ayuda",
+      "args": "p_texto text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "redactar_pii",
+      "args": "p_texto text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "registrar_ajuste_si_mes_cerrado",
+      "args": "p_lead_id uuid, p_motivo text, p_por uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "registrar_consulta_ayuda",
+      "args": "p_usuario_id uuid, p_vista text, p_consulta text, p_resultado text, p_intencion_id bigint, p_puntuacion numeric, p_segunda_puntuacion numeric, p_motivo text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "registrar_evento_usuario",
+      "args": "p_accion text, p_objetivo_id uuid, p_detalle jsonb, p_idempotencia uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "repartir_lead_implementacion",
+      "args": "p_lead uuid, p_supervisor uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "resolver_en_puertas_bajo_candado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "resolver_tasa",
+      "args": "p_cliente_id uuid, p_categoria text, p_contrato_origen_id uuid, p_instante timestamp with time zone",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "resolver_tasa",
+      "args": "p_cliente_id uuid, p_categoria text, p_contrato_origen_id uuid, p_instante timestamp with time zone, p_contrato_nuevo_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "retroceso_por_anular_reunion",
+      "args": "p_lead_id uuid, p_tarea_id uuid, p_uid uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "rol_crm",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "roster_metas_vendedores",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "saga_auth_avanzar",
+      "args": "p_claim_id uuid, p_token text, p_estado text, p_auth_user_id uuid, p_perfil_id uuid, p_version integer",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "saga_auth_localizar",
+      "args": "p_claim_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "saga_auth_reclamar",
+      "args": "p_inv uuid, p_tipo text, p_payload jsonb, p_lead_id uuid, p_token text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "saga_token_hash",
+      "args": "p_token text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "saldar_ajustes",
+      "args": "p_vendedor uuid, p_numerador_disponible numeric, p_pen_disponible numeric, p_usd_disponible numeric",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "sanitizar_sujetos_distribucion_crm",
+      "args": "p_payload jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "set_actualizado_en_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "siguiente_numero_contrato",
+      "args": "p_anio integer",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "sla_politica_vigente",
+      "args": "p_instante timestamp with time zone",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "supervisores_para_reparto_implementacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "tablas_sin_rastro",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "toma_asienta_y_devuelve",
+      "args": "p_actor uuid, p_telefono_tecleado text, p_telefono_norm text, p_dni text, p_veredicto jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_actividades_avance_etapa",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_actividades_cliente_veto_persona",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_actividades_sla_versionado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_ajustes_mes_cerrado_solo_saldar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_analista_vigencia_tope_no_truncar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_analista_vigencia_tope_solo_baja",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_analitica_lc_exenciones_no_borrar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_analitica_lc_tope_no_truncar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_analitica_lc_tope_solo_baja",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_archivo_metas_legacy_inmutable",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cierre_mes_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cierres_avance_anulados_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cierres_externos_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cliente_historial_reasignacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cliente_reasigna_tareas_pendientes",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_config_versionada_inmutable",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contrato_cuenta_pago_coherente",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contrato_cuenta_pago_inmutable",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contrato_exige_operacion_cartera",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contratos_analista_solo_por_la_puerta",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contratos_demo_no_nace_marcado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contratos_demo_solo_por_la_puerta",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contratos_observar_rentabilidad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_contratos_producto_snapshot",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_cuentas_bancarias_version_inmutable",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_depositos_reclamados_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_devolucion_equipo_solo_rpc",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_equipo_no_borrar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_equipo_par_autoridad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_f7_obs_no_borrar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_f7_obs_solo_crece",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_gestion_lead_serializada",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignacion_sla_hitos_guard",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignaciones_completar_sla_global",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignaciones_crear_sla_hitos",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignaciones_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignaciones_sla_global_inmutable",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_asignaciones_sla_versionado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_sla_ciclos_guard",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_lead_sla_etapas_guard",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_asignaciones",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_bloquear_reasignacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_cambio_etapa",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_disponibilidad_atomica",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_guard_tenencia",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_hereda_veto_persona",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_no_contactar_solo_puerta",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_normalizar_telefono",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_reasignacion",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_sla_global",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_sla_versionado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_sync_tareas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_tenencia_desde",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_zz_enlaza_identidad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_zz_puente_identidad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_zz_reapertura_solo_rpc",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_leads_zz_sello_descarte",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_ledger_rentabilidad_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_metas_no_bajo_mes_sellado",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_multiempresa_flags_serializa_puertas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_operaciones_cartera_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_pares_autoridad_no_borrar",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_perfiles_documento_protegido",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_perfiles_equipo_rol_invariante",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_perfiles_par_autoridad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_preparar_eliminacion_operacion_cartera",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_producto_condiciones_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_producto_versiones_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_productos_inversion_inmutables",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_reasignaciones_append_only",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_restaurar_operacion_antes_borrar_contrato",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_rotar_agenda_ics_offboarding",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_solicitudes_tasa_solo_por_puerta",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_tareas_avance_etapa",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_tareas_before_insert",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_tareas_before_update",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_tareas_destino_efectivo",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_tareas_veto_persona_perfil",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "trg_validar_equipo_usuario_crm",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "umbral_estancamiento",
+      "args": "p_etapa text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "validar_cabecera_version_producto",
+      "args": "p_nombre text, p_descripcion text, p_vigente_desde date, p_vigente_hasta date",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "validar_datos_usuario_crm",
+      "args": "p_nombre_completo text, p_tipo_documento text, p_documento text, p_telefono text, p_whatsapp text, p_cargo text",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "validar_equipo_usuario_crm",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "validar_supervisor_usuario_crm",
+      "args": "p_perfil_id uuid, p_rol_crm text, p_supervisor_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vencer_solicitudes_tasa",
+      "args": "p_solicitud_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vendedor_acreditado_del_cierre",
+      "args": "p_lead_id uuid",
+      "security_definer": false
+    },
+    {
+      "schema": "private",
+      "name": "vendedor_ids_visibles",
+      "args": "p_perfil_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vendedores_sin_supervisor",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "veredicto_f7",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "verificar_disponibilidad_lead_impl",
+      "args": "p_telefono text, p_dni text",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "verificar_disponibilidad_lead_impl",
+      "args": "p_telefono text, p_dni text, p_excluir_lead_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vigia_analista_vigencia",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vigia_analitica_leads_citas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vigia_auditoria",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vigia_f7_piezas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "private",
+      "name": "vocabulario_cubre_consulta_ayuda",
+      "args": "p_consulta_normalizada text, p_vocabulario_normalizado text",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "_sync_contrato_titulares",
+      "args": "p_contrato_id uuid, p_titulares jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "actualizar_contrato",
+      "args": "p_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "actualizar_contrato_con_cuenta_producto",
+      "args": "p_id uuid, p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "actualizar_contrato_producto",
+      "args": "p_id uuid, p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "actualizar_numero_contrato",
+      "args": "p_id uuid, p_numero text, p_notas text, p_categoria text",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "admin_pagos_metricas",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "admin_pagos_resumen",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "bandeja_actividad",
+      "args": "p_limit integer, p_offset integer",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "cerrar_contrato",
+      "args": "p_id uuid, p_resultado text, p_contrato_nuevo_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "contrato_tiene_pagos",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "crear_contrato",
+      "args": "p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "crear_contrato_producto",
+      "args": "p_producto_condicion_id uuid, p_contrato jsonb, p_cronograma jsonb",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "dashboard_admin_metricas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "directorio_morosidad",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "directorio_ranking_analistas",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "directorio_top_clientes",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_admin",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_analista",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_directorio",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_gestor_cartera",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_operaciones",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "es_superadmin",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "log_audit_change",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "marcar_contrato_demo",
+      "args": "p_contrato_id uuid, p_es_demo boolean, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "marcar_contratos_vencidos",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "metricas_directorio",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "mi_rol",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "normalizar_nombre_mayusculas",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "normalizar_nombres_perfiles",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "obtener_mi_asesor",
+      "args": "",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "pagos_admin_metricas_globales",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "pagos_admin_resumen_contratos",
+      "args": "p_tab text, p_busqueda text, p_moneda text, p_offset integer, p_limit integer",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "perfiles_cuentas_no_vaciar",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "productos_inversion_seleccion_fn",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "proteger_campos_inmutables",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "proteger_cuotas_contrato_cerrado",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "puede_ver_contrato",
+      "args": "p_contrato_id uuid",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "reasignar_analista_contrato",
+      "args": "p_contrato_id uuid, p_analista_id uuid, p_motivo text",
+      "security_definer": true
+    },
+    {
+      "schema": "public",
+      "name": "set_actualizado_en",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "validar_transicion_estado_contrato",
+      "args": "",
+      "security_definer": false
+    },
+    {
+      "schema": "public",
+      "name": "verificar_cron_secret",
+      "args": "p_secret text",
+      "security_definer": true
+    }
+  ],
+  "edgeFunctions": {
+    "functions": [
+      {
+        "id": "b65c8aaf-dc2b-4988-8c5b-17cb38950e98",
+        "slug": "crear-cliente",
+        "name": "crear-cliente",
+        "status": "ACTIVE",
+        "version": 33,
+        "created_at": 1777123723593,
+        "updated_at": 1788726944204,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_b65c8aaf-dc2b-4988-8c5b-17cb38950e98_33/source/supabase/functions/crear-cliente/index.ts",
+        "ezbr_sha256": "2b9f36fa8c5df28e141095428172d570fb57811f8225c8c1da82286af19d199d"
+      },
+      {
+        "id": "4acabcfa-d1a7-46fb-b651-4e5a1ab96f9f",
+        "slug": "crear-admin",
+        "name": "crear-admin",
+        "status": "ACTIVE",
+        "version": 18,
+        "created_at": 1777607651485,
+        "updated_at": 1787528019784,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_xoyeqftdfxmshjqswdey_4acabcfa-d1a7-46fb-b651-4e5a1ab96f9f_17/source/supabase/functions/crear-admin/index.ts",
+        "ezbr_sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340"
+      },
+      {
+        "id": "a1199ced-9915-4095-9e39-68ed6a00115a",
+        "slug": "enviar-comunicado",
+        "name": "enviar-comunicado",
+        "status": "ACTIVE",
+        "version": 15,
+        "created_at": 1777617092145,
+        "updated_at": 1787033421745,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_a1199ced-9915-4095-9e39-68ed6a00115a_10/source/index.ts",
+        "ezbr_sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d"
+      },
+      {
+        "id": "ed7341cd-bf2e-42c6-b42d-f3675cc1540d",
+        "slug": "enviar-push",
+        "name": "enviar-push",
+        "status": "ACTIVE",
+        "version": 7,
+        "created_at": 1777698396571,
+        "updated_at": 1787033421745,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_ed7341cd-bf2e-42c6-b42d-f3675cc1540d_2/source/index.ts",
+        "ezbr_sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4"
+      },
+      {
+        "id": "ae83c926-2099-40a0-9d6b-3e52042c8b48",
+        "slug": "diagnostico-push",
+        "name": "diagnostico-push",
+        "status": "ACTIVE",
+        "version": 7,
+        "created_at": 1777764672918,
+        "updated_at": 1787033421745,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_ae83c926-2099-40a0-9d6b-3e52042c8b48_2/source/index.ts",
+        "ezbr_sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f"
+      },
+      {
+        "id": "f5c3da7d-020c-425b-bd5d-90c5204886f0",
+        "slug": "resetear-password",
+        "name": "resetear-password",
+        "status": "ACTIVE",
+        "version": 7,
+        "created_at": 1778535926219,
+        "updated_at": 1787033421745,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_f5c3da7d-020c-425b-bd5d-90c5204886f0_2/source/index.ts",
+        "ezbr_sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef"
+      },
+      {
+        "id": "bdf860a0-5f58-41b4-9320-c886f1af2d80",
+        "slug": "eliminar-cliente",
+        "name": "eliminar-cliente",
+        "status": "ACTIVE",
+        "version": 8,
+        "created_at": 1779671199637,
+        "updated_at": 1788727164976,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_bdf860a0-5f58-41b4-9320-c886f1af2d80_8/source/supabase/functions/eliminar-cliente/index.ts",
+        "ezbr_sha256": "0aa8edc4861a8e3409f0014735167f9d8cdd53047ae4713ea4b9e3193b3b65ec"
+      },
+      {
+        "id": "2b12a2a1-94c4-4563-85c8-d3ce4b20ce92",
+        "slug": "notificar-pagos",
+        "name": "notificar-pagos",
+        "status": "ACTIVE",
+        "version": 9,
+        "created_at": 1779772609645,
+        "updated_at": 1787033421745,
+        "verify_jwt": false,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_2b12a2a1-94c4-4563-85c8-d3ce4b20ce92_4/source/index.ts",
+        "ezbr_sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6"
+      },
+      {
+        "id": "faf96e8c-1fc3-4c21-a13f-0b66fd47cf6e",
+        "slug": "importar-clientes",
+        "name": "importar-clientes",
+        "status": "ACTIVE",
+        "version": 15,
+        "created_at": 1779774640122,
+        "updated_at": 1788726979130,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_faf96e8c-1fc3-4c21-a13f-0b66fd47cf6e_15/source/supabase/functions/importar-clientes/index.ts",
+        "ezbr_sha256": "2b914a736407dd68e294571f3745e8cb51e2bbf3e68c5f2ceb1eb458ca29926a"
+      },
+      {
+        "id": "12b85029-320e-48c6-88f6-a14666fb266e",
+        "slug": "ciclo-contratos",
+        "name": "ciclo-contratos",
+        "status": "ACTIVE",
+        "version": 6,
+        "created_at": 1783974277750,
+        "updated_at": 1787033421745,
+        "verify_jwt": false,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_irkjrcotuxnbshvjqyfc_0c5874f3-81db-4678-9fc5-467b7db2eb43_4/source/index.ts",
+        "ezbr_sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb"
+      },
+      {
+        "id": "7da287c5-0e8b-4b6b-b4f4-ff92d0bf20d6",
+        "slug": "crm-convertir-lead",
+        "name": "crm-convertir-lead",
+        "status": "ACTIVE",
+        "version": 14,
+        "created_at": 1784161786822,
+        "updated_at": 1788726896667,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_7da287c5-0e8b-4b6b-b4f4-ff92d0bf20d6_14/source/supabase/functions/crm-convertir-lead/index.ts",
+        "ezbr_sha256": "b04647bd31da3ab48a789a1dfdcce2d8e73c6e111911e07cd9d3482c77d1515a"
+      },
+      {
+        "id": "21f4fdf2-1157-4de6-a69d-591c732542f4",
+        "slug": "crm-tipo-cambio",
+        "name": "crm-tipo-cambio",
+        "status": "ACTIVE",
+        "version": 8,
+        "created_at": 1784388238288,
+        "updated_at": 1788360794639,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_21f4fdf2-1157-4de6-a69d-591c732542f4_8/source/supabase/functions/crm-tipo-cambio/index.ts",
+        "ezbr_sha256": "483a1e154d21414b1474aa78eaeba9a9194d97916fc04f701d4557806e739f0e"
+      },
+      {
+        "id": "013735cc-5192-4599-a43f-7565b5bda97f",
+        "slug": "crm-agenda-ics",
+        "name": "crm-agenda-ics",
+        "status": "ACTIVE",
+        "version": 7,
+        "created_at": 1784394942006,
+        "updated_at": 1787033421745,
+        "verify_jwt": false,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_013735cc-5192-4599-a43f-7565b5bda97f_4/source/CRM-Avance-Corp/supabase/functions/crm-agenda-ics/index.ts",
+        "ezbr_sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5"
+      },
+      {
+        "id": "b826cd35-8041-4abc-b5ea-e2017850426b",
+        "slug": "crm-importar-leads",
+        "name": "crm-importar-leads",
+        "status": "ACTIVE",
+        "version": 19,
+        "created_at": 1784564403428,
+        "updated_at": 1788706837826,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_b826cd35-8041-4abc-b5ea-e2017850426b_19/source/supabase/functions/crm-importar-leads/index.ts",
+        "ezbr_sha256": "db1e3eb1b55868737be90af98b1b0618813aa0a75e9c9308c6b65d9338ce9ccf"
+      },
+      {
+        "id": "2fe20750-4167-4db0-a89f-4c9debc1da6a",
+        "slug": "crm-usuarios",
+        "name": "crm-usuarios",
+        "status": "ACTIVE",
+        "version": 7,
+        "created_at": 1786205983101,
+        "updated_at": 1787528019784,
+        "verify_jwt": true,
+        "import_map": false,
+        "entrypoint_path": "file:///tmp/user_fn_xoyeqftdfxmshjqswdey_2fe20750-4167-4db0-a89f-4c9debc1da6a_6/source/index.ts",
+        "ezbr_sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658"
+      },
+      {
+        "id": "0d5942fa-d3bf-40c4-b511-8dc0ce1f039c",
+        "slug": "crm-contrato-pdf-v2",
+        "name": "crm-contrato-pdf-v2",
+        "status": "ACTIVE",
+        "version": 12,
+        "created_at": 1787018749397,
+        "updated_at": 1788290273983,
+        "verify_jwt": true,
+        "import_map": true,
+        "entrypoint_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_0d5942fa-d3bf-40c4-b511-8dc0ce1f039c_12/source/supabase/functions/crm-contrato-pdf-v2/index.ts",
+        "import_map_path": "file:///tmp/user_fn_dctqcbznekcyxhjujuci_0d5942fa-d3bf-40c4-b511-8dc0ce1f039c_12/source/supabase/functions/crm-contrato-pdf-v2/deno.json",
+        "ezbr_sha256": "dd58e3c9dec2dd9f716ce395badfde7d6684c4334494468ed97e95116be294cc"
+      }
+    ]
+  }
+}

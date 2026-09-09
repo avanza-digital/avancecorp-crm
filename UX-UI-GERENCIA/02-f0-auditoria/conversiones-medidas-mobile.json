@@ -1,0 +1,53 @@
+{
+  "headings": [
+    {
+      "text": "Conversiones",
+      "y": 18
+    },
+    {
+      "text": "Conversión del equipo",
+      "y": 400
+    },
+    {
+      "text": "Llegadas con cita realizada",
+      "y": 1154
+    },
+    {
+      "text": "Operaciones elegidas para conversión",
+      "y": 1914
+    },
+    {
+      "text": "Cierres por semana de cierre",
+      "y": 2359
+    },
+    {
+      "text": "Qué recibimos y qué resultado tuvieron esas llegadas",
+      "y": 2927
+    },
+    {
+      "text": "Resultados por analista",
+      "y": 3764
+    },
+    {
+      "text": "Avance comercial inferido",
+      "y": 4411
+    },
+    {
+      "text": "Resultados por origen",
+      "y": 4979
+    },
+    {
+      "text": "Capital vinculado por origen",
+      "y": 5183
+    },
+    {
+      "text": "Resultados por semana de llegada",
+      "y": 5384
+    }
+  ],
+  "horizontalOverflow": false,
+  "viewport": {
+    "height": 844,
+    "width": 390
+  }
+}

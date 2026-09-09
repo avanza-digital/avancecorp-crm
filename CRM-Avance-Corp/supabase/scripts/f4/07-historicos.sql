@@ -1,4 +1,4 @@
--- Continuación F4. Integrada en la candidata; sin ejecución productiva.
+-- Borrador de continuación F4. Aún no integrado en la migración candidata.
 -- Previsualización administrativa: no crea identidades, no modifica fuentes ni
 -- documentos, no asigna responsables. El escritor del lote se construye aparte.
 create or replace function private.inversion_historica_estado(p_tipo text,p_id uuid)

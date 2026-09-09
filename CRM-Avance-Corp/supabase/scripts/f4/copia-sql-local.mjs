@@ -7,8 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { banco, contenedor, literal } from './banco-local.mjs';
 
-export function crearCopiaSql(etiqueta, {baseOrigen='postgres'} = {}) {
-  assert(baseOrigen==='postgres'||/^f4_pre_fcuatro_[a-f0-9]{12}$/.test(baseOrigen), 'Origen de copia no permitido');
+export function crearCopiaSql(etiqueta) {
   assert(/^[a-z_]{1,24}$/.test(etiqueta));
   const id = randomUUID();
   const nombre = `f4_${etiqueta}_${id.replaceAll('-', '').slice(0,12)}`;
@@ -25,7 +24,7 @@ export function crearCopiaSql(etiqueta, {baseOrigen='postgres'} = {}) {
   try {
     // pg_cron solo puede instalarse en la base del planificador; sus tareas y
     // replicación no forman parte de este ensayo y no deben arrancar duplicadas.
-    ejecutar(['pg_dump','-U','supabase_admin','-d',baseOrigen,'-Fc',
+    ejecutar(['pg_dump','-U','supabase_admin','-d','postgres','-Fc',
       '--exclude-extension=pg_cron','--exclude-schema=cron','--no-publications','--no-subscriptions'],
     { stdio: ['ignore',fd,'pipe'] });
   } finally { closeSync(fd); }
@@ -36,8 +35,8 @@ export function crearCopiaSql(etiqueta, {baseOrigen='postgres'} = {}) {
       { stdio: [entrada,'pipe','pipe'] });
   } finally { closeSync(entrada); }
 
-  function sql(texto, {admin=false} = {}) {
-    return ejecutar(['psql','-X','-qAt','-U',admin?'supabase_admin':'postgres','-d',nombre,
+  function sql(texto) {
+    return ejecutar(['psql','-X','-qAt','-U','postgres','-d',nombre,
       '-v','ON_ERROR_STOP=1','-f','-'], { input: `set timezone='America/Lima';\n${texto}\n` });
   }
   function abrirSesion(aplicacion) {
@@ -59,7 +58,7 @@ export function crearCopiaSql(etiqueta, {baseOrigen='postgres'} = {}) {
       cerrar: (texto = 'rollback;') => { p.stdin.end(`${texto}\n`); return terminado; },
       terminado, salida: () => salida };
   }
-  async function esperar(predicado, mensaje, plazo = 2500) {
+  async function esperar(predicado, mensaje, plazo = 4500) {
     const hasta = Date.now() + plazo;
     while (Date.now() < hasta) {
       if (predicado()) return;

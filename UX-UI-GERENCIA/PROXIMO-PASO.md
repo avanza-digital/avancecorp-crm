@@ -1,28 +1,14 @@
-# Qué sigue
+# Reinicio visual · 6 de septiembre
 
-## 1. Revisar el bloque A preparado en Figma
+Miguel prefiere el aspecto de su CRM actual y pidió comenzar de nuevo la propuesta. El [plan maestro](01-plan/PLAN-MAESTRO.md) conserva UX0–UX6 y los bloques A–D; el [historial de decisiones](01-plan/DECISIONES.md) registra el cambio de dirección.
 
-UX1 dispone de un [catálogo con correspondencia al CRM](03-componentes/CATALOGO-UX1.md) y tres composiciones nuevas sobre la biblioteca propia. UX2 dispone de ocho vistas revisables: Resumen, Conversiones y comparación en escritorio/móvil, más los dos paneles de filtros móviles.
+1. Conservar el intento local aparte. **Hecho:** once archivos de frontend/pruebas y las capturas disponibles guardados en [intento-no-aprobado](07-implementacion/bloque-a-2026-09-06/intento-no-aprobado/README.md), con huellas verificadas. El frontend activo todavía conserva ese intento.
+2. Capturar y comparar el CRM actual que Miguel aprecia con la propuesta local. Identificar elementos que conservar y cambios que realmente mejoren la lectura comercial.
+3. Preparar una nueva composición de Resumen en Figma usando su marca, componentes, gráficos y datos disponibles. Mostrarla antes de extender la implementación.
+4. Tras revisar esa dirección con Miguel, retomar Resumen escritorio/móvil y estados, Conversiones y piloto de Ranking con los componentes existentes.
 
-Abrir la [revisión del 6 de septiembre](04-propuestas/revision-ux1-ux2-2026-09-06/README.md). Se mantiene la propuesta elegida de Resumen escritorio; el móvil se compactó y Conversiones prioriza la lectura mensual y los analistas. No se modificó código de la aplicación en este bloque.
+Se mantiene el objetivo de avanzar hoy. Las propuestas `112:14` y `209:733` quedan como antecedentes. La auditoría y la reutilización siguen siendo útiles; no se reconstruye el CRM ni se descartan cambios previos o concurrentes.
 
-Revisión con Miguel:
+Color: familia/serie real; gris como referencia; ámbar para señales existentes. Un color por analista. Excluir los deltas inventados y el 71% de citas de Figma hasta contar con base válida, sin ampliar backend.
 
-1. Identificar el resultado principal, su objetivo y la base/período que utiliza.
-2. Revisar si Resumen móvil muestra primero lo necesario para supervisar el negocio.
-3. Revisar la nueva jerarquía de Conversiones y la comparación Carla/Bruno.
-4. Registrar ajustes y la decisión visual del bloque antes de continuar frontend, tal como se acordó al pausar la implementación.
-
-Los filtros y la selección de analistas son valores fijos de ejemplo; no representan recálculo ni una interacción completa implementada.
-
-## 2. Completar la validación humana de F0
-
-La auditoría experta y el inventario están preparados. Queda confirmar las cinco pantallas y tres tareas de mayor frecuencia, y observar al menos una tarea real sin dirigir a la persona.
-
-La muestra inicial continúa siendo Resumen, Conversiones, Ranking, Cartera y Nuevo lead; no se registra como frecuencia confirmada. El [guion de prueba](05-validacion/PRUEBA-USABILIDAD.md) está preparado. Aún hay cero participantes observados; no se usan los tiempos ni las acciones del agente como mediciones humanas.
-
-## 3. Integrar y validar por bloques, después de la revisión visual
-
-Para el bloque A: adaptar presentación de los componentes actuales, conectar sus consultas y acciones existentes, y comprobar escritorio/móvil, datos, teclado, foco y estados. Reutilizar ECharts, controles y lógica actual. Backend, permisos y fórmulas permanecen fuera del alcance.
-
-El bloque B conserva Ranking —incluido su piloto escritorio/móvil, detalle y regreso—, Citas, Metas y Rendimiento. Los bloques C/D y UX3–UX6 siguen en el [plan maestro](01-plan/PLAN-MAESTRO.md). La preparación de este bloque no declara terminado todo el CRM ni autoriza una publicación.
+Evidencias y ficha por componente en [07-implementacion/bloque-a-2026-09-06](07-implementacion/bloque-a-2026-09-06). Se conserva la biblioteca React del CRM, sus datos, permisos y fórmulas. La entrega es local; publicar es una acción aparte.

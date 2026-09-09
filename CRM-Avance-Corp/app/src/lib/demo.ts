@@ -89,7 +89,7 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   { id: 'act08', lead_id: 'l4', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA TRES', creado_en: hace(7.5) },
   { id: 'act09', lead_id: 'l4', tipo: 'cambio_etapa', detalle: 'Contactado → Reunión agendada', autor_nombre: 'ANALISTA TRES', creado_en: hace(7) },
   { id: 'act10', lead_id: 'l4', tipo: 'reunion_realizada', detalle: 'Reunión en oficina: renueva y quiere subir el monto', autor_nombre: 'ANALISTA TRES', creado_en: hace(6.2) },
-  { id: 'act11', lead_id: 'l4', tipo: 'cambio_etapa', detalle: 'Reunión agendada → Propuesta enviada', autor_nombre: 'ANALISTA TRES', creado_en: hace(6) },
+  { id: 'act11', lead_id: 'l4', tipo: 'cambio_etapa', detalle: 'Reunión agendada → Entrevista realizada', autor_nombre: 'ANALISTA TRES', creado_en: hace(6) },
   // l6 — contactado hace 2.2d → todavía fresco (contraejemplo de la cola)
   { id: 'act12', lead_id: 'l6', tipo: 'llamada_no_contestada', detalle: null, autor_nombre: 'ANALISTA DOS', creado_en: hace(2.6) },
   { id: 'act13', lead_id: 'l6', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA DOS', creado_en: hace(2.2) },
@@ -112,7 +112,7 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   // l12 — propuesta enviada hace 3.2d → aún NO vence (contraejemplo)
   { id: 'act26', lead_id: 'l12', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA UNO', creado_en: hace(4.6) },
   { id: 'act27', lead_id: 'l12', tipo: 'whatsapp_enviado', detalle: 'Propuesta en USD enviada por WhatsApp y correo', autor_nombre: 'ANALISTA UNO', creado_en: hace(3.3) },
-  { id: 'act28', lead_id: 'l12', tipo: 'cambio_etapa', detalle: 'Contactado → Propuesta enviada', autor_nombre: 'ANALISTA UNO', creado_en: hace(3.2) },
+  { id: 'act28', lead_id: 'l12', tipo: 'cambio_etapa', detalle: 'Contactado → Entrevista realizada', autor_nombre: 'ANALISTA UNO', creado_en: hace(3.2) },
   // l13 — reunión agendada, actividad fresca
   { id: 'act29', lead_id: 'l13', tipo: 'llamada_realizada', detalle: 'Coordinó reunión para el jueves', autor_nombre: 'ANALISTA TRES', creado_en: hace(1.5) },
   { id: 'act30', lead_id: 'l13', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA TRES', creado_en: hace(1.45) },
@@ -126,7 +126,7 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   // l17 — propuesta enviada hace 6d sin respuesta → propuesta_sin_respuesta
   { id: 'act36', lead_id: 'l17', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA UNO', creado_en: hace(8) },
   { id: 'act37', lead_id: 'l17', tipo: 'whatsapp_enviado', detalle: 'Propuesta de S/ 65,000 enviada por WhatsApp', autor_nombre: 'ANALISTA UNO', creado_en: hace(6.5) },
-  { id: 'act38', lead_id: 'l17', tipo: 'cambio_etapa', detalle: 'Contactado → Propuesta enviada', autor_nombre: 'ANALISTA UNO', creado_en: hace(6) },
+  { id: 'act38', lead_id: 'l17', tipo: 'cambio_etapa', detalle: 'Contactado → Entrevista realizada', autor_nombre: 'ANALISTA UNO', creado_en: hace(6) },
   // l19 — convertido (histórico)
   { id: 'act39', lead_id: 'l19', tipo: 'cambio_etapa', detalle: 'Nuevo → Contactado', autor_nombre: 'ANALISTA DOS', creado_en: hace(14) },
   { id: 'act40', lead_id: 'l19', tipo: 'reunion_realizada', detalle: 'Firmó en oficina: S/ 40,000 a 18 meses', autor_nombre: 'ANALISTA DOS', creado_en: hace(12) },

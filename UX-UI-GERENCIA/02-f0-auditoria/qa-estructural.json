@@ -1,0 +1,131 @@
+{
+  "steps": [
+    {
+      "step": 1,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 2,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 3,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 4,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 5,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 6,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 7,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 8,
+      "size": [
+        1440,
+        960
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 9,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 10,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 11,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 12,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 13,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    },
+    {
+      "step": 14,
+      "size": [
+        390,
+        844
+      ],
+      "placed": true,
+      "bounds": true
+    }
+  ],
+  "complete": true
+}

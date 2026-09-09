@@ -1,0 +1,1 @@
+Resumen: click en analista y en KPI → cambio: sí (http://localhost:5299/#/hoy|1882 → http://localhost:5299/#/ranking-vendedores|1233)

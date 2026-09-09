@@ -1,14 +1,14 @@
 # Índice de Figma
 
-**Referencia de color más reciente:** Miguel está afinando [Resumen escritorio `112:14`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) con el agente de Figma. [Revisión con capturas nuevas](05-validacion/revision-propuesta-color-2026-09-06/README.md). Los componentes y recorridos UX1/UX2 de abajo siguen siendo reutilizables; la actualización cromática debe incorporarse también a móvil.
+**Estado vigente:** Miguel pidió reiniciar la propuesta visual desde su CRM actual. Las propuestas de este índice son antecedentes; todavía no hay un nuevo frame aprobado para el reinicio. La última referencia antes del rechazo del intento local fue [UI-UX (3), `209:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=209-733). Véase [el siguiente paso](PROXIMO-PASO.md).
 
 [Abrir la portada: Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3).
 
 La portada lleva al plan, auditoría, inventario, componentes y propuestas. Conserva la diferencia entre CRM actual y diseño propuesto.
 
-## Revisión vigente — 6 de septiembre
+## Revisión anterior conservada — 6 de septiembre
 
-[Abrir el tablero de revisión UX2](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Diseños preparados para revisión visual del bloque A; implementación pausada.
+[Abrir el tablero de revisión UX2](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Diseños del bloque A conservados como antecedentes del reinicio.
 
 | Entrega | Escritorio | Móvil |
 | --- | --- | --- |
@@ -37,9 +37,9 @@ La portada lleva al plan, auditoría, inventario, componentes y propuestas. Cons
 | 94 · Historial · G-F4 Gestión | [Abrir](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=102-2) |
 | 95 · Historial · Validación G-F | [Abrir](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=2-3) |
 
-## Propuesta elegida
+## Propuesta elegida anteriormente
 
-[Resumen / escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) es la dirección visual elegida por Miguel. El resto de las vistas mantiene su revisión pendiente.
+[Resumen / escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) fue una dirección elegida por Miguel antes de `209:733` y del reinicio visual. Se conserva como referencia histórica.
 
 ## Recorridos anteriores conservados
 

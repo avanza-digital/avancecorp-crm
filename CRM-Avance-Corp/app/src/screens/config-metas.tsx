@@ -18,6 +18,7 @@ import {
 } from '@/lib/format'
 import { periodoLima } from '@/lib/objetivos'
 import { cn } from '@/lib/utils'
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 
 function desplazarPeriodo(periodo: string, meses: number): string {
   const anio = Number(periodo.slice(0, 4))
@@ -282,7 +283,8 @@ function AnalistasFueraDeMetas({
 }
 
 export function ConfigMetas() {
-  const [periodo, setPeriodo] = useState(() => periodoLima(Date.now()))
+  const memoriaGerencia = useConsultaGerencia()
+  const [periodo, setPeriodo] = useState(() => memoriaGerencia?.consulta.administrarMetasPeriodo ?? periodoLima(Date.now()))
   const consulta = useConfiguracionMetas(periodo)
   const publicar = usePublicarMetas(periodo)
   // Los meses solo se sellan hacia adelante (guardia 2quater del servidor), así
@@ -309,6 +311,13 @@ export function ConfigMetas() {
   const [borrador, setBorrador] = useState<ConfiguracionMetas | null>(null)
   const [conversionTexto, setConversionTexto] = useState('')
   const [copiando, setCopiando] = useState(false)
+  const [revisionAbierta, setRevisionAbierta] = useState(false)
+  const [salidaPendiente, setSalidaPendiente] = useState(false)
+  const [resultadoPublicacion, setResultadoPublicacion] = useState<string | null>(null)
+  const [respuestaIncierta, setRespuestaIncierta] = useState(false)
+  const [comprobando, setComprobando] = useState(false)
+
+  useEffect(() => { setRevisionAbierta(false) }, [periodo, borrador, conversionTexto])
 
   useEffect(() => {
     if (!consulta.data) {
@@ -384,8 +393,8 @@ export function ConfigMetas() {
     }
   }
 
-  const guardar = async () => {
-    if (!borrador) return
+  const guardar = async (confirmado = false) => {
+    if (!borrador || !editable || publicar.isPending || respuestaIncierta) return
     // Cinturón por si el botón quedó habilitado en una carrera (el mes se sella
     // entre la carga y el clic): mismo mensaje que daría el servidor.
     if (mesCerrado) {
@@ -403,17 +412,43 @@ export function ConfigMetas() {
       toast.error(error)
       return
     }
+    if (!confirmado) { setRevisionAbierta(true); return }
+    setRevisionAbierta(false)
+    setResultadoPublicacion(null)
     try {
       await publicar.mutateAsync({
         periodo,
         expectedRevision: borrador.revision,
         metas: publicacionDesdeConfiguracion(normalizado),
       })
-      await recargar()
+      const actualizado = await recargar()
+      setResultadoPublicacion(`Metas de ${nombrePeriodo(periodo)} publicadas.${actualizado === false ? ' Falta actualizar los reportes: vuelve a consultarlos para comprobar su nueva lectura.' : ' La publicación fue confirmada.'}`)
       toast.success(`Metas de ${nombrePeriodo(periodo)} publicadas.`)
     } catch (fallo) {
+      setRespuestaIncierta(true)
+      setResultadoPublicacion('No se confirmó una nueva publicación. Comprueba la revisión publicada antes de decidir si necesitas repetirla.')
       toast.error(mensajeDeError(fallo, 'No se pudieron publicar las metas.'))
     }
+  }
+
+  const comprobarPublicacion = async () => {
+    setComprobando(true)
+    try {
+      const respuesta = await consulta.refetch()
+      if (respuesta.isError || !respuesta.data) {
+        setResultadoPublicacion('No se pudo comprobar la revisión publicada. El resultado anterior continúa sin confirmar.')
+        return
+      }
+      setRespuestaIncierta(false)
+      setResultadoPublicacion(`Revisión ${respuesta.data.revision} consultada para ${nombrePeriodo(respuesta.data.periodo)}. Revisa sus valores antes de preparar otra publicación.`)
+    } catch {
+      setResultadoPublicacion('No se pudo comprobar la revisión publicada. El resultado anterior continúa sin confirmar.')
+    } finally { setComprobando(false) }
+  }
+
+  const volverAConsulta = () => {
+    memoriaGerencia?.setConsulta((actual) => ({ ...actual, administrarMetasPeriodo: null }))
+    window.location.hash = '#/metas'
   }
 
   return (
@@ -433,12 +468,25 @@ export function ConfigMetas() {
           <Button variant="outline" size="sm" onClick={copiarAnterior} disabled={copiando || publicar.isPending || mesCerrado}>
             <Copy aria-hidden /> {copiando ? 'Copiando…' : 'Copiar mes anterior'}
           </Button>
-          <Button size="sm" onClick={guardar} disabled={!dirty || publicar.isPending || mesCerrado}>
+          <Button size="sm" className="min-h-11" onClick={() => void guardar()} disabled={!dirty || publicar.isPending || mesCerrado || respuestaIncierta}>
             <Save aria-hidden /> {publicar.isPending ? 'Publicando…' : 'Publicar revisión'}
           </Button>
         </>
       ) : undefined}
     >
+      {memoriaGerencia?.consulta.administrarMetasPeriodo && <section aria-label="Regreso a consulta de metas" className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <p className="text-sm">Administración centralizada. La consulta de Gerencia conserva su mes y punto de lectura al volver.</p>
+        <Button variant="outline" className="min-h-11" onClick={() => dirty ? setSalidaPendiente(true) : volverAConsulta()} disabled={publicar.isPending}>Volver a consulta de metas</Button>
+        {salidaPendiente && <div role="status" className="space-y-2"><p className="text-sm">Hay cambios sin publicar. Si vuelves ahora, se descartará este borrador.</p><div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" onClick={volverAConsulta}>Descartar borrador y volver</Button><Button className="min-h-11" onClick={() => setSalidaPendiente(false)}>Continuar editando</Button></div></div>}
+      </section>}
+      {revisionAbierta && borrador && <section aria-label="Revisar publicación de metas" className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
+        <h2 className="text-lg font-bold">Revisar publicación de metas</h2>
+        <p className="text-sm">Mes: {nombrePeriodo(periodo)} · revisión actual: {borrador.revision}. La publicación incluye las metas de los {borrador.vendedores.length} analistas mostrados.</p>
+        <p className="text-sm">Meta total: {money(metaEquipo, 'PEN')} · conversión objetivo: {conversionTexto || '0'}%.</p>
+        <p className="text-xs text-muted-foreground">Confirma los importes y la conversión objetivo antes de publicar. Si el mes está cerrado, la edición sigue bloqueada.</p>
+        <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => void guardar(true)} disabled={publicar.isPending || mesCerrado}>Confirmar publicación</Button><Button className="min-h-11" variant="outline" onClick={() => setRevisionAbierta(false)}>Seguir editando</Button></div>
+      </section>}
+      {resultadoPublicacion && <section role="status" className="space-y-3 rounded-xl border border-border bg-card p-4"><p className="text-sm">{resultadoPublicacion}</p>{respuestaIncierta && <Button variant="outline" className="min-h-11" disabled={comprobando} onClick={() => void comprobarPublicacion()}>{comprobando ? 'Comprobando…' : 'Comprobar revisión publicada'}</Button>}</section>}
       <Card>
         <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

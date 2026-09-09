@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-09-07T00:58:54.948Z",
+  "board": "https://www.figma.com/board/f5AcRzzIk3KS6CCOmKC0df",
+  "folder": "https://www.figma.com/files/team/1673045681873340799/folder/650628787",
+  "folderFileVerifiedViaFigmaUI": true,
+  "structure": {
+    "mutatedNodeIds": [
+      "5:330"
+    ],
+    "sectionCount": 9,
+    "glossaryCards": 24,
+    "attentionCards": 8,
+    "overflow": []
+  },
+  "visualReview": "Inspección de portada, arquitectura, flujo comercial, calculadoras, dependencias, leyendas, glosario y puntos de atención. Conectores reconstruidos tras agrupar para eliminar recorridos fuera de la sección. Sin desbordes detectados.",
+  "productionMutations": false
+}

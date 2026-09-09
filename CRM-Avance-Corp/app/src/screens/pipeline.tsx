@@ -270,7 +270,8 @@ export function Pipeline() {
     abrirLead(id)
   }
 
-  // Pasar a "Propuesta enviada" es el ÚNICO momento en que el capital es un
+  // Pasar a "Entrevista realizada" (clave `propuesta_enviada`) es el ÚNICO
+  // momento en que el capital es un
   // HECHO y no una corazonada del primer contacto — y de esa cifra viven el
   // capital en proceso y las metas del mes. Se pregunta ahí, con un campo ya
   // precargado: Enter confirma tal cual.
@@ -326,7 +327,7 @@ export function Pipeline() {
       // exactOptionalPropertyTypes: sin capital el sub se OMITE, no viaja undefined.
       ...(capital ? { sub: capital.sub } : {}),
     },
-    { icon: FileText, label: 'Propuestas', value: propuestas != null ? String(propuestas) : '—' },
+    { icon: FileText, label: 'Entrevistas realizadas', value: propuestas != null ? String(propuestas) : '—' },
     { icon: Target, label: 'Cierres de leads del mes', value: resumen ? String(resumen.totales.convertidos) : '—', tone: 'primary', sub: 'Mes calendario actual' },
   ]
 

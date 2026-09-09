@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   actualizarClientePortal,
+  corregirCorreoClienteAdmin,
   corregirDocumentoClienteAdmin,
   crearClientePortal,
   mensajeDeError,
@@ -38,7 +39,7 @@ import type { ClienteDetalle, CuentaBancariaSeleccionable } from '@/lib/clientes
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { useVentana } from '@/lib/ventana'
 import { useAuth } from '@/lib/auth-context'
-import { puedeCorregirDocumentoCliente } from '@/lib/roles'
+import { puedeCorregirCorreoCliente, puedeCorregirDocumentoCliente } from '@/lib/roles'
 import {
   SECCION_BANCARIA_VACIA,
   hayCuentaEnLedger,
@@ -79,6 +80,9 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const { yo } = useAuth()
   const esGerencia = yo?.rol === 'gerencia'
   const puedeCorregirDocumento = esCorregir && puedeCorregirDocumentoCliente(yo)
+  // El correo es la CREDENCIAL de acceso, no un dato de contacto: puerta mas
+  // estrecha que la del documento (solo superadmin).
+  const puedeCorregirCorreo = esCorregir && puedeCorregirCorreoCliente(yo)
 
   // Identidad
   const [apellidos, setApellidos] = useState('')
@@ -86,6 +90,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('DNI')
   const [documento, setDocumento] = useState('')
   const [motivoDocumento, setMotivoDocumento] = useState('')
+  const [motivoCorreo, setMotivoCorreo] = useState('')
   const [telefono, setTelefono] = useState('')
   const [correo, setCorreo] = useState('')
   const [domicilio, setDomicilio] = useState('')
@@ -279,6 +284,19 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
       setError(mensaje)
       throw new ErrorYaMostrado(mensaje)
     }
+    const correoCambio = esCorregir && detalle !== null
+      && c.correo.toLowerCase() !== (detalle.correo ?? '').trim().toLowerCase()
+    if (correoCambio && !puedeCorregirCorreo) {
+      const mensaje = 'Solo un superadministrador puede corregir el correo de acceso de un cliente.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
+    const motivoCorreoLimpio = motivoCorreo.trim()
+    if (correoCambio && (motivoCorreoLimpio.length < 3 || motivoCorreoLimpio.length > 500)) {
+      const mensaje = 'Indica un motivo de entre 3 y 500 caracteres para cambiar el correo de acceso.'
+      setError(mensaje)
+      throw new ErrorYaMostrado(mensaje)
+    }
     setEnviando(true)
     onEnviandoCambio?.(true)
     try {
@@ -319,7 +337,24 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             throw new ErrorYaMostrado(mensaje)
           }
         }
-        toast.success('Datos del cliente corregidos.')
+        if (correoCambio) {
+          try {
+            await corregirCorreoClienteAdmin(
+              clienteId as string,
+              c.correo,
+              motivoCorreoLimpio,
+            )
+          } catch (e) {
+            const mensaje = `Los demás datos se guardaron, pero el correo de acceso no pudo cambiarse: ${mensajeDeError(e, 'No se pudo corregir el correo.')}`
+            setError(mensaje)
+            throw new ErrorYaMostrado(mensaje)
+          }
+        }
+        toast.success(
+          correoCambio
+            ? 'Datos corregidos. El cliente entra al portal con su correo nuevo.'
+            : 'Datos del cliente corregidos.',
+        )
         onListo(clienteId as string)
       } else {
         // UN SOLO PASO: la edge valida los bancarios, crea la cuenta CON sus
@@ -427,6 +462,11 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const documentoEditado = esCorregir && detalle !== null && (
     tipoDoc !== detalle.tipo_documento || documento.trim() !== (detalle.dni ?? '')
   )
+  // Se compara en minusculas y sin espacios porque asi lo normalizan la RPC y
+  // Auth: «  A@B.com » y «a@b.com» son el MISMO correo, y pedir motivo por esa
+  // diferencia seria pedirlo por nada.
+  const correoEditado = esCorregir && detalle !== null
+    && correo.trim().toLowerCase() !== (detalle.correo ?? '').trim().toLowerCase()
   const esLegacySinSeparar = esCorregir && detalle !== null
     && !detalle.apellidos && !detalle.nombres && !!detalle.nombre_completo
 
@@ -550,17 +590,58 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cf-correo">Correo electrónico *</Label>
+            <Label htmlFor="cf-correo">
+              {esCorregir && !puedeCorregirCorreo
+                ? 'Correo electrónico (cuenta de acceso)'
+                : 'Correo electrónico *'}
+            </Label>
+            {/* `readOnly` y NO `disabled` cuando no se puede editar: un campo
+                deshabilitado se pinta al 50 % de opacidad —el correo REAL del
+                cliente se leia como un texto de ejemplo— y ademas el navegador
+                no deja seleccionarlo para copiarlo, que es justo lo que uno
+                quiere hacer con la cuenta de acceso de alguien. */}
             <Input
               id="cf-correo"
               type="email"
               value={correo}
               onChange={(e) => setCorreo(e.target.value)}
               aria-describedby="cf-correo-nota"
-              disabled={enviando || esCorregir}
+              readOnly={esCorregir && !puedeCorregirCorreo}
+              className={esCorregir && !puedeCorregirCorreo ? 'bg-muted/60' : undefined}
+              disabled={enviando}
             />
+            {/* La nota vive AQUI, pegada a su campo. Antes se pintaba despues
+                del bloque de domicilio y se leia como una segunda nota del
+                domicilio; ademas un `disabled` no entra en el orden de
+                tabulacion, asi que quien navega con teclado nunca la oia. */}
+            {esCorregir && (
+              <p id="cf-correo-nota" className="text-[10px] text-muted-foreground">
+                {puedeCorregirCorreo
+                  ? 'Es la cuenta con la que el cliente entra al portal. Al guardar cambia su acceso; el motivo quedará registrado en auditoría.'
+                  : 'Es la cuenta de acceso del cliente: solo un superadministrador puede corregirla.'}
+              </p>
+            )}
           </div>
         </div>
+
+        {puedeCorregirCorreo && correoEditado && (
+          <div className="space-y-1.5">
+            <Label htmlFor="cf-correo-motivo">Motivo del cambio de correo *</Label>
+            <Textarea
+              id="cf-correo-motivo"
+              value={motivoCorreo}
+              onChange={(e) => setMotivoCorreo(e.target.value)}
+              rows={2}
+              minLength={3}
+              maxLength={500}
+              placeholder="Por qué se cambia la cuenta de acceso"
+              disabled={enviando}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Entre 3 y 500 caracteres. Se guardará en la auditoría administrativa.
+            </p>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="cf-domicilio">Domicilio legal completo *</Label>
           <Input
@@ -577,12 +658,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               : 'Se copiará literalmente en el contrato legal.'}
           </p>
         </div>
-        {esCorregir ? (
-          // El correo va con el login del cliente: no se edita (espejo portal).
-          <p id="cf-correo-nota" className="text-[11px] text-muted-foreground">
-            El correo es la <b className="text-foreground">cuenta de acceso</b> del cliente: no se puede editar.
-          </p>
-        ) : (
+        {!esCorregir && (
           // Aviso de la clave temporal, tal cual el portal (c_email_hint).
           <p id="cf-correo-nota" className="text-[11px] text-muted-foreground">
             La clave temporal será el <b className="text-foreground">documento</b> (si tiene menos

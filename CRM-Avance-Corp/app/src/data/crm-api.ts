@@ -3078,6 +3078,56 @@ export async function corregirDocumentoClienteAdmin(
   }
 }
 
+/**
+ * Corrige el CORREO DE ACCESO de un cliente por la puerta del superadmin.
+ *
+ * Va por una edge y no por una RPC porque el correo vive en TRES sitios que
+ * tienen que moverse juntos —`auth.users`, `auth.identities` y
+ * `perfiles.correo`— y los dos de `auth` solo se mueven a la vez desde la API
+ * de administracion, que necesita la service_role. Cambiar uno solo deja al
+ * cliente sin poder entrar al portal SIN NINGUN ERROR VISIBLE.
+ *
+ * La edge hace el espejo primero y `auth` despues, y revierte el espejo si
+ * `auth` falla; el mensaje que llega ya viene en es-PE y dice si revirtio.
+ */
+export async function corregirCorreoClienteAdmin(
+  id: string,
+  correo: string,
+  motivo: string,
+): Promise<void> {
+  const { data, error } = await cliente().functions.invoke('corregir-correo-cliente', {
+    body: { cliente_id: id, correo, motivo },
+  })
+  if (error) {
+    let mensaje = 'No se pudo corregir el correo de acceso.'
+    // FunctionsHttpError trae la respuesta del edge en `context`: de ahi sale
+    // nuestro { error } en es-PE (incluido el aviso de reversion fallida).
+    try {
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        const cuerpo = await ctx.json()
+        if (cuerpo?.error) mensaje = traducirErrorAlta(String(cuerpo.error))
+      }
+    } catch {
+      /* nos quedamos con el mensaje generico */
+    }
+    const fallo = new CrmApiError(mensaje, 'CORRECCION_CORREO_FALLIDA')
+    registrarError('crm.clientes.correccion_correo_fallida', fallo)
+    throw fallo
+  }
+
+  const cuerpo = (data ?? {}) as { ok?: boolean; error?: string }
+  if (cuerpo.error || cuerpo.ok !== true) {
+    // Un 200 sin `ok` no es un exito: no se dice «guardado» sin confirmacion.
+    const fallo = new CrmApiError(
+      cuerpo.error ? traducirErrorAlta(cuerpo.error) : 'El servidor no confirmo la correccion del correo.',
+      'CORRECCION_CORREO_SIN_CONFIRMACION',
+    )
+    registrarError('crm.clientes.correccion_correo_sin_confirmacion', fallo)
+    throw fallo
+  }
+}
+
 // ── Datos legales que el contrato exige ANTES de intentar emitirlo ────────────
 // El PDF se reserva dentro de la MISMA transacción del alta, así que un dato
 // legal ausente revierte el contrato entero con 'Faltan datos legales

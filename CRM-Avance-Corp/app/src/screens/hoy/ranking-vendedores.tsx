@@ -1,7 +1,9 @@
-import { useMemo, useState, type JSX, type ReactNode } from 'react'
-import { AlertTriangle, CalendarDays, RefreshCw, Target, Trophy } from 'lucide-react'
+import { useMemo, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react'
+import { AlertTriangle, RefreshCw, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { TipoRankingGerencia } from '@/components/gerencia/consulta-context'
+import { BotonDetalleRanking, DetalleCapitalRanking } from './ranking-detalle'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import {
@@ -95,9 +97,14 @@ interface RankingVendedoresPanelProps {
   etiquetaAlcance?: string
   /** Pestaña abierta al montar. */
   tabInicial?: TipoRanking
+  /** Estado de consulta mantenido por Gerencia al cambiar de pantalla. */
+  tipoSeleccionado?: TipoRanking | undefined
+  onCambiarTipo?: (tipo: TipoRanking) => void
+  onCompararAnalistas?: () => void
+  onAbrirConversiones?: (analistaId: string) => void
 }
 
-type TipoRanking = 'conversion' | 'capital-total' | 'cosecha'
+type TipoRanking = TipoRankingGerencia
 
 const MOTIVO_FUERA_RANKING: Record<ProduccionFueraRanking['motivo'], string> = {
   analista_sin_meta: 'Analista sin meta mensual',
@@ -119,12 +126,6 @@ function pct(valor: number | null): string {
   return porcentajeConversionCanonica(valor)
 }
 
-function colorPosicion(indice: number): string {
-  if (indice < 3) return C.green
-  if (indice === 3) return C.amber
-  return C.blue
-}
-
 function colorAvance(avance: number | null): string {
   if (avance == null) return C.muted
   if (avance >= 100) return C.green
@@ -136,8 +137,8 @@ function Puesto({ indice }: { indice: number }): JSX.Element {
   return (
     <span
       aria-label={`Puesto ${indice + 1}`}
-      className="grid size-9 place-items-center rounded-xl text-xs font-bold tabular-nums text-white"
-      style={{ backgroundColor: colorPosicion(indice) }}
+      className="grid size-9 place-items-center text-sm font-bold tabular-nums"
+      style={{ color: C.blue }}
     >
       {String(indice + 1).padStart(2, '0')}
     </span>
@@ -313,7 +314,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
     <div role="tabpanel" id="panel-ranking-conversion" aria-labelledby="tab-ranking-conversion">
       <div className="hidden overflow-x-auto md:block">
         <table aria-label="Ranking de conversión general" className="w-full min-w-[900px] border-collapse text-left">
-          <thead className="bg-[#f7f5f1] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">
+          <thead className="bg-[var(--gi-soft)] text-xs font-semibold text-[var(--muted-foreground-strong)]">
             <tr>
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
               <th className="px-3 py-3" scope="col">Analista</th>
@@ -360,7 +361,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
                   >
                     {fila.estadoConversion === 'solo_arrastre'
                       ? <span className="inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
-                      : <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>}
+                      : <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: C.blue }} /></div>}
                   </td>
                 </tr>
               )
@@ -392,7 +393,7 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
               )}
               {fila.estadoConversion === 'solo_arrastre'
                 ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
-                : <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>}
+                : <div className="gi-track mt-3 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: C.blue }} /></div>}
             </li>
           )
         })}
@@ -435,13 +436,14 @@ function RankingConversion({ ranking, etiquetaBase, etiquetaResultados = 'Cierre
 // ranking y las filas de equipo desde la decisión #10. Aquí va con `tono="gerencia"`
 // porque los tokens --gi-* solo resuelven dentro de .gerencia-inteligencia.
 
-function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores }): JSX.Element {
+function RankingCapitalTotal({ ranking, onAbrirDetalle }: { ranking: RankingCapitalTotalVendedores; onAbrirDetalle: (id: string) => void }): JSX.Element {
   const filas = ranking.conPuesto
   return (
     <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total">
       <div className="hidden overflow-x-auto md:block">
-        <table aria-label="Ranking de capital total en soles" className="w-full min-w-[900px] border-collapse text-left">
-          <thead className="bg-[#f7f5f1] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">
+        <table aria-label="Ranking de capital total en soles" className="w-full min-w-[900px] table-fixed border-collapse text-left">
+          <colgroup>{[85, 151, 122, 222, 188, 104, 278].map((ancho, indice) => <col key={indice} style={{ width: `${ancho / 11.5}%` }} />)}</colgroup>
+          <thead className="bg-[var(--gi-soft)] text-xs font-semibold text-[var(--muted-foreground-strong)]">
             <tr>
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
               <th className="px-3 py-3" scope="col">Analista</th>
@@ -456,7 +458,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
             {filas.map(({ vendedor, capitalPen, capitalUsd, capitalAjustePen, capitalAjusteUsd, contratosAjuste, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
               <tr key={vendedor.vendedorId} className="transition-colors hover:bg-[#f7f5f1]/70">
                 <td className="px-5 py-3"><Puesto indice={indice} /></td>
-                <th className="max-w-56 px-3 py-3 text-sm font-bold text-[var(--gi-navy)]" scope="row"><span className="block truncate">{vendedor.nombre}</span></th>
+                <th className="max-w-56 px-3 py-3 text-sm font-bold text-[var(--gi-navy)]" scope="row"><BotonDetalleRanking id={vendedor.vendedorId} nombre={vendedor.nombre} variante="tabla" onAbrir={onAbrirDetalle} /></th>
                 <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{vendedor.supervisorNombre}</span></td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(capitalTotal, 'PEN')}</span>
@@ -477,7 +479,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
                   <span className="block">{money(metaCapital, 'PEN')}</span>
                   <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" />
                 </td>
-                <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</td>
+                <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-blue)]">{pct(avance)}</td>
                 <td className="px-5 py-3" aria-label={`Cumplimiento ${pct(avance)}`}>
                   <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
                 </td>
@@ -492,12 +494,12 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
           <li key={vendedor.vendedorId} className="px-4 py-4">
             <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-start gap-3">
               <Puesto indice={indice} />
-              <div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--gi-navy)]">{vendedor.nombre}</p><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--gi-muted)]">{vendedor.supervisorNombre}</p></div>
-              <strong className="text-sm tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</strong>
+              <div className="min-w-0"><BotonDetalleRanking id={vendedor.vendedorId} nombre={vendedor.nombre} equipo={vendedor.supervisorNombre} variante="lista" onAbrir={onAbrirDetalle} /></div>
+              <strong className="text-sm tabular-nums text-[var(--gi-blue)]">{pct(avance)}</strong>
             </div>
-            <div className="ml-12 mt-3 grid grid-cols-2 gap-3 text-[11px] font-medium text-[var(--gi-muted)]">
-              <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
-              <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" /></span>
+            <div className="mt-3 grid grid-cols-2 gap-3 text-xs font-medium text-[var(--gi-muted)]">
+              <span>Capital confirmado <strong className="block text-sm text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
+              <span>Meta mensual <strong className="block text-sm text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" /></span>
             </div>
             {(capitalAjustePen > 0 || capitalAjusteUsd > 0 || contratosAjuste > 0) && (
               <p
@@ -510,7 +512,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
                 {contratosAjuste > 0 ? ` · −${numero(contratosAjuste)} ${contratosAjuste === 1 ? 'contrato' : 'contratos'}` : ''}
               </p>
             )}
-            <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
+            <div className="gi-track mt-3 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
           </li>
         ))}
       </ol>
@@ -659,8 +661,30 @@ export function RankingVendedoresPanel({
   titulo = 'Ranking general de analistas',
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
+  tipoSeleccionado,
+  onCambiarTipo,
+  onAbrirConversiones,
+  onCompararAnalistas,
 }: RankingVendedoresPanelProps): JSX.Element {
-  const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
+  const [tipoLocal, setTipoLocal] = useState<TipoRanking>(tabInicial)
+  const tipo = tipoSeleccionado ?? tipoLocal
+  const setTipo = (siguiente: TipoRanking) => {
+    setTipoLocal(siguiente)
+    onCambiarTipo?.(siguiente)
+  }
+  const [detalleId, setDetalleId] = useState<string | null>(null)
+  const alTeclaPestana = (evento: KeyboardEvent<HTMLButtonElement>) => {
+    const tipos: TipoRanking[] = ['conversion', 'capital-total', 'cosecha']
+    const indice = tipos.indexOf(tipo)
+    const siguiente = evento.key === 'ArrowRight' ? tipos[(indice + 1) % tipos.length]
+      : evento.key === 'ArrowLeft' ? tipos[(indice + tipos.length - 1) % tipos.length]
+      : evento.key === 'Home' ? tipos[0]
+      : evento.key === 'End' ? tipos[tipos.length - 1] : undefined
+    if (!siguiente) return
+    evento.preventDefault()
+    setTipo(siguiente)
+    document.getElementById(IDS_TAB[siguiente].tab)?.focus()
+  }
   // Una sola fuente define identidades para las TRES pestañas. En el mes
   // vigente manda el roster vivo; cumplimiento solo aporta meta/capital y no
   // puede reintroducir una baja. En un mes cerrado manda exclusivamente la
@@ -758,56 +782,74 @@ export function RankingVendedoresPanel({
       : 'Base histórica del mes: conserva la definición anterior con la que se calculó; no equivale a prospectos recibidos.'
 
   return (
-    <section data-gi-panel className="gi-card overflow-hidden">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--gi-line)] bg-white px-4 py-4 sm:px-5">
-        <div>
-          <p className="gi-label text-[var(--gi-blue)]">Desempeño comercial</p>
-          <h2 className="mt-1 text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">{titulo}</h2>
-          <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">
-            {poblacionMensualIndisponible
-              ? '— analistas'
-              : `${numero(totalVendedores)} ${totalVendedores === 1 ? 'analista' : 'analistas'}`}
-            {' · sin límite fijo de participantes'}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
-          <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><CalendarDays className="size-4 text-[var(--gi-blue)]" aria-hidden />Mes calendario · {metaMensual.etiqueta}</div>
+    <section data-gi-panel data-ranking data-consulta-lista={!cargandoActivo && !errorActivo} className="gi-card overflow-hidden">
+      <header className="border-b border-[var(--gi-line)] bg-white px-4 py-4 sm:px-5">
+        <h2 className="text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">{titulo}</h2>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted-foreground-strong)]">
+          <p>{poblacionMensualIndisponible ? '— analistas' : `${numero(totalVendedores)} ${totalVendedores === 1 ? 'analista' : 'analistas'}`}</p>
+          <span>{etiquetaAlcance}</span>
+          <span>Mes calendario · {metaMensual.etiqueta}</span>
           {estadoFotoMensual && (
-            <div
-              className="rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"
-              title={tipo === 'cosecha'
-                ? 'Los leads recibidos ese mes pueden convertirse después; esta lectura sigue actualizándose.'
-                : undefined}
-            >
-              {tipo === 'cosecha'
-                ? 'Leads del mes'
-                : estadoFotoMensual === 'sellada' ? 'Foto sellada' : 'Mes aún abierto'}
-            </div>
+            <span title={tipo === 'cosecha' ? 'Los leads recibidos ese mes pueden convertirse después; esta lectura sigue actualizándose.' : undefined}>
+              {tipo === 'cosecha' ? 'Leads del mes' : estadoFotoMensual === 'sellada' ? 'Foto sellada' : 'Mes aún abierto'}
+            </span>
           )}
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
-        <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
-          <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>{fuenteConversion == null ? 'Conversión general' : `Aporte: ${etiquetaFuente}`}</button>
-          <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
-          <button id="tab-ranking-cosecha" type="button" role="tab" aria-selected={tipo === 'cosecha'} aria-controls="panel-ranking-cosecha" onClick={() => setTipo('cosecha')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'cosecha' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Resultados de los leads del mes</button>
+      <div className="space-y-3 border-b border-[var(--gi-line)] bg-white px-4 py-4 sm:px-5">
+        <div role="tablist" aria-label="Tipo de ranking" className="flex w-full flex-col rounded-xl bg-[var(--gi-soft)] p-1 min-[380px]:flex-row sm:w-fit">
+          {([
+            ['conversion', fuenteConversion == null ? 'Conversión general' : `Aporte: ${etiquetaFuente}`],
+            ['capital-total', 'Capital total'],
+            ['cosecha', 'Resultados de los leads del mes'],
+          ] as const).map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              id={IDS_TAB[valor].tab}
+              type="button"
+              role="tab"
+              aria-selected={tipo === valor}
+              aria-controls={IDS_TAB[valor].panel}
+              tabIndex={tipo === valor ? 0 : -1}
+              onClick={() => setTipo(valor)}
+              onKeyDown={alTeclaPestana}
+              className={`min-h-11 min-w-0 flex-1 cursor-pointer rounded-lg px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:flex-none sm:px-3 ${tipo === valor ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--muted-foreground-strong)] hover:text-[var(--gi-navy)]'}`}
+            >{etiqueta}</button>
+          ))}
         </div>
-        <p className="text-[11px] font-medium text-[var(--gi-muted)]">
+        <p className="text-sm font-semibold text-[var(--gi-navy)]">
+          {tipo === 'capital-total'
+            ? 'Ordenado por cumplimiento de la meta, de mayor a menor.'
+            : tipo === 'conversion'
+              ? `Ordenado por ${fuenteConversion == null ? 'conversión' : 'aporte'}, de mayor a menor.`
+              : 'Ordenado por clientes del lote; en empate, por leads recibidos.'}
+        </p>
+        <p className="text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
           {tipo === 'conversion'
-            ? formulaConversion
+            ? fuenteConversion == null
+              ? 'Resultado comercial del mes. La base y los cierres de cada analista se muestran junto a su porcentaje.'
+              : `Cuánto aporta ${etiquetaFuente} al índice comercial de cada analista.`
             : tipo === 'cosecha'
             ? 'De los leads que cada quien recibió este mes, cuántos ya son clientes'
             : tc === undefined
               ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
-              // El rótulo del TC sale del MISMO tc que aplicó la lib (ranking.tc,
-              // re-validado finito y > 0): jamás se anuncia un TC que no entró al total.
               : rankingCapitalTotal.tc != null
                 ? `Contratos confirmados · total en S/ · TC S/ ${numero(rankingCapitalTotal.tc, 4)} (${tc?.fuente ?? 'BCRP'}) · ${metaMensual.etiqueta}`
                 : `Contratos confirmados · S/ · US$ aparte: tipo de cambio no disponible · ${metaMensual.etiqueta}`}
         </p>
+        <details className="text-xs leading-relaxed text-[var(--muted-foreground-strong)]">
+          <summary className="w-fit cursor-pointer rounded py-2 font-semibold text-[var(--gi-blue)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40">Cómo se calcula</summary>
+          <p className="mt-2 max-w-4xl">{tipo === 'conversion' ? formulaConversion
+            : tipo === 'capital-total'
+              ? 'Capital y meta usan el mismo tipo de cambio. Sin TC, US$ se mantiene aparte. Los empates de cumplimiento se resuelven por capital confirmado y después por nombre. El puesto no indica por sí solo que se alcanzó la meta.'
+              : 'El lote reúne los leads recibidos en el mes y sigue madurando hasta hoy. No equivale a los cierres logrados durante el mes. Sólo se muestra cuando los datos están verificados.'}</p>
+        </details>
+        {onCompararAnalistas && <Button id="ranking-comparar-analistas" variant="outline" className="min-h-11" onClick={onCompararAnalistas}>Comparar dos analistas</Button>}
       </div>
+      {(['conversion', 'capital-total', 'cosecha'] as const).filter((valor) => valor !== tipo).map((valor) => (
+        <div key={valor} role="tabpanel" id={IDS_TAB[valor].panel} aria-labelledby={IDS_TAB[valor].tab} hidden />
+      ))}
 
       {errorActivo ? (
         <TabpanelMarco tab={tipo}><ErrorRanking error={errorActivo} onReintentar={reintentarActivo} /></TabpanelMarco>
@@ -862,12 +904,24 @@ export function RankingVendedoresPanel({
               </Button>
             </div>
           )}
-          <RankingCapitalTotal ranking={rankingCapitalTotal} />
+          <RankingCapitalTotal ranking={rankingCapitalTotal} onAbrirDetalle={setDetalleId} />
         </>
       )}
       {fuenteConversion == null && !fotoMensualCargando && !fotoMensualError && (
         <ProduccionFueraRankingPanel filas={fueraRanking} tc={tc} />
       )}
+      <DetalleCapitalRanking
+        abierto={detalleId !== null}
+        fila={rankingCapitalTotal.conPuesto.find((fila) => fila.vendedor.vendedorId === detalleId) ?? null}
+        periodo={metaMensual.etiqueta}
+        tc={rankingCapitalTotal.tc}
+        fuenteTc={tc?.fuente}
+        cargando={cargandoActivo}
+        error={errorActivo ?? (!metaMensual.comparable ? mensajeMetaNoComparable(metaMensual) : null)}
+        onCerrar={() => setDetalleId(null)}
+        onReintentar={reintentarActivo}
+        onAbrirConversiones={onAbrirConversiones}
+      />
     </section>
   )
 }

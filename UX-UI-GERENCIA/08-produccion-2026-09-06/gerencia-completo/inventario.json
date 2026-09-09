@@ -1,0 +1,1445 @@
+{
+  "Resumen": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Desde",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Hasta",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Aplicar",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Origen del lead",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Ver ranking general de analistas",
+        "href": "#/ranking-vendedores"
+      }
+    ],
+    "encabezados": [
+      "Resumen",
+      "Resultados por semana de llegada",
+      "Mejores analistas",
+      "Resultados por origen",
+      "Avance de metas",
+      "Compromisos de supervisores"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Conversiones": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Desde",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Hasta",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Aplicar",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Origen del lead",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "region",
+        "texto": "Desglose desplazable de operaciones",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "region",
+        "texto": "Gráfico desplazable de cierres por fecha",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Analista para abrir detalle",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver detalle",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "region",
+        "texto": "Gráfico de resultados por analista",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "region",
+        "texto": "Gráfico de avance inferido",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Conversiones",
+      "Conversión del equipo",
+      "Llegadas con cita realizada",
+      "Operaciones elegidas para conversión",
+      "Cierres por semana de cierre",
+      "Resultados por analista",
+      "Avance comercial inferido",
+      "Resultados por origen",
+      "Capital vinculado por origen",
+      "Resultados por semana de llegada"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Ranking": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Mes calendario",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Conversión general",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Capital total",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Resultados de los leads del mes",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "3 meses",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "6 meses",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "12 meses",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Ranking",
+      "Ranking general de analistas",
+      "Fuera del ranking",
+      "Altas nuevas por analista"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Citas": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Desde",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Hasta",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Aplicar",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Citas",
+      "Citas del equipo",
+      "Presencial vs. virtual",
+      "Citas que terminan en cliente",
+      "Resultado final",
+      "Resultados por analista"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Metas": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Mes calendario",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Administrar metas",
+        "href": "#/config-metas"
+      }
+    ],
+    "encabezados": [
+      "Metas",
+      "Metas mensuales"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Rendimiento": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Mes calendario",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Cupos libresMás cargaMás sin atenderNombre",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Editar límite de cartera de Camila Rojas",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Editar límite de cartera de Bruno Díaz",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Editar límite de cartera de Diego Vega",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Editar límite de cartera de Ana Torres",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver tabla completa por rangos",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Equipo",
+      "Conversión por analista",
+      "José Rivas",
+      "María Salazar",
+      "Rendimiento y capacidad comercial"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Pipeline": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Todos",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "AUANALISTA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "ADANALISTA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "ATANALISTA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Por repartir (3)",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "JUAN PÉREZ ROJASS/ 15kInversión · NuevoAUANALISTAhace 7 h",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de JUAN PÉREZ ROJAS",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "TERESA GONZALES PAZS/ 20kInversión · NuevoAUANALISTAayer",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de TERESA GONZALES PAZ",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "OMAR VILLANUEVA REYESS/ 12kInversión · NuevoADANALISTAhace 2",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de OMAR VILLANUEVA REYES",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "LUIS GARCÍA FLORESS/ 1kLANDINGsin asignarayer",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de LUIS GARCÍA FLORES",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "RICARDO MAMANI CONDORIS/ 8kInversión · Nuevosin asignarhace ",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de RICARDO MAMANI CONDORI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Agregar lead",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "MARÍA LÓPEZ CASTROS/ 30kInversión · NuevoAUANALISTAayer",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de MARÍA LÓPEZ CASTRO",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "FERNANDO QUIROZ BEDOYAS/ 45kInversión · RenovaciónAUANALISTA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de FERNANDO QUIROZ BEDOYA",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "ROSA DÍAZ HUAMÁNS/ 22kInversión · NuevoADANALISTAhace 2 d",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de ROSA DÍAZ HUAMÁN",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "HUGO ESPINOZA CÁRDENASS/ 28kInversión · UpgradeATANALISTAhac",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de HUGO ESPINOZA CÁRDENAS",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "SOFÍA HERRERA LUNAS/ 60kInversión · Renovaciónsin asignarhac",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de SOFÍA HERRERA LUNA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Agregar lead",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "CARLOS RUIZ MENDOZAUS$ 10kInversión · UpgradeADANALISTAhace ",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de CARLOS RUIZ MENDOZA",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "MIGUEL CASTILLO RAMOSS/ 35kInversión · NuevoATANALISTAhace 1",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de MIGUEL CASTILLO RAMOS",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Agregar lead",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "PATRICIA FERNÁNDEZ SOTOUS$ 15kInversión · UpgradeAUANALISTAh",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de PATRICIA FERNÁNDEZ SOTO",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "GLORIA NAVARRO IBÁÑEZS/ 65kInversión · NuevoAUANALISTAhace 6",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de GLORIA NAVARRO IBÁÑEZ",
+        "href": null
+      },
+      {
+        "tag": "div",
+        "role": "button",
+        "texto": "ANA TORRES QUISPES/ 50kInversión · RenovaciónATANALISTAhace ",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Acciones de ANA TORRES QUISPE",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Agregar lead",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Pipeline"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Leads": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Buscar en la cartera",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar por etapa",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar por analista",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de JUAN PÉREZ ROJAS",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de RICARDO MAMANI CONDORI",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de LUIS GARCÍA FLORES",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de TERESA GONZALES PAZ",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de MIGUEL CASTILLO RAMOS",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de MARÍA LÓPEZ CASTRO",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de OMAR VILLANUEVA REYES",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de ROSA DÍAZ HUAMÁN",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de CARLOS RUIZ MENDOZA",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de PATRICIA FERNÁNDEZ SOTO",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de FERNANDO QUIROZ BEDOYA",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de SOFÍA HERRERA LUNA",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de ANA TORRES QUISPE",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de GLORIA NAVARRO IBÁÑEZ",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de ELENA VARGAS RÍOS",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de HUGO ESPINOZA CÁRDENAS",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de CARMEN SALAZAR TICONA",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de PEDRO SÁNCHEZ VEGA",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de DIANA PONCE ARELLANO",
+        "href": null
+      },
+      {
+        "tag": "tr",
+        "role": null,
+        "texto": "Abrir ficha de JORGE CHÁVEZ PAREDES",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Leads",
+      "Distribución por etapa"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Agenda": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Lun 31",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Mar 1",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Mié 2",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Jue 3",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Vie 4",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Sáb 5",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver la semana — Dom 6",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Hoy · 4",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Semana",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Mes",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Todo · 5",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Filtros",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "AUANALISTA UNOEquipo de SUPERVISOR UNO2 tareas1 vencida",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "ADANALISTA DOSEquipo de SUPERVISOR UNO1 tarea",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "ATANALISTA TRESEquipo de SUPERVISOR DOS1 tarea",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Agenda"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Cartera": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo cliente",
+        "href": null
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "texto": "Buscar en la cartera",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar por estado de contrato",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar por mes de cierre",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar por analista",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Gestionar",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver detalle",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Corregir",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Registrar primera inversión",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Gestionar",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver detalle",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Corregir",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Registrar primera inversión",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Gestionar",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver detalle",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Corregir",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Registrar primera inversión",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Cartera",
+      "Cartera"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Repartir leads": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Distribución",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Cola de nuevos",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Historial",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": "tab",
+        "texto": "Descartados",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ayer",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Últimos 7 días",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Rango",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar entregas por supervisor",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar entregas por analista",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Filtrar entregas por origen",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Reintentar",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Reintentar",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Repartir leads",
+      "Entregas por fecha, analista y origen",
+      "Cartera activa actual"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Base para gestión": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Reintentar",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Base para gestión"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Gestión de equipo": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver equipo",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Ver equipo",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Asignar analista a LUIS GARCÍA FLORES",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Asignar",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Asignar analista a RICARDO MAMANI CONDORI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Asignar",
+        "href": null
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "texto": "Asignar analista a SOFÍA HERRERA LUNA",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Asignar",
+        "href": null
+      }
+    ],
+    "encabezados": [
+      "Equipo",
+      "Comparativa de equipos",
+      "Por repartir (toda la empresa)"
+    ],
+    "filasConDatoLead": 0
+  },
+  "Configuración": {
+    "alturaPx": 3200,
+    "interactivos": [
+      {
+        "tag": "input",
+        "role": "combobox",
+        "texto": "Buscar lead por nombre, teléfono o DNI",
+        "href": null
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Abrir ayuda del analista",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir pendientes",
+        "href": "#/alertas"
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "texto": "Nuevo lead",
+        "href": null
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir Personas activas",
+        "href": "#/config-usuarios"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir Catálogo y revisión",
+        "href": "#/config-productos"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir Metas del mes",
+        "href": "#/config-metas"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir SLA vigente",
+        "href": "#/config-sla"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir",
+        "href": "#/config-usuarios"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir",
+        "href": "#/config-productos"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir",
+        "href": "#/config-metas"
+      },
+      {
+        "tag": "a",
+        "role": null,
+        "texto": "Abrir",
+        "href": "#/config-sla"
+      }
+    ],
+    "encabezados": [
+      "Configuración",
+      "Configuración del CRM",
+      "Mi calendario de Google",
+      "Usuarios y jerarquía",
+      "Productos de inversión",
+      "Metas",
+      "Tiempos de atención"
+    ],
+    "filasConDatoLead": 0
+  }
+}

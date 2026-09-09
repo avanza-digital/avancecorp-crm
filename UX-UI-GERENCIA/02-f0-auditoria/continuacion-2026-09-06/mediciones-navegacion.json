@@ -1,0 +1,80 @@
+{
+  "capturedAt": "2026-09-06T05:36:21.082Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "observations": [
+    {
+      "step": "Resumen inicial móvil",
+      "data": {
+        "scrollables": [
+          {
+            "classes": "ac-scroll flex-1 overflow-auto p-3 sm:p-6",
+            "clientHeight": 780,
+            "scrollHeight": 3223,
+            "scrollTop": 0,
+            "tag": "DIV"
+          }
+        ],
+        "title": "Resumen",
+        "viewport": {
+          "height": 844,
+          "width": 390
+        }
+      }
+    },
+    {
+      "step": "Cartera filtrada y desplazada",
+      "data": {
+        "scrollTop": 92,
+        "search": "NADIA",
+        "title": "Cartera"
+      }
+    },
+    {
+      "step": "Regreso a Resumen tras Cartera, repetición 1",
+      "data": {
+        "focused": "BUTTON",
+        "scrollTop": 0,
+        "title": "Resumen"
+      }
+    },
+    {
+      "step": "Cartera sin búsqueda, segunda repetición",
+      "data": {
+        "scrollTop": 124,
+        "search": "",
+        "title": "Cartera"
+      }
+    },
+    {
+      "step": "Contenedores desplazados de Cartera, segunda repetición",
+      "data": [
+        {
+          "classes": "ac-scroll flex-1 overflow-auto p-3 sm:p-6",
+          "clientHeight": 780,
+          "scrollHeight": 1359,
+          "scrollTop": 579,
+          "tag": "DIV"
+        }
+      ]
+    },
+    {
+      "step": "Regreso a Resumen tras Cartera, repetición 2",
+      "data": {
+        "scrollables": [
+          {
+            "classes": "ac-scroll flex-1 overflow-auto p-3 sm:p-6",
+            "clientHeight": 780,
+            "scrollHeight": 3223,
+            "scrollTop": 0,
+            "tag": "DIV"
+          }
+        ],
+        "title": "Resumen"
+      }
+    }
+  ],
+  "note": "Las lecturas inmediatamente después del scroll nativo pueden corresponder a un desplazamiento en curso; el valor estable previo al segundo regreso fue 579 y Resumen terminó en 0 en ambas repeticiones."
+}

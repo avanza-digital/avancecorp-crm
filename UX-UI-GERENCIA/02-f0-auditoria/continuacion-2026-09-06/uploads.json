@@ -1,0 +1,38 @@
+[
+  {
+    "file": "01-resumen-mobile-inicio.jpg",
+    "targetNodeId": "138:54",
+    "ok": true,
+    "response": {
+      "success": true,
+      "imageHash": "cea6acd34e62bc0324f4d01681d9db3c0fb38878",
+      "sizeBytes": 45174,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "138:54"
+    }
+  },
+  {
+    "file": "04-cartera-mobile-segunda.jpg",
+    "targetNodeId": "138:58",
+    "ok": true,
+    "response": {
+      "success": true,
+      "imageHash": "7f875331b33dee71f69c784a10da3396e44f1164",
+      "sizeBytes": 45964,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "138:58"
+    }
+  },
+  {
+    "file": "05-resumen-mobile-segundo-regreso.jpg",
+    "targetNodeId": "138:62",
+    "ok": true,
+    "response": {
+      "success": true,
+      "imageHash": "cea6acd34e62bc0324f4d01681d9db3c0fb38878",
+      "sizeBytes": 45174,
+      "contentType": "image/jpeg",
+      "placedOnNodeId": "138:62"
+    }
+  }
+]

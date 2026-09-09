@@ -28,6 +28,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     crearClientePortal: vi.fn(),
     actualizarClientePortal: vi.fn(),
     corregirDocumentoClienteAdmin: vi.fn(),
+    corregirCorreoClienteAdmin: vi.fn(),
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
   }
@@ -39,6 +40,7 @@ const { CrmApiError } = crmApi
 const crearCliente = vi.mocked(crmApi.crearClientePortal)
 const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
 const corregirDocumento = vi.mocked(crmApi.corregirDocumentoClienteAdmin)
+const corregirCorreo = vi.mocked(crmApi.corregirCorreoClienteAdmin)
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
 
@@ -284,10 +286,13 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     actualizarCliente.mockResolvedValue(true)
     const { onListo } = montar({ modo: 'corregir', clienteId: 'cli-1' })
 
-    const correo = await screen.findByLabelText('Correo electrónico *')
+    const correo = await screen.findByLabelText('Correo electrónico (cuenta de acceso)')
     expect(correo).toHaveValue('cliente1@correo.pe')
-    expect(correo).toBeDisabled()
-    expect(screen.getByText(/cuenta de acceso/)).toBeInTheDocument()
+    // readOnly y NO disabled: un campo deshabilitado se pinta al 50 % (el correo
+    // real se leía como un texto de ejemplo) y el navegador no deja copiarlo.
+    expect(correo).toHaveAttribute('readonly')
+    expect(correo).not.toBeDisabled()
+    expect(screen.getByText(/solo un superadministrador puede corregirla/i)).toBeInTheDocument()
     expect(screen.getByLabelText('Apellidos *')).toHaveValue('PORTAL UNO')
     expect(screen.getByLabelText('Tipo de documento *')).toBeDisabled()
     expect(screen.getByLabelText('Documento *')).toBeDisabled()
@@ -345,7 +350,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
 
     montar({ modo: 'corregir', clienteId: 'cli-1', queryClient })
 
-    expect(await screen.findByLabelText('Correo electrónico *')).toHaveValue('cliente1@correo.pe')
+    expect(await screen.findByLabelText('Correo electrónico (cuenta de acceso)')).toHaveValue('cliente1@correo.pe')
     expect(listarCuentas).not.toHaveBeenCalled()
     expect(screen.queryByText(/CACHE-NO-AUTORIZADA/)).not.toBeInTheDocument()
     expect(screen.queryByDisplayValue('SERVIDOR-NO-DEBE-PINTARSE')).not.toBeInTheDocument()
@@ -375,7 +380,7 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
 
     montar({ modo: 'corregir', clienteId: 'cli-1', queryClient })
 
-    await screen.findByLabelText('Correo electrónico *')
+    await screen.findByLabelText('Correo electrónico (cuenta de acceso)')
     expect(screen.queryByText(/CACHE-NO-CONFIRMADA/)).not.toBeInTheDocument()
     expect(screen.getByText('Validando las cuentas registradas antes de guardar…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Guardar corrección/ })).toBeDisabled()
@@ -600,6 +605,111 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
       '87654321',
       'Error de digitación',
     )
+  })
+
+  // ── El correo de acceso: la puerta MÁS ESTRECHA (solo superadmin) ─────────
+  //
+  // El correo no es un dato de contacto: vive a la vez en `auth.users`,
+  // `auth.identities` y `perfiles.correo`, y moverlo mal deja al cliente sin
+  // poder entrar SIN ningún error visible. Por eso su puerta es más angosta
+  // que la del documento, que sí admite `admin`.
+
+  it('Admin (no superadmin) NO puede tocar el correo: sigue de solo lectura', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    montar({ modo: 'corregir', clienteId: 'cli-1', rol: 'gerencia', rolPortal: 'admin' })
+
+    // El mismo admin que SÍ puede corregir el documento aquí no puede.
+    const correo = await screen.findByLabelText('Correo electrónico (cuenta de acceso)')
+    expect(correo).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Documento *')).toBeEnabled()
+    expect(screen.queryByLabelText('Motivo del cambio de correo *')).not.toBeInTheDocument()
+  })
+
+  it('Superadmin cambia el correo con motivo: la edge lo recibe recortado y el patch no lo lleva', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    corregirCorreo.mockResolvedValue(undefined)
+    const { onListo } = montar({
+      modo: 'corregir',
+      clienteId: 'cli-1',
+      rol: 'gerencia',
+      rolPortal: 'superadmin',
+    })
+
+    const correo = await screen.findByLabelText('Correo electrónico *')
+    expect(correo).not.toHaveAttribute('readonly')
+    // El motivo NO existe hasta que el correo cambia de verdad.
+    expect(screen.queryByLabelText('Motivo del cambio de correo *')).not.toBeInTheDocument()
+    await user.clear(correo)
+    await user.type(correo, '  Nuevo@Correo.PE  ')
+    await user.type(
+      await screen.findByLabelText('Motivo del cambio de correo *'),
+      'El cliente perdió acceso a su correo anterior',
+    )
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
+    // El correo NO viaja en el patch de perfiles: la edge es la única que puede
+    // mover los tres sitios a la vez.
+    const [, patch] = actualizarCliente.mock.calls[0]!
+    expect(patch).not.toHaveProperty('correo')
+    // El correo viaja RECORTADO pero tal como se tecleó: quien lo pasa a
+    // minúsculas es el servidor (la edge y la RPC), igual que en el alta. Aquí
+    // se fija ese contrato para que el front no invente una segunda
+    // normalización que pueda discrepar de la de Auth.
+    expect(corregirCorreo).toHaveBeenCalledWith(
+      'cli-1',
+      'Nuevo@Correo.PE',
+      'El cliente perdió acceso a su correo anterior',
+    )
+  })
+
+  it('Superadmin sin motivo: NO llama a la edge y lo dice', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    montar({ modo: 'corregir', clienteId: 'cli-1', rol: 'gerencia', rolPortal: 'superadmin' })
+
+    const correo = await screen.findByLabelText('Correo electrónico *')
+    await user.clear(correo)
+    await user.type(correo, 'nuevo@correo.pe')
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/entre 3 y 500 caracteres/)
+    expect(corregirCorreo).not.toHaveBeenCalled()
+    // Se corta ANTES del patch: no se guarda media corrección.
+    expect(actualizarCliente).not.toHaveBeenCalled()
+  })
+
+  it('si la edge del correo falla, NO se dice «guardado» y se explica qué sí quedó', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    actualizarCliente.mockResolvedValue(true)
+    corregirCorreo.mockRejectedValue(
+      new CrmApiError('Ese correo ya está registrado en el portal con otra cuenta', 'CORRECCION_CORREO_FALLIDA'),
+    )
+    const { onListo } = montar({
+      modo: 'corregir',
+      clienteId: 'cli-1',
+      rol: 'gerencia',
+      rolPortal: 'superadmin',
+    })
+
+    const correo = await screen.findByLabelText('Correo electrónico *')
+    await user.clear(correo)
+    await user.type(correo, 'ocupado@correo.pe')
+    await user.type(
+      await screen.findByLabelText('Motivo del cambio de correo *'),
+      'Corrección solicitada por el cliente',
+    )
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(/Los demás datos se guardaron/)
+    expect(aviso).toHaveTextContent(/ya está registrado/)
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(onListo).not.toHaveBeenCalled()
   })
 
   it('cliente LEGACY sin separar: muestra el nombre original y permite guardar sin apellidos/nombres', async () => {

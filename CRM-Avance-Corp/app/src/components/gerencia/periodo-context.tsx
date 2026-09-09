@@ -13,6 +13,7 @@ import { fechaLima } from '@/lib/agenda-derivada'
 import type { FiltroFuentesConversion } from '@/lib/conversion-vendedores'
 import { periodoInicialGerencia, type PeriodoGerencia } from './periodo'
 import { PeriodoGerenciaContext } from './periodo-context-base'
+import { ConsultaGerenciaContext, type ConsultaGerencia, type PosicionConsulta } from './consulta-context'
 
 function mismoPeriodo(a: PeriodoGerencia, b: PeriodoGerencia): boolean {
   return a.desde === b.desde && a.hasta === b.hasta
@@ -32,6 +33,13 @@ export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): 
   const [periodo, setPeriodoInterno] = useState<PeriodoGerencia>(periodoInicialGerencia)
   const [diaLima, setDiaLima] = useState(() => fechaLima(Date.now()))
   const [origenFiltrado, setOrigenFiltrado] = useState<FiltroFuentesConversion>(null)
+  const [consulta, setConsulta] = useState<ConsultaGerencia>({
+    gestionAnalista: null, administrarMetasPeriodo: null, rendimientoEquipo: null, rendimientoOrden: 'cupos',
+    comparacionAbierta: false, comparacionIds: ['', ''],
+    ranking: 'conversion', horizonteAltas: 6, analistaId: null, volverARanking: false, abrirDetalle: false,
+  })
+  const posiciones = useRef(new Map<string, PosicionConsulta>())
+  const consultaValue = useMemo(() => ({ consulta, setConsulta, posiciones }), [consulta])
   const automaticoRef = useRef(true)
   const setPeriodo = useCallback<Dispatch<SetStateAction<PeriodoGerencia>>>((actualizador) => {
     setPeriodoInterno((anterior) => {
@@ -62,5 +70,9 @@ export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): 
     () => ({ periodo, setPeriodo, diaLima, origenFiltrado, setOrigenFiltrado }),
     [diaLima, origenFiltrado, periodo, setPeriodo],
   )
-  return <PeriodoGerenciaContext.Provider value={value}>{children}</PeriodoGerenciaContext.Provider>
+  return (
+    <ConsultaGerenciaContext.Provider value={consultaValue}>
+      <PeriodoGerenciaContext.Provider value={value}>{children}</PeriodoGerenciaContext.Provider>
+    </ConsultaGerenciaContext.Provider>
+  )
 }

@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rentabilidad | Vista previa de Gerencia</title>
+  <style>
+    :root {
+      --ink: #17233f;
+      --ink-soft: #52617b;
+      --ink-faint: #76839a;
+      --navy: #14213f;
+      --navy-2: #233456;
+      --blue: #315da8;
+      --blue-soft: #edf3ff;
+      --green: #15745c;
+      --green-soft: #e9f7f1;
+      --amber: #98630a;
+      --amber-soft: #fff5dc;
+      --red: #b23a48;
+      --red-soft: #fff0f1;
+      --line: #dfe5ef;
+      --line-strong: #cbd4e2;
+      --surface: #ffffff;
+      --canvas: #f3f6fa;
+      --shadow: 0 13px 35px rgba(25, 39, 70, .08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 85% 0%, rgba(49, 93, 168, .08), transparent 28rem),
+        var(--canvas);
+      font-family: "Avenir Next", "Nunito Sans", sans-serif;
+      font-size: 14px;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: 238px minmax(0, 1fr); }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #dce5f6;
+      background: var(--navy);
+      border-right: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 22px 20px 19px;
+      border-bottom: 1px solid rgba(255, 255, 255, .1);
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--navy);
+      background: #f5c45a;
+      border-radius: 10px 3px 10px 3px;
+      font-weight: 900;
+      letter-spacing: -.08em;
+    }
+
+    .brand strong { display: block; color: white; font-size: 15px; letter-spacing: .01em; }
+    .brand small { display: block; margin-top: 2px; color: #91a1bc; font-size: 10px; }
+
+    .nav-label { padding: 23px 20px 9px; color: #8192af; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .nav { display: grid; gap: 4px; padding: 0 11px; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 42px;
+      padding: 0 12px;
+      color: #b8c4d8;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .nav a.active { color: white; background: rgba(255, 255, 255, .11); box-shadow: inset 3px 0 #f5c45a; }
+    .nav svg { width: 17px; height: 17px; stroke-width: 1.8; }
+
+    .profile {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 17px 19px;
+      border-top: 1px solid rgba(255, 255, 255, .1);
+    }
+    .avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: white; background: #33486f; font-size: 11px; font-weight: 800; }
+    .profile strong { display: block; color: white; font-size: 11px; }
+    .profile span { color: #91a1bc; font-size: 10px; }
+
+    .workspace { min-width: 0; }
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, .88);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+    .crumb { color: var(--ink-soft); font-size: 12px; }
+    .crumb strong { color: var(--ink); }
+    .preview-tag { padding: 6px 10px; color: var(--blue); background: var(--blue-soft); border: 1px solid #cddcff; border-radius: 999px; font-size: 10px; font-weight: 800; }
+
+    main { width: min(1240px, calc(100% - 48px)); margin: 0 auto; padding: 30px 0 44px; }
+    .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+    h1 { margin: 0; color: var(--ink); font-size: clamp(27px, 3vw, 38px); line-height: 1.05; letter-spacing: -.035em; }
+    .page-heading p { max-width: 690px; margin: 9px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.55; }
+    .updated { flex: 0 0 auto; color: var(--ink-faint); font-size: 11px; }
+
+    .config-nav {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      padding: 5px;
+      overflow-x: auto;
+      background: #e8edf5;
+      border: 1px solid #d8e0eb;
+      border-radius: 12px;
+      scrollbar-width: none;
+    }
+    .config-nav::-webkit-scrollbar { display: none; }
+    .config-nav button {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 0 13px;
+      color: var(--ink-soft);
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .config-nav button.active { color: var(--ink); background: white; box-shadow: 0 2px 7px rgba(25, 39, 70, .1); }
+
+    .policy-strip {
+      display: grid;
+      grid-template-columns: 1.3fr repeat(3, minmax(120px, .7fr));
+      margin-bottom: 15px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 22px rgba(25, 39, 70, .05);
+    }
+    .policy-intro { padding: 17px 20px; background: linear-gradient(125deg, var(--navy), var(--navy-2)); color: white; }
+    .policy-intro strong { display: block; font-size: 14px; }
+    .policy-intro span { display: block; margin-top: 4px; color: #b9c5da; font-size: 11px; line-height: 1.4; }
+    .policy-stat { padding: 15px 17px; border-left: 1px solid var(--line); }
+    .policy-stat span { display: block; color: var(--ink-faint); font-size: 10px; font-weight: 750; }
+    .policy-stat strong { display: block; margin-top: 3px; color: var(--ink); font-size: 20px; letter-spacing: -.03em; }
+    .policy-stat small { display: block; margin-top: 1px; color: var(--ink-soft); font-size: 10px; }
+
+    .pending-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+      padding: 12px 15px;
+      color: var(--ink);
+      background: var(--amber-soft);
+      border: 1px solid #ead39e;
+      border-radius: 13px;
+    }
+    .pending-note p { margin: 0; font-size: 12px; }
+    .pending-note strong { color: #704600; }
+    .pending-note button { flex: 0 0 auto; padding: 8px 11px; color: #704600; background: white; border: 1px solid #dabb76; border-radius: 9px; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+    .history {
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .history-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 19px 21px 0; }
+    .history-head h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .history-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 11px; }
+    .result-count { flex: 0 0 auto; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+
+    .tabs { display: flex; gap: 3px; padding: 16px 21px 0; border-bottom: 1px solid var(--line); }
+    .tab {
+      position: relative;
+      padding: 10px 13px 12px;
+      color: var(--ink-soft);
+      background: none;
+      border: 0;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .tab[aria-selected="true"] { color: var(--blue); }
+    .tab[aria-selected="true"]::after { content: ""; position: absolute; right: 7px; bottom: -1px; left: 7px; height: 3px; background: var(--blue); border-radius: 4px 4px 0 0; }
+    .tab-count { margin-left: 5px; padding: 2px 6px; background: #eef1f6; border-radius: 999px; font-size: 9px; }
+
+    .filters { display: grid; grid-template-columns: minmax(210px, 1fr) auto auto; gap: 10px; padding: 14px 21px; background: #fafbfd; border-bottom: 1px solid var(--line); }
+    .search-wrap { position: relative; }
+    .search-wrap svg { position: absolute; top: 50%; left: 11px; width: 15px; transform: translateY(-50%); color: var(--ink-faint); }
+    .search-wrap input, .filters select {
+      width: 100%;
+      height: 38px;
+      color: var(--ink);
+      background: white;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      outline: none;
+    }
+    .search-wrap input { padding: 0 12px 0 34px; }
+    .filters select { min-width: 145px; padding: 0 28px 0 10px; }
+    .search-wrap input:focus, .filters select:focus, button:focus-visible { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(49, 93, 168, .16); outline: none; }
+
+    .decision-header, .decision-summary {
+      display: grid;
+      grid-template-columns: 112px minmax(180px, 1.15fr) minmax(145px, .85fr) 205px 132px 34px;
+      gap: 14px;
+      align-items: center;
+    }
+    .decision-header { padding: 10px 21px; color: var(--ink-faint); background: #fafbfd; border-bottom: 1px solid var(--line); font-size: 9px; font-weight: 850; letter-spacing: .045em; }
+    .decision-item { border-bottom: 1px solid var(--line); }
+    .decision-summary { min-height: 78px; padding: 13px 21px; }
+    .decision-item:hover .decision-summary { background: #fbfcff; }
+
+    .date strong, .person strong { display: block; color: var(--ink); font-size: 12px; }
+    .date span, .person span, .context span { display: block; margin-top: 3px; color: var(--ink-soft); font-size: 10px; line-height: 1.35; }
+    .person strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .context strong { display: block; font-size: 11px; }
+
+    .rate-flow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .rate-step { min-width: 46px; }
+    .rate-step small { display: block; color: var(--ink-faint); font-size: 8px; }
+    .rate-step strong { display: block; margin-top: 1px; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .rate-step.approved strong { color: var(--green); }
+    .rate-step.denied strong { color: var(--red); }
+    .arrow { color: #a7b2c4; font-size: 15px; }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 9px; font-weight: 850; white-space: nowrap; }
+    .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .badge.approved { color: var(--green); background: var(--green-soft); }
+    .badge.capped { color: var(--amber); background: var(--amber-soft); }
+    .badge.rejected { color: var(--red); background: var(--red-soft); }
+    .decision-state { margin-top: 5px; color: var(--ink-soft); font-size: 9px; }
+
+    .expand {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      background: white;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .expand svg { width: 14px; transition: transform .18s ease; }
+    .decision-item.open .expand svg { transform: rotate(180deg); }
+
+    .decision-detail { display: none; padding: 0 21px 18px; background: #f8faff; }
+    .decision-item.open .decision-detail { display: block; }
+    .detail-shell { display: grid; grid-template-columns: 1.05fr 1fr 1.2fr; gap: 0; overflow: hidden; background: white; border: 1px solid #d7dfed; border-radius: 12px; }
+    .detail-group { padding: 14px 16px; border-right: 1px solid var(--line); }
+    .detail-group:last-child { border-right: 0; }
+    .detail-group h3 { margin: 0 0 9px; color: var(--ink); font-size: 11px; }
+    .detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0; font-size: 10px; }
+    .detail-grid dt { color: var(--ink-faint); }
+    .detail-grid dd { margin: 0; color: var(--ink); font-weight: 650; text-align: right; }
+    .quote { margin: 0 0 9px; padding-left: 10px; color: var(--ink-soft); border-left: 3px solid #b7c8e6; font-size: 10px; line-height: 1.5; }
+    .quote:last-child { margin-bottom: 0; }
+    .quote strong { display: block; color: var(--ink); font-size: 9px; }
+
+    .policy-list { display: none; }
+    .policy-row { display: grid; grid-template-columns: 90px 1fr 180px; gap: 15px; align-items: center; padding: 16px 21px; border-bottom: 1px solid var(--line); }
+    .policy-version { color: var(--blue); font-size: 16px; font-weight: 850; }
+    .policy-copy strong { display: block; font-size: 12px; }
+    .policy-copy span, .policy-meta { color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
+    .policy-meta { text-align: right; }
+
+    .pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 21px; background: #fafbfd; }
+    .pagination p { margin: 0; color: var(--ink-soft); font-size: 10px; }
+    .page-actions { display: flex; align-items: center; gap: 8px; }
+    .page-actions span { min-width: 90px; color: var(--ink-soft); text-align: center; font-size: 10px; }
+    .page-actions button { min-height: 34px; padding: 0 12px; background: white; border: 1px solid var(--line-strong); border-radius: 8px; font-size: 10px; font-weight: 750; cursor: pointer; }
+    .page-actions button:disabled { color: #a7b0bf; background: #f1f3f6; cursor: not-allowed; }
+
+    .mobile-label { display: none; }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 74px minmax(0, 1fr); }
+      .sidebar { align-items: center; }
+      .brand { padding-inline: 0; border: 0; }
+      .brand-copy, .nav-label, .nav span, .profile div:last-child { display: none; }
+      .nav { width: 100%; padding: 6px 9px; }
+      .nav a { justify-content: center; padding: 0; }
+      .profile { padding-inline: 0; }
+      .policy-strip { grid-template-columns: repeat(3, 1fr); }
+      .policy-intro { grid-column: 1 / -1; }
+      .policy-stat:first-of-type { border-left: 0; }
+      .decision-header { display: none; }
+      .decision-summary { grid-template-columns: 95px minmax(160px, 1fr) 185px 125px 34px; }
+      .context { display: none; }
+    }
+
+    @media (max-width: 720px) {
+      .app { display: block; }
+      .sidebar { display: none; }
+      .topbar { height: 52px; padding: 0 16px; }
+      main { width: min(100% - 24px, 680px); padding-top: 22px; }
+      .page-heading { align-items: start; }
+      .updated { display: none; }
+      .policy-strip { grid-template-columns: repeat(3, 1fr); border-radius: 14px; }
+      .policy-stat { padding: 12px; }
+      .policy-stat strong { font-size: 17px; }
+      .pending-note { align-items: start; }
+      .history-head { align-items: start; padding-inline: 15px; }
+      .tabs, .filters, .decision-summary, .decision-detail, .policy-row, .pagination { padding-inline: 15px; }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .search-wrap { grid-column: 1 / -1; }
+      .decision-summary { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; padding-block: 15px; }
+      .date, .context { display: none; }
+      .person { grid-column: 1; }
+      .rate-flow { grid-column: 1; margin-top: 4px; }
+      .decision { grid-column: 2; grid-row: 1; text-align: right; }
+      .expand { grid-column: 2; grid-row: 2; justify-self: end; }
+      .mobile-label { display: inline; color: var(--ink-faint); font-size: 9px; }
+      .detail-shell { grid-template-columns: 1fr; }
+      .detail-group { border-right: 0; border-bottom: 1px solid var(--line); }
+      .detail-group:last-child { border-bottom: 0; }
+      .policy-row { grid-template-columns: 65px 1fr; }
+      .policy-meta { grid-column: 2; text-align: left; }
+      .pagination { align-items: start; flex-direction: column; }
+      .page-actions { width: 100%; justify-content: space-between; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <div class="brand-mark">AC</div>
+        <div class="brand-copy"><strong>Avance Corp</strong><small>CRM Comercial</small></div>
+      </div>
+      <div class="nav-label">GERENCIA</div>
+      <nav class="nav">
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span>Resumen</span></a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg><span>Rendimiento</span></a>
+        <a class="active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12M8 4v16m8-16v16M3 20h18"/></svg><span>Configuración</span></a>
+      </nav>
+      <div class="profile"><div class="avatar">GE</div><div><strong>Gerencia</strong><span>Sesión administrativa</span></div></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="crumb">Configuración / <strong>Política de rentabilidad</strong></div>
+        <div class="preview-tag">Vista previa local</div>
+      </header>
+
+      <main>
+        <div class="page-heading">
+          <div>
+            <h1>Política de rentabilidad</h1>
+            <p>Configura las reglas generales y consulta las decisiones de tasa tomadas por Gerencia.</p>
+          </div>
+          <div class="updated">Actualizado hace unos segundos</div>
+        </div>
+
+        <nav class="config-nav" aria-label="Secciones de configuración">
+          <button type="button">Usuarios</button>
+          <button type="button">Productos</button>
+          <button type="button">Metas</button>
+          <button type="button">Seguimiento</button>
+          <button class="active" type="button" aria-current="page">Rentabilidad</button>
+        </nav>
+
+        <section class="policy-strip" aria-label="Reglas vigentes de rentabilidad">
+          <div class="policy-intro"><strong>Reglas vigentes · versión 6</strong><span>Candado activo: el servidor exige autorización para superar la tasa base.</span></div>
+          <div class="policy-stat"><span>Tasa base</span><strong>15%</strong><small>Primera inversión</small></div>
+          <div class="policy-stat"><span>Tope técnico</span><strong>20%</strong><small>Máximo permitido</small></div>
+          <div class="policy-stat"><span>Decisiones del mes</span><strong>48</strong><small>12 esta semana</small></div>
+        </section>
+
+        <div class="pending-note">
+          <p><strong>Las aprobaciones pendientes siguen en Hoy.</strong> Aquí queda el historial completo de lo que Gerencia decidió.</p>
+          <button type="button">Ir a solicitudes</button>
+        </div>
+
+        <section class="history" aria-labelledby="history-title">
+          <div class="history-head">
+            <div><h2 id="history-title">Historial de rentabilidad</h2><p>Registro de decisiones y cambios de política. Ningún resultado se elimina.</p></div>
+            <span class="result-count" id="resultCount">48 decisiones</span>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Tipo de historial">
+            <button class="tab" id="tab-decisions" type="button" role="tab" aria-selected="true" aria-controls="panel-decisions">Decisiones de tasa <span class="tab-count">48</span></button>
+            <button class="tab" id="tab-policy" type="button" role="tab" aria-selected="false" aria-controls="panel-policy">Cambios de política <span class="tab-count">6</span></button>
+          </div>
+
+          <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions">
+            <div class="filters">
+              <label class="search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                <input id="search" type="search" placeholder="Buscar cliente o analista" aria-label="Buscar cliente o analista">
+              </label>
+              <select id="period" aria-label="Periodo"><option>Últimos 30 días</option><option>Esta semana</option><option>Este mes</option><option>Personalizado</option></select>
+              <select id="status" aria-label="Decisión"><option value="all">Todas las decisiones</option><option value="approved">Aprobadas</option><option value="capped">Con tope</option><option value="rejected">Rechazadas</option></select>
+            </div>
+
+            <div class="decision-header" aria-hidden="true"><span>FECHA</span><span>CLIENTE Y SOLICITANTE</span><span>OPERACIÓN</span><span>RECORRIDO DE TASA</span><span>DECISIÓN</span><span></span></div>
+            <div id="decisionList">
+              <article class="decision-item" data-status="approved" data-search="mariana salas diego pineda">
+                <div class="decision-summary">
+                  <div class="date"><strong>07 sep. 2026</strong><span>18:32</span></div>
+                  <div class="person"><strong>MARIANA SALAS VEGA</strong><span>Solicita Diego Pineda</span></div>
+                  <div class="context"><strong>S/ 80,000</strong><span>Renovación anual</span></div>
+                  <div class="rate-flow" aria-label="Base 15%, solicitada 18%, autorizada 18%"><div class="rate-step"><small>Base</small><strong>15%</strong></div><span class="arrow">→</span><div class="rate-step"><small>Solicita</small><strong>18%</strong></div><span class="arrow">→</span><div class="rate-step approved"><small>Autoriza</small><strong>18%</strong></div></div>
+                  <div class="decision"><span class="badge approved">Aprobada</span><div class="decision-state">Consumida en contrato</div></div>
+                  <button class="expand" type="button" aria-expanded="false" aria-label="Ver detalle de Mariana Salas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg></button>
+                </div>
+                <div class="decision-detail">
+                  <div class="detail-shell">
+                    <section class="detail-group"><h3>Operación</h3><dl class="detail-grid"><dt>Categoría</dt><dd>Renovación</dd><dt>Contrato origen</dt><dd>AC-2025-0841</dd><dt>Capital</dt><dd>S/ 80,000</dd><dt>Plazo</dt><dd>01 oct. 2026 al 01 oct. 2027</dd><dt>Modalidad</dt><dd>Mensual, interés simple</dd></dl></section>
+                    <section class="detail-group"><h3>Decisión de Gerencia</h3><dl class="detail-grid"><dt>Política</dt><dd>Versión 6</dd><dt>Base</dt><dd>15%</dd><dt>Solicitada</dt><dd>18%</dd><dt>Autorizada</dt><dd>18% (+3 pts)</dd><dt>Decidió</dt><dd>Gerencia, 18:32</dd></dl></section>
+                    <section class="detail-group"><h3>Motivos y resultado</h3><p class="quote"><strong>Motivo comercial</strong>Renovación del capital completo y ampliación del plazo a doce meses.</p><p class="quote"><strong>Resultado</strong>El analista aceptó la autorización y se registró el contrato AC-2026-1027.</p></section>
+                  </div>
+                </div>
+              </article>
+
+              <article class="decision-item" data-status="capped" data-search="rosa carrion lucas mendoza">
+                <div class="decision-summary">
+                  <div class="date"><strong>07 sep. 2026</strong><span>16:18</span></div>
+                  <div class="person"><strong>ROSA CARRIÓN SILVA</strong><span>Solicita Lucas Mendoza</span></div>
+                  <div class="context"><strong>US$ 25,000</strong><span>Primera inversión</span></div>
+                  <div class="rate-flow" aria-label="Base 15%, solicitada 18%, autorizada hasta 16.5%"><div class="rate-step"><small>Base</small><strong>15%</strong></div><span class="arrow">→</span><div class="rate-step"><small>Solicita</small><strong>18%</strong></div><span class="arrow">→</span><div class="rate-step approved"><small>Tope</small><strong>16.5%</strong></div></div>
+                  <div class="decision"><span class="badge capped">Con tope</span><div class="decision-state">Aceptada por analista</div></div>
+                  <button class="expand" type="button" aria-expanded="false" aria-label="Ver detalle de Rosa Carrión"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg></button>
+                </div>
+                <div class="decision-detail"><div class="detail-shell"><section class="detail-group"><h3>Operación</h3><dl class="detail-grid"><dt>Categoría</dt><dd>Primera inversión</dd><dt>Capital</dt><dd>US$ 25,000</dd><dt>Plazo</dt><dd>12 meses</dd><dt>Modalidad</dt><dd>Trimestral, interés simple</dd></dl></section><section class="detail-group"><h3>Decisión de Gerencia</h3><dl class="detail-grid"><dt>Política</dt><dd>Versión 6</dd><dt>Base</dt><dd>15%</dd><dt>Solicitada</dt><dd>18%</dd><dt>Tope autorizado</dt><dd>16.5% (+1.5 pts)</dd><dt>Decidió</dt><dd>Gerencia, 16:18</dd></dl></section><section class="detail-group"><h3>Motivos y resultado</h3><p class="quote"><strong>Motivo comercial</strong>Cliente referido con disponibilidad inmediata en dólares.</p><p class="quote"><strong>Motivo de Gerencia</strong>Se reconoce el volumen, manteniendo margen mínimo para dólares.</p><p class="quote"><strong>Resultado</strong>Tope aceptado por el analista a las 16:26.</p></section></div></div>
+              </article>
+
+              <article class="decision-item" data-status="rejected" data-search="alberto ruiz camila ortiz">
+                <div class="decision-summary">
+                  <div class="date"><strong>06 sep. 2026</strong><span>12:05</span></div>
+                  <div class="person"><strong>ALBERTO RUIZ DÍAZ</strong><span>Solicita Camila Ortiz</span></div>
+                  <div class="context"><strong>S/ 12,000</strong><span>Primera inversión</span></div>
+                  <div class="rate-flow" aria-label="Base 15%, solicitada 19%, rechazada"><div class="rate-step"><small>Base</small><strong>15%</strong></div><span class="arrow">→</span><div class="rate-step"><small>Solicita</small><strong>19%</strong></div><span class="arrow">→</span><div class="rate-step denied"><small>Queda</small><strong>15%</strong></div></div>
+                  <div class="decision"><span class="badge rejected">Rechazada</span><div class="decision-state">Cerrada</div></div>
+                  <button class="expand" type="button" aria-expanded="false" aria-label="Ver detalle de Alberto Ruiz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg></button>
+                </div>
+                <div class="decision-detail"><div class="detail-shell"><section class="detail-group"><h3>Operación</h3><dl class="detail-grid"><dt>Categoría</dt><dd>Primera inversión</dd><dt>Capital</dt><dd>S/ 12,000</dd><dt>Plazo</dt><dd>6 meses</dd><dt>Modalidad</dt><dd>Mensual, interés simple</dd></dl></section><section class="detail-group"><h3>Decisión de Gerencia</h3><dl class="detail-grid"><dt>Política</dt><dd>Versión 6</dd><dt>Base</dt><dd>15%</dd><dt>Solicitada</dt><dd>19%</dd><dt>Resultado</dt><dd>Permanece en 15%</dd><dt>Decidió</dt><dd>Gerencia, 12:05</dd></dl></section><section class="detail-group"><h3>Motivos y resultado</h3><p class="quote"><strong>Motivo comercial</strong>El cliente compara una alternativa de corto plazo.</p><p class="quote"><strong>Motivo de Gerencia</strong>El capital y plazo no justifican una excepción de cuatro puntos.</p></section></div></div>
+              </article>
+
+              <article class="decision-item" data-status="approved" data-search="elena torres valeria nuñez">
+                <div class="decision-summary"><div class="date"><strong>05 sep. 2026</strong><span>17:44</span></div><div class="person"><strong>ELENA TORRES LEÓN</strong><span>Solicita Valeria Núñez</span></div><div class="context"><strong>S/ 150,000</strong><span>Aumento de capital</span></div><div class="rate-flow"><div class="rate-step"><small>Base</small><strong>16%</strong></div><span class="arrow">→</span><div class="rate-step"><small>Solicita</small><strong>17%</strong></div><span class="arrow">→</span><div class="rate-step approved"><small>Autoriza</small><strong>17%</strong></div></div><div class="decision"><span class="badge approved">Aprobada</span><div class="decision-state">Autorización vigente</div></div><button class="expand" type="button" aria-expanded="false" aria-label="Ver detalle de Elena Torres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg></button></div>
+                <div class="decision-detail"><div class="detail-shell"><section class="detail-group"><h3>Operación</h3><dl class="detail-grid"><dt>Categoría</dt><dd>Aumento</dd><dt>Contrato origen</dt><dd>AC-2026-0312</dd><dt>Capital adicional</dt><dd>S/ 150,000</dd><dt>Vigencia</dt><dd>Hasta 12 sep. 2026</dd></dl></section><section class="detail-group"><h3>Decisión de Gerencia</h3><dl class="detail-grid"><dt>Política</dt><dd>Versión 6</dd><dt>Base heredada</dt><dd>16%</dd><dt>Solicitada</dt><dd>17%</dd><dt>Autorizada</dt><dd>17% (+1 pt)</dd></dl></section><section class="detail-group"><h3>Motivos y resultado</h3><p class="quote"><strong>Motivo comercial</strong>Aumento significativo antes del vencimiento.</p><p class="quote"><strong>Resultado</strong>Autorización vigente, todavía no utilizada.</p></section></div></div>
+              </article>
+
+              <article class="decision-item" data-status="capped" data-search="oscar paredes martin salazar">
+                <div class="decision-summary"><div class="date"><strong>04 sep. 2026</strong><span>09:21</span></div><div class="person"><strong>ÓSCAR PAREDES ROJAS</strong><span>Solicita Martín Salazar</span></div><div class="context"><strong>US$ 40,000</strong><span>Renovación semestral</span></div><div class="rate-flow"><div class="rate-step"><small>Base</small><strong>15%</strong></div><span class="arrow">→</span><div class="rate-step"><small>Solicita</small><strong>17%</strong></div><span class="arrow">→</span><div class="rate-step approved"><small>Tope</small><strong>16%</strong></div></div><div class="decision"><span class="badge capped">Con tope</span><div class="decision-state">Declinada por analista</div></div><button class="expand" type="button" aria-expanded="false" aria-label="Ver detalle de Óscar Paredes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg></button></div>
+                <div class="decision-detail"><div class="detail-shell"><section class="detail-group"><h3>Operación</h3><dl class="detail-grid"><dt>Categoría</dt><dd>Renovación</dd><dt>Contrato origen</dt><dd>AC-2025-0610</dd><dt>Capital</dt><dd>US$ 40,000</dd><dt>Plazo</dt><dd>6 meses</dd></dl></section><section class="detail-group"><h3>Decisión de Gerencia</h3><dl class="detail-grid"><dt>Política</dt><dd>Versión 5</dd><dt>Base heredada</dt><dd>15%</dd><dt>Solicitada</dt><dd>17%</dd><dt>Tope autorizado</dt><dd>16% (+1 pt)</dd></dl></section><section class="detail-group"><h3>Motivos y resultado</h3><p class="quote"><strong>Motivo de Gerencia</strong>Se aprueba un punto por renovación, no dos.</p><p class="quote"><strong>Resultado</strong>El analista declinó el tope el 04 sep. a las 10:02.</p></section></div></div>
+              </article>
+            </div>
+          </div>
+
+          <div id="panel-policy" class="policy-list" role="tabpanel" aria-labelledby="tab-policy" hidden>
+            <div class="policy-row"><div class="policy-version">v6</div><div class="policy-copy"><strong>Base 15% · tope 20% · vigencia 7 días</strong><span>Candado activo. Se ajustó el tope técnico para nuevas solicitudes.</span></div><div class="policy-meta">02 sep. 2026, 09:14<br>Gerencia · vigente</div></div>
+            <div class="policy-row"><div class="policy-version">v5</div><div class="policy-copy"><strong>Base 15% · tope 18% · vigencia 7 días</strong><span>Candado activo. Revisión mensual de márgenes.</span></div><div class="policy-meta">01 ago. 2026, 08:40<br>Gerencia</div></div>
+            <div class="policy-row"><div class="policy-version">v4</div><div class="policy-copy"><strong>Base 15% · tope 18% · vigencia 5 días</strong><span>Modo observación antes de activar el bloqueo.</span></div><div class="policy-meta">12 jul. 2026, 16:22<br>Gerencia</div></div>
+          </div>
+
+          <footer class="pagination">
+            <p id="rangeText">Mostrando 1 a 5 de 48 decisiones</p>
+            <div class="page-actions"><button type="button" id="prev" disabled>Anterior</button><span id="pageText">Página 1 de 10</span><button type="button" id="next">Siguiente</button></div>
+          </footer>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const decisionTab = document.querySelector('#tab-decisions')
+    const policyTab = document.querySelector('#tab-policy')
+    const decisionPanel = document.querySelector('#panel-decisions')
+    const policyPanel = document.querySelector('#panel-policy')
+    const count = document.querySelector('#resultCount')
+    const range = document.querySelector('#rangeText')
+    const page = document.querySelector('#pageText')
+    const previous = document.querySelector('#prev')
+    const next = document.querySelector('#next')
+    const items = [...document.querySelectorAll('.decision-item')]
+
+    function showPanel(name) {
+      const decisions = name === 'decisions'
+      decisionTab.setAttribute('aria-selected', String(decisions))
+      policyTab.setAttribute('aria-selected', String(!decisions))
+      decisionPanel.hidden = !decisions
+      policyPanel.hidden = decisions
+      policyPanel.style.display = decisions ? 'none' : 'block'
+      count.textContent = decisions ? '48 decisiones' : '6 versiones'
+      range.textContent = decisions ? 'Mostrando 1 a 5 de 48 decisiones' : 'Mostrando 1 a 3 de 6 versiones'
+      page.textContent = decisions ? 'Página 1 de 10' : 'Página 1 de 2'
+      previous.disabled = true
+      next.disabled = false
+    }
+
+    decisionTab.addEventListener('click', () => showPanel('decisions'))
+    policyTab.addEventListener('click', () => showPanel('policy'))
+
+    document.querySelectorAll('.expand').forEach((button) => {
+      button.addEventListener('click', () => {
+        const item = button.closest('.decision-item')
+        const willOpen = !item.classList.contains('open')
+        items.forEach((row) => {
+          row.classList.remove('open')
+          row.querySelector('.expand').setAttribute('aria-expanded', 'false')
+        })
+        if (willOpen) {
+          item.classList.add('open')
+          button.setAttribute('aria-expanded', 'true')
+        }
+      })
+    })
+
+    function applyFilters() {
+      const term = document.querySelector('#search').value.trim().toLowerCase()
+      const status = document.querySelector('#status').value
+      let visible = 0
+      items.forEach((item) => {
+        const matchesTerm = !term || item.dataset.search.includes(term)
+        const matchesStatus = status === 'all' || item.dataset.status === status
+        const show = matchesTerm && matchesStatus
+        item.hidden = !show
+        if (show) visible += 1
+      })
+      count.textContent = status === 'all' && !term ? '48 decisiones' : `${visible} en esta página`
+      range.textContent = visible ? `Mostrando ${visible} ${visible === 1 ? 'decisión' : 'decisiones'} en esta página` : 'No hay decisiones con estos filtros'
+    }
+
+    document.querySelector('#search').addEventListener('input', applyFilters)
+    document.querySelector('#status').addEventListener('change', applyFilters)
+
+    let currentPage = 1
+    function changePage(delta) {
+      currentPage = Math.max(1, Math.min(10, currentPage + delta))
+      page.textContent = `Página ${currentPage} de 10`
+      const first = (currentPage - 1) * 5 + 1
+      range.textContent = `Mostrando ${first} a ${Math.min(first + 4, 48)} de 48 decisiones`
+      previous.disabled = currentPage === 1
+      next.disabled = currentPage === 10
+    }
+    previous.addEventListener('click', () => changePage(-1))
+    next.addEventListener('click', () => changePage(1))
+  </script>
+</body>
+</html>

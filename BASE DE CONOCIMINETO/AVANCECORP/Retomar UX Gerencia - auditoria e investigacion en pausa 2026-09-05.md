@@ -1,12 +1,18 @@
 ---
 tags: [crm, ux, gerencia, auditoria, investigacion, retomar]
 fecha: 2026-09-05
-estado: pausado-por-miguel
+estado: reanudado-auditoria-experta-completa-plan-actualizado
 ---
 
 # Retomar UX de Gerencia — auditoría e investigación en pausa
 
 Relacionado con [[Plan de mejora UX de Gerencia - revision 2026-09-05]], [[Plan de mejoras UX-UI del CRM]] y [[Fundamentos UX del CRM]].
+
+## Cierre después de reanudar
+
+Miguel indicó «sigue». Se completó la revisión experta con Citas, Metas, entrada a administración de metas, Rendimiento y consulta a 390 × 844. El [informe de 14 capturas](../../output/ux-gerencia-2026-09-05/informe-auditoria.md) recoge fortalezas, hallazgos y límites. Se actualizó [[Plan de mejora UX de Gerencia - revision 2026-09-05]] con tareas, fuentes, prioridades y criterios de cierre. La validación con personas de Gerencia y la implementación del plan siguen pendientes; no se hicieron cambios comerciales ni de aplicación.
+
+Hallazgos añadidos: Rendimiento ya ofrece un patrón de asuntos que merecen atención y capacidad por analista; en móvil el título superior de Ranking tiene ancho visible de 0 píxeles. El menú y el viewport se restauraron a la disposición de escritorio. Las secciones siguientes conservan el registro histórico de la pausa y no representan trabajo aún pendiente de esta auditoría.
 
 ## Encargo y pausa
 

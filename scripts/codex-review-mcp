@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Reviewer-only MCP entry point. Empty TOML tables MERGE with user settings;
+# enumerate effective MCP names and disable each one without changing settings.
+set -euo pipefail
+
+case "${1:-}" in
+  -h|--help)
+    echo 'Uso: scripts/codex-review-mcp [--check]'
+    echo 'Inicia Codex MCP read-only, sin shell, agentes, plugins ni MCP heredados.'
+    exit 0 ;;
+  ''|--check) ;;
+  *) echo 'ERROR: no se admiten overrides del reviewer.' >&2; exit 64 ;;
+esac
+[ "$#" -le 1 ] || { echo 'ERROR: demasiados argumentos.' >&2; exit 64; }
+for dependency in codex jq; do
+  command -v "$dependency" >/dev/null 2>&1 || {
+    echo "ERROR: falta $dependency en PATH; no se instala automáticamente." >&2
+    exit 127
+  }
+done
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+cd "$script_dir/.."
+
+restrictions=(
+  -c 'sandbox_mode="read-only"' -c 'approval_policy="never"'
+  -c 'agents.enabled=false' -c 'features.shell_tool=false'
+  -c 'features.apps=false' -c 'features.hooks=false'
+  -c 'features.plugins=false' -c 'features.remote_plugin=false'
+  -c 'features.browser_use=false' -c 'features.computer_use=false'
+  -c 'features.in_app_browser=false' -c 'features.in_app_local_automation=false'
+  -c 'features.code_mode=false' -c 'features.skill_mcp_dependency_install=false'
+  -c 'web_search="disabled"'
+)
+
+# Never print this JSON: transports may contain credentials from user settings.
+# Codex 0.153.4 rejects --strict-config on `mcp list`; it is enforced on the
+# actual mcp-server launch below, whose handshake is a separate verification.
+servers=$(codex "${restrictions[@]}" mcp list --json 2>/dev/null) || {
+  echo 'ERROR: no se pudo inventariar MCP; no se inicia el reviewer.' >&2; exit 1;
+}
+# Codex MCP names use letters, digits, underscore and hyphen. Reject unexpected
+# names instead of interpolating untrusted TOML keys or silently leaving a server.
+names=$(printf '%s' "$servers" | jq -er '
+  if type == "array" and all(.[];
+    (.name | type == "string" and test("^[A-Za-z0-9_-]+$")))
+  then map(.name) | join("\n") else error("invalid MCP inventory") end
+') || { echo 'ERROR: inventario MCP inválido; reviewer bloqueado.' >&2; exit 1; }
+unset servers
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  restrictions+=(-c "mcp_servers.${name}.enabled=false")
+done <<< "$names"
+
+if [ "${1:-}" = '--check' ]; then
+  codex "${restrictions[@]}" mcp list --json 2>/dev/null | jq -e '
+    type == "array" and all(.[]; .enabled == false)
+  ' >/dev/null || { echo 'ERROR: aún hay MCP habilitados.' >&2; exit 1; }
+  feature_state=$(codex "${restrictions[@]}" features list 2>/dev/null) || {
+    echo 'ERROR: no se pudieron verificar las herramientas del reviewer.' >&2; exit 1;
+  }
+  for feature in shell_tool apps hooks plugins remote_plugin browser_use computer_use in_app_browser in_app_local_automation code_mode skill_mcp_dependency_install; do
+    # Each CLI row is FEATURE, maturity label, boolean; accept only false.
+    if ! printf '%s\n' "$feature_state" | awk -v feature="$feature" '$1 == feature && $NF == "false" { found=1 } END { exit !found }'; then
+      echo "ERROR: la herramienta $feature no está deshabilitada." >&2; exit 1
+    fi
+  done
+  echo 'PASS: MCP heredados, plugins y herramientas de ejecución deshabilitados.'
+  exit 0
+fi
+
+exec codex mcp-server --strict-config "${restrictions[@]}"

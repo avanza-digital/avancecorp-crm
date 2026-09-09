@@ -1,0 +1,74 @@
+{
+  "pageId": "128:2",
+  "boardId": "138:2",
+  "rowCount": 10,
+  "overflow": [],
+  "cards": [
+    {
+      "id": "138:53",
+      "name": "1 · Resumen inicial",
+      "inside": true,
+      "images": [
+        {
+          "id": "138:54",
+          "name": "01-resumen-mobile-inicio.jpg",
+          "width": 390,
+          "height": 844,
+          "fills": [
+            {
+              "type": "IMAGE",
+              "imageHash": "cea6acd34e62bc0324f4d01681d9db3c0fb38878",
+              "scaleMode": "FIT"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "138:57",
+      "name": "2 · Cartera desplazada",
+      "inside": true,
+      "images": [
+        {
+          "id": "138:58",
+          "name": "04-cartera-mobile-segunda.jpg",
+          "width": 390,
+          "height": 844,
+          "fills": [
+            {
+              "type": "IMAGE",
+              "imageHash": "7f875331b33dee71f69c784a10da3396e44f1164",
+              "scaleMode": "FIT"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "138:61",
+      "name": "3 · Regreso a Resumen",
+      "inside": true,
+      "images": [
+        {
+          "id": "138:62",
+          "name": "05-resumen-mobile-segundo-regreso.jpg",
+          "width": 390,
+          "height": 844,
+          "fills": [
+            {
+              "type": "IMAGE",
+              "imageHash": "cea6acd34e62bc0324f4d01681d9db3c0fb38878",
+              "scaleMode": "FIT"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sectionBounds": {
+    "width": 1794,
+    "height": 1220
+  },
+  "createdNodeIds": [],
+  "mutatedNodeIds": []
+}

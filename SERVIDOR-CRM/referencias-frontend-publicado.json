@@ -1,0 +1,422 @@
+[
+  {
+    "url": "https://crm.miavance.com/assets/badge-zpKPtqe1.js",
+    "sha256": "fafdc67e168057f26e1802226f07c4388772cf5dd52b00d61d2ead936001214c",
+    "bytes": 21360,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/crm-api-BaTDaHew.js",
+    "sha256": "08a4c1b5d92503b45448d9ee864f14883c4926b1244a7acafbb7a0603d9f8f3c",
+    "bytes": 156289,
+    "references": [
+      "actividades_del_ambito_fn",
+      "actualizar_capacidad_leads_objetivo",
+      "actualizar_cliente_gerencia_con_domicilio",
+      "actualizar_contrato_con_cuenta_pdf_v3",
+      "agenda_reparto_diaria",
+      "altas_nuevas_por_analista_fn",
+      "anular_cierre_avance",
+      "anular_cierre_externo",
+      "atribucion_contrato_fn",
+      "ayuda_vendedor_inicio",
+      "cartera_pagina_fn",
+      "cerrar_reunion",
+      "cerrar_tarea",
+      "cierre_mes_estado_fn",
+      "cierres_estado_fn",
+      "cierres_externos_fn",
+      "cliente_detalle_fn",
+      "cliente_ficha_fn",
+      "cola_accion_fn",
+      "completar_domicilio_cliente",
+      "configuracion_metas_fn",
+      "consultar_ayuda_vendedor",
+      "conversion_mensual_fn",
+      "conversion_punteria",
+      "convertir_lead_externo",
+      "crear_contrato_con_cuenta_pdf_v2",
+      "crear_lead_si_disponible",
+      "cronograma_contrato_fn",
+      "cuentas_bancarias_cliente_fn",
+      "cumplimiento_metas_fn",
+      "datos_legales_contrato_fn",
+      "derivar_leads_equipo_fn",
+      "descartar_lead",
+      "deshacer_descarte",
+      "editar_lead_fn",
+      "equipo_visible_fn",
+      "guardar_agenda_reparto_diaria",
+      "historial_derivaciones",
+      "leads_descartados",
+      "leads_por_repartir",
+      "metricas_agenda_fn",
+      "metricas_conversiones_equipo_fn",
+      "metricas_conversiones_fn",
+      "metricas_distribucion_leads_v3_fn",
+      "metricas_reuniones_fn",
+      "metricas_vendedores_fn",
+      "panel_distribucion_reparto",
+      "reabrir_lead_fn",
+      "reasignar_analista_contrato",
+      "repartir_lead",
+      "reporte_derivaciones_coordinacion_fn",
+      "reporte_derivaciones_equipo_fn",
+      "reprogramar_reunion",
+      "rescatar_descartes",
+      "rescate_descartes_mes",
+      "rescate_descartes_meses",
+      "resumen_cartera_clientes_fn",
+      "resumen_cartera_fn",
+      "resumen_reparto_fn",
+      "revertir_derivacion_equipo_fn",
+      "rol_crm",
+      "supervisores_para_reparto",
+      "titulares_contrato_fn",
+      "tomar_lead_libre",
+      "verificar_disponibilidad_lead"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/data-vendor-CVus9pJE.js",
+    "sha256": "96236843d5818177a09c90f9f8b80dcecb3b2460887d5bc03e84980e2a3a9c2d",
+    "bytes": 241277,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/index-DR3qPpBd.js",
+    "sha256": "a09731c5240b4a287e43d15ffd959de08283d63568e6ee5cc5ef7a0226c75055",
+    "bytes": 520362,
+    "references": [
+      "actualizar_borrador_producto_inversion",
+      "actualizar_jerarquia_usuario_fn",
+      "actualizar_usuario_administrable_fn",
+      "archivar_producto_inversion",
+      "asignar_rol_usuario_fn",
+      "configuracion_metas_fn",
+      "configuracion_sla_fn",
+      "crear_producto_inversion",
+      "crear_version_producto_inversion",
+      "estado_sla_leads_fn",
+      "fijar_membresia_activa_fn",
+      "impacto_desactivacion_usuario_fn",
+      "metricas_sla_fn",
+      "mi_acceso_fn",
+      "productos_inversion_gestion_fn",
+      "productos_inversion_seleccion_fn",
+      "publicar_metas_vendedores",
+      "publicar_politica_sla",
+      "publicar_version_producto_inversion",
+      "rol_crm",
+      "usuarios_administrables_fn"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/react-vendor-BXy-oECh.js",
+    "sha256": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+    "bytes": 190815,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/rolldown-runtime-QTnfLwEv.js",
+    "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+    "bytes": 694,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/ui-vendor-D33xflUV.js",
+    "sha256": "2777e46adc7390a6aaa764186ea77961874d332cce4cf81e7149d0d0cfa8bf1d",
+    "bytes": 84218,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/utils-CKqrMsPL.js",
+    "sha256": "c850a824077bf6445939099f1942722f186bed79a4293d00a93099cb2b190e37",
+    "bytes": 26939,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/agenda-tYflfzoi.js",
+    "sha256": "73fb0c8a87b9c6130f57af66a608353ee67196cb5cdcbe5ade7658c9d3e20f11",
+    "bytes": 29909,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/agenda-vistas-uf3PwhDB.js",
+    "sha256": "fb4e4332c8ac12dcb800842902853b172cc9a23e5ad8b5990127dac50397ecf3",
+    "bytes": 3638,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/alertas-qcdyQxv8.js",
+    "sha256": "91a90741ddbab170bfd0a254f4b155d829ce4eaa18ece679682a301ceaa30ed6",
+    "bytes": 15137,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/aviso-degradacion-BXiIhPJv.js",
+    "sha256": "07fe0c671c0879d48dffdb71f53b1bcc39a824a108dbc7cd885a278c01497e6c",
+    "bytes": 1198,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/card-A-g8tMVV.js",
+    "sha256": "213b9a0ea69638e6d10544e0775978fbb5e170587cbe11f4931f42f20dd659c2",
+    "bytes": 737,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/cartera-ZulJSTWh.js",
+    "sha256": "9f7dcfbe3825b4e5bb0d967d924f1c2f91882bd465528ede33d44c0aaad80b9f",
+    "bytes": 10019,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/cierres-externos-seccion-COujr1IO.js",
+    "sha256": "6fd8c3178fc52eb04c9594a42e6fcc701669c85fa7fe67ff06f246e2d1de39c6",
+    "bytes": 14768,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/clientes-vista-BT9wOPoj.js",
+    "sha256": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+    "bytes": 304,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/config-DStq8lKq.js",
+    "sha256": "2e1dad02501732c45095b70436ccdbf119b4b49ef541b40e43d44fa7eb611b0e",
+    "bytes": 11384,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/config-metas-B-3uzO61.js",
+    "sha256": "ddfd42f7e415f26293f24b0bb960013f6c4b8f95e861a2c49d686834aa7c86b2",
+    "bytes": 12553,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/config-productos-f561HAVN.js",
+    "sha256": "97e16c8b935c0d4a6984da06c21591d3240534b82c22cd790d3fe110ad97f9f4",
+    "bytes": 26950,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/config-sla-2un0unOn.js",
+    "sha256": "a6494f81e1f8178cdbc471143be6843cde53aed0148ed627a913232d750e5d4e",
+    "bytes": 11806,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/config-usuarios-hnlDkaJI.js",
+    "sha256": "ba3bd60f88f562432d930a0eb32cb875ca2d44678659be7c5d5e5ac98e1638b6",
+    "bytes": 23768,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/configuracion-shell-GqzlUVhp.js",
+    "sha256": "4acc44b442cadaf99d34850321680cfbe89b3f508db91b13452f09f8aa8388dd",
+    "bytes": 1755,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/derivaciones-n8AygwZB.js",
+    "sha256": "e758bd7243100466dffcb4263395828d5947fbb964a30e7e9ed7bc68670093f0",
+    "bytes": 13011,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/desglose-monedas-BsmR2pjs.js",
+    "sha256": "afdb1529b171bb7d8d14993f4f2effe3a11adb26577fd09d99192f53a6af9b60",
+    "bytes": 639,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/equipo-DvHK5w-u.js",
+    "sha256": "dd7c18d600425ff7a304d7a31571c8270b99aa371a18daa42e7c4c9d47290529",
+    "bytes": 26045,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/estado-panel-Sp2yQ8AP.js",
+    "sha256": "27908ba7a8e68e86dd2afbe43c572ecf2a84d2baa53190994a356b816f7e0780",
+    "bytes": 2964,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/gerencia-CPJhyFgM.js",
+    "sha256": "525147819dea52f624daf1e329ff80bfe255878172a0ecae62a505e583a17fb5",
+    "bytes": 158611,
+    "references": [
+      "conversion_punteria"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/gerencia-D7YxqHOb.js",
+    "sha256": "585dfa8a0219c33e1d8fd7c8280eaed9eb84bf70012b79a3eaf88e02699d655b",
+    "bytes": 507,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/hoy-B9qK4QC3.js",
+    "sha256": "3f38ff825138bbee11ca97c7e8dbc66149727196ecf7deb415cd9f0ca7967422",
+    "bytes": 86489,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/lead-hover-card-DgZRhXwz.js",
+    "sha256": "bb9e09ec101204273c35497558adabe745660451f0ce3919cbb78fd38ea77384",
+    "bytes": 33787,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/mi-cartera-BPynjIsd.js",
+    "sha256": "49206085fadf14635ff1e2a9065aefd071c6531300f6a1c32e11d714515097a6",
+    "bytes": 136524,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/paginacion-Cy0GMF4R.js",
+    "sha256": "ef83693acee72b646a13449dc825c683587f25e6cad65effa558a588937b377a",
+    "bytes": 1072,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/pipeline-Bnp_9E5L.js",
+    "sha256": "b15123d4478b8cc02a096f986c22a7aae434cba21dd3e05ef946b9172d1e845d",
+    "bytes": 15132,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/progress-V0SDGr1f.js",
+    "sha256": "f23fe19319adba6c35116796b190b064c03c531e26f364341d3e71a68726f517",
+    "bytes": 426,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/ranking-vendedores-B7e0zKBY.js",
+    "sha256": "60e6e030cb362e9af0c176cf8ec1c436325ea18bea3ef582172d638a07ffe997",
+    "bytes": 30438,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/repartir-C4jUPkzk.js",
+    "sha256": "5bccbc9e84f34e182fe4394e8d79ca4004e427ca544a0050477af393495a4bf8",
+    "bytes": 46174,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/rescate-carpeta-U1-oG72M.js",
+    "sha256": "b9689fc11cdc89396e38c580bf00470049d84b5eda73efee36ecb3978d6712ed",
+    "bytes": 205,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/rescate-descartados-DafVsLi-.js",
+    "sha256": "1f697cdfccb519fd82ec59b427eabd92e729f211115fae23d29121049019f093",
+    "bytes": 30750,
+    "references": [
+      "rol_crm"
+    ]
+  },
+  {
+    "url": "https://crm.miavance.com/assets/section-head-D0kPOWP2.js",
+    "sha256": "5ff9ff55a60674d36d59fdb14f7edfd1f26f43926b2aa0858e18962669e7327c",
+    "bytes": 432,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/stat-strip-CbvGMGQO.js",
+    "sha256": "9b55299b8b323d8e209ffa800da85031dc05d862bdeea9460e824e6c606c00de",
+    "bytes": 3037,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/tabla-B1tq2hOe.js",
+    "sha256": "d072c1b3f01c88521861c31478570db78ae9f73803a8e1a6dc9d5a4ae5fd9ff1",
+    "bytes": 701,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/use-metricas-vendedores-operativas-BMIQax5L.js",
+    "sha256": "edbf895ca16a95ed036ab25743e765aa98b63c69db0e35b20ac3911c47c00874",
+    "bytes": 1559,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/use-periodo-derivaciones-CFvIcfel.js",
+    "sha256": "30064682b7ba4d0e360de6b7b07e3d547d640ae6e4bfed90ba5f680c23ec7ba2",
+    "bytes": 3034,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/use-periodo-gerencia-D3ZuGO9J.js",
+    "sha256": "06be5878ac95bfd98585d48f08f1864cb13cc62cb80f05b98fb7296011294145",
+    "bytes": 289,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/use-resumen-cartera-operativo-DmEgyx67.js",
+    "sha256": "e6cac90bf669f08fb7da0ec7676c84dadced7f26db7c56de41e3509f9ff1f3d9",
+    "bytes": 521,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/echart-4gDMp4hg.js",
+    "sha256": "780e2af10fd8ed056d37162b56aad01d8e439141ccbd76eca05b12db8753f572",
+    "bytes": 486579,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/echart-bar-CvJMJg77.js",
+    "sha256": "5892f8fff49292192cd66244234fd5f3fdc453c218a6640435db689db64cf00a",
+    "bytes": 21988,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/echart-line-2sg4T1rj.js",
+    "sha256": "5d148b4b39d0b3251f3df9231e58889d9fbf63e13e4fa1b2b79555dcf00638ea",
+    "bytes": 45314,
+    "references": []
+  },
+  {
+    "url": "https://crm.miavance.com/assets/Node.js",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "url": "https://miavance.com/js/admin/pagos.js",
+    "sha256": "56d54998a63dd60050deb04a9585cb4ae7f683c9caa7793f84533f37571a25d4",
+    "bytes": 68139,
+    "references": [
+      "admin_pagos_metricas",
+      "admin_pagos_resumen",
+      "cuentas_pago_contratos_fn"
+    ],
+    "no_contactar_context": []
+  },
+  {
+    "url": "https://miavance.com/js/admin/contratos.js",
+    "sha256": "ed618cfcb49243336d063a9eb2f41eb2dbe04d43c63ad793666e750e08d6c9e0",
+    "bytes": 80624,
+    "references": [
+      "actualizar_contrato",
+      "actualizar_contrato_con_cuenta_pdf_v3",
+      "actualizar_numero_contrato_pdf_v3",
+      "cerrar_contrato",
+      "contrato_tiene_pagos",
+      "crear_contrato",
+      "es_admin"
+    ],
+    "no_contactar_context": []
+  }
+]

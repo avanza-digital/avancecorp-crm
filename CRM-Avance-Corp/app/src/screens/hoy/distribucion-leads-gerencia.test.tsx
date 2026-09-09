@@ -452,8 +452,11 @@ describe('DistribucionLeadsGerencia', () => {
     const input = screen.getByLabelText('Límite de cartera para Ana Torres')
     await user.clear(input)
     await user.type(input, '24')
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
 
+    expect(onEditarCapacidad).not.toHaveBeenCalled()
+    expect(screen.getByRole('region', { name: 'Revisar cambio de límite' })).toHaveTextContent('de 20 a 24 leads')
+    await user.click(screen.getByRole('button', { name: 'Confirmar cambio' }))
     await waitFor(() => expect(onEditarCapacidad).toHaveBeenCalledWith('ana-id', 24))
     expect(screen.queryByLabelText('Límite de cartera para Ana Torres')).not.toBeInTheDocument()
   })
@@ -467,12 +470,13 @@ describe('DistribucionLeadsGerencia', () => {
     const input = screen.getByLabelText('Límite de cartera para Ana Torres')
     await user.clear(input)
     await user.type(input, '1001')
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
     expect(screen.getByRole('alert')).toHaveTextContent('entero entre 1 y 1000')
     expect(onEditarCapacidad).not.toHaveBeenCalled()
 
     await user.clear(input)
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar cambio' }))
     await waitFor(() => expect(onEditarCapacidad).toHaveBeenCalledWith('ana-id', null))
   })
 
@@ -485,12 +489,56 @@ describe('DistribucionLeadsGerencia', () => {
     const input = screen.getByLabelText('Límite de cartera para Ana Torres')
     await user.clear(input)
     await user.type(input, '24')
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
 
+    await user.click(screen.getByRole('button', { name: 'Confirmar cambio' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'No se pudo guardar el límite de cartera. Inténtalo otra vez.',
+      'No pudimos confirmar el guardado.',
     )
     expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar cambio' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Comprobar estado actual' }))
+    expect(BASE_PROPS.onReintentar).toHaveBeenCalled()
+    expect(onEditarCapacidad).toHaveBeenCalledTimes(1)
+  })
+
+  it('simula una capacidad en demo sin llamar a la operación real', async () => {
+    const user = userEvent.setup()
+    const onEditarCapacidad = vi.fn()
+    montar({ modoDemo: true, onEditarCapacidad })
+    await user.click(screen.getByRole('button', { name: 'Editar límite de cartera de Ana Torres' }))
+    const campo = screen.getByLabelText('Límite de cartera para Ana Torres')
+    await user.clear(campo)
+    await user.type(campo, '24')
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
+    expect(onEditarCapacidad).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmar cambio' }))
+    expect(onEditarCapacidad).not.toHaveBeenCalled()
+    expect(screen.getByText(/Simulación guardada: límite de Ana Torres, 24 leads/)).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Ficha de Ana Torres' })).toHaveTextContent('5 de 24 leads')
+    expect(DATOS.analistas[0]?.capacidad.objetivo).toBe(20)
+  })
+
+  it('bloquea confirmar un límite que cambió mientras se revisaba', async () => {
+    const user = userEvent.setup()
+    const onEditarCapacidad = vi.fn()
+    const { rerender } = montar({ onEditarCapacidad })
+    await user.click(screen.getByRole('button', { name: 'Editar límite de cartera de Ana Torres' }))
+    const campo = screen.getByLabelText('Límite de cartera para Ana Torres')
+    await user.clear(campo)
+    await user.type(campo, '24')
+    await user.click(screen.getByRole('button', { name: 'Revisar cambio' }))
+    rerender(<DistribucionLeadsGerencia {...BASE_PROPS} onEditarCapacidad={onEditarCapacidad} datos={{ ...DATOS, analistas: DATOS.analistas.map((a) => a.analista_id === 'ana-id' ? { ...a, capacidad: { ...a.capacidad, objetivo: 22 } } : a) }} />)
+    await user.click(screen.getByRole('button', { name: 'Confirmar cambio' }))
+    expect(onEditarCapacidad).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('El límite cambió mientras editabas')
+  })
+
+  it('no ofrece señales vigentes ni edición con una lectura que falló al actualizarse', () => {
+    montar({ error: 'No se pudo actualizar.', mostrarOperacion: false })
+    expect(screen.queryByText('Lo que merece tu atención')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar límite de cartera de Ana Torres' })).toBeDisabled()
+    expect(screen.getByText(/última lectura disponible/)).toBeInTheDocument()
   })
 
   it('asistente de reparto: candidatos con espacio por monto elegido y dólares sin rangos', async () => {

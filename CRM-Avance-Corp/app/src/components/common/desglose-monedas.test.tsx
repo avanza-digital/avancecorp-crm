@@ -6,15 +6,15 @@ describe('DesgloseMonedas', () => {
   it('con TC muestra las dos monedas por separado bajo el total', () => {
     const { container } = render(<DesgloseMonedas pen={100_000} usd={20_000} tc={3.3947} />)
 
-    expect(container.textContent).toContain('S/ 100,000')
-    expect(container.textContent).toContain('US$ 20,000')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).toContain('S/ 100,000')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).toContain('US$ 20,000')
   })
 
   it('SIN TC avisa de que el dólar quedó fuera del total', () => {
     const { container } = render(<DesgloseMonedas pen={100_000} usd={20_000} tc={null} />)
 
-    expect(container.textContent).toContain('aparte (sin TC)')
-    expect(container.textContent).toContain('US$ 20,000')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).toContain('aparte (sin TC)')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).toContain('US$ 20,000')
   })
 
   it('sin TC el texto NO va en gris flojo: es cuando más importa leerlo', () => {
@@ -34,8 +34,8 @@ describe('DesgloseMonedas', () => {
   it('compacto abrevia los miles para las filas densas', () => {
     const { container } = render(<DesgloseMonedas pen={113_000} usd={20_000} tc={3.3947} compacto />)
 
-    expect(container.textContent).toContain('k')
-    expect(container.textContent).not.toContain('113,000')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).toContain('k')
+    expect(container.textContent?.replaceAll('\u00a0', ' ')).not.toContain('113,000')
   })
 
   it('el tono «gerencia» usa los tokens --gi-*, que solo resuelven en ese panel', () => {

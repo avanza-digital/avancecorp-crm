@@ -1,0 +1,41 @@
+{
+  "headings": [
+    {
+      "text": "Resumen",
+      "y": 18
+    },
+    {
+      "text": "Resultados para supervisar",
+      "y": 410
+    },
+    {
+      "text": "3 citas vencidas sin resultado",
+      "y": 547
+    },
+    {
+      "text": "Entender los resultados",
+      "y": 1451
+    },
+    {
+      "text": "Resultados por semana de llegada",
+      "y": 1785
+    },
+    {
+      "text": "Mejores analistas",
+      "y": 2238
+    },
+    {
+      "text": "Resultados por origen",
+      "y": 2482
+    },
+    {
+      "text": "Avance de metas",
+      "y": 2685
+    }
+  ],
+  "horizontalOverflow": false,
+  "viewport": {
+    "height": 844,
+    "width": 390
+  }
+}

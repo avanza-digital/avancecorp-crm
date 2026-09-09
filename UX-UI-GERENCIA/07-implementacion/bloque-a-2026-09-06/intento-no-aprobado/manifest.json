@@ -1,0 +1,60 @@
+{
+  "estado": "intento visual no aprobado; conservado como antecedente",
+  "archivos": [
+    {
+      "source": "CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.tsx",
+      "snapshot": "src/screens/hoy/resumen-gerencia.tsx",
+      "sha256": "0517a33660c97863cbfc00a07f39c6243058ce98512d30e533168b435356470b"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.tsx",
+      "snapshot": "src/screens/hoy/inteligencia-comercial.tsx",
+      "sha256": "2260459f933b9a51d6f7193513cbc577c3388fe9c042c9fdd75ec9d4bab42398"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/screens/hoy/gerencia.tsx",
+      "snapshot": "src/screens/hoy/gerencia.tsx",
+      "sha256": "bc0d0a9853057c9ae0d24176b678cfe995921ced26f5278a15eaa8399c71da89"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/atencion-citas.tsx",
+      "snapshot": "src/components/gerencia/atencion-citas.tsx",
+      "sha256": "0cd29db21141f3772546c0a4551d8a3cbae372ef2da8885a9d031aea86e12126"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/gerencia.css",
+      "snapshot": "src/components/gerencia/gerencia.css",
+      "sha256": "dce674bdc9ba9db49172290ab8cebed53270b6c7273419a318b778ecbd770da1"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/echart.tsx",
+      "snapshot": "src/components/gerencia/echart.tsx",
+      "sha256": "d87e963ba1105c06bb48abf60aff5d43f4356f6e17052d1c13560f993794c4c4"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/indicador-visual.tsx",
+      "snapshot": "src/components/gerencia/indicador-visual.tsx",
+      "sha256": "f3233116ff240be2c0527b84f30067d29cb3a67f896ca516d12902b6c31e37f5"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/analistas-visuales.tsx",
+      "snapshot": "src/components/gerencia/analistas-visuales.tsx",
+      "sha256": "2743281fce1da03ce896de470f16c3dfe6036bc7c66460c0ab46f414a4511c79"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/components/gerencia/evolucion-llegadas.tsx",
+      "snapshot": "src/components/gerencia/evolucion-llegadas.tsx",
+      "sha256": "361209aa0776ac1c8906966b17e85cb1349f44191901a8b0ecfd2bc7f775277b"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/screens/hoy/resumen-gerencia.test.tsx",
+      "snapshot": "src/screens/hoy/resumen-gerencia.test.tsx",
+      "sha256": "b7d46574e366e88aa3adbe17eac9085f5d3350fe568bf084017486dbd2236725"
+    },
+    {
+      "source": "CRM-Avance-Corp/app/src/screens/hoy/inteligencia-comercial.test.tsx",
+      "snapshot": "src/screens/hoy/inteligencia-comercial.test.tsx",
+      "sha256": "5b17b6c87d2cd0a7f4b026999a56f390f69ca4542bc20918f6bf740a4de28c07"
+    }
+  ]
+}

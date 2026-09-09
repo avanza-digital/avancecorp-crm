@@ -1,28 +1,19 @@
 ---
 fecha: 2026-09-05
-estado: ux1-ux2-bloque-a-en-revision-implementacion-pausada
+estado: reinicio-visual-desde-crm-actual-2026-09-06
 tags: [crm, ux, ui, figma, plan]
 ---
 # Plan maestro UI y UX del CRM — adaptación de UI-UX (2)
 
 ## Objetivo y decisión vigente
 
-**Actualización de dirección visual — color y movimiento:** Miguel está mejorando Resumen con el agente de Figma y pidió tomar esa propuesta como referencia para usar colores y recursos que expliquen los resultados. [[Referencia de color y movimiento de Gerencia - 2026-09-06]] conserva la revisión de `112:14`: iconos, barras azul/verde/ámbar/naranja y etiquetas con fondo. La nueva preferencia amplía la paleta anterior; antes de extenderla, definir si cada color representa categoría, serie, cumplimiento o atención, sin inventar umbrales. GSAP existente se aprovechará para transiciones ligadas a acciones reales. Se conserva el orden UX0–UX6, la base del CRM y la revisión antes de implementar.
+**Decisión vigente: reiniciar la propuesta visual desde el CRM actual.** Miguel indicó que su CRM actual le gusta y que el intento local no le resulta atractivo; pidió comenzar de nuevo. Se conserva el objetivo de avanzar hoy, 6 de septiembre de 2026, pero la siguiente entrega es una nueva composición de Resumen en Figma antes de extender la implementación. El trabajo sigue siendo de diseño y frontend, con backend, permisos y fórmulas intactos.
 
-**Avance del 6 de septiembre — bloque A preparado:** [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]] registra el catálogo UX1 (nueve familias conservadas y tres composiciones nuevas) y ocho vistas UX2 de Resumen/Conversiones, comparación y filtros. [Abrir revisión vigente `176:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=176-733). Se verificaron estructura y navegación acotada en Figma; los 462 archivos del frontend permanecen iguales al inicio de este bloque. Falta la revisión visual prevista con Miguel, más prioridades y observación humana de F0. Las fases UX3–UX6 y los bloques B–D no se declaran completados. Los enlaces de propuestas iniciales más abajo se conservan como antecedentes.
+La referencia principal vuelve a ser la identidad y las pantallas del CRM actual que Miguel aprecia. [Propuesta UI-UX (3), `209:733`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=209-733) y las propuestas anteriores quedan como antecedentes, no como aprobación de la nueva dirección. El intento local se conserva en [intento-no-aprobado](../../UX-UI-GERENCIA/07-implementacion/bloque-a-2026-09-06/intento-no-aprobado/README.md); archivarlo no restaura automáticamente el frontend activo.
 
-**Organización del trabajo:** [UX-UI-GERENCIA/README.md](../../UX-UI-GERENCIA/README.md) reúne plan, auditoría, componentes, propuestas, validación y continuidad. En Figma abrir [Inicio y estado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=147-3). Ver [[Organizacion local y Figma - UI UX Gerencia 2026-09-06]]. Las notas del Vault siguen siendo la fuente única de las decisiones.
+Secuencia inmediata: **comparar capturas del CRM actual y del intento → identificar qué conservar y qué mejorar → mostrar una nueva composición de Resumen en Figma → revisar la dirección con Miguel → retomar Resumen escritorio/móvil, estados, Conversiones y piloto de Ranking.** Se reutilizan auditoría, contratos, componentes y recorridos que sigan siendo válidos. Las fases UX0–UX6 y los bloques A–D se conservan; las fechas de abajo son objetivos, no constancias de aprobación ni de trabajo terminado.
 
-**Reutilización obligatoria — continuación de F0 del 6 de septiembre:** Miguel reiteró que el CRM tiene mucho desarrollo y buenas librerías React que debemos usar. [[Inventario de reutilizacion frontend - F0 UI UX 2 2026-09-06]] vincula diez áreas de mejora con sus componentes actuales. En UX1/UX2, cada pieza propuesta debe identificar qué conserva y qué ajusta antes de crear una variante o buscar un recurso externo. No se adopta una nueva plantilla ni se sustituye la base tecnológica por razones estéticas. ECharts ya integrado es la primera base para los gráficos gerenciales; los recursos Recharts existentes se evalúan según su encaje real. La implementación permanece pausada.
-
-**Dirección visual confirmada — 6 de septiembre:** Miguel indicó que le gusta «Propuesta UI-UX (2) · Resumen / desktop» y que se acerca a lo que busca. [Resumen escritorio `112:14`](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) queda como referencia elegida para continuar el diseño de Resumen. Su comentario anterior se refería a la página de auditoría actual `128:2`; no se interpreta como rechazo de la propuesta. Conservar su jerarquía comercial y comparaciones gráficas, revisar la adaptación móvil y completar detalles/estados en las fases previstas. Esta selección no aprueba automáticamente Conversiones ni reanuda código. Ver [[F0 UI UX 2 - auditoria y linea base 2026-09-05]].
-
-**Actualización posterior a la propuesta:** Miguel autorizó comenzar F0. Se ejecutó la auditoría experta de UX0 y se preparó su línea base; ver [[F0 UI UX 2 - auditoria y linea base 2026-09-05]]. La selección por frecuencia y la prueba humana siguen pendientes. Esta autorización no aprueba las pantallas de Figma ni reanuda código; el objetivo comercial y el resto del plan se conservan.
-
-
-Mejorar la claridad comercial y la facilidad de trabajo del CRM Avance Corp conservando su identidad, sus datos profesionales y sus recorridos conocidos. El objetivo explícito de Miguel es un **dashboard dinámico y sencillo de leer comercialmente**. La entrega inmediata es este plan detallado y una propuesta editable en Figma. La implementación queda pausada por instrucción de Miguel; los avances anteriores se conservan como material de partida.
-
-Miguel reiteró que necesita el plan por fases **antes de cualquier implementación** y que lo útil del trabajo anterior debe quedar incluido. Su «okey está bien» confirma esta instrucción; no se registra como aprobación de pantallas ni permiso para reanudar código.
+El historial está separado en [[Decisiones UI UX Gerencia - 2026-09-06]] ([DECISIONES.md](../../UX-UI-GERENCIA/01-plan/DECISIONES.md)). Organización y evidencias: [UX-UI-GERENCIA](../../UX-UI-GERENCIA/README.md). Reutilización: [[Inventario de reutilizacion frontend - F0 UI UX 2 2026-09-06]] y [[UX1 y UX2 Gerencia - componentes y revision visual 2026-09-06]].
 
 Fuente principal: `CRM-Avance-Corp/UI-UX (2).pdf`, siete páginas, «Modelo de diseño y experiencia de usuario para productos de trabajo», agosto de 2026. Se leyó completo y se revisó su representación visual. Se adapta junto a [[Fundamentos UX del CRM]], [[Plan de mejoras UX-UI del CRM]] y [[Plan de mejora UX de Gerencia - revision 2026-09-05]].
 
@@ -33,7 +24,7 @@ El PDF define un método de trabajo, no una plantilla visual que deba copiarse. 
 | Elemento | Fuente actual y decisión |
 | --- | --- |
 | Marca | Logo original Avance Corp, nombre y sidebar navy. Activo original ya guardado en Figma; sin recrear el logotipo. |
-| Lenguaje visual | Navy institucional `#111e3d`, azul de acción `#2563eb`, superficies claras, bordes y sombras actuales. Incorporar la dirección cromática que Miguel está afinando en `112:14`, con etiquetas y significados consistentes. No deducir éxito o alerta únicamente de un color sin una regla vigente. |
+| Lenguaje visual | Navy institucional `#111e3d`, azul de acción `#2563eb`, superficies claras, bordes y sombras actuales. Revisar la nueva composición sobre capturas del CRM actual; `209:733` se conserva como antecedente. No deducir éxito o alerta únicamente de un color sin una regla vigente. |
 | Tipografía | Plus Jakarta Sans en la estructura general; IBM Plex Sans en reportes de Gerencia. Registrar ambos usos y su jerarquía antes de proponer una unificación. |
 | Navegación | Menú, nombres de módulos, búsqueda, ayuda, avisos y acciones conocidas. Reorganizar sólo con evidencia de tarea y sin eliminar destinos. |
 | Componentes de código | Button, Card, Input, Dialog/Sheet, pestañas, tablas/listas, estados y gráficos ECharts existentes. Reutilizar su comportamiento; añadir variantes sólo ante una necesidad concreta. |
@@ -48,7 +39,7 @@ Se registraron cinco vistas locales en modo Gerencia demo. Son una muestra técn
 | Paso y evidencia | Qué funciona | Mejora propuesta |
 | --- | --- | --- |
 | 1. Resumen | Marca y contexto identificables; indicadores con período y base. | Las gráficas quedan debajo de indicadores y dos bloques de texto. Dar prioridad a comparaciones visuales y compactar explicaciones; igualar jerarquía y alturas. |
-| 2. Conversiones | Datos y bases ya disponibles; comparación y detalle existentes. | El hero y el texto dominan. Separar claramente conversión mensual, resultados de las llegadas y cierres por fecha. Miguel rechazó su presentación visual; no está aprobada. |
+| 2. Conversiones | Datos y bases ya disponibles; comparación y detalle existentes. | El hero y el texto dominan. Separar claramente conversión mensual, resultados de las llegadas y cierres por fecha. Miguel pidió corregir su presentación; el desarrollo local del bloque está autorizado. |
 | 3. Cartera | Búsqueda, filtros y agrupación cliente/contrato aprovechables. | Hasta cuatro acciones por fila compiten por espacio. Probar una principal según tarea y un menú secundario; conservar nombres largos y acceso a todas las operaciones autorizadas. |
 | 4. Nuevo lead | Campos etiquetados, foco inicial y pie de acciones presentes. | Varios datos opcionales aparecen antes de Origen y Capital obligatorios. Priorizar datos necesarios y agrupar información adicional sin perder campos ni validaciones. |
 | 5. Ranking | Orden, base, pestañas y comparación explícitos. | Ajustar densidad y posición de Comparar; conservar la mejora de regreso y los valores originales. No confundir posición con cumplimiento. |
@@ -61,17 +52,48 @@ Faltan observación de tareas reales, muestra móvil de los nuevos flujos operat
 
 Los identificadores **UX0–UX6** corresponden al PDF. Se mantienen distintos de **G-F0–G-F5**, que identifican el trabajo previo de Gerencia, para evitar dar por terminada una fase sólo porque coincide su número.
 
-| Fase | Trabajo y entregable concreto | Base que se aprovecha | Criterio de cierre |
-| --- | --- | --- | --- |
-| **UX0 · Auditar y medir** | Inventario de pantallas por rol, cinco pantallas prioritarias confirmadas, checklist de Nielsen y tres tareas frecuentes medidas. Guardar capturas, problemas, severidad, pasos y evidencia. Observar al menos una persona haciendo una tarea sin dirigirla. | Auditoría experta G-F0, 14 capturas previas como historial, cinco capturas nuevas y observaciones de Miguel. | Prioridades justificadas por tarea y frecuencia; línea base registrada. Si no hay prueba humana, se identifica la limitación y no se declara validada. |
-| **UX1 · Ordenar el sistema visual** | Catálogo del CRM con logo, colores, tipografías, espacios, radios, controles, anatomía, estados y correspondencia Figma/código. Matriz: conservar, ajustar, ampliar. | Nueve familias y 72 variables Figma; controles y estilos actuales. | Cada elemento propuesto tiene fuente, uso y estados aplicables. Resolver diferencias de paleta/espaciado de forma documentada, sin sustitución masiva. |
-| **UX2 · Jerarquía de pantallas** | Diseños completos de las pantallas priorizadas en escritorio y móvil, mostrando qué se mira primero y dónde profundizar. Primera muestra: Resumen y Conversiones; luego extender el patrón a los módulos acordados. | G-F1–G-F3 y datos vigentes. | La vista comunica la tarea y la próxima acción; sus cifras conservan significado y evidencia. Revisión visual con Miguel antes de continuar la implementación. |
-| **UX3 · Tablas y formularios** | Mejorar Ranking/Cartera/Leads/Repartir/Derivaciones según prioridad; diseñar formulario y detalle más utilizados. Orden y filtros coherentes, acción principal legible, secundarios accesibles, ayuda y error junto al campo. | Tablas, adaptación a lista, búsqueda y formularios actuales. | Misma tarea completada con menos fricción; sin ocultar información profesional necesaria, cambiar requisitos ni perder operaciones. |
-| **UX4 · Respuesta y estados** | Diseñar carga, vacío, error, cero comprobado, lectura parcial/antigua, sin base/TC, bloqueo por rol, guardando, confirmado y respuesta incierta. Matriz por componente y acción. | Paneles y estados existentes; revisión de metas y capacidad de G-F4. | Cada acción comunica su resultado real y el siguiente paso; un error de red no se presenta como éxito o cero. |
-| **UX5 · Recorridos de trabajo** | Prototipar tareas completas: reporte → responsable → detalle → casos → regreso; consulta de metas → administración permitida → revisión → resultado → regreso; operación comercial → seguimiento → inversión/contrato, según flujo real. | Estado de consulta y enlaces locales G-F1/G-F4; destinos operativos existentes. | El usuario conserva contexto, entiende el alcance del destino y llega a su tarea sin reconstruir la consulta. Se comparan pasos con UX0. |
-| **UX6 · Validación continua** | Verificación visual, teclado, foco, contraste, ampliación, dispositivos, estados y tareas repetidas. Registro antes/después de éxito, tiempo, clics y errores. | Pruebas técnicas previas como regresión; G-F5 sigue pendiente de cierre. | Sin fallos críticos de tarea o interpretación; diferencias visuales justificadas; cifras y operaciones conservadas; revisión humana registrada. Accesibilidad se comprueba en cada entrega, no sólo al final. |
+| Fase | Trabajo y entregable concreto | Base que se aprovecha | Criterio de cierre | Revisión objetivo |
+| --- | --- | --- | --- | --- |
+| **UX0 · Auditar y medir** | Inventario de pantallas por rol, cinco pantallas prioritarias confirmadas, checklist de Nielsen y tres tareas frecuentes medidas. Guardar capturas, problemas, severidad, pasos y evidencia. Observar al menos una persona haciendo una tarea sin dirigirla. | Auditoría experta G-F0, 14 capturas previas como historial, cinco capturas nuevas y observaciones de Miguel. | Prioridades justificadas por tarea y frecuencia; línea base registrada. Si no hay prueba humana, se identifica la limitación y no se declara validada.  Hoy, 06/09 · entrega local priorizada |
+| **UX1 · Ordenar el sistema visual** | Catálogo del CRM con logo, colores, tipografías, espacios, radios, controles, anatomía, estados y correspondencia Figma/código. Matriz: conservar, ajustar, ampliar. | Nueve familias y 72 variables Figma; controles y estilos actuales. | Cada elemento propuesto tiene fuente, uso y estados aplicables. Resolver diferencias de paleta/espaciado de forma documentada, sin sustitución masiva.  Hoy, 06/09 · entrega local priorizada |
+| **UX2 · Jerarquía de pantallas** | Diseños completos de las pantallas priorizadas en escritorio y móvil, mostrando qué se mira primero y dónde profundizar. Primera muestra: Resumen y Conversiones; luego extender el patrón a los módulos acordados. | G-F1–G-F3 y datos vigentes. | La vista comunica la tarea y la próxima acción; sus cifras conservan significado y evidencia. Revisión de la propuesta local con Miguel durante el desarrollo autorizado.  Hoy, 06/09 · entrega local priorizada |
+| **UX3 · Tablas y formularios** | Mejorar Ranking/Cartera/Leads/Repartir/Derivaciones según prioridad; diseñar formulario y detalle más utilizados. Orden y filtros coherentes, acción principal legible, secundarios accesibles, ayuda y error junto al campo. | Tablas, adaptación a lista, búsqueda y formularios actuales. | Misma tarea completada con menos fricción; sin ocultar información profesional necesaria, cambiar requisitos ni perder operaciones.  Hoy, 06/09 · entrega local priorizada |
+| **UX4 · Respuesta y estados** | Diseñar carga, vacío, error, cero comprobado, lectura parcial/antigua, sin base/TC, bloqueo por rol, guardando, confirmado y respuesta incierta. Matriz por componente y acción. | Paneles y estados existentes; revisión de metas y capacidad de G-F4. | Cada acción comunica su resultado real y el siguiente paso; un error de red no se presenta como éxito o cero.  Hoy, 06/09 · entrega local priorizada |
+| **UX5 · Recorridos de trabajo** | Prototipar tareas completas: reporte → responsable → detalle → casos → regreso; consulta de metas → administración permitida → revisión → resultado → regreso; operación comercial → seguimiento → inversión/contrato, según flujo real. | Estado de consulta y enlaces locales G-F1/G-F4; destinos operativos existentes. | El usuario conserva contexto, entiende el alcance del destino y llega a su tarea sin reconstruir la consulta. Se comparan pasos con UX0.  Hoy, 06/09 · entrega local priorizada |
+| **UX6 · Validación continua** | Verificación visual, teclado, foco, contraste, ampliación, dispositivos, estados y tareas repetidas. Registro antes/después de éxito, tiempo, clics y errores. | Pruebas técnicas previas como regresión; G-F5 sigue pendiente de cierre. | Sin fallos críticos de tarea o interpretación; diferencias visuales justificadas; cifras y operaciones conservadas; revisión humana registrada. Accesibilidad se comprueba en cada entrega, no sólo al final.  Hoy, 06/09 · entrega local priorizada |
 
-Las fases UX0–UX5 se preparan primero como auditoría, especificación y diseño. UX6 acompaña la revisión y después comprobará la implementación. **Primero se revisa el plan con Miguel; antes de reanudar código se revisan y aprueban los diseños del bloque correspondiente.** La implementación futura seguirá **diseño → revisión → frontend → pruebas** por entrega, después de esta pausa. No se reemplazará el CRM por una plantilla ni se extenderá una variante al resto del sistema sin revisar su efecto.
+UX4 y UX6 acompañan cada pasada; no se aplazan hasta terminar todas las pantallas. Se entrega por componente: fuente y uso → variante de presentación → interacción → prueba y evidencia. La revisión se hace sobre el local funcionando. Las mejoras de otros módulos conservan su prioridad dentro de B–D y se registran individualmente; una entrega de Gerencia no certifica por sí sola todo el CRM.
+
+### Ejecución de hoy
+
+| Pasada | Resultado revisable | Revisión objetivo |
+| --- | --- | --- |
+| 1 · Resumen | Comparación del CRM actual y del intento; nueva composición en Figma que conserve su identidad. Después de revisar esa dirección, adaptar escritorio y móvil. | 06/09 · nueva propuesta visual como siguiente entrega |
+| 2 · Estados | Carga, consulta fallida, sin TC, parcial/antiguo, sin base y cero comprobado, sobre Indicador/Atención existentes. | 06/09 · después de la primera pasada; 15 min |
+| 3 · Conversiones | Mes/rango explícitos, «Resultados de los leads del mes», comparación con bases y color único por analista. | 06/09 · tercera pasada; 15 min |
+| 4 · Ranking | Piloto escritorio/móvil, selección, detalle y regreso conservando contexto. | 06/09 · tras estabilizar componentes |
+| 5 · Verificación | Correcciones visuales y funcionales, pruebas de contratos, móvil, teclado y commits por alcance. | 06/09 · cierre de la entrega local |
+
+### F0: condiciones verificables y continuidad
+
+1. Inventario, fuentes, capturas y hallazgos de las pantallas prioritarias enlazados y trazables.
+2. Tres tareas con guion y registro de la línea base: resultado, tiempo, pasos y errores; los valores humanos siguen vacíos hasta observarlos.
+3. Prioridad de trabajo documentada y limitaciones asignadas a la validación continua. Hoy rige provisionalmente Gerencia por la solicitud explícita de Miguel.
+
+La auditoría documental permite continuar. La validación humana requiere las observaciones efectivamente realizadas; se proponen dos sesiones de 20 minutos (gerencia y analista) y cinco minutos para ordenar frecuencia, **hoy si están disponibles**, en paralelo al desarrollo. No hay cita concertada ni se espera una semana. Sin participantes disponibles se registra la limitación y se mantiene la ejecución autorizada; no se inventan resultados humanos.
+
+### Regla de color y términos para el bloque A
+
+| Rol | Color | Uso |
+| --- | --- | --- |
+| Familia o serie real | Azul: capital/llegadas. Verde: conversión/cierres. Naranja: citas. | Identifica qué se mide; no califica rendimiento. Analistas del mismo gráfico: un solo color. |
+| Referencia | Gris/navy atenuado | Meta u otro conteo de referencia, con su nombre y base. Pactadas no se convierte automáticamente en divisor de realizadas. |
+| Cumplimiento | Sólo la regla vigente del CRM | Mostrar el avance servido o ya calculado por la lógica existente; ninguna escala cromática nueva por analista. |
+| Atención | Ámbar | Señales existentes: citas vencidas, falta de TC, lecturas parciales o errores que lo requieran. |
+
+El contrato de lectura describe «Meta y cumplimiento» como objetivo configurado y grado de avance; `objetivos.ts` representa tanto `conversionObjetivo` como `capitalObjetivo` dentro de las metas. Puede usarse **Meta** como rótulo de referencia en cada tarjeta, conservando **Conversión del mes (%)** y **Capital confirmado (moneda)**, sus bases y su objetivo específico. No se cambian nombres de campos ni cálculos. Véase [[Inventario de indicadores de Gerencia - Contrato de lectura]].
+
+Los deltas frente a agosto del frame son ejemplos inventados y se excluyen del frontend. También se excluye el 71% de citas: el contrato vigente no acredita que ambos conteos compartan divisor. No se añade backend para completar esos adornos.
 
 ## Qué significa un dashboard dinámico y comercial
 
@@ -87,16 +109,16 @@ La primera lectura debe responder cuatro preguntas: **cómo vamos, frente a qué
 | Mostrar carga, actualización, ausencia y error con claridad | Saber cuándo confiar en la lectura y cómo continuar. | Respetar el ciclo actual de consulta. No prometer tiempo real, actualización automática nueva ni capacidad offline que el CRM no tenga. |
 | Revelar filtros y explicaciones cuando se necesitan | Leer con menos desplazamiento, especialmente en móvil. | Resumen compacto del contexto siempre visible; panel ampliable, etiquetas claras y regreso accesible. |
 
-La muestra actual de Figma demuestra dirección visual y navegación acotada. **Todavía no recalcula por filtros, no permite cualquier combinación de analistas ni consulta datos reales.** Esa interacción completa pertenece a la implementación futura, una vez revisados plan y diseño.
+La muestra actual de Figma demuestra dirección visual y navegación acotada. **Todavía no recalcula por filtros, no permite cualquier combinación de analistas ni consulta datos reales.** La propuesta local conecta las consultas y controles ya existentes; el demo conserva sus límites y se rotula como ejemplo.
 
-## Orden de entregas después de revisar el plan
+## Orden de entregas del plan
 
 1. **Bloque A — lectura comercial:** terminar el diseño de Resumen y Conversiones, con gráficos, contexto, detalle y estados en escritorio y móvil. Incorporar la corrección visual solicitada de Conversiones.
 2. **Bloque B — supervisión:** revisar Ranking, Citas, Metas y Rendimiento aplicando la dirección acordada. Aprovechar navegación, detalle, comparación y revisión previa de G-F1–G-F4.
 3. **Bloque C — operación:** priorizar Hoy/Agenda/Pipeline/Cartera/Leads y los formularios de mayor uso con la evidencia de UX0. Revisar listados, ficha, seguimiento y regreso.
 4. **Bloque D — consistencia y cierre:** completar pantallas y estados restantes por rol, documentar componentes y ejecutar la validación de los recorridos acordados.
 
-Cada bloque tendrá una ficha con pantalla/rol, problema observado, tarea, elementos conservados, cambios propuestos, estados, enlace Figma, dependencias y criterio de prueba. No se fija una fecha ni un ahorro porcentual sin terminar el inventario y medir la línea base. Un hallazgo que requiera backend, permisos o una fórmula se registra aparte y no se introduce en este alcance.
+Cada bloque tendrá una ficha con pantalla/rol, problema observado, tarea, elementos conservados, cambios propuestos, estados, enlace Figma, dependencias y criterio de prueba. La fecha objetivo de esta ejecución local es hoy; cualquier mejora porcentual exige una línea base medida. Un hallazgo que requiera backend, permisos o una fórmula se registra aparte y no se introduce en este alcance.
 
 ## Cómo se relaciona con lo ya desarrollado
 
@@ -173,13 +195,14 @@ La página reúne evidencia actual con notas, elementos propios reutilizados, mu
 | Cinco capturas actuales y notas | [Evidencia conservada](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=109-2) |
 | Biblioteca propia existente | [Componentes del CRM](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=2-2) |
 | Muestras externas evaluadas | [Recursos y decisiones](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=110-2) |
-| Resumen, escritorio / móvil | [Escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) · [Móvil](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=113-55) |
+| Resumen vigente | [UI-UX (3) escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=209-733) · [Móvil compacto reutilizado](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=162-718) |
+| Resumen anterior, escritorio / móvil | [Escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14) · [Móvil](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=113-55) |
 | Conversiones, escritorio / móvil | [Escritorio](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=113-366) · [Móvil](https://www.figma.com/design/1FEvjQkwSzNDsGJ7UUvqIK?node-id=113-734) |
 | Recorrido de revisión | [Prototipo de escritorio](https://www.figma.com/proto/1FEvjQkwSzNDsGJ7UUvqIK?node-id=112-14&page-id=108%3A2&starting-point-node-id=112%3A14&scaling=scale-down&content-scaling=fixed) · [Prototipo móvil](https://www.figma.com/proto/1FEvjQkwSzNDsGJ7UUvqIK?node-id=113-55&page-id=108%3A2&starting-point-node-id=113%3A55&scaling=scale-down&content-scaling=fixed) |
 
 Navegación acotada: Resumen ↔ Conversiones → comparación fija Carla/Bruno y regreso; en móvil, abrir filtros y volver. Los accesos a Citas, Ranking y Metas del pie abren referencias de diseño previas, no un recorrido operativo integrado. Búsqueda, alta, cambio de filtros, cambio de analistas y detalles de esa comparación son ilustrativos en esta muestra. Las pantallas de ejemplo no guardan cambios en el CRM.
 
-Para revisar: identificar el resultado principal, explicar su período/base, localizar un asunto que requiere revisión, abrir evidencia y regresar. Registrar si se logra sin ayuda, interpretación, tiempo, pasos y errores. Miguel podrá corregir primero la dirección visual; la reanudación de código se acuerda después de esta pausa solicitada.
+Para revisar: identificar el resultado principal, explicar su período/base, localizar un asunto que requiere revisión, abrir evidencia y regresar. Registrar si se logra sin ayuda, interpretación, tiempo, pasos y errores. Miguel puede corregir la dirección visual sobre el local durante la ejecución de hoy.
 
 ## Definición de terminado
 

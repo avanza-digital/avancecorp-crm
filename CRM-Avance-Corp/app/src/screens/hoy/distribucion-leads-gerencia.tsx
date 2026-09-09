@@ -71,13 +71,14 @@ import {
   type SeleccionReparto,
 } from '@/lib/distribucion-lecturas'
 import { money, type Moneda } from '@/lib/format'
+import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
+import { cn } from '@/lib/utils'
+import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
 import {
   etiquetaFuentesConversion,
   type AporteConversionRango,
   type FiltroFuentesConversion,
 } from '@/lib/conversion-vendedores'
-import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
-import { cn } from '@/lib/utils'
 
 // Alias públicos para que componente, API y tests compartan una sola verdad:
 // el contrato Valibot que valida la fotografía completa de la RPC (V3 desde
@@ -576,6 +577,11 @@ function AtencionHoy({
       <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
         Evidencia del tablero — la decisión de qué hacer es de Gerencia.
       </p>
+      <Button type="button" variant="outline" className="mt-3 min-h-11" onClick={() => {
+        const destino = document.getElementById('equipo-por-persona')
+        destino?.scrollIntoView({ block: 'start' })
+        destino?.focus({ preventScroll: true })
+      }}>Revisar responsables y capacidad</Button>
     </section>
   )
 }
@@ -585,6 +591,7 @@ function AtencionHoy({
 interface EdicionCapacidad {
   analistaId: string
   valor: string
+  anterior: number | null
 }
 
 function TarjetaAnalista({
@@ -594,6 +601,11 @@ function TarjetaAnalista({
   edicion,
   guardando,
   errorCapacidad,
+  revisando,
+  incierto,
+  onSeguirEditando,
+  onComprobar,
+  onVerLeads,
   onEmpezarEdicion,
   onCambiarEdicion,
   onCancelarEdicion,
@@ -605,6 +617,11 @@ function TarjetaAnalista({
   edicion: EdicionCapacidad | null
   guardando: boolean
   errorCapacidad: string | null
+  revisando: boolean
+  incierto: boolean
+  onSeguirEditando: () => void
+  onComprobar: () => void
+  onVerLeads?: ((analista: AnalistaDistribucionLeads) => void) | undefined
   onEmpezarEdicion: (analista: AnalistaDistribucionLeads) => void
   onCambiarEdicion: (valor: string) => void
   onCancelarEdicion: () => void
@@ -650,7 +667,9 @@ function TarjetaAnalista({
               type="button"
               variant="ghost"
               size="xs"
-              className="size-7 px-0"
+              className="size-11 px-0"
+              id={`capacidad-editar-${analista.analista_id}`}
+              disabled={guardando}
               onClick={() => onEmpezarEdicion(analista)}
               aria-label={`Editar límite de cartera de ${analista.nombre}`}
               title="Editar límite de cartera"
@@ -668,7 +687,7 @@ function TarjetaAnalista({
             <label className="sr-only" htmlFor={`capacidad-${analista.analista_id}`}>
               Límite de cartera para {analista.nombre}
             </label>
-            <input
+            {!revisando && <input
               id={`capacidad-${analista.analista_id}`}
               type="number"
               min={1}
@@ -677,19 +696,26 @@ function TarjetaAnalista({
               value={edicion.valor}
               onChange={(evento) => onCambiarEdicion(evento.target.value)}
               placeholder="Sin límite"
-              className="h-9 w-full rounded-md border border-input bg-card px-2 text-right text-sm tabular-nums focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+              className="h-11 w-full rounded-md border border-input bg-card px-2 text-right text-sm tabular-nums focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               disabled={guardando}
-            />
-            <div className="flex justify-end gap-1">
-              <Button type="submit" size="xs" variant="default" disabled={guardando}>
-                <Check /> Guardar
+            />}
+            {revisando && <section aria-label="Revisar cambio de límite" className="space-y-2 rounded-lg bg-[var(--gi-soft,#f8f6f1)] p-3">
+              <h6 className="text-sm font-semibold">Revisar cambio de límite</h6>
+              <p className="text-sm">{analista.nombre}: de {edicion.anterior ?? 'sin límite'} a {capacidadDesdeTexto(edicion.valor) ?? 'sin límite'} leads. Carga actual: {carga} leads.</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">Cambia el límite de cartera actual. No mueve leads ni modifica resultados históricos.</p>
+            </section>}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" className="min-h-11" variant="default" disabled={guardando || incierto}>
+                <Check /> {guardando ? 'Guardando…' : revisando ? 'Confirmar cambio' : 'Revisar cambio'}
               </Button>
+              {revisando && <Button type="button" variant="outline" className="min-h-11" disabled={guardando || incierto} onClick={onSeguirEditando}>Seguir editando</Button>}
               <Button
                 type="button"
                 size="xs"
                 variant="ghost"
                 onClick={onCancelarEdicion}
                 disabled={guardando}
+                className="min-h-11 min-w-11"
                 aria-label={`Cancelar edición del límite de cartera de ${analista.nombre}`}
               >
                 <X />
@@ -700,6 +726,7 @@ function TarjetaAnalista({
                 {errorCapacidad}
               </p>
             )}
+            {incierto && <Button type="button" variant="outline" className="min-h-11" onClick={onComprobar}>Comprobar estado actual</Button>}
           </form>
         ) : (
           <>
@@ -786,6 +813,10 @@ function TarjetaAnalista({
           </p>
         )}
       </div>
+      {onVerLeads && <div className="space-y-1">
+        <Button type="button" variant="outline" className="min-h-11 w-full" id={`rendimiento-leads-${analista.analista_id}`} disabled={guardando} onClick={() => onVerLeads(analista)}>Ver leads de {analista.nombre.split(' ')[0]}</Button>
+        <p className="text-xs text-muted-foreground">Abre su listado actual de leads, con todas las etapas. El mes de este reporte no se aplica al listado.</p>
+      </div>}
     </article>
   )
 }
@@ -848,6 +879,9 @@ function EquipoPorPersona({
   filtroEquipoId,
   onFiltrarEquipo,
   onEditarCapacidad,
+  onReintentar,
+  modoDemo,
+  disponible,
 }: {
   fichas: FichaAnalista[]
   equipos: EquipoDistribucion[]
@@ -855,12 +889,23 @@ function EquipoPorPersona({
   filtroEquipoId: string | null
   onFiltrarEquipo: (equipoId: string | null) => void
   onEditarCapacidad: DistribucionLeadsGerenciaProps['onEditarCapacidad']
+  onReintentar: () => void
+  modoDemo: boolean
+  disponible: boolean
 }): JSX.Element {
-  const [orden, setOrden] = useState<OrdenFichas>('cupos')
+  const memoria = useConsultaGerencia()
+  const [ordenLocal, setOrdenLocal] = useState<OrdenFichas>('cupos')
+  const orden = memoria?.consulta.rendimientoOrden ?? ordenLocal
+  const setOrden = (valor: OrdenFichas) => memoria
+    ? memoria.setConsulta((actual) => ({ ...actual, rendimientoOrden: valor }))
+    : setOrdenLocal(valor)
   const [mostrarTodas, setMostrarTodas] = useState(false)
   const [edicion, setEdicion] = useState<EdicionCapacidad | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [errorCapacidad, setErrorCapacidad] = useState<string | null>(null)
+  const [revisando, setRevisando] = useState(false)
+  const [incierto, setIncierto] = useState(false)
+  const [resultado, setResultado] = useState<string | null>(null)
   const ordenSelectId = useId()
 
   // El primer vistazo vuelve a ser corto cada vez que cambia la lectura.
@@ -881,11 +926,17 @@ function EquipoPorPersona({
   )
 
   const empezarEdicion = (analista: AnalistaDistribucionLeads) => {
+    if (guardando || !disponible) return
     setEdicion({
       analistaId: analista.analista_id,
       valor: analista.capacidad.objetivo == null ? '' : String(analista.capacidad.objetivo),
+      anterior: analista.capacidad.objetivo,
     })
+    setRevisando(false)
+    setIncierto(false)
+    setResultado(null)
     setErrorCapacidad(null)
+    requestAnimationFrame(() => document.getElementById(`capacidad-${analista.analista_id}`)?.focus())
   }
 
   const guardarCapacidad = async (
@@ -893,19 +944,27 @@ function EquipoPorPersona({
     analista: AnalistaDistribucionLeads,
   ) => {
     evento.preventDefault()
-    if (!edicion || edicion.analistaId !== analista.analista_id) return
+    if (guardando || incierto || !disponible || !edicion || edicion.analistaId !== analista.analista_id) return
     const capacidad = capacidadDesdeTexto(edicion.valor)
     if (capacidad === undefined) {
       setErrorCapacidad('Usa un entero entre 1 y 1000, o déjalo vacío.')
       return
     }
+    if (analista.capacidad.objetivo !== edicion.anterior) {
+      setErrorCapacidad('El límite cambió mientras editabas. Cancela y revisa su valor actual antes de modificarlo.')
+      return
+    }
+    if (!revisando) { setRevisando(true); setErrorCapacidad(null); return }
     setGuardando(true)
     setErrorCapacidad(null)
     try {
       await onEditarCapacidad(analista.analista_id, capacidad)
       setEdicion(null)
+      setResultado(`${modoDemo ? 'Simulación guardada' : 'Guardado confirmado'}: límite de ${analista.nombre}, ${capacidad ?? 'sin límite'}${capacidad == null ? '' : ' leads'}. ${modoDemo ? 'Sólo cambia este ejemplo local.' : 'Comprueba el límite actualizado en la ficha.'}`)
+      requestAnimationFrame(() => document.getElementById(`capacidad-editar-${analista.analista_id}`)?.focus())
     } catch {
-      setErrorCapacidad('No se pudo guardar el límite de cartera. Inténtalo otra vez.')
+      setIncierto(true)
+      setErrorCapacidad('No pudimos confirmar el guardado. Comprueba el estado actual antes de decidir si necesitas repetirlo.')
     } finally {
       setGuardando(false)
     }
@@ -927,7 +986,7 @@ function EquipoPorPersona({
     <section aria-labelledby="equipo-por-persona" className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h4 id="equipo-por-persona" className="text-base font-extrabold text-primary">
+          <h4 id="equipo-por-persona" tabIndex={-1} className="text-base font-extrabold text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
             Tu equipo, persona por persona
           </h4>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -998,6 +1057,9 @@ function EquipoPorPersona({
         final. Es un criterio de lectura, no una recomendación.
       </p>
 
+      {resultado && <p role="status" className="rounded-lg border border-border bg-card p-3 text-sm">{resultado}</p>}
+      {!disponible && <p role="status" className="text-xs">La edición estará disponible al recuperar la capacidad actual. Las fichas conservan la última lectura disponible.</p>}
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {recortadas.map((ficha) => (
           <TarjetaAnalista
@@ -1006,14 +1068,27 @@ function EquipoPorPersona({
             mostrarEquipo={filtroEquipoId == null}
             mostrarOperacion={mostrarOperacion}
             edicion={edicion}
-            guardando={guardando}
+            guardando={guardando || !disponible}
             errorCapacidad={edicion ? errorCapacidad : null}
+            revisando={revisando}
+            incierto={incierto}
+            onSeguirEditando={() => setRevisando(false)}
+            onComprobar={() => {
+              setResultado(`Guardado sin confirmar para ${ficha.analista.nombre}. Consulta su límite actualizado antes de decidir otro cambio.`)
+              setEdicion(null)
+              onReintentar()
+            }}
+            onVerLeads={memoria && !mostrarOperacion ? (analista) => {
+              memoria.setConsulta((actual) => ({ ...actual, gestionAnalista: { id: analista.analista_id, nombre: analista.nombre } }))
+              window.location.hash = '#/cartera'
+            } : undefined}
             onEmpezarEdicion={empezarEdicion}
             onCambiarEdicion={(valor) =>
               setEdicion((actual) => (actual ? { ...actual, valor } : actual))}
             onCancelarEdicion={() => {
               setEdicion(null)
               setErrorCapacidad(null)
+              requestAnimationFrame(() => document.getElementById(`capacidad-editar-${ficha.analista.analista_id}`)?.focus())
             }}
             onGuardarCapacidad={(evento, analista) => void guardarCapacidad(evento, analista)}
           />
@@ -1578,7 +1653,7 @@ function AlertaCalidad({ datos }: { datos: MetricasDistribucionLeads }): JSX.Ele
 // ── Pantalla ─────────────────────────────────────────────────────────────────
 
 export function DistribucionLeadsGerencia({
-  datos,
+  datos: datosRecibidos,
   cargando,
   error,
   modoDemo = false,
@@ -1593,18 +1668,33 @@ export function DistribucionLeadsGerencia({
   onEditarCapacidad,
 }: DistribucionLeadsGerenciaProps): JSX.Element {
   const tituloId = useId()
+  const memoria = useConsultaGerencia()
+  // La demostración no invoca la operación real. Sólo altera el objetivo
+  // de estas fichas locales; las lecturas canónicas siguen siendo las mismas.
+  const [capacidadesDemo, setCapacidadesDemo] = useState<Record<string, number | null>>({})
+  const datos = useMemo(() => !modoDemo || !datosRecibidos ? datosRecibidos : {
+    ...datosRecibidos,
+    analistas: datosRecibidos.analistas.map((analista) => Object.hasOwn(capacidadesDemo, analista.analista_id)
+      ? { ...analista, capacidad: { ...analista.capacidad, objetivo: capacidadesDemo[analista.analista_id] ?? null } }
+      : analista),
+  }, [capacidadesDemo, datosRecibidos, modoDemo])
   const fichas = useMemo(
     () => (datos ? datos.analistas.map(fichaAnalista) : []),
     [datos],
   )
   const equipos = useMemo(() => (datos ? equiposDistribucion(datos) : []), [datos])
-  const [filtroEquipoId, setFiltroEquipoId] = useState<string | null>(null)
+  const [filtroEquipoLocal, setFiltroEquipoLocal] = useState<string | null>(null)
+  const filtroEquipoId = memoria?.consulta.rendimientoEquipo ?? filtroEquipoLocal
+  const setFiltroEquipoId = (id: string | null) => memoria
+    ? memoria.setConsulta((actual) => ({ ...actual, rendimientoEquipo: id }))
+    : setFiltroEquipoLocal(id)
 
   useEffect(() => {
-    if (filtroEquipoId != null && !equipos.some((equipo) => equipo.id === filtroEquipoId)) {
-      setFiltroEquipoId(null)
+    if (datos && !cargando && !error && filtroEquipoId != null && !equipos.some((equipo) => equipo.id === filtroEquipoId)) {
+      if (memoria) memoria.setConsulta((actual) => ({ ...actual, rendimientoEquipo: null }))
+      else setFiltroEquipoLocal(null)
     }
-  }, [equipos, filtroEquipoId])
+  }, [equipos, filtroEquipoId, datos, cargando, error, memoria])
 
   const fichasFiltradas = useMemo(
     () => filtrarFichasPorEquipo(fichas, filtroEquipoId),
@@ -1683,7 +1773,7 @@ export function DistribucionLeadsGerencia({
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Sirven únicamente para conocer el tablero. No representan información real de la
-                empresa.
+                empresa. Los ajustes de capacidad sólo se simulan en esta vista local.
               </p>
             </div>
           )}
@@ -1697,7 +1787,7 @@ export function DistribucionLeadsGerencia({
           )}
 
           <ResumenDistribucion datos={datos} mostrarOperacion={mostrarOperacion} fuenteConversion={fuenteConversion} lecturaFuente={lecturaFuente} />
-          <AtencionHoy datos={datos} mostrarOperacion={mostrarOperacion} />
+          {!cargando && !error ? <AtencionHoy datos={datos} mostrarOperacion={mostrarOperacion} /> : <p role="status" className="text-xs">Las señales de atención estarán disponibles al actualizar la consulta.</p>}
 
           <EquipoPorPersona
             fichas={fichas}
@@ -1705,7 +1795,10 @@ export function DistribucionLeadsGerencia({
             mostrarOperacion={mostrarOperacion}
             filtroEquipoId={filtroEquipoId}
             onFiltrarEquipo={setFiltroEquipoId}
-            onEditarCapacidad={onEditarCapacidad}
+            onEditarCapacidad={modoDemo ? (id, capacidad) => { setCapacidadesDemo((actual) => ({ ...actual, [id]: capacidad })) } : onEditarCapacidad}
+            onReintentar={onReintentar}
+            modoDemo={modoDemo}
+            disponible={!cargando && !error}
           />
 
           {mostrarOperacion && <AsistenteReparto datos={datos} />}

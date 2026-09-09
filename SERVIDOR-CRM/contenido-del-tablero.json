@@ -1,0 +1,192 @@
+{
+  "board": "https://www.figma.com/board/f5AcRzzIk3KS6CCOmKC0df",
+  "folder": "https://www.figma.com/files/team/1673045681873340799/folder/650628787",
+  "dateLocal": "2026-09-06",
+  "sections": {
+    "cover": "10:347",
+    "overview": "1:2",
+    "commercial": "8:349",
+    "metrics": "8:352",
+    "versions": "8:355",
+    "glossary": "18:347",
+    "attention": "19:347"
+  },
+  "glossary": [
+    {
+      "title": "Entrar con el alcance correcto",
+      "body": "Devuelve el rol y las capacidades de quien inicia sesión. Evita que cada pantalla invente lo que puede hacer la persona.",
+      "tech": "RPC · crm.mi_acceso_fn"
+    },
+    {
+      "title": "Registrar un prospecto",
+      "body": "Crea un interesado después de revisar su disponibilidad y las reglas de ingreso al CRM.",
+      "tech": "RPC · crm.crear_lead_si_disponible"
+    },
+    {
+      "title": "Importar prospectos por lote",
+      "body": "Recibe filas de una hoja, revisa sus datos y reporta qué se importó, rechazó o requiere corrección.",
+      "tech": "Edge · crm-importar-leads\nRPC · crm.importar_lead_fn"
+    },
+    {
+      "title": "Repartir y derivar",
+      "body": "Distribuye oportunidades a supervisores o analistas y conserva la historia de a quién le tocó atenderlas.",
+      "tech": "RPC · crm.repartir_lead\ncrm.derivar_leads_equipo_fn"
+    },
+    {
+      "title": "Tomar un prospecto disponible",
+      "body": "Comprueba si puede trabajarse y permite asumirlo. Disponibilidad y permiso son decisiones del servidor.",
+      "tech": "RPC · crm.verificar_disponibilidad_lead\ncrm.tomar_lead_libre"
+    },
+    {
+      "title": "Descartar y recuperar",
+      "body": "Registra por qué deja de trabajarse un prospecto. Las puertas de recuperación aplican las reglas para retomarlo.",
+      "tech": "RPC · crm.descartar_lead\ncrm.deshacer_descarte"
+    },
+    {
+      "title": "Guardar la gestión comercial",
+      "body": "Conserva contactos, notas y acciones. Ese historial ayuda a explicar qué se hizo y qué ocurrió con el prospecto.",
+      "tech": "Registros · crm.actividades\ncrm.actividades_cliente"
+    },
+    {
+      "title": "Cerrar o reprogramar una cita",
+      "body": "Guarda el resultado de la reunión y el siguiente compromiso. Distingue una cita realizada de una ausencia o cambio de fecha.",
+      "tech": "RPC · crm.cerrar_reunion\ncrm.reprogramar_reunion"
+    },
+    {
+      "title": "Convertir en cliente Avance",
+      "body": "Crea o enlaza la ficha y el acceso del cliente. Conserva al responsable del cierre. El contrato se registra en otro paso.",
+      "tech": "Edge · crm-convertir-lead\nRPC · crm.convertir_lead_con_domicilio"
+    },
+    {
+      "title": "Dar de alta un cliente directo",
+      "body": "Permite un alta autorizada sin partir de un prospecto del CRM. También existe una puerta para cargar clientes por lotes.",
+      "tech": "Edge · crear-cliente\nimportar-clientes"
+    },
+    {
+      "title": "Registrar cierre en cooperativa",
+      "body": "Guarda la inversión externa y su atribución comercial. Sigue una ruta distinta del contrato y acceso del Portal Avance.",
+      "tech": "RPC · crm.convertir_lead_externo\nRegistro · crm.cierres_externos"
+    },
+    {
+      "title": "Crear el contrato",
+      "body": "Registra condiciones, cuenta de pago y preparación del documento. Los reintentos se controlan para evitar repetir el alta.",
+      "tech": "RPC · crm.crear_contrato_con_cuenta_pdf_v2"
+    },
+    {
+      "title": "Corregir el contrato",
+      "body": "Actualiza lo permitido y coordina el estado documental. Hay controles para cambios sobre información ya protegida.",
+      "tech": "RPC · crm.actualizar_contrato_con_cuenta_pdf_v3"
+    },
+    {
+      "title": "Preparar y consultar el PDF",
+      "body": "Genera el documento desde los datos del servidor, comprueba el archivo y entrega una descarga temporal.",
+      "tech": "Edge · crm-contrato-pdf-v2\nRPC · crm.contrato_pdf_estado_fn"
+    },
+    {
+      "title": "Consultar cuentas de pago",
+      "body": "Muestra las cuentas vinculadas al cliente o al contrato para conocer dónde corresponden los abonos.",
+      "tech": "RPC · crm.cuentas_bancarias_cliente_fn\ncrm.cuentas_pago_contratos_fn"
+    },
+    {
+      "title": "Ver la ficha del cliente",
+      "body": "Reúne información comercial y contractual para atender a la persona sin buscar en varias pantallas.",
+      "tech": "RPC · crm.cliente_ficha_fn\ncrm.cliente_detalle_fn"
+    },
+    {
+      "title": "Renovación y upgrade",
+      "body": "La renovación conserva capital; el upgrade incorpora capital adicional. El registro separa sus componentes y atribución.",
+      "tech": "Registro · crm.operaciones_cartera\nNúcleo · private.capital_episodios"
+    },
+    {
+      "title": "Publicar metas",
+      "body": "Guarda los objetivos y el equipo del período. Permite comparar resultados con las metas que realmente se publicaron.",
+      "tech": "RPC · crm.publicar_metas_vendedores\ncrm.configuracion_metas_fn"
+    },
+    {
+      "title": "Cerrar un período",
+      "body": "Conserva una fotografía del mes y permite explicar ajustes posteriores sin borrar la historia comercial.",
+      "tech": "RPC · crm.cerrar_periodo\nRegistro · crm.periodos_cerrados"
+    },
+    {
+      "title": "Medir capital",
+      "body": "Prepara las cifras de dinero para el período solicitado, manteniendo los filtros de acceso y la definición del reporte.",
+      "tech": "RPC · crm.metricas_capital_mes_fn\nNúcleo · private.capital_episodios"
+    },
+    {
+      "title": "Medir conversiones",
+      "body": "El resultado de los prospectos y el índice comercial mensual responden preguntas distintas. Revisa la etiqueta del reporte.",
+      "tech": "RPC · crm.metricas_conversiones_fn\ncrm.conversion_mensual_fn"
+    },
+    {
+      "title": "Medir reuniones y atención",
+      "body": "Resume resultados de citas y tiempos de primera gestión. El nuevo seguimiento recurrente aún está en diseño.",
+      "tech": "RPC · crm.metricas_reuniones_fn\ncrm.metricas_sla_fn"
+    },
+    {
+      "title": "Avisar pagos y vencimientos",
+      "body": "Envía recordatorios y novedades sobre pagos registrados o contratos por vencer. Estos servicios no transfieren dinero.",
+      "tech": "Edge · notificar-pagos\nciclo-contratos"
+    },
+    {
+      "title": "Calendario y tipo de cambio",
+      "body": "El calendario ICS es un espejo de consulta. BCRP aporta una referencia para comparar monedas con una regla explícita.",
+      "tech": "Edge · crm-agenda-ics\ncrm-tipo-cambio"
+    }
+  ],
+  "attention": [
+    {
+      "title": "Preparado · Identidad multiempresa",
+      "body": "Las tres banderas están apagadas. Las tablas existen, pero la nueva ruta de alta, escritura de inversiones y ficha neutral no está activada.",
+      "tech": "resolver_en_puertas = false\ninversiones_escritura = false\nficha_360_neutral = false",
+      "fill": "F9F9F9"
+    },
+    {
+      "title": "Observación · Rentabilidad",
+      "body": "La política vigente es versión 1 y observa los resultados. Su presencia no significa que ya obligue a aplicar la tasa calculada.",
+      "tech": "crm.politica_rentabilidad\nmodo = observacion",
+      "fill": "FFFBF0"
+    },
+    {
+      "title": "Propuesta · Nuevo seguimiento",
+      "body": "El SLA de primera atención existe. El núcleo para seguimiento recurrente por etapa todavía es un diseño pendiente.",
+      "tech": "private.sla_operacion_leads\nNo aparece en el catálogo consultado.",
+      "fill": "F9F9F9"
+    },
+    {
+      "title": "En uso · Versiones internas",
+      "body": "La pantalla entra por v3, pero esa versión utiliza v2 y el motor base. Retirar las anteriores exige revisar las dependencias.",
+      "tech": "Puertas v1/v2: cerradas al usuario\nMotores internos: utilizados",
+      "fill": "EBFFEE"
+    },
+    {
+      "title": "Revisar · Envíos repetidos",
+      "body": "Comunicados delega push a enviar-push. Pagos y vencimientos mantienen su propio envío. Es un lugar concreto para revisar mantenimiento duplicado.",
+      "tech": "enviar-comunicado → enviar-push\nnotificar-pagos · ciclo-contratos",
+      "fill": "FFF7F0"
+    },
+    {
+      "title": "Revisar · Aviso tomado ≠ entregado",
+      "body": "El sello evita que dos corridas tomen el mismo aviso. No confirma por sí solo que el destinatario recibió el correo o la notificación.",
+      "tech": "Conviene distinguir toma, intento y entrega.",
+      "fill": "FFF7F0"
+    },
+    {
+      "title": "Retirado · Diagnóstico push",
+      "body": "Figura desplegado como ACTIVE, pero su cuerpo responde 410 “gone”. Estar instalado no acredita uso ni funcionamiento comercial.",
+      "tech": "Edge · diagnostico-push",
+      "fill": "F9F9F9"
+    },
+    {
+      "title": "Alcance · Novedades en tiempo real",
+      "body": "La publicación de Realtime incluye novedades, lecturas y auditoría. No incluye tablas crm.leads ni crm.tareas en esta captura.",
+      "tech": "public.novedades · novedades_leidas\naudit_log",
+      "fill": "F5FBFF"
+    }
+  ],
+  "mermaid": {
+    "overview": "flowchart LR\nsubgraph client [\"Pantallas que usa el negocio\"]\ncrmWeb[\"CRM comercial\"]\nportalWeb[\"Portal de clientes\"]\nend\nsubgraph gateway [\"Entrada a Supabase\"]\napi[\"Acceso HTTPS a Supabase\"]\nend\nsubgraph service [\"Servicios del mismo proyecto\"]\nauth[\"Auth: iniciar sesión\"]\ndataApi[\"Data API: consultar y operar\"]\nedge[\"Edge: altas, PDF y avisos\"]\nstorage[\"Storage: entregar archivos\"]\nrealtime[\"Realtime: novedades\"]\nend\nsubgraph datastore [\"Información y archivos\"]\ndb[\"PostgreSQL: crm, public y private\"]\nfiles[\"Archivos: documentos y contratos\"]\nend\nsubgraph external [\"Servicios externos\"]\nresend[\"Resend: correos\"]\nbcrp[\"BCRP: tipo de cambio\"]\nend\ncrmWeb -->|\"Solicita acciones\"| api\nportalWeb -->|\"Consulta su información\"| api\napi -->|\"Identifica al usuario\"| auth\napi -->|\"Tablas y funciones\"| dataApi\napi -->|\"Procesos especiales\"| edge\napi -->|\"Accede a documentos\"| storage\napi -->|\"Recibe novedades\"| realtime\nauth -->|\"Gestiona cuentas\"| db\ndataApi -->|\"Lee y guarda\"| db\nedge -->|\"Coordina operaciones\"| db\nedge -->|\"Genera PDF\"| storage\nstorage -->|\"Guarda y entrega\"| files\nrealtime -->|\"Lee cambios publicados\"| db\nedge -.->|\"Edge: envía correos\"| resend\nedge -.->|\"Edge: consulta cambio\"| bcrp",
+    "commercial": "flowchart LR\narrival[\"Prospecto recibido\"] --> verify{\"¿Puede gestionarse?\"}\nverify -->|\"Disponible\"| assign[\"Repartir al analista\"]\nverify -->|\"Bloqueado o duplicado\"| revise[\"Revisar motivo\"]\nassign --> follow[\"Contactar y agendar\"]\nfollow --> decision{\"¿Resultado comercial?\"}\ndecision -->|\"Continuar\"| task[\"Siguiente compromiso\"]\ntask --> follow\ndecision -->|\"Descartar\"| discard[\"Descarte con motivo\"]\ndecision -->|\"Invertir\"| destination{\"¿Dónde invierte?\"}\ndestination -->|\"Avance\"| convert[\"Crear o enlazar cliente\"]\nconvert --> contract{\"¿Contrato ahora?\"}\ncontract -->|\"Sí\"| avance[\"Contrato Avance\"]\ncontract -->|\"Más adelante\"| pending[\"Cliente sin contrato aún\"]\navance --> pdf[\"Preparar PDF\"]\npdf --> pdfstate{\"¿Archivo listo?\"}\npdfstate -->|\"Sí\"| ready[\"Contrato y PDF disponibles\"]\npdfstate -->|\"Falla\"| retry[\"Contrato existe; reintentar PDF\"]\ndestination -->|\"Cooperativa\"| external[\"Registrar cierre externo\"]\nexternal --> measures[\"Capital y conversión\"]\navance --> measures\nexisting[\"Cliente existente\"] --> operation{\"¿Nueva operación?\"}\noperation -->|\"Renovación\"| renew[\"Conservar capital\"]\noperation -->|\"Upgrade\"| upgrade[\"Registrar capital adicional\"]\nrenew --> avance\nupgrade --> avance\nstyle verify fill:#FFECBD,stroke:#FFC943\nstyle decision fill:#FFECBD,stroke:#FFC943\nstyle destination fill:#FFECBD,stroke:#FFC943\nstyle contract fill:#FFECBD,stroke:#FFC943\nstyle pdfstate fill:#FFECBD,stroke:#FFC943\nstyle operation fill:#FFECBD,stroke:#FFC943\nstyle retry fill:#FFE0C2,stroke:#FF9E42\nstyle measures fill:#CDF4D3,stroke:#66D575",
+    "metrics": "flowchart LR\nleads[(\"Prospectos e historial\")]\nops[(\"Renovaciones y upgrades\")]\ncontracts[(\"Contratos Avance\")]\ncoops[(\"Cierres de cooperativas\")]\ntasks[(\"Tareas de reunión\")]\nleads -->|\"Llegadas y cierres\"| conv[[\"conversion_episodios\"]]\nops -->|\"Operaciones elegibles\"| conv\nops -->|\"Renovado y adicional\"| capital[[\"capital_episodios\"]]\ncontracts -->|\"Capital firmado\"| capital\ncoops -->|\"Capital externo\"| capital\ntasks -->|\"Clasifica resultados\"| cites[[\"citas_episodios\"]]\nconv -->|\"Hechos comerciales\"| report[\"Adaptadores de reportes\"]\ncapital -->|\"Dinero y atribución\"| report\ncites -->|\"Actividad de citas\"| report\nreport -->|\"Misma base de reglas\"| conversion[\"Conversiones y Reuniones\"]\ncapital -->|\"Filtros autorizados\"| capitalview[\"Capital, cartera y ranking\"]\nconv -->|\"Llegadas y resultados\"| distribution[\"Distribución de prospectos\"]\nsla[[\"SLA actual\"]] -->|\"Tiempo de atención\"| distribution\nconv -->|\"Resultado mensual\"| month{\"¿Mes cerrado?\"}\nmonth -->|\"No\"| live[\"Cálculo del mes vivo\"]\nmonth -->|\"Sí\"| seal[\"Fotografía y ajustes\"]\nstyle conv fill:#DCCCFF,stroke:#874FFF\nstyle capital fill:#DCCCFF,stroke:#874FFF\nstyle cites fill:#DCCCFF,stroke:#874FFF\nstyle month fill:#FFECBD,stroke:#FFC943",
+    "versions": "flowchart LR\nscreen[\"Pantalla de Distribución\"] -->|\"Usa hoy\"| rpc[[\"RPC v3\"]]\nrpc -->|\"Comprueba alcance\"| guard[\"Control de permisos\"]\nguard -->|\"Elige versión 3\"| vthree[[\"Motor interno v3\"]]\nvthree -->|\"Reutiliza\"| vtwo[[\"Motor interno v2\"]]\nvtwo -->|\"Amplía\"| base[[\"Motor base v1\"]]\nvtwo -->|\"Calcula atención\"| sla[[\"SLA global actual\"]]\nvthree -->|\"Calcula resultados\"| conv[[\"conversion_episodios\"]]\nstyle rpc fill:#CDF4D3,stroke:#66D575\nstyle vthree fill:#DCCCFF,stroke:#874FFF\nstyle vtwo fill:#FFECBD,stroke:#FFC943\nstyle base fill:#FFECBD,stroke:#FFC943"
+  }
+}

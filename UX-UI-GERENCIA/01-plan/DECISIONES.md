@@ -1,0 +1,1 @@
+../../BASE DE CONOCIMINETO/AVANCECORP/Decisiones UI UX Gerencia - 2026-09-06.md
