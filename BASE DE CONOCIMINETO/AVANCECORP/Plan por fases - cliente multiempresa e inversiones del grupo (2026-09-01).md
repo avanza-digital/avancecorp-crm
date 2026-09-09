@@ -42,7 +42,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Implementada, probada y adaptada visualmente; candidata sin publicar | Propuesta visual bien recibida por Miguel; ajuste verificado. Recorrido manual guiado de VoiceOver aprobado el 09/09: cartera, ficha y campos de inversión Qorilazo. [[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]] |
+| F5 — cartera y Ficha 360 | Implementada y probada; frontend publicado con F5 apagada | Recorrido guiado de VoiceOver aprobado. Salto de cartera corregido y publicado el 09/09. SQL/banco temporal pendientes de confirmación; 15 huecos de identidad bloquean el encendido. [[F5 - prepublicacion y salto de cartera (2026-09-09)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
@@ -428,6 +428,10 @@ Miguel valoró favorablemente las capturas y se verificó el ajuste de coherenci
 visual con el CRM. El 09/09 confirmó el recorrido manual guiado de VoiceOver:
 cartera, ficha y campos del formulario de inversión Qorilazo. El alcance y los
 casos no ensayados manualmente constan en el acta de aceptación.
+El 09/09 se publicó la corrección del salto de cartera y se verificó el
+frontend del commit `baad8cf`. SQL F5 y banco temporal pendientes de confirmación;
+preflight y paquete preparados. Hay 15 fuentes sin identidad vinculada que
+bloquean el encendido. Detalle: [[F5 - prepublicacion y salto de cartera (2026-09-09)]].
 Las escrituras F4 y la ficha F5 permanecen apagadas en producción. Evidencia:
 [aceptación F5](../../CRM-Avance-Corp/supabase/scripts/f5/ACEPTACION.md).
 

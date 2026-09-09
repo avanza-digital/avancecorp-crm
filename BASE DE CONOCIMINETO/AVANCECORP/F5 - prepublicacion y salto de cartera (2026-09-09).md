@@ -1,7 +1,7 @@
 ---
 tags: [crm, cartera, F5, publicacion, regresion]
 fecha: 2026-09-09
-estado: correccion-verificada-publicacion-en-preparacion
+estado: salto-corregido-publicado-sql-f5-pendiente
 ---
 
 # F5 — prepublicación y salto de cartera
@@ -28,9 +28,17 @@ Las comisiones continúan fuera del sistema.
 
 Acta técnica y SQL enlazado:
 `CRM-Avance-Corp/supabase/scripts/f5/PREPUBLICACION-2026-09-09.md`.
-Pendiente inmediato: publicar el ZIP del arreglo desde Main sincronizado,
-verificar la web y preparar el paquete F5 actualizado. Después mostrar el
-SQL para su confirmación; no adelantar el piloto económico.
+El arreglo se publicó y comprobó en `crm.miavance.com` a las 11:09 Lima del
+09/09: release `crm-20260909T160038Z-baad8cfad3e8`, desde el commit `baad8cf`
+verificado contra Main y `avancecorp/main`. Los 79 archivos públicos responden
+HTTP 200; la configuración del servidor también fue cotejada. El ZIP y su
+reversa están guardados en `RESPALDOS-CARTERA/f5-publicacion-salto-20260909-1602/`.
+
+Pendiente inmediato: confirmar el SQL exacto y el banco Supabase temporal
+(cómputo cotizado desde US$0,01344/h, más uso adicional). El paquete F5 queda
+actualizado y verificado; no se instaló SQL, no se creó la rama de prueba ni
+se publicó la función documental. Mantener F5 y la escritura apagadas y
+conciliar los 15 huecos antes de cualquier encendido. No adelantar el piloto.
 
 Relacionados: [[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]],
 [[F5 - prueba manual de VoiceOver iniciada (2026-09-09)]],

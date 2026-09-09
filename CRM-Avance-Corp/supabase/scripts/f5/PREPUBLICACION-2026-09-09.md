@@ -99,10 +99,65 @@ Antes de subirlo se preservó el ZIP exacto servido por producción, SHA-256
 `57c12c4a3bf7c4513088f7b079dcc50e767a787fcd568be740ee0ea5c3fdd0b4`;
 se verificaron todos sus archivos y la igualdad del index con la web real.
 
-Estado al preparar esta acta: arreglo verificado, publicación pendiente.
-Después registrar aquí el artefacto y la comprobación HTTP. La instalación F5
-requiere mostrar y autorizar el SQL exacto; la activación económica mantiene
+## Publicación del arreglo completada
+
+Hostinger aceptó el ZIP y la limpieza de caché el 09/09. Verificación real
+finalizada a las **16:09 UTC / 11:09 Lima**:
+
+- Release `crm-20260909T160038Z-baad8cfad3e8`; versión
+  `build-20260909T160038168Z`.
+- Fuente `baad8cfad3e8ab23bc1aef2f96855944e47f102e`, igual a Main local,
+  `avancecorp/main` y el remoto vivo antes de construir y antes de publicar.
+  Incluye el cierre documental de Citas que llegó durante la preparación;
+  su código de producto es idéntico al verificado en `da4d9d3`.
+- ZIP SHA-256 `63600ca531370965541798667c0d3e6730b43fca00dcb1e28347e4ae306722f2`;
+  80 archivos cotejados individualmente con el manifiesto, sin fuentes ni secretos.
+- Los 79 archivos públicos devolvieron HTTP 200. Index, versión y 65 recursos
+  coinciden byte a byte; los 12 PNG restantes conservan exactamente la
+  transformación que ya servía Hostinger antes de subir el ZIP. Sus originales
+  no cambiaron entre releases. `.htaccess` también coincide en contenido y tamaño
+  mediante el lector de archivos de Hostinger.
+- [GitHub quality/E2E](https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34373674625):
+  job `quality` PASS al publicar; E2E remoto todavía en curso en ese momento,
+  y finalizado posteriormente con **PASS**. Ambos jobs quedaron aprobados.
+  La suite E2E local completa también pasó (150 recorridos).
+  [RLS preflight](https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34373674661): PASS.
+- Lectura posterior del servidor a las 16:11 UTC: `ficha_360_neutral=false`,
+  `inversiones_escritura=false`, `resolver_en_puertas=true`; SQL F5 sigue ausente.
+  No hubo migraciones, publicaciones Edge ni cambios de banderas en esta entrega.
+
+El manifiesto de este release se conserva en `CRM-Avance-Corp/releases/`.
+Los commits documentales posteriores describen la publicación; no cambian
+el commit del ZIP que se verificó y publicó.
+
+## Instalación F5 propuesta, pendiente de autorización
+
+El siguiente paso es instalar el SQL exacto enlazado arriba: añade las consultas
+de cartera/ficha/cuentas/documentos y el registro auditado de lecturas. No
+registra inversiones, no calcula comisiones y mantiene F5 apagada. La tabla de
+auditoría queda cerrada al acceso directo; las cinco RPC públicas conservan
+su autorización del servidor y los cuatro auxiliares permanecen privados.
+
+La prueba local del SQL ya está completada. El procedimiento de publicación
+del repositorio exige además un banco Supabase dedicado: aplicar el archivo
+aprobado, comprobar RPC/ACL/RLS/advisors, integrar y verificar producción antes
+de desplegar `crm-inversion-documento`. Las ramas remotas existentes pertenecen
+a otras tareas; no se reutilizaron ni modificaron.
+
+Cotización leída para la organización del proyecto el 09/09: cómputo de rama
+desde **US$0,01344/h**, más otros consumos que correspondan según
+[facturación de Supabase](https://supabase.com/docs/guides/platform/manage-your-usage/branching).
+No se confirmó el costo ni se creó la rama F5. Mostrar a Miguel el archivo SQL
+y esta cotización para obtener una sola confirmación del paso completo.
+
+La activación requiere resolver los 15 huecos de identidad y conserva los gates
 F6, F7/G6, F8/G7 y F9/G8. Ver [README.md](README.md).
 
-Evidencia de trabajo: `/private/tmp/avancecorp-f5-prepublicacion-20260909/`;
-copiar al cierre a `RESPALDOS-CARTERA/`, junto al ZIP nuevo y la reversa.
+El paquete F5 se regeneró y verificó (81 archivos, SQL/reversa/función con SHA).
+Después del commit de esta acta se prepara el paquete final desde el nuevo
+Main sincronizado: su `manifiesto.json` identifica el commit exacto vigente.
+
+Evidencia de trabajo: `/private/tmp/avancecorp-f5-prepublicacion-20260909/`.
+Respaldo durable: `RESPALDOS-CARTERA/f5-publicacion-salto-20260909-1602/`, junto
+al repositorio principal: ZIP publicado, reversa anterior, paquete F5,
+historia Git y comprobaciones. Conservar también los respaldos de cierre F4/F5.
