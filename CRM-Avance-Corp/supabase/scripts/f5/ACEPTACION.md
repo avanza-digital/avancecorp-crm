@@ -22,7 +22,7 @@ apagadas. No se usaron personas, depósitos ni cuentas reales como fixtures.
 | Revisión Claude y evaluación del PRIMARY | Ejecutada; hallazgos corregidos o contrastados con el contrato/catálogo. [Evaluación](REVISION.md) |
 | Revisión visual | Capturas reales de navegador de escritorio, móvil 390 px, roles y revisión/confirmación; 8 páginas de PDF PEN y USD verificadas sin cambios a plantilla/fonts/assets |
 | Revisión personal de Miguel | Propuesta visual bien recibida; solicitó conservar la coherencia con el CRM. Ajustes realizados y verificados en [ACABADO-VISUAL.md](ACABADO-VISUAL.md) |
-| Lector de pantalla manual | NOT RUN: se verificaron nombres accesibles, teclado, foco, diálogos y estados anunciados automáticamente; no se afirma una sesión manual de VoiceOver |
+| Lector de pantalla manual | PARCIAL (09/09): Miguel realizó el recorrido básico de cartera/ficha y confirmó la lectura con VoiceOver. Falta el formulario y sus estados; detalle al final de esta acta |
 | Advisors / gate de datos / carga en producción y despliegue F5 | NOT RUN: fase de desarrollo sintético, sin instalación ni encendido productivo. Ejecutar con el destino y artefacto aprobados |
 
 Las ocho suites de banco suman **38 pruebas** y se ejecutan secuencialmente.
@@ -55,3 +55,19 @@ pasa `deno check`; el runtime desplegado se comprueba al publicarlo.
 Fuentes y resultados del censo productivo siguen en [CONTRATO.md](CONTRATO.md).
 Sus huecos se resuelven con lotes F4 revisados antes del encendido, no mediante
 un backfill global ni mostrando una suma parcial. No se implementaron comisiones.
+
+## Sesión manual de VoiceOver — 09/09/2026
+
+Se abrió Google Chrome for Testing con la candidata `887bef6`, rol Gerencia,
+la persona ficticia ANA SINTÉTICA F5 y respuestas simuladas de los fixtures F5.
+El recorrido indicado fue activar VoiceOver, navegar con Tab hasta la persona,
+abrir su ficha con Enter y cerrarla con Esc para volver al punto de partida.
+Miguel respondió «ok ya hice eso» y después «okok lee todo».
+
+**PASS de lectura básica, informado por el usuario:** la cartera/ficha se lee
+con VoiceOver. El recorrido de teclado fue realizado, sin incidencias
+comunicadas; no se dispone de una descripción separada del retorno de foco.
+**NOT RUN manual:** lectura de campos y estados del formulario Nueva inversión,
+errores y recuperación. Esos casos conservan su evidencia automatizada previa.
+La confirmación básica no acredita toda la matriz G5 ni una prueba financiera
+contra el backend real. F5 continúa sin publicación ni activación productiva.
