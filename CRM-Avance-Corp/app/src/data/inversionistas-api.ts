@@ -67,3 +67,23 @@ export async function obtenerCuentasInversionista(id: string, perfilId: string, 
   }).abortSignal(signal)
   return respuestaInversionistas(v.array(CuentaSchema), r)
 }
+
+export async function descargarDocumentoInversionista(persona: string, fuente: string, documento: string, signal: AbortSignal) {
+  const {data, error, response} = await cliente().functions.invoke<Blob>('crm-inversion-documento', {
+    body: {inversionista_id: persona, fuente_id: fuente, documento_id: documento}, signal,
+  })
+  signal.throwIfAborted()
+  if (error) throw new CrmApiError('No se pudo abrir el documento con tu acceso actual. Vuelve a consultar.',
+    response?.status === 401 || response?.status === 403 ? '42501' : 'DOCUMENTO_NO_DISPONIBLE')
+  if (!(data instanceof Blob) || !data.size) throw new CrmApiError('El archivo está incompleto.', 'DOCUMENTO_INCOMPLETO')
+  const esperado = response?.headers.get('X-Document-Sha256')
+  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await data.arrayBuffer())), b => b.toString(16).padStart(2, '0')).join('')
+  if (!esperado || esperado !== sha) throw new CrmApiError('La integridad del archivo requiere revisión.', 'DOCUMENTO_INCOMPLETO')
+  signal.throwIfAborted()
+  const url = URL.createObjectURL(data)
+  try {
+    const a = document.createElement('a')
+    a.href = url; a.download = decodeURIComponent(response?.headers.get('X-Document-Name') ?? 'Documento')
+    a.click()
+  } finally {setTimeout(() => URL.revokeObjectURL(url), 1000)}
+}

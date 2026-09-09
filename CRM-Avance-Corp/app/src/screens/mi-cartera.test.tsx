@@ -241,7 +241,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
 
 const { crmQueryKeys, useClienteDetalle } = await import('@/data/crm-queries')
 const useClienteDetalleMock = vi.mocked(useClienteDetalle)
-const { MiCartera } = await import('./mi-cartera')
+const { MiCarteraAvance: MiCartera } = await import('./mi-cartera')
 
 describe('Gerencia — indicadores del resumen existente del servidor', () => {
   const yo = { id: 'g-1', rol: 'gerencia', puede_contratar: true, demo: false }

@@ -53,6 +53,9 @@ import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
 import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion'
 import { useAuth } from '@/lib/auth-context'
+import { useEstadoCarteraInversionistas } from '@/data/inversionistas-queries'
+import { CarteraInversionistas } from './cartera-inversionistas'
+import { CrmApiError } from '@/data/crm-api'
 import { useCRMData } from '@/lib/store-context'
 import { can, puedeEliminarContratos, puedeEscribir, puedeReasignarVenta } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
@@ -1811,6 +1814,22 @@ interface ContratoConfirmadoParaCierre {
 }
 
 export function MiCartera() {
+  const {yo} = useAuth()
+  if (yo?.demo) return <MiCarteraAvance />
+  return <CarteraSegunBandera key={yo?.id ?? 'sin-sesion'} actor={yo?.id ?? ''} />
+}
+function CarteraSegunBandera({actor}: {actor: string}) {
+  const q = useEstadoCarteraInversionistas(actor)
+  // Compatibilidad de despliegue: antes de aplicar F5 la RPC aún no existe.
+  if (q.error instanceof CrmApiError && q.error.code === 'PGRST202') return <MiCarteraAvance />
+  if (q.isError) return <PanelError mensaje={mensajeDeError(q.error, 'No pudimos comprobar la cartera.')}
+    onReintentar={() => void q.refetch()} reintentando={q.isFetching} />
+  if (!q.isFetchedAfterMount || !q.isSuccess) return <PanelCargando />
+  if (!q.data.habilitada) return <MiCarteraAvance />
+  return <CarteraInversionistas actor={actor} permiteInversion={q.data.escritura_habilitada}
+    gestionAvance={<MiCarteraAvance gestionarSolo />} />
+}
+export function MiCarteraAvance({gestionarSolo = false}: {gestionarSolo?: boolean}) {
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const esDemo = yo?.demo === true
@@ -1861,7 +1880,7 @@ export function MiCartera() {
         equipo,
         yoId: yo?.id,
         rol: yo?.rol,
-        puedeContratar: yo?.puede_contratar === true,
+        puedeContratar: !gestionarSolo && yo?.puede_contratar === true,
       })
     : null
 
@@ -2033,7 +2052,7 @@ export function MiCartera() {
         }
         recargaFallida={recargaFallida ? { reintentar: reintentarCarga } : null}
         yoId={yo?.id ?? null}
-        puedeContratar={yo?.puede_contratar === true}
+        puedeContratar={!gestionarSolo && yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
         onNuevoContrato={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
         onGestionarCliente={(c) =>

@@ -37,7 +37,7 @@ export const InversionFuenteSchema = v.object({
   perfil_id: IdOpcional, lead_id: IdOpcional, numero: TextoOpcional, capital: Importe,
   moneda: Moneda, estado: v.string(), fecha_comercial: TextoOpcional, fecha_imputacion: TextoOpcional,
   vence_en: TextoOpcional, analista_origen_id: IdOpcional, analista_origen_nombre: TextoOpcional,
-  es_inicial: v.boolean(), es_demo: v.boolean(), creado_en: v.string(),
+  es_inicial: v.nullable(v.boolean()), es_demo: v.boolean(), creado_en: v.string(),
   contrato: v.nullable(v.object({fecha_inicio: v.string(), tasa_anual: Importe,
     modalidad: v.picklist(['mensual', 'trimestral', 'semestral', 'anual']), tipo_interes: v.picklist(['simple', 'compuesto']),
     categoria: TextoOpcional})),

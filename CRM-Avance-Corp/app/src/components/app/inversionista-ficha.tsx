@@ -14,7 +14,9 @@ import { cuentaClienteDesdeRpc } from '@/lib/cliente-cuentas-modelo'
 import { useCuentasInversionista, useFichaInversionista } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { EMPRESA_NOMBRE, type FichaInversionista, type InversionFuente, type ResumenEmpresa } from '@/lib/inversionistas'
+import type { OperacionInversion } from './inversion-nueva'
 import { fechaHora, fmtFecha, money } from '@/lib/format'
+import { fechaLima } from '@/lib/agenda-derivada'
 
 export function ResumenEmpresas({totales}: {totales: ResumenEmpresa[]}) {
   return <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -23,7 +25,7 @@ export function ResumenEmpresas({totales}: {totales: ResumenEmpresa[]}) {
       <dd className="text-lg font-semibold tabular-nums [overflow-wrap:anywhere]">
         {money(t.capital_activo ?? t.capital_registrado, t.moneda)}
       </dd>
-      <dd className="text-xs text-muted-foreground">{t.empresa === 'avance' ? 'Capital activo' : 'Capital registrado'} · {t.cantidad} inversiones</dd>
+      <dd className="text-xs text-muted-foreground">{t.empresa === 'avance' ? 'Capital activo' : 'Capital registrado'} · {t.cantidad} {t.cantidad === 1 ? 'inversión' : 'inversiones'}</dd>
     </div>)}
   </dl>
 }
@@ -46,9 +48,11 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, onDocumento}: {
+function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf}: {
   inversion: InversionFuente
+  onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
+  onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const i = inversion
   return <article className="min-w-0 rounded-lg border border-border bg-card p-3 [overflow-wrap:anywhere]">
@@ -74,6 +78,11 @@ function InversionDetalle({inversion, onDocumento}: {
     {i.pdf && i.pdf.estado !== 'sellado' && <p className="mt-2 text-xs text-muted-foreground">
       {i.pdf.estado === 'sin_reserva' && !i.pdf.reintentable ? 'Contrato del formato anterior.' : `Documento: ${i.pdf.estado.replaceAll('_', ' ')}.`}
     </p>}
+    {i.pdf?.reintentable && onRecuperarPdf && <Button variant="outline" size="sm" className="mt-2" onClick={() => onRecuperarPdf(i)}>Recuperar PDF pendiente</Button>}
+    {onOperacion && i.empresa === 'avance' && i.contrato && i.perfil_id && <div className="mt-3 flex flex-wrap gap-2">
+      {i.estado === 'activo' && <Button variant="outline" size="sm" onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>Aumentar inversión</Button>}
+      {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="sm" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}
+    </div>}
     {i.documentos.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{i.documentos.map(d =>
       <Button key={d.id} variant="outline" size="sm" onClick={() => onDocumento?.(i, d.id)} disabled={!onDocumento}>
         <FileText aria-hidden />{d.nombre}
@@ -81,10 +90,12 @@ function InversionDetalle({inversion, onDocumento}: {
   </article>
 }
 
-export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento}: {
+export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado, onNuevaInversion, onDocumento, onOperacion, onRecuperarPdf}: {
   actor: string; inversionistaId: string; onCerrar: () => void; onRevocado: () => void
+  onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onNuevaInversion?: ((ficha: FichaInversionista) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
+  onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
 }) {
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
@@ -138,11 +149,11 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         </li>)}</ul> : <p className="text-sm text-muted-foreground">No hay tareas pendientes.</p>}
         {ficha.tareas_total > ficha.tareas.length && <p className="text-xs text-muted-foreground">Mostrando {ficha.tareas.length} de {ficha.tareas_total}. Consulta la agenda para ver las demás.</p>}
       </FichaComercialSeccion>
-      <FichaComercialSeccion icono={WalletCards} titulo="Inversiones" descripcion={`${ficha.inversiones_total} inversiones en esta ficha`}>
+      <FichaComercialSeccion icono={WalletCards} titulo="Inversiones" descripcion={`${ficha.inversiones_total} ${ficha.inversiones_total === 1 ? 'inversión' : 'inversiones'} en esta ficha`}>
         <ResumenEmpresas totales={ficha.totales} />
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
           <h4 className="text-sm font-semibold">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
-          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} onDocumento={onDocumento} />)}
+          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} onDocumento={onDocumento} onRecuperarPdf={onRecuperarPdf} onOperacion={ficha.capacidades.nueva_inversion ? onOperacion : undefined} />)}
         </div>)}
         {ficha.inversiones_total === 0 && <p className="text-sm text-muted-foreground">Todavía no registra inversiones.</p>}
         <Paginacion paginaActual={paginaInversiones - 1} paginas={Math.max(1, Math.ceil(ficha.inversiones_total / 25))}
