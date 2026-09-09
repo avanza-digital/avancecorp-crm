@@ -49,9 +49,14 @@ test('F5: lectura canónica, paridad y permisos actuales en HTTP', async t => {
         'enlaces',(select count(*) from crm.inversiones where contrato_id is not null),
         'capital',(select coalesce(sum(capital),0) from public.contratos where not es_demo and estado='activo'))`));
       assert.ok(fuente.contratos>fuente.enlaces,'El banco debe contener historia aún sin enlace de inversión');
-      const avance=global.data.totales.find(x=>x.empresa==='avance' && x.moneda==='PEN');
-      assert.equal(avance.cantidad,fuente.contratos);
-      assert.equal(avance.capital_activo,fuente.capital);
+      const porMoneda=JSON.parse(sql(`select jsonb_agg(x) from (select c.moneda,count(*) cantidad,
+        coalesce(sum(c.capital) filter(where not c.es_demo and c.estado='activo' and p.activo),0) capital
+        from public.contratos c join public.perfiles p on p.id=c.cliente_id group by c.moneda) x`));
+      for(const origen of porMoneda) {
+        const avance=global.data.totales.find(x=>x.empresa==='avance' && x.moneda===origen.moneda);
+        assert.equal(avance.cantidad,origen.cantidad);
+        assert.equal(avance.capital_activo,origen.capital);
+      }
       for(const empresa of ['qorilazo','prodelco']) {
         const monto=Number(sql(`select coalesce(sum(monto),0) from crm.cierres_externos where cooperativa=${literal(empresa)} and id<>'a112aead-184a-4979-9041-943978fadae4'`));
         assert.equal(global.data.totales.find(x=>x.empresa===empresa).capital_registrado,monto);

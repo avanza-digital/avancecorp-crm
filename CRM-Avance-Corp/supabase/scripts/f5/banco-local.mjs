@@ -28,7 +28,7 @@ export function sql(texto, {admin = false} = {}) {
   assert.equal(r.status, 0, r.stderr || r.error?.message || 'Falló SQL del banco F5');
   return r.stdout.trim();
 }
-export async function http(ruta, {token, admin=false, body, rawBody, method='POST', headers={}} = {}) {
+export async function http(ruta, {token, admin=false, body, rawBody, binary=false, method='POST', headers={}} = {}) {
   assert(ruta.startsWith('/') && !ruta.startsWith('//'));
   assert(body === undefined || rawBody === undefined);
   const r = await fetch(`${apiUrl}${ruta}`, {method,
@@ -37,6 +37,7 @@ export async function http(ruta, {token, admin=false, body, rawBody, method='POS
     ...(body === undefined ? {} : {body: JSON.stringify(body)}),
     ...(rawBody === undefined ? {} : {body: rawBody}),
     redirect: 'error', signal: AbortSignal.timeout(30_000)});
+  if (binary && r.ok) return {status: r.status, ok: true, data: Buffer.from(await r.arrayBuffer())};
   const texto = await r.text();
   let data;
   try { data = JSON.parse(texto); } catch { data = texto; }

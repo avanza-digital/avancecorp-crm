@@ -31,7 +31,7 @@ as $f$
     c.numero_contrato, c.capital, c.moneda, c.estado,
     c.fecha_cierre_comercial, c.fecha_cierre_comercial, c.fecha_vencimiento,
     coalesce(private.analista_atribuido_cadena(c.id),c.analista_cierre_id),
-    coalesce(iv.es_primera_conversion,false),c.es_demo,
+    iv.es_primera_conversion,c.es_demo,
     cardinality(ids.personas)=1, c.creado_en
   from public.contratos c
   left join crm.inversiones iv on iv.contrato_id=c.id
@@ -225,7 +225,8 @@ begin
   ), totales as (
     select f.empresa,f.moneda,count(*) cantidad,
       sum(f.capital) filter(where not f.es_demo) capital_registrado,
-      sum(f.capital) filter(where not f.es_demo and f.empresa='avance' and f.estado='activo' and p.estado='activo') capital_activo
+      sum(f.capital) filter(where not f.es_demo and f.empresa='avance' and f.estado='activo'
+        and exists(select 1 from public.perfiles pf where pf.id=f.perfil_id and pf.activo)) capital_activo
     from fuentes f join filtradas p using(inversionista_id)
     where p_empresa is null or f.empresa=p_empresa group by f.empresa,f.moneda
   )
@@ -334,7 +335,8 @@ begin
       select f.empresa,f.moneda,jsonb_build_object('empresa',f.empresa,'moneda',f.moneda,'cantidad',count(*),
         'capital_registrado',coalesce(sum(f.capital) filter(where not f.es_demo),0),
         'capital_activo',case when f.empresa='avance' then coalesce(sum(f.capital)
-          filter(where not f.es_demo and f.estado='activo' and v_p.estado='activo'),0) end) d
+          filter(where not f.es_demo and f.estado='activo'
+            and exists(select 1 from public.perfiles pf where pf.id=f.perfil_id and pf.activo)),0) end) d
       from fuentes f group by f.empresa,f.moneda) x),'[]'),
     'historial',coalesce((select jsonb_agg(to_jsonb(h) order by h.creado_en desc,h.id) from (
       select * from historial order by creado_en desc,id limit 25 offset (p_pagina_historial-1)*25) h),'[]'),
