@@ -13,8 +13,8 @@ apagadas. No se usaron personas, depósitos ni cuentas reales como fixtures.
 | PDF PEN/USD pendiente → fallo transitorio → recuperación del mismo job/snapshot/contrato, descarga idéntica por F5 | PASS: 3 pruebas |
 | Frontera documental: sesión, origen, UUID, ruta, tamaño/streaming, integridad y credencial de servicio | PASS: 4 pruebas |
 | Edición concurrente del lead y auditoría sin amplificar cada refetch | PASS: 2 pruebas |
-| `npm run check:all` tras integrar Citas de Main | PASS: lint, TypeScript, 3.120 tests en 221 archivos, cobertura, configuración de release, build, bundle y duplicación; 146 Playwright PASS y 26 skip ya declarados |
-| Recorrido F5 adicional con tres empresas y PEN/USD | Resultado en `evidencias/verificacion.json` |
+| `npm run check:all` tras integrar Citas de Main (`2135fa4`) | PASS: lint, TypeScript, 3.127 tests en 221 archivos, cobertura, configuración de release, build, bundle y duplicación; 147 Playwright PASS y 26 skip ya declarados |
+| Siete recorridos F5, incluido tres empresas y PEN/USD | PASS integrados en el gate completo; además los siete pasan con configuración CI y un worker |
 | `check:scripts`, seed/RLS preflight con variables locales, `test:edge-preflight`, Deno check documental | PASS |
 | Introspección postgres-meta v0.99.0 de los seis nodos F5 | PASS: coincide exactamente, conservando los tipos ajenos presentes en Main |
 | Replay de SQL exacto en copia nueva y reversa sin pérdida | PASS: funciones publicadas, Auth, identidades, fuentes, dinero y banderas intactos |
@@ -32,6 +32,8 @@ al escribir capturas en `/private/tmp`, que no existe en el runner Linux.
 Se sustituyen por `test.info().outputPath`, aislado por prueba/reintento, y CI
 conserva también `test-results/`. Se mantiene el fallo original en el respaldo;
 la comprobación remota posterior se registra en el manifiesto privado de cierre.
+La suite corregida de Seguimiento (14 casos) y el gate completo posterior pasan
+en local; el último código integrado verificado es `45c7201`.
 
 La UI incluye recuperación tras respuesta perdida, recarga, corrección pendiente,
 borrador corrupto, revocación con ficha abierta, retorno de foco y filtros,

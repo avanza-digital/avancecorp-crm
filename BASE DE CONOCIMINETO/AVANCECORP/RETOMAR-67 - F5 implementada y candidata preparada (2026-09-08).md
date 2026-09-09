@@ -15,7 +15,7 @@ para cooperativas. Las comisiones siguen calculándose fuera del sistema.
 
 Rama de trabajo: `codex/f5-cartera`, carpeta aislada
 `/private/tmp/avancecorp-f5-desarrollo`. Se incorporaron los commits de Citas
-`c06949b` y `2a1516f` de Main y se verificó el CRM conjunto.
+`c06949b`, `2a1516f` y posteriormente `2135fa4` de Main y se verificó el CRM conjunto.
 
 Commits del desarrollo: `0d6aa4d`, `9789ca2`, `cc555ce`, `9e1b012`, `3b6c7ab`,
 `e07cdeb`, merge `4dd25d5` y correcciones revisadas `f7a425f`. La preparación
@@ -31,14 +31,17 @@ Contiene bundle verificable, trabajo ajeno pendiente, banco sintético y paquete
 El manifiesto privado de cierre identifica las huellas y el commit definitivo.
 
 - 38 pruebas locales de Auth, PostgREST, RLS, Storage, finanzas y recuperación: PASS.
-- Gate completo CRM: 3.120 pruebas unitarias, 146 E2E y 26 omisiones existentes;
-  recorrido adicional de tres empresas/PEN-USD: PASS.
+- Gate completo CRM tras integrar Citas `2135fa4`: 3.127 pruebas unitarias,
+  147 E2E y 26 omisiones existentes; incluye los siete recorridos F5: PASS.
 - PDF PEN/USD: mismo contrato, job, snapshot y bytes al recuperar. Plantilla v8,
   assets y fuentes conservados; ocho páginas revisadas.
 - SQL exacto y reversa probados en una copia sintética nueva. Tipos cotejados;
   ningún contrato, capital, identidad, Auth o función publicada ajena cambiado.
 - Claude revisó sin editar. Dictamen CHANGES_REQUESTED evaluado y corregido con
   pruebas; no se presenta como un PASS automático ni reemplaza la verificación.
+- CI detectó ocho capturas antiguas de Seguimiento con rutas exclusivas de macOS.
+  Se corrigieron en `f621915`; la suite de 14 casos y el gate completo pasan.
+  Se conservan el fallo original y el resultado remoto posterior en el respaldo.
 
 Acta técnica y capturas: `CRM-Avance-Corp/supabase/scripts/f5/ACEPTACION.md`.
 Contrato, instalación futura y reversa: `CRM-Avance-Corp/supabase/scripts/f5/README.md`.

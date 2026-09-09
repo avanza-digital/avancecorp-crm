@@ -51,13 +51,14 @@
   },
   "app": {
     "archivos": 221,
-    "tests": 3120,
+    "tests": 3127,
     "checkAll": "PASS",
     "playwright": {
-      "pass": 146,
+      "pass": 147,
       "skip": 26
     },
-    "playwrightTresEmpresasAdicional": "PASS (1)"
+    "playwrightTresEmpresasAdicional": "PASS: incluido en los 147 del gate completo",
+    "f5ConfiguracionCIUnWorker": "PASS: 7 recorridos, 53.3s"
   },
   "replay": {
     "estado": "PASS",
@@ -93,7 +94,11 @@
     "replay-test.log": "93783e5e1d59f95ad82e597c3b4b4ccdf4934aa88470e5ece86d447dd80019ad",
     "tipos-test.log": "b8c8936cb999b875115a763583a28e03a5c8853e9d38f7321a73baa72979b71d",
     "f5-multiempresa-e2e.log": "1c4691e95e07c61ff0ab9545771562659174dbc547e10b16e397605f2b112d6e",
-    "documento-deno-check.log": "e20eba29667f454d1cec4e3dd9ed4dc81880dc02e184b0147d79c16850ecac42"
+    "documento-deno-check.log": "e20eba29667f454d1cec4e3dd9ed4dc81880dc02e184b0147d79c16850ecac42",
+    "check-all-integrado.log": "a4030c1ea57af18fc805b7a7809a0ae6b5f90d27af645bac2165cc21eadc7c2b",
+    "f5-ci-serial.log": "c303c806288984b7dcc1355d5a2dba26a85955a89e34bf94def69eb8e9a51465",
+    "sla-rutas-portables.log": "fa8c894bd81e99c3d261f4186afe7ddafe87bb86677d438ad1d428954d5e5093",
+    "github-e2e-fallo.log": "cc159f80b346a6854de5983fb0f2ebce87588374885d60c06d31bdca5ba57283"
   },
   "capturas": {
     "f5-directorio-ficha.png": "eb7e34f2a4661dff564df2799d5203b99468087ebcf2c14fd6a85d378e039f67",
@@ -115,5 +120,19 @@
     "Advisors/carga/datos en destino productivo F5",
     "Despliegue/encendido F5"
   ],
-  "commitCodigoVerificado": "f7a425f3a94025fbc4d610c324c6989e98a9e25f"
+  "commitCodigoVerificado": "45c7201acc68d2fd3a391908c2e82a8d63d210ea",
+  "ciInicial": {
+    "commit": "257af26",
+    "ejecucion": 34302179500,
+    "quality": "PASS",
+    "e2e": {
+      "pass": 139,
+      "fail": 8,
+      "skip": 26
+    },
+    "causa": "Capturas antiguas de Seguimiento en /private/tmp: ENOENT en Linux",
+    "correccion": "f621915; test.info().outputPath y conservar test-results",
+    "verificacionLocalPosterior": "PASS: 14 Seguimiento; 147 E2E completos",
+    "ciPosterior": "Resultado conservado en el manifiesto privado de cierre"
+  }
 }
