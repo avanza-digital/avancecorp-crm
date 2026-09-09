@@ -8773,7 +8773,7 @@ Release `crm-20260909T045534Z-887bef6e1bda`, Main/avancecorp/main coincidentes
 en `887bef6e1bda65f2eb65b8cb9ae00d093f2bf883` al publicar. Banco temporal
 `plaeuugsybujzymrcvgj` eliminado; no se modificó banco-f7.
 
-## 20260909042103 — Solicitud de tasa desde el lead, antes de convertir (local)
+## 20260909042103 — Solicitud de tasa desde el lead, antes de convertir (publicada)
 
 `20260909042103_crm_solicitud_tasa_lead_preconversion.sql` permite solicitar
 aprobación sin crear primero al cliente. Conserva política y decisiones de
@@ -8786,10 +8786,12 @@ previas y añade RPC de lectura/resolución por lead. No cambia objetos de `publ
 ni banderas multiempresa. Transacción con preflight de las diez funciones vivas,
 RLS por ámbito, helpers privados y ACL explícitas. Rechaza deriva de definiciones.
 
-**Estado: banco remoto en curso; todavía sin publicación productiva.** Miguel
-aprobó el SQL concreto y el costo de la rama con «hazlo». La rama temporal
-es `ehzftpvxuwuzinvkyhzz`. Revisión de implementación recibida y evaluada,
-con correcciones verificadas; matriz RLS/advisors en ejecución.
+**Estado: publicada el 09/09/2026 mediante merge de la rama autorizada.** Registro
+remoto: `20260909165815_crm_solicitud_tasa_lead_preconversion`; corresponde al archivo
+local anterior, sin renombrarlo ni reaplicarlo. SQL aprobado SHA-256
+`113a436ec25f13105d7321f527bbeb583d74c09feffb408ab3a8616ea418ca55`.
+La rama temporal `ehzftpvxuwuzinvkyhzz` fue eliminada y se comprobó su ausencia.
+Revisión de implementación recibida y evaluada, con correcciones verificadas.
 
 PASS local: quince grupos SQL, concurrencia entre dos sesiones, rechazo de
 política alterada, reversión sin uso y reaplicación, 3.136 pruebas de
@@ -8797,10 +8799,17 @@ frontend, 67 Node + 5 Deno de Edge, 38 pruebas enfocadas y recorrido de la funci
 en escritorio/móvil. Playwright general: 144 PASS/5 FAIL/26 SKIP inicialmente;
 los cinco fallos quedaron resueltos y revalidados dentro de 34/34 PASS posteriores.
 Tras integrar Mi cartera hasta `e60d631`: gate frontend PASS, 223 archivos y
-3.140 pruebas; Playwright completo 152 PASS y 26 SKIP. Preflight RLS sin
-conexión PASS; matriz remota completa en ejecución.
+3.140 pruebas; Playwright completo 152 PASS y 26 SKIP. Quince grupos SQL remotos,
+HTTP real con ambas banderas, trece sesiones de ámbito y preflight RLS PASS.
+Matriz general FAIL: antes 1.775/41 PASS/FAIL; después 1.767/51. La comparación
+reutiliza fixtures y conserva expectativas antiguas; el análisis de diferencias
+y el riesgo residual están registrados, sin presentar ese gate como aprobado.
 
 Alcance, límites, definiciones de partida y reversión condicionada en
-`supabase/scripts/tasa-lead/README.md`. Publicación coordinada SQL → Edge → UI,
-desde un artefacto de `main` igual a `avancecorp/main`. Esta entrada no acredita
-publicación ni autoriza aplicar otras migraciones locales pendientes.
+`supabase/scripts/tasa-lead/README.md` y `PUBLICACION-2026-09-09.md` en esa carpeta.
+Publicación coordinada SQL → Edge → UI desde `8ccb0ca`, con main local/remoto
+iguales antes de construir/publicar. Edge `crm-convertir-lead` v16: seis fuentes
+exactas y las otras dieciséis funciones sin cambios. Release
+`crm-20260909T171132Z-8ccb0ca14fcf`: 80/80 archivos verificados en Hostinger,
+login público sin errores y CI del commit PASS. No se aplicaron otras migraciones
+locales pendientes como parte de esta publicación.

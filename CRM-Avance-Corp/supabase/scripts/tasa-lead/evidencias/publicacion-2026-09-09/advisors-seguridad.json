@@ -1,0 +1,50 @@
+{
+  "new": [
+    [
+      [
+        "authenticated_security_definer_function_executable",
+        "{\"arguments\": \"p_lead_id uuid, p_condiciones jsonb\", \"language\": \"plpgsql\", \"name\": \"reservar_conversion_lead_tasa_fn\", \"schema\": \"crm\", \"security_definer\": true}"
+      ],
+      [
+        "WARN",
+        "Function `crm.reservar_conversion_lead_tasa_fn(p_lead_id uuid, p_condiciones jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reservar_conversion_lead_tasa_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      ]
+    ],
+    [
+      [
+        "authenticated_security_definer_function_executable",
+        "{\"arguments\": \"p_lead_id uuid, p_categoria text, p_contrato_origen_id uuid\", \"language\": \"plpgsql\", \"name\": \"resolver_tasa_lead_fn\", \"schema\": \"crm\", \"security_definer\": true}"
+      ],
+      [
+        "WARN",
+        "Function `crm.resolver_tasa_lead_fn(p_lead_id uuid, p_categoria text, p_contrato_origen_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/resolver_tasa_lead_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      ]
+    ],
+    [
+      [
+        "authenticated_security_definer_function_executable",
+        "{\"arguments\": \"p_estados text[], p_limite integer, p_solo_mias boolean, p_cliente_id uuid\", \"language\": \"sql\", \"name\": \"solicitudes_tasa_fn\", \"schema\": \"crm\", \"security_definer\": true}"
+      ],
+      [
+        "WARN",
+        "Function `crm.solicitudes_tasa_fn(p_estados text[], p_limite integer, p_solo_mias boolean, p_cliente_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/solicitudes_tasa_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      ]
+    ],
+    [
+      [
+        "authenticated_security_definer_function_executable",
+        "{\"arguments\": \"p_lead_id uuid, p_estados text[], p_limite integer\", \"language\": \"plpgsql\", \"name\": \"solicitudes_tasa_lead_fn\", \"schema\": \"crm\", \"security_definer\": true}"
+      ],
+      [
+        "WARN",
+        "Function `crm.solicitudes_tasa_lead_fn(p_lead_id uuid, p_estados text[], p_limite integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/solicitudes_tasa_lead_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      ]
+    ]
+  ],
+  "gone": [
+    [
+      "authenticated_security_definer_function_executable",
+      "{\"arguments\": \"p_estados text[], p_limite integer, p_solo_mias boolean, p_cliente_id uuid\", \"language\": \"plpgsql\", \"name\": \"solicitudes_tasa_fn\", \"schema\": \"crm\", \"security_definer\": true}"
+    ]
+  ]
+}

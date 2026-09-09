@@ -1,0 +1,67 @@
+[
+  {
+    "actor": "gerencia",
+    "visibles": 7,
+    "ok": true
+  },
+  {
+    "actor": "sup1",
+    "visibles": 4,
+    "ok": true
+  },
+  {
+    "actor": "sup2",
+    "visibles": 3,
+    "ok": true
+  },
+  {
+    "actor": "sup1Nested",
+    "visibles": 1,
+    "ok": true
+  },
+  {
+    "actor": "vend1",
+    "visibles": 2,
+    "ok": true
+  },
+  {
+    "actor": "vend2",
+    "visibles": 0,
+    "ok": true
+  },
+  {
+    "actor": "vend3",
+    "visibles": 1,
+    "ok": true
+  },
+  {
+    "actor": "vend4",
+    "visibles": 0,
+    "ok": true
+  },
+  {
+    "actor": "vendNested",
+    "visibles": 1,
+    "ok": true
+  },
+  {
+    "actor": "vendInactive",
+    "visibles": 0,
+    "ok": true
+  },
+  {
+    "actor": "coordinador",
+    "visibles": 0,
+    "ok": true
+  },
+  {
+    "actor": "directorio",
+    "visibles": 7,
+    "ok": true
+  },
+  {
+    "actor": "clientBank",
+    "visibles": 0,
+    "ok": true
+  }
+]

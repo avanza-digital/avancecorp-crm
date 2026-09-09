@@ -1,0 +1,187 @@
+{
+  "checkedAt": "2026-09-09T17:45:13.725Z",
+  "sourceCommit": "8ccb0ca14fcf1f34e8e2158b11b1d88bf519b3f4",
+  "migrationSha256": "113a436ec25f13105d7321f527bbeb583d74c09feffb408ab3a8616ea418ca55",
+  "database": {
+    "flags": {
+      "ficha_360_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false
+    },
+    "columns": [
+      {
+        "type": "jsonb",
+        "table": "conversion_reservas",
+        "column": "condiciones_tasa",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "solicitudes_tasa",
+        "column": "cliente_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "solicitudes_tasa",
+        "column": "documento_lead",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "solicitudes_tasa",
+        "column": "huella_preconversion",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "solicitudes_tasa",
+        "column": "lead_id",
+        "nullable": "YES"
+      }
+    ],
+    "functions": [
+      {
+        "md5": "c2df1db8987893d992ba91e1ddda8654",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "crm.resolver_tasa_lead_fn(uuid,text,uuid)",
+        "anon_execute": false,
+        "auth_execute": true,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "a6b8f5449b83b8e95d3753f88fb4929c",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "crm.solicitudes_tasa_lead_fn(uuid,text[],integer)",
+        "anon_execute": false,
+        "auth_execute": true,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "75cde0857d0b4dc3b6bd0a2450479bb2",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "private.cliente_tasa_lead(uuid)",
+        "anon_execute": false,
+        "auth_execute": false,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "2234e4ba958c21d2b1c30787227be18e",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "private.enlazar_tasa_lead(uuid,uuid)",
+        "anon_execute": false,
+        "auth_execute": false,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "75026c3ed65e66a17dd04b82a36686ce",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "private.exigir_operar_tasa_lead(uuid)",
+        "anon_execute": false,
+        "auth_execute": false,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "747ca0ae03e40f4be46b628ebe7a007b",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "private.puede_ver_tasa_lead(uuid)",
+        "anon_execute": false,
+        "auth_execute": true,
+        "service_execute": false,
+        "security_definer": true
+      },
+      {
+        "md5": "5597b42804e8e2e73fab3eaff6055fc6",
+        "owner": "postgres",
+        "config": [
+          "search_path=\"\""
+        ],
+        "signature": "private.validar_tasa_conversion_lead(uuid,uuid,jsonb,boolean)",
+        "anon_execute": false,
+        "auth_execute": false,
+        "service_execute": false,
+        "security_definer": true
+      }
+    ],
+    "migration": {
+      "name": "crm_solicitud_tasa_lead_preconversion",
+      "version": "20260909165815"
+    }
+  },
+  "edge": {
+    "name": "crm-convertir-lead",
+    "version": 16,
+    "packageSha256": "7fc27ab95b8253197c5185a3de9894c27509f1b4a66e17c6c0444a24f5153083",
+    "verifyJwt": true,
+    "files": [
+      {
+        "name": "functions/crm-convertir-lead/index.ts",
+        "exactTestedSource": true
+      },
+      {
+        "name": "functions/_shared/acceso-crm.mjs",
+        "exactTestedSource": true
+      },
+      {
+        "name": "functions/crm-convertir-lead/preflight.mjs",
+        "exactTestedSource": true
+      },
+      {
+        "name": "functions/_shared/bancarios.mjs",
+        "exactTestedSource": true
+      },
+      {
+        "name": "functions/_shared/domicilio.mjs",
+        "exactTestedSource": true
+      },
+      {
+        "name": "functions/_shared/saga-auth.mjs",
+        "exactTestedSource": true
+      }
+    ],
+    "otherPackagesUnchanged": true,
+    "otherFunctions": 16
+  },
+  "temporaryBranch": {
+    "id": "d14a5bcc-532f-40b5-bdc0-5bc4b51d6618",
+    "ref": "ehzftpvxuwuzinvkyhzz",
+    "deleted": true,
+    "absenceVerified": true
+  },
+  "ci": {
+    "quality": "PASS",
+    "e2e": "PASS",
+    "run": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34381294485",
+    "rlsPreflight": "PASS",
+    "rlsRun": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34381294492"
+  },
+  "browser": {
+    "publicLogin": "PASS",
+    "consoleErrors": 0,
+    "consoleWarnings": 0,
+    "productionAuthenticatedJourney": "NOT RUN — sin sesión de producción; flujo completo verificado en banco y equivalencia de código/DDL en producción"
+  }
+}

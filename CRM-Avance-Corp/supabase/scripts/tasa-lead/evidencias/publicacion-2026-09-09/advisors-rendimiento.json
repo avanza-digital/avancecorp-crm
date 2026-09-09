@@ -1,0 +1,105 @@
+{
+  "new": [],
+  "gone": [
+    [
+      "unused_index",
+      "{\"name\": \"actividades_cliente\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"actividades\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"alertas_reconocimientos\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"conversion_reservas\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"cuentas_bancarias\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"enfriamiento_politica\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"ajustes_mes_cerrado\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"cierre_mes_vendedor\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"equipo\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversionista_operaciones\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversionista_responsables\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversion_solicitud_correcciones\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversion_cotitular_origenes\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversion_eventos\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversion_solicitud_revisiones\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversion_titulares\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversionista_identificadores\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"inversionista_leads\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"metas_vendedor_detalle\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"metas_vendedor\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"operaciones_cartera\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"reasignaciones_analista\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"recordatorios_disponibilidad\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"verificaciones_lead\", \"schema\": \"crm\", \"type\": \"table\"}"
+    ],
+    [
+      "unused_index",
+      "{\"name\": \"contrato_altas_idempotentes\", \"schema\": \"private\", \"type\": \"table\"}"
+    ]
+  ]
+}

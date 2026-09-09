@@ -1,9 +1,13 @@
 # Solicitud de tasa antes de convertir el lead
 
-Estado al 9 de septiembre de 2026: **implementación validada localmente; banco remoto en curso**.
+Estado al 9 de septiembre de 2026: **publicado y verificado en producción**.
 Miguel aprobó el SQL concreto y el costo de US$0,01344/hora de la rama temporal
 con «hazlo». La rama `tasa-lead-publicacion-20260909` (`ehzftpvxuwuzinvkyhzz`)
-se creó bajo `dctqcbznekcyxhjujuci`. Esa aprobación comprende completar la publicación.
+se creó bajo `dctqcbznekcyxhjujuci` y se eliminó al terminar; ausencia comprobada.
+El SQL se incorporó mediante merge de esa rama. Edge y frontend están publicados.
+Release: `crm-20260909T171132Z-8ccb0ca14fcf`, desde el commit limpio
+`8ccb0ca14fcf1f34e8e2158b11b1d88bf519b3f4`, igual a `avancecorp/main` al publicar.
+Evidencia y límites: [PUBLICACION-2026-09-09.md](PUBLICACION-2026-09-09.md).
 
 Revisión recibida, evaluada y correcciones comprobadas: `REVISION.md`.
 La actualización de Mi cartera de `avancecorp/main` hasta `e60d631` está integrada.
@@ -58,7 +62,7 @@ de publicar, hay que reconciliar y repetir las verificaciones pertinentes.
 
 | Verificación | Resultado y límite |
 | --- | --- |
-| `app/npm run check` | PASS: 222 archivos, 3.136 pruebas; incluye análisis estático, tipos y build. Cuatro avisos de lint existentes en coverflow. |
+| `app/npm run check` | PASS integrado: 223 archivos, 3.140 pruebas; incluye análisis estático, tipos y build. Cuatro avisos de lint existentes en coverflow. |
 | Componentes afectados | PASS: 38 pruebas enfocadas, incluidos carga/error, bloqueo pendiente, traslado de tasa y bandeja con lead sin cliente. |
 | `npm run test:edge-preflight` | PASS: 67 pruebas Node y 5 Deno; errores de tasa/documento frenan ambas variantes antes de Auth/perfil/correo. |
 | `npm run check:scripts` | PASS; incluye 46 mutantes detectados. |
@@ -68,14 +72,17 @@ de publicar, hay que reconciliar y repetir las verificaciones pertinentes.
 | Política cambiada antes de migrar | PASS: rechazo por preflight, rollback y posterior aplicación correcta. |
 | Reversa sin uso → comparación de huellas → reaplicación | PASS en banco local. |
 | Recorrido nuevo Playwright | PASS a 1.440 y 390 px; solicitud, bloqueo, reapertura y aprobación. |
-| Suite Playwright general | Primera ejecución: 144 PASS, 5 FAIL, 26 SKIP. Se corrigieron tres selectores ambiguos y el entorno local de fuentes. Revalidación posterior: 34/34 PASS, incluidos los cinco fallos. No se presenta como una segunda ejecución integral. |
+| Suite Playwright general | PASS integrado: 152 PASS y 26 SKIP en una ejecución completa posterior a las correcciones. |
 | Revisión independiente de implementación | CHANGES_REQUESTED recibido; hallazgos evaluados/corregidos y comprobados por el PRIMARY. Ver `REVISION.md`. |
 | SQL remoto específico | PASS: quince grupos con rollback en `ehzftpvxuwuzinvkyhzz`. |
 | HTTP remoto | PASS: sesión real de analista/Gerencia; solicitud, contraoferta, aceptación, equipo ajeno, pendiente/base/omisión/documento en ambas banderas, sin efectos parciales. |
 | Tipos desde esquema remoto | Generados con CLI; once bloques del alcance comparados e incorporados sin retirar los tipos F5 pendientes. Typecheck PASS. |
 | Advisors | Tres nuevas RPC authenticated previstas; una función existente cambia a wrapper SQL. Los avisos de DEFINER se evalúan junto con la matriz de permisos. Sin nuevos avisos de rendimiento. |
-| Matriz RLS completa | Referencia antes de migrar: 1.775 PASS / 41 FAIL de 1.816; comparación posterior en curso. |
-| Aplicación, Edge y frontend productivos | NOT RUN. |
+| Matriz RLS completa | FAIL: antes 1.775 PASS / 41 FAIL de 1.816; después 1.767 PASS / 51 FAIL de 1.818. Banco reutilizado: límites y diferencias justificados en el registro de publicación. |
+| Ámbito por cohorte original | PASS: 13 sesiones reales ven exactamente su conjunto de los siete leads originales; políticas y helper de ámbito coinciden con producción. |
+| CI del commit publicado | PASS: quality, E2E y preflight RLS. |
+| SQL, Edge y frontend productivos | PASS: migración presente, funciones/ACL equivalentes al banco, seis fuentes Edge exactas, 80/80 archivos frontend y tres lecturas de versión concordantes. Login público sin errores. |
+| Recorrido autenticado en producción | NOT RUN: no había sesión de producción. El recorrido completo se verificó en banco y se comprobó equivalencia del código publicado. |
 
 El banco parte de la estructura de pruebas vigente, con los actores sintéticos
 de `siembra-banco-f3.sql -v run=910908`. Para reproducir las definiciones vivas
