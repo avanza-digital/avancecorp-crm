@@ -1,7 +1,7 @@
 {
   "estado": "PASS",
   "entorno": "Banco cerrado F5: Auth/PostgREST/Storage reales y datos sintéticos",
-  "terminadoEn": "2026-09-09T17:22:07.410Z",
+  "terminadoEn": "2026-09-09T17:35:36.058Z",
   "resultados": [
     {
       "grupo": "lecturas",
@@ -36,7 +36,7 @@
     {
       "grupo": "documento",
       "estado": "PASS",
-      "tests": 5
+      "tests": 7
     },
     {
       "grupo": "concurrencia",
@@ -49,5 +49,5 @@
       "tests": 5
     }
   ],
-  "totalTests": 44
+  "totalTests": 46
 }

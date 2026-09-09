@@ -7,7 +7,7 @@ estado: salto-publicado-banco-f5-ensayado
 # F5 — prepublicación y salto de cartera
 
 Actualización: Miguel confirmó el SQL original y el banco remoto. El ensayo
-terminó con 44 pruebas locales y 15 remotas aprobadas y dos correcciones
+terminó con 46 pruebas locales y 15 remotas aprobadas y dos correcciones
 adicionales. Estado vigente: [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
 El relato siguiente conserva el momento anterior a esa confirmación.
 

@@ -9433,7 +9433,7 @@ async function testIdentidadF2bD19(sessions) {
   const sueltas = cuenta('lectoras sin candado', `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('crm','private','public') and strpos(p.prosrc, 'resolver_en_puertas') > 0 and strpos(p.prosrc, 'crm_flag_resolver_en_puertas') = 0 and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') = 0`);
   check(sueltas === 0, `D-19 ninguna función lee la bandera sin su candado compartido (hoy ${sueltas})`);
   // Contar no basta: se podría revertir una y adoptar otra distinta y el total no se movería (auditor #M4.4).
-  // Se comprueban las 34 firmas, una a una.
+  // Se comprueban las 34 firmas originales; la capacidad F5 se añade si está instalada.
   const D19 = ['crm.actualizar_cliente_gerencia(uuid,jsonb)', 'crm.alta_cliente_identidad_fn(text,jsonb)', 'crm.auth_usuario_por_correo_fn(text)',
     'crm.cliente_eliminable_fn(uuid)', 'crm.convertir_lead(uuid,uuid)', 'crm.corregir_documento_inversionista_fn(uuid,text,text,text,uuid)',
     'crm.crear_contrato_con_cuenta(jsonb,jsonb,jsonb)', 'crm.eliminar_cliente_fn(uuid)', 'crm.enlazar_lead_inversionista_fn(uuid,uuid,text)',
@@ -9449,6 +9449,14 @@ async function testIdentidadF2bD19(sessions) {
   const listaD19 = D19.map((f) => `'${f}'`).join(',');
   check(cuenta('las 34 la llaman', `select count(*) from unnest(array[${listaD19}]) f(firma) where exists (select 1 from pg_proc p where p.oid = to_regprocedure(f.firma) and strpos(p.prosrc, 'resolver_en_puertas_bajo_candado') > 0)`) === D19.length,
     `D-19 las ${D19.length} funciones que leen la bandera (escrituras, disparadores, ayudantes de bloqueo y consultas) pasan por el ayudante`);
+  const capacidadF5 = 'crm.cartera_inversionistas_estado_fn()';
+  if (cuenta('capacidad F5 instalada', `select (to_regprocedure('${capacidadF5}') is not null)::int`) === 1) {
+    check(cuenta('capacidad F5 bajo candado', `select count(*) from pg_proc p where p.oid=to_regprocedure('${capacidadF5}')
+      and p.prosecdef and p.proowner='postgres'::regrole and p.provolatile='v'
+      and p.proconfig @> array['search_path=""','lock_timeout=5s']
+      and strpos(p.prosrc,'resolver_en_puertas_bajo_candado()')>0`) === 1,
+      'D-19 la capacidad F5 conserva candado, snapshot fresco, dueño, definer y espera limitada');
+  } else console.log('  (capacidad F5 todavía no instalada; no aplica su contrato adicional)');
   // public.crear_contrato es la puerta compartida con el Portal: ni permisos, ni definer, ni dueño, ni search_path.
   check(cuenta('crear_contrato intacta', `select count(*) from pg_proc p where p.oid = 'public.crear_contrato(jsonb,jsonb)'::regprocedure and p.prosecdef and p.proowner = 'postgres'::regrole and p.proconfig @> array['search_path=""'] and has_function_privilege('authenticated', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE') and has_function_privilege('service_role', 'public.crear_contrato(jsonb,jsonb)', 'EXECUTE')`) === 1,
     'D-19 public.crear_contrato conserva permisos, definer, dueño y search_path: el alta del Portal sigue entrando igual');

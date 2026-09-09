@@ -1,10 +1,12 @@
 {
   "estado": "PASS",
-  "db": "f5_replay_fa88b2caa0ee",
+  "db": "f5_replay_a2ae7fd04b96",
   "baseSintetica": "032c8d1419f38d82c02cd1d1917eaafb0d8788c4353a2dd0e92fb0c0adb6025a",
   "sql": "a13c7ec388993b8cba5299d61e33d9db1cff7d148146b06cbd0cd99cdcce22e5",
   "correccion": "36390b01ded88d7d1f90b8ca8036d3c864c0470df10b9673c348541d530353ab",
   "funcionesPublicadasConservadas": true,
   "fuentesBanderasAuthConservadas": true,
+  "funcionesF5CorregidasConservadas": true,
+  "d19TrasReversa": 0,
   "reversa": "PASS"
 }

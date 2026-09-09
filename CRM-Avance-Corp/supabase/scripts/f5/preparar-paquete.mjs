@@ -2,7 +2,7 @@
 // No instala SQL, publica archivos ni cambia banderas.
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {readFileSync,writeFileSync,mkdirSync,readdirSync,copyFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,readdirSync,copyFileSync,lstatSync,chmodSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {join,resolve} from 'node:path';
@@ -13,7 +13,10 @@ const run=(cmd,args,cwd=root,env=process.env)=>{
  assert.equal(r.status,0,r.stderr||r.stdout);return r.stdout.trim();
 };
 const commit=run('git',['rev-parse','HEAD']);
-const verificar=()=>{for(const ref of ['main','avancecorp/main']) assert.equal(run('git',['rev-parse',ref]),commit,`Sincronizar ${ref} antes de construir`);};
+const verificar=()=>{
+ for(const ref of ['main','avancecorp/main']) assert.equal(run('git',['rev-parse',ref]),commit,`Sincronizar ${ref} antes de construir`);
+ assert.equal(run('git',['ls-remote','avancecorp','refs/heads/main']).split(/\s+/)[0],commit,'El Main remoto vivo difiere del artefacto');
+};
 verificar();
 const rutas=['CRM-Avance-Corp/app','CRM-Avance-Corp/supabase/scripts/f5',
  'CRM-Avance-Corp/supabase/migrations/20260908230249_crm_f5_cartera_ficha_multiempresa.sql',
@@ -25,7 +28,9 @@ const verificarFuentes=()=>{
 };
 verificarFuentes();
 const carpeta=`/private/tmp/avancecorp-f5-paquete-${commit.slice(0,12)}`;
-mkdirSync(carpeta,{recursive:true});
+mkdirSync(carpeta,{recursive:true,mode:0o700});
+assert.ok(lstatSync(carpeta).isDirectory()&&!lstatSync(carpeta).isSymbolicLink(),'El paquete requiere una carpeta real');
+chmodSync(carpeta,0o700);
 writeFileSync(join(carpeta,'build.log'),run('npm',['run','build'],join(crm,'app'))+'\n');
 writeFileSync(join(carpeta,'bundle.log'),run('npm',['run','verify:bundle'],join(crm,'app'))+'\n');
 const hash=b=>createHash('sha256').update(b).digest('hex');
@@ -45,13 +50,22 @@ const sql='20260908230249_crm_f5_cartera_ficha_multiempresa.sql';
 copyFileSync(join(crm,'supabase/migrations',sql),join(carpeta,sql));
 const correccion='20260909170900_crm_f5_candado_estado_cartera.sql';
 copyFileSync(join(crm,'supabase/migrations',correccion),join(carpeta,correccion));
+const cuerpoCapacidad=archivo=>{
+ const texto=readFileSync(join(carpeta,archivo),'utf8');
+ const inicio=texto.indexOf('create or replace function crm.cartera_inversionistas_estado_fn()');
+ assert.ok(inicio>=0,'Falta la capacidad en el SQL');
+ const cuerpo=texto.slice(inicio).match(/as \$f\$([\s\S]*?)\$f\$;/)?.[1];
+ assert.ok(cuerpo);return createHash('md5').update(cuerpo).digest('hex');
+};
 const reversa='reversa-operativa.sql';
 copyFileSync(join(crm,'supabase/scripts/f5',reversa),join(carpeta,reversa));
 for(const n of ['handler.mjs','index.ts'])copyFileSync(join(root,'_supabase_functions/functions/crm-inversion-documento',n),join(carpeta,`documento-${n}`));
 verificar();verificarFuentes();assert.equal(run('git',['rev-parse','HEAD']),commit);
 const manifiesto={estado:'PREPARADO, SIN PUBLICAR',commit,main:commit,remoto:'avancecorp/main',node:process.version,
+ baseProductiva:JSON.parse(readFileSync(new URL('base-productiva-2026-09-09.json',import.meta.url),'utf8')),
  sql:{archivo:sql,sha256:hash(readFileSync(join(carpeta,sql)))},
  correccion:{archivo:correccion,sha256:hash(readFileSync(join(carpeta,correccion)))},
+ capacidad:{md5Original:cuerpoCapacidad(sql),md5Corregido:cuerpoCapacidad(correccion)},
  ordenSql:[sql,correccion],
  reversa:{archivo:reversa,sha256:hash(readFileSync(join(carpeta,reversa)))},
  frontend:{archivo:'frontend.tar.gz',sha256:hash(readFileSync(join(carpeta,'frontend.tar.gz'))),archivos:archivos.sort((a,b)=>a.ruta.localeCompare(b.ruta))},

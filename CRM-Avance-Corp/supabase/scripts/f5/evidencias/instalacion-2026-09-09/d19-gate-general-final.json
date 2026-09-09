@@ -1,0 +1,35 @@
+{
+  "estado": "PASS",
+  "entorno": "Banco remoto exclusivo F5",
+  "funcion": "testIdentidadF2bD19 exacta del repositorio",
+  "resultados": [
+    {
+      "nombre": "D-19 el ayudante es SECURITY DEFINER de postgres, VOLATILE y con search_path vacío",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 el ayudante no está expuesto a la API (lo llaman las SECURITY DEFINER de postgres, no PostgREST)",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 el ayudante exige READ COMMITTED y toma el compartido ANTES de leer la bandera, no después",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 ninguna función lee la bandera sin su candado compartido (hoy 0)",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 las 34 funciones que leen la bandera (escrituras, disparadores, ayudantes de bloqueo y consultas) pasan por el ayudante",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 la capacidad F5 conserva candado, snapshot fresco, dueño, definer y espera limitada",
+      "estado": "PASS"
+    },
+    {
+      "nombre": "D-19 public.crear_contrato conserva permisos, definer, dueño y search_path: el alta del Portal sigue entrando igual",
+      "estado": "PASS"
+    }
+  ]
+}

@@ -37,6 +37,7 @@ node supabase/scripts/f5/generar-candado.mjs --check
 node supabase/scripts/f5/replay-local.mjs
 node supabase/scripts/f5/verificar-banco.mjs
 node supabase/scripts/f5/verificar-tipos.mjs
+npm run test:f5:preflight
 npm run check:scripts
 npm run seed:preflight
 npm run test:rls:preflight
@@ -44,6 +45,8 @@ npm run test:edge-preflight
 ```
 
 Los preflights de seed/RLS reciben únicamente variables del banco local.
+`test:f5:preflight` comprueba la frontera documental y el control de publicación
+sin conectarse a ninguna base; también forma parte de `check:scripts`.
 `replay-local.mjs` restaura una copia nueva, con `pgcrypto`, `uuid-ossp`,
 `btree_gist` y `pg_trgm`, aplica los dos archivos exactos en orden,
 cada uno en una transacción,
@@ -51,7 +54,7 @@ compara todas las funciones publicadas ajenas a F5, fuentes, Auth e identidades
 y ensaya la reversa. No hace replay global del ledger histórico. El banco HTTP
 debe tener el mismo módulo instalado; no sustituye ese ensayo por mocks.
 
-`verificar-banco.mjs` ejecuta secuencialmente nueve grupos (44 pruebas). Sus
+`verificar-banco.mjs` ejecuta secuencialmente nueve grupos (46 pruebas). Sus
 fixtures crean antecedentes e inversiones ficticias; devuelven las banderas
 al estado anterior en `finally`. No lanzar los archivos en paralelo.
 
@@ -81,6 +84,9 @@ verifica el bundle y deja frontend, SQL, función y manifiesto SHA-256 en
 1. Integrar los cambios remotos y verificar igualdad entre Main local,
    `avancecorp/main` y el commit del artefacto. No usar `origin/main`, `tronco`,
    ramas de release ni force push.
+   El constructor consulta además el remoto vivo. El merge exige pasar
+   `preflight-merge.mjs` con una captura reciente del padre y el manifiesto;
+   bloquea cambios de historial, permisos, esquema o Edge posteriores al ensayo.
 2. Revisar y autorizar el SQL exacto antes de instalarlo en producción. Mantener
    `ficha_360_neutral=false` e `inversiones_escritura=false`. Prerrequisito: F4
    **publicada** `20260908211349`; su candidata anterior no se vuelve a ejecutar.

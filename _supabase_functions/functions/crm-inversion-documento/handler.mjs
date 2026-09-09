@@ -3,6 +3,7 @@ const origenes = new Set(['https://crm.miavance.com', 'https://www.crm.miavance.
 const buckets = new Set(['contratos-generados', 'documentos', 'f4-comprobantes']);
 const fallo = (status, message) => Object.assign(new Error(message), { status });
 const maxBytes = 20 * 1024 * 1024;
+const esJwt = clave => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(clave);
 
 async function leerBytes(res, maximo) {
   if (!res.body) throw fallo(502, 'El documento está vacío.');
@@ -48,7 +49,7 @@ export function crearHandlerDocumentoInversion({supabaseUrl, anonKey, serviceKey
       try {input = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(await leerBytes(req, 1024)));}
       catch (e) {if (e.status === 413) throw e; throw fallo(400, 'Solicitud documental inválida.');}
       if (!input || typeof input !== 'object' || Array.isArray(input)
-        || Object.keys(input).length !== 3 || !['inversionista_id','fuente_id','documento_id'].every(k => uuid.test(input[k] ?? ''))) {
+        || Object.keys(input).length !== 3 || !['inversionista_id','fuente_id','documento_id'].every(k => typeof input[k] === 'string' && uuid.test(input[k]))) {
         return error(400, 'Solicitud documental inválida.');
       }
       const llamar = (ruta, init) => fetchImpl(`${base}${ruta}`, {...init, redirect: 'error', signal: AbortSignal.timeout(30000)});
@@ -73,9 +74,12 @@ export function crearHandlerDocumentoInversion({supabaseUrl, anonKey, serviceKey
       const objeto = await llamar(`/storage/v1/object/${d.bucket}/${d.ruta.split('/').map(encodeURIComponent).join('/')}`, {
         // Las claves opacas se resuelven desde apikey. Solo los JWT heredados
         // se envían también como Bearer; Auth y las RPC conservan la sesión.
-        headers: {apikey: serviceKey, ...(serviceKey.startsWith('sb_secret_') ? {} : {Authorization: `Bearer ${serviceKey}`})},
+        headers: {apikey: serviceKey, ...(esJwt(serviceKey) ? {Authorization: `Bearer ${serviceKey}`} : {})},
       });
-      if (!objeto.ok) throw fallo(404, 'El archivo no está disponible.');
+      if (!objeto.ok) {
+        console.warn('f5_documento_storage_error', {status: objeto.status, bucket: d.bucket});
+        throw fallo(404, 'El archivo no está disponible.');
+      }
       const bytes = await leerBytes(objeto, maxBytes);
       if (!bytes.length) throw fallo(409, 'El archivo está vacío.');
       const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
