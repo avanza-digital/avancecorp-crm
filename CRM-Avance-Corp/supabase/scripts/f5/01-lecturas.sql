@@ -11,9 +11,29 @@ alter table crm.cartera_lecturas enable row level security;
 revoke all on crm.cartera_lecturas from public, anon, authenticated, service_role;
 create index if not exists cartera_lecturas_actor_fecha_idx
   on crm.cartera_lecturas(actor_id, creado_en desc);
+create index if not exists cartera_lecturas_persona_fecha_idx
+  on crm.cartera_lecturas(inversionista_id, creado_en desc);
 drop trigger if exists trg_audit_cartera_lecturas on crm.cartera_lecturas;
 create trigger trg_audit_cartera_lecturas after insert on crm.cartera_lecturas
   for each row execute function private.log_audit_crm();
+
+-- Acceso continuado: un evento por actor/persona/categoría cada 60 segundos.
+-- Refrescos de permisos y doble comprobación documental no multiplican el log.
+-- El candado solo serializa este registro breve, después de autorizar la lectura.
+create or replace function private.cartera_f5_registrar(p_tipo text,p_persona uuid default null)
+returns void language plpgsql security definer set search_path=''
+as $f$
+declare v_actor uuid:=(select auth.uid());
+begin
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+    concat_ws(':','f5-lectura',v_actor,p_tipo,p_persona),0));
+  insert into crm.cartera_lecturas(actor_id,inversionista_id,tipo)
+    select v_actor,p_persona,p_tipo where not exists (
+      select 1 from crm.cartera_lecturas l where l.actor_id=v_actor and l.tipo=p_tipo
+        and l.inversionista_id is not distinct from p_persona
+        and l.creado_en>=statement_timestamp()-interval '60 seconds');
+end;
+$f$;
 
 -- Una fila por FUENTE. Los vínculos aportan identidad, jamás otro capital.
 -- Un enlace contradictorio produce identidad_coherente=false y bloquea F5.
@@ -149,7 +169,7 @@ as $f$
       nullif(btrim(ce.nombre_completo),''),'Identidad pendiente de completar'),
     case when i.lector then p.tipo_documento else d.tipo_documento end,
     case when i.lector then p.dni else d.documento_normalizado end,
-    coalesce(d.verificado,false),
+    coalesce(d.verificado and (not i.lector or (d.tipo_documento=p.tipo_documento and d.documento_normalizado=p.dni)),false),
     coalesce(p.telefono,case when not i.lector then l.telefono end),
     coalesce(p.correo,case when not i.lector then l.correo end),
     i.estado,i.no_contactar or coalesce(l.no_contactar,false),
@@ -159,7 +179,9 @@ as $f$
   left join public.perfiles r on r.id=i.responsable_relacion_id
   cross join lateral (
     select array(select distinct h.perfil_id from crm.inversionistas h
-      where h.perfil_id is not null and private.inversionista_canonica(h.id)=i.id) perfiles,
+      join public.perfiles hp on hp.id=h.perfil_id and hp.rol='cliente'
+      where private.inversionista_canonica(h.id)=i.id
+        and (not i.lector or exists(select 1 from private.cliente_ids_visibles_crm() v where v.cliente_id=hp.id))) perfiles,
       array(select distinct x.id from (
         select l0.id from crm.leads l0 where private.inversionista_canonica(l0.inversionista_id)=i.id
         union select il.lead_id from crm.inversionista_leads il
@@ -197,6 +219,7 @@ create or replace function crm.cartera_inversionistas_fn(
 returns jsonb language plpgsql security definer set search_path=''
 as $f$
 declare v_resultado jsonb; v_texto text:=lower(btrim(coalesce(p_texto,'')));
+  v_lector boolean:=private.es_lector_global();
 begin
   perform private.cartera_f5_exigir();
   if p_pagina is null or p_pagina<1 or p_pagina>1000000
@@ -210,7 +233,7 @@ begin
   fuentes as materialized (
     select f.* from private.cartera_f5_fuentes() f
     join personas p on p.inversionista_id=f.inversionista_id
-    where not private.es_lector_global() or f.empresa='avance'
+    where not v_lector or f.empresa='avance'
   ), filtradas as materialized (
     select p.* from personas p
     where (p_responsable is null or p.responsable_id=p_responsable)
@@ -241,7 +264,7 @@ begin
       'cantidad',t.cantidad,'capital_registrado',coalesce(t.capital_registrado,0),
       'capital_activo',case when t.empresa='avance' then coalesce(t.capital_activo,0) end)
       order by t.empresa,t.moneda) from totales t),'[]')) into v_resultado;
-  insert into crm.cartera_lecturas(actor_id,tipo) values((select auth.uid()),'lista');
+  perform private.cartera_f5_registrar('lista');
   return v_resultado;
 end;
 $f$;
@@ -269,6 +292,8 @@ begin
       perform private.inversion_persona_contexto(v_id);
       v_operable:=true;
     exception when sqlstate 'P0409' or sqlstate 'P0429' then v_motivo:=sqlerrm;
+      when lock_not_available or deadlock_detected then
+        v_operable:=false;v_motivo:='Hay una actualización en curso. Revisa la ficha antes de registrar otra inversión';
       when insufficient_privilege then v_motivo:='Revisa la asignación antes de registrar otra inversión';
     end;
   else v_motivo:=case when v_lector then 'Acceso de solo lectura' else 'El registro de inversiones aún no está habilitado' end;
@@ -286,6 +311,8 @@ begin
     select a.id,'lead'::text origen,a.tipo,a.detalle,a.creado_en
       from crm.actividades a where a.lead_id=any(v_p.lead_ids) and not v_lector
     union all
+    -- Directorio ya lee actividades_cliente y tareas de clientes Avance por
+    -- sus policies publicadas; se excluyen aquí los antecedentes de leads.
     select a.id,'cliente',a.tipo,a.detalle,a.creado_en
       from crm.actividades_cliente a where a.cliente_id=any(v_p.perfil_ids)
   ), tareas as materialized (
@@ -318,7 +345,7 @@ begin
         else coalesce((select jsonb_build_array(jsonb_build_object('id',ce.comprobante_objeto_id,
           'nombre','Comprobante de depósito','tipo','comprobante')) from crm.cierres_externos ce
           where ce.id=f.fuente_id and ce.comprobante_objeto_id is not null),'[]') end,
-      'cotitulares',case when f.empresa='avance' and not v_lector then coalesce((
+      'cotitulares',case when f.empresa='avance' and not v_lector and private.puede_leer_contrato_pdf(f.fuente_id) then coalesce((
         select jsonb_agg(jsonb_build_object('orden',t.orden,'nombre',t.nombre_completo,
           'tipo_documento',t.tipo_documento,'documento',t.documento) order by t.orden,t.id)
         from public.contrato_titulares t where t.contrato_id=f.fuente_id),'[]') else '[]'::jsonb end,
@@ -348,8 +375,7 @@ begin
   if not exists(select 1 from private.cartera_f5_personas_visibles() p where p.inversionista_id=v_id) then
     return null;
   end if;
-  insert into crm.cartera_lecturas(actor_id,inversionista_id,tipo)
-    values((select auth.uid()),v_id,'ficha');
+  perform private.cartera_f5_registrar('ficha',v_id);
   return v_resultado;
 end;
 $f$;
@@ -373,8 +399,7 @@ begin
   end if;
   select coalesce(jsonb_agg(to_jsonb(c)),'[]') into v_r
     from crm.cuentas_bancarias_cliente_fn(p_perfil,p_moneda) c;
-  insert into crm.cartera_lecturas(actor_id,inversionista_id,tipo)
-    values((select auth.uid()),v_p.inversionista_id,'cuentas');
+  perform private.cartera_f5_registrar('cuentas',v_p.inversionista_id);
   return v_r;
 end;
 $f$;
@@ -416,14 +441,14 @@ begin
       where ce.id=p_fuente and o.id=p_documento and o.bucket_id='f4-comprobantes';
   end if;
   if v_r is not null then
-    insert into crm.cartera_lecturas(actor_id,inversionista_id,tipo)
-      values((select auth.uid()),v_id,'documento');
+    perform private.cartera_f5_registrar('documento',v_id);
   end if;
   return v_r;
 end;
 $f$;
 
 revoke all on function private.cartera_f5_fuentes() from public,anon,authenticated,service_role;
+revoke all on function private.cartera_f5_registrar(text,uuid) from public,anon,authenticated,service_role;
 revoke all on function private.cartera_f5_exigir() from public,anon,authenticated,service_role;
 revoke all on function private.cartera_f5_personas_visibles() from public,anon,authenticated,service_role;
 revoke all on function crm.cartera_inversionistas_estado_fn() from public,anon,authenticated,service_role;

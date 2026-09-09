@@ -73,6 +73,14 @@ export function nuevoIntentoInversion(actor: string, persona: string, id: string
 }
 export const jsonInversion = (datos: unknown): Json => datos as Json
 
+/** JSONB no conserva el orden de claves; el orden de arrays sí es contractual. */
+export function mismoContenidoInversion(a: DatosInversion, b: DatosInversion): boolean {
+  const ordenar = (dato: unknown): unknown => Array.isArray(dato) ? dato.map(ordenar)
+    : dato !== null && typeof dato === 'object'
+      ? Object.fromEntries(Object.entries(dato).sort(([x], [y]) => x.localeCompare(y)).map(([k, v]) => [k, ordenar(v)])) : dato
+  return JSON.stringify(ordenar(a)) === JSON.stringify(ordenar(b))
+}
+
 /** Los datos reservados de Auth y las referencias originales son inmutables. */
 export function datosAvanceRevisados(base: DatosInversion, contrato: Record<string, unknown>, cronograma: unknown[], cuenta: unknown): DatosInversion {
   const payload = {...contrato}

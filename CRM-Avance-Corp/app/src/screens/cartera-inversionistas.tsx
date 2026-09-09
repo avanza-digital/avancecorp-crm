@@ -16,7 +16,7 @@ import { InversionistaFicha, ResumenEmpresas } from '@/components/app/inversioni
 import { InversionNueva, type OperacionInversion } from '@/components/app/inversion-nueva'
 import { useCRMData } from '@/lib/store-context'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, FILTROS_INVERSIONISTAS_INICIALES, type FiltrosInversionistas, type InversionFuente } from '@/lib/inversionistas'
-import { limpiarIntentosInversion } from '@/lib/inversion-solicitud'
+import { limpiarIntentosInversion, leerIntentoInversion } from '@/lib/inversion-solicitud'
 import { inversionistasKeys, useInversionistas } from '@/data/inversionistas-queries'
 import { CrmApiError, mensajeDeError } from '@/data/crm-api'
 import { descargarDocumentoInversionista } from '@/data/inversionistas-api'
@@ -45,9 +45,13 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
   }, [busqueda])
   useEffect(() => () => {documento.current?.abort()}, [actor, seleccion, nueva])
   const revocar = () => {
+    const persona = nueva?.persona ?? seleccion ?? undefined
+    let referencia: string | undefined
+    try {if (persona) referencia = leerIntentoInversion(actor, persona)?.clave}
+    catch { /* No recuperar ni mostrar contenido ilegible. */ }
     documento.current?.abort(); setDescargando(false); setSeleccion(null); setNueva(null)
-    limpiarIntentosInversion(actor, nueva?.persona ?? seleccion ?? undefined)
-    setAviso('El acceso cambió. La cartera se volverá a consultar.')
+    limpiarIntentosInversion(actor, persona)
+    setAviso(`El acceso cambió. La cartera se volverá a consultar.${referencia ? ` Referencia de la solicitud pendiente: ${referencia}.` : ''}`)
     // Cancelar impide que una respuesta antigua vuelva a poblar la ficha.
     void qc.cancelQueries({queryKey: inversionistasKeys.actor(actor)}).then(() => {
       qc.removeQueries({queryKey: [...inversionistasKeys.actor(actor), 'persona']})
@@ -76,7 +80,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
       if (abort.signal.aborted) return
       if (e instanceof CrmApiError && e.code === '42501') revocar()
       else toast.error(mensajeDeError(e, 'No se pudo descargar el documento.'))
-    } finally {if (!abort.signal.aborted) setDescargando(false)}
+    } finally {if (documento.current === abort) setDescargando(false)}
   }
   if (gestion) return <div className="space-y-4">
     <Button variant="outline" onClick={() => setGestion(false)}>Volver a la cartera multiempresa</Button>

@@ -69,7 +69,7 @@ test('F5: lectura canónica, paridad y permisos actuales en HTTP', async t => {
         assert.ok(r.data.totales.every(x=>x.empresa===empresa));
         const siguiente=await listar('gerencia',{p_empresa:empresa,p_tamano:10,p_pagina:2});
         assert.equal(siguiente.data.total,r.data.total);
-        assert.deepEqual(siguiente.data.filas,[]);
+        assert.equal(siguiente.data.filas.length,Math.min(10,Math.max(0,r.data.total-10)));
       }
       for(const p_texto of ['%','_','persona inexistente']) assert.equal((await listar('gerencia',{p_texto})).data.total,0);
       for(const p_texto of [global.data.filas[0].documento,global.data.filas[0].nombre]) {
@@ -105,7 +105,8 @@ test('F5: lectura canónica, paridad y permisos actuales en HTTP', async t => {
       }
     });
     await t.test('cooperativa sin Portal abre identidad real y ninguna cuenta bancaria',async () => {
-      const p=global.data.filas.find(x=>x.empresas.includes('qorilazo'));
+      const p=global.data.filas.find(x=>x.empresas.includes('qorilazo')&&!x.empresas.includes('avance'));
+      assert.ok(p,'El banco conserva una cooperativa histórica sin perfil Avance');
       const d=await ficha('vendedor',p.inversionista_id);
       assert.equal(d.ok,true,JSON.stringify(d.data));
       assert.equal(d.data.persona.inversionista_id,p.inversionista_id);

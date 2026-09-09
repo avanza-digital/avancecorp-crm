@@ -5,7 +5,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {CarteraInversionistas} from './cartera-inversionistas'
 import {InversionNueva} from '@/components/app/inversion-nueva'
 import {CrmApiError} from '@/data/crm-api'
-import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, PERSONA_F5} from '@/test/fixtures/f5'
+import {ACTOR_F5, carteraF5, fichaF5, FUENTE_F5, PERSONA_F5, PERFIL_F5} from '@/test/fixtures/f5'
 import {inversionistasKeys} from '@/data/inversionistas-queries'
 import {leerIntentoInversion, guardarIntentoInversion, nuevoIntentoInversion, type SolicitudInversion} from '@/lib/inversion-solicitud'
 
@@ -68,7 +68,31 @@ describe('F5: cartera y ficha con acceso vigente', () => {
     await waitFor(()=>expect(screen.queryByText('ana.f5@pruebas.example')).not.toBeInTheDocument())
     expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)).toBeNull()
     expect(leerIntentoInversion(ACTOR_F5,FUENTE_F5)).not.toBeNull()
+    expect(screen.getByText(/Referencia de la solicitud pendiente:/)).toHaveTextContent(FUENTE_F5)
     expect(qc.getQueriesData({queryKey:[...inversionistasKeys.actor(ACTOR_F5),'persona']})).toEqual([])
+  })
+  it('cancelar una descarga al abrir una inversión no bloquea la siguiente descarga',async()=>{
+    const d=structuredClone(fichaF5);d.inversiones[0]!.documentos=[{id:FUENTE_F5,nombre:'Documento del ensayo',tipo:'comprobante'}]
+    api.ficha.mockResolvedValue(d)
+    api.documento.mockImplementationOnce((_p,_f,_d,signal:AbortSignal)=>new Promise((_r,reject)=>{
+      signal.addEventListener('abort',()=>reject(new DOMException('Cancelada','AbortError')),{once:true})
+    })).mockResolvedValue(undefined)
+    const {user}=montar();await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByRole('button',{name:'Documento del ensayo'}))
+    await user.click(screen.getByRole('button',{name:'Nueva inversión'}))
+    await user.click(await screen.findByRole('button',{name:'Cerrar y continuar después'}))
+    await user.click(await screen.findByRole('button',{name:'Documento del ensayo'}))
+    await waitFor(()=>expect(api.documento).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('Comprobando acceso y descargando documento…')).not.toBeInTheDocument()
+  })
+  it('actualizar la ficha no desmonta ni vuelve a cargar las cuentas abiertas',async()=>{
+    const d=structuredClone(fichaF5);d.capacidades.cuentas_perfil_ids=[PERFIL_F5]
+    api.ficha.mockResolvedValue(d)
+    const {user,qc}=montar();await user.click(await screen.findByRole('button',{name:'Abrir ficha de ANA SINTÉTICA F5'}))
+    await user.click(await screen.findByLabelText(/Cuentas de pago Avance\. Cuentas autorizadas/))
+    await waitFor(()=>expect(api.bancos).toHaveBeenCalledTimes(2))
+    await act(async()=>{await qc.invalidateQueries({queryKey:inversionistasKeys.ficha(ACTOR_F5,PERSONA_F5)})})
+    expect(api.bancos).toHaveBeenCalledTimes(2)
   })
   it('un error no se convierte en total cero ni conserva el capital como vigente',async () => {
     api.lista.mockRejectedValue(new CrmApiError('Sin respuesta','RED'))
@@ -78,6 +102,17 @@ describe('F5: cartera y ficha con acceso vigente', () => {
   })
 })
 describe('F5: revisión y recuperación económica', () => {
+  it('un borrador ilegible permite recuperar por referencia antes de cualquier nueva alta',async()=>{
+    sessionStorage.setItem(`crm:f5:solicitud:${ACTOR_F5}:${PERSONA_F5}`,'{ilegible')
+    const datos={inversionista_id:PERSONA_F5,empresa:'qorilazo' as const,monto:1000,moneda:'PEN' as const}
+    api.consultar.mockResolvedValue({...solicitud(),datos})
+    const {user}=montar(true)
+    await user.type(await screen.findByLabelText('Retomar una solicitud por su referencia'),FUENTE_F5)
+    await user.click(screen.getByRole('button',{name:'Consultar solicitud'}))
+    await screen.findByRole('button',{name:'Confirmar inversión'})
+    expect(leerIntentoInversion(ACTOR_F5,PERSONA_F5)?.clave).toBe(FUENTE_F5)
+    expect(api.preparar).not.toHaveBeenCalled();expect(api.confirmar).not.toHaveBeenCalled()
+  })
   it('una corrección con respuesta perdida conserva su UUID y contenido al recargar',async () => {
     const datos={inversionista_id:PERSONA_F5,empresa:'qorilazo' as const,monto:1000,moneda:'PEN' as const}
     const intento={...nuevoIntentoInversion(ACTOR_F5,PERSONA_F5,FUENTE_F5,datos),

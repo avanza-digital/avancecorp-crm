@@ -163,7 +163,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         titulo="Cuentas de pago Avance" resumen="Cuentas autorizadas para los contratos Avance"
         abierta={bancaAbierta} onAbiertaChange={setBancaAbierta}>
         {bancaAbierta && ficha.capacidades.cuentas_perfil_ids.map(perfil => <CuentasAvance
-          key={`${perfil}:${p.responsable_id}:${q.dataUpdatedAt}`} actor={actor}
+          key={`${perfil}:${p.responsable_id}`} actor={actor}
           identidad={p.inversionista_id} perfil={perfil} onRevocado={onRevocado} />)}
       </FichaComercialSeccionPlegable>}
       <FichaComercialSeccionPlegable icono={History} titulo="Historial" resumen={`${ficha.historial_total} actividades registradas`}

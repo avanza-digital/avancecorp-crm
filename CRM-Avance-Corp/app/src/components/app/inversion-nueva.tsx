@@ -12,7 +12,7 @@ import { CrmApiError, mensajeDeError, prepararPayloadContrato, type CrearContrat
 import { completarAccesoInversion, confirmarSolicitudInversion, consultarSolicitudInversion, corregirSolicitudInversion,
   prepararSolicitudInversion, revisarResponsableInversion, subirComprobanteInversion } from '@/data/inversion-solicitud-api'
 import { contratoDeSolicitud, datosAvanceRevisados, guardarIntentoInversion, leerIntentoInversion,
-  limpiarIntentosInversion, nuevoIntentoInversion, type ConfirmacionInversion, type DatosInversion,
+  limpiarIntentosInversion, nuevoIntentoInversion, mismoContenidoInversion, type ConfirmacionInversion, type DatosInversion,
   type IntentoInversion, type SolicitudInversion } from '@/lib/inversion-solicitud'
 import { EMPRESAS_INVERSION, EMPRESA_NOMBRE, type EmpresaInversion, type InversionFuente } from '@/lib/inversionistas'
 import { validarDomicilioLegal } from '@/lib/cliente-form-logica'
@@ -29,7 +29,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   actor: string; persona: string; operacion?: OperacionInversion | undefined
   onCerrar: () => void; onRevocado: () => void; onConfirmada: () => void
 }) {
-  const [guardado] = useState(() => {
+  const [guardado, setGuardado] = useState(() => {
     try {return {intento: leerIntentoInversion(actor, persona), error: null}}
     catch (e) {return {intento: null, error: mensajeDeError(e, 'No se pudo recuperar la solicitud.')}}
   })
@@ -97,7 +97,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   async function revisarDatos(datos: DatosInversion) {
     if (!intento) {await preparar(datos); return}
     if (!solicitud?.datos) throw new Error('Consulta primero la solicitud pendiente.')
-    if (JSON.stringify(datos) === JSON.stringify(solicitud.datos)) {setEditar(false); return}
+    if (mismoContenidoInversion(datos, solicitud.datos)) {setEditar(false); return}
     const motivoEfectivo = solicitud.datos.empresa === 'avance' && !solicitud.datos.contrato?.capital
       ? 'Completar condiciones contractuales después de preparar el acceso Avance' : motivo.trim()
     if (motivoEfectivo.length < 10) throw new Error('Indica un motivo de al menos 10 caracteres, sin datos personales.')
@@ -136,16 +136,21 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     {alerta}
   </DialogBody></>
   else if (!puedeOperar) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody><p role="status">{ficha.capacidades.motivo_no_operable ?? 'La persona ya no permite nuevas inversiones.'}</p></DialogBody></>
-  else if (guardado.error) cuerpo = <>{cabecera('Solicitud pendiente')}<DialogBody>{alerta}</DialogBody></>
-  else if (!empresa) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody className="space-y-5">
-    <p className="text-sm">Elige la empresa en la que invertirá.</p>
-    <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col" onClick={() => setEmpresa(e)}><Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div>
+  else if (guardado.error || !empresa) cuerpo = <>{cabecera(guardado.error ? 'Recuperar solicitud' : 'Nueva inversión')}<DialogBody className="space-y-5">
+    {guardado.error ? <div className="space-y-3">
+      <p className="text-sm">El borrador local no se puede leer. Puedes consultar la solicitud por su referencia.</p>
+      <Button variant="outline" onClick={() => {
+        limpiarIntentosInversion(actor, persona); setGuardado({intento: null, error: null}); setError(null); setEmpresa(null)
+      }}>Descartar el borrador local ilegible</Button>
+      <p className="text-xs text-muted-foreground">Descartarlo no cancela una solicitud que ya esté registrada en el servidor.</p>
+    </div> : <><p className="text-sm">Elige la empresa en la que invertirá.</p>
+      <div className="grid gap-3 sm:grid-cols-3">{EMPRESAS_INVERSION.map(e => <Button key={e} variant="outline" className="h-20 flex-col" onClick={() => setEmpresa(e)}><Landmark aria-hidden />{EMPRESA_NOMBRE[e]}</Button>)}</div></>}
     <form onSubmit={e => {e.preventDefault(); void ejecutar(async () => {
-      if (!/^[0-9a-f-]{36}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
       const s = await consultarSolicitudInversion(referencia)
       if (s.inversionista_id !== ficha.persona.inversionista_id || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
       const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos)
-      guardar(i); setEmpresa(s.datos.empresa); recibir(s)
+      guardar(i); setGuardado({intento: null, error: null}); setEmpresa(s.datos.empresa); recibir(s)
     })}} className="space-y-2 border-t border-border pt-4">
       <Label htmlFor="f5-referencia">Retomar una solicitud por su referencia</Label>
       <Input id="f5-referencia" value={referencia} onChange={e => setReferencia(e.target.value.trim())} autoComplete="off" />
