@@ -10,9 +10,10 @@ Actualización 08/09: implementación y evidencia sintética guardadas en
 [[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
 No se activó producción; se mantienen los límites y las puertas de este plan.
 
-Miguel pidió publicar F4 y recibir el plan de implementación de F5. Este documento
-define el trabajo siguiente; no declara F5 implementada ni autoriza por sí mismo
-el piloto económico. Sigue [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]
+Miguel pidió publicar F4 y recibir el plan de implementación de F5; después
+autorizó su desarrollo. Este documento conserva el plan ejecutado; el acta
+enlazada arriba registra su evidencia y límites, sin autorizar el piloto
+económico. Sigue [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]]
 y [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 
 ## Resultado visible

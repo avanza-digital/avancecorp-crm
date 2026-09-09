@@ -19,8 +19,16 @@ Rama de trabajo: `codex/f5-cartera`, carpeta aislada
 
 Commits del desarrollo: `0d6aa4d`, `9789ca2`, `cc555ce`, `9e1b012`, `3b6c7ab`,
 `e07cdeb`, merge `4dd25d5` y correcciones revisadas `f7a425f`. La preparación
-SQL/evidencias tiene un commit posterior. El manifiesto del paquete identifica
+SQL/evidencias se guardó en `257af26`; la actualización del plan principal tiene
+un commit documental posterior. El manifiesto del paquete identifica
 el commit final verificado; no usar una captura anterior como release.
+
+Main se integró y subió a `avancecorp/main`. Los 244 archivos pendientes de las
+otras tareas se respaldaron y conservaron; los dos archivos compartidos se
+combinaron sin conflictos. Respaldo durable:
+`/Users/usuario/Desktop/DESARROLLO/DESARROLLO/RESPALDOS-CARTERA/cierre-f5-20260908-210909`.
+Contiene bundle verificable, trabajo ajeno pendiente, banco sintético y paquete.
+El manifiesto privado de cierre identifica las huellas y el commit definitivo.
 
 - 38 pruebas locales de Auth, PostgREST, RLS, Storage, finanzas y recuperación: PASS.
 - Gate completo CRM: 3.120 pruebas unitarias, 146 E2E y 26 omisiones existentes;
