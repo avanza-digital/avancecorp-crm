@@ -1,0 +1,11 @@
+# Evaluación de la revisión
+
+Codex PRIMARY implementó y probó; Claude SECONDARY_REVIEWER revisó evidencia sin herramientas/escrituras mediante el wrapper. Su dictamen fue CHANGES_REQUESTED. No hubo delegación recursiva.
+
+1. **Perfil cliente:** aceptado parcialmente. El lector ahora comprueba `public.perfiles.rol = cliente`, además de la etapa y vínculo. Se añade caso negativo de perfil comercial. Se descarta exigir perfil activo: inactivar acceso no anula un depósito/conversión ya registrado; SQL prueba que un cliente inactivo conserva su conversión.
+2. **Dos predicados de anulación:** la hipótesis de divergencia no se confirmó. `cierre_externo_anulado` delega directamente en `cierre_anulado`, comprobado en el esquema. Se usa ahora `cierre_anulado` en ambos lugares para expresar claramente el criterio único. No se inventa una excepción temporal para reconvertir: `crm.reabrir_lead_fn` rechaza cualquier etapa distinta de descartado y convertir_lead trata los convertidos como cerrados/reintentos idempotentes. Se conserva el criterio canónico vigente de anulación.
+3. **Importe cero:** los consumidores sí están comprobados. FichaRecorrido muestra «Convertido a cliente» y su fecha para esta fuente; Inasistencias no representa un total monetario si no hay movimientos con monto. Tests de componente y E2E comprueban ausencia de importe inferido. Los acumuladores internos de movimientos conservan ceros neutros para compatibilidad con el prototipo, sin afirmar que se hayan depositado cero soles.
+4. **Orden temporal estricto:** se mantiene `conversión > asistencia` porque la regla acordada exige una etapa posterior. Igualdad a la resolución de milisegundos no acredita ese orden; no se fuerza un empate a favor del contador.
+5. **Despliegue V1/V2:** anotado. El nuevo frontend admite ambos contratos; la migración no se publica aislada frente a un bundle intermedio que solo entienda V1. No existe publicación en esta tarea.
+
+El helper canónico de anulación no se modifica; el nuevo banco ejercita su rama de cierres Avance anulados, no crea un segundo contrato de anulación. La revisión no reemplaza la matriz SQL ni los gates, que pasaron después de aplicar las correcciones pertinentes.

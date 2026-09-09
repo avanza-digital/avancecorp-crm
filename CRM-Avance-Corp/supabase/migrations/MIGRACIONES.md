@@ -8720,3 +8720,24 @@ Revisión de Claude evaluada por Codex; detalles y límites de los gates en
 `UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/README.md` (raíz del repo).
 Pendientes: definición de la confirmación del depósito y ensayo/publicación
 remota mediante el procedimiento autorizado. Esta entrada no autoriza publicar.
+
+## 20260909015744 — Depósito de Citas acreditado por conversión a cliente (local)
+
+Miguel confirmó que convertir el lead en cliente acredita el depósito para este
+indicador. `20260909015744_crm_citas_deposito_por_conversion_cliente.sql` cambia
+el lector de Citas a JSON V2: conversiones de los leads de la consulta, con
+perfil de rol cliente, fecha de conversión hasta el corte y exclusión mediante
+`private.cierre_anulado`. No genera importes a partir del monto estimado ni
+modifica escritores. Inactivar acceso del cliente no anula el hecho comercial.
+
+**Probada localmente, NO aplicada en remoto.** Matriz SQL de Citas más
+`test-citas-deposito-conversion.sql`: permisos, vínculos, límites, conversión,
+anulación, perfil de otro rol, cliente inactivo, futuro y pertenencia a cohorte.
+El frontend exige conversión posterior a asistencia vinculada y cuenta leads
+únicos. Fecha visible = fecha de conversión. Tipos regenerados: firma RPC sin
+cambios; contenido JSON validado por contrato V2. Gate frontend: 3.150 pruebas;
+7 E2E específicos PASS. Revisión Claude evaluada y correcciones SQL verificadas nuevamente.
+
+El nuevo bundle admite V1/V2. Publicar de forma coordinada: un bundle intermedio
+que sólo admita V1 rechazaría V2. Evidencia en
+`UX-UI-GERENCIA/propuesta-citas-crm-2026-09-08/integracion/conversion-cliente/README.md`.

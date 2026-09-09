@@ -10,7 +10,7 @@ import { metaCitas, META_CITAS_POR_LEAD, OBJETIVO_CITAS_POR_LEAD, OBJETIVO_CUMPL
 import { Inasistencias } from './inasistencias'
 
 function AyudaMetricas({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => void }) {
-  const { corte, depositosDisponibles } = useDatosCitas()
+  const { corte, depositosDisponibles, depositoPorConversion } = useDatosCitas()
   return <Sheet open={abierta} onClose={onCerrar} className="citas-crm-dialogo">
     <SheetHeader><div className="flex items-start justify-between gap-3"><SheetTitle>Cómo se calculan las métricas</SheetTitle><Button variant="ghost" size="icon" aria-label="Cerrar ayuda de métricas" onClick={onCerrar}><X aria-hidden /></Button></div></SheetHeader>
     <SheetBody className="space-y-5 text-sm leading-relaxed">
@@ -19,6 +19,7 @@ function AyudaMetricas({ abierta, onCerrar }: { abierta: boolean; onCerrar: () =
       <section><h3 className="font-semibold">Leads con 3+ citas</h3><p>Personas que tienen al menos tres citas dentro de la consulta. El promedio del analista y la cantidad de personas que llegan a tres son lecturas diferentes.</p></section>
       <section><h3 className="font-semibold">Filtros y total</h3><p>Las métricas usan el período, responsables, estados y demás filtros activos. Seleccionar una etapa del recorrido solo filtra su tabla de personas. La meta de referencia no se divide automáticamente entre las semanas.</p><p className="mt-2">Un lead con citas de varios analistas cuenta en cada uno y una sola vez en el total. El total se recalcula sobre leads únicos; no suma esas columnas ni promedia los promedios.</p></section>
       <section><h3 className="font-semibold">Recuperación hasta el depósito</h3><p>Cada etapa parte de la anterior: no asistió, reprogramó, asistió a una cita vinculada y luego hizo un depósito confirmado. El porcentaje usa los leads que faltaron al inicio. El seguimiento llega al {corteLima(corte)}, aunque la nueva cita o el depósito queden fuera del período de origen.</p></section>
+      {depositoPorConversion && <p>Depositó se acredita al convertir el lead en cliente. Se usa la fecha de conversión del CRM, se cuenta cada lead una vez y se excluyen conversiones anuladas. Esta fecha corresponde al registro comercial; no se atribuye una hora bancaria ni un importe estimado.</p>}
       <p className="text-muted-foreground-strong">{!depositosDisponibles && 'Depósitos: sin verificación disponible. '}La meta de actividad y el resultado comercial son independientes. Haber depositado no requiere llegar a tres citas ni implica agendar otra para completar el contador.</p>
     </SheetBody>
   </Sheet>

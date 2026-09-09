@@ -34,7 +34,7 @@ do $$ declare r jsonb; begin
   assert jsonb_array_length(r->'citas')=2,'Mes trae cohorte y seguimiento, sin otra persona';
   assert r->'citas'->1->>'reagendada_de'='82000000-0000-4000-8000-000000000001','Conserva el vínculo';
   assert (r->'citas'->1->>'asistencia_registrada_en')::timestamptz='2026-09-02 16:30+00','Asistencia viene del resultado vinculado';
-  assert r->>'disponibilidad_depositos'='sin_registro' and r->'depositos'='[]'::jsonb,'No inventa depósitos';
+  assert r->>'disponibilidad_depositos'='conversion_cliente' and r->'conversiones'='[]'::jsonb,'Sin conversiones no inventa depósitos';
   assert r->'citas'->0->>'vence_en' ~ '^2026-08-28T','JSON timestamptz usa ISO con T';
   r:=crm.citas_gerencia_consulta_fn('2026-09-01','2026-09-30');
   assert r->'citas'->2->'reagendada_de'='null'::jsonb,'No permite enlaces entre leads distintos';

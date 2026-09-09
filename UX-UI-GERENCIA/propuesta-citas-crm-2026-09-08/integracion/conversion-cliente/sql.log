@@ -1,0 +1,79 @@
+BEGIN
+DO
+SET
+INSERT 0 7
+INSERT 0 7
+UPDATE 1
+INSERT 0 2
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+SET
+SET
+              set_config
+--------------------------------------
+ 80000000-0000-4000-8000-000000000001
+(1 row)
+
+DO
+DO
+RESET
+DO
+SET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 2
+SET
+SET
+              set_config
+--------------------------------------
+ 80000000-0000-4000-8000-000000000001
+(1 row)
+
+DO
+RESET
+DO
+SET
+INSERT 0 1
+INSERT 0 10000
+SET
+SET
+DO
+RESET
+SET
+INSERT 0 1
+SET
+SET
+DO
+RESET
+         resultado
+----------------------------
+ CITAS_GERENCIA_CONSULTA_OK
+(1 row)
+
+ROLLBACK
+BEGIN
+DO
+SET
+INSERT 0 3
+INSERT 0 1
+INSERT 0 10
+INSERT 0 10
+INSERT 0 1
+INSERT 0 1
+SET
+SET
+              set_config
+--------------------------------------
+ 86000000-0000-4000-8000-000000000001
+(1 row)
+
+DO
+RESET
+            resultado
+----------------------------------
+ CITAS_DEPOSITO_POR_CONVERSION_OK
+(1 row)
+
+ROLLBACK

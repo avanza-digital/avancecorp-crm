@@ -6,6 +6,8 @@ tags: [crm, citas, gerencia, ux, datos]
 
 # Citas: integración local y depósito pendiente
 
+**Pendiente resuelto posteriormente:** Miguel confirmó que convertir en cliente acredita el depósito. Regla e implementación vigentes en [[Citas Gerencia - deposito acreditado por conversion a cliente 2026-09-08]]. El contenido que sigue documenta la primera integración y su duda original; no debe volver a solicitarse una fuente bancaria adicional para este conteo.
+
 Miguel autorizó comenzar el desarrollo de la propuesta ya adaptada al CRM. Continúa [[Citas Gerencia - tablero horizontal y flujo por persona 2026-09-08]] y [[Fundamentos UX del CRM]].
 
 El módulo se monta en Gerencia → Citas usando el marco real del CRM y componentes compartidos con el prototipo. Conserva filtros compactos por mes/cuatro semanas, recuperación horizontal, citas por lead, meta 3=100% y objetivo 3.75=125%, desglose y ficha a demanda. El promedio usa leads distintos con cita del conjunto filtrado; no la cartera completa, y no prorratea la meta por semana. No cambia la política productiva de metas mensuales.

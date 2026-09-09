@@ -60,4 +60,19 @@ describe('Citas conectadas al CRM',() => {
     await vi.waitFor(() => expect(abrir).toHaveBeenCalledTimes(1))
     expect(abrir.mock.calls[0]![0]).toMatch(/^L-/)
   })
+  it('muestra la conversión como depósito sin presentar un monto estimado como abonado',async () => {
+    const usuario=userEvent.setup()
+    montar({depositosDisponibles:true,depositoPorConversion:true,depositos:[{
+      id:'conversion-L-031',leadId:'L-031',fuente:'conversion_cliente',monto:null,moneda:null,
+      depositadoEn:'2026-09-04T15:00:00Z',confirmadoEn:'2026-09-04T15:00:00Z',
+    }]})
+    const indicador=screen.getByRole('region',{name:'Conversión de inasistencias a depósito'})
+    expect(indicador).toHaveTextContent('25%')
+    expect(indicador).not.toHaveTextContent('S/')
+    await usuario.click(screen.getByRole('button',{name:'Depositó 1'}))
+    const personas=screen.getByRole('table',{name:'Personas del flujo de recuperación'})
+    expect(within(personas).getAllByRole('row')).toHaveLength(2)
+    expect(personas).toHaveTextContent('Convertido a cliente')
+    expect(personas).not.toHaveTextContent('35,000')
+  })
 })

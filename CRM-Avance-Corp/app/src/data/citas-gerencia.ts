@@ -5,6 +5,7 @@ import { crmQueryKeys } from './crm-queries'
 import { CrmApiError } from './crm-api'
 import { defaults, rango } from '@/components/citas/modelo'
 import type { CitaConLead } from '@/components/citas/datos'
+import type { DepositoEjemplo } from '@/components/citas/depositos'
 import { horaLima } from '@/components/citas/contexto'
 
 const Instante = v.pipe(v.string(), v.check(s => Number.isFinite(Date.parse(s))))
@@ -18,15 +19,23 @@ const CitaSchema = v.object({
   resultado: v.string(), nota: v.string(), reagendada_de: v.nullable(Id), creado_en: Instante,
   asistencia_registrada_en: v.nullable(Instante), cierre_posterior: v.boolean(),
 })
-export const ConsultaCitasSchema = v.object({
-  version: v.literal(1), periodo: v.object({ desde: v.string(), hasta: v.string() }), generado_en: Instante,
+const CamposConsulta = {
+  periodo: v.object({ desde: v.string(), hasta: v.string() }), generado_en: Instante,
   citas: v.pipe(v.array(CitaSchema),v.maxLength(10000)),
-  // La fuente vigente no registra fecha y confirmación de depósitos. Otro
-  // estado exige ampliar explícitamente el contrato y su prueba del servidor.
-  disponibilidad_depositos: v.literal('sin_registro'), depositos: v.pipe(v.array(v.unknown()),v.length(0)),
   citas_clientes: v.pipe(v.number(),v.integer(),v.minValue(0)),
-})
+}
+export const ConsultaCitasSchema = v.variant('version',[
+  v.object({ ...CamposConsulta, version:v.literal(1), disponibilidad_depositos:v.literal('sin_registro'), depositos:v.pipe(v.array(v.unknown()),v.length(0)) }),
+  v.object({ ...CamposConsulta, version:v.literal(2), disponibilidad_depositos:v.literal('conversion_cliente'),
+    conversiones:v.pipe(v.array(v.object({lead_id:Id,perfil_id:Id,convertido_en:Instante})),v.maxLength(10000)) }),
+])
 export type ConsultaCitasRpc = v.InferOutput<typeof ConsultaCitasSchema>
+export function adaptarDepositos(datos: ConsultaCitasRpc): DepositoEjemplo[] {
+  return datos.version===2 ? datos.conversiones.map(c => ({
+    id:`conversion-${c.lead_id}`,leadId:c.lead_id,fuente:'conversion_cliente',
+    depositadoEn:c.convertido_en,confirmadoEn:c.convertido_en,monto:null,moneda:null,
+  })) : []
+}
 const fechaLima = (fecha: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(fecha))
 const rotulo = (valor: string) => valor === 'sin_clasificar' ? 'Sin clasificar' : valor.replaceAll('_',' ').replace(/^./,c => c.toUpperCase())
 
@@ -66,6 +75,14 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
   if (!resultado.success || resultado.output.periodo.desde!==desde || resultado.output.periodo.hasta!==hasta
     || new Set(resultado.output.citas.map(c => c.id)).size!==resultado.output.citas.length) {
     throw new CrmApiError('La respuesta de citas está incompleta o no corresponde a este mes.','CITAS_CONTRATO')
+  }
+  const datos=resultado.output
+  if (datos.version===2) {
+    const leads=new Set(datos.citas.map(c=>c.lead_id))
+    if (new Set(datos.conversiones.map(c=>c.lead_id)).size!==datos.conversiones.length
+      || datos.conversiones.some(c=>!leads.has(c.lead_id) || Date.parse(c.convertido_en)>Date.parse(datos.generado_en))) {
+      throw new CrmApiError('La respuesta de conversiones no corresponde a esta consulta.','CITAS_CONTRATO')
+    }
   }
   return resultado.output
 }

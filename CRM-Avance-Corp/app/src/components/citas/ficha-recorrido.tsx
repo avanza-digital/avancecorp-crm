@@ -43,12 +43,13 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
         </li>)}
         {!fila.nueva && <li><h4 className="text-warning-text">Sin nueva cita</h4><p>No hay una reprogramación vinculada al corte.</p></li>}
         {depositos.map(deposito => <li key={deposito.id}>
-          <h4>Depositó</h4><p>{money(deposito.monto, deposito.moneda)} · {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)}</p>
-          <p>Confirmado: {fmtFecha(deposito.confirmadoEn!)} · {horaLima(deposito.confirmadoEn!)} Lima</p>
+          <h4>Depositó</h4>{deposito.fuente==='conversion_cliente'
+            ? <><p>Convertido a cliente</p><p>Fecha de conversión: {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)} Lima</p></>
+            : <><p>{money(deposito.monto, deposito.moneda)} · {fmtFecha(deposito.depositadoEn)} · {horaLima(deposito.depositadoEn)}</p><p>Confirmado: {fmtFecha(deposito.confirmadoEn!)} · {horaLima(deposito.confirmadoEn!)} Lima</p></>}
           <p className="mt-2 text-xs">{deposito.id}</p>
         </li>)}
       </ol>
-      {depositos.length === 0 && <p className="mb-6 text-xs text-muted-foreground-strong">{depositosDisponibles ? 'Sin depósito confirmado dentro de este flujo de recuperación.' : 'Depósito sin verificar: el CRM no dispone de fecha y confirmación del depósito para este recorrido.'}</p>}
+      {depositos.length === 0 && <p className="mb-6 text-xs text-muted-foreground-strong">{depositosDisponibles ? 'Sin depósito confirmado dentro de este flujo de recuperación.' : 'La fuente de depósitos aún no está habilitada para esta consulta.'}</p>}
       <Button variant="accent" className="h-11 w-full" onClick={() => onCita(fila.nueva ?? fila.original)}><ExternalLink aria-hidden />Ver cita vinculada</Button>
       <details className="citas-info-persona mt-3">
         <summary>Información del prospecto</summary>
