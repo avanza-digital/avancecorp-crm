@@ -49,8 +49,12 @@ recorrido básico de teclado y confirmó la lectura de cartera/ficha con
 VoiceOver. Después confirmó que funciona la lectura de los campos de Nueva
 inversión en Qorilazo; queda aprobado el recorrido manual guiado.
 Detalle: [[F5 - prueba manual de VoiceOver iniciada (2026-09-09)]].
-Quedan los gates del destino y del artefacto para publicar. La activación económica
-conserva F6, F7/G6, F8/G7 y F9/G8; no adelantar el piloto real.
+El preflight del 09/09 identificó el destino y confirmó F4 instalada/F5 apagada.
+También se corrigió un salto de la cartera anterior causado por la comprobación
+F5 ya incluida en la entrega compartida de Citas. Miguel autorizó publicar ese
+arreglo. Continuación vigente y detalle de los 15 huecos de identidad:
+[[F5 - prepublicacion y salto de cartera (2026-09-09)]].
+La activación económica conserva F6, F7/G6, F8/G7 y F9/G8; no adelantar el piloto real.
 
 Relacionados: [[F5 - revision visual e integracion con el CRM (2026-09-08)]],
 [[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]],
