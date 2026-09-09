@@ -7,8 +7,8 @@ actualizado: 2026-09-08
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
-Plan siguiente: [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]].
+Estado vigente: [[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]].
+Plan de trabajo F5: [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]].
 
 ## 🧠 Cómo funciona la memoria de este proyecto
 

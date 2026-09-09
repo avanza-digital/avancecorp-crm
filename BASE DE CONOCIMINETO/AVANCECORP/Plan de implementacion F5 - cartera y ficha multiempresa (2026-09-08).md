@@ -6,8 +6,8 @@ estado: implementada-candidata-sin-publicacion
 
 # F5 — cartera y ficha única del inversionista
 
-Actualización 08/09: implementación y evidencia sintética guardadas en
-[[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
+Actualización 08/09: implementación, adaptación visual al CRM y evidencia guardadas en
+[[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]].
 No se activó producción; se mantienen los límites y las puertas de este plan.
 
 Miguel pidió publicar F4 y recibir el plan de implementación de F5; después

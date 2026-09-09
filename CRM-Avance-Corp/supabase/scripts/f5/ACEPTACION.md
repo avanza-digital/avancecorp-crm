@@ -21,10 +21,17 @@ apagadas. No se usaron personas, depósitos ni cuentas reales como fixtures.
 | Supabase db lint local CRM/private | PASS sin errores; avisos preexistentes fuera de F5. El banco incorpora pg_cron sin jobs; no se activan tareas productivas |
 | Revisión Claude y evaluación del PRIMARY | Ejecutada; hallazgos corregidos o contrastados con el contrato/catálogo. [Evaluación](REVISION.md) |
 | Revisión visual | Capturas reales de navegador de escritorio, móvil 390 px, roles y revisión/confirmación; 8 páginas de PDF PEN y USD verificadas sin cambios a plantilla/fonts/assets |
-| Lector de pantalla manual y aceptación personal de Miguel | NOT RUN: se verificaron nombres accesibles, teclado, foco, diálogos y estados anunciados automáticamente; no se afirma una sesión manual de VoiceOver |
+| Revisión personal de Miguel | Propuesta visual bien recibida; solicitó conservar la coherencia con el CRM. Ajustes realizados y verificados en [ACABADO-VISUAL.md](ACABADO-VISUAL.md) |
+| Lector de pantalla manual | NOT RUN: se verificaron nombres accesibles, teclado, foco, diálogos y estados anunciados automáticamente; no se afirma una sesión manual de VoiceOver |
 | Advisors / gate de datos / carga en producción y despliegue F5 | NOT RUN: fase de desarrollo sintético, sin instalación ni encendido productivo. Ejecutar con el destino y artefacto aprobados |
 
 Las ocho suites de banco suman **38 pruebas** y se ejecutan secuencialmente.
+
+Tras la revisión visual de Miguel se ajustaron componentes, espacios y lectura
+en móvil. El gate completo volvió a pasar con 3.127 pruebas unitarias y 147 E2E;
+se inspeccionaron 13 capturas adicionales entre 320 y 1.440 px. Este ajuste no
+cambia el backend cuya evidencia se conserva arriba. Detalle y capturas:
+[ACABADO-VISUAL.md](ACABADO-VISUAL.md).
 
 El primer CI remoto (`257af26`, ejecución `34302179500`) aprobó calidad y los
 siete recorridos F5; fallaron ocho casos antiguos de Seguimiento exclusivamente

@@ -25,8 +25,9 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 **F5 implementada y probada con datos sintéticos, sin publicar ni encender.**
 Cartera, ficha neutral y nueva inversión integradas con F4. Main y su remoto
 conservan los commits; el paquete incluye SQL exacto, tipos, frontend, función
-documental, evidencia y reversa. Acta vigente:
-[[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]].
+documental, evidencia y reversa. Miguel valoró favorablemente las pantallas y
+se completó su adaptación visual a los componentes del CRM. Acta vigente:
+[[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]].
 
  Miguel confirmó que
 las comisiones se calculan fuera del sistema y no quiere ese módulo. Se excluyen
@@ -41,7 +42,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Implementada y probada; candidata sin publicar | Evidencia sintética PASS; revisión personal de Miguel pendiente. [[RETOMAR-67 - F5 implementada y candidata preparada (2026-09-08)]] |
+| F5 — cartera y Ficha 360 | Implementada, probada y adaptada visualmente; candidata sin publicar | Propuesta visual bien recibida por Miguel; ajuste verificado. VoiceOver manual pendiente. [[RETOMAR-68 - F5 adaptacion visual verificada (2026-09-08)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
@@ -423,8 +424,9 @@ Plan ejecutable: [[Plan de implementacion F5 - cartera y ficha multiempresa (202
 **Implementación del 08/09:** cartera única, ficha y nueva inversión completadas.
 38 pruebas de banco y el gate completo del CRM aprobados; capturas de escritorio,
 móvil y roles, PDF PEN/USD conservado, SQL/reversa ensayados y tipos cotejados.
-La aceptación personal de Miguel y el lector de pantalla manual no se presentan
-como ejecutados. Producción conserva F4/F5 apagadas. Evidencia:
+Miguel valoró favorablemente las capturas y se verificó el ajuste de coherencia
+visual con el CRM. La sesión manual de lector de pantalla sigue pendiente.
+Las escrituras F4 y la ficha F5 permanecen apagadas en producción. Evidencia:
 [aceptación F5](../../CRM-Avance-Corp/supabase/scripts/f5/ACEPTACION.md).
 
 **Avance:** al completar la evidencia de esta fase.
@@ -626,7 +628,7 @@ Numeración alineada con el maestro; los gates no son una renumeración de las f
 | G2 | Vinculación F2 clasificada y conciliada, sin fusiones ambiguas |
 | G3 | Puertas F3 sin rutas paralelas que eviten los controles canónicos |
 | G4 | Escritores F4 completos con datos sintéticos; concurrencia, idempotencia, permisos, documentos, recuperación, paridad financiera y reversa; **cerrado técnicamente el 08/09**, comisiones externas fuera del alcance; no autoriza dinero real |
-| G5 | Matriz técnica F5 con datos sintéticos PASS; evidencia visual preparada y aceptación personal de Miguel pendiente |
+| G5 | Matriz técnica F5 con datos sintéticos PASS; propuesta visual bien recibida por Miguel y ajuste al CRM verificado; sesión manual de VoiceOver pendiente |
 | G6 | Métricas F7 conciliadas y firmadas; habilita solicitar el piloto económico |
 | G7 | Piloto F8 aceptado por volumen, conciliación, pruebas y firmas |
 | G8 | Despliegue progresivo y ciclo operativo mensual completos; retirada final de rutas antiguas |
