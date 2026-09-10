@@ -55,10 +55,13 @@ No se conciliaron datos reales ni se encendió el piloto.
    ficha tras recargar. También aprobó el cierre con detalle en el historial
    y un único próximo contacto con la fecha elegida, así como el cambio de hora
    de una reunión visible en Agenda y la confirmación de la cita. Sigue el
-   punto 4, No contactar: Miguel delegó a Codex la prueba de responsable y pasó
+   punto 5, vencimientos y reinversión: Miguel delegó a Codex la prueba de responsable y pasó
    con UI, sesiones de ambos asesores y comprobación funcional de la cola sin
    responsable. Las dos tareas conservaron identidad y horarios; el anterior
-   perdió acceso incluso con su JWT previo. La aceptación completa permanece
+   perdió acceso incluso con su JWT previo. Codex probó después No contactar:
+   canceló los pendientes, bloqueó contactos y el levantamiento por el asesor;
+   Gerencia levantó el veto y se creó un contacto nuevo sin revivir cancelados.
+   Se conservaron inversiones y banderas. La aceptación completa permanece
    pendiente. Registro y alcance:
    [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).
 2. F7/G6: conciliar métricas, Capital y atribución por empresa y moneda.

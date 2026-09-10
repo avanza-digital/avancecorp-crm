@@ -31,8 +31,10 @@ el cambio guardado y la confirmación; no se dedujo de la mera apertura del form
 
 El 10/09 Miguel delegó expresamente el punto 3: «esta prueba puedes hcaerla tu
 por favor». Codex ejecutó la reasignación por UI y verificó el acceso con ambos
-asesores. Sigue el punto 4. Los puntos 4–8 permanecen pendientes: veto, reinversión, retiro,
-accesibilidad y recuperación de un envío cuya respuesta se perdió.
+asesores. Después, ante «ok sigamos con eso como lo haras?», Codex explicó y
+ejecutó la prueba No contactar del punto 4. Sigue el punto 5. Los puntos 5–8
+permanecen pendientes: reinversión, retiro, accesibilidad y recuperación de un
+envío cuya respuesta se perdió.
 
 ## Punto 3 — ejecución delegada a Codex
 
@@ -67,6 +69,33 @@ El arnés inicial esperaba por error HTTP 403 para la ficha F5 oculta y PT409 pa
 la ausencia de responsable. Se ajustó al contrato comprobado en código/catálogo
 (HTTP 200/null y P0409) antes de completar las comprobaciones. No se modificó el
 producto para acomodarlo al arnés; las ejecuciones finales pasaron.
+
+## Punto 4 — No contactar, ejecutado por Codex
+
+**PASS funcional** en la misma persona sintética, con PRUEBA F4 AJENO como
+responsable. Gerencia marcó y levantó el veto desde el formulario del CRM.
+
+- Al marcarlo con motivo, la ficha mostró No contactar y deshabilitó Agendar
+  gestión. Los dos pendientes anteriores quedaron cancelados y la agenda vacía.
+- Un intento directo de agendar con el JWT del asesor actual fue rechazado con
+  P0429 («Esta persona pidió no ser contactada»; HTTP 500 del contrato vigente).
+  No creó tareas. El mismo asesor no pudo levantar el veto: HTTP 403/42501.
+- Gerencia levantó el bloqueo con un motivo. Agendar volvió a habilitarse y las
+  dos tareas canceladas permanecieron canceladas, sin reaparecer.
+- Se programó después una única llamada nueva por la RPC del asesor actual,
+  titulada «Seguimiento posterior a No contactar F6». Se verificó que su ID era
+  nuevo y que los dos anteriores seguían cancelados. La ficha tras recargar
+  conserva este contacto como único pendiente.
+- Las inversiones, tareas ya cerradas antes del caso y banderas conservaron sus
+  datos. El motivo de prueba y su levantamiento quedan en la historia.
+
+Estado final local: No contactar desactivado, PRUEBA F4 AJENO como responsable,
+dos tareas originales canceladas y un contacto nuevo pendiente. No se restauran
+las tareas canceladas porque precisamente se verificó que levantar el veto no
+las revive. [Evidencia del recorrido](manual-2026-09-10/veto-evidencia.json).
+
+No hubo cambios de código ni de producción. Es una verificación de Codex; no se
+atribuye a Miguel una aprobación visual de los casos que no ejecutó.
 
 ## Preparación del banco y alcance
 
