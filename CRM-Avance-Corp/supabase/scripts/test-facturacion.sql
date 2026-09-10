@@ -132,9 +132,15 @@ begin
     into v_filas, v_malas, v_ops, v_cap
   from crm.facturacion_diaria_fn(v_mes) f
   where f.analista_id = v_analista and f.dia = v_antes and f.tipo = 'contrato_nuevo';
+  -- La expectativa se calcula sobre TODAS las ventas del analista ESE DÍA, no
+  -- sobre el contrato que movió el fixture. Compararla contra un solo contrato
+  -- fue un fallo real de este oráculo: en un banco donde ese día ya tenía otras
+  -- 66 ventas, acusó una duplicación que no existía (rama banco-f7, 10/09).
   select count(*), coalesce(sum(c.capital), 0) into v_ops_real, v_cap_real
   from public.contratos c
-  where c.id = v_c1 and c.categoria = 'nuevo';
+  where coalesce(private.analista_atribuido_cadena(c.id), c.analista_cierre_id) = v_analista
+    and c.categoria = 'nuevo' and not c.es_demo
+    and c.fecha_cierre_comercial = v_antes;
   if v_filas = 0 or v_malas > 0 then
     raise exception 'ORACULO 1 FALLA: % filas del %, % mal atribuidas (se esperaba el VIEJO %)',
       v_filas, v_antes, v_malas, v_sup_viejo;

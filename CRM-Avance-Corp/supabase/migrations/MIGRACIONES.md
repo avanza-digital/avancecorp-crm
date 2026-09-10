@@ -9123,7 +9123,33 @@ PUBLIC vía `aclexplode(grantee = 0)`, ámbito empujado hacia dentro del núcleo
 desempate por `ue.id` en el `row_number()`, `order by t.desde desc` en la elección del
 tramo y `moneda` antes que el importe en el orden final.
 
-**Estado: escrita, auditada y corregida; PENDIENTE de branch de Supabase.** El cuerpo
+**Estado: APLICADA Y VALIDADA EN LA RAMA `banco-f7` (`cwkiejoaqadcnaieghnf`) el 10/09;
+PENDIENTE de merge a producción, que solo se hace con el `!` de Miguel.**
+
+No se creó una rama nueva: `banco-f7` seguía viva y su `private.capital_episodios` tiene la
+huella `b8f375fbb377582835f4cfe222240c5b`, exactamente la que sellan las migraciones de
+producción — el núcleo es el mismo, así que la prueba vale y no costó una rama más. La rama
+va por la migración `20260907093000` (226 de las 262 de producción); nada de lo que esta
+función usa cambió después.
+
+En la rama: `apply_migration` en verde con su postflight; el oráculo de atribución
+ejecutado como bloque `DO` que **termina en `raise` a propósito**, de modo que la siembra se
+deshace sola (patrón «probar sin escribir nada» del proyecto) — comprobado después: 0
+eventos sembrados quedaron. Resultado: **1 OK (67 ventas previas atribuidas al supervisor
+de entonces, capital 67 000 exacto — sin duplicar), 2, 3, 4, 7, 8 (verja correcta en las 68
+identidades de la rama) y 9 (anon no ejecuta, authenticated sí)**.
+
+Ese pase destapó un fallo REAL del propio oráculo: comparaba los importes contra UN contrato
+y en una base donde ese día ya había otras 66 ventas acusó una duplicación inexistente. La
+expectativa pasa a calcularse sobre todas las ventas del analista ese día. Corregido en
+`test-facturacion.sql` y re-verificado 9/9 en el banco local.
+
+Advisors de la rama tras aplicar: 4 avisos en total y **uno solo cita esta función** —
+`authenticated_security_definer_function_executable`, que es la forma buscada y la misma de
+`crm.altas_nuevas_por_analista_fn` y `crm.metricas_capital_mes_fn`: DEFINER llamable por
+`authenticated` y cerrada por dentro. NO aparece en `anon_security_definer_function_executable`.
+
+**Estado anterior: escrita, auditada y corregida; pendiente de branch.** El cuerpo
 se probó contra producción como `select` suelto (sin aplicar nada). La matriz
 `supabase/scripts/test-rls.mjs` trae el bloque `testFacturacionDiaria`: Gerencia lee;
 vendedor, supervisor, coordinador, cliente sin membresía y miembro inactivo reciben
