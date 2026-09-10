@@ -9,8 +9,12 @@
 // Reglas de negocio que el llamador debe respetar al construir esa lista (las
 // mismas que ya usan Ranking y Metas, ver CLAUDE.md y la nota del vault):
 //   · el día es `contratos.fecha_cierre_comercial` (día comercial de Lima),
-//   · solo `categoria = 'nuevo'`, sin demo y sin cierres anulados,
+//   · solo `categoria = 'nuevo'` y sin demo,
 //   · el analista es el de la cadena de atribución, no el que teclea,
+//   · ANULAR NO DESCUENTA CAPITAL. Es la regla ATR-4 («solo la conversión,
+//     siempre», Miguel 31/08): anular sanciona la tasa de conversión del
+//     analista, no borra el dinero que la empresa recibió. El núcleo
+//     (`crm.metricas_capital_mes_fn`) tampoco lo descuenta,
 //   · PEN y USD JAMÁS se suman: la malla se construye para UNA moneda.
 import { parseDateLocal, formatDateLocal } from './cronograma'
 import type { Moneda } from './format'

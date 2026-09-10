@@ -7226,6 +7226,116 @@ async function testAltasNuevasPorAnalista(sessions, seed) {
   }
 }
 
+// Facturación diaria (pantalla de Gerencia). VERJA, no cierre: quien no es
+// Gerencia ni lector global recibe 0 filas, no un 42501 (criterio auditor-rls
+// M-1 del 04/09). El gate SQL es exclusivo de Gerencia a propósito, igual que
+// VISTAS_GERENCIA en el front: por mínimo privilegio, y porque el supervisor que
+// devuelve sale de rebobinar crm.usuario_eventos y no debe poder leerse desde
+// fuera de Gerencia a qué equipo pertenecía alguien.
+async function testFacturacionDiaria(sessions, seed) {
+  console.log('\n— Facturación diaria (día x analista x supervisor) —');
+  const FN = 'facturacion_diaria_fn';
+  const MES = '2026-01-01';
+  const MES_SIG = '2026-02-01';
+
+  // Salto RUIDOSO si la funcion aun no esta en esta base; con
+  // CRM_RLS_EXIGE_FACTURACION=1 el salto es un FALLO (ciclo del `!`).
+  {
+    const probe = await sessions.gerencia.client.schema('crm').rpc(FN, { p_mes: MES });
+    if (probe.error?.code === 'PGRST202') {
+      const msg = `⚠ ${FN} NO desplegada en esta base: bloque de facturación SALTADO (no probado)`;
+      if (process.env.CRM_RLS_EXIGE_FACTURACION === '1') fail(msg);
+      else console.log(`  ${msg}`);
+      return;
+    }
+  }
+  void seed;
+
+  // A. Gerencia lee. No se fija la CUENTA: el seed puede ser escaso y la
+  //    seguridad no depende del volumen.
+  let filasGerencia = [];
+  {
+    const { data, error } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_mes: MES });
+    filasGerencia = data ?? [];
+    check(!error && Array.isArray(data),
+      `gerencia lee ${FN} (${error?.code ?? filasGerencia.length + ' filas'})`);
+  }
+
+  // B-F. TODO lo que no es Gerencia recibe VACIO. Un vendedor y un supervisor
+  //      tambien: la pantalla es de Gerencia y el gate dice lo mismo.
+  for (const quien of ['vend1', 'sup1', 'coordinador', 'clientBank', 'vendInactive']) {
+    const { data, error } = await sessions[quien].client
+      .schema('crm').rpc(FN, { p_mes: MES });
+    check(!error && Array.isArray(data) && data.length === 0,
+      `${quien} recibe ${FN} VACIO (${error?.code ?? (data?.length ?? 0) + ' filas'})`);
+  }
+
+  // G. anon: sin EXECUTE -> error de AUTORIZACION, no cualquier error.
+  {
+    const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-facturacion'));
+    const { error } = await anon.schema('crm').rpc(FN, { p_mes: MES });
+    check(isAuthorizationError(error), `anon NO ejecuta ${FN} (${error?.code ?? 'sin error!'})`);
+  }
+
+  // H. ORACULO DE FECHA — el footgun del proyecto: un `at time zone` sobre un
+  //    date manda el dia 1 al mes anterior. Todo dia devuelto cae en su mes, y
+  //    pedir enero no puede traer nada de febrero.
+  {
+    const fuera = filasGerencia.map((f) => String(f.dia)).filter((d) => d < MES || d >= MES_SIG);
+    const { data: febrero } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_mes: MES_SIG });
+    const solapan = (febrero ?? []).map((f) => String(f.dia)).filter((d) => d < MES_SIG);
+    check(fuera.length === 0 && solapan.length === 0,
+      `oraculo de fecha: cada dia cae en su mes (${filasGerencia.length} de enero, ${(febrero ?? []).length} de febrero)`,
+      fuera.length ? `dias FUERA del mes: ${fuera.slice(0, 5).join(', ')}` : '');
+  }
+
+  // I. PARIDAD CON EL NUCLEO — la razon de ser del diseño. El capital nuevo del
+  //    mes tiene que ser EL MISMO que publica crm.metricas_capital_mes_fn, que
+  //    es de donde beben Conversiones, Ranking y Metas. Si difiere, Facturación
+  //    se ha convertido en una tercera verdad sobre el mismo dinero.
+  {
+    const { data: nucleo, error } = await sessions.gerencia.client
+      .schema('crm').rpc('metricas_capital_mes_fn', { p_meses: 24 });
+    const delNucleo = new Map();
+    for (const f of nucleo ?? []) {
+      if (String(f.mes) !== MES || f.categoria !== 'nuevo') continue;
+      delNucleo.set(f.moneda, Number(f.capital_colocado));
+    }
+    const mio = new Map();
+    for (const f of filasGerencia) {
+      if (f.tipo !== 'contrato_nuevo') continue;
+      mio.set(f.moneda, (mio.get(f.moneda) ?? 0) + Number(f.capital));
+    }
+    const monedas = [...new Set([...delNucleo.keys(), ...mio.keys()])];
+    const discrepan = monedas.filter((m) => (delNucleo.get(m) ?? 0) !== (mio.get(m) ?? 0));
+    check(!error && discrepan.length === 0,
+      `paridad con el nucleo: capital nuevo de ${MES} == metricas_capital_mes_fn (${monedas.length} monedas)`,
+      discrepan.length
+        ? discrepan.map((m) => `${m}: nucleo ${delNucleo.get(m) ?? 0} vs facturacion ${mio.get(m) ?? 0}`).join('; ')
+        : '');
+  }
+
+  // J. Una fecha a mitad de mes se normaliza; un NULL no revienta, devuelve vacio.
+  {
+    const { data: medio } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_mes: '2026-01-17' });
+    const { data: nulo, error: errNulo } = await sessions.gerencia.client
+      .schema('crm').rpc(FN, { p_mes: null });
+    check((medio ?? []).length === filasGerencia.length
+      && !errNulo && Array.isArray(nulo) && nulo.length === 0,
+      `${FN} normaliza media-fecha (${(medio ?? []).length} vs ${filasGerencia.length}) y con NULL devuelve vacio (${errNulo?.code ?? (nulo?.length ?? 0) + ' filas'})`);
+  }
+
+  // K. La ATRIBUCION del supervisor no se prueba aqui a proposito: el seed no
+  //    escribe en crm.usuario_eventos, y una atribucion equivocada conserva
+  //    exactamente el mismo total, asi que ni esta matriz ni el caso I la verian.
+  //    Su oraculo es supabase/scripts/test-facturacion.sql, que siembra un cambio
+  //    de equipo real (y su mutante) y termina en rollback. Aqui solo se recuerda.
+  console.log(`  ℹ ${FN}: la atribucion del supervisor la prueba supabase/scripts/test-facturacion.sql`);
+}
+
 // P-055 F7.1 — las puertas cerradas de la Ola 1 responden 42501 a TODOS,
 // incluida public.actualizar_numero_contrato (sus argumentos son los mismos
 // p_id/p_numero/p_notas/p_categoria de las sondas P04 — Codex 30/08) y el
@@ -12910,6 +13020,7 @@ async function main() {
       await testLentesAtribucion(sessions, verifiedSeed);
       await testF7Ola1(sessions);
       await testAltasNuevasPorAnalista(sessions, verifiedSeed);
+      await testFacturacionDiaria(sessions, verifiedSeed);
       await testCapitalNucleo(sessions, verifiedSeed);
       await testCorreoAccesoCliente(sessions, verifiedSeed);
     }

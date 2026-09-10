@@ -9055,3 +9055,101 @@ temporalmente la respuesta anterior. El oráculo `supabase/scripts/test-reparto.
 cubre el rechazo atómico de Coordinación, la excepción del Superadmin y la
 visibilidad del destino real. La matriz general mantuvo su línea base heredada:
 1.772 PASS / 45 FAIL de 1.817, sin fallos nuevos atribuibles a esta migración.
+
+## 20260910230000 — Facturación diaria: capital por día, analista y supervisor de entonces (pendiente de branch)
+
+`20260910230000_crm_facturacion_diaria.sql` añade `crm.facturacion_diaria_fn(date)`,
+la lectura de la pantalla Facturación. Devuelve, para un mes comercial, día × tipo ×
+moneda × analista × supervisor, con operaciones y capital. SOLO LECTURA: no crea ni
+altera tablas, no toca objetos de `public` (solo los lee) y no expone columnas nuevas.
+
+**No reimplementa la cuenta del dinero.** Lee `private.capital_episodios`, el mismo
+núcleo del que ya salen Conversiones, Ranking y Metas, filtrando `medida = 'stock'`.
+Verificado contra producción antes de escribirla y otra vez tras la auditoría: para
+setiembre de 2026 el cuerpo devuelve S/ 2 786 004 en `contrato_nuevo`, idéntico al
+núcleo. Devuelve también `tipo` (`contrato_nuevo`, `contrato_upgrade`,
+`contrato_renovacion`, `cooperativa`) para no necesitar otra migración cuando
+Gerencia quiera mirar más que capital nuevo; los `desglose_*` quedan fuera por
+`medida = 'stock'`.
+
+**Anular NO descuenta capital** (ATR-4, Miguel 31/08: «solo la conversión, siempre»),
+igual que en `crm.metricas_capital_mes_fn`. A diferencia de
+`crm.altas_nuevas_por_analista_fn`, que sí los excluye porque cuenta altas, no dinero.
+
+**Verja de Gerencia.** El gate SQL admite `gerencia` y lector global, y nadie más:
+mínimo privilegio y espejo de `VISTAS_GERENCIA` en el front. Cualquier otro rol recibe
+VACÍO, no 42501. Consecuencia buscada (auditor-rls, R2/R3): fuera de Gerencia nadie
+puede leer por esta vía a qué supervisor pertenecía alguien de otro equipo.
+
+**El supervisor es el de entonces** (decisión de Miguel, 10/09/2026), reconstruido
+rebobinando los eventos `jerarquia_actualizada` de `crm.usuario_eventos` desde
+`crm.equipo`. Validado 16/16 contra la foto sellada de agosto de 2026.
+
+**Corrección sobre una lectura previa de este ledger.** Los 5 eventos de jerarquía en
+producción NO son cambios de equipo: los 5 tienen `supervisor_anterior = null`. Tres
+son altas nuevas (llevan `candidato_creado` + `membresia_activada` + `rol_asignado` el
+mismo día) y dos son gente que ya vendía y recibió supervisor el 10/08, cuando se
+estrenó la pantalla de jerarquía. **Hoy nadie ha cambiado de equipo y el rebobinado no
+mueve ni un sol**; existe para el día que ocurra. La cifra de «S/ 1 863 000 que se
+acreditarían al supervisor equivocado» era una lectura errónea de esos eventos: esas 9
+ventas no tenían supervisor registrado en su momento, y se resuelven con el equipo de hoy.
+
+**Regla explícita para `supervisor_anterior` NULL** (auditor-rls, B1): un NULL ahí no
+dice «no tenía jefe», dice que el CRM aún no guardaba jerarquía para esa persona. El
+tramo se elige por EXISTENCIA de historia y el NULL se colapsa después, a la vista, al
+equipo de hoy — porque en un informe de dinero «no consta» no puede dejar el importe
+sin dueño en una fila «Sin supervisor». Es regla, no descuido del `coalesce`.
+
+**Límite conocido:** el CRM registra jerarquía desde el 07/08/2026. De las 331 ventas
+nuevas del histórico, 232 son anteriores (9 de gente con evento posterior, 223 de gente
+sin ningún evento) y todas muestran el supervisor de hoy. Es la mejor respuesta
+disponible pero no es demostrable: la auditoría de `crm.equipo` está vacía en
+producción (0 filas).
+
+Hardening aplicado tras la auditoría: transacción con `lock_timeout`, `owner to
+postgres` (el DEFINER debe ser dueño de `crm.usuario_eventos`, que tiene RLS ON y cero
+policies: con otro dueño el rebobinado se degradaría EN SILENCIO), postflight que
+comprueba `prosecdef`, dueño, `search_path=""` con comillas y cero privilegios de
+PUBLIC vía `aclexplode(grantee = 0)`, ámbito empujado hacia dentro del núcleo,
+desempate por `ue.id` en el `row_number()`, `order by t.desde desc` en la elección del
+tramo y `moneda` antes que el importe en el orden final.
+
+**Estado: escrita, auditada y corregida; PENDIENTE de branch de Supabase.** El cuerpo
+se probó contra producción como `select` suelto (sin aplicar nada). La matriz
+`supabase/scripts/test-rls.mjs` trae el bloque `testFacturacionDiaria`: Gerencia lee;
+vendedor, supervisor, coordinador, cliente sin membresía y miembro inactivo reciben
+vacío; `anon` sin EXECUTE; oráculo de fecha contra el footgun del día 1; normalización
+de media-fecha y `NULL`; y **paridad con el núcleo** — el capital nuevo del mes debe
+ser el mismo que publica `crm.metricas_capital_mes_fn`, que es lo que impide que
+Facturación se convierta en una tercera verdad. Salta ruidosamente si la función no
+está desplegada; `CRM_RLS_EXIGE_FACTURACION=1` convierte el salto en fallo.
+
+**Segunda revisión — Codex (10/09), CHANGES_REQUESTED, tres hallazgos aceptados:**
+(1) el gate no es «solo Gerencia», también entra el lector global — se corrigió la
+REDACCIÓN, no el código: es el patrón de todas las hermanas y el Directorio lee toda la
+empresa por definición; (2) `p_mes` sin valor no tenía semántica y devolvía vacío en
+silencio, indistinguible de «no se vendió nada» — ahora vale el mes EN CURSO de Lima;
+(3) el lateral correlacionado con `exists` era redundante (una subconsulta escalar sin
+filas ya da NULL) — sustituido por dos `left join` sobre `tramos` y `crm.equipo`, que los
+tramos son disjuntos y casan uno como mucho. Se aceptó por escrito, además, que la
+precisión es de DÍA y no de hora: `fecha_cierre_comercial` es un `date`, así que con dos
+cambios el mismo día mandan el último — no es una pérdida evitable, el dato no existe.
+
+**HUECO R6 CERRADO.** `supabase/scripts/test-facturacion.sql` es el oráculo de
+ATRIBUCIÓN, que es lo que ni la matriz de RLS ni la paridad de totales pueden cazar: el
+capital del mes es idéntico se le acredite a un supervisor o a otro. Siembra un cambio de
+equipo real sobre datos del banco y termina SIEMPRE en `rollback`. Cinco casos, los cinco
+en verde contra el banco local f4 el 10/09: la venta anterior al cambio se queda con el
+supervisor de entonces; la posterior va con el nuevo; **el mutante** —borrar la historia
+hace que la venta vieja caiga al equipo de hoy, lo que demuestra que el caso 1 no pasaba
+por casualidad—; dos cambios el mismo día no duplican fila y manda el último; y sin sesión,
+cero filas. Baja el candado `trg_definir_periodo_comercial_contrato` POR SU NOMBRE (nunca
+`DISABLE TRIGGER USER`) y lo vuelve a subir. Se ejecuta con la migración ya aplicada:
+`psql "$BANCO" -v ON_ERROR_STOP=1 -f supabase/scripts/test-facturacion.sql`.
+
+Ensayo de aplicación: la migración se aplicó ENTERA en el banco local dentro de una
+transacción deshecha — `create function`, grants y postflight en verde, y la llamada sin
+sesión devolvió 0 filas (fail-closed demostrado, no argumentado). La candidata se retiró
+del banco al terminar: no queda rastro.
+
+`npm run test:rls:preflight`: NOT RUN aquí (falta `SUPABASE_URL`; el hook protege el `.env`).
