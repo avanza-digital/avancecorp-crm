@@ -1,6 +1,9 @@
 # F5 — ensayo de instalación y correcciones del 09/09/2026
 
-Estado: **verificada en banco; instalación productiva pendiente**. F3 permanece
+Estado actualizado 10/09: **instalada y verificada en producción, apagada**.
+Miguel aprobó la corrección adicional. [Acta de publicación](PUBLICACION-2026-09-10.md).
+El resto de esta nota conserva el ensayo y los pendientes que existían el 09/09.
+F3 permanece
 encendida; F4 y F5 permanecen apagadas. Las comisiones se calculan fuera del CRM.
 
 Miguel confirmó instalar el SQL F5 original y usar un banco Supabase temporal

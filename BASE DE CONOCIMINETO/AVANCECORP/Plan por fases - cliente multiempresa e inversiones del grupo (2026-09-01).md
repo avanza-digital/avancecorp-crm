@@ -18,16 +18,16 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F5 implementada; F4 publicada el 08/09/2026
+## Estado vigente — F5 instalada y apagada el 10/09/2026
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
-**F5 implementada, frontend publicado y servidor probado en banco, sin encender.**
+**F5 implementada, frontend publicado y servidor instalado y verificado, sin encender.**
 Cartera, ficha neutral y nueva inversión integradas con F4. Main y su remoto
 conservan los commits; el paquete incluye SQL exacto, tipos, frontend, función
 documental, evidencia y reversa. Miguel valoró favorablemente las pantallas y
 se completó su adaptación visual a los componentes del CRM. Acta vigente:
-[[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
+[[F5 - instalada y apagada (2026-09-10)]].
 
  Miguel confirmó que
 las comisiones se calculan fuera del sistema y no quiere ese módulo. Se excluyen
@@ -42,7 +42,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F2 — vinculación histórica inicial | Publicada | Conservar lo resuelto; recenso antes de tratar faltantes reales |
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
-| F5 — cartera y Ficha 360 | Frontend publicado; servidor ensayado, F5 apagada | VoiceOver aprobado. SQL original y banco autorizados; 46 pruebas locales y 15 remotas PASS. Correcciones de candado y descarga preparadas; falta confirmar el SQL adicional e instalar. Los 15 huecos reales bloquean el encendido. [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]] |
+| F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
@@ -429,9 +429,10 @@ visual con el CRM. El 09/09 confirmó el recorrido manual guiado de VoiceOver:
 cartera, ficha y campos del formulario de inversión Qorilazo. El alcance y los
 casos no ensayados manualmente constan en el acta de aceptación.
 El 09/09 se publicó la corrección del salto de cartera y se verificó el
-frontend del commit `baad8cf`. SQL F5 y banco temporal pendientes de confirmación;
-preflight y paquete preparados. Hay 15 fuentes sin identidad vinculada que
-bloquean el encendido. Detalle: [[F5 - prepublicacion y salto de cartera (2026-09-09)]].
+frontend del commit `baad8cf`. El 10/09 se instaló el servidor y su corrección
+autorizada desde Main `a884ac3`, con comprobación productiva y eliminación del
+banco temporal. Hay 15 fuentes sin identidad vinculada que bloquean el encendido.
+Detalle: [[F5 - instalada y apagada (2026-09-10)]].
 Las escrituras F4 y la ficha F5 permanecen apagadas en producción. Evidencia:
 [aceptación F5](../../CRM-Avance-Corp/supabase/scripts/f5/ACEPTACION.md).
 
@@ -685,20 +686,20 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 09/09/2026
+## 13. Orden inmediato — actualizado al 10/09/2026
 
 1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
    posterior de comisiones externas. No repetir pendientes ya resueltos.
-2. **F5 ensayada también en Supabase remoto:** la revisión manual está aprobada
-   y el salto de la web ya se publicó. Terminar la revisión/confirmación del SQL
-   correctivo adicional y la instalación apagada. Conservar los 65 fallos anteriores
-   del gate general como pendientes explícitos, sin etiquetarlo PASS.
-   Evidencia en [[F5 - banco remoto y correcciones de instalacion (2026-09-09)]].
+2. **F5 instalada y apagada:** revisión manual aprobada, salto corregido y SQL
+   adicional autorizado e instalado. Datos y permisos verificados; banco eliminado.
+   Conservar los 65 fallos anteriores del gate general como pendientes explícitos,
+   sin etiquetarlo PASS. Antes de encender, conciliar las 15 fuentes pendientes.
+   Evidencia en [[F5 - instalada y apagada (2026-09-10)]].
 3. Después: **F6 → F7/G6 → F8/G7 → F9/G8**: postventa, conciliación de métricas,
    piloto económico y activación progresiva con ciclo mensual completo.
 
-F3 permanece encendida según la observación previa; no hubo nuevo cambio
-productivo. La modalidad de captura de documento web sigue como decisión
+F3 permanece encendida; la instalación de F5 no cambió las banderas.
+La modalidad de captura de documento web sigue como decisión
 comercial independiente. Cierre y alcance: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 
 ## 14. Fuentes relacionadas

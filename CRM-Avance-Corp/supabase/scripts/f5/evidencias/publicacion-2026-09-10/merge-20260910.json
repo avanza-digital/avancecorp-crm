@@ -1,0 +1,21 @@
+{
+  "solicitadoEn": "2026-09-10T14:40:28.449Z",
+  "gate": {
+    "estado": "PASS",
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "commit": "a884ac3a661d6f10a32bfcb520c7288d0dfa58ea",
+    "migraciones": 266,
+    "edges": 17,
+    "capturadoEn": "2026-09-10T14:40:15.422Z",
+    "verificadoEn": "2026-09-10T14:40:22.425Z"
+  },
+  "respuesta": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true}"
+      }
+    ],
+    "isError": false
+  }
+}

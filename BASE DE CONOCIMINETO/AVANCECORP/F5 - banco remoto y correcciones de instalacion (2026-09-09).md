@@ -6,6 +6,11 @@ estado: banco-verificado-correcciones-preparadas
 
 # F5 — banco remoto y correcciones de instalación
 
+**Actualización del 10/09:** Miguel aprobó el SQL adicional; instalación y
+comprobación productiva completadas, con F5 apagada y banco eliminado.
+Estado vigente: [[F5 - instalada y apagada (2026-09-10)]].
+Lo siguiente conserva el estado histórico del ensayo del 09/09.
+
 Miguel pidió terminar todo el plan principal y confirmó instalar el SQL F5
 original y usar el banco temporal cotizado. No volver a pedir esa autorización.
 El frontend con el arreglo del salto ya está publicado; el servidor F5 todavía

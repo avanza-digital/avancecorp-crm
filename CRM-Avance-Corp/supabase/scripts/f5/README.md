@@ -1,5 +1,9 @@
 # F5 — cartera y ficha del inversionista
 
+**Instalada y verificada el 10/09/2026, con F5 apagada.**
+[Publicación y estado vigente](PUBLICACION-2026-09-10.md).
+Los comandos siguientes documentan cómo reproducir el ensayo sintético.
+
 Candidata implementada y ensayada con datos sintéticos. F5 reúne Avance,
 Qorilazo y Prodelco por persona; conserva monedas, fuentes, responsable vigente
 y documentos separados. El registro reutiliza F4, el acceso Avance y el PDF v8.

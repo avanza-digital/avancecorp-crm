@@ -1,0 +1,64 @@
+{
+  "estado": "PASS",
+  "commit": "a884ac3a661d6f10a32bfcb520c7288d0dfa58ea",
+  "objetosPreviosIdenticos": 1353,
+  "funcionesF5Exactas": 9,
+  "restriccionesF5Exactas": 4,
+  "sql": [
+    {
+      "version": "20260909165335",
+      "sentencias": 33,
+      "sha256Original": "a13c7ec388993b8cba5299d61e33d9db1cff7d148146b06cbd0cd99cdcce22e5",
+      "diferencia": "Solo separaci\u00f3n de sentencias y delimitadores; texto de cada sentencia exacto y en orden"
+    },
+    {
+      "version": "20260909171452",
+      "sentencias": 6,
+      "sha256Original": "36390b01ded88d7d1f90b8ca8036d3c864c0470df10b9673c348541d530353ab",
+      "diferencia": "Solo separaci\u00f3n de sentencias y delimitadores; texto de cada sentencia exacto y en orden"
+    }
+  ],
+  "tablasNegocioIdenticas": 14,
+  "usuariosAuthConservados": 474,
+  "banderas": {
+    "ficha_360_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false
+  },
+  "huecos": [
+    {
+      "empresa": "avance",
+      "fuentes": 13
+    },
+    {
+      "empresa": "qorilazo",
+      "fuentes": 2
+    }
+  ],
+  "capacidad": {
+    "motivo": "La cartera multiempresa a\u00fan no est\u00e1 habilitada",
+    "version": 1,
+    "habilitada": false,
+    "escritura_habilitada": false
+  },
+  "d19Sueltas": 0,
+  "edgeArchivosExactos": 2,
+  "edgesPreviasIdenticas": 17,
+  "advisors": {
+    "antes": {
+      "ERROR": 0,
+      "WARN": 178,
+      "INFO": 52
+    },
+    "seguridad": {
+      "ERROR": 0,
+      "WARN": 183,
+      "INFO": 53
+    },
+    "rendimiento": {
+      "ERROR": 0,
+      "WARN": 5,
+      "INFO": 105
+    }
+  }
+}
