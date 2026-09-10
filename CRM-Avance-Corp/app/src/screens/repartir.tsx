@@ -64,6 +64,7 @@ import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
 import { Paginacion } from '@/components/common/paginacion'
 import { paginar } from '@/lib/paginacion'
 import { hoyLimaIso } from '@/lib/distribucion-lecturas'
+import { useAuth } from '@/lib/auth-context'
 
 /** Cuántas filas se muestran por página local. Nunca se acumulan al navegar. */
 const PAGINA = 20
@@ -291,6 +292,8 @@ function useReparto() {
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
 function PanelCola() {
   const { cola, supervisores, agendaHoy, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto()
+  const { yo } = useAuth()
+  const esAdministrador = yo?.rol_portal === 'superadmin'
   // Los TILES los cuenta el servidor sobre la cola GLOBAL (F1b tanda 3); las
   // FILAS cargadas siguen gobernando lo que es de la lista: el panel vacío, el
   // «N en espera», el «X de Y», el «Mostrando…», el selector de orígenes y el
@@ -389,7 +392,11 @@ function PanelCola() {
           <SectionHead
             icon={CalendarDays}
             title="Turno de hoy"
-            right={<span className="text-[11px] font-semibold text-muted-foreground">Destino fijado por la agenda</span>}
+            right={(
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {esAdministrador ? 'Turno sugerido · admite excepción de administrador' : 'Destino fijado por la agenda'}
+              </span>
+            )}
           />
           <div className="grid border-t border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
             {(['landing', 'formulario'] as const).map((origen) => {
@@ -529,13 +536,14 @@ function PanelCola() {
                     Tab, por eso el outline-none aquí es legítimo. */}
                 {colaVisible.map((lead) => {
                   const dias = diasEnCola(lead.creado_en, ahora)
-                  const requiereTurno = origenUsaTurno(lead.origen)
-                  const asignacionTurno = requiereTurno
+                  const usaTurno = origenUsaTurno(lead.origen)
+                  const turnoObligatorio = usaTurno && !esAdministrador
+                  const asignacionTurno = usaTurno
                     ? agendaHoy?.asignaciones.find((fila) => fila.origen === lead.origen)
                     : undefined
-                  const elegido = requiereTurno
+                  const elegido = turnoObligatorio
                     ? asignacionTurno?.supervisor_id ?? ''
-                    : destino[lead.id] ?? ''
+                    : destino[lead.id] ?? asignacionTurno?.supervisor_id ?? ''
                   const enviando = enviandoIds.has(lead.id)
                   const marcado = lead.clasificacion_auto === 'posible_credito'
                   const enDescarte = descartando[lead.id] === true
@@ -649,12 +657,12 @@ function PanelCola() {
                           <div className="flex items-center gap-2">
                             <Select
                               value={elegido}
-                              disabled={enviando || requiereTurno}
+                              disabled={enviando || turnoObligatorio}
                               onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
                               aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
                             >
                               <option value="">
-                                {requiereTurno ? 'Guarda el turno de hoy…' : 'Asignar a…'}
+                                {turnoObligatorio ? 'Guarda el turno de hoy…' : 'Asignar a…'}
                               </option>
                               {elegido && !supervisores.some((s) => s.perfil_id === elegido) ? (
                                 <option value={elegido}>{asignacionTurno?.supervisor_nombre ?? 'Supervisora de turno'}</option>
@@ -692,11 +700,17 @@ function PanelCola() {
                               Descartar
                             </Button>
                           </div>
-                          {requiereTurno ? (
+                          {turnoObligatorio ? (
                             <p className={`mt-1.5 text-[11px] font-medium ${elegido ? 'text-muted-foreground' : 'text-warning-text'}`}>
                               {elegido
                                 ? `Destino bloqueado por el turno de hoy: ${asignacionTurno?.supervisor_alias ?? asignacionTurno?.supervisor_nombre}.`
                                 : 'Guarda primero el turno en Coordinación → supervisores.'}
+                            </p>
+                          ) : esAdministrador && usaTurno ? (
+                            <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                              {asignacionTurno?.supervisor_id
+                                ? `Turno sugerido: ${asignacionTurno.supervisor_alias ?? asignacionTurno.supervisor_nombre}. Como administrador puedes elegir otro destino por excepción.`
+                                : 'No hay turno guardado. Como administrador puedes elegir el destino por excepción.'}
                             </p>
                           ) : null}
                         </div>

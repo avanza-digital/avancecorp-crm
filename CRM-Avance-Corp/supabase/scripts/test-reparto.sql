@@ -3,8 +3,9 @@
 --
 -- Cubre: gate de rol de las 3 RPC, proyeccion sin PII, filtro legal de la cola,
 -- el camino feliz (bandeja + vendedor null), el veto legal P0429 con oraculo de
--- estado, turno diario obligatorio, desglose de entregas reales (incluido un
--- legado fuera de turno), destino invalido, lead fuera de cola y aislamiento.
+-- estado, turno diario obligatorio para Coordinación, excepción explícita del
+-- Superadmin, desglose de entregas reales (incluido un legado fuera de turno),
+-- destino invalido, lead fuera de cola y aislamiento.
 -- La CARRERA de reparto NO se prueba aqui (necesita dos sesiones simultaneas):
 -- la cubre testReparto de test-rls.mjs.
 
@@ -27,7 +28,7 @@ values
   ('17000000-0000-4000-8000-000000000001', 'Reparto Coordinadora', 'rep-coord@test.invalid', 'comercial', true),
   ('17000000-0000-4000-8000-000000000002', 'Reparto Supervisor', 'rep-sup@test.invalid', 'comercial', true),
   ('17000000-0000-4000-8000-000000000003', 'Reparto Vendedor', 'rep-vend@test.invalid', 'comercial', true),
-  ('17000000-0000-4000-8000-000000000004', 'Reparto Gerencia', 'rep-ger@test.invalid', 'comercial', true),
+  ('17000000-0000-4000-8000-000000000004', 'Reparto Administrador', 'rep-ger@test.invalid', 'superadmin', true),
   ('17000000-0000-4000-8000-000000000005', 'Reparto Cliente', 'rep-cliente@test.invalid', 'cliente', true),
   ('17000000-0000-4000-8000-000000000006', 'Reparto Supervisora Dos', 'rep-sup-dos@test.invalid', 'comercial', true);
 
@@ -38,6 +39,18 @@ values
   ('17000000-0000-4000-8000-000000000003', 'vendedor', '17000000-0000-4000-8000-000000000002', true),
   ('17000000-0000-4000-8000-000000000004', 'gerencia', null, true),
   ('17000000-0000-4000-8000-000000000006', 'supervisor', null, true);
+
+-- El oráculo corre después del seed obligatorio del banco. Conserva la foto
+-- previa mediante la propia RPC para verificar deltas sin asumir una rama
+-- vacía ni duplicar aquí su predicado de supervisores/analistas activos.
+select set_config('request.jwt.claim.sub', '17000000-0000-4000-8000-000000000004', true);
+create temporary table reparto_oraculo_base on commit drop as
+select
+  (general.payload->>'total_leads')::int as total_distribuidos,
+  (oficina.payload->>'total_leads')::int as total_oficina
+from (select crm.panel_distribucion_reparto() as payload) general
+cross join (select crm.panel_distribucion_reparto(p_origen := 'oficina') as payload) oficina;
+grant select on reparto_oraculo_base to authenticated;
 
 -- El seed real de la migración reconoce los nombres de producción. Este
 -- oráculo usa UUIDs aislados, por eso habilita explícitamente sus dos destinos.
@@ -107,9 +120,17 @@ begin
     raise exception 'R05 la coordinadora ve filas de crm.leads por RLS (deberia ser vacio)';
   end if;
 
-  -- Destinos disponibles: solo supervisores activos.
-  if (select count(*) from crm.supervisores_para_reparto()) <> 2 then
-    raise exception 'R06 supervisores_para_reparto no devolvio a las dos supervisoras activas';
+  -- Destinos disponibles: las dos supervisoras sintéticas deben estar. El
+  -- oráculo convive con el seed general del banco, que puede sumar más destinos.
+  if (
+    select count(*)
+    from crm.supervisores_para_reparto()
+    where perfil_id in (
+      '17000000-0000-4000-8000-000000000002',
+      '17000000-0000-4000-8000-000000000006'
+    )
+  ) <> 2 then
+    raise exception 'R06 supervisores_para_reparto no devolvio a las dos supervisoras activas del oraculo';
   end if;
 end;
 $test$;
@@ -440,10 +461,16 @@ declare
   v_referido jsonb;
   v_walking jsonb;
   v_analista jsonb;
+  v_base_total int;
+  v_base_oficina int;
 begin
+  select total_distribuidos, total_oficina
+    into v_base_total, v_base_oficina
+  from reparto_oraculo_base;
+
   v_panel := crm.panel_distribucion_reparto();
-  if coalesce((v_panel->>'total_leads')::int, -1) <> 5 then
-    raise exception 'R24a panel debio contar 5 leads activos distribuidos, devolvio %', v_panel->>'total_leads';
+  if coalesce((v_panel->>'total_leads')::int, -1) <> v_base_total + 5 then
+    raise exception 'R24a panel no sumo los 5 leads sintéticos (base %, devolvio %)', v_base_total, v_panel->>'total_leads';
   end if;
 
   if not exists (
@@ -468,7 +495,7 @@ begin
   v_walking := crm.panel_distribucion_reparto(p_origen := 'oficina');
   v_analista := crm.panel_distribucion_reparto(p_analista := '17000000-0000-4000-8000-000000000003');
   if coalesce((v_referido->>'total_leads')::int, -1) <> 1
-     or coalesce((v_walking->>'total_leads')::int, -1) <> 1 then
+     or coalesce((v_walking->>'total_leads')::int, -1) <> v_base_oficina + 1 then
     raise exception 'R24d el panel no filtró correctamente Referido y Walking';
   end if;
 
@@ -569,13 +596,73 @@ end;
 $test$;
 reset role;
 
--- ── R7: gerencia SI puede repartir (co-titular del gate) ────────────────────
+-- ── R7: el Superadmin puede registrar una excepción al turno ────────────────
 select set_config('request.jwt.claim.sub', '17000000-0000-4000-8000-000000000004', true);
+insert into crm.leads (
+  id, nombre_completo, telefono, etapa, origen, monto_estimado, moneda,
+  vendedor_id, asignado_supervisor_id, activo, no_contactar, creado_por
+)
+values (
+  '18000000-0000-4000-8000-000000000007',
+  'REPARTO SQL EXCEPCION ADMIN',
+  '999111007',
+  'nuevo',
+  'landing',
+  7000,
+  'PEN',
+  null,
+  null,
+  true,
+  false,
+  '17000000-0000-4000-8000-000000000004'
+);
+
 set local role authenticated;
 do $test$
+declare
+  v_res jsonb;
+  v_agenda jsonb;
+  v_hoy date := (statement_timestamp() at time zone 'America/Lima')::date;
 begin
   if (select count(*) from crm.leads_por_repartir()) is null then
-    raise exception 'R30 gerencia no pudo leer la cola por repartir';
+    raise exception 'R30 el administrador no pudo leer la cola por repartir';
+  end if;
+
+  -- Landing está programado para la supervisora uno. Solo el Superadmin puede
+  -- escoger la dos; la RPC lo declara como excepción y el reporte no lo oculta.
+  v_res := crm.repartir_lead(
+    '18000000-0000-4000-8000-000000000007',
+    '17000000-0000-4000-8000-000000000006'
+  );
+
+  if v_res->>'asignado_supervisor_id' <> '17000000-0000-4000-8000-000000000006'
+     or coalesce((v_res->>'excepcion_turno')::boolean, false) is not true then
+    raise exception 'R31 la excepción del administrador no quedó declarada: %', v_res;
+  end if;
+
+  v_agenda := crm.agenda_reparto_diaria(v_hoy, 1);
+  if not exists (
+    select 1
+    from jsonb_to_recordset(v_agenda->'dias') as d(fecha date, asignaciones jsonb)
+    cross join lateral jsonb_to_recordset(d.asignaciones) as a(
+      origen text, supervisor_id uuid, derivados int, fuera_turno int, entregas jsonb
+    )
+    where d.fecha = v_hoy
+      and a.origen = 'landing'
+      and a.supervisor_id = '17000000-0000-4000-8000-000000000002'
+      and a.derivados = 3
+      and a.fuera_turno = 2
+      and exists (
+        select 1
+        from jsonb_to_recordset(a.entregas) as entrega(
+          supervisor_id uuid, derivados int, coincide_turno boolean
+        )
+        where entrega.supervisor_id = '17000000-0000-4000-8000-000000000006'
+          and entrega.derivados = 2
+          and entrega.coincide_turno = false
+      )
+  ) then
+    raise exception 'R32 el reporte ocultó la excepción real del administrador';
   end if;
 end;
 $test$;
