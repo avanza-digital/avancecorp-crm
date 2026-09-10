@@ -1,0 +1,61 @@
+{
+  "fecha": "2026-09-10T23:50:06.024Z",
+  "resultado": "PASS recorrido visual de ambas cooperativas y verificación funcional posterior",
+  "entorno": "http://127.0.0.1:58321",
+  "casos": [
+    {
+      "empresa": "qorilazo",
+      "persona": "b2aa2e53-227c-41de-96a6-fee6d4cf130f",
+      "solicitud": "44f4b0ec-5329-4f3e-a4a6-12a818f04f37",
+      "inversion": "de110b47-5829-4a47-bbd1-bfaf9a54123a",
+      "origen": "671577dc-63b2-46ca-b37f-bd9c7ee48b86",
+      "montoNuevo": 750,
+      "moneda": "PEN",
+      "inversionesEnFicha": 3,
+      "capitalTotal": 3250,
+      "origenConservado": true,
+      "huellaOrigen": "8ec86222fdb9352782dc3e47f723270140841f8ddbd8dd31a530fe146e48abe9",
+      "comprobanteCoincideByteAByte": true,
+      "vinculoOrigenUnico": true,
+      "gestionReinversionUnica": true
+    },
+    {
+      "empresa": "prodelco",
+      "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+      "solicitud": "95c07bcf-efb3-402e-945a-84cf72d099f1",
+      "inversion": "44ebbf21-769d-4db1-ac6b-bbe09db3bf3e",
+      "origen": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+      "montoNuevo": 800,
+      "moneda": "PEN",
+      "inversionesEnFicha": 3,
+      "capitalTotal": 3800,
+      "origenConservado": true,
+      "huellaOrigen": "6313ad4839c9f836514300c7b23776c958b553f57c691f16708fc1a3cfafe654",
+      "comprobanteCoincideByteAByte": true,
+      "vinculoOrigenUnico": true,
+      "gestionReinversionUnica": true
+    }
+  ],
+  "ui": {
+    "ejecutor": "Miguel con guía de Codex",
+    "qorilazo": "Miguel confirmó el recorrido y resultado esperado; Codex observó la ficha con tres inversiones y S/3250.",
+    "prodelco": "Miguel respondió perfecto; Codex observó después la ficha con tres inversiones y S/3800.",
+    "seleccionArchivoRevisionYConfirmacion": "Realizadas desde el CRM; los dos comprobantes coinciden con los PNG ficticios preparados."
+  },
+  "invariantes": {
+    "inversionesPreviasConservadas": 90,
+    "cierresPreviosConservados": 47,
+    "contratosSinCambios": 49,
+    "nuevasInversiones": 2,
+    "nuevasSolicitudes": 2,
+    "authIdEmailConservados": true,
+    "personasYLeadsSinAltasNiBajas": true,
+    "banderasConservadas": true
+  },
+  "limites": [
+    "Producción no modificada.",
+    "Auth se compara por id/email, no por campos de sesión.",
+    "La idempotencia por repetición de confirmación se verificó en el ensayo híbrido anterior; aquí se comprueba unicidad sin reenviar confirmaciones.",
+    "Puntos 6–8 y aceptación global F6 pendientes."
+  ]
+}

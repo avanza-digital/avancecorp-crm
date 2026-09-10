@@ -18,6 +18,7 @@ Referencia de código F6: `b54fe94219fa516ab3824ec1be9ae756fc3144e1`.
 | Confirmar la cita | PASS | «y confirme la cita», tras preguntar expresamente por la confirmación de asistencia |
 | Identificar el selector de archivo como botón del CRM | PASS | «perfecto ahora si», tras el ajuste visual `513effa` |
 | Qorilazo: seleccionar comprobante, revisar y confirmar; tres inversiones y S/ 3.250 | PASS | «tal cual todo sale como tu me dices», respondiendo al recorrido completo y su resultado esperado |
+| Prodelco: mismo recorrido, tres inversiones y S/ 3.800 | PASS | «perfecto», tras la guía; Codex observó después la inversión nueva y los dos antecedentes en la ficha |
 
 El visto bueno de llamadas y reuniones no se atribuye a una tarea
 o identidad concreta: Miguel no confirmó su título ni su identificador. El banco
@@ -36,8 +37,9 @@ por favor». Codex ejecutó la reasignación por UI y verificó el acceso con am
 asesores. Después, ante «ok sigamos con eso como lo haras?», Codex explicó y
 ejecutó la prueba No contactar del punto 4. Ante «ok hazlo», Codex avanzó el punto 5
 con confirmaciones de reinversión desde el CRM y verificaciones de integridad.
-Miguel completó después la selección, revisión y confirmación visual de Qorilazo;
-Codex comprobó la ficha resultante. Falta ese mismo recorrido completo de Prodelco.
+Miguel completó después la selección, revisión y confirmación visual de ambas
+cooperativas. Codex comprobó las fichas y la integridad posterior en el banco.
+El punto 5 queda **PASS** dentro del alcance de la guía.
 Los puntos 6–8 permanecen pendientes:
 retiro, accesibilidad y recuperación de un envío cuya respuesta se perdió.
 
@@ -168,13 +170,34 @@ muestra el depósito `F6-UI-785E5D3B-0014-4A6A-8221-91E38235B936`, vencimiento
 10/09/2027 y botón de comprobante. Esta aceptación acredita el recorrido y el
 resultado visible; no constituye una nueva comparación de filas o hashes en DB.
 
-Prodelco queda preparado en el banco para el mismo recorrido: capital S/ 800,
+Prodelco se preparó en el banco para el mismo recorrido: capital S/ 800,
 depósito `F6-UI-433D3487-B7E4-4884-B16C-4BD73AA892CD`, vencimiento 10/09/2027 y
 referencia COMPROBANTE VISUAL F6 PRODELCO. El comprobante ficticio correspondiente
-se copió al Escritorio como `COMPROBANTE F6 PRODELCO.png`. Antes de enviar, la ficha
-muestra dos inversiones y S/ 3.000; el resultado esperado es tres y S/ 3.800.
-Solo se rellenó el formulario: selección, revisión y confirmación de este nuevo
-caso Prodelco siguen pendientes de Miguel.
+se copió al Escritorio como `COMPROBANTE F6 PRODELCO.png`. Miguel respondió
+«perfecto» tras las instrucciones. Codex observó después la ficha con tres
+inversiones y S/ 3.800: nueva de S/ 800 y antecedentes de S/ 2.000 y S/ 1.000,
+con el depósito previsto y botón de comprobante. **PASS del recorrido visual.**
+
+La comprobación funcional posterior de ambos casos encontró una solicitud
+confirmada, una inversión, un vínculo al origen y una gestión por cada operación.
+Los dos archivos almacenados coinciden byte a byte con los PNG ficticios
+preparados. Se conservaron las 90 inversiones y los 47 cierres previos íntegros,
+los 49 contratos, las identidades Auth por id/email, los IDs de personas/leads y
+las banderas. Solo se añadieron las dos solicitudes/inversiones/cierres esperados.
+La comprobación fue de lectura; no se reenviaron confirmaciones de estos dos casos.
+La prueba de idempotencia anterior conserva su evidencia independiente.
+
+[Evidencia del recorrido visual completo](manual-2026-09-10/reinversion-ui-completa-evidencia.json).
+
+## Punto 6 — preparación de solicitud de retiro
+
+Siguiente caso: inversión ORIGEN SINTETICO F6 de Prodelco por S/ 1.000, en la
+misma ficha que ahora totaliza S/ 3.800. Antes de registrar el trámite se guardó
+un snapshot privado con cantidades y huellas de filas completas: 49 contratos,
+637 cuotas de cronograma, 92 inversiones, 49 cierres y 49 depósitos reclamados.
+Hay ocho retiros anteriores que deberán conservarse. El registro, las dos
+transiciones de Gerencia, la comparación posterior y la exclusión de Directorio
+siguen pendientes; esta preparación no aprueba el punto 6.
 
 El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
 `public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar

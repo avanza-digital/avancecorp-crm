@@ -15,10 +15,11 @@ vencimientos y reinversiones de Qorilazo/Prodelco, con confirmación desde el CR
 origen conservado y sin duplicados; Avance permite abrir aumento y renovación.
 La preparación y carga de esos comprobantes fueron por API local tras el rechazo
 de la selección automática por Chrome. Miguel completó después el recorrido
-visual de Qorilazo: seleccionar archivo, Revisar y Confirmar; tres inversiones
-y S/ 3.250, con antecedentes visibles. También aprobó el nuevo aspecto del botón.
-Falta el mismo recorrido completo de Prodelco y los puntos 6–8; la aceptación
-completa también sigue pendiente. El registro y sus
+visual de Qorilazo y Prodelco: seleccionar archivo, Revisar y Confirmar; tres
+inversiones por ficha, con S/ 3.250 y S/ 3.800 respectivamente y antecedentes
+visibles. Codex verificó después los comprobantes y la conservación de registros.
+También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado; faltan los
+puntos 6–8 y la aceptación completa. El registro y sus
 límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
 
 Usar el banco sintético y usuarios de prueba;
