@@ -53,7 +53,10 @@
 --   de equipo, y el rebobinado no mueve ni un sol. Existe para el día que ocurra.
 --
 --   QUÉ SIGNIFICA UN `supervisor_anterior` NULL, Y POR QUÉ SE RESUELVE CON EL
---   EQUIPO DE HOY. Un NULL ahí no dice «no tenía jefe»: dice que el CRM todavía no
+--   EQUIPO DE HOY. Con el matiz que exigió Codex (10/09): en ese caso esto NO es
+--   reconstrucción del supervisor histórico, es IMPUTACIÓN — se rellena un dato
+--   que no consta con el mejor sustituto disponible. Donde sí hay historia, es
+--   reconstrucción exacta. Un NULL ahí no dice «no tenía jefe»: dice que el CRM todavía no
 --   guardaba jerarquía para esa persona. En un informe de dinero, «no consta» no
 --   puede dejar S/ 1 863 000 sin dueño en una fila «Sin supervisor» — se resuelve
 --   con el equipo de hoy, que es la única respuesta con sentido. Es una regla
@@ -237,9 +240,14 @@ begin
 
   -- Revocar a anon no basta: lo que hay que comprobar es que PUBLIC (grantee 0)
   -- no conserve EXECUTE.
+  -- `proacl` NULL significa PRIVILEGIOS POR DEFECTO, y para una función el
+  -- defecto incluye EXECUTE para PUBLIC. Mirar `aclexplode(proacl)` a secas
+  -- pasaría en vacío justo en el caso peligroso: hay que resolver el ACL
+  -- efectivo con `acldefault`. (Refutación de Codex, 10/09.)
   select count(*) into v_publico
   from pg_catalog.pg_proc p,
-       lateral pg_catalog.aclexplode(p.proacl) acl
+       lateral pg_catalog.aclexplode(
+         coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) acl
   where p.oid = 'crm.facturacion_diaria_fn(date)'::regprocedure
     and acl.grantee = 0;
   if v_publico > 0 then

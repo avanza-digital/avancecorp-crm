@@ -9083,7 +9083,16 @@ puede leer por esta vía a qué supervisor pertenecía alguien de otro equipo.
 
 **El supervisor es el de entonces** (decisión de Miguel, 10/09/2026), reconstruido
 rebobinando los eventos `jerarquia_actualizada` de `crm.usuario_eventos` desde
-`crm.equipo`. Validado 16/16 contra la foto sellada de agosto de 2026.
+`crm.equipo`. Donde NO consta jerarquía se imputa el equipo de hoy: en ese tramo esto
+es IMPUTACIÓN, no reconstrucción exacta — matiz que exigió Codex y que se acepta.
+
+**CORRECCIÓN de una afirmación anterior de este ledger (Codex, 2.ª vuelta).** Se dijo
+que el método estaba «validado 16/16 contra la foto sellada de agosto». La comparación
+es cierta pero **no tiene poder para demostrar el rebobinado**: de las 16 filas selladas,
+**0 tienen un supervisor distinto del equipo de hoy** (consultado en producción). Una
+implementación que ignorase la historia y usara siempre el equipo actual también daría
+16/16. Esa comparación acredita el join y la imputación, nada más. Lo que sí demuestra el
+rebobinado es el oráculo de atribución, y se demuestra matando mutantes, no razonando.
 
 **Corrección sobre una lectura previa de este ledger.** Los 5 eventos de jerarquía en
 producción NO son cambios de equipo: los 5 tienen `supervisor_anterior = null`. Tres
@@ -9135,15 +9144,41 @@ tramos son disjuntos y casan uno como mucho. Se aceptó por escrito, además, qu
 precisión es de DÍA y no de hora: `fecha_cierre_comercial` es un `date`, así que con dos
 cambios el mismo día mandan el último — no es una pérdida evitable, el dato no existe.
 
+**Segunda revisión de Codex (10/09) sobre el trabajo terminado — CHANGES_REQUESTED.**
+Aceptado y arreglado: (a) el postflight miraba `aclexplode(proacl)` a secas, y con
+`proacl` NULL —privilegios por defecto, que para una función incluyen EXECUTE a PUBLIC—
+el chequeo pasaba EN VACÍO; ahora resuelve el ACL efectivo con
+`coalesce(proacl, acldefault('f', proowner))`, y se comprobó con un mutante (crear la
+función sin el `revoke`) que ahora sí aborta; (b) el oráculo usaba `limit 1`, que acepta
+una fila buena y deja pasar otra mal atribuida, y contaba filas sin fijar la moneda, que
+forma parte del `group by` — ahora comprueba TODAS las filas del día, fija moneda y
+contrasta operaciones y capital contra los propios contratos para cazar un join que
+DUPLIQUE importes sin cambiar el número de filas; (c) el montaje elegía los contratos por
+fecha y con dos ya fechados el mismo día el segundo `update` no tocaba ninguno — ahora se
+eligen por id y se exige `row_count = 1` en cada uno; (d) se añadió el CASO 7 que pidió:
+una venta situada ENTRE dos cambios de días distintos cuyo supervisor de entonces NO es el
+equipo de hoy. Documentado, no cambiado: `ALTER TABLE ... DISABLE/ENABLE TRIGGER` toma un
+SHARE ROW EXCLUSIVE sobre `public.contratos` que dura hasta el rollback, así que el oráculo
+no debe lanzarse a la vez que un ciclo largo ajeno en el mismo banco. Rechazado con motivo:
+mantener el OR del lector global (Codex lo aceptó al conocer el contrato del Directorio).
+
 **HUECO R6 CERRADO.** `supabase/scripts/test-facturacion.sql` es el oráculo de
 ATRIBUCIÓN, que es lo que ni la matriz de RLS ni la paridad de totales pueden cazar: el
 capital del mes es idéntico se le acredite a un supervisor o a otro. Siembra un cambio de
-equipo real sobre datos del banco y termina SIEMPRE en `rollback`. Cinco casos, los cinco
-en verde contra el banco local f4 el 10/09: la venta anterior al cambio se queda con el
-supervisor de entonces; la posterior va con el nuevo; **el mutante** —borrar la historia
-hace que la venta vieja caiga al equipo de hoy, lo que demuestra que el caso 1 no pasaba
-por casualidad—; dos cambios el mismo día no duplican fila y manda el último; y sin sesión,
-cero filas. Baja el candado `trg_definir_periodo_comercial_contrato` POR SU NOMBRE (nunca
+equipo real sobre datos del banco y termina SIEMPRE en `rollback`. SIETE casos, los siete en verde
+contra el banco local f4 el 10/09: la venta anterior al cambio se queda con el supervisor
+de entonces; la posterior va con el nuevo; borrar la historia hace caer la venta vieja al
+equipo de hoy; dos cambios el mismo día no duplican fila y manda el último —con el equipo
+de hoy puesto al VIEJO a propósito, para que «gana el último» y «se cayó al equipo actual»
+den respuestas distintas—; el tramo de EN MEDIO entre dos cambios se atribuye al supervisor
+de entonces, que no es el de hoy; el fixture verifica sus propias precondiciones; y sin
+sesión, cero filas.
+
+**DOS MUTANTES MUERTOS**, que es la prueba de que el oráculo puede fallar: (1) el que
+propuso Codex —«antes del primer evento, el supervisor anterior; en cualquier otro caso, el
+equipo de hoy», que ignora todos los `supervisor_nuevo`— muere en el CASO 4; (2) «usar
+siempre el equipo de hoy» muere en el CASO 1. Ambos sobrevivían a la versión del oráculo
+que Codex revisó. Baja el candado `trg_definir_periodo_comercial_contrato` POR SU NOMBRE (nunca
 `DISABLE TRIGGER USER`) y lo vuelve a subir. Se ejecuta con la migración ya aplicada:
 `psql "$BANCO" -v ON_ERROR_STOP=1 -f supabase/scripts/test-facturacion.sql`.
 
