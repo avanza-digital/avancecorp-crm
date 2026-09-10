@@ -927,6 +927,23 @@ describe('LeadNuevo — la toma en vuelo se blinda (Codex R2/R3/R5)', () => {
 // Mutantes que deben morir: ofrecer el form en un tomable (Tomar y Recordar
 // son disjuntos), guardar sin las 09:00 de Lima, y mostrarlo a supervisión.
 describe('LeadNuevo — Recordarme revisar (F3)', () => {
+  const AHORA = Date.parse('2026-08-18T17:00:00Z')
+
+  // El fixture de enfriamiento se libera el 10/09/2026. La fecha debe seguir
+  // fija al devolver los temporizadores reales a waitFor: restaurar también
+  // Date hacía caducar el fixture según el día de ejecución. El afterEach
+  // general devuelve finalmente el reloj del sistema.
+  function usarTemporizadoresSimulados() {
+    vi.useRealTimers()
+    vi.useFakeTimers()
+    vi.setSystemTime(AHORA)
+  }
+
+  function usarTemporizadoresReales() {
+    vi.useRealTimers()
+    vi.setSystemTime(AHORA)
+  }
+
   const TOMADO = { estado: 'tomado', vendedor: 'ANA PÉREZ', tenencia_desde: null } as const
   const ENFRIAMIENTO = {
     estado: 'enfriamiento',
@@ -936,14 +953,14 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
   } as const
 
   async function precheckR(veredicto: Awaited<ReturnType<typeof verificarDisponibilidadLead>>, opciones: Parameters<typeof montar>[0] = {}) {
-    vi.useFakeTimers()
+    usarTemporizadoresSimulados()
     verificarDisponibilidad.mockResolvedValue(veredicto)
     const arnes = montar({ demo: false, ...opciones })
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.change(telefono, { target: { value: '987654321' } })
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
     return arnes
   }
 
@@ -966,15 +983,14 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
   })
 
   it('R3 (Codex): la fecha se acota a mañana…hoy+364 en Lima — espejo del tope del servidor', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(Date.parse('2026-08-18T17:00:00Z'))
+    usarTemporizadoresSimulados()
     verificarDisponibilidad.mockResolvedValue(TOMADO)
     montar({ demo: false })
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.change(telefono, { target: { value: '987654321' } })
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
 
     const fecha = screen.getByLabelText('Fecha del recordatorio')
     expect(fecha).toHaveAttribute('min', '2026-08-19')
@@ -1075,11 +1091,11 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     // El analista clica el teléfono para compararlo y sale SIN cambiar nada:
     // antes esto borraba la confirmación y el mini-form renacía «virgen»,
     // invitando a re-guardar (= reprogramar en silencio).
-    vi.useFakeTimers()
+    usarTemporizadoresSimulados()
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
 
     expect(await screen.findByText(/la campana te avisará el/)).toHaveTextContent('10 de setiembre')
     expect(guardarRecordatorio).toHaveBeenCalledTimes(1)
@@ -1092,18 +1108,17 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
 
     // Teclear el DNI invalida el veredicto (el mini-form se OCULTA hasta el
     // re-precheck del 8.º dígito) pero la fecha elegida debe SOBREVIVIR.
-    vi.useFakeTimers()
+    usarTemporizadoresSimulados()
     fireEvent.change(screen.getByLabelText('DNI'), { target: { value: '1234567' } })
     fireEvent.change(screen.getByLabelText('DNI'), { target: { value: '12345678' } })
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
 
     expect(screen.getByLabelText('Fecha del recordatorio')).toHaveValue('2026-12-01')
   })
 
   it('F3.1: cambiar el TELÉFONO sí resetea la fecha a la sugerida del contacto nuevo', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(Date.parse('2026-08-18T17:00:00Z'))
+    usarTemporizadoresSimulados()
     verificarDisponibilidad.mockResolvedValue(TOMADO)
     montar({ demo: false })
     const telefono = screen.getByLabelText('Teléfono *')
@@ -1117,7 +1132,7 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     fireEvent.change(telefono, { target: { value: '911111111' } })
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
 
     // Otro contacto = otro recordatorio: manda la sugerida (+7d de un tomado).
     expect(screen.getByLabelText('Fecha del recordatorio')).toHaveValue('2026-08-25')
@@ -1195,12 +1210,12 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
     // El analista cambia al contacto B con el guardado del A en vuelo.
-    vi.useFakeTimers()
+    usarTemporizadoresSimulados()
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.change(telefono, { target: { value: '911111111' } })
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
 
     await act(async () => {
       respuesta.rechazar(new CrmApiError('La fecha de revisión debe ser futura', 'ERROR'))
@@ -1247,12 +1262,12 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
 
     // Con el guardado del A en vuelo, el analista cambia al contacto B y su
     // precheck llega a recordable: el mini-form vuelve FRESCO para B.
-    vi.useFakeTimers()
+    usarTemporizadoresSimulados()
     const telefono = screen.getByLabelText('Teléfono *')
     fireEvent.change(telefono, { target: { value: '911111111' } })
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
-    vi.useRealTimers()
+    usarTemporizadoresReales()
     // El mini-form está FRESCO para B: deshabilitado mientras viaja el A,
     // pero SIN disfrazarse de su operación (label anclado al contacto, F3.1).
     const botonB = screen.getByRole('button', { name: /Recordarme revisar/ })
