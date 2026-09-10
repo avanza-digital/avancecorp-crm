@@ -32,9 +32,11 @@ el cambio guardado y la confirmación; no se dedujo de la mera apertura del form
 El 10/09 Miguel delegó expresamente el punto 3: «esta prueba puedes hcaerla tu
 por favor». Codex ejecutó la reasignación por UI y verificó el acceso con ambos
 asesores. Después, ante «ok sigamos con eso como lo haras?», Codex explicó y
-ejecutó la prueba No contactar del punto 4. Sigue el punto 5. Los puntos 5–8
-permanecen pendientes: reinversión, retiro, accesibilidad y recuperación de un
-envío cuya respuesta se perdió.
+ejecutó la prueba No contactar del punto 4. Ante «ok hazlo», Codex avanzó el punto 5
+con confirmaciones de reinversión desde el CRM y verificaciones de integridad.
+Falta completar su carga visual de comprobante y envío inicial del formulario:
+Chrome bloqueó el permiso de archivo. Los puntos 6–8 permanecen pendientes:
+retiro, accesibilidad y recuperación de un envío cuya respuesta se perdió.
 
 ## Punto 3 — ejecución delegada a Codex
 
@@ -96,6 +98,49 @@ las revive. [Evidencia del recorrido](manual-2026-09-10/veto-evidencia.json).
 
 No hubo cambios de código ni de producción. Es una verificación de Codex; no se
 atribuye a Miguel una aprobación visual de los casos que no ejecutó.
+
+## Punto 5 — vencimientos y reinversión, ejecución parcial de Codex
+
+**PASS funcional con recorrido UI parcial**. La falta del permiso de archivo
+en la extensión de Chrome impidió completar el envío inicial desde el formulario.
+No se presenta este tramo como aceptación visual completa ni aprobación humana.
+
+- Se crearon dos antecedentes cooperativos nuevos mediante la conversión canónica,
+  con persona, documento, lead y depósito sintéticos únicos. Ambos son de S/ 1.000
+  y vencen el 17/09/2026. Aparecieron en Vencimientos y abrieron la persona,
+  empresa y referencia de origen correctas en Reinvertir desde esta inversión.
+- El selector de comprobante fue bloqueado por Chrome: `fileChooser.setFiles`
+  devolvió `Not allowed`. Se indicó cómo habilitar el acceso a URLs de archivo;
+  no se cambió ese permiso automáticamente. Para continuar se prepararon las dos
+  solicitudes con `preparar_reinversion_fn` y se cargaron los PNG ficticios por
+  la API local de Storage. La descarga autenticada devolvió exactamente esos bytes.
+- Se retomó cada solicitud por su referencia desde el CRM. Se revisaron persona,
+  empresa, capital, fechas y depósito, y se pulsó Confirmar inversión por UI.
+  Qorilazo añadió S/ 1.500 y Prodelco S/ 2.000. Ambas fichas mostraron dos
+  inversiones: original de S/ 1.000 y nueva inversión, con comprobante disponible.
+- Repetir la confirmación mediante la RPC devolvió el mismo ID. Cada solicitud
+  tiene una inversión nueva, un vínculo de origen y una gestión de reinversión.
+  Los registros completos de los dos orígenes y las 87 inversiones del snapshot
+  anterior se conservaron. La reinversión no creó otra persona, lead ni Auth;
+  se compararon los IDs de personas/leads y los IDs/correos de Auth, no todos
+  los campos de sesión. Las banderas tampoco cambiaron.
+- Avance: Aumentar inversión abrió con F4-BASE-UPGRADE-ELEGIBLE. Como no había
+  contratos vencidos en el banco, se añadió un antecedente nuevo de S/ 1.000 al
+  cliente ficticio existente, mediante la RPC contractual canónica y cuenta
+  existente. Se ensayó primero con rollback y restricciones diferidas forzadas.
+  Su vencimiento 01/09/2026 habilitó Renovar contrato, mostrando origen, PEN y
+  capital anterior correctos. Ambos diálogos se cancelaron sin revisar ni crear
+  solicitudes. Los 48 contratos anteriores permanecieron idénticos; el nuevo
+  antecedente también se conservó tras abrir y cerrar el formulario.
+
+[Evidencia de reinversión y acciones Avance](manual-2026-09-10/reinversion-evidencia.json).
+Queda **NOT RUN** el recorrido completo de carga de archivo y envío inicial de
+Revisar inversión por UI. No hubo cambio de producto ni de producción. Los casos
+ficticios quedan disponibles en el banco para retomar la prueba.
+
+El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
+`public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar
+las reinversiones, sin repetir los antecedentes ya creados. No fue un fallo del CRM.
 
 ## Preparación del banco y alcance
 

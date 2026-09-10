@@ -10,8 +10,12 @@ por UI, acceso de ambos asesores y cola sin responsable comprobados. Esta últim
 se verificó funcionalmente en una transacción revertida, sin recorrido visual.
 Codex también ejecutó el punto 4: veto con motivo, cancelación de pendientes,
 rechazo de contactos y de levantamiento por el asesor, levantamiento por
-Gerencia y un contacto nuevo sin revivir los cancelados. Continúa el punto 5;
-la aceptación completa sigue pendiente. El registro y sus
+Gerencia y un contacto nuevo sin revivir los cancelados. En el punto 5 se verificaron
+vencimientos y reinversiones de Qorilazo/Prodelco, con confirmación desde el CRM,
+origen conservado y sin duplicados; Avance permite abrir aumento y renovación.
+La preparación y carga del comprobante fueron por API local porque Chrome bloqueó
+el selector de archivos por falta de permiso. Ese tramo visual del punto 5 y los
+puntos 6–8 siguen pendientes; la aceptación completa también. El registro y sus
 límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
 
 Usar el banco sintético y usuarios de prueba;
