@@ -1,7 +1,7 @@
 ---
 tags: [crm, coordinacion, derivaciones, diagnostico]
 fecha: 2026-09-10
-estado: solucion-local-verificada-pendiente-publicacion
+estado: solucion-verificada-en-rama-pendiente-publicacion
 ---
 
 # Derivaciones de Rosa: diagnóstico de cola vacía
@@ -70,8 +70,9 @@ La agenda del día fue guardada por Rosa a las **09:07:56**, antes de la entrada
 del lote y antes de repartir: **FORMULARIO → Carmen** y **LANDING → Jorge**. El
 primer carril se cumplió exactamente. En Landing hubo una desviación real:
 **20** terminaron en la bandeja de Carmen y solo **2** en la de Jorge. La agenda
-es informativa; la cola permite escoger manualmente cualquier supervisor y no
-impide una selección distinta al turno guardado.
+era informativa durante el incidente: la cola permitía escoger manualmente
+cualquier supervisor y el servidor no impedía una selección distinta al turno
+guardado.
 
 ## Atribución técnica del reparto LANDING → Carmen
 
@@ -200,18 +201,22 @@ ausente desde la cuenta de Coordinación.
 La corrección local elimina las dos condiciones que hicieron posible el
 incidente y mejora la evidencia visible para Coordinación:
 
-- `private.repartir_lead_implementacion` exige un turno guardado para el día de
-  Lima cuando el origen es `landing` o `formulario`. Si el destino solicitado no
-  coincide con la agenda, responde `22023` con un mensaje operativo y no mueve
-  el lead.
+- `private.repartir_lead_implementacion` exige a Coordinación un turno guardado
+  para el día de Lima cuando el origen es `landing` o `formulario`. Si Rosa u
+  otra coordinadora solicita un destino distinto, responde `22023` con un
+  mensaje operativo y no mueve el lead.
+- El **Superadmin activo** conserva la excepción requerida por negocio: puede
+  escoger cualquier supervisor, incluso sin turno o contra el destino sugerido.
+  La respuesta declara `excepcion_turno=true` y la agenda cuenta el movimiento
+  en `fuera_turno`, junto con el supervisor que realmente lo recibió.
 - El reparto toma un bloqueo compartido de la agenda del día; guardar o cambiar
   el turno toma el bloqueo exclusivo existente. Así una modificación concurrente
   del turno no puede dejar una asignación validada contra un plan que cambió a
   mitad de la operación.
-- En **Cola de nuevos**, Landing y Formulario cargan el destino desde la agenda y
-  lo muestran bloqueado. Sin turno guardado, el botón de reparto queda
-  deshabilitado. La decisión sigue siendo visible, pero ya no se puede enviar por
-  descuido al supervisor equivocado.
+- En **Cola de nuevos**, Landing y Formulario cargan el destino desde la agenda.
+  Para Coordinación el selector queda bloqueado y, sin turno, el reparto queda
+  deshabilitado. Para el Superadmin el turno se muestra como sugerencia y el
+  selector continúa habilitado para atender excepciones.
 - La primera pestaña ahora es **Coordinación → supervisores**. Cuenta el movimiento
   inmediatamente cuando Rosa entrega el lead a una bandeja, aunque Carmen o Jor
   todavía no lo hayan distribuido a analistas. Muestra el total real por origen,
@@ -223,9 +228,9 @@ incidente y mejora la evidencia visible para Coordinación:
   otro lead ya no vuelve a habilitar prematuramente el primero, por lo que se
   elimina la carrera de doble clic detectada.
 
-La migración y el frontend están preparados y verificados localmente. Todavía no
-se han publicado: producción conserva el comportamiento anterior hasta ejecutar
-el ciclo controlado de migración y despliegue.
+La migración y el frontend están preparados y verificados localmente y en una
+rama temporal de Supabase. Producción conserva el comportamiento anterior hasta
+terminar el merge controlado y el despliegue del frontend.
 
 ## Verificación y alcance
 

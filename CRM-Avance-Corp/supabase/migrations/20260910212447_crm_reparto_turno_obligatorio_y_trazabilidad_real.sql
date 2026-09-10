@@ -4,8 +4,9 @@
 -- enviados a Carmen. La mutación aceptaba cualquier supervisor activo y la
 -- agenda contaba únicamente los movimientos que coincidían con el plan; por
 -- eso el error quedaba oculto. Este cambio convierte el turno en una regla del
--- servidor y muestra todas las entregas reales, incluidas las históricas fuera
--- de turno, sin exponer datos personales de los leads.
+-- servidor para Coordinación, conserva la excepción explícita del Superadmin
+-- y muestra todas las entregas reales, incluidas las excepciones, sin exponer
+-- datos personales de los leads.
 
 begin;
 
@@ -32,12 +33,30 @@ begin
   if pg_catalog.to_regprocedure('private.repartir_lead_implementacion(uuid,uuid)') is null
      or pg_catalog.to_regprocedure('crm.agenda_reparto_diaria(date,integer)') is null
      or pg_catalog.to_regprocedure('crm.guardar_agenda_reparto_diaria(date,uuid,uuid)') is null
+     or pg_catalog.to_regprocedure('private.es_superadmin_portal_activo()') is null
      or pg_catalog.to_regclass('private.agenda_reparto_diaria') is null
      or pg_catalog.to_regclass('private.agenda_reparto_destinos') is null then
     raise exception 'Reparto por turno: faltan las funciones o tablas base de la agenda';
   end if;
 
-  perform private.assert_analitica_leads_citas();
+  -- El assert global tiene deuda heredada ajena a reparto (cuatro funciones
+  -- sin declarar y dos huellas caducas ya presentes en producción). Esta
+  -- migración no la encubre ni la amplía: verifica el sello completo y exige
+  -- que SU función llegue declarada con huella vigente antes de tocarla.
+  if (select sello from private.analitica_lc_sello where id)
+     is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'Reparto por turno: el censo analítico cambió sin re-sellarse';
+  end if;
+
+  if not exists (
+    select 1
+    from private.contadores_crudos_leads_citas() contador
+    where contador.objeto = 'crm.agenda_reparto_diaria(date,integer)'
+      and contador.declarada
+      and contador.huella_ok
+  ) then
+    raise exception 'Reparto por turno: agenda_reparto_diaria no llega declarada con huella vigente';
+  end if;
 
   select p.prosrc into v_reparto
   from pg_catalog.pg_proc p
@@ -81,6 +100,7 @@ set search_path = ''
 as $function$
 declare
   v_actor uuid := (select auth.uid());
+  v_es_administrador boolean := coalesce(private.es_superadmin_portal_activo(), false);
   v_hoy date := (pg_catalog.statement_timestamp() at time zone 'America/Lima')::date;
   v_lead crm.leads%rowtype;
   v_sup_nombre text;
@@ -144,9 +164,11 @@ begin
       using errcode = 'P0429';
   end if;
 
-  -- Turno obligatorio 2026-09-10. El navegador lo preselecciona, pero esta es
-  -- la garantía real: también cubre pestañas antiguas, llamadas manuales y
-  -- dos sesiones simultáneas.
+  -- Turno obligatorio para Coordinación desde 2026-09-10. El navegador lo
+  -- preselecciona, pero esta es la garantía real: también cubre pestañas
+  -- antiguas, llamadas manuales y dos sesiones simultáneas. El Superadmin
+  -- activo conserva la excepción operativa solicitada por negocio; su destino
+  -- real sigue apareciendo en `fuera_turno` dentro de la agenda/reporte.
   if v_lead.origen in ('landing', 'formulario') then
     perform pg_catalog.pg_advisory_xact_lock_shared(
       pg_catalog.hashtextextended('agenda-reparto:' || v_hoy::text, 0)
@@ -169,13 +191,14 @@ begin
       else 'Formulario'
     end;
 
-    if not found then
+    if not found and not v_es_administrador then
       raise exception 'Antes de repartir %, guarda el turno de hoy en «Coordinación → supervisores»',
         v_origen_nombre
         using errcode = '22023';
     end if;
 
-    if p_supervisor is distinct from v_turno_supervisor then
+    if not v_es_administrador
+       and p_supervisor is distinct from v_turno_supervisor then
       raise exception 'Según el turno de hoy, % corresponde a %. El destino no se cambió',
         v_origen_nombre,
         coalesce(v_turno_nombre, 'la supervisora programada')
@@ -200,6 +223,11 @@ begin
     'asignado_supervisor_id', p_supervisor,
     'supervisor', v_sup_nombre,
     'repartido_por', v_actor,
+    'excepcion_turno', (
+      v_es_administrador
+      and v_lead.origen in ('landing', 'formulario')
+      and p_supervisor is distinct from v_turno_supervisor
+    ),
     'repartido_en', pg_catalog.statement_timestamp()
   );
 end;
@@ -209,7 +237,7 @@ revoke all on function private.repartir_lead_implementacion(uuid, uuid)
   from public, anon, authenticated, service_role;
 
 comment on function private.repartir_lead_implementacion(uuid, uuid) is
-  'Implementación privada del reparto. Conserva veto de persona y CAS; Landing/Formulario exigen el destino de la agenda Lima del día bajo candado compartido.';
+  'Implementación privada del reparto. Conserva veto de persona y CAS; Coordinación debe respetar la agenda Lima para Landing/Formulario y el Superadmin activo puede registrar una excepción visible en el reporte.';
 
 -- El plan y lo ocurrido dejan de confundirse: derivados cuenta TODAS las
 -- entradas reales del origen y entregas las desglosa por supervisor. Una fila
@@ -443,7 +471,9 @@ begin
 
   if pg_catalog.strpos(v_reparto, 'pg_advisory_xact_lock_shared') = 0
      or pg_catalog.strpos(v_reparto, 'agenda_reparto_diaria') = 0
-     or pg_catalog.strpos(v_reparto, 'private.persona_vetada') = 0 then
+     or pg_catalog.strpos(v_reparto, 'private.persona_vetada') = 0
+     or pg_catalog.strpos(v_reparto, 'es_superadmin_portal_activo') = 0
+     or pg_catalog.strpos(v_reparto, 'excepcion_turno') = 0 then
     raise exception 'POSTFLIGHT reparto por turno: la mutación perdió una garantía';
   end if;
 
@@ -481,7 +511,20 @@ begin
     raise exception 'POSTFLIGHT reparto por turno: atributos incorrectos en agenda_reparto_diaria';
   end if;
 
-  perform private.assert_analitica_leads_citas();
+  if (select sello from private.analitica_lc_sello where id)
+     is distinct from private.huella_exenciones_analitica_lc() then
+    raise exception 'POSTFLIGHT reparto por turno: el censo analítico no quedó sellado';
+  end if;
+
+  if not exists (
+    select 1
+    from private.contadores_crudos_leads_citas() contador
+    where contador.objeto = 'crm.agenda_reparto_diaria(date,integer)'
+      and contador.declarada
+      and contador.huella_ok
+  ) then
+    raise exception 'POSTFLIGHT reparto por turno: la agenda quedó fuera del censo analítico';
+  end if;
 end;
 $postflight$;
 

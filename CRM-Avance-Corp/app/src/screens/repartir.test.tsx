@@ -13,6 +13,20 @@ const toastSuccess = vi.fn()
 const toastError = vi.fn()
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }))
 
+const authState = vi.hoisted(() => ({ esAdministrador: false }))
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({
+    yo: {
+      id: 'actor-reparto',
+      nombre_completo: authState.esAdministrador ? 'ADMINISTRADOR' : 'COORDINADORA',
+      rol: authState.esAdministrador ? 'gerencia' : 'coordinador',
+      rol_portal: authState.esAdministrador ? 'superadmin' : 'comercial',
+      demo: false,
+      puede_contratar: false,
+    },
+  }),
+}))
+
 let COLA: ColaLead[] = []
 let SUPERVISORES: SupervisorReparto[] = []
 let HISTORIAL: HistorialDerivacion[] = []
@@ -144,6 +158,7 @@ const SUP: SupervisorReparto[] = [
 ]
 
 beforeEach(() => {
+  authState.esAdministrador = false
   COLA = []
   SUPERVISORES = SUP
   HISTORIAL = []
@@ -550,6 +565,26 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText('No hay leads por repartir')).toBeInTheDocument()
     expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
     expect(colaMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('permite al administrador apartarse del turno y conserva el destino real', async () => {
+    authState.esAdministrador = true
+    COLA = [lead()]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(selector).toBeEnabled()
+    expect(selector).toHaveValue('sup-1')
+    expect(screen.getByText(/Como administrador puedes elegir otro destino por excepción/)).toBeInTheDocument()
+
+    await usuario.selectOptions(selector, 'sup-2')
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-2'))
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('SUPERVISOR DOS'))
+    expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
   })
 
   it('mantiene cada fila bloqueada hasta que termine su propia petición', async () => {
