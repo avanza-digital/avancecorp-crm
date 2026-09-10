@@ -9174,6 +9174,13 @@ den respuestas distintas—; el tramo de EN MEDIO entre dos cambios se atribuye 
 de entonces, que no es el de hoy; el fixture verifica sus propias precondiciones; y sin
 sesión, cero filas.
 
+Añadidos después: el CASO 8 recorre TODAS las identidades del banco cambiando de
+identidad como lo hace PostgREST (claim `sub`) y afirma la intención —la ven Gerencia y el
+Directorio, nadie más— en vez de copiar la condición de la función; 7 identidades, 0
+incorrectas. Ese caso ya cazó una expectativa mía equivocada: había escrito «solo
+Gerencia» y el Directorio, que es lector global, sí debe ver. El CASO 9 comprueba los
+privilegios efectivos: `anon` NO puede ejecutar, `authenticated` sí.
+
 **DOS MUTANTES MUERTOS**, que es la prueba de que el oráculo puede fallar: (1) el que
 propuso Codex —«antes del primer evento, el supervisor anterior; en cualquier otro caso, el
 equipo de hoy», que ignora todos los `supervisor_nuevo`— muere en el CASO 4; (2) «usar

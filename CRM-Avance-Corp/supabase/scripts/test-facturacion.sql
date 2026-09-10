@@ -247,7 +247,53 @@ begin
   end if;
   raise notice 'ORACULO 5 OK: sin sesion, cero filas';
 
-  raise notice '── LOS 7 ORACULOS DE ATRIBUCION PASAN ──';
+  -- ── CASO 8 — LA VERJA, IDENTIDAD POR IDENTIDAD. Se cambia de identidad como
+  --    lo hace PostgREST (claim `sub` del JWT) y se recorre TODO el equipo del
+  --    banco. La intención se escribe como afirmación —la ven Gerencia y el
+  --    Directorio, nadie más— en vez de copiar la condición de la función, que
+  --    sería tautológico.
+  declare
+    r        record;
+    v_ident  bigint := 0;
+    v_mal    bigint := 0;
+  begin
+    for r in
+      select e.perfil_id, e.rol_crm, (e.rol_crm in ('gerencia','directorio')) as deberia_ver
+      from crm.equipo e where e.activo order by e.rol_crm, e.perfil_id
+    loop
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', r.perfil_id, 'role', 'authenticated')::text, true);
+      select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
+      v_ident := v_ident + 1;
+      if (v_filas > 0) <> r.deberia_ver then
+        v_mal := v_mal + 1;
+        raise warning 'VERJA MAL: el rol % vio % filas (deberia_ver=%)', r.rol_crm, v_filas, r.deberia_ver;
+      end if;
+    end loop;
+
+    -- Un uuid que no es nadie tampoco entra.
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', '00000000-0000-4000-8000-000000000000', 'role', 'authenticated')::text, true);
+    select count(*) into v_filas from crm.facturacion_diaria_fn(v_mes);
+    v_ident := v_ident + 1;
+    if v_filas <> 0 then
+      v_mal := v_mal + 1; raise warning 'VERJA MAL: un desconocido vio % filas', v_filas;
+    end if;
+
+    if v_mal > 0 then raise exception 'ORACULO 8 FALLA: la verja se equivoca en % de % identidades', v_mal, v_ident; end if;
+    raise notice 'ORACULO 8 OK: la verja acierta en las % identidades del banco', v_ident;
+  end;
+
+  -- ── CASO 9 — privilegios efectivos de los roles de PostgREST ──────────────
+  if has_function_privilege('anon', 'crm.facturacion_diaria_fn(date)', 'execute') then
+    raise exception 'ORACULO 9 FALLA: anon puede EJECUTAR la funcion';
+  end if;
+  if not has_function_privilege('authenticated', 'crm.facturacion_diaria_fn(date)', 'execute') then
+    raise exception 'ORACULO 9 FALLA: authenticated NO puede ejecutar la funcion';
+  end if;
+  raise notice 'ORACULO 9 OK: anon no ejecuta, authenticated si';
+
+  raise notice '── LOS 9 ORACULOS DE FACTURACION PASAN ──';
 end
 $oraculo$;
 
