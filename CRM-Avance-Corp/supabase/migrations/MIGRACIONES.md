@@ -9123,8 +9123,37 @@ PUBLIC vía `aclexplode(grantee = 0)`, ámbito empujado hacia dentro del núcleo
 desempate por `ue.id` en el `row_number()`, `order by t.desde desc` en la elección del
 tramo y `moneda` antes que el importe en el orden final.
 
-**Estado: APLICADA Y VALIDADA EN LA RAMA `banco-f7` (`cwkiejoaqadcnaieghnf`) el 10/09;
-PENDIENTE de merge a producción, que solo se hace con el `!` de Miguel.**
+**Estado: EN PRODUCCIÓN desde el 10/09/2026. Registro 273.** Autorizada por Miguel en
+palabras («si tú me dices que ya es seguro pasar a producción, hagámoslo») tras explicarle
+por qué lo es: es aditiva, de solo lectura y entra DORMIDA — la pantalla aún no la llama,
+así que ni una cifra de ninguna pantalla depende hoy de ella.
+
+**NO se fusionó la rama, y no debe fusionarse.** `banco-f7` va por la migración
+`20260907093000` (226) y producción por 273: un merge la habría arrastrado hacia atrás, y
+el proyecto ya tiene documentado que la fusión de Supabase «puede mentir». Se aplicó EL
+ARCHIVO por el carril del proyecto, `npx supabase db query --linked --file`, con la
+migración y su acta en la MISMA transacción — no puede quedar aplicada sin registrar ni
+registrada sin aplicar. Antes se ensayó ese mismo fichero en el banco local con rollback.
+
+Estado verificado DESPUÉS de aplicar (no inferido): migraciones 272 → **273**; funciones de
+`crm` 210 → **211**, exactamente una más; registro `20260910230000` presente con sus **6
+sentencias**; `prosecdef` true; dueño `postgres`; `proconfig` = `search_path=""`; **cero
+privilegios de PUBLIC**; `anon` NO ejecuta, `authenticated` sí; y sin sesión, **0 filas**.
+
+**Prueba de aceptación en producción, la que importa: CUADRA CON EL NÚCLEO.** Llamada como
+Gerencia para setiembre de 2026, `contrato_nuevo`: PEN 30 operaciones / S/ 2 786 004 y USD
+3 / US$ 19 000 — idéntico, moneda a moneda, a `crm.metricas_capital_mes_fn`. 9 días con
+venta, 14 analistas, 3 supervisores, **0 filas sin supervisor**.
+
+Advisors de producción tras aplicar: 5 avisos, y el único que cita esta función es
+`authenticated_security_definer_function_executable`, que es la forma buscada y la misma de
+sus hermanas. **NO aparece** en `anon_security_definer_function_executable`.
+
+**Lo que queda:** regenerar `database.types.ts` y enganchar la pantalla (hoy sigue con el
+fixture de ejemplo y su cartel amarillo). Hasta entonces la función está en producción pero
+no la llama nadie.
+
+**Estado anterior: aplicada y validada en la rama `banco-f7`.**
 
 No se creó una rama nueva: `banco-f7` seguía viva y su `private.capital_episodios` tiene la
 huella `b8f375fbb377582835f4cfe222240c5b`, exactamente la que sellan las migraciones de
