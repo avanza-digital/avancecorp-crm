@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  AlertTriangle,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -88,8 +89,8 @@ function IconoOrigen({ origen, className }: { origen: OrigenAgendaReparto; class
 }
 
 /**
- * La cabecera operativa de Historial: Rosa decide el turno de los dos orígenes
- * que importa repartir y ve, por día, cuántos llegaron realmente a la bandeja.
+ * Reporte operativo de la primera etapa: Coordinación fija el turno y ve cada
+ * entrega real a supervisores, aunque después nadie la derive a un analista.
  */
 export function AgendaRepartoDiaria() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => fechaLima())
@@ -168,7 +169,7 @@ export function AgendaRepartoDiaria() {
   if (estado.cargando && !estado.datos) {
     return (
       <Card className="overflow-hidden">
-        <SectionHead icon={CalendarDays} title="Agenda de reparto" />
+        <SectionHead icon={CalendarDays} title="Coordinación → supervisores" />
         <PanelCargando filas={4} />
       </Card>
     )
@@ -177,7 +178,7 @@ export function AgendaRepartoDiaria() {
   if (estado.error && !estado.datos) {
     return (
       <Card className="overflow-hidden">
-        <SectionHead icon={CalendarDays} title="Agenda de reparto" />
+        <SectionHead icon={CalendarDays} title="Coordinación → supervisores" />
         <PanelError mensaje={estado.error} onReintentar={() => void cargar()} reintentando={estado.cargando} />
       </Card>
     )
@@ -190,9 +191,12 @@ export function AgendaRepartoDiaria() {
     <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.045]">
       <SectionHead
         icon={CalendarDays}
-        title="Agenda de reparto"
-        right={<span className="text-[11px] font-semibold text-muted-foreground">Landing y Formulario · Carmen y Jor</span>}
+        title="Coordinación → supervisores"
+        right={<span className="text-[11px] font-semibold text-muted-foreground">Turno y entregas reales</span>}
       />
+      <p className="px-4 pb-3 text-xs text-muted-foreground sm:px-5">
+        El conteo aumenta apenas Coordinación entrega un lead a una bandeja. No depende de que Supervisión lo reparta después a un analista.
+      </p>
 
       <div className="border-y border-border bg-background/45 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -283,6 +287,9 @@ export function AgendaRepartoDiaria() {
               const valor = esLanding ? landing : formulario
               const cambiar = esLanding ? setLanding : setFormulario
               const asignacion = esLanding ? asignacionLanding : asignacionFormulario
+              const entregas = asignacion?.entregas ?? []
+              const fueraTurno = asignacion?.fuera_turno ?? 0
+              const totalEntregado = asignacion?.derivados ?? 0
               return (
                 <section
                   key={origen}
@@ -301,7 +308,7 @@ export function AgendaRepartoDiaria() {
                       </div>
                     </div>
                     <span className="rounded-full border border-border bg-card/80 px-2 py-0.5 text-[11px] font-bold tabular-nums text-foreground">
-                      {asignacion?.derivados ?? 0} derivados
+                      {totalEntregado} {totalEntregado === 1 ? 'entregado' : 'entregados'}
                     </span>
                   </div>
                   <label className="mt-3 block text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground" htmlFor={`agenda-${origen}`}>
@@ -324,9 +331,42 @@ export function AgendaRepartoDiaria() {
                   </Select>
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     {asignacion?.supervisor_alias
-                      ? `Plan actual: ${asignacion.supervisor_alias}${asignacion.derivados > 0 ? ` · ${asignacion.derivados} ya derivados` : ''}`
+                      ? `Turno guardado: ${asignacion.supervisor_alias}`
                       : 'Aún no tiene un turno guardado.'}
                   </p>
+                  <div className="mt-3 rounded-lg border border-border/80 bg-card/70 p-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                      Entregado realmente por Coordinación
+                    </p>
+                    {entregas.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {entregas.map((entrega) => (
+                          <span
+                            key={entrega.supervisor_id ?? entrega.supervisor_nombre}
+                            className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                              entrega.coincide_turno
+                                ? 'border-primary/20 bg-primary/[0.06] text-foreground'
+                                : 'border-warning/40 bg-warning/10 text-warning-text'
+                            }`}
+                          >
+                            {entrega.supervisor_alias ?? entrega.supervisor_nombre}: {entrega.derivados}
+                          </span>
+                        ))}
+                      </div>
+                    ) : totalEntregado > 0 ? (
+                      <p className="mt-1.5 text-[11px] font-medium text-foreground">
+                        {totalEntregado} registrados. Actualiza la base para ver el desglose por destino.
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">Aún no hay entregas en este origen.</p>
+                    )}
+                    {fueraTurno > 0 ? (
+                      <p className="mt-2 flex items-start gap-1.5 text-[11px] font-semibold text-warning-text" role="status">
+                        <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
+                        {fueraTurno} {fueraTurno === 1 ? 'entrega no coincide' : 'entregas no coinciden'} con el turno guardado.
+                      </p>
+                    ) : null}
+                  </div>
                 </section>
               )
             })}

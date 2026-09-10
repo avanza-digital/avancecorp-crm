@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
-import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
 
 interface EstadoHistorial {
   paginas: HistorialDerivacion[][]
@@ -118,7 +117,6 @@ export function HistorialDerivaciones() {
 
   return (
     <div className="space-y-4">
-      <AgendaRepartoDiaria />
       <Card className="overflow-hidden">
         <SectionHead
           icon={History}
@@ -141,7 +139,7 @@ export function HistorialDerivaciones() {
             />
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Registro de distribución y traspasos. No incluye teléfono, correo ni DNI. La búsqueda se aplica a la página visible.
+            Registro individual de ambos pasos: Coordinación → supervisor y Supervisión → analista. No incluye teléfono, correo ni DNI. La búsqueda se aplica a la página visible.
           </p>
         </div>
 

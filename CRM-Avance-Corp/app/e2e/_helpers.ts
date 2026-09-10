@@ -1766,6 +1766,8 @@ export interface BackendReal {
   supervisoresReparto: Record<string, unknown>[]
   /** Entregas históricas ya agregadas por día, responsable y origen. */
   entregasCoordinacion: EntregaCoordinacionReal[]
+  /** Agenda de turnos y conteos que devuelve crm.agenda_reparto_diaria(). */
+  agendaReparto: Record<string, unknown> | null
   /**
    * C1 — si está seteado, el próximo crm.repartir_lead responde ese SQLSTATE en
    * vez de repartir (P0429 = veto legal No Insista, P0002 = fuera de cola…).
@@ -1932,6 +1934,7 @@ export async function montarBackendReal(
     descartados: init.descartados ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
     entregasCoordinacion: init.entregasCoordinacion ?? [],
+    agendaReparto: init.agendaReparto ?? null,
     fallarProximoReparto: init.fallarProximoReparto ?? null,
     fallarProximoDescarte: init.fallarProximoDescarte ?? null,
     fallarProximoDeshacer: init.fallarProximoDeshacer ?? null,
@@ -2622,6 +2625,16 @@ export async function montarBackendReal(
     }
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
       return json(route, estado.supervisoresReparto)
+    }
+    if (p === '/rest/v1/rpc/agenda_reparto_diaria' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string }
+      const desde = String(body.p_desde ?? '2026-01-01')
+      return json(route, estado.agendaReparto ?? {
+        version: 1,
+        fecha_desde: desde,
+        destinos: [],
+        dias: [],
+      })
     }
     if (p === '/rest/v1/rpc/reporte_derivaciones_coordinacion_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }

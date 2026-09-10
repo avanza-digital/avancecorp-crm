@@ -3,9 +3,10 @@
 --
 -- Cubre: gate de rol de las 3 RPC, proyeccion sin PII, filtro legal de la cola,
 -- el camino feliz (bandeja + vendedor null), el veto legal P0429 con oraculo de
--- estado, destino invalido, lead fuera de cola y el aislamiento de las
--- superficies adyacentes. La CARRERA de reparto NO se prueba aqui (necesita dos
--- sesiones simultaneas): la cubre testReparto de test-rls.mjs.
+-- estado, turno diario obligatorio, desglose de entregas reales (incluido un
+-- legado fuera de turno), destino invalido, lead fuera de cola y aislamiento.
+-- La CARRERA de reparto NO se prueba aqui (necesita dos sesiones simultaneas):
+-- la cubre testReparto de test-rls.mjs.
 
 begin;
 
@@ -55,7 +56,26 @@ values
   ('18000000-0000-4000-8000-000000000002', 'REPARTO SQL NO INSISTA', '999111002', 'nuevo', 'otro', 8000, 'PEN', null, null, true, true, '17000000-0000-4000-8000-000000000002'),
   ('18000000-0000-4000-8000-000000000003', 'REPARTO SQL CON DUENO', '999111003', 'nuevo', 'otro', 5000, 'USD', '17000000-0000-4000-8000-000000000003', null, true, false, '17000000-0000-4000-8000-000000000002'),
   ('18000000-0000-4000-8000-000000000004', 'REPARTO SQL REFERIDO', '999111004', 'nuevo', 'referido', 4000, 'PEN', '17000000-0000-4000-8000-000000000003', null, true, false, '17000000-0000-4000-8000-000000000002'),
-  ('18000000-0000-4000-8000-000000000005', 'REPARTO SQL WALKING', '999111005', 'nuevo', 'oficina', 3000, 'PEN', null, '17000000-0000-4000-8000-000000000002', true, false, '17000000-0000-4000-8000-000000000002');
+  ('18000000-0000-4000-8000-000000000005', 'REPARTO SQL WALKING', '999111005', 'nuevo', 'oficina', 3000, 'PEN', null, '17000000-0000-4000-8000-000000000002', true, false, '17000000-0000-4000-8000-000000000002'),
+  -- Evidencia heredada anterior al candado: Landing terminó en la supervisora
+  -- dos. La agenda nueva debe mostrarla, aunque no coincida con el turno.
+  ('18000000-0000-4000-8000-000000000006', 'REPARTO SQL LEGADO FUERA TURNO', '999111006', 'nuevo', 'landing', 3500, 'PEN', null, '17000000-0000-4000-8000-000000000006', true, false, '17000000-0000-4000-8000-000000000002');
+
+insert into crm.actividades (
+  id, lead_id, tipo, detalle, metadata, creado_por, creado_en
+)
+values (
+  '19000000-0000-4000-8000-000000000001',
+  '18000000-0000-4000-8000-000000000006',
+  'reasignacion',
+  'Sonda de entrega heredada fuera del turno',
+  jsonb_build_object(
+    'movimiento', 'entra_bandeja',
+    'supervisor_nuevo', '17000000-0000-4000-8000-000000000006'
+  ),
+  '17000000-0000-4000-8000-000000000001',
+  statement_timestamp()
+);
 
 -- ── R1: la coordinadora ve la cola, sin PII y sin el lead No Insista ─────────
 select set_config('request.jwt.claim.sub', '17000000-0000-4000-8000-000000000001', true);
@@ -219,15 +239,26 @@ begin
     select 1
     from jsonb_to_recordset(v_agenda->'dias') as d(fecha date, asignaciones jsonb)
     cross join lateral jsonb_to_recordset(d.asignaciones) as a(
-      origen text, supervisor_id uuid, supervisor_alias text, derivados int
+      origen text, supervisor_id uuid, supervisor_alias text, derivados int,
+      fuera_turno int, entregas jsonb
     )
     where d.fecha = v_hoy
       and a.origen = 'landing'
       and a.supervisor_id = '17000000-0000-4000-8000-000000000002'
       and a.supervisor_alias = 'Carmen'
-      and a.derivados = 0
+      and a.derivados = 1
+      and a.fuera_turno = 1
+      and exists (
+        select 1
+        from jsonb_to_recordset(a.entregas) as entrega(
+          supervisor_id uuid, derivados int, coincide_turno boolean
+        )
+        where entrega.supervisor_id = '17000000-0000-4000-8000-000000000006'
+          and entrega.derivados = 1
+          and entrega.coincide_turno = false
+      )
   ) then
-    raise exception 'R17b Landing no quedo programado para Carmen';
+    raise exception 'R17b Landing no mostró el turno y la entrega real fuera de turno';
   end if;
 
   if exists (
@@ -236,6 +267,29 @@ begin
     where d.fila::text ~* 'telefono|correo|dni|nota|nombre_completo'
   ) then
     raise exception 'R17c la agenda expuso PII de leads';
+  end if;
+
+  begin
+    perform crm.repartir_lead(
+      '18000000-0000-4000-8000-000000000001',
+      '17000000-0000-4000-8000-000000000006'
+    );
+    raise exception 'R17f se pudo repartir Landing contra el turno guardado';
+  exception
+    when others then
+      v_sqlstate := SQLSTATE;
+      if v_sqlstate <> '22023' then
+        raise exception 'R17g reparto contra turno devolvio % en vez de 22023', v_sqlstate;
+      end if;
+  end;
+
+  if exists (
+    select 1
+    from crm.leads
+    where id = '18000000-0000-4000-8000-000000000001'
+      and (asignado_supervisor_id is not null or vendedor_id is not null)
+  ) then
+    raise exception 'R17h el rechazo contra turno movio el lead';
   end if;
 
   begin
@@ -325,8 +379,8 @@ begin
     where lead_id = '18000000-0000-4000-8000-000000000001'
       and movimiento = 'entra_bandeja'
       and responsable_anterior = 'Sin asignar'
-      and responsable_nuevo = 'Bandeja de Reparto Supervisor'
-      and derivado_por_nombre = 'Reparto Coordinadora'
+      and responsable_nuevo = 'Bandeja de REPARTO SUPERVISOR'
+      and derivado_por_nombre = 'REPARTO COORDINADORA'
   ) then
     raise exception 'R23 el historial no devolvió la derivación a la bandeja';
   end if;
@@ -339,8 +393,7 @@ begin
     raise exception 'R24 el historial expuso una columna de contacto o nota';
   end if;
 
-  -- La derivación de Landing ocurrió antes de que Rosa alcanzara a registrar
-  -- el turno. El primer guardado de hoy debe ser posible para dejarlo asentado.
+  -- Repetir el mismo turno después de las entregas es idempotente.
   perform crm.guardar_agenda_reparto_diaria(
     v_hoy,
     '17000000-0000-4000-8000-000000000002',
@@ -364,12 +417,13 @@ begin
     select 1
     from jsonb_to_recordset(v_agenda->'dias') as d(fecha date, asignaciones jsonb)
     cross join lateral jsonb_to_recordset(d.asignaciones) as a(
-      origen text, supervisor_id uuid, derivados int
+      origen text, supervisor_id uuid, derivados int, fuera_turno int
     )
     where d.fecha = v_hoy
       and a.origen = 'landing'
       and a.supervisor_id = '17000000-0000-4000-8000-000000000002'
-      and a.derivados = 1
+      and a.derivados = 2
+      and a.fuera_turno = 1
   ) then
     raise exception 'R24b la agenda no reflejo la derivacion real de Landing';
   end if;
@@ -388,8 +442,8 @@ declare
   v_analista jsonb;
 begin
   v_panel := crm.panel_distribucion_reparto();
-  if coalesce((v_panel->>'total_leads')::int, -1) <> 4 then
-    raise exception 'R24a panel debio contar 4 leads activos distribuidos, devolvio %', v_panel->>'total_leads';
+  if coalesce((v_panel->>'total_leads')::int, -1) <> 5 then
+    raise exception 'R24a panel debio contar 5 leads activos distribuidos, devolvio %', v_panel->>'total_leads';
   end if;
 
   if not exists (

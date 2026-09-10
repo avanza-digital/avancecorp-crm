@@ -213,7 +213,7 @@ export function ReporteDiarioDerivaciones() {
     <Card className="overflow-hidden border-primary/15 shadow-[0_18px_45px_-38px_rgba(17,30,61,0.9)]">
       <SectionHead
         icon={CalendarDays}
-        title="Entregas por fecha, analista y origen"
+        title="Supervisión → analistas"
         right={estado.cargando ? (
           <span className="text-[11px] font-semibold text-muted-foreground" role="status">
             Actualizando…
@@ -221,7 +221,7 @@ export function ReporteDiarioDerivaciones() {
         ) : undefined}
       />
       <p className="px-5 pb-3 text-xs text-muted-foreground">
-        Revisa cuánto recibió cada analista y de qué fuente provino. Los conteos salen del historial de entregas.
+        Revisa cuánto entregó cada supervisor a sus analistas y de qué fuente provino. Este conteo corresponde a la segunda etapa.
       </p>
 
       <ControlesPeriodoDerivaciones

@@ -9032,3 +9032,23 @@ Frontend publicado desde `b54fe942`; banco temporal eliminado. Ver
 `supabase/scripts/f6/PUBLICACION-2026-09-10.md`: fuentes comerciales preservadas,
 tarea legacy concurrente identificada y huella integral Auth no acreditada igual.
 No se activa F4/F5/F6, no se concilian identidades reales ni se calculan comisiones.
+
+## 20260910201500 — Reparto conforme al turno y trazabilidad real de Coordinación (propuesta)
+
+`20260910201500_crm_reparto_turno_obligatorio_y_trazabilidad_real.sql` cierra el
+incidente del 10/09 en el que Landing estaba programado para Jor, pero 20 leads
+terminaron en Carmen y la agenda no los mostraba. `repartir_lead` exige ahora que
+Landing/Formulario tengan turno guardado y que el destino solicitado coincida;
+un candado compartido permite repartos concurrentes y los serializa frente a
+una edición de la agenda.
+
+La lectura semanal conserva el contrato v1 y añade el desglose real por
+supervisor y `fuera_turno`. `derivados` pasa a contar todas las entradas de
+Coordinación del origen, incluso las históricas que contradigan el plan. No
+expone PII. La migración recertifica `crm.agenda_reparto_diaria(date,integer)` y
+renueva en la misma transacción el sello de `analitica_leads_citas_exenciones`.
+
+**Estado: propuesta local, no publicada.** Se publica SQL antes que la interfaz;
+el frontend tolera temporalmente la respuesta anterior. El oráculo
+`supabase/scripts/test-reparto.sql` cubre rechazo atómico contra el turno y la
+visibilidad de una entrega heredada fuera del plan.

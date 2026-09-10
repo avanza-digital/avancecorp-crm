@@ -88,8 +88,19 @@ const AGENDA_REPARTO = {
   dias: [{
     fecha: '2026-08-19',
     asignaciones: [
-      { origen: 'landing', supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: '12' },
-      { origen: 'formulario', supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO', supervisor_alias: 'Jor', derivados: 8 },
+      {
+        origen: 'landing', supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO',
+        supervisor_alias: 'Carmen', derivados: '12', fuera_turno: '2',
+        entregas: [
+          { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: '10', coincide_turno: true },
+          { supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO', supervisor_alias: 'Jor', derivados: 2, coincide_turno: false },
+        ],
+      },
+      {
+        origen: 'formulario', supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO',
+        supervisor_alias: 'Jor', derivados: 8, fuera_turno: 0,
+        entregas: [{ supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO', supervisor_alias: 'Jor', derivados: 8, coincide_turno: true }],
+      },
     ],
   }],
 }
@@ -361,7 +372,16 @@ describe('agendaRepartoDiaria (msw)', () => {
       destinos: [{ alias: 'Carmen' }, { alias: 'Jor' }],
       dias: [{
         fecha: '2026-08-19',
-        asignaciones: [{ origen: 'landing', derivados: 12 }, { origen: 'formulario', derivados: 8 }],
+        asignaciones: [
+          {
+            origen: 'landing', derivados: 12, fuera_turno: 2,
+            entregas: [
+              { supervisor_alias: 'Carmen', derivados: 10, coincide_turno: true },
+              { supervisor_alias: 'Jor', derivados: 2, coincide_turno: false },
+            ],
+          },
+          { origen: 'formulario', derivados: 8, fuera_turno: 0 },
+        ],
       }],
     })
     expect(cuerpo).toEqual({ p_desde: '2026-08-17', p_dias: 7 })

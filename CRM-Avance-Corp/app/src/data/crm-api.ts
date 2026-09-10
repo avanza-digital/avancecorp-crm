@@ -951,12 +951,24 @@ const DestinoAgendaRepartoSchema = v.object({
   alias: v.string(),
 })
 
+const EntregaAgendaRepartoSchema = v.object({
+  supervisor_id: v.nullable(v.string()),
+  supervisor_nombre: v.string(),
+  supervisor_alias: v.nullable(v.string()),
+  derivados: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  coincide_turno: v.boolean(),
+})
+
 const AsignacionAgendaRepartoSchema = v.object({
   origen: OrigenAgendaRepartoSchema,
   supervisor_id: v.nullable(v.string()),
   supervisor_nombre: v.nullable(v.string()),
   supervisor_alias: v.nullable(v.string()),
   derivados: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  // Opcionales solo para una publicación compatible SQL → UI. La nueva RPC
+  // siempre los sirve; el frontend anterior puede ignorarlos sin caerse.
+  fuera_turno: v.optional(v.pipe(v.union([v.number(), v.string()]), v.transform(Number))),
+  entregas: v.optional(v.array(EntregaAgendaRepartoSchema)),
 })
 
 const DiaAgendaRepartoSchema = v.object({
