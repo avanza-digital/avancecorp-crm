@@ -11,7 +11,8 @@ const sql=(texto,transaccion=false)=>run(['psql','-X','-qAt','-U','postgres','-d
 const funciones=()=>JSON.parse(sql(`select jsonb_agg(jsonb_build_object('firma',p.oid::regprocedure::text,'md5',md5(pg_get_functiondef(p.oid)),'acl',p.proacl,'propietario',p.proowner) order by p.oid::regprocedure::text)
  from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','crm','private') and p.prokind='f'`));
 const fuentes=()=>Object.fromEntries(['public.contratos','public.cronograma_pagos','crm.inversiones','crm.cierres_externos','crm.depositos_reclamados','crm.inversion_solicitudes','crm.inversionistas','crm.inversionista_identificadores','crm.leads','crm.tareas','auth.users'].map(tabla=>[tabla,sql(`select md5(coalesce(string_agg((to_jsonb(t)${tabla==='crm.tareas'?"-'inversionista_id'-'postventa_revision'":''})::text,'' order by (to_jsonb(t)${tabla==='crm.tareas'?"-'inversionista_id'-'postventa_revision'":''})::text),'')) from ${tabla} t`)]));
-const archivos=['20260908230249_crm_f5_cartera_ficha_multiempresa.sql','20260909170900_crm_f5_candado_estado_cartera.sql','20260910150039_crm_f6_postventa_persona.sql'];
+const archivos=['20260908230249_crm_f5_cartera_ficha_multiempresa.sql','20260909170900_crm_f5_candado_estado_cartera.sql','20260910150039_crm_f6_postventa_persona.sql',
+ '20260910190000_crm_f6_conflicto_http_sin_reintento.sql','20260910191000_crm_f6_consulta_conflicto_http.sql'];
 const textos=archivos.map(a=>readFileSync(new URL(`../../migrations/${a}`,import.meta.url),'utf8'));
 const hash=x=>createHash('sha256').update(x).digest('hex');
 run(['psql','-X','-qAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`create database ${db} template template0`]);
@@ -22,9 +23,11 @@ try {
  const antes=fuentes(),defs=funciones(),flags=sql('select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags');
  const admitidas=new Set(['private.trg_tareas_destino_efectivo()','private.agenda_ics_feed_implementacion(uuid,timestamp with time zone)',
  'crm.marcar_no_contactar(uuid,text)','private.inversion_solicitud_resultado(uuid,jsonb)','crm.inversionista_ficha_fn(uuid,integer,integer)',
- 'crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamp with time zone,uuid)']);
+ 'crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamp with time zone,uuid)',
+ 'crm.confirmar_inversion_revisada_fn(uuid,integer)','crm.revisar_solicitud_inversion_fn(uuid,uuid,integer,text)',
+ 'crm.corregir_solicitud_inversion_fn(uuid,uuid,integer,jsonb,text)','crm.solicitud_inversion_fn(uuid)']);
  writeFileSync(`${banco}/f6-funciones-base.json`,JSON.stringify(defs,null,2)+'\n',{mode:0o600});
- sql(textos[2]);
+ for(const texto of textos.slice(2))sql(texto);
  const actuales=new Map(funciones().map(f=>[f.firma,f]));
  for(const def of defs){const ahora=actuales.get(def.firma);assert.ok(ahora,def.firma);assert.deepEqual(ahora.acl,def.acl,`ACL ${def.firma}`);assert.equal(ahora.propietario,def.propietario);
   if(!admitidas.has(def.firma))assert.equal(ahora.md5,def.md5,`Función ajena modificada: ${def.firma}`);

@@ -2,7 +2,8 @@
 
 **Implementada y ensayada localmente. SQL F6 no instalado en producción.**
 La instalación crea `postventa_neutral=false`; no enciende F4, F5 ni el piloto.
-La aprobación del 10/09 correspondió a la instalación F5, ya completada.
+Miguel autorizó también la publicación F6 apagada. El ensayo remoto detectó el
+bucle de reintentos `40001` de PostgREST 14; se corrige antes de publicar.
 
 ## Resultado
 
@@ -27,6 +28,10 @@ La aprobación del 10/09 correspondió a la instalación F5, ya completada.
   auditoría, doce RPC nuevas y seis integraciones con funciones existentes.
   No altera objetos `public`, fuentes financieras, Auth o inversiones históricas.
   SHA-256: `b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd`.
+- Correctivas [HTTP 409](../../migrations/20260910190000_crm_f6_conflicto_http_sin_reintento.sql)
+  y [consulta de recuperación](../../migrations/20260910191000_crm_f6_consulta_conflicto_http.sql):
+  traducen `40001` a `PT409` en las fronteras F6 y sus cuatro trámites F4. Conservan
+  el rollback, las firmas y ACL; F4 ordinaria conserva su contrato. Requieren OFF.
 - [Reversa operativa](reversa-operativa.sql): apaga únicamente F6. Conserva datos,
   recibos e historia; la sincronización de identidad/responsable sigue operativa.
 - [Base productiva leída el 10/09](base-productiva-2026-09-10.json): las seis huellas
@@ -49,7 +54,11 @@ No ejecutar estos scripts contra personas o dinero reales.
 Desde `CRM-Avance-Corp`, con F4/F5 y F6 instaladas en ese banco:
 
 ```sh
-node --test --test-concurrency=1 supabase/scripts/f6/postventa.test.mjs supabase/scripts/f6/reinversion.test.mjs supabase/scripts/f6/integridad.test.mjs supabase/scripts/f6/concurrencia.test.mjs supabase/scripts/f6/revision.test.mjs
+node --test supabase/scripts/f6/postventa.test.mjs
+node --test supabase/scripts/f6/reinversion.test.mjs
+node --test supabase/scripts/f6/integridad.test.mjs
+node --test supabase/scripts/f6/concurrencia.test.mjs
+node --test supabase/scripts/f6/revision.test.mjs
 node supabase/scripts/f6/replay-local.mjs
 node supabase/scripts/f5/verificar-banco.mjs
 npm run check:scripts
@@ -58,13 +67,16 @@ npm run test:rls:preflight
 npm run test:edge-preflight
 ```
 
-Los tests usan Auth, PostgREST y Postgres reales del banco local. Corren en serie
+Los 43 tests usan Auth, PostgREST y Postgres reales. El banco remoto usa las mismas
+aserciones, cambiando únicamente transporte SQL/HTTP y fixtures ficticios.
+Se ejecutan en el orden mostrado: integridad utiliza el recibo creado en postventa.
+Corren en serie
 porque comparten banderas/fixtures; las carreras internas sí usan sesiones SQL
 simultáneas. `finally` restaura banderas; los ensayos transaccionales hacen rollback.
 Los antecedentes ficticios de otros casos se conservan en este banco descartable.
 
 `replay-local.mjs` restaura `base-sintetica.dump` en una base nueva dentro del
-contenedor, aplica las dos migraciones F5 y luego F6, compara funciones/ACL/datos,
+contenedor, aplica las dos migraciones F5 y luego los tres archivos F6, compara funciones/ACL/datos,
 prueba la reversa y elimina esa copia en `finally`. No hace replay global del
 ledger ni cambia la base HTTP que utiliza el navegador.
 
@@ -105,8 +117,8 @@ cuando alcanza el tope. Los vencimientos tienen paginación propia de 25 filas.
 3. Publicar primero el frontend compatible: tolera F6 ausente exclusivamente
    mediante `PGRST202`, sin ocultar errores distintos. Con F6 apagada mantiene
    el circuito anterior.
-4. Volver a comprobar el padre y el commit antes del merge. Instalar solo esta
-   migración mediante merge de branch; no `apply_migration` directo, `db push`,
+4. Volver a comprobar el padre y el commit antes del merge. Instalar sólo los tres
+   archivos F6 mediante merge de branch; no `apply_migration` directo, `db push`,
    reparación del historial ni replay indiscriminado.
 5. Verificar objetos reales, ACL, RLS, banderas OFF, fuentes, Auth e identidades.
    Archivar evidencia y eliminar el banco remoto temporal. La activación necesita

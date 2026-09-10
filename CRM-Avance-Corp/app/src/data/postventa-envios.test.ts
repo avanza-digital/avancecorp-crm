@@ -44,6 +44,20 @@ describe('recuperación F6', () => {
     await expect(ejecutarEnvioPostventa(actor, 'agendar', persona, parametros)).rejects.toThrow()
     expect(leerEnvioPostventa(actor, 'agendar', persona)).toBeNull()
   })
+  it('un conflicto HTTP 409 del primer intento permite reintentar con datos nuevos', async () => {
+    api.agendar.mockRejectedValueOnce(new CrmApiError('Vuelve a intentarlo', 'PT409'))
+    await expect(ejecutarEnvioPostventa(actor, 'agendar', persona, parametros)).rejects.toThrow()
+    expect(leerEnvioPostventa(actor, 'agendar', persona)).toBeNull()
+    await ejecutarEnvioPostventa(actor, 'agendar', persona, parametros)
+    expect(api.agendar).toHaveBeenCalledTimes(2)
+  })
+  it('un conflicto HTTP 409 tras un corte conserva la clave del resultado desconocido', async () => {
+    api.agendar.mockRejectedValueOnce(new Error('Corte')).mockRejectedValueOnce(new CrmApiError('Vuelve a intentarlo', 'PT409'))
+    await expect(ejecutarEnvioPostventa(actor, 'agendar', persona, parametros)).rejects.toThrow()
+    const clave = leerEnvioPostventa(actor, 'agendar', persona)!.clave
+    await expect(ejecutarEnvioPostventa(actor, 'agendar', persona)).rejects.toThrow()
+    expect(leerEnvioPostventa(actor, 'agendar', persona)?.clave).toBe(clave)
+  })
   it('otro formulario no sustituye ni repite a ciegas un envío con diferente contenido', async () => {
     api.agendar.mockRejectedValueOnce(new Error('Corte'))
     await expect(ejecutarEnvioPostventa(actor, 'agendar', persona, parametros)).rejects.toThrow()

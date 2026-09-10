@@ -9006,3 +9006,24 @@ exactas y las otras dieciséis funciones sin cambios. Release
 `crm-20260909T171132Z-8ccb0ca14fcf`: 80/80 archivos verificados en Hostinger,
 login público sin errores y CI del commit PASS. No se aplicaron otras migraciones
 locales pendientes como parte de esta publicación.
+
+## 20260910190000 y 20260910191000 — F6: conflicto HTTP sin reintentos automáticos
+
+Dos correctivas posteriores al SQL F6 inicial, que permanece intacto. El ensayo
+alojado reprodujo reintentos de PostgREST 14 ante `40001`: una tarea bloqueada
+agotaba 30 segundos. Las fronteras F6 devuelven ahora `PT409`/HTTP 409 después del
+rollback completo; la misma reproducción respondió en 223 ms.
+
+Se modifican sólo 19 cuerpos, con huellas previas obligatorias. No hay firmas,
+ACL, propietarios, tablas, datos ni configuración nuevos. Agenda/ficha conservan
+su degradación acotada. Confirmar, revisar, corregir y consultar solicitudes F4
+traducen el conflicto únicamente cuando tienen origen F6; la operación ordinaria
+conserva su contrato. La sincronización y el trigger de origen cubren llamadas
+heredadas. El cliente conserva la clave tras resultados desconocidos.
+
+Estado: ensayadas en branch remoto, **pendientes de merge productivo**. PASS:
+43 pruebas F6 reales, 19 cuerpos exactos y 1.401 objetos restantes idénticos,
+reversa, replay (564 funciones previas, diez extensiones previstas, ACL/owner y
+datos/Auth intactos), frontend 3.182 tests y siete recorridos F6. Matriz general
+inicial sin regresiones, con 45 fallos previos; repetición tras correctivas en curso.
+No se activa F4/F5/F6, no se concilian identidades reales ni se calculan comisiones.

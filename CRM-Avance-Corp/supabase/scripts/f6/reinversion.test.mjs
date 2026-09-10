@@ -11,7 +11,7 @@ test('F6: reinversión mantiene origen e idempotencia y conserva autores/capital
   const llamar=(n,d,rol=token)=>rpc(n,d,rol);
   const flags=JSON.parse(sql('select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags'));
   const lead=randomUUID(),documento=`92${String(randomInt(1000000)).padStart(6,'0')}`;
-  let persona,origen,confirmada,entrada;
+  let persona,origen,confirmada,entrada,ordinaria;
   const datos=id=>({inversionista_id:persona,empresa:'qorilazo',monto:1500,moneda:'PEN',
     fecha_comercial:new Date().toISOString().slice(0,10),vence_en:'2027-09-10',numero_transaccion:`F6-${id}`,
     referencia:'Depósito sintético F6',evidencia:{ruta:`${persona}/${id}/comprobante.png`}});
@@ -37,8 +37,41 @@ test('F6: reinversión mantiene origen e idempotencia y conserva autores/capital
     });
     await t.test('solicitud ordinaria nunca adquiere un origen retroactivo',async()=>{
       const id=randomUUID(),d=datos(id);ok(await llamar('preparar_inversion_fn',{p_clave:id,p_datos:d}));
+      ordinaria=id;
       rechazar(await llamar('preparar_reinversion_fn',{p_clave:id,p_fuente:origen,p_datos:d}),'P0409');
       assert.equal(sql(`select count(*) from crm.inversion_solicitud_origenes where solicitud_id=${q(id)}`),'0');
+    });
+    await t.test('revisión obsoleta F6 responde HTTP 409 sin reintentos ni cambios parciales',async()=>{
+      const antes=sql(`select to_jsonb(s) from crm.inversion_solicitudes s where id=${q(entrada.p_clave)}`);
+      const inicio=Date.now();
+      for(const [nombre,parametros] of [
+        ['revisar_solicitud_inversion_fn',{p_solicitud:entrada.p_clave,p_responsable_revisado:f.usuarios.vendedor.id,p_revision_esperada:7,p_motivo:'Revisión obsoleta sintética'}],
+        ['corregir_solicitud_inversion_fn',{p_solicitud:entrada.p_clave,p_clave:randomUUID(),p_revision_datos_esperada:7,p_datos:entrada.p_datos,p_motivo:'Corrección obsoleta sintética'}],
+        ['confirmar_inversion_revisada_fn',{p_solicitud:entrada.p_clave,p_revision_datos_esperada:7}],
+      ]){const r=await llamar(nombre,parametros);rechazar(r,'PT409');assert.equal(r.status,409);}
+      assert.ok(Date.now()-inicio<10000,'Las revisiones obsoletas no deben entrar en reintentos automáticos');
+      assert.equal(sql(`select to_jsonb(s) from crm.inversion_solicitudes s where id=${q(entrada.p_clave)}`),antes);
+      assert.equal(sql(`select count(*) from crm.inversion_solicitud_revisiones where solicitud_id=${q(entrada.p_clave)}`),'0');
+      assert.equal(sql(`select count(*) from crm.inversion_solicitud_correcciones where solicitud_id=${q(entrada.p_clave)}`),'0');
+    });
+    await t.test('consulta F6 traduce el conflicto heredado; F4 ordinaria conserva 40001',async()=>{
+      // Inyección transaccional en el banco: sólo cambia la dependencia durante
+      // estas llamadas SQL; el rollback restaura su cuerpo, ACL y configuración.
+      const firma='private.inversion_persona_autorizada(uuid)';
+      const antes=sql(`select md5(pg_get_functiondef(${q(firma)}::regprocedure))`);
+      sql(`begin;
+        do $inyeccion$ declare d text;b text;begin
+          select pg_get_functiondef(oid),prosrc into d,b from pg_proc where oid=${q(firma)}::regprocedure;
+          execute replace(d,b,'begin raise exception using errcode=''40001'',message=''Conflicto sintético de identidad''; end;');
+        end $inyeccion$;
+        set local role authenticated;
+        select set_config('request.jwt.claims',${q(JSON.stringify({sub:f.usuarios.vendedor.id,role:'authenticated'}))},true);
+        do $ensayo$ begin
+          begin perform crm.solicitud_inversion_fn(${q(entrada.p_clave)});raise exception 'Falta conflicto F6';exception when sqlstate 'PT409' then null;end;
+          begin perform crm.solicitud_inversion_fn(${q(ordinaria)});raise exception 'Cambió el contrato ordinario F4';exception when serialization_failure then null;end;
+        end $ensayo$;
+        rollback;`);
+      assert.equal(sql(`select md5(pg_get_functiondef(${q(firma)}::regprocedure))`),antes);
     });
     await t.test('confirmar con comprobante produce una sola inversión nueva y traza la anterior',async()=>{
       await subir(entrada.p_datos);

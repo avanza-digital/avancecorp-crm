@@ -6,7 +6,7 @@ import {once} from 'node:events';
 import {como,contenedor,http,leer,literal as q,rpc,sql} from '../f5/banco-local.mjs';
 
 const ok=(r)=>{assert.equal(r.ok,true,`${r.status}: ${JSON.stringify(r.data)}`);return r.data;};
-const rechazo=(r,codigo)=>{assert.equal(r.ok,false,JSON.stringify(r.data));assert.equal(r.data.code,codigo,JSON.stringify(r.data));};
+const rechazo=(r,codigo)=>{assert.equal(r.ok,false,JSON.stringify(r.data));assert.equal(r.data.code,codigo,JSON.stringify(r.data));if(codigo==='PT409')assert.equal(r.status,409);};
 const fecha=(dias=1)=>new Date(Date.now()+dias*86400000).toISOString();
 const resumenFinanciero=()=>JSON.stringify(['public.contratos','public.cronograma_pagos','crm.inversiones','crm.cierres_externos','crm.depositos_reclamados'].map(tabla=>({tabla,huella:sql(`select md5(coalesce(string_agg(to_jsonb(t)::text,'' order by to_jsonb(t)::text),'')) from ${tabla} t`)})));
 async function bloquear(consulta) {
@@ -29,6 +29,7 @@ test('F6: agenda, ámbito, veto y retiros administrativos sin modificar dinero',
   const lead=sql(`select x from private.leads_de_persona_veto(${q(persona)}) x limit 1`);
   const llamar=(nombre,datos={},rol='vendedor')=>rpc(nombre,datos,tokens[rol]);
   const agendar=(tipo='llamada')=>llamar('postventa_agendar_fn',{p_clave:randomUUID(),p_inversionista:persona,p_datos:{tipo,titulo:'Gestión sintética F6',vence_en:fecha(),...(tipo==='reunion'?{modalidad_reunion:'virtual'}:{})}}).then(ok);
+  ok(await llamar('reasignar_responsable_relacion_fn',{p_inversionista:persona,p_nuevo_responsable:f.usuarios.vendedor.id,p_motivo:'Restaurar el responsable y su tramo antes del ensayo sintético'},'gerencia'));
   const finanzas=resumenFinanciero();
   let tarea,reunion;
   try {
@@ -88,12 +89,12 @@ test('F6: agenda, ámbito, veto y retiros administrativos sin modificar dinero',
       assert.deepEqual(ok(await llamar('postventa_tarea_fn',datos)),r);
       assert.equal(sql(`select count(*) from crm.actividades where id=${q(datos.p_clave)}`),'0');
     });
-    await t.test('concurrencia: tarea bloqueada devuelve 40001, nunca deadlock',async()=>{
+    await t.test('concurrencia: tarea bloqueada devuelve PT409, nunca deadlock',async()=>{
       const soltar=await bloquear(`select id from crm.tareas where id=${q(reunion.id)} for update`);
       try {
-        rechazo(await llamar('postventa_tarea_fn',{p_clave:randomUUID(),p_tarea:reunion.id,p_revision:1,p_accion:'cerrar',p_datos:{estado:'completada',detalle:'Cierre concurrente del ensayo'}}),'40001');
-        rechazo(await llamar('postventa_veto_fn',{p_clave:randomUUID(),p_inversionista:persona,p_vetar:true,p_motivo:'Prueba concurrente del veto global'}),'40001');
-        rechazo(await llamar('reasignar_responsable_relacion_fn',{p_inversionista:persona,p_nuevo_responsable:f.usuarios.ajeno.id,p_motivo:'Prueba concurrente de reasignación'},'gerencia'),'40001');
+        rechazo(await llamar('postventa_tarea_fn',{p_clave:randomUUID(),p_tarea:reunion.id,p_revision:1,p_accion:'cerrar',p_datos:{estado:'completada',detalle:'Cierre concurrente del ensayo'}}),'PT409');
+        rechazo(await llamar('postventa_veto_fn',{p_clave:randomUUID(),p_inversionista:persona,p_vetar:true,p_motivo:'Prueba concurrente del veto global'}),'PT409');
+        rechazo(await llamar('reasignar_responsable_relacion_fn',{p_inversionista:persona,p_nuevo_responsable:f.usuarios.ajeno.id,p_motivo:'Prueba concurrente de reasignación'},'gerencia'),'PT409');
       } finally {await soltar();}
       assert.equal(sql(`select responsable_relacion_id from crm.inversionistas where id=${q(persona)}`),f.usuarios.vendedor.id);
     });
@@ -150,8 +151,9 @@ test('F6: agenda, ámbito, veto y retiros administrativos sin modificar dinero',
     assert.equal(sql('select count(*) from crm.postventa_escrituras'),'0');
   } finally {
     sql(`begin;select set_config('crm.op_privilegiada','on',true);
-      update crm.inversionistas set no_contactar=false,responsable_relacion_id=${q(f.usuarios.vendedor.id)} where id=${q(persona)};
+      update crm.inversionistas set no_contactar=false where id=${q(persona)};
       update crm.leads set no_contactar=false where id in(select private.leads_de_persona_veto(${q(persona)}));commit;`);
+    ok(await llamar('reasignar_responsable_relacion_fn',{p_inversionista:persona,p_nuevo_responsable:f.usuarios.vendedor.id,p_motivo:'Restaurar el responsable y su tramo tras el ensayo sintético'},'gerencia'));
     for(const [nombre,activo] of Object.entries(flags)) sql(`update crm.multiempresa_flags set activo=${activo} where nombre=${q(nombre)}`);
   }
 });

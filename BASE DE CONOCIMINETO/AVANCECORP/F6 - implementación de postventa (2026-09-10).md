@@ -1,6 +1,7 @@
 # F6 — implementación de postventa
 
-Estado: **implementada y verificada localmente; sin SQL F6 instalado ni activación en producción**.
+Estado: **implementada y verificada local/remotamente; publicación autorizada en preparación, sin activación productiva**.
+Última evidencia y correctivas: [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]].
 Depende de [[F5 - instalada y apagada (2026-09-10)]] y del [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
 ## Alcance y decisiones
@@ -86,8 +87,9 @@ Paquete reproducible y límites:
 
 ## Puertas siguientes
 
-SQL F6 productivo y publicación pendientes de la autorización del archivo concreto,
-ensayo en branch remoto, advisors y verificación posterior. La aprobación «hazlo.
+Miguel autorizó publicar F6 apagada. El ensayo remoto detectó una incompatibilidad
+de `40001` y se añadieron dos correctivas verificadas; quedan el cierre de gates,
+publicación compatible, merge y comprobación productiva. La aprobación «hazlo.
 aprobado» del 10/09 instaló F5 y ya fue ejecutada; no se vuelve a pedir por F5.
 No se alteraron las quince identidades reales pendientes ni se activó el piloto.
 

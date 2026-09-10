@@ -47,7 +47,7 @@ export async function enviarPostventa(guardado: EnvioPostventa): Promise<void> {
     // Solo un primer envío con rechazo SQL explícito prueba que no hubo commit.
     // Después de un corte, ni OFF ni 42501 prueban que el intento anterior falló.
     if (e.intentos === 1 && error instanceof CrmApiError
-      && ['22023', '23505', '23514', '23502', '42501', 'P0409', 'P0429', '40001', '0A000'].includes(error.code ?? '')) {
+      && ['22023', '23505', '23514', '23502', '42501', 'P0409', 'P0429', 'PT409', '40001', '0A000'].includes(error.code ?? '')) {
       borrarEnvioPostventa(e)
     }
     throw error
