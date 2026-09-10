@@ -26,6 +26,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   reuniones: 'Citas',
   metas: 'Metas',
   rendimiento: 'Equipo',
+  facturacion: 'Facturación',
   pipeline: 'Pipeline',
   cartera: 'Leads',
   agenda: 'Agenda',
@@ -60,7 +61,8 @@ export function AyudaVendedorPanel({
 }: AyudaVendedorPanelProps) {
   // Los módulos extraídos conservan el contexto que ya conoce el manual del
   // servidor: reparto en Equipo y prioridades operativas en Hoy.
-  const contextoAyuda: Vista = vista === 'derivaciones' ? 'equipo' : vista === 'seguimiento' ? 'hoy' : vista
+  const contextoAyuda: Vista =
+    vista === 'derivaciones' ? 'equipo' : vista === 'seguimiento' || vista === 'facturacion' ? 'hoy' : vista
   const tituloId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const resultadoRef = useRef<HTMLHeadingElement>(null)

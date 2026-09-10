@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks,
+  Gauge, Trophy, ArchiveRestore, SendHorizontal, ListChecks, ReceiptText,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -38,6 +38,7 @@ const NAV_META = {
   reuniones: { label: 'Citas', icon: Handshake, seccion: 'principal' },
   metas: { label: 'Metas', icon: Target, seccion: 'principal' },
   rendimiento: { label: 'Equipo', icon: Gauge, seccion: 'principal' },
+  facturacion: { label: 'Facturación', icon: ReceiptText, seccion: 'principal' },
   pipeline: { label: 'Pipeline', icon: KanbanSquare, seccion: 'principal' },
   cartera: { label: 'Leads', icon: Users, seccion: 'principal' },
   agenda: { label: 'Agenda', icon: CalendarDays, seccion: 'principal' },

@@ -27,6 +27,7 @@ const CAPACIDAD_POR_VISTA = {
   reuniones: null,
   metas: null,
   rendimiento: null,
+  facturacion: null,
   pipeline: 'verPipeline',
   cartera: 'verLeads',
   agenda: 'verAgenda',
