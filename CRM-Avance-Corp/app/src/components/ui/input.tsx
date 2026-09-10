@@ -14,6 +14,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
         // cuál corregir. La marca vive aquí y no en cada formulario para que
         // ningún campo nuevo nazca sin ella.
         'aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/25',
+        type === 'file' && 'h-auto min-h-11 cursor-pointer p-1 text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground file:transition-colors enabled:hover:file:bg-primary-press disabled:file:cursor-not-allowed',
         className,
       )}
       {...props}

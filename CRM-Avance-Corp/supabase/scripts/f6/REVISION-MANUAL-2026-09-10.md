@@ -148,6 +148,16 @@ inversión ni Confirmar en este intento. Un snapshot nuevo confirmó inversiones
 cierres, solicitudes y banderas sin cambios. El punto 5 continúa pendiente de
 este tramo; no se sustituye la evidencia parcial anterior por un PASS visual.
 
+Después, Miguel confirmó que seleccionar el archivo sí funciona en la pestaña
+del Chrome habitual. Señaló que el control no parecía un botón. Se ajustó el
+`Input` de tipo archivo para mostrar el botón nativo con fondo navy, texto blanco,
+bordes redondeados y estados de hover, foco y deshabilitado del CRM. El cambio
+alcanza la selección inicial y la recuperación del comprobante en revisión.
+Codex verificó el aspecto en Chrome, el nombre `COMPROBANTE F6.png` junto al botón
+y el foco visible al llegar con Tab. La aprobación humana corresponde a la
+selección del archivo; no se atribuye todavía al aspecto corregido ni al recorrido
+Revisar → Confirmar de los dos nuevos casos visuales, que sigue pendiente.
+
 El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
 `public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar
 las reinversiones, sin repetir los antecedentes ya creados. No fue un fallo del CRM.
@@ -164,5 +174,9 @@ preparación local; no hubo cambios de código de producto ni de producción.
 Las comprobaciones de este registro no cierran F6 ni firman G6/G7/G8. Se conserva
 el estado publicado F4/F5/F6 apagadas en producción. Las comisiones son externas.
 
-Validación de este cambio documental: `git diff --check` y enlaces locales.
-Tests y build del producto: **NOT RUN**, por ser un registro sin cambios de runtime.
+Validación del ajuste visual: `npm run check` **PASS** (lint, typecheck, 3.182 tests
+con cobertura, cuatro pruebas de configuración de release, build, bundle y
+duplicación), `git diff --check` y enlaces locales. No se añadieron tests de clases
+CSS. E2E y `gate:realidad`: **NOT RUN** en este ajuste de apariencia, que conserva
+el control nativo y no depende de datos productivos. El cambio está en el banco
+local de revisión; no se publicó un nuevo artefacto.
