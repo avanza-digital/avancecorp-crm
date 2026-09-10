@@ -1,0 +1,12 @@
+{
+  "estado": "PASS",
+  "commit": "b54fe94219fa516ab3824ec1be9ae756fc3144e1",
+  "migracion_sha256": "b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd",
+  "capturado_en": "2026-09-10T19:33:20.964739+00:00",
+  "banderasEsperadas": {
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "ficha_360_neutral": false,
+    "postventa_neutral": false
+  }
+}

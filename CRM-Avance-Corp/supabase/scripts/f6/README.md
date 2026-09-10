@@ -1,9 +1,10 @@
 # F6 — postventa por persona
 
-**Implementada y ensayada localmente. SQL F6 no instalado en producción.**
-La instalación crea `postventa_neutral=false`; no enciende F4, F5 ni el piloto.
-Miguel autorizó también la publicación F6 apagada. El ensayo remoto detectó el
-bucle de reintentos `40001` de PostgREST 14; se corrige antes de publicar.
+**Publicada e instalada el 10/09/2026, con F6 apagada.**
+F3 permanece encendida; F4/F5/F6 apagadas. Se corrigió el bucle `40001` de
+PostgREST 14 y se verificó el banco antes del merge. Véase el
+[acta de publicación y sus observaciones](PUBLICACION-2026-09-10.md).
+La aceptación humana y las fases F7–F9 siguen pendientes.
 
 ## Resultado
 

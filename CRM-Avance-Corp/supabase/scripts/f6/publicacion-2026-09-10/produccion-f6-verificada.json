@@ -1,0 +1,87 @@
+{
+  "estado": "PASS CON OBSERVACI\u00d3N",
+  "integridadEsquemaNegocio": "PASS",
+  "authHuellaIntegral": "INCONCLUSA POR CAMBIO CONCURRENTE",
+  "capacidadApagadaVerificada": true,
+  "capturado_en": "2026-09-10T19:38:26.905676+00:00",
+  "funcionesPrevias": 579,
+  "funcionesAmpliadas": 10,
+  "funcionesNuevas": 25,
+  "tablasNuevasCerradas": 5,
+  "migraciones": [
+    {
+      "archivo": "20260910150039_crm_f6_postventa_persona.sql",
+      "versionBanco": "20260910181248",
+      "nombre": "crm_f6_postventa_persona",
+      "sha256": "b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd",
+      "sentenciasProduccion": 79
+    },
+    {
+      "archivo": "20260910190000_crm_f6_conflicto_http_sin_reintento.sql",
+      "versionBanco": "20260910185512",
+      "nombre": "crm_f6_conflicto_http_sin_reintento",
+      "sha256": "18b25277490bb4777a9b6a4cbdb3838bb96e1e1cf100a178c17dc1ba7bfc5da5",
+      "sentenciasProduccion": 4
+    },
+    {
+      "archivo": "20260910191000_crm_f6_consulta_conflicto_http.sql",
+      "versionBanco": "20260910185624",
+      "nombre": "crm_f6_consulta_conflicto_http",
+      "sha256": "278c809ca018513f8744095a2db2396162ccacd14de7c90a8c418da65736b0ee",
+      "sentenciasProduccion": 4
+    }
+  ],
+  "historialPrevioIntacto": 268,
+  "tablasRealesPreservadas": 14,
+  "usuariosAuthCantidadSinCambio": 479,
+  "observacionConcurrencia": {
+    "estado": "PASS CON OBSERVACI\u00d3N",
+    "tareasPreviasExactas": true,
+    "tareaLegacyConcurrente": [
+      {
+        "lead": true,
+        "tipo": "whatsapp",
+        "perfil": false,
+        "revision": null,
+        "creado_en": "2026-09-10T19:34:45.541621+00:00",
+        "inversionista": false
+      }
+    ],
+    "authCantidadAntes": 479,
+    "authCantidadDespues": 479,
+    "authHashAntes": "2edb83f52ac168c6d6981afc90ddbe15",
+    "authHashDespues": "1321d112efe26142b6744a47c16f5884",
+    "authHashIntegroIgual": false,
+    "evidenciaRefresco": {
+      "usuarios_actualizados": 1,
+      "refresh_tokens_mismo_instante": 1,
+      "sesiones_refrescadas_mismo_instante": 1,
+      "sesiones_actualizadas_mismo_instante": 1
+    },
+    "limiteAuth": "La huella integral cambi\u00f3. Un usuario previo actualiz\u00f3 su timestamp junto a su sesi\u00f3n y refresh token en el mismo segundo. No se tom\u00f3 snapshot previo por columna; no se demuestra igualdad de todas las columnas Auth. Las tres migraciones no ejecutan DML sobre Auth.",
+    "ventana": {
+      "desde": "2026-09-10T19:33:07.104192+00:00",
+      "hasta": "2026-09-10T19:35:03.317781+00:00"
+    }
+  },
+  "identidadesPendientesIntactas": 15,
+  "banderas": {
+    "ficha_360_neutral": false,
+    "inversiones_escritura": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true
+  },
+  "edgesPreviasIntactas": 18,
+  "advisors": {
+    "seguridad": {
+      "ERROR": 0,
+      "WARN": 195,
+      "INFO": 58
+    },
+    "rendimiento": {
+      "ERROR": 0,
+      "WARN": 5,
+      "INFO": 114
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "estado": "PASS",
+  "errores_nuevos": 0,
+  "totales": {
+    "seguridad": {
+      "ERROR": 0,
+      "WARN": 194,
+      "INFO": 58
+    },
+    "rendimiento": {
+      "ERROR": 0,
+      "WARN": 5,
+      "INFO": 138
+    }
+  },
+  "avisosF6Esperados": "12 WARN por RPC authenticated SECURITY DEFINER; 5 INFO por tablas cerradas sin policies; ning\u00fan acceso anon nuevo"
+}

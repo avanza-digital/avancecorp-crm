@@ -1,0 +1,47 @@
+{
+  "estado": "PASS",
+  "tests": 43,
+  "casos": [
+    {
+      "archivo": "postventa.test.mjs",
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "archivo": "reinversion.test.mjs",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "archivo": "integridad.test.mjs",
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "archivo": "concurrencia.test.mjs",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "archivo": "revision.test.mjs",
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "transporte": "Auth/PostgREST alojado y sesiones PostgreSQL reales; solo datos sint\u00e9ticos"
+}

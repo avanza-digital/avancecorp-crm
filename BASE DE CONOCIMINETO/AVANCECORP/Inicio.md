@@ -7,7 +7,7 @@ actualizado: 2026-09-10
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F5 - instalada y apagada (2026-09-10)]].
+Estado vigente: [[F6 - publicada y apagada (2026-09-10)]].
 Plan de trabajo F5: [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]].
 
 ## 🧠 Cómo funciona la memoria de este proyecto
@@ -29,7 +29,9 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
-- [[F6 - implementación de postventa (2026-09-10)]] — agenda por persona, vencimientos, reinversión y retiro administrativo verificados localmente; publicación F6 pendiente.
+- [[F6 - publicada y apagada (2026-09-10)]] — frontend y tres SQL instalados; 43 pruebas remotas PASS, banco temporal eliminado. Revisión manual y F7–F9 pendientes.
+- [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]] — corrección PT409, pruebas y límites.
+- [[F6 - implementación de postventa (2026-09-10)]] — decisiones e implementación inicial.
 - [[F5 - instalada y apagada (2026-09-10)]] — SQL autorizado instalado y verificado; banco temporal eliminado, datos conservados.
 - [[Citas Gerencia - cierre de sesion y punto de retoma 2026-09-09]] — publicado, avance guardado y respaldo privado; pendientes de revisión visual y mantenimiento del banco general.
 - [[Solicitud de tasa en el lead - publicada 2026-09-09]] — aprobación antes de convertir publicada; banco temporal cerrado y verificaciones registradas.

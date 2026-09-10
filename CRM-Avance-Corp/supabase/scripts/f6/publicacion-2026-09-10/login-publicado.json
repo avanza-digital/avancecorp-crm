@@ -1,0 +1,11 @@
+{
+  "estado": "PASS",
+  "url": "https://crm.miavance.com/",
+  "titulo": "CRM Avance Corp",
+  "botones": [
+    "Entrar"
+  ],
+  "errores": [],
+  "formularioContrasenaHabilitado": true,
+  "autenticacionReal": "No iniciada; contexto anónimo nuevo"
+}

@@ -1,6 +1,12 @@
 # F6 — evidencia del 10/09/2026
 
-**Candidata local verificada; pendiente de aprobación/ensayo remoto/publicación.**
+**Actualización: publicada e instalada OFF el 10/09/2026.**
+La matriz siguiente conserva la evidencia local inicial. Para los resultados
+vigentes —43 pruebas remotas, 3.182 frontend, matriz general FAIL sin regresiones
+y observación Auth— consultar [el acta productiva](PUBLICACION-2026-09-10.md).
+No interpretar los NOT RUN iniciales de servidor/publicación como estado actual.
+
+## Evidencia local inicial, anterior a la publicación
 No se declara terminado el plan F1–F9 ni se enciende el circuito económico.
 
 | Control | Resultado | Evidencia |

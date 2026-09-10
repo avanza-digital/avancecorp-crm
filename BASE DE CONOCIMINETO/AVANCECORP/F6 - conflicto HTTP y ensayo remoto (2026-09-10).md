@@ -2,8 +2,8 @@
 
 Continúa [[F6 - implementación de postventa (2026-09-10)]] y el
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
-Miguel autorizó publicar F6 apagada. La publicación está en preparación; esta nota
-no acredita una instalación productiva.
+Miguel autorizó publicar F6 apagada. La publicación ya se completó; acta vigente
+y límites: [[F6 - publicada y apagada (2026-09-10)]].
 
 ## Hallazgo real antes de publicar
 
@@ -38,8 +38,9 @@ un resultado desconocido.
   journal 11/11 y recorridos F6 7/7 PASS.
 - Reversa remota PASS: conserva seis conjuntos de tareas/recibos/historia.
 - La matriz general anterior y posterior al SQL F6 inicial obtuvo exactamente
-  **1.772 PASS / 45 FAIL**, sin regresiones. Se repite tras las correctivas;
-  esos 45 fallos no se presentan como resueltos ni como aprobación del piloto.
+  **1.772 PASS / 45 FAIL**, sin regresiones. La repetición con seed limpio tras
+  ambas correctivas dio exactamente las mismas cantidades y los mismos 45 fallos.
+  No se presentan como resueltos ni como aprobación del piloto.
 
 Un residuo ficticio de la matriz RLS necesitaba su identidad antes de los ensayos
 F6. Se enlazó únicamente en el banco; no se tocaron identidades reales. El fixture

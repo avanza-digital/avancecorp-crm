@@ -1,0 +1,400 @@
+{
+  "estado": "PASS",
+  "commit": "b54fe94219fa516ab3824ec1be9ae756fc3144e1",
+  "version": {
+    "schema": 1,
+    "buildId": "build-20260910T191115966Z"
+  },
+  "zipSha256": "45633b2a2a1115e72585336da95e204d988f351ea4cceb7da94d9978c309ad3f",
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "estado": "PASS protegido"
+    },
+    {
+      "ruta": "404.html",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+      "sha256HTTP": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "bytesHTTP": 257370
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+      "sha256HTTP": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "bytesHTTP": 23135
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+      "sha256HTTP": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "bytesHTTP": 143241
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+      "sha256HTTP": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "bytesHTTP": 100601
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+      "sha256HTTP": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "bytesHTTP": 245744
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+      "sha256HTTP": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "bytesHTTP": 42375
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+      "sha256HTTP": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "bytesHTTP": 217135
+    },
+    {
+      "ruta": "assets/agenda-B_ewlB92.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/agenda-vistas-MAYGw8Bc.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/alertas-zjZY9HYZ.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-DJxvgnnR.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/card-CvDBOt0-.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/cartera-CDkaumTc.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-w6nCcDJ0.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-DZJUBBdO.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-metas-D8ym9pdK.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-productos-DeSnHECV.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-Bg657S24.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-sla-Dx_Wbf8s.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/config-usuarios-BsxmBMiQ.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/configuracion-shell-ChlqOi26.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/crm-api-BonMduTI.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/data-vendor-CVus9pJE.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/derivaciones-CtVqX9d5.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/desglose-monedas-QRJ_Micn.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/echart-bar-BMxP0g4x.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/echart-D-HvHtCL.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/echart-line-ZLxBxxxa.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/equipo-D6yl0_4H.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/estado-panel-Cwv_F_F8.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/gerencia-BFae_Z8_.css",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/gerencia-D1d--COk.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/gerencia-DW-w7F69.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-DtvXPZl8.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/hoy-8UnQIk3Q.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/index-CLkXH7Za.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/index-D3fgLwX4.css",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/lead-hover-card-DvcgusuE.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/mi-cartera-CItQyiEz.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/paginacion-BGVnUbgS.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/pipeline-4dd15iA6.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/progress-CYsKUgD3.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-Qkblhg__.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/repartir-B_h1KZ8v.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-Bo7568_B.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/rescate-descartados-k-PRyau_.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/section-head-x8UZR165.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/seguimiento-IZAByXll.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/stat-strip-CG6rNrQV.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/tabla-388Wn00K.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/ui-vendor-CfRU5akh.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-CLXJIszW.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/use-periodo-derivaciones-DualfhfU.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DxwakRhO.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-Ccz_E-_h.js",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256HTTP": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "bytesHTTP": 22966
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256HTTP": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "bytesHTTP": 22966
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+      "sha256HTTP": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "bytesHTTP": 35493
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "sha256HTTP": "2cbcc7abc1dac16e3d05bb198a180e0d3fd2e91a5002d69eb54dd40f2e645fb6",
+      "bytesHTTP": 1415
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "estado": "PASS original y transformaci\u00f3n HTTP iguales al baseline F5",
+      "sha256Original": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+      "sha256HTTP": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "bytesHTTP": 108883
+    },
+    {
+      "ruta": "favicon.svg",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "icons.svg",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "index.html",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "robots.txt",
+      "estado": "PASS SHA256"
+    },
+    {
+      "ruta": "version.json",
+      "estado": "PASS SHA256"
+    }
+  ],
+  "lecturasVersion": [
+    {
+      "schema": 1,
+      "buildId": "build-20260910T191115966Z"
+    },
+    {
+      "schema": 1,
+      "buildId": "build-20260910T191115966Z"
+    },
+    {
+      "schema": 1,
+      "buildId": "build-20260910T191115966Z"
+    }
+  ],
+  "internosProtegidos": [
+    {
+      "url": "https://crm.miavance.com/crm-20260910T191116Z-b54fe94219fa.zip",
+      "status": 404
+    },
+    {
+      "url": "https://miavance.com/crm-20260910T191116Z-b54fe94219fa.zip",
+      "status": 404
+    },
+    {
+      "url": "https://crm.miavance.com/.env",
+      "status": 403
+    },
+    {
+      "url": "https://crm.miavance.com/.git/config",
+      "status": 403
+    },
+    {
+      "url": "https://crm.miavance.com/.vite/license.md",
+      "status": 404
+    }
+  ],
+  "portalPreservado": true
+}

@@ -1,6 +1,8 @@
 # F6 — implementación de postventa
 
-Estado: **implementada y verificada local/remotamente; publicación autorizada en preparación, sin activación productiva**.
+Estado: **publicada e instalada, apagada, el 10/09/2026**.
+Acta vigente: [[F6 - publicada y apagada (2026-09-10)]]. La evidencia local
+original de esta nota se complementa con el ensayo y la publicación posteriores.
 Última evidencia y correctivas: [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]].
 Depende de [[F5 - instalada y apagada (2026-09-10)]] y del [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 

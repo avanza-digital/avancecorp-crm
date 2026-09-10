@@ -1,0 +1,7 @@
+{
+  "estado": "FAIL",
+  "control": "Igualdad integral Auth antes/despu\u00e9s",
+  "error": "AssertionError: Cambi\u00f3 dato real auth_huella",
+  "evidencia": "concurrencia-produccion-verificada.json",
+  "resolucion": "Conservar observaci\u00f3n; no se reemplaza por igualdad ni se restauran datos reales"
+}

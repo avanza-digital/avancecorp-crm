@@ -9021,9 +9021,14 @@ traducen el conflicto únicamente cuando tienen origen F6; la operación ordinar
 conserva su contrato. La sincronización y el trigger de origen cubren llamadas
 heredadas. El cliente conserva la clave tras resultados desconocidos.
 
-Estado: ensayadas en branch remoto, **pendientes de merge productivo**. PASS:
+Estado actualizado: **instaladas el 10/09/2026 mediante merge del banco F6**. PASS:
 43 pruebas F6 reales, 19 cuerpos exactos y 1.401 objetos restantes idénticos,
 reversa, replay (564 funciones previas, diez extensiones previstas, ACL/owner y
 datos/Auth intactos), frontend 3.182 tests y siete recorridos F6. Matriz general
-inicial sin regresiones, con 45 fallos previos; repetición tras correctivas en curso.
+antes y después de ambas correctivas: 1.772 PASS / 45 FAIL, sin regresiones.
+Registros productivos: `20260910181248` (F6 inicial), `20260910185512` y
+`20260910185624` (correctivas); 268 registros previos íntegros, total 271.
+Frontend publicado desde `b54fe942`; banco temporal eliminado. Ver
+`supabase/scripts/f6/PUBLICACION-2026-09-10.md`: fuentes comerciales preservadas,
+tarea legacy concurrente identificada y huella integral Auth no acreditada igual.
 No se activa F4/F5/F6, no se concilian identidades reales ni se calculan comisiones.

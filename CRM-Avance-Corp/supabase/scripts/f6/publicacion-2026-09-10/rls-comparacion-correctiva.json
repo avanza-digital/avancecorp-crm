@@ -1,0 +1,17 @@
+{
+  "estado_general": "FAIL",
+  "comparacion": "PASS sin regresiones",
+  "antes": {
+    "total": 1817,
+    "pass": 1772,
+    "fail": 45
+  },
+  "despues": {
+    "total": 1817,
+    "pass": 1772,
+    "fail": 45
+  },
+  "regresiones": [],
+  "fallosQueYaNoAparecen": [],
+  "criterio": "Mismo seed limpio antes/después; assertions intactas; comparación multiconjunto, sólo UUID sintéticos normalizados. Corrida contaminada interrumpida y excluida."
+}

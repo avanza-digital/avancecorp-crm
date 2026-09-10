@@ -1,0 +1,30 @@
+{
+  "estado": "PASS CON OBSERVACI\u00d3N",
+  "tareasPreviasExactas": true,
+  "tareaLegacyConcurrente": [
+    {
+      "lead": true,
+      "tipo": "whatsapp",
+      "perfil": false,
+      "revision": null,
+      "creado_en": "2026-09-10T19:34:45.541621+00:00",
+      "inversionista": false
+    }
+  ],
+  "authCantidadAntes": 479,
+  "authCantidadDespues": 479,
+  "authHashAntes": "2edb83f52ac168c6d6981afc90ddbe15",
+  "authHashDespues": "1321d112efe26142b6744a47c16f5884",
+  "authHashIntegroIgual": false,
+  "evidenciaRefresco": {
+    "usuarios_actualizados": 1,
+    "refresh_tokens_mismo_instante": 1,
+    "sesiones_refrescadas_mismo_instante": 1,
+    "sesiones_actualizadas_mismo_instante": 1
+  },
+  "limiteAuth": "La huella integral cambi\u00f3. Un usuario previo actualiz\u00f3 su timestamp junto a su sesi\u00f3n y refresh token en el mismo segundo. No se tom\u00f3 snapshot previo por columna; no se demuestra igualdad de todas las columnas Auth. Las tres migraciones no ejecutan DML sobre Auth.",
+  "ventana": {
+    "desde": "2026-09-10T19:33:07.104192+00:00",
+    "hasta": "2026-09-10T19:35:03.317781+00:00"
+  }
+}

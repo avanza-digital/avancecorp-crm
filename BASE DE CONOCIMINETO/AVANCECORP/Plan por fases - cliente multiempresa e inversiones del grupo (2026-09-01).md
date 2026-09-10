@@ -1,7 +1,7 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f5-instalada-f6-verificada-local
+estado: plan-vigente-f6-publicada-apagada
 actualizado: 2026-09-10
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F5 instalada y apagada el 10/09/2026
+## Estado vigente — F6 publicada y apagada el 10/09/2026
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
@@ -43,7 +43,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
-| F6 — postventa | Implementada y verificada localmente | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 41 pruebas de servidor y gate frontend PASS. SQL/publicación F6 pendientes. [[F6 - implementación de postventa (2026-09-10)]] |
+| F6 — postventa | Publicada e instalada; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 43 pruebas remotas, 3.182 frontend y 159 E2E PASS (26 SKIP). Aceptación humana pendiente; matriz general FAIL sin regresiones y observación Auth registradas. [[F6 - publicada y apagada (2026-09-10)]] |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
@@ -458,12 +458,13 @@ Las escrituras F4 y la ficha F5 permanecen apagadas en producción. Evidencia:
 
 ### F6 — postventa, vencimientos y próxima inversión
 
-**Avance al 10/09:** implementación y ensayos locales completados: 41 pruebas de
-servidor F6, 46 de regresión F5, 3.180 del frontend y 159 recorridos E2E PASS
-(26 omisiones existentes). Replay, reversa, tipos, permisos y preservación de
-fuentes comprobados. Publicación/SQL y aceptación humana F6 pendientes; no se
-hereda el visto bueno manual de F5. Evidencia y límites:
-[[F6 - implementación de postventa (2026-09-10)]].
+**Avance al 10/09:** frontend publicado y tres SQL instalados mediante banco
+ensayado y merge; F6 apagada. 43 pruebas remotas F6, 46 de regresión local F5,
+3.182 frontend y 159 E2E PASS (26 SKIP). Matriz RLS general: 1.772 PASS / 45 FAIL
+antes y después, cero regresiones; no está aprobada. Fuentes comerciales previas
+y permisos verificados; huella Auth distinta durante un refresco concurrente,
+sin atribuir igualdad íntegra. Falta aceptación humana F6, que no se hereda de F5.
+Evidencia y límites: [[F6 - publicada y apagada (2026-09-10)]].
 
 **Qué se adapta:**
 
@@ -700,13 +701,15 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Conservar los 65 fallos anteriores del gate general como pendientes explícitos,
    sin etiquetarlo PASS. Antes de encender, conciliar las 15 fuentes pendientes.
    Evidencia en [[F5 - instalada y apagada (2026-09-10)]].
-3. **F6 implementada y verificada localmente:** conservar el paquete exacto y su
-   reversa. Preparar su autorización/ensayo remoto/publicación con banderas OFF.
-   [[F6 - implementación de postventa (2026-09-10)]].
+3. **F6 publicada e instalada OFF:** conservar el release `b54fe942`, los tres
+   SQL y la reversa. Banco temporal eliminado. Completar la revisión manual F6
+   y atender la matriz general vigente (45 fallos previos, sin regresiones).
+   [[F6 - publicada y apagada (2026-09-10)]].
 4. Después: **F7/G6 → F8/G7 → F9/G8**: conciliación de métricas, piloto económico
    y activación progresiva con ciclo mensual completo.
 
-F3 permanece encendida; la instalación de F5 no cambió las banderas.
+F3 permanece encendida; F4/F5/F6 permanecen apagadas. Los 15 faltantes de
+identidad siguen pendientes; esta publicación no autoriza su conciliación real.
 La modalidad de captura de documento web sigue como decisión
 comercial independiente. Cierre y alcance: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 

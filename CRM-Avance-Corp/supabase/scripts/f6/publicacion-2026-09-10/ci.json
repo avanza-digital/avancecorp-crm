@@ -1,0 +1,19 @@
+{
+  "runs": [
+    {
+      "headSha": "b54fe94219fa516ab3824ec1be9ae756fc3144e1",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34518609571"
+    },
+    {
+      "headSha": "b54fe94219fa516ab3824ec1be9ae756fc3144e1",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34518609577"
+    }
+  ],
+  "frontendTests": 3182,
+  "e2ePass": 159,
+  "e2eSkip": 26
+}

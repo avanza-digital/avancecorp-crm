@@ -1,0 +1,25 @@
+{
+  "estado": "PASS",
+  "versionesNombresArraysAnterioresIntactos": 268,
+  "metadatosOperadorBanco": "created_by del entorno de prueba; no sustituye el historial productivo",
+  "migraciones": [
+    {
+      "archivo": "20260910150039_crm_f6_postventa_persona.sql",
+      "versionBanco": "20260910181248",
+      "nombre": "crm_f6_postventa_persona",
+      "sha256": "b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd"
+    },
+    {
+      "archivo": "20260910190000_crm_f6_conflicto_http_sin_reintento.sql",
+      "versionBanco": "20260910185512",
+      "nombre": "crm_f6_conflicto_http_sin_reintento",
+      "sha256": "18b25277490bb4777a9b6a4cbdb3838bb96e1e1cf100a178c17dc1ba7bfc5da5"
+    },
+    {
+      "archivo": "20260910191000_crm_f6_consulta_conflicto_http.sql",
+      "versionBanco": "20260910185624",
+      "nombre": "crm_f6_consulta_conflicto_http",
+      "sha256": "278c809ca018513f8744095a2db2396162ccacd14de7c90a8c418da65736b0ee"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "estado": "PASS",
+  "nodos": 18,
+  "comando": "node supabase/scripts/f6/integrar-tipos.mjs database-remoto.ts --verificar",
+  "sha256Generado": "af7c53d8953f6ed6a7c2909507d2ff509d8a4f44a68b9c060691def37a339acc",
+  "contratosAjenos": "conservados"
+}

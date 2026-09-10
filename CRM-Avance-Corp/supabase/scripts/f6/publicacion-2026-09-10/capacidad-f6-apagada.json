@@ -1,0 +1,8 @@
+{
+  "estado": "PASS",
+  "capacidad": {
+    "version": 1,
+    "habilitada": false
+  },
+  "contexto": "authenticated con claims Gerencia activa; transacci\u00f3n ROLLBACK"
+}

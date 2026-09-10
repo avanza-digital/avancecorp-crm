@@ -69,3 +69,11 @@ revisor no recibió ese archivo. La protección de actor se valida además en SQ
 Los gates posteriores, sus cantidades y sus límites están en
 [ACEPTACION.md](ACEPTACION.md). La revisión y estos ensayos no autorizan por sí
 solos una instalación productiva, un piloto o una firma humana.
+
+## Ensayo remoto y cierre productivo posterior
+
+Una revisión independiente Codex de sólo lectura examinó las correctivas PT409,
+journal y pruebas; su PASS pertenece a ese alcance y no es un tercer dictamen
+Claude. Se añadió la consulta F4 de recuperación al perímetro protegido.
+El cierre operativo conserva la observación de Auth y la matriz general FAIL;
+[acta, pruebas y límites](PUBLICACION-2026-09-10.md).
