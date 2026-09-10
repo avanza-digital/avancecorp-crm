@@ -340,6 +340,10 @@ The goal is independent review, not duplicated work.
 
 # 6. Codex Reviewer Mode
 
+Use the `mcp__codex__codex` interface configured through
+`scripts/codex-review-mcp`, following [`.ai/REVIEW_PROTOCOL.md`](.ai/REVIEW_PROTOCOL.md).
+Normal secondary reviews require `sandbox: read-only` and `approval-policy: never`.
+
 When Claude invokes Codex for review, Codex must be explicitly designated:
 
 ```text
