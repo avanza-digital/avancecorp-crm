@@ -65,7 +65,12 @@ test.describe('distribución de leads en Hoy > Gerencia', () => {
       name: 'Límite de cartera para Ana Capital',
     })
     await capacidad.fill('24')
-    await fichaAna.getByRole('button', { name: 'Guardar' }).click()
+    await fichaAna.getByRole('button', { name: 'Revisar cambio' }).click()
+    const revision = fichaAna.getByRole('region', { name: 'Revisar cambio de límite' })
+    await expect(revision).toContainText('Ana Capital: de 20 a 24 leads.')
+    await expect(revision).toContainText('Carga actual: 8 leads.')
+    expect(estado.llamadas.rpcActualizarCapacidad).toBe(0)
+    await fichaAna.getByRole('button', { name: 'Confirmar cambio' }).click()
 
     await expect.poll(() => estado.llamadas.rpcActualizarCapacidad).toBe(1)
     expect(estado.ultimaActualizacionCapacidad).toEqual({

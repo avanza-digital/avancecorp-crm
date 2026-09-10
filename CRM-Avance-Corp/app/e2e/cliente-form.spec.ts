@@ -120,7 +120,8 @@ test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servid
 
   // Precarga del detalle (obtenerClienteDetalle) + correo = cuenta de acceso.
   await expect(modal.locator('#cf-apellidos')).toHaveValue('PORTAL UNO')
-  await expect(modal.locator('#cf-correo')).toBeDisabled()
+  await expect(modal.locator('#cf-correo')).toHaveAttribute('readonly', '')
+  await expect(modal.locator('#cf-correo')).not.toBeEditable()
   await expect(modal.locator('#cf-domicilio')).toHaveValue('Av. Javier Prado Este 123, San Isidro, Lima')
   await expect(modal.locator('#cf-pen-banco')).toHaveValue('BCP')
   await expect(modal.getByText(/Ventana de corrección: Quedan/)).toBeVisible()
