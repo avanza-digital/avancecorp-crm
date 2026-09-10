@@ -55,7 +55,11 @@ No se conciliaron datos reales ni se encendió el piloto.
    ficha tras recargar. También aprobó el cierre con detalle en el historial
    y un único próximo contacto con la fecha elegida, así como el cambio de hora
    de una reunión visible en Agenda y la confirmación de la cita. Sigue el
-   cambio de responsable; la aceptación completa permanece pendiente. Registro y alcance:
+   punto 4, No contactar: Miguel delegó a Codex la prueba de responsable y pasó
+   con UI, sesiones de ambos asesores y comprobación funcional de la cola sin
+   responsable. Las dos tareas conservaron identidad y horarios; el anterior
+   perdió acceso incluso con su JWT previo. La aceptación completa permanece
+   pendiente. Registro y alcance:
    [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).
 2. F7/G6: conciliar métricas, Capital y atribución por empresa y moneda.
 3. F8/G7: piloto económico con sus participantes, volúmenes y firmas.

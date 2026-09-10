@@ -1,0 +1,13 @@
+{
+  "fecha": "2026-09-10T21:29:06.480Z",
+  "resultado": "PASS",
+  "entorno": "banco local sintético",
+  "metodo": "Caso de integridad existente; conflicto P0409 de responsable ausente comprobado en el catálogo local, fixture nueva dentro de transacción con rollback",
+  "sinResponsableBloqueaAgendar": true,
+  "pendienteConservadoEnColaGerencia": true,
+  "vendedoresNoVenCola": true,
+  "asignarEntregaMismaTarea": true,
+  "rollbackVerificado": true,
+  "tareasPreviasYFlagsConservados": true,
+  "limite": "Prueba funcional por Codex; no recorrido visual de una cola con fixture persistente"
+}

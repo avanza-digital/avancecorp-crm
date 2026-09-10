@@ -4,9 +4,11 @@ En curso con Miguel. El 10/09 confirmó la creación y visualización de la llam
 en ficha, Hoy y Agenda, sin duplicación en Agenda, y la misma ficha tras recargar.
 También confirmó el cierre con detalle en el historial y el próximo contacto,
 una sola vez y con la fecha elegida, además del cambio de hora de una reunión
-visible en Agenda y la confirmación de la cita. El punto 2 queda aprobado;
-continúa el punto 3 con cambio de responsable. La aceptación completa sigue
-pendiente. El registro y sus
+visible en Agenda y la confirmación de la cita. El punto 2 queda aprobado.
+El punto 3 fue ejecutado por Codex a petición expresa de Miguel: reasignación
+por UI, acceso de ambos asesores y cola sin responsable comprobados. Esta última
+se verificó funcionalmente en una transacción revertida, sin recorrido visual.
+Continúa el punto 4; la aceptación completa sigue pendiente. El registro y sus
 límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
 
 Usar el banco sintético y usuarios de prueba;

@@ -29,10 +29,44 @@ detalle e historial, siguiente contacto con fecha y sin duplicación, cambio de
 hora visible en Agenda y confirmación de la reunión. Miguel confirmó por separado
 el cambio guardado y la confirmación; no se dedujo de la mera apertura del formulario.
 
-Continuar el punto 3: reasignación como Gerencia y acceso de ambos asesores.
-Los puntos 3–8 siguen
-pendientes de aceptación humana: responsable, veto, reinversión, retiro,
+El 10/09 Miguel delegó expresamente el punto 3: «esta prueba puedes hcaerla tu
+por favor». Codex ejecutó la reasignación por UI y verificó el acceso con ambos
+asesores. Sigue el punto 4. Los puntos 4–8 permanecen pendientes: veto, reinversión, retiro,
 accesibilidad y recuperación de un envío cuya respuesta se perdió.
+
+## Punto 3 — ejecución delegada a Codex
+
+**PASS funcional**, ejecutado en el banco sintético con sesiones autenticadas.
+La demo general sigue habilitada como opción local, pero este caso se realizó
+con las cuentas de prueba porque la demo no contiene el recorrido F6.
+
+- Persona usada por Codex: `6e81c382-127d-4594-84ec-f05e3c886991`, Qorilazo.
+  Gerencia cambió el responsable de PRUEBA F4 VENDEDOR a PRUEBA F4 AJENO desde
+  el formulario visible. La ficha mostró el nuevo responsable.
+- El nuevo asesor vio la persona y las dos tareas pendientes. Se conservaron
+  los mismos IDs, títulos, tipos, estados y horarios, sin duplicación.
+- El asesor anterior perdió ficha y agenda incluso reutilizando el JWT obtenido
+  antes de reasignar. F5 devuelve HTTP 200 con `null`; F6 devuelve HTTP 403/42501;
+  la lectura directa de tareas bajo RLS devuelve cero filas. Por UI, el enlace
+  directo vuelve a Cartera con «El acceso cambió. La cartera se volverá a consultar.»
+- La información de inversiones devuelta por la ficha no cambió. El analista
+  histórico de la operación sigue siendo PRUEBA F4 VENDEDOR.
+- Caso sin responsable: fixture independiente en transacción, con rollback.
+  Se bloqueó agendar sin responsable (P0409), Gerencia conservó el pendiente en
+  su cola y los vendedores no lo vieron; al asignarlo llegó la misma tarea al
+  nuevo asesor. Al terminar se verificaron tareas previas y banderas intactas,
+  y ausencia de la persona temporal.
+
+Evidencia: [reasignación](manual-2026-09-10/reasignacion-evidencia.json) y
+[cola sin responsable](manual-2026-09-10/cola-evidencia.json).
+La reasignación queda aplicada en el banco a PRUEBA F4 AJENO. No hubo cambios de
+producto ni de producción. El tramo de cola fue una prueba funcional de servidor,
+no un recorrido visual de una cola con datos persistentes ni una aprobación humana.
+
+El arnés inicial esperaba por error HTTP 403 para la ficha F5 oculta y PT409 para
+la ausencia de responsable. Se ajustó al contrato comprobado en código/catálogo
+(HTTP 200/null y P0409) antes de completar las comprobaciones. No se modificó el
+producto para acomodarlo al arnés; las ejecuciones finales pasaron.
 
 ## Preparación del banco y alcance
 
