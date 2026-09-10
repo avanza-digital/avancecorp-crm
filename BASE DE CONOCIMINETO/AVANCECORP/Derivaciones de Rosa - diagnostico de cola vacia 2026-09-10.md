@@ -1,7 +1,7 @@
 ---
 tags: [crm, coordinacion, derivaciones, diagnostico]
 fecha: 2026-09-10
-estado: solucion-verificada-en-rama-pendiente-publicacion
+estado: solucion-publicada-en-produccion
 ---
 
 # Derivaciones de Rosa: diagnóstico de cola vacía
@@ -228,9 +228,9 @@ incidente y mejora la evidencia visible para Coordinación:
   otro lead ya no vuelve a habilitar prematuramente el primero, por lo que se
   elimina la carrera de doble clic detectada.
 
-La migración y el frontend están preparados y verificados localmente y en una
-rama temporal de Supabase. Producción conserva el comportamiento anterior hasta
-terminar el merge controlado y el despliegue del frontend.
+La migración y el frontend quedaron publicados en producción el 10 de septiembre
+de 2026. Coordinación ya no puede apartarse del turno guardado; el Superadmin
+activo sí puede elegir otro supervisor como excepción explícita y auditable.
 
 ## Verificación y alcance
 
@@ -247,10 +247,10 @@ terminar el merge controlado y el despliegue del frontend.
 - **PASS:** el bundle desplegado conserva el estado de envío como un solo ID y
   permite la carrera de doble intento descrita; los logs descartan que se haya
   activado durante estas 52 llamadas.
-- **PASS:** tests focalizados de reparto: **57/57** en
-  `repartir.test.tsx` y `crm-api-reparto-msw.test.ts`, incluidos destino por
-  agenda, agenda ausente, dos repartos concurrentes y desglose fuera del turno.
-- **PASS:** compuerta completa de frontend: **225 archivos y 3.185 pruebas**,
+- **PASS:** tests focalizados de reparto, incluidos destino por agenda, agenda
+  ausente, dos repartos concurrentes, desglose fuera del turno y selección libre
+  de supervisor por un Superadmin activo.
+- **PASS:** compuerta completa de frontend: **225 archivos y 3.186 pruebas**,
   typecheck, build productivo, verificación de bundle y umbral de duplicación.
   Lint terminó sin errores y conserva cuatro advertencias preexistentes de
   accesibilidad en `coverflow-carousel.tsx`.
@@ -259,10 +259,24 @@ terminar el merge controlado y el despliegue del frontend.
   del reparto posterior a analistas.
 - **PASS:** suite Playwright completa: **160 aprobadas y 26 omitidas** por la
   configuración vigente; no aparecieron regresiones en navegación ni otros roles.
-- **PASS:** migración nueva aplicada en una base temporal aislada, clonada de un
-  banco local. El oráculo `test-reparto.sql` terminó con `REPARTO_TX_OK` y
-  confirmó rechazo atómico del destino fuera del turno, trazabilidad real y
-  preservación de los vetos existentes.
+- **PASS:** migración nueva aplicada en una rama temporal aislada de Supabase. El
+  oráculo `test-reparto.sql` terminó con `REPARTO_TX_OK` y confirmó rechazo
+  atómico del destino fuera del turno para Coordinación, excepción del
+  Superadmin, trazabilidad real y preservación de los vetos existentes.
+- **PASS:** matriz RLS completa en la rama: **1.772 PASS / 45 FAIL de 1.817**,
+  exactamente la línea base heredada y sin fallos nuevos por esta corrección.
+- **PASS:** GitHub Actions sobre `a9d9efd804b33656e35923d7a056b16e5bf54f7f`:
+  `CRM RLS preflight` y `CRM app quality`, incluida la suite E2E completa.
+- **PASS:** migración `20260910212447` fusionada a producción mediante la rama
+  de Supabase. El registro productivo contiene una sola entrada y las funciones
+  publicadas tienen la misma huella que la candidata validada. La rama temporal
+  fue eliminada después de verificar producción.
+- **PASS:** frontend publicado desde el mismo commit mediante el artefacto
+  `crm-20260910T214509Z-a9d9efd804b3.zip`, SHA-256
+  `e439e9d290b167a4cb8a8ad5b948fbe467fc3cfc318eb1ae6d3bf74aca5b53a3`.
+  `crm.miavance.com` respondió 200, sirvió el mismo
+  `assets/index-3Ffsv1Pa.js` del build y no expuso el ZIP (404). La aplicación
+  cargó `build-20260910T214508537Z` y abrió sus módulos con la sesión vigente.
 - **PASS:** checks de scripts del repositorio.
 - **PASS:** reproducción de la falta de visibilidad: `ROSA` no aparece en la
   primera página del historial y sí aparece en la segunda; el buscador opera
@@ -274,8 +288,6 @@ terminar el merge controlado y el despliegue del frontend.
   etiqueta `DUPLICADO`; el reintento es una explicación probable, no probada.
 - **NOT RUN:** nueva derivación de prueba en producción; no se alteraron leads
   para probar el diagnóstico.
-- **NOT RUN:** gate RLS conectado. El preflight no pudo iniciarse porque este
-  entorno no tiene `SUPABASE_URL`; no se presenta como fallo del producto.
 - **NOT RUN (sin dictamen válido):** opinión independiente de Claude. Se invocó
   `scripts/claude-review` con evidencia saneada y rol `SECONDARY_REVIEWER`.
   El primer intento no completó el review; el segundo, con acceso a red
@@ -283,14 +295,15 @@ terminar el merge controlado y el despliegue del frontend.
   Ambos comandos devolvieron código 1. No se interpreta como aprobación ni
   como rechazo del diagnóstico. Las conclusiones se apoyan en la conciliación
   directa y conservan explícitamente el límite sobre el error reportado.
-- **PENDIENTE:** publicación de la migración y del frontend. No se modificaron
-  asignaciones ni datos de producción durante la implementación.
+- **PUBLICADO:** backend, frontend y trazabilidad activa en producción. La
+  verificación posterior fue de solo lectura; no se creó una derivación de prueba
+  con leads reales.
 
 El diagnóstico original contrastó el código desplegado y las funciones vivas.
-La solución local está en `app/src/screens/repartir.tsx`,
+La solución publicada está en `app/src/screens/repartir.tsx`,
 `app/src/components/app/agenda-reparto-diaria.tsx`,
 `app/src/data/crm-api.ts` y la migración
-`20260910201500_crm_reparto_turno_obligatorio_y_trazabilidad_real.sql`.
+`20260910212447_crm_reparto_turno_obligatorio_y_trazabilidad_real.sql`.
 
 Relacionadas: [[Acceso y roles del CRM]],
 [[Reporte diario de derivaciones para Coordinación]],
