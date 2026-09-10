@@ -138,6 +138,16 @@ Queda **NOT RUN** el recorrido completo de carga de archivo y envío inicial de
 Revisar inversión por UI. No hubo cambio de producto ni de producción. Los casos
 ficticios quedan disponibles en el banco para retomar la prueba.
 
+En el reintento del 10/09, Miguel indicó que ya había habilitado el permiso.
+La carga automática volvió a responder `Not allowed`; no se pudo completar
+por el selector nativo y la política del navegador rechazó abrir la configuración
+de extensiones. Por tanto, el permiso efectivo no quedó verificado. Se dejó
+un formulario Qorilazo completo, con capital ficticio nuevo de S/ 750 y depósito
+único, pendiente de que Miguel seleccione el PNG preparado. No se pulsó Revisar
+inversión ni Confirmar en este intento. Un snapshot nuevo confirmó inversiones,
+cierres, solicitudes y banderas sin cambios. El punto 5 continúa pendiente de
+este tramo; no se sustituye la evidencia parcial anterior por un PASS visual.
+
 El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
 `public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar
 las reinversiones, sin repetir los antecedentes ya creados. No fue un fallo del CRM.
