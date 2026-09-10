@@ -14,6 +14,206 @@ export type Database = {
   }
   crm: {
     Tables: {
+      postventa_retiros: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          creado_por: string
+          empresa: string
+          estado: string
+          fuente_id: string
+          id: string
+          inversionista_id: string
+          motivo: string
+          resolucion: string | null
+          revisado_por: string | null
+          revision: number
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por: string
+          empresa: string
+          estado?: string
+          fuente_id: string
+          id: string
+          inversionista_id: string
+          motivo: string
+          resolucion?: string | null
+          revisado_por?: string | null
+          revision?: number
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por?: string
+          empresa?: string
+          estado?: string
+          fuente_id?: string
+          id?: string
+          inversionista_id?: string
+          motivo?: string
+          resolucion?: string | null
+          revisado_por?: string | null
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postventa_retiros_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "cierres_externos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "postventa_retiros_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postventa_operaciones: {
+        Row: {
+          actor_id: string
+          clave: string
+          comando: string
+          creado_en: string
+          inversionista_id: string
+          payload: Json
+          respuesta: Json | null
+        }
+        Insert: {
+          actor_id: string
+          clave: string
+          comando: string
+          creado_en?: string
+          inversionista_id: string
+          payload: Json
+          respuesta?: Json | null
+        }
+        Update: {
+          actor_id?: string
+          clave?: string
+          comando?: string
+          creado_en?: string
+          inversionista_id?: string
+          payload?: Json
+          respuesta?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postventa_operaciones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postventa_escrituras: {
+        Row: {
+          tarea_id: string
+          transaccion: unknown
+        }
+        Insert: {
+          tarea_id: string
+          transaccion: unknown
+        }
+        Update: {
+          tarea_id?: string
+          transaccion?: unknown
+        }
+        Relationships: []
+      }
+      inversionista_gestiones: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          detalle: string
+          empresa: string | null
+          id: string
+          inversionista_id: string
+          metadata: Json
+          tarea_id: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          detalle: string
+          empresa?: string | null
+          id?: string
+          inversionista_id: string
+          metadata?: Json
+          tarea_id?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          detalle?: string
+          empresa?: string | null
+          id?: string
+          inversionista_id?: string
+          metadata?: Json
+          tarea_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversionista_gestiones_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversionista_gestiones_tarea_id_fkey"
+            columns: ["tarea_id"]
+            isOneToOne: false
+            referencedRelation: "tareas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inversion_solicitud_origenes: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          fuente_id: string
+          solicitud_id: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          fuente_id: string
+          solicitud_id: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          fuente_id?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversion_solicitud_origenes_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "cierres_externos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inversion_solicitud_origenes_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: true
+            referencedRelation: "inversion_solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitudes_tasa: {
         Row: {
           actualizado_en: string
@@ -2911,11 +3111,13 @@ export type Database = {
           enlace_reunion: string | null
           estado: string
           id: string
+          inversionista_id: string | null
           lead_id: string | null
           modalidad_reunion: string | null
           motivo_no_realizada: string | null
           nota: string | null
           perfil_id: string | null
+          postventa_revision: number | null
           reagendada_de: string | null
           reprogramaciones: number
           resultado_actividad_id: string | null
@@ -2940,11 +3142,13 @@ export type Database = {
           enlace_reunion?: string | null
           estado?: string
           id?: string
+          inversionista_id?: string | null
           lead_id?: string | null
           modalidad_reunion?: string | null
           motivo_no_realizada?: string | null
           nota?: string | null
           perfil_id?: string | null
+          postventa_revision?: number | null
           reagendada_de?: string | null
           reprogramaciones?: number
           resultado_actividad_id?: string | null
@@ -2969,11 +3173,13 @@ export type Database = {
           enlace_reunion?: string | null
           estado?: string
           id?: string
+          inversionista_id?: string | null
           lead_id?: string | null
           modalidad_reunion?: string | null
           motivo_no_realizada?: string | null
           nota?: string | null
           perfil_id?: string | null
+          postventa_revision?: number | null
           reagendada_de?: string | null
           reprogramaciones?: number
           resultado_actividad_id?: string | null
@@ -2991,6 +3197,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "equipo"
             referencedColumns: ["perfil_id"]
+          },
+          {
+            foreignKeyName: "tareas_inversionista_id_fkey"
+            columns: ["inversionista_id"]
+            isOneToOne: false
+            referencedRelation: "inversionistas"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "tareas_lead_id_fkey"
@@ -3143,6 +3356,73 @@ export type Database = {
       }
     }
     Functions: {
+      postventa_operacion_estado_fn: {
+        Args: { p_actor?: string; p_clave: string }
+        Returns: Json
+      }
+      preparar_reinversion_fn: {
+        Args: { p_clave: string; p_datos: Json; p_fuente: string }
+        Returns: Json
+      }
+      postventa_veto_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_inversionista: string
+          p_motivo: string
+          p_vetar: boolean
+        }
+        Returns: Json
+      }
+      postventa_vencimientos_fn: {
+        Args: { p_empresa?: string; p_pagina?: number }
+        Returns: Json
+      }
+      postventa_tarea_fn: {
+        Args: {
+          p_accion: string
+          p_actor?: string
+          p_clave: string
+          p_datos?: Json
+          p_revision: number
+          p_tarea: string
+        }
+        Returns: Json
+      }
+      postventa_solicitar_retiro_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_fuente: string
+          p_inversionista: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
+      postventa_revisar_retiro_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_detalle: string
+          p_estado: string
+          p_retiro: string
+          p_revision: number
+        }
+        Returns: Json
+      }
+      postventa_perfil_fn: { Args: { p_perfil: string }; Returns: Json }
+      postventa_ficha_fn: { Args: { p_inversionista: string }; Returns: Json }
+      postventa_estado_fn: { Args: never; Returns: Json }
+      postventa_agendar_fn: {
+        Args: {
+          p_actor?: string
+          p_clave: string
+          p_datos: Json
+          p_inversionista: string
+        }
+        Returns: Json
+      }
+      postventa_agenda_fn: { Args: never; Returns: Json }
       inversionista_documento_fn: {
         Args: { p_documento: string; p_fuente: string; p_inversionista: string }
         Returns: Json

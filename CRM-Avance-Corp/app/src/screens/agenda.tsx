@@ -1,3 +1,4 @@
+import { abrirInversionista } from '@/lib/router'
 // Pantalla AGENDA (Fases C + D del plan v2) — la vista de planificación sobre
 // las MISMAS tareas de crm.tareas que alimentan HOY (una sola fuente de verdad).
 //
@@ -192,13 +193,14 @@ function TarjetaTarea({
   const responsableNombre =
     lead?.vendedor_nombre ??
     (t.vendedor_id ? equipo.find((miembro) => miembro.perfil_id === t.vendedor_id)?.nombre_completo : null)
-  const abreFichaLead = t.lead_id != null
+  const abreFichaLead = t.lead_id != null || Boolean(t.inversionista_id)
+  const abrirFicha = () => t.inversionista_id ? abrirInversionista(t.inversionista_canonico_id ?? t.inversionista_id) : t.lead_id && abrirLead(t.lead_id)
   const interaccionFicha = abreFichaLead
     ? {
         role: 'button' as const,
         tabIndex: 0,
         'aria-label': `Abrir ficha — ${ev.titulo}`,
-        onClick: () => abrirLead(t.lead_id!),
+        onClick: abrirFicha,
         onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
           // Solo teclas sobre la TARJETA misma: un Enter/Espacio en un botón
           // anidado (cerrar, confirmar, +1d…) burbujea hasta aquí, y el
@@ -206,7 +208,7 @@ function TarjetaTarea({
           if (e.target !== e.currentTarget) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            abrirLead(t.lead_id!)
+            abrirFicha()
           }
         },
       }
@@ -266,6 +268,7 @@ function TarjetaTarea({
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[t.tipo] ?? t.tipo}
           </Badge>
+          {t.inversionista_id && <Badge color="var(--primary)" className="text-[10px]">Postventa</Badge>}
           {t.perfil_id && (
             <Badge color="var(--primary)" className="text-[10px]">
               Cliente
@@ -375,11 +378,11 @@ function TarjetaTarea({
               title="El cliente confirmó la cita"
               aria-label={`Marcar confirmada — ${ev.titulo}`}
               className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation()
                 const res = confirmarTarea(t.id)
-                if (res.ok) toast.success(`Cita confirmada${yo?.demo ? ' (demo)' : ''}`)
-                else toast.error(res.error ?? 'No se pudo confirmar')
+                if (res.ok && await (res.persistido ?? Promise.resolve(true))) toast.success(`Cita confirmada${yo?.demo ? ' (demo)' : ''}`)
+                else if (!res.ok) toast.error(res.error ?? 'No se pudo confirmar')
               }}
             >
               <ShieldCheck className="size-4" aria-hidden />
@@ -921,7 +924,7 @@ export function Agenda() {
           (t) =>
             t.estado === 'pendiente' &&
             t.activo &&
-            ((t.lead_id != null && idsAmbito.has(t.lead_id)) || t.perfil_id != null),
+            ((t.lead_id != null && idsAmbito.has(t.lead_id)) || t.perfil_id != null || t.inversionista_id != null),
         )
         .sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
     [tareas, idsAmbito],

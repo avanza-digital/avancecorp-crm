@@ -2887,6 +2887,9 @@ export async function montarBackendReal(
     }
 
     // ── estado del cierre y anulación de gerencia (Avance) ──────────────────
+    if (p === '/rest/v1/rpc/postventa_agenda_fn') return json(route, [])
+    if (p === '/rest/v1/rpc/postventa_estado_fn') return json(route, {version: 1, habilitada: false})
+    if (p === '/rest/v1/rpc/postventa_perfil_fn') return json(route, {habilitada: false, inversionista_id: null})
     if (p === '/rest/v1/rpc/cartera_inversionistas_estado_fn') return json(route, {version: 1, habilitada: false, escritura_habilitada: false, motivo: null})
     if (p === '/rest/v1/rpc/cierres_estado_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_lead_ids?: string[] }

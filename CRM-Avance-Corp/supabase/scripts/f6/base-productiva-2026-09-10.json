@@ -1,0 +1,37 @@
+{
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "consultado": "2026-09-10 15:56:27 UTC",
+  "operacion": "Solo lectura: funciones de integración vigentes, antes de instalar F6",
+  "funciones": [
+    {
+      "firma": "crm.fijar_membresia_activa_fn(uuid,boolean,uuid,timestamp with time zone,uuid)",
+      "md5": "98ed607a6ba5bf78f42e7c130bf56ad9",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "crm.inversionista_ficha_fn(uuid,integer,integer)",
+      "md5": "b77830ba58d4a9f9e01a69d25939697d",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "crm.marcar_no_contactar(uuid,text)",
+      "md5": "be49e976a0c760c23d08bc66e81f23c9",
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "firma": "private.agenda_ics_feed_implementacion(uuid,timestamp with time zone)",
+      "md5": "17d9c116e300a18d9dd57b02fa3230a5",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "firma": "private.inversion_solicitud_resultado(uuid,jsonb)",
+      "md5": "8dfe4fb7ee03e0726432d2561425e346",
+      "acl": "{postgres=X/postgres}"
+    },
+    {
+      "firma": "private.trg_tareas_destino_efectivo()",
+      "md5": "5501b87138be72a30912dff23c7b1dde",
+      "acl": "{postgres=X/postgres}"
+    }
+  ]
+}

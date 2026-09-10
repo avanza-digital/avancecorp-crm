@@ -1,8 +1,8 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f5-web-publicada-servidor-ensayado
-actualizado: 2026-09-09
+estado: plan-vigente-f5-instalada-f6-verificada-local
+actualizado: 2026-09-10
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -43,7 +43,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
-| F6 — postventa | Pendiente | Vencimientos, próxima acción, renovación y reinversión |
+| F6 — postventa | Implementada y verificada localmente | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 41 pruebas de servidor y gate frontend PASS. SQL/publicación F6 pendientes. [[F6 - implementación de postventa (2026-09-10)]] |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
@@ -458,7 +458,12 @@ Las escrituras F4 y la ficha F5 permanecen apagadas en producción. Evidencia:
 
 ### F6 — postventa, vencimientos y próxima inversión
 
-**Avance:** al completar la evidencia de esta fase.
+**Avance al 10/09:** implementación y ensayos locales completados: 41 pruebas de
+servidor F6, 46 de regresión F5, 3.180 del frontend y 159 recorridos E2E PASS
+(26 omisiones existentes). Replay, reversa, tipos, permisos y preservación de
+fuentes comprobados. Publicación/SQL y aceptación humana F6 pendientes; no se
+hereda el visto bueno manual de F5. Evidencia y límites:
+[[F6 - implementación de postventa (2026-09-10)]].
 
 **Qué se adapta:**
 
@@ -695,8 +700,11 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Conservar los 65 fallos anteriores del gate general como pendientes explícitos,
    sin etiquetarlo PASS. Antes de encender, conciliar las 15 fuentes pendientes.
    Evidencia en [[F5 - instalada y apagada (2026-09-10)]].
-3. Después: **F6 → F7/G6 → F8/G7 → F9/G8**: postventa, conciliación de métricas,
-   piloto económico y activación progresiva con ciclo mensual completo.
+3. **F6 implementada y verificada localmente:** conservar el paquete exacto y su
+   reversa. Preparar su autorización/ensayo remoto/publicación con banderas OFF.
+   [[F6 - implementación de postventa (2026-09-10)]].
+4. Después: **F7/G6 → F8/G7 → F9/G8**: conciliación de métricas, piloto económico
+   y activación progresiva con ciclo mensual completo.
 
 F3 permanece encendida; la instalación de F5 no cambió las banderas.
 La modalidad de captura de documento web sigue como decisión

@@ -1,3 +1,4 @@
+import { PostventaPersona } from './postventa-persona'
 // La ficha neutral comparte la cabecera, las secciones, la banca y el Sheet
 // publicados. Una cooperativa nunca se adapta a un perfil ficticio de Avance.
 import { useEffect, useRef, useState } from 'react'
@@ -48,7 +49,9 @@ function CuentasAvance({actor, identidad, perfil, onRevocado}: {
   </div>
 }
 
-function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf}: {
+function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf, postventa, onRetiro}: {
+  postventa?: boolean | undefined
+  onRetiro?: ((inversion: InversionFuente) => void) | undefined
   inversion: InversionFuente
   onOperacion?: ((operacion: OperacionInversion) => void) | undefined
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
@@ -83,6 +86,10 @@ function InversionDetalle({inversion, onDocumento, onOperacion, onRecuperarPdf}:
       {i.estado === 'activo' && <Button variant="outline" size="sm" onClick={() => onOperacion({tipo: 'upgrade', fuente: i})}>Aumentar inversión</Button>}
       {['activo', 'vencido'].includes(i.estado) && i.vence_en && i.vence_en <= fechaLima(Date.now()) && <Button variant="outline" size="sm" onClick={() => onOperacion({tipo: 'renovacion', fuente: i})}>Renovar contrato</Button>}
     </div>}
+    {postventa && i.empresa !== 'avance' && !i.es_demo && ['vigente', 'activo', 'vencido'].includes(i.estado) && <div className="mt-3 flex flex-wrap gap-2">
+      {onOperacion && <Button variant="outline" size="sm" onClick={() => onOperacion({tipo: 'reinversion', fuente: i})}>Reinvertir desde esta inversión</Button>}
+      {onRetiro && <Button variant="outline" size="sm" onClick={() => onRetiro(i)}>Registrar solicitud de retiro</Button>}
+    </div>}
     {i.documentos.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{i.documentos.map(d =>
       <Button key={d.id} variant="outline" size="sm" onClick={() => onDocumento?.(i, d.id)} disabled={!onDocumento}>
         <FileText aria-hidden />{d.nombre}
@@ -97,6 +104,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
   onDocumento?: ((inversion: InversionFuente, documentoId: string) => void) | undefined
   onRecuperarPdf?: ((inversion: InversionFuente) => void) | undefined
 }) {
+  const [retiroElegido, setRetiroElegido] = useState<InversionFuente | null>(null)
   const [paginaInversiones, setPaginaInversiones] = useState(1)
   const [paginaHistorial, setPaginaHistorial] = useState(1)
   const [bancaAbierta, setBancaAbierta] = useState(false)
@@ -143,6 +151,8 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
           {p.correo && <a className="inline-flex min-h-10 items-center gap-2 text-sm text-accent underline" href={`mailto:${encodeURIComponent(p.correo)}`}><Mail className="size-4" aria-hidden />Escribir</a>}
         </div>}
       </FichaComercialSeccion>
+      {ficha.capacidades.postventa && <PostventaPersona actor={actor} ficha={ficha} retiroElegido={retiroElegido}
+        onRetiroCerrado={() => setRetiroElegido(null)} />}
       <FichaComercialSeccion icono={CalendarClock} titulo="Próximas tareas">
         {ficha.tareas.length ? <ul className="space-y-2">{ficha.tareas.map(t => <li key={t.id} className="text-sm [overflow-wrap:anywhere]">
           <p className="font-medium">{t.titulo}</p><p className="text-xs text-muted-foreground">{fechaHora(t.vence_en)}</p>
@@ -153,7 +163,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
         <ResumenEmpresas totales={ficha.totales} />
         {Array.from(grupos, ([k, inversiones]) => <div key={k} className="space-y-2">
           <h4 className="text-sm font-semibold">{EMPRESA_NOMBRE[inversiones[0]!.empresa]} · {inversiones[0]!.moneda}</h4>
-          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} onDocumento={onDocumento} onRecuperarPdf={onRecuperarPdf} onOperacion={ficha.capacidades.nueva_inversion ? onOperacion : undefined} />)}
+          {inversiones.map(i => <InversionDetalle key={i.fuente_id} inversion={i} postventa={ficha.capacidades.postventa} onRetiro={setRetiroElegido} onDocumento={onDocumento} onRecuperarPdf={onRecuperarPdf} onOperacion={ficha.capacidades.nueva_inversion ? onOperacion : undefined} />)}
         </div>)}
         {ficha.inversiones_total === 0 && <p className="text-sm text-muted-foreground">Todavía no registra inversiones.</p>}
         <Paginacion paginaActual={paginaInversiones - 1} paginas={Math.max(1, Math.ceil(ficha.inversiones_total / 25))}
@@ -169,6 +179,7 @@ export function InversionistaFicha({actor, inversionistaId, onCerrar, onRevocado
       <FichaComercialSeccionPlegable icono={History} titulo="Historial" resumen={`${ficha.historial_total} actividades registradas`}
         abierta={historialAbierto} onAbiertaChange={setHistorialAbierto}>
         <ul className="space-y-3">{ficha.historial.map(h => <li key={`${h.origen}:${h.id}`} className="text-sm [overflow-wrap:anywhere]">
+          <p className="text-xs text-muted-foreground">{h.origen === 'lead' ? 'Captación' : h.origen === 'postventa' ? 'Postventa' : 'Cliente Avance'}{h.empresa ? ` · ${EMPRESA_NOMBRE[h.empresa]}` : ''}</p>
           <p className="font-medium">{h.tipo.replaceAll('_', ' ')}</p><p>{h.detalle}</p>
           <p className="text-xs text-muted-foreground">{fechaHora(h.creado_en)}</p>
         </li>)}</ul>

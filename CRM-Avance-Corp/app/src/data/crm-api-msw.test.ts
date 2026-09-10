@@ -60,7 +60,7 @@ function fila(sobre: Record<string, unknown> = {}): Record<string, unknown> {
   }
 }
 
-const server = setupServer()
+const server = setupServer(http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json({code: 'PGRST202', message: 'F6 no instalada'}, {status: 404})))
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
@@ -502,6 +502,37 @@ describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
         }),
       }),
     )
+  })
+})
+
+describe('agenda mixta con postventa instalada (msw)', () => {
+  const perfil = '99999999-9999-4999-8999-999999999999'
+  const persona = '33333333-3333-4333-8333-333333333333'
+  const base = {
+    id: '11111111-1111-4111-8111-111111111111', lead_id: null, perfil_id: perfil,
+    vendedor_id: null, asignado_supervisor_id: null, tipo: 'llamada', titulo: 'Seguimiento', nota: null,
+    vence_en: '2027-01-05T15:00:00.000Z', duracion_min: null, estado: 'pendiente',
+    modalidad_reunion: null, ubicacion_reunion: null, enlace_reunion: null, resultado_reunion: null,
+    motivo_no_realizada: null, detalle_cierre_reunion: null, confirmada_en: null, reagendada_de: null,
+    reprogramaciones: 0, activo: true, creado_en: '2026-09-10T15:00:00.000Z',
+  }
+  it('combina las dos rutas, conserva el enlace del perfil y ordena por vencimiento', async () => {
+    const neutral = {...base, id: '22222222-2222-4222-8222-222222222222', perfil_id: null,
+      inversionista_id: persona, inversionista_canonico_id: persona, postventa_revision: 1,
+      postventa_perfil_ids: [perfil], vence_en: '2027-01-04T15:00:00.000Z'}
+    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+      http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json([neutral])))
+    await expect(listarTareasDelAmbito()).resolves.toEqual([neutral, base])
+  })
+  it('una transición apagada devuelve íntegra la agenda anterior', async () => {
+    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+      http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json([])))
+    await expect(listarTareasDelAmbito()).resolves.toEqual([base])
+  })
+  it.each(['42501', '40001', 'PGRST123'])('no oculta una respuesta fallida %s como agenda completa', async code => {
+    server.use(http.get('http://supabase.test/rest/v1/tareas', () => HttpResponse.json([base])),
+      http.post('http://supabase.test/rest/v1/rpc/postventa_agenda_fn', () => HttpResponse.json({code, message: 'Fallo de ensayo'}, {status: 500})))
+    await expect(listarTareasDelAmbito()).rejects.toMatchObject({code})
   })
 })
 

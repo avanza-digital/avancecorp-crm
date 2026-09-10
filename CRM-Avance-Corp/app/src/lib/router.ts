@@ -84,6 +84,7 @@ export function esVistaLeads(vista: Vista): boolean {
 export interface RutaHash {
   vista: Vista | null // null → ruta desconocida o vacía (el caller decide el default)
   leadId: string | null
+  inversionistaId?: string
 }
 
 function esVista(v: string | undefined): v is Vista {
@@ -115,8 +116,11 @@ function resolverVista(seg: string | undefined): Vista | null {
   return alias ?? null
 }
 
-/** Hash canónico de una vista (+ lead opcional). */
-export function hashDe(vista: Vista, leadId?: string | null): string {
+const UUID_PERSONA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Hash canónico de una vista y su ficha opcional. */
+export function hashDe(vista: Vista, leadId?: string | null, inversionistaId?: string): string {
+  if (vista === 'mi-cartera' && !leadId && inversionistaId && UUID_PERSONA.test(inversionistaId)) return `#/mi-cartera/inversionista/${inversionistaId}`
   return leadId ? `#/${vista}/lead/${encodeURIComponent(leadId)}` : `#/${vista}`
 }
 
@@ -134,7 +138,8 @@ export function leerHash(): RutaHash {
       leadId = null // %-escape malformado en la URL → se ignora el lead
     }
   }
-  return { vista, leadId }
+  const inversionistaId = vista === 'mi-cartera' && partes[1] === 'inversionista' && partes[2] && UUID_PERSONA.test(partes[2]) ? partes[2] : undefined
+  return { vista, leadId, ...(inversionistaId ? {inversionistaId} : {}) }
 }
 
 /**
@@ -144,12 +149,17 @@ export function leerHash(): RutaHash {
  * historial (rutas desconocidas, leads fuera de ámbito). OJO: replaceState
  * NO dispara `hashchange` — el caller ya debe tener el estado correcto.
  */
-export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false): void {
-  const destino = hashDe(vista, leadId)
+export function escribirHash(vista: Vista, leadId?: string | null, reemplazar = false, inversionistaId?: string): void {
+  const destino = hashDe(vista, leadId, inversionistaId)
   if (window.location.hash === destino) return
   if (reemplazar) {
     history.replaceState(null, '', destino)
   } else {
     window.location.hash = destino
   }
+}
+
+/** La ficha vuelve a comprobar ámbito y canonicalización en el servidor. */
+export function abrirInversionista(id: string): void {
+  escribirHash('mi-cartera', null, false, id)
 }

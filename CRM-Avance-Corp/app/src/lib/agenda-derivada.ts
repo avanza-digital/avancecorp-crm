@@ -20,6 +20,7 @@ export interface EventoAgenda {
   lead_id: string
   /** Cliente de cartera cuando el evento es postventa (lead_id queda ''). */
   perfil_id?: string | null
+  inversionista_id?: string | null
   titulo: string
   tipo: string
   /** Etiqueta humana "Día · HH:MM" — SOLO display; ordenar usa vence_en. */
@@ -93,6 +94,7 @@ export function tareaAEvento(t: Tarea, ahora: number): EventoAgenda {
     id: t.id,
     lead_id: t.lead_id ?? '',
     perfil_id: t.perfil_id ?? null,
+    ...(t.inversionista_id ? { inversionista_id: t.inversionista_canonico_id ?? t.inversionista_id } : {}),
     titulo: presentarCitas(t.titulo),
     tipo: t.tipo,
     cuando: `${dia} · ${horaLima(ms)}`,

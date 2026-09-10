@@ -1,3 +1,4 @@
+import { FormTareaPostventa } from './postventa-tarea'
 // Diálogo de cierre de tarea — el corazón del MOTOR (Fase B del plan v2).
 //
 // Flujo en un solo diálogo: resultado 1-tap (obligatorio en llamadas — patrón
@@ -138,9 +139,12 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
 }
 
 export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
+  const [ocupado, setOcupado] = useState(false)
   return (
-    <Dialog open={tarea != null} onClose={onCerrar} ariaLabel="Cerrar tarea">
-      {tarea && <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} />}
+    <Dialog open={tarea != null} onClose={() => { if (!ocupado) onCerrar() }} ariaLabel="Cerrar tarea">
+      {tarea && (tarea.inversionista_id
+        ? <FormTareaPostventa key={tarea.id} tarea={tarea} onCerrar={onCerrar} onOcupado={setOcupado} />
+        : <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} />)}
     </Dialog>
   )
 }

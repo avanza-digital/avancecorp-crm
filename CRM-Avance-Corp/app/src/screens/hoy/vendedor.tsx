@@ -1,3 +1,4 @@
+import { abrirInversionista } from '@/lib/router'
 import { SlaOperacionBoundary } from '@/components/app/sla-operacion'
 import { useModoSla } from '@/data/sla-operacion-queries'
 // Hoy · ANALISTA (F1c) — la pantalla diaria del analista: SU cartera, SU cola de
@@ -306,9 +307,10 @@ function FilaAgenda({
 }): JSX.Element {
   const [dia, hora] = ev.cuando.split(' · ')
   const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
-  const abreFichaLead = ev.lead_id !== ''
+  const abreFichaLead = ev.lead_id !== '' || Boolean(ev.inversionista_id)
   const abrir = () => {
-    if (abreFichaLead) abrirLead(ev.lead_id)
+    if (ev.inversionista_id) abrirInversionista(ev.inversionista_id)
+    else if (ev.lead_id) abrirLead(ev.lead_id)
   }
   const interaccionFicha = abreFichaLead
     ? {
@@ -1039,7 +1041,7 @@ export function HoyVendedor(): JSX.Element {
   // separadas del motor de leads para no contaminar SLA, etapas ni la cola,
   // pero comparten el mismo reloj y el mismo diálogo de cierre.
   const agendaClientes = useMemo(() => {
-    const mias = tareas.filter((t) => t.perfil_id != null && (yo?.id == null || t.vendedor_id === yo.id))
+    const mias = tareas.filter((t) => (t.perfil_id != null || t.inversionista_id != null) && (yo?.id == null || t.vendedor_id === yo.id))
     return agendaDeTareas(mias, ahora).filter((evento) => evento.vencida || esDeHoy(evento, ahora))
   }, [tareas, yo?.id, ahora])
 

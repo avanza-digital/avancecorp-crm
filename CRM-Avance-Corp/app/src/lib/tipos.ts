@@ -250,8 +250,13 @@ export const MOTIVOS_NO_REALIZADA_TODOS = [
 export type MotivoNoRealizada = (typeof MOTIVOS_NO_REALIZADA_TODOS)[number]
 
 export interface Tarea {
+  /** Sujeto neutral F6; conserva su origen y autoriza por la canónica vigente. */
+  inversionista_id?: string | null | undefined
+  inversionista_canonico_id?: string | null | undefined
+  postventa_revision?: number | null | undefined
+  postventa_perfil_ids?: string[] | undefined
   id: string
-  /** Exactamente UNO de los dos (CHECK tareas_un_solo_sujeto); v1 usa solo lead. */
+  /** Exactamente un sujeto: lead, perfil o inversionista (CHECK tareas_un_solo_sujeto). */
   lead_id: string | null
   perfil_id?: string | null
   /** Tenencia espejo del lead, derivada por trigger (null = bandeja del supervisor). */

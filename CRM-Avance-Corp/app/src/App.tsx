@@ -384,7 +384,7 @@ function Workspace() {
         leadDestino = null
       }
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
-      escribirHash(destino, leadDestino, true)
+      escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -413,7 +413,8 @@ function Workspace() {
       objetivoHash.current = null
       return
     }
-    escribirHash(vista, leadAbiertoId) // compara antes de escribir → sin bucles
+    const ruta = leerHash()
+    escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble

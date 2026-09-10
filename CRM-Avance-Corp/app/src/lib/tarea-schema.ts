@@ -1,0 +1,31 @@
+import * as v from 'valibot'
+import { ESTADOS_TAREA, TIPOS_TAREA, MODALIDADES_REUNION_TODAS, RESULTADOS_REUNION_TODOS, MOTIVOS_NO_REALIZADA_TODOS } from './tipos'
+
+export const TareaRowSchema = v.object({
+  id: v.string(),
+  lead_id: v.nullable(v.string()),
+  perfil_id: v.nullable(v.string()),
+  inversionista_id: v.optional(v.nullable(v.string())),
+  inversionista_canonico_id: v.optional(v.nullable(v.string())),
+  postventa_perfil_ids: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
+  postventa_revision: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1)))),
+  vendedor_id: v.nullable(v.string()),
+  asignado_supervisor_id: v.nullable(v.string()),
+  tipo: v.picklist(TIPOS_TAREA.map((t) => t.k)),
+  titulo: v.string(),
+  nota: v.nullable(v.string()),
+  vence_en: v.string(),
+  duracion_min: v.nullable(v.number()),
+  estado: v.picklist(ESTADOS_TAREA),
+  modalidad_reunion: v.nullable(v.picklist(MODALIDADES_REUNION_TODAS)),
+  ubicacion_reunion: v.nullable(v.string()),
+  enlace_reunion: v.nullable(v.string()),
+  resultado_reunion: v.nullable(v.picklist(RESULTADOS_REUNION_TODOS)),
+  motivo_no_realizada: v.nullable(v.picklist(MOTIVOS_NO_REALIZADA_TODOS)),
+  detalle_cierre_reunion: v.nullable(v.string()),
+  confirmada_en: v.nullable(v.string()),
+  reagendada_de: v.nullable(v.string()),
+  reprogramaciones: v.number(),
+  activo: v.boolean(),
+  creado_en: v.string(),
+})

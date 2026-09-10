@@ -1,3 +1,6 @@
+import { abrirInversionista, escribirHash, leerHash } from '@/lib/router'
+import { VencimientosPostventa } from '@/components/app/postventa-vencimientos'
+import { postventaKeys } from '@/data/postventa-queries'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, Users2, RefreshCw } from 'lucide-react'
@@ -29,7 +32,17 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
   const qc = useQueryClient()
   const [filtros, setFiltros] = useState<FiltrosInversionistas>(FILTROS_INVERSIONISTAS_INICIALES)
   const [busqueda, setBusqueda] = useState('')
-  const [seleccion, setSeleccion] = useState<string | null>(null)
+  const [seleccion, setSeleccion] = useState<string | null>(() => leerHash().inversionistaId ?? null)
+  useEffect(() => {
+    const cambiar = () => setSeleccion(leerHash().inversionistaId ?? null)
+    window.addEventListener('hashchange', cambiar)
+    return () => window.removeEventListener('hashchange', cambiar)
+  }, [])
+  const seleccionar = (id: string | null) => {
+    setSeleccion(id)
+    if (id) abrirInversionista(id)
+    else escribirHash('mi-cartera')
+  }
   const [nueva, setNueva] = useState<{persona: string; operacion?: OperacionInversion} | null>(null)
   const [gestion, setGestion] = useState(false)
   const [aviso, setAviso] = useState('')
@@ -49,7 +62,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     let referencia: string | undefined
     try {if (persona) referencia = leerIntentoInversion(actor, persona)?.clave}
     catch { /* No recuperar ni mostrar contenido ilegible. */ }
-    documento.current?.abort(); setDescargando(false); setSeleccion(null); setNueva(null)
+    documento.current?.abort(); setDescargando(false); seleccionar(null); setNueva(null)
     limpiarIntentosInversion(actor, persona)
     setAviso(`El acceso cambió. La cartera se volverá a consultar.${referencia ? ` Referencia de la solicitud pendiente: ${referencia}.` : ''}`)
     // Cancelar impide que una respuesta antigua vuelva a poblar la ficha.
@@ -58,6 +71,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
       qc.removeQueries({queryKey: [...inversionistasKeys.actor(actor), 'lista']})
       void qc.invalidateQueries({queryKey: inversionistasKeys.actor(actor)})
     })
+    void qc.cancelQueries({queryKey: postventaKeys.actor(actor)}).then(() => qc.removeQueries({queryKey: postventaKeys.actor(actor)}))
     titulo.current?.focus()
   }
   const revocarRef = useRef(revocar); revocarRef.current = revocar
@@ -91,9 +105,10 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 ref={titulo} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">Cartera de inversionistas</h2>
         <p className="mt-1 text-sm text-muted-foreground">Una ficha por persona, con sus inversiones en cada empresa.</p></div>
-      <Button variant="outline" size="sm" onClick={() => {setSeleccion(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button>
+      <Button variant="outline" size="sm" onClick={() => {seleccionar(null); setNueva(null); setGestion(true)}}>Gestión Avance</Button>
     </div>
     {aviso && <p role="status" className="rounded-lg bg-muted p-3 text-sm">{aviso}</p>}
+    <VencimientosPostventa key={filtros.empresa} actor={actor} empresa={filtros.empresa} onAbrir={seleccionar} />
     <Card className="overflow-hidden">
       <SectionHead icon={Users2} title="Inversionistas" right={<Button variant="ghost" size="sm" aria-label="Actualizar cartera"
         disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden /></Button>} />
@@ -119,7 +134,7 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
             <Button variant="outline" size="sm" className="mt-2 min-h-10" onClick={() => {setBusqueda(''); setFiltros(FILTROS_INVERSIONISTAS_INICIALES)}}>Restablecer filtros</Button>
           </PanelVacio> : <ul className="divide-y divide-border border-y border-border">{datos.filas.map(p => <li key={p.inversionista_id}>
             <button type="button" className="grid min-h-20 w-full gap-2 px-5 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:grid-cols-[2fr_1fr_1fr]"
-              onClick={() => {setAviso(''); setDescargando(false); setSeleccion(p.inversionista_id)}} aria-label={`Abrir ficha de ${p.nombre}`}>
+              onClick={() => {setAviso(''); setDescargando(false); seleccionar(p.inversionista_id)}} aria-label={`Abrir ficha de ${p.nombre}`}>
               <span className="min-w-0"><span className="block text-sm font-semibold [overflow-wrap:anywhere]">{p.nombre}</span>
                 <span className="block text-xs text-muted-foreground">{p.documento_tipo} {p.documento || 'Documento pendiente'}</span></span>
               <span className="flex flex-wrap items-center gap-1">{p.empresas.map(e => <Badge key={e}>{EMPRESA_NOMBRE[e]}</Badge>)}</span>
@@ -130,9 +145,9 @@ export function CarteraInversionistas({actor, permiteInversion, gestionAvance}: 
             onCambio={n => setFiltros(f => ({...f, pagina: n + 1}))} mostrarSiempre ariaLabel="Paginación de inversionistas" /></div>
         </>}
     </Card>
-    {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); setSeleccion(null)}} ariaLabel="Ficha del inversionista" className="w-[760px]">
+    {seleccion && !nueva && <Sheet open onClose={() => {documento.current?.abort(); setDescargando(false); seleccionar(null)}} ariaLabel="Ficha del inversionista" className="w-[760px]">
       {descargando && <p role="status" className="px-5 pt-3 text-sm">Comprobando acceso y descargando documento…</p>}
-      <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => setSeleccion(null)} onRevocado={revocar}
+      <InversionistaFicha key={seleccion} actor={actor} inversionistaId={seleccion} onCerrar={() => seleccionar(null)} onRevocado={revocar}
         onNuevaInversion={permiteInversion ? f => setNueva({persona: f.persona.inversionista_id}) : undefined}
         onOperacion={permiteInversion ? op => setNueva({persona: seleccion, operacion: op}) : undefined}
         onDocumento={(i, id) => void abrirDocumento(i, id)} onRecuperarPdf={i => void abrirDocumento(i, i.fuente_id, true)} />

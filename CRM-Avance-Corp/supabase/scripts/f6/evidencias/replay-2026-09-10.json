@@ -1,0 +1,24 @@
+{
+  "estado": "PASS",
+  "archivos": [
+    {
+      "archivo": "20260908230249_crm_f5_cartera_ficha_multiempresa.sql",
+      "sha256": "a13c7ec388993b8cba5299d61e33d9db1cff7d148146b06cbd0cd99cdcce22e5"
+    },
+    {
+      "archivo": "20260909170900_crm_f5_candado_estado_cartera.sql",
+      "sha256": "36390b01ded88d7d1f90b8ca8036d3c864c0470df10b9673c348541d530353ab"
+    },
+    {
+      "archivo": "20260910150039_crm_f6_postventa_persona.sql",
+      "sha256": "b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd"
+    }
+  ],
+  "funcionesPreexistentes": 564,
+  "integracionesPrevistas": 6,
+  "fuentesAuthIdentidadesConservadas": true,
+  "banderasAnterioresConservadas": true,
+  "nuevaBanderaOFF": true,
+  "reversa": "PASS",
+  "d19": 0
+}

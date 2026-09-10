@@ -1,5 +1,7 @@
 # Ledger de migraciones — esquema `crm`
 
+> **F6 candidata — 10/09/2026, NO INSTALADA en producción:** `20260910150039_crm_f6_postventa_persona.sql`: tareas por persona en la misma agenda, cinco tablas CRM cerradas/auditadas, doce RPC y seis integraciones protegidas por huellas del servidor vigente. Sin DDL `public`, backfill ni cambios de dinero/Auth. `postventa_neutral` nace OFF; F4/F5 conservan sus banderas. 41 pruebas F6, 46 de regresión F5, replay/reversa y gate frontend PASS. Matriz RLS global/advisors remotos F6 NOT RUN. [Paquete exacto, aceptación y reversa](../scripts/f6/README.md). Su SQL requiere autorización propia; el OK previo de Miguel correspondió a F5 ya instalada.
+
 > **F5 PUBLICADA — 10/09/2026, apagada:** aprobadas e instaladas las dos migraciones F5 mediante merge del banco exclusivo: versiones productivas `20260909165335` (archivo local `20260908230249`) y `20260909171452` (archivo local `20260909170900`). Nueve funciones nuevas, cuatro restricciones, ACL/RLS y función documental verificadas; 1.353 objetos previos, 14 tablas de negocio y 17 Edge conservados. F3 ON, F4/F5 OFF; permanecen 15 huecos de identidad. Banco temporal eliminado. El merge separó los archivos en 33 y seis sentencias literales; las 266 migraciones previas conservan su historial exacto. Sin normalización del ledger. [Acta y evidencia](../scripts/f5/PUBLICACION-2026-09-10.md).
 
 Antecedentes del ensayo (estado histórico, sustituido por la publicación anterior):

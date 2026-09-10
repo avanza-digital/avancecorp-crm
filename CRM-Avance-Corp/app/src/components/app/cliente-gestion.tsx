@@ -1,6 +1,12 @@
+import { useAuth } from '@/lib/auth-context'
+import { personaDePerfil } from '@/data/postventa-api'
+import { refrescarPostventa } from '@/data/postventa-queries'
+import { mensajeDeError } from '@/data/crm-api'
+import { RecuperacionPostventa } from './postventa-envio'
+import { useEnvioPostventa } from '@/data/use-envio-postventa'
 // Gestión comercial postventa desde Mi cartera. Usa la MISMA crm.tareas que
 // alimenta Hoy y Agenda, pero su sujeto es perfil_id (cliente), no lead_id.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarPlus, Clock3 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -36,21 +42,45 @@ function tituloSugerido(tipo: TipoTarea, nombre: string): string {
   return `${ACCION_POR_TIPO[tipo]} ${primero}`
 }
 
-export function ClienteGestion({
-  clienteId,
-  clienteNombre,
-  onCerrar,
-  onEnviandoCambio,
-}: {
-  clienteId: string
+interface PropsGestion {
+  clienteId?: string | undefined
+  inversionistaId?: string | undefined
   clienteNombre: string
   onCerrar: () => void
-  /** Bloquea Esc/overlay del diálogo mientras el INSERT real está en vuelo. */
-  onEnviandoCambio?: (enviando: boolean) => void
-}) {
-  const { crearTarea, tareasDeCliente } = useCRMData()
+  onEnviandoCambio?: ((enviando: boolean) => void) | undefined
+}
+export function ClienteGestion(props: PropsGestion) {
+  const {yo} = useAuth()
+  return <ResolverGestion key={`${yo?.id}:${props.inversionistaId ?? props.clienteId}`} {...props} />
+}
+function ResolverGestion(props: PropsGestion) {
+  const {yo} = useAuth()
+  const [resuelta, setResuelta] = useState<{persona: string | null; error: string | null} | null>(null)
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (yo?.demo || props.inversionistaId || !props.clienteId) return
+    const abort = new AbortController()
+    void personaDePerfil(props.clienteId, abort.signal).then(r => {
+      if (!abort.signal.aborted) setResuelta(r.habilitada && !r.inversionista_id
+        ? {persona: null, error: 'La identidad del cliente requiere revisión antes de agendar.'}
+        : {persona: r.inversionista_id, error: null})
+    }).catch(e => {if (!abort.signal.aborted) setResuelta({persona: null, error: mensajeDeError(e, 'No pudimos comprobar la identidad.')})})
+    return () => abort.abort()
+  }, [props.clienteId, props.inversionistaId, yo?.demo, yo?.id, revision])
+  if (!yo?.demo && !props.inversionistaId && (!resuelta || resuelta.error)) return <>
+    <DialogHeader><DialogTitle>Gestionar a {props.clienteNombre}</DialogTitle></DialogHeader>
+    <DialogBody>{resuelta?.error ? <><p role="alert">{resuelta.error}</p><Button onClick={() => setRevision(n => n + 1)}>Reintentar</Button></> : <p role="status">Comprobando la ficha…</p>}</DialogBody>
+  </>
+  const persona = props.inversionistaId ?? resuelta?.persona ?? undefined
+  return <FormGestion key={persona ?? props.clienteId} {...props} inversionistaId={persona} actor={yo?.id ?? ''} />
+}
+function FormGestion({clienteId, inversionistaId, clienteNombre, onCerrar, onEnviandoCambio, actor}: PropsGestion & {actor: string}) {
+  const { crearTarea, tareasDeCliente, tareas, recargar } = useCRMData()
+  const envio = useEnvioPostventa(actor, 'agendar', inversionistaId ?? clienteId ?? '')
   const ahora = useAhora()
-  const pendientes = tareasDeCliente?.(clienteId) ?? []
+  const pendientes = inversionistaId
+    ? (tareas ?? []).filter(t => (t.inversionista_canonico_id ?? t.inversionista_id) === inversionistaId && t.estado === 'pendiente')
+    : clienteId ? tareasDeCliente?.(clienteId) ?? [] : []
   const slot = proximoSlotSugerido(ahora)
   const [tipo, setTipo] = useState<TipoTarea>('llamada')
   const [titulo, setTitulo] = useState(() => tituloSugerido('llamada', clienteNombre))
@@ -67,18 +97,18 @@ export function ClienteGestion({
     if (!tituloEditado) setTitulo(tituloSugerido(valor, clienteNombre))
   }
 
-  const guardar = async () => {
+  const guardar = async (recuperar = false) => {
     const venceEn = isoDeCampos({ tipo, titulo, fecha, hora })
-    if (!titulo.trim()) {
+    if (!recuperar && !titulo.trim()) {
       toast.error('Escribe qué gestión vas a realizar')
       return
     }
-    if (!venceEn) {
+    if (!recuperar && !venceEn) {
       toast.error('Elige una fecha y hora válidas')
       return
     }
     const reunion = tipo === 'reunion' ? validarReunionOperativa(camposReunion) : null
-    if (reunion && !reunion.ok) {
+    if (!recuperar && reunion && !reunion.ok) {
       toast.error(reunion.error)
       return
     }
@@ -86,6 +116,14 @@ export function ClienteGestion({
     onEnviandoCambio?.(true)
     let confirmada = false
     try {
+      if (inversionistaId) {
+        confirmada = await envio.ejecutar(recuperar ? undefined : {p_inversionista: inversionistaId, p_datos: {
+          tipo, titulo: titulo.trim(), nota: nota.trim() || null, vence_en: venceEn,
+          ...camposTareaDeReunion(reunion?.ok ? reunion : null),
+        }})
+        if (confirmada) await Promise.all([recargar(), refrescarPostventa(actor)])
+      } else {
+      if (!clienteId || !venceEn) throw new Error('La ficha o la fecha no son válidas.')
       const resultado = crearTarea({
         perfil_id: clienteId,
         tipo,
@@ -103,6 +141,7 @@ export function ClienteGestion({
       // especialmente importante para clientes: el servidor resuelve el dueño
       // real de cartera y rechaza perfiles inactivos o fuera del ámbito.
       confirmada = await (resultado.persistido ?? Promise.resolve(true))
+      }
     } catch {
       toast.error('No se pudo agendar la gestión')
     } finally {
@@ -114,6 +153,11 @@ export function ClienteGestion({
       onCerrar()
     }
   }
+
+  if (inversionistaId && (envio.pendiente || envio.bloqueado)) return <>
+    <DialogHeader><DialogTitle>Gestionar a {clienteNombre}</DialogTitle></DialogHeader>
+    <DialogBody><RecuperacionPostventa envio={envio} onRecuperar={() => void guardar(true)} /></DialogBody>
+  </>
 
   return (
     <>
@@ -127,6 +171,7 @@ export function ClienteGestion({
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
+        {inversionistaId && envio.error && <p role="alert" className="text-sm text-destructive">{envio.error}</p>}
         {pendientes.length > 0 && (
           <section
             className="rounded-xl border border-border bg-muted/30 p-3"

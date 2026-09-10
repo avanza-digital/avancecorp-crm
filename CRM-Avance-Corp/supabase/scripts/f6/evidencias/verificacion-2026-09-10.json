@@ -1,0 +1,147 @@
+{
+  "fechaUtc": "2026-09-10T16:20:43.027313+00:00",
+  "estado": "ENSAYO_LOCAL",
+  "baseGit": "d3d8413ee07d6349196bb0cb6e4e314e136e783b",
+  "produccionF6": {
+    "sqlInstalado": false,
+    "activada": false,
+    "branchRemoto": "NOT RUN",
+    "advisorsRemotos": "NOT RUN"
+  },
+  "archivos": [
+    {
+      "ruta": "CRM-Avance-Corp/supabase/migrations/20260910150039_crm_f6_postventa_persona.sql",
+      "sha256": "b88987c481119593f2dd5b0908aafff1e965f67e35455301a5bb56d91e6256cd"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/reversa-operativa.sql",
+      "sha256": "6c68cee52c2e17325e420d6f1a5a3aa993f9ccdee6af39b144b7f67c0322c0b0"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/app/src/lib/database.types.ts",
+      "sha256": "6e331131d734077638ee4b00a6996d29cce5b72c140d80757d9ec1ce3a0b68ce"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/concurrencia.test.mjs",
+      "sha256": "212a5d299b0d1577a76e6c7a7d168c65b339e386f6d1823319cb1e61c5ef41eb"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/integrar-tipos.mjs",
+      "sha256": "467419ae370efb982616ac1f1175e0fb266dc5fba1157da77bb5e1df7ba9b6f5"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/integridad.test.mjs",
+      "sha256": "6f9f38ef6caa93c8ce6cf7a425df8d484c75abd236c49b7aa2418f50059627dd"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/postventa.test.mjs",
+      "sha256": "bb3d0d4d19b870479d4d124da7c9c24e9a32d2d727c70677f8ebb895f1c53dd9"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/reinversion.test.mjs",
+      "sha256": "aa8ce8a5e148c4b75eaab396e680a6e1fd64a4ecc936358952290d6a3037098d"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/replay-local.mjs",
+      "sha256": "0f1c8896705f1f2b10fe1e6145fe80d262febd70c5bbc4fe32249548d7fe5743"
+    },
+    {
+      "ruta": "CRM-Avance-Corp/supabase/scripts/f6/revision.test.mjs",
+      "sha256": "85225a8328c9c9e679aa75ceb2c3211ad308e5b9297a34f30ec5a338e848e80e"
+    }
+  ],
+  "gates": {
+    "backendF6": {
+      "estado": "PASS",
+      "pruebas": 41
+    },
+    "regresionF5": {
+      "estado": "PASS",
+      "pruebas": 46
+    },
+    "replayReversa": "PASS",
+    "tipos": {
+      "estado": "PASS",
+      "nodos": 18
+    },
+    "frontendCheck": {
+      "estado": "PASS",
+      "archivos": 225,
+      "pruebas": 3180,
+      "warningsPrevios": 4
+    },
+    "e2eCompleto": {
+      "estado": "PASS",
+      "aprobadas": 159,
+      "omitidas": 26
+    },
+    "e2eF6Visual": {
+      "estado": "PASS",
+      "aprobadas": 7
+    },
+    "preflightsBackend": "PASS",
+    "rlsGeneralCompletoF6": "NOT RUN"
+  },
+  "logs": [
+    {
+      "nombre": "backend-revision-final.log",
+      "sha256": "9f40655d2a0c6dde5f715a39a94a2072e2c675f41c4a22a0853d64e707a63431"
+    },
+    {
+      "nombre": "regresion-f5-cierre.log",
+      "sha256": "937b5c982543ac138266b5401121c35439174609e924bbb213683b86d3ee8456"
+    },
+    {
+      "nombre": "replay-f6-cierre.log",
+      "sha256": "ea10b7db05a51fa7f49b1ffc5bacee8a1f8aab27433130ae87d9c922af379752"
+    },
+    {
+      "nombre": "check-frontend-cierre-final.log",
+      "sha256": "02566f6dceb4bad3cd5502c48b59596fc68f306e6d2f771f8567e5477d472810"
+    },
+    {
+      "nombre": "e2e-definitivo.log",
+      "sha256": "6cb0d42cd27002bf9aa6f128458b90423688e687bc4f48e48ab3408acc0b0b24"
+    },
+    {
+      "nombre": "e2e-scope.log",
+      "sha256": "40172f638696271b5c6636caa34dfa0ecc0df90930a2991bfa5e42fb3b48b0c4"
+    },
+    {
+      "nombre": "tests-agenda-mixta.log",
+      "sha256": "c42a3a5c6b5eb4cb08d1d48d0f246a5b2f4f4a07caa958e10be912f19e4fd79c"
+    },
+    {
+      "nombre": "tests-revision-frontend.log",
+      "sha256": "5c4bf7303b5759ebd9e00244f7ac8a04afc8bbeafb4cb37ef528df33bbd1915e"
+    },
+    {
+      "nombre": "check-scripts.log",
+      "sha256": "d64b2a9c44ca19d558e1324d6c593601a58596909ba806c5178ea8c31b2477c6"
+    },
+    {
+      "nombre": "seed-preflight.log",
+      "sha256": "432504f0e240e50b8dbb4cf2ce51fb9cc93add6aeea909bf2f5efc261778096b"
+    },
+    {
+      "nombre": "test-rls-preflight.log",
+      "sha256": "0f3cd2cf7842761e6e06bdd1e4aaadee92ba15964089970f1eb78c0adc2c43c4"
+    },
+    {
+      "nombre": "test-edge-preflight.log",
+      "sha256": "488723c9a4047707f50c9a4f421522190815a9c8feb2707d8f7a3b4a14e83ef1"
+    }
+  ],
+  "revision": {
+    "consultas": 2,
+    "dictamenes": [
+      "CHANGES_REQUESTED",
+      "CHANGES_REQUESTED"
+    ],
+    "evaluacionPrimary": "Hallazgos aceptados corregidos; demás evaluados con evidencia en REVISION.md; gates posteriores PASS",
+    "dictamenesSha256": {
+      "revision-arquitectura.txt": "9e563c655bc6ce38143b68f59d78f57dcc055d7e0f3e128bca0f581204f4bbff",
+      "revision-final.txt": "7997403b898089c3413234a80876685e77b97be4843128c57275a83e3df912e4"
+    }
+  }
+}

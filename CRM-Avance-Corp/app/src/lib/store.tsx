@@ -1,3 +1,5 @@
+import { ejecutarEnvioPostventa } from '@/data/postventa-envios'
+import { refrescarPostventa } from '@/data/postventa-queries'
 // Store DEMO del CRM (F1b) — fuente de verdad de leads/actividades en memoria,
 // sembrada desde lib/demo.ts y persistida en sessionStorage. JAMÁS escribe en
 // Supabase. Write-gating con doble defensa: la UI oculta acciones y el store
@@ -359,7 +361,7 @@ export interface StoreDataApi {
   /** Reprogramar = mover vence_en de una PENDIENTE (el contador lo lleva el trigger). */
   reprogramarTarea(id: string, venceEn: string): ResultadoMut & { persistido?: Promise<boolean> }
   /** Anti no-show: el cliente respondió al recordatorio confirmando la cita. */
-  confirmarTarea(id: string): ResultadoMut
+  confirmarTarea(id: string): ResultadoMut & { persistido?: Promise<boolean> }
   /** ANULAR — el cuarto verbo de una tarea: «esto ya no hace falta».
    *  Ni cierra con resultado, ni reprograma, ni confirma. NO escribe actividad
    *  de contacto (ver la implementación: cualquier fila de trabajo comercial en
@@ -1475,7 +1477,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           : [],
       tareasDeCliente: (perfilId) =>
         tareas
-          .filter((t) => t.perfil_id === perfilId && t.estado === 'pendiente' && t.activo)
+          .filter((t) => (t.perfil_id === perfilId || t.postventa_perfil_ids?.includes(perfilId)) && t.estado === 'pendiente' && t.activo)
           .sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
       objetivos: auxiliares.objetivos,
       objetivosError: auxiliares.objetivosError,
@@ -1611,6 +1613,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const t = buscarTareaPendiente(input.tarea_id, true)
         if (!t) return noEncontrado()
+        if (t.inversionista_id) return {ok: false, codigo: 'resultado_obligatorio', error: 'Abre Gestionar tarea de postventa para registrar el cierre y su detalle.'}
         const lead = t.lead_id ? buscar(t.lead_id) : undefined
         const resultado = input.resultado_tipo ?? null
         // Doble defensa runtime (los unions TS se borran al compilar).
@@ -1840,6 +1843,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'La nueva fecha no es válida',
           }
         }
+        if (t.inversionista_id) {
+          const persistido = persistir(async () => {
+            await ejecutarEnvioPostventa(miId ?? '', 'tarea', id, {p_tarea: id, p_revision: t.postventa_revision, p_accion: 'reprogramar', p_datos: {vence_en: iso, detalle: 'Cambio de fecha desde Agenda'}})
+            await refrescarPostventa(miId ?? '')
+          }, {invalidarAgenda: true})
+          return {ok: true, persistido}
+        }
         if (t.tipo === 'reunion') {
           const nuevaId = uid()
           const nueva: Tarea = {
@@ -1906,6 +1916,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const t = buscarTareaPendiente(id)
         if (!t) return noEncontrado()
+        if (t.inversionista_id) {
+          const persistido = persistir(async () => {
+            await ejecutarEnvioPostventa(miId ?? '', 'tarea', id, {p_tarea: id, p_revision: t.postventa_revision, p_accion: 'confirmar', p_datos: {}})
+            await refrescarPostventa(miId ?? '')
+          }, {invalidarAgenda: true})
+          return {ok: true, persistido}
+        }
         const iso = new Date().toISOString()
         setTareas((prev) => prev.map((x) => (x.id === id ? { ...x, confirmada_en: iso } : x)))
         persistir(
@@ -1965,6 +1982,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // cerrada es inmutable en el servidor y reintentarlo daría "Tarea no
         // encontrada" DESPUÉS de haberla pintado como anulada.
         if (!t) return noEncontrado()
+        if (t.inversionista_id) return {ok: false, codigo: 'resultado_obligatorio', error: 'Abre Gestionar tarea de postventa para registrar el cierre y su detalle.'}
         if (t.tipo === 'reunion' && !cierreReunion?.motivo) {
           return {
             ok: false,

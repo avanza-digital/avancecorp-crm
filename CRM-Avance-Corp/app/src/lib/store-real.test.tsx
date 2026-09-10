@@ -1243,6 +1243,22 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
   })
 
+  it('la ficha de cliente conserva el seguimiento neutral de todos sus perfiles enlazados', async () => {
+    const perfil = '99999999-9999-4999-8999-999999999999'
+    const tarea = {
+      id: '22222222-2222-4222-8222-222222222222', lead_id: null, perfil_id: null,
+      inversionista_id: '33333333-3333-4333-8333-333333333333', postventa_revision: 1,
+      postventa_perfil_ids: [perfil], vendedor_id: 'u-v1', asignado_supervisor_id: null,
+      tipo: 'llamada' as const, titulo: 'Seguimiento neutral', vence_en: '2027-01-05T15:00:00.000Z',
+      estado: 'pendiente' as const, reprogramaciones: 0, activo: true, creado_en: '2026-09-10T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tarea])
+    const {api} = montar('vendedor')
+    await waitFor(() => expect(api().tareasDeCliente?.(perfil)).toEqual([tarea]))
+    expect(api().tareasDeCliente?.('otro-perfil')).toEqual([])
+    expect(api().tareas[0]?.perfil_id).toBeNull()
+  })
+
   it('crearTarea expone el rechazo remoto y resincroniza la fila optimista', async () => {
     const clienteId = '99999999-9999-4999-8999-999999999999'
     insertarTarea.mockRejectedValueOnce(new CrmApiError('El cliente está inactivo', 'CLIENTE_INACTIVO'))

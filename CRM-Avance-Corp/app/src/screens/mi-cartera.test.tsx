@@ -1,3 +1,4 @@
+vi.mock('@/data/postventa-api', () => ({personaDePerfil: vi.fn().mockResolvedValue({habilitada: false, inversionista_id: null})}))
 // Tests de integración de la pantalla "Cartera" (fusión Clientes+Contratos):
 // render, colapsado por defecto, expandir, moneda USD-only (dólares principal) y
 // gating por fila. Mockea auth/store/datos (sin red) y usa un QueryClient limpio
@@ -602,7 +603,7 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Gestionar' }))
 
     expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
-    expect(screen.getByText(/llamada, WhatsApp, cita u otra tarea comercial/i)).toBeInTheDocument()
+    expect(await screen.findByText(/llamada, WhatsApp, cita u otra tarea comercial/i)).toBeInTheDocument()
   })
 
   it('Gestionar depende de escritura y cartera propia, no de puede_contratar', async () => {
@@ -1120,7 +1121,7 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const ficha = screen.getByRole('dialog', { name: 'CLIENTE UNO' })
     await user.click(within(ficha).getByRole('button', { name: 'Agendar seguimiento' }))
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancelar' }))
 
     expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
     const siguienteContacto = screen.getByRole('heading', { name: 'Seguimiento' }).closest('section')

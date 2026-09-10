@@ -1,3 +1,4 @@
+import { TareaRowSchema } from '@/lib/tarea-schema'
 import * as v from 'valibot'
 import { ESTADOS_SOLICITUD_TASA_VIVOS } from '@/lib/rentabilidad'
 import { sb, type ClienteCrm } from '@/lib/supabase'
@@ -5,17 +6,12 @@ import type { Database, Json } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import {
   CATEGORIAS_INTERES,
-  ESTADOS_TAREA,
   ETAPAS,
   GENEROS,
-  MODALIDADES_REUNION_TODAS,
   MOTIVOS_DESCARTE,
-  MOTIVOS_NO_REALIZADA_TODOS,
   ORIGENES_TODOS,
-  RESULTADOS_REUNION_TODOS,
   TERMINALES,
   TIPOS_ACTIVIDAD,
-  TIPOS_TAREA,
   type Actividad,
   type AgendaRepartoDiaria,
   type AsignacionAgendaReparto,
@@ -1946,30 +1942,7 @@ const COLUMNAS_TAREA = (
   ] as const satisfies readonly (keyof TareaDatabaseRow)[]
 ).join(',')
 
-const TareaRowSchema = v.object({
-  id: v.string(),
-  lead_id: v.nullable(v.string()),
-  perfil_id: v.nullable(v.string()),
-  vendedor_id: v.nullable(v.string()),
-  asignado_supervisor_id: v.nullable(v.string()),
-  tipo: v.picklist(TIPOS_TAREA.map((t) => t.k)),
-  titulo: v.string(),
-  nota: v.nullable(v.string()),
-  vence_en: v.string(),
-  duracion_min: v.nullable(v.number()),
-  estado: v.picklist(ESTADOS_TAREA),
-  modalidad_reunion: v.nullable(v.picklist(MODALIDADES_REUNION_TODAS)),
-  ubicacion_reunion: v.nullable(v.string()),
-  enlace_reunion: v.nullable(v.string()),
-  resultado_reunion: v.nullable(v.picklist(RESULTADOS_REUNION_TODOS)),
-  motivo_no_realizada: v.nullable(v.picklist(MOTIVOS_NO_REALIZADA_TODOS)),
-  detalle_cierre_reunion: v.nullable(v.string()),
-  confirmada_en: v.nullable(v.string()),
-  reagendada_de: v.nullable(v.string()),
-  reprogramaciones: v.number(),
-  activo: v.boolean(),
-  creado_en: v.string(),
-})
+
 
 // Salvaguarda de payload (no seguridad): la RLS ya recorta al ámbito.
 const MAX_TAREAS_AMBITO = 2000
@@ -2000,6 +1973,7 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
     .schema('crm')
     .from('tareas')
     .select(COLUMNAS_TAREA)
+    .or('lead_id.not.is.null,perfil_id.not.is.null')
     .eq('estado', 'pendiente')
     .eq('activo', true)
     .order('vence_en', { ascending: true })
@@ -2029,7 +2003,14 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
       { descartadas },
     )
   }
-  return items
+  // F6 es compatible con el servidor anterior: solo PGRST202 significa no instalada.
+  // Las filas neutrales del SELECT legado se sustituyen por la respuesta completa.
+  const { listarAgendaPostventa } = await import('./postventa-api')
+  const neutrales = await listarAgendaPostventa(signal)
+  avisarTopeAlcanzado('tareas_postventa', MAX_TAREAS_AMBITO, neutrales.length)
+  const unicas = new Map(items.filter(t => t.lead_id || t.perfil_id).map(t => [t.id, t]))
+  for (const tarea of neutrales) unicas.set(tarea.id, tarea)
+  return [...unicas.values()].sort((a, b) => a.vence_en.localeCompare(b.vence_en) || a.id.localeCompare(b.id))
 }
 
 type TareaInsert = Database['crm']['Tables']['tareas']['Insert']

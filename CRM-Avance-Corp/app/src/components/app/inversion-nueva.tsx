@@ -21,7 +21,7 @@ import { fmtFecha, money } from '@/lib/format'
 import { type CuotaCronograma, formatDateLocal } from '@/lib/cronograma'
 import { archivarContratoPdfConfirmado } from '@/lib/contrato-pdf-archivo'
 
-export interface OperacionInversion {tipo: 'upgrade' | 'renovacion'; fuente: InversionFuente}
+export interface OperacionInversion {tipo: 'upgrade' | 'renovacion' | 'reinversion'; fuente: InversionFuente}
 type AltaPortal = NonNullable<DatosInversion['alta_portal']>
 const mensajeRecuperacion = 'La solicitud sigue guardada en esta sesión. Consulta su estado antes de volver a enviarla.'
 
@@ -35,7 +35,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
   })
   const [intento, setIntento] = useState<IntentoInversion | null>(guardado.intento)
   const [solicitud, setSolicitud] = useState<SolicitudInversion | null>(null)
-  const [empresa, setEmpresa] = useState<EmpresaInversion | null>(guardado.intento?.datos.empresa ?? (operacion ? 'avance' : null))
+  const [empresa, setEmpresa] = useState<EmpresaInversion | null>(guardado.intento?.datos.empresa ?? (operacion?.fuente.empresa ?? null))
   const [error, setError] = useState<string | null>(guardado.error)
   const [ocupado, setOcupado] = useState(false)
   const [recuperando, setRecuperando] = useState(guardado.intento !== null)
@@ -89,7 +89,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     } finally {enCurso.current = false; if (!cerro.current) setOcupado(false)}
   }
   async function preparar(datos: DatosInversion, claveSolicitud: string = crypto.randomUUID()) {
-    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos)
+    const i = nuevoIntentoInversion(actor, persona, claveSolicitud, datos, operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : undefined)
     // Si el navegador no permite guardar la recuperación, no enviamos el alta.
     guardar(i)
     recibir(await prepararSolicitudInversion(i))
@@ -116,8 +116,10 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
     if (confirmacion) limpiarIntentosInversion(actor, persona)
     onCerrar()
   }
+  const origenReinversion = solicitud?.reinversion_origen_id ?? intento?.reinversion_origen_id ?? (operacion?.tipo === 'reinversion' ? operacion.fuente.fuente_id : null)
   const cabecera = (titulo: string) => <DialogHeader><DialogTitle>{titulo}</DialogTitle>
-    {ficha && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{ficha.persona.nombre}</p>}</DialogHeader>
+    {ficha && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{ficha.persona.nombre}</p>}
+    {origenReinversion && <p className="text-sm text-muted-foreground">Reinversión vinculada a una inversión anterior{operacion?.fuente.numero ? ` · ${operacion.fuente.numero}` : ''}. Su registro original se conserva.</p>}</DialogHeader>
   const alerta = error && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive-text [overflow-wrap:anywhere]">{error}</p>
   let cuerpo
   if (!ficha || recuperando) cuerpo = <>{cabecera('Nueva inversión')}<DialogBody>
@@ -149,7 +151,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(referencia)) throw new Error('Introduce la referencia completa de la solicitud.')
       const s = await consultarSolicitudInversion(referencia)
       if (s.inversionista_id !== ficha.persona.inversionista_id || !s.datos) throw new Error('La solicitud no corresponde a esta ficha.')
-      const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos)
+      const i = nuevoIntentoInversion(actor, persona, s.solicitud_id, s.datos, s.reinversion_origen_id)
       guardar(i); setGuardado({intento: null, error: null}); setEmpresa(s.datos.empresa); recibir(s)
     })}} className="space-y-2 border-t border-border pt-4">
       <Label htmlFor="f5-referencia">Retomar una solicitud por su referencia</Label>
@@ -206,7 +208,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
         <Input id="f5-motivo" value={motivo} onChange={e => setMotivo(e.target.value)} maxLength={500} /></div>}
       {alerta && <div className="px-5 pt-3">{alerta}</div>}
       <ContratoNuevo key={`${perfil}:${solicitud?.revision_datos ?? 'nuevo'}`} clienteId={perfil} clienteNombre={ficha.persona.nombre}
-        categoriaFija={operacion?.tipo ?? borrador?.categoria ?? 'nuevo'} borrador={borrador}
+        categoriaFija={(operacion?.tipo !== 'reinversion' ? operacion?.tipo : undefined) ?? borrador?.categoria ?? 'nuevo'} borrador={borrador}
         {...(origen && operacion?.tipo === 'renovacion' ? {renovacionOrigen: {id: origen.fuente_id, numeroContrato: origen.numero ?? '',
           capital: origen.capital, moneda: origen.moneda, fechaVencimiento: origen.vence_en ?? ''}} : {})}
         {...(origen?.contrato && operacion?.tipo === 'upgrade' ? {contratosActivos: [{id: origen.fuente_id, numero_contrato: origen.numero ?? '',
@@ -217,7 +219,7 @@ export function InversionNueva({actor, persona, operacion, onCerrar, onRevocado,
           await ejecutar(async () => {await revisarDatos(datosAvanceRevisados(base, prepararPayloadContrato(input), cuotas, input.cuenta_pago))})
         }} />
     </>
-  } else if (empresa !== 'avance' && (!intento || editar)) cuerpo = <>{cabecera(`Nueva inversión · ${EMPRESA_NOMBRE[empresa]}`)}<DialogBody className="space-y-4">
+  } else if (empresa !== 'avance' && (!intento || editar)) cuerpo = <>{cabecera(`${operacion?.tipo === 'reinversion' || intento?.reinversion_origen_id ? 'Reinversión' : 'Nueva inversión'} · ${EMPRESA_NOMBRE[empresa]}`)}<DialogBody className="space-y-4">
     <InversionCooperativa datos={base} ocupado={ocupado} correccion={Boolean(solicitud)} motivo={motivo} onMotivo={setMotivo}
       onGuardar={(d, f, id) => ejecutar(async () => {
         setArchivo(f)

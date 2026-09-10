@@ -26,6 +26,7 @@ export const ConfirmacionInversionSchema = v.object({
   fuente: v.looseObject({id: v.optional(Uuid), cierre_id: v.optional(Uuid), numero_contrato: v.optional(v.string())}),
 })
 export const SolicitudInversionSchema = v.object({
+  reinversion_origen_id: v.optional(v.nullable(Uuid)),
   solicitud_id: Uuid, estado: v.picklist(['preparada', 'confirmada', 'cancelada']),
   inversion_id: v.nullable(Uuid), inversionista_id: Uuid, inversionista_origen_id: Uuid,
   identidad_fusionada: v.boolean(), responsable_esperado_id: v.nullable(Uuid),
@@ -38,6 +39,7 @@ export type SolicitudInversion = v.InferOutput<typeof SolicitudInversionSchema>
 export type ConfirmacionInversion = v.InferOutput<typeof ConfirmacionInversionSchema>
 
 const IntentoSchema = v.object({
+  reinversion_origen_id: v.optional(v.nullable(Uuid)),
   version: v.literal(1), actor: Uuid, persona: Uuid, clave: Uuid, datos: DatosInversionSchema,
   token: v.pipe(v.string(), v.regex(/^[a-f0-9]{48}$/)),
   correccion: v.optional(v.object({clave: Uuid, revision: Revision, datos: DatosInversionSchema, motivo: v.string()})),
@@ -66,9 +68,9 @@ export function limpiarIntentosInversion(actor?: string, persona?: string): void
   try {for (const k of Object.keys(sessionStorage)) if (k.startsWith(prefijo)) sessionStorage.removeItem(k)}
   catch { /* El bloqueo de almacenamiento no puede impedir cerrar sesión. */ }
 }
-export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion): IntentoInversion {
+export function nuevoIntentoInversion(actor: string, persona: string, id: string, datos: DatosInversion, origen?: string | null): IntentoInversion {
   const bytes = crypto.getRandomValues(new Uint8Array(24))
-  return {version: 1, actor, persona, clave: id, datos,
+  return {version: 1, actor, persona, clave: id, datos, ...(origen ? {reinversion_origen_id: origen} : {}),
     token: Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}
 }
 export const jsonInversion = (datos: unknown): Json => datos as Json

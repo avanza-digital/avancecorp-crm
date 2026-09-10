@@ -13,9 +13,11 @@ export async function consultarSolicitudInversion(id: string, signal?: AbortSign
   return respuestaInversionistas(SolicitudInversionSchema, await (signal ? q.abortSignal(signal) : q))
 }
 export async function prepararSolicitudInversion(intento: IntentoInversion) {
-  respuestaInversionistas(SolicitudInversionSchema, await cliente().schema('crm').rpc('preparar_inversion_fn', {
-    p_clave: intento.clave, p_datos: jsonInversion(intento.datos),
-  }))
+  const args = {p_clave: intento.clave, p_datos: jsonInversion(intento.datos)}
+  const preparada = intento.reinversion_origen_id
+    ? await cliente().schema('crm').rpc('preparar_reinversion_fn', {...args, p_fuente: intento.reinversion_origen_id})
+    : await cliente().schema('crm').rpc('preparar_inversion_fn', args)
+  respuestaInversionistas(SolicitudInversionSchema, preparada)
   return consultarSolicitudInversion(intento.clave)
 }
 export async function corregirSolicitudInversion(intento: IntentoInversion) {
