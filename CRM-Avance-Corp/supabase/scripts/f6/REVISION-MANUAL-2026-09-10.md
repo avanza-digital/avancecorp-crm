@@ -14,6 +14,8 @@ Referencia de código F6: `b54fe94219fa516ab3824ec1be9ae756fc3144e1`.
 | Abrirla desde Agenda y conservar la misma ficha al recargar | PASS | Misma aprobación explícita de los tres pasos |
 | Completar la llamada con detalle y conservarla en el historial | PASS | «funciona», tras la instrucción de cerrar la llamada y revisar el historial |
 | Programar el siguiente contacto, una sola vez y con la fecha elegida | PASS | Misma confirmación del cierre con siguiente contacto |
+| Cambiar la hora de la reunión y verla actualizada en Agenda | PASS | «le puse un nueva hora sii, y ahora me figura en mi agente con ese horario cambiado» |
+| Confirmar la cita | PASS | «y confirme la cita», tras preguntar expresamente por la confirmación de asistencia |
 
 El visto bueno cubre los comportamientos anteriores. No se atribuye a una tarea
 o identidad concreta: Miguel no confirmó su título ni su identificador. El banco
@@ -22,9 +24,12 @@ exacto utilizado no se da por ratificada solo con la aprobación de navegación.
 
 ## Siguiente paso y pendientes
 
-Continuar el punto 2 de [la guía](REVISION-MANUAL.md): probar reprogramación y
-confirmación de reunión. El cierre con detalle e historial y la creación del
-siguiente contacto con fecha y sin duplicación ya tienen aceptación humana.
+El punto 2 de [la guía](REVISION-MANUAL.md) tiene aceptación humana: cierre con
+detalle e historial, siguiente contacto con fecha y sin duplicación, cambio de
+hora visible en Agenda y confirmación de la reunión. Miguel confirmó por separado
+el cambio guardado y la confirmación; no se dedujo de la mera apertura del formulario.
+
+Continuar el punto 3: reasignación como Gerencia y acceso de ambos asesores.
 Los puntos 3–8 siguen
 pendientes de aceptación humana: responsable, veto, reinversión, retiro,
 accesibilidad y recuperación de un envío cuya respuesta se perdió.
