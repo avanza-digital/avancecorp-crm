@@ -50,7 +50,11 @@ No se conciliaron datos reales ni se encendió el piloto.
 
 ## Retoma
 
-1. Completar la revisión manual F6 sobre datos sintéticos.
+1. Completar la revisión manual F6 sobre datos sintéticos. Miguel confirmó el
+   10/09 la llamada en ficha, Hoy y Agenda, una sola vez en Agenda y la misma
+   ficha tras recargar. Sigue el cierre de la llamada con próximo contacto;
+   la aceptación completa permanece pendiente. Registro y alcance:
+   [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).
 2. F7/G6: conciliar métricas, Capital y atribución por empresa y moneda.
 3. F8/G7: piloto económico con sus participantes, volúmenes y firmas.
 4. F9/G8: activación progresiva y ciclo mensual de observación.

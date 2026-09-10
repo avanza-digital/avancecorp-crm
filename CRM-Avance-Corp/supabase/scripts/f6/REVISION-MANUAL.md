@@ -1,6 +1,11 @@
 # F6 — recorrido de aceptación manual
 
-Pendiente de realizar con Miguel. Usar el banco sintético y usuarios de prueba;
+En curso con Miguel. El 10/09 confirmó la creación y visualización de la llamada
+en ficha, Hoy y Agenda, sin duplicación en Agenda, y la misma ficha tras recargar.
+La aceptación completa sigue pendiente; continúa el punto 2. El registro y sus
+límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
+
+Usar el banco sintético y usuarios de prueba;
 no activar producción ni registrar dinero o personas reales para este recorrido.
 F3/F4/F5/F6 deben estar encendidas únicamente en ese entorno de ensayo.
 
