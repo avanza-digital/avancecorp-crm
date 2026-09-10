@@ -70,8 +70,10 @@ No se conciliaron datos reales ni se encendió el piloto.
    la selección manual sí funciona en el Chrome habitual. Pidió que el control
    pareciera un botón: se aplicó el estilo navy del CRM al selector nativo,
    conservando el nombre del archivo y el foco por teclado. El ajuste visual está
-   verificado en local (`npm run check` PASS), pendiente de publicación. Falta
-   completar Revisar → Confirmar de los nuevos casos visuales del punto 5 y los
+   verificado en local (`npm run check` PASS) y aprobado por Miguel, pendiente de
+   publicación. Miguel completó Qorilazo por UI: comprobante, Revisar y Confirmar;
+   la ficha muestra tres inversiones y S/ 3.250, con antecedentes visibles. Falta
+   el mismo recorrido completo de Prodelco (preparado con S/ 800 ficticios) y los
    puntos 6–8. La aceptación completa permanece
    pendiente. Registro y alcance:
    [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).

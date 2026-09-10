@@ -13,9 +13,12 @@ rechazo de contactos y de levantamiento por el asesor, levantamiento por
 Gerencia y un contacto nuevo sin revivir los cancelados. En el punto 5 se verificaron
 vencimientos y reinversiones de Qorilazo/Prodelco, con confirmación desde el CRM,
 origen conservado y sin duplicados; Avance permite abrir aumento y renovación.
-La preparación y carga del comprobante fueron por API local porque Chrome bloqueó
-el selector de archivos por falta de permiso. Ese tramo visual del punto 5 y los
-puntos 6–8 siguen pendientes; la aceptación completa también. El registro y sus
+La preparación y carga de esos comprobantes fueron por API local tras el rechazo
+de la selección automática por Chrome. Miguel completó después el recorrido
+visual de Qorilazo: seleccionar archivo, Revisar y Confirmar; tres inversiones
+y S/ 3.250, con antecedentes visibles. También aprobó el nuevo aspecto del botón.
+Falta el mismo recorrido completo de Prodelco y los puntos 6–8; la aceptación
+completa también sigue pendiente. El registro y sus
 límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
 
 Usar el banco sintético y usuarios de prueba;

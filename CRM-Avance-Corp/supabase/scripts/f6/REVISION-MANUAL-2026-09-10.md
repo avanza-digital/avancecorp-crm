@@ -1,7 +1,7 @@
 # F6 — avance de revisión manual del 10/09/2026
 
 Estado: **EN CURSO; aceptación completa pendiente**.
-Revisor humano: Miguel. Recorrido guiado con rol vendedor y banco local sintético.
+Revisor humano: Miguel. Recorrido guiado con roles vendedor/Gerencia y banco local sintético.
 Referencia de código F6: `b54fe94219fa516ab3824ec1be9ae756fc3144e1`.
 
 ## Confirmaciones recibidas
@@ -16,8 +16,10 @@ Referencia de código F6: `b54fe94219fa516ab3824ec1be9ae756fc3144e1`.
 | Programar el siguiente contacto, una sola vez y con la fecha elegida | PASS | Misma confirmación del cierre con siguiente contacto |
 | Cambiar la hora de la reunión y verla actualizada en Agenda | PASS | «le puse un nueva hora sii, y ahora me figura en mi agente con ese horario cambiado» |
 | Confirmar la cita | PASS | «y confirme la cita», tras preguntar expresamente por la confirmación de asistencia |
+| Identificar el selector de archivo como botón del CRM | PASS | «perfecto ahora si», tras el ajuste visual `513effa` |
+| Qorilazo: seleccionar comprobante, revisar y confirmar; tres inversiones y S/ 3.250 | PASS | «tal cual todo sale como tu me dices», respondiendo al recorrido completo y su resultado esperado |
 
-El visto bueno cubre los comportamientos anteriores. No se atribuye a una tarea
+El visto bueno de llamadas y reuniones no se atribuye a una tarea
 o identidad concreta: Miguel no confirmó su título ni su identificador. El banco
 se preparó con una persona Qorilazo sin perfil Avance; esa condición del caso
 exacto utilizado no se da por ratificada solo con la aprobación de navegación.
@@ -34,8 +36,9 @@ por favor». Codex ejecutó la reasignación por UI y verificó el acceso con am
 asesores. Después, ante «ok sigamos con eso como lo haras?», Codex explicó y
 ejecutó la prueba No contactar del punto 4. Ante «ok hazlo», Codex avanzó el punto 5
 con confirmaciones de reinversión desde el CRM y verificaciones de integridad.
-Falta completar su carga visual de comprobante y envío inicial del formulario:
-Chrome bloqueó el permiso de archivo. Los puntos 6–8 permanecen pendientes:
+Miguel completó después la selección, revisión y confirmación visual de Qorilazo;
+Codex comprobó la ficha resultante. Falta ese mismo recorrido completo de Prodelco.
+Los puntos 6–8 permanecen pendientes:
 retiro, accesibilidad y recuperación de un envío cuya respuesta se perdió.
 
 ## Punto 3 — ejecución delegada a Codex
@@ -134,9 +137,9 @@ No se presenta este tramo como aceptación visual completa ni aprobación humana
   antecedente también se conservó tras abrir y cerrar el formulario.
 
 [Evidencia de reinversión y acciones Avance](manual-2026-09-10/reinversion-evidencia.json).
-Queda **NOT RUN** el recorrido completo de carga de archivo y envío inicial de
-Revisar inversión por UI. No hubo cambio de producto ni de producción. Los casos
-ficticios quedan disponibles en el banco para retomar la prueba.
+En ese primer ensayo quedó **NOT RUN** el recorrido completo de carga de archivo
+y envío inicial de Revisar inversión por UI. No hubo cambio de producto ni de
+producción. Los casos ficticios quedaron disponibles para retomar la prueba.
 
 En el reintento del 10/09, Miguel indicó que ya había habilitado el permiso.
 La carga automática volvió a responder `Not allowed`; no se pudo completar
@@ -154,9 +157,24 @@ del Chrome habitual. Señaló que el control no parecía un botón. Se ajustó e
 bordes redondeados y estados de hover, foco y deshabilitado del CRM. El cambio
 alcanza la selección inicial y la recuperación del comprobante en revisión.
 Codex verificó el aspecto en Chrome, el nombre `COMPROBANTE F6.png` junto al botón
-y el foco visible al llegar con Tab. La aprobación humana corresponde a la
-selección del archivo; no se atribuye todavía al aspecto corregido ni al recorrido
-Revisar → Confirmar de los dos nuevos casos visuales, que sigue pendiente.
+y el foco visible al llegar con Tab. Miguel aprobó después el aspecto corregido.
+
+**Qorilazo: PASS con aceptación humana del recorrido visual completo.** Miguel
+confirmó seleccionar el comprobante, pulsar Revisar inversión y Confirmar
+inversión. Codex observó después la misma ficha (`b2aa2e53-227c-41de-96a6-fee6d4cf130f`)
+con tres inversiones y S/ 3.250: nueva inversión COMPROBANTE VISUAL F6 QORILAZO de
+S/ 750, reinversión anterior de S/ 1.500 y origen de S/ 1.000. La nueva inversión
+muestra el depósito `F6-UI-785E5D3B-0014-4A6A-8221-91E38235B936`, vencimiento
+10/09/2027 y botón de comprobante. Esta aceptación acredita el recorrido y el
+resultado visible; no constituye una nueva comparación de filas o hashes en DB.
+
+Prodelco queda preparado en el banco para el mismo recorrido: capital S/ 800,
+depósito `F6-UI-433D3487-B7E4-4884-B16C-4BD73AA892CD`, vencimiento 10/09/2027 y
+referencia COMPROBANTE VISUAL F6 PRODELCO. El comprobante ficticio correspondiente
+se copió al Escritorio como `COMPROBANTE F6 PRODELCO.png`. Antes de enviar, la ficha
+muestra dos inversiones y S/ 3.000; el resultado esperado es tres y S/ 3.800.
+Solo se rellenó el formulario: selección, revisión y confirmación de este nuevo
+caso Prodelco siguen pendientes de Miguel.
 
 El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
 `public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar
