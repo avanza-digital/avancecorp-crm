@@ -1,5 +1,5 @@
 {
-  "capturado_utc": "2026-09-11T20:31:37.877094+00:00",
+  "capturado_utc": "2026-09-11T20:36:48.094279+00:00",
   "estado": "SQL APROBADO; COSTE BANCO PENDIENTE; INSTALACION NOT RUN",
   "codigo_integrado_commit": "8dd0a14468df48a9d86d31546065d5e173dfd1a1",
   "avancecorp_main_integrado": "4bfae4937373116bfa5fe93cb8de069a7b23ada0",
@@ -52,7 +52,32 @@
   ],
   "logs_privados_sha256": {
     "check-4bfae49-integrado.log": "261e51a5795342e1147a77aefbb3e0979c18f7942491c656a456454dc2b8af21",
-    "e2e-4bfae49-integrado.log": "e1dcfda4ac1cea6c2dc3f7573e5b80f195b53471490afa150ecac0f967db94ff"
+    "e2e-4bfae49-integrado.log": "e1dcfda4ac1cea6c2dc3f7573e5b80f195b53471490afa150ecac0f967db94ff",
+    "push-preparacion-instalacion.log": "9e1cfbd8c8e3ee299adf1c6d6294e26879f34004e4e17027199af0299503dd2a",
+    "prepush-foco-citas-aislado.log": "f94632e15993a62bffab65b467de6ebda2e02110c2f02976ef80e25ad4139e54",
+    "prepush-foco-citas-corregido.log": "262ce51fe5f84fc44ff94f4ae724ad012f3350037abd3de66bf887d4658f534a",
+    "check-foco-citas-corregido.log": "3551bb6d0824cd60fe160f64dc2a2444b31eddb9c23ac77c9b9652efd4bec527"
   },
-  "respaldo_privado": "/Users/usuario/.codex/backups/avancecorp-f7-20260911"
+  "respaldo_privado": "/Users/usuario/.codex/backups/avancecorp-f7-20260911",
+  "incidencia_pre_push": {
+    "estado_inicial": "FAIL",
+    "pass": 3340,
+    "fail": 1,
+    "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-crm/tablero.test.tsx",
+    "linea_inicial": 53,
+    "comportamiento": "Se esperaba foco en Analista; el retorno diferido de Sheet lo situo en Monica Silva.",
+    "evidencia_codigo": "Sheet.onCloseAutoFocus usa requestAnimationFrame; el test solo esperaba que desapareciera el dialogo.",
+    "aislado_sin_cambios": "4 PASS",
+    "correccion": "Esperar el retorno del foco al boton de origen antes de seleccionar Analista; mantiene la asercion final, limites y reintentos.",
+    "codigo_de_producto_modificado": false,
+    "tests_relacionados": "9 PASS",
+    "gate_completo_corregido": {
+      "comando": "VITEST_MAX_WORKERS=2 npm run check",
+      "exit_code": 0,
+      "unitarias": 3341,
+      "archivos": 233
+    },
+    "test_sha256": "41ed7e1558bc56eab772d7bb10f204adc3357c64525ed6e501b2ad2ad52db725",
+    "e2e": "168 PASS / 26 SKIP anteriores siguen cubriendo el mismo codigo de producto; no se repiten por cambiar solo la sincronizacion del test."
+  }
 }

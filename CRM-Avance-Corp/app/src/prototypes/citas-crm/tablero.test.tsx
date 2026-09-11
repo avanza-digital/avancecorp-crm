@@ -47,6 +47,8 @@ describe('tablero horizontal elegido para Citas', () => {
     expect(screen.getByRole('dialog', { name: 'Mónica Silva' })).toBeInTheDocument()
     await usuario.click(screen.getByRole('button', { name: 'Cerrar recorrido' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // Sheet devuelve el foco en requestAnimationFrame, después de desmontarse.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mónica Silva' })).toHaveFocus())
     expect(screen.getByLabelText('Analista')).toBeVisible()
     await usuario.selectOptions(screen.getByLabelText('Analista'), 'valeria')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

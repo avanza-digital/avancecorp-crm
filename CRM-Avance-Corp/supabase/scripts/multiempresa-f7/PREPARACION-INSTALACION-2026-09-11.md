@@ -35,6 +35,23 @@ aprobación del mismo SQL.
   `5cc3160d2ff5a1f8aac2a484a7b6d0dd5d8705951591f7d3ee949d8eba951394`.
   No se sustituyó la publicación ni se adelantó Main a la candidata F7.
 
+## Incidencia del hook de envío
+
+La primera repetición completa del hook pre-push falló en un caso de
+`app/src/prototypes/citas-crm/tablero.test.tsx`: el selector Analista esperaba
+tener foco, pero lo tenía el botón Mónica Silva. Resultado conservado:
+3.340 PASS y 1 FAIL. El mismo archivo aislado pasó 4/4.
+
+La prueba esperaba la desaparición del diálogo y cambiaba de filtro antes
+del retorno de foco. `Sheet.onCloseAutoFocus` lo devuelve en
+`requestAnimationFrame`, después del desmontaje. Se añadió la espera por
+el foco en el botón de origen antes de seleccionar el nuevo analista,
+conservando la comprobación final del foco del selector. No se modificó
+código de producto, límites ni reintentos. Los nueve tests de Citas y
+diálogos pasaron; `VITEST_MAX_WORKERS=2 npm run check` volvió a pasar completo
+con las 3.341 pruebas. Los 168 E2E anteriores corresponden al mismo código de
+producto. Los logs fallidos y corregidos se conservan en la evidencia.
+
 ## Único dato pendiente para crear el banco
 
 El coste consultado para una rama en el mismo proyecto PortalAvanceCorp es
