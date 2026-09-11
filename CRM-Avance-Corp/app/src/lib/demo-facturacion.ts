@@ -1,15 +1,21 @@
 // lib/demo-facturacion.ts — FIXTURE DE EJEMPLO de la pantalla Facturación.
 //
-// Existe porque la fuente real (una RPC diaria de capital cerrado por analista)
-// todavía no está construida, y porque el fixture general del modo demo tiene
-// tres contratos de un solo analista y meses pasados: con eso la malla sale
-// vacía y no se puede juzgar el diseño.
+// Existe para el MODO DEMO: el fixture general tiene tres contratos de un solo
+// analista y de meses pasados, con lo que la malla saldría vacía y no se podría
+// enseñar la pantalla. La fuente real es `crm.facturacion_diaria_fn`, que ya
+// está en producción; esto NO se usa con una sesión real.
 //
 // La pantalla rotula estos datos como ejemplo, siempre y de forma visible
 // (regla A3 de honestidad: una cifra inventada nunca se presenta como real).
-// Cuando exista la RPC, este módulo desaparece o queda solo para las pruebas.
-import type { ContratoFacturado } from './facturacion'
-import { diasDelMes, diaSemana } from './facturacion'
+//
+// Devuelve EXACTAMENTE la misma forma que `crm.facturacion_diaria_fn`: filas ya
+// agrupadas por día, tipo, moneda, analista y supervisor. Que el demo no pueda
+// enseñar más detalle que producción es deliberado — es la trampa que el gate de
+// realidad del proyecto persigue: una pantalla que en demo promete algo que
+// arriba no existe.
+import type { Moneda } from './format'
+import type { FilaFacturacionDia } from './facturacion'
+import { diasDelMes, diaSemana, TIPO_CAPITAL_NUEVO } from './facturacion'
 
 interface PlantillaAnalista {
   readonly id: string
@@ -58,20 +64,6 @@ const EQUIPOS: readonly PlantillaEquipo[] = [
   },
 ]
 
-const CLIENTES = [
-  'Rosa Ccahuana Lipa', 'Julio Barrantes Vera', 'Elena Portocarrero',
-  'Hugo Mendieta Ríos', 'Carmen Zapata Loli', 'Óscar Valdivia Núñez',
-  'Teresa Ampuero Salas', 'Luis Felipe Cárdenas', 'Norma Huerta Sáenz',
-  'Alberto Ramos Pinto', 'Sofía Delgado Arana', 'Wilfredo Ticona Mamani',
-  'Beatriz Salcedo Mur', 'Enrique Bustamante', 'Gladys Quintanilla',
-  'Raúl Espinoza Yáñez', 'Mercedes Trujillo Paz', 'Iván Berrocal Paz',
-  'Pilar Gonzales Ávila', 'Fernando Ríos Cabrera',
-] as const
-
-const PRODUCTOS = [
-  'Renta Fija 6 meses', 'Renta Fija 12 meses',
-  'Renta Fija 18 meses', 'Renta Fija 24 meses',
-] as const
 
 /** Peso comercial de cada día de la semana (domingo no se vende). */
 const FACTOR_DIA = [0, 1.12, 1.02, 0.98, 1.06, 1.18, 0.34] as const
@@ -92,18 +84,18 @@ function semilla(texto: string): () => number {
   }
 }
 
-function tomar<T>(lista: readonly T[], azar: number, respaldo: T): T {
-  return lista[Math.floor(azar * lista.length)] ?? respaldo
-}
-
 /**
- * Contratos de ejemplo del mes. `hasta` (una fecha 'YYYY-MM-DD') corta el mes en
- * curso: los días que aún no han pasado salen vacíos, como en la realidad.
+ * Filas de ejemplo del mes, con la forma de la RPC. `hasta` (una fecha
+ * 'YYYY-MM-DD') corta el mes en curso: los días que aún no han pasado salen
+ * vacíos, como en la realidad.
  */
-export function contratosFacturacionDemo(mes: string, hasta: string): ContratoFacturado[] {
+export function filasFacturacionDemo(mes: string, hasta: string): FilaFacturacionDia[] {
   const azar = semilla(`facturacion:${mes}`)
-  const contratos: ContratoFacturado[] = []
-  let correlativo = 1000 + (Number(mes.slice(5, 7)) || 1) * 40
+  // Se acumula por (día, moneda) y se emite UNA fila por combinación, que es lo
+  // que devuelve el servidor. Emitir una fila por venta daría un total idéntico
+  // pero una forma distinta, y la pantalla dejaría de probarse contra lo real.
+  const cubos = new Map<string, { operaciones: number; capital: number }>()
+  const filas: FilaFacturacionDia[] = []
 
   for (const equipo of EQUIPOS) {
     for (const analista of equipo.analistas) {
@@ -123,24 +115,29 @@ export function contratosFacturacionDemo(mes: string, hasta: string): ContratoFa
           const capital = esUsd
             ? Math.round((5000 + base * base * 58000) / 500) * 500
             : Math.round((18000 + base * base * 245000) / 500) * 500
-          correlativo += 1
-          contratos.push({
-            id: `f-c${correlativo}`,
-            numero: String(correlativo).padStart(6, '0'),
-            cliente: tomar(CLIENTES, azar(), 'Cliente de ejemplo'),
-            producto: tomar(PRODUCTOS, azar(), 'Renta Fija 12 meses'),
-            tasaAnual: 11.5 + Math.round(azar() * 13) * 0.5,
-            moneda: esUsd ? 'USD' : 'PEN',
-            capital,
-            dia,
-            analistaId: analista.id,
-            analistaNombre: analista.nombre,
-            supervisorId: equipo.id,
-            supervisorNombre: equipo.supervisor,
-          })
+          const moneda: Moneda = esUsd ? 'USD' : 'PEN'
+          const clave = `${dia}|${moneda}`
+          const cubo = cubos.get(clave) ?? { operaciones: 0, capital: 0 }
+          cubos.set(clave, { operaciones: cubo.operaciones + 1, capital: cubo.capital + capital })
         }
       }
+
+      for (const [clave, cubo] of cubos) {
+        const [diaCubo = '', monedaCubo = 'PEN'] = clave.split('|')
+        filas.push({
+          dia: diaCubo,
+          tipo: TIPO_CAPITAL_NUEVO,
+          moneda: monedaCubo === 'USD' ? 'USD' : 'PEN',
+          analistaId: analista.id,
+          analistaNombre: analista.nombre,
+          supervisorId: equipo.id,
+          supervisorNombre: equipo.supervisor,
+          operaciones: cubo.operaciones,
+          capital: cubo.capital,
+        })
+      }
+      cubos.clear()
     }
   }
-  return contratos
+  return filas
 }

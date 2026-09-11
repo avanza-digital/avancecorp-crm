@@ -15,9 +15,11 @@
 // solo ellos, ordenados por capital. El lenguaje visual de comparar en este CRM
 // es monocromo a propósito — el color mide MAGNITUD, nunca distingue personas.
 //
-// FUENTE DE DATOS: hoy es el fixture de ejemplo (lib/demo-facturacion.ts) y la
-// pantalla lo dice, arriba del todo. Cuando exista la RPC diaria sobre
-// `private.capital_episodios`, solo cambia quien llena `ContratoFacturado[]`.
+// FUENTE DE DATOS: `crm.facturacion_diaria_fn`, que lee el núcleo del capital —
+// el mismo del que salen Conversiones, Ranking y Metas. El servidor ya agrupó por
+// día, ya resolvió el ámbito y ya puso el supervisor de ENTONCES; aquí no se
+// recalcula nada, solo se dibuja. En modo demo se sirve un fixture con la MISMA
+// forma, rotulado como ejemplo: el demo nunca puede prometer más que producción.
 import { useId, useMemo, useState, type CSSProperties, type JSX } from 'react'
 import {
   CalendarRange,
@@ -38,16 +40,19 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Sheet, SheetBody, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { KpiCard } from '@/components/common/kpi-card'
+import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
+import { useFacturacionDiaria } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
+import { useAuth } from '@/lib/auth-context'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal, parseDateLocal } from '@/lib/cronograma'
-import { contratosFacturacionDemo } from '@/lib/demo-facturacion'
+import { filasFacturacionDemo } from '@/lib/demo-facturacion'
 import {
   conciliarFiltro,
   construirMalla,
-  contratosDeCelda,
+  desgloseDeCelda,
   diasHabilesHasta,
   equiposDeRoster,
   esFinDeSemana,
@@ -55,7 +60,7 @@ import {
   etiquetaDiaLargo,
   etiquetaMes,
   filasComparadas,
-  filtrarContratos,
+  filtrarFilas,
   filtroInicial,
   filtroVacio,
   letraDia,
@@ -64,18 +69,29 @@ import {
   numeroDia,
   pasoDeEscala,
   primerDiaDelMes,
-  rosterDeContratos,
+  rosterDeFilas,
   valorCelda,
-  type ContratoFacturado,
   type FilaFacturacion,
+  type FilaFacturacionDia,
   type FiltroFacturacion,
   type MetricaFacturacion,
 } from '@/lib/facturacion'
 import { money, numero, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+/** Referencia estable: un `[]` nuevo en cada render invalidaría los useMemo. */
+const SIN_FILAS: readonly FilaFacturacionDia[] = []
+
 const MONEDAS: readonly Moneda[] = ['PEN', 'USD']
 const ROTULO_MONEDA: Record<Moneda, string> = { PEN: 'Soles', USD: 'Dólares' }
+/** Cómo se llama en castellano cada tipo que devuelve el servidor. */
+const ROTULO_TIPO: Record<string, string> = {
+  contrato_nuevo: 'Capital nuevo',
+  contrato_upgrade: 'Upgrade',
+  contrato_renovacion: 'Renovación',
+  cooperativa: 'Cooperativa',
+}
+
 const ROTULO_METRICA: Record<MetricaFacturacion, string> = {
   capital: 'Capital',
   contratos: 'N.º de contratos',
@@ -300,17 +316,18 @@ function FilaAnalista({
 }
 
 /**
- * `contratos` es la COSTURA de la fuente de datos: sin él la pantalla se sirve
- * del fixture de ejemplo, y con él se le da la lista ya hecha. Por ahí entrará
- * la RPC diaria sobre `private.capital_episodios`, y por ahí entran también los
- * fixtures de las pruebas. La lista puede abarcar varios meses: la malla se
- * queda solo con el que se está mirando.
+ * `filas` es la COSTURA de la fuente de datos: sin él la pantalla las pide al
+ * servidor (o al fixture, en demo), y con él se le dan hechas — por ahí entran
+ * las pruebas. La lista puede abarcar varios meses: la malla se queda solo con
+ * el que se está mirando.
  */
 export function Facturacion({
-  contratos: fuente,
+  filas: fuente,
 }: {
-  contratos?: readonly ContratoFacturado[] | undefined
+  filas?: readonly FilaFacturacionDia[] | undefined
 } = {}): JSX.Element {
+  const { yo } = useAuth()
+  const esDemo = yo?.demo === true
   const ahora = useAhora(600_000)
   const hoy = useMemo(() => formatDateLocal(new Date(ahora)), [ahora])
   const mesDeHoy = useMemo(() => primerDiaDelMes(hoy), [hoy])
@@ -328,29 +345,35 @@ export function Facturacion({
   // Corte del mes en curso: los días que aún no han pasado salen vacíos.
   const corte = mes === mesDeHoy ? hoy : formatDateLocal(new Date(9999, 0, 1))
 
+  // El servidor solo se consulta cuando no hay fixture de prueba ni modo demo.
+  // La consulta cuelga de `crmQueryKeys.raiz`: el cierre de sesión la borra.
+  const consulta = useFacturacionDiaria(fuente == null && !esDemo, mes)
+  const demo = useMemo(
+    () => (esDemo && fuente == null ? filasFacturacionDemo(mes, corte) : SIN_FILAS),
+    [esDemo, fuente, mes, corte],
+  )
   // El roster sale del mes ENTERO, sin filtrar: si saliera de lo ya filtrado,
   // elegir a alguien vaciaría la lista de la que se le acaba de elegir.
-  const todos = useMemo<readonly ContratoFacturado[]>(
-    () => fuente ?? contratosFacturacionDemo(mes, corte),
-    [fuente, mes, corte],
-  )
-  const roster = useMemo(() => rosterDeContratos(todos), [todos])
+  const todos: readonly FilaFacturacionDia[] =
+    fuente ?? (esDemo ? demo : (consulta.data ?? SIN_FILAS))
+
+  const roster = useMemo(() => rosterDeFilas(todos), [todos])
   const equipos = useMemo(() => equiposDeRoster(roster), [roster])
 
-  const contratos = useMemo(() => filtrarContratos(todos, filtro), [todos, filtro])
-  const malla = useMemo(() => construirMalla(contratos, mes, moneda), [contratos, mes, moneda])
+  const filtradas = useMemo(() => filtrarFilas(todos, filtro), [todos, filtro])
+  const malla = useMemo(() => construirMalla(filtradas, mes, moneda), [filtradas, mes, moneda])
 
   // Mismo tramo del mes anterior — comparar un mes entero contra diez días mentiría.
   const mesPrevio = mesDesplazado(mes, -1)
+  const consultaPrevia = useFacturacionDiaria(fuente == null && !esDemo, mesPrevio)
   const previo = useMemo(() => {
     const abierto = corte.startsWith('9999')
     const corteAnterior = abierto ? mesDesplazado(mes, 0) : mismoDiaEnMes(mesPrevio, corte)
-    return construirMalla(
-      filtrarContratos(fuente ?? contratosFacturacionDemo(mesPrevio, corteAnterior), filtro),
-      mesPrevio,
-      moneda,
-    )
-  }, [fuente, mesPrevio, mes, corte, moneda, filtro])
+    const base: readonly FilaFacturacionDia[] =
+      fuente ??
+      (esDemo ? filasFacturacionDemo(mesPrevio, corteAnterior) : (consultaPrevia.data ?? SIN_FILAS))
+    return construirMalla(filtrarFilas(base, filtro), mesPrevio, moneda)
+  }, [fuente, esDemo, consultaPrevia.data, mesPrevio, mes, corte, moneda, filtro])
 
   const totalActual = valorCelda(malla.total, 'capital')
   const totalPrevio = valorCelda(previo.total, 'capital')
@@ -364,22 +387,28 @@ export function Facturacion({
   const maximoGrupo = valorCelda(malla.maxGrupo, metrica)
   const maximoDia = valorCelda(malla.maxDia, metrica)
 
+  // «Todavía no sé» no es «no hubo ventas»: mientras la primera respuesta no
+  // llega, la malla no se pinta vacía.
+  const cargando = fuente == null && !esDemo && consulta.isPending
+  const reintentar = (): void => {
+    void consulta.refetch()
+  }
+
   const comparando = filtro.analistas.length > 0
   const planas = useMemo(() => filasComparadas(malla), [malla])
   const cuantosAnalistas = malla.grupos.reduce((n, g) => n + g.analistas.length, 0)
   const vacia = cuantosAnalistas === 0
 
-  const detalle = useMemo(() => {
-    if (seleccion == null) return []
-    if (seleccion.dia != null) return contratosDeCelda(todos, seleccion.analistaId, seleccion.dia)
-    return todos
-      .filter((c) => c.analistaId === seleccion.analistaId && c.moneda === moneda)
-      .sort((a, b) => a.dia.localeCompare(b.dia) || b.capital - a.capital)
-  }, [seleccion, todos, moneda])
+  const detalle = useMemo(
+    () => (seleccion == null ? [] : desgloseDeCelda(todos, seleccion.analistaId, seleccion.dia)),
+    [seleccion, todos],
+  )
+
+  const operacionesDelDetalle = detalle.reduce((n, f) => n + f.operaciones, 0)
 
   const nombreSeleccionado =
-    detalle[0]?.analistaNombre ??
     roster.find((p) => p.id === seleccion?.analistaId)?.nombre ??
+    detalle[0]?.analistaNombre ??
     'Analista'
 
   /** Los filtros se cambian por PARCHES; la conciliación vive aquí, no en los controles. */
@@ -449,16 +478,19 @@ export function Facturacion({
         {anuncio}
       </p>
 
-      {/* Honestidad primero: estas cifras son de ejemplo y se dice antes de nada. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warning/35 bg-warning/10 px-4 py-2.5">
-        <Badge color="var(--warning)" dot>
-          Datos de ejemplo
-        </Badge>
-        <p className="text-xs font-medium text-warning-text">
-          La fuente real (capital cerrado por día y analista) aún no está construida. Esta pantalla
-          muestra el diseño con cifras inventadas: no las uses para decidir nada.
-        </p>
-      </div>
+      {esDemo && (
+        // Solo en demo. Con datos reales este cartel sería una mentira al revés:
+        // diría «ejemplo» de cifras que sí lo son.
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warning/35 bg-warning/10 px-4 py-2.5">
+          <Badge color="var(--warning)" dot>
+            Datos de ejemplo
+          </Badge>
+          <p className="text-xs font-medium text-warning-text">
+            Estás en el modo de demostración: estas cifras están inventadas y no corresponden a
+            ninguna venta real.
+          </p>
+        </div>
+      )}
 
       <Card className="p-0">
         {/* Una sola fila: cuándo, en qué moneda, qué se mide y a quién se mira. */}
@@ -734,7 +766,21 @@ export function Facturacion({
           }
         />
 
-        {vacia ? (
+        {cargando ? (
+          // Mientras el servidor responde no se pinta una malla vacía: parecería
+          // un mes sin ventas, que es una respuesta distinta de «todavía no sé».
+          <div className="border-t border-border p-4">
+            <PanelCargando filas={4} onReintentar={reintentar} reintentando={consulta.isFetching} />
+          </div>
+        ) : consulta.isError ? (
+          <div className="border-t border-border">
+            <PanelError
+              mensaje="No se pudo cargar la facturación de este mes."
+              onReintentar={reintentar}
+              reintentando={consulta.isFetching}
+            />
+          </div>
+        ) : vacia ? (
           <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
             <p className="text-sm font-semibold">
               {filtroVacio(filtro)
@@ -974,42 +1020,49 @@ export function Facturacion({
               ? etiquetaDiaLargo(seleccion.dia)
               : `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]}`}
             {' · '}
-            {detalle.length} contrato{detalle.length === 1 ? '' : 's'}
+            {numero(operacionesDelDetalle)}{' '}
+            {operacionesDelDetalle === 1 ? 'operación' : 'operaciones'}
           </SheetDescription>
         </SheetHeader>
         <SheetBody>
           {detalle.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Sin contratos que mostrar.
+              Sin cierres que mostrar.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
-              {detalle.map((c) => (
-                <li key={c.id} className="flex items-start gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-[13px] font-bold">
-                      <span className="tabular-nums text-accent">{c.numero}</span>
-                      <span className="truncate">{c.cliente}</span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {c.producto} · {c.tasaAnual.toFixed(1)} % anual
-                      {seleccion?.dia == null && ` · ${etiquetaDiaLargo(c.dia)}`}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[13px] font-extrabold tabular-nums">
-                      {money(c.capital, c.moneda)}
-                    </p>
-                    <Badge
-                      color={c.moneda === 'USD' ? 'var(--chart-2)' : 'var(--accent)'}
-                      className="mt-1"
-                    >
-                      {c.moneda}
-                    </Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="divide-y divide-border">
+                {detalle.map((f) => (
+                  <li key={`${f.dia}|${f.tipo}|${f.moneda}`} className="flex items-start gap-3 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold first-letter:uppercase">{etiquetaDiaLargo(f.dia)}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {ROTULO_TIPO[f.tipo] ?? f.tipo} · {numero(f.operaciones)}{' '}
+                        {f.operaciones === 1 ? 'operación' : 'operaciones'}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[13px] font-extrabold tabular-nums">
+                        {money(f.capital, f.moneda)}
+                      </p>
+                      <Badge
+                        color={f.moneda === 'USD' ? 'var(--chart-2)' : 'var(--accent)'}
+                        className="mt-1"
+                      >
+                        {f.moneda}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {/* Honestidad sobre el alcance: el servidor devuelve el mes ya
+                  agrupado, así que aquí no hay —ni puede haber— la lista de
+                  contratos uno a uno. Prometerla sería inventarla. */}
+              <p className="pt-4 text-[11px] leading-relaxed text-muted-foreground">
+                Este es el desglose de lo cerrado, no la lista de contratos: el servidor entrega
+                el mes ya agrupado por día, tipo y moneda.
+              </p>
+            </>
           )}
         </SheetBody>
       </Sheet>

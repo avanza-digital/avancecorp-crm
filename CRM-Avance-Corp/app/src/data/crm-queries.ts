@@ -39,6 +39,7 @@ import {
   obtenerCumplimientoMetas,
   listarMetricasReuniones,
   listarAltasNuevasPorAnalista,
+  listarFacturacionDiaria,
   listarObservacionRentabilidad,
   listarSolicitudesTasa,
   type OpcionesSolicitudesTasa,
@@ -118,6 +119,7 @@ export const crmQueryKeys = {
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
   metricasPagos: (meses: number) => [...crmQueryKeys.metricas(), 'pagos', meses] as const,
   altasNuevas: (meses: number) => [...crmQueryKeys.metricas(), 'altas-nuevas', meses] as const,
+  facturacionDiaria: (mes: string) => [...crmQueryKeys.metricas(), 'facturacion-diaria', mes] as const,
   observacionRentabilidad: (dias: number) => [...crmQueryKeys.metricas(), 'observacion-rentabilidad', dias] as const,
   // Rentabilidad R1/R3: el núcleo de la tasa, las solicitudes, el historial por cliente y la política.
   rentabilidad: () => [...crmQueryKeys.raiz, 'rentabilidad'] as const,
@@ -531,6 +533,20 @@ export function useAltasNuevasPorAnalista(habilitada: boolean, meses = 12) {
     queryKey: crmQueryKeys.altasNuevas(meses),
     queryFn: ({ signal }) => listarAltasNuevasPorAnalista(meses, signal),
     enabled: habilitada,
+  })
+}
+
+/**
+ * Facturación de un mes comercial (pantalla de Gerencia). `mes` es 'YYYY-MM-01'.
+ * El servidor ya agrupó, ya resolvió el ámbito y ya puso el supervisor de
+ * entonces; aquí no se recalcula nada. Cuelga de `crmQueryKeys.raiz` para que el
+ * cierre de sesión (`queryClient.clear`) la borre con todo lo demás.
+ */
+export function useFacturacionDiaria(habilitada: boolean, mes: string) {
+  return useQuery({
+    queryKey: crmQueryKeys.facturacionDiaria(mes),
+    queryFn: ({ signal }) => listarFacturacionDiaria(mes, signal),
+    enabled: habilitada && mes !== '',
   })
 }
 

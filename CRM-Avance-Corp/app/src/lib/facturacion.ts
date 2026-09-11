@@ -19,22 +19,29 @@
 import { parseDateLocal, formatDateLocal } from './cronograma'
 import type { Moneda } from './format'
 
-/** Un contrato tal y como lo necesita la malla, ya atribuido y ya fechado. */
-export interface ContratoFacturado {
-  readonly id: string
-  readonly numero: string
-  readonly cliente: string
-  readonly producto: string
-  readonly tasaAnual: number
-  readonly moneda: Moneda
-  readonly capital: number
+/**
+ * Una fila tal y como la devuelve `crm.facturacion_diaria_fn`: el servidor YA
+ * agrupó por día, tipo, moneda, analista y supervisor. La malla no ve contratos
+ * sueltos, y por eso el detalle de una celda tampoco puede listarlos — lo que
+ * enseña es el desglose real de esa celda. Es a propósito: un modo demo que
+ * mostrara contratos uno a uno prometería algo que producción no puede dar.
+ */
+export interface FilaFacturacionDia {
   /** `fecha_cierre_comercial` en 'YYYY-MM-DD'. */
   readonly dia: string
+  /** `contrato_nuevo`, `contrato_upgrade`, `contrato_renovacion`, `cooperativa`. */
+  readonly tipo: string
+  readonly moneda: Moneda
   readonly analistaId: string
   readonly analistaNombre: string
   readonly supervisorId: string
   readonly supervisorNombre: string
+  readonly operaciones: number
+  readonly capital: number
 }
+
+/** El tipo que la pantalla muestra por defecto: capital nuevo. */
+export const TIPO_CAPITAL_NUEVO = 'contrato_nuevo'
 
 /** Qué se está mirando en la malla. Union + `as const`: el proyecto no usa enum. */
 export const METRICAS_FACTURACION = ['capital', 'contratos'] as const
@@ -222,8 +229,8 @@ export function pasoDeEscala(valor: number, maximo: number): PasoEscalaFacturaci
   return paso ?? { bg: 'transparent', fg: 'inherit', bgHex: CARD_HEX, fgHex: TINTA_TENUE_HEX }
 }
 
-function sumar(a: CeldaFacturacion, capital: number): CeldaFacturacion {
-  return { capital: a.capital + capital, contratos: a.contratos + 1 }
+function sumar(a: CeldaFacturacion, fila: FilaFacturacionDia): CeldaFacturacion {
+  return { capital: a.capital + fila.capital, contratos: a.contratos + fila.operaciones }
 }
 
 function acumular(a: CeldaFacturacion, b: CeldaFacturacion): CeldaFacturacion {
@@ -242,43 +249,45 @@ interface Acumulador {
 }
 
 /**
- * Convierte contratos sueltos en la matriz del mes PARA UNA MONEDA.
- * Lo que cae fuera del mes o de la moneda se ignora en silencio: la pantalla
- * pide siempre un mes y una moneda concretos, y mezclarlos sería mentir.
+ * Convierte las filas del servidor en la matriz del mes, PARA UNA MONEDA y UN
+ * TIPO. Lo que cae fuera se ignora en silencio: la pantalla pide siempre un mes,
+ * una moneda y un tipo concretos, y mezclarlos sería mentir (PEN y USD jamás se
+ * suman, y una renovación no es capital nuevo).
  */
 export function construirMalla(
-  contratos: readonly ContratoFacturado[],
+  filas: readonly FilaFacturacionDia[],
   mes: string,
   moneda: Moneda,
+  tipo: string = TIPO_CAPITAL_NUEVO,
 ): MallaFacturacion {
   const dias = diasDelMes(mes)
   const indicePorDia = new Map<string, number>()
   dias.forEach((dia, i) => indicePorDia.set(dia, i))
 
   const porAnalista = new Map<string, Acumulador>()
-  for (const c of contratos) {
-    if (c.moneda !== moneda) continue
-    const indice = indicePorDia.get(c.dia)
+  for (const f of filas) {
+    if (f.moneda !== moneda || f.tipo !== tipo) continue
+    const indice = indicePorDia.get(f.dia)
     if (indice == null) continue
-    let acc = porAnalista.get(c.analistaId)
+    let acc = porAnalista.get(f.analistaId)
     if (acc == null) {
       acc = {
-        nombre: c.analistaNombre,
-        supervisorId: c.supervisorId,
-        supervisorNombre: c.supervisorNombre,
+        nombre: f.analistaNombre,
+        supervisorId: f.supervisorId,
+        supervisorNombre: f.supervisorNombre,
         dias: new Map(),
       }
-      porAnalista.set(c.analistaId, acc)
+      porAnalista.set(f.analistaId, acc)
     }
-    acc.dias.set(indice, sumar(acc.dias.get(indice) ?? CELDA_VACIA, c.capital))
+    acc.dias.set(indice, sumar(acc.dias.get(indice) ?? CELDA_VACIA, f))
   }
 
   // Fila por analista, ya con su vector de días completo.
-  const filas: Array<{ fila: FilaFacturacion; supervisorId: string; supervisorNombre: string }> = []
+  const porPersona: Array<{ fila: FilaFacturacion; supervisorId: string; supervisorNombre: string }> = []
   for (const [id, acc] of porAnalista) {
     const vector = dias.map((_, i) => acc.dias.get(i) ?? CELDA_VACIA)
     const total = vector.reduce(acumular, CELDA_VACIA)
-    filas.push({
+    porPersona.push({
       fila: { id, nombre: acc.nombre, dias: vector, total },
       supervisorId: acc.supervisorId,
       supervisorNombre: acc.supervisorNombre,
@@ -287,7 +296,7 @@ export function construirMalla(
 
   // Agrupación por supervisor, conservando el orden de aparición del equipo.
   const porSupervisor = new Map<string, { nombre: string; filas: FilaFacturacion[] }>()
-  for (const f of filas) {
+  for (const f of porPersona) {
     let grupo = porSupervisor.get(f.supervisorId)
     if (grupo == null) {
       grupo = { nombre: f.supervisorNombre, filas: [] }
@@ -375,17 +384,17 @@ export interface PersonaFacturacion {
  * `crm.equipo` para que un analista sin ventas también se pueda consultar
  * (y su fila vacía sea la respuesta).
  */
-export function rosterDeContratos(
-  contratos: readonly ContratoFacturado[],
+export function rosterDeFilas(
+  filas: readonly FilaFacturacionDia[],
 ): PersonaFacturacion[] {
   const porId = new Map<string, PersonaFacturacion>()
-  for (const c of contratos) {
-    if (!porId.has(c.analistaId)) {
-      porId.set(c.analistaId, {
-        id: c.analistaId,
-        nombre: c.analistaNombre,
-        supervisorId: c.supervisorId,
-        supervisorNombre: c.supervisorNombre,
+  for (const f of filas) {
+    if (!porId.has(f.analistaId)) {
+      porId.set(f.analistaId, {
+        id: f.analistaId,
+        nombre: f.analistaNombre,
+        supervisorId: f.supervisorId,
+        supervisorNombre: f.supervisorNombre,
       })
     }
   }
@@ -404,14 +413,14 @@ export function equiposDeRoster(
 }
 
 /** Aplica el filtro ANTES de construir la malla: así los totales ya son los del filtro. */
-export function filtrarContratos(
-  contratos: readonly ContratoFacturado[],
+export function filtrarFilas(
+  filas: readonly FilaFacturacionDia[],
   filtro: FiltroFacturacion,
-): ContratoFacturado[] {
-  return contratos.filter(
-    (c) =>
-      (filtro.equipo === '' || c.supervisorId === filtro.equipo) &&
-      (filtro.analistas.length === 0 || filtro.analistas.includes(c.analistaId)),
+): FilaFacturacionDia[] {
+  return filas.filter(
+    (f) =>
+      (filtro.equipo === '' || f.supervisorId === filtro.equipo) &&
+      (filtro.analistas.length === 0 || filtro.analistas.includes(f.analistaId)),
   )
 }
 
@@ -463,13 +472,17 @@ export function diasHabilesHasta(malla: MallaFacturacion, hasta: string): number
   return malla.dias.filter((dia) => dia <= hasta && !esDomingo(dia)).length
 }
 
-/** Los contratos de una celda concreta, para el panel de detalle. */
-export function contratosDeCelda(
-  contratos: readonly ContratoFacturado[],
+/**
+ * El desglose de una celda: qué tipos de capital y en qué monedas la componen.
+ * NO son los contratos uno a uno — el servidor ya agrupó, y fingir una lista de
+ * contratos aquí sería inventarla. Con `dia` en null, el mes entero del analista.
+ */
+export function desgloseDeCelda(
+  filas: readonly FilaFacturacionDia[],
   analistaId: string,
-  dia: string,
-): ContratoFacturado[] {
-  return contratos
-    .filter((c) => c.analistaId === analistaId && c.dia === dia)
-    .sort((a, b) => b.capital - a.capital)
+  dia: string | null,
+): FilaFacturacionDia[] {
+  return filas
+    .filter((f) => f.analistaId === analistaId && (dia == null || f.dia === dia))
+    .sort((a, b) => a.dia.localeCompare(b.dia) || b.capital - a.capital)
 }

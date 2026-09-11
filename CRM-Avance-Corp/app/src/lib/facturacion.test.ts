@@ -7,13 +7,13 @@ import {
   conciliarFiltro,
   ESCALA_FACTURACION,
   construirMalla,
-  contratosDeCelda,
+  desgloseDeCelda,
   diasDelMes,
   diasHabilesHasta,
   equiposDeRoster,
   esFinDeSemana,
   filasComparadas,
-  filtrarContratos,
+  filtrarFilas,
   filtroInicial,
   filtroVacio,
   letraDia,
@@ -23,37 +23,37 @@ import {
   numeroDia,
   pasoDeEscala,
   primerDiaDelMes,
-  rosterDeContratos,
+  rosterDeFilas,
   valorCelda,
-  type ContratoFacturado,
+  type FilaFacturacionDia,
   type FiltroFacturacion,
 } from './facturacion'
 
 const MES = '2026-09-01'
 
-function contrato(parcial: Partial<ContratoFacturado> & { id: string }): ContratoFacturado {
+/** Una fila con la forma que devuelve el servidor: ya agrupada. */
+function fila(parcial: Partial<FilaFacturacionDia> & { id?: string }): FilaFacturacionDia {
+  const { id: _id, ...resto } = parcial
   return {
-    numero: '000001',
-    cliente: 'Cliente de prueba',
-    producto: 'Renta Fija 12 meses',
-    tasaAnual: 14,
-    moneda: 'PEN',
-    capital: 10_000,
     dia: '2026-09-01',
+    tipo: 'contrato_nuevo',
+    moneda: 'PEN',
     analistaId: 'a1',
     analistaNombre: 'Ana Uno',
     supervisorId: 's1',
     supervisorNombre: 'Sara Supervisora',
-    ...parcial,
+    operaciones: 1,
+    capital: 10_000,
+    ...resto,
   }
 }
 
 /** Dos equipos, tres analistas, cinco contratos: uno en dólares y uno fuera del mes. */
-const CONTRATOS: readonly ContratoFacturado[] = [
-  contrato({ id: 'c1', dia: '2026-09-01', capital: 100_000 }),
-  contrato({ id: 'c2', dia: '2026-09-01', capital: 40_000 }),
-  contrato({ id: 'c3', dia: '2026-09-03', capital: 250_000, analistaId: 'a2', analistaNombre: 'Beto Dos' }),
-  contrato({
+const FILAS: readonly FilaFacturacionDia[] = [
+  fila({ id: 'c1', dia: '2026-09-01', capital: 100_000 }),
+  fila({ id: 'c2', dia: '2026-09-01', capital: 40_000 }),
+  fila({ id: 'c3', dia: '2026-09-03', capital: 250_000, analistaId: 'a2', analistaNombre: 'Beto Dos' }),
+  fila({
     id: 'c4',
     dia: '2026-09-03',
     capital: 9_000,
@@ -63,7 +63,7 @@ const CONTRATOS: readonly ContratoFacturado[] = [
     supervisorId: 's2',
     supervisorNombre: 'Sonia Segunda',
   }),
-  contrato({ id: 'c5', dia: '2026-08-31', capital: 999_999 }),
+  fila({ id: 'c5', dia: '2026-08-31', capital: 999_999 }),
 ]
 
 describe('días del mes — el footgun de las fechas', () => {
@@ -96,7 +96,7 @@ describe('días del mes — el footgun de las fechas', () => {
 })
 
 describe('construirMalla', () => {
-  const malla = construirMalla(CONTRATOS, MES, 'PEN')
+  const malla = construirMalla(FILAS, MES, 'PEN')
 
   it('agrupa por supervisor y solo trae la moneda pedida', () => {
     // El contrato en dólares (c4) es el único de Sonia: en soles su equipo no existe.
@@ -127,7 +127,7 @@ describe('construirMalla', () => {
   })
 
   it('la malla de dólares es otra malla — PEN y USD jamás se suman', () => {
-    const usd = construirMalla(CONTRATOS, MES, 'USD')
+    const usd = construirMalla(FILAS, MES, 'USD')
     expect(usd.total.capital).toBe(9_000)
     expect(usd.grupos.map((g) => g.id)).toEqual(['s2'])
   })
@@ -149,17 +149,17 @@ describe('construirMalla', () => {
 
 describe('roster y equipos', () => {
   it('saca a cada persona una sola vez y las ordena por nombre', () => {
-    const roster = rosterDeContratos(CONTRATOS)
+    const roster = rosterDeFilas(FILAS)
     expect(roster.map((p) => p.nombre)).toEqual(['Ana Uno', 'Beto Dos', 'Carla Tres'])
     expect(roster.find((p) => p.id === 'a3')?.supervisorId).toBe('s2')
   })
 
   it('el roster ignora la moneda: quien solo vendió en dólares también se puede consultar', () => {
-    expect(rosterDeContratos(CONTRATOS).some((p) => p.id === 'a3')).toBe(true)
+    expect(rosterDeFilas(FILAS).some((p) => p.id === 'a3')).toBe(true)
   })
 
   it('deduplica los equipos', () => {
-    expect(equiposDeRoster(rosterDeContratos(CONTRATOS))).toEqual([
+    expect(equiposDeRoster(rosterDeFilas(FILAS))).toEqual([
       { id: 's1', nombre: 'Sara Supervisora' },
       { id: 's2', nombre: 'Sonia Segunda' },
     ])
@@ -169,31 +169,32 @@ describe('roster y equipos', () => {
 describe('filtro', () => {
   it('sin filtro no quita nada', () => {
     expect(filtroVacio(filtroInicial())).toBe(true)
-    expect(filtrarContratos(CONTRATOS, filtroInicial())).toHaveLength(CONTRATOS.length)
+    expect(filtrarFilas(FILAS, filtroInicial())).toHaveLength(FILAS.length)
   })
 
   it('por equipo deja solo a ese equipo', () => {
-    const soloS2 = filtrarContratos(CONTRATOS, { equipo: 's2', analistas: [] })
-    expect(soloS2.map((c) => c.id)).toEqual(['c4'])
+    const soloS2 = filtrarFilas(FILAS, { equipo: 's2', analistas: [] })
+    expect(soloS2.map((f) => f.analistaId)).toEqual(['a3'])
   })
 
   it('por un analista lo aísla', () => {
-    const soloA2 = filtrarContratos(CONTRATOS, { equipo: '', analistas: ['a2'] })
-    expect(soloA2.map((c) => c.id)).toEqual(['c3'])
+    const soloA2 = filtrarFilas(FILAS, { equipo: '', analistas: ['a2'] })
+    expect(soloA2.map((f) => f.capital)).toEqual([250_000])
   })
 
   it('por varios analistas los compara — se quedan todos los elegidos', () => {
-    const dos = filtrarContratos(CONTRATOS, { equipo: '', analistas: ['a1', 'a3'] })
-    expect(dos.map((c) => c.id)).toEqual(['c1', 'c2', 'c4', 'c5'])
+    const dos = filtrarFilas(FILAS, { equipo: '', analistas: ['a1', 'a3'] })
+    // Beto (a2) se cae; de a1 quedan sus tres filas y de a3 la suya, en orden.
+    expect(dos.map((f) => f.capital)).toEqual([100_000, 40_000, 9_000, 999_999])
   })
 
   it('equipo y analistas se aplican a la vez (y pueden dejarlo en nada)', () => {
-    expect(filtrarContratos(CONTRATOS, { equipo: 's2', analistas: ['a1'] })).toHaveLength(0)
+    expect(filtrarFilas(FILAS, { equipo: 's2', analistas: ['a1'] })).toHaveLength(0)
   })
 
   it('los totales de la malla ya vienen filtrados', () => {
     const filtrada = construirMalla(
-      filtrarContratos(CONTRATOS, { equipo: '', analistas: ['a2'] }),
+      filtrarFilas(FILAS, { equipo: '', analistas: ['a2'] }),
       MES,
       'PEN',
     )
@@ -202,7 +203,7 @@ describe('filtro', () => {
 })
 
 describe('conciliarFiltro — la guarda que copiamos de Citas', () => {
-  const roster = rosterDeContratos(CONTRATOS)
+  const roster = rosterDeFilas(FILAS)
 
   it('al elegir un equipo se caen los analistas que no son suyos', () => {
     const filtro: FiltroFacturacion = { equipo: 's1', analistas: ['a1', 'a3'] }
@@ -227,7 +228,7 @@ describe('conciliarFiltro — la guarda que copiamos de Citas', () => {
 
 describe('comparación', () => {
   it('aplana las filas y las ordena por capital, de mayor a menor', () => {
-    const malla = construirMalla(CONTRATOS, MES, 'PEN')
+    const malla = construirMalla(FILAS, MES, 'PEN')
     const filas = filasComparadas(malla)
     expect(filas.map((f) => f.id)).toEqual(['a2', 'a1'])
     expect(filas[0]?.supervisorNombre).toBe('Sara Supervisora')
@@ -236,7 +237,7 @@ describe('comparación', () => {
 
 describe('días hábiles y escala de color', () => {
   it('el domingo no cuenta como día hábil', () => {
-    const malla = construirMalla(CONTRATOS, MES, 'PEN')
+    const malla = construirMalla(FILAS, MES, 'PEN')
     // Del 1 al 7 de setiembre de 2026 hay un domingo (el 6): seis hábiles.
     expect(diasHabilesHasta(malla, '2026-09-07')).toBe(6)
     // El mes entero: 30 días menos cuatro domingos.
@@ -254,14 +255,19 @@ describe('días hábiles y escala de color', () => {
   })
 })
 
-describe('contratosDeCelda', () => {
-  it('devuelve los contratos de esa persona ese día, del mayor al menor', () => {
-    const ops = contratosDeCelda(CONTRATOS, 'a1', '2026-09-01')
-    expect(ops.map((c) => c.id)).toEqual(['c1', 'c2'])
+describe('desgloseDeCelda', () => {
+  it('devuelve el desglose de esa persona ese día, del mayor al menor', () => {
+    const ops = desgloseDeCelda(FILAS, 'a1', '2026-09-01')
+    expect(ops.map((f) => f.capital)).toEqual([100_000, 40_000])
+  })
+
+  it('con el día en null devuelve el mes entero de esa persona, por fecha', () => {
+    const mes = desgloseDeCelda(FILAS, 'a1', null)
+    expect(mes.map((f) => f.dia)).toEqual(['2026-08-31', '2026-09-01', '2026-09-01'])
   })
 
   it('un día sin cierres devuelve la lista vacía', () => {
-    expect(contratosDeCelda(CONTRATOS, 'a1', '2026-09-02')).toHaveLength(0)
+    expect(desgloseDeCelda(FILAS, 'a1', '2026-09-02')).toHaveLength(0)
   })
 })
 

@@ -6,35 +6,47 @@
 // rama donde vive el botón que la rescata.
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ContratoFacturado } from '@/lib/facturacion'
-import { Facturacion } from './facturacion'
+import type { FilaFacturacionDia } from '@/lib/facturacion'
+
+// La pantalla recibe las filas por prop, así que ni la sesión ni el servidor
+// deciden nada aquí; se doblan para que el componente monte. El camino real
+// (RPC + modo demo) lo cubren la matriz de RLS y el oráculo del servidor.
+const dobles = vi.hoisted(() => ({ demo: false }))
+
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ yo: { id: 'g1', rol: 'gerencia', demo: dobles.demo } }),
+}))
+vi.mock('@/data/crm-queries', () => ({
+  useFacturacionDiaria: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, refetch: vi.fn() }),
+}))
+
+const { Facturacion } = await import('./facturacion')
 
 /** Jueves 10 de setiembre de 2026, 12:00 en la zona de la máquina. */
 const HOY = new Date(2026, 8, 10, 12, 0, 0)
 
-function contrato(p: Partial<ContratoFacturado> & { id: string }): ContratoFacturado {
+function fila(p: Partial<FilaFacturacionDia> & { id?: string }): FilaFacturacionDia {
+  const { id: _id, ...resto } = p
   return {
-    numero: '000100',
-    cliente: 'Cliente Ejemplo',
-    producto: 'Renta Fija 12 meses',
-    tasaAnual: 14,
-    moneda: 'PEN',
-    capital: 50_000,
     dia: '2026-09-02',
+    tipo: 'contrato_nuevo',
+    moneda: 'PEN',
     analistaId: 'ana',
     analistaNombre: 'Ana Analista',
     supervisorId: 'sup-rosa',
     supervisorNombre: 'Rosa Uno',
-    ...p,
+    operaciones: 1,
+    capital: 50_000,
+    ...resto,
   }
 }
 
 /** Dos equipos, tres analistas. Solo Carla vende en dólares. */
-const CONTRATOS: readonly ContratoFacturado[] = [
-  contrato({ id: '1', dia: '2026-09-02', capital: 300_000 }),
-  contrato({ id: '2', dia: '2026-09-04', capital: 100_000 }),
-  contrato({ id: '3', dia: '2026-09-02', capital: 80_000, analistaId: 'beto', analistaNombre: 'Beto Analista' }),
-  contrato({
+const FILAS: readonly FilaFacturacionDia[] = [
+  fila({ id: '1', dia: '2026-09-02', capital: 300_000 }),
+  fila({ id: '2', dia: '2026-09-04', capital: 100_000 }),
+  fila({ id: '3', dia: '2026-09-02', capital: 80_000, analistaId: 'beto', analistaNombre: 'Beto Analista' }),
+  fila({
     id: '4',
     dia: '2026-09-03',
     capital: 40_000,
@@ -43,7 +55,7 @@ const CONTRATOS: readonly ContratoFacturado[] = [
     supervisorId: 'sup-sara',
     supervisorNombre: 'Sara Dos',
   }),
-  contrato({
+  fila({
     id: '5',
     dia: '2026-09-03',
     capital: 7_000,
@@ -54,11 +66,11 @@ const CONTRATOS: readonly ContratoFacturado[] = [
     supervisorNombre: 'Sara Dos',
   }),
   // Mes anterior: da con qué comparar el KPI de arriba.
-  contrato({ id: '6', dia: '2026-08-05', capital: 200_000 }),
+  fila({ id: '6', dia: '2026-08-05', capital: 200_000 }),
 ]
 
-function pintar(contratos: readonly ContratoFacturado[] = CONTRATOS) {
-  return render(<Facturacion contratos={contratos} />)
+function pintar(filas: readonly FilaFacturacionDia[] = FILAS) {
+  return render(<Facturacion filas={filas} />)
 }
 
 /** La malla, para no confundir sus botones con los del panel de filtros. */
@@ -67,6 +79,7 @@ function malla(): HTMLElement {
 }
 
 beforeEach(() => {
+  dobles.demo = false
   vi.useFakeTimers({ shouldAdvanceTime: true })
   vi.setSystemTime(HOY)
 })
@@ -76,10 +89,18 @@ afterEach(() => {
 })
 
 describe('lo que se ve al entrar', () => {
-  it('avisa de que las cifras son de ejemplo ANTES de mostrarlas', () => {
+  it('con datos REALES no dice que sean de ejemplo', () => {
+    // La honestidad va en los dos sentidos: rotular de «ejemplo» cifras que sí
+    // son reales es tan falso como lo contrario.
+    pintar()
+    expect(screen.queryByText('Datos de ejemplo')).not.toBeInTheDocument()
+  })
+
+  it('en modo demostración lo avisa ANTES de mostrar nada', () => {
+    dobles.demo = true
     pintar()
     expect(screen.getByText('Datos de ejemplo')).toBeVisible()
-    expect(screen.getByText(/no las uses para decidir nada/i)).toBeVisible()
+    expect(screen.getByText(/no corresponden a ninguna venta real/i)).toBeVisible()
   })
 
   it('agrupa por equipo, con sus analistas dentro y el total del mes', () => {

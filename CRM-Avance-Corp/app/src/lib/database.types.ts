@@ -4099,6 +4099,20 @@ export type Database = {
       }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
       editar_lead_fn: { Args: { p_lead_id: string; p_cambios: Json }; Returns: Json }
+      facturacion_diaria_fn: {
+        Args: { p_mes?: string }
+        Returns: {
+          dia: string
+          tipo: string
+          moneda: string
+          analista_id: string
+          analista_nombre: string
+          supervisor_id: string
+          supervisor_nombre: string
+          operaciones: number
+          capital: number
+        }[]
+      }
       fijar_dni_lead_fn: { Args: { p_lead_id: string; p_dni: string }; Returns: Json }
       destinos_importacion_por_correo_fn: {
         Args: { p_correos: string[] }
