@@ -921,6 +921,104 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
   })
 })
 
+describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
+  const TRES_DIAS: readonly FilaFacturacionDia[] = [
+    fila({ id: 'd2', dia: '2026-09-02', capital: 10_000 }),
+    fila({ id: 'd3', dia: '2026-09-03', capital: 20_000 }),
+    fila({ id: 'd4', dia: '2026-09-04', capital: 40_000 }),
+  ]
+  function marcar(etiqueta: RegExp): void {
+    fireEvent.click(within(malla()).getByRole('button', { name: etiqueta }))
+  }
+
+  it('marcar dos días sueltos suma SOLO esos dos', () => {
+    pintar(TRES_DIAS)
+    expect(screen.getAllByText('S/ 70,000').length).toBeGreaterThan(0)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    marcar(/Marcar el .*, 4 de setiembre/i)
+    // 10 000 + 40 000; el día 3 queda fuera aunque esté en medio.
+    expect(screen.getAllByText('S/ 50,000').length).toBeGreaterThan(0)
+    expect(screen.queryByText('S/ 70,000')).toBeNull()
+  })
+
+  it('la tabla NO pierde columnas: hay que poder marcar un cuarto día', () => {
+    pintar(TRES_DIAS)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    // Si marcar escondiera las demás columnas, ya no habría forma de añadir el 4.
+    expect(within(malla()).getByRole('button', { name: /Marcar el .*, 4 de setiembre/i })).toBeVisible()
+    marcar(/Marcar el .*, 4 de setiembre/i)
+    expect(screen.getAllByText('S/ 50,000').length).toBeGreaterThan(0)
+  })
+
+  it('TODOS los números de arriba siguen a los días elegidos', () => {
+    pintar(TRES_DIAS)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    marcar(/Marcar el .*, 4 de setiembre/i)
+    // Titular, rótulo, mejor día y divisor del promedio: o todos hablan de los
+    // días elegidos, o la pantalla dice dos cosas a la vez.
+    expect(screen.getByText(/2 días elegidos/)).toBeVisible()
+    expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
+    expect(screen.getByText(/2 días hábiles/)).toBeVisible()
+  })
+
+  it('un día NO elegido no puede ganar el «mejor día»', () => {
+    // El 3 es el día más grande del mes con diferencia, pero queda fuera.
+    pintar([
+      fila({ id: 'd2', dia: '2026-09-02', capital: 10_000 }),
+      fila({ id: 'd3', dia: '2026-09-03', capital: 900_000 }),
+      fila({ id: 'd4', dia: '2026-09-04', capital: 40_000 }),
+    ])
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    marcar(/Marcar el .*, 4 de setiembre/i)
+    // La tarjeta entera: rótulo, cifra y el día debajo.
+    const tarjeta = screen
+      .getByText('Mejor día de los elegidos')
+      .closest('div.p-4') as HTMLElement | null
+    expect(tarjeta).not.toBeNull()
+    expect(tarjeta?.textContent ?? '').toMatch(/4 de setiembre/)
+    expect(tarjeta?.textContent ?? '').not.toMatch(/3 de setiembre/)
+  })
+
+  it('volver a pulsar un día lo desmarca', () => {
+    pintar(TRES_DIAS)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(screen.getAllByText('S/ 10,000').length).toBeGreaterThan(0)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(screen.getAllByText('S/ 70,000').length).toBeGreaterThan(0)
+  })
+
+  it('lo dice con una etiqueta que se puede quitar', () => {
+    pintar(TRES_DIAS)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    marcar(/Marcar el .*, 3 de setiembre/i)
+    const chip = screen.getByRole('button', { name: 'Quitar los días marcados' })
+    expect(chip).toHaveTextContent('2 días marcados')
+    fireEvent.click(chip)
+    expect(screen.getAllByText('S/ 70,000').length).toBeGreaterThan(0)
+  })
+
+  it('con días a mano NO inventa una comparación', () => {
+    // ¿Contra qué se compara «el 2 y el 4»? No hay respuesta honesta. Y el
+    // fixture SÍ trae agosto, así que sin la guarda saldría un porcentaje.
+    pintar([...TRES_DIAS, fila({ id: 'ago', dia: '2026-08-05', capital: 5_000 })])
+    expect(screen.getByText(/% vs\./)).toBeVisible()
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(screen.getByText('Días elegidos a mano: sin comparación')).toBeVisible()
+    expect(screen.queryByText(/% vs\./)).toBeNull()
+  })
+
+  it('cambiar de tramo suelta los días: eran de otro sitio', () => {
+    // Se marca el 10, que SÍ cae dentro de la semana del 7 al 13: así la prueba
+    // comprueba que se sueltan de verdad, y no que se caen por no pertenecer
+    // al tramo nuevo.
+    pintar([...TRES_DIAS, fila({ id: 'd10', dia: '2026-09-10', capital: 1_000 })])
+    marcar(/Marcar el .*, 10 de setiembre/i)
+    expect(screen.getByRole('button', { name: 'Quitar los días marcados' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
+    expect(screen.queryByRole('button', { name: 'Quitar los días marcados' })).toBeNull()
+  })
+})
+
 describe('moneda y métrica', () => {
   it('cambiar de moneda cambia los números, no quién aparece', () => {
     pintar()

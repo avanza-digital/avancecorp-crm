@@ -761,6 +761,50 @@ export function combinarEnSoles(
   }
 }
 
+/**
+ * La misma malla, con TODAS sus columnas, pero con los totales calculados solo
+ * sobre los días marcados a mano.
+ *
+ * Miguel, 11/09/2026: quiere marcar el 3, el 7 y el 12 y ver cuánto suman. La
+ * primera versión escondía las demás columnas, y entonces no había forma de
+ * marcar un cuarto día: la tabla se queda entera, los días elegidos se resaltan
+ * y lo que cambia son los totales. Así se puede seguir añadiendo y quitando.
+ *
+ * Los días NO marcados conservan su cifra en la celda —el dato es cierto— pero
+ * no entran en ningún total.
+ */
+export function totalesSoloDeDias(
+  malla: MallaFacturacion,
+  diasMarcados: readonly string[],
+): MallaFacturacion {
+  const marcados = new Set(diasMarcados)
+  const indices = malla.dias.flatMap((d, i) => (marcados.has(d) ? [i] : []))
+  if (indices.length === 0) return malla
+
+  const sumar = (celdas: readonly CeldaFacturacion[]): CeldaFacturacion =>
+    indices.reduce(
+      (acc, i) => acumular(acc, celdas[i] ?? CELDA_VACIA),
+      CELDA_VACIA,
+    )
+
+  const grupos = malla.grupos.map((g) => ({
+    ...g,
+    total: sumar(g.dias),
+    analistas: g.analistas.map((a) => ({ ...a, total: sumar(a.dias) })),
+  }))
+  return {
+    ...malla,
+    grupos,
+    total: sumar(malla.totalPorDia),
+    // El «mejor día» y la escala solo miran lo marcado: un día no elegido no
+    // puede ganar un ranking del que está fuera.
+    maxDia: indices.reduce(
+      (acc, i) => maximo(acc, malla.totalPorDia[i] ?? CELDA_VACIA),
+      CELDA_VACIA,
+    ),
+  }
+}
+
 /** Las filas de analista de la malla, en plano y con su equipo — la vista de comparación. */
 export function filasComparadas(
   malla: MallaFacturacion,
