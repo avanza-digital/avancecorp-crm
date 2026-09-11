@@ -18,8 +18,11 @@ de la selección automática por Chrome. Miguel completó después el recorrido
 visual de Qorilazo y Prodelco: seleccionar archivo, Revisar y Confirmar; tres
 inversiones por ficha, con S/ 3.250 y S/ 3.800 respectivamente y antecedentes
 visibles. Codex verificó después los comprobantes y la conservación de registros.
-También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado; faltan los
-puntos 6–8 y la aceptación completa. El registro y sus
+También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado; falta la
+comprobación con lector de pantalla del punto 7 y la aceptación completa.
+Codex completó retiro/permisos (6) y recuperación de envío (8), con evidencia
+de UI y servidor local. Móvil, teclado y estabilidad tienen comprobaciones
+separadas; no se atribuye un PASS de VoiceOver a sus árboles de accesibilidad. El registro y sus
 límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
 
 Usar el banco sintético y usuarios de prueba;

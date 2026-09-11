@@ -1,0 +1,44 @@
+{
+  "fecha": "2026-09-11T00:22:46.448Z",
+  "resultado": "PASS",
+  "retiro": "6cde1549-a5d0-4d62-adbe-12cdfd7abe39",
+  "etapas": [
+    "solicitada/1",
+    "en_revision/2",
+    "cancelada/3"
+  ],
+  "conflicto": {
+    "estadoVigente": "en_revision",
+    "revisionVigente": 2,
+    "revisionEnviada": 1,
+    "codigo": "P0409",
+    "http": 500,
+    "sinCambiosDuranteRechazo": true
+  },
+  "antes": {
+    "public.contratos": "d9878003d7e8db23a44713d3f99b947c",
+    "public.cronograma_pagos": "0ddd7e70c79a79673f2f763842d580d3",
+    "crm.inversiones": "7a33858d3b6523c9b3e51f999191308a",
+    "crm.cierres_externos": "7658ea30c1b56c5bd9a93e54eca9bbfb",
+    "crm.depositos_reclamados": "8f94f427b17a88659c3bef37566e8030",
+    "crm.postventa_retiros": "a93c348cd1a230a3f6768c7af8b60f56",
+    "crm.tareas": "52f32fc5551c2d984a9e634587758422",
+    "crm.postventa_operaciones": "e037148dae3e4485583af21a098114b7",
+    "crm.inversionista_gestiones": "88b291f89289c55c50f9077f1654ffd6",
+    "crm.multiempresa_flags": "30ccece3f8d0acf25269b78d8e5b83ff"
+  },
+  "despues": {
+    "public.contratos": "d9878003d7e8db23a44713d3f99b947c",
+    "public.cronograma_pagos": "0ddd7e70c79a79673f2f763842d580d3",
+    "crm.inversiones": "7a33858d3b6523c9b3e51f999191308a",
+    "crm.cierres_externos": "7658ea30c1b56c5bd9a93e54eca9bbfb",
+    "crm.depositos_reclamados": "8f94f427b17a88659c3bef37566e8030",
+    "crm.postventa_retiros": "a650e40c972444f249a35ad08c851255",
+    "crm.tareas": "52f32fc5551c2d984a9e634587758422",
+    "crm.postventa_operaciones": "c9c603b1c6fc0f26e25ba1ba76280a9b",
+    "crm.inversionista_gestiones": "17b3747803dd3386c862e325c920b429",
+    "crm.multiempresa_flags": "30ccece3f8d0acf25269b78d8e5b83ff"
+  },
+  "finanzasTareasBanderasConservadas": true,
+  "limite": "Conflicto mediante RPC autenticada en banco local, sin dos ventanas visuales."
+}

@@ -40,8 +40,9 @@ con confirmaciones de reinversión desde el CRM y verificaciones de integridad.
 Miguel completó después la selección, revisión y confirmación visual de ambas
 cooperativas. Codex comprobó las fichas y la integridad posterior en el banco.
 El punto 5 queda **PASS** dentro del alcance de la guía.
-Los puntos 6–8 permanecen pendientes:
-retiro, accesibilidad y recuperación de un envío cuya respuesta se perdió.
+Miguel autorizó después todas las pruebas necesarias y pidió consultar siempre
+a Claude. Codex completó los puntos 6 y 8; el punto 7 tiene prueba de móvil,
+teclado y estabilidad, pero falta confirmar la lectura con VoiceOver.
 
 ## Punto 3 — ejecución delegada a Codex
 
@@ -189,19 +190,82 @@ La prueba de idempotencia anterior conserva su evidencia independiente.
 
 [Evidencia del recorrido visual completo](manual-2026-09-10/reinversion-ui-completa-evidencia.json).
 
-## Punto 6 — preparación de solicitud de retiro
+El primer snapshot del arnés de reinversión usó por error `crm.contratos`; la tabla
+correcta es `public.contratos`. Se corrigió antes de operar las reinversiones.
+No fue un fallo del CRM.
 
-Siguiente caso: inversión ORIGEN SINTETICO F6 de Prodelco por S/ 1.000, en la
-misma ficha que ahora totaliza S/ 3.800. Antes de registrar el trámite se guardó
-un snapshot privado con cantidades y huellas de filas completas: 49 contratos,
-637 cuotas de cronograma, 92 inversiones, 49 cierres y 49 depósitos reclamados.
-Hay ocho retiros anteriores que deberán conservarse. El registro, las dos
-transiciones de Gerencia, la comparación posterior y la exclusión de Directorio
-siguen pendientes; esta preparación no aprueba el punto 6.
+## Punto 6 — retiro administrativo y permisos
 
-El primer snapshot del arnés usó por error `crm.contratos`; la tabla correcta es
-`public.contratos`. Se corrigió el arnés y se capturó el snapshot antes de operar
-las reinversiones, sin repetir los antecedentes ya creados. No fue un fallo del CRM.
+**PASS delegado a Codex, banco sintético.** Desde la ficha Prodelco se registró
+la solicitud `2c2ba07a-da70-4cc4-acb6-9c0022e1733d` sobre el origen de S/ 1.000.
+Gerencia la llevó por UI de solicitada/1 a en_revision/2 y revisada/3, con detalle
+y resolución visibles. Los 49 contratos, 637 cuotas, 92 inversiones, 49 cierres,
+49 depósitos reclamados y ocho retiros anteriores conservaron sus filas completas
+tras cada etapa. Las banderas se conservaron; la ficha siguió con tres inversiones
+y S/ 3.800. Hubo exactamente tres gestiones para este nuevo retiro.
+
+Directorio abrió una ficha Avance autorizada sin botones de agendar, solicitar
+ni revisar retiro; la persona Prodelco del ensayo no estaba en su cartera. Su
+agenda neutral fue vacía. Tres escrituras RPC como Directorio y una revisión
+como vendedor devolvieron 42501. Gerencia tampoco pudo reabrir el retiro terminal.
+Las sondas rechazadas conservaron todas las tablas comparadas sin cambios.
+
+Se añadió un segundo retiro sintético para aislar la concurrencia: estando en
+revisión/2, una petición con revisión/1 recibió P0409 sin modificar tablas.
+Después se canceló correctamente con revisión/2. Esta sonda fue por RPC real;
+no se presenta como un recorrido visual de dos ventanas simultáneas.
+
+Evidencia: [retiro por UI](manual-2026-09-10/retiro-ui-evidencia.json),
+[permisos y terminal](manual-2026-09-10/retiro-permisos-evidencia.json),
+[revisión obsoleta en trámite abierto](manual-2026-09-10/retiro-concurrencia-evidencia.json).
+El JSON de permisos conserva su límite temporal original de UI pendiente;
+la observación visual posterior está en el JSON de retiro por UI.
+
+## Punto 7 — móvil, teclado y lectura
+
+**PARCIAL: VoiceOver pendiente.** En Chrome a 390 × 844 píxeles CSS, la ficha y
+su diálogo no desbordan horizontalmente. Tab/Shift+Tab recorren los controles;
+Tab desde Agendar vuelve al primer control del diálogo. Escape vuelve al botón
+Agendar gestión de la ficha. Se observó el historial desplegado y el mismo scroll
+durante más de 75 segundos, cubriendo los refrescos periódicos.
+
+Se reprodujo un defecto real: cerrar el diálogo controlado dejaba el foco en
+BODY, también al terminar un retiro cuyo botón desaparece. Se corrigió en el
+componente común: recuerda el origen, vuelve a él si sigue disponible y usa la
+ficha como destino cuando la acción desaparece o no admite foco. Los dos tests
+iniciales fallaron antes del arreglo y pasaron después; se añadió el caso del
+botón deshabilitado y el E2E de retiro terminal, con apertura por ratón y teclado.
+
+VoiceOver no queda aprobado: su control nativo no permitió verificar la salida
+del lector. Se intentó desde Accesibilidad; el estado final observado quedó
+apagado, igual que al inicio. Se recuperó Chrome en una pestaña nueva tras perder
+el enlace de depuración de las pestañas anteriores. No se sustituyó la prueba del
+lector por una captura ni por el árbol de accesibilidad. Safari tampoco fue probado.
+
+## Punto 8 — recuperación con interrupción controlada
+
+**PASS delegado a Codex.** Proxy exclusivamente local entre la app y el banco,
+sin cortar el servicio productivo. Se comprobó la recarga y la recuperación en
+el mismo origen de navegador, con el título guardado y sin formulario editable.
+
+- Respuesta perdida después del commit: una tarea creada; Verificar envío guardado
+  consultó `registrada:true` y no volvió a ejecutar la escritura.
+- Petición interrumpida antes de llegar a la RPC: `registrada:false`; se reenvió
+  exactamente el mismo UUID, título, nota y horario y quedó una sola tarea.
+- La primera calibración cortó TCP demasiado pronto y Chrome reintentó por su
+  cuenta con el mismo UUID/contenido. Quedó una tarea; se conserva como caso separado.
+
+El snapshot conserva todas las filas anteriores: 49 contratos, 637 cuotas,
+92 inversiones, 49 cierres, 49 depósitos, nueve retiros, 60 tareas, 125 operaciones,
+176 gestiones y cuatro banderas. Solo añadió tres tareas/operaciones/gestiones,
+incluida la calibración. El segundo retiro de concurrencia se ejecutó después
+de esta comparación y tiene su propia evidencia.
+[Evidencia de recuperación](manual-2026-09-10/perdida-evidencia.json).
+
+El corte reveló un mensaje crudo en inglés. Los errores de transporte sin código
+se muestran ahora en español, sin convertirlos en rechazo SQL ni borrar el envío
+pendiente. Los once tests existentes de recuperación cubren además doble envío,
+cambio de contenido/actor, fallos de almacenamiento y rechazos SQL explícitos.
 
 ## Preparación del banco y alcance
 
@@ -221,3 +285,32 @@ duplicación), `git diff --check` y enlaces locales. No se añadieron tests de c
 CSS. E2E y `gate:realidad`: **NOT RUN** en este ajuste de apariencia, que conserva
 el control nativo y no depende de datos productivos. El cambio está en el banco
 local de revisión; no se publicó un nuevo artefacto.
+
+## Cierre de verificaciones de esta sesión
+
+`npm run check:all`: **PASS** después del último ajuste: lint, typecheck,
+3.188 tests en 227 archivos, cobertura, cuatro tests de configuración de release,
+build, bundle, duplicación y 159 E2E PASS; 26 E2E omitidas por su configuración
+existente. El primer intento del E2E ampliado usó una etiqueta incorrecta
+(`Estado`); se corrigió a `Estado de la revisión` y el gate completo pasó.
+Los tests E2E usan su servidor/fixtures propios; no sustituyen la evidencia del
+banco real local. La matriz remota general y `gate:realidad`: **NOT RUN** en estos
+ajustes de UI, sin cambios de esquema, roles ni publicación; sus observaciones
+previas siguen vigentes.
+
+La observación móvil de Agenda se repitió después de una recarga de Vite causada
+por editar Dialog. Con el código estable, las siete filas conservaron posiciones
+y scroll durante 132 segundos; la ficha conservó el historial y su scroll durante
+87 segundos. [Móvil y teclado](manual-2026-09-10/movil-teclado-evidencia.json).
+Viewport temporal retirado; VoiceOver observado apagado al terminar. El arnés de
+cortes quedó desactivado. La ficha del banco habitual sigue disponible en el
+puerto 5216. Los tres casos de recuperación y el retiro concurrente cancelado
+se conservan como evidencia sintética; no se borraron para ocultar calibraciones.
+
+Se consultó Claude dos veces mediante el wrapper del repositorio. Sus dictámenes
+fueron CHANGES_REQUESTED y se evaluaron con evidencia; no se atribuye un PASS a
+Claude. [Evaluación del PRIMARY](manual-2026-09-10/revision-claude-evaluada.json).
+Los ajustes de producto están en el commit local `d586b66`; esta documentación
+se guarda por separado. El selector de archivos está en `513effa`.
+F4/F5/F6 siguen apagadas en producción. **Falta la comprobación de VoiceOver
+para cerrar la aceptación manual F6.** F7, F8 y F9 no se dan por completadas.

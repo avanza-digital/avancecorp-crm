@@ -43,7 +43,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F3 — reconocimiento único | Publicada y encendida | Identidad unificada activa desde el 07/09 a las 10:09 Lima |
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
-| F6 — postventa | Publicada e instalada; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 43 pruebas remotas, 3.182 frontend y 159 E2E PASS (26 SKIP). Aceptación humana pendiente; matriz general FAIL sin regresiones y observación Auth registradas. [[F6 - publicada y apagada (2026-09-10)]] |
+| F6 — postventa | Publicada e instalada; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. 43 pruebas remotas, 3.182 frontend y 159 E2E PASS (26 SKIP). Revisión manual: puntos 1–6 y 8 comprobados; punto 7 pendiente de lector de pantalla. Ajustes locales de foco y mensaje de conexión pendientes de publicación. Matriz general FAIL sin regresiones y observación Auth registradas. [[F6 - publicada y apagada (2026-09-10)]] |
 | F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |

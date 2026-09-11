@@ -1,0 +1,217 @@
+{
+  "fecha": "2026-09-11T00:22:02.241Z",
+  "resultado": "PASS",
+  "origenUI": "http://127.0.0.1:5217",
+  "soloBancoLocal": true,
+  "conservados": {
+    "public.contratos": 49,
+    "public.cronograma_pagos": 637,
+    "crm.inversiones": 92,
+    "crm.cierres_externos": 49,
+    "crm.depositos_reclamados": 49,
+    "crm.postventa_retiros": 9,
+    "crm.tareas": 60,
+    "crm.postventa_operaciones": 125,
+    "crm.inversionista_gestiones": 176,
+    "crm.multiempresa_flags": 4
+  },
+  "incrementos": {
+    "public.contratos": 0,
+    "public.cronograma_pagos": 0,
+    "crm.inversiones": 0,
+    "crm.cierres_externos": 0,
+    "crm.depositos_reclamados": 0,
+    "crm.postventa_retiros": 0,
+    "crm.tareas": 3,
+    "crm.postventa_operaciones": 3,
+    "crm.inversionista_gestiones": 3,
+    "crm.multiempresa_flags": 0
+  },
+  "casos": [
+    {
+      "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+      "caso": "calibracion-reintento-automatico",
+      "titulo": "F6 respuesta perdida 60e08509",
+      "nota": "Contenido original del ensayo: conservar esta nota después de recuperar el envío.",
+      "vence_en": "2026-09-11T10:00:00-05:00",
+      "peticiones": 2,
+      "tareas": 1,
+      "operaciones": 1,
+      "payloadIdentico": true,
+      "eventos": [
+        {
+          "fecha": "2026-09-11T00:08:09.420Z",
+          "tipo": "agendar_entrada",
+          "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+          "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+          "datos": {
+            "tipo": "llamada",
+            "titulo": "F6 respuesta perdida 60e08509",
+            "nota": "Contenido original del ensayo: conservar esta nota después de recuperar el envío.",
+            "vence_en": "2026-09-11T15:00:00.000Z",
+            "modalidad_reunion": null,
+            "ubicacion_reunion": null,
+            "enlace_reunion": null
+          }
+        },
+        {
+          "fecha": "2026-09-11T00:08:09.462Z",
+          "tipo": "agendar_respuesta_servidor",
+          "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+          "http": 200,
+          "tarea": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56"
+        },
+        {
+          "fecha": "2026-09-11T00:08:09.462Z",
+          "tipo": "respuesta_cortada_despues_de_exito",
+          "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+          "titulo": "F6 respuesta perdida 60e08509"
+        },
+        {
+          "fecha": "2026-09-11T00:08:09.463Z",
+          "tipo": "agendar_entrada",
+          "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+          "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+          "datos": {
+            "tipo": "llamada",
+            "titulo": "F6 respuesta perdida 60e08509",
+            "nota": "Contenido original del ensayo: conservar esta nota después de recuperar el envío.",
+            "vence_en": "2026-09-11T15:00:00.000Z",
+            "modalidad_reunion": null,
+            "ubicacion_reunion": null,
+            "enlace_reunion": null
+          }
+        },
+        {
+          "fecha": "2026-09-11T00:08:09.484Z",
+          "tipo": "agendar_respuesta_servidor",
+          "clave": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56",
+          "http": 200,
+          "tarea": "e500f537-f2a5-46bb-b23b-a6cff8ec2c56"
+        }
+      ]
+    },
+    {
+      "clave": "d13df606-4cc6-4877-b899-15c65d14a3a0",
+      "caso": "respuesta-perdida-tras-commit",
+      "titulo": "F6 respuesta truncada 1441b98c",
+      "nota": "Nota original 1441b98c: conservar título, hora y contenido durante la recuperación.",
+      "vence_en": "2026-09-11T10:00:00-05:00",
+      "peticiones": 1,
+      "tareas": 1,
+      "operaciones": 1,
+      "payloadIdentico": true,
+      "eventos": [
+        {
+          "fecha": "2026-09-11T00:10:31.109Z",
+          "tipo": "agendar_entrada",
+          "clave": "d13df606-4cc6-4877-b899-15c65d14a3a0",
+          "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+          "datos": {
+            "tipo": "llamada",
+            "titulo": "F6 respuesta truncada 1441b98c",
+            "nota": "Nota original 1441b98c: conservar título, hora y contenido durante la recuperación.",
+            "vence_en": "2026-09-11T15:00:00.000Z",
+            "modalidad_reunion": null,
+            "ubicacion_reunion": null,
+            "enlace_reunion": null
+          }
+        },
+        {
+          "fecha": "2026-09-11T00:10:31.138Z",
+          "tipo": "agendar_respuesta_servidor",
+          "clave": "d13df606-4cc6-4877-b899-15c65d14a3a0",
+          "http": 200,
+          "tarea": "d13df606-4cc6-4877-b899-15c65d14a3a0"
+        },
+        {
+          "fecha": "2026-09-11T00:10:31.138Z",
+          "tipo": "respuesta_cortada_despues_de_exito",
+          "clave": "d13df606-4cc6-4877-b899-15c65d14a3a0",
+          "titulo": "F6 respuesta truncada 1441b98c"
+        },
+        {
+          "fecha": "2026-09-11T00:16:33.395Z",
+          "tipo": "verificar_respuesta_servidor",
+          "clave": "d13df606-4cc6-4877-b899-15c65d14a3a0",
+          "http": 200,
+          "registrada": true
+        }
+      ]
+    },
+    {
+      "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+      "caso": "envio-no-recibido",
+      "titulo": "F6 envio no recibido 64c389a1",
+      "nota": "Nota original 64c389a1: el reintento debe mantener exactamente el mismo contenido y horario.",
+      "vence_en": "2026-09-11T10:00:00-05:00",
+      "peticiones": 2,
+      "tareas": 1,
+      "operaciones": 1,
+      "payloadIdentico": true,
+      "eventos": [
+        {
+          "fecha": "2026-09-11T00:17:55.625Z",
+          "tipo": "agendar_entrada",
+          "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+          "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+          "datos": {
+            "tipo": "llamada",
+            "titulo": "F6 envio no recibido 64c389a1",
+            "nota": "Nota original 64c389a1: el reintento debe mantener exactamente el mismo contenido y horario.",
+            "vence_en": "2026-09-11T15:00:00.000Z",
+            "modalidad_reunion": null,
+            "ubicacion_reunion": null,
+            "enlace_reunion": null
+          }
+        },
+        {
+          "fecha": "2026-09-11T00:17:55.626Z",
+          "tipo": "peticion_cortada_antes_de_rpc",
+          "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+          "titulo": "F6 envio no recibido 64c389a1"
+        },
+        {
+          "fecha": "2026-09-11T00:19:09.690Z",
+          "tipo": "verificar_respuesta_servidor",
+          "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+          "http": 200,
+          "registrada": false
+        },
+        {
+          "fecha": "2026-09-11T00:19:09.697Z",
+          "tipo": "agendar_entrada",
+          "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+          "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+          "datos": {
+            "tipo": "llamada",
+            "titulo": "F6 envio no recibido 64c389a1",
+            "nota": "Nota original 64c389a1: el reintento debe mantener exactamente el mismo contenido y horario.",
+            "vence_en": "2026-09-11T15:00:00.000Z",
+            "modalidad_reunion": null,
+            "ubicacion_reunion": null,
+            "enlace_reunion": null
+          }
+        },
+        {
+          "fecha": "2026-09-11T00:19:09.730Z",
+          "tipo": "agendar_respuesta_servidor",
+          "clave": "0ea94b51-b8cf-49ae-9157-7eced36f9075",
+          "http": 200,
+          "tarea": "0ea94b51-b8cf-49ae-9157-7eced36f9075"
+        }
+      ]
+    }
+  ],
+  "ui": {
+    "recargaMismoOrigen": true,
+    "tituloPendienteConservado": true,
+    "formularioNoEditableMientrasPendiente": true,
+    "verificarPorEnter": true,
+    "pendientesRecuperados": true
+  },
+  "limites": [
+    "La primera calibración fue reintentada automáticamente por Chrome; se conserva como caso separado.",
+    "No se inspeccionó sessionStorage desde el navegador: la restauración se comprobó en UI y el contenido por proxy y DB."
+  ]
+}
