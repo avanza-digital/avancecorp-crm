@@ -1,0 +1,58 @@
+{
+  "capturado_utc": "2026-09-11T20:31:37.877094+00:00",
+  "estado": "SQL APROBADO; COSTE BANCO PENDIENTE; INSTALACION NOT RUN",
+  "codigo_integrado_commit": "8dd0a14468df48a9d86d31546065d5e173dfd1a1",
+  "avancecorp_main_integrado": "4bfae4937373116bfa5fe93cb8de069a7b23ada0",
+  "sql_sha256": "7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7",
+  "sql_aprobado": true,
+  "coste_banco": {
+    "importe": 0.01344,
+    "moneda": "USD",
+    "periodicidad": "hora",
+    "confirmacion": "PENDIENTE"
+  },
+  "gate_frontend": {
+    "estado": "PASS",
+    "equivalente_a": "check:all",
+    "comandos": [
+      "VITEST_MAX_WORKERS=2 npm run check",
+      "npm run test:e2e -- --workers=2"
+    ],
+    "exit_codes": [
+      0,
+      0
+    ],
+    "unitarias": {
+      "archivos": 233,
+      "pass": 3341,
+      "fail": 0
+    },
+    "e2e": {
+      "pass": 168,
+      "skip": 26,
+      "fail": 0
+    }
+  },
+  "base_productiva": {
+    "estado": "PASS solo lectura",
+    "migraciones": 274,
+    "f7_instalada": false,
+    "cuatro_huellas_iguales": true,
+    "archivo": "base-productiva-preparacion-2026-09-11.json"
+  },
+  "fuente_produccion_viva": "4bfae4937373116bfa5fe93cb8de069a7b23ada0",
+  "rama_supabase_creada": false,
+  "f7_publicada": false,
+  "not_run": [
+    "Ensayo en rama gestionada F7, matriz RLS general, advisors remotos y tipos remotos F7",
+    "Instalacion y publicacion F7 inicialmente OFF",
+    "Medicion con volumen productivo y conciliacion firmada G6",
+    "VoiceOver F6 omitido por Miguel",
+    "Piloto F8 y operacion F9"
+  ],
+  "logs_privados_sha256": {
+    "check-4bfae49-integrado.log": "261e51a5795342e1147a77aefbb3e0979c18f7942491c656a456454dc2b8af21",
+    "e2e-4bfae49-integrado.log": "e1dcfda4ac1cea6c2dc3f7573e5b80f195b53471490afa150ecac0f967db94ff"
+  },
+  "respaldo_privado": "/Users/usuario/.codex/backups/avancecorp-f7-20260911"
+}

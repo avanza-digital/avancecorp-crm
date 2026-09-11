@@ -1,0 +1,30 @@
+{
+  "banderas": {
+    "ficha_360_neutral": false,
+    "inversiones_escritura": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true
+  },
+  "capturado_utc": "2026-09-11T20:26:23.65816+00:00",
+  "f7_instalada": false,
+  "funciones": [
+    {
+      "md5": "3a80775b21767839e524880d419689f3",
+      "nombre": "private.peso_referido_conversion(date)"
+    },
+    {
+      "md5": "8a2549dbfa59c732da04900ed90b6361",
+      "nombre": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)"
+    },
+    {
+      "md5": "c9e58c1da9dd7a5d52991c9e47dc19d5",
+      "nombre": "private.capital_episodios(timestamp with time zone,timestamp with time zone,boolean,uuid[])"
+    },
+    {
+      "md5": "94fa33cfcca657f70a1a94f98c3bf482",
+      "nombre": "private.cartera_f5_fuentes()"
+    }
+  ],
+  "migraciones": 274,
+  "project_ref": "dctqcbznekcyxhjujuci"
+}

@@ -22,13 +22,13 @@ La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
 | Banco PostgreSQL F7 | PASS | 16 pruebas, copia sintética propia; instalación, permisos, paridad y reversa |
 | Auth y PostgREST locales | PASS | 9 pruebas HTTP reales, incluidas denegaciones y contrato del cliente |
 | Scripts y preflights offline | PASS | `check:scripts`, `seed:preflight`, `test:rls:preflight`, `test:edge-preflight` |
-| Frontend integrado | PASS | Lint, typecheck, 3.329 pruebas en 233 archivos con cobertura, release, service worker, build, bundle y duplicación |
+| Frontend integrado | PASS | Lint, typecheck, 3.341 pruebas en 233 archivos con cobertura, release, service worker, build, bundle y duplicación |
 | Navegación integrada | PASS | 168 E2E aprobados; 26 SKIP preexistentes. Incluye F7, F6 y las nuevas notificaciones recibidas desde Main |
-| Integración de Main | PASS | Base `5d49bcf`, código F7 `2a9ff19`; se preservaron los cambios ajenos. Los nueve pasos equivalentes de `check:all` pasaron con concurrencia acotada |
+| Integración de Main | PASS | Main `4bfae49`, integrado en `8dd0a14`; cambios ajenos conservados. `check` y E2E completos con dos workers PASS; [evidencia actual](evidencias/preparacion-instalacion-2026-09-11.json) |
 | Advisors del banco F7 | PASS de comparación | Cinco WARN ya presentes en la base original; cero nuevos. No significa que el proyecto carezca de advertencias |
 | Claude | CHANGES_REQUESTED, evaluado | Dos revisiones; decisiones y evidencia en [REVISION.md](REVISION.md). No es un PASS del reviewer |
 | Inspección visual automatizada | PASS | Escritorio y 320 px; tablas con desplazamiento interno, capturas ficticias en `evidencias/` |
-| Instalación y gates en rama Supabase remota | NOT RUN | Pendiente aprobación del SQL concreto y ensayo autorizado |
+| Instalación y gates en rama Supabase remota | NOT RUN | SQL exacto aprobado por Miguel; creación del banco pendiente de respuesta al coste US$0.01344/h |
 | Matriz RLS general real en esta fase | NOT RUN | El preflight no la sustituye; matriz específica F7 sí ensayada |
 | Rendimiento con volumen productivo | NOT RUN | La medición local de 98 fuentes no permite extrapolar |
 | Revisión manual F7 / conciliación firmada G6 | NOT RUN | No se infiere de los tests ni de las aprobaciones históricas F6 |
@@ -76,7 +76,9 @@ resultados finales y sus huellas, sin credenciales ni datos personales.
 
 El [SQL propuesto](../../migrations/20260911163243_crm_multiempresa_f7_metricas_sombra.sql)
 y su [reversa](reversa-operativa.sql) se identifican en
-[SHA256SUMS](evidencias/SHA256SUMS). Instalación pendiente de aprobación.
+[SHA256SUMS](evidencias/SHA256SUMS). Miguel aprobó ese SQL y su instalación
+inicialmente OFF el 11/09/2026; no se ha ejecutado. La creación del nuevo banco
+está pendiente de respuesta al coste US$0.01344/h exigida por Supabase.
 El consumidor puede publicarse antes del SQL porque contempla RPC ausente/OFF.
 No se habilitan las banderas de escritura F4, ficha F5 ni postventa F6.
 

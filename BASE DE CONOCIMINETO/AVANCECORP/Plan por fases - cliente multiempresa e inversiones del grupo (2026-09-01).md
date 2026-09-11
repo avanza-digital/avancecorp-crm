@@ -25,7 +25,10 @@ capital y cantidades separados por empresa/moneda, personas y cotitulares,
 primeras/posteriores registradas, conversión y atribución conservadas,
 vencimientos y oportunidades respetando No contactar. Cuatro funciones nuevas
 y bandera propia OFF, sin sustituir los núcleos ni modificar fuentes.
-Instalación productiva y conciliación firmada G6 pendientes; no habilita F8.
+Miguel aprobó el SQL exacto y su instalación inicialmente OFF el 11/09/2026.
+La creación del banco remoto está pendiente de su respuesta al coste de
+Supabase (US$0.01344/h). Instalación productiva y conciliación firmada G6
+pendientes; no habilita F8.
 Evidencia y punto de retoma: [[F7 - informe multiempresa en sombra preparado (2026-09-11)]].
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
@@ -715,8 +718,8 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Los ajustes y la revisión manual quedaron cerrados el 11/09, con VoiceOver
    omitido por Miguel (NOT RUN). Conservar las observaciones de la matriz
    general. [[F6 - cierre y ajustes publicados (2026-09-11)]].
-4. **F7 candidata local:** revisar y aprobar su SQL concreto, completar el ciclo
-   de instalación apagada, revisar el informe por empresa y obtener la
+4. **F7 con SQL aprobado:** resolver el coste del nuevo banco remoto y completar
+   el ciclo de instalación apagada, revisar el informe por empresa y obtener la
    conciliación firmada G6. [[F7 - informe multiempresa en sombra preparado (2026-09-11)]].
 5. Después: **F8/G7 → F9/G8**: piloto económico y activación progresiva con ciclo
    mensual completo. No se adelantan con el ensayo sintético F7.

@@ -4,6 +4,12 @@ Candidata local del 11/09/2026. **No instalada ni publicada en producción.**
 G6 requiere conciliación y firma humana; F8/F9 siguen pendientes.
 Este módulo es distinto de los antiguos scripts `gate-f7-*` de altas.
 
+Miguel aprobó el SQL exacto y su instalación inicialmente apagada el 11/09/2026
+(respuesta «sii»). La creación del nuevo banco remoto sigue pendiente de su
+respuesta al coste informado por Supabase: **US$0.01344 por hora**. No volver
+a pedir aprobación del mismo SQL ni confundir el banco antiguo `banco-f7`
+con esta fase. [Preparación de la instalación](PREPARACION-INSTALACION-2026-09-11.md).
+
 La pantalla **Empresas** reúne capital, cantidad de inversiones, personas en
 una/dos/tres empresas, primeras y posteriores registradas, atribución,
 conversión, vencimientos y oportunidades. Reutiliza los componentes del CRM.
@@ -100,7 +106,7 @@ desarrollo; no se habilita en el artefacto productivo.
 
 ## Instalación posterior
 
-1. Revisar y aprobar el SQL concreto. Integrar cambios de `avancecorp/main`,
+1. Conservar el SQL concreto ya aprobado. Integrar cambios de `avancecorp/main`,
    sin sobrescribir ni hacer force push; publicar solo un artefacto construido
    desde el commit verificado común de Main y `avancecorp/main`.
 2. Preparar la rama Supabase autorizada, sembrar datos ficticios antes del

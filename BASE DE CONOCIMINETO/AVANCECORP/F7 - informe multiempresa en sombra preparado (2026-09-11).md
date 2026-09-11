@@ -1,7 +1,7 @@
 ---
 tags: [crm, multiempresa, metricas, f7, g6, retomar]
 fecha: 2026-09-11
-estado: candidata-local-instalacion-y-g6-pendientes
+estado: sql-aprobado-coste-banco-instalacion-y-g6-pendientes
 ---
 
 # F7 — informe por empresa preparado en local
@@ -81,9 +81,30 @@ El estado preciso de los gates y sus límites se registra en
 - F3 permanece ON; F4/F5/F6 permanecen OFF. Los quince huecos históricos no se
   trataron ni se hizo backfill en esta fase.
 
+## Autorización y preparación posterior — 11/09/2026
+
+Miguel respondió **«sii»** al SQL concreto y a ensayarlo e instalarlo
+inicialmente apagado. Su SHA-256 continúa siendo
+`7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7`.
+No se debe volver a pedir autorización de ese mismo SQL.
+
+Se integró Main `4bfae49` en `8dd0a14`, conservando el filtro de tipo de capital
+de Facturación y el ajuste del aviso push. La consulta productiva de solo
+lectura a las 20:26 UTC confirmó **274 migraciones**, las cuatro huellas
+esperadas, F7 ausente y las banderas anteriores sin cambios. El frontend
+vigente corresponde a Main `4bfae49`; se identificó y verificó su ZIP anterior.
+
+Supabase informó **US$0.01344/h** por una nueva rama en PortalAvanceCorp.
+La pregunta de coste sigue pendiente de respuesta; **no se creó una rama**.
+Conservar el antiguo `banco-f7` de altas: no pertenece a esta fase multiempresa.
+Gates actualizados y evidencia:
+[preparación de la instalación](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/PREPARACION-INSTALACION-2026-09-11.md).
+Capturas privadas: `/private/tmp/avancecorp-f7-publicacion-20260911`.
+
 ## Siguiente paso concreto
 
-1. Aprobar el SQL exacto F7 antes de instalarlo, conforme a [[Inicio]].
+1. Resolver la respuesta pendiente al coste del banco; el SQL ya fue aprobado
+   conforme a [[Inicio]]. Confirmar coste y crear una rama propia solo si se autoriza.
 2. Ensayar el paquete en la rama Supabase autorizada, completar gates remotos
    y publicar desde Main/remoto/artefacto con el mismo commit verificado.
 3. Verificar la instalación apagada y realizar la revisión de cifras reales.
