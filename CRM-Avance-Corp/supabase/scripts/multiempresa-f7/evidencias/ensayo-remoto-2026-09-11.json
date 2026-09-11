@@ -1,0 +1,57 @@
+{
+  "estado": "ENSAYO_ESPECIFICO_PASS_CIERRE_GENERAL_EN_CURSO",
+  "banco": {
+    "nombre": "multiempresa-f7-20260911",
+    "ref": "awshxyerdsvgjnteetfa",
+    "id": "429fa19f-d018-428c-94a5-731541fde6ed",
+    "creadoUTC": "2026-09-11T20:42:52.294868Z",
+    "costeHoraUSD": 0.01344,
+    "costeAutorizado": true
+  },
+  "mainIntegrado": "6293d24ec07144d8e79dbba9c5d80fc6f22a2d64",
+  "commitIntegracion": "92ca108ce3709fd72a5e772a454e93da5fb5a4de",
+  "sql": {
+    "pass": 16,
+    "fail": 0
+  },
+  "http": {
+    "pass": 12,
+    "fail": 0
+  },
+  "frontend": {
+    "pass": 3355,
+    "fail": 0,
+    "archivos": 235,
+    "check": "PASS"
+  },
+  "e2e": "EN_CURSO",
+  "rlsGeneral": "EN_CURSO",
+  "produccionF7Instalada": false,
+  "g6Firmado": false,
+  "evidenciaPrivada": [
+    {
+      "archivo": "metricas-remoto.log",
+      "sha256": "cf8bcbc921620a8031357335ea81f4a99098ffee64cb527d2321777caf456707"
+    },
+    {
+      "archivo": "http-remoto.log",
+      "sha256": "46edb42670425753d525ca3cee885ca894ef47241d7853391b5e984117396dd7"
+    },
+    {
+      "archivo": "sql-aprobado.sql",
+      "sha256": "7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7"
+    },
+    {
+      "archivo": "reversa-operativa.sql",
+      "sha256": "e39a6bcfcea28ede8ea374b6e60562502ed6b20f2635cf3adeacf2c06ed1106a"
+    },
+    {
+      "archivo": "database-banco-public-crm.types.ts",
+      "sha256": "76caff443ef810e15f9605db1cf9c149c6782cd7ae9407c85edc18e76aba5dca"
+    },
+    {
+      "archivo": "check-integracion-tasa.log",
+      "sha256": "d55e06d03b1c543edb25dc0e1d13377c2fced7b80f61ccd64a7aed70234b95c6"
+    }
+  ]
+}

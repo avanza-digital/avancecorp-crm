@@ -1,14 +1,15 @@
 # F7 multiempresa — informe de Gerencia en sombra
 
-Candidata local del 11/09/2026. **No instalada ni publicada en producción.**
+Candidata del 11/09/2026, ensayada en el banco remoto autorizado.
+**Instalación y publicación productivas en curso.**
 G6 requiere conciliación y firma humana; F8/F9 siguen pendientes.
 Este módulo es distinto de los antiguos scripts `gate-f7-*` de altas.
 
 Miguel aprobó el SQL exacto y su instalación inicialmente apagada el 11/09/2026
-(respuesta «sii»). La creación del nuevo banco remoto sigue pendiente de su
-respuesta al coste informado por Supabase: **US$0.01344 por hora**. No volver
-a pedir aprobación del mismo SQL ni confundir el banco antiguo `banco-f7`
-con esta fase. [Preparación de la instalación](PREPARACION-INSTALACION-2026-09-11.md).
+(respuesta «sii»). También aprobó el coste de **US$0.01344 por hora**; se creó el banco exclusivo
+`multiempresa-f7-20260911`. No volver a pedir estas autorizaciones ni confundir
+el banco antiguo `banco-f7` con esta fase. [Preparación](PREPARACION-INSTALACION-2026-09-11.md) y
+[ensayo remoto](ENSAYO-REMOTO-2026-09-11.md).
 
 La pantalla **Empresas** reúne capital, cantidad de inversiones, personas en
 una/dos/tres empresas, primeras y posteriores registradas, atribución,

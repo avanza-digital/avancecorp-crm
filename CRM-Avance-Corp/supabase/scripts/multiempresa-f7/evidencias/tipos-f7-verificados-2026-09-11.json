@@ -1,0 +1,16 @@
+{
+  "estado": "PASS",
+  "origen": "Supabase CLI genera public,crm del banco remoto",
+  "sha256Generado": "76caff443ef810e15f9605db1cf9c149c6782cd7ae9407c85edc18e76aba5dca",
+  "rpc": {
+    "metricas_multiempresa_fn": {
+      "declaracion": "metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }",
+      "coincide": true
+    },
+    "metricas_multiempresa_estado_fn": {
+      "declaracion": "metricas_multiempresa_estado_fn: { Args: never; Returns: Json }",
+      "coincide": true
+    }
+  },
+  "nota": "Las declaraciones F7 existentes coinciden byte a byte. Se conserva el orden del archivo del repositorio."
+}

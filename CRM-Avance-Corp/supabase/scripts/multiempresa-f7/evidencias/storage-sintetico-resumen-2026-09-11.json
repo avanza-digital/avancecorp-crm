@@ -1,0 +1,14 @@
+{
+  "objetos": 66,
+  "buckets": [
+    {
+      "id": "f4-comprobantes",
+      "public": false
+    },
+    {
+      "id": "contratos-generados",
+      "public": false
+    }
+  ],
+  "contenido": "PDF/PNG ficticios; ningún comprobante original copiado"
+}

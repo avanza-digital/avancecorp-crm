@@ -1,7 +1,7 @@
 ---
 tags: [crm, multiempresa, metricas, f7, g6, retomar]
 fecha: 2026-09-11
-estado: sql-aprobado-coste-banco-instalacion-y-g6-pendientes
+estado: ensayo-remoto-en-curso-sql-y-coste-autorizados
 ---
 
 # F7 — informe por empresa preparado en local
@@ -95,7 +95,8 @@ esperadas, F7 ausente y las banderas anteriores sin cambios. El frontend
 vigente corresponde a Main `4bfae49`; se identificó y verificó su ZIP anterior.
 
 Supabase informó **US$0.01344/h** por una nueva rama en PortalAvanceCorp.
-La pregunta de coste sigue pendiente de respuesta; **no se creó una rama**.
+Miguel respondió **«si»**. Se confirmó el coste y se creó el banco exclusivo
+`multiempresa-f7-20260911` (`awshxyerdsvgjnteetfa`), a las 20:42:52 UTC.
 Conservar el antiguo `banco-f7` de altas: no pertenece a esta fase multiempresa.
 Gates actualizados y evidencia:
 [preparación de la instalación](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/PREPARACION-INSTALACION-2026-09-11.md).
@@ -103,8 +104,8 @@ Capturas privadas: `/private/tmp/avancecorp-f7-publicacion-20260911`.
 
 ## Siguiente paso concreto
 
-1. Resolver la respuesta pendiente al coste del banco; el SQL ya fue aprobado
-   conforme a [[Inicio]]. Confirmar coste y crear una rama propia solo si se autoriza.
+1. SQL y coste autorizados. Banco propio creado: continuar su ensayo y cierre
+   según [el avance remoto](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ENSAYO-REMOTO-2026-09-11.md).
 2. Ensayar el paquete en la rama Supabase autorizada, completar gates remotos
    y publicar desde Main/remoto/artefacto con el mismo commit verificado.
 3. Verificar la instalación apagada y realizar la revisión de cifras reales.

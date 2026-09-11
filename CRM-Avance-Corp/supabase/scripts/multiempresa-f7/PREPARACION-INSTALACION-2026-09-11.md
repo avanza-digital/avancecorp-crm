@@ -52,23 +52,21 @@ diálogos pasaron; `VITEST_MAX_WORKERS=2 npm run check` volvió a pasar completo
 con las 3.341 pruebas. Los 168 E2E anteriores corresponden al mismo código de
 producto. Los logs fallidos y corregidos se conservan en la evidencia.
 
-## Único dato pendiente para crear el banco
+## Coste autorizado y banco creado
 
-El coste consultado para una rama en el mismo proyecto PortalAvanceCorp es
-**US$0.01344 por hora**, aproximadamente US$0.03 por dos horas. La herramienta
-`supabase_get_cost` exige repetir ese coste y obtener la confirmación antes
-de crear la rama. La pregunta enviada a Miguel sigue pendiente de respuesta;
-no se ha llamado a `confirm_cost` ni a `create_branch`.
+Miguel respondió **«si»** al coste de **US$0.01344/h**. Se confirmó ese precio
+con Supabase y se creó `multiempresa-f7-20260911` a las 20:42:52 UTC,
+proyecto `awshxyerdsvgjnteetfa`, rama `429fa19f-d018-428c-94a5-731541fde6ed`.
+La autorización del SQL y del coste está completa; no volver a pedirla.
+El avance remoto y sus límites están en [ENSAYO-REMOTO-2026-09-11.md](ENSAYO-REMOTO-2026-09-11.md).
 
 El antiguo **`banco-f7`** pertenece al trabajo de altas, no a esta fase
-multiempresa. Conservarlo. Una respuesta favorable al coste permite crear
-un banco exclusivo; una respuesta negativa no autoriza reutilizar o alterar
-el banco ajeno para evitar el coste.
+multiempresa. Conservarlo. La rama nueva es exclusiva de esta tarea; el banco ajeno se conserva.
 
 ## Retoma
 
-1. Resolver la respuesta al coste. Si se autoriza, confirmar el precio y crear
-   una rama exclusiva, registrando su identificador y destino antes de escribir.
+1. SQL y coste autorizados; banco propio creado. Continuar con los gates y
+   el cierre de instalación registrados en el ensayo remoto.
 2. Volver a capturar el padre: estas capturas son preparación, no sustituyen
    las guardas frescas previas al ensayo o al merge. Conservar cambios nuevos
    de la base y de `avancecorp/main`.
