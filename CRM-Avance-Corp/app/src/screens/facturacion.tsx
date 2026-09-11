@@ -64,6 +64,7 @@ import {
   diasEntre,
   diasHabilesHasta,
   equiposDeRoster,
+  esDomingo,
   esFinDeSemana,
   ESCALA_FACTURACION,
   etiquetaDiaLargo,
@@ -87,6 +88,7 @@ import {
   TIPO_TODOS,
   TIPOS_FACTURACION,
   totalAfirmable,
+  totalesSoloDeDias,
   totalesUnificados,
   valorCelda,
   type FilaFacturacion,
@@ -425,11 +427,23 @@ export function Facturacion({
   // La otra punta del rango a medida. Arranca igual que el ancla para que
   // «A medida» abra en un día y no en un tramo vacío.
   const [hastaRango, setHastaRango] = useState<string>(() => fechaLima(Date.now()))
+  // DÍAS SUELTOS marcados a mano — Miguel, 11/09/2026: «marcar los días sueltos
+  // que yo quiera», el 3, el 7 y el 12 aunque no vayan seguidos. Manda sobre el
+  // tramo: si hay días marcados, la malla son ESOS y nada más.
+  const [diasMarcados, setDiasMarcados] = useState<readonly string[]>([])
   const mes = primerDiaDelMes(ancla)
-  const diasVisibles = useMemo(
+  const diasDelTramo = useMemo(
     () => diasDelPeriodo(granularidad, ancla, hastaRango),
     [granularidad, ancla, hastaRango],
   )
+  // Los marcados se cruzan con el tramo: marcar el 3 y luego irte a otro mes no
+  // debe arrastrar un día que ya no está en pantalla.
+  const marcadosEnTramo = useMemo(
+    () => diasMarcados.filter((d) => diasDelTramo.includes(d)),
+    [diasMarcados, diasDelTramo],
+  )
+  const hayMarcados = marcadosEnTramo.length > 0
+  const diasVisibles = diasDelTramo
   // El tramo anterior, aquí arriba: hace falta para saber qué meses pedir.
   const anclaPrevia = periodoDesplazado(granularidad, ancla, -1, diasVisibles.length || 1)
   const diasPrevios = useMemo(
@@ -445,6 +459,11 @@ export function Facturacion({
   // Al cambiar de unidad el ancla se conserva, pero si el tramo nuevo cayera en
   // el futuro se trae a hoy: pasar de «mes» a «día» estando en un mes pasado
   // debe dejarte en un día de ESE mes, no en uno que aún no ha ocurrido.
+  const alternarDia = (dia: string): void => {
+    setDiasMarcados((ds) =>
+      ds.includes(dia) ? ds.filter((d) => d !== dia) : [...ds, dia].sort(),
+    )
+  }
   const moverPeriodo = (delta: number): void => {
     const largo = diasVisibles.length || 1
     setAncla((a) => periodoDesplazado(granularidad, a, delta, largo))
@@ -453,6 +472,7 @@ export function Facturacion({
     }
   }
   const cambiarGranularidad = (g: Granularidad): void => {
+    setDiasMarcados([])
     // Al pasar a «A medida» se arranca con EL TRAMO QUE YA SE ESTABA VIENDO, no
     // con un día suelto: así se empieza a ajustar desde algo conocido.
     if (g === 'rango') {
@@ -621,16 +641,26 @@ export function Facturacion({
   // La moneda con la que se FORMATEA. En la vista TOTAL son soles, porque el
   // dólar ya viene convertido dentro de cada celda.
   const moneda: Moneda = vistaEfectiva === 'USD' ? 'USD' : 'PEN'
-  const malla =
+  const mallaBruta =
     vistaEfectiva === 'TOTAL'
       ? (combinada ?? mallaPen)
       : vistaEfectiva === 'PEN'
         ? mallaPen
         : mallaUsd
+  // Los días marcados no esconden columnas —si no, no habría forma de marcar un
+  // cuarto día—: la tabla se queda entera y lo que se recorta son los TOTALES.
+  const malla = hayMarcados ? totalesSoloDeDias(mallaBruta, marcadosEnTramo) : mallaBruta
 
+  // Con días marcados, el titular tiene que hablar de ESOS días: si siguiera
+  // diciendo el mes entero habría dos cifras distintas en la misma pantalla.
   const totales = useMemo(
-    () => totalesUnificados(mallaPen, mallaUsd, tc?.promedio),
-    [mallaPen, mallaUsd, tc],
+    () =>
+      totalesUnificados(
+        hayMarcados ? totalesSoloDeDias(mallaPen, marcadosEnTramo) : mallaPen,
+        hayMarcados ? totalesSoloDeDias(mallaUsd, marcadosEnTramo) : mallaUsd,
+        tc?.promedio,
+      ),
+    [mallaPen, mallaUsd, tc, hayMarcados, marcadosEnTramo],
   )
   const totalMes = totales.mes.capital
   // La fila aporta cuando HAY DÓLARES: es entonces cuando el equivalente en
@@ -676,7 +706,11 @@ export function Facturacion({
 
   const totalActual = valorCelda(malla.total, 'capital')
   const totalPrevio = valorCelda(previo.total, 'capital')
-  const delta = totalPrevio > 0 ? ((totalActual - totalPrevio) / totalPrevio) * 100 : null
+  // Con días sueltos elegidos a mano NO hay «tramo anterior» que signifique
+  // nada: ¿los tres días previos? ¿los mismos días del mes pasado? Antes que
+  // inventar una comparación, se dice que no la hay.
+  const delta =
+    hayMarcados || totalPrevio <= 0 ? null : ((totalActual - totalPrevio) / totalPrevio) * 100
 
   // EL TOTAL DE DINERO (Miguel, 11/09/2026: «necesito ver el total de dinero, con
   // el tipo de cambio»). Las dos monedas en una sola cifra, convirtiendo el USD
@@ -699,12 +733,21 @@ export function Facturacion({
         : `solo ${ROTULO_VISTA[vistaEfectiva]} — falta el tipo de cambio para sumar ${money(totalMes.usd ?? 0, 'USD')}`
   const comparacionTotal =
     delta == null
-      ? 'Sin cifra anterior con la que comparar'
+      ? hayMarcados
+        ? 'Días elegidos a mano: sin comparación'
+        : 'Sin cifra anterior con la que comparar'
       : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. ${ROTULO_TRAMO_ANTERIOR[granularidad]}`
 
 
-  const mejor = mejorDia(malla, metrica)
-  const habiles = diasHabilesHasta(malla, corte.startsWith('9999') ? (malla.dias.at(-1) ?? mes) : corte)
+  // Un día que no elegiste no puede ganar el «mejor día», ni contar como día
+  // hábil en el promedio de lo que sí elegiste.
+  const mallaDeCifras = hayMarcados
+    ? { ...malla, dias: marcadosEnTramo, totalPorDia: marcadosEnTramo.map((d) => malla.totalPorDia[malla.dias.indexOf(d)] ?? { capital: 0, contratos: 0 }) }
+    : malla
+  const mejor = mejorDia(mallaDeCifras, metrica)
+  const habiles = hayMarcados
+    ? marcadosEnTramo.filter((d) => !esDomingo(d)).length
+    : diasHabilesHasta(malla, corte.startsWith('9999') ? (malla.dias.at(-1) ?? mes) : corte)
   const promedio = habiles > 0 ? valorCelda(malla.total, metrica) / habiles : 0
 
   const maximoAnalista = valorCelda(malla.maxAnalista, metrica)
@@ -792,6 +835,7 @@ export function Facturacion({
     setFiltro(filtroInicial())
     setBusqueda('')
     setSeleccion(null)
+    setDiasMarcados([])
   }
 
   const alternarGrupo = (id: string): void => {
@@ -985,6 +1029,19 @@ export function Facturacion({
             />
           </Button>
 
+          {hayMarcados && (
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-label="Quitar los días marcados"
+              onClick={() => setDiasMarcados([])}
+            >
+              {marcadosEnTramo.length === 1
+                ? '1 día marcado'
+                : `${numero(marcadosEnTramo.length)} días marcados`}
+              <X aria-hidden />
+            </Button>
+          )}
           {etiquetas.map((etiqueta) => (
             <Button
               key={etiqueta.id}
@@ -1108,9 +1165,11 @@ export function Facturacion({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label={
-            filtroVacio(filtro)
-              ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla, hastaRango)}`
-              : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
+            hayMarcados
+              ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
+              : filtroVacio(filtro)
+                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla, hastaRango)}`
+                : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
           }
           value={siFiable(totalFacturado)}
           icon={Receipt}
@@ -1130,7 +1189,13 @@ export function Facturacion({
           delay={60}
         />
         <KpiCard
-          label={granularidad === "dia" ? "Ese día" : `Mejor día ${ROTULO_DEL_TRAMO[granularidad]}`}
+          label={
+            hayMarcados
+              ? 'Mejor día de los elegidos'
+              : granularidad === 'dia'
+                ? 'Ese día'
+                : `Mejor día ${ROTULO_DEL_TRAMO[granularidad]}`
+          }
           value={
             !cifrasFiables || mejor == null
               ? '—'
@@ -1278,34 +1343,51 @@ export function Facturacion({
                     >
                       {comparando ? 'Analistas comparados' : 'Supervisor / analista'}
                     </th>
-                    {malla.dias.map((dia) => (
+                    {malla.dias.map((dia) => {
+                      const marcado = diasMarcados.includes(dia)
+                      return (
                       <th
                         key={dia}
                         scope="col"
                         className={cn(
-                          'sticky top-0 z-30 w-13 min-w-13 border-b border-r border-border/60 bg-muted px-0 py-1.5 text-center align-bottom',
+                          'sticky top-0 z-30 w-13 min-w-13 border-b border-r border-border/60 bg-muted p-0 text-center align-bottom',
                           esFinDeSemana(dia) && 'bg-muted-foreground/15',
                           dia === hoy && 'shadow-[inset_0_3px_0_var(--accent)]',
+                          marcado && 'bg-primary text-primary-foreground',
                         )}
                       >
-                        <span
-                          className={cn(
-                            'block text-[13px] font-bold leading-tight tabular-nums',
-                            dia === hoy && 'text-accent',
-                          )}
+                        <button
+                          type="button"
+                          aria-pressed={marcado}
+                          aria-label={`Marcar el ${etiquetaDiaLargo(dia)}`}
+                          onClick={() => alternarDia(dia)}
+                          className="w-full cursor-pointer px-0 py-1.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
                         >
-                          {numeroDia(dia)}
-                        </span>
-                        <span className="block text-[9px] font-semibold uppercase text-muted-foreground">
-                          {letraDia(dia)}
-                        </span>
+                          <span
+                            className={cn(
+                              'block text-[13px] font-bold leading-tight tabular-nums',
+                              dia === hoy && !marcado && 'text-accent',
+                            )}
+                          >
+                            {numeroDia(dia)}
+                          </span>
+                          <span
+                            className={cn(
+                              'block text-[9px] font-semibold uppercase',
+                              marcado ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                            )}
+                          >
+                            {letraDia(dia)}
+                          </span>
+                        </button>
                       </th>
-                    ))}
+                      )
+                    })}
                     <th
                       scope="col"
                       className="sticky right-0 top-0 z-40 w-32 min-w-32 border-b border-l border-border bg-muted px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
                     >
-                      {`Total ${ROTULO_DEL_TRAMO[granularidad]}`}
+                      {hayMarcados ? 'Total elegido' : `Total ${ROTULO_DEL_TRAMO[granularidad]}`}
                     </th>
                   </tr>
                 </thead>
