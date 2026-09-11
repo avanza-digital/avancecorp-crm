@@ -6,6 +6,10 @@ estado: revision-cerrada-voiceover-omitido
 
 # F6 — pruebas delegadas y ajustes de accesibilidad
 
+Los ajustes descritos en esta nota se publicaron el 11/09. Resultado vigente:
+[[F6 - cierre y ajustes publicados (2026-09-11)]]. Los números y pendientes que
+siguen describen el estado de la revisión del 10/09.
+
 Miguel autorizó todas las pruebas necesarias y pidió consultar siempre a Claude.
 Esta preferencia explícita prevalece sobre la selección automática por nivel de
 AGENTS.md: usar el wrapper `scripts/claude-review`, con Codex como PRIMARY y Claude

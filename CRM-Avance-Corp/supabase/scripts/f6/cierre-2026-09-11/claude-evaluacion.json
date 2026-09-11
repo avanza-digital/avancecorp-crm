@@ -1,0 +1,42 @@
+{
+  "rol": "PRIMARY evalúa a SECONDARY_REVIEWER",
+  "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+  "intentos": 2,
+  "primera_entrega": "INCOMPLETA: el wrapper rechazó una salida sin VERDICT válido; no se considera PASS",
+  "segunda_entrega": "CHANGES_REQUESTED",
+  "hallazgos": [
+    {
+      "id": "P2-errores-sin-codigo",
+      "decision": "Conservar el comportamiento y registrar el límite de diagnóstico",
+      "evidencia": [
+        "app/src/data/inversionistas-api.ts:21 traduce errores sin código como resultado incierto",
+        "app/src/data/postventa-envios.ts:48-52 no incluye RESPUESTA_NO_RECIBIDA entre rechazos explícitos",
+        "supabase/scripts/f6/manual-2026-09-10/perdida-evidencia.json: ensayos HTTP conservan UUID/contenido y una operación"
+      ],
+      "motivo": "El reviewer declara hipótesis y no aporta un rechazo de negocio sin código reproducible. Conservar el envío ante una respuesta sin código es deliberado; no se convierte en rechazo definitivo ni se crea otro UUID. Se acepta que un intermediario que responda sin código reciba el aviso genérico de conexión y no muestre su mensaje original."
+    },
+    {
+      "id": "P2-selector-archivo",
+      "decision": "No se retira: pedido explícito de Miguel y comprobación visual existente",
+      "evidencia": [
+        "Usuario: si funciona pero no tiene nada que me haga saber que es un boton, arregla eso; posteriormente perfecto ahora si",
+        "app/src/components/app/inversion-nueva.tsx:237 y :311 son los únicos usos type=file de Input en src",
+        "supabase/scripts/f6/manual-2026-09-10/reinversion-ui-completa-evidencia.json: Qorilazo y Prodelco, selección de comprobante, revisión y confirmación aprobadas"
+      ],
+      "motivo": "Pertenece al recorrido de reinversión F6 y estaba expresamente incluido en los ajustes pendientes de publicación. Los tests automáticos no se presentan como aprobación visual."
+    },
+    {
+      "id": "P3-foco-y-RAF",
+      "decision": "Mantener el ajuste probado; aceptar el límite fuera del recorrido verificado",
+      "evidencia": [
+        "app/src/components/ui/dialog.tsx:49-50 deja el default si no hay origen ni ámbito conectado",
+        "app/src/components/ui/dialog.test.tsx: tres pruebas con Radix real",
+        "app/e2e/f6-postventa.spec.ts: retiro terminal, ficha enfocada y siguiente Tab"
+      ],
+      "motivo": "Volver al default de un Radix controlado sin Trigger no aporta un destino estable cuando desaparece un origen no anidado. No se afirma cobertura de todos los casos de origen oculto sin contenedor ni de pestañas en segundo plano. No hay reproducción de regresión bloqueante en la evidencia aportada."
+    }
+  ],
+  "decision_publicacion": "Se continúa con el candidato probado y los controles de artefacto, CI, versión viva, rollback y banderas. No se atribuye un PASS a Claude.",
+  "voiceover": "NOT RUN, omitido por Miguel",
+  "restauracion_real_rollback": "NOT RUN: ZIP anterior conservado y verificado; no se provoca una reversión productiva para ensayar esta publicación estática"
+}

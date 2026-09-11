@@ -1,0 +1,698 @@
+{
+  "release": "crm-20260911T150446Z-4febe47cecbd",
+  "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "http": 403,
+      "sha256_esperado": "72fe269c108746faded25d6a6d242cedc3ca2143e8a203e180ec3ebf3747dd04",
+      "sha256_http": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultado": "PROTEGIDO",
+      "url_final": "https://crm.miavance.com/.htaccess"
+    },
+    {
+      "ruta": "404.html",
+      "http": 200,
+      "sha256_esperado": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "sha256_http": "3e42599174ce8e952ed1d4de1479301b0ece30ee38269edec29f3fb536062c0f",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/404.html"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "http": 200,
+      "sha256_esperado": "a19fa07263508d395c805de986d3792318e959c147ab0f7fbfcb242d294373e7",
+      "sha256_http": "c932a2c55ed540e1fe2e15e391a3e29cd8d23a11d378e4ce9484b9bdfc9298ce",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/belysh.png"
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "http": 200,
+      "sha256_esperado": "80f4ef5a70b77306d9b175e86e94e9ec2c9fd200a79a28f3564f9c55c2554c91",
+      "sha256_http": "828e888c7fef930622d09d79c61b5b5523443907592ef81ed8f192a82e3225bb",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/clinica-alvarez.png"
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "http": 200,
+      "sha256_esperado": "b3d1e8a90902d6148b1f7e6a91821748fb36201b12eae447a70f6d6c8eb1dd76",
+      "sha256_http": "ba2b55a31fc9e70e7bf117edb29e9144464185a3594239a9ab8f6b874c52d311",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/mascapital.png"
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "http": 200,
+      "sha256_esperado": "1ee5e9d534cbd53f7675496a7139594268215a8c3bad51a1a4c10a559a65746f",
+      "sha256_http": "0e3fe1139c7eff9dc577f0142c035c0b0a07e8d3fe203d2e361e6cc8c4d7a429",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/ntc-agency.png"
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "http": 200,
+      "sha256_esperado": "41e41de03ef70c7c1d0f7ddc74561b7823fff33eaa577f390faefc55f4cf3f11",
+      "sha256_http": "db7fd4b4b118e3373211844e03d9a0118f59eec8bf7f17d30d085c5a84e22ac7",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/phoenix.png"
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "http": 200,
+      "sha256_esperado": "82a47d53f487fbcb064a569fc71680fc499c90ee2f24430ce87047d85f5dbce6",
+      "sha256_http": "f17238b5bd8af8b4837165a8fb1c7c039129c840874bd1ef15c39709d8d95d28",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/prodelco.png"
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "http": 200,
+      "sha256_esperado": "f47a9cce1698229f3f70f70846860332a9f72950a8ef4302a70329ae38e6ce86",
+      "sha256_http": "d4031dec6789344c57774ef6dcd69fbcea4599a3fda52c399c025d046c31b0e7",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/aliados/qorilazo.png"
+    },
+    {
+      "ruta": "assets/agenda-Cy-CJJP6.js",
+      "http": 200,
+      "sha256_esperado": "cc4b715baaacfa1f593dae9d42f4d2646a2ca28b1afe5dcf4ee5bd838df0c0f5",
+      "sha256_http": "cc4b715baaacfa1f593dae9d42f4d2646a2ca28b1afe5dcf4ee5bd838df0c0f5",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/agenda-Cy-CJJP6.js"
+    },
+    {
+      "ruta": "assets/agenda-vistas-CM-L_sAQ.js",
+      "http": 200,
+      "sha256_esperado": "eb335480915a1a6a867cd6d74c6bd6c10697c59ca51250923b938655741990f4",
+      "sha256_http": "eb335480915a1a6a867cd6d74c6bd6c10697c59ca51250923b938655741990f4",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/agenda-vistas-CM-L_sAQ.js"
+    },
+    {
+      "ruta": "assets/alertas-CzZo-sVt.js",
+      "http": 200,
+      "sha256_esperado": "37782b21fdda57021cae9f425f7d71546f855229a524c9345452adc98dc299a8",
+      "sha256_http": "37782b21fdda57021cae9f425f7d71546f855229a524c9345452adc98dc299a8",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/alertas-CzZo-sVt.js"
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "http": 200,
+      "sha256_esperado": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "sha256_http": "18d958c2ff460396a0c0d4c31c414874a61452722022b4b1111f99fa5f3e7258",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/animated-value-CxWwuyas.js"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-nejrDVOl.js",
+      "http": 200,
+      "sha256_esperado": "28572bb646b08cc1f8f8fc151cfef56f089fb3c607328635b2f21c5abd85cdd9",
+      "sha256_http": "28572bb646b08cc1f8f8fc151cfef56f089fb3c607328635b2f21c5abd85cdd9",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/aviso-degradacion-nejrDVOl.js"
+    },
+    {
+      "ruta": "assets/card-0breA7JJ.js",
+      "http": 200,
+      "sha256_esperado": "ea38d028152e9b53784a00b52bea8bee37213efbce3007e9ce32354302cf7234",
+      "sha256_http": "ea38d028152e9b53784a00b52bea8bee37213efbce3007e9ce32354302cf7234",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/card-0breA7JJ.js"
+    },
+    {
+      "ruta": "assets/cartera-D9CeXh9E.js",
+      "http": 200,
+      "sha256_esperado": "a48122ded6cb5534aea978d4776c6faf2460c74b241e51dbae6be5ddfee4aa4d",
+      "sha256_http": "a48122ded6cb5534aea978d4776c6faf2460c74b241e51dbae6be5ddfee4aa4d",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/cartera-D9CeXh9E.js"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-CogNLbQY.js",
+      "http": 200,
+      "sha256_esperado": "3a4dc7a5cd43ee041c3b91638b19268f28a49e9fa037c42df048f3542f2d4a49",
+      "sha256_http": "3a4dc7a5cd43ee041c3b91638b19268f28a49e9fa037c42df048f3542f2d4a49",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/cierres-externos-seccion-CogNLbQY.js"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "http": 200,
+      "sha256_esperado": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "sha256_http": "df8d2e9bd848cb1357301d3841f68042b8738589c9f650051a92d80175e4d815",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/clientes-vista-BT9wOPoj.js"
+    },
+    {
+      "ruta": "assets/config-CshWHEwh.js",
+      "http": 200,
+      "sha256_esperado": "cb9b437ed58cb101f4429e2c8aae7f6a58a2727ba537b744919ac475d2a85cf6",
+      "sha256_http": "cb9b437ed58cb101f4429e2c8aae7f6a58a2727ba537b744919ac475d2a85cf6",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-CshWHEwh.js"
+    },
+    {
+      "ruta": "assets/config-metas-l66KIY1D.js",
+      "http": 200,
+      "sha256_esperado": "4c254c6361659c43bef17b9c68d950bfd6cc0cb9c673a4097f860a901c147a6d",
+      "sha256_http": "4c254c6361659c43bef17b9c68d950bfd6cc0cb9c673a4097f860a901c147a6d",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-metas-l66KIY1D.js"
+    },
+    {
+      "ruta": "assets/config-productos-BpGKQsvY.js",
+      "http": 200,
+      "sha256_esperado": "f439875df9345c8a999c549468ef597feca60a364a258bf09c07769607cc38c5",
+      "sha256_http": "f439875df9345c8a999c549468ef597feca60a364a258bf09c07769607cc38c5",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-productos-BpGKQsvY.js"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-Cq7gi4eg.js",
+      "http": 200,
+      "sha256_esperado": "645ae11410379aad82d451484f13b8f06838a75a961ff33c88cbce84421b6bb3",
+      "sha256_http": "645ae11410379aad82d451484f13b8f06838a75a961ff33c88cbce84421b6bb3",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-rentabilidad-Cq7gi4eg.js"
+    },
+    {
+      "ruta": "assets/config-sla-Dm0rKaP8.js",
+      "http": 200,
+      "sha256_esperado": "ea1e142767df4fabe9a2badbe3ec0f3ebdc90ffbd59504bdf634e54ca848cdc9",
+      "sha256_http": "ea1e142767df4fabe9a2badbe3ec0f3ebdc90ffbd59504bdf634e54ca848cdc9",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-sla-Dm0rKaP8.js"
+    },
+    {
+      "ruta": "assets/config-usuarios-BYnVPXsK.js",
+      "http": 200,
+      "sha256_esperado": "9ad68aff68bd11b3bb7f70302e6f88843e215947e58dbb7b84bbf0b3f01e19db",
+      "sha256_http": "9ad68aff68bd11b3bb7f70302e6f88843e215947e58dbb7b84bbf0b3f01e19db",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/config-usuarios-BYnVPXsK.js"
+    },
+    {
+      "ruta": "assets/configuracion-shell-Coacfu2b.js",
+      "http": 200,
+      "sha256_esperado": "1a0813c4dec080b4ae2de58736123fd68e0c73f071c262437590e75ae7de49de",
+      "sha256_http": "1a0813c4dec080b4ae2de58736123fd68e0c73f071c262437590e75ae7de49de",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/configuracion-shell-Coacfu2b.js"
+    },
+    {
+      "ruta": "assets/crm-api-xicJOVlJ.js",
+      "http": 200,
+      "sha256_esperado": "8fcfc1cecf6ae46ad1d485f730687b8af5852f79dcfb821dfc4131e2411af6cf",
+      "sha256_http": "8fcfc1cecf6ae46ad1d485f730687b8af5852f79dcfb821dfc4131e2411af6cf",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/crm-api-xicJOVlJ.js"
+    },
+    {
+      "ruta": "assets/data-vendor-CVus9pJE.js",
+      "http": 200,
+      "sha256_esperado": "96236843d5818177a09c90f9f8b80dcecb3b2460887d5bc03e84980e2a3a9c2d",
+      "sha256_http": "96236843d5818177a09c90f9f8b80dcecb3b2460887d5bc03e84980e2a3a9c2d",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/data-vendor-CVus9pJE.js"
+    },
+    {
+      "ruta": "assets/derivaciones-B9y7cid1.js",
+      "http": 200,
+      "sha256_esperado": "024457181edf591b447b6a7ed6fe96456e98cf6161ac40a884a66a14240a0f91",
+      "sha256_http": "024457181edf591b447b6a7ed6fe96456e98cf6161ac40a884a66a14240a0f91",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/derivaciones-B9y7cid1.js"
+    },
+    {
+      "ruta": "assets/desglose-monedas-ZNR5CHg9.js",
+      "http": 200,
+      "sha256_esperado": "1043726ea51e77a582d46fc0e0aaa1e3e329dc7edb8371db86fbf5fd357aad2c",
+      "sha256_http": "1043726ea51e77a582d46fc0e0aaa1e3e329dc7edb8371db86fbf5fd357aad2c",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/desglose-monedas-ZNR5CHg9.js"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "http": 200,
+      "sha256_esperado": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "sha256_http": "1770acebf7adfedbf9dec1c4d53e718cf21d9543fbafb02991de59ddfd3dd3de",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/dist-DAse8jiX.js"
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-CibRzi1Y.js",
+      "http": 200,
+      "sha256_esperado": "01a9fbc6309011100dc6d982cb53b602af6211d3642ecbdae8c3dcec524235a5",
+      "sha256_http": "01a9fbc6309011100dc6d982cb53b602af6211d3642ecbdae8c3dcec524235a5",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/distribucion-lecturas-CibRzi1Y.js"
+    },
+    {
+      "ruta": "assets/echart-34a90wtW.js",
+      "http": 200,
+      "sha256_esperado": "e3a6ea526ff683ae669a2202d64ed2080235d05dffe4cd2197b87e9ccfa59331",
+      "sha256_http": "e3a6ea526ff683ae669a2202d64ed2080235d05dffe4cd2197b87e9ccfa59331",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/echart-34a90wtW.js"
+    },
+    {
+      "ruta": "assets/echart-bar-C0252Tdo.js",
+      "http": 200,
+      "sha256_esperado": "93353fcc838fa68cbaa178c60bf483e0880d38aa82169d822b59e251ae9bf2f9",
+      "sha256_http": "93353fcc838fa68cbaa178c60bf483e0880d38aa82169d822b59e251ae9bf2f9",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/echart-bar-C0252Tdo.js"
+    },
+    {
+      "ruta": "assets/echart-line-Bvzhsyu0.js",
+      "http": 200,
+      "sha256_esperado": "b0b57b54dd61e0aa09b0ff2dbbbbfe90b033491ab8fde9c1bf9d64acedf51c48",
+      "sha256_http": "b0b57b54dd61e0aa09b0ff2dbbbbfe90b033491ab8fde9c1bf9d64acedf51c48",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/echart-line-Bvzhsyu0.js"
+    },
+    {
+      "ruta": "assets/equipo-CEpIKsQA.js",
+      "http": 200,
+      "sha256_esperado": "7c0df2d8eaeaf6360a9b92356564bc104ff7621f2b80bbbcce21361edd02d1f4",
+      "sha256_http": "7c0df2d8eaeaf6360a9b92356564bc104ff7621f2b80bbbcce21361edd02d1f4",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/equipo-CEpIKsQA.js"
+    },
+    {
+      "ruta": "assets/estado-panel-DmnM2JEn.js",
+      "http": 200,
+      "sha256_esperado": "bec6a210d27f03b0e4232929b84ce42f836785e5ea029ab4ad5ef487a1bf6673",
+      "sha256_http": "bec6a210d27f03b0e4232929b84ce42f836785e5ea029ab4ad5ef487a1bf6673",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/estado-panel-DmnM2JEn.js"
+    },
+    {
+      "ruta": "assets/facturacion-rqsMAeLA.js",
+      "http": 200,
+      "sha256_esperado": "85b429d4412dbbc921bd5230457b1f00507492dd85a84d6e0c52625f0f251bd4",
+      "sha256_http": "85b429d4412dbbc921bd5230457b1f00507492dd85a84d6e0c52625f0f251bd4",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/facturacion-rqsMAeLA.js"
+    },
+    {
+      "ruta": "assets/gerencia-1HlMSIl_.js",
+      "http": 200,
+      "sha256_esperado": "c79122c4e553503eafbbd3a7255c5978b75be4ae574abb1156045160e3514ab2",
+      "sha256_http": "c79122c4e553503eafbbd3a7255c5978b75be4ae574abb1156045160e3514ab2",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/gerencia-1HlMSIl_.js"
+    },
+    {
+      "ruta": "assets/gerencia-BFae_Z8_.css",
+      "http": 200,
+      "sha256_esperado": "1b992dfa71df91ee2000ea4adb6e20a23fa932feaf5e9ca7463740a7a20ded86",
+      "sha256_http": "1b992dfa71df91ee2000ea4adb6e20a23fa932feaf5e9ca7463740a7a20ded86",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/gerencia-BFae_Z8_.css"
+    },
+    {
+      "ruta": "assets/gerencia-DaWP7UsT.js",
+      "http": 200,
+      "sha256_esperado": "e2d3ea576c6ee04bb37a40e873d7dd931b0b817acd818f7b4a1a4991782239ce",
+      "sha256_http": "e2d3ea576c6ee04bb37a40e873d7dd931b0b817acd818f7b4a1a4991782239ce",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/gerencia-DaWP7UsT.js"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-Dzd5GjdS.js",
+      "http": 200,
+      "sha256_esperado": "8e14cba370abacd0e814a731eb15f8c863db15fba757b159868d6cb8ea5fd5af",
+      "sha256_http": "8e14cba370abacd0e814a731eb15f8c863db15fba757b159868d6cb8ea5fd5af",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/historial-decisiones-tasa-gerencia-Dzd5GjdS.js"
+    },
+    {
+      "ruta": "assets/hoy-CpcGx-9b.js",
+      "http": 200,
+      "sha256_esperado": "0a129346d3593bea625b8b84d3cdfc61e30492e0469064ae4b323d0478f48f48",
+      "sha256_http": "0a129346d3593bea625b8b84d3cdfc61e30492e0469064ae4b323d0478f48f48",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/hoy-CpcGx-9b.js"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "http": 200,
+      "sha256_esperado": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "sha256_http": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "http": 200,
+      "sha256_esperado": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "sha256_http": "828907bfd14855c880789878bd2b38ffd284a6c27c8b80f6069900f70dae3901",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "http": 200,
+      "sha256_esperado": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "sha256_http": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "http": 200,
+      "sha256_esperado": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "sha256_http": "8d2c7b2eca91869d447851a9c8bd07edf629b26025eacb882291e03b384b4e35",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "http": 200,
+      "sha256_esperado": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "sha256_http": "7861a349af1e925a80d56547c2c9e0b1e9f6a9002a9a6867351da2f05122ad21",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "http": 200,
+      "sha256_esperado": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "sha256_http": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "http": 200,
+      "sha256_esperado": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "sha256_http": "973b42f17d4dbb83000847469e7777abe95c303f547d7503c934227e697a0516",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "http": 200,
+      "sha256_esperado": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "sha256_http": "42e7b0c143c19df9d99fd896e76b48f846edf0902d200bc29796b34d12c33aa7",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2"
+    },
+    {
+      "ruta": "assets/index-Dkm26xgq.js",
+      "http": 200,
+      "sha256_esperado": "146dac8027083969114f71b71dda960a25354ac4f4eaaf568fde72b0685ae74d",
+      "sha256_http": "146dac8027083969114f71b71dda960a25354ac4f4eaaf568fde72b0685ae74d",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/index-Dkm26xgq.js"
+    },
+    {
+      "ruta": "assets/index-udiUlBUi.css",
+      "http": 200,
+      "sha256_esperado": "7123c5b12668ed211eecca8582abe432724ec0626c8d16ac78096b0b7fd9434c",
+      "sha256_http": "7123c5b12668ed211eecca8582abe432724ec0626c8d16ac78096b0b7fd9434c",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/index-udiUlBUi.css"
+    },
+    {
+      "ruta": "assets/kpi-card-Y3oKS4cd.js",
+      "http": 200,
+      "sha256_esperado": "5cd3ec5c066cbf3b7b808459d1cfd39ebb155c7a3cd78a5f9ab1613ae37bc39d",
+      "sha256_http": "5cd3ec5c066cbf3b7b808459d1cfd39ebb155c7a3cd78a5f9ab1613ae37bc39d",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/kpi-card-Y3oKS4cd.js"
+    },
+    {
+      "ruta": "assets/lead-hover-card-CMvteqWS.js",
+      "http": 200,
+      "sha256_esperado": "3e46671ad5261f10b2a2e646d27ce7f3410d902a5183e297b9698c4acc94a2be",
+      "sha256_http": "3e46671ad5261f10b2a2e646d27ce7f3410d902a5183e297b9698c4acc94a2be",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/lead-hover-card-CMvteqWS.js"
+    },
+    {
+      "ruta": "assets/mi-cartera-BqZhc4WM.js",
+      "http": 200,
+      "sha256_esperado": "304d0e9382014c1479ae35aeda158c7efcb2f76bc0a83cde51e799906cd04ba9",
+      "sha256_http": "304d0e9382014c1479ae35aeda158c7efcb2f76bc0a83cde51e799906cd04ba9",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/mi-cartera-BqZhc4WM.js"
+    },
+    {
+      "ruta": "assets/paginacion-DZu8GEkH.js",
+      "http": 200,
+      "sha256_esperado": "0553a6e1f2a41056e948e8d88bb7d686c244913e6e5820db5fef9d670961927f",
+      "sha256_http": "0553a6e1f2a41056e948e8d88bb7d686c244913e6e5820db5fef9d670961927f",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/paginacion-DZu8GEkH.js"
+    },
+    {
+      "ruta": "assets/pipeline-BNMHeBNM.js",
+      "http": 200,
+      "sha256_esperado": "e235d9b25ee4b145bcf99271da05f5632bc40724885fc01f88496490c1932103",
+      "sha256_http": "e235d9b25ee4b145bcf99271da05f5632bc40724885fc01f88496490c1932103",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/pipeline-BNMHeBNM.js"
+    },
+    {
+      "ruta": "assets/progress-ilC-MM6A.js",
+      "http": 200,
+      "sha256_esperado": "6c397d5069f73a83a465f8cffc2b3fb6d9be1ba69ab1ce3dd16ad219672bc848",
+      "sha256_http": "6c397d5069f73a83a465f8cffc2b3fb6d9be1ba69ab1ce3dd16ad219672bc848",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/progress-ilC-MM6A.js"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-BEsct6eF.js",
+      "http": 200,
+      "sha256_esperado": "40953aa04c7b8759d7cb1d9a30e10493914a34c77d82b3eb63677537163537e3",
+      "sha256_http": "40953aa04c7b8759d7cb1d9a30e10493914a34c77d82b3eb63677537163537e3",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ranking-vendedores-BEsct6eF.js"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "http": 200,
+      "sha256_esperado": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "sha256_http": "b2afb358dc57c4cf68025302de03ee54bff6694c93558199ea6e8fbc312b0f18",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/react-vendor-BXy-oECh.js"
+    },
+    {
+      "ruta": "assets/repartir-CboLs1C-.js",
+      "http": 200,
+      "sha256_esperado": "e0e9aeb7f051e990f6b2685b299e9a7d84af45a00503f2616e5cd06709f5ce5b",
+      "sha256_http": "e0e9aeb7f051e990f6b2685b299e9a7d84af45a00503f2616e5cd06709f5ce5b",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/repartir-CboLs1C-.js"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-BqcLgTbY.js",
+      "http": 200,
+      "sha256_esperado": "0f7918994ddccd7426126916686aec4457f51b1d8446b7ebcde4a3085ca6fa58",
+      "sha256_http": "0f7918994ddccd7426126916686aec4457f51b1d8446b7ebcde4a3085ca6fa58",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/rescate-carpeta-BqcLgTbY.js"
+    },
+    {
+      "ruta": "assets/rescate-descartados-BukW79Gv.js",
+      "http": 200,
+      "sha256_esperado": "7f7b3fd5c8e8a8f5d377136fa50d6e700450a50dd2f6173cc94c769237582966",
+      "sha256_http": "7f7b3fd5c8e8a8f5d377136fa50d6e700450a50dd2f6173cc94c769237582966",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/rescate-descartados-BukW79Gv.js"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "http": 200,
+      "sha256_esperado": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "sha256_http": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/rolldown-runtime-QTnfLwEv.js"
+    },
+    {
+      "ruta": "assets/section-head-CP5Jij9t.js",
+      "http": 200,
+      "sha256_esperado": "a32eae21303912874688c9d4581f5f281e4e31cb833f2490eaad988d95b18259",
+      "sha256_http": "a32eae21303912874688c9d4581f5f281e4e31cb833f2490eaad988d95b18259",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/section-head-CP5Jij9t.js"
+    },
+    {
+      "ruta": "assets/seguimiento-qS60D0qD.js",
+      "http": 200,
+      "sha256_esperado": "ca6ecde0b4e368cc6edba102ce9bdae2ab63e8baee33bae096ceca207959e9b0",
+      "sha256_http": "ca6ecde0b4e368cc6edba102ce9bdae2ab63e8baee33bae096ceca207959e9b0",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/seguimiento-qS60D0qD.js"
+    },
+    {
+      "ruta": "assets/stat-strip-Baxt6d0C.js",
+      "http": 200,
+      "sha256_esperado": "1e5de1758b9b1a88b8121e8e0f9f684734a5191bfbedac9faf76c99c508de161",
+      "sha256_http": "1e5de1758b9b1a88b8121e8e0f9f684734a5191bfbedac9faf76c99c508de161",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/stat-strip-Baxt6d0C.js"
+    },
+    {
+      "ruta": "assets/tabla-DYIEPqpP.js",
+      "http": 200,
+      "sha256_esperado": "5136f84b7e58e5b31275d146e4760d42db684eafd6fb5d0c74d3546d74d3ffc0",
+      "sha256_http": "5136f84b7e58e5b31275d146e4760d42db684eafd6fb5d0c74d3546d74d3ffc0",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/tabla-DYIEPqpP.js"
+    },
+    {
+      "ruta": "assets/ui-vendor-DtuSQ9nK.js",
+      "http": 200,
+      "sha256_esperado": "346b4bcdb994216362c5ef335280e5880304fff0de9d7d6ec52314de5e489580",
+      "sha256_http": "346b4bcdb994216362c5ef335280e5880304fff0de9d7d6ec52314de5e489580",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/ui-vendor-DtuSQ9nK.js"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-zGHQq8qT.js",
+      "http": 200,
+      "sha256_esperado": "20c56d2e60b199d7718e61fd56fadec7be3b2ec4d7fbd5598395e84bd34c1047",
+      "sha256_http": "20c56d2e60b199d7718e61fd56fadec7be3b2ec4d7fbd5598395e84bd34c1047",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/use-metricas-vendedores-operativas-zGHQq8qT.js"
+    },
+    {
+      "ruta": "assets/use-periodo-derivaciones-DCXF_k0F.js",
+      "http": 200,
+      "sha256_esperado": "05ddcef6de4b3bc697fa701ead83b412cf296d52e2f8724bf22334a2ee7ae078",
+      "sha256_http": "05ddcef6de4b3bc697fa701ead83b412cf296d52e2f8724bf22334a2ee7ae078",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/use-periodo-derivaciones-DCXF_k0F.js"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-BzCk_TDu.js",
+      "http": 200,
+      "sha256_esperado": "67413dc0c4825b1c9288ea29e530d8cf75fac21fa40ac57d7d1d8d7693fa6ca0",
+      "sha256_http": "67413dc0c4825b1c9288ea29e530d8cf75fac21fa40ac57d7d1d8d7693fa6ca0",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/use-periodo-gerencia-BzCk_TDu.js"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-BsmBnze6.js",
+      "http": 200,
+      "sha256_esperado": "23c0f594e99f8d68ec6d8a5632d75084fbe12edff053ae8ca613fca9e90b8c75",
+      "sha256_http": "23c0f594e99f8d68ec6d8a5632d75084fbe12edff053ae8ca613fca9e90b8c75",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/use-resumen-cartera-operativo-BsmBnze6.js"
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "http": 200,
+      "sha256_esperado": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "sha256_http": "affc968124d89af3f59bc58884f81e3e3101efe1a22d65e3f55ef0350cf5099f",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/assets/use-valor-diferido-C5pSPdfy.js"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "http": 200,
+      "sha256_esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/brand/avance-icon-512.png"
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "http": 200,
+      "sha256_esperado": "1d7920ff66091d00cbcb0bdd71cd2d7f55dad29f21ca3c523ffa4a75d2d7dbb0",
+      "sha256_http": "d09c410148f56416af0831b9e7a88fd66ab0f2fcd689cbbea04eec7e978b341b",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/brand/avance-icon.png"
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "http": 200,
+      "sha256_esperado": "bb481fe98ef35badcce89e2ddb6af3a4f8a8914883339cc28f63f1e21e6afa8f",
+      "sha256_http": "df7dc26b69877c2914404fa7444dc3653dbf2f0c56d02abdb484a1bff9869ee1",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/brand/avance-logo-full.png"
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "http": 200,
+      "sha256_esperado": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "sha256_http": "006c5d1ab73c2667d4cdaa3296a615b70689b3bae9455828353093d7d4d48f23",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/brand/favicon-32.png"
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "http": 200,
+      "sha256_esperado": "bd5ce8d1adf795cccbb73427b5f374397050945e8b6cdb6f7a81af8d51446898",
+      "sha256_http": "f5f4f99a6335a68913825a523dbc9a320dafa456ddf261890c6882d6e29c0a37",
+      "resultado": "IMAGEN_OPTIMIZADA_SIN_CAMBIOS",
+      "url_final": "https://crm.miavance.com/contrato/fondo-corporativo.png"
+    },
+    {
+      "ruta": "favicon.svg",
+      "http": 200,
+      "sha256_esperado": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "sha256_http": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/favicon.svg"
+    },
+    {
+      "ruta": "icons.svg",
+      "http": 200,
+      "sha256_esperado": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "sha256_http": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/icons.svg"
+    },
+    {
+      "ruta": "index.html",
+      "http": 200,
+      "sha256_esperado": "743c2c59d8e11c5e7c77ea11643820cf2f79e0b1242b22f6dae5336c65acaf83",
+      "sha256_http": "743c2c59d8e11c5e7c77ea11643820cf2f79e0b1242b22f6dae5336c65acaf83",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/index.html"
+    },
+    {
+      "ruta": "robots.txt",
+      "http": 200,
+      "sha256_esperado": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "sha256_http": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/robots.txt"
+    },
+    {
+      "ruta": "version.json",
+      "http": 200,
+      "sha256_esperado": "e3b2011b2be830b28b323dcda7d31224ff62a16f50512388c37d5e4979adacc1",
+      "sha256_http": "e3b2011b2be830b28b323dcda7d31224ff62a16f50512388c37d5e4979adacc1",
+      "resultado": "SHA256_EXACTO",
+      "url_final": "https://crm.miavance.com/version.json"
+    }
+  ],
+  "zip_inaccesible": [
+    {
+      "dominio": "crm.miavance.com",
+      "http": 404,
+      "resultado": "PASS",
+      "url_final": "https://crm.miavance.com/crm-20260911T150446Z-4febe47cecbd.zip"
+    },
+    {
+      "dominio": "miavance.com",
+      "http": 404,
+      "resultado": "PASS",
+      "url_final": "https://miavance.com/crm-20260911T150446Z-4febe47cecbd.zip"
+    }
+  ],
+  "portal": {
+    "http": 200,
+    "sha256_antes": "0b2f092dc63aea3e153b4d44970c0f17b2050399ce6c36e8b22bae1c3b31722a",
+    "sha256_despues": "0b2f092dc63aea3e153b4d44970c0f17b2050399ce6c36e8b22bae1c3b31722a",
+    "sin_cambios": true
+  }
+}
