@@ -50,9 +50,15 @@ test('Gerencia activa avisos, envía prueba y los desactiva con el worker real',
   await page.getByRole('button', { name: 'Enviar prueba' }).click()
   await expect(page.getByText(/Aviso de prueba enviado/)).toBeVisible()
   expect(acciones).toContain('prueba')
+  await page.getByRole('button', { name: 'Resumen', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Notificaciones de solicitudes de tasa' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  await expect(page.getByText('Activados en este dispositivo')).toBeVisible()
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Activar notificaciones' })).toBeVisible()
   expect(activo).toBe(false)
+  await page.getByRole('button', { name: 'Resumen', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Activar notificaciones' })).toBeVisible()
 })
 
 test('un aviso antiguo conserva la ruta tras recargar y explica que ya no está pendiente', async ({ page }) => {

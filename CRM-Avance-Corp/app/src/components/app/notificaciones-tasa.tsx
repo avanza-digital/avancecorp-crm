@@ -7,7 +7,7 @@ import {
   soportePushTasa, vincularCuentaPushTasa, type EstadoPushTasa,
 } from '@/lib/notificaciones-tasa'
 
-export function NotificacionesTasa() {
+export function NotificacionesTasa({ soloActivacion = false }: { soloActivacion?: boolean }) {
   const { yo } = useAuth()
   const [estado, setEstado] = useState<EstadoPushTasa | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -31,13 +31,14 @@ export function NotificacionesTasa() {
   }, [real, cuentaId, soporte, revision])
   if (yo?.rol !== 'gerencia') return null
   const activo = estado?.dispositivo?.activo === true && 'Notification' in window && Notification.permission === 'granted'
+  if (soloActivacion && (cargando || activo)) return null
   const accion = async (operacion: () => Promise<void>) => {
     setOcupado(true); setMensaje(''); setError('')
     try { await operacion() } catch (causa) { setError(causa instanceof Error ? causa.message : 'No pudimos completar el cambio.') }
     finally { setOcupado(false) }
   }
   return (
-    <section aria-label="Notificaciones de solicitudes de tasa" className="rounded-xl border border-primary/15 bg-primary/[0.03] p-4">
+    <section aria-label="Notificaciones de solicitudes de tasa" className={`rounded-xl border border-primary/15 bg-primary/[0.03] p-4${soloActivacion ? ' mb-4' : ''}`}>
       <div className="flex items-start gap-3">
         <Bell className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
         <div className="min-w-0 flex-1 space-y-2">

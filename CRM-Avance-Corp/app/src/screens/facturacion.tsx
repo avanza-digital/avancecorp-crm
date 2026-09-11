@@ -76,6 +76,8 @@ import {
   primerDiaDelMes,
   rosterDeEquipoYFilas,
   TIPO_CAPITAL_NUEVO,
+  TIPO_TODOS,
+  TIPOS_FACTURACION,
   totalAfirmable,
   totalesUnificados,
   valorCelda,
@@ -84,6 +86,7 @@ import {
   type FiltroFacturacion,
   type MetricaFacturacion,
   type MiembroEquipo,
+  type TipoFacturacion,
 } from '@/lib/facturacion'
 import { money, numero, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -99,6 +102,15 @@ const ROTULO_TIPO: Record<string, string> = {
   contrato_upgrade: 'Upgrade',
   contrato_renovacion: 'Renovación',
   cooperativa: 'Cooperativa',
+  [TIPO_TODOS]: 'Todo',
+}
+/** Cómo se nombra cada tipo en el desplegable y en los rótulos del KPI. */
+const ROTULO_TIPO_CORTO: Record<TipoFacturacion, string> = {
+  contrato_nuevo: 'Capital nuevo',
+  contrato_renovacion: 'Renovaciones',
+  contrato_upgrade: 'Upgrades',
+  cooperativa: 'Cooperativa',
+  [TIPO_TODOS]: 'Todos los tipos',
 }
 
 const ROTULO_METRICA: Record<MetricaFacturacion, string> = {
@@ -346,6 +358,11 @@ export function Facturacion({
   const [mes, setMes] = useState<string>(() => primerDiaDelMes(formatDateLocal(new Date())))
   const [moneda, setMoneda] = useState<Moneda>('PEN')
   const [metrica, setMetrica] = useState<MetricaFacturacion>('capital')
+  // Abre en capital nuevo —la captación, que es lo que se mira a diario— pero
+  // ahora se puede cambiar. Todo lo de la pantalla sigue a esta perilla: el
+  // titular, el ranking y el total del día. (Decisión de Miguel, 11/09/2026:
+  // «lo que diga la perilla», para que nunca haya dos cifras distintas a la vez.)
+  const [tipo, setTipo] = useState<TipoFacturacion>(TIPO_CAPITAL_NUEVO)
   const [filtro, setFiltro] = useState<FiltroFacturacion>(filtroInicial)
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -398,12 +415,12 @@ export function Facturacion({
   // el total del día. `construirMalla` es pura y barata: dos pasadas sobre las
   // mismas filas cuestan menos que una consulta de más.
   const mallaPen = useMemo(
-    () => construirMalla(filtradas, mes, 'PEN', TIPO_CAPITAL_NUEVO, rosterFiltrado),
-    [filtradas, mes, rosterFiltrado],
+    () => construirMalla(filtradas, mes, 'PEN', tipo, rosterFiltrado),
+    [filtradas, mes, tipo, rosterFiltrado],
   )
   const mallaUsd = useMemo(
-    () => construirMalla(filtradas, mes, 'USD', TIPO_CAPITAL_NUEVO, rosterFiltrado),
-    [filtradas, mes, rosterFiltrado],
+    () => construirMalla(filtradas, mes, 'USD', tipo, rosterFiltrado),
+    [filtradas, mes, tipo, rosterFiltrado],
   )
   const malla = moneda === 'PEN' ? mallaPen : mallaUsd
 
@@ -451,8 +468,8 @@ export function Facturacion({
     const base: readonly FilaFacturacionDia[] =
       fuente ??
       (esDemo ? filasFacturacionDemo(mesPrevio, corteAnterior) : (consultaPrevia.data ?? SIN_FILAS))
-    return construirMalla(filtrarFilas(base, filtro), mesPrevio, moneda)
-  }, [fuente, esDemo, consultaPrevia.data, mesPrevio, mes, corte, moneda, filtro])
+    return construirMalla(filtrarFilas(base, filtro), mesPrevio, moneda, tipo)
+  }, [fuente, esDemo, consultaPrevia.data, mesPrevio, mes, corte, moneda, tipo, filtro])
 
   const totalActual = valorCelda(malla.total, 'capital')
   const totalPrevio = valorCelda(previo.total, 'capital')
@@ -479,8 +496,8 @@ export function Facturacion({
   const vacia = cuantosAnalistas === 0
 
   const detalle = useMemo(
-    () => (seleccion == null ? [] : desgloseDeCelda(todos, seleccion.analistaId, seleccion.dia)),
-    [seleccion, todos],
+    () => (seleccion == null ? [] : desgloseDeCelda(todos, seleccion.analistaId, seleccion.dia, tipo)),
+    [seleccion, todos, tipo],
   )
 
   const operacionesDelDetalle = detalle.reduce((n, f) => n + f.operaciones, 0)
@@ -543,7 +560,7 @@ export function Facturacion({
   // pantalla pulsarlos no produce ninguna señal. Diferido como en Citas, para
   // no atropellar al lector mientras se cambia de mes varias veces seguidas.
   const anuncio = useValorDiferido(
-    `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
+    `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]} · ${ROTULO_TIPO[tipo]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
     250,
   )
 
@@ -611,10 +628,23 @@ export function Facturacion({
             rotulo={ROTULO_METRICA}
             onCambio={setMetrica}
           />
+          <div className="w-36 shrink-0">
+            <Select
+              aria-label="Tipo de capital"
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoFacturacion)}
+            >
+              {TIPOS_FACTURACION.map((op) => (
+                <option key={op} value={op}>
+                  {ROTULO_TIPO_CORTO[op]}
+                </option>
+              ))}
+            </Select>
+          </div>
 
           <span className="h-6 w-px bg-border" aria-hidden />
 
-          <div className="w-52 shrink-0">
+          <div className="w-44 shrink-0">
             <Select
               aria-label="Equipo"
               value={filtro.equipo}
@@ -784,7 +814,7 @@ export function Facturacion({
           }
         />
         <KpiCard
-          label="Contratos nuevos"
+          label={tipo === TIPO_TODOS ? 'Contratos cerrados' : `Contratos · ${ROTULO_TIPO[tipo]}`}
           value={numero(valorCelda(malla.total, 'contratos'))}
           icon={Users}
           color="var(--chart-4)"
@@ -875,10 +905,11 @@ export function Facturacion({
         ) : (
           <>
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Malla de 30 columnas: el foco habilita recorrerla con las flechas. Con los grupos colapsados no queda NINGÚN hijo enfocable en el área que se desplaza (las celdas de fila de equipo nunca son botones), así que sin esto los días 15-30 son inalcanzables sin ratón. Mismo patrón que hoy/reuniones-gerencia.tsx. */}
-            <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_MONEDA[moneda]}`}>
+            <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_MONEDA[moneda]}, ${ROTULO_TIPO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaMes(mes)} · {ROTULO_MONEDA[moneda]}.
+                  {ROTULO_METRICA[metrica]} por día · {etiquetaMes(mes)} · {ROTULO_MONEDA[moneda]} ·{' '}
+                  {ROTULO_TIPO[tipo]}.
                   Marca la casilla de dos o más analistas para verlos solos y compararlos; activa
                   una celda para ver los contratos de ese día.
                 </caption>
@@ -1184,7 +1215,7 @@ export function Facturacion({
           <SheetDescription>
             {seleccion?.dia != null
               ? etiquetaDiaLargo(seleccion.dia)
-              : `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]}`}
+              : `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]} · ${ROTULO_TIPO[tipo]}`}
             {' · '}
             {numero(operacionesDelDetalle)}{' '}
             {operacionesDelDetalle === 1 ? 'operación' : 'operaciones'}

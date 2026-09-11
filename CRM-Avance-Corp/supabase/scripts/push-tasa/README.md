@@ -1,13 +1,18 @@
 # Avisos de solicitudes de tasa en la PWA del CRM
 
-**Estado: banco remoto verificado el 11/09/2026; publicación preparada.**
+**Estado: PUBLICADO Y ACTIVADO el 11/09/2026.**
 Proyecto: `dctqcbznekcyxhjujuci`. Frontend: `https://crm.miavance.com`.
 Trabajo aislado del frente F7 en `/private/tmp/avancecorp-tasa-lead-real-20260908`.
-No se modificó la base productiva ni se enviaron avisos reales durante este trabajo.
+Migración, Edge, frontend y cron productivos verificados. El banco temporal fue
+eliminado. Falta que Miguel active el permiso y reciba una prueba en su teléfono.
+Acta y evidencia: [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
 
 ## Resultado para Gerencia
 
 En **Hoy → Solicitudes de tasa** y **Configuración** aparece «Avisos en tu teléfono».
+En el resumen funciona como invitación: desaparece cuando este dispositivo tiene
+los avisos activados, sin dejar un hueco ni parpadear mientras se consulta su estado.
+Configuración conserva los controles para enviar otra prueba o desactivarlos.
 Cada dispositivo se activa expresamente con el permiso del navegador. Puede enviar
 una prueba y desactivarse. Las solicitudes nuevas, desde lead o cliente, generan
 un aviso por dispositivo elegible, salvo los del propio solicitante.

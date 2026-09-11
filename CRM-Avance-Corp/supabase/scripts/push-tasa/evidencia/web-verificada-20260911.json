@@ -1,0 +1,462 @@
+{
+  "estado": "PASS",
+  "release": "crm-20260911T183422Z-5d49bcfb1ac3",
+  "commit": "5d49bcfb1ac304187af98fe634fd274435b06d49",
+  "archivos": [
+    {
+      "ruta": ".htaccess",
+      "estado": "PASS",
+      "verificacion": "no accesible por HTTP"
+    },
+    {
+      "ruta": "404.html",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "aliados/belysh.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/clinica-alvarez.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/mascapital.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/ntc-agency.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/phoenix.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/prodelco.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "aliados/qorilazo.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "assets/agenda-DSiz5zHm.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/agenda-vistas-CnYp4Tmv.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/alertas-DVkleP0N.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/animated-value-CxWwuyas.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/aviso-degradacion-qCI_d6oR.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/card-CGCWTYJf.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/cartera-B2mcZN_x.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/cierres-externos-seccion-GH-pdLIQ.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/clientes-vista-BT9wOPoj.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-CI8Tp0hi.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-metas-DOe1csEH.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-productos-B2NNav6l.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-rentabilidad-CfTFI-Sg.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-sla-D7U4HOOw.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/config-usuarios-t8MXwoq7.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/configuracion-shell-CxFRCJrp.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/crm-api-O6mfwJXq.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/data-vendor-CVus9pJE.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/derivaciones-C2jxcJBR.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/desglose-monedas-BTTtULqI.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/dist-DAse8jiX.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/distribucion-lecturas-DwU4DIZ9.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/echart-bar-AH1k89hO.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/echart-BI8pPM62.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/echart-line-OM0jH1-4.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/equipo-CmCizhUU.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/esm-BofDk75c.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/estado-panel-JmiBNEjp.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/facturacion-FIu1nUy4.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/gerencia-BFae_Z8_.css",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/gerencia-BH5n5EUz.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/gerencia-CDA2hzrI.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/historial-decisiones-tasa-gerencia-2xlE7z9h.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/hoy-Bt4bJd1w.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/index-16QJgIY1.css",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/index-BxAchiyv.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/kpi-card-GhYbLn6b.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/lead-hover-card-CNYgKpx1.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/mi-cartera-DcPisv_r.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/notificaciones-tasa-D8N7gmM3.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/paginacion-DRPtfK91.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/pipeline-C1yeicob.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/progress-Dr2j13n5.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ranking-vendedores-BbfTsGnE.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/react-vendor-BXy-oECh.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/repartir-Cch5Gow6.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/rescate-carpeta-CwoO0kKy.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/rescate-descartados-DPlh75DS.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/rolldown-runtime-QTnfLwEv.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/section-head-DZhASLIK.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/seguimiento-BDywJzfI.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/stat-strip-Br5XXxDm.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/tabla-EgW2CZ7A.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/ui-vendor-CCTt16FJ.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/use-metricas-vendedores-operativas-BPK0B2nW.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/use-periodo-derivaciones-CspZViqP.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/use-periodo-gerencia-DmOQWEPX.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/use-resumen-cartera-operativo-hzdEwaR9.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "assets/use-valor-diferido-C5pSPdfy.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "brand/avance-icon-192.png",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "brand/avance-icon-512.png",
+      "estado": "PASS",
+      "verificacion": "Icono PWA valido, dimensiones declaradas; CDN recodifica PNG"
+    },
+    {
+      "ruta": "brand/avance-icon.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "brand/avance-logo-full.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "brand/favicon-32.png",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "contrato/fondo-corporativo.png",
+      "estado": "PASS",
+      "verificacion": "Imagen igual al ZIP previo; HTTP 200; CDN transforma formato o dimensiones"
+    },
+    {
+      "ruta": "favicon.svg",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "icons.svg",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "index.html",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "manifest.webmanifest",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "robots.txt",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "sw-crm.js",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    },
+    {
+      "ruta": "version.json",
+      "estado": "PASS",
+      "verificacion": "SHA-256 exacto"
+    }
+  ],
+  "archivos_release_no_publicos": [
+    {
+      "dominio": "crm.miavance.com",
+      "status": 404
+    },
+    {
+      "dominio": "miavance.com",
+      "status": 404
+    }
+  ]
+}

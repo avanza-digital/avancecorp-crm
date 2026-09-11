@@ -1,6 +1,6 @@
 # Ledger de migraciones — esquema `crm`
 
-> **Push de solicitudes de tasa — ensayo remoto completo, SIN PUBLICAR:**
+> **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
 > `20260910225540_crm_notificaciones_push_tasa.sql` añade dos tablas CRM con RLS
 > y auditoría que oculta claves, ocho RPC limitadas por rol y sesión, cola por
 > solicitud/dispositivo y tarea de reintentos. Sin cambios de objetos `public`.
@@ -10,7 +10,9 @@
 > Miguel autorizó los dos SQL exactos y el coste el 11/09/2026. Banco gestionado:
 > SQL 48, concurrencia 3, HTTP/Auth 19 y cron real PASS; matriz global 50 fallos
 > previos y 46 posteriores, sin nuevas aserciones fallidas. Advisors y tipos
-> verificados. Publicación preparada. [Paquete](../scripts/push-tasa/README.md).
+> verificados. Merge conserva las 273 entradas anteriores; 34 sentencias exactas
+> del SQL aprobado. Edge v1, frontend y cron activos. Banco eliminado; teléfono
+> real pendiente de permiso/prueba. [Acta](../scripts/push-tasa/PUBLICACION-2026-09-11.md).
 
 > **F7 MULTIEMPRESA candidata — 11/09/2026, NO INSTALADA en producción:** `20260911163243_crm_multiempresa_f7_metricas_sombra.sql`, creada con Supabase CLI: cuatro funciones nuevas y bandera `metricas_multiempresa_sombra=false`. Informe mensual de Gerencia por empresa/moneda; dinero, atribución y conversión de los núcleos publicados, identidad neutral sin multiplicar fuentes, vencimientos y veto de contacto. Sin tablas nuevas, cambios `public`, backfill, dinero, Auth ni reescritura de periodos sellados. Huellas de cuatro lectores verificadas y exigidas antes de instalar. [Paquete, pruebas y reversa](../scripts/multiempresa-f7/README.md). Requiere aprobación propia del SQL y ciclo de rama Supabase; G6 humano pendiente. No es el antiguo «F7 de altas».
 

@@ -85,3 +85,5 @@ Hay **tres capas**, complementarias:
 - Lo **visual** decláralo explícito para que Miguel lo pruebe; las **capturas** son el input principal de debugging.
 - **Deploy manual** a Hostinger (copiar a la carpeta espejo) + subir `?v=N` del módulo editado.
 - Máximo 3 intentos automáticos; si sigue fallando, escalar con explicación clara.
+
+- [[Notificaciones de tasa - publicadas 2026-09-11]] — Avisos de tasas activos en la PWA; falta permiso y prueba del teléfono.

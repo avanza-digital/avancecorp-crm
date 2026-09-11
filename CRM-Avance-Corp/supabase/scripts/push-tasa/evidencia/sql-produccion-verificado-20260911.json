@@ -1,0 +1,7 @@
+{
+  "estado": "PASS",
+  "version": "20260910225540",
+  "sentencias": 34,
+  "comparacion": "Cada sentencia coincide literalmente y en orden con el SQL aprobado. Las separaciones restantes son únicamente punto y coma y espacios.",
+  "sha256_fuente": "f85af64f9abe31a753317bb5fde14d2bac9a3f54c319cee4e4654c2f2b2d230f"
+}

@@ -1,0 +1,39 @@
+{
+  "estado": "PASS",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "tras_merge": {
+    "previas": "1a92daa7d01589dc424325527f3c1bab",
+    "banderas": {
+      "ficha_360_neutral": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false
+    },
+    "historial": 274,
+    "usuarios_demo": 0,
+    "push_instalado": true,
+    "funciones_public": "c30264f05cbc756f2850e61d63679f5f",
+    "destino_aun_inactivo": true
+  },
+  "activacion": {
+    "rls": true,
+    "cron": [
+      {
+        "activo": true,
+        "nombre": "crm-notificaciones-tasa",
+        "programacion": "* * * * *"
+      }
+    ],
+    "envios": 0,
+    "banderas": {
+      "ficha_360_neutral": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false
+    },
+    "dispositivos": 0,
+    "destino_correcto": true
+  },
+  "revision_ui": "Cuenta Gerencia autenticada: Configuración → Avisos en tu teléfono → Activar notificaciones visible. No se concedió permiso ni registró un dispositivo real.",
+  "telefono_real": "NOT RUN: el propietario debe activar el permiso y enviar la prueba desde su PWA."
+}
