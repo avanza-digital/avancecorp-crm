@@ -289,7 +289,25 @@ export function construirMalla(
   tipo: string = TIPO_CAPITAL_NUEVO,
   roster: readonly PersonaFacturacion[] = [],
 ): MallaFacturacion {
-  const dias = diasDelMes(mes)
+  return construirMallaDeDias(filas, diasDelMes(mes), mes, moneda, tipo, roster)
+}
+
+/**
+ * La misma malla, pero sobre un TRAMO de días cualquiera — Miguel, 11/09/2026:
+ * quiere mirar una semana o un día suelto, no solo el mes.
+ *
+ * `construirMalla` es el caso particular «todos los días del mes». Se separan
+ * para que la semana y el día no sean un recorte visual: los totales, el mejor
+ * día y el promedio se calculan SOBRE EL TRAMO, que es lo que se está mirando.
+ */
+export function construirMallaDeDias(
+  filas: readonly FilaFacturacionDia[],
+  dias: readonly string[],
+  mes: string,
+  moneda: Moneda,
+  tipo: string = TIPO_CAPITAL_NUEVO,
+  roster: readonly PersonaFacturacion[] = [],
+): MallaFacturacion {
   const indicePorDia = new Map<string, number>()
   dias.forEach((dia, i) => indicePorDia.set(dia, i))
 
@@ -763,6 +781,104 @@ export function mejorDia(
     if (valor > 0 && (mejor == null || valor > mejor.valor)) mejor = { dia, valor }
   })
   return mejor
+}
+
+/* ───────────────────── PERIODO: mes, semana o día ─────────────────────
+ * Miguel, 11/09/2026: «quiero que gerencia tenga filtros de semana y de días, ya
+ * tenemos por mes». Las flechas que ya existían pasan a moverse en la unidad
+ * elegida, y TODO lo de la pantalla se recalcula sobre el tramo — si el titular
+ * siguiera diciendo el mes mientras la tabla enseña una semana, habría dos
+ * verdades a la vez.
+ *
+ * La semana es de LUNES a DOMINGO: es como se habla del trabajo aquí, y deja el
+ * domingo —el día que no se vende— al final, sin partir la semana en dos.
+ */
+export const GRANULARIDADES = ['mes', 'semana', 'dia', 'rango'] as const
+export type Granularidad = (typeof GRANULARIDADES)[number]
+
+/** Lunes de la semana que contiene `dia`. */
+export function lunesDeLaSemana(dia: string): string {
+  const d = parseDateLocal(dia)
+  // getDay(): 0 domingo … 6 sábado. Se retrocede al lunes; el domingo, 6 días.
+  const retroceso = (d.getDay() + 6) % 7
+  return formatDateLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() - retroceso))
+}
+
+/**
+ * Tope de días de un rango a medida. Misma cota que el resto de Gerencia
+ * (`validarPeriodoGerencia`): más de un año no es un tablero, es un informe.
+ */
+export const MAXIMO_DIAS_RANGO = 366
+
+/** Todos los días entre dos fechas, inclusive. Vacío si están del revés. */
+export function diasEntre(desde: string, hasta: string): string[] {
+  if (desde > hasta) return []
+  const dias: string[] = []
+  const fin = parseDateLocal(hasta)
+  const d = parseDateLocal(desde)
+  while (d <= fin && dias.length < MAXIMO_DIAS_RANGO) {
+    dias.push(formatDateLocal(d))
+    d.setDate(d.getDate() + 1)
+  }
+  return dias
+}
+
+/**
+ * Los días que abarca el periodo, en orden. Para `rango` hacen falta las dos
+ * puntas — Miguel, 11/09/2026: «quiero poder seleccionar los días que yo quiera,
+ * para ver el avance».
+ */
+export function diasDelPeriodo(
+  granularidad: Granularidad,
+  ancla: string,
+  hasta?: string,
+): string[] {
+  if (granularidad === 'rango') return diasEntre(ancla, hasta ?? ancla)
+  if (granularidad === 'dia') return [ancla]
+  if (granularidad === 'mes') return diasDelMes(primerDiaDelMes(ancla))
+  const lunes = parseDateLocal(lunesDeLaSemana(ancla))
+  return Array.from({ length: 7 }, (_, i) =>
+    formatDateLocal(new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i)),
+  )
+}
+
+/** Los meses (primer día) que toca una lista de días, sin repetir y en orden. */
+export function mesesQueTocan(dias: readonly string[]): string[] {
+  const vistos = new Set<string>()
+  for (const d of dias) vistos.add(primerDiaDelMes(d))
+  return [...vistos].sort()
+}
+
+/** Mueve el ancla `delta` periodos (negativo = atrás). */
+export function periodoDesplazado(
+  granularidad: Granularidad,
+  ancla: string,
+  delta: number,
+  largoRango = 1,
+): string {
+  if (granularidad === 'mes') return primerDiaDelMes(mesDesplazado(primerDiaDelMes(ancla), delta))
+  // Un rango se mueve ENTERO su propia longitud: «los quince días anteriores».
+  const paso = granularidad === 'rango' ? largoRango : granularidad === 'semana' ? 7 : 1
+  const d = parseDateLocal(ancla)
+  return formatDateLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta * paso))
+}
+
+/** Cómo se nombra el periodo en la barra. */
+export function etiquetaPeriodo(
+  granularidad: Granularidad,
+  ancla: string,
+  hasta?: string,
+): string {
+  if (granularidad === 'mes') return etiquetaMes(primerDiaDelMes(ancla))
+  if (granularidad === 'dia') return etiquetaDiaLargo(ancla)
+  const dias = diasDelPeriodo(granularidad, ancla, hasta)
+  if (dias.length === 0) return 'Rango vacío'
+  if (dias.length === 1) return etiquetaDiaLargo(dias[0] ?? ancla)
+  const primero = dias[0] ?? ancla
+  const ultimo = dias[dias.length - 1] ?? ancla
+  const corto = (d: string): string =>
+    parseDateLocal(d).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })
+  return `${corto(primero)} al ${corto(ultimo)}`
 }
 
 /**

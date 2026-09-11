@@ -51,13 +51,18 @@ vi.mock('@/lib/tipo-cambio', () => ({
   usdAPen: (usd: number, tc: number) => (tc > 0 ? usd * tc : 0),
 }))
 vi.mock('@/data/crm-queries', () => ({
-  useFacturacionDiaria: () => ({
-    data: dobles.datos,
-    isPending: dobles.cargando,
-    isError: dobles.error,
-    isFetching: false,
-    refetch: vi.fn(),
-  }),
+  // La pantalla pide TODOS los meses que toca el tramo; el doble devuelve una
+  // consulta por mes con los mismos datos, que es lo que la pantalla aplana.
+  useFacturacionDeMeses: (_habilitada: boolean, meses: readonly string[]) =>
+    meses.map((_m, i) => ({
+      // Solo la primera trae datos: repetirlos en cada mes los duplicaría.
+      data: i === 0 ? dobles.datos : undefined,
+      isPending: dobles.cargando,
+      isError: dobles.error,
+      isFetching: false,
+      dataUpdatedAt: dobles.datos == null ? 0 : 1,
+      refetch: vi.fn(),
+    })),
 }))
 
 const { Facturacion } = await import('./facturacion')
@@ -785,6 +790,134 @@ describe('honestidad de las cifras — auditoría del 11/09/2026', () => {
     dobles.datos = Object.assign(muchas, { descartadas: 0 })
     pintarReal()
     expect(screen.getByText(/límite de filas del servidor/)).toBeVisible()
+  })
+})
+
+describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
+  function elegirTramo(nombre: string): void {
+    fireEvent.click(screen.getByRole('button', { name: nombre }))
+  }
+
+  it('abre en Mes, como hasta ahora', () => {
+    pintar()
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Mes anterior' })).toBeVisible()
+  })
+
+  it('en Semana la tabla enseña 7 días y las flechas se mueven por semanas', () => {
+    // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13. El fixture
+    // general vende el 2, 3 y 4, así que aquí hace falta algo DENTRO.
+    pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
+    elegirTramo('Semana')
+    expect(screen.getByRole('button', { name: 'Semana anterior' })).toBeVisible()
+    // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13.
+    expect(within(malla()).getAllByRole('columnheader').length).toBe(9) // 7 días + nombre + total
+  })
+
+  it('en Día la tabla enseña un solo día', () => {
+    pintar([fila({ id: 'hoy', dia: '2026-09-10', capital: 50_000 })])
+    elegirTramo('Día')
+    expect(screen.getByRole('button', { name: 'Día anterior' })).toBeVisible()
+    expect(within(malla()).getAllByRole('columnheader').length).toBe(3) // 1 día + nombre + total
+  })
+
+  it('los totales se recalculan sobre el tramo, no sobre el mes', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    // 100k el 2 de setiembre (fuera de la semana del 7) y 20k el 10 (dentro).
+    pintar([
+      fila({ id: 'f', dia: '2026-09-02', capital: 100_000 }),
+      fila({ id: 'd', dia: '2026-09-10', capital: 20_000 }),
+    ])
+    expect(screen.getAllByText('S/ 120,000').length).toBeGreaterThan(0)
+    elegirTramo('Semana')
+    // Si el titular siguiera diciendo el mes habría dos verdades a la vez.
+    expect(screen.getAllByText('S/ 20,000').length).toBeGreaterThan(0)
+    expect(screen.queryByText('S/ 120,000')).toBeNull()
+    dobles.tc = null
+  })
+
+  it('TODOS los rótulos siguen al tramo: nunca el titular diciendo «mes»', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    expect(screen.getByText((s) => /Facturado/i.test(s) && /setiembre de 2026/i.test(s))).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
+    // Un titular que dice «setiembre» sobre la cifra de una semana es la misma
+    // clase de mentira que el % comparando contra el mes entero.
+    expect(
+      screen.queryByText((s) => /Facturado/i.test(s) && /setiembre de 2026/i.test(s)),
+    ).toBeNull()
+    // El rótulo del indicador nombra EL MISMO tramo que la barra de navegación,
+    // sea cual sea el formato corto de fecha del sistema. (El prefijo cambia
+    // entre «Total facturado» y «Facturado» según haya dólares en el tramo: eso
+    // es correcto y no es lo que se está comprobando aquí.)
+    const tramo = screen.getByRole('button', { name: 'Semana anterior' }).nextElementSibling
+    expect(tramo?.textContent ?? '').not.toBe('')
+    expect(
+      screen.getByText((s) => /Facturado/i.test(s) && s.includes(tramo?.textContent ?? 'x')),
+    ).toBeVisible()
+    expect(screen.getByText(/semana anterior/)).toBeVisible()
+    expect(screen.queryByText(/vs\. el mismo tramo del mes anterior/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Día' }))
+    // Con el fixture no hay ventas el día anterior, así que no hay % — pero lo
+    // que NUNCA puede quedar es la comparación hablando de meses.
+    expect(screen.queryByText(/mes anterior/)).toBeNull()
+    dobles.tc = null
+  })
+
+  it('en un tramo solo salen los del tramo, no los del mes entero', () => {
+    // Ana vende el 2 (fuera de la semana del 7) y Beto el 10 (dentro). Si el
+    // roster siguiera saliendo del mes, la semana ofrecería a Ana en cero y el
+    // selector de analistas mentiría sobre quién trabajó esos días.
+    pintar([
+      fila({ id: 'a', dia: '2026-09-02', capital: 10_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
+      fila({ id: 'b', dia: '2026-09-10', capital: 20_000, analistaId: 'beto', analistaNombre: 'Beto Analista' }),
+    ])
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    elegirTramo('Semana')
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Beto Analista' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeNull()
+  })
+
+  it('«A medida» deja elegir las fechas y suma solo esos días', () => {
+    pintar([
+      fila({ id: 'a', dia: '2026-09-02', capital: 10_000 }),
+      fila({ id: 'b', dia: '2026-09-03', capital: 20_000 }),
+      fila({ id: 'c', dia: '2026-09-09', capital: 90_000 }),
+    ])
+    elegirTramo('A medida')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-02' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-03' } })
+    // 10 000 + 20 000; el del 9 queda fuera.
+    expect(screen.getAllByText('S/ 30,000').length).toBeGreaterThan(0)
+    expect(screen.queryByText('S/ 120,000')).toBeNull()
+  })
+
+  it('«A medida» arranca con el tramo que ya se estaba viendo', () => {
+    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
+    elegirTramo('Semana')
+    elegirTramo('A medida')
+    // La semana del 10/09 es del lunes 7 al domingo 13, pero el 13 aún no ha
+    // llegado: el «hasta» se trae a hoy en vez de pedir días del futuro.
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-07')
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-10')
+  })
+
+  it('las flechas mueven el rango entero su propia longitud', () => {
+    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
+    elegirTramo('A medida')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-08' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-09' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Tramo anterior' }))
+    // Dos días atrás, no un mes.
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-06')
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-07')
+  })
+
+  it('no deja navegar al futuro', () => {
+    pintar()
+    elegirTramo('Día')
+    // HOY es el 10/09: no hay «día siguiente».
+    expect(screen.getByRole('button', { name: 'Día siguiente' })).toBeDisabled()
   })
 })
 

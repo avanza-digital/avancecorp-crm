@@ -43,7 +43,7 @@ import { Sheet, SheetBody, SheetDescription, SheetHeader, SheetTitle } from '@/c
 import { KpiCard } from '@/components/common/kpi-card'
 import { PanelCargando, PanelError } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
-import { useFacturacionDiaria } from '@/data/crm-queries'
+import { useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
@@ -51,21 +51,24 @@ import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
-import { formatDateLocal, parseDateLocal } from '@/lib/cronograma'
+import { formatDateLocal } from '@/lib/cronograma'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { filasFacturacionDemo } from '@/lib/demo-facturacion'
 import {
   combinarEnSoles,
   conciliarFiltro,
-  construirMalla,
+  construirMallaDeDias,
   desgloseDeCelda,
   diasDelMes,
+  diasDelPeriodo,
+  diasEntre,
   diasHabilesHasta,
   equiposDeRoster,
   esFinDeSemana,
   ESCALA_FACTURACION,
   etiquetaDiaLargo,
   etiquetaMes,
+  etiquetaPeriodo,
   filasComparadas,
   filtrarFilas,
   filtrarRoster,
@@ -73,9 +76,11 @@ import {
   filtroVacio,
   letraDia,
   mejorDia,
-  mesDesplazado,
+  mesesQueTocan,
+  GRANULARIDADES,
   numeroDia,
   pasoDeEscala,
+  periodoDesplazado,
   primerDiaDelMes,
   rosterDeEquipoYFilas,
   TIPO_CAPITAL_NUEVO,
@@ -87,6 +92,7 @@ import {
   type FilaFacturacion,
   type FilaFacturacionDia,
   type FiltroFacturacion,
+  type Granularidad,
   type MetricaFacturacion,
   type MiembroEquipo,
   type TipoFacturacion,
@@ -103,6 +109,40 @@ const SIN_FILAS: readonly FilaFacturacionDia[] = []
  * 11/09/2026: «en el tablero quiero ver el total de cada analista por día».
  * TOTAL se formatea en soles porque ES soles: dólares convertidos a tasa real.
  */
+const ROTULO_GRANULARIDAD: Record<Granularidad, string> = {
+  mes: 'Mes',
+  semana: 'Semana',
+  dia: 'Día',
+  rango: 'A medida',
+}
+const ROTULO_ANTERIOR: Record<Granularidad, string> = {
+  mes: 'Mes anterior',
+  semana: 'Semana anterior',
+  dia: 'Día anterior',
+  rango: 'Tramo anterior',
+}
+/** «del mes» / «de la semana» / «del día», para los rótulos que lo necesitan. */
+const ROTULO_DEL_TRAMO: Record<Granularidad, string> = {
+  mes: 'del mes',
+  semana: 'de la semana',
+  dia: 'del día',
+  rango: 'del tramo',
+}
+
+/** Contra qué se compara, dicho en la unidad que se está mirando. */
+const ROTULO_TRAMO_ANTERIOR: Record<Granularidad, string> = {
+  mes: 'el mismo tramo del mes anterior',
+  semana: 'los mismos días de la semana anterior',
+  dia: 'el día anterior',
+  rango: 'el tramo anterior de igual duración',
+}
+const ROTULO_SIGUIENTE: Record<Granularidad, string> = {
+  mes: 'Mes siguiente',
+  semana: 'Semana siguiente',
+  dia: 'Día siguiente',
+  rango: 'Tramo siguiente',
+}
+
 /** Tope de filas que PostgREST devuelve por consulta (supabase/config.toml). */
 const LIMITE_FILAS_RPC = 1000
 
@@ -149,13 +189,6 @@ function compacta(valor: number, metrica: MetricaFacturacion): string {
   return `${Math.round(valor / 1000)}k`
 }
 
-/** Mismo día de otro mes, recortado al último día si ese mes es más corto. */
-function mismoDiaEnMes(mes: string, dia: string): string {
-  const d = parseDateLocal(dia).getDate()
-  const base = parseDateLocal(mes)
-  const ultimo = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()
-  return formatDateLocal(new Date(base.getFullYear(), base.getMonth(), Math.min(d, ultimo)))
-}
 
 /** Interruptor de dos o más opciones — patrón vivo del CRM (aria-pressed en un group). */
 function Interruptor<T extends string>({
@@ -384,7 +417,58 @@ export function Facturacion({
   const mesDeHoy = useMemo(() => primerDiaDelMes(hoy), [hoy])
   const idPanel = useId()
 
-  const [mes, setMes] = useState<string>(() => primerDiaDelMes(fechaLima(Date.now())))
+  // El ANCLA es un día cualquiera dentro del periodo que se mira; la
+  // granularidad decide si eso significa su mes, su semana o él solo. `mes` se
+  // deriva del ancla porque la consulta al servidor sigue siendo mensual.
+  const [granularidad, setGranularidad] = useState<Granularidad>('mes')
+  const [ancla, setAncla] = useState<string>(() => fechaLima(Date.now()))
+  // La otra punta del rango a medida. Arranca igual que el ancla para que
+  // «A medida» abra en un día y no en un tramo vacío.
+  const [hastaRango, setHastaRango] = useState<string>(() => fechaLima(Date.now()))
+  const mes = primerDiaDelMes(ancla)
+  const diasVisibles = useMemo(
+    () => diasDelPeriodo(granularidad, ancla, hastaRango),
+    [granularidad, ancla, hastaRango],
+  )
+  // El tramo anterior, aquí arriba: hace falta para saber qué meses pedir.
+  const anclaPrevia = periodoDesplazado(granularidad, ancla, -1, diasVisibles.length || 1)
+  const diasPrevios = useMemo(
+    () =>
+      granularidad === 'rango'
+        ? diasEntre(anclaPrevia, periodoDesplazado('rango', hastaRango, -1, diasVisibles.length || 1))
+        : diasDelPeriodo(granularidad, anclaPrevia),
+    [granularidad, anclaPrevia, hastaRango, diasVisibles.length],
+  )
+
+  // No se navega al futuro: el tope es el periodo que contiene HOY en Lima.
+  const sinPeriodoSiguiente = (diasVisibles[diasVisibles.length - 1] ?? ancla) >= hoy
+  // Al cambiar de unidad el ancla se conserva, pero si el tramo nuevo cayera en
+  // el futuro se trae a hoy: pasar de «mes» a «día» estando en un mes pasado
+  // debe dejarte en un día de ESE mes, no en uno que aún no ha ocurrido.
+  const moverPeriodo = (delta: number): void => {
+    const largo = diasVisibles.length || 1
+    setAncla((a) => periodoDesplazado(granularidad, a, delta, largo))
+    if (granularidad === 'rango') {
+      setHastaRango((h) => periodoDesplazado('rango', h, delta, largo))
+    }
+  }
+  const cambiarGranularidad = (g: Granularidad): void => {
+    // Al pasar a «A medida» se arranca con EL TRAMO QUE YA SE ESTABA VIENDO, no
+    // con un día suelto: así se empieza a ajustar desde algo conocido.
+    if (g === 'rango') {
+      const primero = diasVisibles[0] ?? ancla
+      const ultimo = diasVisibles[diasVisibles.length - 1] ?? ancla
+      setGranularidad(g)
+      setAncla(primero)
+      setHastaRango(ultimo > hoy ? hoy : ultimo)
+      return
+    }
+    setGranularidad(g)
+    setAncla((a) => {
+      const ultimo = diasDelPeriodo(g, a).slice(-1)[0] ?? a
+      return ultimo > hoy && primerDiaDelMes(a) === mesDeHoy ? hoy : a
+    })
+  }
   // Abre en TODO (Miguel, 11/09/2026: «el filtro principal debe ser TODOS, y
   // luego si quieren que seleccionen soles o dólares»). El dueño quiere ver el
   // dinero entero de un vistazo; separar monedas es la pregunta de después.
@@ -405,16 +489,46 @@ export function Facturacion({
   const corte = mes === mesDeHoy ? hoy : formatDateLocal(new Date(9999, 0, 1))
 
   // El servidor solo se consulta cuando no hay fixture de prueba ni modo demo.
-  // La consulta cuelga de `crmQueryKeys.raiz`: el cierre de sesión la borra.
-  const consulta = useFacturacionDiaria(fuente == null && !esDemo, mes)
+  // Las consultas cuelgan de `crmQueryKeys.raiz`: el cierre de sesión las borra.
+  //
+  // Se piden TODOS los meses que tocan el tramo visible y el de comparación. Con
+  // mes/semana/día suelen ser uno o dos; un rango a medida puede cruzar varios.
+  // Comparten clave de caché con la consulta mensual, así que moverse entre
+  // tramos no vuelve a pedir lo que ya está.
+  const mesesNecesarios = useMemo(
+    () => mesesQueTocan([...diasVisibles, ...diasPrevios]),
+    [diasVisibles, diasPrevios],
+  )
+  const consultas = useFacturacionDeMeses(fuente == null && !esDemo, mesesNecesarios)
+  const filasDeMeses = useMemo(
+    () => consultas.flatMap((c) => (c.data ?? []) as FilaFacturacionDia[]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `consultas` es un array nuevo en cada render; su contenido cambia con los datos
+    [consultas.map((c) => c.dataUpdatedAt).join('|')],
+  )
+  const consulta = {
+    isPending: consultas.some((c) => c.isPending),
+    isError: consultas.some((c) => c.isError),
+    isFetching: consultas.some((c) => c.isFetching),
+    refetch: () => consultas.forEach((c) => void c.refetch()),
+    data: filasDeMeses.length > 0 || consultas.length > 0 ? filasDeMeses : undefined,
+    descartadas: consultas.reduce((n, c) => n + ((c.data as { descartadas?: number } | undefined)?.descartadas ?? 0), 0),
+    algunaCortada: consultas.some((c) => ((c.data ?? []) as unknown[]).length >= LIMITE_FILAS_RPC),
+  }
   const demo = useMemo(
     () => (esDemo && fuente == null ? filasFacturacionDemo(mes, corte) : SIN_FILAS),
     [esDemo, fuente, mes, corte],
   )
   // El roster sale del mes ENTERO, sin filtrar: si saliera de lo ya filtrado,
   // elegir a alguien vaciaría la lista de la que se le acaba de elegir.
-  const todos: readonly FilaFacturacionDia[] =
-    fuente ?? (esDemo ? demo : (consulta.data ?? SIN_FILAS))
+  // Lo del TRAMO VISIBLE, sin filtrar por equipo ni analista: si el roster
+  // saliera de lo ya filtrado, elegir a alguien vaciaría la lista de la que se
+  // le acaba de elegir. Se acota a los días visibles para que el selector no
+  // ofrezca a quien solo vendió en el tramo de comparación.
+  const diasVisiblesSet = useMemo(() => new Set(diasVisibles), [diasVisibles])
+  const todos: readonly FilaFacturacionDia[] = useMemo(() => {
+    const base = fuente ?? (esDemo ? demo : filasDeMeses)
+    return base.filter((f) => diasVisiblesSet.has(f.dia))
+  }, [fuente, esDemo, demo, filasDeMeses, diasVisiblesSet])
 
   // El organigrama que ya tiene el store (`crm.equipo_visible_fn`, con el mismo
   // alcance que la RLS: Gerencia ve la empresa entera). Se proyecta a la forma
@@ -439,6 +553,7 @@ export function Facturacion({
   const equipos = useMemo(() => equiposDeRoster(roster), [roster])
 
   const filtradas = useMemo(() => filtrarFilas(todos, filtro), [todos, filtro])
+
   // El roster va filtrado con el MISMO filtro que las ventas: si no, elegir a un
   // analista seguiría pintando a todos los demás en cero.
   const rosterFiltrado = useMemo(() => filtrarRoster(roster, filtro), [roster, filtro])
@@ -446,13 +561,22 @@ export function Facturacion({
   // elegida —PEN y USD no se mezclan ahí—, pero el pie necesita ambas para dar
   // el total del día. `construirMalla` es pura y barata: dos pasadas sobre las
   // mismas filas cuestan menos que una consulta de más.
+  // Una semana puede empezar en el mes anterior. Esas filas ya se están
+  // trayendo para la comparación, así que se añaden a la entrada de la malla:
+  // `construirMallaDeDias` solo recoge lo que cae en los días visibles, de modo
+  // que en la vista de mes no cambia nada.
+  // `todos` ya trae todos los meses que toca el tramo, así que la malla recibe
+  // lo filtrado tal cual: `construirMallaDeDias` se queda solo con los días
+  // visibles. (Antes se concatenaba el mes anterior a mano y con `fuente` o en
+  // demo eso DUPLICABA el dinero de la semana.)
+  const filasDelTramo = filtradas
   const mallaPen = useMemo(
-    () => construirMalla(filtradas, mes, 'PEN', tipo, rosterFiltrado),
-    [filtradas, mes, tipo, rosterFiltrado],
+    () => construirMallaDeDias(filasDelTramo, diasVisibles, mes, 'PEN', tipo, rosterFiltrado),
+    [filasDelTramo, diasVisibles, mes, tipo, rosterFiltrado],
   )
   const mallaUsd = useMemo(
-    () => construirMalla(filtradas, mes, 'USD', tipo, rosterFiltrado),
-    [filtradas, mes, tipo, rosterFiltrado],
+    () => construirMallaDeDias(filasDelTramo, diasVisibles, mes, 'USD', tipo, rosterFiltrado),
+    [filasDelTramo, diasVisibles, mes, tipo, rosterFiltrado],
   )
 
   // Tipo de cambio del MES QUE SE MIRA: un mes cerrado se congela en su último
@@ -521,23 +645,34 @@ export function Facturacion({
   const pieCombinado = hayDolares && vistaEfectiva !== 'TOTAL'
 
   // Mismo tramo del mes anterior — comparar un mes entero contra diez días mentiría.
-  const mesPrevio = mesDesplazado(mes, -1)
-  const consultaPrevia = useFacturacionDiaria(fuente == null && !esDemo, mesPrevio)
+  // EL TRAMO ANTERIOR, de la misma unidad y del mismo tamaño recorrido.
+  //
+  // Un mes a medias contra un mes entero mentía (lo cazó la auditoría). Con
+  // semana y día la trampa es idéntica: comparar el lunes contra una semana
+  // completa, o los tres días que llevas contra los siete de la anterior. Se
+  // recorta el tramo anterior a TANTOS DÍAS COMO LLEVE el actual.
   const previo = useMemo(() => {
-    const abierto = corte.startsWith('9999')
-    const corteAnterior = abierto ? mesDesplazado(mes, 0) : mismoDiaEnMes(mesPrevio, corte)
+    const transcurridos = diasVisibles.filter((d) => d <= hoy).length
+    // Tramo cerrado (todos sus días ya pasaron): se compara entero contra entero.
+    const recorte = transcurridos === 0 || transcurridos >= diasVisibles.length
+      ? diasPrevios
+      : diasPrevios.slice(0, transcurridos)
     const base: readonly FilaFacturacionDia[] =
       fuente ??
-      (esDemo ? filasFacturacionDemo(mesPrevio, corteAnterior) : (consultaPrevia.data ?? SIN_FILAS))
-    // EL CORTE VA TAMBIÉN A LOS DATOS REALES. Estaba calculado pero solo se le
-    // pasaba al generador del demo: con datos de verdad se comparaba lo que va
-    // de mes contra el mes anterior ENTERO, y el titular decía «vs. el mismo
-    // tramo» mintiendo. El 11 de setiembre, con US$ 10 000 este mes y agosto
-    // repartido 10 000 hasta el día 11 + 90 000 después, salía −90 % donde
-    // correspondía 0 %. (Auditoría de Codex, 11/09/2026.)
-    const recortadas = base.filter((f) => f.dia <= corteAnterior)
-    return construirMalla(filtrarFilas(recortadas, filtro), mesPrevio, moneda, tipo)
-  }, [fuente, esDemo, consultaPrevia.data, mesPrevio, mes, corte, moneda, tipo, filtro])
+      (esDemo
+        ? filasFacturacionDemo(primerDiaDelMes(anclaPrevia), recorte[recorte.length - 1] ?? anclaPrevia)
+        : filasDeMeses)
+    return construirMallaDeDias(
+      filtrarFilas(base, filtro),
+      recorte,
+      primerDiaDelMes(anclaPrevia),
+      moneda,
+      tipo,
+    )
+  }, [
+    fuente, esDemo, filasDeMeses, anclaPrevia, diasPrevios,
+    diasVisibles, hoy, moneda, tipo, filtro,
+  ])
 
   const totalActual = valorCelda(malla.total, 'capital')
   const totalPrevio = valorCelda(previo.total, 'capital')
@@ -565,7 +700,7 @@ export function Facturacion({
   const comparacionTotal =
     delta == null
       ? 'Sin cifra anterior con la que comparar'
-      : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. el mismo tramo de ${etiquetaMes(mesPrevio)}`
+      : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. ${ROTULO_TRAMO_ANTERIOR[granularidad]}`
 
 
   const mejor = mejorDia(malla, metrica)
@@ -595,8 +730,8 @@ export function Facturacion({
   // Y el límite de filas de PostgREST (1000) cortaría un mes grande por el
   // final, en silencio. Hoy no se llega, pero con el doble de equipo sí.
   // (Auditoría de Codex, 11/09/2026.)
-  const descartadas = consulta.data?.descartadas ?? 0
-  const puedeEstarCortado = (consulta.data?.length ?? 0) >= LIMITE_FILAS_RPC
+  const descartadas = consulta.descartadas
+  const puedeEstarCortado = consulta.algunaCortada
   const avisoIncompleto =
     descartadas > 0
       ? `${numero(descartadas)} fila${descartadas === 1 ? '' : 's'} del servidor no se pudo leer, así que estas cifras están incompletas.`
@@ -727,24 +862,63 @@ export function Facturacion({
             <Button
               variant="outline"
               size="icon"
-              aria-label="Mes anterior"
-              onClick={() => setMes((m) => mesDesplazado(m, -1))}
+              aria-label={ROTULO_ANTERIOR[granularidad]}
+              onClick={() => moverPeriodo(-1)}
             >
               <ChevronLeft aria-hidden />
             </Button>
-            <span className="min-w-[13ch] text-center text-sm font-bold tabular-nums first-letter:uppercase">
-              {etiquetaMes(mes)}
+            <span className="min-w-[15ch] text-center text-sm font-bold tabular-nums first-letter:uppercase">
+              {etiquetaPeriodo(granularidad, ancla, hastaRango)}
             </span>
             <Button
               variant="outline"
               size="icon"
-              aria-label="Mes siguiente"
-              disabled={mes >= mesDeHoy}
-              onClick={() => setMes((m) => mesDesplazado(m, 1))}
+              aria-label={ROTULO_SIGUIENTE[granularidad]}
+              disabled={sinPeriodoSiguiente}
+              onClick={() => moverPeriodo(1)}
             >
               <ChevronRight aria-hidden />
             </Button>
           </div>
+
+          <Interruptor
+            etiqueta="Tramo que se mira"
+            opciones={GRANULARIDADES}
+            valor={granularidad}
+            rotulo={ROTULO_GRANULARIDAD}
+            onCambio={cambiarGranularidad}
+          />
+          {granularidad === 'rango' && (
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground-strong">
+              <label className="flex items-center gap-1">
+                Desde
+                <input
+                  type="date"
+                  aria-label="Desde"
+                  value={ancla}
+                  max={hastaRango < hoy ? hastaRango : hoy}
+                  onChange={(e) => {
+                    if (e.target.value !== '') setAncla(e.target.value)
+                  }}
+                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                hasta
+                <input
+                  type="date"
+                  aria-label="Hasta"
+                  value={hastaRango}
+                  min={ancla}
+                  max={hoy}
+                  onChange={(e) => {
+                    if (e.target.value !== '') setHastaRango(e.target.value)
+                  }}
+                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
+                />
+              </label>
+            </div>
+          )}
 
           <Interruptor
             etiqueta="Moneda — en Soles y Dólares nunca se suman; Total S/ convierte a la tasa del día"
@@ -935,7 +1109,7 @@ export function Facturacion({
         <KpiCard
           label={
             filtroVacio(filtro)
-              ? `${hayDolares ? 'Total facturado' : 'Facturado'} en ${etiquetaMes(mes)}`
+              ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla, hastaRango)}`
               : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
           }
           value={siFiable(totalFacturado)}
@@ -956,7 +1130,7 @@ export function Facturacion({
           delay={60}
         />
         <KpiCard
-          label="Mejor día del mes"
+          label={granularidad === "dia" ? "Ese día" : `Mejor día ${ROTULO_DEL_TRAMO[granularidad]}`}
           value={
             !cifrasFiables || mejor == null
               ? '—'
@@ -1015,7 +1189,13 @@ export function Facturacion({
           title={
             comparando
               ? `Comparando ${numero(filtro.analistas.length)} analista${filtro.analistas.length === 1 ? '' : 's'}, día a día`
-              : 'Cada día del mes, por equipo y por analista'
+              : granularidad === 'dia'
+                ? 'Ese día, por equipo y por analista'
+                : granularidad === 'semana'
+                  ? 'Esa semana, día a día, por equipo y por analista'
+                  : granularidad === 'rango'
+                    ? 'El tramo elegido, día a día, por equipo y por analista'
+                    : 'Cada día del mes, por equipo y por analista'
           }
           right={
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground-strong">
@@ -1084,7 +1264,8 @@ export function Facturacion({
             <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaMes(mes)} · {ROTULO_VISTA[vistaEfectiva]} ·{' '}
+                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla, hastaRango)} ·{' '}
+                  {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
                   Marca la casilla de dos o más analistas para verlos solos y compararlos; activa
                   una celda para ver los contratos de ese día.
@@ -1124,7 +1305,7 @@ export function Facturacion({
                       scope="col"
                       className="sticky right-0 top-0 z-40 w-32 min-w-32 border-b border-l border-border bg-muted px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
                     >
-                      Total del mes
+                      {`Total ${ROTULO_DEL_TRAMO[granularidad]}`}
                     </th>
                   </tr>
                 </thead>
