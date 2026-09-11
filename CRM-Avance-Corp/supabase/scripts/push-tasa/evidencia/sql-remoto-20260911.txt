@@ -1,0 +1,49 @@
+PASS: RLS activada en ambas tablas
+PASS: sin acceso directo de authenticated
+PASS: solo el servicio puede validar firmas del cron
+PASS: anon no registra; un usuario no reclama ni confirma avisos
+PASS: tablas cerradas sin policy DELETE
+PASS: denegaciones reales con SET ROLE authenticated
+PASS: sin configuración no aparenta estar listo
+PASS: activar dos veces conserva el mismo dispositivo
+PASS: dos dispositivos de una cuenta
+PASS: SQL rechaza destinos peligrosos
+PASS: desactivar un dispositivo ajeno no lo altera
+PASS: otro gerente no descubre el dispositivo
+PASS: RPC real de solicitud crea un aviso por dispositivo elegible
+PASS: sin duplicados de solicitud/dispositivo
+PASS: la solicitud propia solo avisa a otra Gerencia
+PASS: el worker reclama el lote esperado
+PASS: un segundo worker no toma reservas vivas
+PASS: materializa solo con reserva vigente
+PASS: una reserva ajena no confirma
+PASS: confirmación final registrada
+PASS: el cron no vuelve a enviar lo confirmado
+PASS: resolver antes de enviar impide el aviso
+PASS: otro worker conserva las reservas en curso aunque la solicitud se resuelva
+PASS: el worker cancela los avisos de solicitudes resueltas
+PASS: sesión vencida y perfil inactivo dejan de recibir
+PASS: respeta la espera antes del reintento
+PASS: un fallo temporal vuelve a intentarse
+PASS: 410 desactiva las suscripciones vencidas
+PASS: un cambio de claves invalida la cola de la suscripción anterior
+PASS: el usuario puede preparar una prueba propia
+PASS: prueba limitada a una por minuto
+PASS: auditoría no filtra suscripciones ni claves
+PASS: el fallo de notificación no impide solicitar la tasa
+PASS: la inyección de fallo realmente impidió crear el aviso
+PASS: activar después de una solicitud no envía ese aviso histórico
+PASS: el cron recupera el aviso faltante sin enviar el historial a dispositivos nuevos
+PASS: una reserva vencida ya no puede confirmar
+PASS: un worker recupera reservas abandonadas
+PASS: ocho intentos agotan el envío
+PASS: el envío agotado queda cerrado y no consume cron indefinidamente
+PASS: el cron despierta al worker cuando hay trabajo
+PASS: el cron solo llama al worker de tasa del proyecto configurado
+PASS: el secreto de Vault nunca se escribe en las cabeceras de pg_net
+PASS: la firma emitida por el cron es aceptada por el verificador real
+PASS: rechaza firmas vencidas o con fecha futura fuera de tolerancia
+PASS: rechaza una firma falsa y el secreto compartido usado directamente
+PASS: la firma de otro servicio no autoriza este cron
+PASS: la firma no se reutiliza entre proyectos
+TOTAL_PASS=48
