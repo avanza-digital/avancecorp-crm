@@ -56,7 +56,8 @@ Se integró `avancecorp/main@6293d24` en `92ca108`, conservando los nuevos aviso
 de respuestas de tasas para analistas y supervisores. `VITEST_MAX_WORKERS=2
 npm run check` terminó PASS: **3.355 pruebas en 235 archivos**, lint, tipos,
 cobertura, configuración de release, service worker, build, bundle y duplicación.
-La suite E2E integrada y la comparación RLS general siguen en curso.
+La suite E2E integrada pasó **172 casos, con 26 SKIP preexistentes**. La
+comparación RLS general sigue en curso.
 
 La matriz general se prepara con sus trece cuentas demo adicionales y la baja
 histórica controlada del miembro inactivo. Su semilla de contratos antiguos
@@ -72,7 +73,7 @@ un PASS general de seguridad por tener pruebas F7 correctas.
 
 ## Cierre pendiente
 
-Completar E2E y RLS antes/después; registrar solo el SQL F7 aprobado en la rama,
+Completar RLS antes/después; registrar solo el SQL F7 aprobado en la rama,
 publicar el consumidor desde el commit común Main/remoto, realizar el merge
 Supabase y verificar producción OFF, núcleos, permisos, historial, Vault y Edge
 Functions. Eliminar después únicamente el banco propio para detener su coste.

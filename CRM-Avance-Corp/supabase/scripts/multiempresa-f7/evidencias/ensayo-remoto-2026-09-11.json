@@ -24,7 +24,12 @@
     "archivos": 235,
     "check": "PASS"
   },
-  "e2e": "EN_CURSO",
+  "e2e": {
+    "estado": "PASS",
+    "pass": 172,
+    "fail": 0,
+    "skip": 26
+  },
   "rlsGeneral": "EN_CURSO",
   "produccionF7Instalada": false,
   "g6Firmado": false,
@@ -52,6 +57,21 @@
     {
       "archivo": "check-integracion-tasa.log",
       "sha256": "d55e06d03b1c543edb25dc0e1d13377c2fced7b80f61ccd64a7aed70234b95c6"
+    },
+    {
+      "archivo": "e2e-integracion-tasa.log",
+      "sha256": "129e0cea2284748c557591dea0025cd48cf64a3e35df904ecd014dcf34ef2cd3"
     }
-  ]
+  ],
+  "releaseAnteriorActual": {
+    "manifest": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T210409Z-6293d24ec071.manifest.json",
+    "zip": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T210409Z-6293d24ec071.zip",
+    "commit": "6293d24ec07144d8e79dbba9c5d80fc6f22a2d64",
+    "release": "crm-20260911T210409Z-6293d24ec071",
+    "sha256": "3b672665987f0b442c3d60311759e8efd1862c09663dd12c3cfc187778973fe5",
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260911T210408670Z"
+    }
+  }
 }
