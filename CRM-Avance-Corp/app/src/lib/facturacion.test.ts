@@ -10,6 +10,7 @@ import {
   construirMallaDeDias,
   desgloseDeCelda,
   diasDelPeriodo,
+  diasEntre,
   diasDelMes,
   diasHabilesHasta,
   equiposDeRoster,
@@ -22,6 +23,8 @@ import {
   filtroVacio,
   letraDia,
   lunesDeLaSemana,
+  MAXIMO_DIAS_RANGO,
+  mesesQueTocan,
   mejorDia,
   mesDesplazado,
   nivelFacturacion,
@@ -650,5 +653,54 @@ describe('tramo: mes, semana y día', () => {
     expect(etiquetaPeriodo('mes', '2026-09-10')).toMatch(/setiembre/i)
     expect(etiquetaPeriodo('dia', '2026-09-10')).toMatch(/10/)
     expect(etiquetaPeriodo('semana', '2026-09-10')).toMatch(/al/)
+  })
+})
+
+
+/* ── Rango a medida (Miguel, 11/09/2026) ──
+ * «quiero poder seleccionar los días que yo quiera, para ver el avance».
+ */
+describe('rango de días a medida', () => {
+  it('trae todos los días entre las dos puntas, inclusive', () => {
+    expect(diasEntre('2026-09-08', '2026-09-11')).toEqual([
+      '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11',
+    ])
+    expect(diasEntre('2026-09-10', '2026-09-10')).toEqual(['2026-09-10'])
+  })
+
+  it('cruza de mes sin tropezar', () => {
+    expect(diasEntre('2026-08-30', '2026-09-02')).toEqual([
+      '2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02',
+    ])
+  })
+
+  it('del revés no inventa nada: devuelve vacío', () => {
+    expect(diasEntre('2026-09-11', '2026-09-08')).toEqual([])
+  })
+
+  it('tiene tope: más de un año no es un tablero', () => {
+    expect(diasEntre('2020-01-01', '2026-12-31')).toHaveLength(MAXIMO_DIAS_RANGO)
+  })
+
+  it('dice qué meses hay que pedirle al servidor, sin repetir', () => {
+    expect(mesesQueTocan(diasEntre('2026-08-30', '2026-09-02'))).toEqual([
+      '2026-08-01', '2026-09-01',
+    ])
+    expect(mesesQueTocan(diasEntre('2026-09-01', '2026-09-30'))).toEqual(['2026-09-01'])
+  })
+
+  it('el tramo anterior es del MISMO largo, no el mes anterior', () => {
+    // Un tramo de 4 días retrocede 4 días, no 30.
+    expect(periodoDesplazado('rango', '2026-09-08', -1, 4)).toBe('2026-09-04')
+  })
+
+  it('la malla de un rango suma solo ese rango', () => {
+    const filas = [
+      fila({ dia: '2026-08-31', capital: 5_000 }),
+      fila({ dia: '2026-09-01', capital: 7_000 }),
+      fila({ dia: '2026-09-20', capital: 99_000 }),
+    ]
+    const m = construirMallaDeDias(filas, diasEntre('2026-08-31', '2026-09-02'), MES, 'PEN')
+    expect(valorCelda(m.total, 'capital')).toBe(12_000)
   })
 })

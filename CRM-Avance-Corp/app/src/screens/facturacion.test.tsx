@@ -51,13 +51,18 @@ vi.mock('@/lib/tipo-cambio', () => ({
   usdAPen: (usd: number, tc: number) => (tc > 0 ? usd * tc : 0),
 }))
 vi.mock('@/data/crm-queries', () => ({
-  useFacturacionDiaria: () => ({
-    data: dobles.datos,
-    isPending: dobles.cargando,
-    isError: dobles.error,
-    isFetching: false,
-    refetch: vi.fn(),
-  }),
+  // La pantalla pide TODOS los meses que toca el tramo; el doble devuelve una
+  // consulta por mes con los mismos datos, que es lo que la pantalla aplana.
+  useFacturacionDeMeses: (_habilitada: boolean, meses: readonly string[]) =>
+    meses.map((_m, i) => ({
+      // Solo la primera trae datos: repetirlos en cada mes los duplicaría.
+      data: i === 0 ? dobles.datos : undefined,
+      isPending: dobles.cargando,
+      isError: dobles.error,
+      isFetching: false,
+      dataUpdatedAt: dobles.datos == null ? 0 : 1,
+      refetch: vi.fn(),
+    })),
 }))
 
 const { Facturacion } = await import('./facturacion')
@@ -800,7 +805,9 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
   })
 
   it('en Semana la tabla enseña 7 días y las flechas se mueven por semanas', () => {
-    pintar()
+    // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13. El fixture
+    // general vende el 2, 3 y 4, así que aquí hace falta algo DENTRO.
+    pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
     elegirTramo('Semana')
     expect(screen.getByRole('button', { name: 'Semana anterior' })).toBeVisible()
     // HOY es jueves 10/09: la semana va del lunes 7 al domingo 13.
@@ -808,7 +815,7 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
   })
 
   it('en Día la tabla enseña un solo día', () => {
-    pintar()
+    pintar([fila({ id: 'hoy', dia: '2026-09-10', capital: 50_000 })])
     elegirTramo('Día')
     expect(screen.getByRole('button', { name: 'Día anterior' })).toBeVisible()
     expect(within(malla()).getAllByRole('columnheader').length).toBe(3) // 1 día + nombre + total
@@ -855,6 +862,55 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
     // que NUNCA puede quedar es la comparación hablando de meses.
     expect(screen.queryByText(/mes anterior/)).toBeNull()
     dobles.tc = null
+  })
+
+  it('en un tramo solo salen los del tramo, no los del mes entero', () => {
+    // Ana vende el 2 (fuera de la semana del 7) y Beto el 10 (dentro). Si el
+    // roster siguiera saliendo del mes, la semana ofrecería a Ana en cero y el
+    // selector de analistas mentiría sobre quién trabajó esos días.
+    pintar([
+      fila({ id: 'a', dia: '2026-09-02', capital: 10_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
+      fila({ id: 'b', dia: '2026-09-10', capital: 20_000, analistaId: 'beto', analistaNombre: 'Beto Analista' }),
+    ])
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    elegirTramo('Semana')
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Beto Analista' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeNull()
+  })
+
+  it('«A medida» deja elegir las fechas y suma solo esos días', () => {
+    pintar([
+      fila({ id: 'a', dia: '2026-09-02', capital: 10_000 }),
+      fila({ id: 'b', dia: '2026-09-03', capital: 20_000 }),
+      fila({ id: 'c', dia: '2026-09-09', capital: 90_000 }),
+    ])
+    elegirTramo('A medida')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-02' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-03' } })
+    // 10 000 + 20 000; el del 9 queda fuera.
+    expect(screen.getAllByText('S/ 30,000').length).toBeGreaterThan(0)
+    expect(screen.queryByText('S/ 120,000')).toBeNull()
+  })
+
+  it('«A medida» arranca con el tramo que ya se estaba viendo', () => {
+    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
+    elegirTramo('Semana')
+    elegirTramo('A medida')
+    // La semana del 10/09 es del lunes 7 al domingo 13, pero el 13 aún no ha
+    // llegado: el «hasta» se trae a hoy en vez de pedir días del futuro.
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-07')
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-10')
+  })
+
+  it('las flechas mueven el rango entero su propia longitud', () => {
+    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
+    elegirTramo('A medida')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-08' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-09' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Tramo anterior' }))
+    // Dos días atrás, no un mes.
+    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-06')
+    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-07')
   })
 
   it('no deja navegar al futuro', () => {

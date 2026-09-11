@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -553,6 +553,26 @@ export function useFacturacionDiaria(habilitada: boolean, mes: string) {
     // (Auditoría de Codex, 11/09/2026.)
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: true,
+  })
+}
+
+/**
+ * Facturación de VARIOS meses a la vez — Miguel, 11/09/2026: «quiero poder
+ * seleccionar los días que yo quiera, para ver el avance».
+ *
+ * Un rango elegido a mano puede cruzar meses, y la RPC del servidor entrega un
+ * mes por llamada. Se piden todos los que toca el rango, con la MISMA clave de
+ * caché que la consulta mensual: un mes ya traído no se vuelve a pedir.
+ */
+export function useFacturacionDeMeses(habilitada: boolean, meses: readonly string[]) {
+  return useQueries({
+    queries: meses.map((mes) => ({
+      queryKey: crmQueryKeys.facturacionDiaria(mes),
+      queryFn: ({ signal }: { signal: AbortSignal }) => listarFacturacionDiaria(mes, signal),
+      enabled: habilitada && mes !== '',
+      refetchInterval: 5 * 60_000,
+      refetchOnWindowFocus: true,
+    })),
   })
 }
 
