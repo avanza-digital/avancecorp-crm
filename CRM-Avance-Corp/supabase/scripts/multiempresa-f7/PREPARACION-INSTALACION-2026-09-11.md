@@ -1,12 +1,15 @@
 # F7 — SQL aprobado y preparación de instalación
 
-11/09/2026. Codex PRIMARY. **F7 no instalada ni publicada en producción.**
+11/09/2026. Codex PRIMARY. **Acta histórica de preparación, anterior a instalar.**
+El estado vigente es **F7 publicada e instalada OFF**, con banco cerrado y G6
+pendiente: [publicación verificada](PUBLICACION-2026-09-11.md).
 
 Miguel respondió «sii» a la solicitud concreta de ensayar e instalar F7
 inicialmente apagada. El archivo aprobado es
 [20260911163243_crm_multiempresa_f7_metricas_sombra.sql](../../migrations/20260911163243_crm_multiempresa_f7_metricas_sombra.sql),
 SHA-256 `7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7`.
-No se modificó ni ejecutó esa migración en producción. No volver a solicitar
+En este punto de preparación aún no se había ejecutado en producción. El
+archivo aprobado se conserva sin modificar. No volver a solicitar
 aprobación del mismo SQL.
 
 ## Preparación completada

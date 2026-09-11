@@ -1,12 +1,15 @@
 {
-  "estado": "ENSAYO_ESPECIFICO_PASS_CIERRE_GENERAL_EN_CURSO",
+  "estado": "ENSAYO_PASS_COMPARACION_SIN_REGRESIONES_INSTALACION_OFF_VERIFICADA",
   "banco": {
     "nombre": "multiempresa-f7-20260911",
     "ref": "awshxyerdsvgjnteetfa",
     "id": "429fa19f-d018-428c-94a5-731541fde6ed",
     "creadoUTC": "2026-09-11T20:42:52.294868Z",
     "costeHoraUSD": 0.01344,
-    "costeAutorizado": true
+    "costeAutorizado": true,
+    "eliminado": true,
+    "ausenciaVerificadaUTC": "2026-09-11T21:47:18.719Z",
+    "anteriorAjenoConservado": true
   },
   "mainIntegrado": "6293d24ec07144d8e79dbba9c5d80fc6f22a2d64",
   "commitIntegracion": "92ca108ce3709fd72a5e772a454e93da5fb5a4de",
@@ -16,7 +19,8 @@
   },
   "http": {
     "pass": 12,
-    "fail": 0
+    "fail": 0,
+    "repeticionFinalPass": 12
   },
   "frontend": {
     "pass": 3355,
@@ -30,8 +34,24 @@
     "fail": 0,
     "skip": 26
   },
-  "rlsGeneral": "EN_CURSO",
-  "produccionF7Instalada": false,
+  "rlsGeneral": {
+    "estadoGeneral": "FAIL",
+    "comparacion": "PASS SIN REGRESIONES",
+    "antes": {
+      "total": 1829,
+      "pass": 1772,
+      "fail": 57
+    },
+    "despues": {
+      "total": 1829,
+      "pass": 1772,
+      "fail": 57
+    },
+    "regresiones": [],
+    "fallosQueYaNoAparecen": [],
+    "criterio": "Misma semilla sintética restaurada, mismas aserciones; comparación multiconjunto normaliza únicamente UUID sintéticos. Incluye los fallos de conteo por convivir la muestra F7 con el fixture general."
+  },
+  "produccionF7Instalada": true,
   "g6Firmado": false,
   "evidenciaPrivada": [
     {
@@ -61,6 +81,42 @@
     {
       "archivo": "e2e-integracion-tasa.log",
       "sha256": "129e0cea2284748c557591dea0025cd48cf64a3e35df904ecd014dcf34ef2cd3"
+    },
+    {
+      "archivo": "http-final-banco.log",
+      "sha256": "9b9dbf7d3ea0514588fd8593d3491f2dc5191a7be0fbc5e69dae2ffb5b707f46"
+    },
+    {
+      "archivo": "rls-antes.log",
+      "sha256": "4b4c237caee914df883970ee1678808d00926a8e10384999a4153af47be03f34"
+    },
+    {
+      "archivo": "rls-despues.log",
+      "sha256": "4b4c237caee914df883970ee1678808d00926a8e10384999a4153af47be03f34"
+    },
+    {
+      "archivo": "push-publicacion.log",
+      "sha256": "e604c7ecd3be04ac9356061e0fcd5a14d5073d58d20e0f0d2cda4158edf15d84"
+    },
+    {
+      "archivo": "produccion-verificada.json",
+      "sha256": "0e601d711e57a2bd5dc148c05b063240a034352a0e67abc4a32f659c57e73897"
+    },
+    {
+      "archivo": "candidata-premerge-verificada.json",
+      "sha256": "8bedca16608404ddbe6f41a8e1a66811942e2d82c76f9e94cb6de7facfecf935"
+    },
+    {
+      "archivo": "banco-eliminado.json",
+      "sha256": "18eca10c13bdd5c62bbdf78795f6cdccfd4f3ff69186bd1c12737e087f8c731b"
+    },
+    {
+      "archivo": "http-despues.json",
+      "sha256": "88e6a8455c6b646fbca8ff832ece41488061f4580167dc9607835e0fecc8012e"
+    },
+    {
+      "archivo": "premerge-final.json",
+      "sha256": "82a700b4f227bfdafc221288d8d8e755408c4b99523375095e46a84cb5e5a899"
     }
   ],
   "releaseAnteriorActual": {
@@ -73,5 +129,18 @@
       "schema": 1,
       "buildId": "build-20260911T210408670Z"
     }
-  }
+  },
+  "f7Encendida": false,
+  "releasePublicado": {
+    "commit": "32eae8a22cbeef8bc54c20e989c6612c0f201efe",
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260911T211820504Z"
+    },
+    "manifest": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T211821Z-32eae8a22cbe.manifest.json",
+    "zip": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T211821Z-32eae8a22cbe.zip",
+    "sha256": "1f8d624a310d01b13c63f36720a7aab4148ba8178e235a2b53158594e5a2140f",
+    "release": "crm-20260911T211821Z-32eae8a22cbe"
+  },
+  "instalacion": "instalacion-produccion-2026-09-11.json"
 }

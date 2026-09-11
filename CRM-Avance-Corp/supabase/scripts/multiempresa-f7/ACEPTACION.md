@@ -1,6 +1,6 @@
-# Aceptación técnica local — F7 multiempresa
+# Aceptación técnica y publicación — F7 multiempresa
 
-Fecha: 11/09/2026. Codex PRIMARY. **Candidata ensayada en banco remoto; instalación productiva en curso.**
+Fecha: 11/09/2026. Codex PRIMARY. **Publicada e instalada OFF; banco temporal cerrado.**
 La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
 
 ## Alcance comprobado
@@ -25,11 +25,15 @@ La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
 | Frontend integrado | PASS | Lint, typecheck, 3.355 pruebas en 235 archivos con cobertura, release, service worker, build, bundle y duplicación |
 | Navegación integrada | PASS | 172 E2E aprobados; 26 SKIP preexistentes. Incluye F7, F6 y las nuevas notificaciones recibidas desde Main |
 | Integración de Main | PASS | Main `6293d24`, integrado en `92ca108`; cambios ajenos conservados. `check` y E2E completos con dos workers PASS; [evidencia actual](evidencias/preparacion-instalacion-2026-09-11.json) |
-| Advisors del banco F7 | PASS de comparación | Cinco WARN ya presentes en la base original; cero nuevos. No significa que el proyecto carezca de advertencias |
+| Advisors del banco local F7 | PASS de comparación local | Cinco WARN ya presentes en la base original; cero nuevos. El banco remoto tiene una base distinta, registrada por separado |
 | Claude | CHANGES_REQUESTED, evaluado | Dos revisiones; decisiones y evidencia en [REVISION.md](REVISION.md). No es un PASS del reviewer |
 | Inspección visual automatizada | PASS | Escritorio y 320 px; tablas con desplazamiento interno, capturas ficticias en `evidencias/` |
-| Ensayo específico en Supabase remoto | PASS | SQL y coste aprobados; 16 SQL + 12 HTTP, tipos regenerados y reversa. [Ensayo remoto](ENSAYO-REMOTO-2026-09-11.md) |
-| Matriz RLS general real en esta fase | EN CURSO | Misma semilla antes/después; los fallos generales se registran aparte del PASS específico F7 |
+| Ensayo específico en Supabase remoto | PASS | SQL y coste aprobados; 16 SQL + 12 HTTP, tipos regenerados y reversa. Repetición final de los doce HTTP PASS. [Ensayo remoto](ENSAYO-REMOTO-2026-09-11.md) |
+| Matriz RLS general real en esta fase | FAIL; comparación PASS sin regresiones | Antes y después: 1.772 PASS / 57 FAIL de 1.829 con la misma semilla. Incluye conteos por convivencia de fixtures. No es un PASS global |
+| Advisors remotos | Diferencias evaluadas; sin PASS global | Seguridad 259 → 261: solo dos WARN previstos para RPC F7 autenticadas, permisos SQL/HTTP comprobados. Rendimiento 278 → 145, cero nuevas observaciones |
+| Publicación del frontend | PASS | Main/remoto/origen del ZIP iguales a `32eae8a`; release correcto, 90 recursos cotejados y portal conservado. [Acta](PUBLICACION-2026-09-11.md) |
+| Instalación y verificación productiva OFF | PASS | Registro `20260911212526`; 274 migraciones y 619 funciones previas intactas, cuatro nuevas exactas. Auth, datos financieros, Vault, cron y 19 Edge Functions conservados. OFF/P0409; anon 42501 |
+| Cierre del banco propio | PASS | Eliminado y ausencia verificada a las 21:47:18 UTC; banco anterior conservado |
 | Rendimiento con volumen productivo | NOT RUN | La medición local de 98 fuentes no permite extrapolar |
 | Revisión manual F7 / conciliación firmada G6 | NOT RUN | No se infiere de los tests ni de las aprobaciones históricas F6 |
 | VoiceOver F6 | NOT RUN | Omitido por decisión explícita de Miguel; no se presenta como verificado |
@@ -77,11 +81,8 @@ resultados finales y sus huellas, sin credenciales ni datos personales.
 El [SQL propuesto](../../migrations/20260911163243_crm_multiempresa_f7_metricas_sombra.sql)
 y su [reversa](reversa-operativa.sql) se identifican en
 [SHA256SUMS](evidencias/SHA256SUMS). Miguel aprobó ese SQL y su instalación
-inicialmente OFF el 11/09/2026; ya se ensayó en la rama propia. La creación del nuevo banco
-está pendiente de respuesta al coste US$0.01344/h exigida por Supabase.
-El consumidor puede publicarse antes del SQL porque contempla RPC ausente/OFF.
-No se habilitan las banderas de escritura F4, ficha F5 ni postventa F6.
-
-Antes de publicar, integrar `avancecorp/main` sin sobrescribir cambios ajenos,
-verificar que Main y remoto comparten commit y construir desde ese commit.
-El ciclo remoto, los datos reales y G6 siguen los pasos del [README](README.md).
+inicialmente OFF el 11/09/2026. También autorizó US$0.01344/h para el banco
+propio, ya eliminado. La publicación desde el commit común Main/remoto y la
+instalación están verificadas en [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
+F3 ON; F4/F5/F6/F7 OFF. Sigue la conciliación real y firma de
+[G6](ACTA-G6.md); no se autoriza el piloto F8 ni se adelanta F9.

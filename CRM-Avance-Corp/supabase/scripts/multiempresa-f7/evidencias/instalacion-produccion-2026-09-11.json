@@ -1,0 +1,372 @@
+{
+  "estado": "PUBLICADA_INSTALADA_OFF_VERIFICADA",
+  "fecha": "2026-09-11",
+  "autorizaciones": {
+    "sqlExacto": true,
+    "instalacionInicialOff": true,
+    "costeBancoUSDHora": 0.01344,
+    "costeAprobado": true
+  },
+  "sql": {
+    "archivo": "20260911163243_crm_multiempresa_f7_metricas_sombra.sql",
+    "sha256": "7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7",
+    "registroRemoto": "20260911212526",
+    "nombre": "crm_multiempresa_f7_metricas_sombra",
+    "via": "merge_branch de banco propio",
+    "sentenciasBanco": 1,
+    "sentenciasProduccion": 18,
+    "archivoVersionadoIntacto": true
+  },
+  "release": {
+    "commit": "32eae8a22cbeef8bc54c20e989c6612c0f201efe",
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260911T211820504Z"
+    },
+    "manifest": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T211821Z-32eae8a22cbe.manifest.json",
+    "zip": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T211821Z-32eae8a22cbe.zip",
+    "sha256": "1f8d624a310d01b13c63f36720a7aab4148ba8178e235a2b53158594e5a2140f",
+    "release": "crm-20260911T211821Z-32eae8a22cbe"
+  },
+  "recuperacionFrontend": {
+    "manifest": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T210409Z-6293d24ec071.manifest.json",
+    "zip": "/Users/usuario/Desktop/DESARROLLO/DESARROLLO/AVANCECORP-desktop/CRM-Avance-Corp/releases/crm-20260911T210409Z-6293d24ec071.zip",
+    "commit": "6293d24ec07144d8e79dbba9c5d80fc6f22a2d64",
+    "release": "crm-20260911T210409Z-6293d24ec071",
+    "sha256": "3b672665987f0b442c3d60311759e8efd1862c09663dd12c3cfc187778973fe5",
+    "version": {
+      "schema": 1,
+      "buildId": "build-20260911T210408670Z"
+    }
+  },
+  "publicacionHTTP": {
+    "recursos": 90,
+    "resultados": {
+      "PROTEGIDO": 1,
+      "SHA256_EXACTO": 78,
+      "IMAGEN_OPTIMIZADA_SIN_CAMBIOS": 11
+    },
+    "zipInaccesible": [
+      {
+        "dominio": "crm.miavance.com",
+        "http": 404,
+        "resultado": "PASS",
+        "url_final": "https://crm.miavance.com/crm-20260911T211821Z-32eae8a22cbe.zip"
+      },
+      {
+        "dominio": "miavance.com",
+        "http": 404,
+        "resultado": "PASS",
+        "url_final": "https://miavance.com/crm-20260911T211821Z-32eae8a22cbe.zip"
+      }
+    ],
+    "portalSinCambios": true,
+    "htaccess": {
+      "estado": "PASS",
+      "contenidoLineasIdentico": true,
+      "tamanoBytes": 2977,
+      "sha256Artefacto": "c70380da325b9dcc9c18f2f504910694085865a02bb8eae2c6515f3bceef5510",
+      "nota": "La API de lectura por líneas omite el LF final; el contenido de todas las líneas y tamaño del archivo coinciden."
+    }
+  },
+  "verificacionProduccion": {
+    "estado": "PASS",
+    "versionSQL": "20260911212526",
+    "sentenciasProductivas": 18,
+    "sentenciasBytesYOrdenAprobados": true,
+    "migracionesPreviasIntactas": 274,
+    "migracionesTotales": 275,
+    "funcionesPreviasIntactas": 619,
+    "funcionesNuevasIgualesAlBanco": 4,
+    "ACLPreviasIntactas": true,
+    "restoEsquemaSinCambios": true,
+    "integridadSinCambios": {
+      "auth": true,
+      "cierres": true,
+      "contratos": true,
+      "cron": true,
+      "meses": true,
+      "vault": true
+    },
+    "banderas": {
+      "ficha_360_neutral": false,
+      "inversiones_escritura": false,
+      "metricas_multiempresa_sombra": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true
+    },
+    "edgeFunctionsConservadas": 19,
+    "antesUTC": "2026-09-11T21:40:21.266165+00:00",
+    "despuesUTC": "2026-09-11T21:41:23.578646+00:00",
+    "estadoRPC": "OFF/P0409",
+    "anonHTTP": "42501 en ambas RPC",
+    "metadataNueva": "El merge guarda created_by=null y divide el SQL en 18 sentencias; no cambia ninguna entrada histórica."
+  },
+  "verificacionCandidata": {
+    "estado": "PASS",
+    "funcionesPreviasIdenticas": 619,
+    "funcionesNuevas": 4,
+    "migracionesPreviasIdenticas": 274,
+    "unicaMigracionNueva": "20260911212526",
+    "aclPreviasIdenticas": true,
+    "triggersRestaurados": true,
+    "fkValidadas": true,
+    "banderas": {
+      "ficha_360_neutral": false,
+      "inversiones_escritura": false,
+      "metricas_multiempresa_sombra": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true
+    },
+    "historialStatementsNuevos": "SQL aprobado byte a byte"
+  },
+  "tipos": {
+    "estado": "PASS",
+    "origen": "Supabase CLI genera public,crm del banco remoto",
+    "sha256Generado": "76caff443ef810e15f9605db1cf9c149c6782cd7ae9407c85edc18e76aba5dca",
+    "rpc": {
+      "metricas_multiempresa_fn": {
+        "declaracion": "metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }",
+        "coincide": true
+      },
+      "metricas_multiempresa_estado_fn": {
+        "declaracion": "metricas_multiempresa_estado_fn: { Args: never; Returns: Json }",
+        "coincide": true
+      }
+    },
+    "nota": "Las declaraciones F7 existentes coinciden byte a byte. Se conserva el orden del archivo del repositorio."
+  },
+  "storageRealtime": {
+    "estado": "PASS",
+    "politicasStorage": 12,
+    "relacionesRealtime": 3
+  },
+  "pruebas": {
+    "sqlRemoto": {
+      "pass": 16,
+      "fail": 0
+    },
+    "httpRemoto": {
+      "pass": 12,
+      "fail": 0,
+      "repeticionFinalPass": 12
+    },
+    "frontend": {
+      "estado": "PASS",
+      "pass": 3355,
+      "fail": 0,
+      "archivos": 235,
+      "check": "PASS",
+      "prepush": "PASS"
+    },
+    "e2e": {
+      "pass": 172,
+      "fail": 0,
+      "skipPreexistentes": 26
+    }
+  },
+  "rlsGeneral": {
+    "estadoGeneral": "FAIL",
+    "comparacion": "PASS SIN REGRESIONES",
+    "antes": {
+      "total": 1829,
+      "pass": 1772,
+      "fail": 57
+    },
+    "despues": {
+      "total": 1829,
+      "pass": 1772,
+      "fail": 57
+    },
+    "regresiones": [],
+    "fallosQueYaNoAparecen": [],
+    "criterio": "Misma semilla sintética restaurada, mismas aserciones; comparación multiconjunto normaliza únicamente UUID sintéticos. Incluye los fallos de conteo por convivir la muestra F7 con el fixture general."
+  },
+  "advisorsBanco": {
+    "seguridad": {
+      "antes": 259,
+      "despues": 261,
+      "nuevas": [
+        {
+          "categoria": "authenticated_security_definer_function_executable",
+          "finding": {
+            "detail": "Function `crm.metricas_multiempresa_estado_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/metricas_multiempresa_estado_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "arguments": "",
+              "language": "plpgsql",
+              "name": "metricas_multiempresa_estado_fn",
+              "schema": "crm",
+              "security_definer": true
+            }
+          }
+        },
+        {
+          "categoria": "authenticated_security_definer_function_executable",
+          "finding": {
+            "detail": "Function `crm.metricas_multiempresa_fn(p_mes date)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/metricas_multiempresa_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "arguments": "p_mes date",
+              "language": "plpgsql",
+              "name": "metricas_multiempresa_fn",
+              "schema": "crm",
+              "security_definer": true
+            }
+          }
+        }
+      ],
+      "yaNo": 0,
+      "evaluacion": "Dos WARN previstos por las RPC SECURITY DEFINER autenticadas. Acceso interno limitado a Gerencia y perfil activos; auxiliares privados no ejecutables; denegaciones comprobadas por SQL/HTTP, incluida revocación con el mismo JWT.",
+      "estado": "DIFERENCIA ESPERADA REVISADA; no es PASS global de seguridad",
+      "nuevasInesperadas": 0,
+      "regla": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    "rendimiento": {
+      "antes": 278,
+      "despues": 145,
+      "nuevas": [],
+      "yaNo": 133
+    }
+  },
+  "advisorsProduccion": {
+    "security": {
+      "estado": "OBSERVACIONES, NO PASS GLOBAL",
+      "total": 262,
+      "categorias": [
+        {
+          "nombre": "rls_enabled_no_policy",
+          "nivel": "INFO",
+          "cantidad": 60
+        },
+        {
+          "nombre": "extension_in_public",
+          "nivel": "WARN",
+          "cantidad": 1
+        },
+        {
+          "nombre": "anon_security_definer_function_executable",
+          "nivel": "WARN",
+          "cantidad": 2
+        },
+        {
+          "nombre": "authenticated_security_definer_function_executable",
+          "nivel": "WARN",
+          "cantidad": 198
+        },
+        {
+          "nombre": "auth_leaked_password_protection",
+          "nivel": "WARN",
+          "cantidad": 1
+        }
+      ]
+    },
+    "performance": {
+      "estado": "OBSERVACIONES, NO PASS GLOBAL",
+      "total": 118,
+      "categorias": [
+        {
+          "nombre": "unindexed_foreign_keys",
+          "nivel": "INFO",
+          "cantidad": 48
+        },
+        {
+          "nombre": "no_primary_key",
+          "nivel": "INFO",
+          "cantidad": 1
+        },
+        {
+          "nombre": "unused_index",
+          "nivel": "INFO",
+          "cantidad": 63
+        },
+        {
+          "nombre": "multiple_permissive_policies",
+          "nivel": "WARN",
+          "cantidad": 5
+        },
+        {
+          "nombre": "auth_db_connections_absolute",
+          "nivel": "INFO",
+          "cantidad": 1
+        }
+      ]
+    }
+  },
+  "cierreBanco": {
+    "estado": "PASS",
+    "fechaUTC": "2026-09-11T21:47:18.719Z",
+    "bancoEliminado": {
+      "id": "429fa19f-d018-428c-94a5-731541fde6ed",
+      "nombre": "multiempresa-f7-20260911",
+      "proyecto": "awshxyerdsvgjnteetfa"
+    },
+    "ausenciaVerificada": true,
+    "bancoPreexistenteConservado": true,
+    "produccionConservada": true
+  },
+  "noEjecutado": {
+    "g6ConciliacionReal": "NOT RUN",
+    "g6FirmaHumana": "NOT RUN",
+    "rendimientoVolumenProductivo": "NOT RUN",
+    "voiceOverF6": "NOT RUN, omitido por Miguel",
+    "pilotoF8": "NOT RUN",
+    "operacionMensualF9": "NOT RUN"
+  },
+  "g6Firmado": false,
+  "activacionF7": false,
+  "backfill": false,
+  "comisiones": "FUERA DEL SISTEMA",
+  "evidenciaPrivada": [
+    {
+      "archivo": "metricas-remoto.log",
+      "sha256": "cf8bcbc921620a8031357335ea81f4a99098ffee64cb527d2321777caf456707"
+    },
+    {
+      "archivo": "http-remoto.log",
+      "sha256": "46edb42670425753d525ca3cee885ca894ef47241d7853391b5e984117396dd7"
+    },
+    {
+      "archivo": "http-final-banco.log",
+      "sha256": "9b9dbf7d3ea0514588fd8593d3491f2dc5191a7be0fbc5e69dae2ffb5b707f46"
+    },
+    {
+      "archivo": "rls-antes.log",
+      "sha256": "4b4c237caee914df883970ee1678808d00926a8e10384999a4153af47be03f34"
+    },
+    {
+      "archivo": "rls-despues.log",
+      "sha256": "4b4c237caee914df883970ee1678808d00926a8e10384999a4153af47be03f34"
+    },
+    {
+      "archivo": "check-integracion-tasa.log",
+      "sha256": "d55e06d03b1c543edb25dc0e1d13377c2fced7b80f61ccd64a7aed70234b95c6"
+    },
+    {
+      "archivo": "e2e-integracion-tasa.log",
+      "sha256": "129e0cea2284748c557591dea0025cd48cf64a3e35df904ecd014dcf34ef2cd3"
+    },
+    {
+      "archivo": "push-publicacion.log",
+      "sha256": "e604c7ecd3be04ac9356061e0fcd5a14d5073d58d20e0f0d2cda4158edf15d84"
+    },
+    {
+      "archivo": "produccion-verificada.json",
+      "sha256": "0e601d711e57a2bd5dc148c05b063240a034352a0e67abc4a32f659c57e73897"
+    },
+    {
+      "archivo": "candidata-premerge-verificada.json",
+      "sha256": "8bedca16608404ddbe6f41a8e1a66811942e2d82c76f9e94cb6de7facfecf935"
+    },
+    {
+      "archivo": "banco-eliminado.json",
+      "sha256": "18eca10c13bdd5c62bbdf78795f6cdccfd4f3ff69186bd1c12737e087f8c731b"
+    },
+    {
+      "archivo": "http-despues.json",
+      "sha256": "88e6a8455c6b646fbca8ff832ece41488061f4580167dc9607835e0fecc8012e"
+    },
+    {
+      "archivo": "premerge-final.json",
+      "sha256": "82a700b4f227bfdafc221288d8d8e755408c4b99523375095e46a84cb5e5a899"
+    }
+  ]
+}

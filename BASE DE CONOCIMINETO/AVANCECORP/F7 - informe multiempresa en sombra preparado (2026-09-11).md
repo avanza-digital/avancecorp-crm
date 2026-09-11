@@ -1,10 +1,14 @@
 ---
 tags: [crm, multiempresa, metricas, f7, g6, retomar]
 fecha: 2026-09-11
-estado: ensayo-remoto-en-curso-sql-y-coste-autorizados
+estado: historial-de-preparacion-publicacion-completada-off
 ---
 
 # F7 — informe por empresa preparado en local
+
+**Nota histórica de preparación.** Estado vigente y punto de retoma:
+[[F7 - publicada y apagada (2026-09-11)]]. SQL instalado, frontend publicado
+y banco temporal eliminado; G6 continúa pendiente.
 
 Continúa [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]],
 después de [[F6 - cierre y ajustes publicados (2026-09-11)]].
@@ -65,7 +69,7 @@ conservan su alcance; no se inventó otra aprobación manual.
 El estado preciso de los gates y sus límites se registra en
 [aceptación F7](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACEPTACION.md).
 
-## Estado para retomar
+## Estado al terminar la construcción local, antes del ensayo remoto
 
 - Rama de trabajo: `codex/f7-metricas`, worktree `/private/tmp/avancecorp-f5-publicacion`.
 - Código F7 guardado en `2a9ff19`; la evidencia se incorpora en un commit posterior.
@@ -104,12 +108,10 @@ Capturas privadas: `/private/tmp/avancecorp-f7-publicacion-20260911`.
 
 ## Siguiente paso concreto
 
-1. SQL y coste autorizados. Banco propio creado: continuar su ensayo y cierre
-   según [el avance remoto](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ENSAYO-REMOTO-2026-09-11.md).
-2. Ensayar el paquete en la rama Supabase autorizada, completar gates remotos
-   y publicar desde Main/remoto/artefacto con el mismo commit verificado.
-3. Verificar la instalación apagada y realizar la revisión de cifras reales.
-4. Completar y firmar
+El ensayo remoto, la instalación OFF y la publicación ya se completaron;
+ver [[F7 - publicada y apagada (2026-09-11)]]. No repetirlos por esta nota.
+
+1. Preparar la revisión de cifras reales y completar y firmar
    [G6](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACTA-G6.md).
-5. Solo entonces solicitar el piloto económico F8 y seguir F9 con su ciclo
+2. Solo entonces solicitar el piloto económico F8 y seguir F9 con su ciclo
    operativo mensual. Este ensayo no sustituye esas fases ni sus firmas.

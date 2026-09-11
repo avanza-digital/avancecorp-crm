@@ -1,14 +1,16 @@
 # F7 multiempresa — informe de Gerencia en sombra
 
-Candidata del 11/09/2026, ensayada en el banco remoto autorizado.
-**Instalación y publicación productivas en curso.**
+Entrega del 11/09/2026, ensayada en el banco remoto autorizado.
+**Publicada e instalada en producción, con F7 apagada; banco temporal cerrado.**
 G6 requiere conciliación y firma humana; F8/F9 siguen pendientes.
 Este módulo es distinto de los antiguos scripts `gate-f7-*` de altas.
 
 Miguel aprobó el SQL exacto y su instalación inicialmente apagada el 11/09/2026
 (respuesta «sii»). También aprobó el coste de **US$0.01344 por hora**; se creó el banco exclusivo
 `multiempresa-f7-20260911`. No volver a pedir estas autorizaciones ni confundir
-el banco antiguo `banco-f7` con esta fase. [Preparación](PREPARACION-INSTALACION-2026-09-11.md) y
+el banco antiguo `banco-f7` con esta fase. Estado vigente:
+[publicación verificada](PUBLICACION-2026-09-11.md). Historial:
+[preparación](PREPARACION-INSTALACION-2026-09-11.md) y
 [ensayo remoto](ENSAYO-REMOTO-2026-09-11.md).
 
 La pantalla **Empresas** reúne capital, cantidad de inversiones, personas en
@@ -27,8 +29,10 @@ Comisiones externas. [Significado exacto de las cifras](CONTRATO.md).
   No admite parámetros de ámbito. Auxiliares privados cerrados a Data API.
 - [Reversa](reversa-operativa.sql): apaga solo F7 y conserva objetos e historia.
 - [Base productiva leída](base-productiva-2026-09-11.json): cuatro huellas,
-  273 migraciones, F7 ausente, F3 ON y F4/F5/F6 OFF. La migración rechaza una
-  divergencia de los lectores antes de crear objetos.
+  captura histórica inicial de 273 migraciones y F7 ausente. Se actualizó a
+  274 antes del ensayo; la instalación deja 275, con las 274 previas intactas.
+  Registro remoto F7 `20260911212526`; archivo aprobado `20260911163243`
+  conservado sin renombrar. La migración exige las huellas de los lectores.
 - El frontend tolera únicamente `PGRST202` como RPC aún ausente. OFF no pide
   cifras. Un error de red, permiso revocado o contrato incompleto oculta los
   datos anteriores; no convierte el error en un informe de ceros.
@@ -105,7 +109,10 @@ contienen cifras inventadas; no son una conciliación real ni una revisión
 manual de Miguel. El modo demo requiere `VITE_ENABLE_DEMO=true` y build de
 desarrollo; no se habilita en el artefacto productivo.
 
-## Instalación posterior
+## Procedimiento de instalación ya ejecutado
+
+Los pasos 1–4 se completaron el 11/09; el banco propio se eliminó después de
+verificar producción OFF. No volver a ejecutar la instalación. Sigue el paso 5.
 
 1. Conservar el SQL concreto ya aprobado. Integrar cambios de `avancecorp/main`,
    sin sobrescribir ni hacer force push; publicar solo un artefacto construido
@@ -125,10 +132,11 @@ desarrollo; no se habilita en el artefacto productivo.
    resuelve los quince huecos históricos ni autoriza el piloto económico F8.
 
 La medición local de rendimiento sirve solo como evidencia del banco pequeño;
-las mediciones con volumen real y los gates remotos pertenecen al ensayo de
-instalación y posterior conciliación.
+la medición con volumen real sigue NOT RUN. Los gates remotos específicos
+pasaron; la matriz general mantiene 57 FAIL antes/después, sin regresiones.
 
-Código guardado en `2a9ff19`, sobre `avancecorp/main@5d49bcf`. El respaldo
+Código inicial guardado en `2a9ff19`; publicación integrada desde el commit
+común Main/remoto `32eae8a22cbeef8bc54c20e989c6612c0f201efe`. El respaldo
 duradero se conserva en `/Users/usuario/.codex/backups/avancecorp-f7-20260911`;
 incluye un bundle Git, dumps sintéticos y evidencia privada. No copiar las
 claves locales a Git. [Estado de aceptación](ACEPTACION.md).
