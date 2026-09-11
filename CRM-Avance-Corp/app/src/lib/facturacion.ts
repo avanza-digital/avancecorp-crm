@@ -19,6 +19,7 @@
 //     analista, no borra el dinero que la empresa recibió. El núcleo
 //     (`crm.metricas_capital_mes_fn`) tampoco lo descuenta,
 //   · PEN y USD JAMÁS se suman: la malla se construye para UNA moneda.
+import { totalEnSoles, type CapitalUnificado } from './capital-unificado'
 import { parseDateLocal, formatDateLocal } from './cronograma'
 import type { Moneda } from './format'
 
@@ -543,6 +544,70 @@ export function conciliarFiltro(
     (id) => roster.find((p) => p.id === id)?.supervisorId === filtro.equipo,
   )
   return permitidos.length === filtro.analistas.length ? filtro : { ...filtro, analistas: permitidos }
+}
+
+/**
+ * El total del día con las DOS monedas juntas — Miguel, 11/09/2026: «necesito
+ * ver el total de soles y dólares por día; me gusta verlo por separado, pero
+ * necesito ver un total».
+ *
+ * El CAPITAL no se suma a ciegas: se convierte el USD a soles con el mismo motor
+ * que ya usa Gestión de equipo (`totalEnSoles`, decisión #10 de Miguel del
+ * 10/08/2026), a un tipo de cambio real y conocido. Sin tipo de cambio el total
+ * queda SOLO en soles y el dólar viaja aparte, rotulado — jamás se inventa tasa.
+ * Convertir a tasa real ≠ sumar peras con manzanas; la regla «PEN y USD jamás se
+ * suman» sigue intacta para el capital crudo de la tabla de arriba.
+ *
+ * Los CONTRATOS sí se suman tal cual: son cuentas, no dinero. Tres contratos en
+ * soles y uno en dólares son cuatro contratos, sin conversión que valga.
+ */
+export interface TotalDiaFacturacion {
+  readonly capital: CapitalUnificado
+  readonly contratos: number
+}
+
+/**
+ * ¿Se puede AFIRMAR este total en soles?
+ *
+ * Sí cuando la conversión ocurrió de verdad… y también cuando no había nada que
+ * convertir: un día sin un solo dólar tiene su total completo en soles, haya o
+ * no tipo de cambio. Exigir tasa ahí pondría un guion sobre una cifra que sí se
+ * conoce. (Lo señaló Codex el 11/09/2026; mi versión pedía tasa siempre.)
+ *
+ * No cuando falta la tasa y SÍ hay dólares: ese total excluiría dinero real, y
+ * enseñarlo bajo el rótulo «en soles» se leería como si estuviera todo dentro.
+ */
+export function totalAfirmable(capital: CapitalUnificado): boolean {
+  if (capital.total == null) return false
+  return capital.estado === 'convertido' || capital.usd === 0
+}
+
+export function totalesUnificados(
+  mallaPen: MallaFacturacion,
+  mallaUsd: MallaFacturacion,
+  tc: number | null | undefined,
+): { porDia: readonly TotalDiaFacturacion[]; mes: TotalDiaFacturacion } {
+  // PRECONDICIÓN: las dos mallas son del MISMO mes, así que comparten calendario.
+  // Se usa el de soles sin más. (Antes había un `Math.min` de las dos longitudes:
+  // no protegía de nada —construirMalla genera los días a partir del mes— y, si
+  // alguna vez divergieran, habría escondido el fallo recortando días en
+  // silencio. Codex, 11/09/2026.)
+  const porDia: TotalDiaFacturacion[] = []
+  for (let i = 0; i < mallaPen.dias.length; i += 1) {
+    const pen = mallaPen.totalPorDia[i] ?? CELDA_VACIA
+    const usd = mallaUsd.totalPorDia[i] ?? CELDA_VACIA
+    porDia.push({
+      capital: totalEnSoles(pen.capital, usd.capital, tc),
+      contratos: pen.contratos + usd.contratos,
+    })
+  }
+  return {
+    porDia,
+    mes: {
+      capital: totalEnSoles(mallaPen.total.capital, mallaUsd.total.capital, tc),
+      contratos: mallaPen.total.contratos + mallaUsd.total.contratos,
+    },
+  }
 }
 
 /** Las filas de analista de la malla, en plano y con su equipo — la vista de comparación. */

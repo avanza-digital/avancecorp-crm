@@ -28,6 +28,7 @@ import {
   rosterDeFilas,
   SIN_SUPERVISOR_ID,
   SIN_SUPERVISOR_NOMBRE,
+  totalesUnificados,
   valorCelda,
   type FilaFacturacionDia,
   type FiltroFacturacion,
@@ -435,5 +436,61 @@ describe('roster con el organigrama', () => {
 
     const otroEquipo: FiltroFacturacion = { equipo: 'sup-2', analistas: [] }
     expect(filtrarRoster(roster, otroEquipo)).toEqual([])
+  })
+})
+
+/* ───── El total del día con las dos monedas (Miguel, 11/09/2026) ─────
+ * «necesito ver el total de soles y dólares por día». El capital se convierte
+ * con el motor ya aprobado (`totalEnSoles`); los contratos se suman tal cual.
+ */
+describe('total del día con las dos monedas', () => {
+  const FILAS_DOS_MONEDAS: readonly FilaFacturacionDia[] = [
+    fila({ dia: '2026-09-02', moneda: 'PEN', capital: 300_000, operaciones: 3 }),
+    fila({ dia: '2026-09-02', moneda: 'USD', capital: 7_000, operaciones: 1 }),
+    fila({ dia: '2026-09-03', moneda: 'PEN', capital: 80_000, operaciones: 1 }),
+  ]
+  const pen = (): ReturnType<typeof construirMalla> => construirMalla(FILAS_DOS_MONEDAS, MES, 'PEN')
+  const usd = (): ReturnType<typeof construirMalla> => construirMalla(FILAS_DOS_MONEDAS, MES, 'USD')
+  const indice = (dia: string): number => diasDelMes(MES).indexOf(dia)
+
+  it('convierte el dólar a soles al TC dado y lo suma al del día', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    const dia2 = t.porDia[indice('2026-09-02')]
+    expect(dia2?.capital.estado).toBe('convertido')
+    expect(dia2?.capital.total).toBe(300_000 + 7_000 * 3.75)
+    expect(dia2?.capital.tc).toBe(3.75)
+  })
+
+  it('sin TC el total NO incluye el dólar, y lo dice', () => {
+    const t = totalesUnificados(pen(), usd(), null)
+    const dia2 = t.porDia[indice('2026-09-02')]
+    expect(dia2?.capital.estado).toBe('solo_pen')
+    expect(dia2?.capital.total).toBe(300_000)
+    expect(dia2?.capital.usd).toBe(7_000)
+  })
+
+  it('un TC inválido no multiplica dinero: 0, negativo o NaN quedan fuera', () => {
+    for (const malo of [0, -3.75, Number.NaN]) {
+      const t = totalesUnificados(pen(), usd(), malo)
+      expect(t.mes.capital.estado).toBe('solo_pen')
+      expect(t.mes.capital.tc).toBeNull()
+    }
+  })
+
+  it('los CONTRATOS se suman tal cual: son cuentas, no dinero', () => {
+    const t = totalesUnificados(pen(), usd(), null)
+    expect(t.porDia[indice('2026-09-02')]?.contratos).toBe(4)
+    expect(t.mes.contratos).toBe(5)
+  })
+
+  it('el total del mes cuadra con la suma de sus días', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    const sumaDias = t.porDia.reduce((a, d) => a + (d.capital.total ?? 0), 0)
+    expect(t.mes.capital.total).toBeCloseTo(sumaDias, 6)
+  })
+
+  it('un día sin nada no inventa un total: queda en cero, no en null', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    expect(t.porDia[indice('2026-09-20')]?.capital.total).toBe(0)
   })
 })

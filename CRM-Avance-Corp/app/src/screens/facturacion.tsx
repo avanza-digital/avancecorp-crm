@@ -20,7 +20,7 @@
 // día, ya resolvió el ámbito y ya puso el supervisor de ENTONCES; aquí no se
 // recalcula nada, solo se dibuja. En modo demo se sirve un fixture con la MISMA
 // forma, rotulado como ejemplo: el demo nunca puede prometer más que producción.
-import { useId, useMemo, useState, type CSSProperties, type JSX } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type JSX } from 'react'
 import {
   CalendarRange,
   ChevronDown,
@@ -46,6 +46,8 @@ import { useFacturacionDiaria } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
+import { useTipoCambio } from '@/lib/tipo-cambio'
+import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal, parseDateLocal } from '@/lib/cronograma'
@@ -54,6 +56,7 @@ import {
   conciliarFiltro,
   construirMalla,
   desgloseDeCelda,
+  diasDelMes,
   diasHabilesHasta,
   equiposDeRoster,
   esFinDeSemana,
@@ -73,6 +76,8 @@ import {
   primerDiaDelMes,
   rosterDeEquipoYFilas,
   TIPO_CAPITAL_NUEVO,
+  totalAfirmable,
+  totalesUnificados,
   valorCelda,
   type FilaFacturacion,
   type FilaFacturacionDia,
@@ -388,10 +393,54 @@ export function Facturacion({
   // El roster va filtrado con el MISMO filtro que las ventas: si no, elegir a un
   // analista seguiría pintando a todos los demás en cero.
   const rosterFiltrado = useMemo(() => filtrarRoster(roster, filtro), [roster, filtro])
-  const malla = useMemo(
-    () => construirMalla(filtradas, mes, moneda, TIPO_CAPITAL_NUEVO, rosterFiltrado),
-    [filtradas, mes, moneda, rosterFiltrado],
+  // Se construyen las DOS monedas siempre. La tabla de arriba pinta solo la
+  // elegida —PEN y USD no se mezclan ahí—, pero el pie necesita ambas para dar
+  // el total del día. `construirMalla` es pura y barata: dos pasadas sobre las
+  // mismas filas cuestan menos que una consulta de más.
+  const mallaPen = useMemo(
+    () => construirMalla(filtradas, mes, 'PEN', TIPO_CAPITAL_NUEVO, rosterFiltrado),
+    [filtradas, mes, rosterFiltrado],
   )
+  const mallaUsd = useMemo(
+    () => construirMalla(filtradas, mes, 'USD', TIPO_CAPITAL_NUEVO, rosterFiltrado),
+    [filtradas, mes, rosterFiltrado],
+  )
+  const malla = moneda === 'PEN' ? mallaPen : mallaUsd
+
+  // Tipo de cambio del MES QUE SE MIRA: un mes cerrado se congela en su último
+  // día, así su total no cambia cada mañana. El mes en curso usa el vigente.
+  // Izado una sola vez por pantalla (el hook no pasa por TanStack: uno por fila
+  // multiplicaría las llamadas a la edge).
+  const ultimoDiaDelMes = useMemo(() => {
+    const todosLosDias = diasDelMes(mes)
+    return todosLosDias[todosLosDias.length - 1] ?? mes
+  }, [mes])
+  const tipoCambio = useTipoCambio(true, mes === mesDeHoy ? undefined : ultimoDiaDelMes)
+  const { tc } = tipoCambio
+  const recargarTipoCambio = tipoCambio.recargar
+  // El mes en curso pide el TC vigente, y su clave no lleva la fecha: una pestaña
+  // abierta de un día para otro seguiría convirtiendo con la tasa de ayer
+  // mientras la facturación sí se refresca. Se recarga al cambiar el día, igual
+  // que Gestión de equipo. (Lo cazó Codex el 11/09/2026.)
+  const diaDelTipoCambioAnterior = useRef(hoy)
+  useEffect(() => {
+    if (diaDelTipoCambioAnterior.current === hoy) return
+    diaDelTipoCambioAnterior.current = hoy
+    if (mes === mesDeHoy) recargarTipoCambio()
+  }, [hoy, mes, mesDeHoy, recargarTipoCambio])
+
+  const totales = useMemo(
+    () => totalesUnificados(mallaPen, mallaUsd, tc?.promedio),
+    [mallaPen, mallaUsd, tc],
+  )
+  const totalMes = totales.mes.capital
+  // La fila aporta cuando HAY DÓLARES: es entonces cuando el equivalente en
+  // soles dice algo que el total de arriba no dice. Sin un solo dólar el total
+  // unificado sería idéntico al de soles, y un duplicado se come alto de
+  // pantalla. Pedía las DOS monedas y eso escondía la fila justo en el caso en
+  // que más sirve —un mes o un filtro con ventas SOLO en dólares—, donde la
+  // vista en soles marca S/ 0 mientras hay dinero. (Codex, 11/09/2026.)
+  const hayDolares = mallaUsd.total.contratos > 0
 
   // Mismo tramo del mes anterior — comparar un mes entero contra diez días mentiría.
   const mesPrevio = mesDesplazado(mes, -1)
@@ -1005,6 +1054,93 @@ export function Facturacion({
                         : numero(malla.total.contratos)}
                     </td>
                   </tr>
+
+                  {/* El total del día con las DOS monedas. El capital lleva el
+                      USD convertido a soles al TC real; si no hay TC, el total
+                      es solo-PEN y se dice. Los contratos se suman tal cual. */}
+                  {hayDolares && (
+                  <tr className="bg-muted/40">
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-20 border-t border-r border-border bg-muted px-4 py-1.5 text-left"
+                    >
+                      <span className="block text-[12px] font-extrabold">
+                        {metrica === 'capital' ? 'Total del día en soles' : 'Total del día'}
+                      </span>
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        {metrica !== 'capital'
+                          ? 'contratos de ambas monedas'
+                          : totalMes.tc != null
+                            ? rotuloTipoCambio(totalMes.tc, tc?.fuente ?? '')
+                            : tc === undefined
+                              ? 'consultando el tipo de cambio…'
+                              : 'total no disponible: falta el tipo de cambio'}
+                      </span>
+                      {/* Una caída del BCRP es transitoria y dejaba la fila en
+                          guiones hasta remontar la pantalla: el reintento de
+                          arriba solo recarga la facturación. (Codex, 11/09.) */}
+                      {metrica === 'capital' && tc === null && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={recargarTipoCambio}
+                          className="mt-0.5 h-6 px-1.5 text-[10px] font-semibold"
+                        >
+                          <RotateCcw aria-hidden className="size-3" /> Reintentar
+                        </Button>
+                      )}
+                    </th>
+                    {malla.dias.map((dia, i) => {
+                      const unificado = totales.porDia[i]
+                      // Sin conversión real no se afirma un total: el solo-PEN
+                      // bajo el rótulo «en soles» se leería como si el dólar
+                      // estuviera dentro. Mejor un guion honesto.
+                      const v =
+                        metrica !== 'capital'
+                          ? (unificado?.contratos ?? 0)
+                          : unificado != null && totalAfirmable(unificado.capital)
+                            ? unificado.capital.total
+                            : null
+                      // La celda va abreviada («66k»), así que el importe EXACTO
+                      // tiene que estar en algún sitio consultable: en el title y
+                      // en un `sr-only`, como hace `Celda`. Sin esto había que
+                      // hacer la conversión a mano para saber el total del día.
+                      // (Codex, 11/09/2026.)
+                      const exacto =
+                        metrica !== 'capital'
+                          ? `${numero(v ?? 0)} contratos`
+                          : v == null
+                            ? 'total no disponible: falta el tipo de cambio'
+                            : money(v, 'PEN')
+                      const desglose =
+                        metrica !== 'capital'
+                          ? ''
+                          : ` (${money(unificado?.capital.pen ?? 0, 'PEN')} + ${money(unificado?.capital.usd ?? 0, 'USD')})`
+                      return (
+                        <td
+                          key={dia}
+                          className={cn(
+                            'border-t border-r border-border/60 px-0.5 py-1 text-center',
+                            esFinDeSemana(dia) && 'bg-muted/60',
+                          )}
+                          title={`${etiquetaDiaLargo(dia)}: ${exacto}${desglose}`}
+                        >
+                          <span className="block text-[9px] font-extrabold tabular-nums" aria-hidden>
+                            {v == null ? '—' : compacta(v, metrica)}
+                          </span>
+                          <span className="sr-only">{exacto}</span>
+                        </td>
+                      )
+                    })}
+                    <td className="sticky right-0 z-20 border-t border-l border-border bg-muted px-3 py-1.5 text-right text-[13px] font-extrabold tabular-nums">
+                      {metrica !== 'capital'
+                        ? numero(totales.mes.contratos)
+                        : totalAfirmable(totalMes)
+                          ? money(totalMes.total ?? 0, 'PEN')
+                          : '—'}
+                    </td>
+                  </tr>
+                  )}
                 </tfoot>
               </table>
             </div>
