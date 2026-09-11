@@ -47,6 +47,29 @@ export interface FilaFacturacionDia {
 /** El tipo que la pantalla muestra por defecto: capital nuevo. */
 export const TIPO_CAPITAL_NUEVO = 'contrato_nuevo'
 
+/**
+ * Los tipos de capital que la pantalla ofrece, y `'todo'`, que no filtra nada.
+ *
+ * Miguel, 11/09/2026, al no encontrar un contrato suyo: la malla estaba clavada
+ * en capital nuevo y no había perilla, así que renovaciones, upgrades y
+ * cooperativa NO tenían dónde aparecer — en setiembre eso dejaba fuera
+ * S/ 389 300 y US$ 21 000 de dinero real. El servidor ya devolvía el tipo; lo
+ * que faltaba era poder elegirlo.
+ *
+ * `'todo'` suma los cuatro (y cualquier tipo nuevo que el servidor añada
+ * mañana): son capital de la misma moneda, así que sumarlos es legítimo. Lo que
+ * NO se mezcla jamás son las monedas.
+ */
+export const TIPO_TODOS = 'todo'
+export const TIPOS_FACTURACION = [
+  TIPO_CAPITAL_NUEVO,
+  'contrato_renovacion',
+  'contrato_upgrade',
+  'cooperativa',
+  TIPO_TODOS,
+] as const
+export type TipoFacturacion = (typeof TIPOS_FACTURACION)[number]
+
 /** Qué se está mirando en la malla. Union + `as const`: el proyecto no usa enum. */
 export const METRICAS_FACTURACION = ['capital', 'contratos'] as const
 export type MetricaFacturacion = (typeof METRICAS_FACTURACION)[number]
@@ -283,7 +306,9 @@ export function construirMalla(
     })
   }
   for (const f of filas) {
-    if (f.moneda !== moneda || f.tipo !== tipo) continue
+    // `TIPO_TODOS` no filtra: entra cualquier tipo, incluso uno que el servidor
+    // añada en el futuro y que esta pantalla todavía no sepa rotular.
+    if (f.moneda !== moneda || (tipo !== TIPO_TODOS && f.tipo !== tipo)) continue
     const indice = indicePorDia.get(f.dia)
     if (indice == null) continue
     let acc = porAnalista.get(f.analistaId)
@@ -650,8 +675,17 @@ export function desgloseDeCelda(
   filas: readonly FilaFacturacionDia[],
   analistaId: string,
   dia: string | null,
+  tipo: TipoFacturacion = TIPO_TODOS,
 ): FilaFacturacionDia[] {
   return filas
-    .filter((f) => f.analistaId === analistaId && (dia == null || f.dia === dia))
+    .filter(
+      (f) =>
+        f.analistaId === analistaId &&
+        (dia == null || f.dia === dia) &&
+        // El detalle habla de LO QUE SE ESTÁ VIENDO: abrir una celda de
+        // renovaciones y que el panel liste también los contratos nuevos
+        // contradiría la cifra sobre la que se acaba de pinchar.
+        (tipo === TIPO_TODOS || f.tipo === tipo),
+    )
     .sort((a, b) => a.dia.localeCompare(b.dia) || b.capital - a.capital)
 }

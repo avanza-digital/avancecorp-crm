@@ -28,6 +28,8 @@ import {
   rosterDeFilas,
   SIN_SUPERVISOR_ID,
   SIN_SUPERVISOR_NOMBRE,
+  TIPO_CAPITAL_NUEVO,
+  TIPO_TODOS,
   totalesUnificados,
   valorCelda,
   type FilaFacturacionDia,
@@ -492,5 +494,56 @@ describe('total del día con las dos monedas', () => {
   it('un día sin nada no inventa un total: queda en cero, no en null', () => {
     const t = totalesUnificados(pen(), usd(), 3.75)
     expect(t.porDia[indice('2026-09-20')]?.capital.total).toBe(0)
+  })
+})
+
+/* ───── Tipos de capital (Miguel, 11/09/2026) ─────
+ * Buscó un contrato suyo y no lo encontró: la malla estaba clavada en capital
+ * nuevo, así que renovaciones, upgrades y cooperativa no tenían dónde salir.
+ * En setiembre eso dejaba fuera S/ 389 300 y US$ 21 000 de dinero real.
+ */
+describe('tipos de capital', () => {
+  const VARIADAS: readonly FilaFacturacionDia[] = [
+    fila({ dia: '2026-09-02', tipo: 'contrato_nuevo', capital: 300_000, operaciones: 3 }),
+    fila({ dia: '2026-09-02', tipo: 'contrato_renovacion', capital: 10_000, operaciones: 1 }),
+    fila({ dia: '2026-09-03', tipo: 'contrato_upgrade', capital: 25_000, operaciones: 1 }),
+    fila({ dia: '2026-09-03', tipo: 'cooperativa', capital: 40_000, operaciones: 2 }),
+  ]
+  const totalDe = (tipo: string): number =>
+    valorCelda(construirMalla(VARIADAS, MES, 'PEN', tipo).total, 'capital')
+
+  it('cada tipo enseña lo suyo y nada más', () => {
+    expect(totalDe(TIPO_CAPITAL_NUEVO)).toBe(300_000)
+    expect(totalDe('contrato_renovacion')).toBe(10_000)
+    expect(totalDe('contrato_upgrade')).toBe(25_000)
+    expect(totalDe('cooperativa')).toBe(40_000)
+  })
+
+  it('«todo» los suma: son capital de la MISMA moneda', () => {
+    expect(totalDe(TIPO_TODOS)).toBe(375_000)
+  })
+
+  it('«todo» recoge también un tipo que esta pantalla aún no sabe rotular', () => {
+    // El servidor puede añadir un tipo mañana. Bajo «todo» tiene que contar: lo
+    // contrario sería un total que se llama «todo» y esconde dinero.
+    const conFuturo = [...VARIADAS, fila({ dia: '2026-09-04', tipo: 'tipo_del_futuro', capital: 5_000 })]
+    expect(valorCelda(construirMalla(conFuturo, MES, 'PEN', TIPO_TODOS).total, 'capital')).toBe(380_000)
+    // Pero NO se cuela en ningún tipo concreto.
+    expect(valorCelda(construirMalla(conFuturo, MES, 'PEN', TIPO_CAPITAL_NUEVO).total, 'capital')).toBe(300_000)
+  })
+
+  it('las monedas NO se mezclan ni siquiera bajo «todo»', () => {
+    const conDolares = [...VARIADAS, fila({ dia: '2026-09-02', tipo: 'contrato_renovacion', moneda: 'USD', capital: 10_000 })]
+    expect(valorCelda(construirMalla(conDolares, MES, 'PEN', TIPO_TODOS).total, 'capital')).toBe(375_000)
+    expect(valorCelda(construirMalla(conDolares, MES, 'USD', TIPO_TODOS).total, 'capital')).toBe(10_000)
+  })
+
+  it('el desglose de una celda habla del tipo que se está viendo', () => {
+    const soloRenovacion = desgloseDeCelda(VARIADAS, 'a1', '2026-09-02', 'contrato_renovacion')
+    expect(soloRenovacion.map((f) => f.tipo)).toEqual(['contrato_renovacion'])
+    // Abrir una celda de renovaciones y ver ahí los contratos nuevos
+    // contradiría la cifra sobre la que se acaba de pinchar.
+    const todo = desgloseDeCelda(VARIADAS, 'a1', '2026-09-02', TIPO_TODOS)
+    expect(todo).toHaveLength(2)
   })
 })

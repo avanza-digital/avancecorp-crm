@@ -508,6 +508,90 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   })
 })
 
+describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)', () => {
+  /** El tipo se elige en un desplegable, no en botones: cinco botones partían
+   *  la barra de filtros en dos filas. */
+  function elegirTipo(valor: string): void {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo de capital' }), { target: { value: valor } })
+  }
+
+  /** Un mes con los cuatro tipos, como el setiembre real. */
+  const VARIADAS: readonly FilaFacturacionDia[] = [
+    fila({ id: 'n', dia: '2026-09-02', tipo: 'contrato_nuevo', capital: 300_000 }),
+    fila({ id: 'r', dia: '2026-09-02', tipo: 'contrato_renovacion', capital: 10_000 }),
+    fila({ id: 'u', dia: '2026-09-03', tipo: 'contrato_upgrade', capital: 25_000 }),
+    fila({ id: 'c', dia: '2026-09-03', tipo: 'cooperativa', capital: 40_000 }),
+  ]
+
+  it('abre en capital nuevo, como hasta ahora', () => {
+    pintar(VARIADAS)
+    expect(screen.getByRole('combobox', { name: 'Tipo de capital' })).toHaveValue('contrato_nuevo')
+    // Sale varias veces —fila del analista, fila del equipo, pie— y así debe ser.
+    expect(within(malla()).getAllByText('S/ 300,000').length).toBeGreaterThan(0)
+    expect(within(malla()).queryByText('S/ 10,000')).toBeNull() // la renovación, fuera
+  })
+
+  it('una renovación SÍ se puede ver: era justo lo que no se podía', () => {
+    pintar(VARIADAS)
+    elegirTipo('contrato_renovacion')
+    expect(within(malla()).getAllByText('S/ 10,000').length).toBeGreaterThan(0)
+    expect(within(malla()).queryByText('S/ 300,000')).toBeNull()
+  })
+
+  it('«Todo» suma los cuatro tipos, sin mezclar monedas', () => {
+    pintar(VARIADAS)
+    elegirTipo('todo')
+    expect(within(malla()).getAllByText('S/ 375,000').length).toBeGreaterThan(0)
+  })
+
+  it('el titular sigue a la perilla: nunca dos cifras distintas a la vez', () => {
+    // Decisión de Miguel: «lo que diga la perilla». Un titular clavado en
+    // capital nuevo mientras la tabla enseña renovaciones sería un tablero
+    // diciendo dos cosas al mismo tiempo.
+    pintar(VARIADAS)
+    expect(screen.getAllByText('S/ 300,000').length).toBeGreaterThanOrEqual(2) // titular y malla
+    expect(screen.queryByText('S/ 375,000')).toBeNull()
+    elegirTipo('todo')
+    expect(screen.getAllByText('S/ 375,000').length).toBeGreaterThanOrEqual(2) // titular y malla
+    expect(screen.queryByText('S/ 300,000')).toBeNull()
+  })
+
+  it('el % contra el mes pasado compara EL MISMO tipo, no manzanas con peras', () => {
+    // Setiembre: 100k de renovación. Agosto: 50k de renovación y 400k de nuevo.
+    // Comparando bien sale +100 %; comparando contra el nuevo de agosto saldría
+    // −75 %, y el titular estaría mintiendo sobre el propio mes que enseña.
+    pintar([
+      fila({ id: 'r9', dia: '2026-09-02', tipo: 'contrato_renovacion', capital: 100_000 }),
+      fila({ id: 'r8', dia: '2026-08-05', tipo: 'contrato_renovacion', capital: 50_000 }),
+      fila({ id: 'n8', dia: '2026-08-05', tipo: 'contrato_nuevo', capital: 400_000 }),
+    ])
+    elegirTipo('contrato_renovacion')
+    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo de/)).toBeVisible()
+  })
+
+  it('el rótulo del KPI de contratos deja de decir «nuevos» siempre', () => {
+    pintar(VARIADAS)
+    expect(screen.getByText('Contratos · Capital nuevo')).toBeVisible()
+    elegirTipo('contrato_renovacion')
+    expect(screen.getByText('Contratos · Renovación')).toBeVisible()
+    elegirTipo('todo')
+    expect(screen.getByText('Contratos cerrados')).toBeVisible()
+  })
+
+  it('el detalle de una celda habla del tipo que se está viendo', () => {
+    pintar(VARIADAS)
+    elegirTipo('contrato_renovacion')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Ana Analista' }))
+    // Abrir una celda de renovaciones y encontrar ahí los contratos nuevos
+    // contradiría la cifra sobre la que se acaba de pinchar.
+    const panel = screen.getByRole('dialog')
+    // El desglose lista «Renovación · N contratos»; el tipo aparece tantas
+    // veces como líneas tenga, pero NUNCA el capital nuevo.
+    expect(within(panel).getAllByText(/Renovación/).length).toBeGreaterThan(0)
+    expect(within(panel).queryByText(/Capital nuevo/)).toBeNull()
+  })
+})
+
 describe('moneda y métrica', () => {
   it('cambiar de moneda cambia los números, no quién aparece', () => {
     pintar()
