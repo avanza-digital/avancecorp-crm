@@ -1,0 +1,16 @@
+{
+  "estado": "PASS",
+  "objetos": [
+    "dispositivos_push_tasa",
+    "envios_push_tasa",
+    "confirmar_envio_push_tasa_fn",
+    "desactivar_push_tasa_fn",
+    "estado_push_tasa_fn",
+    "materializar_envio_push_tasa_fn",
+    "preparar_prueba_push_tasa_fn",
+    "registrar_push_tasa_fn",
+    "tomar_envios_push_tasa_fn",
+    "verificar_cron_push_tasa_fn"
+  ],
+  "criterio": "AST: dos tablas y ocho RPC coinciden con los tipos generados del banco remoto"
+}

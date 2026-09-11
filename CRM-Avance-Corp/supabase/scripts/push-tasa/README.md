@@ -1,6 +1,6 @@
 # Avisos de solicitudes de tasa en la PWA del CRM
 
-**Estado: SQL y coste autorizados el 11/09/2026; banco remoto en verificación.**
+**Estado: banco remoto verificado el 11/09/2026; publicación preparada.**
 Proyecto: `dctqcbznekcyxhjujuci`. Frontend: `https://crm.miavance.com`.
 Trabajo aislado del frente F7 en `/private/tmp/avancecorp-tasa-lead-real-20260908`.
 No se modificó la base productiva ni se enviaron avisos reales durante este trabajo.
@@ -113,13 +113,15 @@ y los conserva para inspección. No borra ni prepara una base productiva.
 node supabase/scripts/push-tasa/concurrencia.mjs crm_push_tasa_concurrencia_final_20260910
 ```
 
-## Publicación pendiente
+## Publicación
 
 1. Los dos SQL exactos y la organización ya están autorizados. Banco
    Supabase exclusivo creado con coste autorizado; el banco de F7 se conserva.
-2. Aplicar la migración en ese banco y repetir matriz RLS/advisors, cron y Edge
-   reales. Usar claves VAPID de prueba y el destino del propio banco. Nunca poner
-   el destino productivo en una rama de prueba.
+2. Banco completado: 48 SQL, tres carreras, 19 comprobaciones HTTP/Auth y cron
+   real PASS. Matriz global: 50 fallos antes y 46 después, sin aserciones nuevas
+   fallidas; el detalle conserva la deuda y la variación del fixture de referidos.
+   Advisors y tipos verificados. [Ensayo remoto](BANCO-REMOTO-2026-09-11.md).
+   Se retiran los secretos de prueba antes del merge.
 3. Integrar `avancecorp/main` sin sobrescribir otros cambios; verificar que main
    local y remoto coinciden. Publicar solo un artefacto del commit verificado.
 4. Merge autorizado de la migración y despliegue de `crm-notificaciones-tasa`,

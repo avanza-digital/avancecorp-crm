@@ -25,8 +25,12 @@ la limpieza está restringida a esta rama y al conjunto esperado del banco.
 | Historial previo | PASS: 273 entradas y huella de arrays `d119bdcf2cccfc801ad667ce7161624b` intactos |
 | Migración nueva | PASS: versión `20260910225540`, SQL exacto aprobado `f85af64f9abe31a753317bb5fde14d2bac9a3f54c319cee4e4654c2f2b2d230f` |
 | Advisors | PASS con dos avisos esperados de tablas cerradas; sin otros hallazgos nuevos |
-| Matriz posterior | EN CURSO |
-| Concurrencia gestionada y entrega HTTP | PENDIENTE |
+| Matriz posterior | FAIL: 46/1.827; 1.781 PASS. Ninguna aserción nueva fallida |
+| Comparación de fallos | PASS por identidad de aserción; comparación literal FAIL por un payload distinto del mismo fallo previo, explicado abajo |
+| Concurrencia gestionada | PASS: tres carreras con transacciones PostgreSQL reales |
+| HTTP y revocación Auth | PASS: 16 comprobaciones HTTP y tres de baja/revocación |
+| Cron gestionado | PASS: cron → pg_net → firma → Edge → proveedor, sin destinatario real |
+| Tipos remotos | PASS: dos tablas y ocho RPC iguales por AST a los tipos del frontend |
 | Publicación y recepción en teléfono real | PENDIENTE |
 
 El instalador ejecutó el SQL, pero el registro de la rama antigua carecía de la
@@ -44,3 +48,29 @@ y se adaptó el banco; no se relajaron las comprobaciones del producto.
 Las dos tablas deliberadamente carecen de acceso directo de usuarios: su
 [aviso de RLS sin policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
 es compatible con las RPC autorizadas y no se resuelve abriendo las tablas.
+
+La comparación conserva ambos resultados globales como FAIL. No apareció una
+aserción fallida nueva. La comprobación de dos estados de conversión falla antes
+y después porque falta `medible`; su payload pasa de una a dos filas
+`solo_referidos`. El fixture escoge el primer candidato sin divisor ni cierres,
+sin excluir `vend1` (`test-rls.mjs:10446–10462`), y siembra un referido para cada
+uno (`10485–10520`). Antes, la fila candidata acumuló el cierre y los dos referidos
+de `vend1`; después fueron sujetos distintos. Esto explica las cuatro deltas que
+dejaron de fallar. La prueba y las funciones de conversión no cambiaron. No se
+presenta esa variación como una corrección de push. Ambos payloads y la diferencia
+literal están conservados en `evidencia/rls-comparacion-20260911.json`.
+
+La solicitud HTTP se creó a las 13:17:28 de Lima por las RPC reales
+`crear_lead_si_disponible` y `solicitar_tasa_fn`. El cron de las 13:18 activó
+pg_net y obtuvo HTTP 200 del worker: dos procesados, cero pendientes de confirmar.
+Los dos endpoints FCM inventados devolvieron 410; ambos dispositivos quedaron
+inactivos, con un solo intento, y la solicitud siguió pendiente. No se invocó
+manualmente el worker después del alta. La comprobación de baja usa el 204 sin
+contenido de su RPC; al revocar Auth, el JWT todavía vigente recibe 403.
+
+Dos ajustes del adaptador no cambiaron el producto: el alta directa del lead
+recibió correctamente 42501 y se cambió por la RPC vigente; la RPC de baja devuelve
+204, no 200. El ensayo final usa esos contratos reales. Antes del merge se retiran
+los secretos VAPID y Vault de prueba de esta rama; se conservan las claves
+productivas. El dispositivo real de Miguel aún debe conceder permiso y recibir
+su primera prueba.

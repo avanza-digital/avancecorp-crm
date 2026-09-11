@@ -82,3 +82,11 @@ antiguo volvió a fallar durante el arranque; se reconstruye este banco vacío
 con la estructura e historial vigentes, sin usuarios ni filas de negocio reales.
 La rama `banco-f7` pertenece a otro trabajo y no se modifica. Los dos SQL y el
 coste ya están autorizados; no hace falta pedirlos nuevamente.
+
+
+Ensayo gestionado completado el 11/09: SQL 48, concurrencia 3, HTTP/Auth 19 y
+cron real PASS con destinos ficticios. Matriz global: 50 fallos previos y 46
+posteriores, sin aserciones nuevas fallidas; variación del candidato de referidos
+registrada en el paquete, sin declarar PASS global. Advisors y tipos verificados.
+Integración `321a0ee` con Facturación: 3.303 pruebas y 164 E2E PASS, 26 SKIP.
+Publicación preparada desde main verificado; falta la prueba física en la PWA.

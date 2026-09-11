@@ -1,0 +1,42 @@
+{
+  "cola": [
+    {
+      "estado": "fallido",
+      "intentos": 1,
+      "creado_en": "2026-09-11T13:17:28.844927-05:00",
+      "enviado_en": null,
+      "codigo_http": 410
+    },
+    {
+      "estado": "fallido",
+      "intentos": 1,
+      "creado_en": "2026-09-11T13:17:28.844927-05:00",
+      "enviado_en": null,
+      "codigo_http": 410
+    }
+  ],
+  "cron": [
+    {
+      "status": "succeeded",
+      "jobname": "crm-notificaciones-tasa",
+      "end_time": "2026-09-11T13:18:00.061009-05:00",
+      "start_time": "2026-09-11T13:18:00.035402-05:00"
+    }
+  ],
+  "http": [
+    {
+      "created": "2026-09-11T13:18:00.060024-05:00",
+      "contenido": "{\"procesados\":2,\"enviados\":0,\"sinConfirmar\":0}",
+      "error_msg": null,
+      "timed_out": false,
+      "status_code": 200
+    }
+  ],
+  "dispositivos": {
+    "total": 2,
+    "activos": 0
+  },
+  "solicitud_estado": "pendiente",
+  "estado": "PASS",
+  "alcance": "Cron alojado, pg_net, HMAC, Edge, cifrado Web Push y respuesta real 410 de dos endpoints FCM ficticios. Ningún destinatario real. Solicitud preservada."
+}

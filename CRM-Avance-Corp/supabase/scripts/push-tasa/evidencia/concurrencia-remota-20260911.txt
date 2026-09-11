@@ -1,0 +1,3 @@
+PASS: dos transacciones simultáneas reclaman cuatro envíos distintos sin bloquearse
+PASS: desactivar y confirmar 410 simultáneamente no producen deadlock ni reactivan el teléfono
+PASS: la limpieza simultánea de filas inválidas y agotadas no espera bloqueos de otro worker

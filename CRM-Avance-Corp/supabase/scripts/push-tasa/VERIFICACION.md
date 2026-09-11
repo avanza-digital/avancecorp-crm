@@ -1,4 +1,32 @@
-# Verificación de la candidata local
+# Verificación de notificaciones de tasa
+
+## Estado vigente — 11 de septiembre
+
+El SQL exacto y el coste del banco están autorizados. El ensayo gestionado está
+completo; publicación y recepción en el teléfono siguen pendientes en este
+checkpoint. Los estados NOT RUN de los apartados históricos inferiores describen
+su fecha, no sustituyen este resultado.
+
+- **PASS:** integración `321a0ee` con Facturación remota; `npm run check:all`,
+  231 archivos, 3.303 pruebas y 164 recorridos de navegador (26 SKIP configurados).
+- **PASS:** banco Supabase exclusivo: 48 aserciones SQL y tres pruebas concurrentes.
+- **PASS:** 16 comprobaciones HTTP y tres de baja/revocación Auth. Un JWT aún
+  vigente queda rechazado al revocar su sesión.
+- **PASS:** cron real, pg_net, HMAC, Edge y transporte cifrado al proveedor.
+  Los endpoints son ficticios: se comprueba 410, baja y conservación de la solicitud.
+- **FAIL, anterior al cambio:** matriz global 50/1.827 antes y 46/1.827 después.
+  **PASS por aserción:** ningún fallo nuevo. Una comparación literal de payload
+  sigue distinta por la selección del candidato de referidos, documentada sin
+  ocultar ambos resultados en [el ensayo remoto](BANCO-REMOTO-2026-09-11.md).
+- **PASS con avisos esperados:** advisors, sin hallazgos nuevos salvo las dos
+  tablas con RLS cerrada y acceso exclusivo por RPC. Tipos remotos iguales por AST.
+- **NOT RUN:** recepción APNs/FCM en el teléfono de Miguel; requiere su permiso
+  desde la PWA. El rechazo del proveedor a un endpoint inventado no acredita entrega.
+
+La evidencia remota está en `evidencia/*-20260911.*`. Las dos revisiones de Claude
+ya fueron evaluadas y corregidas; no se solicitó una tercera confirmación.
+
+## Historial local — 10 de septiembre
 
 Fecha de trabajo: 10 de septiembre de 2026, Lima. Base inicial: `774a04f`, desde
 `avancecorp/main`. Checkout aislado: `/private/tmp/avancecorp-tasa-lead-real-20260908`.
