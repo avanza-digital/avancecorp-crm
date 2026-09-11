@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { CalendarioGoogle } from '@/components/app/calendario-google'
 import { NotificacionesTasa } from '@/components/app/notificaciones-tasa'
+import { ConfiguracionRespuestasTasa } from '@/components/app/respuestas-tasa'
 import {
   useCatalogoUsuariosAdministrables,
   useConfiguracionMetas,
@@ -252,6 +253,7 @@ export function Config() {
       {yo && !soloRoles && puedeEscribir(yo.rol) && <CalendarioGoogle perfilId={yo.id} demo={yo.demo} />}
 
       <NotificacionesTasa />
+      <ConfiguracionRespuestasTasa />
       <RielEstadoConfiguracion pasos={pasos} />
 
       {/* Áreas de gobierno disponibles para la identidad actual. */}

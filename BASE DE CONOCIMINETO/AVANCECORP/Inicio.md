@@ -31,6 +31,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
 - [[F7 - informe multiempresa en sombra preparado (2026-09-11)]] — candidata local, pruebas de cifras/permisos y nuevo informe Empresas; SQL aprobado para instalar OFF, coste del nuevo banco y G6 pendientes.
 - [[F6 - cierre y ajustes publicados (2026-09-11)]] — últimos ajustes publicados y verificados, revisión manual cerrada con VoiceOver omitido; F4/F5/F6 apagadas y F7 siguiente.
