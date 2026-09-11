@@ -27,6 +27,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   metas: 'Metas',
   rendimiento: 'Equipo',
   facturacion: 'Facturación',
+  'informes-empresas': 'Empresas',
   pipeline: 'Pipeline',
   cartera: 'Leads',
   agenda: 'Agenda',

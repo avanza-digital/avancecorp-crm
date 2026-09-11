@@ -3469,6 +3469,8 @@ export type Database = {
       }
     }
     Functions: {
+      metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }
+      metricas_multiempresa_estado_fn: { Args: never; Returns: Json }
       postventa_operacion_estado_fn: {
         Args: { p_actor?: string; p_clave: string }
         Returns: Json

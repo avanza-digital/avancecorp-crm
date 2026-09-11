@@ -51,6 +51,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   metas: { t: 'Metas', s: 'Objetivos individuales y suma automática de la organización' },
   rendimiento: { t: 'Rendimiento', s: 'Desempeño comercial por responsable' },
   facturacion: { t: 'Facturación', s: 'Capital cerrado día a día, por equipo y por analista' },
+  'informes-empresas': { t: 'Empresas', s: 'Capital, inversionistas y oportunidades del grupo' },
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
   cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Citas, llamadas y vencimientos' },

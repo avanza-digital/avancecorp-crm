@@ -3,8 +3,8 @@ import { VISTAS_GERENCIA } from './router'
 import { vistaPermitida } from './vistas'
 
 describe('navegación de Gerencia', () => {
-  it('expone Resumen y seis páginas ejecutivas; Alertas es transversal', () => {
-    expect(VISTAS_GERENCIA).toEqual(['conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion'])
+  it('expone Resumen y siete páginas ejecutivas; Alertas es transversal', () => {
+    expect(VISTAS_GERENCIA).toEqual(['conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'facturacion', 'informes-empresas'])
     expect(vistaPermitida('alertas', 'gerencia', false)).toBe(true)
   })
 

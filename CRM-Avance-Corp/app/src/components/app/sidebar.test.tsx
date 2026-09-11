@@ -125,6 +125,7 @@ describe('Sidebar — temporizadores del asomo', () => {
       'Metas',
       'Rendimiento',
       'Facturación',
+      'Empresas',
       'Pipeline',
       'Leads',
       'Agenda',

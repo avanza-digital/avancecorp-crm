@@ -28,6 +28,7 @@ const CAPACIDAD_POR_VISTA = {
   metas: null,
   rendimiento: null,
   facturacion: null,
+  'informes-empresas': null,
   pipeline: 'verPipeline',
   cartera: 'verLeads',
   agenda: 'verAgenda',

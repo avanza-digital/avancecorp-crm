@@ -39,6 +39,7 @@ const NAV_META = {
   metas: { label: 'Metas', icon: Target, seccion: 'principal' },
   rendimiento: { label: 'Equipo', icon: Gauge, seccion: 'principal' },
   facturacion: { label: 'Facturación', icon: ReceiptText, seccion: 'principal' },
+  'informes-empresas': { label: 'Empresas', icon: BarChart3, seccion: 'principal' },
   pipeline: { label: 'Pipeline', icon: KanbanSquare, seccion: 'principal' },
   cartera: { label: 'Leads', icon: Users, seccion: 'principal' },
   agenda: { label: 'Agenda', icon: CalendarDays, seccion: 'principal' },

@@ -55,6 +55,7 @@ const RescateDescartados = lazy(() => import('@/screens/rescate-descartados').th
 const RescateCarpeta = lazy(() => import('@/screens/rescate-carpeta').then((m) => ({ default: m.RescateCarpeta })))
 const Derivaciones = lazy(() => import('@/screens/derivaciones').then((m) => ({ default: m.Derivaciones })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
+const MetricasMultiempresa = lazy(() => import('@/screens/metricas-multiempresa').then((m) => ({ default: m.MetricasMultiempresa })))
 const Facturacion = lazy(() => import('@/screens/facturacion').then((m) => ({ default: m.Facturacion })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) => ({ default: m.ConfigUsuarios })))
@@ -74,6 +75,7 @@ const PANTALLA_POR_VISTA = {
   metas: MetasGerencia,
   rendimiento: RendimientoGerencia,
   facturacion: Facturacion,
+  'informes-empresas': MetricasMultiempresa,
   pipeline: Pipeline,
   cartera: Cartera,
   agenda: Agenda,
