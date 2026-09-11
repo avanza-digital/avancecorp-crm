@@ -10,6 +10,9 @@ Acta y evidencia: [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
 ## Resultado para Gerencia
 
 En **Hoy → Solicitudes de tasa** y **Configuración** aparece «Avisos en tu teléfono».
+En el resumen funciona como invitación: desaparece cuando este dispositivo tiene
+los avisos activados, sin dejar un hueco ni parpadear mientras se consulta su estado.
+Configuración conserva los controles para enviar otra prueba o desactivarlos.
 Cada dispositivo se activa expresamente con el permiso del navegador. Puede enviar
 una prueba y desactivarse. Las solicitudes nuevas, desde lead o cliente, generan
 un aviso por dispositivo elegible, salvo los del propio solicitante.

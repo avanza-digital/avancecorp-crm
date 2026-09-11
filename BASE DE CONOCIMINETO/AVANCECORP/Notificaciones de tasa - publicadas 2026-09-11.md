@@ -28,5 +28,10 @@ de rollback. Siempre validar la conexión del bundle productivo antes de publica
 El banco exclusivo de pruebas se eliminó; el banco F7 no se tocó.
 Acta canónica: `CRM-Avance-Corp/supabase/scripts/push-tasa/PUBLICACION-2026-09-11.md`.
 
+Miguel informó que pulsó «Enviar prueba» y pidió retirar el recuadro una vez
+configurado porque ocupaba espacio. El resumen oculta la invitación cuando ese
+dispositivo tiene los avisos activos; Configuración conserva los controles.
+Ocultar la invitación no desactiva los avisos ni cambia la suscripción.
+
 Relacionado: [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]],
 [[Inicio]].

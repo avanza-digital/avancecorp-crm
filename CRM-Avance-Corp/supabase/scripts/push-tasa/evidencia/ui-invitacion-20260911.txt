@@ -1,0 +1,4 @@
+PASS: npm run check; lint, tipos, cobertura, configuración, build, bundle y duplicación.
+PASS: 3315 pruebas de código.
+PASS: 4 E2E de notificaciones; el flujo existente ahora verifica que Resumen oculte el recuadro activo, Configuración conserve la gestión y la invitación vuelva después de desactivar.
+Sin cambios de servidor, suscripción, permiso o envío de notificaciones.

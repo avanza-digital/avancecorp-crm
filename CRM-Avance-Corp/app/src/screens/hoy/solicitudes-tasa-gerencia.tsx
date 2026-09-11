@@ -201,7 +201,7 @@ export function SolicitudesTasaGerenciaPanel(): JSX.Element {
         ) : undefined}
       />
       <CardContent className="min-w-0 pt-1">
-        <div className="mb-4"><NotificacionesTasa /></div>
+        <NotificacionesTasa soloActivacion />
         <p role="status" aria-atomic="true" className={solicitudDelAviso && !cargando && !error && !pendientes.some(s => s.id === solicitudDelAviso) ? 'mb-3 rounded-lg bg-muted p-3 text-xs' : 'sr-only'}>
           {solicitudDelAviso && !cargando && !error && !pendientes.some(s => s.id === solicitudDelAviso)
             ? 'La solicitud de este aviso ya no está pendiente o no está disponible para tu cuenta.' : ''}
