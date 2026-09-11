@@ -505,6 +505,15 @@ export interface DestinoAgendaReparto {
   alias: string
 }
 
+/** Destino real de las entregas hechas por Coordinación en un carril y día. */
+export interface EntregaAgendaReparto {
+  supervisor_id: string | null
+  supervisor_nombre: string
+  supervisor_alias: string | null
+  derivados: number
+  coincide_turno: boolean
+}
+
 /** Una fila de la agenda: el plan y su evidencia real, sin exponer leads. */
 export interface AsignacionAgendaReparto {
   origen: OrigenAgendaReparto
@@ -512,6 +521,9 @@ export interface AsignacionAgendaReparto {
   supervisor_nombre: string | null
   supervisor_alias: string | null
   derivados: number
+  /** Compatibilidad durante el despliegue: la RPC anterior no enviaba estos dos campos. */
+  fuera_turno?: number
+  entregas?: EntregaAgendaReparto[]
 }
 
 export interface DiaAgendaReparto {

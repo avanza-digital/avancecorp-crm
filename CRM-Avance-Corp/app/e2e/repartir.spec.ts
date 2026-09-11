@@ -55,6 +55,41 @@ const LEAD_CREDITO = {
   comentario: 'Necesito un préstamo urgente, mi número es [teléfono oculto]',
 }
 
+function agendaRepartoHoy() {
+  const hoy = fechaLimaConDesplazamiento(0)
+  return {
+    version: 1,
+    fecha_desde: hoy,
+    destinos: [
+      { perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', alias: 'Supervisor uno' },
+      { perfil_id: 'sup-2', nombre: 'SUPERVISOR DOS', alias: 'Supervisor dos' },
+    ],
+    dias: [{
+      fecha: hoy,
+      asignaciones: [
+        {
+          origen: 'landing',
+          supervisor_id: 'sup-1',
+          supervisor_nombre: 'SUPERVISOR UNO',
+          supervisor_alias: 'Supervisor uno',
+          derivados: 0,
+          fuera_turno: 0,
+          entregas: [],
+        },
+        {
+          origen: 'formulario',
+          supervisor_id: 'sup-2',
+          supervisor_nombre: 'SUPERVISOR DOS',
+          supervisor_alias: 'Supervisor dos',
+          derivados: 0,
+          fuera_turno: 0,
+          entregas: [],
+        },
+      ],
+    }],
+  }
+}
+
 /** Monta el backend con rol coordinador y aterriza en la vista inicial. */
 async function aterrizarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
   const backend = await montarBackendReal(page, {
@@ -62,6 +97,7 @@ async function aterrizarComoCoordinador(page: Parameters<typeof loginReal>[0], i
     rolPortal: 'comercial',
     colaReparto: COLA,
     supervisoresReparto: SUPERVISORES,
+    agendaReparto: agendaRepartoHoy(),
     ...init,
   })
   await loginReal(page)
@@ -72,7 +108,7 @@ async function aterrizarComoCoordinador(page: Parameters<typeof loginReal>[0], i
 /** Aterriza y entra a la cola; los casos operativos no dependen de la pestaña inicial. */
 async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
   const backend = await aterrizarComoCoordinador(page, init)
-  // La pantalla vigente aterriza en la foto agregada de Distribución. Estos
+  // La pantalla vigente aterriza en la trazabilidad Coordinación → supervisores. Estos
   // casos ejercitan la operación de la cola, así que entran explícitamente a
   // su pestaña en vez de depender de cuál sea la vista inicial del módulo.
   await page.getByRole('tab', { name: 'Cola de nuevos' }).click()
@@ -92,7 +128,7 @@ function fechaLimaConDesplazamiento(dias: number): string {
   return `${valor('year')}-${valor('month')}-${valor('day')}`
 }
 
-test('Distribución permite auditar entregas por fecha, analista y origen con filtros combinables', async ({ page }) => {
+test('Supervisión → analistas permite auditar entregas por fecha, analista y origen con filtros combinables', async ({ page }) => {
   const ayer = fechaLimaConDesplazamiento(-1)
   await aterrizarComoCoordinador(page, {
     entregasCoordinacion: [
@@ -135,7 +171,8 @@ test('Distribución permite auditar entregas por fecha, analista y origen con fi
     ],
   })
 
-  await expect(page.getByRole('heading', { name: 'Entregas por fecha, analista y origen' }))
+  await page.getByRole('tab', { name: 'Supervisión → analistas' }).click()
+  await expect(page.getByRole('heading', { name: 'Supervisión → analistas' }))
     .toBeVisible()
   const resumen = page.locator('[aria-label="Resumen de entregas con los filtros actuales"]')
   const metrica = (etiqueta: string) => resumen.locator(':scope > div').filter({ hasText: etiqueta })
@@ -166,6 +203,59 @@ test('Distribución permite auditar entregas por fecha, analista y origen con fi
   await expect(supervisor).toHaveValue('')
   await expect(analista).toHaveValue('')
   await expect(origen).toHaveValue('')
+})
+
+test('Coordinación muestra la entrega real antes de que Supervisión la reparta a analistas', async ({ page }) => {
+  const hoy = fechaLimaConDesplazamiento(0)
+  await aterrizarComoCoordinador(page, {
+    agendaReparto: {
+      version: 1,
+      fecha_desde: hoy,
+      destinos: [
+        { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
+        { perfil_id: 'sup-jor', nombre: 'JORGE', alias: 'Jor' },
+      ],
+      dias: [{
+        fecha: hoy,
+        asignaciones: [
+          {
+            origen: 'landing',
+            supervisor_id: 'sup-jor',
+            supervisor_nombre: 'JORGE',
+            supervisor_alias: 'Jor',
+            derivados: 22,
+            fuera_turno: 20,
+            entregas: [
+              { supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE', supervisor_alias: 'Jor', derivados: 2, coincide_turno: true },
+              { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 20, coincide_turno: false },
+            ],
+          },
+          {
+            origen: 'formulario',
+            supervisor_id: 'sup-carmen',
+            supervisor_nombre: 'CARMEN JARAMILLO',
+            supervisor_alias: 'Carmen',
+            derivados: 30,
+            fuera_turno: 0,
+            entregas: [
+              { supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: 30, coincide_turno: true },
+            ],
+          },
+        ],
+      }],
+    },
+  })
+
+  await expect(page.getByRole('tab', { name: 'Coordinación → supervisores' })).toHaveAttribute('aria-selected', 'true')
+  const landing = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Landing', exact: true }) })
+  await expect(landing.getByText('22 entregados', { exact: true })).toBeVisible()
+  await expect(landing.getByText('Jor: 2', { exact: true })).toBeVisible()
+  await expect(landing.getByText('Carmen: 20', { exact: true })).toBeVisible()
+  await expect(landing.getByRole('status')).toContainText('20 entregas no coinciden')
+
+  const formulario = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Formulario', exact: true }) })
+  await expect(formulario.getByText('30 entregados', { exact: true })).toBeVisible()
+  await expect(formulario.getByText('Carmen: 30', { exact: true })).toBeVisible()
 })
 
 test('el coordinador aterriza en Repartir y su navegación se reduce a lo suyo', async ({ page }) => {
@@ -210,7 +300,8 @@ test('repartir un lead lo saca de la cola y sube la bandeja del supervisor', asy
   const backend = await entrarComoCoordinador(page)
 
   await expect(page.getByText('MARTHA VILCA')).toBeVisible()
-  await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-1')
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toHaveValue('sup-1')
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toBeDisabled()
   await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
 
   // El servidor recibió el par correcto…
@@ -234,7 +325,7 @@ test('el veto legal (No Insista) avisa, NO mueve la fila y resincroniza la cola'
   })
 
   const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
-  await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-2')
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toHaveValue('sup-1')
   await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
 
   // Mensaje LEGAL literal (no un "no tienes permiso" genérico).
@@ -315,7 +406,7 @@ test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la col
     await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
   }
   // Y —lo que importa— la operación no se bloquea: la lista tiene su propia fuente.
-  await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-1')
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toHaveValue('sup-1')
   await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
   await expect.poll(() => backend.llamadas.rpcRepartirLead).toBe(1)
   await expect(page.getByText('MARTHA VILCA')).toHaveCount(0)

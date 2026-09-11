@@ -4,7 +4,7 @@
 // que ya salió de la cola (FUERA_DE_COLA) — que además fuerzan una relectura.
 // Se mockea la capa de datos (sin red).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AgendaRepartoDiaria, ColaLead, HistorialDerivacion, PanelDistribucionReparto, SupervisorReparto } from '@/lib/tipos'
 import type { ReporteDerivacionesCoordinacion } from '@/lib/reporte-derivaciones-coordinacion'
@@ -12,6 +12,20 @@ import type { ReporteDerivacionesCoordinacion } from '@/lib/reporte-derivaciones
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }))
+
+const authState = vi.hoisted(() => ({ esAdministrador: false }))
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({
+    yo: {
+      id: 'actor-reparto',
+      nombre_completo: authState.esAdministrador ? 'ADMINISTRADOR' : 'COORDINADORA',
+      rol: authState.esAdministrador ? 'gerencia' : 'coordinador',
+      rol_portal: authState.esAdministrador ? 'superadmin' : 'comercial',
+      demo: false,
+      puede_contratar: false,
+    },
+  }),
+}))
 
 let COLA: ColaLead[] = []
 let SUPERVISORES: SupervisorReparto[] = []
@@ -73,14 +87,14 @@ let AGENDA: AgendaRepartoDiaria = {
   version: 1,
   fecha_desde: fechaHoyLima,
   destinos: [
-    { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
-    { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+    { perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', alias: 'Supervisora uno' },
+    { perfil_id: 'sup-2', nombre: 'SUPERVISOR DOS', alias: 'Supervisora dos' },
   ],
   dias: [{
     fecha: fechaHoyLima,
     asignaciones: [
-      { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
-      { origen: 'formulario', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+      { origen: 'landing', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisora uno', derivados: 0, fuera_turno: 0, entregas: [] },
+      { origen: 'formulario', supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisora dos', derivados: 0, fuera_turno: 0, entregas: [] },
     ],
   }],
 }
@@ -144,6 +158,7 @@ const SUP: SupervisorReparto[] = [
 ]
 
 beforeEach(() => {
+  authState.esAdministrador = false
   COLA = []
   SUPERVISORES = SUP
   HISTORIAL = []
@@ -151,14 +166,14 @@ beforeEach(() => {
     version: 1,
     fecha_desde: fechaHoyLima,
     destinos: [
-      { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
-      { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+      { perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', alias: 'Supervisora uno' },
+      { perfil_id: 'sup-2', nombre: 'SUPERVISOR DOS', alias: 'Supervisora dos' },
     ],
     dias: [{
       fecha: fechaHoyLima,
       asignaciones: [
-        { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
-        { origen: 'formulario', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+        { origen: 'landing', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisora uno', derivados: 0, fuera_turno: 0, entregas: [] },
+        { origen: 'formulario', supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisora dos', derivados: 0, fuera_turno: 0, entregas: [] },
       ],
     }],
   }
@@ -235,10 +250,16 @@ async function abrirCola(usuario = userEvent.setup()): Promise<void> {
 }
 
 describe('pantalla Repartir leads', () => {
-  it('abre con el historial de entregas primero y separa la cartera activa actual', async () => {
+  it('abre con Coordinación → supervisores y separa la segunda etapa', async () => {
+    const usuario = userEvent.setup()
     render(<Repartir />)
 
-    expect(await screen.findByRole('heading', { name: 'Entregas por fecha, analista y origen' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
+    expect(screen.getByText(/No depende de que Supervisión lo reparta después/)).toBeInTheDocument()
+    expect(panelMock).not.toHaveBeenCalled()
+
+    await usuario.click(screen.getByRole('tab', { name: 'Supervisión → analistas' }))
+    expect(await screen.findByRole('heading', { name: 'Supervisión → analistas' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cartera activa actual' })).toBeInTheDocument()
     expect(await screen.findByText('Leads por supervisor')).toBeInTheDocument()
     expect(screen.getByText('Leads por analista')).toBeInTheDocument()
@@ -246,8 +267,39 @@ describe('pantalla Repartir leads', () => {
     expect(panelMock).toHaveBeenCalledTimes(1)
   })
 
-  it('muestra a Coordinación el conteo diario por analista y aplica el rango elegido', async () => {
+  it('muestra de inmediato el destino real aunque una entrega histórica contradiga el turno', async () => {
+    AGENDA = {
+      ...AGENDA,
+      dias: [{
+        fecha: fechaHoyLima,
+        asignaciones: [
+          {
+            origen: 'landing',
+            supervisor_id: 'sup-2',
+            supervisor_nombre: 'SUPERVISOR DOS',
+            supervisor_alias: 'Supervisora dos',
+            derivados: 22,
+            fuera_turno: 20,
+            entregas: [
+              { supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisora uno', derivados: 20, coincide_turno: false },
+              { supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisora dos', derivados: 2, coincide_turno: true },
+            ],
+          },
+          { origen: 'formulario', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', supervisor_alias: 'Supervisora uno', derivados: 30, fuera_turno: 0, entregas: [] },
+        ],
+      }],
+    }
     render(<Repartir />)
+
+    expect(await screen.findByText('Supervisora uno: 20')).toBeInTheDocument()
+    expect(screen.getByText('Supervisora dos: 2')).toBeInTheDocument()
+    expect(screen.getByText('20 entregas no coinciden con el turno guardado.')).toBeInTheDocument()
+  })
+
+  it('muestra a Coordinación el conteo diario por analista y aplica el rango elegido', async () => {
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await usuario.click(screen.getByRole('tab', { name: 'Supervisión → analistas' }))
 
     const tabla = await screen.findByRole('table', { name: 'Entregas por fecha, analista y origen' })
     expect(within(tabla).getByText('ANALISTA REPORTE')).toBeInTheDocument()
@@ -305,6 +357,7 @@ describe('pantalla Repartir leads', () => {
     }
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await usuario.click(screen.getByRole('tab', { name: 'Supervisión → analistas' }))
 
     const tabla = await screen.findByRole('table', { name: 'Entregas por fecha, analista y origen' })
     const supervisor = screen.getByLabelText('Filtrar entregas por supervisor')
@@ -347,12 +400,26 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText(/No incluye teléfono, correo ni DNI/)).toBeInTheDocument()
   })
 
-  it('agenda Landing y Formulario para Carmen y Jor desde Historial', async () => {
+  it('agenda Landing y Formulario para Carmen y Jor desde la vista de Coordinación', async () => {
+    AGENDA = {
+      version: 1,
+      fecha_desde: fechaHoyLima,
+      destinos: [
+        { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
+        { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+      ],
+      dias: [{
+        fecha: fechaHoyLima,
+        asignaciones: [
+          { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0, fuera_turno: 0, entregas: [] },
+          { origen: 'formulario', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0, fuera_turno: 0, entregas: [] },
+        ],
+      }],
+    }
     const usuario = userEvent.setup()
     render(<Repartir />)
 
-    await usuario.click(screen.getByRole('tab', { name: 'Historial' }))
-    expect(await screen.findByText('Agenda de reparto')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Coordinación → supervisores' })).toBeInTheDocument()
     await usuario.selectOptions(screen.getByLabelText('Asignar Landing a una supervisora'), 'sup-carmen')
     await usuario.selectOptions(screen.getByLabelText('Asignar Formulario a una supervisora'), 'sup-jor')
     await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
@@ -487,10 +554,8 @@ describe('pantalla Repartir leads', () => {
     await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
-    await usuario.selectOptions(
-      screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
-      'sup-1',
-    )
+    expect(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor')).toBeDisabled()
+    expect(screen.getByLabelText('Asignar ROSA QUISPE a un supervisor')).toHaveValue('sup-1')
     await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-1'))
@@ -498,7 +563,61 @@ describe('pantalla Repartir leads', () => {
     // La fila sale de la cola sin releerla entera.
     await waitFor(() => expect(screen.queryByText('ROSA QUISPE')).not.toBeInTheDocument())
     expect(screen.getByText('No hay leads por repartir')).toBeInTheDocument()
+    expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
     expect(colaMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('permite al administrador apartarse del turno y conserva el destino real', async () => {
+    authState.esAdministrador = true
+    COLA = [lead()]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+
+    const selector = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(selector).toBeEnabled()
+    expect(selector).toHaveValue('sup-1')
+    expect(screen.getByText(/Como administrador puedes elegir otro destino por excepción/)).toBeInTheDocument()
+
+    await usuario.selectOptions(selector, 'sup-2')
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+
+    await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-2'))
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('SUPERVISOR DOS'))
+    expect(screen.getByText('1 entregado hoy por Coordinación')).toBeInTheDocument()
+  })
+
+  it('mantiene cada fila bloqueada hasta que termine su propia petición', async () => {
+    COLA = [
+      lead({ id: 'lead-a', nombre_completo: 'LEAD A' }),
+      lead({ id: 'lead-b', nombre_completo: 'LEAD B' }),
+    ]
+    let resolverA!: () => void
+    let resolverB!: () => void
+    repartirMock.mockImplementation((leadId) => new Promise<void>((resolve) => {
+      if (leadId === 'lead-a') resolverA = resolve
+      else resolverB = resolve
+    }))
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+
+    const botonA = await screen.findByRole('button', { name: 'Repartir a LEAD A' })
+    const botonB = screen.getByRole('button', { name: 'Repartir a LEAD B' })
+    fireEvent.click(botonA)
+    fireEvent.click(botonA)
+    fireEvent.click(botonB)
+
+    expect(repartirMock.mock.calls.filter(([leadId]) => leadId === 'lead-a')).toHaveLength(1)
+    expect(repartirMock.mock.calls.filter(([leadId]) => leadId === 'lead-b')).toHaveLength(1)
+
+    await act(async () => resolverB())
+    await waitFor(() => expect(screen.queryByText('LEAD B')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Repartir a LEAD A' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Repartir a LEAD A' })).toHaveTextContent('Enviando…')
+
+    await act(async () => resolverA())
+    await waitFor(() => expect(screen.queryByText('LEAD A')).not.toBeInTheDocument())
   })
 
   it('el veto legal (No Insista) avisa, NO mueve la fila y relee la cola', async () => {
@@ -511,10 +630,6 @@ describe('pantalla Repartir leads', () => {
     await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
-    await usuario.selectOptions(
-      screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
-      'sup-1',
-    )
     await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() =>
@@ -537,10 +652,6 @@ describe('pantalla Repartir leads', () => {
     await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
-    await usuario.selectOptions(
-      screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
-      'sup-2',
-    )
     await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() => expect(toastError).toHaveBeenCalled())
@@ -558,12 +669,35 @@ describe('pantalla Repartir leads', () => {
   })
 
   it('el destino muestra la carga de cada bandeja (para repartir con criterio)', async () => {
-    COLA = [lead()]
+    COLA = [lead({ origen: 'referido' })]
     render(<Repartir />)
     await abrirCola()
 
     const select = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
     expect(within(select).getByText('SUPERVISOR UNO (2 en bandeja)')).toBeInTheDocument()
     expect(within(select).getByText('SUPERVISOR DOS (0 en bandeja)')).toBeInTheDocument()
+  })
+
+  it('bloquea Landing si el turno de hoy todavía no fue guardado', async () => {
+    COLA = [lead()]
+    AGENDA = {
+      ...AGENDA,
+      dias: [{
+        fecha: fechaHoyLima,
+        asignaciones: [
+          { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0, fuera_turno: 0, entregas: [] },
+          { origen: 'formulario', supervisor_id: 'sup-2', supervisor_nombre: 'SUPERVISOR DOS', supervisor_alias: 'Supervisora dos', derivados: 0, fuera_turno: 0, entregas: [] },
+        ],
+      }],
+    }
+    render(<Repartir />)
+    await abrirCola()
+
+    const select = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
+    expect(select).toBeDisabled()
+    expect(select).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' })).toBeDisabled()
+    expect(screen.getByText('Guarda primero el turno en Coordinación → supervisores.')).toBeInTheDocument()
+    expect(repartirMock).not.toHaveBeenCalled()
   })
 })

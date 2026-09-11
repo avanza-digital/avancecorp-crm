@@ -16,10 +16,11 @@
 // Estado local con React (sin XState: eso vive solo en auth). La verdad la tiene
 // el servidor — cada reparto/descarte pasa por su RPC atómica.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Split, Users, Wallet, Inbox, AlertTriangle, Search, Ban, RotateCcw } from 'lucide-react'
+import { Split, Users, Wallet, Inbox, AlertTriangle, Search, Ban, RotateCcw, CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   CrmApiError,
+  agendaRepartoDiaria,
   descartarLead,
   deshacerDescarte,
   leadsDescartados,
@@ -31,6 +32,7 @@ import {
   MOTIVOS_DESCARTE,
   origenLabel,
   type ColaLead,
+  type DiaAgendaReparto,
   type LeadDescartado,
   type MotivoDescarte,
   type Origen,
@@ -58,8 +60,11 @@ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
 import { PanelDistribucionReparto } from '@/components/app/panel-distribucion-reparto'
+import { AgendaRepartoDiaria } from '@/components/app/agenda-reparto-diaria'
 import { Paginacion } from '@/components/common/paginacion'
 import { paginar } from '@/lib/paginacion'
+import { hoyLimaIso } from '@/lib/distribucion-lecturas'
+import { useAuth } from '@/lib/auth-context'
 
 /** Cuántas filas se muestran por página local. Nunca se acumulan al navegar. */
 const PAGINA = 20
@@ -114,16 +119,56 @@ function esperaTxt(dias: number): string {
 interface EstadoReparto {
   cola: ColaLead[]
   supervisores: SupervisorReparto[]
+  agendaHoy: DiaAgendaReparto | null
   cargando: boolean
   error: string | null
 }
 
+function origenUsaTurno(origen: Origen): origen is 'landing' | 'formulario' {
+  return origen === 'landing' || origen === 'formulario'
+}
+
+/** Mantiene visible el contador del turno mientras Rosa sigue en la cola. */
+function sumarEntregaLocal(
+  agendaHoy: DiaAgendaReparto | null,
+  origen: Origen,
+  supervisorId: string,
+): DiaAgendaReparto | null {
+  if (!agendaHoy || !origenUsaTurno(origen)) return agendaHoy
+  return {
+    ...agendaHoy,
+    asignaciones: agendaHoy.asignaciones.map((asignacion) => asignacion.origen === origen
+      ? {
+          ...asignacion,
+          derivados: asignacion.derivados + 1,
+          fuera_turno: (asignacion.fuera_turno ?? 0)
+            + (asignacion.supervisor_id === supervisorId ? 0 : 1),
+        }
+      : asignacion),
+  }
+}
+
 function useReparto() {
   const [estado, setEstado] = useState<EstadoReparto>({
-    cola: [], supervisores: [], cargando: true, error: null,
+    cola: [], supervisores: [], agendaHoy: null, cargando: true, error: null,
   })
-  const [enviandoId, setEnviandoId] = useState<string | null>(null)
+  const [enviandoIds, setEnviandoIds] = useState<ReadonlySet<string>>(() => new Set())
+  const enviandoRef = useRef<Set<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
+
+  const iniciarEnvio = useCallback((leadId: string): boolean => {
+    if (enviandoRef.current.has(leadId)) return false
+    enviandoRef.current = new Set(enviandoRef.current).add(leadId)
+    setEnviandoIds(enviandoRef.current)
+    return true
+  }, [])
+
+  const terminarEnvio = useCallback((leadId: string) => {
+    const siguientes = new Set(enviandoRef.current)
+    siguientes.delete(leadId)
+    enviandoRef.current = siguientes
+    setEnviandoIds(siguientes)
+  }, [])
 
   const cargar = useCallback(async () => {
     abortRef.current?.abort()
@@ -131,12 +176,20 @@ function useReparto() {
     abortRef.current = ctrl
     setEstado((e) => ({ ...e, cargando: true, error: null }))
     try {
-      const [cola, supervisores] = await Promise.all([
+      const hoy = hoyLimaIso()
+      const [cola, supervisores, agenda] = await Promise.all([
         leadsPorRepartir(ctrl.signal),
         supervisoresParaReparto(ctrl.signal),
+        agendaRepartoDiaria({ desde: hoy, dias: 1 }, ctrl.signal),
       ])
       if (ctrl.signal.aborted) return
-      setEstado({ cola, supervisores, cargando: false, error: null })
+      setEstado({
+        cola,
+        supervisores,
+        agendaHoy: agenda.dias.find((dia) => dia.fecha === hoy) ?? null,
+        cargando: false,
+        error: null,
+      })
     } catch (error) {
       if (ctrl.signal.aborted) return
       setEstado((e) => ({
@@ -154,8 +207,8 @@ function useReparto() {
 
   /** Reparte un lead. El servidor manda: si rechaza, la fila NO se mueve. */
   const repartir = useCallback(async (lead: ColaLead, supervisorId: string) => {
+    if (!iniciarEnvio(lead.id)) return
     const destino = supervisorId
-    setEnviandoId(lead.id)
     try {
       await repartirLead(lead.id, destino)
       // Éxito: la fila sale de la cola y la bandeja destino sube en 1 (el
@@ -166,6 +219,7 @@ function useReparto() {
         supervisores: e.supervisores.map((s) =>
           s.perfil_id === destino ? { ...s, bandeja_pendiente: s.bandeja_pendiente + 1 } : s,
         ),
+        agendaHoy: sumarEntregaLocal(e.agendaHoy, lead.origen, destino),
       }))
       // La lista se corrige sola (arriba), pero los tiles vienen del servidor.
       refrescarResumenReparto()
@@ -177,21 +231,21 @@ function useReparto() {
       // Fuera de cola, veto legal o carrera: la cola local quedó desfasada
       // respecto del servidor → se relee en vez de adivinar.
       if (error instanceof CrmApiError
-        && ['FUERA_DE_COLA', 'NO_INSISTA', 'REINTENTAR'].includes(error.code)) {
+        && ['FUERA_DE_COLA', 'NO_INSISTA', 'REINTENTAR', 'REGLA_SERVIDOR'].includes(error.code)) {
         void cargar()
         refrescarResumenReparto()
       }
     } finally {
-      setEnviandoId(null)
+      terminarEnvio(lead.id)
     }
-  }, [cargar, estado.supervisores])
+  }, [cargar, estado.supervisores, iniciarEnvio, terminarEnvio])
 
   /** C1-bis: cierra el lead con motivo. Devuelve si el descarte ENTRÓ (el
    *  llamador decide a dónde va el foco). El deshacer vive en el toast — la
    *  RPC de servidor da 24 h, pero el gesto natural es el arrepentimiento al
    *  tiro; 15 s + closeButton del Toaster dan margen a teclado y lector. */
   const descartar = useCallback(async (lead: ColaLead, motivo: MotivoDescarte): Promise<boolean> => {
-    setEnviandoId(lead.id)
+    if (!iniciarEnvio(lead.id)) return false
     try {
       await descartarLead(lead.id, motivo)
       setEstado((e) => ({ ...e, cola: e.cola.filter((l) => l.id !== lead.id) }))
@@ -228,16 +282,18 @@ function useReparto() {
       }
       return false
     } finally {
-      setEnviandoId(null)
+      terminarEnvio(lead.id)
     }
-  }, [cargar])
+  }, [cargar, iniciarEnvio, terminarEnvio])
 
-  return { ...estado, enviandoId, recargar: cargar, repartir, descartar }
+  return { ...estado, enviandoIds, recargar: cargar, repartir, descartar }
 }
 
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
 function PanelCola() {
-  const { cola, supervisores, cargando, error, enviandoId, recargar, repartir, descartar } = useReparto()
+  const { cola, supervisores, agendaHoy, cargando, error, enviandoIds, recargar, repartir, descartar } = useReparto()
+  const { yo } = useAuth()
+  const esAdministrador = yo?.rol_portal === 'superadmin'
   // Los TILES los cuenta el servidor sobre la cola GLOBAL (F1b tanda 3); las
   // FILAS cargadas siguen gobernando lo que es de la lista: el panel vacío, el
   // «N en espera», el «X de Y», el «Mostrando…», el selector de orígenes y el
@@ -330,6 +386,39 @@ function PanelCola() {
   return (
     <div className="space-y-5">
       <StatStrip stats={stats} />
+
+      {agendaHoy ? (
+        <Card className="overflow-hidden border-primary/20">
+          <SectionHead
+            icon={CalendarDays}
+            title="Turno de hoy"
+            right={(
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {esAdministrador ? 'Turno sugerido · admite excepción de administrador' : 'Destino fijado por la agenda'}
+              </span>
+            )}
+          />
+          <div className="grid border-t border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            {(['landing', 'formulario'] as const).map((origen) => {
+              const asignacion = agendaHoy.asignaciones.find((fila) => fila.origen === origen)
+              const total = asignacion?.derivados ?? 0
+              return (
+                <div key={origen} className="border-b border-border px-5 py-3 last:border-b-0 sm:border-b-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    {origenLabel(origen)}
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-foreground">
+                    {asignacion?.supervisor_nombre ?? 'Turno sin guardar'}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {total} {total === 1 ? 'entregado' : 'entregados'} hoy por Coordinación
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      ) : null}
 
       {/* Los indicadores dicen «—» y la cola sigue siendo repartible, porque
           tiene su propia fuente (leads_por_repartir). En demo el hook ya
@@ -447,8 +536,15 @@ function PanelCola() {
                     Tab, por eso el outline-none aquí es legítimo. */}
                 {colaVisible.map((lead) => {
                   const dias = diasEnCola(lead.creado_en, ahora)
-                  const elegido = destino[lead.id] ?? ''
-                  const enviando = enviandoId === lead.id
+                  const usaTurno = origenUsaTurno(lead.origen)
+                  const turnoObligatorio = usaTurno && !esAdministrador
+                  const asignacionTurno = usaTurno
+                    ? agendaHoy?.asignaciones.find((fila) => fila.origen === lead.origen)
+                    : undefined
+                  const elegido = turnoObligatorio
+                    ? asignacionTurno?.supervisor_id ?? ''
+                    : destino[lead.id] ?? asignacionTurno?.supervisor_id ?? ''
+                  const enviando = enviandoIds.has(lead.id)
                   const marcado = lead.clasificacion_auto === 'posible_credito'
                   const enDescarte = descartando[lead.id] === true
                   const expandido = expandidos[lead.id] === true
@@ -557,46 +653,66 @@ function PanelCola() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
-                          <Select
-                            value={elegido}
-                            disabled={enviando}
-                            onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
-                            aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
-                          >
-                            <option value="">Asignar a…</option>
-                            {supervisores.map((s) => (
-                              <option key={s.perfil_id} value={s.perfil_id}>
-                                {s.nombre} ({s.bandeja_pendiente} en bandeja)
+                        <div className="sm:w-[380px] sm:shrink-0">
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={elegido}
+                              disabled={enviando || turnoObligatorio}
+                              onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
+                              aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
+                            >
+                              <option value="">
+                                {turnoObligatorio ? 'Guarda el turno de hoy…' : 'Asignar a…'}
                               </option>
-                            ))}
-                          </Select>
-                          <Button
-                            size="sm"
-                            disabled={!elegido || enviando}
-                            aria-label={`Repartir a ${lead.nombre_completo}`}
-                            onClick={() => void repartir(lead, elegido)}
-                          >
-                            {enviando ? 'Enviando…' : 'Repartir'}
-                          </Button>
-                          <Button
-                            ref={(el) => {
-                              if (el) refDescartarGhost.current.set(lead.id, el)
-                              else refDescartarGhost.current.delete(lead.id)
-                            }}
-                            size="sm"
-                            variant="ghost"
-                            disabled={enviando}
-                            onClick={() => {
-                              setDescartando((d) => ({ ...d, [lead.id]: true }))
-                              // El foco sigue al modo: aterriza en el select de motivo
-                              // (su aria-label anuncia el cambio al lector de pantalla).
-                              requestAnimationFrame(() => refMotivo.current.get(lead.id)?.focus())
-                            }}
-                            aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
-                          >
-                            Descartar
-                          </Button>
+                              {elegido && !supervisores.some((s) => s.perfil_id === elegido) ? (
+                                <option value={elegido}>{asignacionTurno?.supervisor_nombre ?? 'Supervisora de turno'}</option>
+                              ) : null}
+                              {supervisores.map((s) => (
+                                <option key={s.perfil_id} value={s.perfil_id}>
+                                  {s.nombre} ({s.bandeja_pendiente} en bandeja)
+                                </option>
+                              ))}
+                            </Select>
+                            <Button
+                              size="sm"
+                              disabled={!elegido || enviando}
+                              aria-label={`Repartir a ${lead.nombre_completo}`}
+                              onClick={() => void repartir(lead, elegido)}
+                            >
+                              {enviando ? 'Enviando…' : 'Repartir'}
+                            </Button>
+                            <Button
+                              ref={(el) => {
+                                if (el) refDescartarGhost.current.set(lead.id, el)
+                                else refDescartarGhost.current.delete(lead.id)
+                              }}
+                              size="sm"
+                              variant="ghost"
+                              disabled={enviando}
+                              onClick={() => {
+                                setDescartando((d) => ({ ...d, [lead.id]: true }))
+                                // El foco sigue al modo: aterriza en el select de motivo
+                                // (su aria-label anuncia el cambio al lector de pantalla).
+                                requestAnimationFrame(() => refMotivo.current.get(lead.id)?.focus())
+                              }}
+                              aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
+                            >
+                              Descartar
+                            </Button>
+                          </div>
+                          {turnoObligatorio ? (
+                            <p className={`mt-1.5 text-[11px] font-medium ${elegido ? 'text-muted-foreground' : 'text-warning-text'}`}>
+                              {elegido
+                                ? `Destino bloqueado por el turno de hoy: ${asignacionTurno?.supervisor_alias ?? asignacionTurno?.supervisor_nombre}.`
+                                : 'Guarda primero el turno en Coordinación → supervisores.'}
+                            </p>
+                          ) : esAdministrador && usaTurno ? (
+                            <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                              {asignacionTurno?.supervisor_id
+                                ? `Turno sugerido: ${asignacionTurno.supervisor_alias ?? asignacionTurno.supervisor_nombre}. Como administrador puedes elegir otro destino por excepción.`
+                                : 'No hay turno guardado. Como administrador puedes elegir el destino por excepción.'}
+                            </p>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -793,7 +909,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'panel' | 'cola' | 'descartados' | 'historial'>('panel')
+  const [tab, setTab] = useState<'coordinacion' | 'panel' | 'cola' | 'descartados' | 'historial'>('coordinacion')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
   const [colaKey, setColaKey] = useState(0)
@@ -806,7 +922,13 @@ export function Repartir() {
           aria-label="Vistas de distribución de leads"
           className="inline-flex min-w-max gap-1 rounded-lg border border-border bg-muted/50 p-1"
         >
-          {([['panel', 'Distribución'], ['cola', 'Cola de nuevos'], ['historial', 'Historial'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
+          {([
+            ['coordinacion', 'Coordinación → supervisores'],
+            ['panel', 'Supervisión → analistas'],
+            ['cola', 'Cola de nuevos'],
+            ['historial', 'Historial'],
+            ['descartados', 'Descartados'],
+          ] as const).map(([k, label]) => (
             <button
               key={k}
               type="button"
@@ -823,7 +945,7 @@ export function Repartir() {
         </div>
       </div>
 
-      {tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
+      {tab === 'coordinacion' ? <AgendaRepartoDiaria /> : tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
         <PanelDescartados
           onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
         />
