@@ -3776,10 +3776,13 @@ const FacturacionDiaRowSchema = v.object({
 
 
 /** Facturación de UN mes comercial (`p_mes` = 'YYYY-MM-01'). */
+/** El array de filas, más cuántas vinieron ilegibles (para poder avisarlo). */
+export type FacturacionDelMes = FilaFacturacionDia[] & { descartadas: number }
+
 export async function listarFacturacionDiaria(
   mes: string,
   signal?: AbortSignal,
-): Promise<FilaFacturacionDia[]> {
+): Promise<FacturacionDelMes> {
   let consulta = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3796,6 +3799,18 @@ export async function listarFacturacionDiaria(
       descartadas += 1
       continue
     }
+    // UN IMPORTE QUE NO SE ENTIENDE NO ES CERO. Antes `?? 0` convertía cualquier
+    // basura numérica en «vendió cero», que es una afirmación falsa y silenciosa
+    // sobre dinero. Ahora la fila se descarta y se cuenta. Y el día tiene que
+    // ser una fecha de verdad: un 'dia' con formato raro pasaba el esquema y
+    // luego desaparecía de la malla sin que nadie llevara la cuenta.
+    // (Auditoría de Codex, 11/09/2026.)
+    const operaciones = aNumero(r.output.operaciones)
+    const capital = aNumero(r.output.capital)
+    if (operaciones == null || capital == null || !/^\d{4}-\d{2}-\d{2}$/.test(r.output.dia)) {
+      descartadas += 1
+      continue
+    }
     items.push({
       dia: r.output.dia,
       tipo: r.output.tipo,
@@ -3804,12 +3819,14 @@ export async function listarFacturacionDiaria(
       analistaNombre: r.output.analista_nombre,
       supervisorId: r.output.supervisor_id ?? SIN_SUPERVISOR_ID,
       supervisorNombre: r.output.supervisor_nombre,
-      operaciones: aNumero(r.output.operaciones) ?? 0,
-      capital: aNumero(r.output.capital) ?? 0,
+      operaciones,
+      capital,
     })
   }
   registrarFilasMetricasInvalidas('facturacion_diaria', descartadas)
-  return items
+  // Se DECLARA cuántas filas no se pudieron leer para que la pantalla pueda
+  // avisar. Un total al que le faltan cifras sin decirlo es peor que un error.
+  return Object.assign(items, { descartadas })
 }
 
 /** Altas nuevas por analista y mes (default: últimos 12 meses; el servidor acota 1..60). */
