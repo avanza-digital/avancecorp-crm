@@ -1,10 +1,14 @@
 ---
 tags: [crm, f6, retoma, pausa]
 fecha: 2026-09-10
-estado: pausada-antes-de-publicar-ajustes
+estado: retomada-publicacion-resuelta
 ---
 
 # F6 — pausa segura antes de publicar los ajustes
+
+Retomada el 11/09. Publicación pendiente resuelta en
+[[F6 - cierre y ajustes publicados (2026-09-11)]]. Se conserva este punto de pausa
+como historial, no como una publicación que deba repetirse.
 
 Miguel pidió detener el trabajo en un punto seguro y continuar mañana.
 La preparación de esta publicación quedó en lectura: no se inició integración,

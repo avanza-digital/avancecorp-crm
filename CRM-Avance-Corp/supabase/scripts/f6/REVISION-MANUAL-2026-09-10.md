@@ -1,5 +1,9 @@
 # F6 — avance de revisión manual del 10/09/2026
 
+**Actualización del 11/09:** los ajustes pendientes de esta acta ya se publicaron.
+Véase [el cierre de publicación](CIERRE-2026-09-11.md). Se conserva a continuación
+la evidencia y secuencia de decisiones del 10/09.
+
 Estado: **REVISIÓN CERRADA CON EXCEPCIÓN AUTORIZADA — VoiceOver omitido por Miguel
 el 10/09/2026; prueba NOT RUN**. Véase la decisión al final de esta acta.
 Revisor humano: Miguel. Recorrido guiado con roles vendedor/Gerencia y banco local sintético.

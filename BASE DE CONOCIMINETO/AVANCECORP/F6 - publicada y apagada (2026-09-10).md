@@ -6,6 +6,12 @@ estado: publicada-instalada-apagada
 
 # F6 — publicada y apagada
 
+**Actualización del 11/09:** los últimos ajustes se publicaron y la revisión manual
+quedó cerrada con VoiceOver omitido. Estado vigente:
+[[F6 - cierre y ajustes publicados (2026-09-11)]]. Esta nota conserva el historial
+de la instalación y revisión del 10/09; los pendientes de publicación descritos
+más abajo quedan resueltos por esa actualización.
+
 Miguel autorizó publicar F6 manteniéndola apagada. El frontend y los tres SQL
 están instalados y verificados. F3 sigue encendida; F4/F5/F6 apagadas.
 Las comisiones se calculan fuera del sistema.
@@ -48,7 +54,7 @@ no hay snapshot por columna que pruebe todos los campos iguales. El cierre es
 Permanecen **15 fuentes con identidad pendiente** (13 Avance, dos Qorilazo).
 No se conciliaron datos reales ni se encendió el piloto.
 
-## Retoma
+## Historial de revisión y retoma del 10/09
 
 1. Revisión manual F6 cerrada con VoiceOver omitido por decisión de Miguel
    el 10/09/2026; la prueba conserva NOT RUN. Publicar los ajustes locales

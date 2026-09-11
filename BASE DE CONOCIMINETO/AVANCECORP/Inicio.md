@@ -1,15 +1,15 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-10
+actualizado: 2026-09-11
 ---
 
 # 🏠 Inicio — Portal Avance Corp
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F6 - publicada y apagada (2026-09-10)]].
-Punto de retoma: [[F6 - pausa segura antes de publicar ajustes (2026-09-10)]].
-Plan de trabajo F5: [[Plan de implementacion F5 - cartera y ficha multiempresa (2026-09-08)]].
+Estado vigente: [[F6 - cierre y ajustes publicados (2026-09-11)]].
+Siguiente fase: F7, métricas por empresa y moneda.
+Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
 ## 🧠 Cómo funciona la memoria de este proyecto
 
@@ -31,7 +31,8 @@ Hay **tres capas**, complementarias:
 
 **Features y decisiones:**
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
-- [[F6 - publicada y apagada (2026-09-10)]] — frontend y tres SQL instalados; 43 pruebas remotas PASS, banco temporal eliminado. Revisión manual cerrada con VoiceOver omitido por Miguel; ajustes locales por publicar y F7–F9 pendientes.
+- [[F6 - cierre y ajustes publicados (2026-09-11)]] — últimos ajustes publicados y verificados, revisión manual cerrada con VoiceOver omitido; F4/F5/F6 apagadas y F7 siguiente.
+- [[F6 - publicada y apagada (2026-09-10)]] — historial de instalación y 43 pruebas remotas PASS; observaciones RLS/Auth. La publicación de los últimos ajustes quedó resuelta el 11/09; F7–F9 siguen pendientes.
 - [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]] — corrección PT409, pruebas y límites.
 - [[F6 - implementación de postventa (2026-09-10)]] — decisiones e implementación inicial.
 - [[F5 - instalada y apagada (2026-09-10)]] — SQL autorizado instalado y verificado; banco temporal eliminado, datos conservados.

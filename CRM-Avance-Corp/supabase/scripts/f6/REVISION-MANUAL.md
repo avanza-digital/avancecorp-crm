@@ -1,5 +1,8 @@
 # F6 — recorrido de aceptación manual
 
+Los últimos ajustes se publicaron el 11/09, manteniendo F4/F5/F6 apagadas.
+Estado productivo y controles: [acta de cierre](CIERRE-2026-09-11.md).
+
 **Revisión cerrada con excepción autorizada:** VoiceOver omitido por decisión
 de Miguel el 10/09/2026; su prueba sigue registrada como NOT RUN.
 El 10/09 confirmó la creación y visualización de la llamada

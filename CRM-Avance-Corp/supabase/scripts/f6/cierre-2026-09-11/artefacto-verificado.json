@@ -1,0 +1,21 @@
+{
+  "verificado_en": "2026-09-11T15:06:25.277719+00:00",
+  "release": "crm-20260911T150446Z-4febe47cecbd",
+  "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+  "manifest": "crm-20260911T150446Z-4febe47cecbd.manifest.json",
+  "zip": "crm-20260911T150446Z-4febe47cecbd.zip",
+  "sha256": "1f04e8f5139eb7d1123baffb0f79ea7ea4065addbbf32e3af19b500984c40cb7",
+  "version": {
+    "schema": 1,
+    "buildId": "build-20260911T150445334Z"
+  },
+  "archivos": 84,
+  "roles_jwt_sin_valores": [
+    {
+      "rol": "anon",
+      "ref": "dctqcbznekcyxhjujuci"
+    }
+  ],
+  "sin_fuentes_o_llaves_privilegiadas": true,
+  "estado": "PASS"
+}

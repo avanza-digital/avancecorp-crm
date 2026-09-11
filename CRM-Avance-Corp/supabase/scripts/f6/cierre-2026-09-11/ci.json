@@ -1,0 +1,35 @@
+[
+  {
+    "id": 34613882992,
+    "url": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34613882992",
+    "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+    "estado": "completed",
+    "resultado": "success",
+    "jobs": [
+      {
+        "nombre": "e2e",
+        "estado": "completed",
+        "resultado": "success"
+      },
+      {
+        "nombre": "quality",
+        "estado": "completed",
+        "resultado": "success"
+      }
+    ]
+  },
+  {
+    "id": 34613882989,
+    "url": "https://github.com/avanzadigitald/avancecorp-crm/actions/runs/34613882989",
+    "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+    "estado": "completed",
+    "resultado": "success",
+    "jobs": [
+      {
+        "nombre": "preflight",
+        "estado": "completed",
+        "resultado": "success"
+      }
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "commit": "4febe47cecbda6432747fc87f8a0eaa30f2bd4b7",
+  "check_all": {
+    "resultado": "PASS",
+    "exit_code": 0,
+    "tests": 3246,
+    "archivos_tests": 229,
+    "e2e_pass": 160,
+    "e2e_skip": 26,
+    "release_config_tests": 4,
+    "log_sha256": "ea657755ace6e0986ff3e035071264c75a3957a76cddb1ab73a22f5d8af93dfe"
+  },
+  "pre_push": {
+    "resultado": "PASS",
+    "tests": 3246
+  },
+  "navegador_productivo": {
+    "hoy": "PASS",
+    "cartera": "PASS",
+    "modulo": "./assets/index-Dkm26xgq.js",
+    "errores_consola_observados": 0,
+    "solo_lectura": true
+  },
+  "repeticion_opcional_selector_local_11_09": "NOT RUN: sesión del banco expirada; aprobación visual del 10/09 conservada",
+  "voiceover": "NOT RUN: omisión autorizada",
+  "restauracion_productiva": "NOT RUN: ZIP anterior conservado y verificado"
+}
