@@ -2507,6 +2507,10 @@ export async function montarBackendReal(
     }
 
     // ── edge crear-cliente (alta REAL en el portal: Auth + perfil + correo) ──
+    // Estado productivo degradado: todavía no se configuró el envío de avisos.
+    if (p === '/functions/v1/crm-notificaciones-tasa' && method === 'POST') {
+      return json(route, { configurado: false, clavePublica: '', dispositivo: null })
+    }
     if (p === '/functions/v1/crear-cliente' && method === 'POST') {
       estado.llamadas.altaCliente += 1
       if (estado.fallarProximaAlta) {

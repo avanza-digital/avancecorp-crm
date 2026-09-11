@@ -1,0 +1,71 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+The design is sound: transactional outbox, revision-scoped subscriptions, re-validation of role/session at claim and at pre-send materialization, service_role-only worker RPCs, generic lockscreen text, endpoint allowlist duplicated in SQL and TS, redirect:error plus abort in transport. I found one availability defect that can break the core rate-request flow, one batch-processing defect that causes starvation and duplicate sends, and several medium issues in logout lifecycle, secret handling and a11y. Edge index.ts was not attached, so VAPID/env wiring, permitirLocal and the service_role client remain unreviewed.
+
+FINDINGS:
+
+[P1] Notification enqueue can abort the analyst's rate request
+File: supabase/migrations/20260910225540_crm_notificaciones_push_tasa.sql
+Lines: 136-150
+Problem: private.encolar_push_tasa runs AFTER INSERT inside the requester's transaction and calls private.sesion_push_tasa_vigente, which reads auth.sessions, plus private.rol_crm (which joins crm.equipo and public.perfiles). Any exception there (permission change in auth, statement timeout, lock contention on crm.dispositivos_push_tasa, a future NOT NULL/constraint change) rolls back the insert into crm.solicitudes_tasa.
+Evidence: line 149 attaches the trigger to crm.solicitudes_tasa; lines 140-144 do the insert unguarded; contrast with the explicit protection reasoning for pg_net at lines 246-247 ("Un error HTTP no bloquea al analista"), which the trigger itself lacks.
+Impact: A defect in an auxiliary notification feature can block rate requests for all analysts. This is the highest-blast-radius path in the change.
+Recommendation: Wrap the trigger body in BEGIN ... EXCEPTION WHEN OTHERS THEN RETURN new; END, or move enqueueing off the write path (let the worker discover pending requests). Add a test that forces the enqueue to fail and asserts the request still commits.
+
+[P1] A failed confirmation aborts the whole batch and re-sends already-delivered pushes
+File: supabase/functions/crm-notificaciones-tasa/handler.ts
+Lines: 64-89 (specifically 85-88)
+Problem: The try/catch at 68-85 covers materializar/enviar only. The await d.confirmar(...) at line 86 is outside it. If confirmar rejects (network blip to PostgREST, PGRST timeout, reservation already expired producing a thrown error rather than false), the Promise.all rejects, the for-loop at 64 stops, and control jumps to the outer catch at 114 returning 503.
+Evidence: line 86 sits after the closing brace of the inner catch at 85; the outer catch at 114-118 is the only handler.
+Impact: (a) remaining groups of the batch are never processed this minute; (b) items already accepted by the push provider stay in estado='enviando' and are re-taken after reservado_hasta expires (SQL line 172), producing a second delivery; for a distinct solicitud tag the device will show it again after the first was dismissed; (c) the 200 accounting response is skipped.
+Recommendation: Wrap d.confirmar in its own try/catch per item so a single failure degrades only that item, and continue the loop. Add a Deno test with a confirmar stub that rejects on item 2 of 7 and assert items 3-7 were still processed.
+
+[P2] Push can continue after logout because the server session is not revoked and deactivation has no retry
+File: app/src/lib/auth.tsx (283-305), app/src/lib/notificaciones-tasa.ts (137-142), migration lines 58-64
+Problem: signOut is called with scope 'local', so the auth.sessions row remains valid until not_after. private.sesion_push_tasa_vigente only requires that row to exist, so the sole thing suppressing delivery is activo=false written by desactivar_push_tasa_fn. That RPC is raced against a 2000 ms timeout (auth.tsx:303) and limpiarPushTasaAlSalir already removed CUENTA/DISPOSITIVO from localStorage (notificaciones-tasa.ts:140) before awaiting it, so a slow or failing RPC leaves the device active with no state to retry from.
+Evidence: auth.tsx:303 Promise.race with a 2 s resolve; notificaciones-tasa.ts:141 swallows the failure; migration:60-63 checks only session existence and not_after.
+Impact: A logged-out phone keeps receiving "Nueva solicitud de tasa" until the session expires. No financial data is exposed (SW hardcodes text), but it contradicts the opt-in/eligibility contract and looks like a leak to the user.
+Recommendation: Persist the device id under a pending-revocation key before clearing state, retry on next boot and on the next consultarPushTasa; or verify the subscription against a per-session revocation marker the client cannot skip. Add a test: RPC rejects during salir, then next session start reconciles.
+
+[P2] The cron secret is written into pg_net request rows
+File: migration lines 258-261
+Problem: net.http_post persists headers, including x-cron-secret, in net.http_request_queue until the worker reaps it.
+Evidence: headers built with jsonb_build_object('x-cron-secret', v_secreto) at line 260.
+Impact: If any role reachable from PostgREST (service_role in particular) holds SELECT on the net schema, a shared secret used by several functions is readable, violating the repo rule on secrets.
+Confidence: hypothesis about grants in this project; the header persistence itself is certain.
+Recommendation: Verify grants on schema net and net.http_request_queue before publishing; document the result in the deployment checklist.
+
+[P2] Live regions are created together with their content, so they may not be announced
+File: app/src/components/app/notificaciones-tasa.tsx lines 74-76; solicitudes-tasa-gerencia.tsx (new status paragraph)
+Problem: The role="status" and role="alert" paragraphs are conditionally mounted. Assistive tech generally announces changes inside an existing live region; regions inserted already populated are unreliable (notably VoiceOver/iOS, the target platform here).
+Evidence: {mensaje && <p role="status">...} and {error && <div>...<p role="alert">...}. The same file's sibling panel already uses the correct pattern: a permanently rendered <p role="status" className="sr-only"> in solicitudes-tasa-gerencia.tsx.
+Impact: Gerencia users on VoiceOver may get no confirmation for activation, test send or errors.
+Recommendation: Reuse the existing persistent sr-only status pattern: always render the container and swap only its text.
+
+[P3] Concurrent worker overlap loses send outcomes
+File: migration lines 160-165 vs 213-215
+Problem: The cancellation UPDATE has no reservation filter, so it can flip a row currently held by another invocation (reservado_hasta > now()) to 'cancelado'; that worker's confirmar then finds no row and returns false after the push was already accepted. It also takes row locks across the whole pending set every minute.
+Recommendation: Exclude live reservations (add reservado_hasta is null or reservado_hasta < now()) and bound the cancellation scan.
+
+[P3] Inactive device rows and their audit entries grow without bound
+File: migration lines 21-23, 103-106
+Problem: The limit of 10 counts only activo devices; deactivated rows accumulate and every upsert emits an audit row.
+Recommendation: Cap total rows per profile or purge inactive devices after N days.
+
+TEST GAPS:
+- Trigger failure does not roll back crm.solicitudes_tasa insert.
+- confirmar rejection mid-batch: remaining items still processed, no duplicate for already-sent items.
+- Logout with desactivar_push_tasa_fn failing or exceeding 2 s: assert no delivery afterwards.
+- Negative grant test: authenticated cannot execute tomar/materializar/confirmar.
+- Announcement test for status/alert regions (assert region exists before the message).
+- Deeplink after login end to end: the attached e2e spec was not included, so hash survival across the auth flow is unverified.
+- Re-registration when the endpoint row belongs to another profile (shared device): assert the second attempt succeeds after the catch-path unsubscribe.
+
+RECOMMENDED NEXT ACTIONS:
+1. Guard the enqueue trigger and isolate d.confirmar per item; add the two tests above.
+2. Add durable retry for post-logout deactivation, or justify why local scope is acceptable.
+3. Attach index.ts and the e2e spec, verify net schema grants, then fix the a11y live regions before publication.
+
+CONFIDENCE:
+MEDIUM — high on the SQL and handler findings, which are visible in the snapshot; lower on deployment-dependent items (net grants, Edge wiring) since index.ts and the e2e spec were not provided.

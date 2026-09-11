@@ -29,6 +29,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — PWA de Gerencia implementada y probada localmente; SQL, banco remoto y publicación pendientes de autorización.
 - [[F6 - publicada y apagada (2026-09-10)]] — frontend y tres SQL instalados; 43 pruebas remotas PASS, banco temporal eliminado. Revisión manual y F7–F9 pendientes.
 - [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]] — corrección PT409, pruebas y límites.
 - [[F6 - implementación de postventa (2026-09-10)]] — decisiones e implementación inicial.

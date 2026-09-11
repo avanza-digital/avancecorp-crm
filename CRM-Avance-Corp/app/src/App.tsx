@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { vincularCuentaPushTasa } from '@/lib/notificaciones-tasa'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { escribirHash, leerHash, type Vista } from '@/lib/router'
@@ -311,6 +312,9 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 
 function Workspace() {
   const { yo } = useAuth()
+  useEffect(() => {
+    vincularCuentaPushTasa(yo?.rol === 'gerencia' && !yo.demo ? yo.id : null)
+  }, [yo?.id, yo?.rol, yo?.demo])
   const { ambito } = useCRMData()
   const { leadAbiertoId, nuevoLeadAbierto } = usePanelesState()
   const { abrirLead, abrirNuevoLead, cerrarPaneles } = usePanelesActions()
@@ -384,7 +388,8 @@ function Workspace() {
         leadDestino = null
       }
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
-      escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined)
+      escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined,
+        destino === 'hoy' && ctx.rol === 'gerencia' ? leido.solicitudTasaId : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -414,8 +419,9 @@ function Workspace() {
       return
     }
     const ruta = leerHash()
-    escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined) // compara antes de escribir → sin bucles
-  }, [vista, leadAbiertoId])
+    escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined,
+      ruta.vista === vista && rol === 'gerencia' ? ruta.solicitudTasaId : undefined) // compara antes de escribir → sin bucles
+  }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
   // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se

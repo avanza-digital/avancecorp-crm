@@ -1,0 +1,14 @@
+ℹ pass 6
+ℹ fail 0
+ℹ skipped 0
+ok | 37 passed | 0 failed (90ms)
+ℹ pass 87
+ℹ fail 0
+ℹ skipped 0
+✔ dos corridas solapadas NO son un error: ni aviso ni escándalo (1.291875ms)
+ℹ pass 71
+ℹ fail 0
+ℹ skipped 0
+ℹ pass 12
+ℹ fail 0
+ℹ skipped 0

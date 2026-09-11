@@ -7,6 +7,7 @@ import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/c
 import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { CalendarioGoogle } from '@/components/app/calendario-google'
+import { NotificacionesTasa } from '@/components/app/notificaciones-tasa'
 import {
   useCatalogoUsuariosAdministrables,
   useConfiguracionMetas,
@@ -250,6 +251,7 @@ export function Config() {
           El directorio (solo lectura) no agenda tareas — no tiene qué conectar. */}
       {yo && !soloRoles && puedeEscribir(yo.rol) && <CalendarioGoogle perfilId={yo.id} demo={yo.demo} />}
 
+      <NotificacionesTasa />
       <RielEstadoConfiguracion pasos={pasos} />
 
       {/* Áreas de gobierno disponibles para la identidad actual. */}

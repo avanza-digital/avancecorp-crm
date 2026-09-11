@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SolicitudTasa } from '@/data/crm-api'
+import { ContextoSplashVisible } from '@/lib/splash-visible'
 
 const dobles = vi.hoisted(() => ({
   consulta: {} as Record<string, unknown>,
@@ -35,6 +36,20 @@ describe('SolicitudesTasaGerenciaPanel (bandeja R3)', () => {
     ok([])
     render(<SolicitudesTasaGerenciaPanel />)
     expect(screen.getByText('Nada por decidir')).toBeInTheDocument()
+  })
+
+  it('espera a que termine la pantalla de entrada antes de enfocar el aviso', () => {
+    const id = 'd7100000-0000-4000-8000-000000000001'
+    const anterior = window.location.hash
+    window.history.replaceState(null, '', `#/hoy/solicitud-tasa/${id}`)
+    ok([solicitud({ id })])
+    const vista = render(<ContextoSplashVisible.Provider value={true}><SolicitudesTasaGerenciaPanel /></ContextoSplashVisible.Provider>)
+    const tarjeta = document.getElementById(`solicitud-tasa-${id}`)!
+    expect(tarjeta).not.toHaveFocus()
+    vista.rerender(<ContextoSplashVisible.Provider value={false}><SolicitudesTasaGerenciaPanel /></ContextoSplashVisible.Provider>)
+    expect(tarjeta).toHaveFocus()
+    vista.unmount()
+    window.history.replaceState(null, '', anterior || '#/hoy')
   })
 
   it('pinta la solicitud con cliente, analista, base, pedida y motivo; la propia no aparece para decidir', () => {
@@ -106,7 +121,7 @@ describe('SolicitudesTasaGerenciaPanel (bandeja R3)', () => {
   it('cargando: skeleton; error: reintentar', () => {
     dobles.consulta = { data: undefined, isPending: true, isError: false }
     const { unmount } = render(<SolicitudesTasaGerenciaPanel />)
-    expect(screen.getByRole('status')).toHaveTextContent(/Cargando/)
+    expect(screen.getByText('Cargando solicitudes de tasa…')).toHaveAttribute('role', 'status')
     unmount()
     const refetch = vi.fn()
     dobles.consulta = { data: undefined, isPending: false, isError: true, refetch }

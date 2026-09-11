@@ -1,0 +1,9 @@
+ Test Files  227 passed (227)
+      Tests  3206 passed (3206)
+ℹ pass 4
+ℹ fail 0
+ℹ skipped 0
+ℹ pass 8
+ℹ fail 0
+ℹ skipped 0
+✓ built in 436ms

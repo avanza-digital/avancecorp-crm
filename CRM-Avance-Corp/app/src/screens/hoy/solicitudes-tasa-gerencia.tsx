@@ -23,6 +23,9 @@ import { parseMonto } from '@/lib/numero'
 import type { SolicitudTasa } from '@/data/crm-api'
 import { etiquetaReglaTasa } from '@/lib/rentabilidad'
 import { useResolverSolicitudTasa, useSolicitudesTasa } from '@/data/crm-queries'
+import { NotificacionesTasa } from '@/components/app/notificaciones-tasa'
+import { leerHash } from '@/lib/router'
+import { useSplashVisible } from '@/lib/splash-visible'
 
 const CATEGORIA_TXT: Record<string, string> = { nuevo: 'Nuevo', renovacion: 'Renovación', upgrade: 'Upgrade' }
 /** La bandeja se refresca sola: una solicitud nueva aparece sin recargar. */
@@ -64,7 +67,7 @@ function TarjetaSolicitud({ s, onDecidir, ocupada }: {
     void onDecidir('aprobar_hasta', topeNum, motivo.trim() || null)
   }
   return (
-    <li className={cn('rounded-xl border bg-card p-3 shadow-[var(--shadow-card)]', s.prioridad_bandeja ? 'border-primary/40' : 'border-border')} aria-labelledby={idCliente}>
+    <li id={`solicitud-tasa-${s.id}`} tabIndex={-1} className={cn('rounded-xl border bg-card p-3 shadow-[var(--shadow-card)] focus:outline-none focus:ring-2 focus:ring-primary', s.prioridad_bandeja ? 'border-primary/40' : 'border-border')} aria-labelledby={idCliente}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p id={idCliente} className="truncate text-sm font-extrabold text-foreground" title={s.cliente_nombre}>{s.cliente_nombre}</p>
@@ -137,6 +140,7 @@ function TarjetaSolicitud({ s, onDecidir, ocupada }: {
 
 export function SolicitudesTasaGerenciaPanel(): JSX.Element {
   const { yo } = useAuth()
+  const splashVisible = useSplashVisible()
   const esDemo = yo?.demo === true
   const sesionReal = !!yo && !esDemo
   const consulta = useSolicitudesTasa(['pendiente'], sesionReal, sesionReal ? REFRESCO_MS : false)
@@ -148,6 +152,22 @@ export function SolicitudesTasaGerenciaPanel(): JSX.Element {
 
   // Solo las que este actor PUEDE resolver (el servidor ya excluye las propias: D3) y siguen vigentes.
   const pendientes = useMemo(() => (consulta.data ?? []).filter((s) => s.puede_resolver), [consulta.data])
+  const [solicitudDelAviso, setSolicitudDelAviso] = useState(() => leerHash().solicitudTasaId)
+  const avisoEnfocado = useRef<string | null>(null)
+  useEffect(() => {
+    const cambiar = () => { avisoEnfocado.current = null; setSolicitudDelAviso(leerHash().solicitudTasaId) }
+    window.addEventListener('hashchange', cambiar)
+    return () => window.removeEventListener('hashchange', cambiar)
+  }, [])
+  useEffect(() => {
+    if (splashVisible || !solicitudDelAviso || avisoEnfocado.current === solicitudDelAviso) return
+    const tarjeta = document.getElementById(`solicitud-tasa-${solicitudDelAviso}`)
+    if (tarjeta) {
+      tarjeta.scrollIntoView?.({ block: 'center' })
+      tarjeta.focus({ preventScroll: true })
+      if (document.activeElement === tarjeta) avisoEnfocado.current = solicitudDelAviso
+    }
+  }, [pendientes, solicitudDelAviso, splashVisible])
   const propias = useMemo(() => (consulta.data ?? []).filter((s) => s.es_mia && s.vigente).length, [consulta.data])
 
   const onDecidir = async (s: SolicitudTasa, decision: 'aprobar' | 'rechazar' | 'aprobar_hasta', tope: number | null, motivo: string | null) => {
@@ -181,6 +201,11 @@ export function SolicitudesTasaGerenciaPanel(): JSX.Element {
         ) : undefined}
       />
       <CardContent className="min-w-0 pt-1">
+        <div className="mb-4"><NotificacionesTasa /></div>
+        <p role="status" aria-atomic="true" className={solicitudDelAviso && !cargando && !error && !pendientes.some(s => s.id === solicitudDelAviso) ? 'mb-3 rounded-lg bg-muted p-3 text-xs' : 'sr-only'}>
+          {solicitudDelAviso && !cargando && !error && !pendientes.some(s => s.id === solicitudDelAviso)
+            ? 'La solicitud de este aviso ya no está pendiente o no está disponible para tu cuenta.' : ''}
+        </p>
         <div ref={cuerpoRef} tabIndex={-1} className="outline-none">
           <p role="status" className="sr-only">
             {cargando && 'Cargando solicitudes de tasa…'}

@@ -1,0 +1,7 @@
+f85af64f9abe31a753317bb5fde14d2bac9a3f54c319cee4e4654c2f2b2d230f  CRM-Avance-Corp/supabase/migrations/20260910225540_crm_notificaciones_push_tasa.sql
+f5d6b4c06ca15736ead6855776964df224f29db326488e747e8353a449b425e2  CRM-Avance-Corp/supabase/scripts/push-tasa/activar-produccion.sql
+061d818b7c9e440b71cf50757701bce59a2a1fe96cba2fec9e4407e1100f0335  CRM-Avance-Corp/supabase/functions/crm-notificaciones-tasa/index.ts
+8abdbcfc3aaf2a6749b1eac27cc3efd47c000519a47a44b5785388b53ffb33f8  CRM-Avance-Corp/supabase/functions/crm-notificaciones-tasa/handler.ts
+86518c2541e508cb6979d6dca375af037a3983b2a0ca5d6ec061dc56db445e63  CRM-Avance-Corp/supabase/functions/crm-notificaciones-tasa/transporte.ts
+bb8b17431e6f05e609b09d9b111a1182830ec745c9d376a4a62a9bbff20e35e6  CRM-Avance-Corp/app/public/sw-crm.js
+c5a69a25b3275e6e0dc4ee71361c0ec9567502787d9bc25fe53d3cf724e78c73  CRM-Avance-Corp/app/public/manifest.webmanifest
