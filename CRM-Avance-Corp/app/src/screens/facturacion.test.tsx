@@ -11,11 +11,23 @@ import type { FilaFacturacionDia } from '@/lib/facturacion'
 // La pantalla recibe las filas por prop, así que ni la sesión ni el servidor
 // deciden nada aquí; se doblan para que el componente monte. El camino real
 // (RPC + modo demo) lo cubren la matriz de RLS y el oráculo del servidor.
-const dobles = vi.hoisted(() => ({ demo: false }))
+const dobles = vi.hoisted(() => ({
+  demo: false,
+  // El organigrama que la pantalla lee del store. Por defecto vacío: así los
+  // casos que no hablan del roster siguen midiendo solo lo vendido.
+  equipo: [] as Array<{
+    perfil_id: string
+    nombre_completo: string
+    rol_crm: string
+    supervisor_id: string | null
+    activo: boolean
+  }>,
+}))
 
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ yo: { id: 'g1', rol: 'gerencia', demo: dobles.demo } }),
 }))
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ equipo: dobles.equipo }) }))
 vi.mock('@/data/crm-queries', () => ({
   useFacturacionDiaria: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, refetch: vi.fn() }),
 }))
@@ -234,26 +246,96 @@ describe('estado vacío — el que de verdad se ve en producción', () => {
     expect(screen.queryByRole('region', { name: /Facturación diaria/ })).not.toBeInTheDocument()
   })
 
-  it('cuando el filtro es el que vacía la malla, ofrece rescatarla', () => {
+  it('preguntar por quien no vendió en esa moneda responde con su fila en cero, no con un callejón', () => {
     pintar()
-    // Ana no vende en dólares: la malla se queda sin nada que pintar.
+    // Ana no vende en dólares. ANTES la malla se quedaba sin nada que pintar y
+    // había que rescatarla; ahora el cero ES la respuesta a la pregunta.
     fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Ana Analista' }))
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
 
-    expect(screen.getByText('Ningún cierre coincide con estos filtros.')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
-    expect(screen.getByRole('button', { name: 'Ver el mes completo de Carla Analista' })).toBeVisible()
+    expect(screen.queryByText('Ningún cierre coincide con estos filtros.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Carla Analista' })).not.toBeInTheDocument()
+  })
+})
+
+describe('el analista que no ha vendido — petición de Miguel del 11/09/2026', () => {
+  afterEach(() => {
+    dobles.equipo = []
+  })
+
+  /** Organigrama del store: dos que ya venden, uno que no, y una baja. */
+  function conEquipo(): void {
+    dobles.equipo = [
+      { perfil_id: 'sup-rosa', nombre_completo: 'Rosa Uno', rol_crm: 'supervisor', supervisor_id: null, activo: true },
+      { perfil_id: 'ana', nombre_completo: 'Ana Analista', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+      { perfil_id: 'nuevo', nombre_completo: 'Noe Novato', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+      { perfil_id: 'baja', nombre_completo: 'Bruno Baja', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: false },
+    ]
+  }
+
+  it('sale en la malla, y su fila está en cero', () => {
+    conEquipo()
+    pintar()
+    const fila = within(malla())
+      .getByRole('button', { name: 'Ver el mes completo de Noe Novato' })
+      .closest('tr')
+    expect(fila).not.toBeNull()
+    // La celda vacía no lleva cifra a la vista, pero SÍ la anuncia para quien
+    // usa lector: toda su fila dice 'S/ 0' y ni un solo importe con dígito.
+    expect(within(fila as HTMLElement).queryByText(/S\/ [1-9]/)).toBeNull()
+    expect(within(fila as HTMLElement).getAllByText('S/ 0').length).toBeGreaterThan(1)
+  })
+
+  it('se puede filtrar por él, que era justo lo que no se podía', () => {
+    conEquipo()
+    pintar()
+    fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Noe Novato' }))
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Noe Novato' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).not.toBeInTheDocument()
+  })
+
+  it('en DEMO no se siembra: el fixture no se mezcla con el organigrama real', () => {
+    conEquipo()
+    dobles.demo = true
+    try {
+      pintar()
+      expect(screen.queryByRole('button', { name: 'Ver el mes completo de Noe Novato' })).not.toBeInTheDocument()
+    } finally {
+      dobles.demo = false
+    }
+  })
+
+  it('un analista dado de baja que no vendió NO aparece', () => {
+    conEquipo()
+    pintar()
+    expect(screen.queryByRole('button', { name: 'Ver el mes completo de Bruno Baja' })).not.toBeInTheDocument()
+  })
+
+  it('el organigrama no reescribe el equipo de una venta ya cerrada', () => {
+    // El organigrama dice que Carla está HOY con Rosa; su venta es de cuando
+    // estaba con Sara, y el equipo de Sara sigue sumándola. Mover a alguien de
+    // equipo no le cambia de sitio el dinero que ya cerró. (El reparto fila a
+    // fila se comprueba en el modelo: lib/facturacion.test.ts.)
+    dobles.equipo = [
+      { perfil_id: 'sup-rosa', nombre_completo: 'Rosa Uno', rol_crm: 'supervisor', supervisor_id: null, activo: true },
+      { perfil_id: 'carla', nombre_completo: 'Carla Analista', rol_crm: 'vendedor', supervisor_id: 'sup-rosa', activo: true },
+    ]
+    pintar()
+    fireEvent.click(within(malla()).getByRole('checkbox', { name: 'Comparar a Carla Analista' }))
+    expect(within(malla()).getByText('Equipo de Sara Dos')).toBeVisible()
+    expect(within(malla()).queryByText('Equipo de Rosa Uno')).toBeNull()
   })
 })
 
 describe('moneda y métrica', () => {
-  it('cambiar a dólares deja solo lo que se vendió en dólares', () => {
+  it('cambiar de moneda cambia los números, no quién aparece', () => {
     pintar()
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
     expect(within(malla()).getAllByText('US$ 7,000').length).toBeGreaterThanOrEqual(2)
-    expect(
-      screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' }),
-    ).not.toBeInTheDocument()
+    // Ana no vendió un solo dólar y aun así conserva su fila: la tabla es el
+    // equipo, y las filas no aparecen y desaparecen al tocar un interruptor.
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeVisible()
   })
 
   it('el caption dice qué se está midiendo, no siempre «capital»', () => {

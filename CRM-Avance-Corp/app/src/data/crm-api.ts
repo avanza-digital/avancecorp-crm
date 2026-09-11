@@ -41,7 +41,11 @@ import {
 } from '@/lib/tipos'
 import type { CategoriaContrato, CuotaCronograma, ModalidadContrato, TipoInteres } from '@/lib/cronograma'
 import { esMoneda } from '@/lib/format'
-import type { FilaFacturacionDia } from '@/lib/facturacion'
+import { SIN_SUPERVISOR_ID, type FilaFacturacionDia } from '@/lib/facturacion'
+
+// Se re-exporta desde el modelo, que es donde vive el concepto: una sola
+// definición para el mapeo de la RPC y para el roster de la pantalla.
+export { SIN_SUPERVISOR_ID }
 import {
   ESTADOS_CONTRATO,
   ESTADOS_CUOTA,
@@ -3770,7 +3774,6 @@ const FacturacionDiaRowSchema = v.object({
   capital: NumericoRpc,
 })
 
-export const SIN_SUPERVISOR_ID = 'sin-supervisor'
 
 /** Facturación de UN mes comercial (`p_mes` = 'YYYY-MM-01'). */
 export async function listarFacturacionDiaria(

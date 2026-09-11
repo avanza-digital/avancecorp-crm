@@ -45,6 +45,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { useFacturacionDiaria } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
+import { useCRMData } from '@/lib/store-context'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal, parseDateLocal } from '@/lib/cronograma'
@@ -61,6 +62,7 @@ import {
   etiquetaMes,
   filasComparadas,
   filtrarFilas,
+  filtrarRoster,
   filtroInicial,
   filtroVacio,
   letraDia,
@@ -69,12 +71,14 @@ import {
   numeroDia,
   pasoDeEscala,
   primerDiaDelMes,
-  rosterDeFilas,
+  rosterDeEquipoYFilas,
+  TIPO_CAPITAL_NUEVO,
   valorCelda,
   type FilaFacturacion,
   type FilaFacturacionDia,
   type FiltroFacturacion,
   type MetricaFacturacion,
+  type MiembroEquipo,
 } from '@/lib/facturacion'
 import { money, numero, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -327,6 +331,7 @@ export function Facturacion({
   filas?: readonly FilaFacturacionDia[] | undefined
 } = {}): JSX.Element {
   const { yo } = useAuth()
+  const { equipo } = useCRMData()
   const esDemo = yo?.demo === true
   const ahora = useAhora(600_000)
   const hoy = useMemo(() => formatDateLocal(new Date(ahora)), [ahora])
@@ -357,11 +362,36 @@ export function Facturacion({
   const todos: readonly FilaFacturacionDia[] =
     fuente ?? (esDemo ? demo : (consulta.data ?? SIN_FILAS))
 
-  const roster = useMemo(() => rosterDeFilas(todos), [todos])
+  // El organigrama que ya tiene el store (`crm.equipo_visible_fn`, con el mismo
+  // alcance que la RLS: Gerencia ve la empresa entera). Se proyecta a la forma
+  // mínima del modelo para que `lib/facturacion.ts` no dependa de los tipos del CRM.
+  // En DEMO no se siembra: el fixture trae su propio reparto inventado y el
+  // organigrama del store es otro (EQUIPO_DEMO). Mezclarlos pondría dos repartos
+  // ajenos en la misma tabla, que parece una avería. El demo enseña MENOS que
+  // producción, nunca más — esa es la dirección segura.
+  const plantilla = useMemo<MiembroEquipo[]>(
+    () =>
+      (esDemo ? [] : equipo).map((m) => ({
+        id: m.perfil_id,
+        nombre: m.nombre_completo,
+        rol: m.rol_crm,
+        supervisorId: m.supervisor_id ?? null,
+        activo: m.activo,
+      })),
+    [equipo, esDemo],
+  )
+
+  const roster = useMemo(() => rosterDeEquipoYFilas(plantilla, todos), [plantilla, todos])
   const equipos = useMemo(() => equiposDeRoster(roster), [roster])
 
   const filtradas = useMemo(() => filtrarFilas(todos, filtro), [todos, filtro])
-  const malla = useMemo(() => construirMalla(filtradas, mes, moneda), [filtradas, mes, moneda])
+  // El roster va filtrado con el MISMO filtro que las ventas: si no, elegir a un
+  // analista seguiría pintando a todos los demás en cero.
+  const rosterFiltrado = useMemo(() => filtrarRoster(roster, filtro), [roster, filtro])
+  const malla = useMemo(
+    () => construirMalla(filtradas, mes, moneda, TIPO_CAPITAL_NUEVO, rosterFiltrado),
+    [filtradas, mes, moneda, rosterFiltrado],
+  )
 
   // Mismo tramo del mes anterior — comparar un mes entero contra diez días mentiría.
   const mesPrevio = mesDesplazado(mes, -1)

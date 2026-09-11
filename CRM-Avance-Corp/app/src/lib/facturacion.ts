@@ -1,10 +1,13 @@
 // lib/facturacion.ts — modelo de la malla de Facturación: día × supervisor × analista.
 //
-// Este archivo NO habla con el servidor. Recibe una lista plana de contratos ya
-// facturados y la convierte en la matriz que pinta la pantalla. La fuente de esa
-// lista es intercambiable: hoy es el fixture de ejemplo (lib/demo-facturacion.ts),
-// mañana será la RPC diaria. Esa costura es a propósito — cuando exista
-// `crm.facturacion_dia_fn` solo cambia quien llena `ContratoFacturado[]`.
+// Este archivo NO habla con el servidor. Recibe las filas que ya devuelve
+// `crm.facturacion_diaria_fn` (en producción desde el 10/09/2026) y las
+// convierte en la matriz que pinta la pantalla. La fuente es intercambiable: la
+// misma forma la sirve el fixture de ejemplo (lib/demo-facturacion.ts).
+//
+// Las filas dicen quién VENDIÓ. Quién PODRÍA haber vendido lo dice el
+// organigrama (`crm.equipo_visible_fn`), y por eso el roster se construye con
+// los dos: un analista con el mes en cero también tiene que poder consultarse.
 //
 // Reglas de negocio que el llamador debe respetar al construir esa lista (las
 // mismas que ya usan Ranking y Metas, ver CLAUDE.md y la nota del vault):
@@ -259,12 +262,25 @@ export function construirMalla(
   mes: string,
   moneda: Moneda,
   tipo: string = TIPO_CAPITAL_NUEVO,
+  roster: readonly PersonaFacturacion[] = [],
 ): MallaFacturacion {
   const dias = diasDelMes(mes)
   const indicePorDia = new Map<string, number>()
   dias.forEach((dia, i) => indicePorDia.set(dia, i))
 
   const porAnalista = new Map<string, Acumulador>()
+  // El roster SIEMBRA la malla antes que las ventas: así el analista que no
+  // vendió nada tiene su fila, en cero, en lugar de desaparecer. Se siembra
+  // primero y no después para que la venta, si la hay, sobrescriba el
+  // supervisor de hoy por el HISTÓRICO que trae la fila.
+  for (const p of roster) {
+    porAnalista.set(p.id, {
+      nombre: p.nombre,
+      supervisorId: p.supervisorId,
+      supervisorNombre: p.supervisorNombre,
+      dias: new Map(),
+    })
+  }
   for (const f of filas) {
     if (f.moneda !== moneda || f.tipo !== tipo) continue
     const indice = indicePorDia.get(f.dia)
@@ -278,6 +294,12 @@ export function construirMalla(
         dias: new Map(),
       }
       porAnalista.set(f.analistaId, acc)
+    } else {
+      // Venía sembrado desde el roster, con el equipo de HOY. La fila manda:
+      // trae el supervisor de entonces, que es a quien le corresponde la venta.
+      acc.nombre = f.analistaNombre
+      acc.supervisorId = f.supervisorId
+      acc.supervisorNombre = f.supervisorNombre
     }
     acc.dias.set(indice, sumar(acc.dias.get(indice) ?? CELDA_VACIA, f))
   }
@@ -378,11 +400,33 @@ export interface PersonaFacturacion {
 }
 
 /**
- * El roster sale de los propios contratos, igual que `equipoCitas` en Citas.
- * Consecuencia heredada y deliberada: el selector solo ofrece a quien tiene
- * algo este mes. Cuando la fuente real exista, el roster debería venir de
- * `crm.equipo` para que un analista sin ventas también se pueda consultar
- * (y su fila vacía sea la respuesta).
+ * Id y rótulo de la fila «sin supervisor». El servidor ya emite el rótulo
+ * (`coalesce(ps.nombre_completo, 'Sin supervisor')`); el id lo pone el cliente
+ * porque la RPC manda NULL y un `Map` necesita una clave. Viven aquí, en el
+ * modelo, y no en la capa de datos: son parte del dominio de la malla.
+ */
+export const SIN_SUPERVISOR_ID = 'sin-supervisor'
+export const SIN_SUPERVISOR_NOMBRE = 'Sin supervisor'
+
+/**
+ * Un miembro del organigrama, en la forma mínima que el roster necesita. Es la
+ * proyección de `crm.equipo_visible_fn` (ver `Miembro` en lib/tipos.ts); no se
+ * reutiliza ese tipo para que el modelo siga siendo puro y comprobable sin
+ * arrastrar los tipos de la capa de datos.
+ */
+export interface MiembroEquipo {
+  readonly id: string
+  readonly nombre: string
+  readonly rol: string
+  readonly supervisorId: string | null
+  readonly activo: boolean
+}
+
+/**
+ * El roster que sale SOLO de lo vendido. Se conserva porque es la base de
+ * `rosterDeEquipoYFilas` y porque el supervisor que trae es el HISTÓRICO —el de
+ * entonces, reconstruido por el servidor—, que es el dato bueno para quien sí
+ * vendió. Por sí sola deja fuera al analista sin ventas: para eso está la otra.
  */
 export function rosterDeFilas(
   filas: readonly FilaFacturacionDia[],
@@ -397,6 +441,49 @@ export function rosterDeFilas(
         supervisorNombre: f.supervisorNombre,
       })
     }
+  }
+  return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-PE'))
+}
+
+/**
+ * El roster COMPLETO: quien vendió, más todo analista vigente que no vendió.
+ *
+ * Miguel, 11/09/2026: «arregla lo de el analista que no ha vendido, sí quiero
+ * que salga». Antes el selector se llenaba con las propias ventas, así que un
+ * analista con el mes en cero era invisible — y no poder preguntar por él es
+ * justo lo contrario de lo que sirve un tablero de ventas: el cero es la
+ * respuesta, no la ausencia de pregunta.
+ *
+ * Dos procedencias, y el orden importa:
+ *  · quien VENDIÓ entra con su supervisor HISTÓRICO (el de entonces, que el
+ *    servidor reconstruye desde `crm.usuario_eventos`). Manda sobre el equipo
+ *    de hoy: si alguien cambió de equipo, su venta sigue contando donde estaba.
+ *  · quien NO vendió entra con su supervisor de HOY, porque no hay venta que
+ *    anclar a una fecha. Es la única lectura posible y no engaña a nadie: una
+ *    fila en cero no atribuye dinero a ningún equipo.
+ *
+ * Solo se añaden analistas ACTIVOS. Un analista dado de baja que no vendió nada
+ * este mes no tiene por qué aparecer; si vendió, ya entró por la primera vía.
+ */
+export function rosterDeEquipoYFilas(
+  equipo: readonly MiembroEquipo[],
+  filas: readonly FilaFacturacionDia[],
+): PersonaFacturacion[] {
+  const porId = new Map<string, PersonaFacturacion>()
+  for (const p of rosterDeFilas(filas)) porId.set(p.id, p)
+
+  const nombrePorId = new Map<string, string>()
+  for (const m of equipo) nombrePorId.set(m.id, m.nombre)
+
+  for (const m of equipo) {
+    if (m.rol !== 'vendedor' || !m.activo || porId.has(m.id)) continue
+    const supervisorId = m.supervisorId ?? SIN_SUPERVISOR_ID
+    porId.set(m.id, {
+      id: m.id,
+      nombre: m.nombre,
+      supervisorId,
+      supervisorNombre: nombrePorId.get(supervisorId) ?? SIN_SUPERVISOR_NOMBRE,
+    })
   }
   return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-PE'))
 }
@@ -421,6 +508,23 @@ export function filtrarFilas(
     (f) =>
       (filtro.equipo === '' || f.supervisorId === filtro.equipo) &&
       (filtro.analistas.length === 0 || filtro.analistas.includes(f.analistaId)),
+  )
+}
+
+/**
+ * El mismo filtro, aplicado a personas. Hace falta porque la malla ya no se
+ * construye solo con lo vendido: también se siembra con el roster, y sembrarlo
+ * sin filtrar haría que elegir a un analista siguiera enseñando a todos los
+ * demás en cero. Las dos funciones deciden con las MISMAS dos condiciones.
+ */
+export function filtrarRoster(
+  roster: readonly PersonaFacturacion[],
+  filtro: FiltroFacturacion,
+): PersonaFacturacion[] {
+  return roster.filter(
+    (p) =>
+      (filtro.equipo === '' || p.supervisorId === filtro.equipo) &&
+      (filtro.analistas.length === 0 || filtro.analistas.includes(p.id)),
   )
 }
 
