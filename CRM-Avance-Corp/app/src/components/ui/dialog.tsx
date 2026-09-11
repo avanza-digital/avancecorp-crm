@@ -2,7 +2,7 @@
 // fondo inerte, scroll lock, Esc por capas — con modales apilados cierra SOLO
 // el de más arriba — y retorno de foco al cerrar). El aspecto es el mismo de
 // siempre: mismas clases, mismos keyframes. API sin cambios: open/onClose.
-import type { HTMLAttributes, ReactNode } from 'react'
+import { useRef, type HTMLAttributes, type ReactNode } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +24,10 @@ interface DialogProps {
 }
 
 export function Dialog({ open, onClose, children, ariaLabel, className }: DialogProps) {
+  // Estos modales se controlan desde acciones externas, sin Radix.Trigger.
+  // Una resolución puede retirar la acción: conservamos también su ficha.
+  const origenFoco = useRef<HTMLElement | null>(null)
+  const ambitoFoco = useRef<HTMLElement | null>(null)
   return (
     <RadixDialog.Root open={open} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
       <RadixDialog.Portal>
@@ -35,6 +39,28 @@ export function Dialog({ open, onClose, children, ariaLabel, className }: Dialog
         {/* Contenedor de layout no interactivo: el click en el padding cae al overlay. */}
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
           <RadixDialog.Content
+            onOpenAutoFocus={() => {
+              const activo = document.activeElement
+              const origen = activo instanceof HTMLElement && activo !== document.body ? activo : null
+              origenFoco.current = origen
+              ambitoFoco.current = origen?.closest<HTMLElement>('[role="dialog"]') ?? null
+            }}
+            onCloseAutoFocus={(evento) => {
+              const origen = origenFoco.current
+              const ambito = ambitoFoco.current
+              origenFoco.current = null
+              ambitoFoco.current = null
+              if (!origen?.isConnected && !ambito?.isConnected) return
+              evento.preventDefault()
+              // Esperar a que Radix retire la trampa del diálogo que se cierra.
+              requestAnimationFrame(() => {
+                const destino = origen?.isConnected && !origen.matches(':disabled, [aria-disabled="true"]')
+                  ? origen : ambito?.isConnected ? ambito : null
+                destino?.focus({ preventScroll: true })
+                // Un nodo conectado también puede quedar oculto o inerte.
+                if (document.activeElement !== destino && ambito?.isConnected) ambito.focus({ preventScroll: true })
+              })
+            }}
             aria-label={ariaLabel}
             aria-describedby={undefined}
             data-slot="dialog"
