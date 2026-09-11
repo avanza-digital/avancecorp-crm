@@ -72,3 +72,13 @@ del banco y ejecutar los gates remotos; no volver a pedir los dos SQL aprobados.
 Relacionadas: [[Solicitud de tasa en el lead - publicada 2026-09-09]],
 [[Notificaciones de pagos]], [[Arquitectura del portal]],
 [[Main unico - sincronizacion y publicacion 2026-09-04]].
+
+## Banco remoto autorizado el 11 de septiembre
+
+Miguel confirmó «sii hazlo» para el coste de US$0,01344/hora y eliminación al
+terminar. Banco exclusivo: `push-tasa-20260911`, proyecto `pdummdtfablfkdgrmauo`,
+ID `d57f0619-4722-4d6a-a4a2-efc5ff131a53`. Creado a las 16:44 UTC. El historial
+antiguo volvió a fallar durante el arranque; se reconstruye este banco vacío
+con la estructura e historial vigentes, sin usuarios ni filas de negocio reales.
+La rama `banco-f7` pertenece a otro trabajo y no se modifica. Los dos SQL y el
+coste ya están autorizados; no hace falta pedirlos nuevamente.

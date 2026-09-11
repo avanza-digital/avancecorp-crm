@@ -1,6 +1,6 @@
 # Avisos de solicitudes de tasa en la PWA del CRM
 
-**Estado: SQL autorizado el 11/09/2026; banco remoto y publicación pendientes.**
+**Estado: SQL y coste autorizados el 11/09/2026; banco remoto en verificación.**
 Proyecto: `dctqcbznekcyxhjujuci`. Frontend: `https://crm.miavance.com`.
 Trabajo aislado del frente F7 en `/private/tmp/avancecorp-tasa-lead-real-20260908`.
 No se modificó la base productiva ni se enviaron avisos reales durante este trabajo.
@@ -24,7 +24,8 @@ solo ese dispositivo. Los demás teléfonos de Gerencia siguen recibiendo.
 Miguel aprobó ambos archivos con «siii» el 11/09/2026 y confirmó la organización
 `AVANCECORP- CRM-PORTAL`. Las huellas aprobadas son las de `evidencia/SHA256SUMS`;
 los archivos SQL no se modificaron después. Supabase cotizó el banco temporal
-en US$0,01344/hora; se solicitó confirmación del coste antes de crearlo.
+en US$0,01344/hora; Miguel respondió «sii hazlo». Se creó el banco exclusivo
+`push-tasa-20260911` (`pdummdtfablfkdgrmauo`), que se eliminará al terminar.
 
 - [Migración](../../migrations/20260910225540_crm_notificaciones_push_tasa.sql): dos
   tablas CRM cerradas con RLS/auditoría, ocho RPC con permisos explícitos, helpers
@@ -114,8 +115,8 @@ node supabase/scripts/push-tasa/concurrencia.mjs crm_push_tasa_concurrencia_fina
 
 ## Publicación pendiente
 
-1. Los dos SQL exactos y la organización ya están autorizados. Crear banco
-   Supabase exclusivo tras confirmar el coste; no reutilizar el banco de F7.
+1. Los dos SQL exactos y la organización ya están autorizados. Banco
+   Supabase exclusivo creado con coste autorizado; el banco de F7 se conserva.
 2. Aplicar la migración en ese banco y repetir matriz RLS/advisors, cron y Edge
    reales. Usar claves VAPID de prueba y el destino del propio banco. Nunca poner
    el destino productivo en una rama de prueba.
