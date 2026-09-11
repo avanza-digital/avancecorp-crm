@@ -7,21 +7,26 @@ import {
   conciliarFiltro,
   ESCALA_FACTURACION,
   construirMalla,
+  construirMallaDeDias,
   desgloseDeCelda,
+  diasDelPeriodo,
   diasDelMes,
   diasHabilesHasta,
   equiposDeRoster,
   esFinDeSemana,
+  etiquetaPeriodo,
   filasComparadas,
   filtrarFilas,
   filtrarRoster,
   filtroInicial,
   filtroVacio,
   letraDia,
+  lunesDeLaSemana,
   mejorDia,
   mesDesplazado,
   nivelFacturacion,
   numeroDia,
+  periodoDesplazado,
   pasoDeEscala,
   primerDiaDelMes,
   rosterDeEquipoYFilas,
@@ -588,5 +593,62 @@ describe('un analista que vendió bajo dos supervisores el mismo mes', () => {
     const soloElla: FiltroFacturacion = { equipo: '', analistas: ['a1'] }
     const m = construirMalla(filtrarFilas(CAMBIO, soloElla), MES, 'PEN')
     expect(m.grupos.map((g) => g.nombre).sort()).toEqual(['Sara Primera', 'Sonia Segunda'])
+  })
+})
+
+/* ───── Periodo: mes, semana o día (Miguel, 11/09/2026) ───── */
+describe('tramo: mes, semana y día', () => {
+  it('la semana va de LUNES a domingo', () => {
+    // El 10/09/2026 es jueves; su semana empieza el lunes 7.
+    expect(lunesDeLaSemana('2026-09-10')).toBe('2026-09-07')
+    // Y un domingo pertenece a la semana que ACABA, no a la que empieza.
+    expect(lunesDeLaSemana('2026-09-13')).toBe('2026-09-07')
+  })
+
+  it('cada tramo trae los días que le tocan', () => {
+    expect(diasDelPeriodo('dia', '2026-09-10')).toEqual(['2026-09-10'])
+    expect(diasDelPeriodo('semana', '2026-09-10')).toEqual([
+      '2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10',
+      '2026-09-11', '2026-09-12', '2026-09-13',
+    ])
+    expect(diasDelPeriodo('mes', '2026-09-10')).toHaveLength(30)
+  })
+
+  it('una semana puede cruzar de mes, y no se parte', () => {
+    // El 1 de octubre de 2026 es jueves: su semana empieza el 28 de setiembre.
+    expect(diasDelPeriodo('semana', '2026-10-01')).toEqual([
+      '2026-09-28', '2026-09-29', '2026-09-30',
+      '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04',
+    ])
+  })
+
+  it('las flechas se mueven en la unidad elegida', () => {
+    expect(periodoDesplazado('dia', '2026-09-10', -1)).toBe('2026-09-09')
+    expect(periodoDesplazado('semana', '2026-09-10', -1)).toBe('2026-09-03')
+    expect(periodoDesplazado('mes', '2026-09-10', -1)).toBe('2026-08-01')
+    // Y cruzan el cambio de mes sin tropezar.
+    expect(periodoDesplazado('dia', '2026-09-01', -1)).toBe('2026-08-31')
+    expect(periodoDesplazado('semana', '2026-10-01', -1)).toBe('2026-09-24')
+  })
+
+  it('la malla de un tramo suma SOLO ese tramo', () => {
+    const filas = [
+      fila({ dia: '2026-09-07', capital: 10_000 }),
+      fila({ dia: '2026-09-10', capital: 20_000 }),
+      fila({ dia: '2026-09-20', capital: 99_000 }), // fuera de la semana
+    ]
+    const semana = construirMallaDeDias(filas, diasDelPeriodo('semana', '2026-09-10'), MES, 'PEN')
+    expect(valorCelda(semana.total, 'capital')).toBe(30_000)
+    expect(semana.dias).toHaveLength(7)
+
+    const dia = construirMallaDeDias(filas, diasDelPeriodo('dia', '2026-09-10'), MES, 'PEN')
+    expect(valorCelda(dia.total, 'capital')).toBe(20_000)
+    expect(dia.dias).toHaveLength(1)
+  })
+
+  it('el rótulo nombra el tramo, no siempre el mes', () => {
+    expect(etiquetaPeriodo('mes', '2026-09-10')).toMatch(/setiembre/i)
+    expect(etiquetaPeriodo('dia', '2026-09-10')).toMatch(/10/)
+    expect(etiquetaPeriodo('semana', '2026-09-10')).toMatch(/al/)
   })
 })
