@@ -17,6 +17,7 @@ export const VISTAS = [
   'reuniones',
   'metas',
   'rendimiento',
+  'facturacion',
   'pipeline',
   'cartera',
   'agenda',
@@ -64,6 +65,7 @@ export const VISTAS_GERENCIA = [
   'reuniones',
   'metas',
   'rendimiento',
+  'facturacion',
 ] as const satisfies readonly Vista[]
 
 export function esVistaGerencia(vista: Vista): boolean {

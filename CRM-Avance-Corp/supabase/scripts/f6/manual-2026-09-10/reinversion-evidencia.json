@@ -1,0 +1,77 @@
+{
+  "fecha": "2026-09-10T21:59:50.347Z",
+  "resultado": "PASS funcional con recorrido UI parcial",
+  "entorno": "banco local sintético 127.0.0.1",
+  "ejecutor": "Codex por delegación de Miguel",
+  "casos": [
+    {
+      "empresa": "qorilazo",
+      "persona": "b2aa2e53-227c-41de-96a6-fee6d4cf130f",
+      "origen": "671577dc-63b2-46ca-b37f-bd9c7ee48b86",
+      "solicitud": "c03ad0e6-c420-4ada-bd4d-31f79d762024",
+      "inversion": "1229764c-0ec9-4372-87ec-2f2aa9b62857",
+      "montoNuevo": 1500,
+      "moneda": "PEN",
+      "depositoNuevo": "F6-MANUAL-NUEVO-C3EE51B8-4AE5-4CD9-B51D-CCDB21A20CA7",
+      "inversionesEnFicha": 2,
+      "fuenteOriginalConservada": true,
+      "huellaOrigen": "8ec86222fdb9352782dc3e47f723270140841f8ddbd8dd31a530fe146e48abe9",
+      "gestionReinversionUnica": true,
+      "vinculoOrigenUnico": true,
+      "confirmacionRepetidaSinDuplicacion": true,
+      "sinPerfilAvance": true,
+      "comprobanteCoincide": true
+    },
+    {
+      "empresa": "prodelco",
+      "persona": "040e995f-3360-4d78-96af-dc3910bd2904",
+      "origen": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+      "solicitud": "c3dd163c-35fb-4858-84d9-327aa396c908",
+      "inversion": "0862d492-8a41-42c2-97d6-cbef0dda4212",
+      "montoNuevo": 2000,
+      "moneda": "PEN",
+      "depositoNuevo": "F6-MANUAL-NUEVO-FCD5ECCB-AFEA-4388-A209-07FB3727811B",
+      "inversionesEnFicha": 2,
+      "fuenteOriginalConservada": true,
+      "huellaOrigen": "6313ad4839c9f836514300c7b23776c958b553f57c691f16708fc1a3cfafe654",
+      "gestionReinversionUnica": true,
+      "vinculoOrigenUnico": true,
+      "confirmacionRepetidaSinDuplicacion": true,
+      "sinPerfilAvance": true,
+      "comprobanteCoincide": true
+    }
+  ],
+  "ui": {
+    "vencimientosDeAmbasEmpresas": true,
+    "personaEmpresaYOrigenEnFormularioCorrectos": true,
+    "retomarPorReferencia": true,
+    "resumenYConfirmacionDeAmbasPorUI": true,
+    "fichasConDosInversiones": true,
+    "cargaComprobante": "NOT RUN: Chrome rechazó fileChooser.setFiles con Not allowed; faltaba permiso de URLs de archivo. Se prepararon las solicitudes y cargaron comprobantes por las API canónicas locales, verificando su contenido."
+  },
+  "avance": {
+    "upgrade": "PASS apertura/cancelación con F4-BASE-UPGRADE-ELEGIBLE",
+    "renovacion": "PASS apertura/cancelación con nuevo antecedente sintético vencido",
+    "contratoFixture": "49f870ea-a712-4dd2-bed5-e61ffc272668",
+    "venceEn": "2026-09-01",
+    "preflightRevertido": true,
+    "contratosPreviosSinCambios": 48,
+    "aperturaNoCreoSolicitudes": true
+  },
+  "invariantes": {
+    "inversionesPreviasConservadas": 87,
+    "contratosSinCambiosDuranteUI": 49,
+    "identidadesAuthSinAltasNiBajas": true,
+    "leadsSinAltasDuranteReinversion": true,
+    "personasSinAltasDuranteReinversion": true,
+    "banderasSinCambios": true
+  },
+  "limites": [
+    "No aceptación humana del punto 5 ni cierre global F6.",
+    "Carga de archivo desde el selector del navegador y envío inicial de Revisar inversión pendientes de recorrido visual completo.",
+    "Auth comparado por id/email; las sesiones de prueba pueden actualizar otros campos.",
+    "Se añadieron previamente dos leads/personas/orígenes sintéticos y un antecedente Avance vencido, por flujos canónicos.",
+    "No se renovó ni amplió capital Avance; solo se abrieron y cancelaron formularios.",
+    "Producción no modificada."
+  ]
+}

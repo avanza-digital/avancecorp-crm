@@ -1,0 +1,257 @@
+{
+  "resultado": "PASS",
+  "entorno": "Banco local sintético, sin cambios de producción",
+  "etapas": [
+    {
+      "fecha": "2026-09-10T23:58:53.568Z",
+      "etapa": "solicitada",
+      "resultado": "PASS",
+      "retiro": {
+        "id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d",
+        "estado": "solicitada",
+        "motivo": "Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+        "empresa": "prodelco",
+        "revision": 1,
+        "creado_en": "2026-09-10T18:57:44.709209-05:00",
+        "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+        "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+        "resolucion": null,
+        "revisado_por": null,
+        "actualizado_en": "2026-09-10T18:57:44.709209-05:00",
+        "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+      },
+      "historia": [
+        {
+          "id": "cba0d026-3fd6-4e18-a6d1-afc9c62723ab",
+          "tipo": "retiro",
+          "detalle": "Solicitud de retiro: Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "solicitada",
+            "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:57:44.711463-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        }
+      ],
+      "finanzas": [
+        {
+          "tabla": "public.contratos",
+          "cantidad": 49,
+          "huella": "d9878003d7e8db23a44713d3f99b947c"
+        },
+        {
+          "tabla": "public.cronograma_pagos",
+          "cantidad": 637,
+          "huella": "0ddd7e70c79a79673f2f763842d580d3"
+        },
+        {
+          "tabla": "crm.inversiones",
+          "cantidad": 92,
+          "huella": "7a33858d3b6523c9b3e51f999191308a"
+        },
+        {
+          "tabla": "crm.cierres_externos",
+          "cantidad": 49,
+          "huella": "7658ea30c1b56c5bd9a93e54eca9bbfb"
+        },
+        {
+          "tabla": "crm.depositos_reclamados",
+          "cantidad": 49,
+          "huella": "8f94f427b17a88659c3bef37566e8030"
+        }
+      ],
+      "filasFinancierasSinCambios": true,
+      "retirosAnterioresConservados": 8,
+      "banderasConservadas": true
+    },
+    {
+      "fecha": "2026-09-10T23:59:09.180Z",
+      "etapa": "en_revision",
+      "resultado": "PASS",
+      "retiro": {
+        "id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d",
+        "estado": "en_revision",
+        "motivo": "Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+        "empresa": "prodelco",
+        "revision": 2,
+        "creado_en": "2026-09-10T18:57:44.709209-05:00",
+        "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+        "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+        "resolucion": "Gerencia recibe la solicitud ficticia y comprueba los antecedentes para iniciar la revisión.",
+        "revisado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+        "actualizado_en": "2026-09-10T18:58:59.9897-05:00",
+        "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+      },
+      "historia": [
+        {
+          "id": "cba0d026-3fd6-4e18-a6d1-afc9c62723ab",
+          "tipo": "retiro",
+          "detalle": "Solicitud de retiro: Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "solicitada",
+            "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:57:44.711463-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        },
+        {
+          "id": "a95fc2bf-13b1-40cf-80ff-1c03d18855db",
+          "tipo": "retiro",
+          "detalle": "Revisión de retiro: Gerencia recibe la solicitud ficticia y comprueba los antecedentes para iniciar la revisión.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "en_revision",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:58:59.990398-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        }
+      ],
+      "finanzas": [
+        {
+          "tabla": "public.contratos",
+          "cantidad": 49,
+          "huella": "d9878003d7e8db23a44713d3f99b947c"
+        },
+        {
+          "tabla": "public.cronograma_pagos",
+          "cantidad": 637,
+          "huella": "0ddd7e70c79a79673f2f763842d580d3"
+        },
+        {
+          "tabla": "crm.inversiones",
+          "cantidad": 92,
+          "huella": "7a33858d3b6523c9b3e51f999191308a"
+        },
+        {
+          "tabla": "crm.cierres_externos",
+          "cantidad": 49,
+          "huella": "7658ea30c1b56c5bd9a93e54eca9bbfb"
+        },
+        {
+          "tabla": "crm.depositos_reclamados",
+          "cantidad": 49,
+          "huella": "8f94f427b17a88659c3bef37566e8030"
+        }
+      ],
+      "filasFinancierasSinCambios": true,
+      "retirosAnterioresConservados": 8,
+      "banderasConservadas": true
+    },
+    {
+      "fecha": "2026-09-10T23:59:47.009Z",
+      "etapa": "revisada",
+      "resultado": "PASS",
+      "retiro": {
+        "id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d",
+        "estado": "revisada",
+        "motivo": "Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+        "empresa": "prodelco",
+        "revision": 3,
+        "creado_en": "2026-09-10T18:57:44.709209-05:00",
+        "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+        "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+        "resolucion": "Revisión administrativa de prueba terminada. Se registró la resolución sin liquidar ni pagar, conservando el capital y la inversión original.",
+        "revisado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+        "actualizado_en": "2026-09-10T18:59:39.097577-05:00",
+        "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+      },
+      "historia": [
+        {
+          "id": "cba0d026-3fd6-4e18-a6d1-afc9c62723ab",
+          "tipo": "retiro",
+          "detalle": "Solicitud de retiro: Prueba F6: solicitud ficticia de retiro para comprobar el seguimiento de Gerencia.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "solicitada",
+            "fuente_id": "ec3db02f-e6b7-4d39-8905-f34c2c7a2c3d",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:57:44.711463-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        },
+        {
+          "id": "a95fc2bf-13b1-40cf-80ff-1c03d18855db",
+          "tipo": "retiro",
+          "detalle": "Revisión de retiro: Gerencia recibe la solicitud ficticia y comprueba los antecedentes para iniciar la revisión.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "en_revision",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:58:59.990398-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        },
+        {
+          "id": "4da25d37-b5a2-4fa2-bc6d-4c9bbd1697cf",
+          "tipo": "retiro",
+          "detalle": "Revisión de retiro: Revisión administrativa de prueba terminada. Se registró la resolución sin liquidar ni pagar, conservando el capital y la inversión original.",
+          "empresa": "prodelco",
+          "metadata": {
+            "estado": "revisada",
+            "solicitud_id": "2c2ba07a-da70-4cc4-acb6-9c0022e1733d"
+          },
+          "tarea_id": null,
+          "creado_en": "2026-09-10T18:59:39.098025-05:00",
+          "creado_por": "0ea17e82-00da-4691-90c0-78bd702f86fa",
+          "inversionista_id": "040e995f-3360-4d78-96af-dc3910bd2904"
+        }
+      ],
+      "finanzas": [
+        {
+          "tabla": "public.contratos",
+          "cantidad": 49,
+          "huella": "d9878003d7e8db23a44713d3f99b947c"
+        },
+        {
+          "tabla": "public.cronograma_pagos",
+          "cantidad": 637,
+          "huella": "0ddd7e70c79a79673f2f763842d580d3"
+        },
+        {
+          "tabla": "crm.inversiones",
+          "cantidad": 92,
+          "huella": "7a33858d3b6523c9b3e51f999191308a"
+        },
+        {
+          "tabla": "crm.cierres_externos",
+          "cantidad": 49,
+          "huella": "7658ea30c1b56c5bd9a93e54eca9bbfb"
+        },
+        {
+          "tabla": "crm.depositos_reclamados",
+          "cantidad": 49,
+          "huella": "8f94f427b17a88659c3bef37566e8030"
+        }
+      ],
+      "filasFinancierasSinCambios": true,
+      "retirosAnterioresConservados": 8,
+      "banderasConservadas": true
+    }
+  ],
+  "directorioUI": {
+    "usuario": "f4.directorio@pruebas.example",
+    "botonesRetiroRevisionAgendar": 0,
+    "agendaNeutralVisible": false,
+    "fichaAvanceAutorizadaVisible": true
+  },
+  "limites": [
+    "La primera aceptación del retiro y sus dos transiciones se ejecutó por UI como Gerencia.",
+    "Los ocho retiros anteriores y las cinco tablas financieras se compararon íntegros; el historial previo global no tuvo snapshot previo a este primer retiro.",
+    "La revisión concurrente del retiro aún abierto se documenta por separado."
+  ]
+}

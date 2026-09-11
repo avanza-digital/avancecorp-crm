@@ -40,6 +40,8 @@ import {
   type RespuestaReprogramarReunion,
 } from '@/lib/tipos'
 import type { CategoriaContrato, CuotaCronograma, ModalidadContrato, TipoInteres } from '@/lib/cronograma'
+import { esMoneda } from '@/lib/format'
+import type { FilaFacturacionDia } from '@/lib/facturacion'
 import {
   ESTADOS_CONTRATO,
   ESTADOS_CUOTA,
@@ -3748,6 +3750,64 @@ const AltasNuevasRowSchema = v.object({
 })
 
 export const SIN_ANALISTA_ID = 'sin-analista'
+
+// ── Facturación diaria (pantalla de Gerencia) ────────────────────────────────
+// `crm.facturacion_diaria_fn(p_mes)` ya agrupó por día, tipo, moneda, analista y
+// supervisor, y ya resolvió el ámbito y el supervisor de ENTONCES. Aquí solo se
+// valida la forma: una fila fuera de contrato se descarta y se cuenta, nunca se
+// adivina (misma política que el resto de métricas).
+const FacturacionDiaRowSchema = v.object({
+  dia: v.string(),
+  tipo: v.string(),
+  moneda: v.string(),
+  // Puede venir NULL: capital sin analista atribuido, que solo ve gerencia.
+  analista_id: v.nullable(v.string()),
+  analista_nombre: v.string(),
+  // NULL cuando de ese analista no consta supervisor por ningún camino.
+  supervisor_id: v.nullable(v.string()),
+  supervisor_nombre: v.string(),
+  operaciones: NumericoRpc,
+  capital: NumericoRpc,
+})
+
+export const SIN_SUPERVISOR_ID = 'sin-supervisor'
+
+/** Facturación de UN mes comercial (`p_mes` = 'YYYY-MM-01'). */
+export async function listarFacturacionDiaria(
+  mes: string,
+  signal?: AbortSignal,
+): Promise<FilaFacturacionDia[]> {
+  let consulta = cliente().schema('crm').rpc('facturacion_diaria_fn', { p_mes: mes })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.facturacion_diaria_fallido')
+  const items: FilaFacturacionDia[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(FacturacionDiaRowSchema, cruda)
+    // La moneda llega como texto libre del servidor; si no es una de las dos que
+    // el CRM maneja, la fila no se pinta: sumarla a la columna equivocada sería
+    // peor que perderla.
+    if (!r.success || !esMoneda(r.output.moneda)) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      dia: r.output.dia,
+      tipo: r.output.tipo,
+      moneda: r.output.moneda,
+      analistaId: r.output.analista_id ?? SIN_ANALISTA_ID,
+      analistaNombre: r.output.analista_nombre,
+      supervisorId: r.output.supervisor_id ?? SIN_SUPERVISOR_ID,
+      supervisorNombre: r.output.supervisor_nombre,
+      operaciones: aNumero(r.output.operaciones) ?? 0,
+      capital: aNumero(r.output.capital) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('facturacion_diaria', descartadas)
+  return items
+}
 
 /** Altas nuevas por analista y mes (default: últimos 12 meses; el servidor acota 1..60). */
 export async function listarAltasNuevasPorAnalista(pMeses = 12, signal?: AbortSignal): Promise<FilaAltasAnalista[]> {

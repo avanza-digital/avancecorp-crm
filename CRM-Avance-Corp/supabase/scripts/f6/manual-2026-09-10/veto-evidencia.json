@@ -1,0 +1,41 @@
+{
+  "fecha": "2026-09-10T21:39:42.617Z",
+  "resultado": "PASS",
+  "entorno": "banco local sintético",
+  "persona": "6e81c382-127d-4594-84ec-f05e3c886991",
+  "metodo": "Marcar y levantar por UI de Gerencia; comprobaciones con JWT de asesor actual PRUEBA F4 AJENO",
+  "bloqueado": {
+    "fecha": "2026-09-10T21:39:12.408Z",
+    "resultado": "PASS",
+    "pendientesCancelados": 2,
+    "agendaVacia": true,
+    "agendarRechazado": {
+      "http": 500,
+      "codigo": "P0429",
+      "mensaje": "Esta persona pidió no ser contactada"
+    },
+    "asesorNoPuedeLevantar": {
+      "http": 403,
+      "codigo": "42501"
+    },
+    "sinTareasNuevasNiCambiosPorRechazos": true,
+    "inversionesConservadas": true
+  },
+  "levantadoPorGerencia": true,
+  "tareasCanceladasNoReaparecen": true,
+  "nuevoContactoPermitido": true,
+  "nuevaTarea": {
+    "id": "c81a27d1-6daa-4cb0-b9a9-5601c34f0ba0",
+    "titulo": "Seguimiento posterior a No contactar F6",
+    "vence_en": "2026-09-11T21:39:42.448+00:00"
+  },
+  "pendientesFinales": 1,
+  "inversionesYFlagsConservados": true,
+  "limite": "Recorrido ejecutado por Codex, no aceptación humana de otros casos F6. Los dos pendientes originales quedan cancelados como parte de la prueba.",
+  "ui": {
+    "bloqueado": "No contactar visible, Agendar gestión deshabilitado y cero pendientes",
+    "levantado": "Agendar gestión habilitado y cero pendientes antes de crear el contacto nuevo",
+    "trasRecargar": "Un único pendiente: Seguimiento posterior a No contactar F6; Agendar gestión habilitado"
+  },
+  "motivosEnHistorialUnaVez": true
+}

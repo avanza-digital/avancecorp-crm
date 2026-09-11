@@ -1,6 +1,6 @@
 ---
 tags: [crm, pwa, notificaciones, tasas, pendiente-publicacion]
-actualizado: 2026-09-10
+actualizado: 2026-09-11
 ---
 
 # Notificaciones de solicitudes de tasa — implementación local
@@ -45,6 +45,16 @@ guardado en un commit local, con los checks locales completos y la evidencia
 en el paquete canónico. No se hace push ni se modifica producción durante esta
 pausa. Retomar desde la revisión y autorización de los dos archivos SQL, luego
 validar en un banco gestionado y preparar la publicación desde main verificado.
+
+Reanudación del 2026-09-11: Miguel indicó «sigamos». Se integraron los cambios
+remotos hasta `4febe47` sobre el commit de pausa `25c6fd5`; solo hubo un conflicto
+documental, resuelto conservando ambos avances. Pasaron 3.266 pruebas y el build.
+El navegador completo registró 163 PASS, 26 SKIP y un fallo intermitente de foco
+en F6; el caso aislado y las once pruebas conjuntas F6/push pasaron después sin
+cambios. No se declara corregido ese fallo ni aprobado el gate completo.
+Evidencia y pendientes actualizados en `supabase/scripts/push-tasa/VERIFICACION.md`.
+El SQL exacto conserva sus hashes; autorización, organización/coste del banco
+temporal y publicación siguen pendientes. Producción continúa sin push de tasa.
 
 Relacionadas: [[Solicitud de tasa en el lead - publicada 2026-09-09]],
 [[Notificaciones de pagos]], [[Arquitectura del portal]],

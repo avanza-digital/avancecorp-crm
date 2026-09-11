@@ -1,0 +1,65 @@
+{
+  "fecha": "2026-09-10",
+  "entorno": "Chrome habitual, banco sintético local",
+  "resultado": "PARCIAL - VoiceOver pendiente",
+  "viewportCSS": {
+    "ancho": 390,
+    "alto": 844
+  },
+  "ficha": {
+    "inicioMs": 1789086220637,
+    "finMs": 1789086308313,
+    "scrollInicio": 1594.375,
+    "scrollFin": 1594.375,
+    "historialAbierto": true,
+    "posicionHistorialInicio": 710.224609375,
+    "posicionHistorialFin": 710.224609375,
+    "anchoDocumento": 390
+  },
+  "agenda": {
+    "inicioMs": 1789086682046,
+    "finMs": 1789086814325,
+    "anchoDocumento": 390,
+    "filas": 7,
+    "posicionesInicio": [
+      600.21484375,
+      728.6328125,
+      857.05078125,
+      985.46875,
+      1113.88671875,
+      1242.3046875,
+      1370.72265625
+    ],
+    "posicionesFin": [
+      600.21484375,
+      728.6328125,
+      857.05078125,
+      985.46875,
+      1113.88671875,
+      1242.3046875,
+      1370.72265625
+    ],
+    "scrollInicio": 0,
+    "scrollFin": 0
+  },
+  "teclado": {
+    "TabCanalAGestion": true,
+    "ShiftTabGestionACanal": true,
+    "TabNotaACancelar": true,
+    "TabCancelarAAgendar": true,
+    "TabAgendarACanal": true,
+    "EscapeRegresaAAgendarEnFicha": true
+  },
+  "voiceOver": {
+    "resultado": "NOT RUN - salida del lector no verificada",
+    "estadoInicial": "off",
+    "activacionTemporalObservada": "on",
+    "estadoFinalObservado": "off",
+    "limite": "La selección/control nativo de VoiceOver no permitió verificar lectura. No se sustituye por AX."
+  },
+  "limites": [
+    "La primera observación de Agenda se descartó por una recarga de Vite al editar Dialog a las 00:30:26 UTC; se repitió con el código estable.",
+    "No se ensayó Safari ni audio real del lector.",
+    "No hubo publicaciones ni operaciones sobre personas reales."
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "fecha": "2026-09-10T21:26:19.161Z",
+  "entorno": "local sintético 127.0.0.1:58321",
+  "persona": "6e81c382-127d-4594-84ec-f05e3c886991",
+  "resultado": "PASS",
+  "reasignacion": "UI Gerencia: PRUEBA F4 VENDEDOR → PRUEBA F4 AJENO",
+  "pendientesConservados": 2,
+  "tareasSinDuplicacion": true,
+  "fechasTitulosEstadosConservados": true,
+  "inversionesConservadas": true,
+  "anteriorConMismoJWT": {
+    "fichaHttp": 200,
+    "fichaDatos": null,
+    "postventaHttp": 403,
+    "postventaCodigo": "42501",
+    "agendaPersona": 0,
+    "lecturaDirectaRls": 0
+  },
+  "nuevo": {
+    "fichaHttp": 200,
+    "postventaHttp": 200,
+    "agendaPersona": 2
+  },
+  "limite": "Prueba ejecutada por Codex por delegación explícita de Miguel. No constituye aceptación humana de los demás casos F6.",
+  "ui": {
+    "gerencia": "Responsable actualizado a PRUEBA F4 AJENO",
+    "nuevoAsesor": "Una persona visible y las dos tareas en Próximas tareas",
+    "anterior": "Enlace directo vuelve a Cartera y muestra El acceso cambió. La cartera se volverá a consultar."
+  }
+}

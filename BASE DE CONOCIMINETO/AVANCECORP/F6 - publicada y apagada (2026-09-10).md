@@ -50,7 +50,41 @@ No se conciliaron datos reales ni se encendió el piloto.
 
 ## Retoma
 
-1. Completar la revisión manual F6 sobre datos sintéticos.
+1. Revisión manual F6 cerrada con VoiceOver omitido por decisión de Miguel
+   el 10/09/2026; la prueba conserva NOT RUN. Publicar los ajustes locales
+   pendientes del selector de archivos, foco y mensaje de conexión. Historial:
+   Miguel confirmó el
+   10/09 la llamada en ficha, Hoy y Agenda, una sola vez en Agenda y la misma
+   ficha tras recargar. También aprobó el cierre con detalle en el historial
+   y un único próximo contacto con la fecha elegida, así como el cambio de hora
+   de una reunión visible en Agenda y la confirmación de la cita.
+   Miguel delegó a Codex la prueba de responsable y pasó
+   con UI, sesiones de ambos asesores y comprobación funcional de la cola sin
+   responsable. Las dos tareas conservaron identidad y horarios; el anterior
+   perdió acceso incluso con su JWT previo. Codex probó después No contactar:
+   canceló los pendientes, bloqueó contactos y el levantamiento por el asesor;
+   Gerencia levantó el veto y se creó un contacto nuevo sin revivir cancelados.
+   Se conservaron inversiones y banderas. En el punto 5 Codex confirmó por UI
+   reinversiones ficticias Qorilazo/Prodelco: una inversión nueva por solicitud,
+   origen conservado y confirmación repetida sin duplicados. Aumento y renovación
+   Avance abrieron con el contrato correcto y se cancelaron sin crear solicitudes.
+   La preparación y carga de esos comprobantes fueron por API local; la selección
+   automática de archivos fue rechazada por Chrome. Después Miguel confirmó que
+   la selección manual sí funciona en el Chrome habitual. Pidió que el control
+   pareciera un botón: se aplicó el estilo navy del CRM al selector nativo,
+   conservando el nombre del archivo y el foco por teclado. El ajuste visual está
+   verificado en local (`npm run check` PASS) y aprobado por Miguel, pendiente de
+   publicación. Miguel completó Qorilazo y Prodelco por UI: comprobante, Revisar
+   y Confirmar; cada ficha muestra tres inversiones, S/ 3.250 y S/ 3.800,
+   respectivamente, con antecedentes visibles. La verificación posterior conservó
+   las 90 inversiones y los 47 cierres anteriores, 49 contratos, identidades y
+   banderas; ambos archivos almacenados coinciden con los comprobantes de prueba.
+   El punto 5 queda aprobado. Codex completó retiro/permisos (6) y recuperación
+   del envío (8). Móvil y teclado tienen evidencia; Miguel decidió omitir
+   VoiceOver en el punto 7. Ajustes locales, decisión y revisiones de Claude en
+   [[F6 - pruebas delegadas y ajustes de accesibilidad (2026-09-10)]].
+   El recorrido manual queda cerrado con esa excepción. Registro y alcance:
+   [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).
 2. F7/G6: conciliar métricas, Capital y atribución por empresa y moneda.
 3. F8/G7: piloto económico con sus participantes, volúmenes y firmas.
 4. F9/G8: activación progresiva y ciclo mensual de observación.

@@ -42,3 +42,34 @@ compartido o intentar cambiar permisos de una tabla administrada por Supabase.
 Los hashes de SQL y fuentes de despliegue están en `evidencia/SHA256SUMS`.
 La evidencia registra PASS/NOT RUN por lo ejecutado; ningún review sustituye
 las pruebas ni la validación pendiente del teléfono.
+
+## Reanudación e integración del 11 de septiembre
+
+Miguel reanudó la tarea con «sigamos». Se integró `avancecorp/main` (`4febe47`)
+en la candidata `25c6fd5`, preservando Facturación, Reparto y los ajustes de F6.
+El único conflicto fue el índice del vault; se conservaron ambas notas y el
+estado más reciente de F6. El SQL y las fuentes push conservan las siete huellas
+de `SHA256SUMS`, verificadas desde la raíz del repositorio.
+
+- **PASS:** lint, tipos, cobertura (231 archivos, 3.266 pruebas), configuración
+  de release, worker, build, bundle y duplicación sobre la integración.
+- **FAIL:** el recorrido completo de navegador terminó con 163 PASS, 26 SKIP y
+  un fallo en `f6-postventa.spec.ts:148`: tras Escape desapareció también la
+  ficha y no se encontró el botón al que debía volver el foco. Los cuatro
+  escenarios de notificaciones pasaron. Registro: `evidencia/integracion-20260911.txt`.
+- **PASS:** el caso F6 aislado (1 prueba) y después F6 junto con notificaciones
+  (11 pruebas) pasaron sin cambiar el código ni los tests. Registros:
+  `evidencia/f6-foco-aislado-20260911.txt` y `evidencia/f6-push-conjunto-20260911.txt`.
+  Es una intermitencia pendiente de aislar, no una corrección demostrada ni un
+  PASS del primer recorrido completo. Se conserva la comprobación de foco.
+- **PASS, solo lectura:** producción sigue sin las dos tablas push y conserva
+  las dependencias de auditoría, solicitudes, cron y red. Referencia de advisors
+  previa en `evidencia/advisors-produccion-antes-20260911.json`; sus avisos son
+  anteriores a esta instalación y no se presentan como introducidos por push.
+- **NOT RUN:** banco gestionado, SQL remoto, Edge/cron gestionados, publicación
+  y recepción real en el teléfono. Se solicitó la organización para consultar
+  el coste; falta autorizar los dos SQL exactos y el banco temporal.
+
+No se hizo push ni se modificó producción en esta preparación. La aprobación
+del SQL permite avanzar al banco; el cierre productivo aún requiere sus gates
+y evaluar la intermitencia de navegador registrada arriba.

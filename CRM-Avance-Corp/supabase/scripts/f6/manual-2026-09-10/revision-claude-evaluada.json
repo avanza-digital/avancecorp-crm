@@ -1,0 +1,37 @@
+{
+  "fecha": "2026-09-10",
+  "revisor": "Claude Code mediante scripts/claude-review",
+  "rol": "SECONDARY_REVIEWER sin herramientas ni escritura",
+  "consultas": 2,
+  "dictamenes": [
+    "CHANGES_REQUESTED",
+    "CHANGES_REQUESTED"
+  ],
+  "evaluacionPrimary": {
+    "aceptado": [
+      "Probar pérdida anterior y posterior al commit por separado, con snapshot íntegro y payload exacto.",
+      "Probar revisión obsoleta en un retiro aún abierto.",
+      "Verificar permisos por RPC además de botones.",
+      "Añadir retorno de foco a la ficha cuando el origen desaparece o no puede recibir foco.",
+      "Añadir prueba de origen deshabilitado y apertura por ratón en E2E."
+    ],
+    "limites": [
+      "Safari y lector de pantalla no comprobados. Capturar origen desde BODY sigue sin destino explícito; no se presentó como fallo reproducido en Chrome.",
+      "La sugerencia de buscar el padre desde Content no se aplica directamente a los portales de Radix; no se añadió un destino global ambiguo.",
+      "El código de transporte sigue fuera de la lista de rechazos SQL que liberan el envío.",
+      "El helper del recibo usa un mensaje español propio; no se encontró la fuga hipotética por importar CrmApiError.",
+      "No se incorporó el mensaje técnico crudo a telemetría: no era necesario para el arreglo y podría contener datos del servidor.",
+      "La visibilidad de foco en Safari/VoiceOver sigue pendiente; no se afirma cierre total."
+    ]
+  },
+  "verificacion": {
+    "gate": "npm run check:all",
+    "resultado": "PASS",
+    "tests": 3188,
+    "archivosTest": 227,
+    "e2ePass": 159,
+    "e2eSkip": 26,
+    "despuesUltimoAjuste": true
+  },
+  "commitVerificado": "d586b66"
+}

@@ -1,6 +1,34 @@
 # F6 — recorrido de aceptación manual
 
-Pendiente de realizar con Miguel. Usar el banco sintético y usuarios de prueba;
+**Revisión cerrada con excepción autorizada:** VoiceOver omitido por decisión
+de Miguel el 10/09/2026; su prueba sigue registrada como NOT RUN.
+El 10/09 confirmó la creación y visualización de la llamada
+en ficha, Hoy y Agenda, sin duplicación en Agenda, y la misma ficha tras recargar.
+También confirmó el cierre con detalle en el historial y el próximo contacto,
+una sola vez y con la fecha elegida, además del cambio de hora de una reunión
+visible en Agenda y la confirmación de la cita. El punto 2 queda aprobado.
+El punto 3 fue ejecutado por Codex a petición expresa de Miguel: reasignación
+por UI, acceso de ambos asesores y cola sin responsable comprobados. Esta última
+se verificó funcionalmente en una transacción revertida, sin recorrido visual.
+Codex también ejecutó el punto 4: veto con motivo, cancelación de pendientes,
+rechazo de contactos y de levantamiento por el asesor, levantamiento por
+Gerencia y un contacto nuevo sin revivir los cancelados. En el punto 5 se verificaron
+vencimientos y reinversiones de Qorilazo/Prodelco, con confirmación desde el CRM,
+origen conservado y sin duplicados; Avance permite abrir aumento y renovación.
+La preparación y carga de esos comprobantes fueron por API local tras el rechazo
+de la selección automática por Chrome. Miguel completó después el recorrido
+visual de Qorilazo y Prodelco: seleccionar archivo, Revisar y Confirmar; tres
+inversiones por ficha, con S/ 3.250 y S/ 3.800 respectivamente y antecedentes
+visibles. Codex verificó después los comprobantes y la conservación de registros.
+También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado. Miguel
+decidió omitir la comprobación con lector de pantalla del punto 7; con esa
+excepción queda cerrado este recorrido de revisión.
+Codex completó retiro/permisos (6) y recuperación de envío (8), con evidencia
+de UI y servidor local. Móvil, teclado y estabilidad tienen comprobaciones
+separadas; no se atribuye un PASS de VoiceOver a sus árboles de accesibilidad. El registro y sus
+límites constan en [el avance de revisión](REVISION-MANUAL-2026-09-10.md).
+
+Usar el banco sintético y usuarios de prueba;
 no activar producción ni registrar dinero o personas reales para este recorrido.
 F3/F4/F5/F6 deben estar encendidas únicamente en ese entorno de ensayo.
 
@@ -24,9 +52,11 @@ F3/F4/F5/F6 deben estar encendidas únicamente en ese entorno de ensayo.
 6. **Retiro:** registrar una solicitud, revisarla como Gerencia y dejar la resolución.
    Cambia el trámite; capital, contrato, pagos e inversión original permanecen
    iguales. Directorio no recibe esos botones ni la agenda neutral.
-7. **Móvil y teclado:** repetir agenda/ficha en 390 px, recorrer los controles con
-   Tab y lector de pantalla, abrir/cerrar los diálogos y comprobar foco/lectura.
-   No debe haber desplazamiento horizontal ni salto periódico de la ficha.
+7. **Móvil y teclado:** el recorrido original consiste en repetir agenda/ficha
+   en 390 px, recorrer los controles con Tab y lector de pantalla, abrir/cerrar
+   los diálogos y comprobar foco/lectura. No debe haber desplazamiento horizontal
+   ni salto periódico de la ficha. **En esta revisión se omite el lector de
+   pantalla por decisión de Miguel del 10/09/2026: NOT RUN, sin atribuirle PASS.**
 8. **Respuesta perdida:** con una interrupción controlada del banco, recargar tras
    enviar una gestión. Abrir el mismo formulario y pulsar “Verificar envío guardado”.
    Debe existir una sola tarea; no debe permitir sustituir el envío pendiente por

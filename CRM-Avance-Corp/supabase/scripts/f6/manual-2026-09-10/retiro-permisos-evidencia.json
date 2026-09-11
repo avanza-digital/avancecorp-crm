@@ -1,0 +1,162 @@
+{
+  "fecha": "2026-09-11T00:02:18.485Z",
+  "resultado": "PASS permisos por RPC real y protección de retiro terminal",
+  "directorio": {
+    "postventaHabilitada": false,
+    "agendaNeutralVacia": true
+  },
+  "casos": [
+    {
+      "rol": "directorio",
+      "rpc": "postventa_agendar_fn",
+      "resultado": "rechazado",
+      "http": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "directorio",
+      "rpc": "postventa_solicitar_retiro_fn",
+      "resultado": "rechazado",
+      "http": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "directorio",
+      "rpc": "postventa_revisar_retiro_fn",
+      "resultado": "rechazado",
+      "http": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "vendedor",
+      "rpc": "postventa_revisar_retiro_fn",
+      "resultado": "rechazado",
+      "http": 403,
+      "codigo": "42501"
+    },
+    {
+      "rol": "gerencia",
+      "rpc": "postventa_revisar_retiro_fn",
+      "resultado": "rechazado",
+      "http": 500,
+      "codigo": "P0409"
+    },
+    {
+      "rol": "gerencia",
+      "rpc": "postventa_revisar_retiro_fn",
+      "resultado": "rechazado",
+      "http": 500,
+      "codigo": "P0409"
+    }
+  ],
+  "snapshotAntes": [
+    {
+      "tabla": "public.contratos",
+      "cantidad": 49,
+      "huella": "d9878003d7e8db23a44713d3f99b947c"
+    },
+    {
+      "tabla": "public.cronograma_pagos",
+      "cantidad": 637,
+      "huella": "0ddd7e70c79a79673f2f763842d580d3"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "cantidad": 92,
+      "huella": "7a33858d3b6523c9b3e51f999191308a"
+    },
+    {
+      "tabla": "crm.cierres_externos",
+      "cantidad": 49,
+      "huella": "7658ea30c1b56c5bd9a93e54eca9bbfb"
+    },
+    {
+      "tabla": "crm.depositos_reclamados",
+      "cantidad": 49,
+      "huella": "8f94f427b17a88659c3bef37566e8030"
+    },
+    {
+      "tabla": "crm.postventa_retiros",
+      "cantidad": 9,
+      "huella": "a93c348cd1a230a3f6768c7af8b60f56"
+    },
+    {
+      "tabla": "crm.tareas",
+      "cantidad": 60,
+      "huella": "6b2ed63c79bd04886448be4516c7ba26"
+    },
+    {
+      "tabla": "crm.postventa_operaciones",
+      "cantidad": 125,
+      "huella": "22c72fd3f708985e27244bb81c270d9f"
+    },
+    {
+      "tabla": "crm.inversionista_gestiones",
+      "cantidad": 176,
+      "huella": "505f05e39c1dc7036d86d0029cc5ca2e"
+    },
+    {
+      "tabla": "crm.multiempresa_flags",
+      "cantidad": 4,
+      "huella": "30ccece3f8d0acf25269b78d8e5b83ff"
+    }
+  ],
+  "snapshotDespues": [
+    {
+      "tabla": "public.contratos",
+      "cantidad": 49,
+      "huella": "d9878003d7e8db23a44713d3f99b947c"
+    },
+    {
+      "tabla": "public.cronograma_pagos",
+      "cantidad": 637,
+      "huella": "0ddd7e70c79a79673f2f763842d580d3"
+    },
+    {
+      "tabla": "crm.inversiones",
+      "cantidad": 92,
+      "huella": "7a33858d3b6523c9b3e51f999191308a"
+    },
+    {
+      "tabla": "crm.cierres_externos",
+      "cantidad": 49,
+      "huella": "7658ea30c1b56c5bd9a93e54eca9bbfb"
+    },
+    {
+      "tabla": "crm.depositos_reclamados",
+      "cantidad": 49,
+      "huella": "8f94f427b17a88659c3bef37566e8030"
+    },
+    {
+      "tabla": "crm.postventa_retiros",
+      "cantidad": 9,
+      "huella": "a93c348cd1a230a3f6768c7af8b60f56"
+    },
+    {
+      "tabla": "crm.tareas",
+      "cantidad": 60,
+      "huella": "6b2ed63c79bd04886448be4516c7ba26"
+    },
+    {
+      "tabla": "crm.postventa_operaciones",
+      "cantidad": 125,
+      "huella": "22c72fd3f708985e27244bb81c270d9f"
+    },
+    {
+      "tabla": "crm.inversionista_gestiones",
+      "cantidad": 176,
+      "huella": "505f05e39c1dc7036d86d0029cc5ca2e"
+    },
+    {
+      "tabla": "crm.multiempresa_flags",
+      "cantidad": 4,
+      "huella": "30ccece3f8d0acf25269b78d8e5b83ff"
+    }
+  ],
+  "sinCambios": true,
+  "limites": [
+    "Solo banco local sintético.",
+    "La revisión antigua se rechazó sobre retiro terminal; la revisión obsoleta con retiro aún abierto se comprueba aparte.",
+    "UI de Directorio pendiente de comprobación separada."
+  ]
+}

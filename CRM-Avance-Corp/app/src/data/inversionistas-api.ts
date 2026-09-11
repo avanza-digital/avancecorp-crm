@@ -16,6 +16,9 @@ export function respuestaInversionistas<T>(schema: v.GenericSchema<unknown, T>, 
 }): T {
   if (respuesta.error) {
     const {code, message} = respuesta.error
+    // Supabase devuelve los fallos de transporte con código vacío. No son
+    // mensajes de negocio traducidos ni prueban que una escritura fallara.
+    if (!code) throw new CrmApiError('No se pudo recibir la respuesta del servidor. Comprueba tu conexión.', 'RESPUESTA_NO_RECIBIDA')
     throw new CrmApiError(code === '42501' ? 'Ya no tienes acceso a esta información.' : message, code)
   }
   const resultado = v.safeParse(schema, respuesta.data)
