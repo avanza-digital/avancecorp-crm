@@ -2,7 +2,8 @@
 
 SQL y coste autorizados por Miguel. Banco exclusivo `push-tasa-20260911`
 (`pdummdtfablfkdgrmauo`), creado el 11/09 a las 16:44 UTC; se elimina al terminar.
-El banco F7 queda fuera de este trabajo. Producción aún no se modificó.
+El banco F7 queda fuera de este trabajo. Ensayo completado, producción publicada
+y banco exclusivo eliminado; [acta de publicación](PUBLICACION-2026-09-11.md).
 
 La inicialización histórica falló. Se reconstruyó este banco vacío con la
 estructura y los 273 registros vigentes, sin copiar usuarios ni filas de negocio.
@@ -31,7 +32,8 @@ la limpieza está restringida a esta rama y al conjunto esperado del banco.
 | HTTP y revocación Auth | PASS: 16 comprobaciones HTTP y tres de baja/revocación |
 | Cron gestionado | PASS: cron → pg_net → firma → Edge → proveedor, sin destinatario real |
 | Tipos remotos | PASS: dos tablas y ocho RPC iguales por AST a los tipos del frontend |
-| Publicación y recepción en teléfono real | PENDIENTE |
+| Publicación | PASS: migración, Edge, frontend y activación verificados; banco eliminado |
+| Recepción en teléfono real | NOT RUN: requiere el permiso y la prueba desde la PWA de Miguel |
 
 El instalador ejecutó el SQL, pero el registro de la rama antigua carecía de la
 restricción UNIQUE de idempotencia y devolvió 42P10 al guardar el historial.

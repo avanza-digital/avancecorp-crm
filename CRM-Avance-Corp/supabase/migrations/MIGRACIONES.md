@@ -1,6 +1,6 @@
 # Ledger de migraciones — esquema `crm`
 
-> **Push de solicitudes de tasa — ensayo remoto completo, SIN PUBLICAR:**
+> **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
 > `20260910225540_crm_notificaciones_push_tasa.sql` añade dos tablas CRM con RLS
 > y auditoría que oculta claves, ocho RPC limitadas por rol y sesión, cola por
 > solicitud/dispositivo y tarea de reintentos. Sin cambios de objetos `public`.
@@ -10,7 +10,9 @@
 > Miguel autorizó los dos SQL exactos y el coste el 11/09/2026. Banco gestionado:
 > SQL 48, concurrencia 3, HTTP/Auth 19 y cron real PASS; matriz global 50 fallos
 > previos y 46 posteriores, sin nuevas aserciones fallidas. Advisors y tipos
-> verificados. Publicación preparada. [Paquete](../scripts/push-tasa/README.md).
+> verificados. Merge conserva las 273 entradas anteriores; 34 sentencias exactas
+> del SQL aprobado. Edge v1, frontend y cron activos. Banco eliminado; teléfono
+> real pendiente de permiso/prueba. [Acta](../scripts/push-tasa/PUBLICACION-2026-09-11.md).
 
 > **F6 candidata — 10/09/2026, NO INSTALADA en producción:** `20260910150039_crm_f6_postventa_persona.sql`: tareas por persona en la misma agenda, cinco tablas CRM cerradas/auditadas, doce RPC y seis integraciones protegidas por huellas del servidor vigente. Sin DDL `public`, backfill ni cambios de dinero/Auth. `postventa_neutral` nace OFF; F4/F5 conservan sus banderas. 41 pruebas F6, 46 de regresión F5, replay/reversa y gate frontend PASS. Matriz RLS global/advisors remotos F6 NOT RUN. [Paquete exacto, aceptación y reversa](../scripts/f6/README.md). Su SQL requiere autorización propia; el OK previo de Miguel correspondió a F5 ya instalada.
 

@@ -1,9 +1,11 @@
 # Avisos de solicitudes de tasa en la PWA del CRM
 
-**Estado: banco remoto verificado el 11/09/2026; publicación preparada.**
+**Estado: PUBLICADO Y ACTIVADO el 11/09/2026.**
 Proyecto: `dctqcbznekcyxhjujuci`. Frontend: `https://crm.miavance.com`.
 Trabajo aislado del frente F7 en `/private/tmp/avancecorp-tasa-lead-real-20260908`.
-No se modificó la base productiva ni se enviaron avisos reales durante este trabajo.
+Migración, Edge, frontend y cron productivos verificados. El banco temporal fue
+eliminado. Falta que Miguel active el permiso y reciba una prueba en su teléfono.
+Acta y evidencia: [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
 
 ## Resultado para Gerencia
 

@@ -3,8 +3,8 @@
 ## Estado vigente — 11 de septiembre
 
 El SQL exacto y el coste del banco están autorizados. El ensayo gestionado está
-completo; publicación y recepción en el teléfono siguen pendientes en este
-checkpoint. Los estados NOT RUN de los apartados históricos inferiores describen
+completo y la publicación está verificada en [el acta](PUBLICACION-2026-09-11.md).
+Solo la recepción física en el teléfono sigue pendiente. Los estados NOT RUN de los apartados históricos inferiores describen
 su fecha, no sustituyen este resultado.
 
 - **PASS:** integración `321a0ee` con Facturación remota; `npm run check:all`,
@@ -20,6 +20,8 @@ su fecha, no sustituyen este resultado.
   ocultar ambos resultados en [el ensayo remoto](BANCO-REMOTO-2026-09-11.md).
 - **PASS con avisos esperados:** advisors, sin hallazgos nuevos salvo las dos
   tablas con RLS cerrada y acceso exclusivo por RPC. Tipos remotos iguales por AST.
+- **PASS productivo:** SQL exacto, Edge, secretos conservados, frontend configurado,
+  89 archivos HTTP, sesión Gerencia y activación. Banco de pruebas eliminado.
 - **NOT RUN:** recepción APNs/FCM en el teléfono de Miguel; requiere su permiso
   desde la PWA. El rechazo del proveedor a un endpoint inventado no acredita entrega.
 

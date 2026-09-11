@@ -8,7 +8,9 @@ actualizado: 2026-09-11
 Miguel pidió recibir avisos en su teléfono, donde ya instaló el CRM como PWA,
 y solicitó expresamente ayuda de Claude para reducir errores. La implementación
 está en el checkout aislado `/private/tmp/avancecorp-tasa-lead-real-20260908`,
-separada del trabajo F7. **No está publicada ni activada en producción.**
+separada del trabajo F7. **PUBLICADA Y ACTIVADA el 11/09/2026**; estado vigente
+en [[Notificaciones de tasa - publicadas 2026-09-11]]. Los apartados posteriores
+conservan el historial de preparación y pausas.
 
 Gerencia puede activar, probar y desactivar cada dispositivo desde Hoy o
 Configuración. Las solicitudes nuevas desde lead o cliente generan avisos sin
