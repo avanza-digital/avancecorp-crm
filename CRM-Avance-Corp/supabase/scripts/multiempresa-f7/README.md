@@ -2,7 +2,8 @@
 
 Entrega del 11/09/2026, ensayada en el banco remoto autorizado.
 **Publicada e instalada en producción, con F7 apagada; banco temporal cerrado.**
-G6 requiere conciliación y firma humana; F8/F9 siguen pendientes.
+G6 tiene su [comparativo real preparado](ACTA-G6.md); requiere revisión y firma
+humana/financiera. F8/F9 siguen pendientes. [Lectura G6 reproducible](g6/README.md).
 Este módulo es distinto de los antiguos scripts `gate-f7-*` de altas.
 
 Miguel aprobó el SQL exacto y su instalación inicialmente apagada el 11/09/2026

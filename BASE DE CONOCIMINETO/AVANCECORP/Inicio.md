@@ -7,8 +7,8 @@ actualizado: 2026-09-11
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F7 - publicada y apagada (2026-09-11)]].
-F7 publicada e instalada OFF; banco temporal cerrado y conciliación firmada G6 pendiente.
+Estado vigente: [[G6 - conciliacion real preparada (2026-09-11)]].
+F7 publicada e instalada OFF; comparativo real G6 preparado, pendiente de conformidad humana y financiera.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
@@ -33,6 +33,7 @@ Hay **tres capas**, complementarias:
 **Features y decisiones:**
 - [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
+- [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas; diez identidades pendientes, anexo privado y G6 abierto hasta aceptación humana/financiera.
 - [[F7 - publicada y apagada (2026-09-11)]] — informe Empresas publicado y SQL instalado OFF; pruebas específicas PASS, cero regresiones sobre los 57 fallos de la matriz general, banco cerrado; G6 pendiente.
 - [[F7 - informe multiempresa en sombra preparado (2026-09-11)]] — historial de construcción, decisiones, revisiones y autorizaciones previas a la publicación.
 - [[F6 - cierre y ajustes publicados (2026-09-11)]] — últimos ajustes publicados y verificados, revisión manual cerrada con VoiceOver omitido; F4/F5/F6 apagadas y F7 siguiente.

@@ -36,6 +36,7 @@ La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
 | Cierre del banco propio | PASS | Eliminado y ausencia verificada a las 21:47:18 UTC; banco anterior conservado |
 | Rendimiento con volumen productivo | NOT RUN | La medición local de 98 fuentes no permite extrapolar |
 | Revisión manual F7 / conciliación firmada G6 | NOT RUN | No se infiere de los tests ni de las aprobaciones históricas F6 |
+| Preparación de G6 con cifras reales | PASS técnico, G6 ABIERTO | [Corte del 11/09 a las 17:51 Lima](ACTA-G6.md): 218 operaciones, ocho grupos, sin diferencias de capital/conversión/atribución; diez identidades pendientes, anexo privado listo. Cotitulares/multiempresa/veto sin casos reales en este corte |
 | VoiceOver F6 | NOT RUN | Omitido por decisión explícita de Miguel; no se presenta como verificado |
 | Piloto económico F8 / operación mensual F9 | NOT RUN | Fases posteriores, sujetas a sus puertas |
 
@@ -84,5 +85,6 @@ y su [reversa](reversa-operativa.sql) se identifican en
 inicialmente OFF el 11/09/2026. También autorizó US$0.01344/h para el banco
 propio, ya eliminado. La publicación desde el commit común Main/remoto y la
 instalación están verificadas en [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
-F3 ON; F4/F5/F6/F7 OFF. Sigue la conciliación real y firma de
-[G6](ACTA-G6.md); no se autoriza el piloto F8 ni se adelanta F9.
+F3 ON; F4/F5/F6/F7 OFF. La lectura real de [G6](ACTA-G6.md) ya está preparada;
+sigue la revisión humana y financiera del comparativo. No se autoriza el piloto
+F8 ni se adelanta F9.

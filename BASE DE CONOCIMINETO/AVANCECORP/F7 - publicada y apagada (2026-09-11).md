@@ -53,8 +53,8 @@ omitido por decisión de Miguel. Los quince huecos históricos no se trataron.
 
 ## Siguiente paso
 
-Preparar la revisión y conciliación real de
-[G6](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACTA-G6.md).
+Revisar el comparativo real ya preparado en [[G6 - conciliacion real preparada (2026-09-11)]]
+y completar la aceptación humana/financiera del [acta G6](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACTA-G6.md).
 Solo después corresponde solicitar el piloto F8; F9 requiere activación
 progresiva y un ciclo mensual completo. No volver a pedir aprobación del SQL
 ya instalado ni recrear el banco cerrado para repetir esta publicación.

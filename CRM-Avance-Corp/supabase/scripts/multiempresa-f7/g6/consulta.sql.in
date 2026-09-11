@@ -1,0 +1,254 @@
+-- G6: lectura administrativa autorizada, sin activar F7 ni crear objetos.
+-- Proyección SELECT extraída del cuerpo instalado. SHA-256: __SHA_PROYECCION__
+-- Solo se sustituyen variables locales por parámetros, y se retira INTO.
+-- El JSON interno conserva habilitada=true porque evalúa la proyección;
+-- bandera_real indica el estado efectivo. No es una llamada a la RPC apagada.
+begin transaction isolation level repeatable read read only;
+set local statement_timeout='30s';
+set local lock_timeout='1s';
+set local timezone='UTC';
+set local search_path='';
+do $g6$
+declare v_guardia record; v_actor uuid;
+begin
+  if current_setting('transaction_read_only') <> 'on' then
+    raise exception 'G6 exige transacción de solo lectura';
+  end if;
+  if current_user <> 'postgres' or current_user <> (select pg_get_userbyid(proowner)
+    from pg_proc where oid='crm.metricas_multiempresa_fn(date)'::regprocedure) then
+    raise exception 'El lector debe coincidir con el propietario F7 verificado';
+  end if;
+  if (statement_timestamp() at time zone 'America/Lima')::date <> date '__HOY__' then
+    raise exception 'El corte quedó antiguo: regenerar con la fecha de Lima';
+  end if;
+  for v_guardia in select * from (values __HUELLAS__) g(firma,huella) loop
+    if to_regprocedure(v_guardia.firma) is null or
+      md5(pg_get_functiondef(to_regprocedure(v_guardia.firma))) is distinct from v_guardia.huella then
+      raise exception 'Cambió el lector %; revisar el contrato',v_guardia.firma;
+    end if;
+  end loop;
+  if (select activo from crm.multiempresa_flags where nombre='metricas_multiempresa_sombra') is distinct from false then
+    raise exception 'Se esperaba F7 instalada y apagada';
+  end if;
+  select e.perfil_id into v_actor from crm.equipo e
+  join public.perfiles p on p.id=e.perfil_id
+  where e.rol_crm='gerencia' and e.activo and p.activo order by e.perfil_id limit 1;
+  if v_actor is null then raise exception 'No existe Gerencia activa para la lectura de referencia'; end if;
+  perform set_config('request.jwt.claim.sub',v_actor::text,true);
+end;
+$g6$;
+
+with g6_contexto as materialized (
+  -- Una ejecución que cruce medianoche queda vacía y el verificador la rechaza.
+  select date '__HOY__' as hoy
+  where (statement_timestamp() at time zone 'America/Lima')::date=date '__HOY__'
+), g6_parametros as materialized (
+  select m.mes,c.hoy,least(c.hoy,(m.mes+interval '1 month'-interval '1 day')::date) as hasta,
+    m.mes::timestamp at time zone 'America/Lima' as ini,
+    (least(c.hoy,(m.mes+interval '1 month'-interval '1 day')::date)+1)::timestamp
+      at time zone 'America/Lima' as fin,
+    private.peso_referido_conversion(m.mes) as factor
+  from (values __MESES__) m(mes) cross join g6_contexto c
+), g6_capital as materialized (
+  select e.*,case when e.contrato_id is not null then 'avance' else ce.cooperativa end as empresa,
+    case when e.contrato_id is not null then 'contrato' else 'cierre' end as fuente_tipo,
+    coalesce(e.contrato_id,e.cierre_externo_id) as fuente_id,
+    (e.fecha at time zone 'America/Lima')::date as imputacion
+  from g6_contexto c cross join lateral private.capital_episodios(
+    '-infinity',(c.hoy+1)::timestamp at time zone 'America/Lima',true,'{}') e
+  left join crm.cierres_externos ce on ce.id=e.cierre_externo_id
+  where e.medida='stock'
+), g6_fuentes as materialized (
+  select f.* from private.metricas_f7_fuentes() f cross join g6_contexto c
+  where f.fecha_imputacion<=c.hoy
+), g6_identidades as materialized (
+  -- Referencia desde contratos/cierres y relaciones; no llama al lector F5.
+  select e.fuente_tipo,e.fuente_id,e.empresa,iv.id as inversion_id,
+    case when cardinality(ids.personas)=1 then ids.personas[1] end as persona,
+    case when cardinality(ids.personas)=1 then 'coherente'
+      when cardinality(ids.personas)>1 then 'contradictoria' else 'ausente' end as identidad_estado
+  from g6_capital e
+  left join public.contratos c on c.id=e.contrato_id
+  left join crm.cierres_externos ce on ce.id=e.cierre_externo_id
+  left join crm.leads l on l.id=ce.lead_id
+  left join crm.inversiones iv on iv.contrato_id=e.contrato_id or iv.cierre_externo_id=e.cierre_externo_id
+  cross join lateral (
+    select array_agg(distinct private.inversionista_canonica(x.id)) as personas from (
+      select i.id from crm.inversionistas i where e.contrato_id is not null and i.perfil_id=c.cliente_id
+      union select iv.inversionista_id where iv.inversionista_id is not null
+      union select ce.inversionista_id where e.cierre_externo_id is not null and ce.inversionista_id is not null
+      union select l.inversionista_id where e.cierre_externo_id is not null and l.inversionista_id is not null
+    ) x
+  ) ids
+), g6_participantes as materialized (
+  select empresa,persona from g6_identidades where persona is not null
+  union
+  select i.empresa,private.inversionista_canonica(t.inversionista_id)
+  from g6_identidades i join crm.inversion_titulares t on t.inversion_id=i.inversion_id
+  where i.identidad_estado='coherente' and t.rol='cotitular'
+), g6_personas as materialized (
+  select persona,count(*) as empresas from g6_participantes where persona is not null group by persona
+), g6_oportunidades as materialized (
+  select e.clave as empresa,count(*) filter(where p.persona is not null) as personas
+  from crm.empresas e left join g6_personas p on
+    not exists(select 1 from g6_participantes pp where pp.persona=p.persona and pp.empresa=e.clave)
+    and exists(select 1 from crm.inversionistas i where i.id=p.persona and i.estado='activo'
+      and not i.no_contactar and not exists(select 1 from crm.leads l
+        where l.id in (select private.leads_de_persona_veto(i.id)) and l.no_contactar))
+  where e.activa group by e.clave
+), g6_vencimientos as materialized (
+  select e.empresa,e.moneda,count(*) as operaciones,sum(e.monto) as capital
+  from g6_capital e cross join g6_contexto c
+  where e.fecha_vencimiento between c.hoy and c.hoy+30
+    and ((e.fuente_tipo='contrato' and e.estado='activo') or (e.fuente_tipo='cierre' and e.estado='vigente'))
+  group by e.empresa,e.moneda
+), g6_capital_publicado as materialized (
+  select * from crm.metricas_capital_mes_fn(__MESES_CAPITAL__)
+), g6_resultados as materialized (
+  select g6_param.mes,g6_param.hasta,f7.informe,
+    crm.conversion_mensual_fn(g6_param.mes) as conversion_publicada,
+    coalesce((select jsonb_agg(to_jsonb(c) order by moneda,categoria) from g6_capital_publicado c
+      where c.mes=g6_param.mes),'[]'::jsonb) as capital_publicado,
+    (select jsonb_build_object(
+      'divisor',coalesce(sum(e.aporte_divisor),0),'numerador',coalesce(sum(e.aporte_numerador),0),
+      'tasa_pct',case when sum(e.aporte_divisor)>0 then round(100*sum(e.aporte_numerador)/sum(e.aporte_divisor),2) end,
+      'factor',g6_param.factor,'episodios',count(*),
+      'cierres',count(*) filter(where e.tipo='cierre' and e.aporte_numerador>0),
+      'anulados',count(*) filter(where e.tipo='cierre' and e.anulado),
+      'renovaciones',count(*) filter(where e.tipo='operacion' and e.categoria='renovacion'),
+      'upgrades',count(*) filter(where e.tipo='operacion' and e.categoria='upgrade')
+    ) from private.conversion_episodios(g6_param.ini,g6_param.fin,g6_param.mes,true,'{}',g6_param.factor) e
+    ) as conversion_nucleo,
+    coalesce((select jsonb_agg(x order by empresa,moneda,tipo) from (
+      select e.empresa,e.moneda,e.tipo,count(*) as operaciones,sum(e.monto) as capital
+      from g6_capital e where e.imputacion between g6_param.mes and g6_param.hasta
+      group by e.empresa,e.moneda,e.tipo
+    ) x),'[]'::jsonb) as tipos_nucleo,
+    coalesce((select jsonb_agg(x order by empresa,moneda,analista_id) from (
+      select e.empresa,e.moneda,e.analista_id,count(*) as operaciones,sum(e.monto) as capital
+      from g6_capital e where e.imputacion between g6_param.mes and g6_param.hasta
+      group by e.empresa,e.moneda,e.analista_id
+    ) x),'[]'::jsonb) as atribucion_nucleo,
+    (select jsonb_build_object('operaciones',count(*),'sin_analista',count(*) filter(where analista_id is null),
+      'fuera_roster',count(*) filter(where not en_roster),
+      'anulaciones_comerciales',count(*) filter(where anulado))
+      from g6_capital e where e.imputacion between g6_param.mes and g6_param.hasta) as cobertura_capital,
+    (select count(*) from (
+      (select e.fuente_tipo,e.fuente_id,e.empresa,e.moneda,e.monto,e.analista_id,e.imputacion,e.tipo
+       from g6_capital e where e.imputacion between g6_param.mes and g6_param.hasta
+       except all
+       select f.fuente_tipo,f.fuente_id,f.empresa,f.moneda,f.capital,f.analista_id,f.fecha_imputacion,f.tipo_capital
+       from g6_fuentes f where f.fecha_imputacion between g6_param.mes and g6_param.hasta)
+      union all
+      (select f.fuente_tipo,f.fuente_id,f.empresa,f.moneda,f.capital,f.analista_id,f.fecha_imputacion,f.tipo_capital
+       from g6_fuentes f where f.fecha_imputacion between g6_param.mes and g6_param.hasta
+       except all
+       select e.fuente_tipo,e.fuente_id,e.empresa,e.moneda,e.monto,e.analista_id,e.imputacion,e.tipo
+       from g6_capital e where e.imputacion between g6_param.mes and g6_param.hasta)
+    ) diferencias) as diferencias_por_operacion,
+    coalesce((select jsonb_agg(x order by fecha,empresa,referencia,fuente_id) from (
+      select e.fuente_tipo,e.fuente_id,e.empresa,e.moneda,e.monto as capital,e.tipo,e.imputacion as fecha,
+        e.analista_id,p.nombre_completo as analista,e.en_roster,e.anulado,
+        coalesce(c.numero_contrato,ce.referencia_externa,e.fuente_id::text) as referencia,
+        i.identidad_estado,i.inversion_id is not null as tiene_relacion
+      from g6_capital e left join public.contratos c on c.id=e.contrato_id
+      left join crm.cierres_externos ce on ce.id=e.cierre_externo_id
+      left join public.perfiles p on p.id=e.analista_id
+      left join g6_identidades i on i.fuente_tipo=e.fuente_tipo and i.fuente_id=e.fuente_id
+      where e.imputacion between g6_param.mes and g6_param.hasta
+    ) x),'[]'::jsonb) as detalle_operaciones
+  from g6_parametros g6_param cross join lateral (
+__PROYECCION_F7__
+  ) f7(informe)
+), g6_comprobados as (
+  select r.*,
+    -- NUMERIC exacto antes de serializar a JSON/Number. Incluye grupos ausentes
+    -- y multiplicidad; nunca tolera redondeo monetario del cliente.
+    (with sombra as (
+      select moneda,case when tipo_capital='cooperativa' then tipo_capital
+        else replace(tipo_capital,'contrato_','') end as categoria,
+        sum(capital) as capital,sum(operaciones) as operaciones
+      from jsonb_to_recordset(r.informe->'tipos_capital')
+        t(moneda text,tipo_capital text,capital numeric,operaciones bigint)
+      group by 1,2
+    ), publicado as (
+      select moneda,categoria,capital_colocado as capital,contratos as operaciones
+      from g6_capital_publicado where mes=r.mes
+    ) select count(*) from (
+      (select * from sombra except all select * from publicado)
+      union all (select * from publicado except all select * from sombra)
+    ) d) as diferencias_capital_publicado_exactas,
+    jsonb_build_object(
+      'divisor',(r.informe#>>'{conversion,divisor}')::numeric is not distinct from
+        (r.conversion_publicada#>>'{total,divisor}')::numeric,
+      'numerador',(r.informe#>>'{conversion,numerador}')::numeric is not distinct from
+        (r.conversion_publicada#>>'{total,numerador}')::numeric,
+      'tasa_pct',(r.informe#>>'{conversion,tasa_pct}')::numeric is not distinct from
+        (r.conversion_publicada#>>'{total,conversion_pct}')::numeric,
+      'factor',(r.informe#>>'{conversion,factor_referido}')::numeric is not distinct from
+        (r.conversion_publicada#>>'{ponderacion,referido}')::numeric
+    ) as conversion_oficial_exacta
+  from g6_resultados r
+)
+select jsonb_build_object(
+  'version_g6',1,'capturado_en',statement_timestamp(),'snapshot',txid_current_snapshot()::text,
+  'solo_lectura',current_setting('transaction_read_only'),
+  'bandera_real',(select activo from crm.multiempresa_flags where nombre='metricas_multiempresa_sombra'),
+  'banderas',(select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags),
+  'actor_referencia_gerencia',private.metricas_f7_autorizada(),
+  'origen_actor','Claim local de transacción para leer reportes existentes; no sesión Auth ni aprobación humana.',
+  'custodia',(__METADATOS__),
+  'meses_solicitados',(select jsonb_agg(mes order by mes) from (values __MESES__) m(mes)),
+  'metodo','SELECT de la proyección instalada; F7 continúa OFF. No es llamada a la RPC pública de cifras.',
+  'meses',(select jsonb_agg(to_jsonb(r) order by mes) from g6_comprobados r),
+  'pendientes_identidad',coalesce((select jsonb_agg(x order by fecha,fuente_tipo,fuente_id) from (
+    select i.fuente_tipo,i.fuente_id,i.empresa,e.imputacion as fecha,e.moneda,e.monto as capital,
+      coalesce(c.numero_contrato,ce.referencia_externa,e.fuente_id::text) as referencia,
+      coalesce(p.nombre_completo,l.nombre_completo,'Sin perfil registrado') as nombre,
+      i.identidad_estado
+    from g6_identidades i join g6_capital e using(fuente_tipo,fuente_id,empresa)
+    left join public.contratos c on c.id=e.contrato_id
+    left join crm.cierres_externos ce on ce.id=e.cierre_externo_id
+    left join crm.leads l on l.id=ce.lead_id
+    left join public.perfiles p on p.id=c.cliente_id
+    where i.persona is null
+  ) x),'[]'::jsonb),
+  'personas_referencia',jsonb_build_object(
+    'total',(select count(*) from g6_personas),
+    'una_empresa',(select count(*) from g6_personas where empresas=1),
+    'dos_empresas',(select count(*) from g6_personas where empresas=2),
+    'tres_empresas',(select count(*) from g6_personas where empresas>=3),
+    'por_empresa',(select jsonb_agg(x order by empresa) from (
+      select empresa,count(*) as personas from g6_participantes where persona is not null group by empresa) x),
+    'fuentes_sin_identidad',(select count(*) from g6_identidades where persona is null),
+    'fuentes_coherentes',(select count(*) from g6_identidades where identidad_estado='coherente'),
+    'fuentes_contradictorias',(select count(*) from g6_identidades where identidad_estado='contradictoria'),
+    'fuentes_sin_enlace',(select count(*) from g6_identidades where identidad_estado='ausente'),
+    'fuentes_sin_relacion',(select count(*) from g6_identidades where inversion_id is null),
+    'filas_cotitulares',(select count(*) from g6_identidades i join crm.inversion_titulares t
+      on t.inversion_id=i.inversion_id where t.rol='cotitular' and i.persona is not null),
+    'personas_con_veto',(select count(*) from g6_personas p join crm.inversionistas i on i.id=p.persona
+      where i.no_contactar or exists(select 1 from crm.leads l
+        where l.id in (select private.leads_de_persona_veto(i.id)) and l.no_contactar))
+  ),
+  'diferencias_identidad',(select count(*) from (
+    (select fuente_tipo,fuente_id,persona,identidad_estado from g6_identidades
+     except all select fuente_tipo,fuente_id,inversionista_id,identidad_estado from g6_fuentes)
+    union all
+    (select fuente_tipo,fuente_id,inversionista_id,identidad_estado from g6_fuentes
+     except all select fuente_tipo,fuente_id,persona,identidad_estado from g6_identidades)
+  ) d),
+  'duplicados_nucleo',(select count(*) from (select fuente_tipo,fuente_id from g6_capital
+    group by fuente_tipo,fuente_id having count(*)>1) d),
+  'vencimientos_referencia',coalesce((select jsonb_agg(v order by empresa,moneda) from g6_vencimientos v),'[]'::jsonb),
+  'oportunidades_referencia',coalesce((select jsonb_agg(o order by empresa) from g6_oportunidades o),'[]'::jsonb),
+  'fotos_selladas',(select jsonb_agg(jsonb_build_object(
+    'periodo',pc.periodo,'cerrado_en',pc.cerrado_en,'factor',pc.ponderacion_referido,
+    'modelo_conversion',pc.cobertura->>'modelo_conversion',
+    'huella_periodo',md5(to_jsonb(pc)::text),
+    'filas',(select count(*) from crm.cierre_mes_vendedor f where f.periodo=pc.periodo),
+    'huella_filas',(select md5(coalesce(jsonb_agg(to_jsonb(f) order by f.vendedor_id),'[]'::jsonb)::text)
+      from crm.cierre_mes_vendedor f where f.periodo=pc.periodo)
+  ) order by pc.periodo) from crm.periodos_cerrados pc)
+) as evidencia;
+rollback;

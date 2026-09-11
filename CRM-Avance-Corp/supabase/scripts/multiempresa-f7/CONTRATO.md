@@ -1,6 +1,7 @@
 # F7 — contrato del informe multiempresa en sombra
 
-Estado: **candidata local construida y ensayada; no instalada ni activada en producción**.
+Estado: **publicada e instalada en producción, apagada**. [Publicación](PUBLICACION-2026-09-11.md).
+La lectura real de [G6](ACTA-G6.md) está preparada; falta conformidad humana y financiera.
 
 ## Alcance y acceso
 
@@ -82,5 +83,6 @@ stock: su finalización financiera no forma parte del contrato vigente.
 
 G6 sigue pendiente hasta la conciliación y firma humana correspondiente. La
 aceptación técnica no autoriza el piloto económico F8 ni el encendido de F4/F5/F6.
-El SQL exacto, la reversa y sus pruebas se presentan para aprobación antes de
-instalar en producción mediante el ciclo de rama Supabase del repositorio.
+El SQL exacto y su instalación OFF fueron aprobados y ejecutados mediante el
+ciclo de rama Supabase. La lectura administrativa G6 evalúa la proyección
+instalada sin activar la RPC pública de cifras. No repetir la instalación.

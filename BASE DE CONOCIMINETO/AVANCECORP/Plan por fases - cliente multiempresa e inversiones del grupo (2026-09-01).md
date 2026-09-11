@@ -29,8 +29,8 @@ Miguel aprobó el SQL exacto y el coste del banco Supabase (US$0.01344/h).
 Instalación y publicación verificadas el 11/09/2026; banco propio eliminado.
 3.355 pruebas frontend, 172 E2E y 16 SQL + 12 HTTP remotos PASS; 26 E2E SKIP.
 La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
-regresiones. **Conciliación real y firma G6 pendientes; no habilita F8.**
-Evidencia y punto de retoma: [[F7 - publicada y apagada (2026-09-11)]].
+regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias; firma humana/financiera pendiente. No habilita F8.**
+Evidencia y punto de retoma: [[G6 - conciliacion real preparada (2026-09-11)]].
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
@@ -56,7 +56,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
-| F7 — métricas | Publicada e instalada OFF; G6 pendiente | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Pruebas específicas PASS y matriz general sin regresiones, conservando sus 57 FAIL. Conciliar cifras reales y firmar G6 antes de F8. [[F7 - publicada y apagada (2026-09-11)]] |
+| F7 — métricas | Publicada e instalada OFF; G6 pendiente | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Pruebas específicas PASS y matriz general sin regresiones, conservando sus 57 FAIL. Corte real preparado: 218 inversiones sin diferencias, diez identidades pendientes. Revisar y firmar G6 antes de F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
@@ -719,14 +719,15 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Los ajustes y la revisión manual quedaron cerrados el 11/09, con VoiceOver
    omitido por Miguel (NOT RUN). Conservar las observaciones de la matriz
    general. [[F6 - cierre y ajustes publicados (2026-09-11)]].
-4. **F7 publicada e instalada OFF:** revisar el informe por empresa y obtener
-   la conciliación real firmada G6. SQL y coste ya aprobados; ensayo, publicación
-   y eliminación del banco propio completados. [[F7 - publicada y apagada (2026-09-11)]].
+4. **F7 publicada e instalada OFF:** revisar el comparativo real G6 ya preparado
+   y obtener conformidad de Miguel y financiera. SQL, ensayo, publicación y
+   eliminación del banco propio completados. [[G6 - conciliacion real preparada (2026-09-11)]].
 5. Después: **F8/G7 → F9/G8**: piloto económico y activación progresiva con ciclo
    mensual completo. No se adelantan con el ensayo sintético F7.
 
-F3 permanece encendida; F4/F5/F6/F7 permanecen apagadas. Los 15 faltantes de
-identidad siguen pendientes; esta publicación no autoriza su conciliación real.
+F3 permanece encendida; F4/F5/F6/F7 permanecen apagadas. El inventario histórico de 15 huecos
+F4/F5 no se saneó ni se dio por resuelto. La lectura G6 autorizada identifica diez
+fuentes sin identidad en su propio universo; no autoriza backfill ni activación.
 La modalidad de captura de documento web sigue como decisión
 comercial independiente. Cierre y alcance: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
 

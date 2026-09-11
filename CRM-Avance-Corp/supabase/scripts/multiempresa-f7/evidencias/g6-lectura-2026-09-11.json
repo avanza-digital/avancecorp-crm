@@ -1,0 +1,143 @@
+{
+  "fecha": "2026-09-11",
+  "estado": "PREPARACION_TECNICA_PASS_G6_ABIERTO",
+  "corte": "2026-09-11T22:51:44.761352+00:00",
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "fuenteReleaseF7": "32eae8a22cbeef8bc54c20e989c6612c0f201efe",
+  "banderas": {
+    "ficha_360_neutral": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "metricas_multiempresa_sombra": false
+  },
+  "metodo": "SELECT de la proyección instalada; F7 continúa OFF. No es llamada a la RPC pública de cifras.",
+  "verificacion": {
+    "estado": "PARIDAD_TECNICA_PASS",
+    "capturadoEn": "2026-09-11T22:51:44.761352+00:00",
+    "verificaciones": [
+      {
+        "mes": "2026-08-01",
+        "hasta": "2026-08-31",
+        "operaciones": 161,
+        "gruposEmpresaMoneda": 4,
+        "paridadFuentesCapitalAtribucion": "PASS",
+        "paridadIdentidadVencimientos": "PASS",
+        "consistenciaOportunidades": "PASS",
+        "consistenciaParametrosConversion": "PASS",
+        "capitalOficialNumericExacto": "PASS",
+        "diferenciasConversionOficial": {
+          "divisor": 0,
+          "numerador": 0,
+          "tasa_pct": 0,
+          "factor": 0
+        },
+        "conversionOficialNumericExacto": {
+          "factor": true,
+          "divisor": true,
+          "tasa_pct": true,
+          "numerador": true
+        },
+        "conversionOficial": "PASS",
+        "operacionesFueraRoster": 4,
+        "mesSellado": true
+      },
+      {
+        "mes": "2026-09-01",
+        "hasta": "2026-09-11",
+        "operaciones": 57,
+        "gruposEmpresaMoneda": 4,
+        "paridadFuentesCapitalAtribucion": "PASS",
+        "paridadIdentidadVencimientos": "PASS",
+        "consistenciaOportunidades": "PASS",
+        "consistenciaParametrosConversion": "PASS",
+        "capitalOficialNumericExacto": "PASS",
+        "diferenciasConversionOficial": {
+          "divisor": 0,
+          "numerador": 0,
+          "tasa_pct": 0,
+          "factor": 0
+        },
+        "conversionOficialNumericExacto": {
+          "factor": true,
+          "divisor": true,
+          "tasa_pct": true,
+          "numerador": true
+        },
+        "conversionOficial": "PASS",
+        "operacionesFueraRoster": 1,
+        "mesSellado": false
+      }
+    ],
+    "cobertura": {
+      "fuentesSinIdentidad": 10,
+      "fuentesSinRelacionF4": 566,
+      "personas": 434,
+      "cotitularesReales": 0,
+      "personasEnVariasEmpresas": 0,
+      "personasConVeto": 0
+    },
+    "alcance": "Paridad interna sobre datos reales; proyección SELECT de F7 OFF, no invocación de su RPC de cifras.",
+    "g6": "ABIERTO, revisión humana y financiera pendientes",
+    "capturaSha256": "5a430de720f1f28468845e47957951fbed46a67026e58577001e69d560080ab1"
+  },
+  "custodia": {
+    "estado": "CUSTODIA_PASS",
+    "capturadoEn": "2026-09-11T22:51:44.761352+00:00",
+    "comprobadoEn": "2026-09-11T22:52:21.4114+00:00",
+    "funciones": 10,
+    "migraciones": 275,
+    "fotos": 1,
+    "alcance": "Coincidencia de las huellas seleccionadas y banderas entre dos lecturas; no monitor global de escrituras.",
+    "capturaSha256": "5a430de720f1f28468845e47957951fbed46a67026e58577001e69d560080ab1",
+    "postflightSha256": "feb02c5f43754c2637299889b41e92f1e4e9e4f1391af9ede48788875b7e6256"
+  },
+  "archivos": {
+    "consulta-g6-v2.sql": "06d7c4000883efe43401927145301ab82bb635f7d5b2af1c44f462f69170099f",
+    "postflight-v2.sql": "74c57a86cc27054146a3a4416e6d39295f027acb764aa05437599c6845f3797e",
+    "lectura-productiva-v2.json": "5a430de720f1f28468845e47957951fbed46a67026e58577001e69d560080ab1",
+    "postflight-productivo-v2.json": "feb02c5f43754c2637299889b41e92f1e4e9e4f1391af9ede48788875b7e6256",
+    "pruebas-negativas-v2.log": "80cc5236fd5dabb709f1052ad32d2b8ff8049e2c2f1d374b553954fa06caa635",
+    "claude-g6-review.log": "c12827b67e032d8e1dd1d278e03b79c5fd37e8db451c93d2946b4dd457befb0c",
+    "claude-g6-v2-review.log": "996c0082cb4af1684c9392b4e3834cf77a875b9a963b9ae2dc55b2ee23dc5b0b"
+  },
+  "gates": {
+    "sqlProductivo": "PASS",
+    "contratoFrontend": "PASS",
+    "custodia": "PASS",
+    "negativos": {
+      "estado": "PASS",
+      "casos": 19
+    },
+    "generador": {
+      "estado": "PASS",
+      "modos": 2,
+      "invalidos": 3
+    },
+    "sintaxis": "PASS",
+    "checkScripts": "PASS",
+    "uiEscritorio": "PASS",
+    "buildRuntime": "NOT RUN; sin cambios en runtime",
+    "rlsNuevo": "NOT RUN; sin cambios en esquema/permisos",
+    "rendimientoProductivo": "NOT RUN como benchmark",
+    "firmaMiguel": "PENDIENTE",
+    "firmaFinanciera": "PENDIENTE",
+    "f8": "NOT RUN"
+  },
+  "claude": [
+    {
+      "consulta": 1,
+      "verdict": "CHANGES_REQUESTED",
+      "evaluacion": "Correcciones verificadas; decisiones en g6/REVISION.md"
+    },
+    {
+      "consulta": 2,
+      "estado": "FAIL_ENTREGA",
+      "exitCode": 1,
+      "verdict": null,
+      "motivo": "Resultado incompleto o sin VERDICT válido; sin aprobación final"
+    }
+  ],
+  "privacidad": "Solo resumen técnico; importes, nombres, referencias y UUID de personas/fuentes fuera de Git.",
+  "respaldo": "/Users/usuario/.codex/backups/avancecorp-g6-20260911"
+}

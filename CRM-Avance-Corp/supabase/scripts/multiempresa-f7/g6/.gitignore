@@ -1,0 +1,6 @@
+# Capturas privadas fuera del repo; protección adicional para ejecuciones locales.
+*.json
+*.html
+*.log
+*.sql
+__pycache__/

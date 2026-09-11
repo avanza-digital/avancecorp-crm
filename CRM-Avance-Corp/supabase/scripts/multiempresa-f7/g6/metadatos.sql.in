@@ -1,0 +1,21 @@
+-- Misma lectura antes/durante/después. PK de la foto: (periodo,vendedor_id).
+select jsonb_build_object(
+  'capturado_en',statement_timestamp(),
+  'solo_lectura',current_setting('transaction_read_only'),
+  'rol',current_user,'rol_sesion',session_user,
+  'propietario_f7',(select pg_get_userbyid(proowner) from pg_proc
+    where oid='crm.metricas_multiempresa_fn(date)'::regprocedure),
+  'search_path',current_setting('search_path'),
+  'banderas',(select jsonb_object_agg(nombre,activo) from crm.multiempresa_flags),
+  'funciones',(select jsonb_object_agg(firma,md5(pg_get_functiondef(to_regprocedure(firma))))
+    from (values __HUELLAS__) g(firma,huella)),
+  'migraciones',(select count(*) from supabase_migrations.schema_migrations),
+  'fotos_selladas',coalesce((select jsonb_agg(jsonb_build_object(
+    'periodo',pc.periodo,'cerrado_en',pc.cerrado_en,'factor',pc.ponderacion_referido,
+    'modelo_conversion',pc.cobertura->>'modelo_conversion',
+    'huella_periodo',md5(to_jsonb(pc)::text),
+    'filas',(select count(*) from crm.cierre_mes_vendedor f where f.periodo=pc.periodo),
+    'huella_filas',(select md5(coalesce(jsonb_agg(to_jsonb(f) order by f.vendedor_id),'[]'::jsonb)::text)
+      from crm.cierre_mes_vendedor f where f.periodo=pc.periodo)
+  ) order by pc.periodo) from crm.periodos_cerrados pc),'[]'::jsonb)
+)
