@@ -1,6 +1,8 @@
 # F6 — recorrido de aceptación manual
 
-En curso con Miguel. El 10/09 confirmó la creación y visualización de la llamada
+**Revisión cerrada con excepción autorizada:** VoiceOver omitido por decisión
+de Miguel el 10/09/2026; su prueba sigue registrada como NOT RUN.
+El 10/09 confirmó la creación y visualización de la llamada
 en ficha, Hoy y Agenda, sin duplicación en Agenda, y la misma ficha tras recargar.
 También confirmó el cierre con detalle en el historial y el próximo contacto,
 una sola vez y con la fecha elegida, además del cambio de hora de una reunión
@@ -18,8 +20,9 @@ de la selección automática por Chrome. Miguel completó después el recorrido
 visual de Qorilazo y Prodelco: seleccionar archivo, Revisar y Confirmar; tres
 inversiones por ficha, con S/ 3.250 y S/ 3.800 respectivamente y antecedentes
 visibles. Codex verificó después los comprobantes y la conservación de registros.
-También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado; falta la
-comprobación con lector de pantalla del punto 7 y la aceptación completa.
+También aprobó el nuevo aspecto del botón. El punto 5 queda aprobado. Miguel
+decidió omitir la comprobación con lector de pantalla del punto 7; con esa
+excepción queda cerrado este recorrido de revisión.
 Codex completó retiro/permisos (6) y recuperación de envío (8), con evidencia
 de UI y servidor local. Móvil, teclado y estabilidad tienen comprobaciones
 separadas; no se atribuye un PASS de VoiceOver a sus árboles de accesibilidad. El registro y sus
@@ -49,9 +52,11 @@ F3/F4/F5/F6 deben estar encendidas únicamente en ese entorno de ensayo.
 6. **Retiro:** registrar una solicitud, revisarla como Gerencia y dejar la resolución.
    Cambia el trámite; capital, contrato, pagos e inversión original permanecen
    iguales. Directorio no recibe esos botones ni la agenda neutral.
-7. **Móvil y teclado:** repetir agenda/ficha en 390 px, recorrer los controles con
-   Tab y lector de pantalla, abrir/cerrar los diálogos y comprobar foco/lectura.
-   No debe haber desplazamiento horizontal ni salto periódico de la ficha.
+7. **Móvil y teclado:** el recorrido original consiste en repetir agenda/ficha
+   en 390 px, recorrer los controles con Tab y lector de pantalla, abrir/cerrar
+   los diálogos y comprobar foco/lectura. No debe haber desplazamiento horizontal
+   ni salto periódico de la ficha. **En esta revisión se omite el lector de
+   pantalla por decisión de Miguel del 10/09/2026: NOT RUN, sin atribuirle PASS.**
 8. **Respuesta perdida:** con una interrupción controlada del banco, recargar tras
    enviar una gestión. Abrir el mismo formulario y pulsar “Verificar envío guardado”.
    Debe existir una sola tarea; no debe permitir sustituir el envío pendiente por

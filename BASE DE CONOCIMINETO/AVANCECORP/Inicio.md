@@ -29,7 +29,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
-- [[F6 - publicada y apagada (2026-09-10)]] — frontend y tres SQL instalados; 43 pruebas remotas PASS, banco temporal eliminado. Revisión manual y F7–F9 pendientes.
+- [[F6 - publicada y apagada (2026-09-10)]] — frontend y tres SQL instalados; 43 pruebas remotas PASS, banco temporal eliminado. Revisión manual cerrada con VoiceOver omitido por Miguel; ajustes locales por publicar y F7–F9 pendientes.
 - [[F6 - conflicto HTTP y ensayo remoto (2026-09-10)]] — corrección PT409, pruebas y límites.
 - [[F6 - implementación de postventa (2026-09-10)]] — decisiones e implementación inicial.
 - [[F5 - instalada y apagada (2026-09-10)]] — SQL autorizado instalado y verificado; banco temporal eliminado, datos conservados.

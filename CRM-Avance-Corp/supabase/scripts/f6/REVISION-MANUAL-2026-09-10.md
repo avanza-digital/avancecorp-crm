@@ -1,6 +1,7 @@
 # F6 — avance de revisión manual del 10/09/2026
 
-Estado: **EN CURSO; aceptación completa pendiente**.
+Estado: **REVISIÓN CERRADA CON EXCEPCIÓN AUTORIZADA — VoiceOver omitido por Miguel
+el 10/09/2026; prueba NOT RUN**. Véase la decisión al final de esta acta.
 Revisor humano: Miguel. Recorrido guiado con roles vendedor/Gerencia y banco local sintético.
 Referencia de código F6: `b54fe94219fa516ab3824ec1be9ae756fc3144e1`.
 
@@ -42,7 +43,7 @@ cooperativas. Codex comprobó las fichas y la integridad posterior en el banco.
 El punto 5 queda **PASS** dentro del alcance de la guía.
 Miguel autorizó después todas las pruebas necesarias y pidió consultar siempre
 a Claude. Codex completó los puntos 6 y 8; el punto 7 tiene prueba de móvil,
-teclado y estabilidad, pero falta confirmar la lectura con VoiceOver.
+teclado y estabilidad. VoiceOver se omite por la decisión posterior de Miguel.
 
 ## Punto 3 — ejecución delegada a Codex
 
@@ -223,7 +224,8 @@ la observación visual posterior está en el JSON de retiro por UI.
 
 ## Punto 7 — móvil, teclado y lectura
 
-**PARCIAL: VoiceOver pendiente.** En Chrome a 390 × 844 píxeles CSS, la ficha y
+**VoiceOver NOT RUN, omitido por decisión posterior de Miguel.**
+En Chrome a 390 × 844 píxeles CSS, la ficha y
 su diálogo no desbordan horizontalmente. Tab/Shift+Tab recorren los controles;
 Tab desde Agendar vuelve al primer control del diálogo. Escape vuelve al botón
 Agendar gestión de la ficha. Se observó el historial desplegado y el mismo scroll
@@ -276,7 +278,9 @@ respondió HTTP 200 después del ajuste; la huella de tareas permaneció idénti
 los tres triggers de esa tabla quedaron habilitados. Fue una corrección de la
 preparación local; no hubo cambios de código de producto ni de producción.
 
-Las comprobaciones de este registro no cierran F6 ni firman G6/G7/G8. Se conserva
+La excepción de Miguel cierra el recorrido manual. Sigue pendiente la publicación
+de los últimos ajustes de F6. Las comprobaciones y esta excepción no firman
+G6/G7/G8. Se conserva
 el estado publicado F4/F5/F6 apagadas en producción. Las comisiones son externas.
 
 Validación del ajuste visual: `npm run check` **PASS** (lint, typecheck, 3.182 tests
@@ -312,5 +316,31 @@ fueron CHANGES_REQUESTED y se evaluaron con evidencia; no se atribuye un PASS a
 Claude. [Evaluación del PRIMARY](manual-2026-09-10/revision-claude-evaluada.json).
 Los ajustes de producto están en el commit local `d586b66`; esta documentación
 se guarda por separado. El selector de archivos está en `513effa`.
-F4/F5/F6 siguen apagadas en producción. **Falta la comprobación de VoiceOver
-para cerrar la aceptación manual F6.** F7, F8 y F9 no se dan por completadas.
+F4/F5/F6 siguen apagadas en producción. Al terminar las pruebas, VoiceOver era
+el único tramo pendiente de este recorrido; la decisión siguiente lo omite.
+F7, F8 y F9 no se dan por completadas.
+
+## Decisión posterior de Miguel — VoiceOver omitido
+
+El 10/09/2026, después de explicar que la comprobación de VoiceOver valida la
+lectura y navegación con lector de pantalla, Miguel indicó: «ok eso vamos a
+saltarlo. y dime que sigue.»
+
+Se omite únicamente esa comprobación de la revisión F6. Su resultado técnico
+permanece **NOT RUN** en la evidencia; no se convierte en PASS ni se elimina la
+accesibilidad implementada. Móvil, teclado, foco y estabilidad conservan sus pruebas.
+Con esta excepción autorizada queda cerrado el recorrido manual F6.
+
+Los últimos ajustes locales (selector de archivos, foco y mensaje de conexión)
+siguen pendientes de publicación. La próxima fase del plan es F7: conciliar
+Capital, conversión, producción y atribución por empresa y moneda, primero en
+sombra. F8 requiere después la conciliación firmada G6. Esta decisión no publica
+ni enciende F4/F5/F6, no resuelve los 15 registros de identidad y no firma G6/G7/G8.
+Las comisiones siguen calculándose fuera del sistema.
+
+Revisión de esta decisión: Claude emitió CHANGES_REQUESTED sobre el texto.
+Codex aclaró el cierre del recorrido frente a la publicación pendiente, conservó
+la instrucción original como referencia con la excepción explícita y distinguió
+las pruebas del artefacto publicado de las de los ajustes locales. Validación:
+`git diff --check`, enlaces y alcance de seis archivos Markdown, PASS. No se
+repitieron tests de producto porque no cambió código, configuración ni datos.

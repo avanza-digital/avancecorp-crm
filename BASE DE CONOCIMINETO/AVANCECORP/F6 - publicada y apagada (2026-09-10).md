@@ -50,7 +50,10 @@ No se conciliaron datos reales ni se encendió el piloto.
 
 ## Retoma
 
-1. Completar la revisión manual F6 sobre datos sintéticos. Miguel confirmó el
+1. Revisión manual F6 cerrada con VoiceOver omitido por decisión de Miguel
+   el 10/09/2026; la prueba conserva NOT RUN. Publicar los ajustes locales
+   pendientes del selector de archivos, foco y mensaje de conexión. Historial:
+   Miguel confirmó el
    10/09 la llamada en ficha, Hoy y Agenda, una sola vez en Agenda y la misma
    ficha tras recargar. También aprobó el cierre con detalle en el historial
    y un único próximo contacto con la fecha elegida, así como el cambio de hora
@@ -77,10 +80,10 @@ No se conciliaron datos reales ni se encendió el piloto.
    las 90 inversiones y los 47 cierres anteriores, 49 contratos, identidades y
    banderas; ambos archivos almacenados coinciden con los comprobantes de prueba.
    El punto 5 queda aprobado. Codex completó retiro/permisos (6) y recuperación
-   del envío (8). Móvil y teclado tienen evidencia; falta verificar VoiceOver
-   para cerrar el punto 7. Ajustes locales y revisiones de Claude en
+   del envío (8). Móvil y teclado tienen evidencia; Miguel decidió omitir
+   VoiceOver en el punto 7. Ajustes locales, decisión y revisiones de Claude en
    [[F6 - pruebas delegadas y ajustes de accesibilidad (2026-09-10)]].
-   La aceptación completa permanece pendiente. Registro y alcance:
+   El recorrido manual queda cerrado con esa excepción. Registro y alcance:
    [avance manual](../../CRM-Avance-Corp/supabase/scripts/f6/REVISION-MANUAL-2026-09-10.md).
 2. F7/G6: conciliar métricas, Capital y atribución por empresa y moneda.
 3. F8/G7: piloto económico con sus participantes, volúmenes y firmas.
