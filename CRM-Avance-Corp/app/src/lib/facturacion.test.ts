@@ -14,6 +14,7 @@ import {
   esFinDeSemana,
   filasComparadas,
   filtrarFilas,
+  filtrarRoster,
   filtroInicial,
   filtroVacio,
   letraDia,
@@ -23,10 +24,15 @@ import {
   numeroDia,
   pasoDeEscala,
   primerDiaDelMes,
+  rosterDeEquipoYFilas,
   rosterDeFilas,
+  SIN_SUPERVISOR_ID,
+  SIN_SUPERVISOR_NOMBRE,
+  totalesUnificados,
   valorCelda,
   type FilaFacturacionDia,
   type FiltroFacturacion,
+  type MiembroEquipo,
 } from './facturacion'
 
 const MES = '2026-09-01'
@@ -324,5 +330,167 @@ describe('escala de color de la malla', () => {
     expect(pasoDeEscala(0, 0).bg).toBe('transparent')
     expect(pasoDeEscala(100, 100)).toBe(ESCALA_FACTURACION[6])
     expect(pasoDeEscala(1, 100)).toBe(ESCALA_FACTURACION[1])
+  })
+})
+
+/* ───────── El analista que no ha vendido (Miguel, 11/09/2026) ─────────
+ * «arregla lo de el analista que no ha vendido si quiero que salga». Antes el
+ * roster salía de las propias ventas, así que el mes en cero era invisible: no
+ * se podía ni preguntar por él. Ahora el organigrama siembra la malla.
+ */
+describe('roster con el organigrama', () => {
+  function miembro(p: Partial<MiembroEquipo> & { id: string }): MiembroEquipo {
+    return { nombre: `Nombre ${p.id}`, rol: 'vendedor', supervisorId: 'sup-1', activo: true, ...p }
+  }
+
+  const EQUIPO: readonly MiembroEquipo[] = [
+    miembro({ id: 'sup-1', nombre: 'Rosa Uno', rol: 'supervisor', supervisorId: null }),
+    miembro({ id: 'ana', nombre: 'Ana' }),
+    miembro({ id: 'noe', nombre: 'Noe' }),
+    miembro({ id: 'baja', nombre: 'Bruno', activo: false }),
+    miembro({ id: 'ger', nombre: 'Gerente', rol: 'gerencia', supervisorId: null }),
+  ]
+
+  const VENDIO_ANA: readonly FilaFacturacionDia[] = [
+    fila({ analistaId: 'ana', analistaNombre: 'Ana', supervisorId: 'sup-1', supervisorNombre: 'Rosa Uno' }),
+  ]
+
+  it('añade al analista activo que no vendió, con su supervisor de hoy', () => {
+    const roster = rosterDeEquipoYFilas(EQUIPO, VENDIO_ANA)
+    const noe = roster.find((p) => p.id === 'noe')
+    expect(noe).toEqual({ id: 'noe', nombre: 'Noe', supervisorId: 'sup-1', supervisorNombre: 'Rosa Uno' })
+  })
+
+  it('NO añade a quien está dado de baja y no vendió', () => {
+    expect(rosterDeEquipoYFilas(EQUIPO, VENDIO_ANA).map((p) => p.id)).not.toContain('baja')
+  })
+
+  it('sí conserva a quien está de baja PERO vendió: la venta existió', () => {
+    const filas = [...VENDIO_ANA, fila({ analistaId: 'baja', analistaNombre: 'Bruno' })]
+    expect(rosterDeEquipoYFilas(EQUIPO, filas).map((p) => p.id)).toContain('baja')
+  })
+
+  it('NO añade supervisores ni gerencia: el roster es de analistas', () => {
+    const ids = rosterDeEquipoYFilas(EQUIPO, VENDIO_ANA).map((p) => p.id)
+    expect(ids).not.toContain('sup-1')
+    expect(ids).not.toContain('ger')
+  })
+
+  it('el supervisor DE ENTONCES gana al equipo de hoy para quien vendió', () => {
+    // El organigrama coloca a Ana con Rosa; su venta es de cuando estaba con
+    // Sara. Mover a alguien de equipo no le cambia de sitio el dinero cerrado.
+    const filas = [
+      fila({ analistaId: 'ana', analistaNombre: 'Ana', supervisorId: 'sup-2', supervisorNombre: 'Sara Dos' }),
+    ]
+    const ana = rosterDeEquipoYFilas(EQUIPO, filas).find((p) => p.id === 'ana')
+    expect(ana?.supervisorNombre).toBe('Sara Dos')
+  })
+
+  it('un analista sin supervisor cae en la fila «Sin supervisor», no en una vacía', () => {
+    const equipo = [miembro({ id: 'huerfano', nombre: 'Hugo', supervisorId: null })]
+    const huerfano = rosterDeEquipoYFilas(equipo, []).find((p) => p.id === 'huerfano')
+    expect(huerfano?.supervisorId).toBe(SIN_SUPERVISOR_ID)
+    expect(huerfano?.supervisorNombre).toBe(SIN_SUPERVISOR_NOMBRE)
+  })
+
+  it('sin organigrama se comporta igual que el roster de siempre', () => {
+    expect(rosterDeEquipoYFilas([], VENDIO_ANA)).toEqual(rosterDeFilas(VENDIO_ANA))
+  })
+
+  it('la malla le da su fila, en cero, y el total NO se mueve', () => {
+    const roster = rosterDeEquipoYFilas(EQUIPO, VENDIO_ANA)
+    const sinSembrar = construirMalla(VENDIO_ANA, MES, 'PEN')
+    const sembrada = construirMalla(VENDIO_ANA, MES, 'PEN', 'contrato_nuevo', roster)
+
+    const noe = sembrada.grupos.flatMap((g) => g.analistas).find((a) => a.id === 'noe')
+    expect(noe).toBeDefined()
+    expect(valorCelda(noe?.total ?? { capital: -1, contratos: -1 }, 'capital')).toBe(0)
+    // Una fila en cero que moviera el total sería justo el error que más caro
+    // sale: un tablero de ventas que suma de la nada.
+    expect(valorCelda(sembrada.total, 'capital')).toBe(valorCelda(sinSembrar.total, 'capital'))
+  })
+
+  it('en la malla, la FILA manda sobre el roster al colocar el equipo', () => {
+    // Precedencia propia de `construirMalla`, aparte de la del roster: si quien
+    // llama siembra con el equipo de HOY y la fila trae el de ENTONCES, el
+    // dinero se agrupa donde estaba. Sin esta regla, mover a alguien de equipo
+    // reescribiría meses ya cerrados.
+    const rosterDeHoy = [
+      { id: 'ana', nombre: 'Ana', supervisorId: 'sup-1', supervisorNombre: 'Rosa Uno' },
+    ]
+    const vendioConSara = [
+      fila({ analistaId: 'ana', analistaNombre: 'Ana', supervisorId: 'sup-2', supervisorNombre: 'Sara Dos', capital: 90_000 }),
+    ]
+    const malla = construirMalla(vendioConSara, MES, 'PEN', 'contrato_nuevo', rosterDeHoy)
+
+    expect(malla.grupos.map((g) => g.nombre)).toEqual(['Sara Dos'])
+    expect(valorCelda(malla.grupos[0]?.total ?? { capital: -1, contratos: -1 }, 'capital')).toBe(90_000)
+  })
+
+  it('filtrarRoster decide con las MISMAS dos condiciones que filtrarFilas', () => {
+    const roster = rosterDeEquipoYFilas(EQUIPO, VENDIO_ANA)
+    const soloNoe: FiltroFacturacion = { equipo: '', analistas: ['noe'] }
+    expect(filtrarRoster(roster, soloNoe).map((p) => p.id)).toEqual(['noe'])
+    // Y no arrastra ventas ajenas: Noe no vendió, así que no hay filas.
+    expect(filtrarFilas(VENDIO_ANA, soloNoe)).toEqual([])
+
+    const otroEquipo: FiltroFacturacion = { equipo: 'sup-2', analistas: [] }
+    expect(filtrarRoster(roster, otroEquipo)).toEqual([])
+  })
+})
+
+/* ───── El total del día con las dos monedas (Miguel, 11/09/2026) ─────
+ * «necesito ver el total de soles y dólares por día». El capital se convierte
+ * con el motor ya aprobado (`totalEnSoles`); los contratos se suman tal cual.
+ */
+describe('total del día con las dos monedas', () => {
+  const FILAS_DOS_MONEDAS: readonly FilaFacturacionDia[] = [
+    fila({ dia: '2026-09-02', moneda: 'PEN', capital: 300_000, operaciones: 3 }),
+    fila({ dia: '2026-09-02', moneda: 'USD', capital: 7_000, operaciones: 1 }),
+    fila({ dia: '2026-09-03', moneda: 'PEN', capital: 80_000, operaciones: 1 }),
+  ]
+  const pen = (): ReturnType<typeof construirMalla> => construirMalla(FILAS_DOS_MONEDAS, MES, 'PEN')
+  const usd = (): ReturnType<typeof construirMalla> => construirMalla(FILAS_DOS_MONEDAS, MES, 'USD')
+  const indice = (dia: string): number => diasDelMes(MES).indexOf(dia)
+
+  it('convierte el dólar a soles al TC dado y lo suma al del día', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    const dia2 = t.porDia[indice('2026-09-02')]
+    expect(dia2?.capital.estado).toBe('convertido')
+    expect(dia2?.capital.total).toBe(300_000 + 7_000 * 3.75)
+    expect(dia2?.capital.tc).toBe(3.75)
+  })
+
+  it('sin TC el total NO incluye el dólar, y lo dice', () => {
+    const t = totalesUnificados(pen(), usd(), null)
+    const dia2 = t.porDia[indice('2026-09-02')]
+    expect(dia2?.capital.estado).toBe('solo_pen')
+    expect(dia2?.capital.total).toBe(300_000)
+    expect(dia2?.capital.usd).toBe(7_000)
+  })
+
+  it('un TC inválido no multiplica dinero: 0, negativo o NaN quedan fuera', () => {
+    for (const malo of [0, -3.75, Number.NaN]) {
+      const t = totalesUnificados(pen(), usd(), malo)
+      expect(t.mes.capital.estado).toBe('solo_pen')
+      expect(t.mes.capital.tc).toBeNull()
+    }
+  })
+
+  it('los CONTRATOS se suman tal cual: son cuentas, no dinero', () => {
+    const t = totalesUnificados(pen(), usd(), null)
+    expect(t.porDia[indice('2026-09-02')]?.contratos).toBe(4)
+    expect(t.mes.contratos).toBe(5)
+  })
+
+  it('el total del mes cuadra con la suma de sus días', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    const sumaDias = t.porDia.reduce((a, d) => a + (d.capital.total ?? 0), 0)
+    expect(t.mes.capital.total).toBeCloseTo(sumaDias, 6)
+  })
+
+  it('un día sin nada no inventa un total: queda en cero, no en null', () => {
+    const t = totalesUnificados(pen(), usd(), 3.75)
+    expect(t.porDia[indice('2026-09-20')]?.capital.total).toBe(0)
   })
 })
