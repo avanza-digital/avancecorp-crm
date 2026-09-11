@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Receipt,
   RotateCcw,
+  TriangleAlert,
   TrendingUp,
   Users,
   X,
@@ -51,8 +52,10 @@ import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { normalizar } from '@/lib/clientes-vista'
 import { formatDateLocal, parseDateLocal } from '@/lib/cronograma'
+import { fechaLima } from '@/lib/agenda-derivada'
 import { filasFacturacionDemo } from '@/lib/demo-facturacion'
 import {
+  combinarEnSoles,
   conciliarFiltro,
   construirMalla,
   desgloseDeCelda,
@@ -94,8 +97,22 @@ import { cn } from '@/lib/utils'
 /** Referencia estable: un `[]` nuevo en cada render invalidaría los useMemo. */
 const SIN_FILAS: readonly FilaFacturacionDia[] = []
 
-const MONEDAS: readonly Moneda[] = ['PEN', 'USD']
-const ROTULO_MONEDA: Record<Moneda, string> = { PEN: 'Soles', USD: 'Dólares' }
+/**
+ * Lo que se pinta en la malla. Dos monedas puras y una tercera vista, TOTAL,
+ * donde cada celda ya trae las dos juntas convertidas a soles — Miguel,
+ * 11/09/2026: «en el tablero quiero ver el total de cada analista por día».
+ * TOTAL se formatea en soles porque ES soles: dólares convertidos a tasa real.
+ */
+/** Tope de filas que PostgREST devuelve por consulta (supabase/config.toml). */
+const LIMITE_FILAS_RPC = 1000
+
+const VISTAS_MONEDA = ['TOTAL', 'PEN', 'USD'] as const
+type VistaMoneda = (typeof VISTAS_MONEDA)[number]
+const ROTULO_VISTA: Record<VistaMoneda, string> = {
+  TOTAL: 'Todo S/',
+  PEN: 'Soles',
+  USD: 'Dólares',
+}
 /** Cómo se llama en castellano cada tipo que devuelve el servidor. */
 const ROTULO_TIPO: Record<string, string> = {
   contrato_nuevo: 'Capital nuevo',
@@ -120,9 +137,15 @@ const ROTULO_METRICA: Record<MetricaFacturacion, string> = {
 
 /** Cifra que cabe en una celda de 56 px. La exacta vive en el título y en el detalle. */
 function compacta(valor: number, metrica: MetricaFacturacion): string {
-  if (valor <= 0) return '·'
+  // El punto significa VACÍO. Solo lo merece el cero exacto: un negativo es una
+  // cifra y tiene que verse, con su signo.
+  if (valor === 0) return '·'
   if (metrica === 'contratos') return String(valor)
-  if (valor >= 1_000_000) return `${(valor / 1_000_000).toFixed(1)}M`
+  const abs = Math.abs(valor)
+  if (abs >= 1_000_000) return `${(valor / 1_000_000).toFixed(1)}M`
+  // Por debajo de mil NO se redondea a «0k»: una venta de S/ 400 se leía como
+  // cero. Se enseña la cifra entera, que además cabe. (Codex, 11/09/2026.)
+  if (abs < 1_000) return String(Math.round(valor))
   return `${Math.round(valor / 1000)}k`
 }
 
@@ -351,12 +374,21 @@ export function Facturacion({
   const { equipo } = useCRMData()
   const esDemo = yo?.demo === true
   const ahora = useAhora(600_000)
-  const hoy = useMemo(() => formatDateLocal(new Date(ahora)), [ahora])
+  // EL DÍA DE LIMA, no el del reloj de la máquina. El negocio opera en Perú:
+  // con un portátil en otro huso, el 1 de mes la pantalla abría el mes anterior
+  // y dejaba el vigente inalcanzable (la flecha «siguiente» se deshabilita
+  // contra este mismo valor). También movía el divisor del promedio y decidía
+  // mal si el tipo de cambio se pide vigente o congelado.
+  // (Auditoría de Codex, 11/09/2026.)
+  const hoy = useMemo(() => fechaLima(ahora), [ahora])
   const mesDeHoy = useMemo(() => primerDiaDelMes(hoy), [hoy])
   const idPanel = useId()
 
-  const [mes, setMes] = useState<string>(() => primerDiaDelMes(formatDateLocal(new Date())))
-  const [moneda, setMoneda] = useState<Moneda>('PEN')
+  const [mes, setMes] = useState<string>(() => primerDiaDelMes(fechaLima(Date.now())))
+  // Abre en TODO (Miguel, 11/09/2026: «el filtro principal debe ser TODOS, y
+  // luego si quieren que seleccionen soles o dólares»). El dueño quiere ver el
+  // dinero entero de un vistazo; separar monedas es la pregunta de después.
+  const [vista, setVista] = useState<VistaMoneda>('TOTAL')
   const [metrica, setMetrica] = useState<MetricaFacturacion>('capital')
   // Abre en capital nuevo —la captación, que es lo que se mira a diario— pero
   // ahora se puede cambiar. Todo lo de la pantalla sigue a esta perilla: el
@@ -422,7 +454,6 @@ export function Facturacion({
     () => construirMalla(filtradas, mes, 'USD', tipo, rosterFiltrado),
     [filtradas, mes, tipo, rosterFiltrado],
   )
-  const malla = moneda === 'PEN' ? mallaPen : mallaUsd
 
   // Tipo de cambio del MES QUE SE MIRA: un mes cerrado se congela en su último
   // día, así su total no cambia cada mañana. El mes en curso usa el vigente.
@@ -446,6 +477,33 @@ export function Facturacion({
     if (mes === mesDeHoy) recargarTipoCambio()
   }, [hoy, mes, mesDeHoy, recargarTipoCambio])
 
+  // En TOTAL cada celda es soles + dólares × tasa. `combinarEnSoles` devuelve
+  // null sin tasa y NO se degrada a solo-soles: una malla entera rotulada
+  // «total» que esconda los dólares se lee celda a celda, y nadie comprueba la
+  // letra pequeña 31 veces.
+  const combinada = useMemo(
+    () => (vista === 'TOTAL' ? combinarEnSoles(mallaPen, mallaUsd, tc?.promedio) : null),
+    [vista, mallaPen, mallaUsd, tc],
+  )
+  // La pantalla ABRE en «Todo S/». Si el tipo de cambio no llega, abrir vacía
+  // sería el peor arranque posible: se repliega a Soles, la perilla se mueve
+  // sola —para no rotular «Todo» sobre una tabla que solo trae soles— y un
+  // aviso dice por qué y ofrece reintentar. Mientras la tasa se consulta NO se
+  // repliega: sería un salto de cifras a los dos segundos.
+  const sinTasaParaTotal = vista === 'TOTAL' && tc === null
+  const consultandoTasa = vista === 'TOTAL' && tc === undefined
+  const vistaEfectiva: VistaMoneda = sinTasaParaTotal ? 'PEN' : vista
+  const totalSinTasa = consultandoTasa
+  // La moneda con la que se FORMATEA. En la vista TOTAL son soles, porque el
+  // dólar ya viene convertido dentro de cada celda.
+  const moneda: Moneda = vistaEfectiva === 'USD' ? 'USD' : 'PEN'
+  const malla =
+    vistaEfectiva === 'TOTAL'
+      ? (combinada ?? mallaPen)
+      : vistaEfectiva === 'PEN'
+        ? mallaPen
+        : mallaUsd
+
   const totales = useMemo(
     () => totalesUnificados(mallaPen, mallaUsd, tc?.promedio),
     [mallaPen, mallaUsd, tc],
@@ -458,6 +516,9 @@ export function Facturacion({
   // que más sirve —un mes o un filtro con ventas SOLO en dólares—, donde la
   // vista en soles marca S/ 0 mientras hay dinero. (Codex, 11/09/2026.)
   const hayDolares = mallaUsd.total.contratos > 0
+  // En la vista Total la malla YA trae las dos monedas: el pie combinado sería
+  // una segunda copia de la misma cifra.
+  const pieCombinado = hayDolares && vistaEfectiva !== 'TOTAL'
 
   // Mismo tramo del mes anterior — comparar un mes entero contra diez días mentiría.
   const mesPrevio = mesDesplazado(mes, -1)
@@ -468,12 +529,44 @@ export function Facturacion({
     const base: readonly FilaFacturacionDia[] =
       fuente ??
       (esDemo ? filasFacturacionDemo(mesPrevio, corteAnterior) : (consultaPrevia.data ?? SIN_FILAS))
-    return construirMalla(filtrarFilas(base, filtro), mesPrevio, moneda, tipo)
+    // EL CORTE VA TAMBIÉN A LOS DATOS REALES. Estaba calculado pero solo se le
+    // pasaba al generador del demo: con datos de verdad se comparaba lo que va
+    // de mes contra el mes anterior ENTERO, y el titular decía «vs. el mismo
+    // tramo» mintiendo. El 11 de setiembre, con US$ 10 000 este mes y agosto
+    // repartido 10 000 hasta el día 11 + 90 000 después, salía −90 % donde
+    // correspondía 0 %. (Auditoría de Codex, 11/09/2026.)
+    const recortadas = base.filter((f) => f.dia <= corteAnterior)
+    return construirMalla(filtrarFilas(recortadas, filtro), mesPrevio, moneda, tipo)
   }, [fuente, esDemo, consultaPrevia.data, mesPrevio, mes, corte, moneda, tipo, filtro])
 
   const totalActual = valorCelda(malla.total, 'capital')
   const totalPrevio = valorCelda(previo.total, 'capital')
   const delta = totalPrevio > 0 ? ((totalActual - totalPrevio) / totalPrevio) * 100 : null
+
+  // EL TOTAL DE DINERO (Miguel, 11/09/2026: «necesito ver el total de dinero, con
+  // el tipo de cambio»). Las dos monedas en una sola cifra, convirtiendo el USD
+  // con el mismo motor y la misma tasa real que ya usa el pie de la tabla.
+  //
+  // Sin dólares en el tramo, el total ES el de soles y no se rotula conversión
+  // ninguna. Sin tipo de cambio con dólares presentes NO se inventa un total:
+  // se enseña la moneda que se está viendo y se dice que falta la tasa — la
+  // misma regla fail-closed del pie.
+  const puedeUnificar = hayDolares && totalAfirmable(totalMes)
+  const totalFacturado = puedeUnificar
+    ? money(totalMes.total ?? 0, 'PEN')
+    : money(valorCelda(malla.total, 'capital'), moneda)
+  const composicionTotal = !hayDolares
+    ? ''
+    : puedeUnificar && totalMes.tc != null
+      ? `${money(totalMes.pen ?? 0, 'PEN')} + ${money(totalMes.usd ?? 0, 'USD')} al ${rotuloTipoCambio(totalMes.tc, tc?.fuente ?? '')}`
+      : tc === undefined
+        ? `solo ${ROTULO_VISTA[vistaEfectiva]} — consultando el tipo de cambio…`
+        : `solo ${ROTULO_VISTA[vistaEfectiva]} — falta el tipo de cambio para sumar ${money(totalMes.usd ?? 0, 'USD')}`
+  const comparacionTotal =
+    delta == null
+      ? 'Sin cifra anterior con la que comparar'
+      : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. el mismo tramo de ${etiquetaMes(mesPrevio)}`
+
 
   const mejor = mejorDia(malla, metrica)
   const habiles = diasHabilesHasta(malla, corte.startsWith('9999') ? (malla.dias.at(-1) ?? mes) : corte)
@@ -486,18 +579,57 @@ export function Facturacion({
   // «Todavía no sé» no es «no hubo ventas»: mientras la primera respuesta no
   // llega, la malla no se pinta vacía.
   const cargando = fuente == null && !esDemo && consulta.isPending
+  // ¿Se puede AFIRMAR lo de arriba? La carga y el error protegían solo la malla:
+  // los cuatro indicadores seguían calculándose sobre `data ?? []` y decían
+  // «S/ 0» y «Todavía sin cierres» mientras la consulta estaba en vuelo o había
+  // fallado. Una avería de red no puede parecer un mes sin ventas.
+  // (Auditoría de Codex, 11/09/2026.)
+  const cifrasFiables = !cargando && !consulta.isError
+  const siFiable = (texto: string): string => (cifrasFiables ? texto : '—')
+  const motivoSinCifras = cargando
+    ? 'Cargando la facturación del mes…'
+    : 'No se pudo cargar: la cifra no está disponible'
+
+  // LO QUE NO SE PUDO LEER SE DICE. Antes una fila ilegible desaparecía y solo
+  // quedaba en un registro técnico: el total salía más bajo y nadie lo sabía.
+  // Y el límite de filas de PostgREST (1000) cortaría un mes grande por el
+  // final, en silencio. Hoy no se llega, pero con el doble de equipo sí.
+  // (Auditoría de Codex, 11/09/2026.)
+  const descartadas = consulta.data?.descartadas ?? 0
+  const puedeEstarCortado = (consulta.data?.length ?? 0) >= LIMITE_FILAS_RPC
+  const avisoIncompleto =
+    descartadas > 0
+      ? `${numero(descartadas)} fila${descartadas === 1 ? '' : 's'} del servidor no se pudo leer, así que estas cifras están incompletas.`
+      : puedeEstarCortado
+        ? 'El mes llegó al límite de filas del servidor: puede faltar capital del final del mes.'
+        : ''
+
   const reintentar = (): void => {
     void consulta.refetch()
   }
 
   const comparando = filtro.analistas.length > 0
   const planas = useMemo(() => filasComparadas(malla), [malla])
-  const cuantosAnalistas = malla.grupos.reduce((n, g) => n + g.analistas.length, 0)
-  const vacia = cuantosAnalistas === 0
+  // PERSONAS distintas, no filas: desde que un analista puede salir en dos
+  // equipos el mismo mes (cambió de equipo), contar filas diría «14 analistas»
+  // donde hay 13.
+  const cuantosAnalistas = new Set(
+    malla.grupos.flatMap((g) => g.analistas.map((a) => a.id)),
+  ).size
+  const vacia = malla.grupos.length === 0
 
   const detalle = useMemo(
-    () => (seleccion == null ? [] : desgloseDeCelda(todos, seleccion.analistaId, seleccion.dia, tipo)),
-    [seleccion, todos, tipo],
+    () =>
+      seleccion == null
+        ? []
+        : desgloseDeCelda(
+            filtradas,
+            seleccion.analistaId,
+            seleccion.dia,
+            tipo,
+            vistaEfectiva === 'TOTAL' ? undefined : moneda,
+          ),
+    [seleccion, filtradas, tipo, vistaEfectiva, moneda],
   )
 
   const operacionesDelDetalle = detalle.reduce((n, f) => n + f.operaciones, 0)
@@ -560,7 +692,7 @@ export function Facturacion({
   // pantalla pulsarlos no produce ninguna señal. Diferido como en Citas, para
   // no atropellar al lector mientras se cambia de mes varias veces seguidas.
   const anuncio = useValorDiferido(
-    `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]} · ${ROTULO_TIPO[tipo]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
+    `${etiquetaMes(mes)} · ${ROTULO_VISTA[vistaEfectiva]} · ${ROTULO_TIPO[tipo]} · ${ROTULO_METRICA[metrica]} · ${numero(cuantosAnalistas)} analistas en ${numero(malla.grupos.length)} equipos`,
     250,
   )
 
@@ -615,11 +747,11 @@ export function Facturacion({
           </div>
 
           <Interruptor
-            etiqueta="Moneda — los soles y los dólares nunca se suman"
-            opciones={MONEDAS}
-            valor={moneda}
-            rotulo={ROTULO_MONEDA}
-            onCambio={setMoneda}
+            etiqueta="Moneda — en Soles y Dólares nunca se suman; Total S/ convierte a la tasa del día"
+            opciones={VISTAS_MONEDA}
+            valor={vistaEfectiva}
+            rotulo={ROTULO_VISTA}
+            onCambio={setVista}
           />
           <Interruptor
             etiqueta="Qué se mide"
@@ -802,29 +934,31 @@ export function Facturacion({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label={
-            filtroVacio(filtro) ? `Facturado en ${etiquetaMes(mes)}` : 'Facturado por lo filtrado'
+            filtroVacio(filtro)
+              ? `${hayDolares ? 'Total facturado' : 'Facturado'} en ${etiquetaMes(mes)}`
+              : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
           }
-          value={money(valorCelda(malla.total, 'capital'), moneda)}
+          value={siFiable(totalFacturado)}
           icon={Receipt}
           color="var(--chart-1)"
           sub={
-            delta == null
-              ? 'Sin cifra anterior con la que comparar'
-              : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)} % vs. el mismo tramo de ${etiquetaMes(mesPrevio)}`
+            cifrasFiables
+              ? [composicionTotal, comparacionTotal].filter((x) => x !== '').join(' · ')
+              : motivoSinCifras
           }
         />
         <KpiCard
           label={tipo === TIPO_TODOS ? 'Contratos cerrados' : `Contratos · ${ROTULO_TIPO[tipo]}`}
-          value={numero(valorCelda(malla.total, 'contratos'))}
+          value={siFiable(numero(valorCelda(malla.total, 'contratos')))}
           icon={Users}
           color="var(--chart-4)"
-          sub={`En ${moneda}, de ${numero(cuantosAnalistas)} analista${cuantosAnalistas === 1 ? '' : 's'} en ${numero(malla.grupos.length)} equipo${malla.grupos.length === 1 ? '' : 's'}`}
+          sub={`En ${ROTULO_VISTA[vistaEfectiva]}, de ${numero(cuantosAnalistas)} analista${cuantosAnalistas === 1 ? '' : 's'} en ${numero(malla.grupos.length)} equipo${malla.grupos.length === 1 ? '' : 's'}`}
           delay={60}
         />
         <KpiCard
           label="Mejor día del mes"
           value={
-            mejor == null
+            !cifrasFiables || mejor == null
               ? '—'
               : metrica === 'capital'
                 ? money(mejor.valor, moneda)
@@ -832,22 +966,47 @@ export function Facturacion({
           }
           icon={TrendingUp}
           color="var(--chart-2)"
-          sub={mejor == null ? 'Todavía sin cierres' : etiquetaDiaLargo(mejor.dia)}
+          sub={
+            !cifrasFiables
+              ? motivoSinCifras
+              : mejor == null
+                ? 'Todavía sin cierres'
+                : etiquetaDiaLargo(mejor.dia)
+          }
           delay={120}
         />
         <KpiCard
           label="Promedio por día hábil"
-          value={
+          value={siFiable(
             metrica === 'capital'
               ? money(Math.round(promedio), moneda)
-              : `${promedio.toFixed(1)} contratos`
-          }
+              : `${promedio.toFixed(1)} contratos`,
+          )}
           icon={CalendarRange}
           color="var(--chart-3)"
           sub={`${numero(habiles)} días hábiles corridos — el domingo no cuenta`}
           delay={180}
         />
       </div>
+
+      {avisoIncompleto !== '' && (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-[var(--chart-5)]/40 bg-[var(--chart-5)]/10 px-4 py-2.5 text-[13px] font-medium"
+        >
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--chart-5)]" />
+          <span>
+            {avisoIncompleto}{' '}
+            <button
+              type="button"
+              onClick={reintentar}
+              className="cursor-pointer font-bold underline underline-offset-2"
+            >
+              Reintentar
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* La malla */}
       <Card className="overflow-hidden p-0">
@@ -889,6 +1048,23 @@ export function Facturacion({
               reintentando={consulta.isFetching}
             />
           </div>
+        ) : totalSinTasa ? (
+          // FAIL-CLOSED. La vista Total promete las dos monedas en cada celda;
+          // sin tipo de cambio no se pinta una malla de solo-soles bajo ese
+          // rótulo. Se dice qué falta y se ofrece volver a intentarlo.
+          <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
+            <p className="text-sm font-semibold">No se puede mostrar el total combinado.</p>
+            <p className="max-w-md text-[13px] text-muted-foreground">
+              {tc === undefined
+                ? 'Consultando el tipo de cambio del día…'
+                : 'Falta el tipo de cambio para convertir los dólares. Mientras tanto puedes ver Soles y Dólares por separado, que no necesitan tasa.'}
+            </p>
+            {tc === null && (
+              <Button variant="outline" size="sm" onClick={recargarTipoCambio}>
+                <RotateCcw aria-hidden /> Reintentar el tipo de cambio
+              </Button>
+            )}
+          </div>
         ) : vacia ? (
           <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-14 text-center">
             <p className="text-sm font-semibold">
@@ -905,10 +1081,10 @@ export function Facturacion({
         ) : (
           <>
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Malla de 30 columnas: el foco habilita recorrerla con las flechas. Con los grupos colapsados no queda NINGÚN hijo enfocable en el área que se desplaza (las celdas de fila de equipo nunca son botones), así que sin esto los días 15-30 son inalcanzables sin ratón. Mismo patrón que hoy/reuniones-gerencia.tsx. */}
-            <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_MONEDA[moneda]}, ${ROTULO_TIPO[tipo]}`}>
+            <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaMes(mes)} · {ROTULO_MONEDA[moneda]} ·{' '}
+                  {ROTULO_METRICA[metrica]} por día · {etiquetaMes(mes)} · {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
                   Marca la casilla de dos o más analistas para verlos solos y compararlos; activa
                   una celda para ver los contratos de ese día.
@@ -1089,7 +1265,7 @@ export function Facturacion({
                   {/* El total del día con las DOS monedas. El capital lleva el
                       USD convertido a soles al TC real; si no hay TC, el total
                       es solo-PEN y se dice. Los contratos se suman tal cual. */}
-                  {hayDolares && (
+                  {pieCombinado && (
                   <tr className="bg-muted/40">
                     <th
                       scope="row"
@@ -1215,7 +1391,7 @@ export function Facturacion({
           <SheetDescription>
             {seleccion?.dia != null
               ? etiquetaDiaLargo(seleccion.dia)
-              : `${etiquetaMes(mes)} · ${ROTULO_MONEDA[moneda]} · ${ROTULO_TIPO[tipo]}`}
+              : `${etiquetaMes(mes)} · ${ROTULO_VISTA[vistaEfectiva]} · ${ROTULO_TIPO[tipo]}`}
             {' · '}
             {numero(operacionesDelDetalle)}{' '}
             {operacionesDelDetalle === 1 ? 'operación' : 'operaciones'}

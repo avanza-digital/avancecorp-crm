@@ -29,6 +29,9 @@ const dobles = vi.hoisted(() => ({
   /** Argumentos con los que la pantalla pidió el TC, para poder comprobarlos. */
   tcArgs: [] as Array<{ habilitado: boolean; fechaCorte: string | undefined }>,
   recargarTc: 0,
+  cargando: false,
+  error: false,
+  datos: undefined as undefined | (unknown[] & { descartadas?: number }),
 }))
 
 vi.mock('@/lib/auth-context', () => ({
@@ -48,7 +51,13 @@ vi.mock('@/lib/tipo-cambio', () => ({
   usdAPen: (usd: number, tc: number) => (tc > 0 ? usd * tc : 0),
 }))
 vi.mock('@/data/crm-queries', () => ({
-  useFacturacionDiaria: () => ({ data: undefined, isPending: false, isError: false, isFetching: false, refetch: vi.fn() }),
+  useFacturacionDiaria: () => ({
+    data: dobles.datos,
+    isPending: dobles.cargando,
+    isError: dobles.error,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
 }))
 
 const { Facturacion } = await import('./facturacion')
@@ -111,6 +120,9 @@ function malla(): HTMLElement {
 
 beforeEach(() => {
   dobles.demo = false
+  dobles.cargando = false
+  dobles.error = false
+  dobles.datos = undefined
   vi.useFakeTimers({ shouldAdvanceTime: true })
   vi.setSystemTime(HOY)
 })
@@ -348,6 +360,15 @@ describe('el analista que no ha vendido — petición de Miguel del 11/09/2026',
 })
 
 describe('total del día con las dos monedas — petición de Miguel del 11/09/2026', () => {
+  /**
+   * El pie combinado solo existe en las vistas de UNA moneda: en «Todo S/» la
+   * malla ya trae las dos y sería la misma cifra dos veces. Desde que la
+   * pantalla abre en «Todo S/» (11/09), estos casos eligen Soles primero.
+   */
+  function verEnSoles(): void {
+    fireEvent.click(screen.getByRole('button', { name: 'Soles' }))
+  }
+
   afterEach(() => {
     dobles.tc = null
     dobles.tcArgs = []
@@ -357,6 +378,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('el mes en curso pide el TC vigente; un mes cerrado lo congela en su último día', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     // HOY es el 10/09/2026: el mes en curso no lleva fecha de corte.
     expect(dobles.tcArgs.at(-1)?.fechaCorte).toBeUndefined()
 
@@ -370,6 +392,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('al pasar la medianoche vuelve a pedir el TC del mes en curso', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     expect(dobles.recargarTc).toBe(0)
 
     // La clave del hook para el mes en curso no lleva la fecha: una pestaña
@@ -385,6 +408,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('en un mes cerrado NO recarga al pasar el día: su tasa está congelada', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
     dobles.recargarTc = 0
 
@@ -400,6 +424,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('en la métrica de contratos suma las dos monedas con cifras, no solo el rótulo', () => {
     dobles.tc = null
     pintar()
+    verEnSoles()
     fireEvent.click(screen.getByRole('button', { name: 'N.º de contratos' }))
     const pie = within(malla()).getByRole('row', { name: /Total del día/ })
     // El 3 de setiembre tiene un cierre en soles y otro en dólares: son DOS
@@ -412,6 +437,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('con tipo de cambio, el pie suma el dólar convertido a soles', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // El mes del fixture: S/ 520,000 en soles y US$ 7,000 en dólares.
     expect(within(pie).getByText('S/ 546,250')).toBeVisible()
@@ -423,6 +449,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('SIN tipo de cambio calla SOLO los días que tienen dólares', () => {
     dobles.tc = null
     pintar()
+    verEnSoles()
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // Un día sin un solo dólar tiene su total completo en soles: exigirle tasa
     // pondría un guion sobre una cifra que sí se conoce. (Me lo señaló Codex el
@@ -441,6 +468,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('ofrece reintentar cuando el tipo de cambio no llegó', () => {
     dobles.tc = null
     pintar()
+    verEnSoles()
     // Una caída del BCRP es transitoria; sin este botón la fila se quedaba en
     // guiones hasta remontar la pantalla. (Codex, 11/09/2026.)
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
@@ -450,6 +478,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('con TC no ofrece reintentar: no hay nada que recuperar', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     expect(within(pie).queryByRole('button', { name: /Reintentar/ })).toBeNull()
   })
@@ -457,6 +486,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('el importe EXACTO del día se puede consultar, aunque la celda vaya abreviada', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // 3/09: S/ 40,000 + US$ 7,000 × 3,75 = S/ 66,250. La celda pinta «66k»; el
     // importe exacto vive en el texto accesible. Sin esto había que hacer la
@@ -471,6 +501,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
     pintar([
       fila({ id: 'u1', dia: '2026-09-02', moneda: 'USD', capital: 7_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
     ])
+    verEnSoles()
     const pie = within(malla()).getByRole('row', { name: /Total del día en soles/ })
     // Sale dos veces y así debe ser: el día y el total del mes, que con una
     // sola venta son la misma cifra.
@@ -482,18 +513,21 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
     pintar([
       fila({ id: 'p1', dia: '2026-09-02', moneda: 'PEN', capital: 50_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
     ])
+    verEnSoles()
     expect(within(malla()).queryByRole('row', { name: /Total del día en soles/ })).toBeNull()
   })
 
   it('mientras consulta el TC no dice «no disponible»', () => {
     dobles.tc = undefined
     pintar()
+    verEnSoles()
     expect(within(malla()).getByText('consultando el tipo de cambio…')).toBeVisible()
   })
 
   it('el total en soles NO cambia al cambiar de moneda: es el del día, entero', () => {
     dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
     pintar()
+    verEnSoles()
     expect(within(within(malla()).getByRole('row', { name: /Total del día en soles/ })).getByText('S/ 546,250')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
     expect(within(within(malla()).getByRole('row', { name: /Total del día en soles/ })).getByText('S/ 546,250')).toBeVisible()
@@ -502,6 +536,7 @@ describe('total del día con las dos monedas — petición de Miguel del 11/09/2
   it('en contratos se suman las dos monedas, sin conversión que valga', () => {
     dobles.tc = null
     pintar()
+    verEnSoles()
     fireEvent.click(screen.getByRole('button', { name: 'N.º de contratos' }))
     const pie = within(malla()).getByRole('row', { name: /Total del día/ })
     expect(within(pie).getByText('contratos de ambas monedas')).toBeVisible()
@@ -589,6 +624,167 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
     // veces como líneas tenga, pero NUNCA el capital nuevo.
     expect(within(panel).getAllByText(/Renovación/).length).toBeGreaterThan(0)
     expect(within(panel).queryByText(/Capital nuevo/)).toBeNull()
+  })
+})
+
+describe('hallazgos de la auditoría del 11/09/2026', () => {
+  function elegirTipoAudit(valor: string): void {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo de capital' }), { target: { value: valor } })
+  }
+
+  it('el % compara el MISMO TRAMO del mes anterior, no el mes entero', () => {
+    // HOY es el 10/09. El corte del mes anterior es el 10/08.
+    // Setiembre: 100k. Agosto: 100k hasta el día 10 y 900k DESPUÉS.
+    // Bien comparado da 0 %. Comparando contra agosto entero daba −90 %.
+    // El recorte estaba escrito pero solo se le pasaba al generador del demo:
+    // con datos reales se comparaba media carrera contra la carrera completa.
+    pintar([
+      fila({ id: 's9', dia: '2026-09-02', capital: 100_000 }),
+      fila({ id: 'a8a', dia: '2026-08-05', capital: 100_000 }),
+      fila({ id: 'a8b', dia: '2026-08-20', capital: 900_000 }),
+    ])
+    expect(screen.getByText(/\+0\.0 % vs\. el mismo tramo de/)).toBeVisible()
+    expect(screen.queryByText(/−90\.0 %/)).toBeNull()
+  })
+
+  it('un mes CERRADO sí compara contra el mes anterior completo', () => {
+    // Al retroceder a agosto, el corte deja de aplicar: agosto entero contra
+    // julio entero. Recortar aquí sería el error simétrico.
+    pintar([
+      fila({ id: 'a8', dia: '2026-08-05', capital: 200_000 }),
+      fila({ id: 'j7a', dia: '2026-07-03', capital: 50_000 }),
+      fila({ id: 'j7b', dia: '2026-07-28', capital: 50_000 }),
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Mes anterior' }))
+    expect(screen.getByText(/\+100\.0 % vs\. el mismo tramo de/)).toBeVisible()
+  })
+
+  it('el detalle de una celda NO trae dinero de otra moneda ni de otro equipo', () => {
+    // Con Dólares seleccionado, abrir el mes de Carla debe enseñar solo sus
+    // dólares. Antes el panel recibía TODAS las filas y solo acotaba analista,
+    // día y tipo: se colaban los soles bajo un rótulo que decía «Dólares».
+    pintar()
+    fireEvent.click(screen.getByRole('button', { name: 'Dólares' }))
+    elegirTipoAudit('todo')
+    fireEvent.click(within(malla()).getByRole('button', { name: 'Ver el mes completo de Carla Analista' }))
+    const panel = screen.getByRole('dialog')
+    expect(within(panel).getByText(/US\$ 7,000/)).toBeVisible()
+    expect(within(panel).queryByText(/S\/ 40,000/)).toBeNull()
+  })
+})
+
+describe('vista «Todo S/» — el arranque por defecto (Miguel, 11/09/2026)', () => {
+  afterEach(() => {
+    dobles.tc = null
+  })
+
+  it('abre en Todo S/, no en Soles', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar()
+    expect(screen.getByRole('button', { name: 'Todo S/' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('cada celda trae las DOS monedas convertidas, no solo los soles', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar([
+      fila({ id: 'p', dia: '2026-09-02', moneda: 'PEN', capital: 40_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
+      fila({ id: 'd', dia: '2026-09-02', moneda: 'USD', capital: 7_000, analistaId: 'ana', analistaNombre: 'Ana Analista' }),
+    ])
+    // 40 000 + 7 000 × 3,75 = 66 250 en una sola celda.
+    expect(within(malla()).getAllByText('S/ 66,250').length).toBeGreaterThan(0)
+  })
+
+  it('quien solo vendió en dólares NO desaparece de la vista Todo', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    pintar([
+      fila({ id: 'd', dia: '2026-09-02', moneda: 'USD', capital: 2_000, analistaId: 'solo', analistaNombre: 'Solo Dolares' }),
+    ])
+    expect(screen.getByRole('button', { name: 'Ver el mes completo de Solo Dolares' })).toBeVisible()
+    expect(within(malla()).getAllByText('S/ 7,500').length).toBeGreaterThan(0)
+  })
+
+  it('SIN tipo de cambio se repliega a Soles y lo dice: nunca abre vacía', () => {
+    // Abrir en «Todo S/» y no poder convertir no puede dejar la pantalla en
+    // blanco. Se repliega, y la perilla se mueve sola para no rotular «Todo»
+    // sobre una tabla que solo trae soles.
+    dobles.tc = null
+    pintar()
+    expect(screen.getByRole('button', { name: 'Soles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Todo S/' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(malla()).getByText(/Soles/)).toBeVisible()
+  })
+
+  it('mientras consulta la tasa no se repliega ni afirma que falta', () => {
+    dobles.tc = undefined
+    pintar()
+    expect(screen.getByText(/Consultando el tipo de cambio/)).toBeVisible()
+    expect(screen.queryByText(/Falta el tipo de cambio/)).toBeNull()
+  })
+})
+
+describe('honestidad de las cifras — auditoría del 11/09/2026', () => {
+  /** Sin `filas` por prop, la pantalla depende de la consulta: el camino real. */
+  function pintarReal(): void {
+    render(<Facturacion />)
+  }
+
+  it('mientras carga NO dice S/ 0: dice que está cargando', () => {
+    dobles.cargando = true
+    pintarReal()
+    expect(screen.queryByText('S/ 0')).toBeNull()
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+    // Sale en varios indicadores a la vez, que es lo correcto.
+    expect(screen.getAllByText(/Cargando la facturación del mes/).length).toBeGreaterThan(0)
+  })
+
+  it('si la consulta FALLA tampoco dice cero: una avería no es un mes sin ventas', () => {
+    dobles.error = true
+    pintarReal()
+    expect(screen.queryByText('S/ 0')).toBeNull()
+    expect(screen.getAllByText(/No se pudo cargar/).length).toBeGreaterThan(0)
+  })
+
+  it('una venta pequeña NO se pinta como cero', () => {
+    dobles.tc = { promedio: 3.75, fuente: 'SUNAT · prom. 7d' }
+    // S/ 400 se redondeaba a «0k» y se leía como que no vendió nada.
+    pintar([fila({ id: 'chica', dia: '2026-09-02', capital: 400 })])
+    const celdas = within(malla())
+    expect(celdas.queryAllByText('0k')).toHaveLength(0)
+    expect(celdas.getAllByText('400').length).toBeGreaterThan(0)
+  })
+
+  it('avisa cuando el servidor mandó filas que no se pudieron leer', () => {
+    const datos = Object.assign(
+      [
+        {
+          dia: '2026-09-02', tipo: 'contrato_nuevo', moneda: 'PEN',
+          analistaId: 'ana', analistaNombre: 'Ana Analista',
+          supervisorId: 'sup-rosa', supervisorNombre: 'Rosa Uno',
+          operaciones: 1, capital: 50_000,
+        },
+      ],
+      { descartadas: 2 },
+    )
+    dobles.datos = datos
+    pintarReal()
+    // Un total al que le faltan cifras sin decirlo es peor que un error.
+    expect(screen.getByText(/2 filas del servidor no se pudo leer/)).toBeVisible()
+  })
+
+  it('avisa si el mes llegó al límite de filas del servidor', () => {
+    // 1000 FILAS, pocas personas: lo que dispara el aviso es el número de filas
+    // que devolvió el servidor, no cuántos analistas hay. Con mil analistas
+    // distintos la prueba solo mediría lo que tarda en pintar una tabla enorme.
+    const muchas = Array.from({ length: 1000 }, (_, i) => ({
+      dia: `2026-09-${String((i % 28) + 1).padStart(2, '0')}`,
+      tipo: 'contrato_nuevo', moneda: 'PEN',
+      analistaId: `a${i % 4}`, analistaNombre: `Analista ${i % 4}`,
+      supervisorId: 'sup-rosa', supervisorNombre: 'Rosa Uno',
+      operaciones: 1, capital: 1_000,
+    }))
+    dobles.datos = Object.assign(muchas, { descartadas: 0 })
+    pintarReal()
+    expect(screen.getByText(/límite de filas del servidor/)).toBeVisible()
   })
 })
 

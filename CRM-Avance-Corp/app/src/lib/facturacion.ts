@@ -19,7 +19,8 @@
 //     analista, no borra el dinero que la empresa recibió. El núcleo
 //     (`crm.metricas_capital_mes_fn`) tampoco lo descuenta,
 //   · PEN y USD JAMÁS se suman: la malla se construye para UNA moneda.
-import { totalEnSoles, type CapitalUnificado } from './capital-unificado'
+import { tcAplicable, totalEnSoles, type CapitalUnificado } from './capital-unificado'
+import { usdAPen } from './tipo-cambio'
 import { parseDateLocal, formatDateLocal } from './cronograma'
 import type { Moneda } from './format'
 
@@ -292,51 +293,64 @@ export function construirMalla(
   const indicePorDia = new Map<string, number>()
   dias.forEach((dia, i) => indicePorDia.set(dia, i))
 
-  const porAnalista = new Map<string, Acumulador>()
-  // El roster SIEMBRA la malla antes que las ventas: así el analista que no
-  // vendió nada tiene su fila, en cero, en lugar de desaparecer. Se siembra
-  // primero y no después para que la venta, si la hay, sobrescriba el
-  // supervisor de hoy por el HISTÓRICO que trae la fila.
-  for (const p of roster) {
-    porAnalista.set(p.id, {
-      nombre: p.nombre,
-      supervisorId: p.supervisorId,
-      supervisorNombre: p.supervisorNombre,
-      dias: new Map(),
-    })
-  }
+  // CLAVE COMPUESTA: analista + supervisor de entonces.
+  //
+  // Antes se acumulaba solo por analista y cada fila sobrescribía el supervisor,
+  // así que un analista que vendió bajo DOS supervisores en el mismo mes —el que
+  // cambia de equipo a mitad de mes— acababa con TODO su dinero en uno solo, el
+  // de la última fila. El total de la empresa cuadraba igual, de modo que ninguna
+  // prueba de totales lo habría cazado nunca. Ahora sale en los dos equipos, cada
+  // uno con lo que de verdad se cerró bajo él. (Auditoría de Codex, 11/09/2026.)
+  const clave = (analistaId: string, supervisorId: string): string =>
+    `${analistaId}\u0000${supervisorId}`
+  const porFila = new Map<string, Acumulador & { analistaId: string }>()
+
+  // Las VENTAS primero: cada una entra en su equipo de entonces.
   for (const f of filas) {
     // `TIPO_TODOS` no filtra: entra cualquier tipo, incluso uno que el servidor
     // añada en el futuro y que esta pantalla todavía no sepa rotular.
     if (f.moneda !== moneda || (tipo !== TIPO_TODOS && f.tipo !== tipo)) continue
     const indice = indicePorDia.get(f.dia)
     if (indice == null) continue
-    let acc = porAnalista.get(f.analistaId)
+    const k = clave(f.analistaId, f.supervisorId)
+    let acc = porFila.get(k)
     if (acc == null) {
       acc = {
+        analistaId: f.analistaId,
         nombre: f.analistaNombre,
         supervisorId: f.supervisorId,
         supervisorNombre: f.supervisorNombre,
         dias: new Map(),
       }
-      porAnalista.set(f.analistaId, acc)
-    } else {
-      // Venía sembrado desde el roster, con el equipo de HOY. La fila manda:
-      // trae el supervisor de entonces, que es a quien le corresponde la venta.
-      acc.nombre = f.analistaNombre
-      acc.supervisorId = f.supervisorId
-      acc.supervisorNombre = f.supervisorNombre
+      porFila.set(k, acc)
     }
     acc.dias.set(indice, sumar(acc.dias.get(indice) ?? CELDA_VACIA, f))
   }
 
-  // Fila por analista, ya con su vector de días completo.
+  // El roster siembra DESPUÉS y SOLO a quien no vendió nada: así el analista con
+  // el mes en cero tiene su fila, y a quien sí vendió no se le añade una fila
+  // fantasma bajo su equipo de hoy.
+  const conVentas = new Set([...porFila.values()].map((a) => a.analistaId))
+  for (const p of roster) {
+    if (conVentas.has(p.id)) continue
+    porFila.set(clave(p.id, p.supervisorId), {
+      analistaId: p.id,
+      nombre: p.nombre,
+      supervisorId: p.supervisorId,
+      supervisorNombre: p.supervisorNombre,
+      dias: new Map(),
+    })
+  }
+
+  // Fila por analista y equipo, ya con su vector de días completo.
   const porPersona: Array<{ fila: FilaFacturacion; supervisorId: string; supervisorNombre: string }> = []
-  for (const [id, acc] of porAnalista) {
+  for (const acc of porFila.values()) {
     const vector = dias.map((_, i) => acc.dias.get(i) ?? CELDA_VACIA)
     const total = vector.reduce(acumular, CELDA_VACIA)
     porPersona.push({
-      fila: { id, nombre: acc.nombre, dias: vector, total },
+      // El `id` sigue siendo el del ANALISTA: es lo que usan el filtro y la
+      // casilla de comparar, y marcarle debe traer sus dos equipos.
+      fila: { id: acc.analistaId, nombre: acc.nombre, dias: vector, total },
       supervisorId: acc.supervisorId,
       supervisorNombre: acc.supervisorNombre,
     })
@@ -635,6 +649,100 @@ export function totalesUnificados(
   }
 }
 
+/**
+ * Las DOS monedas en una sola malla, celda a celda — Miguel, 11/09/2026: «en el
+ * tablero quiero ver el total de cada analista por día».
+ *
+ * Cada celda pasa a ser `soles + dólares × tipo de cambio`. Es la misma
+ * excepción que el proyecto ya aprobó para el titular y el pie (decisión #10,
+ * `totalEnSoles`): no se suman peras con manzanas, se CONVIERTE a una tasa real
+ * y conocida, y quien la pinta está obligado a rotularla.
+ *
+ * Devuelve `null` SIN TASA. No hay versión degradada: una malla entera rotulada
+ * «total» que en realidad solo trae los soles sería la mentira más cara de esta
+ * pantalla, porque se lee celda a celda y nadie mira la letra pequeña 31 veces.
+ *
+ * Los CONTRATOS se suman sin convertir: son cuentas, no dinero.
+ */
+export function combinarEnSoles(
+  mallaPen: MallaFacturacion,
+  mallaUsd: MallaFacturacion,
+  tc: number | null | undefined,
+): MallaFacturacion | null {
+  const tasa = tcAplicable(tc)
+  if (tasa == null) return null
+
+  const aSoles = (pen: CeldaFacturacion, usd: CeldaFacturacion): CeldaFacturacion => ({
+    capital: pen.capital + usdAPen(usd.capital, tasa),
+    contratos: pen.contratos + usd.contratos,
+  })
+  const VACIA: CeldaFacturacion = { capital: 0, contratos: 0 }
+
+  // Índice por id para casar analistas y equipos que solo existen en una moneda:
+  // quien vendió únicamente en dólares tiene que aparecer igual.
+  const filasUsdPorGrupo = new Map<string, Map<string, FilaFacturacion>>()
+  for (const g of mallaUsd.grupos) {
+    filasUsdPorGrupo.set(g.id, new Map(g.analistas.map((a) => [a.id, a])))
+  }
+  const gruposUsd = new Map(mallaUsd.grupos.map((g) => [g.id, g]))
+
+  const combinarFila = (pen: FilaFacturacion | null, usd: FilaFacturacion | null): FilaFacturacion => {
+    const base = pen ?? usd
+    if (base == null) throw new Error('combinarFila sin ninguna de las dos monedas')
+    const dias = base.dias.map((_, i) =>
+      aSoles(pen?.dias[i] ?? VACIA, usd?.dias[i] ?? VACIA),
+    )
+    return {
+      id: base.id,
+      nombre: base.nombre,
+      dias,
+      total: aSoles(pen?.total ?? VACIA, usd?.total ?? VACIA),
+    }
+  }
+
+  const grupos: GrupoFacturacion[] = []
+  for (const gp of mallaPen.grupos) {
+    const gu = gruposUsd.get(gp.id) ?? null
+    const usdDelGrupo = filasUsdPorGrupo.get(gp.id) ?? new Map<string, FilaFacturacion>()
+    const analistas = gp.analistas.map((a) => combinarFila(a, usdDelGrupo.get(a.id) ?? null))
+    // Los que solo vendieron en dólares dentro de este equipo.
+    for (const [id, a] of usdDelGrupo) {
+      if (!gp.analistas.some((x) => x.id === id)) analistas.push(combinarFila(null, a))
+    }
+    analistas.sort((a, b) => b.total.capital - a.total.capital || a.nombre.localeCompare(b.nombre, 'es-PE'))
+    grupos.push({ ...combinarFila(gp, gu), analistas })
+  }
+  // Equipos que solo existen en la malla de dólares.
+  for (const gu of mallaUsd.grupos) {
+    if (mallaPen.grupos.some((g) => g.id === gu.id)) continue
+    grupos.push({
+      ...combinarFila(null, gu),
+      analistas: gu.analistas.map((a) => combinarFila(null, a)),
+    })
+  }
+  grupos.sort((a, b) => b.total.capital - a.total.capital || a.nombre.localeCompare(b.nombre, 'es-PE'))
+
+  const totalPorDia = mallaPen.dias.map((_, i) =>
+    aSoles(mallaPen.totalPorDia[i] ?? VACIA, mallaUsd.totalPorDia[i] ?? VACIA),
+  )
+  let maxAnalista = VACIA
+  let maxGrupo = VACIA
+  for (const g of grupos) {
+    for (const c of g.dias) maxGrupo = c.capital > maxGrupo.capital ? c : maxGrupo
+    for (const a of g.analistas) for (const c of a.dias) maxAnalista = c.capital > maxAnalista.capital ? c : maxAnalista
+  }
+  return {
+    mes: mallaPen.mes,
+    dias: mallaPen.dias,
+    grupos,
+    totalPorDia,
+    total: aSoles(mallaPen.total, mallaUsd.total),
+    maxAnalista,
+    maxGrupo,
+    maxDia: totalPorDia.reduce((a, b) => (b.capital > a.capital ? b : a), VACIA),
+  }
+}
+
 /** Las filas de analista de la malla, en plano y con su equipo — la vista de comparación. */
 export function filasComparadas(
   malla: MallaFacturacion,
@@ -676,6 +784,7 @@ export function desgloseDeCelda(
   analistaId: string,
   dia: string | null,
   tipo: TipoFacturacion = TIPO_TODOS,
+  moneda?: Moneda,
 ): FilaFacturacionDia[] {
   return filas
     .filter(
@@ -685,7 +794,11 @@ export function desgloseDeCelda(
         // El detalle habla de LO QUE SE ESTÁ VIENDO: abrir una celda de
         // renovaciones y que el panel liste también los contratos nuevos
         // contradiría la cifra sobre la que se acaba de pinchar.
-        (tipo === TIPO_TODOS || f.tipo === tipo),
+        (tipo === TIPO_TODOS || f.tipo === tipo) &&
+        // Y de la MONEDA que se está viendo. Sin esto, abrir una celda de
+        // dólares enseñaba soles dentro, con un rótulo que decía «Dólares».
+        // (Auditoría de Codex, 11/09/2026.)
+        (moneda === undefined || f.moneda === moneda),
     )
     .sort((a, b) => a.dia.localeCompare(b.dia) || b.capital - a.capital)
 }

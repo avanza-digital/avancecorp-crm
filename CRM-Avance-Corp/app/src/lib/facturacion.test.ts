@@ -547,3 +547,46 @@ describe('tipos de capital', () => {
     expect(todo).toHaveLength(2)
   })
 })
+
+
+/* ── Atribución cuando un analista cambia de equipo (auditoría 11/09/2026) ──
+ * Era el hallazgo más peligroso: el total de la empresa cuadraba igual, así que
+ * ninguna prueba de totales lo habría cazado. El dinero cambiaba de equipo en
+ * pantalla y premiaba al supervisor equivocado.
+ */
+describe('un analista que vendió bajo dos supervisores el mismo mes', () => {
+  const CAMBIO: readonly FilaFacturacionDia[] = [
+    fila({ dia: '2026-09-02', capital: 100_000, supervisorId: 's1', supervisorNombre: 'Sara Primera' }),
+    fila({ dia: '2026-09-20', capital: 60_000, supervisorId: 's2', supervisorNombre: 'Sonia Segunda' }),
+  ]
+
+  it('sale en LOS DOS equipos, cada uno con lo suyo', () => {
+    const m = construirMalla(CAMBIO, MES, 'PEN')
+    const porEquipo = Object.fromEntries(m.grupos.map((g) => [g.nombre, valorCelda(g.total, 'capital')]))
+    expect(porEquipo).toEqual({ 'Sara Primera': 100_000, 'Sonia Segunda': 60_000 })
+  })
+
+  it('el total de la empresa no se mueve — por eso el fallo era invisible', () => {
+    expect(valorCelda(construirMalla(CAMBIO, MES, 'PEN').total, 'capital')).toBe(160_000)
+  })
+
+  it('el orden de las filas NO decide a qué equipo va el dinero', () => {
+    const alReves = construirMalla([...CAMBIO].reverse(), MES, 'PEN')
+    const porEquipo = Object.fromEntries(alReves.grupos.map((g) => [g.nombre, valorCelda(g.total, 'capital')]))
+    expect(porEquipo).toEqual({ 'Sara Primera': 100_000, 'Sonia Segunda': 60_000 })
+  })
+
+  it('el organigrama de HOY no le añade una fila fantasma en cero', () => {
+    // Si hoy está con Sonia, sembrar el roster NO debe crear una tercera fila
+    // vacía: ya tiene dos, y las dos con dinero real.
+    const rosterHoy = [{ id: 'a1', nombre: 'Ana Uno', supervisorId: 's2', supervisorNombre: 'Sonia Segunda' }]
+    const m = construirMalla(CAMBIO, MES, 'PEN', TIPO_CAPITAL_NUEVO, rosterHoy)
+    expect(m.grupos.flatMap((g) => g.analistas)).toHaveLength(2)
+  })
+
+  it('filtrar por esa persona trae sus DOS equipos, no uno', () => {
+    const soloElla: FiltroFacturacion = { equipo: '', analistas: ['a1'] }
+    const m = construirMalla(filtrarFilas(CAMBIO, soloElla), MES, 'PEN')
+    expect(m.grupos.map((g) => g.nombre).sort()).toEqual(['Sara Primera', 'Sonia Segunda'])
+  })
+})

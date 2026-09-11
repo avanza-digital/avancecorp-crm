@@ -547,6 +547,12 @@ export function useFacturacionDiaria(habilitada: boolean, mes: string) {
     queryKey: crmQueryKeys.facturacionDiaria(mes),
     queryFn: ({ signal }) => listarFacturacionDiaria(mes, signal),
     enabled: habilitada && mes !== '',
+    // Es un TABLERO: se deja abierto en una pantalla toda la mañana. Sin esto,
+    // un cierre hecho por un analista no aparecía nunca hasta recargar — el
+    // `staleTime` marca el dato como viejo, pero no va a buscarlo.
+    // (Auditoría de Codex, 11/09/2026.)
+    refetchInterval: 5 * 60_000,
+    refetchOnWindowFocus: true,
   })
 }
 
