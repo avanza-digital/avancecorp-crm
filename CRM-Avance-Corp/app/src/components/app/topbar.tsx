@@ -32,6 +32,8 @@ import { ETAPA_INFO, type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
 import { hashDe, type Vista } from '@/lib/router'
 import { useAlertasCRM } from '@/lib/alertas-context'
+import { useRespuestasTasa } from '@/lib/respuestas-tasa-context'
+import { CampanaRespuestasTasa } from './respuestas-tasa'
 import { normalizarTelefono } from '@/lib/validacion'
 
 /** ¿Lo tecleado parece un TELÉFONO? (dígitos y separadores, ≥6 dígitos).
@@ -118,6 +120,7 @@ export function Topbar({
   // F4: la campana cuenta `pendientes` (las que piden acción hoy), no todo lo
   // visible — una alerta reconocida sigue en la lista, atenuada, sin sumar.
   const { pendientes, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
+  const respuestasTasa = useRespuestasTasa()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el analista, "Cartera" para quien supervisa.
   const info =
@@ -359,6 +362,7 @@ export function Topbar({
             encima con burbuja roja encima. Fuente única: si no se puede abrir,
             no se pinta. */}
         {!soloRoles && vistaPermitida('alertas', yo?.rol, leadsVisibles) && (
+          respuestasTasa.habilitado ? <CampanaRespuestasTasa otrosPendientes={pendientes} errorPendientes={erroresAlertas.length > 0} cargandoPendientes={cargandoAlertas} /> :
           <a
             href={hashDe('alertas')}
             title="Abrir pendientes"

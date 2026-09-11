@@ -7,12 +7,13 @@ import { HoyVendedor } from './hoy/vendedor'
 import { HoySupervisor } from './hoy/supervisor'
 import { HoyGerencia } from './hoy/gerencia'
 import { HoyDirectorio } from './hoy/directorio'
+import { ConfiguracionRespuestasTasa } from '@/components/app/respuestas-tasa'
 
 export function Hoy(): JSX.Element {
   const { yo } = useAuth()
   switch (yo?.rol) {
     case 'supervisor':
-      return <HoySupervisor />
+      return <><ConfiguracionRespuestasTasa soloActivacion /><HoySupervisor /></>
     case 'gerencia':
       return <HoyGerencia seccion="resumen" />
     case 'directorio':
@@ -21,6 +22,6 @@ export function Hoy(): JSX.Element {
     default:
       // Rol desconocido degrada al panel de analista: su ámbito es el más
       // restrictivo (solo leads propios — para una sesión rara, ninguno).
-      return <HoyVendedor />
+      return <><ConfiguracionRespuestasTasa soloActivacion /><HoyVendedor /></>
   }
 }

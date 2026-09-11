@@ -21,6 +21,8 @@ import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
+import { RespuestasTasaProvider } from '@/components/app/respuestas-tasa-provider'
+import { recibeRespuestasTasa } from '@/lib/respuestas-tasa'
 import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
@@ -391,7 +393,7 @@ function Workspace() {
       }
       // Normaliza la URL a lo aceptado sin ensuciar el historial (compara antes).
       escribirHash(destino, leadDestino, true, destino === 'mi-cartera' ? leido.inversionistaId : undefined,
-        destino === 'hoy' && ctx.rol === 'gerencia' ? leido.solicitudTasaId : undefined)
+        destino === 'hoy' && (ctx.rol === 'gerencia' || recibeRespuestasTasa(ctx.rol)) ? leido.solicitudTasaId : undefined)
       const cambiaVista = destino !== ctx.vista
       const cambiaLead = leadDestino !== ctx.leadAbiertoId
       if (!cambiaVista && !cambiaLead) {
@@ -422,7 +424,7 @@ function Workspace() {
     }
     const ruta = leerHash()
     escribirHash(vista, leadAbiertoId, false, ruta.vista === vista ? ruta.inversionistaId : undefined,
-      ruta.vista === vista && rol === 'gerencia' ? ruta.solicitudTasaId : undefined) // compara antes de escribir → sin bucles
+      ruta.vista === vista && (rol === 'gerencia' || recibeRespuestasTasa(rol)) ? ruta.solicitudTasaId : undefined) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId, rol])
 
   // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
@@ -437,6 +439,7 @@ function Workspace() {
 
   return (
     <AlertasCRMProvider>
+      <RespuestasTasaProvider>
       <div className="relative z-10 flex h-svh overflow-hidden">
         <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
         <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
@@ -469,6 +472,7 @@ function Workspace() {
           <LeadNuevo />
         </ErrorBoundary>
       </div>
+      </RespuestasTasaProvider>
     </AlertasCRMProvider>
   )
 }
