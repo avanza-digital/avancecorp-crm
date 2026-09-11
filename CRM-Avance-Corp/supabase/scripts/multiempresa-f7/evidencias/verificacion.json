@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "capturado_utc": "2026-09-11T18:59:41.408321+00:00",
+  "estado": "CANDIDATA LOCAL VERIFICADA; INSTALACION Y G6 PENDIENTES",
+  "codigo_commit": "2a9ff19fa4963deac68f5d202cf2c9430a565e0f",
+  "main_integrado": "5d49bcfb1ac304187af98fe634fd274435b06d49",
+  "produccion_modificada": false,
+  "node": "v26.4.0",
+  "plataforma": "Darwin arm64",
+  "gate_frontend": {
+    "estado": "PASS",
+    "equivalente_a": "check:all; pasos en serie, Vitest y Playwright limitados a dos workers",
+    "pasos": [
+      {
+        "command": [
+          "npm",
+          "run",
+          "lint"
+        ],
+        "exit_code": 0,
+        "seconds": 3.09
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "typecheck"
+        ],
+        "exit_code": 0,
+        "seconds": 33.79
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "test:coverage",
+          "--",
+          "--maxWorkers=2"
+        ],
+        "exit_code": 0,
+        "seconds": 220.59
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "test:release-config"
+        ],
+        "exit_code": 0,
+        "seconds": 0.93
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "test:push-tasa"
+        ],
+        "exit_code": 0,
+        "seconds": 0.29
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exit_code": 0,
+        "seconds": 22.92
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "verify:bundle"
+        ],
+        "exit_code": 0,
+        "seconds": 0.16
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "dup"
+        ],
+        "exit_code": 0,
+        "seconds": 0.27
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "test:e2e",
+          "--",
+          "--workers=2"
+        ],
+        "exit_code": 0,
+        "seconds": 325.81
+      }
+    ],
+    "unitarias": {
+      "archivos": 233,
+      "pass": 3329,
+      "fail": 0
+    },
+    "e2e": {
+      "total": 194,
+      "pass": 168,
+      "skip": 26,
+      "fail": 0
+    }
+  },
+  "gate_backend": {
+    "sql": {
+      "pass": 16,
+      "fail": 0
+    },
+    "http_auth_postgrest": {
+      "pass": 9,
+      "fail": 0
+    },
+    "scripts": "PASS",
+    "seed_preflight_offline": "PASS",
+    "rls_preflight_offline": "PASS",
+    "edge_preflight": "PASS",
+    "advisors": {
+      "advertencias_base": 5,
+      "advertencias_f7": 5,
+      "nuevas": 0
+    }
+  },
+  "revision_claude": {
+    "consultas": 2,
+    "dictamenes": [
+      "CHANGES_REQUESTED",
+      "CHANGES_REQUESTED"
+    ],
+    "evaluacion_primary": "REVISION.md; hallazgos confirmados corregidos, hipotesis contrastadas; sin tercera consulta"
+  },
+  "incidencias_previas": [
+    {
+      "log": "check-all-cierre.log",
+      "estado": "FAIL",
+      "detalle": "Un timeout de 5 s. Caso aislado PASS, siguiente suite completa PASS."
+    },
+    {
+      "log": "check-all-definitivo.log",
+      "estado": "FAIL",
+      "detalle": "Unitarias 3308 PASS; E2E 163 PASS, 26 SKIP, 1 timeout Leads con siete workers. Reproduccion de archivo 4 PASS y suite con dos workers 164 PASS."
+    },
+    {
+      "log": "check-main-5d49bcf.log",
+      "estado": "FAIL",
+      "detalle": "13 fallos en ocho archivos y dos rechazos sin manejar tras demoras de tests. Gate completo posterior con dos workers PASS; causa precisa no demostrada."
+    }
+  ],
+  "not_run": [
+    "Instalacion o publicacion F7 productiva",
+    "Ensayo en rama Supabase gestionada y gates remotos F7",
+    "Matriz RLS general real en esta fase",
+    "Medicion con volumen productivo",
+    "Revision manual F7 y conciliacion humana/financiera G6",
+    "VoiceOver F6, omitido por Miguel",
+    "Piloto economico F8 y operacion mensual F9"
+  ],
+  "fuentes_sha256": {
+    "CRM-Avance-Corp/app/e2e/multiempresa-f7.spec.ts": "ad4e14656929eac315cb80db5cd01647170b095ad7b499b5937c8f9d01b81799",
+    "CRM-Avance-Corp/app/src/App.tsx": "068ded4f24326e47d47d5ccda1764b9757cbc1562a397900c52cacb230058ff0",
+    "CRM-Avance-Corp/app/src/components/app/ayuda-vendedor-panel.tsx": "8635ab663a00783921ed2627c7591da1a346eaa0837bc3b1b3c805b91cce4d4a",
+    "CRM-Avance-Corp/app/src/components/app/sidebar.test.tsx": "2b4b513322b08b2b722a9dc028c2768079535db36f2fc12406fac747ecc4c4a8",
+    "CRM-Avance-Corp/app/src/components/app/sidebar.tsx": "62c1903c2152249ad1c5aee41b754e4ff300d63466d8623bbd19572537305f79",
+    "CRM-Avance-Corp/app/src/components/app/topbar.tsx": "f6b1a8736cbfcf7492f203f88a92a4c3f5b885b39bfbf068e4e11c00ba73d3d8",
+    "CRM-Avance-Corp/app/src/data/metricas-multiempresa.ts": "d5a1b6f2b029738247185061561f73474930adb9f0039cbd2eef712d2ac8c1b6",
+    "CRM-Avance-Corp/app/src/lib/database.types.ts": "8149a0ef6024d3f385e91eb1c5e8c44409d51f6bcc013e83a06f6c7191fa2288",
+    "CRM-Avance-Corp/app/src/lib/demo-metricas-multiempresa.ts": "9dc843fddb60a9b9621d6c9781034b1616e8988c9f5c0f1c9d2c6c443e9921a4",
+    "CRM-Avance-Corp/app/src/lib/metricas-multiempresa.test.ts": "dc2b961a9a2e1a4bf9232a52b00b0e3ebce058ed62cd59937a5687e71f508bab",
+    "CRM-Avance-Corp/app/src/lib/metricas-multiempresa.ts": "34466d74dbba4168bcf675b3659bc4c514bcab7d2f43eb712e5e1bac0278c5a9",
+    "CRM-Avance-Corp/app/src/lib/router.ts": "3a51a7a2c60a7e5619797a6b4e9eff525497a51513454b219de9b3a02ea6b89b",
+    "CRM-Avance-Corp/app/src/lib/vistas-gerencia.test.ts": "2fbecf152c0ee775c0beb26b7fd436d4a73364e41527dc505a2b2675d4c2441b",
+    "CRM-Avance-Corp/app/src/lib/vistas.test.ts": "74b04cc0f98f891eff0269cf4fc3e0be86ab6a475bc24c32213ff972e97c6e0d",
+    "CRM-Avance-Corp/app/src/lib/vistas.ts": "4efd9909a9ca35d35e097ee9ec7c4b36be43b998c6f241ea7e7b6addf61926ba",
+    "CRM-Avance-Corp/app/src/screens/metricas-multiempresa.test.tsx": "04cd1b37200aa0abf471b5e6b63e81328d6844a4c6f7166344dede235045b1f7",
+    "CRM-Avance-Corp/app/src/screens/metricas-multiempresa.tsx": "7644726e49d927c194cfda03af02db1a132616c8e9ed165b3842874f4be53255",
+    "CRM-Avance-Corp/package.json": "e2a0db88783fa736e4d31c4d1bbc5591a0ef1be06245a39fbb4f9feb7d65be2f",
+    "CRM-Avance-Corp/supabase/migrations/20260911163243_crm_multiempresa_f7_metricas_sombra.sql": "7b9cb56992dea24ead99d2d14c8ac79f9dabc7e9b40765f666117a5986e3c8e7",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f7/banco-local.mjs": "3e6ddd8b3c76214b0625ce028f926638e19232789c0f2827f8a06dccdc9cb9b0",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f7/contrato-cliente.mjs": "38284d8a4c39a1732aa9d19bd258355af123991b1ea0b313d59dd89d84760655",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f7/http.test.mjs": "8f23b07dbeb4a9464796d8e021345a3a57faf050e1914063dae7de83f82000b6",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f7/metricas.test.mjs": "326ad477e48ebb40b5f6d3c5f69ce20c86f478bfd77c4f4ad44f9c3c8cc7ffe3",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f7/reversa-operativa.sql": "e39a6bcfcea28ede8ea374b6e60562502ed6b20f2635cf3adeacf2c06ed1106a"
+  },
+  "logs_privados_sha256": {
+    "banco-cierre.log": "cff1cc39cbcd8c2f2bf68b568ef1af4f31b8517e4111c3dbff124cc643ef7e7e",
+    "check-scripts-main-5d49bcf.log": "98736591f2119d93414c723018e86f5c92eec309316728c18f2ec2e5900335ac",
+    "edge-main-5d49bcf.log": "faeaed7e18ad45ec2470c1475e16056f1489dc3cad43125e41c96b84ffd28ed5",
+    "seed-preflight.log": "432504f0e240e50b8dbb4cf2ce51fb9cc93add6aeea909bf2f5efc261778096b",
+    "test-rls-preflight.log": "0f3cd2cf7842761e6e06bdd1e4aaadee92ba15964089970f1eb78c0adc2c43c4",
+    "gate-integrado-dos-workers.log": "8a41bdd87f3c0f7cc9a17a26e3546ac417f830b83c6946bdac08b4f898ccba67",
+    "check-all-cierre.log": "44b9f0732d95374f48462e2fcb267841be93baf788374281219fda2c58377db8",
+    "timeout-aislado.log": "760c88dbb655bd6f079cdb49ed118dea6fc6ef86848fe921d75303f543c24e58",
+    "check-all-definitivo.log": "7bf1afd723bf31a1d3b8669fa1678db9896d17ea1e7b095b7d89f4914b002198",
+    "keyset-diagnostico.log": "e8f06557d665a431ec1dda4cc0b02daafab93bc700d2b9e5c2bdffd3aa7418fa",
+    "e2e-final-dos-workers.log": "c772fb67d6c155829394a537312bcd14c2b3c47de2f1141d5dd04b113422f3d6",
+    "check-main-5d49bcf.log": "785a9bdc87678f1c79a564ab1c5dc29f2e8ed70679c130b2876e01d2da6a51b7",
+    "f6-correccion-escape.log": "667dff6d290d371f8ebc9440c8b59b15ebbd87d1bf9afd5b5cee5d4f8015aca0"
+  },
+  "respaldo_privado": "/Users/usuario/.codex/backups/avancecorp-f7-20260911",
+  "capturas": "Datos ficticios; no constituyen revision manual ni conciliacion real"
+}

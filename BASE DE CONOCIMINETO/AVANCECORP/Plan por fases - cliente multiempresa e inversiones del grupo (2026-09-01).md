@@ -1,8 +1,8 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f6-publicada-apagada
-actualizado: 2026-09-10
+estado: plan-vigente-f7-candidata-local-g6-pendiente
+actualizado: 2026-09-11
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -18,7 +18,15 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — ajustes F6 publicados y apagados el 11/09/2026
+## Estado vigente — F7 candidata local, instalación y G6 pendientes
+
+**F7 construida en el entorno sintético.** Nuevo informe Empresas de Gerencia:
+capital y cantidades separados por empresa/moneda, personas y cotitulares,
+primeras/posteriores registradas, conversión y atribución conservadas,
+vencimientos y oportunidades respetando No contactar. Cuatro funciones nuevas
+y bandera propia OFF, sin sustituir los núcleos ni modificar fuentes.
+Instalación productiva y conciliación firmada G6 pendientes; no habilita F8.
+Evidencia y punto de retoma: [[F7 - informe multiempresa en sombra preparado (2026-09-11)]].
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
 
@@ -44,7 +52,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
-| F7 — métricas | Pendiente | Conciliar Capital, conversión, producción y atribución; firmar G6 |
+| F7 — métricas | Candidata local construida y ensayada; instalación/G6 pendientes | Informe Empresas y SQL aditivo OFF. Pruebas de paridad, permisos, cotitulares, identidad incompleta, fechas, veto y reversa. Aprobar instalación y conciliar cifras reales antes de firmar G6. [[F7 - informe multiempresa en sombra preparado (2026-09-11)]] |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
@@ -694,7 +702,7 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
 - eliminar físicamente demos o históricos;
 - incorporar nuevas empresas antes de estabilizar las tres iniciales.
 
-## 13. Orden inmediato — actualizado al 10/09/2026
+## 13. Orden inmediato — actualizado al 11/09/2026
 
 1. F4/G4 técnico cerrado: conservar el paquete probado de `bcdfa0d` y el acta
    posterior de comisiones externas. No repetir pendientes ya resueltos.
@@ -703,12 +711,15 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Conservar los 65 fallos anteriores del gate general como pendientes explícitos,
    sin etiquetarlo PASS. Antes de encender, conciliar las 15 fuentes pendientes.
    Evidencia en [[F5 - instalada y apagada (2026-09-10)]].
-3. **F6 publicada e instalada OFF:** conservar el release `b54fe942`, los tres
-   SQL y la reversa. Banco temporal eliminado. Completar la revisión manual F6
-   y atender la matriz general vigente (45 fallos previos, sin regresiones).
-   [[F6 - publicada y apagada (2026-09-10)]].
-4. Después: **F7/G6 → F8/G7 → F9/G8**: conciliación de métricas, piloto económico
-   y activación progresiva con ciclo mensual completo.
+3. **F6 publicada e instalada OFF:** conservar los tres SQL y la reversa.
+   Los ajustes y la revisión manual quedaron cerrados el 11/09, con VoiceOver
+   omitido por Miguel (NOT RUN). Conservar las observaciones de la matriz
+   general. [[F6 - cierre y ajustes publicados (2026-09-11)]].
+4. **F7 candidata local:** revisar y aprobar su SQL concreto, completar el ciclo
+   de instalación apagada, revisar el informe por empresa y obtener la
+   conciliación firmada G6. [[F7 - informe multiempresa en sombra preparado (2026-09-11)]].
+5. Después: **F8/G7 → F9/G8**: piloto económico y activación progresiva con ciclo
+   mensual completo. No se adelantan con el ensayo sintético F7.
 
 F3 permanece encendida; F4/F5/F6 permanecen apagadas. Los 15 faltantes de
 identidad siguen pendientes; esta publicación no autoriza su conciliación real.
