@@ -1,0 +1,8 @@
+{
+  "estado": "PASS",
+  "pruebas": [
+    "Configuración aceptada antes de cerrar la sesión",
+    "Baja del dispositivo aceptada por RPC real",
+    "JWT aún vigente rechazado tras revocar su sesión Auth (403)"
+  ]
+}

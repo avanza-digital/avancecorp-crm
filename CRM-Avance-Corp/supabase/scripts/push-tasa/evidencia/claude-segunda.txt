@@ -1,0 +1,73 @@
+VERDICT: CHANGES_REQUESTED
+
+SUMMARY:
+The authorization core is sound: session-bound eligibility is re-checked at enqueue, claim, materialize and confirm; tables have RLS + full revokes and no browser-reachable write path; the lock-order fix in `confirmar` is correct. Three actionable issues remain: an untested cross-transaction deadlock window in `tomar_envios_push_tasa_fn`, a Service Worker path that resolves `push` without `showNotification()` on the exact hardened logout path, and a `REVOKE` on `net.http_request_queue` that can silently no-op under a non-owner role. Two dependencies referenced by the code are not in the attached evidence.
+
+FINDINGS:
+
+[P2] Deadlock window between the `intentos>=8` sweep and the `invalidos` claim
+File: supabase/migrations/20260910225540_crm_notificaciones_push_tasa.sql
+Lines: 187-200
+Problem: The `invalidos` CTE uses `order by e.id ... for update skip locked`, but the immediately following sweep (198-200) is an unordered, unbounded `UPDATE` with neither `skip locked` nor `limit`.
+Evidence: Both statements target the same predicate space (`estado in ('pendiente','enviando')` and an expired/absent lease). Worker A can hold row X from `invalidos` (B skipped it) while its sweep blocks on row Y held by B's `invalidos`; B's sweep blocks on X. A row that is both lease-expired and device-invalid with `intentos=8` satisfies both sets.
+Impact: Periodic `deadlock detected` aborts of the whole cron pass; the reported concurrency tests (disjoint claims, disable vs 410) do not cover this pair.
+Recommendation: Fold the sweep into the `invalidos` CTE, or give it `order by id ... for update skip locked limit 100` with the same ordering discipline used elsewhere.
+
+[P2] `push` event can settle without showing a notification
+File: app/public/sw-crm.js
+Lines: 12-29
+Problem: Any rejection inside the chain (`caches.open` in a storage-restricted context, a corrupt `/__crm_push_recibidos` body failing `.json()`) is swallowed by `entregaPendiente.catch(() => {})` on the *next* push, so the current event resolves with no `showNotification()`. The deliberate `return` at line 15 when `interruptor !== '1'` has the same shape.
+Evidence: Line 15 returns before `showNotification`; line 17 `await registro.json()` is unguarded; the only recovery is the `catch(() => {})` at line 12, which does not display anything.
+Impact: `userVisibleOnly: true` is violated. Chrome surfaces "This site has been updated in the background" and, after repeated violations, may drop the subscription. This is most likely on the path the design relies on — a phone whose logout revocation failed keeps receiving queued sends with `interruptor=false`.
+Recommendation: Wrap the cache/dedupe reads in try/catch and fall back to showing the generic notice; for the intentional suppression path, make the queue drain faster (see next finding) so the suppression window is short, and document the accepted violation budget.
+
+[P2] Orphan revocations retry only from the config screen
+File: app/src/lib/notificaciones-tasa.ts
+Lines: 37-45, 73-76
+Problem: `reintentarRevocaciones()` is called exclusively from `consultarPushTasa()`.
+Evidence: No other call site in the attached file; `vincularCuentaPushTasa` (61-67) does not invoke it on login.
+Impact: A device whose logout RPC failed stays `activo` server-side until its owner happens to reopen Configuración. Meanwhile every new request enqueues a send that is delivered and silently dropped, compounding the `userVisibleOnly` issue above.
+Recommendation: Also drain pending revocations once on successful sign-in for the matching account.
+
+[P2] `revoke select on net.http_request_queue` may succeed as a no-op (deployment-dependent)
+File: supabase/migrations/20260910225540_crm_notificaciones_push_tasa.sql
+Line: 323
+Problem: On managed Supabase, `net` objects are owned by `supabase_admin`. A `REVOKE` issued by a role without grant option emits a warning, not an error.
+Evidence: PRIMARY's own production read shows `has_table_privilege(... SELECT)=true` for all three API roles today; the migration has no post-condition asserting the revoke landed.
+Impact: The migration can report success while `authenticated`/`anon` retain `SELECT` on rows that transiently hold `x-cron-secret` (lines 300-303).
+Recommendation: Follow the revoke with an assertion in the same transaction (`do $$ begin if has_table_privilege('authenticated','net.http_request_queue','SELECT') then raise exception ...`). Note `net` is unexposed to PostgREST, so this is defence-in-depth, not a live leak.
+
+[P3] `WindowClient.navigate()` retargets an arbitrary same-origin window
+File: app/public/sw-crm.js
+Lines: 37-45
+Evidence: `ventanas.find(...)` picks the first same-origin client, not the focused one, and navigates it unconditionally.
+Impact: A tap can navigate away from an in-progress form in another tab.
+Recommendation: Focus first and prefer `postMessage` routing, falling back to `navigate()` only when no client responds.
+
+[P3] Partial-failure state in `desactivarPushTasa`
+File: app/src/lib/notificaciones-tasa.ts
+Lines: 158-162, 186
+Evidence: When only the server branch rejects, line 186 throws before the `removeItem` calls at 160-161, so `CUENTA`/`DISPOSITIVO` persist while the subscription is already gone.
+Impact: UI may keep presenting the device as registered; harmless but inconsistent with the durable revocation list that already owns the retry.
+
+[P3] No retention policy for `crm.envios_push_tasa`
+File: same migration, lines 26-46. Rows are never purged; only the partial index is bounded. Add a periodic delete of terminal rows older than N days.
+
+EVIDENCE GAPS (not findings):
+- `verificar_cron_secret` (index.ts:32) is not in the attached migration. If absent or non-constant-time, `accion:'procesar'` fails closed with a permanent 401 and no alert. Confirm it exists and is `service_role`-only.
+- `private.log_audit_sin_secretos` (lines 22-24, 47-49) is unverifiable here; confirm it redacts `endpoint`/`p256dh`/`auth`/`sesion_id` rather than merely naming them.
+
+TEST GAPS:
+- Concurrent `tomar` × `tomar` with a row that is simultaneously lease-expired, invalid and `intentos=8` (deadlock reproduction).
+- SW test where `caches.open` rejects or `/__crm_push_recibidos` holds invalid JSON — assert a notification is still shown.
+- Post-migration assertion of `has_table_privilege` on `net.http_request_queue` for the three API roles.
+- Second-account activation reusing a stale endpoint (`registrar` returns null → 42501 → client retry succeeds).
+- No coverage of revocation drain on login.
+
+NEXT ACTIONS:
+1. Bound and `skip locked` the `intentos>=8` sweep; add the concurrent regression test.
+2. Guard the SW cache/dedupe reads with a visible fallback; drain revocations on login.
+3. Assert the `net` revoke in-migration; confirm `verificar_cron_secret` and the audit function contracts before any production run.
+
+CONFIDENCE:
+MEDIUM — high on the SQL and SW findings, which are readable from the attached lines; medium on the `net` revoke, which is deployment-role dependent.

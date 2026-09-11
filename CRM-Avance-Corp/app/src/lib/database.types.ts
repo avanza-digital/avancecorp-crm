@@ -3292,6 +3292,119 @@ export type Database = {
         }
         Relationships: []
       }
+      dispositivos_push_tasa: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          auth: string
+          creado_en: string
+          endpoint: string
+          habilitado_en: string
+          id: string
+          p256dh: string
+          perfil_id: string
+          revision: string
+          sesion_id: string
+          ultima_prueba_en: string | null
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          auth: string
+          creado_en?: string
+          endpoint: string
+          habilitado_en?: string
+          id?: string
+          p256dh: string
+          perfil_id: string
+          revision?: string
+          sesion_id: string
+          ultima_prueba_en?: string | null
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          auth?: string
+          creado_en?: string
+          endpoint?: string
+          habilitado_en?: string
+          id?: string
+          p256dh?: string
+          perfil_id?: string
+          revision?: string
+          sesion_id?: string
+          ultima_prueba_en?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispositivos_push_tasa_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "equipo"
+            referencedColumns: ["perfil_id"]
+          },
+        ]
+      }
+      envios_push_tasa: {
+        Row: {
+          codigo_http: number | null
+          creado_en: string
+          disponible_en: string
+          dispositivo_id: string
+          enviado_en: string | null
+          estado: string
+          id: string
+          intentos: number
+          reserva: string | null
+          reservado_hasta: string | null
+          revision: string
+          solicitud_id: string
+        }
+        Insert: {
+          codigo_http?: number | null
+          creado_en?: string
+          disponible_en?: string
+          dispositivo_id: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          intentos?: number
+          reserva?: string | null
+          reservado_hasta?: string | null
+          revision: string
+          solicitud_id: string
+        }
+        Update: {
+          codigo_http?: number | null
+          creado_en?: string
+          disponible_en?: string
+          dispositivo_id?: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          intentos?: number
+          reserva?: string | null
+          reservado_hasta?: string | null
+          revision?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "envios_push_tasa_dispositivo_id_fkey"
+            columns: ["dispositivo_id"]
+            isOneToOne: false
+            referencedRelation: "dispositivos_push_tasa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "envios_push_tasa_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_tasa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       alertas_reconocimientos_vigentes: {
@@ -4673,6 +4786,37 @@ export type Database = {
       verificar_disponibilidad_lead: {
         Args: { p_dni?: string; p_telefono: string }
         Returns: Json
+      }
+      confirmar_envio_push_tasa_fn: {
+        Args: {
+          p_codigo_http?: number
+          p_envio_id: string
+          p_reserva: string
+          p_resultado: string
+        }
+        Returns: boolean
+      }
+      desactivar_push_tasa_fn: {
+        Args: { p_dispositivo_id: string }
+        Returns: undefined
+      }
+      estado_push_tasa_fn: { Args: { p_endpoint?: string }; Returns: Json }
+      materializar_envio_push_tasa_fn: {
+        Args: { p_envio_id: string; p_reserva: string }
+        Returns: Json
+      }
+      preparar_prueba_push_tasa_fn: {
+        Args: { p_dispositivo_id: string }
+        Returns: Json
+      }
+      registrar_push_tasa_fn: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: string
+      }
+      tomar_envios_push_tasa_fn: { Args: { p_limite?: number }; Returns: Json }
+      verificar_cron_push_tasa_fn: {
+        Args: { p_firma: string; p_instante: number }
+        Returns: boolean
       }
     }
     Enums: {

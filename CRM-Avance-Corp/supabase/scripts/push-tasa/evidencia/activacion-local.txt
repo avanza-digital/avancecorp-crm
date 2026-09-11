@@ -1,0 +1,1 @@
+PASS: activación validada dos veces y revertida íntegramente en banco local sin cron activo

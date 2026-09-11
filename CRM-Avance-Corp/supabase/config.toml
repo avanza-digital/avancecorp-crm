@@ -390,6 +390,12 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/crm-contrato-pdf-v2/index.ts"
 
+[functions.crm-notificaciones-tasa]
+enabled = true
+# Cron usa firma HMAC temporal; las otras rutas verifican JWT, sesión y rol.
+verify_jwt = false
+entrypoint = "./functions/crm-notificaciones-tasa/index.ts"
+
 [analytics]
 enabled = true
 port = 55327

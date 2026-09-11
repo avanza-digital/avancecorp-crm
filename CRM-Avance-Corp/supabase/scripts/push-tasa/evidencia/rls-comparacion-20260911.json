@@ -1,0 +1,40 @@
+{
+  "antes": {
+    "total": 1827,
+    "pass": 1777,
+    "fail": 50
+  },
+  "despues": {
+    "total": 1827,
+    "pass": 1781,
+    "fail": 46
+  },
+  "fallos_nuevos": [
+    "el payload emite de verdad DOS de los cuatro estados (solo_arrastre es del oraculo SQL) — [\"solo_referidos\",\"solo_referidos\",\"sin_actividad\",\"sin_actividad\",\"sin_actividad\"]"
+  ],
+  "fallos_ausentes_despues": [
+    "T10 · el referido recibido SI se cuenta, en su propio contador",
+    "el bloque de referidos de vend1 sube su cierre y su alta del mes — {\"cerrados\":1,\"recibidos\":2,\"aporta_pct\":null,\"dados_de_alta\":2}",
+    "T10 · recibir SOLO un referido NO mueve el divisor y sube +1 el contador de referidos — {\"antes\":{\"recibidos\":0,\"dadosDeAlta\":0,\"divisor\":0},\"despues\":{\"ajuste\":{\"origenes\":[],\"pendiente\":0},\"estado\":\"solo_referidos\",\"cartera\":{\"capital_renovado_pen\":0,\"capital_renovado_usd\":0,\"conversiones_upgrade\":0,\"capital_adicional_pen\":0,\"capital_adicional_usd\":0,\"conversiones_clientes\":0,\"conversiones_renovacion\":0,\"renovaciones_sin_desglose\":0},\"divisor\":0,\"numerador\":0.15,\"referidos\":{\"cerrados\":1,\"recibidos\":2,\"aporta_pct\":null,\"dados_de_alta\":2},\"procedencia\":[{\"mes\":\"2026-09\",\"anio\":2026,\"cierres\":1,\"mes_nombre\":\"setiembre\",\"cierres_referidos\":1}],\"vendedor_id\":\"<UUID>\",\"supervisor_id\":\"<UUID>\",\"conversion_pct\":null,\"cierres_referidos\":1,\"cierres_de_arrastre\":0,\"cierres_no_referidos\":0}}",
+    "el alta del referido se le acredita a quien lo dio de alta (+1 sobre su foto previa) — {\"antes\":0,\"despues\":2}",
+    "el payload emite de verdad DOS de los cuatro estados (solo_arrastre es del oraculo SQL) — [\"solo_referidos\",\"sin_actividad\",\"sin_actividad\",\"sin_actividad\",\"sin_actividad\"]"
+  ],
+  "normalizacion": "UUID solamente; se conservan mensajes, códigos y cantidades",
+  "estado": "FAIL",
+  "comparacion_por_asercion": {
+    "fallos_nuevos": [],
+    "fallos_ausentes_despues": [
+      "T10 · el referido recibido SI se cuenta, en su propio contador",
+      "el bloque de referidos de vend1 sube su cierre y su alta del mes",
+      "T10 · recibir SOLO un referido NO mueve el divisor y sube +1 el contador de referidos",
+      "el alta del referido se le acredita a quien lo dio de alta (+1 sobre su foto previa)"
+    ],
+    "estado": "PASS"
+  },
+  "variacion_investigada": {
+    "asercion": "el payload emite de verdad DOS de los cuatro estados (solo_arrastre es del oraculo SQL)",
+    "resultado_antes_y_despues": "FAIL: falta medible en ambos payloads",
+    "evidencia": "supabase/scripts/test-rls.mjs:10446-10462 elige el primer candidato de divisor/cierres cero sin excluir vend1; :10485-10520 siembra un referido para vend1 y otro para el candidato. Si coinciden, suben dos referidos en la misma fila; las cuatro deltas que desaparecen después corresponden a ese supuesto. :10874-10877 exige medible y solo_referidos y falla en ambas corridas. No se modificó esta prueba ni las funciones de conversión.",
+    "decision": "No hay aserciones nuevas fallidas. Se conserva FAIL de la comparación literal (payload distinto) y FAIL de la matriz global; el cambio de payload pertenece al mismo fallo previo, con selección variable del fixture. No se atribuyen a push los cuatro fallos que dejaron de aparecer."
+  }
+}

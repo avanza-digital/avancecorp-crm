@@ -5,6 +5,7 @@
 import { useRef, type HTMLAttributes, type ReactNode } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
+import { cerrarEscapeAnidado, protegerEscapeAnidado } from './escape-dialogo'
 
 const KEYFRAMES = `
 @keyframes ac-sheet-overlay { from { opacity: 0 } to { opacity: 1 } }
@@ -43,6 +44,8 @@ export function Sheet({ open, onClose, children, ariaLabel, className, modal = t
         />
         <RadixDialog.Content
           ref={contenido}
+          onEscapeKeyDown={(evento) => protegerEscapeAnidado(evento, contenido.current)}
+          onKeyDown={(evento) => cerrarEscapeAnidado(evento, onClose)}
           onOpenAutoFocus={() => {
             const activo = document.activeElement
             origenFoco.current = activo instanceof HTMLElement ? activo : null

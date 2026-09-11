@@ -1,0 +1,14 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/f6-postventa.spec.ts --grep Gerencia consulta
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:75442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:75454) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/f6-postventa.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.3s)
+
+  1 passed (8.4s)

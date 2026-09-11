@@ -5,8 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { Dialog, DialogTitle } from './dialog'
 import { Sheet, SheetTitle } from './sheet'
 
-function Pantalla({ anidado = false, origenNoEnfocable = false }: { anidado?: boolean; origenNoEnfocable?: boolean }) {
+function Pantalla({ anidado = false, origenNoEnfocable = false, modalFicha = false }: { anidado?: boolean; origenNoEnfocable?: boolean; modalFicha?: boolean }) {
   const [abierto, setAbierto] = useState(false)
+  const [fichaAbierta, setFichaAbierta] = useState(true)
   const [resuelto, setResuelto] = useState(false)
   const contenido = <>
     {origenNoEnfocable
@@ -22,11 +23,27 @@ function Pantalla({ anidado = false, origenNoEnfocable = false }: { anidado?: bo
     </Dialog>
   </>
   return anidado
-    ? <Sheet open onClose={() => {}} modal={false}><SheetTitle>Ficha</SheetTitle>{contenido}</Sheet>
+    ? <Sheet open={fichaAbierta} onClose={() => setFichaAbierta(false)} modal={modalFicha}><SheetTitle>Ficha</SheetTitle>{contenido}</Sheet>
     : contenido
 }
 
 describe('foco de Dialog controlado sin Trigger', () => {
+  it.each([false, true])('reabrir una revisión y pulsar Escape conserva la ficha inferior (modal=%s)', async (modalFicha) => {
+    const usuario = userEvent.setup()
+    render(<Pantalla anidado modalFicha={modalFicha} />)
+    const origen = screen.getByRole('button', { name: 'Revisar solicitud' })
+    for (let apertura = 0; apertura < 3; apertura++) {
+      await usuario.click(origen)
+      expect(screen.getByRole('dialog', { name: 'Revisión' })).toBeInTheDocument()
+      await usuario.keyboard('{Escape}')
+      await waitFor(() => expect(origen).toHaveFocus())
+      expect(screen.getByRole('dialog', { name: 'Ficha' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Revisión' })).not.toBeInTheDocument()
+    }
+    await usuario.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ficha' })).not.toBeInTheDocument())
+  })
+
   it('Escape vuelve al botón exacto que abrió el diálogo por teclado', async () => {
     const usuario = userEvent.setup()
     render(<Pantalla />)

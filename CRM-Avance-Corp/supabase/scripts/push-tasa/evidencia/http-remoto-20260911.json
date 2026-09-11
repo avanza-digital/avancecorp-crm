@@ -1,0 +1,21 @@
+{
+  "estado": "PASS",
+  "pruebas": [
+    "HTTP sin sesión rechazado",
+    "Clave anon no obtiene configuración de Gerencia",
+    "Clave de servicio no suplanta una sesión Gerencia",
+    "Sesión real de analista rechazada",
+    "CORS rechaza otro origen",
+    "Worker rechaza llamada sin firma",
+    "Worker rechaza firma falsa",
+    "Gerencia real obtiene configuración completa del banco",
+    "Configuración HTTP no se almacena en caché",
+    "Firma válida llega a RPC y procesa cola vacía",
+    "Firma caducada rechazada por el servidor",
+    "Dispositivo ficticio registrado con sesión Auth real",
+    "PostgREST bloquea lectura directa de claves push",
+    "Transporte cifrado real obtiene rechazo del endpoint ficticio, sin destinatario real",
+    "Segunda prueba inmediata limitada por el servidor",
+    "Solicitud del lead aceptada sin depender del proveedor push"
+  ]
+}

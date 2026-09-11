@@ -935,7 +935,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-07-16' } })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('La fecha hasta no puede ser posterior a hoy en Lima.')
+    expect(screen.getByText('La fecha hasta no puede ser posterior a hoy en Lima.')).toHaveAttribute('role', 'alert')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
   })
@@ -945,7 +945,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2025-07-14' } })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('El rango no puede superar 365 días de diferencia.')
+    expect(screen.getByText('El rango no puede superar 365 días de diferencia.')).toHaveAttribute('role', 'alert')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
   })

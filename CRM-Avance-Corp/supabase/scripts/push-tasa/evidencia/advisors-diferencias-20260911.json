@@ -1,0 +1,31 @@
+{
+  "security": [
+    {
+      "lint": "rls_enabled_no_policy",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "finding": {
+        "detail": "Table \\`crm.dispositivos_push_tasa\\` has RLS enabled, but no policies exist",
+        "metadata": {
+          "name": "dispositivos_push_tasa",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-11T17:59:44.964Z"
+      }
+    },
+    {
+      "lint": "rls_enabled_no_policy",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+      "finding": {
+        "detail": "Table \\`crm.envios_push_tasa\\` has RLS enabled, but no policies exist",
+        "metadata": {
+          "name": "envios_push_tasa",
+          "type": "table",
+          "schema": "crm"
+        },
+        "observed_at": "2026-09-11T17:59:44.964Z"
+      }
+    }
+  ],
+  "performance": []
+}

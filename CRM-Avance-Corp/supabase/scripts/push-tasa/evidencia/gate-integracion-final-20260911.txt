@@ -1,0 +1,8 @@
+PASS npm run check:all
+Commit: 321a0ee9f44ea8dca94ce6bb4c8ad29dc70cc34f
+Integra avancecorp/main 66a4d94; incluye cambios de Facturación.
+Lint, typecheck, cobertura, release config, worker, build, bundle y duplicación: PASS.
+Unit/integración: 231 archivos; 3.303 pruebas PASS.
+Playwright: 164 PASS; 26 SKIP configurados.
+Exit code: 0.
+No acredita recepción en un teléfono real.

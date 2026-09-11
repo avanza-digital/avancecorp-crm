@@ -1,0 +1,53 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/f6-postventa.spec.ts e2e/notificaciones-tasa.spec.ts
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:76170) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 11 tests using 7 workers
+
+(node:76175) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76173) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76177) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76171) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76174) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] 10:17:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:11.614Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"274662e2-df27-4975-9fe9-cf2a53e66b5b","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:11.671Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"7b3da519-f492-4805-800e-b528483e2a00","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:11.673Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"8e8ce3b2-9212-4966-a5e1-f33035bb7913","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:11.677Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"d8ff242d-3f8a-499b-8361-843cf5569e7a","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:11.683Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"10e7073a-eac2-4675-a9cd-2fe5ab6683cb","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:14 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:14.523Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2d54f7a2-4ce7-4bcd-98b7-0cd75fbb1e39","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   5 [chromium] › e2e/f6-postventa.spec.ts:184:1 › un rechazo de postventa no cierra una ficha F5 que sigue autorizada (4.7s)
+  ✓   7 [chromium] › e2e/f6-postventa.spec.ts:164:1 › Directorio no recibe acciones ni agenda neutral (4.7s)
+  ✓   4 [chromium] › e2e/f6-postventa.spec.ts:116:1 › veto impide contacto, pero permite registrar un retiro recibido sin mover dinero (5.1s)
+[WebServer] 10:17:15 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:15.509Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"0a9c533a-e0ab-4a1d-bbaa-3ea54bdeef9c","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   6 [chromium] › e2e/f6-postventa.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.7s)
+[WebServer] 10:17:16 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:16.370Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"8ec41d8c-5fe0-4d7c-992c-f2b8931c5309","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   3 [chromium] › e2e/f6-postventa.spec.ts:102:1 › móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarla (6.7s)
+[WebServer] 10:17:17 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:17.794Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"0a9c533a-e0ab-4a1d-bbaa-3ea54bdeef9c","datos":{"error":{"name":"CrmApiError","message":"La reunión cambió; recarga la agenda","code":"P0409"}}}
+  ✓   8 [chromium] › e2e/notificaciones-tasa.spec.ts:58:1 › un aviso antiguo conserva la ruta tras recargar y explica que ya no está pendiente (3.0s)
+  ✓   1 [chromium] › e2e/f6-postventa.spec.ts:171:1 › un rechazo al confirmar reunión neutral muestra el error y conserva la tarea (7.8s)
+  ✓  10 [chromium] › e2e/notificaciones-tasa.spec.ts:66:1 › abrir el aviso sin sesión conserva la solicitud y la enfoca después del login (2.8s)
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.125Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"f6adf55e-ffb5-4822-8c3f-05f7a119972e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.126Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"f6adf55e-ffb5-4822-8c3f-05f7a119972e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.131Z","nivel":"error","evento":"crm.config.productos.lectura_fallida","correlationId":"f6adf55e-ffb5-4822-8c3f-05f7a119972e","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.131Z","nivel":"error","evento":"crm.config.sla.lectura_fallida","correlationId":"f6adf55e-ffb5-4822-8c3f-05f7a119972e","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+  ✓   2 [chromium] › e2e/f6-postventa.spec.ts:82:1 › agenda compartida, cierre con siguiente y enlace persistente a la ficha (8.4s)
+  ✓   9 [chromium] › e2e/notificaciones-tasa.spec.ts:7:1 › Gerencia activa avisos, envía prueba y los desactiva con el worker real (4.0s)
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.798Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"9533efdd-29af-4912-b15f-d77726f3e711","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.799Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"9533efdd-29af-4912-b15f-d77726f3e711","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.799Z","nivel":"error","evento":"crm.config.productos.lectura_fallida","correlationId":"9533efdd-29af-4912-b15f-d77726f3e711","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:17:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:17:18.807Z","nivel":"error","evento":"crm.config.sla.lectura_fallida","correlationId":"9533efdd-29af-4912-b15f-d77726f3e711","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+  ✓  11 [chromium] › e2e/notificaciones-tasa.spec.ts:90:1 › manifiesto e iconos existen y el móvil mantiene controles visibles (3.5s)
+
+  11 passed (10.4s)

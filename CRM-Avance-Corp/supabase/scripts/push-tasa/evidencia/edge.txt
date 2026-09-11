@@ -1,0 +1,9 @@
+(node:50401) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+ℹ pass 67
+ℹ fail 0
+ℹ skipped 0
+ok | 5 passed | 0 failed (28ms)
+ℹ pass 4
+ℹ fail 0
+ℹ skipped 0
+ok | 15 passed | 0 failed (257ms)

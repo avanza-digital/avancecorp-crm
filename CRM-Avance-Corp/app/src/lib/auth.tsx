@@ -1,4 +1,5 @@
 import { limpiarEnviosPostventa } from './postventa-envios'
+import { limpiarPushTasaAlSalir } from './notificaciones-tasa'
 import { limpiarIntentosInversion } from './inversion-solicitud'
 // AuthGate del CRM — wrapper React delgado sobre lib/auth-maquina.ts (XState).
 //   init → anon → resolviendo → listo | no_enrolado | error
@@ -190,7 +191,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // bloquear el cliente (deadlock documentado por Supabase).
     const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
       if (cancelado) return
-      if (_evento === 'SIGNED_OUT') {limpiarIntencionesSla(); limpiarIntentosInversion(); limpiarEnviosPostventa()}
+      if (_evento === 'SIGNED_OUT') {
+        limpiarIntencionesSla(); limpiarIntentosInversion(); limpiarEnviosPostventa()
+        diferir(() => { void limpiarPushTasaAlSalir() })
+      }
       const userId = session?.user.id ?? null
       diferir(() => actor.send({ type: 'SESION_CAMBIO', userId }))
     })
@@ -282,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const salir = async () => {
     const eraDemo = yoRef.current?.demo === true
+    const desactivarAvisos = eraDemo ? Promise.resolve() : limpiarPushTasaAlSalir()
     limpiarIntencionesSla()
     limpiarIntentosInversion(); limpiarEnviosPostventa()
     limpiarSesionDemo()
@@ -298,6 +303,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     try {
+      // Se retira la suscripción antes del token; Auth sigue saliendo si falla la red.
+      await Promise.race([desactivarAvisos, new Promise<void>(resolve => setTimeout(resolve, 2000))])
       const { error: errorSalida } = await sb.auth.signOut({ scope: 'local' })
       if (errorSalida) registrarError('auth.salida_incompleta', errorSalida)
     } catch (causa) {
