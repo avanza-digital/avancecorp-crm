@@ -5,6 +5,7 @@
 import { useRef, type HTMLAttributes, type ReactNode } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
+import { cerrarEscapeAnidado, protegerEscapeAnidado } from './escape-dialogo'
 
 const KEYFRAMES = `
 @keyframes ac-dialog-overlay { from { opacity: 0 } to { opacity: 1 } }
@@ -28,6 +29,7 @@ export function Dialog({ open, onClose, children, ariaLabel, className }: Dialog
   // Una resolución puede retirar la acción: conservamos también su ficha.
   const origenFoco = useRef<HTMLElement | null>(null)
   const ambitoFoco = useRef<HTMLElement | null>(null)
+  const contenido = useRef<HTMLDivElement | null>(null)
   return (
     <RadixDialog.Root open={open} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
       <RadixDialog.Portal>
@@ -39,6 +41,9 @@ export function Dialog({ open, onClose, children, ariaLabel, className }: Dialog
         {/* Contenedor de layout no interactivo: el click en el padding cae al overlay. */}
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
           <RadixDialog.Content
+            ref={contenido}
+            onEscapeKeyDown={(evento) => protegerEscapeAnidado(evento, contenido.current)}
+            onKeyDown={(evento) => cerrarEscapeAnidado(evento, onClose)}
             onOpenAutoFocus={() => {
               const activo = document.activeElement
               const origen = activo instanceof HTMLElement && activo !== document.body ? activo : null

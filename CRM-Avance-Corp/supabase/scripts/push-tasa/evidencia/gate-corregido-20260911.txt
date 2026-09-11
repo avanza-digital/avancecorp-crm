@@ -1,0 +1,1090 @@
+npm notice run app@0.0.0 check:all
+npm notice run npm run check && npm run test:e2e
+npm notice run app@0.0.0 check
+npm notice run npm run lint && npm run typecheck && npm run test:coverage && npm run test:release-config && npm run test:push-tasa && npm run build && npm run verify:bundle && npm run dup
+npm notice run app@0.0.0 lint
+npm notice run oxlint
+src/components/ui/coverflow-carousel.tsx:299:11: warning jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements. help: The `tabIndex` attribute should be removed.
+src/components/ui/coverflow-carousel.tsx:297:10: warning jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role. help: Add a role attribute to this element, or use a semantic HTML element instead.
+src/components/ui/coverflow-carousel.tsx:327:15: warning jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener. help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.
+src/components/ui/coverflow-carousel.tsx:327:16: warning jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners. help: Move the handler to an interactive element, or use an appropriate interactive role.
+npm notice run app@0.0.0 typecheck
+npm notice run tsc -b --pretty false
+npm notice run app@0.0.0 test:coverage
+npm notice run vitest run --coverage
+
+ RUN  v4.1.10 /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app
+      Coverage enabled with v8
+
+(node:87611) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87613) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87620) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87621) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87619) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87614) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87615) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87610) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87617) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87608) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87618) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87616) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87612) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87609) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87663) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87664) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87667) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87668) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87669) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87670) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87674) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87681) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87682) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87684) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87685) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87686) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87687) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87688) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87689) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87690) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87691) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87699) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87700) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87702) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87703) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87704) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87705) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87706) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87707) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87708) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87709) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87715) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87761) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87762) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87763) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87764) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87766) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87765) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87767) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87769) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87772) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87776) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87784) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87785) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87787) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87788) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87789) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87786) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87792) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87794) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87795) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87793) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87796) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87797) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87798) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87799) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87802) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87801) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87800) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87803) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87805) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87804) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87808) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87806) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87807) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87812) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87813) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87816) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87817) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87819) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87824) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87818) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87821) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87822) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87823) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87825) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87826) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87831) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87827) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87828) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87836) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87829) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87830) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87832) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87833) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87838) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87839) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87841) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87835) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87843) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87847) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87837) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87849) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87852) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87840) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87855) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87858) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87859) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87846) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87848) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87867) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87871) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87873) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87872) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87860) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87862) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87868) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87878) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87870) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87869) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87877) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87875) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87874) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87876) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87881) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87882) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87884) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87883) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87885) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87887) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87888) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87891) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87889) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87892) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87895) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87894) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87896) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87897) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87900) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87898) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87899) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87901) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87902) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87903) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87905) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87906) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87907) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87908) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87909) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87911) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87914) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87919) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87920) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87921) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87922) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87924) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87925) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87923) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87930) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87928) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87933) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87934) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87937) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87939) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87942) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87944) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87946) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87945) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87950) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87948) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87952) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87954) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87953) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87955) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87956) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87957) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87958) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87959) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87961) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87966) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87967) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87975) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87973) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87976) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87979) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87980) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87981) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87984) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87977) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87983) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87982) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87985) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87986) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87988) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87989) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87990) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87991) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87996) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87993) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87995) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87994) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87992) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87999) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87998) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:87997) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88000) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88003) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88004) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88005) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88007) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88010) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88009) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88006) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88008) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88011) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88012) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88014) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88013) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88015) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88016) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88025) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88030) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88033) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88034) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88036) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88035) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88037) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88038) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88039) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88040) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88041) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  231 passed (231)
+      Tests  3268 passed (3268)
+   Start at  10:56:25
+   Duration  29.68s (transform 15.04s, setup 24.33s, import 44.45s, tests 176.67s, environment 99.52s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 75.78% ( 15914/20998 )
+Branches     : 72.54% ( 17310/23861 )
+Functions    : 74.1% ( 4158/5611 )
+Lines        : 78.58% ( 14046/17873 )
+================================================================================
+npm notice run app@0.0.0 test:release-config
+npm notice run node --test scripts/verificar-config-release.test.mjs
+✔ acepta solo la configuración pública productiva presente en el bundle (85.498583ms)
+✔ rechaza un release sin variables de Supabase (76.76ms)
+✔ rechaza una llave privilegiada (76.994125ms)
+✔ rechaza un build que no incorporó la configuración (75.791458ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 351.854833
+npm notice run app@0.0.0 test:push-tasa
+npm notice run node --test scripts/sw-crm.test.mjs
+✔ el worker no intercepta peticiones de red (9.639125ms)
+✔ un reintento reemplaza el mismo aviso sin sonido y cumple userVisibleOnly (1.245875ms)
+✔ un aviso en tránsito después de salir solo informa la baja y retira la suscripción (0.368875ms)
+✔ un fallo del almacenamiento conserva un aviso visible sin revelar actividad del CRM (0.282125ms)
+✔ un registro de repetidos dañado no oculta una solicitud nueva (0.768416ms)
+✔ clic reconstruye una ruta interna y no acepta URLs del mensaje (0.538292ms)
+✔ si una ventana desaparece durante el clic abre otra (0.267333ms)
+✔ el clic conserva un formulario abierto en otra pestaña (0.21875ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49.93125
+npm notice run app@0.0.0 build
+npm notice run tsc -b && vite build
+vite v8.1.4 building client environment for production...
+[2Ktransforming...✓ 2847 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/version.json                                             0.05 kB │ gzip:   0.06 kB
+dist/index.html                                               1.27 kB │ gzip:   0.51 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff     22.10 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff     22.28 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2    22.58 kB
+dist/assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2    22.83 kB
+dist/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff     23.87 kB
+dist/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff     23.91 kB
+dist/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2    24.18 kB
+dist/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2    24.25 kB
+dist/.vite/license.md                                        81.37 kB
+dist/assets/gerencia-BFae_Z8_.css                             9.80 kB │ gzip:   2.45 kB
+dist/assets/index-16QJgIY1.css                              146.72 kB │ gzip:  23.94 kB
+dist/assets/rescate-carpeta-BLIwYULW.js                       0.20 kB │ gzip:   0.16 kB
+dist/assets/use-periodo-gerencia-CesOj6fp.js                  0.28 kB │ gzip:   0.22 kB
+dist/assets/use-valor-diferido-C5pSPdfy.js                    0.29 kB │ gzip:   0.22 kB
+dist/assets/clientes-vista-BT9wOPoj.js                        0.30 kB │ gzip:   0.21 kB
+dist/assets/progress-CK-yXIsV.js                              0.43 kB │ gzip:   0.30 kB
+dist/assets/section-head-BoaZQrVR.js                          0.43 kB │ gzip:   0.29 kB
+dist/assets/use-resumen-cartera-operativo-BrK6yO6q.js         0.48 kB │ gzip:   0.33 kB
+dist/assets/rolldown-runtime-QTnfLwEv.js                      0.69 kB │ gzip:   0.42 kB
+dist/assets/desglose-monedas-DMjjWK9w.js                      0.70 kB │ gzip:   0.43 kB
+dist/assets/tabla-CAibwF12.js                                 0.70 kB │ gzip:   0.37 kB
+dist/assets/card-BKH0C_kE.js                                  0.74 kB │ gzip:   0.34 kB
+dist/assets/seguimiento-BJvP5OWI.js                           0.81 kB │ gzip:   0.45 kB
+dist/assets/animated-value-CxWwuyas.js                        0.94 kB │ gzip:   0.55 kB
+dist/assets/paginacion-sNNspE2p.js                            0.99 kB │ gzip:   0.56 kB
+dist/assets/kpi-card-CyYnd3fT.js                              1.14 kB │ gzip:   0.62 kB
+dist/assets/aviso-degradacion-B7u40S0P.js                     1.19 kB │ gzip:   0.63 kB
+dist/assets/use-metricas-vendedores-operativas-D7Y2T2Hn.js    1.52 kB │ gzip:   0.80 kB
+dist/assets/configuracion-shell-ngBLOd8I.js                   1.75 kB │ gzip:   0.83 kB
+dist/assets/stat-strip-Cb0PozPo.js                            2.20 kB │ gzip:   0.94 kB
+dist/assets/estado-panel-LVLQZGef.js                          2.91 kB │ gzip:   0.94 kB
+dist/assets/use-periodo-derivaciones-Bpll4fQP.js              3.07 kB │ gzip:   1.20 kB
+dist/assets/agenda-vistas-ChOVjUQw.js                         3.65 kB │ gzip:   1.63 kB
+dist/assets/notificaciones-tasa-DGq2ryDO.js                   4.07 kB │ gzip:   1.73 kB
+dist/assets/distribucion-lecturas-Bdq5pEvx.js                 7.52 kB │ gzip:   2.61 kB
+dist/assets/cartera-D06Et0r4.js                              11.20 kB │ gzip:   4.16 kB
+dist/assets/config-GU2SI1PK.js                               11.63 kB │ gzip:   4.08 kB
+dist/assets/dist-DAse8jiX.js                                 12.57 kB │ gzip:   4.48 kB
+dist/assets/derivaciones-Dv8WVRgp.js                         13.04 kB │ gzip:   4.43 kB
+dist/assets/historial-decisiones-tasa-gerencia-Cc8qjrmD.js   14.14 kB │ gzip:   3.93 kB
+dist/assets/config-rentabilidad-BLsGMlJ6.js                  14.28 kB │ gzip:   4.65 kB
+dist/assets/cierres-externos-seccion-CuS8TjRj.js             14.76 kB │ gzip:   4.51 kB
+dist/assets/pipeline-CUgaRvl9.js                             15.17 kB │ gzip:   5.47 kB
+dist/assets/alertas-DsqTTxH-.js                              15.22 kB │ gzip:   5.08 kB
+dist/assets/config-metas-BedAagLK.js                         15.93 kB │ gzip:   5.49 kB
+dist/assets/config-sla--H5MnlGH.js                           17.09 kB │ gzip:   5.41 kB
+dist/assets/echart-bar-ajXRa-BN.js                           21.98 kB │ gzip:   8.34 kB
+dist/assets/config-usuarios-D4RclUEl.js                      23.79 kB │ gzip:   6.45 kB
+dist/assets/equipo-Cq9TTb7y.js                               26.13 kB │ gzip:   7.63 kB
+dist/assets/facturacion-CoX7vWWp.js                          26.70 kB │ gzip:   8.80 kB
+dist/assets/config-productos-BLbYUMKH.js                     27.03 kB │ gzip:   7.33 kB
+dist/assets/rescate-descartados-DV29rD_V.js                  30.74 kB │ gzip:   7.89 kB
+dist/assets/agenda-DGDqMdHT.js                               30.80 kB │ gzip:   8.70 kB
+dist/assets/lead-hover-card-BmlZAC-M.js                      33.78 kB │ gzip:  12.61 kB
+dist/assets/ranking-vendedores-Cy8hBCiw.js                   36.57 kB │ gzip:   8.68 kB
+dist/assets/echart-line-BdhPjmND.js                          45.31 kB │ gzip:  16.14 kB
+dist/assets/repartir-BzN0YDIW.js                             50.65 kB │ gzip:  13.19 kB
+dist/assets/gerencia-BlEZcPit.js                             64.27 kB │ gzip:  17.72 kB
+dist/assets/ui-vendor-CCTt16FJ.js                            90.30 kB │ gzip:  19.92 kB
+dist/assets/hoy-DawjE54E.js                                  92.63 kB │ gzip:  25.43 kB
+dist/assets/gerencia-Bl1I_SgR.js                            190.23 kB │ gzip:  46.68 kB
+dist/assets/react-vendor-BXy-oECh.js                        190.81 kB │ gzip:  60.00 kB
+dist/assets/mi-cartera-CsoLaVJ4.js                          195.96 kB │ gzip:  49.70 kB
+dist/assets/crm-api-CezmP8zp.js                             204.44 kB │ gzip:  55.56 kB
+dist/assets/data-vendor-CVus9pJE.js                         241.28 kB │ gzip:  62.74 kB
+dist/assets/echart-BG03WfT5.js                              487.20 kB │ gzip: 165.23 kB
+dist/assets/index-DO5vmUmw.js                               641.07 kB │ gzip: 195.52 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/lib/demo-config.ts is dynamically imported by src/data/crm-config-queries.ts but also statically imported by src/lib/demo-sla.ts, dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 364ms
+npm notice run app@0.0.0 verify:bundle
+npm notice run node scripts/verificar-bundle-produccion.mjs
+BUNDLE_PRODUCCION_SIN_PDFMAKE_NI_FIXTURES_DEMO_Y_CON_FICHA_360
+npm notice run app@0.0.0 dup
+npm notice run jscpd src --min-tokens 70 --ignore "**/*.test.*" --threshold 0.8 --reporters consoleFull
+Clone found (tsx)
+ - App.tsx [178:7 - 188:6]
+   App.tsx [298:7 - 308:6]
+
+Clone found (tsx)
+ - components/app/contrato-corregir.tsx [153:7 - 162:68]
+   components/app/contrato-corregir.tsx [243:5 - 252:66]
+
+Clone found (tsx)
+ - components/app/contrato-corregir.tsx [289:45 - 307:10]
+   components/app/contrato-nuevo.tsx [458:57 - 478:10]
+
+Clone found (tsx)
+ - components/app/contrato-corregir.tsx [789:13 - 814:13]
+   components/app/contrato-nuevo.tsx [1381:13 - 1407:13]
+
+Clone found (tsx)
+ - components/app/lead-drawer.tsx [1698:3 - 1706:8]
+   screens/mi-cartera.tsx [1837:3 - 1845:8]
+
+Clone found (tsx)
+ - components/app/lead-drawer.tsx [1698:31 - 1706:8]
+   screens/mi-cartera.tsx [2359:23 - 2367:8]
+
+Clone found (tsx)
+ - components/app/splash-crm.tsx [275:11 - 289:20]
+   components/app/splash-crm.tsx [327:7 - 341:16]
+
+Clone found (typescript)
+ - data/crm-api.ts [887:22 - 900:56]
+   data/crm-api.ts [1264:28 - 1274:56]
+
+Clone found (typescript)
+ - data/crm-api.ts [888:5 - 894:47]
+   data/crm-api.ts [1308:10 - 1314:47]
+
+Clone found (css)
+ - index.css [310:66 - 315:7]
+   index.css [356:32 - 361:5]
+
+Clone found (typescript)
+ - lib/auth-maquina.ts [376:50 - 395:7]
+   lib/auth-maquina.ts [432:94 - 449:7]
+
+Clone found (typescript)
+ - lib/conversion-mensual.ts [170:23 - 179:6]
+   lib/objetivos.ts [315:22 - 323:6]
+
+Clone found (typescript)
+ - lib/conversion-vendedores.ts [421:72 - 440:13]
+   lib/conversion-vendedores.ts [511:63 - 527:13]
+
+Clone found (typescript)
+ - lib/database.types.ts [2274:15 - 2299:25]
+   lib/database.types.ts [2314:15 - 2339:25]
+
+Clone found (typescript)
+ - lib/database.types.ts [3131:15 - 3156:15]
+   lib/database.types.ts [3162:15 - 3187:15]
+
+Clone found (typescript)
+ - lib/database.types.ts [5301:15 - 5322:13]
+   lib/database.types.ts [5337:15 - 5358:13]
+
+Clone found (typescript)
+ - lib/database.types.ts [5695:25 - 5707:103]
+   lib/database.types.ts [5720:25 - 5732:103]
+
+Clone found (typescript)
+ - lib/demo-inteligencia-comercial.ts [329:11 - 342:6]
+   lib/demo.ts [220:49 - 233:4]
+
+Clone found (typescript)
+ - lib/metricas-agenda.ts [40:57 - 47:6]
+   lib/metricas-distribucion.ts [45:44 - 53:6]
+
+Clone found (typescript)
+ - lib/metricas-vendedores.ts [46:10 - 57:9]
+   lib/metricas-vendedores.ts [94:12 - 105:9]
+
+Clone found (typescript)
+ - lib/metricas-vendedores.ts [119:5 - 124:4]
+   lib/metricas-vendedores.ts [143:5 - 148:14]
+
+Clone found (typescript)
+ - lib/metricas-vendedores.ts [135:22 - 147:91]
+   lib/metricas-vendedores.ts [160:25 - 171:91]
+
+Clone found (typescript)
+ - lib/objetivos.ts [489:20 - 500:6]
+   lib/objetivos.ts [668:15 - 679:8]
+
+Clone found (typescript)
+ - lib/productos-inversion.ts [25:59 - 35:35]
+   lib/productos-inversion.ts [107:42 - 117:35]
+
+Clone found (tsx)
+ - lib/store.tsx [2418:21 - 2441:23]
+   lib/store.tsx [2460:41 - 2482:23]
+
+Clone found (tsx)
+ - screens/agenda.tsx [258:95 - 268:25]
+   screens/hoy/vendedor.tsx [1745:79 - 1755:25]
+
+Clone found (tsx)
+ - screens/agenda.tsx [550:45 - 560:31]
+   screens/agenda.tsx [638:119 - 648:31]
+
+Clone found (tsx)
+ - screens/agenda.tsx [596:135 - 632:13]
+   screens/agenda.tsx [678:148 - 714:13]
+
+Clone found (tsx)
+ - screens/hoy/graficas-gerencia.tsx [358:59 - 367:40]
+   screens/hoy/graficas-gerencia.tsx [402:57 - 411:40]
+
+Clone found (tsx)
+ - screens/hoy/inteligencia-comercial.tsx [392:19 - 402:14]
+   screens/hoy/inteligencia-comercial.tsx [536:19 - 546:14]
+
+Clone found (tsx)
+ - screens/hoy/inteligencia-comercial.tsx [626:54 - 635:52]
+   screens/hoy/inteligencia-comercial.tsx [655:54 - 664:52]
+
+Clone found (tsx)
+ - screens/hoy/inteligencia-comercial.tsx [668:35 - 688:135]
+   screens/hoy/resumen-gerencia.tsx [246:46 - 272:79]
+
+Clone found (tsx)
+ - screens/hoy/supervisor.tsx [129:87 - 150:8]
+   screens/hoy/vendedor.tsx [869:70 - 893:8]
+
+Clone found (tsx)
+ - screens/hoy/supervisor.tsx [998:17 - 1013:26]
+   screens/hoy/vendedor.tsx [1576:17 - 1591:26]
+
+Clone found (tsx)
+ - screens/hoy/vendedor.tsx [1732:47 - 1745:76]
+   screens/hoy/vendedor.tsx [1806:58 - 1818:76]
+
+Clone found (tsx)
+ - screens/mi-cartera.tsx [449:26 - 478:100]
+   screens/mi-cartera.tsx [757:29 - 785:100]
+
+Clone found (tsx)
+ - screens/mi-cartera.tsx [634:37 - 655:12]
+   screens/mi-cartera.tsx [881:38 - 902:14]
+
+┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐
+│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ css        │ 5              │ 1105        │ 17409        │ 1            │ 5 (0.45%)        │ 92 (0.53%)        │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ tsx        │ 145            │ 53165       │ 341352       │ 20           │ 318 (0.60%)      │ 2155 (0.63%)      │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ typescript │ 166            │ 38415       │ 206718       │ 16           │ 218 (0.57%)      │ 1589 (0.77%)      │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ Total:     │ 316            │ 92685       │ 565479       │ 37           │ 541 (0.58%)      │ 3836 (0.68%)      │
+└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘
+Found 37 clones.
+time: 29.596ms
+
+💡 Auto-refactor with AI: npx skills add https://github.com/kucherenko/jscpd --skill dry-refactoring
+🎩 New: Gangsta Agents — discipline your AI coding → gangsta.page
+💖 Support jscpd project → https://opencollective.com/jscpd
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:88316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 190 tests using 7 workers
+
+(node:88322) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88323) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88321) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88319) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88324) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    5 [chromium] › e2e/acciones-demo.spec.ts:7:1 › crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead (3.8s)
+  ✓    3 [chromium] › e2e/acciones-demo.spec.ts:47:1 › editar lead: capital y moneda conservan espacio en un drawer estrecho (4.2s)
+  ✓    2 [chromium] › e2e/acciones-demo.spec.ts:114:1 › registrar actividad: entra al timeline con toast "(demo)" (4.2s)
+  ✓    6 [chromium] › e2e/acciones-demo.spec.ts:32:1 › editar lead: cambia el monto y confirma con toast "(demo)" (4.2s)
+  ✓    7 [chromium] › e2e/acciones-demo.spec.ts:81:1 › descartar con nota: toast "(demo)" y banner de lead descartado (4.2s)
+  ✓    4 [chromium] › e2e/acciones-demo.spec.ts:72:1 › mover etapa: el stepper avanza a Contactado (aria-current) (4.6s)
+  ✓    1 [chromium] › e2e/acciones-demo.spec.ts:98:1 › reabrir: un lead descartado vuelve a Nuevo con toast "(demo)" (4.8s)
+  ✓    8 [chromium] › e2e/acciones-demo.spec.ts:134:1 › reasignar (gerencia): cambia el analista con toast "(demo)" (3.2s)
+  ✓    9 [chromium] › e2e/acciones-demo.spec.ts:145:1 › convertir (demo): abre el diálogo y marca el lead como convertido (4.1s)
+  ✓   10 [chromium] › e2e/acciones-demo.spec.ts:169:1 › anular la tarea que sobra tras agendar la reunión (demo) (4.2s)
+  ✓   11 [chromium] › e2e/acciones-demo.spec.ts:202:1 › anular la reunión devuelve el lead a su etapa anterior (demo) (4.4s)
+  ✓   12 [chromium] › e2e/acciones-demo.spec.ts:233:1 › crear lead mueve el tile "Leads abiertos con analista" al instante (espejo demo VIVO, F1) (4.4s)
+  ✓   13 [chromium] › e2e/acciones-real.spec.ts:22:1 › sesión real: entra al workspace y la UI NO muestra ninguna marca "(demo)" (4.1s)
+  ✓   14 [chromium] › e2e/acciones-real.spec.ts:37:1 › gate abierto: crear lead persiste por RPC atómica y el toast NO dice "(demo)" (4.2s)
+  ✓   15 [chromium] › e2e/acciones-real.spec.ts:63:1 › P-048: un contacto en bolsa queda explicado y no llega al INSERT (4.0s)
+[WebServer] 10:57:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:18.846Z","nivel":"error","evento":"crm.leads.insert_fallido","correlationId":"90c2114c-d851-4325-b1c0-3de9364c04c9","datos":{"error":{"name":"CrmApiError","message":"Este contacto acaba de ser registrado por otro usuario","code":"CONTACTO_RECIEN_REGISTRADO"},"contexto":{"pg":"23505"}}}
+[WebServer] 10:57:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:18.848Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"90c2114c-d851-4325-b1c0-3de9364c04c9","datos":{"error":{"name":"CrmApiError","message":"Este contacto acaba de ser registrado por otro usuario","code":"CONTACTO_RECIEN_REGISTRADO"}}}
+  ✓   16 [chromium] › e2e/acciones-real.spec.ts:81:1 › creación rechazada: rollback honesto y la RPC sí se intentó (3.8s)
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.171Z","nivel":"error","evento":"crm.leads.editar_fallido","correlationId":"c072695c-4b6a-4dbe-af0c-eca25030b355","datos":{"error":{"name":"CrmApiError","message":"Ese teléfono ya pertenece a otro lead abierto de la empresa","code":"DUP_TELEFONO"},"contexto":{"pg":"23505"}}}
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.172Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"c072695c-4b6a-4dbe-af0c-eca25030b355","datos":{"error":{"name":"CrmApiError","message":"Ese teléfono ya pertenece a otro lead abierto de la empresa","code":"DUP_TELEFONO"}}}
+  ✓   17 [chromium] › e2e/acciones-real.spec.ts:102:1 › rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor y no miente (4.0s)
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.625Z","nivel":"error","evento":"crm.leads.ambito_fallido","correlationId":"97deb6f6-7566-4c50-8c46-3d9de6e29d10","datos":{"error":{"name":"CrmApiError","message":"No se pudo cargar la cartera.","code":"POSTGREST_ERROR"}}}
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.626Z","nivel":"error","evento":"crm.carga_real_fallida","correlationId":"97deb6f6-7566-4c50-8c46-3d9de6e29d10","datos":{"error":{"name":"CrmApiError","message":"No se pudo cargar la cartera.","code":"POSTGREST_ERROR"}}}
+  ✓   18 [chromium] › e2e/acciones-real.spec.ts:124:1 › descartar real: persiste la nota como actividad aparte, toast sin "(demo)" (4.4s)
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.899Z","nivel":"error","evento":"crm.actividades.insert_fallido","correlationId":"fbaf5548-f20c-454b-ade3-8b9502e5bb5e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:19 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:19.899Z","nivel":"error","evento":"crm.descarte_nota_fallida","correlationId":"fbaf5548-f20c-454b-ade3-8b9502e5bb5e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"}}}
+  ✓   19 [chromium] › e2e/acciones-real.spec.ts:144:1 › descartar real con nota fallida: avisa el fallo parcial SIN mentir "se restauró" (4.4s)
+  ✓   21 [chromium] › e2e/acciones-real.spec.ts:179:1 › gerencia puede convertir un lead asignado (4.3s)
+  ✓   20 [chromium] › e2e/acciones-real.spec.ts:161:1 › convertir en real: pide los datos de la cuenta y valida antes de tocar el servidor (4.7s)
+  ✓   22 [chromium] › e2e/acciones-real.spec.ts:196:1 › supervisor sobre el lead de SU analista: no se le ofrece convertir (evita el cliente a medias) (3.7s)
+  ✓   24 [chromium] › e2e/acciones-real.spec.ts:228:1 › carga inicial caída: pantalla de error con Reintentar (no pinta el CRM vacío) (2.7s)
+  ✓   23 [chromium] › e2e/acciones-real.spec.ts:213:1 › supervisor sobre un lead de su bandeja: debe asignarlo antes de convertir (3.6s)
+[WebServer] 10:57:22 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:22.969Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"ffd7e619-c8ce-4da0-be1a-029fa1d2419d","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:23 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:23.492Z","nivel":"error","evento":"crm.leads.pagina_fallida","correlationId":"7256ac13-c394-45ec-bd2f-fcc97833e12d","datos":{"error":{"name":"CrmApiError","message":"No se pudo cargar la cartera.","code":"PGRST000"},"contexto":{"etapa":"todas","filtraVendedor":false,"tieneBusqueda":false,"conCursor":false}}}
+  ✓   25 [chromium] › e2e/cartera-keyset.spec.ts:25:1 › la primera página trae 50 filas y «Cargar más» concatena sin repetir (3.8s)
+  ✓   26 [chromium] › e2e/cartera-keyset.spec.ts:46:1 › filtrar por etapa vuelve a preguntar al servidor (3.8s)
+  ✓   28 [chromium] › e2e/cartera-keyset.spec.ts:71:1 › RPC caída: la tabla degrada con aviso y NO ofrece más páginas (3.7s)
+[WebServer] 10:57:24 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:24.172Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2fc9a1ec-4301-4931-9981-f738d7c2bded","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:24 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:24.256Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2e9879dd-484b-4f9e-9f0b-c53a777a2e73","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   27 [chromium] › e2e/cartera-keyset.spec.ts:59:1 › buscar por nombre viaja al servidor y no recorta lo ya cargado (4.2s)
+[WebServer] 10:57:24 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:24.652Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"3c03bc68-e632-4e26-8c78-c6c8f6cbedd1","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   31 [chromium] › e2e/cliente-form.spec.ts:55:1 › alta feliz: UNA llamada y el cliente nace CON su cuenta bancaria (3.8s)
+  ✓   30 [chromium] › e2e/citas-gerencia.spec.ts:27:1 › una consulta no habilitada muestra el error y se recupera sin recurrir a cifras de ejemplo (4.7s)
+  -   37 [chromium] › e2e/clientes.spec.ts:65:1 › lista: pinta la cartera con columnas del portal y el contador
+  -   38 [chromium] › e2e/clientes.spec.ts:86:1 › reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el vencido
+  -   39 [chromium] › e2e/clientes.spec.ts:99:1 › corregir: deshabilitado con la ventana vencida, habilitado con la ventana viva
+  -   40 [chromium] › e2e/clientes.spec.ts:119:1 › "+ Contrato" abre el formulario de contrato del cliente (sin ventana: siempre activo)
+  -   41 [chromium] › e2e/clientes.spec.ts:135:1 › búsqueda: filtra por texto normalizado y muestra el contador "X de N"
+  -   42 [chromium] › e2e/clientes.spec.ts:154:1 › supervisor: acciones SOLO en filas de su cartera personal (regla de cartera por fila)
+  -   43 [chromium] › e2e/clientes.spec.ts:181:1 › supervisor: filtro por analista con el roster (incluye la herencia por creado_por)
+  -   44 [chromium] › e2e/clientes.spec.ts:199:1 › paginación: 60 clientes → 2 páginas de 50 con Anterior/Siguiente
+  -   45 [chromium] › e2e/clientes.spec.ts:234:1 › gerencia: cartera completa con columna Analista y acciones globales
+  -   46 [chromium] › e2e/clientes.spec.ts:261:1 › cartera vacía: estado vacío con el copy del portal
+  -   47 [chromium] › e2e/clientes.spec.ts:272:1 › demo analista: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase
+  -   48 [chromium] › e2e/clientes.spec.ts:307:1 › demo supervisor: su cartera + equipo, acciones SOLO en la fila propia
+  -   49 [chromium] › e2e/clientes.spec.ts:333:1 › demo gerencia: los 6 clientes, acciones globales, búsqueda y filtro
+[WebServer] 10:57:26 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:26.752Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2f9c8a07-2ee1-40e5-8753-bcaaaf5cf62f","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   32 [chromium] › e2e/cliente-form.spec.ts:75:1 › sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente (3.3s)
+  ✓   29 [chromium] › e2e/citas-gerencia.spec.ts:5:1 › Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vistas (5.8s)
+  ✓   34 [chromium] › e2e/cliente-form.spec.ts:114:1 › corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servidor (3.5s)
+[WebServer] 10:57:27 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:27.682Z","nivel":"error","evento":"crm.clientes.alta_fallida","correlationId":"2e9879dd-484b-4f9e-9f0b-c53a777a2e73","datos":{"error":{"name":"CrmApiError","message":"Este documento ya está registrado para otro cliente.","code":"ALTA_CLIENTE_FALLIDA"}}}
+  ✓   33 [chromium] › e2e/cliente-form.spec.ts:102:1 › alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PATCH (4.0s)
+[WebServer] 10:57:27 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:27.977Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"23085f53-a6f8-450f-9cdd-669aacf9d2a7","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:28 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:28.147Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"48cca55e-f556-4469-8973-4e59d1dfe58c","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   35 [chromium] › e2e/cliente-form.spec.ts:139:1 › Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada (3.9s)
+[WebServer] 10:57:28 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:28.356Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"b8e8f115-cac2-4dff-87e6-3a046c463996","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:28 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:28.702Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"8c44b71c-8eb9-4367-a1c8-6e434108f1e0","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   36 [chromium] › e2e/cliente-form.spec.ts:172:1 › corregir con la ventana vencida: 0 filas sin error → mensaje de NO guardado (3.8s)
+[WebServer] 10:57:30 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:30.424Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2b10edce-a86d-4c21-a874-3db47a4eff10","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:31 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:31.070Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"23085f53-a6f8-450f-9cdd-669aacf9d2a7","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:31 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:31.257Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"48cca55e-f556-4469-8973-4e59d1dfe58c","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   52 [chromium] › e2e/contrato-crear.spec.ts:70:1 › Registrar inversión por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX (4.0s)
+[WebServer] 10:57:31 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:31.484Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"b8e8f115-cac2-4dff-87e6-3a046c463996","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   53 [chromium] › e2e/contrato-crear.spec.ts:132:1 › puede fijar una cuenta guardada distinta a la cuenta vigente del perfil (4.0s)
+[WebServer] 10:57:31 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:31.856Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"8c44b71c-8eb9-4367-a1c8-6e434108f1e0","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:31 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:31.954Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"feb3b061-505b-4848-bdbf-343546b8a8ef","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   54 [chromium] › e2e/contrato-crear.spec.ts:158:1 › puede registrar una cuenta nueva inline y la envía normalizada en la misma alta (4.4s)
+[WebServer] 10:57:32 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:32.248Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"79cbb858-2c6a-4519-b940-1e5560218310","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   55 [chromium] › e2e/contrato-crear.spec.ts:193:1 › cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la nueva moneda (4.2s)
+[WebServer] 10:57:32 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:32.709Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"d998a5a4-78dd-4791-b526-7b155671ecbb","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   51 [chromium] › e2e/config-demo.spec.ts:35:3 › demo directorio: recorre las cuatro configuraciones sin red (5.9s)
+[WebServer] 10:57:32 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:32.938Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"5053a2de-9531-4b3a-8d13-ef11c86252ca","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:33 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:33.363Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"2d52e486-bd3d-4906-8da5-6d3fdfb746a9","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:33 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:33.627Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"2b10edce-a86d-4c21-a874-3db47a4eff10","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   56 [chromium] › e2e/contrato-crear.spec.ts:244:1 › sin los 6 dígitos obligatorios NO se llama al servidor (3.8s)
+  ✓   50 [chromium] › e2e/config-demo.spec.ts:35:3 › demo gerencia: recorre las cuatro configuraciones sin red (7.3s)
+  -   63 [chromium] › e2e/contratos.spec.ts:49:1 › picker de "+ Contrato": el supervisor solo ve su cartera PROPIA, no la del equipo
+  -   64 [chromium] › e2e/contratos.spec.ts:66:1 › la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida; Corregir solo en lo propio y vivo
+  -   65 [chromium] › e2e/contratos.spec.ts:113:1 › directorio: sin columnas Ventana/Acciones ni relojes; la fila clicable abre el detalle
+  -   66 [chromium] › e2e/contratos.spec.ts:136:1 › búsqueda y filtro por estado: contador "X de N", "Sin resultados" honesto y AND
+  -   67 [chromium] › e2e/contratos.spec.ts:166:1 › paginación: 60 contratos → 2 páginas de 50 con Anterior/Siguiente
+  -   68 [chromium] › e2e/contratos.spec.ts:200:1 › error de carga: panel con Reintentar (sin tumbar la sesión) que repone la tabla
+  -   69 [chromium] › e2e/contratos.spec.ts:214:1 › cartera sin contratos: el vacío del portal ("Aún no registraste contratos.")
+  -   70 [chromium] › e2e/contratos.spec.ts:222:1 › + Contrato crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX
+  -   71 [chromium] › e2e/contratos.spec.ts:246:1 › sin los 6 dígitos obligatorios NO se llama al servidor
+  -   72 [chromium] › e2e/contratos.spec.ts:262:1 › los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados
+  -   73 [chromium] › e2e/contratos.spec.ts:290:1 › co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
+  -   74 [chromium] › e2e/contratos.spec.ts:323:1 › crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta al volver SIN reload
+  -   75 [chromium] › e2e/contratos.spec.ts:355:1 › demo: contratos poblados, detalle por fila clicable con cronograma fixture y SIN pegarle a Supabase
+[WebServer] 10:57:34 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:34.157Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"90d30798-17c1-4060-83c5-9eec8e309606","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:35 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:35.042Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"feb3b061-505b-4848-bdbf-343546b8a8ef","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:35 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:35.354Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"79cbb858-2c6a-4519-b940-1e5560218310","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   57 [chromium] › e2e/contrato-crear.spec.ts:259:1 › los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados (4.0s)
+  ✓   58 [chromium] › e2e/contrato-crear.spec.ts:286:1 › co-titular a medio llenar o duplicado corta el guardado ANTES del servidor (4.2s)
+[WebServer] 10:57:35 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:35.784Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"d998a5a4-78dd-4791-b526-7b155671ecbb","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   59 [chromium] › e2e/contrato-crear.spec.ts:320:1 › cliente SIN domicilio: el alta se frena, se rellena en el momento y entonces sí se crea (3.9s)
+  ✓   60 [chromium] › e2e/contrato-detalle.spec.ts:68:1 › detalle: términos + co-titulares + cronograma (pagada y pendiente) + totales (3.8s)
+[WebServer] 10:57:36 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:36.604Z","nivel":"error","evento":"crm.rentabilidad.historial_fallido","correlationId":"2d52e486-bd3d-4906-8da5-6d3fdfb746a9","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   61 [chromium] › e2e/contrato-detalle.spec.ts:123:1 › corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contrato (3.8s)
+[WebServer] 10:57:37 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:37.353Z","nivel":"error","evento":"crm.rentabilidad.historial_fallido","correlationId":"90d30798-17c1-4060-83c5-9eec8e309606","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:37 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:37.448Z","nivel":"error","evento":"crm.contrato.actualizar_fallido","correlationId":"90d30798-17c1-4060-83c5-9eec8e309606","datos":{"error":{"name":"CrmApiError","message":"Solo puedes corregir un contrato dentro de las 5 horas de creado","code":"REGLA_SERVIDOR"},"contexto":{"pg":"P0001"}}}
+  ✓   62 [chromium] › e2e/contrato-detalle.spec.ts:162:1 › ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual (3.7s)
+  ✓   76 [chromium] › e2e/demo-roles.spec.ts:18:3 › Analista: entra a la demo, ve su panel principal y navega el pipeline (5.3s)
+  ✓   77 [chromium] › e2e/demo-roles.spec.ts:18:3 › Supervisor: entra a la demo, ve su panel principal y navega el pipeline (4.9s)
+  ✓   78 [chromium] › e2e/demo-roles.spec.ts:18:3 › Gerencia: entra a la demo, ve su panel principal y navega el pipeline (4.9s)
+  ✓   79 [chromium] › e2e/demo-roles.spec.ts:18:3 › Directorio: entra a la demo, ve su panel principal y navega el pipeline (4.9s)
+  ✓   81 [chromium] › e2e/demo-roles.spec.ts:52:1 › Analista: Hoy prioriza tres movimientos y abre la ficha sin cambiar de superficie (4.7s)
+  ✓   80 [chromium] › e2e/demo-roles.spec.ts:37:1 › Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado (5.4s)
+  ✓   82 [chromium] › e2e/demo-roles.spec.ts:82:1 › Analista móvil: la primera acción cabe a 390 px, conserva targets táctiles y no desborda (4.8s)
+  ✓   85 [chromium] › e2e/derivaciones.spec.ts:6:1 › demo supervisor: Derivar leads abre como módulo propio sin tocar Supabase (3.3s)
+  ✓   86 [chromium] › e2e/distribucion-gerencia.spec.ts:15:3 › distribución de leads en Hoy > Gerencia › sesión real: resumen, tarjetas y tabla bajo demanda con edición del límite (3.5s)
+  ✓   83 [chromium] › e2e/demo-roles.spec.ts:109:1 › Analista: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco (5.2s)
+  ✓   87 [chromium] › e2e/distribucion-gerencia.spec.ts:84:3 › distribución de leads en Hoy > Gerencia › móvil 390px: la pantalla no desborda; lo ancho scrollea en contenedores internos (3.5s)
+  ✓   88 [chromium] › e2e/distribucion-gerencia.spec.ts:115:3 › distribución de leads en Hoy > Gerencia › demo: tablero ficticio SIEMPRE etiquetado como demostración y sin consultar Supabase (3.6s)
+  ✓   84 [chromium] › e2e/demo-roles.spec.ts:140:1 › Directorio: es lector global (ve el pipeline completo sin acciones de alta) (5.0s)
+[WebServer] 10:57:46 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:46.304Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"028a882f-a0d3-4e11-b1a6-9a0a928d7230","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   89 [chromium] › e2e/equipo.spec.ts:17:1 › demo supervisor: Gestión de equipo conserva seguimiento y separa el reparto (4.2s)
+  ✓   90 [chromium] › e2e/equipo.spec.ts:41:1 › supervisor real: el selector mensual recupera la foto completa de agosto (3.6s)
+  ✓   91 [chromium] › e2e/equipo.spec.ts:137:1 › demo gerencia: un bloque por supervisor con la TABLA comparativa de analistas (3.6s)
+  ✓   92 [chromium] › e2e/equipo.spec.ts:175:1 › demo gerencia: reparte desde la bandeja global (optgroup por equipo) con toast "(demo)" (3.7s)
+  ✓   93 [chromium] › e2e/equipo.spec.ts:194:1 › demo directorio: la misma radiografía en tabla pero SIN botones de acción (3.4s)
+[WebServer] 10:57:48 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:48.835Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"28a0206d-d426-47e3-80a3-66c7dbe5d538","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:49 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:49.132Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"f43d867f-7083-44c3-8279-3e9af79173e3","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   94 [chromium] › e2e/f5-cartera.spec.ts:46:3 › vendedor: ficha neutral, retorno de foco y permisos por rol (4.0s)
+[WebServer] 10:57:49 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:49.386Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"6bef0d3d-c770-4308-9037-74dd12cc030d","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   95 [chromium] › e2e/f5-cartera.spec.ts:46:3 › supervisor: ficha neutral, retorno de foco y permisos por rol (4.4s)
+[WebServer] 10:57:50 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:50.056Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"4b596fb2-564d-4f5f-908c-a239c391ee7a","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   96 [chromium] › e2e/f5-cartera.spec.ts:46:3 › gerencia: ficha neutral, retorno de foco y permisos por rol (3.7s)
+[WebServer] 10:57:50 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:50.422Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"689dafdb-e0f3-48a9-8a24-2844ae498f4e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:50 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:50.955Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"d0e381df-053b-4d77-812c-b824e6cf6167","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   97 [chromium] › e2e/f5-cartera.spec.ts:46:3 › directorio: ficha neutral, retorno de foco y permisos por rol (4.0s)
+  ✓   98 [chromium] › e2e/f5-cartera.spec.ts:64:1 › móvil: búsqueda conservada, formulario nativo, revisión y confirmación única (4.1s)
+  ✓  100 [chromium] › e2e/f5-cartera.spec.ts:102:1 › tres empresas y dos monedas: la ficha mantiene cada capital separado (4.0s)
+[WebServer] 10:57:53 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:53.571Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"4960f30f-0907-4601-a621-49f061d2a627","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:54 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:54.351Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"25bc0998-5359-4c99-8b4a-b43202a3595f","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  103 [chromium] › e2e/f6-postventa.spec.ts:116:1 › veto impide contacto, pero permite registrar un retiro recibido sin mover dinero (4.7s)
+[WebServer] 10:57:55 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:55.904Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"41221bc7-1852-4201-9dc6-7f854bbc8d7b","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:57:56 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:56.292Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"8691ef0e-2166-4b2d-b4a7-608a5940b58b","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  104 [chromium] › e2e/f6-postventa.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.9s)
+  ✓  105 [chromium] › e2e/f6-postventa.spec.ts:164:1 › Directorio no recibe acciones ni agenda neutral (4.2s)
+  ✓  102 [chromium] › e2e/f6-postventa.spec.ts:102:1 › móvil: recupera un alta confirmada cuya respuesta se cortó sin duplicarla (6.9s)
+  ✓  101 [chromium] › e2e/f6-postventa.spec.ts:82:1 › agenda compartida, cierre con siguiente y enlace persistente a la ficha (8.8s)
+[WebServer] 10:57:58 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:57:58.304Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"44d24003-e1fd-496b-9c0d-6c7c003e9b50","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  107 [chromium] › e2e/f6-postventa.spec.ts:184:1 › un rechazo de postventa no cierra una ficha F5 que sigue autorizada (4.2s)
+  ✓  109 [chromium] › e2e/gerencia-operativa.spec.ts:21:1 › Gerencia abre un lead asignado a otro analista y puede iniciar su conversión (3.9s)
+  ✓  110 [chromium] › e2e/gerencia-operativa.spec.ts:42:1 › los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn (3.8s)
+[WebServer] 10:58:00 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:00.746Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"44d24003-e1fd-496b-9c0d-6c7c003e9b50","datos":{"error":{"name":"CrmApiError","message":"La reunión cambió; recarga la agenda","code":"P0409"}}}
+  ✓  108 [chromium] › e2e/gerencia-coherencia.spec.ts:7:1 › siete hallazgos: conserva el corte mensual, combina fuentes y protege el mes cerrado (4.4s)
+  ✓  106 [chromium] › e2e/f6-postventa.spec.ts:171:1 › un rechazo al confirmar reunión neutral muestra el error y conserva la tarea (8.5s)
+  ✓  111 [chromium] › e2e/gerencia-operativa.spec.ts:58:1 › Leads distingue cierres del mes del inventario y conserva totales al filtrar la tabla (3.8s)
+[WebServer] 10:58:02 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:02.844Z","nivel":"error","evento":"crm.metricas.resumen_cartera_fallido","correlationId":"c0e7b0af-99e9-48be-ad18-ddfe9d0a40bb","datos":{"error":{"name":"CrmApiError","message":"No se pudieron cargar las métricas.","code":"PGRST000"}}}
+  ✓  112 [chromium] › e2e/gerencia-operativa.spec.ts:95:1 › RPC de resumen caída: el tablero degrada a «—» con aviso y sigue operable (4.2s)
+  ✓  113 [chromium] › e2e/gerencia-operativa.spec.ts:116:1 › Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedores_fn (3.4s)
+[WebServer] 10:58:04 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:04.406Z","nivel":"error","evento":"crm.metricas.vendedores_fallido","correlationId":"6266542f-68cc-46eb-9557-91339f32552f","datos":{"error":{"name":"CrmApiError","message":"No se pudieron cargar las métricas.","code":"PGRST000"}}}
+  ✓  114 [chromium] › e2e/gerencia-operativa.spec.ts:137:1 › métricas de equipo caídas: Equipo degrada a «—» con aviso y reintento (4.4s)
+  ✓  115 [chromium] › e2e/gerencia-operativa.spec.ts:158:1 › Gerencia anula el cierre de un lead convertido y la marca queda a la vista (4.1s)
+  ✓  117 [chromium] › e2e/graficas.spec.ts:17:1 › demo gerencia: el resumen analítico usa fixtures y no consulta Supabase (3.2s)
+  ✓  116 [chromium] › e2e/gerencia-operativa.spec.ts:193:1 › un cierre en cooperativa NO ofrece el botón de anular de Avance (4.3s)
+[WebServer] 10:58:06 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:06.559Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"6a01d378-1137-4fda-9358-5558e0d2a449","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:06 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:06.586Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"3b135e00-56f7-4b17-83b6-3261e2aa171d","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  119 [chromium] › e2e/graficas.spec.ts:144:3 › resumen de Gerencia en sesión real › sin paridad del rango no publica su conversión ni la reemplaza con el mes (3.0s)
+[WebServer] 10:58:07 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:07.329Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"cf14a623-96a8-44f3-9280-c1975fd8b104","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓   99 [chromium] › e2e/f5-cartera.spec.ts:92:1 › revocación con ficha abierta retira identidad y evita reutilizar datos anteriores (19.4s)
+  ✓  120 [chromium] › e2e/graficas.spec.ts:173:3 › resumen de Gerencia en sesión real › un rango vacío con foto mensual ausente no inventa metas ni series demo (2.7s)
+[WebServer] 10:58:08 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:08.134Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"0a09638f-215a-4b38-9611-8e084c985338","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  121 [chromium] › e2e/graficas.spec.ts:185:3 › resumen de Gerencia en sesión real › ranking real de Gerencia consulta agosto como mes calendario completo (3.8s)
+  ✓  118 [chromium] › e2e/graficas.spec.ts:35:3 › resumen de Gerencia en sesión real › distingue base, llegadas, avance inferido y citas en las lecturas simuladas (5.6s)
+[WebServer] 10:58:09 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:09.545Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"b8c4d3ab-2809-4b8c-9833-67767ee0a03f","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:09 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:09.747Z","nivel":"error","evento":"crm.rentabilidad.historial_fallido","correlationId":"6a01d378-1137-4fda-9358-5558e0d2a449","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  123 [chromium] › e2e/mi-cartera-compatibilidad.spec.ts:52:1 › la compatibilidad no oculta una denegación posterior de acceso (4.4s)
+  ✓  122 [chromium] › e2e/mi-cartera-compatibilidad.spec.ts:8:1 › RPC F5 ausente: el refresco conserva la ficha abierta y los filtros de cartera (4.6s)
+  ✓  124 [chromium] › e2e/mi-cartera-compatibilidad.spec.ts:69:1 › la comprobación periódica sigue detectando F5 cuando el servidor la habilita (3.8s)
+[WebServer] 10:58:11 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:11.019Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"13396566-494e-47ed-b242-92ec947e67dc","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  125 [chromium] › e2e/mi-cartera-detalle.spec.ts:16:1 › real: un analista abre la Ficha 360 de su cliente aunque la ventana de 5 h venció (3.9s)
+  ✓  126 [chromium] › e2e/mi-cartera-detalle.spec.ts:56:1 › real: directorio ve la Ficha 360 mínima sin domicilio, banca ni llamadas a sus RPC (3.9s)
+[WebServer] 10:58:12 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:12.253Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"13132642-51e0-49b2-8295-dea1276a3f53","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  127 [chromium] › e2e/mi-cartera-detalle.spec.ts:80:1 › real: supervisor gestiona y contrata para su equipo, pero no corrige el perfil ajeno (3.8s)
+[WebServer] 10:58:12 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:12.670Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"f9126bcb-7eaa-4e7a-b492-ed9faefe7f9e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:12 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:12.855Z","nivel":"error","evento":"crm.rentabilidad.historial_fallido","correlationId":"b8c4d3ab-2809-4b8c-9833-67767ee0a03f","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:13 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:13.198Z","nivel":"error","evento":"crm.rentabilidad.historial_fallido","correlationId":"b8c4d3ab-2809-4b8c-9833-67767ee0a03f","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  128 [chromium] › e2e/mi-cartera-detalle.spec.ts:97:1 › real: al cerrar un contrato vuelve a la Ficha 360 y al contrato de origen (4.2s)
+  ✓  129 [chromium] › e2e/mi-cartera-detalle.spec.ts:120:1 › demo: abre la ficha ficticia completa sin ningún request a Supabase (3.9s)
+  ✓  130 [chromium] › e2e/mi-cartera-detalle.spec.ts:142:1 › demo: directorio ve la ficha comercial sin domicilio ni números bancarios ficticios (4.1s)
+  ✓  131 [chromium] › e2e/mi-cartera-meses.spec.ts:22:1 › la cartera arranca en el mes en curso y el desplegable trae el resto (3.7s)
+  ✓  132 [chromium] › e2e/mi-cartera-meses.spec.ts:63:1 › el resumen avisa cuando el mes incluye un contrato que registró otra persona (3.5s)
+  ✓  133 [chromium] › e2e/mi-cartera-meses.spec.ts:97:1 › sin cierres este mes, la pantalla lo dice y ofrece la salida (4.2s)
+  ✓  134 [chromium] › e2e/mi-cartera-resumen.spec.ts:13:1 › Gerencia conserva cierres mensuales y usa el saldo del resumen en Todos los meses (4.4s)
+  ✓  136 [chromium] › e2e/mi-cartera-resumen.spec.ts:71:1 › un resumen inválido avisa sin inventar cero; reintentar recupera el indicador (4.7s)
+[WebServer] 10:58:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:18.391Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"877a3deb-92b6-4ab4-aa49-69688891d3ad","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:58:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:18.397Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"877a3deb-92b6-4ab4-aa49-69688891d3ad","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:58:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:18.405Z","nivel":"error","evento":"crm.config.productos.lectura_fallida","correlationId":"877a3deb-92b6-4ab4-aa49-69688891d3ad","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:18 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:18.417Z","nivel":"error","evento":"crm.config.sla.lectura_fallida","correlationId":"877a3deb-92b6-4ab4-aa49-69688891d3ad","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+  ✓  139 [chromium] › e2e/notificaciones-tasa.spec.ts:58:1 › un aviso antiguo conserva la ruta tras recargar y explica que ya no está pendiente (3.4s)
+  ✓  137 [chromium] › e2e/mi-cartera-resumen.spec.ts:92:1 › un listado sin confirmación de totalidad no se presenta como cartera vacía (4.9s)
+  ✓  138 [chromium] › e2e/notificaciones-tasa.spec.ts:7:1 › Gerencia activa avisos, envía prueba y los desactiva con el worker real (4.8s)
+  ✓  140 [chromium] › e2e/notificaciones-tasa.spec.ts:66:1 › abrir el aviso sin sesión conserva la solicitud y la enfoca después del login (3.2s)
+[WebServer] 10:58:20 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:20.399Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"a09d986e-d902-4442-a04b-c1cd7da0effe","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:58:20 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:20.417Z","nivel":"error","evento":"crm.config.productos.lectura_fallida","correlationId":"a09d986e-d902-4442-a04b-c1cd7da0effe","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:20 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:20.492Z","nivel":"error","evento":"crm.agenda_ics.select_fallido","correlationId":"a09d986e-d902-4442-a04b-c1cd7da0effe","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":"PGRST116"}}}
+[WebServer] 10:58:20 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:20.493Z","nivel":"error","evento":"crm.config.sla.lectura_fallida","correlationId":"a09d986e-d902-4442-a04b-c1cd7da0effe","datos":{"error":{"name":"CrmApiError","message":"No se pudo completar la operación.","code":"CONFIG_ERROR"},"contexto":{"pg":""}}}
+  ✓  141 [chromium] › e2e/notificaciones-tasa.spec.ts:90:1 › manifiesto e iconos existen y el móvil mantiene controles visibles (3.6s)
+  ✓  142 [chromium] › e2e/repartir.spec.ts:131:1 › Supervisión → analistas permite auditar entregas por fecha, analista y origen con filtros combinables (3.1s)
+  ✓  135 [chromium] › e2e/mi-cartera-resumen.spec.ts:32:1 › Cartera con movimiento habilitado no invierte el signo durante el cambio de mes (8.3s)
+  ✓  143 [chromium] › e2e/repartir.spec.ts:208:1 › Coordinación muestra la entrega real antes de que Supervisión la reparta a analistas (3.1s)
+  ✓  144 [chromium] › e2e/repartir.spec.ts:261:1 › el coordinador aterriza en Repartir y su navegación se reduce a lo suyo (3.9s)
+  ✓  145 [chromium] › e2e/repartir.spec.ts:275:1 › #/mi-cartera por URL expulsa al coordinador de vuelta a Repartir (4.2s)
+  ✓  146 [chromium] › e2e/repartir.spec.ts:284:1 › la cabecera separa el capital PEN del USD (jamás los suma) (4.2s)
+[WebServer] 10:58:24 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:24.482Z","nivel":"error","evento":"crm.reparto.repartir_fallido","correlationId":"cbecb9fd-d1c5-4f72-89b8-b6097290004a","datos":{"error":{"name":"CrmApiError","message":"Lead marcado No Insista (Ley 29571): no se puede repartir","code":"NO_INSISTA"},"contexto":{"pg":"P0429"}}}
+  ✓  148 [chromium] › e2e/repartir.spec.ts:319:1 › el veto legal (No Insista) avisa, NO mueve la fila y resincroniza la cola (3.0s)
+  ✓  150 [chromium] › e2e/repartir.spec.ts:356:1 › cola vacía: estado honesto que explica de dónde vendrán los leads (3.4s)
+[WebServer] 10:58:25 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:25.161Z","nivel":"error","evento":"crm.reparto.repartir_fallido","correlationId":"ec081353-9eeb-4ad2-bbaf-58d00d655766","datos":{"error":{"name":"CrmApiError","message":"El lead ya no está en la cola por repartir (tiene dueño, está cerrado o no existe)","code":"FUERA_DE_COLA"},"contexto":{"pg":"P0002"}}}
+  ✓  149 [chromium] › e2e/repartir.spec.ts:340:1 › si el lead ya salió de la cola, avisa y resincroniza (3.5s)
+  ✓  151 [chromium] › e2e/repartir.spec.ts:365:1 › los tiles de la cola los sirve resumen_reparto_fn, no el conteo del navegador (3.1s)
+[WebServer] 10:58:26 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:26.660Z","nivel":"error","evento":"crm.reparto.resumen_fallido","correlationId":"47d844e7-0f18-47a3-b1c5-b07a41f49231","datos":{"error":{"name":"CrmApiError","message":"No se pudieron cargar las métricas.","code":"PGRST000"}}}
+  ✓  152 [chromium] › e2e/repartir.spec.ts:374:1 › el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas cargadas (3.5s)
+[WebServer] 10:58:26 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:26.747Z","nivel":"error","evento":"crm.reparto.resumen_fallido","correlationId":"47d844e7-0f18-47a3-b1c5-b07a41f49231","datos":{"error":{"name":"CrmApiError","message":"No se pudieron cargar las métricas.","code":"PGRST000"}}}
+  ✓  154 [chromium] › e2e/repartir.spec.ts:415:1 › sin supervisores activos no se puede repartir y la pantalla lo dice (2.8s)
+  ✓  155 [chromium] › e2e/repartir.spec.ts:424:1 › el lead marcado muestra la etiqueta "Posible crédito" y el comentario redactado (2.9s)
+  ✓  156 [chromium] › e2e/repartir.spec.ts:438:1 › descartar un lead marcado: motivo pre-propuesto, RPC exacta y fila fuera (2.9s)
+  ✓  147 [chromium] › e2e/repartir.spec.ts:299:1 › repartir un lead lo saca de la cola y sube la bandeja del supervisor (7.5s)
+  ✓  157 [chromium] › e2e/repartir.spec.ts:460:1 › el descarte se puede deshacer desde el aviso y el lead vuelve a la cola (3.1s)
+  ✓  158 [chromium] › e2e/repartir.spec.ts:477:1 › un lead sin marca exige elegir motivo antes de poder descartar (2.9s)
+[WebServer] 10:58:30 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:30.364Z","nivel":"error","evento":"crm.descarte.descartar_fallido","correlationId":"dd4e0020-d5e2-4c41-b726-ea021c03d68e","datos":{"error":{"name":"CrmApiError","message":"El lead ya no está en la cola por repartir (carrera de descarte)","code":"FUERA_DE_COLA"},"contexto":{"pg":"P0002"}}}
+  ✓  159 [chromium] › e2e/repartir.spec.ts:492:1 › si el descarte pierde la carrera, avisa y resincroniza la cola (3.2s)
+  ✓  160 [chromium] › e2e/repartir.spec.ts:513:1 › Cancelar sale del modo descarte sin llamar al servidor (3.0s)
+  ✓  153 [chromium] › e2e/repartir.spec.ts:401:1 › resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible (7.8s)
+  ✓  161 [chromium] › e2e/repartir.spec.ts:527:1 › el último lead en entrar se ve PRIMERO, y el orden se puede invertir (3.2s)
+  ✓  162 [chromium] › e2e/repartir.spec.ts:539:1 › cada fila muestra la fecha y hora de ingreso del lead (3.3s)
+  ✓  163 [chromium] › e2e/repartir.spec.ts:548:1 › la búsqueda filtra por nombre y el vacío de filtros ofrece limpiar (3.1s)
+  ✓  164 [chromium] › e2e/repartir.spec.ts:562:1 › el toggle "Posible crédito" deja solo los marcados por el clasificador (3.3s)
+  ✓  165 [chromium] › e2e/repartir.spec.ts:570:1 › la cola pagina de a 20 sin acumular filas (adiós scroll infinito) (3.0s)
+  ✓  166 [chromium] › e2e/repartir.spec.ts:594:1 › un comentario largo se expande con "Ver todo" y se vuelve a plegar (3.5s)
+  ✓  167 [chromium] › e2e/repartir.spec.ts:654:1 › la pestaña Descartados lista lo cerrado, con motivo, autor y nota (3.6s)
+  ✓  169 [chromium] › e2e/repartir.spec.ts:688:1 › un descarte ajeno o fuera de ventana NO ofrece deshacer, explica por qué (3.5s)
+  ✓  168 [chromium] › e2e/repartir.spec.ts:669:1 › deshacer un descarte propio dentro de la ventana lo saca de la lista (3.8s)
+[WebServer] 10:58:35 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:35.229Z","nivel":"error","evento":"crm.descarte.deshacer_fallido","correlationId":"70832bdc-149f-4a25-b18b-d0376db59bc8","datos":{"error":{"name":"CrmApiError","message":"Solo puedes deshacer tus propios descartes de las últimas 24 horas","code":"FUERA_DE_COLA"},"contexto":{"pg":"P0002"}}}
+  ✓  170 [chromium] › e2e/repartir.spec.ts:697:1 › si el deshacer falla (ventana vencida en el server), avisa y no miente (3.2s)
+[WebServer] 10:58:35 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:35.569Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"7fffef4c-dbee-4e71-8453-d4e733a40f3c","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  171 [chromium] › e2e/repartir.spec.ts:712:1 › la pestaña Descartados vacía explica de dónde saldrán los datos (3.0s)
+  ✓  172 [chromium] › e2e/sla-operacion.spec.ts:126:1 › la cola abre una ficha completa fuera del lote inicial después de confirmar su lectura RLS (4.0s)
+  ✓  173 [chromium] › e2e/sla-operacion.spec.ts:155:1 › si RLS ya no devuelve la oportunidad, la cola informa el fallo y no abre una ficha parcial (4.1s)
+  ✓  174 [chromium] › e2e/sla-operacion.spec.ts:169:1 › Analista: Seguimiento se abre desde su módulo, pagina sin acumular filas y abre la ficha (4.2s)
+  ✓  177 [chromium] › e2e/sla-operacion.spec.ts:330:1 › el contacto y su siguiente tarea se confirman juntos antes de cerrar el diálogo (4.1s)
+[WebServer] 10:58:39 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:39.641Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"148b0464-5680-4dbb-ae63-25645047874b","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  175 [chromium] › e2e/sla-operacion.spec.ts:244:3 › gerencia: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada (5.1s)
+[WebServer] 10:58:40 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:40.215Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"bdc638b8-d438-4d7a-9230-208f50eaa1ff","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:40 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:40.690Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"0896e1eb-1964-4e8b-98de-17738cfbc01a","datos":{"error":{"name":"CrmApiError","message":"Confirmación pendiente. Reintenta el mismo guardado; no se duplicará.","code":"SLA_CONFIRMACION_PENDIENTE"}}}
+[WebServer] 10:58:40 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:40.950Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"5e68bead-4b87-4d60-acf2-f6b540e3a809","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  176 [chromium] › e2e/sla-operacion.spec.ts:244:3 › supervisor: Seguimiento tiene módulo propio, filtra el ámbito servido y conserva la navegación paginada (6.0s)
+  ✓  178 [chromium] › e2e/sla-operacion.spec.ts:357:1 › el reintento tras perder la respuesta conserva la siguiente tarea aunque el resync ya la muestre (5.2s)
+[WebServer] 10:58:41 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:41.365Z","nivel":"error","evento":"crm.mutacion_revertida","correlationId":"38a92045-44db-409f-9ed6-44e76750eae1","datos":{"error":{"name":"CrmApiError","message":"Confirmación pendiente. Reintenta el mismo guardado; no se duplicará.","code":"SLA_CONFIRMACION_PENDIENTE"}}}
+[WebServer] 10:58:42 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:42.365Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"28dc45cc-86fa-4b30-97fe-110e0dc372a2","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  180 [chromium] › e2e/sla-operacion.spec.ts:426:1 › Gerencia publica las reglas aprobadas y activa solo después de la confirmación (4.2s)
+  ✓  181 [chromium] › e2e/sla-operacion.spec.ts:485:1 › la campana abre pendientes y el aviso recupera una actividad fuera del lote de Agenda (4.5s)
+  ✓  182 [chromium] › e2e/sla-operacion.spec.ts:541:1 › cerrar una llamada contestada actualiza Primera atención aunque la lectura inicial llegue tarde (4.3s)
+[WebServer] 10:58:43 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:43.878Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"bdb87e74-1842-48a1-a4e7-e8eee0798c52","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  183 [chromium] › e2e/sla-operacion.spec.ts:600:3 › modelo 3: vendedor conserva la tarea futura con etapa agotada y ve solo su acción (3.9s)
+[WebServer] 10:58:44 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:44.522Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"0be91d09-6f3f-41de-b879-f5c49dd7daad","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:44 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:44.722Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"b94f2e82-65e3-4b57-b1b6-cea4219b8c9e","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  179 [chromium] › e2e/sla-operacion.spec.ts:390:1 › tras recargar verifica explícitamente el guardado original sin reconstruir el formulario (7.4s)
+[WebServer] 10:58:45 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:45.438Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"3f3b91d7-cd70-4efe-92a6-174788582407","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  184 [chromium] › e2e/sla-operacion.spec.ts:600:3 › modelo 3: supervisor conserva la tarea futura con etapa agotada y ve solo su acción (4.6s)
+  ✓  188 [chromium] › e2e/superadmin-roles.spec.ts:4:1 › Superadmin con membresía Coordinador aterriza solo en Usuarios y no precarga operación CRM (3.1s)
+[WebServer] 10:58:46 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:46.966Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"bdb87e74-1842-48a1-a4e7-e8eee0798c52","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:47 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:47.545Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"bdb87e74-1842-48a1-a4e7-e8eee0798c52","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:47 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:47.627Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"0be91d09-6f3f-41de-b879-f5c49dd7daad","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  186 [chromium] › e2e/solicitud-tasa.spec.ts:5:3 › motivo editable y contrato bloqueado hasta la respuesta de Gerencia (1280px) (4.6s)
+[WebServer] 10:58:48 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:48.204Z","nivel":"error","evento":"crm.contrato.datos_legales_fallido","correlationId":"0be91d09-6f3f-41de-b879-f5c49dd7daad","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  187 [chromium] › e2e/solicitud-tasa.spec.ts:5:3 › motivo editable y contrato bloqueado hasta la respuesta de Gerencia (390px) (4.8s)
+  ✓  185 [chromium] › e2e/sla-operacion.spec.ts:628:1 › modelo 3: actualiza el aviso al vencer la tarea sin recargar ni registrar otra gestión (7.2s)
+[WebServer] 10:58:48 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:48.455Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"3ef415c0-8c76-4c27-97f7-ca23f8f6307d","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+[WebServer] 10:58:49 AM [vite] (client) [console.error] [ac-crm] {"timestamp":"2026-09-11T15:58:49.020Z","nivel":"error","evento":"crm.recordatorios.listar_fallido","correlationId":"a6acf675-9729-41db-a47e-c23be49c3b25","datos":{"error":{"name":"CrmApiError","message":"No se pudo guardar el cambio.","code":"POSTGREST_ERROR"},"contexto":{"pg":""}}}
+  ✓  189 [chromium] › e2e/tasa-lead.spec.ts:12:3 › solicitar y recibir una tasa desde el lead (1440px), sin alta prematura (6.9s)
+  ✓  190 [chromium] › e2e/tasa-lead.spec.ts:12:3 › solicitar y recibir una tasa desde el lead (390px), sin alta prematura (6.4s)
+
+  26 skipped
+  164 passed (1.8m)

@@ -7,7 +7,8 @@
 > La activación requiere configurar el proyecto en Vault y desplegar la Edge.
 > 48 comprobaciones SQL y tres pruebas concurrentes PASS. Dos revisiones de Claude
 > evaluadas y corregidas por Codex. Cron firmado sin exponer la clave de Vault.
-> Falta autorización del SQL y el banco remoto antes de publicar. [Paquete](../scripts/push-tasa/README.md).
+> Miguel autorizó los dos SQL exactos el 11/09/2026. Falta confirmar el coste del
+> banco temporal y completar sus gates antes de publicar. [Paquete](../scripts/push-tasa/README.md).
 
 > **F6 candidata — 10/09/2026, NO INSTALADA en producción:** `20260910150039_crm_f6_postventa_persona.sql`: tareas por persona en la misma agenda, cinco tablas CRM cerradas/auditadas, doce RPC y seis integraciones protegidas por huellas del servidor vigente. Sin DDL `public`, backfill ni cambios de dinero/Auth. `postventa_neutral` nace OFF; F4/F5 conservan sus banderas. 41 pruebas F6, 46 de regresión F5, replay/reversa y gate frontend PASS. Matriz RLS global/advisors remotos F6 NOT RUN. [Paquete exacto, aceptación y reversa](../scripts/f6/README.md). Su SQL requiere autorización propia; el OK previo de Miguel correspondió a F5 ya instalada.
 

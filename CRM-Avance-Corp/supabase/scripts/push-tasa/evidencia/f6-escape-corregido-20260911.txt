@@ -1,0 +1,51 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/f6-foco-diagnostico.spec.ts --grep Gerencia consulta --repeat-each=8 --workers=4
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:86939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 4 workers
+
+(node:86943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86945) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DIAG_FOCO {"instante":4486.399999976158,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4492.200000047684,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4513.200000047684,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4518.600000023842,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4542.100000023842,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4550.700000047684,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4556.300000071526,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4572.899999976158,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+  ✓  1 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.0s)
+  ✓  2 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.0s)
+  ✓  4 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.1s)
+  ✓  3 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.1s)
+(node:86983) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:86986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DIAG_FOCO {"instante":4166.199999928474,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4193,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4260,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4266.300000071526,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4234,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4257.199999928474,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4268.099999904633,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4283.899999976158,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+  ✓  5 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.6s)
+  ✓  6 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.6s)
+  ✓  8 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.6s)
+  ✓  7 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.6s)
+
+  8 passed (11.0s)

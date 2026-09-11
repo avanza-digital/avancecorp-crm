@@ -1,0 +1,183 @@
+npm notice run app@0.0.0 test:e2e
+npm notice run playwright test e2e/f6-foco-diagnostico.spec.ts --grep Gerencia consulta --repeat-each=8 --workers=4
+[WebServer] npm notice run app@0.0.0 dev
+[WebServer] npm notice run vite --port 5199 --host 127.0.0.1
+[WebServer] (node:85297) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 4 workers
+
+(node:85301) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85299) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DIAG_FOCO {"instante":4506.899999976158,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4533.100000023842,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4558.100000023842,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4564.5,"fase":"despues","impedido":true,"foco":"<body style=\"\">\n    <div id=\"root\"><div class=\"ac-aurora\" aria-hidden=\"true\"><i></i></div><div class=\"h-svh\"><div class=\"relative z-10 flex h-svh overflow-hidden\"><aside class=\"relative z-30 h-full w-","capas":[]}
+DIAG_FOCO {"instante":4569.100000023842,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4583.799999952316,"fase":"despues","impedido":true,"foco":"<body style=\"\">\n    <div id=\"root\"><div class=\"ac-aurora\" aria-hidden=\"true\"><i></i></div><div class=\"h-svh\"><div class=\"relative z-10 flex h-svh overflow-hidden\"><aside class=\"relative z-30 h-full w-","capas":[]}
+DIAG_FOCO {"instante":4605.100000023842,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4625.200000047684,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+  ✓  1 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.0s)
+  ✓  4 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (5.1s)
+(node:85331) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85333) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DIAG_FOCO {"instante":3901.7999999523163,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":3906.899999976158,"fase":"despues","impedido":true,"foco":"<body style=\"\">\n    <div id=\"root\"><div class=\"ac-aurora\" aria-hidden=\"true\"><i></i></div><div class=\"h-svh\"><div class=\"relative z-10 flex h-svh overflow-hidden\"><aside class=\"relative z-30 h-full w-","capas":[]}
+DIAG_FOCO {"instante":3969.7999999523163,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":3976.0999999046326,"fase":"despues","impedido":true,"foco":"<body style=\"\">\n    <div id=\"root\"><div class=\"ac-aurora\" aria-hidden=\"true\"><i></i></div><div class=\"h-svh\"><div class=\"relative z-10 flex h-svh overflow-hidden\"><aside class=\"relative z-30 h-full w-","capas":[]}
+  ✘  2 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (9.8s)
+  ✘  3 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (9.8s)
+(node:85369) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85370) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DIAG_FOCO {"instante":4018.0999999046326,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4038.2999999523163,"fase":"despues","impedido":true,"foco":"<body data-scroll-locked=\"1\" style=\"pointer-events: none;\"><span data-radix-focus-guard=\"\" tabindex=\"0\" data-aria-hidden=\"true\" aria-hidden=\"true\" style=\"outline: none; opacity: 0; position: fixed; po","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":null}]}
+DIAG_FOCO {"instante":4062.100000023842,"fase":"antes","foco":"<select data-slot=\"select\" class=\"h-9 w-full cursor-pointer appearance-none rounded-lg border border-input bg-background px-3 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-","capas":[{"nombre":"Ficha del inversionista","estado":"open","slot":"sheet","oculto":"true"},{"nombre":"Gestión de postventa","estado":"open","slot":"dialog","oculto":null}]}
+DIAG_FOCO {"instante":4067.2000000476837,"fase":"despues","impedido":true,"foco":"<body style=\"\">\n    <div id=\"root\"><div class=\"ac-aurora\" aria-hidden=\"true\"><i></i></div><div class=\"h-svh\"><div class=\"relative z-10 flex h-svh overflow-hidden\"><aside class=\"relative z-30 h-full w-","capas":[]}
+  ✘  5 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (9.0s)
+  ✘  6 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (9.0s)
+  ✓  8 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (4.4s)
+  ✘  7 [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen (9.1s)
+
+
+  1) [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('button', { name: 'Revisar solicitud', exact: true })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Revisar solicitud', exact: true })
+
+
+      155 |   await expect(page.getByRole('dialog',{name:'Revisar solicitud de retiro',exact:true})).toBeVisible()
+      156 |   await page.keyboard.press('Escape')
+    > 157 |   await expect(page.getByRole('button',{name:'Revisar solicitud',exact:true})).toBeFocused()
+          |                                                                                ^
+      158 |   await page.getByRole('button',{name:'Revisar solicitud',exact:true}).focus()
+      159 |   await page.keyboard.press('Enter')
+      160 |   await page.getByLabel('Estado de la revisión',{exact:true}).selectOption('revisada')
+        at /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app/e2e/f6-foco-diagnostico.spec.ts:157:80
+
+    Error Context: test-results/f6-foco-diagnostico-Gerenc-79c2b-reinversión-conserva-origen-chromium/error-context.md
+
+  2) [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('button', { name: 'Revisar solicitud', exact: true })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Revisar solicitud', exact: true })
+
+
+      155 |   await expect(page.getByRole('dialog',{name:'Revisar solicitud de retiro',exact:true})).toBeVisible()
+      156 |   await page.keyboard.press('Escape')
+    > 157 |   await expect(page.getByRole('button',{name:'Revisar solicitud',exact:true})).toBeFocused()
+          |                                                                                ^
+      158 |   await page.getByRole('button',{name:'Revisar solicitud',exact:true}).focus()
+      159 |   await page.keyboard.press('Enter')
+      160 |   await page.getByLabel('Estado de la revisión',{exact:true}).selectOption('revisada')
+        at /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app/e2e/f6-foco-diagnostico.spec.ts:157:80
+
+    Error Context: test-results/f6-foco-diagnostico-Gerenc-79c2b-reinversión-conserva-origen-chromium-repeat3/error-context.md
+
+  3) [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('button', { name: 'Revisar solicitud', exact: true })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Revisar solicitud', exact: true })
+
+
+      155 |   await expect(page.getByRole('dialog',{name:'Revisar solicitud de retiro',exact:true})).toBeVisible()
+      156 |   await page.keyboard.press('Escape')
+    > 157 |   await expect(page.getByRole('button',{name:'Revisar solicitud',exact:true})).toBeFocused()
+          |                                                                                ^
+      158 |   await page.getByRole('button',{name:'Revisar solicitud',exact:true}).focus()
+      159 |   await page.keyboard.press('Enter')
+      160 |   await page.getByLabel('Estado de la revisión',{exact:true}).selectOption('revisada')
+        at /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app/e2e/f6-foco-diagnostico.spec.ts:157:80
+
+    Error Context: test-results/f6-foco-diagnostico-Gerenc-79c2b-reinversión-conserva-origen-chromium-repeat4/error-context.md
+
+  4) [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('button', { name: 'Revisar solicitud', exact: true })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Revisar solicitud', exact: true })
+
+
+      155 |   await expect(page.getByRole('dialog',{name:'Revisar solicitud de retiro',exact:true})).toBeVisible()
+      156 |   await page.keyboard.press('Escape')
+    > 157 |   await expect(page.getByRole('button',{name:'Revisar solicitud',exact:true})).toBeFocused()
+          |                                                                                ^
+      158 |   await page.getByRole('button',{name:'Revisar solicitud',exact:true}).focus()
+      159 |   await page.keyboard.press('Enter')
+      160 |   await page.getByLabel('Estado de la revisión',{exact:true}).selectOption('revisada')
+        at /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app/e2e/f6-foco-diagnostico.spec.ts:157:80
+
+    Error Context: test-results/f6-foco-diagnostico-Gerenc-79c2b-reinversión-conserva-origen-chromium-repeat5/error-context.md
+
+  5) [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('button', { name: 'Revisar solicitud', exact: true })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('button', { name: 'Revisar solicitud', exact: true })
+
+
+      155 |   await expect(page.getByRole('dialog',{name:'Revisar solicitud de retiro',exact:true})).toBeVisible()
+      156 |   await page.keyboard.press('Escape')
+    > 157 |   await expect(page.getByRole('button',{name:'Revisar solicitud',exact:true})).toBeFocused()
+          |                                                                                ^
+      158 |   await page.getByRole('button',{name:'Revisar solicitud',exact:true}).focus()
+      159 |   await page.keyboard.press('Enter')
+      160 |   await page.getByLabel('Estado de la revisión',{exact:true}).selectOption('revisada')
+        at /private/tmp/avancecorp-tasa-lead-real-20260908/CRM-Avance-Corp/app/e2e/f6-foco-diagnostico.spec.ts:157:80
+
+    Error Context: test-results/f6-foco-diagnostico-Gerenc-79c2b-reinversión-conserva-origen-chromium-repeat7/error-context.md
+
+  5 failed
+    [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+    [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+    [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+    [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+    [chromium] › e2e/f6-foco-diagnostico.spec.ts:129:1 › Gerencia consulta vencimientos y revisa retiros; reinversión conserva origen
+  3 passed (20.3s)

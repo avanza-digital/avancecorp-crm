@@ -73,3 +73,40 @@ de `SHA256SUMS`, verificadas desde la raíz del repositorio.
 No se hizo push ni se modificó producción en esta preparación. La aprobación
 del SQL permite avanzar al banco; el cierre productivo aún requiere sus gates
 y evaluar la intermitencia de navegador registrada arriba.
+
+## SQL autorizado y fallo de Escape corregido
+
+Miguel respondió «siii» a la aprobación de ambos SQL exactos y la organización
+`AVANCECORP- CRM-PORTAL`. Las siete huellas de despliegue siguen coincidiendo.
+El coste consultado del banco es US$0,01344/hora; se pidió confirmación antes
+de crearlo. No hay una nueva solicitud pendiente de autorización del SQL.
+
+Se instrumentó temporalmente una copia del caso F6 para registrar las capas y
+los callbacks de Escape. Antes de la corrección fallaron 5 de 8 ensayos y 3 de 4
+con instrumentación adicional. El foco estaba en el `select` del diálogo de
+postventa, pero se ejecutaba `onEscapeKeyDown` del Sheet inferior, que aparecía
+con `aria-hidden=true`. La captura anterior de la ficha cerraba ambos niveles.
+Las trazas están en `evidencia/f6-escape-reproduccion-20260911.txt` y
+`evidencia/f6-escape-capas-20260911.txt`. La instrumentación se retiró.
+
+`escape-dialogo.ts` impide que una capa cierre por una tecla originada en otra.
+Solo esa tecla protegida se entrega al cierre de su propio diálogo al propagarse
+el evento. Radix conserva el resto de sus controles, cierre y focus trap; se
+mantienen los callbacks que rechazan cerrar mientras hay un envío en curso.
+Se agregaron dos pruebas de reapertura/cierre con fichas modales y no modales.
+No se cambiaron la dependencia ni las expectativas del recorrido F6 existente.
+
+- **PASS:** 8/8 ensayos del caso reproducido después de la corrección.
+  Registro: `evidencia/f6-escape-corregido-20260911.txt`.
+- **PASS:** cinco pruebas de foco y cierre en `dialog.test.tsx`.
+- **PASS:** `npm run check:all`, 231 archivos y 3.268 pruebas de código; lint,
+  tipos, cobertura, configuración, worker, build, bundle y duplicación.
+- **PASS:** navegador completo, 164 PASS y 26 SKIP ya configurados. Registro
+  final: `evidencia/gate-corregido-20260911.txt`. El fallo del primer ensayo se
+  conserva como antecedente; el PASS corresponde al código corregido.
+- **NOT RUN:** banco remoto, SQL remoto, Edge/cron gestionados y recepción real
+  en el teléfono, pendientes de confirmar el coste y ejecutar el despliegue.
+
+Las dos revisiones de Claude del día 10 cubren la implementación push. Esta
+corrección posterior de integración fue diagnosticada y verificada por PRIMARY;
+no se le atribuye una aprobación adicional de Claude.

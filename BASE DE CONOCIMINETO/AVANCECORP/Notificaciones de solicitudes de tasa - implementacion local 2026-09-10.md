@@ -56,6 +56,19 @@ Evidencia y pendientes actualizados en `supabase/scripts/push-tasa/VERIFICACION.
 El SQL exacto conserva sus hashes; autorización, organización/coste del banco
 temporal y publicación siguen pendientes. Producción continúa sin push de tasa.
 
+Después de esa preparación Miguel respondió «siii» y autorizó expresamente los
+dos SQL enlazados y la organización `AVANCECORP- CRM-PORTAL`. No volver a pedir
+aprobación de esos archivos mientras conserven sus hashes. Se consultó el coste
+real del banco: US$0,01344/hora; su confirmación se pidió y sigue pendiente.
+Se reprodujo el fallo de Escape en F6 (5 de 8 ensayos y 3 de 4 con registro de
+capas): la ficha inferior recibía la tecla aunque el foco estaba en el modal.
+La corrección conserva la ficha y entrega esa tecla al modal; pasaron ocho
+ensayos después y cinco pruebas de foco. Gate completo posterior PASS: 3.268
+pruebas, build y 164 recorridos de navegador; 26 omisiones ya configuradas.
+La instrumentación temporal se retiró y se conservó la evidencia del fallo y
+de su corrección. La siguiente acción depende únicamente de confirmar el coste
+del banco y ejecutar los gates remotos; no volver a pedir los dos SQL aprobados.
+
 Relacionadas: [[Solicitud de tasa en el lead - publicada 2026-09-09]],
 [[Notificaciones de pagos]], [[Arquitectura del portal]],
 [[Main unico - sincronizacion y publicacion 2026-09-04]].
