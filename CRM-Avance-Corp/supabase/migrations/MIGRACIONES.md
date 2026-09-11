@@ -9033,7 +9033,7 @@ Frontend publicado desde `b54fe942`; banco temporal eliminado. Ver
 tarea legacy concurrente identificada y huella integral Auth no acreditada igual.
 No se activa F4/F5/F6, no se concilian identidades reales ni se calculan comisiones.
 
-## 20260910212447 — Reparto conforme al turno y trazabilidad real de Coordinación (candidata validada)
+## 20260910212447 — Reparto conforme al turno y trazabilidad real de Coordinación (publicada)
 
 `20260910212447_crm_reparto_turno_obligatorio_y_trazabilidad_real.sql` cierra el
 incidente del 10/09 en el que Landing estaba programado para Jor, pero 20 leads
@@ -9049,14 +9049,27 @@ Coordinación del origen, incluso las históricas que contradigan el plan. No
 expone PII. La migración recertifica `crm.agenda_reparto_diaria(date,integer)` y
 renueva en la misma transacción el sello de `analitica_leads_citas_exenciones`.
 
-**Estado: candidata aplicada y validada en rama temporal; pendiente de merge y
-publicación.** Se publica SQL antes que la interfaz; el frontend tolera
-temporalmente la respuesta anterior. El oráculo `supabase/scripts/test-reparto.sql`
+**Estado: publicada en producción el 10/09/2026.** Se aplicó mediante una rama
+temporal de Supabase, se verificó en producción y luego se eliminó la rama. El
+registro `supabase_migrations.schema_migrations` contiene una sola entrada
+`20260910212447`; las huellas de la implementación privada y de la lectura de
+agenda coinciden exactamente con la candidata. Los permisos conservan la RPC
+pública para `authenticated`, niegan su implementación privada y niegan el
+reparto a `anon`.
+
+El oráculo `supabase/scripts/test-reparto.sql` terminó con `REPARTO_TX_OK` y
 cubre el rechazo atómico de Coordinación, la excepción del Superadmin y la
 visibilidad del destino real. La matriz general mantuvo su línea base heredada:
 1.772 PASS / 45 FAIL de 1.817, sin fallos nuevos atribuibles a esta migración.
+Los advisors posteriores conservaron exactamente la línea base productiva.
 
-## 20260910230000 — Facturación diaria: capital por día, analista y supervisor de entonces (pendiente de branch)
+Frontend publicado desde el commit
+`a9d9efd804b33656e35923d7a056b16e5bf54f7f`, artefacto
+`crm-20260910T214509Z-a9d9efd804b3.zip` y build
+`build-20260910T214508537Z`. La raíz y su asset versionado respondieron 200; el
+archivo ZIP no quedó accesible públicamente (404).
+
+## 20260910230000 — Facturación diaria: capital por día, analista y supervisor de entonces (publicada)
 
 `20260910230000_crm_facturacion_diaria.sql` añade `crm.facturacion_diaria_fn(date)`,
 la lectura de la pantalla Facturación. Devuelve, para un mes comercial, día × tipo ×
