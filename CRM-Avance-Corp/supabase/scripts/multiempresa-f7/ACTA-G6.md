@@ -49,6 +49,11 @@ de los dos meses. Las 566 fuentes sin fila relacional F4 son cobertura legado
 admitida por el contrato, no 566 regresiones nuevas. Esta lectura no sanea ni
 da por resuelto el inventario histórico de quince huecos de F4/F5.
 
+Miguel confirmó el 12/09/2026 que los diez registros corresponden a **clientes
+reales**. Esta confirmación valida su naturaleza comercial; todavía no determina
+si cada registro está vinculado a la ficha única correcta ni resuelve posibles
+duplicados de identidad. No se modificaron clientes, contratos ni capital.
+
 Capital renovado completo no equivale a dinero nuevo. Comisiones fuera del CRM.
 Las cifras son las del corte: la primera lectura de las 17:22 contenía 217
 inversiones; una nueva operación registrada antes del corte final explica las 218.
@@ -70,6 +75,7 @@ inversiones; una nueva operación registrada antes del corte final explica las 2
 ## Aceptación humana
 
 - Revisión de Miguel de este corte y sus límites: **pendiente**.
+- Confirmación de que los diez pendientes son clientes reales: **recibida de Miguel el 12/09/2026**.
 - Responsable y conformidad financiera: **pendientes**.
 - Fecha/constancia de ambas aceptaciones: **pendientes**.
 - G6: **ABIERTO**. F8 y F9: **NOT RUN**.
