@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
+  MousePointerClick,
   RotateCcw,
   TriangleAlert,
   TrendingUp,
@@ -1219,6 +1220,16 @@ export function Facturacion({
           }
         />
 
+        {/* VISIBLE. El aviso vivía en el <caption>, que es solo para lectores de
+            pantalla: Miguel no encontraba dónde elegir los días porque nada se
+            lo decía. Un botón que no se anuncia no existe. */}
+        <p className="border-t border-border bg-muted/30 px-4 py-2 text-[12px] font-medium text-muted-foreground-strong">
+          <MousePointerClick aria-hidden className="mr-1.5 inline size-3.5 align-[-2px]" />
+          {hayMarcados
+            ? `Estás viendo ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}. Pulsa otro número para añadirlo, o el mismo para quitarlo.`
+            : 'Pulsa el número de un día —arriba de la tabla— para elegirlo. Puedes marcar varios, aunque no vayan seguidos.'}
+        </p>
+
         {cargando ? (
           // Mientras el servidor responde no se pinta una malla vacía: parecería
           // un mes sin ventas, que es una respuesta distinta de «todavía no sé».
@@ -1272,8 +1283,9 @@ export function Facturacion({
                   {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
                   {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
-                  Marca la casilla de dos o más analistas para verlos solos y compararlos; activa
-                  una celda para ver los contratos de ese día.
+                  Pulsa el número de un día para elegirlo, y otro, y otro: los totales pasan a
+                  ser solo de esos días. Marca la casilla de dos o más analistas para verlos
+                  solos y compararlos; activa una celda para ver los contratos de ese día.
                 </caption>
                 <thead>
                   <tr>
@@ -1300,8 +1312,13 @@ export function Facturacion({
                           type="button"
                           aria-pressed={marcado}
                           aria-label={`Marcar el ${etiquetaDiaLargo(dia)}`}
+                          title={marcado ? 'Quitar este día' : 'Elegir este día'}
                           onClick={() => alternarDia(dia)}
-                          className="w-full cursor-pointer px-0 py-1.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                          className={cn(
+                            'w-full cursor-pointer px-0 py-1.5 transition-colors',
+                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                            !marcado && 'hover:bg-accent/20',
+                          )}
                         >
                           <span
                             className={cn(
@@ -1319,6 +1336,15 @@ export function Facturacion({
                           >
                             {letraDia(dia)}
                           </span>
+                          {/* La señal de que el día se puede elegir. Sin esto la
+                              cabecera parecía un rótulo y nadie la pulsaba. */}
+                          <span
+                            aria-hidden
+                            className={cn(
+                              'mx-auto mt-0.5 block size-1.5 rounded-full',
+                              marcado ? 'bg-primary-foreground' : 'bg-border',
+                            )}
+                          />
                         </button>
                       </th>
                       )

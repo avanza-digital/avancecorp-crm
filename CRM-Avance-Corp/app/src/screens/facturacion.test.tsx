@@ -906,6 +906,20 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     expect(screen.queryByText('S/ 70,000')).toBeNull()
   })
 
+  it('DICE que se pueden elegir días, donde se lee', () => {
+    // El aviso vivía en el <caption>, que es solo para lectores de pantalla, y
+    // por eso Miguel no encontraba la función aunque estuviera hecha.
+    pintar(TRES_DIAS)
+    // Tiene que estar FUERA del `sr-only`: ahí es donde estaba y no servía.
+    const visible = screen
+      .getAllByText(/Pulsa el número de un día/)
+      .find((el) => el.closest('.sr-only') == null)
+    expect(visible).toBeDefined()
+    expect(visible).toBeVisible()
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(screen.getByText(/Pulsa otro número para añadirlo/)).toBeVisible()
+  })
+
   it('la tabla NO pierde columnas: hay que poder marcar un cuarto día', () => {
     pintar(TRES_DIAS)
     marcar(/Marcar el .*, 2 de setiembre/i)
@@ -921,7 +935,8 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     marcar(/Marcar el .*, 4 de setiembre/i)
     // Titular, rótulo, mejor día y divisor del promedio: o todos hablan de los
     // días elegidos, o la pantalla dice dos cosas a la vez.
-    expect(screen.getByText(/2 días elegidos/)).toBeVisible()
+    // Sale en el rótulo del indicador Y en el aviso de arriba de la tabla.
+    expect(screen.getAllByText(/2 días elegidos/).length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
     expect(screen.getByText(/2 días hábiles/)).toBeVisible()
   })
