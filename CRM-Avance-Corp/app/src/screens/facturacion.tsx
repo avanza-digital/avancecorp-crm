@@ -29,6 +29,7 @@ import {
   Receipt,
   MousePointerClick,
   RotateCcw,
+  SlidersHorizontal,
   TriangleAlert,
   TrendingUp,
   Users,
@@ -48,6 +49,7 @@ import { useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
+import { CONSULTA_ESTRECHA, useEsEstrecha, useEsTactil } from '@/lib/media'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
@@ -311,6 +313,7 @@ function FilaAnalista({
   marcado,
   diaAbierto,
   sangria,
+  tactil,
   onMarcar,
   onAbrirMes,
   onAbrirCelda,
@@ -325,6 +328,8 @@ function FilaAnalista({
   marcado: boolean
   diaAbierto: string | null
   sangria: boolean
+  /** El puntero primario es un dedo: blancos grandes, sin depender del hover. */
+  tactil: boolean
   onMarcar: () => void
   onAbrirMes: () => void
   onAbrirCelda: (dia: string) => void
@@ -342,7 +347,7 @@ function FilaAnalista({
             checked={marcado}
             onChange={onMarcar}
             aria-label={`Comparar a ${fila.nombre}`}
-            className="size-4 shrink-0 accent-[var(--accent)]"
+            className={cn('shrink-0 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
           />
           <button
             type="button"
@@ -417,7 +422,16 @@ export function Facturacion({
   // El ANCLA es un día cualquiera dentro del periodo que se mira; la
   // granularidad decide si eso significa su mes, su semana o él solo. `mes` se
   // deriva del ancla porque la consulta al servidor sigue siendo mensual.
-  const [granularidad, setGranularidad] = useState<Granularidad>('mes')
+  // En una pantalla estrecha el mes NO CABE: en iPad vertical se veían 4 días de
+  // 30 y había que arrastrar la tabla de lado con el dedo. Se abre en Semana,
+  // que entra entera; el mes sigue a un toque.
+  const esEstrecha = useEsEstrecha()
+  const esTactil = useEsTactil()
+  const [granularidad, setGranularidad] = useState<Granularidad>(() =>
+    typeof window !== 'undefined' && window.matchMedia?.(CONSULTA_ESTRECHA).matches
+      ? 'semana'
+      : 'mes',
+  )
   const [ancla, setAncla] = useState<string>(() => fechaLima(Date.now()))
   // DÍAS SUELTOS marcados a mano — Miguel, 11/09/2026: «marcar los días sueltos
   // que yo quiera», el 3, el 7 y el 12 aunque no vayan seguidos. Manda sobre el
@@ -476,6 +490,7 @@ export function Facturacion({
   const [tipo, setTipo] = useState<TipoFacturacion>(TIPO_CAPITAL_NUEVO)
   const [filtro, setFiltro] = useState<FiltroFacturacion>(filtroInicial)
   const [panelAbierto, setPanelAbierto] = useState(false)
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [cerrados, setCerrados] = useState<readonly string[]>([])
   const [seleccion, setSeleccion] = useState<{ analistaId: string; dia: string | null } | null>(null)
@@ -914,6 +929,27 @@ export function Facturacion({
             rotulo={ROTULO_VISTA}
             onCambio={setVista}
           />
+          {/* En tablet la barra se partía en SIETE filas y se comía 200 px de
+              alto. Lo secundario —qué se mide, tipo, equipo, analistas— se
+              pliega detrás de un botón; el tramo y la moneda, que son lo que se
+              toca a diario, se quedan siempre a la vista. */}
+          {esEstrecha && (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-expanded={filtrosAbiertos}
+              onClick={() => setFiltrosAbiertos((v) => !v)}
+            >
+              <SlidersHorizontal aria-hidden />
+              Filtros
+              <ChevronDown
+                aria-hidden
+                className={cn('transition-transform', filtrosAbiertos && 'rotate-180')}
+              />
+            </Button>
+          )}
+
+          <div className={cn('contents', esEstrecha && !filtrosAbiertos && 'hidden')}>
           <Interruptor
             etiqueta="Qué se mide"
             opciones={['capital', 'contratos'] as const}
@@ -971,6 +1007,7 @@ export function Facturacion({
               className={cn('transition-transform', panelAbierto && 'rotate-180')}
             />
           </Button>
+          </div>
 
           {hayMarcados && (
             <Button
@@ -1089,7 +1126,10 @@ export function Facturacion({
                               disabled={bloqueado}
                               onChange={() => alternarAnalista(p.id)}
                               aria-label={`Comparar a ${p.nombre}`}
-                              className="size-3.5 shrink-0 accent-[var(--accent)]"
+                              className={cn(
+                                'shrink-0 accent-[var(--accent)]',
+                                esTactil ? 'size-6' : 'size-3.5',
+                              )}
                             />
                             {p.nombre}
                           </label>
@@ -1374,6 +1414,7 @@ export function Facturacion({
                           metrica={metrica}
                           moneda={moneda}
                           marcado={filtro.analistas.includes(fila.id)}
+                          tactil={esTactil}
                           diaAbierto={seleccion?.analistaId === fila.id ? seleccion.dia : null}
                           sangria={false}
                           onMarcar={() => alternarAnalista(fila.id)}
@@ -1440,6 +1481,7 @@ export function Facturacion({
                                   metrica={metrica}
                                   moneda={moneda}
                                   marcado={filtro.analistas.includes(a.id)}
+                                  tactil={esTactil}
                                   diaAbierto={seleccion?.analistaId === a.id ? seleccion.dia : null}
                                   sangria
                                   onMarcar={() => alternarAnalista(a.id)}

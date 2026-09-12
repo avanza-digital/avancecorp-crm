@@ -1009,6 +1009,77 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
   })
 })
 
+describe('tablet — Miguel, 11/09/2026: «esto está pensado para usar en tablet»', () => {
+  /**
+   * Simula un iPad: puntero grueso, sin hover y ventana estrecha. El criterio
+   * del CRM NO es el ancho sino el puntero, para que un portátil con la ventana
+   * a media pantalla siga siendo escritorio.
+   */
+  function comoTablet(): void {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({
+      matches:
+        consulta.includes('hover: none') ||
+        consulta.includes('max-width: 1279px') ||
+        consulta.includes('max-width: 1099px'),
+      media: consulta,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('abre en Semana: el mes no cabe en una tablet', () => {
+    // Medido en iPad vertical antes del arreglo: 4 días visibles de 30.
+    comoTablet()
+    pintar()
+    expect(screen.getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('en escritorio sigue abriendo en Mes', () => {
+    pintar()
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('pliega lo secundario detrás de «Filtros» y deja a la vista lo de diario', () => {
+    comoTablet()
+    pintar()
+    // Tramo y moneda SIEMPRE visibles; el resto, tras el botón.
+    expect(screen.getByRole('button', { name: 'Semana' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Todo S/' })).toBeVisible()
+    const filtros = screen.getByRole('button', { name: /Filtros/ })
+    expect(filtros).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(filtros)
+    expect(filtros).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('en escritorio NO hay botón «Filtros»: todo cabe', () => {
+    pintar()
+    expect(screen.queryByRole('button', { name: /^Filtros/ })).toBeNull()
+  })
+
+  it('las casillas de comparar crecen para el dedo', () => {
+    comoTablet()
+    // Abre en Semana (7 al 13): hace falta una venta DENTRO para que haya malla.
+    pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
+    // HAY DOS casillas distintas: la de cada fila de la malla y la del panel de
+    // analistas. La primera versión de esta prueba solo miraba una, y el
+    // mutante que encogía la otra sobrevivía.
+    const enLaMalla = within(malla()).getAllByRole('checkbox')[0]
+    expect(enLaMalla?.className).toContain('size-6')
+    expect(enLaMalla?.className).not.toContain('size-4')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Analistas/ }))
+    const enElPanel = within(screen.getByRole('group', { name: /Analistas/ })).getAllByRole('checkbox')[0]
+    // 14 px es imposible de acertar con un dedo; 24 es el mínimo usable.
+    expect(enElPanel?.className).toContain('size-6')
+    expect(enElPanel?.className).not.toContain('size-3.5')
+  })
+})
+
 describe('moneda y métrica', () => {
   it('cambiar de moneda cambia los números, no quién aparece', () => {
     pintar()

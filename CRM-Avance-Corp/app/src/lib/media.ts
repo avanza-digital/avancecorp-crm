@@ -68,3 +68,36 @@ export const CONSULTA_PUEDE_MARCAR =
 export function usePuedeMarcar(): boolean {
   return useMediaQuery(CONSULTA_PUEDE_MARCAR)
 }
+
+/**
+ * "Se toca con el dedo", sin mirar el ancho — tablet incluida.
+ *
+ * A diferencia de `CONSULTA_PUEDE_MARCAR`, aquí NO se filtra por el lado corto:
+ * lo que importa no es si cabe en un bolsillo sino si el puntero es un dedo. Un
+ * iPad cumple `hover:none` + `pointer:coarse` y necesita blancos grandes y
+ * respuesta al toque igual que un teléfono, aunque tenga 1180 px de ancho.
+ *
+ * Miguel, 11/09/2026: la pantalla de Facturación se usa en tablet. Todo lo que
+ * dependía del ratón —el «sube al pasar por encima», los globos de ayuda con el
+ * importe exacto— simplemente no existe ahí.
+ */
+export const CONSULTA_TACTIL = '(hover: none) and (pointer: coarse)'
+
+/** ¿El puntero primario es un dedo? (teléfono o tablet). */
+export function useEsTactil(): boolean {
+  return useMediaQuery(CONSULTA_TACTIL)
+}
+
+/**
+ * Viewport estrecho para una rejilla de 31 columnas. El mes necesita ~1900 px;
+ * un iPad da 820 en vertical y 1180 en horizontal, así que en LAS DOS
+ * orientaciones hay que arrastrar. Medido: en vertical se veían 4 días de 30.
+ * El corte en 1280 deja fuera la tablet en las dos posiciones y no toca a un
+ * portátil, que empieza en 1280.
+ */
+export const CONSULTA_ESTRECHA = '(max-width: 1279px)'
+
+/** ¿La ventana es estrecha para una tabla ancha? */
+export function useEsEstrecha(): boolean {
+  return useMediaQuery(CONSULTA_ESTRECHA)
+}

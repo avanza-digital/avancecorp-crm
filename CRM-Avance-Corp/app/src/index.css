@@ -247,6 +247,12 @@ body {
 /* El número sube un pelo al pasar el ratón: confirma que es pulsable. */
 .ac-dia-btn { transition: transform 0.18s var(--ease-out-expo), background-color 0.18s ease; }
 .ac-dia-btn:hover { transform: translateY(-1px); }
+/* CON EL DEDO NO HAY HOVER. La confirmación del toque es el hundido: sin esto,
+   en tablet no había ninguna respuesta entre tocar y ver cambiar los totales. */
+.ac-dia-btn:active { transform: scale(0.9); }
+@media (hover: none) {
+  .ac-dia-btn:hover { transform: none; }
+}
 
 /* Sacudida horizontal: el guardado falló (BotonGuardar). Corre una sola vez;
    el componente quita la clase en onAnimationEnd para poder re-sacudir. */
