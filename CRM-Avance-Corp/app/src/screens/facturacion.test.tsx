@@ -878,41 +878,6 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
     expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeNull()
   })
 
-  it('«A medida» deja elegir las fechas y suma solo esos días', () => {
-    pintar([
-      fila({ id: 'a', dia: '2026-09-02', capital: 10_000 }),
-      fila({ id: 'b', dia: '2026-09-03', capital: 20_000 }),
-      fila({ id: 'c', dia: '2026-09-09', capital: 90_000 }),
-    ])
-    elegirTramo('A medida')
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-02' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-03' } })
-    // 10 000 + 20 000; el del 9 queda fuera.
-    expect(screen.getAllByText('S/ 30,000').length).toBeGreaterThan(0)
-    expect(screen.queryByText('S/ 120,000')).toBeNull()
-  })
-
-  it('«A medida» arranca con el tramo que ya se estaba viendo', () => {
-    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
-    elegirTramo('Semana')
-    elegirTramo('A medida')
-    // La semana del 10/09 es del lunes 7 al domingo 13, pero el 13 aún no ha
-    // llegado: el «hasta» se trae a hoy en vez de pedir días del futuro.
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-07')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-10')
-  })
-
-  it('las flechas mueven el rango entero su propia longitud', () => {
-    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
-    elegirTramo('A medida')
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-08' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-09' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Tramo anterior' }))
-    // Dos días atrás, no un mes.
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-06')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-07')
-  })
-
   it('no deja navegar al futuro', () => {
     pintar()
     elegirTramo('Día')

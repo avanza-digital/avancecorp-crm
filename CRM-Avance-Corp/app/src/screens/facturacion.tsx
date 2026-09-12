@@ -61,7 +61,6 @@ import {
   desgloseDeCelda,
   diasDelMes,
   diasDelPeriodo,
-  diasEntre,
   diasHabilesHasta,
   equiposDeRoster,
   esDomingo,
@@ -115,20 +114,17 @@ const ROTULO_GRANULARIDAD: Record<Granularidad, string> = {
   mes: 'Mes',
   semana: 'Semana',
   dia: 'Día',
-  rango: 'A medida',
 }
 const ROTULO_ANTERIOR: Record<Granularidad, string> = {
   mes: 'Mes anterior',
   semana: 'Semana anterior',
   dia: 'Día anterior',
-  rango: 'Tramo anterior',
 }
 /** «del mes» / «de la semana» / «del día», para los rótulos que lo necesitan. */
 const ROTULO_DEL_TRAMO: Record<Granularidad, string> = {
   mes: 'del mes',
   semana: 'de la semana',
   dia: 'del día',
-  rango: 'del tramo',
 }
 
 /** Contra qué se compara, dicho en la unidad que se está mirando. */
@@ -136,13 +132,11 @@ const ROTULO_TRAMO_ANTERIOR: Record<Granularidad, string> = {
   mes: 'el mismo tramo del mes anterior',
   semana: 'los mismos días de la semana anterior',
   dia: 'el día anterior',
-  rango: 'el tramo anterior de igual duración',
 }
 const ROTULO_SIGUIENTE: Record<Granularidad, string> = {
   mes: 'Mes siguiente',
   semana: 'Semana siguiente',
   dia: 'Día siguiente',
-  rango: 'Tramo siguiente',
 }
 
 /** Tope de filas que PostgREST devuelve por consulta (supabase/config.toml). */
@@ -424,17 +418,14 @@ export function Facturacion({
   // deriva del ancla porque la consulta al servidor sigue siendo mensual.
   const [granularidad, setGranularidad] = useState<Granularidad>('mes')
   const [ancla, setAncla] = useState<string>(() => fechaLima(Date.now()))
-  // La otra punta del rango a medida. Arranca igual que el ancla para que
-  // «A medida» abra en un día y no en un tramo vacío.
-  const [hastaRango, setHastaRango] = useState<string>(() => fechaLima(Date.now()))
   // DÍAS SUELTOS marcados a mano — Miguel, 11/09/2026: «marcar los días sueltos
   // que yo quiera», el 3, el 7 y el 12 aunque no vayan seguidos. Manda sobre el
   // tramo: si hay días marcados, la malla son ESOS y nada más.
   const [diasMarcados, setDiasMarcados] = useState<readonly string[]>([])
   const mes = primerDiaDelMes(ancla)
   const diasDelTramo = useMemo(
-    () => diasDelPeriodo(granularidad, ancla, hastaRango),
-    [granularidad, ancla, hastaRango],
+    () => diasDelPeriodo(granularidad, ancla),
+    [granularidad, ancla],
   )
   // Los marcados se cruzan con el tramo: marcar el 3 y luego irte a otro mes no
   // debe arrastrar un día que ya no está en pantalla.
@@ -445,13 +436,10 @@ export function Facturacion({
   const hayMarcados = marcadosEnTramo.length > 0
   const diasVisibles = diasDelTramo
   // El tramo anterior, aquí arriba: hace falta para saber qué meses pedir.
-  const anclaPrevia = periodoDesplazado(granularidad, ancla, -1, diasVisibles.length || 1)
+  const anclaPrevia = periodoDesplazado(granularidad, ancla, -1)
   const diasPrevios = useMemo(
-    () =>
-      granularidad === 'rango'
-        ? diasEntre(anclaPrevia, periodoDesplazado('rango', hastaRango, -1, diasVisibles.length || 1))
-        : diasDelPeriodo(granularidad, anclaPrevia),
-    [granularidad, anclaPrevia, hastaRango, diasVisibles.length],
+    () => diasDelPeriodo(granularidad, anclaPrevia),
+    [granularidad, anclaPrevia],
   )
 
   // No se navega al futuro: el tope es el periodo que contiene HOY en Lima.
@@ -465,24 +453,10 @@ export function Facturacion({
     )
   }
   const moverPeriodo = (delta: number): void => {
-    const largo = diasVisibles.length || 1
-    setAncla((a) => periodoDesplazado(granularidad, a, delta, largo))
-    if (granularidad === 'rango') {
-      setHastaRango((h) => periodoDesplazado('rango', h, delta, largo))
-    }
+    setAncla((a) => periodoDesplazado(granularidad, a, delta))
   }
   const cambiarGranularidad = (g: Granularidad): void => {
     setDiasMarcados([])
-    // Al pasar a «A medida» se arranca con EL TRAMO QUE YA SE ESTABA VIENDO, no
-    // con un día suelto: así se empieza a ajustar desde algo conocido.
-    if (g === 'rango') {
-      const primero = diasVisibles[0] ?? ancla
-      const ultimo = diasVisibles[diasVisibles.length - 1] ?? ancla
-      setGranularidad(g)
-      setAncla(primero)
-      setHastaRango(ultimo > hoy ? hoy : ultimo)
-      return
-    }
     setGranularidad(g)
     setAncla((a) => {
       const ultimo = diasDelPeriodo(g, a).slice(-1)[0] ?? a
@@ -912,7 +886,7 @@ export function Facturacion({
               <ChevronLeft aria-hidden />
             </Button>
             <span className="min-w-[15ch] text-center text-sm font-bold tabular-nums first-letter:uppercase">
-              {etiquetaPeriodo(granularidad, ancla, hastaRango)}
+              {etiquetaPeriodo(granularidad, ancla)}
             </span>
             <Button
               variant="outline"
@@ -932,38 +906,6 @@ export function Facturacion({
             rotulo={ROTULO_GRANULARIDAD}
             onCambio={cambiarGranularidad}
           />
-          {granularidad === 'rango' && (
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground-strong">
-              <label className="flex items-center gap-1">
-                Desde
-                <input
-                  type="date"
-                  aria-label="Desde"
-                  value={ancla}
-                  max={hastaRango < hoy ? hastaRango : hoy}
-                  onChange={(e) => {
-                    if (e.target.value !== '') setAncla(e.target.value)
-                  }}
-                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
-                />
-              </label>
-              <label className="flex items-center gap-1">
-                hasta
-                <input
-                  type="date"
-                  aria-label="Hasta"
-                  value={hastaRango}
-                  min={ancla}
-                  max={hoy}
-                  onChange={(e) => {
-                    if (e.target.value !== '') setHastaRango(e.target.value)
-                  }}
-                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
-                />
-              </label>
-            </div>
-          )}
-
           <Interruptor
             etiqueta="Moneda — en Soles y Dólares nunca se suman; Total S/ convierte a la tasa del día"
             opciones={VISTAS_MONEDA}
@@ -1168,7 +1110,7 @@ export function Facturacion({
             hayMarcados
               ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
               : filtroVacio(filtro)
-                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla, hastaRango)}`
+                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla)}`
                 : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
           }
           value={siFiable(totalFacturado)}
@@ -1258,9 +1200,7 @@ export function Facturacion({
                 ? 'Ese día, por equipo y por analista'
                 : granularidad === 'semana'
                   ? 'Esa semana, día a día, por equipo y por analista'
-                  : granularidad === 'rango'
-                    ? 'El tramo elegido, día a día, por equipo y por analista'
-                    : 'Cada día del mes, por equipo y por analista'
+                  : 'Cada día del mes, por equipo y por analista'
           }
           right={
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground-strong">
@@ -1329,7 +1269,7 @@ export function Facturacion({
             <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla, hastaRango)} ·{' '}
+                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
                   {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
                   Marca la casilla de dos o más analistas para verlos solos y compararlos; activa

@@ -837,7 +837,7 @@ export function mejorDia(
  * La semana es de LUNES a DOMINGO: es como se habla del trabajo aquí, y deja el
  * domingo —el día que no se vende— al final, sin partir la semana en dos.
  */
-export const GRANULARIDADES = ['mes', 'semana', 'dia', 'rango'] as const
+export const GRANULARIDADES = ['mes', 'semana', 'dia'] as const
 export type Granularidad = (typeof GRANULARIDADES)[number]
 
 /** Lunes de la semana que contiene `dia`. */
@@ -848,36 +848,8 @@ export function lunesDeLaSemana(dia: string): string {
   return formatDateLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() - retroceso))
 }
 
-/**
- * Tope de días de un rango a medida. Misma cota que el resto de Gerencia
- * (`validarPeriodoGerencia`): más de un año no es un tablero, es un informe.
- */
-export const MAXIMO_DIAS_RANGO = 366
-
-/** Todos los días entre dos fechas, inclusive. Vacío si están del revés. */
-export function diasEntre(desde: string, hasta: string): string[] {
-  if (desde > hasta) return []
-  const dias: string[] = []
-  const fin = parseDateLocal(hasta)
-  const d = parseDateLocal(desde)
-  while (d <= fin && dias.length < MAXIMO_DIAS_RANGO) {
-    dias.push(formatDateLocal(d))
-    d.setDate(d.getDate() + 1)
-  }
-  return dias
-}
-
-/**
- * Los días que abarca el periodo, en orden. Para `rango` hacen falta las dos
- * puntas — Miguel, 11/09/2026: «quiero poder seleccionar los días que yo quiera,
- * para ver el avance».
- */
-export function diasDelPeriodo(
-  granularidad: Granularidad,
-  ancla: string,
-  hasta?: string,
-): string[] {
-  if (granularidad === 'rango') return diasEntre(ancla, hasta ?? ancla)
+/** Los días que abarca el periodo, en orden. */
+export function diasDelPeriodo(granularidad: Granularidad, ancla: string): string[] {
   if (granularidad === 'dia') return [ancla]
   if (granularidad === 'mes') return diasDelMes(primerDiaDelMes(ancla))
   const lunes = parseDateLocal(lunesDeLaSemana(ancla))
@@ -898,26 +870,18 @@ export function periodoDesplazado(
   granularidad: Granularidad,
   ancla: string,
   delta: number,
-  largoRango = 1,
 ): string {
   if (granularidad === 'mes') return primerDiaDelMes(mesDesplazado(primerDiaDelMes(ancla), delta))
-  // Un rango se mueve ENTERO su propia longitud: «los quince días anteriores».
-  const paso = granularidad === 'rango' ? largoRango : granularidad === 'semana' ? 7 : 1
+  const paso = granularidad === 'semana' ? 7 : 1
   const d = parseDateLocal(ancla)
   return formatDateLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta * paso))
 }
 
 /** Cómo se nombra el periodo en la barra. */
-export function etiquetaPeriodo(
-  granularidad: Granularidad,
-  ancla: string,
-  hasta?: string,
-): string {
+export function etiquetaPeriodo(granularidad: Granularidad, ancla: string): string {
   if (granularidad === 'mes') return etiquetaMes(primerDiaDelMes(ancla))
   if (granularidad === 'dia') return etiquetaDiaLargo(ancla)
-  const dias = diasDelPeriodo(granularidad, ancla, hasta)
-  if (dias.length === 0) return 'Rango vacío'
-  if (dias.length === 1) return etiquetaDiaLargo(dias[0] ?? ancla)
+  const dias = diasDelPeriodo(granularidad, ancla)
   const primero = dias[0] ?? ancla
   const ultimo = dias[dias.length - 1] ?? ancla
   const corto = (d: string): string =>
