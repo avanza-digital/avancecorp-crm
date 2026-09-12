@@ -54,6 +54,11 @@ reales**. Esta confirmación valida su naturaleza comercial; todavía no determi
 si cada registro está vinculado a la ficha única correcta ni resuelve posibles
 duplicados de identidad. No se modificaron clientes, contratos ni capital.
 
+Miguel confirmó también el 12/09/2026 que los **nombres y referencias mostrados
+para los diez registros son correctos**. Esta validación comercial completa la
+revisión visible del anexo; la vinculación técnica a una ficha única continúa
+pendiente y queda fuera de esta aceptación.
+
 Capital renovado completo no equivale a dinero nuevo. Comisiones fuera del CRM.
 Las cifras son las del corte: la primera lectura de las 17:22 contenía 217
 inversiones; una nueva operación registrada antes del corte final explica las 218.
@@ -76,6 +81,7 @@ inversiones; una nueva operación registrada antes del corte final explica las 2
 
 - Revisión de Miguel de este corte y sus límites: **pendiente**.
 - Confirmación de que los diez pendientes son clientes reales: **recibida de Miguel el 12/09/2026**.
+- Confirmación de nombres y referencias del anexo: **recibida de Miguel el 12/09/2026**.
 - Responsable y conformidad financiera: **pendientes**.
 - Fecha/constancia de ambas aceptaciones: **pendientes**.
 - G6: **ABIERTO**. F8 y F9: **NOT RUN**.

@@ -29,7 +29,8 @@ según [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]].
   Sus importes están incluidos; los titulares no resueltos no cuentan entre
   las 434 personas identificadas. Anexo privado con los diez registros. Miguel
   confirmó el 12/09/2026 que los diez corresponden a clientes reales; queda
-  comprobar si cada uno está vinculado a la ficha única correcta.
+  pendiente su vinculación técnica a la ficha única. Miguel confirmó además
+  que los nombres y referencias mostrados en el anexo son correctos.
 - 566 fuentes legado sin fila relacional F4. Es cobertura admitida por la
   lectura, no 566 nuevas regresiones. No se saneó ni se dio por resuelto el
   inventario histórico de quince huecos de F4/F5.
