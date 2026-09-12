@@ -878,41 +878,6 @@ describe('tramo: mes, semana y día (Miguel, 11/09/2026)', () => {
     expect(screen.queryByRole('button', { name: 'Ver el mes completo de Ana Analista' })).toBeNull()
   })
 
-  it('«A medida» deja elegir las fechas y suma solo esos días', () => {
-    pintar([
-      fila({ id: 'a', dia: '2026-09-02', capital: 10_000 }),
-      fila({ id: 'b', dia: '2026-09-03', capital: 20_000 }),
-      fila({ id: 'c', dia: '2026-09-09', capital: 90_000 }),
-    ])
-    elegirTramo('A medida')
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-02' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-03' } })
-    // 10 000 + 20 000; el del 9 queda fuera.
-    expect(screen.getAllByText('S/ 30,000').length).toBeGreaterThan(0)
-    expect(screen.queryByText('S/ 120,000')).toBeNull()
-  })
-
-  it('«A medida» arranca con el tramo que ya se estaba viendo', () => {
-    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
-    elegirTramo('Semana')
-    elegirTramo('A medida')
-    // La semana del 10/09 es del lunes 7 al domingo 13, pero el 13 aún no ha
-    // llegado: el «hasta» se trae a hoy en vez de pedir días del futuro.
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-07')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-10')
-  })
-
-  it('las flechas mueven el rango entero su propia longitud', () => {
-    pintar([fila({ id: 'x', dia: '2026-09-10', capital: 5_000 })])
-    elegirTramo('A medida')
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-08' } })
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-09' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Tramo anterior' }))
-    // Dos días atrás, no un mes.
-    expect(screen.getByLabelText('Desde')).toHaveValue('2026-09-06')
-    expect(screen.getByLabelText('Hasta')).toHaveValue('2026-09-07')
-  })
-
   it('no deja navegar al futuro', () => {
     pintar()
     elegirTramo('Día')
@@ -941,6 +906,30 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     expect(screen.queryByText('S/ 70,000')).toBeNull()
   })
 
+  it('el punto late al entrar y se queda quieto al elegir', () => {
+    // La pista que pidió Miguel para su gerente. Con días ya elegidos el latido
+    // sobra: ya sabe que se pulsan, y 31 columnas latiendo serían un tic.
+    pintar(TRES_DIAS)
+    const conPista = document.querySelectorAll('.ac-pista-dia')
+    expect(conPista.length).toBeGreaterThan(0)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(document.querySelectorAll('.ac-pista-dia')).toHaveLength(0)
+  })
+
+  it('DICE que se pueden elegir días, donde se lee', () => {
+    // El aviso vivía en el <caption>, que es solo para lectores de pantalla, y
+    // por eso Miguel no encontraba la función aunque estuviera hecha.
+    pintar(TRES_DIAS)
+    // Tiene que estar FUERA del `sr-only`: ahí es donde estaba y no servía.
+    const visible = screen
+      .getAllByText(/Pulsa el número de un día/)
+      .find((el) => el.closest('.sr-only') == null)
+    expect(visible).toBeDefined()
+    expect(visible).toBeVisible()
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(screen.getByText(/Pulsa otro número para añadirlo/)).toBeVisible()
+  })
+
   it('la tabla NO pierde columnas: hay que poder marcar un cuarto día', () => {
     pintar(TRES_DIAS)
     marcar(/Marcar el .*, 2 de setiembre/i)
@@ -956,7 +945,8 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     marcar(/Marcar el .*, 4 de setiembre/i)
     // Titular, rótulo, mejor día y divisor del promedio: o todos hablan de los
     // días elegidos, o la pantalla dice dos cosas a la vez.
-    expect(screen.getByText(/2 días elegidos/)).toBeVisible()
+    // Sale en el rótulo del indicador Y en el aviso de arriba de la tabla.
+    expect(screen.getAllByText(/2 días elegidos/).length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('Mejor día de los elegidos')).toBeVisible()
     expect(screen.getByText(/2 días hábiles/)).toBeVisible()
   })
@@ -1016,6 +1006,77 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     expect(screen.getByRole('button', { name: 'Quitar los días marcados' })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
     expect(screen.queryByRole('button', { name: 'Quitar los días marcados' })).toBeNull()
+  })
+})
+
+describe('tablet — Miguel, 11/09/2026: «esto está pensado para usar en tablet»', () => {
+  /**
+   * Simula un iPad: puntero grueso, sin hover y ventana estrecha. El criterio
+   * del CRM NO es el ancho sino el puntero, para que un portátil con la ventana
+   * a media pantalla siga siendo escritorio.
+   */
+  function comoTablet(): void {
+    vi.stubGlobal('matchMedia', (consulta: string) => ({
+      matches:
+        consulta.includes('hover: none') ||
+        consulta.includes('max-width: 1279px') ||
+        consulta.includes('max-width: 1099px'),
+      media: consulta,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('abre en Semana: el mes no cabe en una tablet', () => {
+    // Medido en iPad vertical antes del arreglo: 4 días visibles de 30.
+    comoTablet()
+    pintar()
+    expect(screen.getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('en escritorio sigue abriendo en Mes', () => {
+    pintar()
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('pliega lo secundario detrás de «Filtros» y deja a la vista lo de diario', () => {
+    comoTablet()
+    pintar()
+    // Tramo y moneda SIEMPRE visibles; el resto, tras el botón.
+    expect(screen.getByRole('button', { name: 'Semana' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Todo S/' })).toBeVisible()
+    const filtros = screen.getByRole('button', { name: /Filtros/ })
+    expect(filtros).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(filtros)
+    expect(filtros).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('en escritorio NO hay botón «Filtros»: todo cabe', () => {
+    pintar()
+    expect(screen.queryByRole('button', { name: /^Filtros/ })).toBeNull()
+  })
+
+  it('las casillas de comparar crecen para el dedo', () => {
+    comoTablet()
+    // Abre en Semana (7 al 13): hace falta una venta DENTRO para que haya malla.
+    pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
+    // HAY DOS casillas distintas: la de cada fila de la malla y la del panel de
+    // analistas. La primera versión de esta prueba solo miraba una, y el
+    // mutante que encogía la otra sobrevivía.
+    const enLaMalla = within(malla()).getAllByRole('checkbox')[0]
+    expect(enLaMalla?.className).toContain('size-6')
+    expect(enLaMalla?.className).not.toContain('size-4')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Analistas/ }))
+    const enElPanel = within(screen.getByRole('group', { name: /Analistas/ })).getAllByRole('checkbox')[0]
+    // 14 px es imposible de acertar con un dedo; 24 es el mínimo usable.
+    expect(enElPanel?.className).toContain('size-6')
+    expect(enElPanel?.className).not.toContain('size-3.5')
   })
 })
 

@@ -27,7 +27,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
+  MousePointerClick,
   RotateCcw,
+  SlidersHorizontal,
   TriangleAlert,
   TrendingUp,
   Users,
@@ -47,6 +49,7 @@ import { useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
+import { CONSULTA_ESTRECHA, useEsEstrecha, useEsTactil } from '@/lib/media'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
@@ -61,7 +64,6 @@ import {
   desgloseDeCelda,
   diasDelMes,
   diasDelPeriodo,
-  diasEntre,
   diasHabilesHasta,
   equiposDeRoster,
   esDomingo,
@@ -115,20 +117,17 @@ const ROTULO_GRANULARIDAD: Record<Granularidad, string> = {
   mes: 'Mes',
   semana: 'Semana',
   dia: 'Día',
-  rango: 'A medida',
 }
 const ROTULO_ANTERIOR: Record<Granularidad, string> = {
   mes: 'Mes anterior',
   semana: 'Semana anterior',
   dia: 'Día anterior',
-  rango: 'Tramo anterior',
 }
 /** «del mes» / «de la semana» / «del día», para los rótulos que lo necesitan. */
 const ROTULO_DEL_TRAMO: Record<Granularidad, string> = {
   mes: 'del mes',
   semana: 'de la semana',
   dia: 'del día',
-  rango: 'del tramo',
 }
 
 /** Contra qué se compara, dicho en la unidad que se está mirando. */
@@ -136,13 +135,11 @@ const ROTULO_TRAMO_ANTERIOR: Record<Granularidad, string> = {
   mes: 'el mismo tramo del mes anterior',
   semana: 'los mismos días de la semana anterior',
   dia: 'el día anterior',
-  rango: 'el tramo anterior de igual duración',
 }
 const ROTULO_SIGUIENTE: Record<Granularidad, string> = {
   mes: 'Mes siguiente',
   semana: 'Semana siguiente',
   dia: 'Día siguiente',
-  rango: 'Tramo siguiente',
 }
 
 /** Tope de filas que PostgREST devuelve por consulta (supabase/config.toml). */
@@ -316,6 +313,7 @@ function FilaAnalista({
   marcado,
   diaAbierto,
   sangria,
+  tactil,
   onMarcar,
   onAbrirMes,
   onAbrirCelda,
@@ -330,6 +328,8 @@ function FilaAnalista({
   marcado: boolean
   diaAbierto: string | null
   sangria: boolean
+  /** El puntero primario es un dedo: blancos grandes, sin depender del hover. */
+  tactil: boolean
   onMarcar: () => void
   onAbrirMes: () => void
   onAbrirCelda: (dia: string) => void
@@ -347,7 +347,7 @@ function FilaAnalista({
             checked={marcado}
             onChange={onMarcar}
             aria-label={`Comparar a ${fila.nombre}`}
-            className="size-4 shrink-0 accent-[var(--accent)]"
+            className={cn('shrink-0 accent-[var(--accent)]', tactil ? 'size-6' : 'size-4')}
           />
           <button
             type="button"
@@ -422,19 +422,25 @@ export function Facturacion({
   // El ANCLA es un día cualquiera dentro del periodo que se mira; la
   // granularidad decide si eso significa su mes, su semana o él solo. `mes` se
   // deriva del ancla porque la consulta al servidor sigue siendo mensual.
-  const [granularidad, setGranularidad] = useState<Granularidad>('mes')
+  // En una pantalla estrecha el mes NO CABE: en iPad vertical se veían 4 días de
+  // 30 y había que arrastrar la tabla de lado con el dedo. Se abre en Semana,
+  // que entra entera; el mes sigue a un toque.
+  const esEstrecha = useEsEstrecha()
+  const esTactil = useEsTactil()
+  const [granularidad, setGranularidad] = useState<Granularidad>(() =>
+    typeof window !== 'undefined' && window.matchMedia?.(CONSULTA_ESTRECHA).matches
+      ? 'semana'
+      : 'mes',
+  )
   const [ancla, setAncla] = useState<string>(() => fechaLima(Date.now()))
-  // La otra punta del rango a medida. Arranca igual que el ancla para que
-  // «A medida» abra en un día y no en un tramo vacío.
-  const [hastaRango, setHastaRango] = useState<string>(() => fechaLima(Date.now()))
   // DÍAS SUELTOS marcados a mano — Miguel, 11/09/2026: «marcar los días sueltos
   // que yo quiera», el 3, el 7 y el 12 aunque no vayan seguidos. Manda sobre el
   // tramo: si hay días marcados, la malla son ESOS y nada más.
   const [diasMarcados, setDiasMarcados] = useState<readonly string[]>([])
   const mes = primerDiaDelMes(ancla)
   const diasDelTramo = useMemo(
-    () => diasDelPeriodo(granularidad, ancla, hastaRango),
-    [granularidad, ancla, hastaRango],
+    () => diasDelPeriodo(granularidad, ancla),
+    [granularidad, ancla],
   )
   // Los marcados se cruzan con el tramo: marcar el 3 y luego irte a otro mes no
   // debe arrastrar un día que ya no está en pantalla.
@@ -445,13 +451,10 @@ export function Facturacion({
   const hayMarcados = marcadosEnTramo.length > 0
   const diasVisibles = diasDelTramo
   // El tramo anterior, aquí arriba: hace falta para saber qué meses pedir.
-  const anclaPrevia = periodoDesplazado(granularidad, ancla, -1, diasVisibles.length || 1)
+  const anclaPrevia = periodoDesplazado(granularidad, ancla, -1)
   const diasPrevios = useMemo(
-    () =>
-      granularidad === 'rango'
-        ? diasEntre(anclaPrevia, periodoDesplazado('rango', hastaRango, -1, diasVisibles.length || 1))
-        : diasDelPeriodo(granularidad, anclaPrevia),
-    [granularidad, anclaPrevia, hastaRango, diasVisibles.length],
+    () => diasDelPeriodo(granularidad, anclaPrevia),
+    [granularidad, anclaPrevia],
   )
 
   // No se navega al futuro: el tope es el periodo que contiene HOY en Lima.
@@ -465,24 +468,10 @@ export function Facturacion({
     )
   }
   const moverPeriodo = (delta: number): void => {
-    const largo = diasVisibles.length || 1
-    setAncla((a) => periodoDesplazado(granularidad, a, delta, largo))
-    if (granularidad === 'rango') {
-      setHastaRango((h) => periodoDesplazado('rango', h, delta, largo))
-    }
+    setAncla((a) => periodoDesplazado(granularidad, a, delta))
   }
   const cambiarGranularidad = (g: Granularidad): void => {
     setDiasMarcados([])
-    // Al pasar a «A medida» se arranca con EL TRAMO QUE YA SE ESTABA VIENDO, no
-    // con un día suelto: así se empieza a ajustar desde algo conocido.
-    if (g === 'rango') {
-      const primero = diasVisibles[0] ?? ancla
-      const ultimo = diasVisibles[diasVisibles.length - 1] ?? ancla
-      setGranularidad(g)
-      setAncla(primero)
-      setHastaRango(ultimo > hoy ? hoy : ultimo)
-      return
-    }
     setGranularidad(g)
     setAncla((a) => {
       const ultimo = diasDelPeriodo(g, a).slice(-1)[0] ?? a
@@ -501,6 +490,7 @@ export function Facturacion({
   const [tipo, setTipo] = useState<TipoFacturacion>(TIPO_CAPITAL_NUEVO)
   const [filtro, setFiltro] = useState<FiltroFacturacion>(filtroInicial)
   const [panelAbierto, setPanelAbierto] = useState(false)
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [cerrados, setCerrados] = useState<readonly string[]>([])
   const [seleccion, setSeleccion] = useState<{ analistaId: string; dia: string | null } | null>(null)
@@ -912,7 +902,7 @@ export function Facturacion({
               <ChevronLeft aria-hidden />
             </Button>
             <span className="min-w-[15ch] text-center text-sm font-bold tabular-nums first-letter:uppercase">
-              {etiquetaPeriodo(granularidad, ancla, hastaRango)}
+              {etiquetaPeriodo(granularidad, ancla)}
             </span>
             <Button
               variant="outline"
@@ -932,38 +922,6 @@ export function Facturacion({
             rotulo={ROTULO_GRANULARIDAD}
             onCambio={cambiarGranularidad}
           />
-          {granularidad === 'rango' && (
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground-strong">
-              <label className="flex items-center gap-1">
-                Desde
-                <input
-                  type="date"
-                  aria-label="Desde"
-                  value={ancla}
-                  max={hastaRango < hoy ? hastaRango : hoy}
-                  onChange={(e) => {
-                    if (e.target.value !== '') setAncla(e.target.value)
-                  }}
-                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
-                />
-              </label>
-              <label className="flex items-center gap-1">
-                hasta
-                <input
-                  type="date"
-                  aria-label="Hasta"
-                  value={hastaRango}
-                  min={ancla}
-                  max={hoy}
-                  onChange={(e) => {
-                    if (e.target.value !== '') setHastaRango(e.target.value)
-                  }}
-                  className="ac-fecha min-h-9 rounded-md border border-border bg-card px-2 py-1 text-[12px] font-bold tabular-nums"
-                />
-              </label>
-            </div>
-          )}
-
           <Interruptor
             etiqueta="Moneda — en Soles y Dólares nunca se suman; Total S/ convierte a la tasa del día"
             opciones={VISTAS_MONEDA}
@@ -971,6 +929,27 @@ export function Facturacion({
             rotulo={ROTULO_VISTA}
             onCambio={setVista}
           />
+          {/* En tablet la barra se partía en SIETE filas y se comía 200 px de
+              alto. Lo secundario —qué se mide, tipo, equipo, analistas— se
+              pliega detrás de un botón; el tramo y la moneda, que son lo que se
+              toca a diario, se quedan siempre a la vista. */}
+          {esEstrecha && (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-expanded={filtrosAbiertos}
+              onClick={() => setFiltrosAbiertos((v) => !v)}
+            >
+              <SlidersHorizontal aria-hidden />
+              Filtros
+              <ChevronDown
+                aria-hidden
+                className={cn('transition-transform', filtrosAbiertos && 'rotate-180')}
+              />
+            </Button>
+          )}
+
+          <div className={cn('contents', esEstrecha && !filtrosAbiertos && 'hidden')}>
           <Interruptor
             etiqueta="Qué se mide"
             opciones={['capital', 'contratos'] as const}
@@ -1028,6 +1007,7 @@ export function Facturacion({
               className={cn('transition-transform', panelAbierto && 'rotate-180')}
             />
           </Button>
+          </div>
 
           {hayMarcados && (
             <Button
@@ -1146,7 +1126,10 @@ export function Facturacion({
                               disabled={bloqueado}
                               onChange={() => alternarAnalista(p.id)}
                               aria-label={`Comparar a ${p.nombre}`}
-                              className="size-3.5 shrink-0 accent-[var(--accent)]"
+                              className={cn(
+                                'shrink-0 accent-[var(--accent)]',
+                                esTactil ? 'size-6' : 'size-3.5',
+                              )}
                             />
                             {p.nombre}
                           </label>
@@ -1168,7 +1151,7 @@ export function Facturacion({
             hayMarcados
               ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}`
               : filtroVacio(filtro)
-                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla, hastaRango)}`
+                ? `${hayDolares ? 'Total facturado' : 'Facturado'} · ${etiquetaPeriodo(granularidad, ancla)}`
                 : `${hayDolares ? 'Total facturado' : 'Facturado'} por lo filtrado`
           }
           value={siFiable(totalFacturado)}
@@ -1258,9 +1241,7 @@ export function Facturacion({
                 ? 'Ese día, por equipo y por analista'
                 : granularidad === 'semana'
                   ? 'Esa semana, día a día, por equipo y por analista'
-                  : granularidad === 'rango'
-                    ? 'El tramo elegido, día a día, por equipo y por analista'
-                    : 'Cada día del mes, por equipo y por analista'
+                  : 'Cada día del mes, por equipo y por analista'
           }
           right={
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground-strong">
@@ -1278,6 +1259,16 @@ export function Facturacion({
             </div>
           }
         />
+
+        {/* VISIBLE. El aviso vivía en el <caption>, que es solo para lectores de
+            pantalla: Miguel no encontraba dónde elegir los días porque nada se
+            lo decía. Un botón que no se anuncia no existe. */}
+        <p className="border-t border-border bg-muted/30 px-4 py-2 text-[12px] font-medium text-muted-foreground-strong">
+          <MousePointerClick aria-hidden className="mr-1.5 inline size-3.5 align-[-2px]" />
+          {hayMarcados
+            ? `Estás viendo ${marcadosEnTramo.length === 1 ? '1 día elegido' : `${numero(marcadosEnTramo.length)} días elegidos`}. Pulsa otro número para añadirlo, o el mismo para quitarlo.`
+            : 'Pulsa el número de un día —arriba de la tabla— para elegirlo. Puedes marcar varios, aunque no vayan seguidos.'}
+        </p>
 
         {cargando ? (
           // Mientras el servidor responde no se pinta una malla vacía: parecería
@@ -1329,11 +1320,12 @@ export function Facturacion({
             <div className="ac-scroll overflow-auto border-t border-border focus-visible:outline-2 focus-visible:outline-offset-2" role="region" tabIndex={0} aria-label={`Facturación diaria de ${etiquetaMes(mes)} en ${ROTULO_VISTA[vistaEfectiva]}, ${ROTULO_TIPO[tipo]}`}>
               <table className="border-separate border-spacing-0 bg-card text-sm">
                 <caption className="sr-only">
-                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla, hastaRango)} ·{' '}
+                  {ROTULO_METRICA[metrica]} por día · {etiquetaPeriodo(granularidad, ancla)} ·{' '}
                   {ROTULO_VISTA[vistaEfectiva]} ·{' '}
                   {ROTULO_TIPO[tipo]}.
-                  Marca la casilla de dos o más analistas para verlos solos y compararlos; activa
-                  una celda para ver los contratos de ese día.
+                  Pulsa el número de un día para elegirlo, y otro, y otro: los totales pasan a
+                  ser solo de esos días. Marca la casilla de dos o más analistas para verlos
+                  solos y compararlos; activa una celda para ver los contratos de ese día.
                 </caption>
                 <thead>
                   <tr>
@@ -1360,8 +1352,13 @@ export function Facturacion({
                           type="button"
                           aria-pressed={marcado}
                           aria-label={`Marcar el ${etiquetaDiaLargo(dia)}`}
+                          title={marcado ? 'Quitar este día' : 'Elegir este día'}
                           onClick={() => alternarDia(dia)}
-                          className="w-full cursor-pointer px-0 py-1.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                          className={cn(
+                            'ac-dia-btn w-full cursor-pointer px-0 py-1.5',
+                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                            !marcado && 'hover:bg-accent/20',
+                          )}
                         >
                           <span
                             className={cn(
@@ -1379,6 +1376,18 @@ export function Facturacion({
                           >
                             {letraDia(dia)}
                           </span>
+                          {/* La señal de que el día se puede elegir. Sin esto la
+                              cabecera parecía un rótulo y nadie la pulsaba. Late
+                              tres veces al entrar y se queda quieto: con 31
+                              columnas, un latido infinito sería un tic. */}
+                          <span
+                            aria-hidden
+                            className={cn(
+                              'mx-auto mt-0.5 block size-1.5 rounded-full',
+                              marcado ? 'bg-primary-foreground' : 'bg-accent',
+                              !hayMarcados && 'ac-pista-dia',
+                            )}
+                          />
                         </button>
                       </th>
                       )
@@ -1405,6 +1414,7 @@ export function Facturacion({
                           metrica={metrica}
                           moneda={moneda}
                           marcado={filtro.analistas.includes(fila.id)}
+                          tactil={esTactil}
                           diaAbierto={seleccion?.analistaId === fila.id ? seleccion.dia : null}
                           sangria={false}
                           onMarcar={() => alternarAnalista(fila.id)}
@@ -1471,6 +1481,7 @@ export function Facturacion({
                                   metrica={metrica}
                                   moneda={moneda}
                                   marcado={filtro.analistas.includes(a.id)}
+                                  tactil={esTactil}
                                   diaAbierto={seleccion?.analistaId === a.id ? seleccion.dia : null}
                                   sangria
                                   onMarcar={() => alternarAnalista(a.id)}

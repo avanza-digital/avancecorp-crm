@@ -234,6 +234,26 @@ body {
   50%      { transform: scale(1.12); }
 }
 
+/* Pista de que un día de Facturación se puede elegir: el punto bajo el número
+   late TRES VECES al entrar y se para. Miguel, 11/09/2026: su gerente tiene que
+   darse cuenta de que ahí se pulsa. Infinito sería un tic nervioso en 31
+   columnas a la vez; tres latidos llaman la atención y se apartan. */
+.ac-pista-dia { animation: ac-pista-dia 1.1s var(--ease-out-expo) 3; transform-origin: center; }
+@keyframes ac-pista-dia {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  45%      { transform: scale(2.1); opacity: 1; }
+}
+
+/* El número sube un pelo al pasar el ratón: confirma que es pulsable. */
+.ac-dia-btn { transition: transform 0.18s var(--ease-out-expo), background-color 0.18s ease; }
+.ac-dia-btn:hover { transform: translateY(-1px); }
+/* CON EL DEDO NO HAY HOVER. La confirmación del toque es el hundido: sin esto,
+   en tablet no había ninguna respuesta entre tocar y ver cambiar los totales. */
+.ac-dia-btn:active { transform: scale(0.9); }
+@media (hover: none) {
+  .ac-dia-btn:hover { transform: none; }
+}
+
 /* Sacudida horizontal: el guardado falló (BotonGuardar). Corre una sola vez;
    el componente quita la clase en onAnimationEnd para poder re-sacudir. */
 .ac-shake { animation: ac-shake 0.45s ease-in-out; }
@@ -361,6 +381,11 @@ body {
    ACCESIBILIDAD — respetar prefers-reduced-motion.
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
+  /* Sin latido ni desplazamiento: el punto y el color siguen ahí, que son las
+     señales que de verdad informan. */
+  .ac-pista-dia { animation: none; opacity: 0.85; }
+  .ac-dia-btn { transition: background-color 0.15s ease; }
+  .ac-dia-btn:hover { transform: none; }
   .ac-lift,
   [data-slot='button'],
   .ac-nav-item {

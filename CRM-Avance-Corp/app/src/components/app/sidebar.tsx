@@ -65,6 +65,11 @@ const NAV_GOBIERNO_ROLES = [{
   label: 'Usuarios y roles',
   icon: UsersRound,
   seccion: 'administracion',
+}, {
+  id: 'config-citas',
+  label: 'Control de Citas',
+  icon: Target,
+  seccion: 'administracion',
 }] as const
 
 // Estado de colapso persistido: se recuerda entre recargas (por navegador).
@@ -86,8 +91,15 @@ function guardarColapsado(v: boolean): void {
 
 const ABRIR_MS = 120 // retardo antes de asomar (un paso rápido no lo dispara)
 const CERRAR_MS = 200 // retardo antes de replegar (permite ir al panel sin cortar)
+// Arranca plegado en TODO lo que se toca con el dedo, no solo en teléfono. Un
+// iPad tiene 820 px en vertical y el riel se comía 240: casi un tercio de la
+// pantalla para un menú que no se usa mientras se mira un tablero. El botón de
+// abrirlo sigue donde estaba, y la preferencia guardada manda sobre esto.
+// (Miguel, 11/09/2026: «esto está pensado para usar en tablet».)
 const esPantallaMovil = () =>
-  typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  typeof window !== 'undefined' &&
+  (window.matchMedia('(max-width: 767px)').matches ||
+    window.matchMedia('(hover: none) and (pointer: coarse) and (max-width: 1279px)').matches)
 
 // Animación del "peek": el panel crece anclando los íconos y los labels entran
 // en cascada con un rebote sutil. Se desactiva con prefers-reduced-motion.
