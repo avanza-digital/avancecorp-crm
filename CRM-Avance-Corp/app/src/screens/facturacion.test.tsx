@@ -906,6 +906,16 @@ describe('marcar días sueltos (Miguel, 11/09/2026)', () => {
     expect(screen.queryByText('S/ 70,000')).toBeNull()
   })
 
+  it('el punto late al entrar y se queda quieto al elegir', () => {
+    // La pista que pidió Miguel para su gerente. Con días ya elegidos el latido
+    // sobra: ya sabe que se pulsan, y 31 columnas latiendo serían un tic.
+    pintar(TRES_DIAS)
+    const conPista = document.querySelectorAll('.ac-pista-dia')
+    expect(conPista.length).toBeGreaterThan(0)
+    marcar(/Marcar el .*, 2 de setiembre/i)
+    expect(document.querySelectorAll('.ac-pista-dia')).toHaveLength(0)
+  })
+
   it('DICE que se pueden elegir días, donde se lee', () => {
     // El aviso vivía en el <caption>, que es solo para lectores de pantalla, y
     // por eso Miguel no encontraba la función aunque estuviera hecha.

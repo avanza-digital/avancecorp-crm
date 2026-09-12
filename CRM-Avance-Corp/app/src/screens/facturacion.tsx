@@ -1315,7 +1315,7 @@ export function Facturacion({
                           title={marcado ? 'Quitar este día' : 'Elegir este día'}
                           onClick={() => alternarDia(dia)}
                           className={cn(
-                            'w-full cursor-pointer px-0 py-1.5 transition-colors',
+                            'ac-dia-btn w-full cursor-pointer px-0 py-1.5',
                             'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                             !marcado && 'hover:bg-accent/20',
                           )}
@@ -1337,12 +1337,15 @@ export function Facturacion({
                             {letraDia(dia)}
                           </span>
                           {/* La señal de que el día se puede elegir. Sin esto la
-                              cabecera parecía un rótulo y nadie la pulsaba. */}
+                              cabecera parecía un rótulo y nadie la pulsaba. Late
+                              tres veces al entrar y se queda quieto: con 31
+                              columnas, un latido infinito sería un tic. */}
                           <span
                             aria-hidden
                             className={cn(
                               'mx-auto mt-0.5 block size-1.5 rounded-full',
-                              marcado ? 'bg-primary-foreground' : 'bg-border',
+                              marcado ? 'bg-primary-foreground' : 'bg-accent',
+                              !hayMarcados && 'ac-pista-dia',
                             )}
                           />
                         </button>
