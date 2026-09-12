@@ -63,3 +63,14 @@ No reabrir el banco F7 cerrado ni reinstalar lo ya publicado.
 Claude: primera revisión CHANGES_REQUESTED evaluada y corregida con evidencia.
 La segunda respuesta fue incompleta (wrapper exit 1): no hay dictamen final
 válido ni aprobación final de Claude. Detalles en el acta enlazada.
+
+## Retoma y sincronización del 11/09
+
+Miguel pidió continuar. Se completó el envío de la integración `f74f48d` a
+`avancecorp/main` y `avancecorp/codex/f7-metricas`, conservando los tres avances
+paralelos de Facturación. Lint, typecheck y build PASS; el gate de push pasó
+**3.404 pruebas en 235 archivos**. Main local y remoto se verificaron iguales.
+Esta sincronización no desplegó un nuevo CRM ni activó banderas. El comparativo
+conserva el corte de las 17:51 y su hash, cotejado contra el respaldo privado.
+Ya se abrió de nuevo para revisión. Ambas conformidades siguen pendientes;
+la solicitud de continuar no se registra como firma G6 ni autorización F8.
