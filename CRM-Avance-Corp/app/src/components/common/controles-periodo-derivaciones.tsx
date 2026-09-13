@@ -10,6 +10,10 @@ export function ControlesPeriodoDerivaciones({
   rangoInvalido,
   titulo = 'Período para comparar la carga',
   descripcion = 'Todas las tarjetas responden al mismo filtro.',
+  mostrarHoy = false,
+  ariaLabel = 'Período del reporte de derivaciones',
+  ariaLabelDesde = 'Fecha inicial del reporte de derivaciones',
+  ariaLabelHasta = 'Fecha final del reporte de derivaciones',
   onModo,
   onDesde,
   onHasta,
@@ -21,6 +25,10 @@ export function ControlesPeriodoDerivaciones({
   rangoInvalido: boolean
   titulo?: string
   descripcion?: string
+  mostrarHoy?: boolean
+  ariaLabel?: string
+  ariaLabelDesde?: string
+  ariaLabelHasta?: string
   onModo: (modo: ModoPeriodoDerivaciones) => void
   onDesde: (fecha: string) => void
   onHasta: (fecha: string) => void
@@ -35,8 +43,18 @@ export function ControlesPeriodoDerivaciones({
         <div
           className="flex items-center gap-1"
           role="group"
-          aria-label="Período del reporte de derivaciones"
+          aria-label={ariaLabel}
         >
+          {mostrarHoy && (
+            <Button
+              type="button"
+              size="xs"
+              variant={modo === 'hoy' ? 'accent' : 'outline'}
+              onClick={() => onModo('hoy')}
+            >
+              Hoy
+            </Button>
+          )}
           <Button
             type="button"
             size="xs"
@@ -70,7 +88,7 @@ export function ControlesPeriodoDerivaciones({
                 type="date"
                 value={desde}
                 max={hoy}
-                aria-label="Fecha inicial del reporte de derivaciones"
+                aria-label={ariaLabelDesde}
                 onChange={(event) => onDesde(event.target.value)}
                 className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-medium text-foreground shadow-sm outline-none transition focus-visible:ring-[3px] focus-visible:ring-ring/30"
               />
@@ -81,7 +99,7 @@ export function ControlesPeriodoDerivaciones({
                 type="date"
                 value={hasta}
                 max={hoy}
-                aria-label="Fecha final del reporte de derivaciones"
+                aria-label={ariaLabelHasta}
                 onChange={(event) => onHasta(event.target.value)}
                 className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-medium text-foreground shadow-sm outline-none transition focus-visible:ring-[3px] focus-visible:ring-ring/30"
               />

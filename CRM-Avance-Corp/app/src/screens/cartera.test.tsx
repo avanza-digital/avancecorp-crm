@@ -13,13 +13,20 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
 import type { Lead } from '@/lib/tipos'
 import type { CierreEstado } from '@/lib/cierre-estado'
+import type { LeadsRecibidosAnalista } from '@/lib/leads-recibidos-analista'
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
 let ESTADO_CIERRES: CierreEstado[] = []
 let CIERRES_MES: number | null = null
+let RECIBIDOS: LeadsRecibidosAnalista | null = null
+const CONSULTAS_RECIBIDOS: Array<{ habilitada: boolean; desde: string; hasta: string }> = []
 
-beforeEach(() => { CIERRES_MES = null })
+beforeEach(() => {
+  CIERRES_MES = null
+  RECIBIDOS = null
+  CONSULTAS_RECIBIDOS.length = 0
+})
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -37,6 +44,12 @@ vi.mock('@/lib/store-context', () => ({
 // transporte, y montar un QueryClientProvider para eso sería ruido.
 vi.mock('@/data/crm-queries', () => ({
   useCierresEstado: () => ({ data: ESTADO_CIERRES }),
+}))
+vi.mock('@/data/use-leads-recibidos-analista', () => ({
+  useLeadsRecibidosAnalista: (habilitada: boolean, desde: string, hasta: string) => {
+    CONSULTAS_RECIBIDOS.push({ habilitada, desde, hasta })
+    return { data: RECIBIDOS, error: null, isPending: false, refetch: vi.fn() }
+  },
 }))
 // F1: el hook operativo se sustituye por el espejo puro sobre los MISMOS leads
 // del mock — los chips se prueban con números derivados de verdad, sin red ni
@@ -177,6 +190,61 @@ describe('Cartera · chip de capital', () => {
     const chip = chipDe('Capital en juego')
     expect(within(chip).getByText('S/ 12,000')).toBeInTheDocument()
     expect(within(chip).queryByText('S/ 111,000')).not.toBeInTheDocument()
+  })
+})
+
+describe('Cartera · leads recibidos del analista', () => {
+  it('muestra el total y el detalle diario, con Hoy como período inicial', () => {
+    const hoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date())
+    RECIBIDOS = {
+      version: 1,
+      generado_en: new Date().toISOString(),
+      periodo: { desde: hoy, hasta: hoy, dias: 1, zona: 'America/Lima' },
+      total: 4,
+      aproximados: 0,
+      dias: [{ fecha: hoy, total: 4, aproximados: 0 }],
+    }
+
+    montar([lead()])
+
+    const bloque = screen.getByRole('region', { name: 'Leads recibidos por período' })
+    expect(within(bloque).getByText('4 en el período')).toBeInTheDocument()
+    expect(within(bloque).getByText('4', { selector: 'p' })).toBeInTheDocument()
+    expect(within(bloque).getByText('4 leads')).toBeInTheDocument()
+    expect(within(bloque).getByRole('button', { name: 'Hoy' })).toBeInTheDocument()
+    expect(CONSULTAS_RECIBIDOS.at(-1)).toEqual({ habilitada: true, desde: hoy, hasta: hoy })
+  })
+
+  it('permite elegir un rango manual inclusivo', () => {
+    montar([lead()])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rango' }))
+    fireEvent.change(screen.getByLabelText('Fecha inicial de leads recibidos'), {
+      target: { value: '2026-09-01' },
+    })
+    fireEvent.change(screen.getByLabelText('Fecha final de leads recibidos'), {
+      target: { value: '2026-09-03' },
+    })
+
+    expect(CONSULTAS_RECIBIDOS.at(-1)).toEqual({
+      habilitada: true,
+      desde: '2026-09-01',
+      hasta: '2026-09-03',
+    })
+  })
+
+  it('no expone el conteo propio del analista a Gerencia', () => {
+    YO = { id: 'g-1', rol: 'gerencia', demo: false }
+    LEADS = [lead()]
+    render(<Cartera />)
+
+    expect(screen.queryByRole('region', { name: 'Leads recibidos por período' })).not.toBeInTheDocument()
+    expect(CONSULTAS_RECIBIDOS).toHaveLength(0)
   })
 })
 

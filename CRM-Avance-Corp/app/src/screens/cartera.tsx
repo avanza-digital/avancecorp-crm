@@ -25,6 +25,7 @@ import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
+import { LeadsRecibidosAnalistaCard } from '@/components/app/leads-recibidos-analista'
 
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
@@ -149,6 +150,13 @@ export function Cartera() {
         </div>
         <a href="#/rendimiento" className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => memoriaGerencia?.setConsulta((actual) => ({ ...actual, gestionAnalista: null }))}>Volver a Rendimiento</a>
       </section>}
+      {yo?.rol === 'vendedor' && (
+        <LeadsRecibidosAnalistaCard
+          analistaId={yo.id}
+          demo={yo.demo === true}
+          leads={leads}
+        />
+      )}
       {/* Mini-KPIs de la cartera */}
       <StatStrip stats={stats} />
       <p className="text-xs text-muted-foreground">

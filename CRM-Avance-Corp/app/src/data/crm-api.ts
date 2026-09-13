@@ -118,6 +118,11 @@ import {
   type ResultadoRevertirDerivacionEquipo,
 } from '@/lib/reporte-derivaciones-equipo'
 import {
+  LeadsRecibidosAnalistaSchema,
+  leadsRecibidosAnalistaConsistente,
+  type LeadsRecibidosAnalista,
+} from '@/lib/leads-recibidos-analista'
+import {
   ReporteDerivacionesCoordinacionSchema,
   reporteDerivacionesCoordinacionConsistente,
   type ReporteDerivacionesCoordinacion,
@@ -5177,6 +5182,62 @@ export async function listarReporteDerivacionesCoordinacion(
     registrarError('crm.reparto.reporte_diario_fuera_de_contrato', fallo)
     throw fallo
   }
+  return resultado.output
+}
+
+/**
+ * Conteo diario de los episodios que entraron a responsabilidad del analista
+ * autenticado. Solo devuelve fechas y cantidades; ningún dato del lead cruza
+ * esta frontera.
+ */
+export async function listarLeadsRecibidosAnalista(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<LeadsRecibidosAnalista> {
+  if (
+    !v.safeParse(FechaSchema, desde).success
+    || !v.safeParse(FechaSchema, hasta).success
+    || desde > hasta
+  ) {
+    throw new CrmApiError('El rango de leads recibidos no es válido.', 'RANGO_INVALIDO')
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('leads_recibidos_analista_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+
+  if (error) {
+    const fallo = new CrmApiError(
+      error.code === '22023'
+        ? 'El rango de leads recibidos no es válido.'
+        : error.code === '42501' || error.code === 'PGRST301'
+          ? 'No tienes permiso para consultar este conteo.'
+          : 'No se pudo cargar el conteo de leads recibidos.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.cartera.leads_recibidos_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const resultado = v.safeParse(LeadsRecibidosAnalistaSchema, data)
+  if (
+    !resultado.success
+    || !leadsRecibidosAnalistaConsistente(resultado.output, desde, hasta)
+  ) {
+    const fallo = new CrmApiError(
+      'El conteo de leads recibidos no tiene el formato esperado.',
+      'LEADS_RECIBIDOS_ANALISTA_CONTRACT',
+    )
+    registrarError('crm.cartera.leads_recibidos_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
   return resultado.output
 }
 
