@@ -35,6 +35,7 @@ Hay **tres capas**, complementarias:
 - [[Citas Gerencia - publicacion pausada 2026-09-12]] — preparación detenida por Miguel; candidatas ensayadas en rama propia, validaciones incompletas, sin commit ni publicación.
 - [[Citas Gerencia - conexiones corregidas en local 2026-09-12]] — caché y lector canónico preparados y probados; SQL sin instalar, nuevas metas/proyección y gate global pendientes.
 - [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
+- [[Leads recibidos por dia para analistas 2026-09-12]] — rango y conteo diario de entradas operativas a la cartera; rama preview verificada, pendiente de publicación.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
 - [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas; diez identidades pendientes, anexo privado y G6 abierto hasta aceptación humana/financiera.
 - [[F7 - publicada y apagada (2026-09-11)]] — informe Empresas publicado y SQL instalado OFF; pruebas específicas PASS, cero regresiones sobre los 57 fallos de la matriz general, banco cerrado; G6 pendiente.

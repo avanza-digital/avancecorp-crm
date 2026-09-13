@@ -59,3 +59,20 @@ preparación. La autorización de preparar/ensayar no se presenta como una
 instalación productiva realizada.
 
 Relacionado: [[Citas Gerencia - auditoria de conexion a nucleos 2026-09-11]].
+
+
+## Integración con la entrega de Leads recibidos
+
+Miguel confirmó que la otra sesión terminó. Se combinaron el commit de Citas
+`f3146ec` y `9cf0c7b` (Leads recibidos). Se conservaron ambos cambios y se
+resolvieron únicamente dos conflictos documentales. La copia integrada pasó
+3.424 pruebas, TypeScript, lint y build; Playwright: 173 PASS y 26 omitidas.
+
+El ensayo remoto combinado mantuvo idénticos el detalle de Citas y el control
+analítico. La tercera función se probó en una transacción revertida; producción
+permanece sin las candidatas. Evidencia actualizada en el README de la entrega.
+
+El paquete final debe corresponder al commit integrado idéntico en `main` y
+`avancecorp/main`; el ZIP anterior de `f3146ec` es histórico. El manifiesto del
+paquete final y `CRM-Avance-Corp/releases/citas-entrega-2026-09-13.json` identifican
+ese commit sin incorporar los borradores locales de nuevas metas/proyección.

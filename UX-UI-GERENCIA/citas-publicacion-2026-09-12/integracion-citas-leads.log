@@ -1,0 +1,3 @@
+psql:<stdin>:229: NOTICE:  PASS integración: mismo gate analítico y mismo detalle Citas; Gerencia denegada en contador personal
+psql:<stdin>:229: NOTICE:  PASS integración: contador personal y serie coherentes; separación de acceso intacta
+psql:<stdin>:229: NOTICE:  PASS rollback de integración: sólo permanecen las dos candidatas de Citas verificadas

@@ -126,3 +126,31 @@ Su manifiesto registra el commit, migraciones y hashes; verificarlo con
 matriz general, autorizar la instalación de estas dos migraciones y completar
 los gates del despliegue real. No se ha ejecutado instalación SQL productiva,
 publicación HTTP ni smoke productivo de esta entrega: **NOT RUN**.
+
+
+## Integración con Leads recibidos (13/09)
+
+Tras finalizar la otra sesión se incorporó su commit `9cf0c7b` al commit de
+Citas `f3146ec`. No hubo conflictos de código; se combinaron Inicio y el registro
+de migraciones conservando las dos entregas. El frontend integrado pasó
+`npm run check`: 3.424 pruebas en 237 archivos, lint, TypeScript, cobertura,
+build y controles del bundle. Playwright integrado: 173 PASS y 26 omitidas.
+
+Se reactivó sólo el banco propio para ensayar la tercera migración
+`20260913173350_crm_leads_recibidos_analista.sql` sobre las dos de Citas.
+La función adicional se creó dentro de una transacción que terminó en ROLLBACK.
+El detalle completo de Citas y el gate analítico fueron idénticos antes/después;
+el contador personal y su serie conservaron consistencia y separación de
+permisos. La tercera función y su versión no quedaron instaladas en el banco.
+Evidencia: `integracion-citas-leads.log` e `integracion-verificacion.json`.
+
+Para repetir el ensayo, concatenar `integracion-citas-leads-precondiciones.sql`,
+la migración adicional quitando **sólo** su BEGIN/COMMIT exterior, y
+`integracion-citas-leads-aserciones.sql`. Ejecutar el lote completo en el banco
+con la misma sesión. La aserción final comprueba el rollback y las 277 versiones
+anteriores. No ejecutarlo en producción.
+
+El paquete integrado contiene también la interfaz de Leads recibidos. Una
+futura publicación requiere contemplar las **tres** migraciones pendientes,
+en su orden temporal, además de las limitaciones generales ya documentadas.
+No se autorizó ni realizó un despliegue productivo por integrar los commits.

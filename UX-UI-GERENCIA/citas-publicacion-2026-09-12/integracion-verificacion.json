@@ -1,0 +1,25 @@
+{
+  "citas_commit": "f3146ec73614ef86b80f7a52f6a9c88f58bc602e",
+  "leads_commit": "9cf0c7b71e37ca3be16ecd8165d486dc669bf2db",
+  "frontend_check": {
+    "estado": "PASS",
+    "archivos": 237,
+    "pruebas": 3424
+  },
+  "ensayo_sql_combinado": {
+    "estado": "PASS",
+    "banco": "xhgsjtzpmwlqfkninphl",
+    "migracion_adicional": "20260913173350_crm_leads_recibidos_analista.sql",
+    "sha256": "4b354cdc95de0fd3eb6aea30dd60bb6d4786b1a292525623adcc3adb1a00d2b7",
+    "nuevo_sql_persistido": false,
+    "citas_payload_identico": true,
+    "gate_analitico_identico": true,
+    "permisos_entre_modulos_conservados": true
+  },
+  "produccion_instalada": false,
+  "frontend_e2e": {
+    "estado": "PASS",
+    "pruebas": 173,
+    "omitidas": 26
+  }
+}

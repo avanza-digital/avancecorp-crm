@@ -4625,6 +4625,10 @@ export type Database = {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
       }
+      leads_recibidos_analista_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       reprogramar_reunion: {
         Args: { p_nueva_id?: string; p_tarea_id: string; p_vence_en: string }
         Returns: Json

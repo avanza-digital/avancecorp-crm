@@ -9361,3 +9361,56 @@ cero residuos de volumen y cero triggers CRM apagados.
 Evidencia y límites: `UX-UI-GERENCIA/citas-publicacion-2026-09-12/README.md` y
 [[Citas Gerencia - preparacion verificada 2026-09-13]]. Instalación productiva,
 publicación y smoke del despliegue: NOT RUN.
+
+## 20260913173350 — Leads recibidos por día para el analista
+
+**Estado:** verificado en rama preview exclusiva; no aplicado a producción.
+
+Añade `crm.leads_recibidos_analista_fn(date, date)`, una RPC de solo lectura para
+que cada vendedor activo consulte cuántos episodios entraron a su propia cartera
+en un rango inclusivo de hasta 366 días. La fecha operativa es
+`crm.lead_asignaciones.asignado_en` en `America/Lima`; se conserva el historial
+aunque el lead ya haya sido transferido, descartado o convertido. Se excluyen las
+devoluciones inmediatas `parqueado` a la misma bandeja, igual que en los reportes
+operativos de derivación. El payload agrega por día, incluye días en cero y no
+contiene PII ni identificadores de leads.
+
+La función es `STABLE SECURITY DEFINER` con `search_path` vacío, valida actor
+antes que período, reutiliza `lead_asignaciones_analista_fecha_idx` y concede
+`EXECUTE` únicamente a `authenticated`; dentro de ese rol solo acepta un perfil y
+una membresía CRM activos con `rol_crm = 'vendedor'`. `anon`, `service_role` y
+`public` quedan revocados.
+
+Prueba local: migración y `supabase/scripts/test-leads-recibidos-analista.sql`
+ejecutadas juntas contra el banco local F4 reconstrucción y terminadas en
+`ROLLBACK`. PASS para paridad del total y aproximados con el ledger, 31 días
+inclusivos, suma diaria, ausencia de claves PII, rangos inválidos, actor de otro
+rol, falta de sesión y `anon` sin `EXECUTE`. La firma generada desde la rama
+confirmó `Args { p_desde, p_hasta }` y `Returns: Json`, iguales al contrato del
+frontend.
+
+**Auditoría RLS — CHANGES_REQUESTED y resuelta:** el primer predicado confundía
+`supervisor_origen_id = NULL` y `supervisor_destino_id = NULL` con una devolución
+a la misma bandeja. El esquema permite ese cierre cuando el lead queda totalmente
+sin asignar, de modo que podía perder una entrada real. Ahora solo se excluye si
+existe bandeja de origen y coincide con la de destino. El oráculo dejó de copiar
+el predicado: siembra casos deterministas `NULL/NULL` incluido, misma bandeja
+excluida, otro actor aislado y ambos bordes de `[inicio, fin)`. También comprueba
+día vacío, membresía/perfil inactivos y `service_role`; todo PASS con `ROLLBACK`.
+
+La revisión general aislada de Claude quedó **NOT RUN**: el wrapper protegido
+terminó dos veces sin emitir dictamen y, por protocolo, ninguna salida se contó
+como gate aprobado. No se sustituyó por una invocación directa.
+
+Rama `leads-recibidos-20260912-codex`: esquema base reconstruido con los 275
+cuerpos de producción y paridad comprobada en nueve superficies. Oráculo SQL
+remoto y Data API con usuario Auth efímero: PASS; anónimo denegado y residuos en
+cero. Los tipos generados confirmaron `Args { p_desde, p_hasta }` y `Returns:
+Json`. Advisors sin hallazgos de rendimiento de esta función; el aviso de
+`SECURITY DEFINER` ejecutable por `authenticated` es intencional y queda cerrado
+por la validación interna de rol/estado y los grants negativos.
+
+La matriz global conserva deuda anterior: 33/1.830 fallos. El A/B en la misma
+rama dio exactamente los mismos 33 nombres con y sin esta RPC, por lo que la
+entrega añade cero regresiones a esa línea base. **Pendiente:** commit,
+integración a producción y publicación del frontend mediante el gate de release.
