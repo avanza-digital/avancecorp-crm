@@ -63,6 +63,9 @@ describe('sesión demo', () => {
     expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
     expect(result.current.leads).toHaveLength(TAMANO_PAGINA_CARTERA)
     expect(result.current.hayMas).toBe(true)
+    // El total corresponde a TODOS los resultados, no a las 50 filas cargadas.
+    expect(result.current.resumenDemo?.totales.vivos).toBe(60)
+    expect(result.current.resumenDemo?.capital.asignado.pen).toBe(60_000)
   })
 
   it('«cargar más» amplía la ventana en memoria hasta agotar el ámbito', () => {
@@ -99,9 +102,41 @@ describe('sesión demo', () => {
 
     expect(result.current.leads).toHaveLength(TAMANO_PAGINA_CARTERA)
   })
+
+  it('recepción filtra la colección completa antes de contar y paginar', () => {
+    const { wrapper } = arnes()
+    const recibidos = ambito.map((l, i) => ({ ...l, tenencia_desde: i < 55
+      ? '2026-09-01T12:00:00-05:00' : '2026-09-02T12:00:00-05:00' }))
+    const { rerender, result } = renderHook(
+      ({ dia }) => useCarteraPaginada(recibidos, { recepcionDemo: { desde: dia, hasta: dia } }),
+      { initialProps: { dia: '2026-09-01' }, wrapper },
+    )
+    expect(result.current.leads).toHaveLength(50)
+    expect(result.current.resumenDemo?.totales.vivos).toBe(55)
+    act(() => result.current.cargarMas())
+    expect(result.current.leads).toHaveLength(55)
+    rerender({ dia: '2026-09-02' })
+    expect(result.current.leads).toHaveLength(5)
+    expect(result.current.resumenDemo?.totales.vivos).toBe(5)
+    expect(result.current.hayMas).toBe(false)
+    expect(mocks.listarCarteraPagina).not.toHaveBeenCalled()
+  })
 })
 
 describe('sesión real', () => {
+  it('las fechas cambian la consulta completa y un rango inválido no consulta', async () => {
+    mocks.listarCarteraPagina.mockResolvedValue({ items: [lead(0)], cursor: null })
+    const { wrapper } = arnes()
+    const { rerender } = renderHook(({ desde, hasta }) => useCarteraPaginada([], { recepcion: { desde, hasta } }),
+      { initialProps: { desde: '2026-09-01', hasta: '2026-09-01' }, wrapper })
+    await waitFor(() => expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(1))
+    expect(mocks.listarCarteraPagina.mock.calls[0]![0]).toMatchObject({ integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-01' } })
+    rerender({ desde: '2026-09-02', hasta: '2026-09-02' })
+    await waitFor(() => expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(2))
+    expect(mocks.listarCarteraPagina.mock.calls[1]![1]).toBeNull()
+    rerender({ desde: '2026-09-03', hasta: '2026-09-01' })
+    expect(mocks.listarCarteraPagina).toHaveBeenCalledTimes(2)
+  })
   it('concatena páginas y pide la siguiente con el cursor que dio el servidor', async () => {
     mocks.listarCarteraPagina
       .mockResolvedValueOnce({
@@ -171,6 +206,7 @@ describe('sesión real', () => {
 
     await waitFor(() => { expect(mocks.listarCarteraPagina).toHaveBeenCalled() })
     expect(mocks.listarCarteraPagina.mock.calls[0]![0]).toEqual({
+      integrada: true,
       etapa: 'convertido',
       vendedorId: 'v-9',
       texto: 'ro',

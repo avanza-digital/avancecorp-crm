@@ -9443,3 +9443,32 @@ La matriz global conserva deuda anterior: 33/1.830 fallos. El A/B en la misma
 rama dio exactamente los mismos 33 nombres con y sin esta RPC, por lo que la
 entrega añade cero regresiones a esa línea base. **Pendiente:** commit,
 integración a producción y publicación del frontend mediante el gate de release.
+
+## 20260913213842 — Leads: filtro integrado de recepción
+
+**Estado:** instalado en producción mediante merge de la rama exclusiva el
+13/09/2026, autorizado por Miguel después de aprobar la vista local. Sustituye en el módulo de Leads el
+panel separado anterior por un filtro conectado a filas y a todos los indicadores.
+
+Nueva `crm.cartera_filtrada_fn` SECURITY INVOKER: fecha, etapa, analista y búsqueda
+sobre un único conjunto RLS, agregado antes de paginar. Los helpers privados
+reutilizan el alcance y la capacidad de reparto canónicos. Recepción desde el
+ledger en Lima, días inclusivos, último episodio coincidente, sin duplicar leads.
+Supervisión consulta los recibidos por los analistas de su equipo y excluye los
+pendientes de repartir cuando hay fechas. No amplía acceso a leads transferidos.
+
+`crm.resumen_cartera_fn()` pasa a ser un adaptador compatible del núcleo común:
+conserva ACL y contrato, incluidos los cierres mensuales que consumen las otras
+pantallas. El ensayo atómico comparó JSON idéntico para 16 actores. Candados y
+snapshots protegen el registro analítico: siguen 34 declarados, 30 bajo techo y
+cuatro auxiliares; no cambian las otras excepciones, el techo ni objetos `public`.
+
+Rama `leads-filtro-integrado-20260913` (`tohbxwumyjnxxxuhdfto`), con base de 278
+migraciones y seed antes de aplicar. SHA-256 del archivo:
+`b194cce80a4b666bc8bbcb2c2631e4fe72132b04e4a86300807c6cc891bc4915`.
+Pruebas SQL/RLS del filtro, Auth/Data API, tipos y advisors verificados; 3.444
+tests frontend PASS y 173 E2E PASS / 26 SKIP. [Gates y límites](../scripts/FILTRO-LEADS-VERIFICACION-2026-09-13.md).
+
+Las cuatro definiciones/ACL resultantes coinciden con la rama probada. Se
+conservan las 278 migraciones anteriores, las funciones ajenas y las 19 Edge.
+El frontend se publica como artefacto desde el commit único verificado de Main.

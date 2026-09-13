@@ -800,6 +800,8 @@ export function carteraPaginaReal(
     p_vendedor_id?: string | null
     p_sin_asignar?: boolean
     p_texto?: string | null
+    p_desde?: string | null
+    p_hasta?: string | null
   },
 ): Record<string, unknown>[] {
   const corteMs = Date.now() - 45 * 86_400_000
@@ -807,7 +809,11 @@ export function carteraPaginaReal(
   const digitos = texto.replace(/\D/g, '')
   const filtrados = leads.filter((l) => {
     if (!l.activo) return false
-    if (l.etapa === 'convertido') {
+    if (args.p_desde) {
+      const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(l.creado_en))
+      if (!l.vendedor_id || fecha < args.p_desde || fecha > String(args.p_hasta)) return false
+    }
+    if (!args.p_desde && l.etapa === 'convertido') {
       const sello = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
       if (!Number.isFinite(sello) || sello < corteMs) return false
     }
@@ -2985,6 +2991,21 @@ export async function montarBackendReal(
       }
       const body = (req.postDataJSON() ?? {}) as Parameters<typeof carteraPaginaReal>[1]
       return json(route, carteraPaginaReal(estado.leads, body))
+    }
+    if (p === '/rest/v1/rpc/cartera_filtrada_fn' && method === 'POST') {
+      estado.llamadas.rpcCarteraPagina += 1
+      if (estado.fallarCarteraPagina) {
+        return json(route, { message: 'cartera caida', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      const body = (req.postDataJSON() ?? {}) as Parameters<typeof carteraPaginaReal>[1]
+      const todos = carteraPaginaReal(estado.leads, { ...body, p_antes_de: null, p_antes_id: null, p_limite: estado.leads.length + 1 })
+      const ids = new Set(todos.map((l) => l.id))
+      const resumen = resumenCarteraReal(estado.leads.filter((l) => ids.has(l.id)))
+      return json(route, { version: 1, generado_en: new Date().toISOString(),
+        desde: body.p_desde ?? null, hasta: body.p_hasta ?? null, resumen,
+        items: carteraPaginaReal(estado.leads, body).map((l) => ({ ...l,
+          recibido_en: body.p_desde ? l.creado_en : null, recepcion_aproximada: false })),
+      })
     }
     if (p === '/rest/v1/rpc/cola_accion_fn' && method === 'POST') {
       if (estado.fallarColaAccion) {

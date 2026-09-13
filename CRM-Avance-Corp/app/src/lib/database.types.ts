@@ -3800,6 +3800,20 @@ export type Database = {
         Args: { p_correo: string }
         Returns: string
       }
+      cartera_filtrada_fn: {
+        Args: {
+          p_antes_de?: string
+          p_antes_id?: string
+          p_desde?: string
+          p_etapa?: string
+          p_hasta?: string
+          p_limite?: number
+          p_sin_asignar?: boolean
+          p_texto?: string
+          p_vendedor_id?: string
+        }
+        Returns: Json
+      }
       cartera_pagina_fn: {
         Args: {
           p_antes_de?: string

@@ -119,8 +119,9 @@ export function resumenCarteraDesdeAmbito(
   leads: readonly Lead[],
   actividades: readonly Actividad[],
   ahoraMs: number,
+  incluirConvertidosHistoricos = false,
 ): ResumenCartera {
-  const ambito = leads.filter((l) => enVentanaOperativa(l, ahoraMs))
+  const ambito = leads.filter((l) => incluirConvertidosHistoricos ? l.activo : enVentanaOperativa(l, ahoraMs))
 
   const abiertos = ambito.filter((l) => !TERMINALES_K.has(l.etapa))
   const asignados = abiertos.filter((l) => l.vendedor_id != null)

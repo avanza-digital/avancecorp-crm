@@ -82,6 +82,10 @@ async function main() {
       values ('${usuarioId}', 'ORACULO DATA API LEADS RECIBIDOS', 'analista', true, '${correo}');
       insert into crm.equipo (perfil_id, rol_crm, activo)
       values ('${usuarioId}', 'vendedor', true);
+      insert into crm.leads(id,nombre_completo,telefono,origen,etapa,monto_estimado,
+        moneda,vendedor_id,creado_por,creado_en,actualizado_en)
+      values('${leadId}','ORACULO DATA API FILTRO','51998112233','otro','nuevo',1000,
+        'PEN','${usuarioId}','${usuarioId}',now()-interval '90 days',now());
       insert into crm.lead_asignaciones (
         lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura, asignado_en,
         sla_global_iniciado_en, sla_politica_asignacion_id,
@@ -112,6 +116,15 @@ async function main() {
     exigir(respuesta.data.dias[0]?.fecha === hoy && respuesta.data.dias[0]?.total === 1,
       'El detalle diario de la RPC no coincide con el fixture.');
 
+    const filtrada = await anon.schema('crm').rpc('cartera_filtrada_fn', { p_desde: hoy, p_hasta: hoy });
+    exigir(!filtrada.error, `Falló la cartera integrada: ${filtrada.error?.code} ${filtrada.error?.message}`);
+    exigir(filtrada.data?.resumen?.totales?.vivos === 1 && filtrada.data?.items?.[0]?.id === leadId,
+      'La recepción reciente debe mostrar el lead creado hace 90 días y total=1.');
+    exigir(Boolean(filtrada.data.items[0].recibido_en), 'La recepción real no devolvió su fecha.');
+    const vacia = await anon.schema('crm').rpc('cartera_filtrada_fn', { p_desde: hoy, p_hasta: hoy, p_etapa: 'descartado' });
+    exigir(!vacia.error && vacia.data?.resumen?.totales?.vivos === 0 && vacia.data?.items?.length === 0,
+      'El cambio de etapa debe filtrar listado e indicadores juntos.');
+
     await anon.auth.signOut();
     const sinSesion = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
@@ -126,6 +139,8 @@ async function main() {
         || /permission denied|not authorized|no autorizado/i.test(respuestaAnon.error?.message ?? ''),
       `La llamada anónima falló por otra causa: ${respuestaAnon.error?.code} ${respuestaAnon.error?.message}`,
     );
+    const filtradaAnon = await sinSesion.schema('crm').rpc('cartera_filtrada_fn', { p_desde: hoy, p_hasta: hoy });
+    exigir(filtradaAnon.error?.code === '42501', 'La cartera integrada no rechazó anon con 42501.');
   } catch (error) {
     fallo = error;
   } finally {
@@ -135,6 +150,7 @@ async function main() {
           begin;
           set local session_replication_role = replica;
           delete from crm.lead_asignaciones where lead_id = '${leadId}';
+          delete from crm.leads where id = '${leadId}';
           delete from crm.equipo where perfil_id = '${usuarioId}';
           delete from public.perfiles where id = '${usuarioId}';
           commit;
@@ -155,12 +171,13 @@ async function main() {
   const residuos = Number(ejecutarSql(`
     select
       (select pg_catalog.count(*) from crm.lead_asignaciones where lead_id = '${leadId}')
+      + (select pg_catalog.count(*) from crm.leads where id = '${leadId}')
       + (select pg_catalog.count(*) from public.perfiles where id = '${usuarioId}')
       + (select pg_catalog.count(*) from crm.equipo where perfil_id = '${usuarioId}');
   `, { devolver: true }));
   exigir(residuos === 0, `La limpieza dejó ${residuos} fila(s) SQL.`);
 
-  console.log('LEADS_RECIBIDOS_DATA_API_OK: authenticated=1, anon=denegado, residuos=0');
+  console.log('LEADS_RECIBIDOS_DATA_API_OK: recepción y cartera integrada con Auth real, anon=denegado, residuos=0');
 }
 
 main().catch((error) => {
