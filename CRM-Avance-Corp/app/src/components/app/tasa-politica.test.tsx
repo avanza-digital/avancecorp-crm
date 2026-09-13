@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SolicitudTasa } from '@/data/crm-api'
 
 const dobles = vi.hoisted(() => ({
@@ -64,6 +64,9 @@ function ArnesInterno({ demo, correccion, tasaInicial }: { demo: boolean; correc
 
 describe('TasaPolitica (Rentabilidad R3)', () => {
   beforeEach(() => {
+    // El fixture vence el 13/09: el caso debe conservar su fecha de referencia.
+    // Sólo se fija Date; los temporizadores de userEvent siguen siendo reales.
+    vi.setSystemTime(new Date('2026-09-10T12:00:00Z'))
     dobles.resolucion = { data: RES, isPending: false, isError: false }
     dobles.solicitudes = []
     dobles.solicitudesPending = false
@@ -73,6 +76,8 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     dobles.refetch.mockReset()
     dobles.refetchSolicitudes.mockReset()
   })
+
+  afterEach(() => vi.useRealTimers())
 
   it('bloquea la tasa en la base del núcleo y expone el rango [base, base]', async () => {
     render(<Arnes />)

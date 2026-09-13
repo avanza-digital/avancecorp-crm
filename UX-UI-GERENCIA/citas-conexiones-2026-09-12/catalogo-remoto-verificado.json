@@ -1,0 +1,47 @@
+{
+  "fecha": "2026-09-12",
+  "funciones": [
+    {
+      "funcion": "crm.citas_gerencia_consulta_fn(date,date)",
+      "huella": "e108a2374653d94056c31bc1b35b0bf7",
+      "prosecdef": false,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "funcion": "private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+      "huella": "ea636888a266941e959f26c6a5727216",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "permisos": "{postgres=X/postgres}"
+    },
+    {
+      "funcion": "private.citas_gerencia_consulta(date,date)",
+      "huella": "2d39c2bfc0c7d30b9aaa42b2bcd1669f",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "permisos": "{postgres=X/postgres,authenticated=X/postgres}"
+    },
+    {
+      "funcion": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+      "huella": "8a2549dbfa59c732da04900ed90b6361",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "permisos": "{postgres=X/postgres}"
+    }
+  ],
+  "volumen_remoto_solo_conteos": {
+    "leads": 1583,
+    "tareas": 3789,
+    "asignaciones": 1700,
+    "operaciones": 96
+  }
+}

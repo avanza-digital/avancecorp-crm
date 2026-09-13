@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -106,6 +106,43 @@ describe('consultas de conversión con alcance explícito', () => {
 })
 
 describe('invalidaciones que mueven la conversión', () => {
+  it.each([
+    ['derivar', useDerivarLeadsEquipo, [], mocks.derivarLeadsEquipo],
+    ['revertir', useRevertirDerivacionEquipo, 'lead-1', mocks.revertirDerivacionEquipo],
+    ['convertir', useConvertirLeadExterno, {}, mocks.convertirLeadExterno],
+    ['anular externo', useAnularCierreExterno, {}, mocks.anularCierreExterno],
+    ['anular Avance', useAnularCierreAvance, {}, mocks.anularCierreAvance],
+  ] as const)('%s actualiza Citas aunque su primera respuesta siga en vuelo', async (_caso, usarMutacion, variables, escribir) => {
+    const { cliente, wrapper } = arnes()
+    let guardado = false
+    let liberar!: () => void
+    const antigua = new Promise<void>(resolve => { liberar = resolve })
+    escribir.mockImplementation(async () => { guardado = true; return {} })
+    const clave = crmQueryKeys.citasGerencia('gerencia', '2026-09')
+    const observador = new QueryObserver(cliente, {
+      queryKey: clave,
+      queryFn: async ({ signal }) => {
+        const foto = { actualizado: guardado }
+        if (!guardado) await antigua
+        void signal
+        return foto
+      },
+    })
+    const desuscribir = observador.subscribe(() => undefined)
+    const { result } = renderHook(() => usarMutacion(), { wrapper })
+    try {
+      expect(cliente.getQueryState(clave)?.fetchStatus).toBe('fetching')
+      await act(async () => { await result.current.mutateAsync(variables as never) })
+      liberar()
+      await waitFor(() => expect(cliente.getQueryData(clave)).toEqual({ actualizado: true }))
+      expect(cliente.getQueryState(clave)?.isInvalidated).toBe(false)
+    } finally {
+      liberar()
+      desuscribir()
+      cliente.clear()
+    }
+  })
+
   it.each([
     ['derivar', useDerivarLeadsEquipo, []],
     ['revertir derivación', useRevertirDerivacionEquipo, 'lead-1'],

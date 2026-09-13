@@ -1,0 +1,34 @@
+[
+  {
+    "name": "crm.citas_gerencia_consulta_fn",
+    "unchanged": true
+  },
+  {
+    "name": "private.assert_analitica_leads_citas",
+    "unchanged": true
+  },
+  {
+    "name": "private.cierre_anulado",
+    "unchanged": true
+  },
+  {
+    "name": "private.citas_episodios",
+    "unchanged": true
+  },
+  {
+    "name": "private.citas_gerencia_consulta",
+    "unchanged": true
+  },
+  {
+    "name": "private.conversion_episodios",
+    "unchanged": true
+  },
+  {
+    "name": "private.metricas_reuniones_implementacion",
+    "unchanged": true
+  },
+  {
+    "name": "private.rol_crm",
+    "unchanged": true
+  }
+]

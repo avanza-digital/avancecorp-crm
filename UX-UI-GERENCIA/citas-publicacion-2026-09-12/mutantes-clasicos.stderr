@@ -1,0 +1,2 @@
+psql:<stdin>:108: ERROR:  MUTANTE_ANALITICA_CAZADO por los 10 filos. Punto de partida: OK: 34 candidatos declarados y con huella vigente; 30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar. TODO DESHECHO.
+CONTEXT:  PL/pgSQL function inline_code_block line 101 at RAISE

@@ -1,0 +1,261 @@
+ROLE: SECONDARY_REVIEWER.
+Codex is the PRIMARY agent. Independent technical review ONLY.
+Do not modify files. Do not implement the task. Do not invoke Codex or delegate. Do not initiate another review chain.
+Follow .ai/REVIEW_PROTOCOL.md (the wrapper embeds it).
+Review this audit evidence, not a proposed patch. Respond in Spanish with VERDICT, evidence-backed findings and confidence. Do not claim that mock unit tests prove production correctness. Identify wrong/inflated findings as well as omissions. Scope: commercial Citas module, upcoming analyst goal/projection, Superadmin controls. This is an audit only; no database/product mutations or deployment authorized now.
+
+User confirmed: internal goal 1.25 appointments per eligible lead; all assigned leads incl. no appointment, except the analyst's manually registered leads; appointment generated in CRM; interview is attendance; deposit = conversion to client after interview. Targets 70% attendance and 70% interviewed converted to clients. Forecast needs analyst-specific ticket. Monthly+four commercial week filters. New UI proposal is explicitly fictional local prototype; source ticket period, month/analyst attribution and repeat-attendance units have outstanding choices. Do NOT apply unrelated weighted business conversion index blindly.
+
+Current snapshot HEAD 40497037cf561cae2cf10dfd38b0c4aa9bb180f1 plus local uncommitted Superadmin draft and prototypes. Source inspected via CodeGraph first; current index returns unrelated/stale symbols, so complemented with focused line reads. Example CodeGraph evidence: exploration "crmQueryKeys.metricas ... ruta CitasGerencia" found crmQueryKeys in app/src/data/crm-queries.ts but only showed imports, and old store symbol index. No causal connection inferred from these incomplete results.
+
+Evidence:
+1) Real route: app/src/screens/gerencia.tsx:14-16:
+ ReunionesGerencia returns yo?.rol === 'gerencia' ? <CitasGerencia key={yo.id}/> : <HoyGerencia seccion="reuniones"/>.
+ app/src/screens/hoy/citas-gerencia.tsx uses useCitasGerencia(month, actor.id, role=gerencia && !demo), adapts response and passes ContextoCitas -> TableroCitas.
+ app/src/data/citas-gerencia.ts:68 calls sb.schema('crm').rpc('citas_gerencia_consulta_fn',{p_desde,p_hasta}); validates V1/V2, period, ids/duplicates, conversion timestamp and cohort; RPC v2 installed LIVE. No fake fallback when real query fails.
+ :93 queryKey=[...crmQueryKeys.metricas(),'citas-detalle',actorId,mes], staleTime=30000, retry=1, no interval.
+ Real conversion adapter sets fuente='conversion_cliente', monto=null, moneda=null. Actual cita.monto is lead.monto_estimado; not actual money.
+
+2) app/src/components/citas/metas.ts:3-16 still:
+ META_CITAS_POR_LEAD=3; OBJETIVO_CUMPLIMIENTO=125; objetivo=3.75.
+ metaCitas(citas) uses resumenLeads(citas), cumplimiento=promedio/3*100 and counts leads with>=3 appointments.
+ datos.ts:5-19 groups by leadId from appointments only; promedio=citas.length/leads.length. No roster of all assigned leads, no alta_manual or creado_por in response.
+ resultados.ts:38-70 calculates client-side rows from filtered citations; labels explicitly show 3 and3.75. No new interview conversion goal or monetary projection renderer.
+ modelo.ts:17-24 weeks are 1-7/8-14/15-21/22-end. filtrar:57-64 selects appointment scheduled date, actor, current supervisor, states, modality, origin, result, followup, estimated amount/currency.
+ Counts include all selected appointment states; not generated-at date. Existing due-date view is intended old behavior; differs from new projection and should not be blindly reused.
+ All followup histories until generated_en even outside selected origin month.
+
+3) New prototype UX-UI-GERENCIA/proyeccion-citas-2026-09-11/integracion-resultados.html:163-172 has literal people(3) and recovery(4) arrays. :191-201 calculates:
+ appointmentGoal=ceil(leads*1.25); interviewGoal=ceil(appointments*.7); clientGoal=ceil(interviews*.7)
+ attendance=interviews/appointments; conversion=clients/interviews
+ monthlyAppointments=appointments*30/cutoff (cutoff7 or10)
+ expectedClients=monthlyAppointments*attendance*conversion; amount=expectedClients*person.ticket
+ = clients*30/cutoff*ticket for nonzero bases. No server calls. ticket=20000/15000/25000 fabricated. September only; weeks3/4 hidden, week2 accumulated1-10. Export app/prototypes/citas-metas.html exists but app route never imports it.
+ These are development pending connections, not an allegation of deceptive production data.
+
+4) Superadmin app/src/data/control-citas.ts:20-35 calls crm.control_citas_configuracion_fn and crm.guardar_control_citas_fn. Missing RPC error PGRST202 clearly says not enabled.
+ app/src/lib/control-citas.ts:28-34 default1.25/70/70, excludeManual=true, mostrar_meta_citas=false, several null choices.
+ app/src/screens/config-citas.ts:17 says drafts apply to board later.
+ Candidate migration 20260911212756...sql:41-55 creates control_citas_versiones with estado only 'borrador'; comment no metric readers apply it. Config not imported/read in operational Citas. Table & RPC not installed in current live catalogue. Even installing candidate won't activate calculations.
+ Config doesn't yet specify ticket horizon/source, future forecast volume policy, or week period vs accumulated semantics.
+
+5) LIVE Postgres read-only pg_get_functiondef: private.citas_gerencia_consulta(date,date) reads raw crm.tareas+crm.leads (cohort by due date, active lead/task), crm.lead_asignaciones for cierre_posterior, crm.actividades via resultado_actividad_id for attendance timestamp; joins crm.equipo and public.perfiles.
+ NO calls to private.citas_episodios/conversion_episodios/capital_episodios, except shared private.cierre_anulado(lead_id) for annulment. Full body attached below.
+ Core private.citas_episodios currently returns canonical flags over active tasks by due date. Conversion core currently yields received rows by original lead.created_at+first assignment, only landing/formulario/referido, aporte_divisor1 for nonmanual landing/formulario,0 for referrals. This is NOT user's all-assigned-excluding-own-manual target base.
+ Old private.metricas_reuniones_implementacion DOES call all3 cores and is still used by old aggregated view, but Gerencia new detail route calls a different RPC.
+ LIVE select * from private.contadores_crudos_leads_citas() returned private.citas_gerencia_consulta(date,date): declarada=false,huella_ok=false. metricas_reuniones_implementacion:true,true.
+ LIVE select private.assert_analitica_leads_citas() FAILED:
+ "Contadores crudos de leads/citas SIN declarar: funcion crm.historial_decisiones_tasa_gerencia_fn(...), funcion crm.metricas_multiempresa_fn(date), funcion private.citas_gerencia_consulta(date,date), funcion private.inversion_historica_aplicar(uuid,jsonb), funcion private.inversion_historica_estado(text,uuid). O beben del nucleo, o se declaran con su razon."
+ No exemption exists for new detail reader. Other4 functions are outside this module audit; report as separate backlog, no extra analysis claims.
+ Migration installed names match09Sept with remote timestamps20260909031832/031848 (different from local filenames), actual body matcheslocalV2. Don't claim absent based only on timestamp diff.
+
+6) Confirmed cache integration problem:
+ app/src/lib/store.tsx:1584-1602 createTarea -> persistir(...,{invalidarReuniones:true,...});
+ :1798-1823 closeTarea same;
+ :1881-1887 reschedule same.
+ resincronizarReal:992-995 invalidates ONLY crmQueryKeys.metricasReunionesPrefijo() => ['crm','metricas','reuniones'].
+ Also invalidates ['crm','metricas-ambito'], leads, other named old conversion keys, but not ['crm','metricas','citas-detalle'].
+ data/crm-queries.ts:231-236 shared invalidation photo keys for conversion/annulment omit citas-detalle.
+ Isolated reproduction using installed @tanstack/react-query real QueryClient+active QueryObserver and source-guard assertions:
+ initial query requests1; invalidating old reuniones prefix -> requests still1; invalidating actual citas-detalle -> requests2.
+ UI Update button manuallyrefetches, so effect stale data until next refetch; not permanently lost data. No production writes made.
+
+7) Recovery operational logic existing correct sequence:
+ datos.ts:34-54 starts from filtered estado=no_show and follows explicit citaAnteriorId same lead; creation after prior scheduled time; new scheduled date greater; cutoff applied; cycle guard.
+ depositos.ts:41-90 unique maps per lead for missed/reprogrammed/attended.
+ asistioTrasInasistencia:29-34 requires completed & attendance timestamp>originaldue AND >=reschedulecreation AND <=cutoff.
+ Deposits:68-75 require recovered lead, convertedAt>attendance && <=cutoff, no annulment. Convertedcount <= attended <= reprogrammed <= missed.
+ inasistencias.ts:60-62 rate=converted/missed, NOT converted/allinterviewed; don't rename or reuse for 70%deposit goal.
+ Tests pass contradictory cases beforeattendance/noattendance/duplicate/outofcohort, no moneyinference.
+
+8) Verification this audit: typecheck PASS.5focused testfiles66testsPASS (components/citas/integracion, data/citas-gerencia, data/control-citas,lib/control-citas,editor).
+ SQL governanceFAIL LIVE asabove; reads of code/catalogue only. No production writes, no new migration application. Full UIwrite/read e2e and SQLrolefixturebank NOT RUN thisaudit. Existing tests don't cover board invalidation after mutations/new target/all lead universe/true forecast.
+ Primary plans report: NOT fullyconnected; P1unregisteredrawreader, P1oldgoal+wrongbase relative to newrequirement, P2stale cache, pendingnewconfig+forecast andgoalratios; positive recoverycountconnected to realregisteredclientconversion butnotfullycanonicalcore.
+ Evaluate reasonable priorities, any missing causality or concerns before deliveringaudit. Return recommendations fornextimplementation; no changes now.
+
+LIVE PRIVATE READER:
+CREATE OR REPLACE FUNCTION private.citas_gerencia_consulta(p_desde date, p_hasta date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_uid uuid := (select auth.uid());
+  v_ahora timestamptz := now();
+  v_ini timestamptz;
+  v_fin timestamptz;
+  v_filas jsonb;
+  v_clientes integer;
+  v_conversiones jsonb;
+begin
+  -- Esta puerta entrega identidades; directorio conserva su agregador sin PII.
+  if v_uid is null or private.rol_crm(v_uid) is distinct from 'gerencia'
+  then raise exception 'No autorizado' using errcode='42501'; end if;
+  if p_desde is null or p_hasta is null or p_desde > p_hasta
+    or p_desde <> date_trunc('month',p_desde)::date
+    or p_hasta <> (date_trunc('month',p_desde)+interval '1 month - 1 day')::date
+    or p_desde < date '2000-01-01'
+    or p_desde > ((v_ahora at time zone 'America/Lima')::date + interval '1 year')::date
+  then raise exception 'Seleccione un mes válido' using errcode='22023'; end if;
+  v_ini := p_desde::timestamp at time zone 'America/Lima';
+  v_fin := (p_hasta+1)::timestamp at time zone 'America/Lima';
+
+  with cohorte as materialized (
+    select distinct t.lead_id from crm.tareas t join crm.leads l on l.id=t.lead_id
+    where t.tipo='reunion' and t.activo and l.activo and t.creado_en<=v_ahora
+      and t.vence_en>=v_ini and t.vence_en<v_fin
+  ), historial as materialized (
+    select t.*, l.nombre_completo, l.telefono, l.origen, l.moneda, l.monto_estimado
+    from crm.tareas t join cohorte c on c.lead_id=t.lead_id join crm.leads l on l.id=t.lead_id
+    where t.tipo='reunion' and t.activo and t.creado_en<=v_ahora
+    -- La fila extra dispara un error; nunca se entrega un historial truncado.
+    order by t.vence_en,t.id limit 10001
+  ), cierres as materialized (
+    -- Misma evidencia de cierre que conversion_episodios: resultado de una
+    -- asignación y exclusión de cierres anulados. No calcula pesos ni índices.
+    -- Incluye cierres previos al mes para describir bien todo el historial.
+    select la.lead_id, coalesce(la.resultado_en,la.finalizado_en) as fecha_numerador
+    from crm.lead_asignaciones la join cohorte c on c.lead_id=la.lead_id
+    where la.resultado='convertido' and not private.cierre_anulado(la.lead_id)
+      and coalesce(la.resultado_en,la.finalizado_en)<=v_ahora
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',t.id,'lead_id',t.lead_id,'nombre',t.nombre_completo,'telefono',t.telefono,
+    'analista_id',t.vendedor_id,'analista_nombre',coalesce(p.nombre_completo,'Sin analista'),
+    'supervisor_id',coalesce(e.supervisor_id,t.asignado_supervisor_id),
+    'supervisor_nombre',coalesce(ps.nombre_completo,'Sin supervisor'),
+    'vence_en',t.vence_en,'estado',t.estado,'cancelada_por',t.cancelada_por,
+    'modalidad',coalesce(t.modalidad_reunion,'sin_clasificar'),'origen',t.origen,
+    'moneda',t.moneda,'monto_estimado',t.monto_estimado,
+    'resultado',coalesce(t.resultado_reunion,'sin_clasificar'),
+    'nota',coalesce(t.detalle_cierre_reunion,t.nota,''),
+    'reagendada_de',case when exists (select 1 from historial a where a.id=t.reagendada_de and a.lead_id=t.lead_id) then t.reagendada_de end,
+    'creado_en',t.creado_en,
+    'asistencia_registrada_en',case when t.estado='completada' then a.creado_en end,
+    'cierre_posterior',exists(select 1 from cierres c where c.lead_id=t.lead_id and c.fecha_numerador>=t.vence_en)
+  ) order by t.vence_en,t.id),'[]'::jsonb) into v_filas
+  from historial t
+  left join public.perfiles p on p.id=t.vendedor_id
+  left join crm.equipo e on e.perfil_id=t.vendedor_id
+  left join public.perfiles ps on ps.id=coalesce(e.supervisor_id,t.asignado_supervisor_id)
+  left join crm.actividades a on a.id=t.resultado_actividad_id and a.lead_id=t.lead_id
+    and a.tipo='reunion_realizada' and a.creado_en<=v_ahora;
+
+  -- Nunca devolver un subconjunto como si fuera la totalidad de la consulta.
+  if jsonb_array_length(v_filas)>10000 then
+    raise exception 'La consulta supera el tamaño admitido; requiere paginación de servidor'
+      using errcode='54000';
+  end if;
+  select count(*) into v_clientes from crm.tareas
+    where tipo='reunion' and activo and perfil_id is not null and creado_en<=v_ahora
+      and vence_en>=v_ini and vence_en<v_fin;
+  -- Un evento por lead, con cliente vinculado y conversión vigente al corte.
+  -- El estado convertido también existe en cierres externos sin cliente del
+  -- portal: esos registros no se equiparan automáticamente a esta regla.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'lead_id',l.id,'perfil_id',l.perfil_id,'convertido_en',l.convertido_en
+  ) order by l.convertido_en,l.id),'[]'::jsonb) into v_conversiones
+  from crm.leads l join public.perfiles pc on pc.id=l.perfil_id and pc.rol='cliente'
+  where l.id in (select (c->>'lead_id')::uuid from jsonb_array_elements(v_filas) c)
+    and l.activo and l.etapa='convertido' and l.perfil_id is not null
+    and l.convertido_en is not null and l.convertido_en<=v_ahora
+    and not private.cierre_anulado(l.id);
+  -- Inactivar el acceso del cliente no anula su conversión. La anulación de
+  -- negocio se decide exclusivamente con el helper canónico anterior.
+  return jsonb_build_object('version',2,'periodo',jsonb_build_object('desde',p_desde,'hasta',p_hasta),
+    'generado_en',v_ahora,'citas',v_filas,'conversiones',v_conversiones,
+    'disponibilidad_depositos','conversion_cliente','citas_clientes',v_clientes);
+end;
+$function$
+
+
+LIVE CONVERSION CORE:
+CREATE OR REPLACE FUNCTION private.conversion_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric)
+ RETURNS TABLE(tipo text, analista_id uuid, lead_id uuid, operacion_id uuid, fue_referido boolean, aproximado boolean, motivo text, anulado boolean, origen text, categoria text, mes_origen date, monto numeric, moneda text, fecha_divisor timestamp with time zone, fecha_numerador timestamp with time zone, aporte_divisor integer, aporte_numerador numeric)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+#variable_conflict use_column
+begin
+return query
+-- Una llegada por id, por su alta ORIGINAL en Lima. No depende del estado
+-- actual ni de cuántas veces se asigne, descarte, rescate o cambie de dueño.
+-- La primera asignación se busca en toda la historia ANTES de aplicar ámbito.
+-- Sin asignación aún: cuenta en empresa, nunca se inventa un responsable.
+select 'recibido'::text, primera.analista_id, l.id, null::uuid,
+  l.origen = 'referido', coalesce(primera.aproximado, false),
+  'llegada'::text, false, l.origen, null::text,
+  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,
+  null::numeric, null::text, l.creado_en, null::timestamptz,
+  case when l.origen in ('landing', 'formulario') and not l.alta_manual
+    then 1 else 0 end, 0::numeric
+from crm.leads l
+left join lateral (
+  select la.analista_id, la.aproximado
+  from crm.lead_asignaciones la
+  where la.lead_id = l.id
+  order by la.asignado_en, la.ciclo_n, la.episodio_n, la.id
+  limit 1
+) primera on true
+where l.creado_en >= p_ini and l.creado_en < p_fin
+  and l.origen in ('landing', 'formulario', 'referido')
+  and (p_global or primera.analista_id = any(p_visibles))
+
+union all
+
+-- El índice único del ledger garantiza un cierre por lead. El cierre queda
+-- en quien lo consiguió, no en quien recibió la llegada. Los otros canales
+-- siguen disponibles para consumidores operativos/capital, con aporte CERO.
+select 'cierre'::text, la.analista_id, la.lead_id, null::uuid,
+  l.origen = 'referido', null::boolean, null::text,
+  private.cierre_externo_anulado(la.lead_id), l.origen, null::text,
+  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,
+  null::numeric, null::text, null::timestamptz,
+  coalesce(la.resultado_en, la.finalizado_en), 0,
+  case when private.cierre_externo_anulado(la.lead_id) then 0
+    when l.origen = 'referido' then
+      case when p_periodo is not null then p_factor else
+        private.peso_referido_conversion(date_trunc('month',
+          coalesce(la.resultado_en, la.finalizado_en) at time zone 'America/Lima')::date) end
+    when l.origen in ('landing', 'formulario') then 1
+    else 0 end
+from crm.lead_asignaciones la
+join crm.leads l on l.id = la.lead_id
+where la.resultado = 'convertido'
+  and coalesce(la.resultado_en, la.finalizado_en) >= p_ini
+  and coalesce(la.resultado_en, la.finalizado_en) < p_fin
+  and (p_global or la.analista_id = any(p_visibles))
+
+union all
+
+-- La primera operación ELEGIBLE por cliente/mes, antes de filtrar el rango
+-- o el ámbito. Renovación usa el mismo peso que Referido; Upgrade conserva 1.
+-- Un rango parcial incluye solo las operaciones efectivamente ocurridas allí.
+select 'operacion'::text,
+  coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),
+  null::uuid, o.id, false, null::boolean, null::text, false,
+  null::text, o.tipo, o.periodo, null::numeric, o.moneda,
+  null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,
+  case when o.tipo = 'renovacion' then
+    case when p_periodo is not null then p_factor
+      else private.peso_referido_conversion(o.periodo) end
+    when o.tipo = 'upgrade' then 1 else 0 end
+from (
+  select o0.*, row_number() over (
+    partition by o0.cliente_id, o0.periodo
+    order by o0.fecha_operacion, o0.creado_en, o0.id
+  ) as orden_conversion
+  from crm.operaciones_cartera o0
+  where o0.elegible_conversion
+    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date
+    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date
+) o
+where o.orden_conversion = 1
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin
+  and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),
+                           o.vendedor_id) = any(p_visibles));
+end;
+$function$

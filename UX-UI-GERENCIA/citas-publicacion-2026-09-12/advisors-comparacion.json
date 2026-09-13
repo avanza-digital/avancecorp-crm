@@ -1,0 +1,26 @@
+{
+  "security": {
+    "antes": 260,
+    "despues": 261,
+    "nuevos": [
+      {
+        "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+        "level": "WARN",
+        "metadata": {
+          "entity": "Auth",
+          "type": "auth"
+        },
+        "name": "auth_leaked_password_protection",
+        "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+      }
+    ],
+    "resueltos": 0,
+    "aclaracion": "La advertencia Auth de contraseñas filtradas se observó después de crear usuarios en el banco. Se confirmó por consulta de advisors que ya está presente en el proyecto padre el 2026-09-13; las candidatas no cambian configuración Auth. No aparecieron nuevos avisos de esquema/funciones."
+  },
+  "performance": {
+    "antes": 279,
+    "despues": 145,
+    "nuevos": [],
+    "resueltos": 134
+  }
+}

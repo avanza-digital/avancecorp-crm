@@ -1,0 +1,101 @@
+--- 20260901180000_crm_atr_4_sancion_de_anular_solo_conversion.sql
+
++++ crm.cierres_externos_fn(date)
+
+@@ -66,7 +66,14 @@
+
+         -- sin este recorte el vendedor original seguiría leyendo para siempre el
+         -- teléfono ACTUAL de un lead que ya no es suyo. La foto del cierre es
+         -- suya; los datos vivos del lead, no.
+-        'telefono', case when v_global or l.vendedor_id = any(v_visibles)
++        'telefono', case when v_global or case
++          -- F3 conserva la tenencia del lead convertido como historia. El
++          -- teléfono vivo de una persona reconocida sigue su relación actual.
++          when ce.inversionista_id is not null then exists (
++            select 1 from crm.inversionistas ip
++            where ip.id=private.inversionista_canonica(ce.inversionista_id)
++              and ip.responsable_relacion_id=any(v_visibles))
++          else l.vendedor_id=any(v_visibles) end
+                          then l.telefono end,
+         'numero_transaccion', ce.numero_transaccion,
+         'referencia_externa', ce.referencia_externa,
+@@ -75,6 +82,9 @@
+
+         'vendedor_id', ce.vendedor_id,
+         'vendedor_nombre', p.nombre_completo,
+         'creado_en', ce.creado_en,
++        'fecha_comercial', coalesce(ce.fecha_comercial,(ce.creado_en at time zone 'America/Lima')::date),
++        'fecha_imputacion', coalesce(ce.fecha_imputacion,(ce.creado_en at time zone 'America/Lima')::date),
++        'es_cierre_inicial', ce.es_cierre_inicial,
+         -- Los anulados SÍ viajan en las filas (y NO en los totales): el asesor
+         -- tiene que poder entender por qué le bajó el total, no encontrarse un
+         -- hueco donde antes había un cierre.
+@@ -88,7 +98,7 @@
+
+         order by ce0.creado_en desc
+         limit 200
+       ) ce
+-      join crm.leads l on l.id = ce.lead_id
++      left join crm.leads l on l.id = ce.lead_id
+       left join public.perfiles p on p.id = ce.vendedor_id
+     ), '[]'::jsonb) end,
+     'cierres_total', (
+@@ -116,7 +126,14 @@
+
+         -- sin este recorte el vendedor original seguiría leyendo para siempre el
+         -- teléfono ACTUAL de un lead que ya no es suyo. La foto del cierre es
+         -- suya; los datos vivos del lead, no.
+-        'telefono', case when v_global or l.vendedor_id = any(v_visibles)
++        'telefono', case when v_global or case
++          -- F3 conserva la tenencia del lead convertido como historia. El
++          -- teléfono vivo de una persona reconocida sigue su relación actual.
++          when ce.inversionista_id is not null then exists (
++            select 1 from crm.inversionistas ip
++            where ip.id=private.inversionista_canonica(ce.inversionista_id)
++              and ip.responsable_relacion_id=any(v_visibles))
++          else l.vendedor_id=any(v_visibles) end
+                          then l.telefono end,
+         'numero_transaccion', ce.numero_transaccion,
+         'referencia_externa', ce.referencia_externa,
+@@ -125,24 +142,27 @@
+
+         'vendedor_id', ce.vendedor_id,
+         'vendedor_nombre', p.nombre_completo,
+         'creado_en', ce.creado_en,
++        'fecha_comercial', coalesce(ce.fecha_comercial,(ce.creado_en at time zone 'America/Lima')::date),
++        'fecha_imputacion', coalesce(ce.fecha_imputacion,(ce.creado_en at time zone 'America/Lima')::date),
++        'es_cierre_inicial', ce.es_cierre_inicial,
+         'anulado_en', ce.anulado_en,
+         'motivo_anulacion', ce.motivo_anulacion
+       ) order by ce.creado_en desc)
+       from (
+         select *
+         from crm.cierres_externos ce0
+-        where ce0.creado_en >= v_ini and ce0.creado_en < v_fin
++        where coalesce((ce0.fecha_imputacion::timestamp at time zone 'America/Lima'),ce0.creado_en) >= v_ini and coalesce((ce0.fecha_imputacion::timestamp at time zone 'America/Lima'),ce0.creado_en) < v_fin
+           and (v_global or ce0.vendedor_id = any(v_visibles))
+         order by ce0.creado_en desc
+         limit 200
+       ) ce
+-      join crm.leads l on l.id = ce.lead_id
++      left join crm.leads l on l.id = ce.lead_id
+       left join public.perfiles p on p.id = ce.vendedor_id
+     ), '[]'::jsonb) end,
+     'cierres_mes_total', (
+       select count(*)::integer
+       from crm.cierres_externos ce
+-      where ce.creado_en >= v_ini and ce.creado_en < v_fin
++      where coalesce((ce.fecha_imputacion::timestamp at time zone 'America/Lima'),ce.creado_en) >= v_ini and coalesce((ce.fecha_imputacion::timestamp at time zone 'America/Lima'),ce.creado_en) < v_fin
+         and (v_global or ce.vendedor_id = any(v_visibles))
+     ),
+     -- Mini-totales de Mi cartera: TODO el histórico del ámbito, por
+@@ -189,7 +209,7 @@
+
+                count(*)::integer as cierres
+         from crm.cierres_externos ce
+         left join public.perfiles p on p.id = ce.vendedor_id
+-        where ce.creado_en >= v_ini and ce.creado_en < v_fin
++        where coalesce((ce.fecha_imputacion::timestamp at time zone 'America/Lima'),ce.creado_en) >= v_ini and coalesce((ce.fecha_imputacion::timestamp at time zone 'America/Lima'),ce.creado_en) < v_fin
+           and (v_global or ce.vendedor_id = any(v_visibles))
+           -- ATR-4 (regla 31/08): los anulados REALES SIGUEN siendo dinero.
+           -- Fuera SOLO la demo declarada (la misma exclusion por id que el

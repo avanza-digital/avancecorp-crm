@@ -1,0 +1,27 @@
+[
+  {
+    "tabla": "crm.equipo",
+    "conname": "equipo_pkey",
+    "definicion": "PRIMARY KEY (perfil_id)"
+  },
+  {
+    "tabla": "crm.tareas",
+    "conname": "tareas_cancelada_por_valida",
+    "definicion": "CHECK (\nCASE\n    WHEN (estado = 'cancelada'::text) THEN ((cancelada_por IS NOT NULL) AND (cancelada_por = ANY (ARRAY['asesor'::text, 'sistema'::text])))\n    ELSE (cancelada_por IS NULL)\nEND)"
+  },
+  {
+    "tabla": "crm.tareas",
+    "conname": "tareas_cierre_coherente",
+    "definicion": "CHECK (((estado <> 'pendiente'::text) OR (resultado_actividad_id IS NULL)))"
+  },
+  {
+    "tabla": "crm.tareas",
+    "conname": "tareas_cierre_reunion_coherente",
+    "definicion": "CHECK ((((tipo <> 'reunion'::text) AND (resultado_reunion IS NULL) AND (motivo_no_realizada IS NULL) AND (detalle_cierre_reunion IS NULL)) OR ((tipo = 'reunion'::text) AND (((estado = 'pendiente'::text) AND (resultado_reunion IS NULL) AND (motivo_no_realizada IS NULL)) OR ((estado = 'completada'::text) AND (resultado_reunion IS NOT NULL) AND (motivo_no_realizada IS NULL)) OR ((estado = 'no_show'::text) AND (resultado_reunion IS NULL) AND (motivo_no_realizada = 'cliente_no_asistio'::text)) OR ((estado = 'cancelada'::text) AND (resultado_reunion IS NULL) AND (motivo_no_realizada = ANY (ARRAY['cancelada_cliente'::text, 'cancelada_empresa'::text, 'otro'::text])) AND ((motivo_no_realizada <> 'otro'::text) OR (NULLIF(btrim(COALESCE(detalle_cierre_reunion, ''::text)), ''::text) IS NOT NULL))) OR ((estado = 'reprogramada'::text) AND (resultado_reunion IS NULL) AND (motivo_no_realizada = 'reprogramada'::text))))))"
+  },
+  {
+    "tabla": "crm.tareas",
+    "conname": "tareas_estado_valido",
+    "definicion": "CHECK ((estado = ANY (ARRAY['pendiente'::text, 'completada'::text, 'cancelada'::text, 'no_show'::text, 'reprogramada'::text])))"
+  }
+]

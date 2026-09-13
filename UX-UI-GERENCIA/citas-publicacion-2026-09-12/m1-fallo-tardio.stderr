@@ -1,0 +1,2 @@
+psql:<stdin>:515: ERROR:  FALLO_TARDIO_DE_ENSAYO
+CONTEXT:  PL/pgSQL function inline_code_block line 1 at RAISE

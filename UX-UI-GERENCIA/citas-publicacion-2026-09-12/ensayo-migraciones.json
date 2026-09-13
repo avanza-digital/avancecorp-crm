@@ -1,0 +1,16 @@
+[
+  {
+    "migracion": "20260912151320_crm_citas_consulta_nucleos.sql",
+    "sha256": "2ce0fc80f3610c9df2cbac22fc96283922b6c6076b90202de8c82b35aba22a02",
+    "rollbackTardio": "PASS",
+    "preflightDeriva": "PASS",
+    "instalacionBanco": "PASS"
+  },
+  {
+    "migracion": "20260912181045_crm_analitica_auxiliares_verificados.sql",
+    "sha256": "f131be0636b9564f63d78810ca7b1429d437d3a1a22be21d01c117f60599d1d9",
+    "rollbackTardio": "PASS",
+    "preflightDeriva": "PASS",
+    "instalacionBanco": "PASS"
+  }
+]

@@ -1,0 +1,2 @@
+psql:<stdin>:45: NOTICE:  PASS 10000 completas; consulta 586 ms, 7350226 bytes
+psql:<stdin>:45: NOTICE:  PASS 10001 rechazada sin entregar un subconjunto

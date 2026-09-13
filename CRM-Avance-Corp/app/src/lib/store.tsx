@@ -7,7 +7,7 @@ import { refrescarPostventa } from '@/data/postventa-queries'
 // Debe montarse DENTRO de AuthProvider (usa useAuth para el gating y el autor).
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { crmQueryKeys } from '@/data/crm-queries'
+import { crmQueryKeys, invalidarMetricasCitas } from '@/data/crm-queries'
 import { queryClient } from './query-client'
 import { useAuth } from './auth-context'
 import { INFO_COOPERATIVA, type Cooperativa } from './cierres-externos'
@@ -948,6 +948,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   ): Promise<boolean> => {
     const miEpoca = epocaRef.current
     const miApertura = aperturaRef.current
+    // También cubre recargar() tras una conversión y cambios de datos del lead.
+    // El detalle cuelga de reuniones; ninguna primera lectura antigua debe ganar.
+    void invalidarMetricasCitas(queryClient, invalidarReuniones)
     // Puente de coherencia F1 (TRANSITORIO hasta F3): mientras las mutaciones
     // pasen por el store, cada resincronización invalida por prefijo las
     // métricas del ámbito servidas por RPC — sin esto, crear o mover un lead
@@ -987,11 +990,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       })
       void queryClient.invalidateQueries({
         queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
-      })
-    }
-    if (invalidarReuniones) {
-      void queryClient.invalidateQueries({
-        queryKey: crmQueryKeys.metricasReunionesPrefijo(),
       })
     }
     if (invalidarAgenda) {

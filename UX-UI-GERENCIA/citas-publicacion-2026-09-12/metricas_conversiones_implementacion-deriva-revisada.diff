@@ -1,0 +1,24 @@
+--- 20260905175342_gerencia_contrato_cuatro_datos.sql
+
++++ private.metricas_conversiones_implementacion(date,date,text)
+
+@@ -255,7 +255,7 @@
+
+           and exists (select 1 from crm.leads l where l.perfil_id = c.cliente_id))
+        + (select count(*)::int from crm.cierres_externos ce
+           where ce.anulado_en is null
+-            and (ce.creado_en at time zone 'America/Lima')::date between p_desde and p_hasta)) as contratos,
++            and (coalesce((ce.fecha_imputacion::timestamp at time zone 'America/Lima'),ce.creado_en) at time zone 'America/Lima')::date between p_desde and p_hasta)) as contratos,
+       (coalesce((select sum(k.monto) from private.capital_episodios(
+            (p_desde::timestamp at time zone 'America/Lima'),
+            ((p_hasta + 1)::timestamp at time zone 'America/Lima'), true, '{}'::uuid[]) k
+@@ -276,7 +276,7 @@
+
+         where l.convertido_en >= v_ini and l.convertido_en < v_fin
+           and l.perfil_id is null
+           and not exists (select 1 from crm.cierres_externos ce
+-                          where ce.lead_id = l.id and ce.anulado_en is null)) as sin_rastro
++                          where ce.lead_id = l.id and ce.es_cierre_inicial and ce.anulado_en is null)) as sin_rastro
+   ),
+   origenes as (
+     select coalesce(origen, 'sin_origen') as origen,

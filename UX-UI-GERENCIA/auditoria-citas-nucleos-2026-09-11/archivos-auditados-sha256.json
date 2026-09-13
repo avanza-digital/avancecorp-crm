@@ -1,0 +1,20 @@
+{
+  "CRM-Avance-Corp/app/src/screens/gerencia.tsx": "03dca9792eddc57e13a9c628f6501936f335210d1248be3943cc636d9f3d4ad3",
+  "CRM-Avance-Corp/app/src/screens/hoy/citas-gerencia.tsx": "a2caa43b51223342174e39ba4a12a38c4059abe8889380c70e481d8a35d07f6c",
+  "CRM-Avance-Corp/app/src/data/citas-gerencia.ts": "ce3a72125c2f3a3eb9ec40d0912b93d2695d21ef083744196bd1d02be0f7c093",
+  "CRM-Avance-Corp/app/src/data/crm-queries.ts": "450d0c96f77b3d97d7ba14db7558373c40573854a5355c13c887b4b405b4b58c",
+  "CRM-Avance-Corp/app/src/lib/store.tsx": "745fcda08931753bb81253efbbe21c8126a4d9b7b1cd23d53b0880f58e66997c",
+  "CRM-Avance-Corp/app/src/components/citas/metas.ts": "f60dd8ac95aefbb82b4904670540ad902e5b5786dca0ef220471ca21ca27c6a1",
+  "CRM-Avance-Corp/app/src/components/citas/modelo.ts": "ea321189d39e4779ea40a756bec02c155198aa910ad1184eb20186ed3d5fc9fc",
+  "CRM-Avance-Corp/app/src/components/citas/datos.ts": "09bcb14d652a0cbaa9cd13ba14d5a405fd76cec0427cfb686df3aed2e2ecb80a",
+  "CRM-Avance-Corp/app/src/components/citas/depositos.ts": "5882e09f2db2b95f54b3768eff411df3ca2257bd8f84a0b9093857b5f162b6f0",
+  "CRM-Avance-Corp/app/src/components/citas/propuesta.tsx": "614477cdd72ccbcef5bff3efb464cd861956d0f62aafdbd7314acdf304dac902",
+  "CRM-Avance-Corp/app/src/components/citas/resultados.tsx": "319f6ce4261c71a3dac1b32e25f4225cbb4d7905bdce0ce3aba423c5ada7896f",
+  "CRM-Avance-Corp/app/src/components/citas/inasistencias.tsx": "6f61ed539b7248d15893c4f3153a05fa15c1c9cbe8a5da820a3c2afd96bb1e8e",
+  "CRM-Avance-Corp/app/src/data/control-citas.ts": "47b30c82864f2b7d72db6a7eb6826b577a9e59e3d4ef02100a129a170e5581d7",
+  "CRM-Avance-Corp/app/src/lib/control-citas.ts": "9deae494c1e20c7228eab6b20813f926015c7b148176bc6dd0bbf72bb34f91a9",
+  "CRM-Avance-Corp/app/src/screens/config-citas.tsx": "7d86d947b2772df7fc241d23eaddd044579cba5bac1dd2d33a0275575c50c05f",
+  "CRM-Avance-Corp/supabase/migrations/20260909015744_crm_citas_deposito_por_conversion_cliente.sql": "cba03c2c7f717ac6b110e7720b31d8e23e063117e8e0847a5e1250de0065797e",
+  "CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql": "e4683efb9e80fbcfef69f8c54337b18892c172ef56ca0221ba807429d3c9a615",
+  "UX-UI-GERENCIA/proyeccion-citas-2026-09-11/integracion-resultados.html": "1157bb19ca6c9da2a20680fc535f9bae90099debbd98278a9e820314c86965e1"
+}

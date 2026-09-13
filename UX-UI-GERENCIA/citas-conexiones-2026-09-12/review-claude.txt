@@ -1,0 +1,274 @@
+VERDICT:
+CHANGES_REQUESTED
+
+(La parte de *paridad y corrección funcional* la considero sólida y bien probada. El dictamen sobre **gobernanza** queda explícitamente **retenido**: falta evidencia esencial que enumero en [P1-B]. No apruebo despliegue, que tampoco se solicitó.)
+
+---
+
+SUMMARY:
+
+La candidata reemplaza los cálculos crudos del lector por los núcleos canónicos conservando el contrato V2 byte a byte salvo el campo aditivo `estado_comercial`, y el comparador en la misma transacción (`test-citas-nucleos-local.py:52-58`) es evidencia fuerte de paridad. Verifiqué de forma independiente las tres equivalencias no triviales —cohorte, cota inferior del historial y cota inferior de cierres— y las tres se sostienen. La regla depósito=conversión-a-cliente queda intacta y sin ledger ni importe (migración:150-157), y no se toca ticket, metas ni proyección.
+
+Los problemas están en **coste** y en **acoplamiento de invalidación**, no en la semántica: la candidata sustituye lecturas acotadas por lead por dos SRF `SECURITY DEFINER` **no inlineables**, una de ellas invocada con ventana potencialmente plurianual y `p_global=true`, y el frontend le añade encima un *polling* de 60 s más `refetchOnWindowFocus:'always'`. No hay ninguna medición (EXPLAIN/plan/filas) en la evidencia adjunta. Además, la corrección del race de caché es correcta en su diagnóstico pero se apoya en una garantía implícita (`invalidarLecturasComerciales` cancela un prefijo que ella misma no invalida).
+
+---
+
+FINDINGS:
+
+### [P1-A] Regresión de coste: núcleos `SECURITY DEFINER` no inlineables sobre ventana no acotada y ámbito global
+
+File:
+`CRM-Avance-Corp/supabase/migrations/20260912151320_crm_citas_consulta_nucleos.sql`
+
+Lines:
+80-84 (`limites_historial`), 96-98 (lateral a `citas_episodios`), 109-114 (`conversion_episodios`), 143-146 (tercera llamada)
+
+Problem:
+`private.citas_episodios` y `private.conversion_episodios` están declaradas `SECURITY DEFINER` (ver FUENTE ANTERIOR REAL de ambas). PostgreSQL **no inlinea** funciones SRF con `prosecdef = true`, por lo que ambas se ejecutan como *function scan* completo y materializan todas sus filas **antes** del `join cohorte`. La versión anterior filtraba por `lead_id` contra la cohorte dentro del mismo plan.
+
+Evidence:
+
+1. `limites_historial` (líneas 82-84) calcula `min/max(t.vence_en)` sobre **todas** las tareas de los leads de la cohorte: no filtra `t.tipo='reunion'` ni `t.activo`. Verifiqué que esto es **correcto** (es un superconjunto: toda tarea de reunión activa con `creado_en<=v_ahora` pertenece al conjunto que define las cotas, y `fin = max+1µs` cubre el borde), pero significa que una simple `llamada` antigua de un lead de la cohorte puede abrir la ventana varios años.
+2. Con esa ventana, línea 97-98 llama a `citas_episodios(b.inicio, b.fin, v_ahora)`, que **no recibe la cohorte**: escanea `crm.tareas` de *toda la empresa* en ese rango y sólo después se filtra con `join cohorte c on c.lead_id=e.lead_id` (línea 99).
+3. Línea 110-112 llama a `conversion_episodios(min(historial.vence_en), v_ahora+1µs, p_desde, true, '{}', 1)`. Es `plpgsql` con `return query` de un `UNION ALL` de tres ramas: el planificador **no puede podar** las ramas `recibido` ni `operacion`, que se computan íntegras y se descartan en la línea 114 (`where e.tipo='cierre'`). La rama `recibido` incluye un `left join lateral` de primera asignación **por cada lead** creado en esa ventana plurianual; la rama `operacion` incluye un `row_number()` sobre `crm.operaciones_cartera`. Con `p_global=true` no hay recorte de ámbito en ninguna.
+4. La rama `cierre` invoca `private.cierre_externo_anulado(la.lead_id)` **dos veces por fila** (columna `anulado` y `aporte_numerador`), y cada llamada encadena dos `EXISTS` vía `private.cierre_anulado`. Antes esto se evaluaba sólo sobre asignaciones de la cohorte (`cierres` de la función original); ahora sobre todas las asignaciones convertidas de la ventana global.
+5. El banco local no puede detectarlo: `test-citas-nucleos-fixtures.sql:34-40` deja `crm.operaciones_cartera` vacía y stubbea `peso_referido_conversion` y `analista_atribuido_cadena`. La paridad de **salida** es válida; el coste queda fuera del alcance de la prueba, y el propio script lo advierte (`test-citas-nucleos-local.py:4-5`).
+
+Impact:
+Latencia y CPU potencialmente de otro orden de magnitud en producción, en una RPC que además pasa a consultarse cada 60 s por sesión de Gerencia ([P2-B]). Riesgo de superar `statement_timeout` con un resultado que hoy es instantáneo.
+
+Recommendation:
+Antes de promover: (a) medir con `EXPLAIN (ANALYZE, BUFFERS)` sobre datos de volumen realista los tres *function scans*; (b) acotar `limites_historial` con `t.tipo='reunion' and t.activo` —no cambia el resultado, sólo estrecha la ventana; (c) evaluar una firma de `conversion_episodios` que permita pedir sólo `tipo='cierre'` (o un helper `private.cierres_por_lead(uuid[], tsrange)`), evitando computar y descartar dos ramas; (d) considerar pasar `p_visibles` con los `lead_id`/analistas de la cohorte en vez de `p_global=true` si la firma lo permite sin alterar semántica. Si (c)/(d) exceden el alcance aprobado, dejarlo escrito como deuda explícita en el ledger, no implícita.
+
+---
+
+### [P1-B] Dictamen de gobernanza no emitible: falta la evidencia que define qué significa declarar la exención
+
+File:
+`.../20260912151320_crm_citas_consulta_nucleos.sql`
+
+Lines:
+169-177 (alta de exención + resellado), 181-184 y 199-202 (postflight)
+
+Problem:
+La pregunta explícita del PRIMARY —«¿es honesta y no evade gobernanza?»— depende de la **semántica** de tres objetos cuyo cuerpo no está adjunto: `private.contadores_crudos_leads_citas()`, `private.huella_exenciones_analitica_lc()` y `private.assert_analitica_leads_citas()`. El preflight sólo fija sus md5 (líneas 22-23), lo que garantiza que *no cambiaron*, pero no me dice qué hacen.
+
+Evidence:
+La evidencia disponible es consistente con una candidata honesta y lo acredito: el postflight congela el tope (189-190), congela byte a byte las exenciones ajenas (191-194) y los contadores ajenos (195-198); el banco local comprueba `tope=30` y que una deuda ajena sintética sigue sin declarar (`test-citas-nucleos-local.py:100-102`) y que `assert_analitica_leads_citas()` **sigue fallando** por `private.deuda_ajena_prueba` (línea 107). Esa última aserción es la mejor prueba de que el gate global no se pone verde.
+
+Lo que **no** puedo verificar con lo adjunto:
+- si `assert_analitica_leads_citas()` cuenta contra el tope los lectores *totales* (34) o sólo los *no declarados* (5→4); en el segundo caso, declarar es el mecanismo previsto y es legítimo, pero en el primero declarar no aporta nada y la fila podría leerse como cosmética;
+- si `huella_ok` se calcula con la misma normalización de `prosrc` que usa la línea 171-172, o con otra;
+- la fila del ledger: `MIGRACIONES.md` figura modificado en el git status pero **su contenido no está adjunto**, y el punto 8 del checklist `auditor-rls` exige comprobar que el estado declarado sea honesto;
+- la matriz de roles 1..7 e identidad vacía: `test-citas-gerencia-consulta.sql` y `test-citas-deposito-conversion.sql` se ejecutan (`test-citas-nucleos-local.py:108-113`) pero no se adjuntan;
+- `CLAVES_INVALIDACION_COMERCIAL` completo, necesario para [P2-A].
+
+Impact:
+Retengo el visto bueno de gobernanza. No afirmo evasión —la evidencia apunta a lo contrario— pero tampoco puedo certificarla.
+
+Recommendation:
+Adjuntar esos cinco artefactos en la segunda consulta (si el PRIMARY decide gastarla) o dejar constancia en el ledger de que la auditoría de gobernanza se cerró con evidencia parcial.
+
+---
+
+### [P2-A] `invalidarLecturasComerciales` cancela un prefijo que no invalida
+
+File:
+`CRM-Avance-Corp/app/src/data/crm-queries.ts`
+
+Lines:
+276-279
+
+Problem:
+```ts
+async function invalidarLecturasComerciales(cliente, claves) {
+  await cliente.cancelQueries({ queryKey: crmQueryKeys.citasGerenciaPrefijo() })
+  await Promise.all(claves.map(queryKey => cliente.invalidateQueries({ queryKey })))
+}
+```
+Cancela `citasGerenciaPrefijo()` pero sólo invalida `claves`. El refetch de Citas depende de que **cada** lista de `CLAVES_INVALIDACION_COMERCIAL` contenga un ancestro de la nueva clave.
+
+Evidence:
+El diagnóstico del race es correcto: `invalidateQueries` sobre una query con fetch en vuelo se deduplica contra esa promesa y devolvería la foto anterior a la escritura; cancelar primero lo evita. El test nuevo (`crm-queries-conversion.test.tsx:108-142`) demuestra que hoy funciona: termina con `getQueryData(clave) == {actualizado:true}` e `isInvalidated === false`, lo que sólo ocurre si la invalidación alcanzó la clave. Pero el cuerpo de `CLAVES_INVALIDACION_COMERCIAL` no está adjunto y la garantía vive ahí, no en la función.
+
+Impact:
+Si alguien estrecha una de esas listas (p. ej. de `metricas()` a una clave hoja), Citas quedaría **cancelada y sin refetch**, peor que antes del cambio: la pantalla mostraría datos previos a la escritura hasta el siguiente `refetchInterval` o focus. Además el mismo race que se corrige para Citas **sigue abierto** para el resto de lecturas comerciales: no se cancela nada más.
+
+Recommendation:
+Hacer la garantía explícita e independiente del llamador:
+```ts
+await cliente.cancelQueries({ queryKey: prefijo })
+await cliente.invalidateQueries({ queryKey: prefijo })
+await Promise.all(claves.map(...))
+```
+o simplemente reutilizar `invalidarMetricasCitas(cliente)` dentro. Y evaluar si el cancel debe extenderse a las demás claves comerciales o dejarlo documentado como deuda consciente.
+
+---
+
+### [P2-B] `refetchOnWindowFocus:'always'` ignora `staleTime` y multiplica la RPC pesada
+
+File:
+`CRM-Avance-Corp/app/src/data/citas-gerencia.ts`
+
+Lines:
+97-101
+
+Problem:
+`'always'` en TanStack Query v5 refetchea en **cada** focus, saltándose `staleTime:30_000`; lo mismo `refetchOnReconnect:'always'`. Sumado a `refetchInterval:60_000`, un usuario que alterna pestañas dispara la RPC varias veces por minuto.
+
+Evidence:
+Líneas 96-100 del archivo tras el diff: `staleTime:30_000` seguido de `refetchInterval:60_000`, `refetchOnWindowFocus:'always'`, `refetchOnReconnect:'always'`.
+
+Impact:
+Amplifica directamente [P1-A]. El beneficio funcional (pasar de `programada` a `vencida`) ya lo cubre el intervalo de 60 s.
+
+Recommendation:
+Usar `true` en ambos (respeta `staleTime`), o subir `staleTime` a ~55 s. `refetchIntervalInBackground:false` está bien elegido.
+
+---
+
+### [P2-C] Invalidación incondicional de Citas en cada resync, disparada con `void` y sin secuenciación
+
+File:
+`CRM-Avance-Corp/app/src/lib/store.tsx`
+
+Lines:
+951 (llamada nueva), 995-999 (bloque eliminado)
+
+Problem:
+Antes se invalidaban reuniones **sólo si** `invalidarReuniones`. Ahora `void invalidarMetricasCitas(queryClient, invalidarReuniones)` cancela+invalida `citasGerenciaPrefijo()` en **toda** resincronización, incluida cualquier mutación de leads ajena a citas.
+
+Evidence:
+`invalidarMetricasCitas` (crm-queries.ts:273-277) usa `citasGerenciaPrefijo()` cuando `incluirResumen` es `false`, y ese prefijo siempre se cancela e invalida. La llamada es `void`, sin await ni encadenado.
+
+Impact:
+En ráfagas (p. ej. derivación masiva de N leads → N resyncs) las llamadas `cancelQueries` se solapan con los refetch que disparó la invalidación anterior. React Query **no reintenta** un refetch cancelado: la query puede quedar invalidada y sin fetch en curso hasta el siguiente tick de 60 s o un focus. Ventana de datos obsoletos acotada pero real (hasta ~60 s), justo en la pantalla que este trabajo pretende hacer fresca. Secundariamente, un rechazo del promise quedaría como *unhandled rejection*.
+
+Recommendation:
+Encadenar/serializar (una sola invalidación por lote, o `.catch(() => {})` + debounce), o mantener la condicionalidad anterior salvo en los casos que realmente lo requieren (`recargar()` tras conversión). Añadir un test de ráfaga: dos mutaciones consecutivas y aserción de que la query acaba con datos frescos y `fetchStatus !== 'idle'` mientras esté invalidada.
+
+---
+
+### [P2-D] La derivación de estado en cliente queda como fallback permanente y sin test que verifique que el servidor gana
+
+File:
+`CRM-Avance-Corp/app/src/data/citas-gerencia.ts`
+
+Lines:
+54-55
+
+Problem:
+`estado: c.estado_comercial ?? (…derivación antigua…)`. Es la decisión correcta para desplegar frontend y base en cualquier orden, pero no hay ninguna prueba que fije que, cuando el servidor envía `estado_comercial`, **ese** valor prevalece sobre el cálculo local.
+
+Evidence:
+El comparador SQL sólo asegura que ningún `estado_comercial` es nulo (`test-citas-nucleos-local.py:57-58`). El e2e nuevo (`citas-gerencia.spec.ts:43-59`) verifica refresco y conservación de la semana, no la fuente del estado.
+
+Impact:
+Una futura regresión que dejara el campo fuera del `select` volvería silenciosamente al cálculo de cliente sin que ningún test lo note. La propia migración pierde su justificación.
+
+Recommendation:
+Test de unidad en `adaptarCitas` con un caso donde servidor y cliente **discrepan** (p. ej. `estado:'pendiente'`, `vence_en` posterior a `generado_en` y `estado_comercial:'vencida'`) y aserción de que gana `'vencida'`. Y un caso sin el campo que preserve el fallback.
+
+Nota positiva verificada: `v.object` de valibot ignora claves desconocidas y `estado_comercial` es `v.optional`, así que **ambos órdenes de despliegue** (app antes que BD, o al revés) son seguros.
+
+---
+
+### [P3-A] `v.optional` no acepta `null`
+
+File:
+`CRM-Avance-Corp/app/src/data/citas-gerencia.ts`
+Lines: 17
+
+Problem/Evidence:
+La migración emite `'estado_comercial', t.estado_comercial` (línea 121), que serializa `null` si el `CASE` (88-95) no casa. Comprobé que dentro del picklist de `estado` el `CASE` siempre produce un valor (`pendiente`→vencida/programada, `completada`, `no_show`, `cancelada`→asesor/sistema, `reprogramada`), así que hoy no ocurre; pero `v.optional` sólo admite `undefined`, no `null`.
+
+Impact:
+Un `estado` nuevo en `crm.tareas` haría fallar el parse de **toda** la respuesta y caería la pantalla completa, no una fila.
+
+Recommendation:
+`v.nullish(v.picklist([...]))`. El `??` del adaptador ya maneja `null` correctamente.
+
+---
+
+### [P3-B] El preflight fija el ACL de la puerta pero no el de los núcleos, y sólo comprueba «no cambió», no «es el correcto»
+
+File: mismo `.sql`
+Lines: 17-23, 38, 185-188
+
+Problem/Evidence:
+Se congela `proacl` de `citas_gerencia_consulta` (38 vs 186), correcto —`CREATE OR REPLACE` preserva ACL y dueño, y el chequeo lo verifica—. Pero de `citas_episodios` y `conversion_episodios` sólo se fija la *definición* (líneas 18-19), no su ACL. Y la comprobación es de invariancia: un `proacl` previo demasiado permisivo (p. ej. `NULL` = EXECUTE a PUBLIC) pasaría el gate igualmente.
+
+Impact:
+Bajo: el control efectivo es la puerta de rol de la línea 63-64, que sigue intacta. Pero la aserción de `has_function_privilege` del banco local (`test-citas-nucleos-local.py:103-104`) prueba el *setup del propio test* (líneas 81-83), no producción.
+
+Recommendation:
+Añadir al preflight/postflight el `proacl` esperado (valor literal, no sólo igualdad antes/después) de las tres funciones, o verificarlo por separado en el branch.
+
+---
+
+### [P3-C] Nits menores verificados
+
+- **Triple ejecución de `citas_episodios`** (76, 97, 144). Las llamadas de 76 y 144 están acotadas al mes y son baratas; aun así son tres *function scans* no inlineables donde podría bastar uno materializado. Complementa [P1-A].
+- **`count(*) > contadores`** (199-200) permite que el censo *decrezca* sin fallar. Comprobé que está cubierto: `otros_contadores` compara byte a byte los ajenos (195-198) y 181-184 exige que Citas siga presente y declarada. No es un hueco real; lo dejo anotado por legibilidad.
+- **Colisión potencial de nombres en `t.*`** (86-95): si `crm.tareas` tuviera en producción una columna llamada `estado_comercial`, `modalidad_canonica` o `resultado_canonico`, el CTE quedaría con nombre duplicado y las referencias externas (121, 122, 124) darían «column reference is ambiguous». El banco mínimo (`fixtures.sql:21-25`) no lo detectaría. *Hipótesis de baja probabilidad*, pero barata de descartar con un `\d crm.tareas` en el branch.
+- **`citas_nucleos_preflight` sin calificar** (185, 189, 191, 195): funciona porque `pg_temp` se busca implícitamente; el test lo confirma al aplicar la candidata con éxito (`test-citas-nucleos-local.py:94`). Calificar `pg_temp.` lo hace robusto frente a runners con `search_path` distinto.
+- **Redundancia inocua**: `e.fecha_numerador<=v_ahora` (114) ya está implicado por `p_fin = v_ahora + 1µs` a resolución de microsegundo. Sin efecto.
+
+---
+
+EQUIVALENCIAS QUE VERIFIQUÉ Y SÍ SE SOSTIENEN (para que no se re-revisen):
+
+1. **Cohorte** (74-79 vs original): `citas_episodios` aplica exactamente `tipo='reunion' and activo and vence_en>=p_ini and vence_en<p_fin`; los filtros `l.activo` y `t.creado_en<=v_ahora` se conservan fuera. Equivalente. `v_ini`/`v_fin` en Lima sin cambios (71-72).
+2. **Cota inferior del historial**: probé que toda tarea elegible del historial pertenece al conjunto sobre el que se calculan `min/max`, luego `[min, max+1µs]` es un superconjunto estricto y el `limit 10001` con `order by vence_en,id` selecciona las mismas filas. Historial entre meses íntegro.
+3. **Cota inferior de cierres** (109-112): excluir cierres con `fecha_numerador < min(historial.vence_en)` no altera la salida, porque el único consumidor es `cierre_posterior` con `fecha_numerador >= t.vence_en` y todo `t.vence_en >= min`. El comentario de la línea 108 es exacto.
+4. **`estado_comercial` ≡ derivación de cliente**: mismo `v_ahora` que `generado_en`, mismo borde inclusivo, `cancelada_por is distinct from 'asesor'` cubre el `NULL` igual que el `!== 'asesor'` del TS.
+5. **Límite**: `limit 10001` + `> 10000` ⇒ 10000 pasa, 10001 falla. Cumple el requisito.
+6. **Contrato V2 / depósito**: `v_conversiones` (150-157) y `disponibilidad_depositos:'conversion_cliente'` (162) idénticos; sin ledger, sin importe, sin ticket desde `monto_estimado`. Cumple.
+7. **Aislamiento**: `p_global=true` no filtra nada porque la salida se recorta con `join cohorte` (113) y la cohorte ya es íntegramente visible para gerencia. Sin fuga.
+8. **`test-citas-nucleos-estados.sql`**: recalculé a mano las 11 filas, el vector de 9 estados y el de 9 `cierre_posterior`; ambos cuadran, incluida la igualdad exacta al corte y los dos anuladores. Test correcto.
+
+---
+
+TEST GAPS:
+
+- Ningún caso con un cierre **anterior** a la primera cita del historial —la única semántica realmente nueva del punto 3—; es el test que blindaría la cota inferior de `conversion_episodios`.
+- Ningún caso donde las cotas de `limites_historial` las fije una tarea **no-reunión o inactiva** (p. ej. una `llamada` de 2020 en un lead de la cohorte), que es justo el disparador del coste de [P1-A].
+- Sin medición de plan/coste: no hay `EXPLAIN ANALYZE`, ni conteo de filas de las ramas descartadas de `conversion_episodios`.
+- `adaptarCitas`: sin test de discrepancia servidor↔cliente ([P2-D]) ni de `estado_comercial: null` ([P3-A]).
+- Caché: sin test de ráfaga de mutaciones ([P2-C]) ni de comportamiento si `CLAVES_INVALIDACION_COMERCIAL` no cubre el prefijo de Citas ([P2-A]).
+- No verificable con lo adjunto: matriz de roles 1..7, identidad vacía, 10000/10001 (viven en los dos `.sql` no adjuntos).
+- Reconocido por el propio PRIMARY y correcto no presentarlo como PASS: replay completo, red PostgREST, advisors de branch, `test-rls.mjs`.
+- No hay evidencia de búsqueda de la clave antigua `'citas-detalle'` en el resto del repo tras el renombrado de clave (crm-queries.ts:196-198); cualquier invalidación literal superviviente quedaría huérfana.
+
+ARCHITECTURE RISKS:
+
+- La nueva clave cuelga de `metricasReunionesPrefijo()`, de modo que **toda** invalidación del resumen de reuniones arrastra ahora la RPC de detalle, la más cara del módulo. Es coherente, pero acopla el coste del detalle a la frecuencia de invalidación del resumen.
+- Consumir `conversion_episodios` para extraer una sola de sus tres ramas convierte una función de analítica ponderada en dependencia de un lector operativo. Funciona y el aporte ponderado se ignora correctamente, pero cualquier cambio futuro en las ramas `recibido`/`operacion` afectará la latencia de Citas sin relación semántica alguna.
+- La garantía de frescura de Citas queda repartida entre tres sitios (store.tsx:951, crm-queries.ts:273-279, citas-gerencia.ts:97-101) sin un punto único que la documente.
+
+SECURITY RISKS:
+
+- Sin hallazgos nuevos. Puerta `gerencia` intacta (63-64), `SET search_path TO ''` presente (51), ACL congelado (185-188), ninguna columna nueva en `crm.leads` (no aplica la trampa de grants por columna), ningún DDL/DML sobre `public` —sólo lecturas de `public.perfiles` ya existentes (132-134, 153)—, sin policies ni DELETE, sin tocar triggers de inmutabilidad. La PII expuesta (`telefono`, `monto_estimado`, `nombre_completo`) es idéntica a la del lector anterior.
+- Residual menor en [P3-B]: invariancia de ACL ≠ ACL correcto.
+
+REGRESSION RISKS:
+
+- Coste/timeout en producción ([P1-A]) — el riesgo principal.
+- Ventana de hasta ~60 s con datos obsoletos tras ráfagas de mutaciones ([P2-C]).
+- Fragilidad futura del contrato implícito entre `invalidarLecturasComerciales` y `CLAVES_INVALIDACION_COMERCIAL` ([P2-A]).
+- Renombrado de clave de caché sin verificación de referencias supervivientes.
+
+RECOMMENDED NEXT ACTIONS:
+
+1. Medir [P1-A] en el branch con datos realistas (`EXPLAIN (ANALYZE, BUFFERS)` de la RPC completa y filas producidas por cada rama de `conversion_episodios`) antes de cualquier promoción; aplicar la acotación barata de `limites_historial` con `tipo='reunion' and activo`.
+2. Cerrar [P2-A] haciendo que `invalidarLecturasComerciales` invalide el mismo prefijo que cancela, y bajar `refetchOnWindowFocus`/`refetchOnReconnect` a `true` ([P2-B]).
+3. Añadir los dos tests SQL de mayor valor (cierre previo a la primera cita; cotas fijadas por tarea no-reunión/inactiva) y el test de `adaptarCitas` con discrepancia servidor↔cliente; cambiar `v.optional` por `v.nullish`.
+4. Adjuntar o dejar registrada la evidencia de [P1-B] (cuerpos de `contadores_crudos_leads_citas`, `huella_exenciones_analitica_lc`, `assert_analitica_leads_citas`; fila de `MIGRACIONES.md`) para poder cerrar el dictamen de gobernanza.
+5. Mantener explícito en el ledger que el gate global sigue rojo por los cuatro lectores ajenos y que esta candidata no lo altera.
+
+CONFIDENCE:
+
+- Paridad y corrección funcional del SQL: **HIGH** (verificadas de forma independiente las equivalencias 1-8, con el comparador transaccional como respaldo).
+- Coste [P1-A]: **MEDIUM-HIGH** en el mecanismo (la no-inlineabilidad de SRF `SECURITY DEFINER` y la imposibilidad de podar el `UNION ALL` son ciertas); **LOW** en la magnitud, porque no hay ninguna medición en la evidencia.
+- Caché e invalidación: **MEDIUM-HIGH**.
+- Gobernanza: **LOW** — retenido por falta de evidencia esencial, no por indicios negativos.

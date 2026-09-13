@@ -1,0 +1,14 @@
+npm run check: exit 0
+src/components/ui/coverflow-carousel.tsx:299:11: warning jsx-a11y(no-noninteractive-tabindex): `tabIndex` should only be declared on interactive elements. help: The `tabIndex` attribute should be removed.
+src/components/ui/coverflow-carousel.tsx:297:10: warning jsx-a11y(no-static-element-interactions): Static HTML elements with event handlers require a role. help: Add a role attribute to this element, or use a semantic HTML element instead.
+src/components/ui/coverflow-carousel.tsx:327:15: warning jsx-a11y(click-events-have-key-events): Enforce a clickable non-interactive element has at least one keyboard event listener. help: Visible, non-interactive elements with click handlers must have one of `keyup`, `keydown`, or `keypress` listener.
+src/components/ui/coverflow-carousel.tsx:327:16: warning jsx-a11y(no-noninteractive-element-interactions): Non-interactive elements should not be assigned mouse or keyboard event listeners. help: Move the handler to an interactive element, or use an appropriate interactive role.
+ Test Files  240 passed (240)
+      Tests  3465 passed (3465)
+   Duration  36.20s (transform 21.06s, setup 37.74s, import 57.28s, tests 200.57s, environment 129.64s)
+✓ built in 384ms
+
+Focalizados Citas/cache/store: 105 PASS.
+Playwright Citas: 3 PASS, última ejecución 6,5 s (backend simulado).
+check:scripts y test:edge-preflight: PASS.
+seed:preflight, test:rls:preflight, gate:realidad: NOT RUN, falta SUPABASE_URL.

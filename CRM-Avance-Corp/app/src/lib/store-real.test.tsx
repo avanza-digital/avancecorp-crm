@@ -1723,6 +1723,100 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
   })
 
+  it.each(['crear', 'cerrar', 'reprogramar', 'recargar'] as const)(
+    '%s refresca el detalle de Citas y descarta una primera respuesta anterior a guardar', async (operacion) => {
+      const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } })
+      invalidarQueriesMock.mockImplementation((filtros, opciones) => cliente.invalidateQueries(filtros, opciones))
+      vi.mocked(queryClient.cancelQueries).mockImplementation((filtros, opciones) => cliente.cancelQueries(filtros, opciones))
+      const cita = {
+        id: '33333333-3333-4333-8333-333333333333', lead_id: leadBase().id, perfil_id: null,
+        vendedor_id: 'u-v1', asignado_supervisor_id: null, tipo: 'reunion' as const,
+        titulo: 'Cita de prueba', vence_en: '2026-07-18T20:00:00.000Z',
+        estado: 'pendiente' as const, modalidad_reunion: 'presencial' as const,
+        ubicacion_reunion: 'Oficina', reprogramaciones: 0, activo: true,
+        creado_en: '2026-07-17T15:00:00.000Z',
+      }
+      listarTareas.mockResolvedValue([cita])
+      const { api, mutar } = montar('supervisor')
+      await waitFor(() => expect(api().tareas).toHaveLength(1))
+      const respuestaAntigua = diferida<void>()
+      let guardado = false
+      comandoSla.mockImplementation(async () => { guardado = true })
+      insertarTarea.mockImplementation(async () => { guardado = true })
+      const clave = crmQueryKeys.citasGerencia('u-s1', '2026-07')
+      const observador = new QueryObserver(cliente, {
+        queryKey: clave,
+        queryFn: async ({ signal }) => {
+          const foto = { actualizado: guardado }
+          if (!guardado) await respuestaAntigua.promesa
+          void signal
+          return foto
+        },
+      })
+      const desuscribir = observador.subscribe(() => undefined)
+      try {
+        expect(cliente.getQueryState(clave)?.fetchStatus).toBe('fetching')
+        if (operacion === 'recargar') {
+          // La conversión a cliente guarda fuera del store y luego llama recargar().
+          guardado = true
+          await act(async () => { await api().recargar() })
+        } else {
+          const res = mutar((a) => operacion === 'crear'
+            ? a.crearTarea({ lead_id: cita.lead_id, tipo: 'reunion', titulo: 'Otra cita',
+              vence_en: '2027-01-05T15:00:00.000Z', modalidad_reunion: 'presencial', ubicacion_reunion: 'Oficina' })
+            : operacion === 'cerrar'
+              ? a.completarTarea({ tarea_id: cita.id, estado: 'completada', resultado_tipo: 'reunion_realizada', resultado_reunion: 'interesado' })
+              : a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
+          expect(res.ok).toBe(true)
+          await act(async () => { expect(await res.persistido).toBe(true) })
+        }
+        respuestaAntigua.resolver()
+        await waitFor(() => expect(cliente.getQueryData(clave)).toEqual({ actualizado: true }))
+      } finally {
+        respuestaAntigua.resolver()
+        desuscribir()
+        cliente.clear()
+      }
+    },
+  )
+
+  it('dos recargas de Citas seguidas conservan el último dato aunque ambas respuestas anteriores lleguen tarde', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    invalidarQueriesMock.mockImplementation((filtros, opciones) => cliente.invalidateQueries(filtros, opciones))
+    vi.mocked(queryClient.cancelQueries).mockImplementation((filtros, opciones) => cliente.cancelQueries(filtros, opciones))
+    const { api } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const antiguas = diferida<void>()
+    let version = 0
+    const leidas: number[] = []
+    const clave = crmQueryKeys.citasGerencia('u-ger', '2026-07')
+    const observador = new QueryObserver(cliente, {
+      queryKey: clave,
+      queryFn: async ({ signal }) => {
+        const foto = version
+        leidas.push(foto)
+        if (foto < 2) await antiguas.promesa
+        void signal
+        return foto
+      },
+    })
+    const desuscribir = observador.subscribe(() => undefined)
+    try {
+      version = 1
+      await act(async () => { await api().recargar() })
+      await waitFor(() => expect(leidas).toContain(1))
+      version = 2
+      await act(async () => { await api().recargar() })
+      antiguas.resolver()
+      await waitFor(() => expect(cliente.getQueryData(clave)).toBe(2))
+      expect(cliente.getQueryState(clave)).toMatchObject({ isInvalidated: false, fetchStatus: 'idle' })
+    } finally {
+      antiguas.resolver()
+      desuscribir()
+      cliente.clear()
+    }
+  })
+
   it('reprogramar conserva la original, enlaza una cita nueva y permite confirmarla', async () => {
     const cita = {
       id: '33333333-3333-4333-8333-333333333333',

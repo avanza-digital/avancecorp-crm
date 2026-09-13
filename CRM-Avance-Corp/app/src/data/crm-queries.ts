@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
 import type { CategoriaContrato } from '@/lib/cronograma'
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -193,6 +193,9 @@ export const crmQueryKeys = {
   metricasReunionesPrefijo: () => [...crmQueryKeys.metricas(), 'reuniones'] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricasReunionesPrefijo(), desde, hasta] as const,
+  citasGerenciaPrefijo: () => [...crmQueryKeys.metricasReunionesPrefijo(), 'detalle'] as const,
+  citasGerencia: (actorId: string | null, mes: string) =>
+    [...crmQueryKeys.citasGerenciaPrefijo(), actorId, mes] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
   // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
   // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
@@ -263,6 +266,27 @@ const CLAVES_INVALIDACION_COMERCIAL = {
     crmQueryKeys.metricasAmbito(),
   ],
 } as const satisfies Record<string, readonly QueryKey[]>
+
+/** La primera lectura en vuelo también puede preceder a la escritura. Se
+ * cancela antes de invalidar para no reutilizar una respuesta anterior. */
+export async function invalidarMetricasCitas(cliente: QueryClient, incluirResumen = false) {
+  const queryKey = incluirResumen ? crmQueryKeys.metricasReunionesPrefijo() : crmQueryKeys.citasGerenciaPrefijo()
+  await cliente.cancelQueries({ queryKey })
+  await cliente.invalidateQueries({ queryKey })
+}
+
+async function invalidarLecturasComerciales(cliente: QueryClient, claves: readonly QueryKey[]) {
+  const prefijo = crmQueryKeys.citasGerenciaPrefijo()
+  await cliente.cancelQueries({ queryKey: prefijo })
+  await Promise.all([
+    cliente.invalidateQueries({ queryKey: prefijo }),
+    ...claves.map(queryKey => cliente.invalidateQueries({
+      queryKey,
+      // El detalle ya se refresca arriba, aunque la lista cambie de alcance.
+      predicate: consulta => !prefijo.every((parte, i) => consulta.queryKey[i] === parte),
+    })),
+  ])
+}
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
 // Sin retry propio: query-client.ts lo desactiva adrede (supabase-js >= 2.102 ya
@@ -904,9 +928,7 @@ export function useDerivarLeadsEquipo() {
   return useMutation({
     mutationFn: (derivaciones: readonly DerivacionEquipoPendiente[]) => derivarLeadsEquipo(derivaciones),
     onSuccess: async () => {
-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo.map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ))
+      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo)
     },
   })
 }
@@ -917,9 +939,7 @@ export function useRevertirDerivacionEquipo() {
   return useMutation({
     mutationFn: (leadId: string) => revertirDerivacionEquipo(leadId),
     onSuccess: async () => {
-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo.map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ))
+      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo)
     },
   })
 }
@@ -972,9 +992,7 @@ export function useConvertirLeadExterno() {
   return useMutation({
     mutationFn: (datos: ConvertirLeadExternoDatos) => convertirLeadExterno(datos),
     onSuccess: async () => {
-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.conversionExterna.map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ))
+      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.conversionExterna)
     },
   })
 }
@@ -1005,9 +1023,7 @@ export function useAnularCierreExterno() {
   return useMutation({
     mutationFn: (datos: AnularCierreExternoDatos) => anularCierreExterno(datos),
     onSuccess: async () => {
-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.anulacionExterna.map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ))
+      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.anulacionExterna)
     },
   })
 }
@@ -1045,9 +1061,7 @@ export function useAnularCierreAvance() {
   return useMutation({
     mutationFn: (datos: AnularCierreAvanceDatos) => anularCierreAvance(datos),
     onSuccess: async () => {
-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.anulacionAvance.map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
-      ))
+      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.anulacionAvance)
     },
   })
 }

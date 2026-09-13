@@ -1,0 +1,3 @@
+psql:<stdin>:246: WARNING:  there is already a transaction in progress
+psql:<stdin>:246: ERROR:  Cambió una función revisada o sus permisos: private.inversion_historica_estado(text,uuid)
+CONTEXT:  PL/pgSQL function inline_code_block line 30 at RAISE

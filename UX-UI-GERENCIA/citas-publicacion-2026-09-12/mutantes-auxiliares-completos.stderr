@@ -1,0 +1,58 @@
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) cuerpo
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) configuración
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) propietario
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant public
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant anon
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant service_role
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant option
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) renombrada
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) declaración protegida
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) declaración desplazada
+psql:<stdin>:89: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) motivo sin sello
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) cuerpo
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) configuración
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) propietario
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) grant public
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) grant anon
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) grant service_role
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) grant option
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) renombrada
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) declaración protegida
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) declaración desplazada
+psql:<stdin>:89: NOTICE:  PASS crm.metricas_multiempresa_fn(date) motivo sin sello
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) cuerpo
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) configuración
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) propietario
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) grant public
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) grant anon
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) grant authenticated
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) grant service_role
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) grant option
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) renombrada
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) declaración protegida
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) declaración desplazada
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_aplicar(uuid,jsonb) motivo sin sello
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) cuerpo
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) configuración
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) propietario
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) grant public
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) grant anon
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) grant authenticated
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) grant service_role
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) grant option
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) renombrada
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) declaración protegida
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) declaración desplazada
+psql:<stdin>:89: NOTICE:  PASS private.inversion_historica_estado(text,uuid) motivo sin sello
+psql:<stdin>:89: NOTICE:  PASS helper grant public
+psql:<stdin>:89: NOTICE:  PASS helper grant anon
+psql:<stdin>:89: NOTICE:  PASS helper grant authenticated
+psql:<stdin>:89: NOTICE:  PASS helper grant service_role
+psql:<stdin>:89: NOTICE:  PASS helper propietario
+psql:<stdin>:89: NOTICE:  PASS helper conjunto 0
+psql:<stdin>:89: NOTICE:  PASS helper conjunto 3
+psql:<stdin>:89: NOTICE:  PASS helper conjunto 5
+psql:<stdin>:89: NOTICE:  PASS helper conjunto 4
+psql:<stdin>:89: NOTICE:  PASS sobrecarga no autorizada
+psql:<stdin>:89: NOTICE:  PASS copia en otro esquema
+psql:<stdin>:89: NOTICE:  PASS contador nuevo declarado supera techo

@@ -1,0 +1,88 @@
+{
+  "tope": 30,
+  "censo": 34,
+  "flags": {
+    "ficha_360_neutral": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "metricas_multiempresa_sombra": false
+  },
+  "funciones": [
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "md5": "c46cc5e818295f375671127d03516dd3",
+      "firma": "crm.cierres_externos_fn(date)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "md5": "e108a2374653d94056c31bc1b35b0bf7",
+      "firma": "crm.citas_gerencia_consulta_fn(date,date)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "md5": "b6d363f5c5d3520d6876a708b80a0589",
+      "firma": "crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "md5": "4ab8a07f4794c015c4bb7264206dafcf",
+      "firma": "crm.metricas_multiempresa_fn(date)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "0b474e7f58e1f668b62a02730b716457",
+      "firma": "private.assert_analitica_leads_citas()",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "ea636888a266941e959f26c6a5727216",
+      "firma": "private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "md5": "2d39c2bfc0c7d30b9aaa42b2bcd1669f",
+      "firma": "private.citas_gerencia_consulta(date,date)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "34e0ae16a95912e5a5eedd4da845e288",
+      "firma": "private.contadores_crudos_leads_citas()",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "8a2549dbfa59c732da04900ed90b6361",
+      "firma": "private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "a33595d4ac8c2c12ad6fcf9463db605e",
+      "firma": "private.inversion_historica_aplicar(uuid,jsonb)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "2b57432c993eaa8e1599bf874427b743",
+      "firma": "private.inversion_historica_estado(text,uuid)",
+      "owner": "postgres"
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "md5": "a7bbf47ebc9e03a1ec67cf4088152382",
+      "firma": "private.metricas_conversiones_implementacion(date,date,text)",
+      "owner": "postgres"
+    }
+  ],
+  "migraciones": 275,
+  "sello_valido": true,
+  "ultima_migracion": "20260911212526"
+}

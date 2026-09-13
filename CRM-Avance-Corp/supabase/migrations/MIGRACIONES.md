@@ -9279,3 +9279,85 @@ sesión devolvió 0 filas (fail-closed demostrado, no argumentado). La candidata
 del banco al terminar: no queda rastro.
 
 `npm run test:rls:preflight`: NOT RUN aquí (falta `SUPABASE_URL`; el hook protege el `.env`).
+
+## 20260912151320 — Citas Gerencia conectada a núcleos
+
+**Estado:** candidata local, probada en PostgreSQL 17 desechable; no aplicada a producción.
+
+Repara `private.citas_gerencia_consulta(date,date)` y factoriza sus hechos dentro
+de los núcleos existentes. La sobrecarga privada de `citas_episodios` con `uuid[]`
+centraliza la definición de estados y acota el historial por leads; la firma
+anterior conserva sus resultados. `conversion_cierres` concentra la rama de
+cierres que comparten `conversion_episodios` y Citas, evitando calcular llegadas
+y operaciones que este detalle no consume. No utiliza aportes ponderados en Citas.
+Añade `estado_comercial` al JSON V2; conserva campos anteriores, cohorte mensual,
+historia entre meses, corte de servidor, máximo de 10.000 y conversión vigente
+a perfil cliente como evidencia de depósito. Esta última regla no exige importe
+ni asiento de asignación: preserva el contrato aprobado, incluso en históricos.
+
+Conserva guardia exclusiva de Gerencia, `SECURITY DEFINER`, `search_path` vacío y
+ACL. Los dos helpers nuevos sólo permiten ejecución a postgres; el gate
+`assert_analitica_leads_citas` vigila también sus permisos. No modifica tablas,
+policies ni objetos de `public`. Declara sólo este
+consumidor mixto en el censo, con razón y huella. Verifica huellas previas y revierte
+todo si cambia otro contador, excepción o tope. **No declara resuelto el gate
+global:** el servidor tenía 34 contadores frente al tope 30 y cuatro lectores
+ajenos con deuda. No eleva ese tope ni les concede excepciones.
+
+Prueba: `python3 supabase/scripts/test-citas-nucleos-local.py` desde la raíz CRM.
+PASS: paridad JSON contra el lector anterior y de ambos núcleos completos contra
+las fuentes previas (ámbitos global/propio, período nulo/fijo, pesos y ámbitos vacíos),
+todos los estados, cierres anulados,
+fecha exacta de corte, historial entre meses, conversiones sin ledger, ausencia de
+importe inventado, 10.000/10.001 filas, roles autorizados/denegados, ACL privado,
+preflight ante deriva y rollback ante fallo tardío. Usa funciones de negocio
+capturadas sin cambios y esquema mínimo con Auth/pesos/atribución simulados.
+Evidencia: `UX-UI-GERENCIA/citas-conexiones-2026-09-12/verificacion-sql-local.json`.
+Ensayo EXPLAIN ANALYZE con 20.000 leads, 60.040 tareas, 20.000 asignaciones,
+3.000 operaciones e historial de cinco años: lector nuevo aproximadamente
+25–31 ms, anterior aproximadamente 2 ms. La primera versión global de la
+candidata costaba 580–672 ms y se sustituyó por estas lecturas acotadas.
+Son tiempos locales con dependencias simuladas, no un SLA de producción.
+La delegación de la firma antigua de Citas añade materialización: el recorrido
+global de 60.040 filas midió aproximadamente 44 ms. Validar también consumidores
+anteriores y volúmenes reales en la rama antes de instalar.
+
+En la etapa local se atendieron dos reviews independientes CHANGES_REQUESTED.
+La preparación remota del 13/09 añadió revisión de implementación PASS; ver evidencia consolidada. Se añadieron paridad con
+IDs no vacíos, vigilancia de consumidores de cierres, rechazo de estados sin
+clasificación y joins de historial/cierres. El techo heterogéneo de 10.000 citas
+para 2.500 leads pasó con paridad: aproximadamente 774 ms nuevo frente a 552 ms
+anterior. Conversión anterior/nueva se midió en ambos ámbitos y con período
+fijo/nulo: 454–520 frente a 456–530 ms en la última corrida. Costes locales, no SLA.
+Detalles y decisiones: `UX-UI-GERENCIA/citas-conexiones-2026-09-12/decision-review.md`.
+
+**Verificación remota 13/09:** esquema completo en rama propia, 32 comprobaciones
+HTTP/Auth, 52 comparaciones de contratos y núcleos, límite 10.000/10.001, rollback
+y preflight PASS. Cohorte de 2.500 leads/10.000 citas/100 cierres: 556 ms nuevo
+frente a 7.201 ms anterior (muestra sintética, no SLA). Matriz general: mismos
+49 fallos de 1.827 antes/después, cero regresiones; no es PASS global. Advisors
+sin avisos nuevos de esquema/rendimiento de la candidata. Registrada sólo en
+la rama. Pendiente autorización de instalación/publicación y tratamiento de la
+deuda global. Evidencia: `UX-UI-GERENCIA/citas-publicacion-2026-09-12/README.md`. No cambia firmas RPC de `crm` ni tablas; los helpers
+nuevos son privados y no requieren modificar tipos generados. No activa las metas ni el pronóstico del
+Control de Superadmin, cuyas reglas pendientes continúan en borrador.
+
+### 20260912181045 — Auxiliares verificados en el control de métricas
+
+Verificada y registrada exclusivamente en la rama `citas-validacion-20260912`
+el 13/09; **sin instalar en producción**. Requiere `20260912151320`.
+Conserva el censo completo de 34 candidatos; valida cuatro auxiliares por firma,
+definición, propietario y ACL y los descuenta del techo 30. Actualiza dos
+huellas declaradas caducadas tras comparar sus cuerpos con la F4 publicada;
+no cambia funciones financieras ni sus cifras.
+
+PASS: diez mutantes clásicos, batería ampliada de auxiliares, rechazo de deriva,
+rollback tardío y revisión independiente de implementación. Gate final:
+34 declarados, 30 sujetos al techo, cuatro auxiliares verificados, cero sin
+declarar. Matriz general A/B: mismos 49 fallos de 1.827 antes y después,
+sin regresiones; no implica PASS global. El banco queda con 277 migraciones,
+cero residuos de volumen y cero triggers CRM apagados.
+
+Evidencia y límites: `UX-UI-GERENCIA/citas-publicacion-2026-09-12/README.md` y
+[[Citas Gerencia - preparacion verificada 2026-09-13]]. Instalación productiva,
+publicación y smoke del despliegue: NOT RUN.

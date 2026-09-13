@@ -1,0 +1,19 @@
+{
+  "head_base": "66a71390c42f6ac942d2073cc0d49b03ff25aafe",
+  "archivos": {
+    "CRM-Avance-Corp/supabase/migrations/20260912151320_crm_citas_consulta_nucleos.sql": "2ce0fc80f3610c9df2cbac22fc96283922b6c6076b90202de8c82b35aba22a02",
+    "CRM-Avance-Corp/app/src/data/crm-queries.ts": "8391de1208689b4a6fda243d7b50d6180684153599e067061c2071e2028c9f59",
+    "CRM-Avance-Corp/app/src/data/citas-gerencia.ts": "cfee444b7fc428e48ba67757f1a3e45d2dc5ae74bbdf3eeff0b23732101f5954",
+    "CRM-Avance-Corp/app/src/lib/store.tsx": "d918ce2d29b33b03e3e055726926ae07ff45bab8b93db42f412e93fa17f144fa",
+    "CRM-Avance-Corp/app/src/data/crm-queries-conversion.test.tsx": "ea03bde8b11a0dbc8db032c526c2051f20f8ad839369caefa0a25253d3eb3fc0",
+    "CRM-Avance-Corp/app/src/lib/store-real.test.tsx": "0b4728aebb50d597a209bea8f4ad9d86a8d9ded98472a639df5e680dbadc7fdb",
+    "CRM-Avance-Corp/app/src/data/citas-gerencia.test.ts": "dfd8d46ab98513d2abf78bf94a32d3095c16bb9b5f7677615794faef86ea0c6e",
+    "CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts": "e5723ba8052d1e83266f6afea24dae9717a39794271eb3b9000d577552440df9",
+    "CRM-Avance-Corp/app/e2e/_citas.ts": "a36f6ac5cdfbb55f25dade258b7a62d340ea5fa85a67ce3345c0bc1608e885bd",
+    "CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-local.py": "53933e6fb3907b04d09e8368631eb82e0cd7cf7c8e9c155969c7c6f7e25405ce",
+    "CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-fixtures.sql": "44f3e53092b7697f39e3a2d7a29ba716432ff94a49d803a0fbe0f760d9900431",
+    "CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-estados.sql": "b56ba9222cf5de143104ac3460cf23938cd0f3748966cf42d9541f825ba1ac79",
+    "CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-volumen.sql": "8824683bcc57e47c7444bfab89e6a1f0da0e2817caceb593fd5f1e52db1d9fb3",
+    "CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-gobernanza.sql": "26f9235401997012cc98ca2ec85b735c92dcabe40d70814b07f19ac9963730e8"
+  }
+}

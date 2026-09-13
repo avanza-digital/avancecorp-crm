@@ -81,6 +81,16 @@ describe('frontera de la consulta detallada de Citas',() => {
     expect(v.safeParse(ConsultaCitasSchema,{...respuesta(),citas:[]}).success).toBe(true)
     expect(v.safeParse(ConsultaCitasSchema,{...respuesta(),citas:[fila({monto_estimado:Infinity})]}).success).toBe(false)
   })
+  it('usa el estado canónico del servidor y conserva compatibilidad con el contrato anterior',() => {
+    const datos={...respuesta(),citas:[fila({estado:'pendiente',estado_comercial:'programada'})]}
+    expect(adaptarCitas(datos)[0]!.estado).toBe('programada')
+    Reflect.deleteProperty(datos.citas[0]!,'estado_comercial')
+    expect(adaptarCitas(datos)[0]!.estado).toBe('vencida')
+    expect(v.safeParse(ConsultaCitasSchema,{...datos,citas:[{...datos.citas[0],estado_comercial:'inventado'}]}).success).toBe(false)
+    // Ausente permite un servidor anterior; null es una respuesta canónica
+    // incompleta y debe fallar, igual que cualquier estado desconocido.
+    expect(v.safeParse(ConsultaCitasSchema,{...datos,citas:[{...datos.citas[0],estado_comercial:null}]}).success).toBe(false)
+  })
   it('acepta el formato ISO de PostgreSQL y conserva el cierre histórico sin inferir depósito',() => {
     const datos={...respuesta(),citas:[fila({estado:'completada',vence_en:'2026-08-15T16:00:00+00:00',cierre_posterior:true})]}
     expect(v.safeParse(ConsultaCitasSchema,datos).success).toBe(true)

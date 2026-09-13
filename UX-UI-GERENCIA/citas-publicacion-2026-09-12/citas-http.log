@@ -1,0 +1,33 @@
+PASS Gerencia recibe el contrato V2
+PASS sup1 no accede al detalle global: rechazo 42501
+PASS sup2 no accede al detalle global: rechazo 42501
+PASS sup1Nested no accede al detalle global: rechazo 42501
+PASS vend1 no accede al detalle global: rechazo 42501
+PASS vend2 no accede al detalle global: rechazo 42501
+PASS vend3 no accede al detalle global: rechazo 42501
+PASS vend4 no accede al detalle global: rechazo 42501
+PASS vendNested no accede al detalle global: rechazo 42501
+PASS vendInactive no accede al detalle global: rechazo 42501
+PASS coordinador no accede al detalle global: rechazo 42501
+PASS directorio no accede al detalle global: rechazo 42501
+PASS clientBank no accede al detalle global: rechazo 42501
+PASS Anon no accede: rechazo 42501
+PASS Mes parcial inválido: rechazo 22023
+PASS Perfil Gerencia inactivo: rechazo 42501
+PASS Membresía Gerencia inactiva: rechazo 42501
+PASS Inasistencia del mes anterior visible
+PASS Historial trae la nueva cita del mes actual
+PASS Ningún cierre antes de convertir
+PASS Reprogramación conserva su cadena
+PASS Asistencia tiene actividad real y fecha de registro
+PASS Cancelación del analista clasificada
+PASS Historial incluye cita futura fuera del mes
+PASS Conversión a cliente se cuenta una vez por lead
+PASS Ausencia recuperada y entrevista tienen cierre posterior
+PASS Una fecha posterior al cierre no se atribuye al depósito
+PASS Conversión cancela la tarea pendiente por sistema
+PASS Anulación retira conversión y cierres sin borrar el historial
+PASS Cierre operativo externo procede del núcleo
+PASS Cooperativa sin perfil cliente no infla depósitos por conversión a cliente
+PASS Anulación externa se refleja en la siguiente lectura
+{"estado":"PASS","verificaciones":32,"nativo":"7a8c0889-23d8-4182-95e9-4ca92eb22899","externo":"34a95e8b-2056-4ffc-ae58-338ec0facb49","contratosReales":0,"correosEnviados":0}

@@ -65,11 +65,6 @@ const NAV_GOBIERNO_ROLES = [{
   label: 'Usuarios y roles',
   icon: UsersRound,
   seccion: 'administracion',
-}, {
-  id: 'config-citas',
-  label: 'Control de Citas',
-  icon: Target,
-  seccion: 'administracion',
 }] as const
 
 // Estado de colapso persistido: se recuerda entre recargas (por navegador).

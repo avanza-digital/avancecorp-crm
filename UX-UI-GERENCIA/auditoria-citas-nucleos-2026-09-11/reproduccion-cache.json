@@ -1,0 +1,8 @@
+{
+  "result": "DEFECTO_REPRODUCIDO",
+  "initialRequests": 1,
+  "afterStoreInvalidation": 1,
+  "afterMatchingInvalidation": 2,
+  "expectedBusinessBehavior": "Refrescar Citas después de guardar, cerrar o reprogramar una cita",
+  "limitation": "Reproduce el contrato de claves con QueryClient real; no ejecuta una escritura en servidor ni el flujo completo del navegador"
+}

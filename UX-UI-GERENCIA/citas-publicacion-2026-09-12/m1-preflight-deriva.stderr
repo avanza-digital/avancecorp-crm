@@ -1,0 +1,3 @@
+psql:<stdin>:516: WARNING:  there is already a transaction in progress
+psql:<stdin>:516: ERROR:  Citas: cambió private.citas_gerencia_consulta(date,date); revisar la candidata antes de aplicarla
+CONTEXT:  PL/pgSQL function inline_code_block line 21 at RAISE

@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-09-11
+actualizado: 2026-09-13
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -31,6 +31,9 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[Citas Gerencia - preparacion verificada 2026-09-13]] — frontend y dos migraciones ensayados en banco; cero regresiones, 49 fallos globales previos; producción sin instalar ni publicar.
+- [[Citas Gerencia - publicacion pausada 2026-09-12]] — preparación detenida por Miguel; candidatas ensayadas en rama propia, validaciones incompletas, sin commit ni publicación.
+- [[Citas Gerencia - conexiones corregidas en local 2026-09-12]] — caché y lector canónico preparados y probados; SQL sin instalar, nuevas metas/proyección y gate global pendientes.
 - [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
 - [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas; diez identidades pendientes, anexo privado y G6 abierto hasta aceptación humana/financiera.
@@ -76,6 +79,7 @@ Hay **tres capas**, complementarias:
 - [[Bug de fechas UTC]]
 - [[Reporte diario de derivaciones para Coordinación]]
 - [[Auditorías del portal]]
+- [[Citas Gerencia - auditoria de conexion a nucleos 2026-09-11]] — auditoría de backend/frontend: lector fuera del núcleo, caché pendiente y nuevas metas/proyección aún sin conexión; 97 pruebas y TypeScript pasados, gate del servidor fallido.
 
 **Herramientas independientes:**
 - [[SubLínea — subtítulos locales para X]]

@@ -1,0 +1,17 @@
+{
+  "estadoGeneral": "FAIL",
+  "comparacion": "PASS SIN REGRESIONES",
+  "antes": {
+    "total": 1827,
+    "pass": 1778,
+    "fail": 49
+  },
+  "despues": {
+    "total": 1827,
+    "pass": 1778,
+    "fail": 49
+  },
+  "regresiones": [],
+  "fallosQueYaNoAparecen": [],
+  "criterio": "Misma semilla sintética restaurada, mismas aserciones; comparación multiconjunto normaliza únicamente UUID sintéticos. Sólo muestra determinista general; los casos específicos de Citas se ejecutan después para no alterar el comparativo."
+}

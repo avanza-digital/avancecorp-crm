@@ -1,0 +1,23 @@
+{
+  "estado": "PASS",
+  "funcionesIdenticas": 623,
+  "objetos": 1451,
+  "restriccionesANDAsociativas": [
+    "crm.alertas_reconocimientos.alertas_reconocimientos_miembros_check",
+    "crm.empresas.empresas_monedas_check",
+    "crm.producto_condiciones.producto_condiciones_capital_check"
+  ],
+  "categorias": [
+    "1. columnas",
+    "2. funciones",
+    "3. disparadores",
+    "4. politicas RLS",
+    "5. RLS por tabla",
+    "6. indices",
+    "7. restricciones",
+    "8. registro",
+    "9. vistas"
+  ],
+  "historial": 275,
+  "ACL": "Iguales"
+}

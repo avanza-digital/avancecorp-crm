@@ -14,6 +14,7 @@ const CitaSchema = v.object({
   id: Id, lead_id: Id, nombre: v.string(), telefono: v.string(),
   analista_id: v.nullable(Id), analista_nombre: v.string(), supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
   vence_en: Instante, estado: v.picklist(['pendiente','completada','no_show','cancelada','reprogramada']),
+  estado_comercial: v.optional(v.picklist(['vencida','programada','realizada','no_show','cancelada','reprogramada','sistema'])),
   cancelada_por: v.nullable(v.string()), modalidad: v.string(), origen: v.string(),
   moneda: v.picklist(['PEN','USD']), monto_estimado: v.pipe(v.number(),v.finite(),v.minValue(0)),
   resultado: v.string(), nota: v.string(), reagendada_de: v.nullable(Id), creado_en: Instante,
@@ -50,8 +51,8 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
     id:c.id,leadId:c.lead_id,nombre:c.nombre,telefono:c.telefono,analista:c.analista_id ?? 'sin_analista',
     analistaNombre:c.analista_nombre,supervisor:c.supervisor_nombre,supervisorId:c.supervisor_id ?? 'sin_supervisor',
     fecha:fechaLima(c.vence_en),hora:horaLima(c.vence_en),
-    estado:c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
-      : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado,
+    estado:c.estado_comercial ?? (c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
+      : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado),
     modalidad:rotulo(c.modalidad),origen:rotulo(c.origen),moneda:c.moneda,monto:c.monto_estimado,
     resultado:rotulo(c.resultado),nota:c.nota,cerrado:c.cierre_posterior,
     seguimiento:c.estado==='completada' && !c.cierre_posterior,
@@ -90,10 +91,15 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
 export function useCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
   // Clave por actor/mes y sin placeholderData: nunca presenta otro período.
   return useQuery({
-    queryKey:[...crmQueryKeys.metricas(),'citas-detalle',actorId,mes],
+    queryKey:crmQueryKeys.citasGerencia(actorId,mes),
     queryFn:({signal}) => cargarCitasGerencia(mes,signal),
     enabled:habilitada && Boolean(actorId) && Boolean(rango(defaults(mes))[0]),
     staleTime:30_000,
+    // Incluye cambios de otros analistas y el paso de programada a vencida.
+    refetchInterval:60_000,
+    refetchIntervalInBackground:false,
+    refetchOnWindowFocus:true,
+    refetchOnReconnect:true,
     retry:1,
   })
 }

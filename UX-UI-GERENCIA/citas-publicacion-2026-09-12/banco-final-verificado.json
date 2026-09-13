@@ -1,0 +1,21 @@
+{
+  "gate": "OK: 34 candidatos declarados y con huella vigente; 30 sujetos al techo 30, 4 auxiliares verificados, 0 sin declarar",
+  "candidatas": [
+    {
+      "nombre": "crm_citas_consulta_nucleos",
+      "version": "20260912151320",
+      "sentencias": 19,
+      "huella_sentencias": "e245feea0ea3759c8c13a5720b6a99fd"
+    },
+    {
+      "nombre": "crm_analitica_auxiliares_verificados",
+      "version": "20260912181045",
+      "sentencias": 16,
+      "huella_sentencias": "61319871b9c96caebbb98c64cbc09de7"
+    }
+  ],
+  "control_sla": "activo",
+  "migraciones": 277,
+  "residuos_volumen": 0,
+  "guardas_deshabilitadas": 0
+}

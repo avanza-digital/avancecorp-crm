@@ -1,0 +1,374 @@
+{
+  "bank": "/private/tmp/citas-nucleos-k1uz_01d",
+  "scope": "PG17 local, esquema mínimo, funciones de negocio reales, Auth/pesos/atribución simulados",
+  "steps": [
+    {
+      "tool": "initdb",
+      "code": 0,
+      "seconds": 3.304,
+      "stdout": "The files belonging to this database system will be owned by user \"usuario\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"C\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are disabled.\n\ncreating directory /private/tmp/citas-nucleos-k1uz_01d/data ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... posix\nselecting default \"max_connections\" ... 100\nselecting default \"shared_buffers\" ... 128MB\nselecting default time zone ... America/Lima\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\nSuccess. You can now start the database server using:\n\n    '/opt/homebrew/opt/postgresql@17/bin/pg_ctl' -D /private/tmp/citas-nucleos-k1uz_01d/data -l logfile start",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "pg_ctl",
+      "code": 0,
+      "seconds": 0.129,
+      "stdout": "waiting for server to start.... done\nserver started",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "createdb",
+      "code": 0,
+      "seconds": 0.072,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.013,
+      "stdout": "true",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.019,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "2d39c2bfc0c7d30b9aaa42b2bcd1669f",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.122,
+      "stdout": "",
+      "stderr": "ERROR:  REVERSIÓN_FORZADA_CITAS\nCONTEXT:  PL/pgSQL function inline_code_block line 1 at RAISE",
+      "expected_error": "REVERSIÓN_FORZADA_CITAS"
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "2d39c2bfc0c7d30b9aaa42b2bcd1669f",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "ea636888a266941e959f26c6a5727216",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "8a2549dbfa59c732da04900ed90b6361",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.012,
+      "stdout": "0b474e7f58e1f668b62a02730b716457",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "t",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.008,
+      "stdout": "0",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "ERROR:  Citas: cambió private.citas_gerencia_consulta(date,date); revisar la candidata antes de aplicarla\nCONTEXT:  PL/pgSQL function inline_code_block line 21 at RAISE",
+      "expected_error": "revisar la candidata"
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.011,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.01,
+      "stdout": "",
+      "stderr": "ERROR:  Citas: ACL inesperado en private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone); revisar antes de aplicar\nCONTEXT:  PL/pgSQL function inline_code_block line 32 at RAISE",
+      "expected_error": "ACL inesperado"
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.011,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.133,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.015,
+      "stdout": "8b2eeffc547a1c095926ddb76876d262",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.067,
+      "stdout": "",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.04,
+      "stdout": "",
+      "stderr": "ERROR:  Contadores crudos de leads/citas SIN declarar: funcion private.deuda_ajena_prueba(). O beben del nucleo, o se declaran con su razon.\nCONTEXT:  PL/pgSQL function private.assert_analitica_leads_citas() line 21 at RAISE",
+      "expected_error": "private.deuda_ajena_prueba"
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.014,
+      "stdout": "",
+      "stderr": "ERROR:  Una lectura acotada de Citas/Conversión tiene EXECUTE fuera de postgres\nCONTEXT:  PL/pgSQL function private.assert_analitica_leads_citas() line 17 at RAISE",
+      "expected_error": "EXECUTE fuera de postgres"
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.011,
+      "stdout": "f",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.011,
+      "stdout": "",
+      "stderr": "ERROR:  Una lectura acotada de Citas/Conversión tiene EXECUTE fuera de postgres\nCONTEXT:  PL/pgSQL function private.assert_analitica_leads_citas() line 17 at RAISE",
+      "expected_error": "EXECUTE fuera de postgres"
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.009,
+      "stdout": "f",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.154,
+      "stdout": "CITAS_CONSUMIDOR_NO_DECLARADO_RECHAZADO",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.285,
+      "stdout": "80000000-0000-4000-8000-000000000001\n80000000-0000-4000-8000-000000000001\nCITAS_GERENCIA_CONSULTA_OK",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.022,
+      "stdout": "86000000-0000-4000-8000-000000000001\nCITAS_DEPOSITO_POR_CONVERSION_OK",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 0.025,
+      "stdout": "88000000-0000-4000-8000-000000000001\nCITAS_ESTADOS_Y_CIERRES_OK",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 0,
+      "seconds": 12.463,
+      "stdout": "90000000-0000-4000-8000-000000000001\n{\"banco\": \"Base: 20000 leads, 60040 tareas, 20000 asignaciones, 3000 operaciones y 5 años. Techo: se añaden 2460 tareas, resultando 10000 citas para 2500 leads de la cohorte. Auth/pesos/atribución simulados\", \"mediciones\": [{\"caso\": \"conversion_anterior_false_2026-09-01\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios_anterior_prueba\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios_anterior_prueba\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 457.501, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 456.270, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 458.213, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 458.213, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.011, \"Execution Time\": 458.538}]}, {\"caso\": \"conversion_anterior_false_null\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios_anterior_prueba\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios_anterior_prueba\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 453.259, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 452.097, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 453.992, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 453.990, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.011, \"Execution Time\": 454.487}]}, {\"caso\": \"conversion_anterior_true_2026-09-01\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios_anterior_prueba\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios_anterior_prueba\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 519.355, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 518.161, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 520.072, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 520.072, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.015, \"Execution Time\": 520.378}]}, {\"caso\": \"conversion_anterior_true_null\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios_anterior_prueba\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios_anterior_prueba\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 485.314, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 483.915, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 486.080, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 120957, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 486.080, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.010, \"Execution Time\": 486.405}]}, {\"caso\": \"conversion_nueva_false_2026-09-01\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 487.466, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 485.949, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 488.250, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 488.249, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.011, \"Execution Time\": 488.626}]}, {\"caso\": \"conversion_nueva_false_null\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 528.830, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 527.707, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 529.529, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 529.529, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.010, \"Execution Time\": 529.810}]}, {\"caso\": \"conversion_nueva_true_2026-09-01\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 510.676, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 509.330, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 511.430, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 511.429, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.011, \"Execution Time\": 511.852}]}, {\"caso\": \"conversion_nueva_true_null\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 454.681, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 453.521, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 455.398, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180670, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 455.397, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.009, \"Execution Time\": 455.678}]}, {\"caso\": \"lector_anterior_1\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 2.074, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 904, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 2.073, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.001, \"Execution Time\": 2.075}]}, {\"caso\": \"lector_anterior_2\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 2.674, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 904, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 2.674, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.002, \"Execution Time\": 2.676}]}, {\"caso\": \"lector_anterior_3\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 2.313, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 904, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 2.313, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.002, \"Execution Time\": 2.315}]}, {\"caso\": \"lector_nuevo_1\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 33.090, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 6508, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 33.090, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.010, \"Execution Time\": 33.093}]}, {\"caso\": \"lector_nuevo_2\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 29.585, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 6508, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 29.585, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.001, \"Execution Time\": 29.587}]}, {\"caso\": \"lector_nuevo_3\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Actual Total Time\": 31.929, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 6508, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 31.929, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.001, \"Execution Time\": 31.931}]}, {\"caso\": \"nucleo_citas_historial\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"citas_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 60040, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"citas_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 1804, \"Actual Total Time\": 35.265, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 1106, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 33.241, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 1804, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 1804, \"Actual Total Time\": 36.530, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 1106, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 36.530, \"Temp Written Blocks\": 1804, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.006, \"Execution Time\": 37.072}]}, {\"caso\": \"nucleo_citas_historial_anterior\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"citas_episodios_anterior_prueba\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 60040, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"citas_episodios_anterior_prueba\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 902, \"Actual Total Time\": 19.948, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 1106, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 17.889, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 902, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 902, \"Actual Total Time\": 21.175, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 1106, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 21.175, \"Temp Written Blocks\": 902, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.010, \"Execution Time\": 21.710}]}, {\"caso\": \"nucleo_conversion_global\", \"plan\": [{\"Plan\": {\"Plans\": [{\"Alias\": \"conversion_episodios\", \"Node Type\": \"Function Scan\", \"Plan Rows\": 1000, \"Plan Width\": 0, \"Total Cost\": 10.25, \"Actual Rows\": 36333, \"Actual Loops\": 1, \"Startup Cost\": 0.25, \"Async Capable\": false, \"Function Name\": \"conversion_episodios\", \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 462.802, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180852, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 461.618, \"Parent Relationship\": \"Outer\", \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}], \"Strategy\": \"Plain\", \"Node Type\": \"Aggregate\", \"Plan Rows\": 1, \"Plan Width\": 8, \"Total Cost\": 12.76, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Partial Mode\": \"Simple\", \"Startup Cost\": 12.75, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 422, \"Actual Total Time\": 463.531, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 180852, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 463.531, \"Temp Written Blocks\": 422, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.014, \"Execution Time\": 463.848}]}, {\"caso\": \"techo_10000_anterior\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 852, \"Actual Total Time\": 552.313, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 60288, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 552.312, \"Temp Written Blocks\": 852, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.002, \"Execution Time\": 552.320}]}, {\"caso\": \"techo_10000_nuevo\", \"plan\": [{\"Plan\": {\"Node Type\": \"Result\", \"Plan Rows\": 1, \"Plan Width\": 32, \"Total Cost\": 0.26, \"Actual Rows\": 1, \"Actual Loops\": 1, \"Startup Cost\": 0.00, \"Async Capable\": false, \"Parallel Aware\": false, \"Local Hit Blocks\": 0, \"Temp Read Blocks\": 2666, \"Actual Total Time\": 773.749, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 93392, \"Shared Read Blocks\": 0, \"Actual Startup Time\": 773.749, \"Temp Written Blocks\": 2666, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Planning\": {\"Local Hit Blocks\": 0, \"Temp Read Blocks\": 0, \"Local Read Blocks\": 0, \"Shared Hit Blocks\": 0, \"Shared Read Blocks\": 0, \"Temp Written Blocks\": 0, \"Local Dirtied Blocks\": 0, \"Local Written Blocks\": 0, \"Shared Dirtied Blocks\": 0, \"Shared Written Blocks\": 0}, \"Triggers\": [], \"Planning Time\": 0.003, \"Execution Time\": 773.755}]}]}\nCITAS_VOLUMEN_CON_PARIDAD_OK",
+      "stderr": "",
+      "expected_error": null
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.013,
+      "stdout": "",
+      "stderr": "ERROR:  permission denied for function citas_gerencia_consulta_fn",
+      "expected_error": "permission denied"
+    },
+    {
+      "tool": "psql",
+      "code": 3,
+      "seconds": 0.009,
+      "stdout": "",
+      "stderr": "ERROR:  permission denied for table tareas",
+      "expected_error": "permission denied"
+    },
+    {
+      "tool": "pg_ctl",
+      "code": 0,
+      "seconds": 0.213,
+      "stdout": "waiting for server to shut down.... done\nserver stopped",
+      "stderr": "",
+      "expected_error": null
+    }
+  ]
+}

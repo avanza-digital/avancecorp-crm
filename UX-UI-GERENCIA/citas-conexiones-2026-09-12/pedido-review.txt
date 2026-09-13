@@ -1,0 +1,1128 @@
+ROLE: SECONDARY_REVIEWER. Especialidad: auditor-rls.
+Codex es PRIMARY; sólo revisión independiente, sin editar, implementar, ejecutar comandos, llamar Codex ni delegar. Responde en español con VERDICT y evidencia file:line del protocolo adjunto por el wrapper.
+
+Nivel 3. Revisar corrección LOCAL del lector de Citas, su gobernanza y caché. NO se solicita aprobar despliegue. No hay migración aplicada remotamente.
+
+Requisitos: misma cohorte de citas por vencimiento/mes Lima, historial íntegro entre meses, límite10000 (10001 falla), mismas identidades y ACL, cero cambios a reglas aprobadas de depósito=conversión vigente a cliente tras asistencia. La conversión nativa a perfil cliente no exige ledger de asignación, ni importe: contrato V2 aprobado del 9/9. NO calcular ticket desde monto_estimado. Nuevas metas1.25/70/70 y proyección quedan pendientes de bases/ticket confirmados; no tocarlas en esta fase.
+
+Hallazgos previos: lector detalle duplicaba tareas y cierres en crudo; queries citas-detalle no eran invalidadas por reuniones. Servidor: censo34, tope30, sello válido; 5 lectores sin declarar (incluye Citas), 4 ajenos. Corregir sólo Citas no pone verde el gate global. Candidata registra su consumo mixto y no altera otros contadores/exenciones/tope. Evaluar si esta solución es honesta y no evade gobernanza.
+
+CodeGraph se consultó primero varias veces: respuestas tangenciales (test-rls.mjs, fixtures.mjs), complementadas con lecturas específicas. Extracto literal devuelto: `LEADS (CRM-Avance-Corp/supabase/scripts/fixtures.mjs:133) — 8 callers in test-rls.mjs, seed-demo.mjs, fixtures.mjs`. No hay rutas pertinentes indexadas para el detalle nuevo. Ruta comprobada en auditoría anterior: ReunionesGerencia -> CitasGerencia -> useCitasGerencia -> crm.citas_gerencia_consulta_fn -> private.citas_gerencia_consulta -> adaptarCitas/adaptarDepositos -> ContextoCitas -> TableroCitas.
+
+Pruebas ejecutadas: PostgreSQL17 desechable sin TCP, esquema mínimo+Auth/pesos/atribución simulados, resto funciones capturadas reales. PASS paridad JSON quitando sólo estado_comercial (original y nuevo en MISMA transacción/corte), todos estados, cierres antes/después/igual al corte, ambos anuladores, origen teléfono/referido/formulario/landing, conversiones sin ledger, historia entre meses, roles1..7 e identidad vacía, límite10000/10001, revocación directa de núcleos, fallo tardío revierte y deriva de fuente bloquea preflight. No se ha probado replay completo, red PostgREST ni advisors de branch. No presentarlos como PASS.104 tests focalizados frontend PASS incluyendo carreras primera lectura con QueryClient real después de mutaciones.
+
+Foco: fugas autorización, integridad, paridad, coste por núcleos materializados, efectos colaterales caché, pruebas faltantes y barreras de promoción. El ledger declara candidata local y gates remotos pendientes. Guía auditor-rls adjunta a continuación; solo se revisa lectura de public existente, NO DDL/DML sobre public en la candidata.
+
+---
+name: auditor-rls
+description: Auditor de seguridad RLS del esquema crm. Usar PROACTIVAMENTE sobre toda migración SQL nueva que toque tablas, policies, funciones o grants del CRM, antes del gate de test-rls.
+tools: Read, Grep, Glob
+---
+
+Eres un auditor de seguridad de PostgreSQL/Supabase especializado en RLS, revisando
+migraciones del esquema `crm` de CRM-Avance-Corp. Responde SIEMPRE en español.
+
+ROLE: SECONDARY_REVIEWER. Sigue `.ai/REVIEW_PROTOCOL.md`: solo analiza, no
+modifiques archivos, no ejecutes agentes ni delegues o inicies otro review.
+El PRIMARY adjunta contexto de CodeGraph y decide si esta consulta corresponde
+al nivel de riesgo y al presupuesto compartido de 0–2 reviews de la tarea.
+
+Contexto fijo del proyecto:
+- Tres roles con visibilidad escalonada: comercial (solo su cartera/subárbol),
+  coordinador, gerencia/lector global (`private.es_lector_global()`).
+- PII sensible en `crm.leads`: DNI, teléfono, fecha_nacimiento, genero, monto_estimado.
+- Ledger inmutable `crm.lead_asignaciones`; log inmutable `crm.actividades`.
+- Reglas no negociables: RLS ON al crear la tabla; deny-by-default; sin policy DELETE
+  (soft-delete `activo=false`); nada de tocar objetos de `public`; trigger
+  `log_audit_change` en toda tabla `crm.*`.
+- ⚠️ `crm.leads` tiene grants POR COLUMNA: columna nueva sin GRANT explícito = invisible
+  para PostgREST (falla silenciosa conocida del proyecto).
+
+Checklist de auditoría sobre cada `.sql` bajo revisión:
+
+1. **RLS**: ¿toda tabla nueva tiene `ENABLE ROW LEVEL SECURITY` en el mismo bloque?
+   ¿Las policies son deny-by-default (nada de `USING (true)` sin justificación)? ¿Existe
+   alguna policy DELETE? (prohibido).
+2. **Fugas entre roles**: ¿puede un comercial ver leads/clientes fuera de su subárbol?
+   ¿Un miembro con `activo=false` conserva lecturas? ¿Alguna vista o función expone PII
+   cross-rol? Compara contra los patrones ya aceptados (`clientes_basicos_fn` gateada).
+3. **SECURITY DEFINER**: cada función definer debe tener `SET search_path` fijo,
+   justificación escrita y gate interno de rol. Vistas: preferir invoker + función
+   definer gateada (patrón del proyecto); `security_definer_view` es hallazgo ERROR.
+4. **Grants**: mínimos necesarios; en `crm.leads`, grants por columna presentes para
+   toda columna nueva. ¿Se revoca lo que sobra (hardening)? ¿`service_role` pierde o gana
+   EXECUTE sin que el ledger lo documente?
+5. **Inmutabilidad**: ¿la migración debilita triggers de inmutabilidad de actividades o
+   del ledger de asignaciones?
+6. **`public` intocable**: cualquier statement sobre objetos de `public` es hallazgo
+   BLOQUEANTE salvo que el ledger documente OK explícito de Miguel.
+7. **Matriz de pruebas**: ¿`supabase/scripts/test-rls.mjs` cubre los casos nuevos
+   (permitido Y denegado por rol)? Si no, señalar exactamente qué casos faltan.
+8. **Ledger**: ¿`MIGRACIONES.md` tiene la fila nueva con estado honesto?
+
+Formato de salida: `.ai/REVIEW_PROTOCOL.md`, con VERDICT, hallazgos P0–P3,
+archivo:línea, evidencia, impacto y fix propuesto. Si no hay hallazgos,
+decláralo explícitamente junto con qué verificaste. No modifiques archivos.
+
+
+FILE: CRM-Avance-Corp/supabase/migrations/20260912151320_crm_citas_consulta_nucleos.sql
+1: -- Citas Gerencia: detalle operativo conectado a citas_episodios y
+2: -- conversion_episodios. Conserva el contrato V2 y la conversión a cliente.
+3: -- CANDIDATA: validación local; requiere branch, gate RLS y autorización antes
+4: -- de producción. No activa las nuevas metas ni la proyección aún en borrador.
+5: begin;
+6: set local lock_timeout='5s';
+7: set local statement_timeout='60s';
+8:
+9: select pg_advisory_xact_lock(hashtext('crm.citas_gerencia_consulta_nucleos'),1);
+10: lock table private.analitica_leads_citas_exenciones,
+11:   private.analitica_lc_sello, private.analitica_leads_citas_tope in share row exclusive mode;
+12:
+13: do $preflight$
+14: declare f record;
+15: begin
+16:   for f in select * from (values
+17:     ('private.citas_gerencia_consulta(date,date)','2d39c2bfc0c7d30b9aaa42b2bcd1669f'),
+18:     ('private.citas_episodios(timestamp with time zone,timestamp with time zone,timestamp with time zone)','ea636888a266941e959f26c6a5727216'),
+19:     ('private.conversion_episodios(timestamp with time zone,timestamp with time zone,date,boolean,uuid[],numeric)','8a2549dbfa59c732da04900ed90b6361'),
+20:     ('private.cierre_anulado(uuid)','8427218ba089192bd9702e052492f70b'),
+21:     ('private.cierre_externo_anulado(uuid)','25764138a845f5f72e1eeb1d4fdd8ff5'),
+22:     ('private.contadores_crudos_leads_citas()','34e0ae16a95912e5a5eedd4da845e288'),
+23:     ('private.huella_exenciones_analitica_lc()','817926e696fa554d8485e8e1aa6e9b73')
+24:   ) as esperadas(objeto,huella) loop
+25:     if md5(pg_get_functiondef(to_regprocedure(f.objeto))) is distinct from f.huella then
+26:       raise exception 'Citas: cambió %; revisar la candidata antes de aplicarla',f.objeto;
+27:     end if;
+28:   end loop;
+29:   if (select sello from private.analitica_lc_sello where id)
+30:     is distinct from private.huella_exenciones_analitica_lc() then
+31:     raise exception 'Citas: el registro de excepciones ya tenía un sello inválido';
+32:   end if;
+33: end
+34: $preflight$;
+35:
+36: create temporary table citas_nucleos_preflight on commit drop as
+37: select
+38:   (select to_jsonb(p.proacl) from pg_proc p where p.oid='private.citas_gerencia_consulta(date,date)'::regprocedure) as permisos,
+39:   (select to_jsonb(t) from private.analitica_leads_citas_tope t where id) as tope,
+40:   (select coalesce(jsonb_agg(to_jsonb(e) order by e.objeto),'[]'::jsonb)
+41:     from private.analitica_leads_citas_exenciones e
+42:     where e.objeto<>'private.citas_gerencia_consulta(date,date)') as otras_exenciones,
+43:   (select coalesce(jsonb_agg(to_jsonb(c) order by c.objeto),'[]'::jsonb)
+44:     from private.contadores_crudos_leads_citas() c
+45:     where c.objeto<>'private.citas_gerencia_consulta(date,date)') as otros_contadores,
+46:   (select count(*) from private.contadores_crudos_leads_citas()) as contadores;
+47: CREATE OR REPLACE FUNCTION private.citas_gerencia_consulta(p_desde date, p_hasta date)
+48:  RETURNS jsonb
+49:  LANGUAGE plpgsql
+50:  STABLE SECURITY DEFINER
+51:  SET search_path TO ''
+52: AS $function$
+53: declare
+54:   v_uid uuid := (select auth.uid());
+55:   v_ahora timestamptz := now();
+56:   v_ini timestamptz;
+57:   v_fin timestamptz;
+58:   v_filas jsonb;
+59:   v_clientes integer;
+60:   v_conversiones jsonb;
+61: begin
+62:   -- Esta puerta entrega identidades; directorio conserva su agregador sin PII.
+63:   if v_uid is null or private.rol_crm(v_uid) is distinct from 'gerencia'
+64:   then raise exception 'No autorizado' using errcode='42501'; end if;
+65:   if p_desde is null or p_hasta is null or p_desde > p_hasta
+66:     or p_desde <> date_trunc('month',p_desde)::date
+67:     or p_hasta <> (date_trunc('month',p_desde)+interval '1 month - 1 day')::date
+68:     or p_desde < date '2000-01-01'
+69:     or p_desde > ((v_ahora at time zone 'America/Lima')::date + interval '1 year')::date
+70:   then raise exception 'Seleccione un mes válido' using errcode='22023'; end if;
+71:   v_ini := p_desde::timestamp at time zone 'America/Lima';
+72:   v_fin := (p_hasta+1)::timestamp at time zone 'America/Lima';
+73:
+74:   with cohorte as materialized (
+75:     select distinct e.lead_id
+76:     from private.citas_episodios(v_ini,v_fin,v_ahora) e
+77:     join crm.tareas t on t.id=e.tarea_id
+78:     join crm.leads l on l.id=e.lead_id
+79:     where l.activo and t.creado_en<=v_ahora
+80:   ), limites_historial as (
+81:     -- Sólo acota la lectura del núcleo; no clasifica ni cuenta estas tareas.
+82:     select min(t.vence_en) as inicio, max(t.vence_en)+interval '1 microsecond' as fin
+83:     from crm.tareas t join cohorte c on c.lead_id=t.lead_id
+84:     where t.creado_en<=v_ahora
+85:   ), historial as materialized (
+86:     select t.*, l.nombre_completo, l.telefono, l.origen, l.moneda, l.monto_estimado,
+87:       e.modalidad as modalidad_canonica, e.resultado as resultado_canonico,
+88:       case when e.pendiente_cierre then 'vencida'
+89:         when e.programada_futura then 'programada'
+90:         when e.realizada then 'realizada'
+91:         when e.no_show then 'no_show'
+92:         when e.reprogramada then 'reprogramada'
+93:         when e.cancelada_asesor then 'cancelada'
+94:         when e.cancelada_sistema then 'sistema'
+95:       end as estado_comercial
+96:     from limites_historial b
+97:     cross join lateral private.citas_episodios(
+98:       coalesce(b.inicio,v_ini),coalesce(b.fin,v_fin),v_ahora) e
+99:     join cohorte c on c.lead_id=e.lead_id
+100:     join crm.tareas t on t.id=e.tarea_id
+101:     join crm.leads l on l.id=e.lead_id
+102:     where t.creado_en<=v_ahora
+103:     -- La fila extra dispara un error; nunca se entrega un historial truncado.
+104:     order by t.vence_en,t.id limit 10001
+105:   ), cierres as materialized (
+106:     -- Los hechos de cierre proceden del núcleo. Ningún aporte ponderado
+107:     -- participa en este indicador operativo. El factor no modifica el hecho.
+108:     -- Basta desde la primera cita: sólo se pregunta por cierres posteriores.
+109:     select e.lead_id,e.fecha_numerador
+110:     from private.conversion_episodios(
+111:       coalesce((select min(h.vence_en) from historial h),v_ini),
+112:       v_ahora+interval '1 microsecond',p_desde,true,'{}'::uuid[],1) e
+113:     join cohorte c on c.lead_id=e.lead_id
+114:     where e.tipo='cierre' and not e.anulado and e.fecha_numerador<=v_ahora
+115:   )
+116:   select coalesce(jsonb_agg(jsonb_build_object(
+117:     'id',t.id,'lead_id',t.lead_id,'nombre',t.nombre_completo,'telefono',t.telefono,
+118:     'analista_id',t.vendedor_id,'analista_nombre',coalesce(p.nombre_completo,'Sin analista'),
+119:     'supervisor_id',coalesce(e.supervisor_id,t.asignado_supervisor_id),
+120:     'supervisor_nombre',coalesce(ps.nombre_completo,'Sin supervisor'),
+121:     'vence_en',t.vence_en,'estado',t.estado,'estado_comercial',t.estado_comercial,'cancelada_por',t.cancelada_por,
+122:     'modalidad',t.modalidad_canonica,'origen',t.origen,
+123:     'moneda',t.moneda,'monto_estimado',t.monto_estimado,
+124:     'resultado',t.resultado_canonico,
+125:     'nota',coalesce(t.detalle_cierre_reunion,t.nota,''),
+126:     'reagendada_de',case when exists (select 1 from historial a where a.id=t.reagendada_de and a.lead_id=t.lead_id) then t.reagendada_de end,
+127:     'creado_en',t.creado_en,
+128:     'asistencia_registrada_en',case when t.estado='completada' then a.creado_en end,
+129:     'cierre_posterior',exists(select 1 from cierres c where c.lead_id=t.lead_id and c.fecha_numerador>=t.vence_en)
+130:   ) order by t.vence_en,t.id),'[]'::jsonb) into v_filas
+131:   from historial t
+132:   left join public.perfiles p on p.id=t.vendedor_id
+133:   left join crm.equipo e on e.perfil_id=t.vendedor_id
+134:   left join public.perfiles ps on ps.id=coalesce(e.supervisor_id,t.asignado_supervisor_id)
+135:   left join crm.actividades a on a.id=t.resultado_actividad_id and a.lead_id=t.lead_id
+136:     and a.tipo='reunion_realizada' and a.creado_en<=v_ahora;
+137:
+138:   -- Nunca devolver un subconjunto como si fuera la totalidad de la consulta.
+139:   if jsonb_array_length(v_filas)>10000 then
+140:     raise exception 'La consulta supera el tamaño admitido; requiere paginación de servidor'
+141:       using errcode='54000';
+142:   end if;
+143:   select count(*) into v_clientes
+144:     from private.citas_episodios(v_ini,v_fin,v_ahora) e
+145:     join crm.tareas t on t.id=e.tarea_id
+146:     where t.perfil_id is not null and t.creado_en<=v_ahora;
+147:   -- Un evento por lead, con cliente vinculado y conversión vigente al corte.
+148:   -- El estado convertido también existe en cierres externos sin cliente del
+149:   -- portal: esos registros no se equiparan automáticamente a esta regla.
+150:   select coalesce(jsonb_agg(jsonb_build_object(
+151:     'lead_id',l.id,'perfil_id',l.perfil_id,'convertido_en',l.convertido_en
+152:   ) order by l.convertido_en,l.id),'[]'::jsonb) into v_conversiones
+153:   from crm.leads l join public.perfiles pc on pc.id=l.perfil_id and pc.rol='cliente'
+154:   where l.id in (select (c->>'lead_id')::uuid from jsonb_array_elements(v_filas) c)
+155:     and l.activo and l.etapa='convertido' and l.perfil_id is not null
+156:     and l.convertido_en is not null and l.convertido_en<=v_ahora
+157:     and not private.cierre_anulado(l.id);
+158:   -- Inactivar el acceso del cliente no anula su conversión. La anulación de
+159:   -- negocio se decide exclusivamente con el helper canónico anterior.
+160:   return jsonb_build_object('version',2,'periodo',jsonb_build_object('desde',p_desde,'hasta',p_hasta),
+161:     'generado_en',v_ahora,'citas',v_filas,'conversiones',v_conversiones,
+162:     'disponibilidad_depositos','conversion_cliente','citas_clientes',v_clientes);
+163: end;
+164: $function$
+165: ;
+166: -- Consumidor mixto declarado: el censo también detecta sus joins de atributos.
+167: -- La conversión a cliente es la regla ya aprobada para este módulo; no exige
+168: -- un asiento de capital ni usa el índice ponderado como número de personas.
+169: insert into private.analitica_leads_citas_exenciones(objeto,tipo,huella,razon)
+170: select 'private.citas_gerencia_consulta(date,date)','funcion',
+171:   md5(regexp_replace(regexp_replace(lower(p.prosrc),
+172:     '--[^\n]*',' ','g'),'/\*.*?\*/',' ','g')),
+173:   'Detalle operativo de Gerencia: citas y estados desde citas_episodios, cierres desde conversion_episodios sin ponderar. Joins crudos sólo para identidad, historial y evidencia de conversión vigente a perfil cliente; no calcula capital ni metas.'
+174: from pg_proc p where p.oid='private.citas_gerencia_consulta(date,date)'::regprocedure
+175: on conflict(objeto) do update set huella=excluded.huella, razon=excluded.razon;
+176: update private.analitica_lc_sello
+177: set sello=private.huella_exenciones_analitica_lc(),sellado_en=now() where id;
+178:
+179: do $postflight$
+180: begin
+181:   if not exists(select 1 from private.contadores_crudos_leads_citas()
+182:     where objeto='private.citas_gerencia_consulta(date,date)' and declarada and huella_ok) then
+183:     raise exception 'Citas: consumidor sin declaración y huella vigentes';
+184:   end if;
+185:   if (select permisos from citas_nucleos_preflight) is distinct from
+186:     (select to_jsonb(p.proacl) from pg_proc p where p.oid='private.citas_gerencia_consulta(date,date)'::regprocedure) then
+187:     raise exception 'Citas: cambiaron permisos de la puerta privada';
+188:   end if;
+189:   if (select tope from citas_nucleos_preflight) is distinct from
+190:     (select to_jsonb(t) from private.analitica_leads_citas_tope t where id)
+191:     or (select otras_exenciones from citas_nucleos_preflight) is distinct from
+192:     (select coalesce(jsonb_agg(to_jsonb(e) order by e.objeto),'[]'::jsonb)
+193:       from private.analitica_leads_citas_exenciones e
+194:       where e.objeto<>'private.citas_gerencia_consulta(date,date)')
+195:     or (select otros_contadores from citas_nucleos_preflight) is distinct from
+196:     (select coalesce(jsonb_agg(to_jsonb(c) order by c.objeto),'[]'::jsonb)
+197:       from private.contadores_crudos_leads_citas() c
+198:       where c.objeto<>'private.citas_gerencia_consulta(date,date)')
+199:     or (select count(*) from private.contadores_crudos_leads_citas()) >
+200:       (select contadores from citas_nucleos_preflight) then
+201:     raise exception 'Citas: alteración fuera de alcance en el censo o las excepciones';
+202:   end if;
+203:   if (select sello from private.analitica_lc_sello where id)
+204:     is distinct from private.huella_exenciones_analitica_lc() then
+205:     raise exception 'Citas: sello final inválido';
+206:   end if;
+207:   -- El gate global se ejecuta y reporta por separado: esta migración no eleva
+208:   -- su tope ni concede exenciones a los cuatro lectores ajenos detectados.
+209: end
+210: $postflight$;
+211: commit;
+
+FILE: CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-local.py
+1: #!/usr/bin/env python3
+2: """Contrato de Citas en PG17 desechable, sin TCP, credenciales ni datos reales.
+3:
+4: Prueba las funciones capturadas de negocio y la candidata exacta. El esquema
+5: mínimo no sustituye al replay completo, al gate RLS ni a los advisors del branch.
+6: """
+7: import json
+8: from pathlib import Path
+9: import subprocess
+10: import tempfile
+11: import time
+12:
+13: HERE = Path(__file__).resolve().parent
+14: ROOT = HERE.parents[2]
+15: EVIDENCE = ROOT / 'UX-UI-GERENCIA/citas-conexiones-2026-09-12'
+16: MIGRATION = HERE.parent / 'migrations/20260912151320_crm_citas_consulta_nucleos.sql'
+17: PG = Path('/opt/homebrew/opt/postgresql@17/bin')
+18: BANK = Path(tempfile.mkdtemp(prefix='citas-nucleos-', dir='/private/tmp'))
+19: ARGS = ['-X', '-w', '-h', str(BANK), '-p', '55459', '-U', 'postgres',
+20:         '-d', 'citas_integracion_20260908', '-v', 'ON_ERROR_STOP=1', '-Atq']
+21: LOG = []
+22:
+23:
+24: def run(tool, args, sql=None, expected=None):
+25:     start = time.monotonic()
+26:     result = subprocess.run([str(PG / tool), *args], input=sql, text=True, capture_output=True)
+27:     LOG.append({'tool': tool, 'code': result.returncode, 'seconds': round(time.monotonic() - start, 3),
+28:                 'stdout': result.stdout.strip(), 'stderr': result.stderr.strip(), 'expected_error': expected})
+29:     if expected:
+30:         assert result.returncode != 0 and expected in result.stderr, result.stderr
+31:     else:
+32:         assert result.returncode == 0, result.stderr
+33:     return result.stdout.strip()
+34:
+35:
+36: def query(sql, expected=None):
+37:     return run('psql', ARGS, sql, expected)
+38:
+39:
+40: sources = json.loads((EVIDENCE / 'fuentes-servidor.json').read_text())
+41: original = next(s['definicion'] for s in sources if s['funcion'] == 'citas_gerencia_consulta')
+42: candidate = MIGRATION.read_text()
+43: fingerprint = "select md5(pg_get_functiondef('private.citas_gerencia_consulta(date,date)'::regprocedure));"
+44: alias = original.replace('private.citas_gerencia_consulta(', 'private.citas_gerencia_anterior_prueba(', 1) + ';'
+45: comparator = """
+46: create function private.comparar_citas_prueba(p_desde date,p_hasta date) returns jsonb
+47: language plpgsql security invoker set search_path='' as $$
+48: declare actual jsonb; anterior jsonb; normalizado jsonb;
+49: begin
+50:   actual:=crm.citas_gerencia_consulta_fn(p_desde,p_hasta);
+51:   anterior:=private.citas_gerencia_anterior_prueba(p_desde,p_hasta);
+52:   normalizado:=jsonb_set(actual,'{citas}',coalesce((
+53:     select jsonb_agg(c.valor-'estado_comercial' order by c.orden)
+54:     from jsonb_array_elements(actual->'citas') with ordinality c(valor,orden)
+55:   ),'[]'::jsonb));
+56:   assert normalizado=anterior,'PARIDAD: cambió un campo del contrato anterior';
+57:   assert not exists(select 1 from jsonb_array_elements(actual->'citas') c
+58:     where c->>'estado_comercial' is null),'Falta un estado del núcleo';
+59:   return actual;
+60: end $$;
+61: revoke all on function private.citas_gerencia_anterior_prueba(date,date),private.comparar_citas_prueba(date,date) from public;
+62: grant execute on function private.citas_gerencia_anterior_prueba(date,date),private.comparar_citas_prueba(date,date) to authenticated;
+63: """
+64:
+65: started = False
+66: try:
+67:     run('initdb', ['-D', str(BANK / 'data'), '-U', 'postgres', '-A', 'trust', '--no-locale', '-E', 'UTF8'])
+68:     run('pg_ctl', ['-D', str(BANK / 'data'), '-l', str(BANK / 'postgres.log'), '-o',
+69:                    f"-k {BANK} -p 55459 -c listen_addresses=''", '-w', 'start'])
+70:     started = True
+71:     run('createdb', ['-h', str(BANK), '-p', '55459', '-U', 'postgres', 'citas_integracion_20260908'])
+72:     assert query("select (inet_server_addr() is null and current_setting('listen_addresses')='')::text;") == 'true'
+73:     query((HERE / 'test-citas-nucleos-fixtures.sql').read_text())
+74:     order = ['rol_crm', 'cierre_anulado', 'cierre_externo_anulado', 'citas_episodios', 'conversion_episodios',
+75:              'citas_gerencia_consulta', 'citas_gerencia_consulta_fn', 'huella_exenciones_analitica_lc',
+76:              'contadores_crudos_leads_citas', 'assert_analitica_leads_citas']
+77:     for name in order:
+78:         source = next(s for s in sources if s['funcion'] == name)
+79:         query(source['definicion'] + ';')
+80:     query("""
+81:       revoke execute on all functions in schema private from public;
+82:       revoke execute on function crm.citas_gerencia_consulta_fn(date,date) from public;
+83:       grant execute on function crm.citas_gerencia_consulta_fn(date,date),private.citas_gerencia_consulta(date,date) to authenticated;
+84:       insert into private.analitica_lc_sello(sello) values(private.huella_exenciones_analitica_lc());
+85:     """)
+86:     before = query(fingerprint)
+87:     assert before == next(s['huella'] for s in sources if s['funcion'] == 'citas_gerencia_consulta')
+88:     query(candidate.replace('commit;', "do $$ begin raise exception 'REVERSIÓN_FORZADA_CITAS'; end $$;\ncommit;"), 'REVERSIÓN_FORZADA_CITAS')
+89:     assert query(fingerprint) == before, 'Un fallo tardío dejó el lector cambiado'
+90:     assert query("select count(*) from private.analitica_leads_citas_exenciones where objeto='private.citas_gerencia_consulta(date,date)';") == '0'
+91:     query(original.replace('declare\n', 'declare\n  -- deriva deliberada de prueba\n', 1) + ';')
+92:     query(candidate, 'revisar la candidata')
+93:     query(original + ';')
+94:     query(candidate)
+95:     assert query(fingerprint) != before
+96:     query("""
+97:       do $$ begin
+98:         assert exists(select 1 from private.contadores_crudos_leads_citas()
+99:           where objeto='private.citas_gerencia_consulta(date,date)' and declarada and huella_ok),'Citas debe quedar registrada';
+100:         assert exists(select 1 from private.contadores_crudos_leads_citas()
+101:           where objeto='private.deuda_ajena_prueba()' and not declarada),'No ocultar deudas ajenas';
+102:         assert (select tope=30 from private.analitica_leads_citas_tope),'No elevar el tope';
+103:         assert not has_function_privilege('authenticated','private.citas_episodios(timestamptz,timestamptz,timestamptz)','execute'),'Núcleo privado';
+104:         assert not has_function_privilege('authenticated','private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)','execute'),'Conversión privada';
+105:       end $$;
+106:     """)
+107:     query('select private.assert_analitica_leads_citas();', 'private.deuda_ajena_prueba')
+108:     for name in ['test-citas-gerencia-consulta.sql', 'test-citas-deposito-conversion.sql', 'test-citas-nucleos-estados.sql']:
+109:         sql = (HERE / name).read_text()
+110:         sql = sql.replace('begin;', 'begin;\n' + alias + '\n' + comparator, 1)
+111:         sql = sql.replace('r:=crm.citas_gerencia_consulta_fn(', 'r:=private.comparar_citas_prueba(')
+112:         output = query(sql)
+113:         print(name + ': ' + output.splitlines()[-1], flush=True)
+114:     query("set role anon; select crm.citas_gerencia_consulta_fn('2026-09-01','2026-09-30');", 'permission denied')
+115:     query('set role authenticated; select * from crm.tareas;', 'permission denied')
+116:     print('CITAS_NUCLEOS_LOCAL_OK: paridad, límites, roles, estados, cierres, reversión y censo.', flush=True)
+117: finally:
+118:     if started:
+119:         run('pg_ctl', ['-D', str(BANK / 'data'), '-m', 'fast', '-w', 'stop'])
+120:     (EVIDENCE / 'verificacion-sql-local.json').write_text(json.dumps({
+121:         'bank': str(BANK), 'scope': 'PG17 local, esquema mínimo, funciones de negocio reales, Auth/pesos/atribución simulados',
+122:         'steps': LOG,
+123:     }, ensure_ascii=False, indent=2) + '\n')
+
+FILE: CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-fixtures.sql
+1: -- Banco desechable: tablas mínimas y Auth simulado. Las funciones de negocio
+2: -- se cargan SIN cambios desde la captura saneada del catálogo de producción.
+3: do $$ begin
+4:   if current_database()<>'citas_integracion_20260908' then
+5:     raise exception 'Sólo banco local aislado de Citas';
+6:   end if;
+7: end $$;
+8: create schema crm;
+9: create schema private;
+10: create schema auth;
+11: create role authenticated nologin;
+12: create role anon nologin;
+13: create function auth.uid() returns uuid language sql stable as
+14:   'select nullif(current_setting(''request.jwt.claim.sub'',true),'''')::uuid';
+15: create table public.perfiles(id uuid primary key,activo boolean default true,nombre_completo text,rol text);
+16: create table crm.equipo(perfil_id uuid primary key,activo boolean default true,rol_crm text,supervisor_id uuid);
+17: create table crm.leads(id uuid primary key default gen_random_uuid(),creado_en timestamptz default now(),
+18:   nombre_completo text not null,telefono text not null,monto_estimado numeric not null,
+19:   origen text not null default 'referido',moneda text not null default 'PEN',alta_manual boolean default false,
+20:   etapa text default 'nuevo',perfil_id uuid,contrato_id uuid,convertido_en timestamptz,vendedor_id uuid,activo boolean default true);
+21: create table crm.tareas(id uuid primary key default gen_random_uuid(),lead_id uuid,vendedor_id uuid,perfil_id uuid,
+22:   asignado_supervisor_id uuid,tipo text,estado text default 'pendiente',vence_en timestamptz not null,titulo text,
+23:   modalidad_reunion text,resultado_reunion text,cancelada_por text,cancelada_por_id uuid,activo boolean default true,
+24:   creado_en timestamptz default now(),nota text,detalle_cierre_reunion text,motivo_no_realizada text,
+25:   reagendada_de uuid,resultado_actividad_id uuid);
+26: create index on crm.tareas(lead_id,vence_en);
+27: create index on crm.tareas(vence_en) where tipo='reunion' and activo;
+28: create table crm.actividades(id uuid primary key default gen_random_uuid(),lead_id uuid,tipo text,creado_en timestamptz);
+29: create table crm.lead_asignaciones(id uuid default gen_random_uuid(),lead_id uuid,analista_id uuid,origen text,moneda text,
+30:   aproximado boolean default false,asignado_en timestamptz,ciclo_n int default 1,episodio_n int default 1,
+31:   resultado text,resultado_en timestamptz,finalizado_en timestamptz,motivo_apertura text,motivo_cierre text,
+32:   sla_global_iniciado_en timestamptz,sla_politica_asignacion_id uuid,primera_gestion_limite_en timestamptz,primer_contacto_limite_en timestamptz);
+33: create index on crm.lead_asignaciones(lead_id,asignado_en);
+34: create table crm.operaciones_cartera(id uuid,cliente_id uuid,vendedor_id uuid,tipo text,periodo date,
+35:   fecha_operacion date,creado_en timestamptz,elegible_conversion boolean,contrato_nuevo_id uuid,moneda text);
+36: create table crm.cierres_externos(lead_id uuid,es_cierre_inicial boolean default true,anulado_en timestamptz);
+37: create table crm.cierres_avance_anulados(lead_id uuid,motivo text,anulado_por uuid);
+38: -- No se usan importes, pesos ni operaciones de cartera en las aserciones.
+39: create function private.peso_referido_conversion(date) returns numeric language sql stable as 'select 0.15::numeric';
+40: create function private.analista_atribuido_cadena(uuid) returns uuid language sql stable as 'select null::uuid';
+41: create table private.analitica_leads_citas_exenciones(objeto text primary key,tipo text not null,
+42:   huella text not null,razon text not null,declarado_en timestamptz default now());
+43: create table private.analitica_leads_citas_tope(id boolean primary key default true,tope integer,actualizado_en timestamptz default now());
+44: create table private.analitica_lc_sello(id boolean primary key default true,sello text,sellado_en timestamptz default now());
+45: -- Una deuda ajena explícita prueba que la candidata no la exonera ni oculta.
+46: create function private.deuda_ajena_prueba() returns bigint language sql as 'select count(*) from crm.leads';
+47: insert into private.analitica_leads_citas_exenciones(objeto,tipo,huella,razon)
+48: values('private.otra_exencion_prueba()','funcion','evidencia_de_prueba','Registro ajeno que debe conservarse byte por byte durante la candidata de Citas.');
+49: insert into private.analitica_leads_citas_tope(tope) values(30);
+50: grant usage on schema crm,private,auth to authenticated;
+51: grant usage on schema crm,auth to anon;
+52: alter table crm.leads enable row level security;
+53: alter table crm.tareas enable row level security;
+54: alter table crm.actividades enable row level security;
+55: alter table crm.lead_asignaciones enable row level security;
+56: alter table private.analitica_leads_citas_exenciones enable row level security;
+57: alter table private.analitica_leads_citas_tope enable row level security;
+58: alter table private.analitica_lc_sello enable row level security;
+
+FILE: CRM-Avance-Corp/supabase/scripts/test-citas-nucleos-estados.sql
+1: \set ON_ERROR_STOP on
+2: begin;
+3: do $$ begin
+4:   if current_database()<>'citas_integracion_20260908' then raise exception 'Sólo banco local'; end if;
+5: end $$;
+6: insert into public.perfiles(id,nombre_completo,rol)
+7: values('88000000-0000-4000-8000-000000000001','GERENCIA SINTÉTICA','comercial');
+8: insert into crm.equipo(perfil_id,rol_crm) values('88000000-0000-4000-8000-000000000001','gerencia');
+9: insert into crm.leads(id,nombre_completo,telefono,monto_estimado,origen,creado_en)
+10: select ('89000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'ESTADO '||n,'+51900000000',10000,
+11:   case n when 3 then 'landing' when 4 then 'formulario' when 5 then 'telefono' else 'referido' end,'2026-07-01 15:00+00'
+12: from generate_series(1,12) n;
+13: insert into crm.tareas(id,lead_id,tipo,titulo,vence_en,estado,cancelada_por,creado_en,activo)
+14: select ('8a000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
+15:   ('89000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'reunion','ESTADO '||n,
+16:   case n when 1 then now() when 2 then now()+interval '1 day' else '2026-08-10 15:00+00'::timestamptz end,
+17:   case when n in(1,2) then 'pendiente' when n=3 then 'completada' when n=4 then 'no_show'
+18:     when n in(5,6,7) then 'cancelada' else 'reprogramada' end,
+19:   case n when 5 then 'asesor' when 7 then 'sistema' end,
+20:   case when n=12 then now()+interval '1 day' else '2026-08-01 15:00+00'::timestamptz end,n<>10
+21: from generate_series(1,12) n;
+22: -- La cohorte de agosto incluye el seguimiento presente/futuro de las personas 1 y 2.
+23: insert into crm.tareas(lead_id,tipo,titulo,vence_en,estado,creado_en)
+24: select ('89000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'reunion','HISTORIA','2026-08-01 15:00+00','no_show','2026-07-31 15:00+00'
+25: from generate_series(1,2) n;
+26: update crm.leads set activo=false where id='89000000-0000-4000-8000-000000000011';
+27: insert into crm.lead_asignaciones(lead_id,analista_id,asignado_en,resultado,resultado_en,finalizado_en)
+28: select ('89000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'88000000-0000-4000-8000-000000000001',
+29:   '2026-07-01 15:00+00','convertido',
+30:   case n when 6 then now()+interval '1 day' when 7 then '2026-08-09 15:00+00'::timestamptz
+31:     when 8 then now() when 9 then null else '2026-08-20 15:00+00'::timestamptz end,
+32:   '2026-08-20 15:00+00'
+33: from generate_series(3,9) n;
+34: insert into crm.cierres_externos(lead_id,anulado_en) values('89000000-0000-4000-8000-000000000004',now());
+35: insert into crm.cierres_avance_anulados(lead_id) values('89000000-0000-4000-8000-000000000005');
+36: set local role authenticated;
+37: select set_config('request.jwt.claim.sub','88000000-0000-4000-8000-000000000001',true);
+38: do $$ declare r jsonb; estados text[]; cierres boolean[]; begin
+39:   r:=crm.citas_gerencia_consulta_fn('2026-08-01','2026-08-31');
+40:   assert jsonb_array_length(r->'citas')=11,'Sólo citas activas, leads activos y registros existentes al corte';
+41:   select array_agg(c->>'estado_comercial' order by c->>'id'),array_agg((c->>'cierre_posterior')::boolean order by c->>'id')
+42:     into estados,cierres from jsonb_array_elements(r->'citas') c where c->>'id' like '8a000000%';
+43:   assert estados=array['vencida','programada','realizada','no_show','cancelada','sistema','sistema','reprogramada','reprogramada'],
+44:     'Estados vienen de las banderas canónicas, incluida igualdad exacta al corte';
+45:   assert cierres=array[false,false,true,false,false,false,false,true,true],
+46:     'Cierres vigentes de todos los canales, sin peso, anulaciones, futuro ni cierre anterior; coalesce y corte inclusivo';
+47: end $$;
+48: reset role;
+49: select 'CITAS_ESTADOS_Y_CIERRES_OK' as resultado;
+50: rollback;
+
+FUENTE ANTERIOR REAL: crm.citas_gerencia_consulta_fn
+CREATE OR REPLACE FUNCTION crm.citas_gerencia_consulta_fn(p_desde date, p_hasta date)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.citas_gerencia_consulta(p_desde,p_hasta);
+$function$
+
+
+FUENTE ANTERIOR REAL: private.cierre_anulado
+CREATE OR REPLACE FUNCTION private.cierre_anulado(p_lead_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select exists (
+    select 1
+    from crm.cierres_externos ce
+    where ce.lead_id = p_lead_id and ce.es_cierre_inicial
+      and ce.anulado_en is not null
+  ) or exists (
+    select 1
+    from crm.cierres_avance_anulados ca
+    where ca.lead_id = p_lead_id
+  )
+$function$
+
+
+FUENTE ANTERIOR REAL: private.cierre_externo_anulado
+CREATE OR REPLACE FUNCTION private.cierre_externo_anulado(p_lead_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.cierre_anulado(p_lead_id)
+$function$
+
+
+FUENTE ANTERIOR REAL: private.citas_episodios
+CREATE OR REPLACE FUNCTION private.citas_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_ahora timestamp with time zone DEFAULT now())
+ RETURNS TABLE(tarea_id uuid, lead_id uuid, vendedor_id uuid, cancelada_por_id uuid, vence_en timestamp with time zone, estado text, modalidad text, resultado text, debio_ocurrir boolean, realizada boolean, no_show boolean, cancelada_asesor boolean, cancelada_sistema boolean, reprogramada boolean, pendiente_cierre boolean, programada_futura boolean)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select t.id,
+         t.lead_id,
+         t.vendedor_id,
+         t.cancelada_por_id,
+         t.vence_en,
+         t.estado,
+         coalesce(t.modalidad_reunion, 'sin_clasificar'),
+         coalesce(t.resultado_reunion, 'sin_clasificar'),
+         t.vence_en <= p_ahora,
+         t.estado = 'completada',
+         t.estado = 'no_show',
+         (t.estado = 'cancelada' and t.cancelada_por = 'asesor'),
+         (t.estado = 'cancelada' and t.cancelada_por is distinct from 'asesor'),
+         t.estado = 'reprogramada',
+         (t.estado = 'pendiente' and t.vence_en <= p_ahora),
+         (t.estado = 'pendiente' and t.vence_en > p_ahora)
+  from crm.tareas t
+  where t.tipo = 'reunion'
+    and t.activo
+    and t.vence_en >= p_ini
+    and t.vence_en < p_fin;
+$function$
+
+
+FUENTE ANTERIOR REAL: private.citas_gerencia_consulta
+CREATE OR REPLACE FUNCTION private.citas_gerencia_consulta(p_desde date, p_hasta date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_uid uuid := (select auth.uid());
+  v_ahora timestamptz := now();
+  v_ini timestamptz;
+  v_fin timestamptz;
+  v_filas jsonb;
+  v_clientes integer;
+  v_conversiones jsonb;
+begin
+  -- Esta puerta entrega identidades; directorio conserva su agregador sin PII.
+  if v_uid is null or private.rol_crm(v_uid) is distinct from 'gerencia'
+  then raise exception 'No autorizado' using errcode='42501'; end if;
+  if p_desde is null or p_hasta is null or p_desde > p_hasta
+    or p_desde <> date_trunc('month',p_desde)::date
+    or p_hasta <> (date_trunc('month',p_desde)+interval '1 month - 1 day')::date
+    or p_desde < date '2000-01-01'
+    or p_desde > ((v_ahora at time zone 'America/Lima')::date + interval '1 year')::date
+  then raise exception 'Seleccione un mes válido' using errcode='22023'; end if;
+  v_ini := p_desde::timestamp at time zone 'America/Lima';
+  v_fin := (p_hasta+1)::timestamp at time zone 'America/Lima';
+
+  with cohorte as materialized (
+    select distinct t.lead_id from crm.tareas t join crm.leads l on l.id=t.lead_id
+    where t.tipo='reunion' and t.activo and l.activo and t.creado_en<=v_ahora
+      and t.vence_en>=v_ini and t.vence_en<v_fin
+  ), historial as materialized (
+    select t.*, l.nombre_completo, l.telefono, l.origen, l.moneda, l.monto_estimado
+    from crm.tareas t join cohorte c on c.lead_id=t.lead_id join crm.leads l on l.id=t.lead_id
+    where t.tipo='reunion' and t.activo and t.creado_en<=v_ahora
+    -- La fila extra dispara un error; nunca se entrega un historial truncado.
+    order by t.vence_en,t.id limit 10001
+  ), cierres as materialized (
+    -- Misma evidencia de cierre que conversion_episodios: resultado de una
+    -- asignación y exclusión de cierres anulados. No calcula pesos ni índices.
+    -- Incluye cierres previos al mes para describir bien todo el historial.
+    select la.lead_id, coalesce(la.resultado_en,la.finalizado_en) as fecha_numerador
+    from crm.lead_asignaciones la join cohorte c on c.lead_id=la.lead_id
+    where la.resultado='convertido' and not private.cierre_anulado(la.lead_id)
+      and coalesce(la.resultado_en,la.finalizado_en)<=v_ahora
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',t.id,'lead_id',t.lead_id,'nombre',t.nombre_completo,'telefono',t.telefono,
+    'analista_id',t.vendedor_id,'analista_nombre',coalesce(p.nombre_completo,'Sin analista'),
+    'supervisor_id',coalesce(e.supervisor_id,t.asignado_supervisor_id),
+    'supervisor_nombre',coalesce(ps.nombre_completo,'Sin supervisor'),
+    'vence_en',t.vence_en,'estado',t.estado,'cancelada_por',t.cancelada_por,
+    'modalidad',coalesce(t.modalidad_reunion,'sin_clasificar'),'origen',t.origen,
+    'moneda',t.moneda,'monto_estimado',t.monto_estimado,
+    'resultado',coalesce(t.resultado_reunion,'sin_clasificar'),
+    'nota',coalesce(t.detalle_cierre_reunion,t.nota,''),
+    'reagendada_de',case when exists (select 1 from historial a where a.id=t.reagendada_de and a.lead_id=t.lead_id) then t.reagendada_de end,
+    'creado_en',t.creado_en,
+    'asistencia_registrada_en',case when t.estado='completada' then a.creado_en end,
+    'cierre_posterior',exists(select 1 from cierres c where c.lead_id=t.lead_id and c.fecha_numerador>=t.vence_en)
+  ) order by t.vence_en,t.id),'[]'::jsonb) into v_filas
+  from historial t
+  left join public.perfiles p on p.id=t.vendedor_id
+  left join crm.equipo e on e.perfil_id=t.vendedor_id
+  left join public.perfiles ps on ps.id=coalesce(e.supervisor_id,t.asignado_supervisor_id)
+  left join crm.actividades a on a.id=t.resultado_actividad_id and a.lead_id=t.lead_id
+    and a.tipo='reunion_realizada' and a.creado_en<=v_ahora;
+
+  -- Nunca devolver un subconjunto como si fuera la totalidad de la consulta.
+  if jsonb_array_length(v_filas)>10000 then
+    raise exception 'La consulta supera el tamaño admitido; requiere paginación de servidor'
+      using errcode='54000';
+  end if;
+  select count(*) into v_clientes from crm.tareas
+    where tipo='reunion' and activo and perfil_id is not null and creado_en<=v_ahora
+      and vence_en>=v_ini and vence_en<v_fin;
+  -- Un evento por lead, con cliente vinculado y conversión vigente al corte.
+  -- El estado convertido también existe en cierres externos sin cliente del
+  -- portal: esos registros no se equiparan automáticamente a esta regla.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'lead_id',l.id,'perfil_id',l.perfil_id,'convertido_en',l.convertido_en
+  ) order by l.convertido_en,l.id),'[]'::jsonb) into v_conversiones
+  from crm.leads l join public.perfiles pc on pc.id=l.perfil_id and pc.rol='cliente'
+  where l.id in (select (c->>'lead_id')::uuid from jsonb_array_elements(v_filas) c)
+    and l.activo and l.etapa='convertido' and l.perfil_id is not null
+    and l.convertido_en is not null and l.convertido_en<=v_ahora
+    and not private.cierre_anulado(l.id);
+  -- Inactivar el acceso del cliente no anula su conversión. La anulación de
+  -- negocio se decide exclusivamente con el helper canónico anterior.
+  return jsonb_build_object('version',2,'periodo',jsonb_build_object('desde',p_desde,'hasta',p_hasta),
+    'generado_en',v_ahora,'citas',v_filas,'conversiones',v_conversiones,
+    'disponibilidad_depositos','conversion_cliente','citas_clientes',v_clientes);
+end;
+$function$
+
+
+FUENTE ANTERIOR REAL: private.conversion_episodios
+CREATE OR REPLACE FUNCTION private.conversion_episodios(p_ini timestamp with time zone, p_fin timestamp with time zone, p_periodo date, p_global boolean, p_visibles uuid[], p_factor numeric)
+ RETURNS TABLE(tipo text, analista_id uuid, lead_id uuid, operacion_id uuid, fue_referido boolean, aproximado boolean, motivo text, anulado boolean, origen text, categoria text, mes_origen date, monto numeric, moneda text, fecha_divisor timestamp with time zone, fecha_numerador timestamp with time zone, aporte_divisor integer, aporte_numerador numeric)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+#variable_conflict use_column
+begin
+return query
+-- Una llegada por id, por su alta ORIGINAL en Lima. No depende del estado
+-- actual ni de cuántas veces se asigne, descarte, rescate o cambie de dueño.
+-- La primera asignación se busca en toda la historia ANTES de aplicar ámbito.
+-- Sin asignación aún: cuenta en empresa, nunca se inventa un responsable.
+select 'recibido'::text, primera.analista_id, l.id, null::uuid,
+  l.origen = 'referido', coalesce(primera.aproximado, false),
+  'llegada'::text, false, l.origen, null::text,
+  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,
+  null::numeric, null::text, l.creado_en, null::timestamptz,
+  case when l.origen in ('landing', 'formulario') and not l.alta_manual
+    then 1 else 0 end, 0::numeric
+from crm.leads l
+left join lateral (
+  select la.analista_id, la.aproximado
+  from crm.lead_asignaciones la
+  where la.lead_id = l.id
+  order by la.asignado_en, la.ciclo_n, la.episodio_n, la.id
+  limit 1
+) primera on true
+where l.creado_en >= p_ini and l.creado_en < p_fin
+  and l.origen in ('landing', 'formulario', 'referido')
+  and (p_global or primera.analista_id = any(p_visibles))
+
+union all
+
+-- El índice único del ledger garantiza un cierre por lead. El cierre queda
+-- en quien lo consiguió, no en quien recibió la llegada. Los otros canales
+-- siguen disponibles para consumidores operativos/capital, con aporte CERO.
+select 'cierre'::text, la.analista_id, la.lead_id, null::uuid,
+  l.origen = 'referido', null::boolean, null::text,
+  private.cierre_externo_anulado(la.lead_id), l.origen, null::text,
+  date_trunc('month', l.creado_en at time zone 'America/Lima')::date,
+  null::numeric, null::text, null::timestamptz,
+  coalesce(la.resultado_en, la.finalizado_en), 0,
+  case when private.cierre_externo_anulado(la.lead_id) then 0
+    when l.origen = 'referido' then
+      case when p_periodo is not null then p_factor else
+        private.peso_referido_conversion(date_trunc('month',
+          coalesce(la.resultado_en, la.finalizado_en) at time zone 'America/Lima')::date) end
+    when l.origen in ('landing', 'formulario') then 1
+    else 0 end
+from crm.lead_asignaciones la
+join crm.leads l on l.id = la.lead_id
+where la.resultado = 'convertido'
+  and coalesce(la.resultado_en, la.finalizado_en) >= p_ini
+  and coalesce(la.resultado_en, la.finalizado_en) < p_fin
+  and (p_global or la.analista_id = any(p_visibles))
+
+union all
+
+-- La primera operación ELEGIBLE por cliente/mes, antes de filtrar el rango
+-- o el ámbito. Renovación usa el mismo peso que Referido; Upgrade conserva 1.
+-- Un rango parcial incluye solo las operaciones efectivamente ocurridas allí.
+select 'operacion'::text,
+  coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id), o.vendedor_id),
+  null::uuid, o.id, false, null::boolean, null::text, false,
+  null::text, o.tipo, o.periodo, null::numeric, o.moneda,
+  null::timestamptz, o.fecha_operacion::timestamp at time zone 'America/Lima', 0,
+  case when o.tipo = 'renovacion' then
+    case when p_periodo is not null then p_factor
+      else private.peso_referido_conversion(o.periodo) end
+    when o.tipo = 'upgrade' then 1 else 0 end
+from (
+  select o0.*, row_number() over (
+    partition by o0.cliente_id, o0.periodo
+    order by o0.fecha_operacion, o0.creado_en, o0.id
+  ) as orden_conversion
+  from crm.operaciones_cartera o0
+  where o0.elegible_conversion
+    and o0.periodo >= date_trunc('month', p_ini at time zone 'America/Lima')::date
+    and o0.periodo <= date_trunc('month', p_fin at time zone 'America/Lima')::date
+) o
+where o.orden_conversion = 1
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' >= p_ini
+  and o.fecha_operacion::timestamp at time zone 'America/Lima' < p_fin
+  and (p_global or coalesce(private.analista_atribuido_cadena(o.contrato_nuevo_id),
+                           o.vendedor_id) = any(p_visibles));
+end;
+$function$
+
+
+FUENTE ANTERIOR REAL: private.rol_crm
+CREATE OR REPLACE FUNCTION private.rol_crm(p_perfil_id uuid)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select e.rol_crm
+  from crm.equipo e
+  join public.perfiles p on p.id = e.perfil_id
+  where e.perfil_id = p_perfil_id
+    and e.activo is true and p.activo is true
+    and e.rol_crm in (
+      'vendedor','supervisor','gerencia','coordinador','directorio'
+    )
+    -- Directorio es una capacidad de lectura, no un alias operativo de
+    -- Gerencia. Una pareja desalineada no recibe ningún rol efectivo.
+    and (
+      (p.rol = 'directorio' and e.rol_crm = 'directorio')
+      or (p.rol is distinct from 'directorio' and e.rol_crm <> 'directorio')
+    )
+    -- Superadmin Portal gobierna roles CRM; solo una membresía de Gerencia le
+    -- suma autoridad operativa. Cualquier otro rol queda fuera del gate global.
+    and (p.rol is distinct from 'superadmin' or e.rol_crm = 'gerencia');
+$function$
+
+diff --git a/CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts b/CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts
+index 9a54196..87dc511 100644
+--- a/CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts
++++ b/CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts
+@@ -39,3 +39,22 @@ test('una consulta no habilitada muestra el error y se recupera sin recurrir a c
+   await expect(page.getByRole('button',{name:'No asistieron 2'})).toBeVisible()
+   await expect(page.getByRole('button',{name:'Exportar citas'})).toBeEnabled()
+ })
++
++test('Citas incorpora cambios de otro usuario al minuto y conserva la semana consultada',async ({page}) => {
++  await page.clock.install({time:new Date('2026-09-04T15:00:00Z')})
++  await montarBackendReal(page)
++  await montarConsultaCitas(page)
++  await loginReal(page)
++  await page.getByRole('button',{name:'Citas',exact:true}).click()
++  await expect(page.getByRole('button',{name:'No asistieron 2'})).toBeVisible()
++  await page.getByLabel('Semana',{exact:true}).selectOption('1')
++  // Simula que otro analista guardó los resultados mientras Gerencia lee.
++  await montarConsultaCitas(page,true)
++  const refresco=page.waitForResponse('**/rest/v1/rpc/citas_gerencia_consulta_fn')
++  await page.clock.fastForward('01:01')
++  await refresco
++  await expect(page.getByRole('button',{name:'No asistieron 0'})).toBeVisible()
++  await expect(page.getByLabel('Semana',{exact:true})).toHaveValue('1')
++  await page.getByRole('tab',{name:'Bandeja comercial'}).click()
++  await expect(page.getByRole('button',{name:'Realizadas 3'})).toBeVisible()
++})
+diff --git a/CRM-Avance-Corp/app/src/data/citas-gerencia.ts b/CRM-Avance-Corp/app/src/data/citas-gerencia.ts
+index a38bba5..69a9631 100644
+--- a/CRM-Avance-Corp/app/src/data/citas-gerencia.ts
++++ b/CRM-Avance-Corp/app/src/data/citas-gerencia.ts
+@@ -14,6 +14,7 @@ const CitaSchema = v.object({
+   id: Id, lead_id: Id, nombre: v.string(), telefono: v.string(),
+   analista_id: v.nullable(Id), analista_nombre: v.string(), supervisor_id: v.nullable(Id), supervisor_nombre: v.string(),
+   vence_en: Instante, estado: v.picklist(['pendiente','completada','no_show','cancelada','reprogramada']),
++  estado_comercial: v.optional(v.picklist(['vencida','programada','realizada','no_show','cancelada','reprogramada','sistema'])),
+   cancelada_por: v.nullable(v.string()), modalidad: v.string(), origen: v.string(),
+   moneda: v.picklist(['PEN','USD']), monto_estimado: v.pipe(v.number(),v.finite(),v.minValue(0)),
+   resultado: v.string(), nota: v.string(), reagendada_de: v.nullable(Id), creado_en: Instante,
+@@ -50,8 +51,8 @@ export function adaptarCitas(datos: ConsultaCitasRpc): CitaConLead[] {
+     id:c.id,leadId:c.lead_id,nombre:c.nombre,telefono:c.telefono,analista:c.analista_id ?? 'sin_analista',
+     analistaNombre:c.analista_nombre,supervisor:c.supervisor_nombre,supervisorId:c.supervisor_id ?? 'sin_supervisor',
+     fecha:fechaLima(c.vence_en),hora:horaLima(c.vence_en),
+-    estado:c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
+-      : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado,
++    estado:c.estado_comercial ?? (c.estado==='pendiente' ? Date.parse(c.vence_en)<=Date.parse(datos.generado_en) ? 'vencida' : 'programada'
++      : c.estado==='completada' ? 'realizada' : c.estado==='cancelada' && c.cancelada_por!=='asesor' ? 'sistema' : c.estado),
+     modalidad:rotulo(c.modalidad),origen:rotulo(c.origen),moneda:c.moneda,monto:c.monto_estimado,
+     resultado:rotulo(c.resultado),nota:c.nota,cerrado:c.cierre_posterior,
+     seguimiento:c.estado==='completada' && !c.cierre_posterior,
+@@ -90,10 +91,15 @@ export async function cargarCitasGerencia(mes: string, signal?: AbortSignal): Pr
+ export function useCitasGerencia(mes: string, actorId: string | null, habilitada: boolean) {
+   // Clave por actor/mes y sin placeholderData: nunca presenta otro período.
+   return useQuery({
+-    queryKey:[...crmQueryKeys.metricas(),'citas-detalle',actorId,mes],
++    queryKey:crmQueryKeys.citasGerencia(actorId,mes),
+     queryFn:({signal}) => cargarCitasGerencia(mes,signal),
+     enabled:habilitada && Boolean(actorId) && Boolean(rango(defaults(mes))[0]),
+     staleTime:30_000,
++    // Incluye cambios de otros analistas y el paso de programada a vencida.
++    refetchInterval:60_000,
++    refetchIntervalInBackground:false,
++    refetchOnWindowFocus:'always',
++    refetchOnReconnect:'always',
+     retry:1,
+   })
+ }
+diff --git a/CRM-Avance-Corp/app/src/data/crm-queries-conversion.test.tsx b/CRM-Avance-Corp/app/src/data/crm-queries-conversion.test.tsx
+index 1878e45..f2c2a56 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-queries-conversion.test.tsx
++++ b/CRM-Avance-Corp/app/src/data/crm-queries-conversion.test.tsx
+@@ -1,6 +1,6 @@
+ import { createElement, type ReactNode } from 'react'
+ import { act, renderHook, waitFor } from '@testing-library/react'
+-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
+ import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+ const mocks = vi.hoisted(() => ({
+@@ -106,6 +106,43 @@ describe('consultas de conversión con alcance explícito', () => {
+ })
+
+ describe('invalidaciones que mueven la conversión', () => {
++  it.each([
++    ['derivar', useDerivarLeadsEquipo, [], mocks.derivarLeadsEquipo],
++    ['revertir', useRevertirDerivacionEquipo, 'lead-1', mocks.revertirDerivacionEquipo],
++    ['convertir', useConvertirLeadExterno, {}, mocks.convertirLeadExterno],
++    ['anular externo', useAnularCierreExterno, {}, mocks.anularCierreExterno],
++    ['anular Avance', useAnularCierreAvance, {}, mocks.anularCierreAvance],
++  ] as const)('%s actualiza Citas aunque su primera respuesta siga en vuelo', async (_caso, usarMutacion, variables, escribir) => {
++    const { cliente, wrapper } = arnes()
++    let guardado = false
++    let liberar!: () => void
++    const antigua = new Promise<void>(resolve => { liberar = resolve })
++    escribir.mockImplementation(async () => { guardado = true; return {} })
++    const clave = crmQueryKeys.citasGerencia('gerencia', '2026-09')
++    const observador = new QueryObserver(cliente, {
++      queryKey: clave,
++      queryFn: async ({ signal }) => {
++        const foto = { actualizado: guardado }
++        if (!guardado) await antigua
++        void signal
++        return foto
++      },
++    })
++    const desuscribir = observador.subscribe(() => undefined)
++    const { result } = renderHook(() => usarMutacion(), { wrapper })
++    try {
++      expect(cliente.getQueryState(clave)?.fetchStatus).toBe('fetching')
++      await act(async () => { await result.current.mutateAsync(variables as never) })
++      liberar()
++      await waitFor(() => expect(cliente.getQueryData(clave)).toEqual({ actualizado: true }))
++      expect(cliente.getQueryState(clave)?.isInvalidated).toBe(false)
++    } finally {
++      liberar()
++      desuscribir()
++      cliente.clear()
++    }
++  })
++
+   it.each([
+     ['derivar', useDerivarLeadsEquipo, []],
+     ['revertir derivación', useRevertirDerivacionEquipo, 'lead-1'],
+diff --git a/CRM-Avance-Corp/app/src/data/crm-queries.ts b/CRM-Avance-Corp/app/src/data/crm-queries.ts
+index 2b6442c..a857506 100644
+--- a/CRM-Avance-Corp/app/src/data/crm-queries.ts
++++ b/CRM-Avance-Corp/app/src/data/crm-queries.ts
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef } from 'react'
+ import type { DecisionSolicitudTasa, EstadoSolicitudTasa, IntencionContrato, PublicacionPoliticaRentabilidad } from './crm-api'
+ import type { CategoriaContrato } from '@/lib/cronograma'
+-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
++import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
+ import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
+ import type {
+   AnularCierreAvanceDatos,
+@@ -193,6 +193,9 @@ export const crmQueryKeys = {
+   metricasReunionesPrefijo: () => [...crmQueryKeys.metricas(), 'reuniones'] as const,
+   metricasReuniones: (desde: string, hasta: string) =>
+     [...crmQueryKeys.metricasReunionesPrefijo(), desde, hasta] as const,
++  citasGerenciaPrefijo: () => [...crmQueryKeys.metricasReunionesPrefijo(), 'detalle'] as const,
++  citasGerencia: (actorId: string | null, mes: string) =>
++    [...crmQueryKeys.citasGerenciaPrefijo(), actorId, mes] as const,
+   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
+   // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
+   // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
+@@ -264,6 +267,19 @@ const CLAVES_INVALIDACION_COMERCIAL = {
+   ],
+ } as const satisfies Record<string, readonly QueryKey[]>
+
++/** La primera lectura en vuelo también puede preceder a la escritura. Se
++ * cancela antes de invalidar para no reutilizar una respuesta anterior. */
++export async function invalidarMetricasCitas(cliente: QueryClient, incluirResumen = false) {
++  const queryKey = incluirResumen ? crmQueryKeys.metricasReunionesPrefijo() : crmQueryKeys.citasGerenciaPrefijo()
++  await cliente.cancelQueries({ queryKey })
++  await cliente.invalidateQueries({ queryKey })
++}
++
++async function invalidarLecturasComerciales(cliente: QueryClient, claves: readonly QueryKey[]) {
++  await cliente.cancelQueries({ queryKey: crmQueryKeys.citasGerenciaPrefijo() })
++  await Promise.all(claves.map(queryKey => cliente.invalidateQueries({ queryKey })))
++}
++
+ // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
+ // Sin retry propio: query-client.ts lo desactiva adrede (supabase-js >= 2.102 ya
+ // reintenta las lecturas transitorias; dos capas multiplicarían tráfico justo
+@@ -904,9 +920,7 @@ export function useDerivarLeadsEquipo() {
+   return useMutation({
+     mutationFn: (derivaciones: readonly DerivacionEquipoPendiente[]) => derivarLeadsEquipo(derivaciones),
+     onSuccess: async () => {
+-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo.map((queryKey) =>
+-        queryClient.invalidateQueries({ queryKey }),
+-      ))
++      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo)
+     },
+   })
+ }
+@@ -917,9 +931,7 @@ export function useRevertirDerivacionEquipo() {
+   return useMutation({
+     mutationFn: (leadId: string) => revertirDerivacionEquipo(leadId),
+     onSuccess: async () => {
+-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo.map((queryKey) =>
+-        queryClient.invalidateQueries({ queryKey }),
+-      ))
++      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.derivacionEquipo)
+     },
+   })
+ }
+@@ -972,9 +984,7 @@ export function useConvertirLeadExterno() {
+   return useMutation({
+     mutationFn: (datos: ConvertirLeadExternoDatos) => convertirLeadExterno(datos),
+     onSuccess: async () => {
+-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.conversionExterna.map((queryKey) =>
+-        queryClient.invalidateQueries({ queryKey }),
+-      ))
++      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.conversionExterna)
+     },
+   })
+ }
+@@ -1005,9 +1015,7 @@ export function useAnularCierreExterno() {
+   return useMutation({
+     mutationFn: (datos: AnularCierreExternoDatos) => anularCierreExterno(datos),
+     onSuccess: async () => {
+-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.anulacionExterna.map((queryKey) =>
+-        queryClient.invalidateQueries({ queryKey }),
+-      ))
++      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.anulacionExterna)
+     },
+   })
+ }
+@@ -1045,9 +1053,7 @@ export function useAnularCierreAvance() {
+   return useMutation({
+     mutationFn: (datos: AnularCierreAvanceDatos) => anularCierreAvance(datos),
+     onSuccess: async () => {
+-      await Promise.all(CLAVES_INVALIDACION_COMERCIAL.anulacionAvance.map((queryKey) =>
+-        queryClient.invalidateQueries({ queryKey }),
+-      ))
++      await invalidarLecturasComerciales(queryClient, CLAVES_INVALIDACION_COMERCIAL.anulacionAvance)
+     },
+   })
+ }
+diff --git a/CRM-Avance-Corp/app/src/lib/store-real.test.tsx b/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
+index 5390ad2..3d0024e 100644
+--- a/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
++++ b/CRM-Avance-Corp/app/src/lib/store-real.test.tsx
+@@ -1723,6 +1723,63 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
+     })
+   })
+
++  it.each(['crear', 'cerrar', 'reprogramar', 'recargar'] as const)(
++    '%s refresca el detalle de Citas y descarta una primera respuesta anterior a guardar', async (operacion) => {
++      const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } })
++      invalidarQueriesMock.mockImplementation((filtros, opciones) => cliente.invalidateQueries(filtros, opciones))
++      vi.mocked(queryClient.cancelQueries).mockImplementation((filtros, opciones) => cliente.cancelQueries(filtros, opciones))
++      const cita = {
++        id: '33333333-3333-4333-8333-333333333333', lead_id: leadBase().id, perfil_id: null,
++        vendedor_id: 'u-v1', asignado_supervisor_id: null, tipo: 'reunion' as const,
++        titulo: 'Cita de prueba', vence_en: '2026-07-18T20:00:00.000Z',
++        estado: 'pendiente' as const, modalidad_reunion: 'presencial' as const,
++        ubicacion_reunion: 'Oficina', reprogramaciones: 0, activo: true,
++        creado_en: '2026-07-17T15:00:00.000Z',
++      }
++      listarTareas.mockResolvedValue([cita])
++      const { api, mutar } = montar('supervisor')
++      await waitFor(() => expect(api().tareas).toHaveLength(1))
++      const respuestaAntigua = diferida<void>()
++      let guardado = false
++      comandoSla.mockImplementation(async () => { guardado = true })
++      insertarTarea.mockImplementation(async () => { guardado = true })
++      const clave = crmQueryKeys.citasGerencia('u-s1', '2026-07')
++      const observador = new QueryObserver(cliente, {
++        queryKey: clave,
++        queryFn: async ({ signal }) => {
++          const foto = { actualizado: guardado }
++          if (!guardado) await respuestaAntigua.promesa
++          void signal
++          return foto
++        },
++      })
++      const desuscribir = observador.subscribe(() => undefined)
++      try {
++        expect(cliente.getQueryState(clave)?.fetchStatus).toBe('fetching')
++        if (operacion === 'recargar') {
++          // La conversión a cliente guarda fuera del store y luego llama recargar().
++          guardado = true
++          await act(async () => { await api().recargar() })
++        } else {
++          const res = mutar((a) => operacion === 'crear'
++            ? a.crearTarea({ lead_id: cita.lead_id, tipo: 'reunion', titulo: 'Otra cita',
++              vence_en: '2027-01-05T15:00:00.000Z', modalidad_reunion: 'presencial', ubicacion_reunion: 'Oficina' })
++            : operacion === 'cerrar'
++              ? a.completarTarea({ tarea_id: cita.id, estado: 'completada', resultado_tipo: 'reunion_realizada', resultado_reunion: 'interesado' })
++              : a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
++          expect(res.ok).toBe(true)
++          await act(async () => { expect(await res.persistido).toBe(true) })
++        }
++        respuestaAntigua.resolver()
++        await waitFor(() => expect(cliente.getQueryData(clave)).toEqual({ actualizado: true }))
++      } finally {
++        respuestaAntigua.resolver()
++        desuscribir()
++        cliente.clear()
++      }
++    },
++  )
++
+   it('reprogramar conserva la original, enlaza una cita nueva y permite confirmarla', async () => {
+     const cita = {
+       id: '33333333-3333-4333-8333-333333333333',
+diff --git a/CRM-Avance-Corp/app/src/lib/store.tsx b/CRM-Avance-Corp/app/src/lib/store.tsx
+index 03f38f9..59729a2 100644
+--- a/CRM-Avance-Corp/app/src/lib/store.tsx
++++ b/CRM-Avance-Corp/app/src/lib/store.tsx
+@@ -7,7 +7,7 @@ import { refrescarPostventa } from '@/data/postventa-queries'
+ // Debe montarse DENTRO de AuthProvider (usa useAuth para el gating y el autor).
+ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
+ import { toast } from 'sonner'
+-import { crmQueryKeys } from '@/data/crm-queries'
++import { crmQueryKeys, invalidarMetricasCitas } from '@/data/crm-queries'
+ import { queryClient } from './query-client'
+ import { useAuth } from './auth-context'
+ import { INFO_COOPERATIVA, type Cooperativa } from './cierres-externos'
+@@ -948,6 +948,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
+   ): Promise<boolean> => {
+     const miEpoca = epocaRef.current
+     const miApertura = aperturaRef.current
++    // También cubre recargar() tras una conversión y cambios de datos del lead.
++    // El detalle cuelga de reuniones; ninguna primera lectura antigua debe ganar.
++    void invalidarMetricasCitas(queryClient, invalidarReuniones)
+     // Puente de coherencia F1 (TRANSITORIO hasta F3): mientras las mutaciones
+     // pasen por el store, cada resincronización invalida por prefijo las
+     // métricas del ámbito servidas por RPC — sin esto, crear o mover un lead
+@@ -989,11 +992,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
+         queryKey: crmQueryKeys.metricasConversionesEquipoPrefijo(),
+       })
+     }
+-    if (invalidarReuniones) {
+-      void queryClient.invalidateQueries({
+-        queryKey: crmQueryKeys.metricasReunionesPrefijo(),
+-      })
+-    }
+     if (invalidarAgenda) {
+       void queryClient.invalidateQueries({
+         queryKey: crmQueryKeys.metricasAgendaPrefijo(),

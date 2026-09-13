@@ -1,0 +1,72 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+El rediseño acotado corrige mi P1 de coste en el lector (580–672 ms → 25–31 ms, confirmado en `lector_nuevo_*`). Pero el mismo patrón de factorización se aplicó a `conversion_episodios` **sin medición antes/después**, y la candidata conserva dos auto-joins cuadráticos en el techo de 10.000 filas que ninguna medición cubre. La equivalencia de la ruta realmente usada (`p_leads` NO vacío) no está probada.
+
+FINDINGS:
+
+[P1] Regresión de coste no medida en el núcleo de Conversión
+File: `20260912151320_crm_citas_consulta_nucleos.sql`
+Lines: 110-140, 178-179
+Problem: La rama de cierre salió del cuerpo de `conversion_episodios` a `private.conversion_cierres`, SECURITY DEFINER, que el planner no puede inlinear; el `union all` la materializa. Se midió esa penalización para Citas (~44 ms, `nucleo_citas_historial` con `Temp Written Blocks: 1804`) pero no para Conversión.
+Evidence: En PLANES BANCO LOCAL existen `lector_anterior_*` y `lector_nuevo_*`, y `nucleo_citas_historial`; `nucleo_conversion_global` (527 ms, 180.852 shared hits, 36.333 filas) **no tiene contraparte «anterior»**. El ledger solo declara la penalización de Citas.
+Impact: `conversion_episodios` alimenta métricas de conversión, equipo, ranking y cumplimiento de metas. Un delta desconocido se instala en el camino caliente de varias pantallas, no solo en Citas.
+Recommendation: `private.conversion_episodios_anterior_prueba` ya existe (TEST PARIDAD NUEVO). Medir el mismo EXPLAIN ANALYZE anterior vs nuevo, global y propio, período NULL y fijo, y publicarlo junto al de Citas. Si el delta es material, evaluar mantener la rama inline y que `conversion_cierres` sea la única definición consumida solo por Citas.
+
+[P1] Auto-joins cuadráticos en el techo declarado de 10.000 filas
+File: mismo archivo
+Lines: 295, 298
+Problem: `exists (select 1 from historial a where a.id=t.reagendada_de …)` y `exists(select 1 from cierres c where c.lead_id=t.lead_id …)` se evalúan por fila sobre CTE materializados sin índice.
+Evidence: `historial` puede traer hasta 10.001 filas (línea 272). El único ensayo de volumen (`test-citas-gerencia-consulta.sql:99-120`) usa **un solo lead** con `reagendada_de` NULL y sin cierres, y solo asserta cardinalidad, nunca latencia. Los 25–31 ms se midieron con ~1.000 tareas/mes (60.040 tareas / 5 años).
+Impact: Un mes real con miles de citas de muchos leads, con reagendas y cierres, puede acercarse o superar `statement_timeout` sin que ninguna evidencia lo descarte.
+Recommendation: Sustituir ambos `exists` por `left join` sobre los CTE (`a.id=t.reagendada_de and a.lead_id=t.lead_id`; para cierres, un CTE `lead_id, max(fecha_numerador)` y comparar `>= t.vence_en` — el ledger afirma un cierre único por lead). Añadir un ensayo de volumen con leads y cierres diversos y registrar su tiempo.
+
+[P2] La ruta real de `p_leads` no tiene prueba de equivalencia
+File: TEST PARIDAD NUEVO
+Problem: Se prueba paridad de las firmas antiguas y el caso `'{}'`, pero no que `citas_episodios(a,b,c,array[...])` ≡ `citas_episodios(a,b,c)` filtrado por esos ids; idem `conversion_cierres`.
+Evidence: Los asserts existentes cubren `anterior vs actual` (3 y 6 argumentos) y «cohorte vacía»; no hay assert con array no vacío, que es exactamente lo que usan las líneas 264-266 y 278-281.
+Impact: Un error en `t.lead_id = any(p_leads)` (línea 96/136) entregaría un historial incompleto sin romper ninguna prueba.
+Recommendation: `EXCEPT ALL` en ambos sentidos con un subconjunto no vacío de ids reales, incluido un id inexistente.
+
+[P2] `estado_comercial` sin rama `else`
+File: mismo archivo
+Lines: 255-262
+Problem: El `case` cubre los estados conocidos; cualquier otro valor de `crm.tareas.estado` produce NULL.
+Evidence: El test de precedencia adjunto exige que `estado_comercial: null` **falle** el schema. No hay evidencia adjunta de un CHECK/enum que acote `crm.tareas.estado`.
+Impact: Un estado nuevo no rompe una fila: invalida la respuesta completa y deja la pantalla de Gerencia vacía. Acepto la decisión de fallar ruidosamente, pero debe fallar en el servidor con el valor culpable, no en el parser del cliente.
+Recommendation: `else raise exception 'estado de reunión no clasificado: %', e.estado` o `assert` en el ensayo SQL de que ningún estado presente produce NULL.
+
+[P2] El gate no vigila consumidores de `conversion_cierres`
+File: mismo archivo
+Lines: 358-369 vs 430-442
+Problem: `assert_analitica_leads_citas` exige declaración escrita para cada llamador de `citas_episodios`, y solo verifica el ACL de `conversion_cierres`.
+Impact: Nueva superficie DEFINER de alcance global (cierres de toda la empresa) sin la puerta declarada que el propio diseño impone a su gemela.
+Recommendation: Extender el `exists` de la línea 430 a `conversion_cierres` (excluyendo `conversion_episodios` por oid).
+
+[P3] Fan-out de `crm.equipo` y techo de 10.000
+Lines: 302, 308
+Hipótesis (no adjuntaron el índice): si `crm.equipo.perfil_id` no es único, el `left join` duplica citas y puede disparar un 54000 espurio con `historial` ≤ 10.000. `private.rol_crm` ya asume esa unicidad sin `limit 1`. Confirmar con `pg_index` o añadir `distinct on`.
+
+[P3] La huella de `citas_episodios(3 args)` cambia
+Line: 24 vs 101-109. Cualquier otra migración o gate que pinne `ea636888…` fallará tras aplicar esta. Verificar el ledger de migraciones pendientes antes de instalar.
+
+[P3] No idempotente y `begin;/commit;` explícitos
+Lines: 5, 16-19, 503. Una re-ejecución falla con «existen las firmas nuevas», indistinguible de manipulación; y si el runner ya abre transacción, el `commit` de la 503 cierra la externa. Confirmar la convención del repo.
+
+TEST GAPS:
+- `p_leads` no vacío (P2), volumen con muchos leads/cierres (P1), tarea con `perfil_id` y `lead_id` a la vez (posible doble conteo entre `citas` y `citas_clientes`, línea 315), `estado_comercial` no NULL.
+
+REGRESSION RISKS:
+- Consumidores previos de ambos núcleos: `conversion_episodios` (P1) y `metricas_reuniones_implementacion` vía la delegación de Citas.
+
+EVIDENCE GAP (no bloqueante):
+- No se adjuntó el cuerpo **anterior** de `private.citas_gerencia_consulta(date,date)`, solo su md5. No puedo acreditar qué del lector es nuevo y qué preexistente; los hallazgos P3 de joins pueden ser heredados.
+
+RECOMMENDED NEXT ACTIONS:
+1. Medir `conversion_episodios` anterior vs nuevo.
+2. Eliminar los dos `exists` cuadráticos y medir a 10.000 filas con datos heterogéneos.
+3. Añadir equivalencia de `p_leads` no vacío y `else` en `estado_comercial`; extender el gate a `conversion_cierres`.
+
+CONFIDENCE:
+MEDIUM-HIGH (P1 de conversión y P2 de tests: HIGH; P3: hipótesis).

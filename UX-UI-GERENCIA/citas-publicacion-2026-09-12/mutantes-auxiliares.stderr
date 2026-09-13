@@ -1,0 +1,14 @@
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) cuerpo
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) configuración
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) propietario
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant public
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant anon
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant service_role
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) grant option
+psql:<stdin>:72: NOTICE:  PASS crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) renombrada
+psql:<stdin>:72: ERROR:  Una exencion no se borra por fuera: se retira en una migracion que re-selle la lista.
+CONTEXT:  PL/pgSQL function private.trg_analitica_lc_exenciones_no_borrar() line 3 at RAISE
+SQL statement "delete from private.analitica_leads_citas_exenciones where objeto='crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid)'"
+PL/pgSQL function pg_temp_58.rechaza_alteracion(text,text,text) line 6 at EXECUTE
+SQL statement "SELECT pg_temp.rechaza_alteracion(a.objeto||' declaración',format('delete from private.analitica_leads_citas_exenciones where objeto=%L',a.objeto),'%auxiliar auditado cambió%')"
+PL/pgSQL function inline_code_block line 19 at PERFORM

@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-11",
+  "timezone": "America/Lima",
+  "scope": "Auditoría de integración de métricas de Citas; sin cambios de runtime ni SQL",
+  "secondaryReview": {"status":"NOT RUN", "attempted":true, "attempts":2, "reason":"El wrapper no recibió una revisión completa con VERDICT válido.", "evidence":"revision-independiente.md"},
+  "head": "40497037cf561cae2cf10dfd38b0c4aa9bb180f1",
+  "frontend": {
+    "boundaryAndComponents": {
+      "status": "PASS",
+      "files": 5,
+      "tests": 66,
+      "exitCode": 0,
+      "scope": [
+        "src/components/citas/integracion.test.tsx",
+        "src/data/citas-gerencia.test.ts",
+        "src/data/control-citas.test.tsx",
+        "src/lib/control-citas.test.ts",
+        "src/components/config/control-citas-editor.test.tsx"
+      ]
+    },
+    "existingRecoveryAndFilters": {
+      "status": "PASS",
+      "files": 6,
+      "tests": 31,
+      "output": "(node:25064) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:25067) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:25066) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:25065) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:25062) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:25063) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n Test Files  6 passed (6)\n      Tests  31 passed (31)\n   Start at  21:08:56\n   Duration  3.02s (transform 526ms, setup 861ms, import 897ms, tests 3.40s, environment 3.92s)\n\n"
+    },
+    "typecheck": {
+      "status": "PASS",
+      "exitCode": 0
+    }
+  },
+  "cache": {
+    "status": "DEFECTO_REPRODUCIDO",
+    "evidence": "reproduccion-cache.json"
+  },
+  "server": {
+    "mode": "solo lectura de catálogo y funciones",
+    "governance": {
+      "status": "FAIL",
+      "function": "private.assert_analitica_leads_citas",
+      "unregisteredModuleReader": "private.citas_gerencia_consulta(date,date)"
+    },
+    "configInstallation": {
+      "status": "AUSENTE",
+      "evidence": "control-instalacion.json"
+    }
+  },
+  "notRun": [
+    {
+      "check": "SQL fixture bank, RLS y escrituras en servidor",
+      "reason": "Auditoría de lectura; no se instaló ni activó migración."
+    },
+    {
+      "check": "E2E completo de crear/cerrar/reprogramar/convertir y reconciliar en pantalla",
+      "reason": "Sin transacciones de negocio ni cuentas de prueba durante esta auditoría."
+    },
+    {
+      "check": "Build y gate integral de producto",
+      "reason": "No se modificó código de producto; las comprobaciones se centraron en métricas y contratos."
+    }
+  ]
+}

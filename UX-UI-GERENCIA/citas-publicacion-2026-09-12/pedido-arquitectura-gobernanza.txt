@@ -1,0 +1,707 @@
+ROLE: SECONDARY_REVIEWER. Codex is the PRIMARY. Independent architecture and RLS/governance review only. Do not modify files, implement, invoke Codex, delegate, or create another review chain. Follow .ai/REVIEW_PROTOCOL.md. Spanish response with VERDICT, evidence, severity and practical recommendation.
+
+Task LEVEL 3: User authorizes closing four analytics gate blockers, testing Citas migration on real Supabase branch and preparing isolated commit/artifact. No production install yet. Need decide safest governance repair; current Citas patch separately centralizes canonical citas/conversion and adds only its declaration, leaves gate failing. Previous task reviewed Citas twice; this consultation is for newly scoped global blockers.
+
+Rules: existing census uses regex count() with crm.leads/reunion anywhere in function, exact declarations source hashes, ceiling=30 only decreases and triggers protect. Current 34 rows; Citas plus 4 new functions undeclared, 2 historical declarations stale hashes (to inspect changes before refresh). Do not simply increase ceiling, disable gate, hide changed functions or rename SQL to fool regex.
+
+New actual sources attached show all four detections are false positives *as metrics leads/citas*:
+- historial_decisiones_tasa: counts rate requests/pages; join lead only for client name.
+- metricas_multiempresa: conversion from conversion_episodios; raw leads only no_contactar veto; counts capital operations/person identities.
+- inversion_historica_estado: count principal investment holders, one lead row for identity and hash.
+- inversion_historica_aplicar: count distinct input JSON entries, raw leads only FOR SHARE locks. Must not change operational/financial behavior to placate regex.
+We seek evidence-based correction preserving observable full census and hash drift for all objects; no new metrics exemption by inference.
+Candidate options:
+A) Add a separate exact-identity + source-hash classification of these 4 non-metric false positives; raw census stays observable, ALL sources must remain declared/hash-valid; ceiling remains 30 applied to true leads/citas counters. Every classification sealed, postgres-only, must fail upon code/ACL drift, new objects count by default, missing declarations fail. Explicit report 34 audited candidates =30 metric/mixed+4 identified non-metrics, avoid falsely claiming less raw readers. Concern this changes ceiling semantics and might be too complex.
+B) Refactor 4 functions for business reasons to use existing canonical helpers, without indirect camouflage/count->cardinality just for gate. Might introduce unnecessary financial risk and duplicate helpers for metadata/locks.
+C) Register all four, then migrate four other currently raw true counters to canonical cores to maintain old ceiling, expanding scope.
+Recommend simplest safe concrete approach or alternative. Is A legitimate bounded false-positive correction if fail closed and mutation-tested, or a disguised ceiling increase? Give concrete invariants/mutants required.
+
+CodeGraph attempted first queries 'private.assert_analitica_leads_citas private.contadores_crudos_leads_citas ...', 'private.leads_de_persona_veto private.inversion_historica_estado ...'; returned unrelated test-rls/Lead sources, so focused live pg_get_functiondef catalog used instead. Evidence file: UX-UI-GERENCIA/citas-publicacion-2026-09-12/fuentes-gobernanza-previas.json, actual server definitions and ACL below.
+
+FILE/SYMBOL private.contadores_crudos_leads_citas() md5=34e0ae16a95912e5a5eedd4da845e288 ACL={postgres=X/postgres}
+1: CREATE OR REPLACE FUNCTION private.contadores_crudos_leads_citas()
+2:  RETURNS TABLE(tipo text, objeto text, declarada boolean, huella_ok boolean)
+3:  LANGUAGE sql
+4:  STABLE SECURITY DEFINER
+5:  SET search_path TO ''
+6: AS $function$
+7:   with fn as (
+8:     -- TODOS los esquemas de usuario (fail-closed: lo del sistema se excluye por
+9:     -- lista, no al reves - un esquema nuevo entra al censo solo); el cuerpo
+10:     -- viene de prosrc O de pg_get_functiondef (funciones con prosqlbody);
+11:     -- la exclusion de los nucleos y de las piezas del trinquete es por
+12:     -- IDENTIDAD exacta, no por nombre (un overload malicioso no se cuela).
+13:     select 'funcion'::text as tipo,
+14:            p.oid::regprocedure::text as objeto,
+15:            regexp_replace(regexp_replace(
+16:              lower(coalesce(p.prosrc, pg_get_functiondef(p.oid))),
+17:              '--[^\n]*', ' ', 'g'), '/\*.*?\*/', ' ', 'g') as cuerpo
+18:       from pg_proc p
+19:       join pg_namespace n on n.oid = p.pronamespace
+20:      where p.prokind in ('f','p')
+21:        and n.nspname not in ('pg_catalog','information_schema','pg_toast',
+22:                              'auth','storage','vault','realtime','extensions',
+23:                              'graphql','graphql_public','pgbouncer','net',
+24:                              'supabase_functions','supabase_migrations','cron','pgsodium')
+25:        and n.nspname not like 'pg\_%'
+26:        and p.oid not in (
+27:              coalesce(to_regprocedure('private.citas_episodios(timestamptz,timestamptz,timestamptz)')::oid, 0),
+28:              coalesce(to_regprocedure('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)')::oid, 0),
+29:              coalesce(to_regprocedure('private.contadores_crudos_leads_citas()')::oid, 0),
+30:              coalesce(to_regprocedure('private.assert_analitica_leads_citas()')::oid, 0))
+31:   ),
+32:   vw as (
+33:     select 'vista'::text,
+34:            c.relnamespace::regnamespace::text || '.' || c.relname,
+35:            lower(pg_get_viewdef(c.oid))
+36:       from pg_class c
+37:       join pg_namespace n on n.oid = c.relnamespace
+38:      where c.relkind in ('v','m')
+39:        and n.nspname not in ('pg_catalog','information_schema','pg_toast',
+40:                              'auth','storage','vault','realtime','extensions',
+41:                              'graphql','graphql_public','pgbouncer','net',
+42:                              'supabase_functions','supabase_migrations','cron','pgsodium')
+43:        and n.nspname not like 'pg\_%'
+44:   ),
+45:   todo as (select * from fn union all select * from vw),
+46:   crudos as (
+47:     -- Insensible a mayusculas (el cuerpo va en lower), tolera espacio tras el
+48:     -- punto (un comentario borrado deja hueco: `crm. leads`), y caza tambien
+49:     -- `sum(` ademas de `count(`. El SQL dinamico que nombre leads/tareas se
+50:     -- censa entero: si su conteo no es demostrable, se declara.
+51:     select t.tipo, t.objeto, md5(t.cuerpo) as huella
+52:       from todo t
+53:      where (t.cuerpo ~ '\mcrm\.\s*leads\M'
+54:             or t.cuerpo ~ '\mreunion'
+55:             or (t.cuerpo ~ '\mcrm\.\s*tareas\M' and t.cuerpo ~ '\mexecute\M'))
+56:        and (t.cuerpo ~ '\mcount\s*\(' or t.cuerpo ~ '\msum\s*\(\s*1\s*\)')
+57:   )
+58:   select cr.tipo,
+59:          cr.objeto,
+60:          (e.objeto is not null) as declarada,
+61:          (e.objeto is not null and e.huella = cr.huella) as huella_ok
+62:     from crudos cr
+63:     left join private.analitica_leads_citas_exenciones e on e.objeto = cr.objeto
+64:    order by 3, 4, 1, 2;
+65: $function$
+66:
+
+FILE/SYMBOL private.assert_analitica_leads_citas() md5=0b474e7f58e1f668b62a02730b716457 ACL={postgres=X/postgres}
+1: CREATE OR REPLACE FUNCTION private.assert_analitica_leads_citas()
+2:  RETURNS text
+3:  LANGUAGE plpgsql
+4:  STABLE SECURITY DEFINER
+5:  SET search_path TO ''
+6: AS $function$
+7: declare
+8:   v_sin text; v_cad text; v_n integer; v_tope integer;
+9: begin
+10:   select string_agg(tipo || ' ' || objeto, ', ' order by objeto)
+11:     into v_sin from private.contadores_crudos_leads_citas() where not declarada;
+12:   if v_sin is not null then
+13:     raise exception 'Contadores crudos de leads/citas SIN declarar: %. O beben del nucleo, o se declaran con su razon.', v_sin;
+14:   end if;
+15:
+16:   select string_agg(tipo || ' ' || objeto, ', ' order by objeto)
+17:     into v_cad from private.contadores_crudos_leads_citas() where declarada and not huella_ok;
+18:   if v_cad is not null then
+19:     raise exception 'Contadores exentos cuyo cuerpo CAMBIO desde que se declararon (la razon caduco): %', v_cad;
+20:   end if;
+21:
+22:   select count(*) into v_n from private.contadores_crudos_leads_citas();
+23:   -- Anti-vacuidad: el tope es techo, no suelo. Un censo que devuelve 0 filas es
+24:   -- una regresion del propio censo, no un exito.
+25:   if v_n = 0 then
+26:     raise exception 'El censo devolvio 0 contadores: eso es una regresion del censo, no la meta';
+27:   end if;
+28:   select tope into v_tope from private.analitica_leads_citas_tope where id;
+29:   if v_tope is null then raise exception 'No hay tope fijado'; end if;
+30:   if v_n > v_tope then
+31:     raise exception 'Los contadores crudos subieron de % a %: el trinquete solo deja bajar.', v_tope, v_n;
+32:   end if;
+33:
+34:   -- El sello de la lista: si alguien la relavo sin re-sellar, rojo.
+35:   if (select sello from private.analitica_lc_sello where id)
+36:      is distinct from private.huella_exenciones_analitica_lc() then
+37:     raise exception 'La lista de exenciones cambio sin re-sellarse en una migracion';
+38:   end if;
+39:
+40:   -- Los candados del tope tienen que seguir puestos y ACTIVOS: sin esto, un
+41:   -- despliegue privilegiado podria deshabilitar el trigger, subir el tope y
+42:   -- dejar el gate verde.
+43:   if (select count(*) from pg_trigger t
+44:        where t.tgrelid = 'private.analitica_leads_citas_tope'::regclass
+45:          and t.tgname in ('trg_analitica_lc_tope_solo_baja','trg_analitica_lc_tope_no_truncar')
+46:          and t.tgenabled in ('O','A')) <> 2 then
+47:     raise exception 'Los candados del tope no estan puestos o no estan activos';
+48:   end if;
+49:
+50:   -- Los dos nucleos tienen que seguir vivos y con su forma.
+51:   if to_regprocedure('private.citas_episodios(timestamptz,timestamptz,timestamptz)') is null then
+52:     raise exception 'El nucleo de citas desaparecio';
+53:   end if;
+54:   if to_regprocedure('private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)') is null then
+55:     raise exception 'El nucleo de leads desaparecio';
+56:   end if;
+57:   -- Y la pantalla de reuniones tiene que seguir bebiendo del de citas - mirado
+58:   -- SIN comentarios (un `-- citas_episodios` de senuelo no vale).
+59:   if not exists (
+60:     select 1 from pg_proc p
+61:      where p.oid = 'private.metricas_reuniones_implementacion(date,date)'::regprocedure
+62:        and regexp_replace(regexp_replace(p.prosrc,'--[^\n]*',' ','g'),'/\*.*?\*/',' ','g')
+63:            ~ '\mcitas_episodios\s*\('
+64:   ) then
+65:     raise exception 'La pantalla de reuniones dejo de beber del nucleo de citas';
+66:   end if;
+67:
+68:   -- El nucleo devuelve FILAS de toda la empresa (DEFINER): cada llamador tiene
+69:   -- que estar DECLARADO en las exenciones (su declaracion es su puerta escrita).
+70:   if exists (
+71:     select 1 from pg_proc p
+72:      where p.prokind in ('f','p')
+73:        and p.oid <> coalesce(to_regprocedure('private.citas_episodios(timestamptz,timestamptz,timestamptz)'),0)
+74:        and p.oid <> coalesce(to_regprocedure('private.assert_analitica_leads_citas()'),0)
+75:        and p.oid <> coalesce(to_regprocedure('private.contadores_crudos_leads_citas()'),0)
+76:        and regexp_replace(regexp_replace(coalesce(p.prosrc,''),'--[^\n]*',' ','g'),'/\*.*?\*/',' ','g')
+77:            ~ '\mcitas_episodios\s*\('
+78:        and not exists (select 1 from private.analitica_leads_citas_exenciones e
+79:                         where e.objeto = p.oid::regprocedure::text)
+80:   ) then
+81:     raise exception 'Hay un consumidor de citas_episodios SIN declarar: el nucleo sirve filas de toda la empresa y cada llamador declara su puerta';
+82:   end if;
+83:
+84:   -- El ACL del nucleo, exacto: solo postgres (el mismo patron que
+85:   -- conversion_episodios y capital_episodios). Un grant posterior es rojo.
+86:   if exists (
+87:     select 1 from pg_proc p
+88:     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+89:      where p.oid = 'private.citas_episodios(timestamptz,timestamptz,timestamptz)'::regprocedure
+90:        and a.grantee <> 'postgres'::regrole::oid
+91:   ) then
+92:     raise exception 'citas_episodios tiene EXECUTE para alguien mas que postgres';
+93:   end if;
+94:
+95:   return 'OK: ' || v_n || ' contadores declarados y con su huella intacta, tope ' || v_tope || ', 0 sin declarar';
+96: end;
+97: $function$
+98:
+
+FILE/SYMBOL crm.historial_decisiones_tasa_gerencia_fn(integer,text,text,integer,timestamp with time zone,uuid) md5=b6d363f5c5d3520d6876a708b80a0589 ACL={postgres=X/postgres,authenticated=X/postgres}
+1: CREATE OR REPLACE FUNCTION crm.historial_decisiones_tasa_gerencia_fn(p_periodo_dias integer DEFAULT 30, p_decision text DEFAULT NULL::text, p_busqueda text DEFAULT NULL::text, p_limite integer DEFAULT 10, p_cursor_resuelta_en timestamp with time zone DEFAULT NULL::timestamp with time zone, p_cursor_id uuid DEFAULT NULL::uuid)
+2:  RETURNS jsonb
+3:  LANGUAGE plpgsql
+4:  STABLE SECURITY DEFINER
+5:  SET search_path TO ''
+6: AS $function$
+7: declare
+8:   v_uid uuid := (select auth.uid());
+9:   v_limite integer := least(greatest(coalesce(p_limite, 10), 1), 25);
+10:   v_periodo integer := coalesce(p_periodo_dias, 30);
+11:   v_busqueda text := nullif(left(btrim(coalesce(p_busqueda, '')), 100), '');
+12: begin
+13:   if v_uid is null or private.rol_crm(v_uid) is distinct from 'gerencia' then raise exception 'Solo Gerencia consulta su historial de decisiones de tasa' using errcode = '42501'; end if;
+14:   if v_periodo not in (0, 7, 30, 90) then raise exception 'Período inválido' using errcode = '22023'; end if;
+15:   if p_decision is not null and p_decision not in ('aprobada', 'aprobada_con_tope', 'rechazada') then raise exception 'Decisión inválida' using errcode = '22023'; end if;
+16:   if (p_cursor_resuelta_en is null) <> (p_cursor_id is null) then raise exception 'Cursor incompleto' using errcode = '22023'; end if;
+17:
+18:   return (
+19:     with resueltas as (
+20:       select s.*,
+21:         case when s.tasa_maxima_autorizada is null then 'rechazada' when s.tasa_maxima_autorizada = s.tasa_solicitada then 'aprobada' else 'aprobada_con_tope' end as decision_gerencia,
+22:         case when s.estado in ('pendiente', 'aprobada', 'aprobada_con_tope', 'aceptada_por_analista') and s.vence_en < statement_timestamp() then 'vencida' else s.estado end as estado_actual,
+23:         coalesce(cl.nombre_completo,ld.nombre_completo,'Cliente') as cliente_nombre, coalesce(so.nombre_completo, 'Sin nombre') as solicitante_nombre,
+24:         coalesce(re.nombre_completo, 'Gerencia') as resolutor_nombre, c.numero_contrato as contrato_numero, p.version as politica_version
+25:       from crm.solicitudes_tasa s
+26:       left join crm.leads ld on ld.id=s.lead_id
+27:       left join public.perfiles cl on cl.id = s.cliente_id
+28:       left join public.perfiles so on so.id = s.solicitada_por
+29:       left join public.perfiles re on re.id = s.resuelta_por
+30:       left join public.contratos c on c.id = s.contrato_id
+31:       left join crm.politica_rentabilidad p on p.id = s.politica_id
+32:       where s.resuelta_por = v_uid and s.resuelta_en is not null
+33:     ), filtradas as (
+34:       select r.* from resueltas r
+35:       where (v_periodo = 0 or r.resuelta_en >= statement_timestamp() - make_interval(days => v_periodo))
+36:         and (p_decision is null or r.decision_gerencia = p_decision)
+37:         and (v_busqueda is null or r.cliente_nombre ilike '%' || v_busqueda || '%' or r.solicitante_nombre ilike '%' || v_busqueda || '%')
+38:     ), pagina_mas_uno as (
+39:       select f.* from filtradas f where p_cursor_resuelta_en is null or (f.resuelta_en, f.id) < (p_cursor_resuelta_en, p_cursor_id)
+40:       order by f.resuelta_en desc, f.id desc limit v_limite + 1
+41:     ), pagina as (
+42:       select p.* from pagina_mas_uno p order by p.resuelta_en desc, p.id desc limit v_limite
+43:     )
+44:     select jsonb_build_object(
+45:       'version', 1, 'total', (select count(*) from filtradas),
+46:       'items', coalesce((select jsonb_agg(jsonb_build_object(
+47:         'id', x.id, 'decision', x.decision_gerencia, 'estado_actual', x.estado_actual, 'categoria', x.categoria,
+48:         'cliente_nombre', x.cliente_nombre, 'lead_id',x.lead_id, 'contrato_origen_numero', x.contrato_origen_numero, 'contrato_numero', x.contrato_numero,
+49:         'capital', x.capital, 'moneda', x.moneda, 'modalidad', x.modalidad, 'tipo_interes', x.tipo_interes,
+50:         'fecha_inicio', x.fecha_inicio, 'fecha_vencimiento', x.fecha_vencimiento, 'tasa_base', x.tasa_base, 'regla_base', x.regla_base,
+51:         'tasa_solicitada', x.tasa_solicitada, 'tasa_maxima_autorizada', x.tasa_maxima_autorizada, 'motivo', x.motivo,
+52:         'motivo_resolucion', x.motivo_resolucion, 'solicitante_nombre', x.solicitante_nombre, 'solicitada_en', x.solicitada_en,
+53:         'vence_en', x.vence_en, 'resolutor_nombre', x.resolutor_nombre, 'resuelta_en', x.resuelta_en,
+54:         'respondida_por_analista_en', x.respondida_por_analista_en, 'consumida_en', x.consumida_en, 'politica_version', x.politica_version
+55:       ) order by x.resuelta_en desc, x.id desc) from pagina x), '[]'::jsonb),
+56:       'siguiente_cursor', case when (select count(*) from pagina_mas_uno) > v_limite then
+57:         (select jsonb_build_object('resuelta_en', x.resuelta_en, 'id', x.id) from pagina x order by x.resuelta_en asc, x.id asc limit 1)
+58:       else null end
+59:     )
+60:   );
+61: end;
+62: $function$
+63:
+
+FILE/SYMBOL private.inversion_historica_estado(text,uuid) md5=2b57432c993eaa8e1599bf874427b743 ACL={postgres=X/postgres}
+1: CREATE OR REPLACE FUNCTION private.inversion_historica_estado(p_tipo text, p_id uuid)
+2:  RETURNS jsonb
+3:  LANGUAGE plpgsql
+4:  STABLE
+5:  SET search_path TO ''
+6: AS $function$
+7: declare
+8:   v_c public.contratos%rowtype;
+9:   v_ce crm.cierres_externos%rowtype;
+10:   v_p public.perfiles%rowtype;
+11:   v_l crm.leads%rowtype;
+12:   v_i crm.inversionistas%rowtype;
+13:   v_inv crm.inversiones%rowtype;
+14:   v_tit crm.inversion_titulares%rowtype;
+15:   v_empresa uuid;
+16:   v_persona uuid;
+17:   v_perfil uuid;
+18:   v_documento uuid;
+19:   v_indicios uuid[] := '{}';
+20:   v_mapa jsonb;
+21:   v_fuente jsonb;
+22:   v_datos_identidad jsonb;
+23:   v_estado text := 'pendiente';
+24:   v_motivos text[] := '{}';
+25:   v_demo boolean := false;
+26:   v_estado_economico text;
+27:   v_fecha date;
+28:   v_inicial boolean;
+29:   v_creado_por uuid;
+30:   v_eliminacion boolean := false;
+31:   v_n integer;
+32: begin
+33:   if p_tipo is null or p_tipo not in ('contrato','cierre') or p_id is null then
+34:     raise exception 'Indica una fuente contractual o cooperativa concreta' using errcode='22023';
+35:   end if;
+36:   if p_tipo='contrato' then
+37:     select * into v_c from public.contratos where id=p_id;
+38:     if not found then
+39:       return jsonb_build_object('tipo',p_tipo,'id',p_id,'estado','ausente');
+40:     end if;
+41:     v_fuente:=to_jsonb(v_c);
+42:     v_demo:=v_c.es_demo;
+43:     v_fecha:=v_c.fecha_cierre_comercial;
+44:     v_estado_economico:='vigente'; -- El ciclo del contrato continúa en su fuente.
+45:     v_inicial:=false;
+46:     v_creado_por:=v_c.creado_por;
+47:     v_eliminacion:=private.contrato_en_eliminacion(p_id);
+48:     select id into v_empresa from crm.empresas where clave='avance';
+49:     select * into v_p from public.perfiles where id=v_c.cliente_id;
+50:     select id into v_perfil from crm.inversionistas
+51:       where perfil_id=v_c.cliente_id and estado<>'fusionado';
+52:     -- El documento se lee por el mismo reconocedor privado vigente de F3.
+53:     v_documento:=private.inversionista_por_documento(v_p.tipo_documento,v_p.dni);
+54:     v_indicios:=array[v_perfil,v_documento];
+55:     if v_p.rol is distinct from 'cliente' then
+56:       v_motivos:=array_append(v_motivos,'perfil_no_cliente');
+57:     end if;
+58:     if v_perfil is null then
+59:       v_motivos:=array_append(v_motivos,'perfil_sin_vinculo_canonico');
+60:     elsif not private.documento_es_de_identidad(v_perfil,v_p.tipo_documento,v_p.dni) then
+61:       v_motivos:=array_append(v_motivos,'documento_perfil_no_conciliado');
+62:     end if;
+63:     select to_jsonb(m) into v_mapa from crm.backfill_multiempresa_mapa m
+64:       where fuente='perfil' and fila_id=v_c.cliente_id;
+65:     select * into v_inv from crm.inversiones where contrato_id=p_id;
+66:   else
+67:     select * into v_ce from crm.cierres_externos where id=p_id;
+68:     if not found then
+69:       return jsonb_build_object('tipo',p_tipo,'id',p_id,'estado','ausente');
+70:     end if;
+71:     v_fuente:=to_jsonb(v_ce);
+72:     -- Exclusión duradera publicada por F2 para el antecedente demo de cooperativa.
+73:     v_demo:=v_ce.id='a112aead-184a-4979-9041-943978fadae4'::uuid;
+74:     v_fecha:=coalesce(v_ce.fecha_comercial,(v_ce.creado_en at time zone 'America/Lima')::date);
+75:     v_estado_economico:=case when v_ce.anulado_en is null then 'vigente' else 'anulada' end;
+76:     v_inicial:=v_ce.es_cierre_inicial;
+77:     v_creado_por:=v_ce.creado_por;
+78:     select id into v_empresa from crm.empresas where clave=v_ce.cooperativa;
+79:     select * into v_l from crm.leads where id=v_ce.lead_id;
+80:     select to_jsonb(m) into v_mapa from crm.backfill_multiempresa_mapa m
+81:       where fuente='cierre' and fila_id=p_id;
+82:     v_indicios:=array[v_ce.inversionista_id,v_l.inversionista_id];
+83:     -- Una fotografía documental antigua no deshace un vínculo autorizado.
+84:     -- Si la fuente no tiene persona, el documento sí debe resolver de forma
+85:     -- inequívoca y coincidir con los vínculos de lead/mapa que ya existan.
+86:     if v_ce.inversionista_id is null then
+87:       v_documento:=private.inversionista_por_documento(v_ce.documento_tipo,v_ce.documento);
+88:       v_indicios:=array_append(v_indicios,v_documento);
+89:       if v_documento is null then
+90:         v_motivos:=array_append(v_motivos,'documento_sin_identidad_verificada');
+91:       end if;
+92:     end if;
+93:     if v_l.perfil_id is not null then
+94:       select id into v_perfil from crm.inversionistas
+95:         where perfil_id=v_l.perfil_id and estado<>'fusionado';
+96:       v_indicios:=array_append(v_indicios,v_perfil);
+97:     end if;
+98:     select * into v_inv from crm.inversiones where cierre_externo_id=p_id;
+99:   end if;
+100:
+101:   if v_mapa->>'inversionista_id' is not null and v_mapa->>'clase'<>'E' then
+102:     v_indicios:=array_append(v_indicios,(v_mapa->>'inversionista_id')::uuid);
+103:   end if;
+104:   select coalesce(array_agg(distinct private.inversionista_canonica(x)
+105:     order by private.inversionista_canonica(x)),'{}') into v_indicios
+106:     from unnest(v_indicios) x where x is not null;
+107:   if cardinality(v_indicios)<>1 then
+108:     v_motivos:=array_append(v_motivos,case when cardinality(v_indicios)=0
+109:       then 'sin_identidad_inequivoca' else 'identidades_en_conflicto' end);
+110:   else
+111:     v_persona:=v_indicios[1];
+112:     select * into v_i from crm.inversionistas where id=v_persona;
+113:     if v_i.id is null or v_i.estado='fusionado' then
+114:       v_motivos:=array_append(v_motivos,'identidad_no_canonica');
+115:     end if;
+116:     if not exists (select 1 from crm.inversionista_identificadores d
+117:       where d.inversionista_id=v_persona and d.estado='vigente' and d.verificado) then
+118:       v_motivos:=array_append(v_motivos,'identidad_sin_documento_verificado');
+119:     end if;
+120:   end if;
+121:   if v_empresa is null then v_motivos:=array_append(v_motivos,'empresa_desconocida'); end if;
+122:   if v_eliminacion then v_motivos:=array_append(v_motivos,'contrato_en_eliminacion'); end if;
+123:
+124:   select count(*) into v_n from crm.inversion_titulares
+125:     where inversion_id=v_inv.id and rol='principal';
+126:   if v_n=1 then
+127:     select * into v_tit from crm.inversion_titulares
+128:       where inversion_id=v_inv.id and rol='principal';
+129:   end if;
+130:   if v_inv.id is not null then
+131:     if v_inv.inversionista_id is distinct from v_persona
+132:        or v_inv.empresa_id is distinct from v_empresa
+133:        or v_inv.estado is distinct from v_estado_economico
+134:        or v_inv.fecha_comercial is distinct from v_fecha then
+135:       v_motivos:=array_append(v_motivos,'inversion_no_conciliada');
+136:     end if;
+137:     if v_n>1 or (v_n=1 and v_tit.inversionista_id is distinct from v_persona) then
+138:       v_motivos:=array_append(v_motivos,'titular_no_conciliado');
+139:     end if;
+140:     v_estado:=case when v_n=1 then 'resuelto' else 'titular_pendiente' end;
+141:   end if;
+142:   if cardinality(v_motivos)>0 then v_estado:='revision'; end if;
+143:   if v_demo then v_estado:='excluido_demo'; end if;
+144:
+145:   -- La huella detecta deriva de fuente, vínculos, mapa, identidad y documentos.
+146:   -- El informe entrega solo referencias y huellas; no copia cifras ni documentos.
+147:   select coalesce(jsonb_agg(jsonb_build_object('persona',to_jsonb(i),
+148:     'documentos',(select coalesce(jsonb_agg(to_jsonb(d) order by d.id),'[]')
+149:       from crm.inversionista_identificadores d where d.inversionista_id=i.id)) order by i.id),'[]')
+150:     into v_datos_identidad from crm.inversionistas i where i.id=any(v_indicios);
+151:   return jsonb_build_object('tipo',p_tipo,'id',p_id,'estado',v_estado,
+152:     'motivos',v_motivos,'persona',v_persona,'empresa',v_empresa,
+153:     'indicios',v_indicios,'inversion',v_inv.id,'titular',v_tit.id,
+154:     'fuente_persona',case when p_tipo='cierre' then v_ce.inversionista_id else v_perfil end,
+155:     'perfil',case when p_tipo='contrato' then v_c.cliente_id else v_l.perfil_id end,
+156:     'lead',v_ce.lead_id,'fecha',v_fecha,'estado_economico',v_estado_economico,
+157:     'inicial',v_inicial,'creado_por',v_creado_por,
+158:     'huella',private.idem_hash(jsonb_build_object('fuente',v_fuente,'perfil',to_jsonb(v_p),
+159:       'lead',to_jsonb(v_l),'identidades',v_datos_identidad,'mapa',v_mapa,
+160:       'inversion',to_jsonb(v_inv),'titulares',(select coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]')
+161:         from crm.inversion_titulares t where t.inversion_id=v_inv.id),'eliminacion',v_eliminacion)));
+162: end;
+163: $function$
+164:
+
+FILE/SYMBOL private.inversion_historica_aplicar(uuid,jsonb) md5=a33595d4ac8c2c12ad6fcf9463db605e ACL={postgres=X/postgres}
+1: CREATE OR REPLACE FUNCTION private.inversion_historica_aplicar(p_lote uuid, p_mapa jsonb)
+2:  RETURNS jsonb
+3:  LANGUAGE plpgsql
+4:  SET search_path TO ''
+5:  SET lock_timeout TO '5s'
+6: AS $function$
+7: declare
+8:   v_mapa jsonb;
+9:   v_hash text;
+10:   v_previo crm.inversion_backfill_lotes%rowtype;
+11:   v_r record;
+12:   v_actual jsonb;
+13:   v_final jsonb;
+14:   v_inversion uuid;
+15:   v_resultado jsonb;
+16:   v_filas jsonb := '[]';
+17:   v_n integer;
+18:   v_personas uuid[];
+19:   v_perfiles uuid[];
+20:   v_leads uuid[];
+21:   v_contratos uuid[];
+22:   v_cierres uuid[];
+23:   v_inversiones uuid[];
+24:   v_old_priv text := current_setting('crm.op_privilegiada',true);
+25: begin
+26:   -- Mantenimiento por conexión administrativa, nunca una puerta HTTP ni una
+27:   -- delegación implícita de service_role. INVOKER mantiene los privilegios reales.
+28:   if session_user not in ('postgres','supabase_admin') or current_user<>'postgres' then
+29:     raise exception 'La vinculación histórica exige una sesión administrativa' using errcode='42501';
+30:   end if;
+31:   if current_setting('transaction_isolation')<>'read committed' then
+32:     raise exception 'El lote histórico exige READ COMMITTED' using errcode='0A000';
+33:   end if;
+34:   if p_lote is null or jsonb_typeof(p_mapa) is distinct from 'array' then
+35:     raise exception 'Indica lote y previsualización completos' using errcode='22023';
+36:   end if;
+37:   if jsonb_array_length(p_mapa)<1 or jsonb_array_length(p_mapa)>100 then
+38:     raise exception 'El lote admite entre una y cien fuentes concretas' using errcode='22023';
+39:   end if;
+40:   select jsonb_agg(value order by value->>'tipo',value->>'id'),
+41:     count(distinct (value->>'tipo',value->>'id')) into v_mapa,v_n
+42:     from jsonb_array_elements(p_mapa);
+43:   if v_n<>jsonb_array_length(p_mapa) then
+44:     raise exception 'Una fuente no se repite dentro del lote' using errcode='22023';
+45:   end if;
+46:   v_hash:=private.idem_hash(v_mapa);
+47:
+48:   -- Ventana breve y explícita de mantenimiento. El orden coincide con el
+49:   -- protocolo de banderas: identidad -> inversión. No se cambia ninguna bandera.
+50:   -- El exclusivo de identidad drena sus escritores antes de fijar la foto; las
+51:   -- correcciones financieras que no lo usan se arbitran con locks NOWAIT abajo.
+52:   perform pg_advisory_xact_lock(hashtext('crm_flag_resolver_en_puertas'));
+53:   perform pg_advisory_xact_lock(hashtext('crm_flag_inversiones_escritura'));
+54:   if not private.resolver_en_puertas_bajo_candado() then
+55:     raise exception 'La identidad debe estar encendida para vincular sus fuentes' using errcode='P0409';
+56:   end if;
+57:   if private.inversiones_escritura_bajo_candado() then
+58:     raise exception 'Apaga el escritor de inversiones antes del lote histórico' using errcode='P0409';
+59:   end if;
+60:   select * into v_previo from crm.inversion_backfill_lotes where id=p_lote;
+61:   if found then
+62:     if v_previo.hash_mapa<>v_hash then
+63:       raise exception 'El lote ya corresponde a otra previsualización' using errcode='P0409';
+64:     end if;
+65:     if v_previo.finalizado_en is null then
+66:       raise exception 'Lote histórico incoherente: requiere revisión' using errcode='P0409';
+67:     end if;
+68:     return v_previo.resultado;
+69:   end if;
+70:
+71:   -- El mantenimiento F2 legado no participa en las banderas de identidad.
+72:   -- Bloquear filas existentes no cubre un mapa todavía ausente: SHARE fija
+73:   -- también ese conjunto frente a INSERT/UPDATE/DELETE hasta COMMIT. NOWAIT
+74:   -- rechaza otra intervención administrativa sin crear un ciclo de espera.
+75:   lock table crm.backfill_multiempresa_mapa in share mode nowait;
+76:
+77:   -- Revalidar referencias antes de usarlas para bloquear; nunca confiar en los
+78:   -- IDs de persona/empresa o en el estado que envíe el consumidor del censo.
+79:   for v_r in select value from jsonb_array_elements(v_mapa) loop
+80:     v_actual:=private.inversion_historica_estado(v_r.value->>'tipo',(v_r.value->>'id')::uuid);
+81:     if v_actual is distinct from v_r.value then
+82:       raise exception 'La previsualización histórica cambió; repite el censo' using errcode='40001';
+83:     end if;
+84:     if v_actual->>'estado' not in ('pendiente','titular_pendiente','resuelto') then
+85:       raise exception 'El lote contiene una fuente que requiere revisión o está excluida' using errcode='P0409';
+86:     end if;
+87:   end loop;
+88:   select array_agg(distinct (value->>'persona')::uuid),
+89:     array_agg(distinct (value->>'perfil')::uuid),array_agg(distinct (value->>'lead')::uuid),
+90:     array_agg((value->>'id')::uuid) filter(where value->>'tipo'='contrato'),
+91:     array_agg((value->>'id')::uuid) filter(where value->>'tipo'='cierre'),
+92:     array_agg(distinct (value->>'inversion')::uuid)
+93:     into v_personas,v_perfiles,v_leads,v_contratos,v_cierres,v_inversiones
+94:     from jsonb_array_elements(v_mapa);
+95:   perform 1 from crm.inversionistas where id=any(v_personas) order by id for update nowait;
+96:   perform 1 from public.perfiles where id=any(v_perfiles) order by id for share nowait;
+97:   perform 1 from crm.cierres_externos where id=any(v_cierres) order by id for update nowait;
+98:   perform 1 from public.contratos where id=any(v_contratos) order by id for update nowait;
+99:   perform 1 from crm.inversiones where id=any(v_inversiones) order by id for update nowait;
+100:   perform 1 from crm.inversion_titulares where inversion_id=any(v_inversiones) order by id for update nowait;
+101:   perform 1 from crm.leads where id=any(v_leads) order by id for share nowait;
+102:   for v_r in select value from jsonb_array_elements(v_mapa) loop
+103:     if private.inversion_historica_estado(v_r.value->>'tipo',(v_r.value->>'id')::uuid)
+104:        is distinct from v_r.value then
+105:       raise exception 'La fuente histórica cambió mientras se bloqueaba; repite el censo' using errcode='40001';
+106:     end if;
+107:   end loop;
+108:
+109:   -- Acta ANTES de enlazar. Si cualquier paso falla, PostgreSQL revierte acta y
+110:   -- enlaces; la restricción diferida impide confirmar un acta inconclusa.
+111:   insert into crm.inversion_backfill_lotes(id,hash_mapa,mapa) values(p_lote,v_hash,v_mapa);
+112:   for v_r in select value from jsonb_array_elements(v_mapa) loop
+113:     v_actual:=v_r.value;
+114:     if v_actual->>'estado'<>'resuelto' then
+115:       if v_actual->>'tipo'='cierre' and v_actual->>'fuente_persona' is null then
+116:         perform set_config('crm.op_privilegiada','on',true);
+117:         update crm.cierres_externos set inversionista_id=(v_actual->>'persona')::uuid
+118:           where id=(v_actual->>'id')::uuid and inversionista_id is null;
+119:         get diagnostics v_n=row_count;
+120:         perform set_config('crm.op_privilegiada',coalesce(v_old_priv,'off'),true);
+121:         if v_n<>1 then raise exception 'La fuente ya cambió de identidad' using errcode='40001'; end if;
+122:       end if;
+123:       v_inversion:=private.inversion_vincular_fuente((v_actual->>'persona')::uuid,
+124:         case when v_actual->>'tipo'='contrato' then (v_actual->>'id')::uuid end,
+125:         case when v_actual->>'tipo'='cierre' then (v_actual->>'id')::uuid end,
+126:         (v_actual->>'creado_por')::uuid,(v_actual->>'inicial')::boolean);
+127:     else
+128:       v_inversion:=(v_actual->>'inversion')::uuid;
+129:     end if;
+130:     v_final:=private.inversion_historica_estado(v_actual->>'tipo',(v_actual->>'id')::uuid);
+131:     if v_final->>'estado'<>'resuelto' or (v_final->>'inversion')::uuid<>v_inversion then
+132:       raise exception 'La vinculación histórica no quedó conciliada' using errcode='P0409';
+133:     end if;
+134:     v_filas:=v_filas||jsonb_build_array(jsonb_build_object('tipo',v_actual->>'tipo','id',v_actual->>'id',
+135:       'accion',case v_actual->>'estado' when 'resuelto' then 'sin_cambios'
+136:         when 'titular_pendiente' then 'titular_completado' else 'vinculada' end,
+137:       'inversion',v_inversion,'titular',v_final->>'titular','persona',v_final->>'persona',
+138:       'huella_final',v_final->>'huella'));
+139:   end loop;
+140:   v_resultado:=jsonb_build_object('lote',p_lote,'fuentes',v_filas,'hash_mapa',v_hash);
+141:   update crm.inversion_backfill_lotes set resultado=v_resultado,finalizado_en=clock_timestamp() where id=p_lote;
+142:   perform set_config('crm.op_privilegiada',coalesce(v_old_priv,'off'),true);
+143:   return v_resultado;
+144: exception when others then
+145:   perform set_config('crm.op_privilegiada',coalesce(v_old_priv,'off'),true);
+146:   raise;
+147: end;
+148: $function$
+149:
+
+FILE/SYMBOL crm.metricas_multiempresa_fn(date) md5=4ab8a07f4794c015c4bb7264206dafcf ACL={postgres=X/postgres,authenticated=X/postgres}
+1: CREATE OR REPLACE FUNCTION crm.metricas_multiempresa_fn(p_mes date DEFAULT NULL::date)
+2:  RETURNS jsonb
+3:  LANGUAGE plpgsql
+4:  STABLE SECURITY DEFINER
+5:  SET search_path TO ''
+6: AS $function$
+7: declare
+8:   v_hoy date := (statement_timestamp() at time zone 'America/Lima')::date;
+9:   v_mes date := date_trunc('month',coalesce(p_mes,v_hoy))::date;
+10:   v_hasta date;
+11:   v_ini timestamptz;
+12:   v_fin timestamptz;
+13:   v_factor numeric;
+14:   v_payload jsonb;
+15: begin
+16:   if not private.metricas_f7_autorizada() then
+17:     raise exception 'No autorizado' using errcode='42501';
+18:   end if;
+19:   if not coalesce((select activo from crm.multiempresa_flags
+20:     where nombre='metricas_multiempresa_sombra'),false) then
+21:     raise exception 'El informe multiempresa está en preparación' using errcode='P0409';
+22:   end if;
+23:   if not isfinite(v_mes) or v_mes>v_hoy or v_mes<date '2000-01-01' then
+24:     raise exception 'Mes inválido' using errcode='22023';
+25:   end if;
+26:   v_hasta:=least(v_hoy,(v_mes+interval '1 month'-interval '1 day')::date);
+27:   v_ini:=v_mes::timestamp at time zone 'America/Lima';
+28:   v_fin:=(v_hasta+1)::timestamp at time zone 'America/Lima';
+29:   v_factor:=private.peso_referido_conversion(v_mes);
+30:
+31:   with fuentes as materialized (
+32:     select * from private.metricas_f7_fuentes() where fecha_imputacion<=v_hoy
+33:   ), ordenadas as (
+34:     -- Ordenar sobre la propia fila evita multiplicarla con otro join.
+35:     select f.*,case when inversionista_id is not null then row_number() over (
+36:       partition by inversionista_id
+37:       order by fecha_comercial nulls last,creado_en nulls last,empresa,fuente_id
+38:     ) end as orden from fuentes f
+39:   ), mes as materialized (
+40:     select * from ordenadas where fecha_imputacion between v_mes and v_hasta
+41:   ), produccion as materialized (
+42:     select empresa,moneda,count(*) as operaciones,sum(capital) as capital,
+43:       count(*) filter(where orden=1) as primeras,
+44:       count(*) filter(where orden>1) as posteriores,
+45:       count(*) filter(where orden is null) as sin_identidad
+46:     from mes group by empresa,moneda
+47:   ), tipos as (
+48:     select empresa,moneda,tipo_capital,count(*) as operaciones,sum(capital) as capital
+49:     from mes group by empresa,moneda,tipo_capital
+50:   ), atribucion as materialized (
+51:     select m.empresa,m.moneda,m.analista_id,p.nombre_completo as analista_nombre,
+52:       count(*) as operaciones,sum(m.capital) as capital
+53:     from mes m left join public.perfiles p on p.id=m.analista_id
+54:     group by m.empresa,m.moneda,m.analista_id,p.nombre_completo
+55:   ), participantes as materialized (
+56:     select distinct empresa,inversionista_id from fuentes where inversionista_id is not null
+57:     union
+58:     select distinct f.empresa,private.inversionista_canonica(t.inversionista_id)
+59:     from fuentes f join crm.inversion_titulares t on t.inversion_id=f.inversion_id
+60:     where f.identidad_coherente and t.rol='cotitular'
+61:   ), personas as materialized (
+62:     select inversionista_id,count(*) as empresas
+63:     from participantes where inversionista_id is not null group by inversionista_id
+64:   ), capital_nucleo as (
+65:     select case when e.contrato_id is not null then 'avance' else ce.cooperativa end as empresa,
+66:       e.moneda,sum(e.monto) as capital,count(*) as operaciones
+67:     from private.capital_episodios(v_ini,v_fin,true,'{}') e
+68:     left join crm.cierres_externos ce on ce.id=e.cierre_externo_id
+69:     where e.medida='stock' group by 1,2
+70:   ), conciliacion as (
+71:     select coalesce(n.empresa,p.empresa) as empresa,coalesce(n.moneda,p.moneda) as moneda,
+72:       coalesce(n.capital,0) as capital_nucleo,coalesce(p.capital,0) as capital_informe,
+73:       coalesce(n.operaciones,0) as operaciones_nucleo,coalesce(p.operaciones,0) as operaciones_informe,
+74:       coalesce(p.capital,0)-coalesce(n.capital,0) as diferencia_capital,
+75:       coalesce(p.operaciones,0)-coalesce(n.operaciones,0) as diferencia_operaciones,
+76:       coalesce((select sum(a.capital) from atribucion a
+77:         where a.empresa=coalesce(n.empresa,p.empresa) and a.moneda=coalesce(n.moneda,p.moneda)),0)
+78:         -coalesce(n.capital,0) as diferencia_atribucion
+79:     from capital_nucleo n full join produccion p using(empresa,moneda)
+80:   ), conversion as materialized (
+81:     select * from private.conversion_episodios(v_ini,v_fin,v_mes,true,'{}',v_factor)
+82:   ), vencimientos as (
+83:     select empresa,moneda,count(*) as operaciones,sum(capital) as capital
+84:     from fuentes where vence_en between v_hoy and v_hoy+30
+85:       and ((fuente_tipo='contrato' and estado='activo') or (fuente_tipo='cierre' and estado='vigente'))
+86:     group by empresa,moneda
+87:   ), oportunidades as (
+88:     select e.clave as empresa,count(p.inversionista_id) as personas
+89:     from crm.empresas e left join personas p on not exists (
+90:       select 1 from participantes v where v.inversionista_id=p.inversionista_id and v.empresa=e.clave
+91:     ) and exists(select 1 from crm.inversionistas i
+92:       where i.id=p.inversionista_id and i.estado='activo' and not i.no_contactar
+93:         and not exists(select 1 from crm.leads l
+94:           where l.id in (select private.leads_de_persona_veto(i.id)) and l.no_contactar))
+95:     where e.activa group by e.clave
+96:   )
+97:   select jsonb_build_object(
+98:     'version',1,'modo','sombra','mes',v_mes,'hasta',v_hasta,'hoy',v_hoy,
+99:     'generado_en',statement_timestamp(),'habilitada',true,
+100:     'mes_sellado',exists(select 1 from crm.periodos_cerrados where periodo=v_mes),
+101:     'produccion',coalesce((select jsonb_agg(p order by empresa,moneda) from produccion p),'[]'::jsonb),
+102:     'tipos_capital',coalesce((select jsonb_agg(t order by empresa,moneda,tipo_capital) from tipos t),'[]'::jsonb),
+103:     'atribucion',coalesce((select jsonb_agg(a order by empresa,moneda,analista_nombre nulls last,analista_id) from atribucion a),'[]'::jsonb),
+104:     'personas',jsonb_build_object(
+105:       'total',(select count(*) from personas),
+106:       'una_empresa',(select count(*) from personas where empresas=1),
+107:       'dos_empresas',(select count(*) from personas where empresas=2),
+108:       'tres_empresas',(select count(*) from personas where empresas>=3),
+109:       'por_empresa',coalesce((select jsonb_agg(x order by empresa) from (
+110:         select empresa,count(*) as personas from participantes where inversionista_id is not null group by empresa
+111:       ) x),'[]'::jsonb),
+112:       'fuentes_sin_identidad',(select count(*) from fuentes where inversionista_id is null),
+113:       'fuentes_coherentes',(select count(*) from fuentes where identidad_estado='coherente'),
+114:       'fuentes_contradictorias',(select count(*) from fuentes where identidad_estado='contradictoria'),
+115:       'fuentes_sin_enlace',(select count(*) from fuentes where identidad_estado='ausente')
+116:     ),
+117:     'conversion',(
+118:       select jsonb_build_object('factor_referido',v_factor,'divisor',coalesce(sum(aporte_divisor),0),
+119:         'numerador',coalesce(sum(aporte_numerador),0),
+120:         'tasa_pct',case when sum(aporte_divisor)>0 then round(100*sum(aporte_numerador)/sum(aporte_divisor),2) end,
+121:         'cierres',count(*) filter(where tipo='cierre' and aporte_numerador>0),
+122:         'renovaciones',count(*) filter(where tipo='operacion' and categoria='renovacion'),
+123:         'upgrades',count(*) filter(where tipo='operacion' and categoria='upgrade'),
+124:         'anulados',count(*) filter(where tipo='cierre' and anulado)) from conversion
+125:     ),
+126:     'vencimientos',coalesce((select jsonb_agg(v order by empresa,moneda) from vencimientos v),'[]'::jsonb),
+127:     'oportunidades',coalesce((select jsonb_agg(o order by empresa) from oportunidades o),'[]'::jsonb),
+128:     'conciliacion',coalesce((select jsonb_agg(c order by empresa,moneda) from conciliacion c),'[]'::jsonb),
+129:     'fuentes_duplicadas',(select count(*) from (
+130:       select fuente_tipo,fuente_id from fuentes group by fuente_tipo,fuente_id having count(*)>1
+131:     ) d)
+132:   ) into v_payload;
+133:   return v_payload;
+134: end;
+135: $function$
+136:

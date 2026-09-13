@@ -1,0 +1,13 @@
+{
+  "id": "07531654-e80e-47ef-ac36-02ce61d93d41",
+  "name": "citas-validacion-20260912",
+  "project_ref": "xhgsjtzpmwlqfkninphl",
+  "is_default": false,
+  "persistent": false,
+  "status": "MIGRATIONS_FAILED",
+  "created_at": "2026-09-12T17:47:21.623518+00:00",
+  "updated_at": "2026-09-12T17:47:21.623518+00:00",
+  "parent_project_ref": "dctqcbznekcyxhjujuci",
+  "with_data": false,
+  "preview_project_status": "INACTIVE"
+}
