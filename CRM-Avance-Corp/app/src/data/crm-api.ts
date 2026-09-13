@@ -664,6 +664,8 @@ export interface FiltrosCartera {
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
+  integrada?: boolean
+  recepcion?: { desde: string; hasta: string } | null
 }
 
 /** Posición exacta en el orden `(actualizado_en desc, id asc)`. */
@@ -676,11 +678,25 @@ export interface PaginaCartera {
   items: Lead[]
   /** `null` = no hay más páginas; nunca se infiere de `items.length`. */
   cursor: CursorCartera | null
+  resumen?: Pick<ResumenCartera, 'totales' | 'capital' | 'embudo'>
 }
 
 const LeadCarteraRowSchema = v.object({
   ...LeadRowSchema.entries,
   ultimo_contacto_en: v.nullable(v.string()),
+})
+
+const CarteraFiltradaSchema = v.object({
+  version: v.literal(1),
+  generado_en: v.string(),
+  desde: v.nullable(v.string()),
+  hasta: v.nullable(v.string()),
+  items: v.array(v.object({
+    ...LeadCarteraRowSchema.entries,
+    recibido_en: v.nullable(v.string()),
+    recepcion_aproximada: v.nullable(v.boolean()),
+  })),
+  resumen: v.pick(ResumenCarteraSchema, ['totales', 'capital', 'embudo']),
 })
 
 /** Lo MÍNIMO para poder avanzar: si una fila no lo cumple, no hay cursor honesto. */
@@ -713,9 +729,13 @@ export async function listarCarteraPagina(
   // El servidor RECHAZA (22023) un texto por debajo del mínimo: quien decide si
   // el filtro viaja es `textoBuscable`, la MISMA regla que aplica el espejo demo.
   if (texto !== null) argumentos.p_texto = texto
+  if (filtros.integrada && filtros.recepcion) {
+    argumentos.p_desde = filtros.recepcion.desde
+    argumentos.p_hasta = filtros.recepcion.hasta
+  }
 
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('cartera_pagina_fn', argumentos)
+  let consulta = cliente().schema('crm').rpc(filtros.integrada ? 'cartera_filtrada_fn' : 'cartera_pagina_fn', argumentos)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -736,6 +756,31 @@ export async function listarCarteraPagina(
       conCursor: cursor != null,
     })
     throw fallo
+  }
+
+  if (filtros.integrada) {
+    const resultado = v.safeParse(CarteraFiltradaSchema, data)
+    if (!resultado.success) throw new CrmApiError('La cartera y sus indicadores no cumplen el contrato esperado.', 'ROW_CONTRACT')
+    const payload = resultado.output
+    const total = payload.resumen.totales.vivos
+    if (payload.desde !== (filtros.recepcion?.desde ?? null)
+      || payload.hasta !== (filtros.recepcion?.hasta ?? null)
+      || !Number.isSafeInteger(total) || total < payload.items.length
+      || payload.resumen.embudo.reduce((n, e) => n + e.n, 0) !== total
+      || payload.items.length > TAMANO_PAGINA_CARTERA + 1
+      || new Set(payload.items.map((l) => l.id)).size !== payload.items.length
+      || payload.items.some((l) => !l.activo || (filtros.recepcion && !l.recibido_en))) {
+      throw new CrmApiError('La cartera y sus indicadores no coinciden con los filtros solicitados.', 'ROW_CONTRACT')
+    }
+    const hayMas = payload.items.length > TAMANO_PAGINA_CARTERA
+    const filas = payload.items.slice(0, TAMANO_PAGINA_CARTERA)
+    const ultima = filas.at(-1)
+    return {
+      items: filas.map((l) => ({ ...aLead(l), ultimo_contacto_en: l.ultimo_contacto_en,
+        recibido_en: l.recibido_en, recepcion_aproximada: l.recepcion_aproximada })),
+      cursor: hayMas && ultima ? { actualizadoEn: ultima.actualizado_en, id: ultima.id } : null,
+      resumen: payload.resumen,
+    }
   }
 
   const crudas = Array.isArray(data) ? data : []

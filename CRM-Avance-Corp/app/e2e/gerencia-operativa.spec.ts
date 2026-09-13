@@ -55,7 +55,7 @@ test('los tiles F1 del tablero sirven los números del RPC resumen_cartera_fn', 
   await expect(page.getByText(/Indicadores de toda la empresa/)).toContainText('Los filtros sólo cambian las columnas')
 })
 
-test('Leads distingue cierres del mes del inventario y conserva totales al filtrar la tabla', async ({ page }) => {
+test('Leads conecta el inventario y sus indicadores a los filtros de la tabla', async ({ page }) => {
   const leads = [
     leadReal({ vendedor_id: 'vend-1', nombre_completo: 'LEAD ABIERTO' }),
     leadReal({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', vendedor_id: 'vend-1', nombre_completo: 'LEAD CONVERTIDO', etapa: 'convertido', convertido_en: new Date().toISOString() }),
@@ -76,20 +76,19 @@ test('Leads distingue cierres del mes del inventario y conserva totales al filtr
 
   const chips = page.locator('[data-slot="card"]')
   const total = chips.filter({ hasText: 'Total leads' }).first()
-  const cierres = chips.filter({ hasText: 'Cierres de leads del mes' }).first()
+  const cierres = chips.filter({ hasText: 'Convertidos' }).first()
   await expect(total).toContainText('2')
-  await expect(cierres).toContainText('8')
-  await expect(cierres).toContainText('Mes calendario actual')
-  await expect(page.getByText(/Inventario actual por etapa/)).toContainText('45 días desde su conversión')
-  await expect(page.getByText(/Indicadores de toda la empresa/)).toContainText('sólo cambian el listado')
+  await expect(cierres).toContainText('1')
+  await expect(cierres).toContainText('Dentro de los filtros elegidos')
+  await expect(page.getByText(/Los filtros actualizan juntos/)).toBeVisible()
   await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD CONVERTIDO' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Filtrar por etapa' }).selectOption('nuevo')
 
   await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD CONVERTIDO' })).toHaveCount(0)
   await expect(page.getByRole('row', { name: 'Abrir ficha de LEAD ABIERTO' })).toBeVisible()
-  await expect(total).toContainText('2')
-  await expect(cierres).toContainText('8')
+  await expect(total).toContainText('1')
+  await expect(cierres).toContainText('0')
 })
 
 test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue operable', async ({ page }) => {

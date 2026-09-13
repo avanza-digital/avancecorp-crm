@@ -16,7 +16,6 @@ import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, origenLabe
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
-import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { useCarteraPaginada } from '@/data/use-cartera-paginada'
 import { useCierresEstado } from '@/data/crm-queries'
 import { estadoDelCierre, indexarCierresEstado } from '@/lib/cierre-estado'
@@ -25,7 +24,10 @@ import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useConsultaGerencia } from '@/components/gerencia/use-consulta-gerencia'
-import { LeadsRecibidosAnalistaCard } from '@/components/app/leads-recibidos-analista'
+import { FiltroFechaCartera } from '@/components/common/filtro-fecha-cartera'
+import { fechaLima } from '@/lib/agenda-derivada'
+import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
+import { fechaRecepcionDemo, periodoFechaCartera, rangoFechaCarteraValido, type ModoFechaCartera } from '@/lib/filtro-fecha-cartera'
 
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 
@@ -37,20 +39,29 @@ export function Cartera() {
   const { yo } = useAuth()
   const memoriaGerencia = useConsultaGerencia()
   const desdeRendimiento = yo?.rol === 'gerencia' ? memoriaGerencia?.consulta.gestionAnalista : null
-  const { ambito, actividadesDelAmbito, cierresEstado } = useCRMData()
+  const { ambito, cierresEstado } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
-  // F1: los KPIs vienen del servidor (RPC resumen_cartera_fn) o del espejo demo
-  // vivo — la pantalla ya no cuenta filas.
-  const resumenOp = useResumenCarteraOperativo(leads, actividadesDelAmbito)
-  const resumen = resumenOp.resumen
+  const [hoy] = useState(() => fechaLima(Date.now()))
+  const [modoFecha, setModoFecha] = useState<ModoFechaCartera>('todas')
+  const [rangoFecha, setRangoFecha] = useState(() => ({ desde: desplazarFechaDerivaciones(hoy, -6), hasta: hoy }))
+  const periodo = useMemo(() => periodoFechaCartera(modoFecha, rangoFecha, hoy), [modoFecha, rangoFecha, hoy])
+  const rangoValido = rangoFechaCarteraValido(periodo, hoy)
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fVend, setFVend] = useState<FiltroVendedor>(() => can(yo?.rol, 'filtrarPorVendedor') ? desdeRendimiento?.id ?? 'todos' : 'todos')
   // Columna "Analista" = ver al equipo; filtro por analista = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
   const filtrarVendedor = can(yo?.rol, 'filtrarPorVendedor')
+  // Supervisión mide la recepción de SUS analistas, no el ingreso a su bandeja.
+  // Se recorta la colección demo completa antes de calcular KPIs o paginar.
+  const soloRecibidosEquipo = periodo !== null
+  const leadsDeConsulta = useMemo(() => {
+    if (!soloRecibidosEquipo) return leads
+    const analistas = new Set(ambito.vendedores.map((miembro) => miembro.perfil_id))
+    return leads.filter((lead) => lead.vendedor_id != null && analistas.has(lead.vendedor_id))
+  }, [soloRecibidosEquipo, leads, ambito.vendedores])
 
   // F2: la TABLA ya no sale del store. Se pagina por cursor keyset contra el
   // servidor y los tres filtros viajan con la consulta — con keyset, filtrar en
@@ -58,14 +69,18 @@ export function Cartera() {
   // para no lanzar una consulta por tecla.
   const qDiferido = useValorDiferido(q)
   const cartera = useCarteraPaginada(
-    leads,
+    leadsDeConsulta,
     useMemo(
-      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido }),
-      [fEtapa, fVend, qDiferido],
+      () => ({ etapa: fEtapa, vendedorId: fVend, texto: qDiferido,
+        recepcion: periodo }),
+      [fEtapa, fVend, qDiferido, periodo],
     ),
   )
+  const resumen = rangoValido ? cartera.resumen ?? null : null
+  const etiquetaConvertidos = 'Convertidos'
+  const detalleConvertidos = 'Dentro de los filtros elegidos'
 
-  // ── KPIs y distribución del ámbito (no dependen de los filtros) ──
+  // Vista previa: KPIs y distribución de la misma colección filtrada completa.
   // Sin payload (cargando o RPC caída) los tiles dicen «—»: jamás se inventa
   // una cifra contando un array parcial del navegador.
   const { stats, segmentos } = useMemo(() => {
@@ -74,7 +89,7 @@ export function Cartera() {
         { icon: Users, label: 'Total leads', value: '—', tone: 'primary' },
         { icon: TrendingUp, label: 'Capital en juego', value: '—', tone: 'accent' },
         { icon: Activity, label: 'Activos', value: '—', tone: 'default', sub: 'Sin convertir ni descartar' },
-        { icon: CheckCircle2, label: 'Cierres de leads del mes', value: '—', tone: 'primary', sub: 'Mes calendario actual' },
+        { icon: CheckCircle2, label: etiquetaConvertidos, value: '—', tone: 'primary', sub: detalleConvertidos },
       ]
       return { stats, segmentos: [] as Segment[] }
     }
@@ -97,7 +112,7 @@ export function Cartera() {
         sub: capital.sub,
       },
       { icon: Activity, label: 'Activos', value: String(resumen.totales.abiertos), tone: 'default', sub: 'Sin convertir ni descartar' },
-      { icon: CheckCircle2, label: 'Cierres de leads del mes', value: String(resumen.totales.convertidos), tone: 'primary', sub: 'Mes calendario actual' },
+      { icon: CheckCircle2, label: etiquetaConvertidos, value: String(resumen.totales.convertidos), tone: 'primary', sub: detalleConvertidos },
     ]
     const porEtapa = new Map(resumen.embudo.map((p) => [p.etapa, p.n]))
     const segmentos: Segment[] = [...ETAPAS, ...TERMINALES].map((e) => ({
@@ -106,9 +121,9 @@ export function Cartera() {
       color: e.color,
     }))
     return { stats, segmentos }
-  }, [resumen])
+  }, [resumen, etiquetaConvertidos, detalleConvertidos])
 
-  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fVend !== 'todos'
+  const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fVend !== 'todos' || modoFecha !== 'todas'
 
   // El nombre del analista lo resuelve el roster: `crm.leads` guarda el id y la
   // RPC de la página no lo desnormaliza (el store hace lo mismo con su ámbito).
@@ -117,12 +132,12 @@ export function Cartera() {
     [ambito.vendedores],
   )
   const visibles = useMemo(
-    () => cartera.leads.map((l) => ({
+    () => (!rangoValido ? [] : cartera.leads).map((l) => ({
       ...l,
       vendedor_nombre: l.vendedor_nombre
         ?? (l.vendedor_id ? nombrePorId.get(l.vendedor_id) ?? null : null),
     })),
-    [cartera.leads, nombrePorId],
+    [cartera.leads, nombrePorId, rangoValido],
   )
 
   // La marca de «cierre anulado». Se pregunta SOLO por los convertidos: son los
@@ -145,33 +160,17 @@ export function Cartera() {
       {desdeRendimiento && <section aria-label="Consulta desde Rendimiento" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
         <div className="min-w-0">
           <h2 className="text-sm font-bold">Leads de {desdeRendimiento.nombre}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Listado actual, con todas las etapas. Los indicadores superiores conservan el ámbito general; el mes de Rendimiento no filtra esta lista.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Listado e indicadores del analista seleccionado. El mes de Rendimiento no filtra esta lista; puedes elegir aquí el rango de recepción.</p>
           {fVend !== desdeRendimiento.id && <p role="status" className="mt-1 text-xs">Cambiaste el filtro del listado. La consulta original de Rendimiento se conserva al volver.</p>}
         </div>
         <a href="#/rendimiento" className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => memoriaGerencia?.setConsulta((actual) => ({ ...actual, gestionAnalista: null }))}>Volver a Rendimiento</a>
       </section>}
-      {yo?.rol === 'vendedor' && (
-        <LeadsRecibidosAnalistaCard
-          analistaId={yo.id}
-          demo={yo.demo === true}
-          leads={leads}
-        />
-      )}
       {/* Mini-KPIs de la cartera */}
       <StatStrip stats={stats} />
       <p className="text-xs text-muted-foreground">
-        {ambito.esGlobal ? 'Indicadores de toda la empresa.' : 'Indicadores de tu ámbito.'} La búsqueda y los filtros sólo cambian el listado, no los indicadores ni la distribución.
+        Los filtros actualizan juntos el listado, los indicadores y la distribución por etapa.
       </p>
 
-      {/* Degradación honesta (precedente objetivosError): la pantalla vive con
-          aviso y «—», sin bloquear la tabla, que tiene su propia fuente. */}
-      <AvisoDegradacion
-        activo={Boolean(resumenOp.error) && !yo?.demo}
-        queReintenta="de los indicadores de la cartera"
-        onReintentar={() => { void resumenOp.recargar() }}
-      >
-        No se pudieron cargar los indicadores de la cartera. Se muestran «—» para no inventar cifras.
-      </AvisoDegradacion>
 
       {/* Distribución por etapa */}
       <Card>
@@ -180,13 +179,13 @@ export function Cartera() {
           title="Distribución por etapa"
           right={
             <span className="text-xs text-muted-foreground">
-              {resumen ? `${resumen.totales.vivos} leads` : '—'}
+              {resumen ? `${resumen.totales.vivos} ${resumen.totales.vivos === 1 ? 'lead' : 'leads'}` : '—'}
             </span>
           }
         />
         <CardContent className="pt-1">
           <SegmentBar segments={segmentos} />
-          <p className="mt-3 text-xs text-muted-foreground">Inventario actual por etapa. Los convertidos permanecen aquí durante 45 días desde su conversión; no equivalen a los cierres del mes.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Etapa actual de los mismos leads que aparecen en el listado filtrado.</p>
         </CardContent>
       </Card>
 
@@ -210,6 +209,11 @@ export function Cartera() {
             ))}
           </Select>
         </div>
+        <FiltroFechaCartera modo={modoFecha} rango={rangoFecha} hoy={hoy}
+          invalido={!rangoValido} onModo={(modo) => {
+            setModoFecha(modo)
+            if (modo !== 'todas' && fVend === 'sin_asignar') setFVend('todos')
+          }} onRango={setRangoFecha} />
         {filtrarVendedor && (
           <div className="w-[210px]">
             <Select aria-label="Filtrar por analista" value={fVend} onChange={(e) => { setFVend(e.target.value) }}>
@@ -218,7 +222,7 @@ export function Cartera() {
               {ambito.vendedores.map((m) => (
                 <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>
               ))}
-              <option value="sin_asignar">Sin asignar</option>
+              {!soloRecibidosEquipo && <option value="sin_asignar">Sin asignar</option>}
             </Select>
           </div>
         )}
@@ -226,14 +230,27 @@ export function Cartera() {
             aquí solo se puede afirmar lo que de verdad se ha traído. Decir «12
             de 300» contando un array parcial es justo la mentira que esta fase
             viene a matar. */}
-        {hayFiltro && !cartera.cargando && (
+        {hayFiltro && <Button variant="ghost" size="sm" onClick={() => {
+          setQ(''); setFEtapa('todas'); setFVend('todos'); setModoFecha('todas')
+        }}>Limpiar filtros</Button>}
+        {rangoValido && !cartera.cargando && (
           <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
-            {cartera.hayMas
+            {resumen
+              ? `${resumen.totales.vivos} ${resumen.totales.vivos === 1 ? 'lead' : 'leads'}${cartera.hayMas ? ` · ${visibles.length} visibles` : ''}`
+              : cartera.hayMas
               ? `${visibles.length} cargados`
               : `${visibles.length} ${visibles.length === 1 ? 'resultado' : 'resultados'}`}
           </span>
         )}
       </div>
+      {!rangoValido && <p id="error-fechas-cartera" role="alert" className="text-xs text-destructive">
+        Completa ambas fechas. La fecha inicial debe ser anterior o igual a la final, y no posterior a hoy.
+      </p>}
+      {rangoValido && periodo && <p className="text-xs text-muted-foreground" role="status">
+        Recibidos del {fmtFecha(`${periodo.desde}T12:00:00-05:00`)} al {fmtFecha(`${periodo.hasta}T12:00:00-05:00`)} · ambos días incluidos · hora de Perú.
+        {yo?.rol === 'supervisor' && ' Recepción de los analistas de tu equipo; no incluye pendientes de repartir.'}
+        {' Se muestran los leads que siguen dentro de tu cartera visible.'}
+      </p>}
 
       {/* Degradación de la TABLA: distinta de la de los tiles — aquí lo que
           falta son filas, y con páginas ya cargadas la lista sigue siendo
@@ -260,14 +277,14 @@ export function Cartera() {
         ) : visibles.length === 0 ? (
           <PanelVacio
             icono={Inbox}
-            titulo="Sin resultados"
+            titulo={!rangoValido ? 'Revisa el rango de fechas' : 'Sin resultados'}
             detalle={
-              cartera.error
+              !rangoValido ? 'Corrige las fechas para consultar los leads y sus indicadores.' : cartera.error
                 ? 'No se pudo cargar la cartera. Usa «Reintentar» en el aviso de arriba.'
                 : q.trim()
                   ? `Ningún lead coincide con “${q.trim()}”. Prueba con otro nombre o número.`
                   : hayFiltro
-                    ? `Ningún lead coincide con los filtros. Prueba con otra etapa${filtrarVendedor ? ' u otro analista' : ''}.`
+                    ? `Ningún lead coincide con los filtros. Prueba con otras fechas, otra etapa${filtrarVendedor ? ' u otro analista' : ''}.`
                     : 'Tu cartera todavía no tiene leads.'
             }
           />
@@ -284,7 +301,7 @@ export function Cartera() {
               <Th className="text-right">Monto estimado</Th>
               {verVendedor && <Th>Analista</Th>}
               <Th className="hidden lg:table-cell">Categoría</Th>
-              <Th className="hidden xl:table-cell">Creado</Th>
+              <Th className={periodo ? '' : 'hidden xl:table-cell'}>{periodo ? 'Recibido' : 'Creado'}</Th>
               <Th className="w-8" aria-hidden />
             </TheadCrm>
             <tbody>
@@ -350,7 +367,7 @@ export function Cartera() {
                           {l.vendedor_nombre ? (
                             <span className="flex items-center gap-1.5">
                               <Avatar nombre={l.vendedor_nombre} className="size-6 text-[9px]" />
-                              <span className="text-xs text-muted-foreground">{l.vendedor_nombre.split(' ')[0]}</span>
+                              <span className="text-xs text-muted-foreground">{l.vendedor_nombre}</span>
                             </span>
                           ) : (
                             <Badge color="var(--warning)">sin asignar</Badge>
@@ -366,7 +383,10 @@ export function Cartera() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </Td>
-                      <Td className="hidden text-xs text-muted-foreground xl:table-cell">{fmtFecha(l.creado_en)}</Td>
+                      <Td className={`text-xs text-muted-foreground ${periodo ? '' : 'hidden xl:table-cell'}`}>
+                        {fmtFecha(periodo ? (yo?.demo ? `${fechaRecepcionDemo(l)}T12:00:00-05:00` : l.recibido_en) : l.creado_en)}
+                        {periodo && l.recepcion_aproximada && <span title="Fecha estimada a partir del historial disponible"> · aprox.</span>}
+                      </Td>
                       <Td className="text-right">
                         <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                       </Td>
@@ -381,7 +401,7 @@ export function Cartera() {
       {/* «Cargar más» en vez de páginas numeradas: con cursor keyset no existe
           la página 7 — existe "lo siguiente a lo que ya tengo". Ir a una página
           arbitraria exigiría el `count: 'exact'` que esta fase elimina. */}
-      {cartera.hayMas && (
+      {cartera.hayMas && rangoValido && (
         <div className="flex justify-center">
           <Button
             variant="outline"
@@ -396,7 +416,7 @@ export function Cartera() {
 
       {yo?.demo && (
         <p className="text-[11px] text-muted-foreground">
-          Cartera de demostración — pronto verás aquí a tus clientes reales, lista para crecer con la operación.
+          Datos de demostración. Los cambios de esta sesión no modifican leads reales.
         </p>
       )}
     </div>

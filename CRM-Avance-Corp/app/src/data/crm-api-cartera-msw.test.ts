@@ -16,8 +16,48 @@ import { CrmApiError, listarCarteraPagina } from './crm-api'
 import { TAMANO_PAGINA_CARTERA } from '@/lib/cartera-keyset'
 
 const RPC = 'http://supabase.test/rest/v1/rpc/cartera_pagina_fn'
+const RPC_INTEGRADA = 'http://supabase.test/rest/v1/rpc/cartera_filtrada_fn'
 
 const server = setupServer()
+
+function payloadFiltrado(n = 60) {
+  return {
+    version: 1, generado_en: '2026-09-13T12:00:00Z', desde: '2026-09-01', hasta: '2026-09-03',
+    items: Array.from({ length: Math.min(n, 51) }, (_, i) => fila(i, {
+      recibido_en: '2026-09-02T12:00:00Z', recepcion_aproximada: false,
+    })),
+    resumen: {
+      totales: { vivos: n, abiertos: n, asignados: 0, parkeados: n, convertidos: 0, descartados: 0, asignados_pen: 0, asignados_usd: 0 },
+      capital: { asignado: { pen: 0, usd: 0 }, parkeado: { pen: 1000 * n, usd: 0 }, ganado: { pen: 0, usd: 0 } },
+      embudo: [{ etapa: 'nuevo', n }],
+    },
+  }
+}
+
+describe('cartera integrada: listado y total del mismo filtro', () => {
+  const filtros = { integrada: true, recepcion: { desde: '2026-09-01', hasta: '2026-09-03' } }
+  it('envía fechas inclusivas y mantiene el total completo al paginar', async () => {
+    let cuerpo: unknown
+    server.use(http.post(RPC_INTEGRADA, async ({ request }) => {
+      cuerpo = await request.json()
+      return HttpResponse.json(payloadFiltrado())
+    }))
+    const pagina = await listarCarteraPagina(filtros, null)
+    expect(cuerpo).toEqual({ p_limite: 51, p_desde: '2026-09-01', p_hasta: '2026-09-03' })
+    expect(pagina.items).toHaveLength(50)
+    expect(pagina.resumen?.totales.vivos).toBe(60)
+    expect(pagina.cursor?.id).toBe('lead-049')
+    expect(pagina.items[0]?.recibido_en).toBe('2026-09-02T12:00:00Z')
+  })
+  it.each(['rango', 'total', 'fila', 'nulo'])('rechaza payload inconsistente: %s', async (caso) => {
+    const payload = payloadFiltrado()
+    if (caso === 'rango') payload.desde = '2026-08-01'
+    if (caso === 'total') payload.resumen.totales.vivos = 1
+    if (caso === 'fila') payload.items[0]!.moneda = 'EUR'
+    server.use(http.post(RPC_INTEGRADA, () => HttpResponse.json(caso === 'nulo' ? null : payload)))
+    await expect(listarCarteraPagina(filtros, null)).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+})
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())

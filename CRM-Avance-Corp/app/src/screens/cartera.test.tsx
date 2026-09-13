@@ -13,31 +13,32 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
 import type { Lead } from '@/lib/tipos'
 import type { CierreEstado } from '@/lib/cierre-estado'
-import type { LeadsRecibidosAnalista } from '@/lib/leads-recibidos-analista'
+import type { FiltrosCartera } from '@/data/crm-api'
+import { fechaLima } from '@/lib/agenda-derivada'
+import { desplazarFechaDerivaciones } from '@/lib/use-periodo-derivaciones'
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
 let ESTADO_CIERRES: CierreEstado[] = []
-let CIERRES_MES: number | null = null
-let RECIBIDOS: LeadsRecibidosAnalista | null = null
-const CONSULTAS_RECIBIDOS: Array<{ habilitada: boolean; desde: string; hasta: string }> = []
+const ABRIR_LEAD = vi.fn()
 
 beforeEach(() => {
-  CIERRES_MES = null
-  RECIBIDOS = null
-  CONSULTAS_RECIBIDOS.length = 0
+  ABRIR_LEAD.mockClear()
 })
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: LEADS, vendedores: [], esGlobal: YO?.rol === 'gerencia' },
+    ambito: { leads: LEADS, vendedores: [
+      { perfil_id: 'v-1', nombre_completo: 'ANA TORRES' },
+      { perfil_id: 'v-2', nombre_completo: 'LUIS PEREZ' },
+    ], esGlobal: YO?.rol === 'gerencia' },
     actividadesDelAmbito: [],
     // Espejo demo del estado de los cierres, leído en cada render igual que
     // LEADS: los dos mundos sirven la MISMA forma.
     cierresEstado: ESTADO_CIERRES,
   }),
-  usePanelesActions: () => ({ abrirLead: vi.fn() }),
+  usePanelesActions: () => ({ abrirLead: ABRIR_LEAD }),
 }))
 // La marca «CIERRE ANULADO» sale de `crm.cierres_estado_fn`. Se sustituye por lo
 // mismo que la tabla y el resumen: este archivo prueba lo que se PINTA, no el
@@ -45,30 +46,6 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('@/data/crm-queries', () => ({
   useCierresEstado: () => ({ data: ESTADO_CIERRES }),
 }))
-vi.mock('@/data/use-leads-recibidos-analista', () => ({
-  useLeadsRecibidosAnalista: (habilitada: boolean, desde: string, hasta: string) => {
-    CONSULTAS_RECIBIDOS.push({ habilitada, desde, hasta })
-    return { data: RECIBIDOS, error: null, isPending: false, refetch: vi.fn() }
-  },
-}))
-// F1: el hook operativo se sustituye por el espejo puro sobre los MISMOS leads
-// del mock — los chips se prueban con números derivados de verdad, sin red ni
-// QueryClientProvider (el shape es el del RPC, validado en resumen-cartera.test).
-vi.mock('@/data/use-resumen-cartera-operativo', async () => {
-  const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
-  return {
-    useResumenCarteraOperativo: (leads: Lead[]) => ({
-      resumen: (() => {
-        const resumen = resumenCarteraDesdeAmbito(leads, [], Date.now())
-        if (CIERRES_MES != null) resumen.totales.convertidos = CIERRES_MES
-        return resumen
-      })(),
-      cargando: false,
-      error: null,
-      recargar: vi.fn(),
-    }),
-  }
-})
 
 // F2: la TABLA la sirve `crm.cartera_pagina_fn` por cursor. Aquí se sustituye
 // por el MISMO espejo puro que usa el modo demo (`lib/cartera-keyset`), que es
@@ -76,9 +53,11 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
 // mock la pantalla exigiría un QueryClientProvider para probar un chip.
 vi.mock('@/data/use-cartera-paginada', async () => {
   const { filtrarCarteraLocal, ordenarCarteraLocal } = await import('@/lib/cartera-keyset')
+  const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
   return {
-    useCarteraPaginada: (leads: Lead[], filtros: FiltrosCarteraLocal) => ({
-      leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, filtros)),
+    useCarteraPaginada: (leads: Lead[], filtros: FiltrosCartera & FiltrosCarteraLocal) => ({
+      leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null })),
+      resumen: resumenCarteraDesdeAmbito(filtrarCarteraLocal(leads, { ...filtros, recepcionDemo: filtros.recepcion ?? null }), [], Date.now(), Boolean(filtros.recepcion)),
       hayMas: false,
       cargando: false,
       cargandoMas: false,
@@ -90,6 +69,103 @@ vi.mock('@/data/use-cartera-paginada', async () => {
 })
 
 const { Cartera } = await import('./cartera')
+
+describe('Cartera · vista previa local conectada', () => {
+  function montarVistaPrevia(rol = 'vendedor', adicionales: Lead[] = []) {
+    YO = { id: 'v-1', rol, demo: true }
+    const hoy = fechaLima(Date.now())
+    const fecha = (dias: number) => `${desplazarFechaDerivaciones(hoy, dias)}T12:00:00-05:00`
+    LEADS = [
+      lead({ id: 'hoy', nombre_completo: 'LEAD DE HOY', tenencia_desde: fecha(0), monto_estimado: 1000 }),
+      lead({ id: 'ayer', nombre_completo: 'LEAD DE AYER', tenencia_desde: fecha(-1), etapa: 'contactado', monto_estimado: 2000, vendedor_id: 'v-2' }),
+      lead({ id: 'anterior', nombre_completo: 'LEAD ANTERIOR', tenencia_desde: fecha(-20), monto_estimado: 4000 }),
+      ...adicionales,
+    ]
+    ESTADO_CIERRES = []
+    render(<Cartera />)
+    return hoy
+  }
+
+  it.each(['vendedor', 'supervisor'])('%s: fechas y etapa actualizan filas, total, capital, activos y distribución', (rol) => {
+    montarVistaPrevia(rol)
+    expect(screen.queryByRole('region', { name: 'Leads recibidos por período' })).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('3')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })
+    expect(screen.queryByText('LEAD ANTERIOR')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('2')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 3,000')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'contactado' } })
+    expect(screen.queryByText('LEAD DE HOY')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 2,000')).toBeInTheDocument()
+    const distribucion = screen.getByText('Distribución por etapa').closest('[data-slot="card"]')!
+    expect(within(distribucion as HTMLElement).getByText('1 lead')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('row', { name: 'Abrir ficha de LEAD DE AYER' }))
+    expect(ABRIR_LEAD).toHaveBeenCalledWith('ayer')
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(within(chipDe('Total leads')).getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('LEAD ANTERIOR')).toBeInTheDocument()
+  })
+
+  it('supervisor: combina la recepción con el analista elegido', () => {
+    montarVistaPrevia('supervisor')
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })
+    fireEvent.change(screen.getByLabelText('Filtrar por analista'), { target: { value: 'v-2' } })
+    expect(screen.getByText('LEAD DE AYER')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD DE HOY')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+  })
+
+  it('supervisor: cuenta recepción del equipo, no bandeja ni analistas ajenos', () => {
+    montarVistaPrevia('supervisor', [
+      lead({ id: 'pendiente', nombre_completo: 'LEAD SIN REPARTIR', vendedor_id: null, monto_estimado: 100_000 }),
+      lead({ id: 'ajeno', nombre_completo: 'LEAD DE OTRO EQUIPO', vendedor_id: 'v-ajeno', monto_estimado: 200_000 }),
+    ])
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'semana' } })
+    expect(screen.queryByText('LEAD SIN REPARTIR')).not.toBeInTheDocument()
+    expect(screen.queryByText('LEAD DE OTRO EQUIPO')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('2')).toBeInTheDocument()
+    expect(within(chipDe('Capital en juego')).getByText('S/ 3,000')).toBeInTheDocument()
+    expect(within(chipDe('Activos')).getByText('2')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Sin asignar' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Recepción de los analistas de tu equipo/)).toBeInTheDocument()
+  })
+
+  it('al pasar de pendientes a un rango selecciona todos los analistas del equipo', () => {
+    montarVistaPrevia('supervisor', [lead({ id: 'pendiente', nombre_completo: 'LEAD SIN REPARTIR', vendedor_id: null })])
+    fireEvent.change(screen.getByLabelText('Filtrar por analista'), { target: { value: 'sin_asignar' } })
+    expect(screen.getByText('LEAD SIN REPARTIR')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'hoy' } })
+    expect(screen.getByLabelText('Filtrar por analista')).toHaveValue('todos')
+    expect(screen.queryByText('LEAD SIN REPARTIR')).not.toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'todas' } })
+    expect(screen.getByRole('option', { name: 'Sin asignar' })).toBeInTheDocument()
+    expect(screen.getByText('LEAD SIN REPARTIR')).toBeInTheDocument()
+  })
+
+  it('rango manual: incluye ambos días y no presenta cifras anteriores si queda inválido', () => {
+    const hoy = montarVistaPrevia()
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'rango' } })
+    fireEvent.change(screen.getByLabelText('Fecha inicial de recepción'), { target: { value: hoy } })
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Fecha final de recepción'), { target: { value: desplazarFechaDerivaciones(hoy, -1) } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Completa ambas fechas')
+    expect(within(chipDe('Total leads')).getByText('—')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('sin coincidencias deja todos los componentes en cero', () => {
+    montarVistaPrevia()
+    fireEvent.change(screen.getByLabelText('Filtrar por fecha de recepción'), { target: { value: 'hoy' } })
+    fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'convertido' } })
+    expect(screen.getByText('Sin resultados')).toBeInTheDocument()
+    for (const etiqueta of ['Total leads', 'Activos', 'Convertidos']) {
+      expect(within(chipDe(etiqueta)).getByText('0')).toBeInTheDocument()
+    }
+  })
+})
 
 function lead(over: Partial<Lead> = {}): Lead {
   return {
@@ -123,21 +199,19 @@ function chipDe(label: string): HTMLElement {
 }
 
 describe('Cartera · chip de capital', () => {
-  it('distingue cierres del mes e inventario de 45 días, sin filtrar las tarjetas con la tabla', () => {
+  it('en sesión real las etapas filtran tanto los indicadores como el listado', () => {
     YO = { id: 'g-1', rol: 'gerencia', demo: false }
     LEADS = [lead(), lead({ id: 'l-conv', nombre_completo: 'LEAD CONVERTIDO', etapa: 'convertido' })]
     ESTADO_CIERRES = []
-    CIERRES_MES = 8
     render(<Cartera />)
-    expect(within(chipDe('Cierres de leads del mes')).getByText('8')).toBeInTheDocument()
-    expect(screen.getByText(/Inventario actual por etapa/)).toHaveTextContent('45 días desde su conversión')
-    expect(screen.getByText(/Indicadores de toda la empresa/)).toHaveTextContent('sólo cambian el listado')
+    expect(within(chipDe('Convertidos')).getByText('1')).toBeInTheDocument()
+    expect(screen.getByText(/Los filtros actualizan juntos/)).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por etapa' }), { target: { value: 'nuevo' } })
 
     expect(screen.queryByText('LEAD CONVERTIDO')).not.toBeInTheDocument()
-    expect(within(chipDe('Total leads')).getByText('2')).toBeInTheDocument()
-    expect(within(chipDe('Cierres de leads del mes')).getByText('8')).toBeInTheDocument()
+    expect(within(chipDe('Total leads')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Convertidos')).getByText('0')).toBeInTheDocument()
   })
 
   it('con la cartera en dólares la cifra principal es USD, no "S/ 0"', () => {
@@ -178,7 +252,7 @@ describe('Cartera · chip de capital', () => {
     // Los conteos siguen contando TODO el ámbito (lo acotado es el capital).
     expect(within(chipDe('Total leads')).getByText('3')).toBeInTheDocument()
     expect(within(chipDe('Activos')).getByText('1')).toBeInTheDocument()
-    expect(within(chipDe('Cierres de leads del mes')).getByText('1')).toBeInTheDocument()
+    expect(within(chipDe('Convertidos')).getByText('1')).toBeInTheDocument()
   })
 
   it('un lead inactivo (activo=false) tampoco suma capital', () => {
@@ -194,48 +268,10 @@ describe('Cartera · chip de capital', () => {
 })
 
 describe('Cartera · leads recibidos del analista', () => {
-  it('muestra el total y el detalle diario, con Hoy como período inicial', () => {
-    const hoy = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Lima',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date())
-    RECIBIDOS = {
-      version: 1,
-      generado_en: new Date().toISOString(),
-      periodo: { desde: hoy, hasta: hoy, dias: 1, zona: 'America/Lima' },
-      total: 4,
-      aproximados: 0,
-      dias: [{ fecha: hoy, total: 4, aproximados: 0 }],
-    }
-
+  it('sustituye el panel separado por un filtro integrado en sesión real', () => {
     montar([lead()])
-
-    const bloque = screen.getByRole('region', { name: 'Leads recibidos por período' })
-    expect(within(bloque).getByText('4 en el período')).toBeInTheDocument()
-    expect(within(bloque).getByText('4', { selector: 'p' })).toBeInTheDocument()
-    expect(within(bloque).getByText('4 leads')).toBeInTheDocument()
-    expect(within(bloque).getByRole('button', { name: 'Hoy' })).toBeInTheDocument()
-    expect(CONSULTAS_RECIBIDOS.at(-1)).toEqual({ habilitada: true, desde: hoy, hasta: hoy })
-  })
-
-  it('permite elegir un rango manual inclusivo', () => {
-    montar([lead()])
-
-    fireEvent.click(screen.getByRole('button', { name: 'Rango' }))
-    fireEvent.change(screen.getByLabelText('Fecha inicial de leads recibidos'), {
-      target: { value: '2026-09-01' },
-    })
-    fireEvent.change(screen.getByLabelText('Fecha final de leads recibidos'), {
-      target: { value: '2026-09-03' },
-    })
-
-    expect(CONSULTAS_RECIBIDOS.at(-1)).toEqual({
-      habilitada: true,
-      desde: '2026-09-01',
-      hasta: '2026-09-03',
-    })
+    expect(screen.getByRole('combobox', { name: 'Filtrar por fecha de recepción' })).toHaveValue('todas')
+    expect(screen.queryByRole('region', { name: 'Leads recibidos por período' })).not.toBeInTheDocument()
   })
 
   it('no expone el conteo propio del analista a Gerencia', () => {
@@ -244,7 +280,6 @@ describe('Cartera · leads recibidos del analista', () => {
     render(<Cartera />)
 
     expect(screen.queryByRole('region', { name: 'Leads recibidos por período' })).not.toBeInTheDocument()
-    expect(CONSULTAS_RECIBIDOS).toHaveLength(0)
   })
 })
 

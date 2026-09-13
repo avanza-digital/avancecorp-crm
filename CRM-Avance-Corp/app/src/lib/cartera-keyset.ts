@@ -1,4 +1,5 @@
 import type { Etapa, Lead } from './tipos'
+import { coincideFechaRecepcionDemo, type RangoFechaCartera } from './filtro-fecha-cartera'
 
 /**
  * Reglas de la cartera paginada por cursor keyset (F2), en un solo sitio.
@@ -32,6 +33,8 @@ export interface FiltrosCarteraLocal {
   etapa?: Etapa | 'todas'
   vendedorId?: string | 'todos' | 'sin_asignar'
   texto?: string
+  /** Vista previa local: el servidor real conserva su contrato hasta integrar el ledger. */
+  recepcionDemo?: RangoFechaCartera | null
 }
 
 /**
@@ -68,6 +71,7 @@ export function coincideTextoCartera(lead: Lead, valor: string | undefined): boo
   if (lead.nombre_completo.toLowerCase().includes(buscable.toLowerCase())) return true
   if (digitos.length >= MIN_DIGITOS_BUSQUEDA) {
     if (lead.telefono.includes(digitos)) return true
+    if ((lead.telefono_alternativo ?? '').includes(digitos)) return true
     if ((lead.dni ?? '').includes(digitos)) return true
   }
   return false
@@ -83,6 +87,7 @@ export function filtrarCarteraLocal(
     // lead DESCARTADO no es un lead borrado — conserva `activo` y sigue aquí
     // con su motivo; lo que este filtro saca es lo que cerró la cola global.
     if (l.activo === false) return false
+    if (!coincideFechaRecepcionDemo(l, filtros.recepcionDemo)) return false
     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
     if (filtros.vendedorId === 'sin_asignar') {
       if (l.vendedor_id != null) return false

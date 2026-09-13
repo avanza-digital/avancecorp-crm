@@ -224,8 +224,8 @@ export const crmQueryKeys = {
   // Los filtros forman parte de la clave: con keyset NO se puede filtrar en el
   // cliente sobre lo ya cargado (mentiría con vacíos falsos), así que cada
   // combinación es una lista distinta con su propio cursor.
-  carteraPagina: (etapa: string, vendedor: string, texto: string) =>
-    [...crmQueryKeys.leads(), 'cartera-pagina', etapa, vendedor, texto] as const,
+  carteraPagina: (etapa: string, vendedor: string, texto: string, integrada = false, desde: string | null = null, hasta: string | null = null) =>
+    [...crmQueryKeys.leads(), 'cartera-pagina', etapa, vendedor, texto, integrada, desde, hasta] as const,
 }
 
 // Política interna única de caché para mutaciones que cambian atribución o
@@ -530,7 +530,7 @@ export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera)
   const vendedor = filtros.vendedorId ?? 'todos'
   const texto = filtros.texto ?? ''
   return useInfiniteQuery({
-    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto),
+    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto, filtros.integrada, filtros.recepcion?.desde, filtros.recepcion?.hasta),
     queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
     initialPageParam: null as CursorCartera | null,
     // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una

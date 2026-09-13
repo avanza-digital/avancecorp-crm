@@ -417,6 +417,9 @@ export interface Lead {
    * distinto de «no lo sé».
    */
   ultimo_contacto_en?: string | null
+  /** Recepción del analista actual dentro del rango consultado (historial servidor). */
+  recibido_en?: string | null
+  recepcion_aproximada?: boolean | null
 }
 
 export interface Miembro {

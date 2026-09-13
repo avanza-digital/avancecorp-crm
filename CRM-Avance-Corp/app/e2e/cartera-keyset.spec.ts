@@ -29,6 +29,7 @@ test('la primera página trae 50 filas y «Cargar más» concatena sin repetir',
 
   const filas = page.getByRole('table', { name: 'Cartera de leads' }).locator('tbody tr')
   await expect(filas).toHaveCount(50)
+  await expect(page.getByText('Total leads', { exact: true }).locator('..').locator('..')).toContainText('60')
   // El lead 51 NO está: la pantalla pinta lo que el servidor le dio, no todo.
   await expect(page.getByText('LEAD PAGINADO 050')).toHaveCount(0)
 
@@ -53,6 +54,7 @@ test('filtrar por etapa vuelve a preguntar al servidor', async ({ page }) => {
 
   const filas = page.getByRole('table', { name: 'Cartera de leads' }).locator('tbody tr')
   await expect(filas).toHaveCount(30)
+  await expect(page.getByText('Total leads', { exact: true }).locator('..').locator('..')).toContainText('30')
   await expect.poll(() => estado.llamadas.rpcCarteraPagina).toBeGreaterThan(llamadasIniciales)
 })
 
