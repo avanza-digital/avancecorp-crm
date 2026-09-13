@@ -1,6 +1,6 @@
 # G6 — conciliación multiempresa
 
-**Lectura real preparada y verificada. G6 ABIERTO: falta conformidad de Miguel y financiera.**
+**G6 CERRADO: lectura real verificada y conformidad humana/financiera recibida.**
 No se infiere una firma del ensayo sintético, del review de IA ni de esta lectura.
 Relacionada con el plan principal F7/G6 y [CONTRATO.md](CONTRATO.md).
 
@@ -79,13 +79,20 @@ inversiones; una nueva operación registrada antes del corte final explica las 2
 
 ## Aceptación humana
 
-- Revisión de Miguel de este corte y sus límites: **pendiente**.
+- Revisión de Miguel de este corte y sus límites: **conforme, 13/09/2026**.
 - Confirmación de que los diez pendientes son clientes reales: **recibida de Miguel el 12/09/2026**.
 - Confirmación de nombres y referencias del anexo: **recibida de Miguel el 12/09/2026**.
-- Responsable y conformidad financiera: **pendientes**.
-- Fecha/constancia de ambas aceptaciones: **pendientes**.
-- G6: **ABIERTO**. F8 y F9: **NOT RUN**.
+- Responsable financiero: **Miguel**.
+- Conformidad financiera: **recibida el 13/09/2026** con la declaración
+  «Doy conformidad financiera al corte G6».
+- Alcance temporal aceptado: corte del **11/09/2026 a las 17:51:44 Lima**.
+  Miguel dejó constancia de que pueden existir variaciones en los montos al día
+  de la aceptación. Esas variaciones posteriores son esperadas por nuevas ventas
+  y no cambian ni invalidan la conciliación histórica de este corte.
+- G6: **CERRADO**. F8 y F9: **NOT RUN**.
 
-Para cerrar G6 se debe aceptar el comparativo concreto y dejar constancia de
-las diferencias de cobertura. Ningún botón de este archivo registra firmas,
-modifica datos ni habilita funciones. No se inicia el piloto por un PASS técnico.
+La aceptación registrada cierra la conciliación del corte concreto y conserva
+sus límites de cobertura. No certifica ventas registradas después del corte,
+no resuelve las vinculaciones de identidad pendientes y no modifica datos ni
+habilita funciones. G6 permite preparar F8, pero no constituye por sí solo la
+autorización para iniciar o activar el piloto.

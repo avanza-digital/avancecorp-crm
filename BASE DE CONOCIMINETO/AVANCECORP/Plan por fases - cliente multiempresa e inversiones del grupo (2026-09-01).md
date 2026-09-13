@@ -1,8 +1,8 @@
 ---
 tags: [crm, inversionistas, multiempresa, identidad, contratos, cooperativas, roadmap]
 fecha: 2026-09-01
-estado: plan-vigente-f7-publicada-off-g6-pendiente
-actualizado: 2026-09-11
+estado: plan-vigente-g6-cerrado-f8-pendiente
+actualizado: 2026-09-13
 decision_origen: Miguel-confirmo-un-cliente-puede-invertir-en-varias-empresas
 alcance_inicial: [avance-corp, coopac-qorilazo, coopac-prodelco]
 avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
@@ -18,7 +18,7 @@ avance: por-evidencia-con-ciclo-mensual-obligatorio-en-G8
 >
 > **Corrección documental del 07/09/2026:** se conservan las fuentes de Capital, el trabajo ya realizado en F2 y las reglas de conversión existentes, incluidos renovaciones y upgrades elegibles. Se alinean anulación, ensayo, piloto y gates con el maestro. Autoridad y evidencia: [[F4 multiempresa - reglas vigentes y punto de partida (2026-09-07)]].
 
-## Estado vigente — F7 publicada e instalada OFF, G6 pendiente
+## Estado vigente — F7 publicada e instalada OFF, G6 cerrado
 
 **F7 publicada e instalada, apagada.** Nuevo informe Empresas de Gerencia:
 capital y cantidades separados por empresa/moneda, personas y cotitulares,
@@ -29,7 +29,9 @@ Miguel aprobó el SQL exacto y el coste del banco Supabase (US$0.01344/h).
 Instalación y publicación verificadas el 11/09/2026; banco propio eliminado.
 3.355 pruebas frontend, 172 E2E y 16 SQL + 12 HTTP remotos PASS; 26 E2E SKIP.
 La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
-regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias; firma humana/financiera pendiente. No habilita F8.**
+regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias;
+conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
+cerrado; corresponde preparar y solicitar F8.**
 Evidencia y punto de retoma: [[G6 - conciliacion real preparada (2026-09-11)]].
 
 **F4 publicada con escritores apagados; G4 técnico cerrado.** La instalación fue autorizada por Miguel y verificada el 08/09. La nueva interfaz y el encendido conservan las fases siguientes. Acta: [[RETOMAR-65 - CARTERA F4 publicada y plan F5 (2026-09-08)]].
@@ -56,7 +58,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | **F4 — motor de inversiones** | **Publicada; G4 técnico cerrado** | Motor instalado; escritores apagados y fuentes conservadas |
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Datos y funciones existentes conservados. Los 15 huecos reales bloquean el encendido. [[F5 - instalada y apagada (2026-09-10)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
-| F7 — métricas | Publicada e instalada OFF; G6 pendiente | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Pruebas específicas PASS y matriz general sin regresiones, conservando sus 57 FAIL. Corte real preparado: 218 inversiones sin diferencias, diez identidades pendientes. Revisar y firmar G6 antes de F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
+| F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias; diez identidades técnicas pendientes. Conformidad humana/financiera recibida para ese corte. [[G6 - conciliacion real preparada (2026-09-11)]] |
 | F8 — piloto económico | Pendiente | Volúmenes, recorridos, conciliaciones y firmas de G7 |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
@@ -719,10 +721,10 @@ No se fija todavía un porcentaje artificial de crecimiento. Primero se habilita
    Los ajustes y la revisión manual quedaron cerrados el 11/09, con VoiceOver
    omitido por Miguel (NOT RUN). Conservar las observaciones de la matriz
    general. [[F6 - cierre y ajustes publicados (2026-09-11)]].
-4. **F7 publicada e instalada OFF:** revisar el comparativo real G6 ya preparado
-   y obtener conformidad de Miguel y financiera. SQL, ensayo, publicación y
-   eliminación del banco propio completados. [[G6 - conciliacion real preparada (2026-09-11)]].
-5. Después: **F8/G7 → F9/G8**: piloto económico y activación progresiva con ciclo
+4. **F7 publicada e instalada OFF; G6 cerrado:** comparativo real aceptado por
+   Miguel como responsable financiero para el corte del 11/09. SQL, ensayo,
+   publicación y banco propio completados. [[G6 - conciliacion real preparada (2026-09-11)]].
+5. Sigue: **F8/G7 → F9/G8**: piloto económico y activación progresiva con ciclo
    mensual completo. No se adelantan con el ensayo sintético F7.
 
 F3 permanece encendida; F4/F5/F6/F7 permanecen apagadas. El inventario histórico de 15 huecos

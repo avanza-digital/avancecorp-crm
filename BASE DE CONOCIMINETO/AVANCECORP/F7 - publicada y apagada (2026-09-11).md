@@ -1,7 +1,7 @@
 ---
 tags: [crm, multiempresa, metricas, f7, g6, retomar]
 fecha: 2026-09-11
-estado: publicada-instalada-off-g6-pendiente
+estado: publicada-instalada-off-g6-cerrado
 ---
 
 # F7 publicada e instalada, apagada
@@ -46,15 +46,15 @@ Claude revisó dos veces; sus `CHANGES_REQUESTED` fueron evaluados y los hallazg
 confirmados se corrigieron. Detalles y evidencia:
 [acta de publicación](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/PUBLICACION-2026-09-11.md).
 
-**F3 ON; F4/F5/F6/F7 OFF. G6 sin firmar.** Falta conciliar las cifras reales
-con los responsables y revisar el informe; las pruebas ficticias no lo
-sustituyen. Rendimiento con volumen real y VoiceOver F6: NOT RUN, este último
-omitido por decisión de Miguel. Los quince huecos históricos no se trataron.
+**F3 ON; F4/F5/F6/F7 OFF. G6 cerrado el 13/09/2026.** Miguel revisó las cifras
+reales y dio conformidad financiera al corte; las pruebas ficticias no
+sustituyen esa aceptación. Rendimiento con volumen real y VoiceOver F6: NOT RUN,
+este último omitido por decisión de Miguel. Los quince huecos históricos no se
+trataron.
 
 ## Siguiente paso
 
-Revisar el comparativo real ya preparado en [[G6 - conciliacion real preparada (2026-09-11)]]
-y completar la aceptación humana/financiera del [acta G6](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACTA-G6.md).
-Solo después corresponde solicitar el piloto F8; F9 requiere activación
+La aceptación humana/financiera quedó registrada en el [acta G6](../../CRM-Avance-Corp/supabase/scripts/multiempresa-f7/ACTA-G6.md).
+Corresponde preparar y solicitar el piloto F8; F9 requiere activación
 progresiva y un ciclo mensual completo. No volver a pedir aprobación del SQL
 ya instalado ni recrear el banco cerrado para repetir esta publicación.

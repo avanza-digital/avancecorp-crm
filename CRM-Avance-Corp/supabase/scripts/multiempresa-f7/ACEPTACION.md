@@ -1,7 +1,8 @@
 # Aceptación técnica y publicación — F7 multiempresa
 
 Fecha: 11/09/2026. Codex PRIMARY. **Publicada e instalada OFF; banco temporal cerrado.**
-La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
+La aceptación humana y financiera [G6](ACTA-G6.md) se recibió el 13/09/2026
+para el corte del 11/09 a las 17:51 Lima. Las ventas posteriores pueden variar.
 
 ## Alcance comprobado
 
@@ -35,8 +36,8 @@ La aceptación humana y financiera [G6](ACTA-G6.md) sigue pendiente.
 | Instalación y verificación productiva OFF | PASS | Registro `20260911212526`; 274 migraciones y 619 funciones previas intactas, cuatro nuevas exactas. Auth, datos financieros, Vault, cron y 19 Edge Functions conservados. OFF/P0409; anon 42501 |
 | Cierre del banco propio | PASS | Eliminado y ausencia verificada a las 21:47:18 UTC; banco anterior conservado |
 | Rendimiento con volumen productivo | NOT RUN | La medición local de 98 fuentes no permite extrapolar |
-| Revisión manual F7 / conciliación firmada G6 | NOT RUN | No se infiere de los tests ni de las aprobaciones históricas F6 |
-| Preparación de G6 con cifras reales | PASS técnico, G6 ABIERTO | [Corte del 11/09 a las 17:51 Lima](ACTA-G6.md): 218 operaciones, ocho grupos, sin diferencias de capital/conversión/atribución; diez identidades pendientes, anexo privado listo. Cotitulares/multiempresa/veto sin casos reales en este corte |
+| Revisión manual F7 / conciliación G6 | PASS humano/financiero para el corte | Miguel confirmó clientes, nombres y referencias, y dio conformidad financiera el 13/09. La aceptación se limita al corte del 11/09 a las 17:51 Lima; nuevas ventas pueden variar los montos |
+| Preparación de G6 con cifras reales | PASS técnico, G6 CERRADO | [Corte del 11/09 a las 17:51 Lima](ACTA-G6.md): 218 operaciones, ocho grupos, sin diferencias de capital/conversión/atribución; diez identidades pendientes, anexo privado listo. Cotitulares/multiempresa/veto sin casos reales en este corte |
 | VoiceOver F6 | NOT RUN | Omitido por decisión explícita de Miguel; no se presenta como verificado |
 | Piloto económico F8 / operación mensual F9 | NOT RUN | Fases posteriores, sujetas a sus puertas |
 
@@ -85,6 +86,6 @@ y su [reversa](reversa-operativa.sql) se identifican en
 inicialmente OFF el 11/09/2026. También autorizó US$0.01344/h para el banco
 propio, ya eliminado. La publicación desde el commit común Main/remoto y la
 instalación están verificadas en [PUBLICACION-2026-09-11.md](PUBLICACION-2026-09-11.md).
-F3 ON; F4/F5/F6/F7 OFF. La lectura real de [G6](ACTA-G6.md) ya está preparada;
-sigue la revisión humana y financiera del comparativo. No se autoriza el piloto
-F8 ni se adelanta F9.
+F3 ON; F4/F5/F6/F7 OFF. La lectura real de [G6](ACTA-G6.md) fue aceptada y
+el gate quedó cerrado. Corresponde preparar y solicitar F8; esta aceptación no
+enciende banderas ni inicia automáticamente el piloto, y no adelanta F9.

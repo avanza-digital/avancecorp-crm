@@ -2,8 +2,9 @@
 
 Entrega del 11/09/2026, ensayada en el banco remoto autorizado.
 **Publicada e instalada en producción, con F7 apagada; banco temporal cerrado.**
-G6 tiene su [comparativo real preparado](ACTA-G6.md); requiere revisión y firma
-humana/financiera. F8/F9 siguen pendientes. [Lectura G6 reproducible](g6/README.md).
+G6 quedó [conciliado y aceptado para el corte del 11/09](ACTA-G6.md) el
+13/09/2026. Los montos posteriores pueden variar por nuevas ventas. F8/F9
+siguen pendientes. [Lectura G6 reproducible](g6/README.md).
 Este módulo es distinto de los antiguos scripts `gate-f7-*` de altas.
 
 Miguel aprobó el SQL exacto y su instalación inicialmente apagada el 11/09/2026

@@ -43,6 +43,10 @@ python3 "$g6_dir/probar_generador.py" "$g6_privado/definiciones-productivas.json
 python3 "$g6_dir/crear_informe.py" --lectura "$g6_privado/lectura-productiva-v2.json" --verificacion "$g6_privado/verificacion-productiva-v2.json" --postflight "$g6_privado/postflight-productivo-v2.json" --custodia "$g6_privado/custodia-v2.json" --revision 'Consultar REVISION.md; conformidad humana y financiera pendientes.' --salida "$g6_privado/Comparativo G6.html"
 ```
 
+El texto `pendientes` conserva la generación exacta del comparativo anterior a
+la firma. La aceptación posterior se registra en [ACTA-G6.md](../ACTA-G6.md),
+sin regenerar ni alterar la evidencia del corte.
+
 Un fallo devuelve código no cero y un archivo `FAIL`, reemplazando cualquier
 PASS anterior. Diferencias de conversión se conservan como `REVISAR`; no se
 genera una página de éxito con ellas. El informe exige las huellas SHA-256 de
@@ -93,7 +97,8 @@ marcan NOT RUN, sin trasladarles el PASS de datos ficticios.
   el alcance registrado en [ACEPTACION.md](../ACEPTACION.md).
 - Rendimiento productivo: NOT RUN como benchmark. La duración del conector
   incluye transporte y no sirve como medida de latencia SQL ni escalabilidad.
-- Firma humana/financiera, activaciones y piloto F8: NOT RUN.
+- Firma humana/financiera: recibida el 13/09/2026 para el corte del 11/09.
+  Activaciones y piloto F8: NOT RUN.
 
 No repetir las sondas que reinstalan objetos del banco F7 contra producción.
 Este paquete se distingue de `banco-local.mjs` y sus pruebas de escritura.

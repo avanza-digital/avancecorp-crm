@@ -1,15 +1,15 @@
 ---
 tags: [crm, multiempresa, f7, g6, conciliacion, retomar]
 fecha: 2026-09-11
-estado: lectura-verificada-aceptacion-humana-pendiente
+estado: g6-cerrado-aceptacion-humana-financiera-2026-09-13
 ---
 
-# G6: comparativo real preparado
+# G6: conciliación real aceptada
 
 Continúa [[F7 - publicada y apagada (2026-09-11)]] y
 [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
-Miguel autorizó preparar la conciliación real. La lectura técnica está lista;
-**G6 sigue abierto hasta la conformidad de Miguel y del responsable financiero**.
+Miguel autorizó preparar la conciliación real. La lectura técnica quedó lista
+y el 13/09/2026 Miguel dio conformidad financiera al corte. **G6 está cerrado.**
 
 Corte final de producción: **11/09/2026, 17:51:44 Lima**. Agosto completo y
 septiembre hasta el día 11: **218 inversiones** (161 + 57), ocho grupos de
@@ -58,10 +58,9 @@ Captura SHA-256 `5a430de720f1f28468845e47957951fbed46a67026e58577001e69d560080ab
 Nombres, referencias e importes permanecen fuera de Git; allí solo hay código,
 plantillas, dictámenes evaluados y resumen técnico sin datos personales.
 
-Sigue revisar las cifras concretas, aceptar sus límites de cobertura y dejar
-constancia en el acta. Solo entonces se podrá solicitar el piloto F8/G7;
-F9/G8 requiere activación progresiva y un ciclo operativo mensual completo.
-No reabrir el banco F7 cerrado ni reinstalar lo ya publicado.
+Con la aceptación registrada, corresponde preparar y solicitar el piloto
+F8/G7. F9/G8 requiere activación progresiva y un ciclo operativo mensual
+completo. No reabrir el banco F7 cerrado ni reinstalar lo ya publicado.
 
 Claude: primera revisión CHANGES_REQUESTED evaluada y corregida con evidencia.
 La segunda respuesta fue incompleta (wrapper exit 1): no hay dictamen final
@@ -75,5 +74,19 @@ paralelos de Facturación. Lint, typecheck y build PASS; el gate de push pasó
 **3.404 pruebas en 235 archivos**. Main local y remoto se verificaron iguales.
 Esta sincronización no desplegó un nuevo CRM ni activó banderas. El comparativo
 conserva el corte de las 17:51 y su hash, cotejado contra el respaldo privado.
-Ya se abrió de nuevo para revisión. Ambas conformidades siguen pendientes;
-la solicitud de continuar no se registra como firma G6 ni autorización F8.
+Ya se abrió de nuevo para revisión. En ese momento ambas conformidades seguían
+pendientes; la solicitud de continuar no se registró como firma G6 ni
+autorización F8.
+
+## Cierre humano y financiero — 13/09/2026
+
+Miguel confirmó que puede asumir la revisión financiera y declaró: «Doy
+conformidad financiera al corte G6». También dejó la salvedad correcta de que
+los montos pueden variar al día de hoy. La conformidad se aplica únicamente a
+la captura del **11/09/2026 a las 17:51:44 Lima**; nuevas ventas posteriores no
+invalidan ese corte y no quedan aprobadas anticipadamente.
+
+Con las confirmaciones previas de que los diez registros son clientes reales y
+que sus nombres/referencias son correctos, queda completada la revisión humana
+visible. Las diez vinculaciones técnicas siguen pendientes, sin afectar el
+capital conciliado. **G6 CERRADO; F8 pendiente de preparación y autorización.**
