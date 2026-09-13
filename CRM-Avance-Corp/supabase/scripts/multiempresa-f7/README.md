@@ -129,9 +129,9 @@ verificar producción OFF. No volver a ejecutar la instalación. Sigue el paso 5
 4. Instalar únicamente esta migración por el ciclo de rama. Verificar las cuatro
    funciones, propietarios, ACL, bandera OFF y núcleos/datos anteriores intactos.
    La publicación no activa los escritores F4, la ficha F5 ni la postventa F6.
-5. Realizar la lectura de conciliación acordada con Gerencia y completar
-   [el acta G6](ACTA-G6.md). El ensayo sintético no firma el informe real, no
-   resuelve los quince huecos históricos ni autoriza el piloto económico F8.
+5. Lectura y [acta G6](ACTA-G6.md) completadas el 13/09/2026 para el corte
+   conciliado del 11/09. La firma histórica no resuelve por sí sola los enlaces
+   de identidad ni autoriza el piloto económico F8.
 
 La medición local de rendimiento sirve solo como evidencia del banco pequeño;
 la medición con volumen real sigue NOT RUN. Los gates remotos específicos
