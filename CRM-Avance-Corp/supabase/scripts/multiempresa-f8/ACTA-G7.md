@@ -7,13 +7,13 @@ real; el banco sintético no firma ni reemplaza la aceptación humana.
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Control nominal y temporal instalado | NOT RUN | Candidata local, todavía sin rama Supabase |
-| RLS, ACL y autorización por actor | PASS local | `npm run test:multiempresa:f8` |
-| F8 y rollout global mutuamente excluyentes | PASS local | Cinco carreras del control |
-| Reversa conserva hechos económicos | PASS local | Siete huellas sin diferencias |
+| Control nominal y temporal instalado | PASS rama / NOT RUN producción | Ensayo remoto aislado; rama no mergeable |
+| RLS, ACL y autorización por actor | PASS local y rama | `npm run test:multiempresa:f8` y 11 pruebas remotas |
+| F8 y rollout global mutuamente excluyentes | PASS local y rama | Cinco carreras del control en cada entorno |
+| Reversa conserva hechos económicos | PASS local y rama | Seis superficies económicas remotas sin diferencias |
 | Cobertura completa F5 | PENDIENTE | 14 fuentes: 10 reales y 4 demo al corte de preparación |
 | Equipo nominal | PENDIENTE | Elegir Gerencia, un supervisor y dos vendedores |
-| Advisors y tipos de rama | NOT RUN | Requiere rama Supabase autorizada |
+| Advisors y tipos de rama | PASS | WARN sin cambios; INFO F8 aceptados; bloques de tipos idénticos |
 
 ## Evidencia mínima real
 

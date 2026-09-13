@@ -2,8 +2,10 @@
 
 ## Resultado
 
-**PASS local. Producción sin cambios. Rama Supabase, advisors e instalación:
-NOT RUN.**
+**PASS local. Producción sin cambios.** La rama Supabase, la matriz remota, los
+advisors y los tipos se ejecutaron después con resultado PASS documentado en
+[VERIFICACION-RAMA-2026-09-13.md](VERIFICACION-RAMA-2026-09-13.md). La
+instalación productiva permanece **NOT RUN**.
 
 La migración exacta se instaló repetidamente desde cero en PostgreSQL 17, base
 sintética `multiempresa_f8_20260913`, reconstruida desde el banco F7 dentro del
@@ -56,12 +58,12 @@ la extensión indefinida, la integridad del equipo, la separación entre espejo 
 autorización F4, el gate de cobertura, INSERT/isolation y el postflight de
 permisos/triggers. [Evaluación detallada](REVISION.md).
 
-## Pendientes remotos y reales
+## Pendientes productivos y reales
 
 - resolver 14 enlaces de cobertura actuales: diez reales y cuatro demo;
 - elegir el equipo nominal;
-- crear y pagar una rama Supabase autorizada;
-- aplicar la candidata, regenerar/verificar tipos, ejecutar matriz RLS y advisors;
-- integrar e instalar OFF por el ciclo de rama;
+- resolver el historial remoto que impidió obtener una rama mergeable;
+- integrar e instalar OFF por un mecanismo autorizado y compatible con el
+  ciclo obligatorio;
 - configurar y autorizar el encendido;
 - completar toda la evidencia real y firmas de G7.

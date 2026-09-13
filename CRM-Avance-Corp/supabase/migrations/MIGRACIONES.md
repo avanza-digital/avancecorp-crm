@@ -2,8 +2,8 @@
 
 ## 20260913215240 — Control nominal y temporal del piloto económico F8
 
-**Estado:** candidata local; probada en PostgreSQL 17 sintético, sin instalar ni
-activar en producción.
+**Estado:** candidata probada en PostgreSQL 17 local y en Supabase aislado, sin
+instalar ni activar en producción.
 
 Crea `crm.piloto_f8_control` y `crm.piloto_f8_miembros`, RLS deny-by-default,
 sin grants Data API y con auditoría. Nace OFF y exige exactamente Gerencia, un
@@ -16,15 +16,18 @@ mutuamente excluyentes el piloto y el rollout global usando la misma llave
 transaccional. No modifica objetos de `public`, fuentes económicas, Auth,
 periodos cerrados ni comisiones.
 
-PASS local: instalación exacta y repetición rechazada, RLS/ACL, equipo
+PASS local y remoto: instalación exacta y repetición rechazada, RLS/ACL, equipo
 incompleto, perfil inactivo, usuario ajeno, revocación individual, cinco carreras
 concurrentes de encendido y reversa. Siete huellas de datos permanecen idénticas.
 Banco cerrado a `multiempresa_f8_20260913` dentro del contenedor sintético F5;
 no acepta destinos externos. `npm run test:multiempresa:f8` ejecuta 11 pruebas.
-Pendientes: enlaces de cobertura (14 al corte: diez reales y cuatro demo), equipo
-nominal, rama Supabase autorizada, tipos, matriz RLS,
-advisors, instalación OFF, activación y evidencia real de G7. Detalle:
-`../scripts/multiempresa-f8/README.md`.
+La rama Supabase repitió las 11 pruebas y verificó advisors y tipos, pero el
+replay histórico del proyecto se detuvo después de `20260811210049`; el ensayo
+con banco sintético no fue mergeable. Pendientes: enlaces de cobertura (14 al
+corte: diez reales y cuatro demo), equipo nominal, resolver el ciclo de
+instalación, instalación OFF, activación y evidencia real de G7. Detalle:
+`../scripts/multiempresa-f8/README.md` y
+`../scripts/multiempresa-f8/VERIFICACION-RAMA-2026-09-13.md`.
 
 > **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
 > `20260910225540_crm_notificaciones_push_tasa.sql` añade dos tablas CRM con RLS

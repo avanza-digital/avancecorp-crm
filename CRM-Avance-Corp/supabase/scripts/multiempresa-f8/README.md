@@ -1,8 +1,9 @@
 # F8 multiempresa — piloto económico controlado
 
-Estado al 13/09/2026: **candidata preparada y probada solo en el banco local
-sintético; no instalada ni activada en producción**. G6 está cerrado. F8 y G7
-siguen abiertos hasta completar casos reales, conciliaciones y firmas.
+Estado al 13/09/2026: **candidata preparada y probada en el banco local y en
+una rama Supabase aislada; no instalada ni activada en producción**. G6 está
+cerrado. F8 y G7 siguen abiertos hasta completar casos reales, conciliaciones y
+firmas.
 
 F8 habilita las capacidades ya publicadas de F4, F5 y F6 exclusivamente para
 un equipo nominal de cuatro personas: Gerencia, un supervisor y dos vendedores.
@@ -72,7 +73,15 @@ superficies de datos.
 Estas carreras prueban el control F8; las cinco carreras económicas y los diez
 reintentos idempotentes exigidos por G7 se ejecutan después en la rama aislada.
 [Verificación local](VERIFICACION-LOCAL-2026-09-13.md) y
+[verificación remota](VERIFICACION-RAMA-2026-09-13.md), junto con las
 [decisiones de la revisión independiente](REVISION.md).
+
+La rama remota ejecutó las mismas 11 pruebas, incluidos cinco encendidos
+concurrentes, y conservó las seis huellas económicas medidas. RLS, ACL y los
+tipos de las dos tablas F8 coincidieron con la candidata. Supabase no pudo
+reconstruir automáticamente el historial posterior al 11/08 porque una
+migración histórica exige datos que las ramas no copian. Por eso el ensayo usó
+el banco sintético y **no produjo una rama mergeable**.
 
 ## Secuencia pendiente antes de iniciar el piloto
 
@@ -80,10 +89,11 @@ reintentos idempotentes exigidos por G7 se ejecutan después en la rama aislada.
    personas por nombre, teléfono o correo.
 2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.
-3. Crear una rama Supabase F8 con coste expresamente confirmado, aplicar el SQL
-   exacto, regenerar tipos, ejecutar matriz RLS pertinente y advisors.
-4. Integrar por el ciclo de rama, verificar producción todavía OFF y publicar
-   desde el mismo commit de `avancecorp/main`.
+3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible
+   con el ciclo obligatorio; el ensayo remoto aislado ya pasó, pero la rama no
+   fue mergeable.
+4. Con autorización concreta, integrar e instalar OFF, verificar producción y
+   publicar desde el mismo commit de `avancecorp/main`.
 5. Cargar las cuatro membresías con vencimiento, comprobar soporte/reversa y
    pedir la autorización concreta para encender el piloto.
 6. Ejecutar los casos reales y completar [ACTA-G7.md](ACTA-G7.md). No hay una
