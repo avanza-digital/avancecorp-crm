@@ -5,7 +5,7 @@ actualizado: 2026-09-14
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Citas Gerencia - ticket unificado en soles 2026-09-14]] — totales PEN/USD visibles y ticket convertido a soles; preparación verificada, publicación pendiente.
+- [[Citas Gerencia - ticket unificado en soles 2026-09-14]] — **PUBLICADO:** totales PEN/USD visibles y ticket/proyección en soles; 3555 tests, 7 E2E y 67 recursos HTTP verificados.
 
 - [[Rentabilidades menores a 15 - publicacion autorizada 2026-09-14]] — despliegue autorizado; banco propio hasta US$1, comparación remota en curso.
 - [[Rentabilidades menores a 15 - entrega local sin deploy 2026-09-14]] — candidata corregida y verificada en local, 3.540 pruebas y reversa concurrente PASS; falta ciclo remoto y sincronizar el commit de preparación. Miguel indicó no desplegar.

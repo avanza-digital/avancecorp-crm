@@ -1,6 +1,6 @@
 # Citas: ticket en soles y totales originales
 
-Preparación del 14/09/2026. La publicación se acredita en un acta posterior.
+PUBLICADO el 14/09/2026. Artefacto, reversa y comprobación HTTP en [PUBLICACION.md](PUBLICACION.md).
 
 ## Regla confirmada
 

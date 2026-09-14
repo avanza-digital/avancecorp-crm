@@ -1,0 +1,8 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"upload\":{\"status\":\"success\",\"data\":{\"filename\":\"crm-20260914T211416Z-32d57b5b3e15.zip\"}},\"deploy\":{\"status\":\"success\",\"data\":{\"message\":\"Request accepted\"}},\"removeArchive\":{\"status\":\"skipped\"}}"
+    }
+  ]
+}
