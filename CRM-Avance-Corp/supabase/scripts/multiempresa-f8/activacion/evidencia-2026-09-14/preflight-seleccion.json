@@ -1,0 +1,28 @@
+{
+  "roles": [
+    "gerencia",
+    "supervisor",
+    "vendedor",
+    "vendedor"
+  ],
+  "control": {
+    "activo": false,
+    "revision": 0,
+    "vence_en": null,
+    "inicia_en": null
+  },
+  "banderas": {
+    "ficha_360_neutral": false,
+    "postventa_neutral": false,
+    "resolver_en_puertas": true,
+    "inversiones_escritura": false,
+    "metricas_multiempresa_sombra": false
+  },
+  "miembros": 0,
+  "proyecto": "dctqcbznekcyxhjujuci",
+  "elegibles": 4,
+  "md5_control": "47585a27b991a442bb09b3477be5f224",
+  "consultado_en": "2026-09-14T18:15:33.756623+00:00",
+  "seleccionados": 4,
+  "brechas_reales": 0
+}

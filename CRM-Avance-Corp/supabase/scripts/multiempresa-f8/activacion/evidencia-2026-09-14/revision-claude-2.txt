@@ -1,0 +1,88 @@
+VERDICT:
+PASS
+
+SUMMARY:
+Las correcciones cumplen lo pedido en la primera revisión, con la evidencia adjunta:
+- **Atribución:** hay responsable y referencia explícitos, `auth.uid()` queda NULL y el ejecutor administrativo está declarado.
+- **Reversa:** es nominal e idempotente.
+- **Fallos del SQL completo:** se prueban con el archivo entero y no dejan cambios parciales.
+- **Concurrencia:** el deadlock reproducido era `F8 → FOR SHARE fila de flags` frente a `fila de flags → F8`. Queda eliminado porque la activación ya no bloquea filas de terceros después de tomar F8. El orden resultante es F3 compartido, luego F8 exclusivo, luego filas propias (miembros y control). La reversa usa F8 y luego filas propias. El writer de banderas usa fila y luego F8. No encuentro un ciclo entre estos tres caminos con el código adjunto.
+- **Límites:** `lock_timeout` de 5s y `statement_timeout` de 30s/15s. Ante espera, el script falla de forma segura.
+
+No encuentro cambios obligatorios. Quedan hallazgos P3: hipótesis de lock no verificables con la evidencia, huecos de test y un detalle documental.
+
+FINDINGS:
+
+[P3] Hipótesis: los writers de las otras banderas globales no están cubiertos por la regresión de concurrencia
+File: activacion/activar.test.mjs; migración 20260913215240
+Lines: test 94–104; migración 169–173, 203–211 y 255–257
+Problem: la regresión solo compite con `ficha_360_neutral`.
+Evidence:
+- Bajo F8, el trigger de control ejecuta la función de cobertura (hoy `private.cartera_f5_fuentes_reales()`, según el parche Demos). Su definición no está adjunta.
+- El trigger de flags se llama `..._01_bloquear_piloto_f8`, lo que sugiere un trigger `00` previo. Ese trigger podría tomar un candado propio por bandera, como `crm_flag_inversiones_escritura`, que existe en la línea 323, antes de pedir F8.
+- Si la función de cobertura, `log_audit_crm` u otro trigger de `piloto_f8_*` toma ese candado compartido estando bajo F8, se forma el ciclo `F8 → candado bandera` frente a `fila → candado bandera → F8`.
+Impact: si la hipótesis se confirma, la activación productiva podría abortar por deadlock frente a un encendido concurrente de F4. La transacción revierte, así que no hay corrupción. Es un fallo operativo, no de integridad.
+Recommendation: antes de aprobar el encendido, parametrizar el test de las líneas 94–104 sobre las cuatro banderas, en especial `inversiones_escritura`. Alternativa: confirmar leyendo las definiciones que ninguna función invocada bajo F8 toma un advisory lock distinto de F3 compartido o F8.
+
+[P3] La regresión concurrente no demuestra que el competidor llegó a esperar F8
+File: activacion/activar.test.mjs
+Lines: 99–103
+Problem: `esperarCandado` confirma que la activación tiene F8. No confirma que el competidor quedó bloqueado en ese candado antes de que termine el `pg_sleep(1.5)`.
+Evidence: no hay consulta a `pg_locks ... not granted` para la sesión competidora.
+Impact: si el competidor arranca tarde, el test pasa sin haber ejercitado la carrera. Es un falso positivo posible aunque improbable.
+Recommendation: asignar `application_name` al competidor y exigir durante la ventana un `advisory ExclusiveLock` con `granted=false` de esa sesión.
+
+[P3] No se prueba la carrera cuando la activación hace COMMIT frente a una bandera global
+File: activacion/activar.test.mjs
+Lines: 94–104
+Problem: ambos lados terminan en ROLLBACK. Nunca se ejercita el camino en que el writer global, tras obtener F8, recibe P0409 porque el control ya está activo (migración 244–246). Tampoco el inverso: bandera confirmada que la activación ve bajo F8 (script 74–80).
+Impact: la exclusión mutua F8/rollout en su resolución real no tiene una regresión explícita en este paquete.
+Recommendation: agregar un caso con COMMIT de la activación. Debe haber exactamente un éxito, el otro con P0409 y sin deadlock.
+
+[P3] El prechequeo de cobertura no tiene caso propio
+File: activacion/activar.sql
+Lines: 31–36
+Evidence: la lista de `casos` (test 64–72) no incluye una fuente sin identidad coherente.
+Impact: bajo, porque el trigger instalado repite la validación (migración 203–211). Aun así, la rama fail-fast no está probada.
+Recommendation: agregar una mutación sintética que rompa la cobertura y verificar el mensaje "La cobertura real cambió" y el estado `cerrado`.
+
+[P3] Hipótesis: la verificación FK de la inserción de miembros bloquea filas después de F8
+File: activacion/activar.sql
+Lines: 73, 82–86
+Problem: el comentario dice "No bloquear filas después de tomar F8". Si `piloto_f8_miembros.perfil_id` tiene FK, el INSERT toma `FOR KEY SHARE` sobre la fila de `perfiles` (o `auth.users`) ya con F8. El DDL de la tabla no está adjunto.
+Impact: bajo. `KEY SHARE` solo choca con DELETE o cambio de clave del perfil. Un ciclo exigiría un writer que borre el perfil y cuyo trigger pida F8.
+Recommendation: matizar el comentario ("salvo los KEY SHARE implícitos de FK") o confirmarlo con el DDL. No requiere cambio de código.
+
+[P3] Nombre de persona en evidencia versionada
+File: activacion/evidencia-2026-09-14/decision-primary.md
+Lines: 13, 16
+Problem: aparece el nombre del solicitante, mientras el README (43–46) usa "el solicitante".
+Impact: no es un participante del piloto ni un UUID, pero no sigue la convención de anonimato del paquete.
+Recommendation: usar "el solicitante" por consistencia, si esa es la política deseada.
+
+TEST GAPS:
+- Carrera contra `inversiones_escritura`, `postventa_neutral` y `metricas_multiempresa_sombra` (ver P3 1).
+- Aserción de espera efectiva del competidor.
+- Carrera con COMMIT frente a la bandera global.
+- Brecha de cobertura en el prechequeo.
+- Responsable que es Gerencia activa pero cuyo `crm.equipo` está inactivo. La consulta de las líneas 25–26 lo cubre, pero no hay caso propio. Opcional.
+
+SECURITY RISKS:
+- No encuentro vector de inyección:
+  - El generador valida UUID, rol y referencia con listas cerradas o regex.
+  - `JSON.stringify` no puede introducir `'` ni `$` con esos formatos.
+  - El marcador debe aparecer exactamente una vez.
+  - El SQL revalida referencia y responsable.
+- La guarda `current_user<>'postgres' or auth.uid() is not null` impide simular una sesión, y está probada (test 90–93).
+
+REGRESSION RISKS:
+- No cambian migraciones, dependencias ni scripts productivos. El diff de `package.json` solo añade `node --check` y el comando del ensayo.
+- Las validaciones de Auth (baneo, confirmación, identidad) y de supervisor son puntuales. El motor no las revalida en runtime; está documentado en README 31–33 y es aceptable como preflight.
+
+RECOMMENDED NEXT ACTIONS:
+1. Antes de pedir la aprobación, cerrar la hipótesis de P3 1: extender la regresión concurrente a las cuatro banderas o confirmar por lectura qué locks toman `cartera_f5_fuentes_reales` y los triggers `00` de flags y `piloto_f8_*`.
+2. En el preflight productivo de solo lectura, confirmar que la conexión elegida (psql o MCP) ejecuta como `postgres`, con `auth.uid()` NULL y READ COMMITTED. Si el MCP envuelve la consulta en su propia transacción, verificar que el BEGIN/COMMIT del archivo no altera la atomicidad. La guarda de rol fallaría de forma segura, pero conviene saberlo antes.
+3. Opcional: añadir la aserción de espera efectiva y el caso de carrera con COMMIT.
+
+CONFIDENCE:
+MEDIUM. Es alta para el orden de locks entre activación, reversa y la bandera probada. Es media para las otras banderas, cuyas definiciones de funciones y triggers no están adjuntas.

@@ -1,0 +1,6 @@
+{
+  "ejecutor": "postgres",
+  "sin_sesion_suplantada": true,
+  "aislamiento": "read committed",
+  "solo_lectura": "on"
+}

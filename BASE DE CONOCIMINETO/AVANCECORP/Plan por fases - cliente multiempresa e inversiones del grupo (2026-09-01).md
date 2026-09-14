@@ -37,8 +37,9 @@ El ensayo combinado pasó 31 pruebas SQL locales, 27 remotas y 12 grupos Auth;
 Main integrado, 3.513 pruebas frontend y artefacto verificado. Producción:
 600 fuentes reales sin brechas al corte de las 12:09 Lima y cinco demos
 conservadas fuera del lector operativo. Rama exclusiva eliminada tras verificar.
-Faltan equipo, configuración/activación autorizadas y evidencia G7.**
-Punto vigente: [[F8 - instalada y apagada (2026-09-14)]].
+Equipo de cuatro elegido y verificado. SQL nominal preparado y probado; faltan
+aprobación/ejecución del encendido y evidencia G7.**
+Punto vigente: [[F8 - equipo elegido y activacion preparada (2026-09-14)]].
 Corrección demo: [[F8 - exclusion demo preparada (2026-09-13)]].
 Paquete y procedimiento de instalación: [[F8 - instalacion apagada preparada (2026-09-13)]].
 El preflight vivo pasó antes del merge y el catálogo posterior coincide con el
@@ -76,7 +77,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; la exclusión demo se instaló el 14/09. [[F8 - instalada y apagada (2026-09-14)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias y conformidad humana/financiera recibida. Los diez enlaces técnicos pendientes se completaron en F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Instalada y verificada OFF; G7 abierto | Enlaces y exclusión demo completos. Elegir Gerencia, supervisor y dos vendedores; aprobar configuración/activación y completar evidencia real G7. [[F8 - instalada y apagada (2026-09-14)]] |
+| F8 — piloto económico | Instalada y verificada OFF; G7 abierto | Enlaces y exclusión demo completos. Equipo nominal elegido y cuentas verificadas; aprobar SQL/vigencia, activar y completar evidencia real G7. [[F8 - equipo elegido y activacion preparada (2026-09-14)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;
