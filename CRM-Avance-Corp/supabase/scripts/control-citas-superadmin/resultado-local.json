@@ -1,0 +1,20 @@
+{
+  "resultado": "PASS",
+  "banco": "/private/tmp/control-citas-4yar7900",
+  "acl_ocho_perfiles": true,
+  "anon_y_sin_sesion_denegados": true,
+  "tabla_y_helper_privados": true,
+  "validacion_json": true,
+  "auditoria_actor": true,
+  "historial_inmutable": true,
+  "conflicto_concurrente": true,
+  "historial_20_conserva_22": true,
+  "helpers_previos_sin_cambios": true,
+  "aplicacion_solo_superadmin": true,
+  "borrador_no_aplica": true,
+  "reglas_completas_y_version_actual": true,
+  "aplicaciones_inmutables_y_auditadas": true,
+  "mes_anterior_denegado": true,
+  "mes_sellado_denegado": true,
+  "limite": "Banco m\u00ednimo aislado; no sustituye ensayo de migraci\u00f3n en rama ni matriz RLS completa."
+}

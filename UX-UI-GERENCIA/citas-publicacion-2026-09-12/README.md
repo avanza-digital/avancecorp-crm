@@ -1,5 +1,15 @@
 # Citas Gerencia — preparación verificada el 13 de septiembre de 2026
 
+**Actualización posterior:** la entrega ya se observó instalada y publicada en
+producción. Sus tres migraciones están registradas y 72 archivos de la aplicación
+servidos por HTTP coinciden por SHA-256 con una reproducción limpia de `d3ce2c1`.
+Ver `produccion-observada-2026-09-13.json`. Esta sesión no ejecutó el despliegue.
+La matriz general continúa en FAIL: 55/1.829 en la semilla reutilizada; esa corrida
+no sustituye el A/B histórico de 49 fallos idénticos antes/después. Claude no
+entregó un dictamen adicional. Metas/proyección siguen en borrador.
+
+## Historial de preparación anterior a esta comprobación
+
 La reparación del lector y de su actualización en pantalla está verificada en
 una copia aislada del frontend y en la rama Supabase `citas-validacion-20260912`
 (`xhgsjtzpmwlqfkninphl`). **No se instaló ni publicó esta entrega en producción.**

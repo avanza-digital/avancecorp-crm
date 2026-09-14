@@ -14,6 +14,68 @@ export type Database = {
   }
   crm: {
     Tables: {
+      control_citas_versiones: {
+        Row: {
+          configuracion: Json
+          estado: string
+          guardado_en: string
+          guardado_por: string
+          id: string
+          nota: string | null
+          version: number
+        }
+        Insert: {
+          configuracion: Json
+          estado?: string
+          guardado_en?: string
+          guardado_por: string
+          id?: string
+          nota?: string | null
+          version: number
+        }
+        Update: {
+          configuracion?: Json
+          estado?: string
+          guardado_en?: string
+          guardado_por?: string
+          id?: string
+          nota?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
+      control_citas_aplicaciones: {
+        Row: {
+          aplicado_en: string
+          aplicado_por: string
+          id: string
+          mes_inicio: string
+          version: number
+        }
+        Insert: {
+          aplicado_en?: string
+          aplicado_por: string
+          id?: string
+          mes_inicio: string
+          version: number
+        }
+        Update: {
+          aplicado_en?: string
+          aplicado_por?: string
+          id?: string
+          mes_inicio?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_citas_aplicaciones_version_fkey"
+            columns: ["version"]
+            isOneToOne: true
+            referencedRelation: "control_citas_versiones"
+            referencedColumns: ["version"]
+          },
+        ]
+      }
       postventa_retiros: {
         Row: {
           actualizado_en: string
@@ -3535,6 +3597,22 @@ export type Database = {
       }
     }
     Functions: {
+      aplicar_control_citas_fn: {
+        Args: { p_version_esperada: number }
+        Returns: Json
+      }
+      control_citas_configuracion_fn: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      guardar_control_citas_fn: {
+        Args: {
+          p_version_esperada: number
+          p_configuracion: Json
+          p_nota?: string
+        }
+        Returns: Json
+      }
       metricas_multiempresa_fn: { Args: { p_mes?: string }; Returns: Json }
       metricas_multiempresa_estado_fn: { Args: never; Returns: Json }
       postventa_operacion_estado_fn: {

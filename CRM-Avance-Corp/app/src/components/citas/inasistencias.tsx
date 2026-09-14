@@ -1,6 +1,6 @@
 import { useDatosCitas, horaLima } from './contexto'
 import { useState } from 'react'
-import { ArrowRight, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronRight, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fmtFecha, money, numero } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -18,8 +18,10 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
   leadAbierto: string | null
   onLead: (id: string | null) => void
 }) {
-  const { citas: todas, corte, depositos, depositosDisponibles, depositoPorConversion, nombreAnalista } = useDatosCitas()
-  const [grupo, setGrupo] = useState<Grupo>('todas')
+  const { citas: todas, corte, depositos, depositosDisponibles, depositoPorConversion, nombreAnalista, gestion } = useDatosCitas()
+  const compacta = Boolean(gestion?.avance)
+  const [grupo, setGrupo] = useState<Grupo | null>(() => compacta ? null : 'todas')
+  const [pagina, setPagina] = useState(0)
   const flujo = depositosDeInasistencias(citas, depositos, corte, todas)
   const { inasistencias: seguimiento, reprogramadas, recuperadas, sinNueva } = flujo
   // Una misma persona puede tener varios episodios. La ficha debe mostrar el
@@ -35,21 +37,23 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
   const etapas = [
     { id: 'todas', titulo: 'No asistieron', cantidad: seguimiento.length },
     { id: 'reprogramadas', titulo: 'Reprogramaron', cantidad: reprogramadas.length },
-    { id: 'recuperada', titulo: 'Asistió', cantidad: recuperadas.length },
-    { id: 'depositaron', titulo: 'Depositó', cantidad: depositosDisponibles ? flujo.convertidos : '—' },
+    { id: 'recuperada', titulo: compacta ? 'Asistieron después' : 'Asistió', cantidad: recuperadas.length },
+    { id: 'depositaron', titulo: compacta ? 'Se hicieron clientes' : 'Depositó', cantidad: depositosDisponibles ? flujo.convertidos : '—' },
   ] as const
-  function cambiarGrupo(nuevo: Grupo) { setGrupo(nuevo); onLead(null) }
+  function cambiarGrupo(nuevo: Grupo) { setGrupo(compacta && grupo === nuevo ? null : nuevo); setPagina(0); onLead(null) }
+  const actual = Math.min(pagina, Math.max(0, Math.ceil(visibles.length / 8) - 1))
+  const filas = compacta ? visibles.slice(actual * 8, actual * 8 + 8) : visibles
 
-  return <section className="gi-card citas-recuperacion" aria-label="Seguimiento de inasistencias">
+  return <section className={cn('gi-card citas-recuperacion', compacta && 'cm-recuperacion')} aria-label="Seguimiento de inasistencias">
     <div className="citas-cabecera-seccion citas-cabecera-recuperacion"><h2 className="citas-titulo-seccion">¿Qué pasó con quienes no asistieron?</h2>
       {flujo.base > 0 && <div className="flex items-center gap-2">
-        {grupo !== 'todas' && <Button variant="ghost" size="sm" onClick={() => cambiarGrupo('todas')}>Ver las {flujo.base} personas</Button>}
-        <Button variant="ghost" size="sm" aria-pressed={grupo === 'sin_reprogramar'} onClick={() => cambiarGrupo(grupo === 'sin_reprogramar' ? 'todas' : 'sin_reprogramar')}>Sin nueva cita</Button>
+        {!compacta && grupo !== 'todas' && <Button variant="ghost" size="sm" onClick={() => cambiarGrupo('todas')}>Ver las {flujo.base} personas</Button>}
+        <Button variant="ghost" size="sm" className={compacta && sinNueva.length ? 'cm-pendientes' : undefined} aria-pressed={grupo === 'sin_reprogramar'} onClick={() => cambiarGrupo(grupo === 'sin_reprogramar' && !compacta ? 'todas' : 'sin_reprogramar')}>{compacta && sinNueva.length > 0 && <TriangleAlert aria-hidden />}{compacta ? `${sinNueva.length} sin nueva cita` : 'Sin nueva cita'}</Button>
       </div>}
     </div>
     <div className="citas-flujo-resumen">
       <div className="citas-flujo" role="group" aria-label="Etapas de recuperación">
-        {etapas.map((etapa, indice) => <div className="citas-flujo-etapa" key={etapa.id}>
+        {etapas.map((etapa, indice) => <div className="citas-flujo-etapa" key={etapa.id} data-etapa={indice} data-con-datos={typeof etapa.cantidad === 'number' && etapa.cantidad > 0}>
           <Button variant="ghost" className="citas-paso" aria-label={etapa.titulo + ' ' + etapa.cantidad}
             aria-pressed={grupo === etapa.id} disabled={!flujo.base || (etapa.id === 'depositaron' && !depositosDisponibles)} onClick={() => cambiarGrupo(etapa.id)}>
             <span className="citas-paso-numero">{etapa.cantidad}</span><span>{etapa.titulo}</span>
@@ -65,11 +69,11 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
     </div>
     <h3 className="sr-only">Personas del flujo</h3>
     {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- El contenedor con desplazamiento horizontal necesita foco para usar las flechas del teclado. */}
-    {visibles.length ? <div className="citas-tabla-scroll" role="region" tabIndex={0} aria-label="Tabla de personas del flujo">
+    {grupo !== null && (visibles.length ? <div className="citas-tabla-scroll" role="region" tabIndex={0} aria-label="Tabla de personas del flujo">
       <table className="citas-tabla citas-tabla-compacta citas-tabla-flujo w-full text-sm">
         <caption className="sr-only">Personas del flujo de recuperación</caption>
-        <thead><tr><th scope="col">Persona</th><th scope="col">Analista</th><th scope="col">Nueva cita</th><th scope="col">Asistencia</th><th scope="col">Depósito del flujo</th><th scope="col"><span className="sr-only">Recorrido</span></th></tr></thead>
-        <tbody>{visibles.map(fila => {
+        <thead><tr><th scope="col">Persona</th><th scope="col">Analista</th><th scope="col">Nueva cita</th><th scope="col">Entrevista</th><th scope="col">Depósito del flujo</th><th scope="col"><span className="sr-only">Recorrido</span></th></tr></thead>
+        <tbody>{filas.map(fila => {
           const movimientos = flujo.leads.find(lead => lead.original.leadId === fila.original.leadId)?.depositos ?? []
           const asistencia = recuperadas.find(item => item.original.leadId === fila.original.leadId)?.nueva
           return <tr key={fila.original.leadId} className={cn(leadAbierto === fila.original.leadId && 'citas-fila-seleccionada')}>
@@ -84,7 +88,8 @@ export function Inasistencias({ citas, onDetalle, leadAbierto, onLead }: {
           </tr>
         })}</tbody>
       </table>
-    </div> : <p className="citas-vacio-flujo">{!flujo.base ? 'No hay inasistencias con estos filtros.' : grupo === 'depositaron' ? 'Ningún lead completó el flujo hasta un depósito confirmado después de asistir.' : grupo === 'sin_reprogramar' ? 'Todas las personas reprogramaron.' : 'No hay personas en esta etapa.'}</p>}
+    </div> : <p className="citas-vacio-flujo">{!flujo.base ? 'No hay inasistencias con estos filtros.' : grupo === 'depositaron' ? 'Ningún lead completó el flujo hasta un depósito confirmado después de asistir.' : grupo === 'sin_reprogramar' ? 'Todas las personas reprogramaron.' : 'No hay personas en esta etapa.'}</p>)}
+    {compacta && grupo !== null && <div className="cm-paginacion cm-paginacion-flujo"><span>{visibles.length ? actual * 8 + 1 : 0}–{Math.min(visibles.length, actual * 8 + 8)} de {visibles.length} personas</span><Button size="sm" variant="outline" disabled={!actual} onClick={() => setPagina(actual - 1)}>Anterior</Button><Button size="sm" variant="outline" disabled={(actual + 1) * 8 >= visibles.length} onClick={() => setPagina(actual + 1)}>Siguiente</Button><Button variant="ghost" size="sm" onClick={() => { setGrupo(null); onLead(null) }}>Ocultar personas</Button></div>}
     <p className="citas-nota">{depositoPorConversion ? 'Depositó: conversión a cliente después de asistir. Se muestra la fecha de conversión; se excluyen anulaciones.' : depositosDisponibles ? '—: etapa aún no completada.' : 'La fuente de depósitos aún no está habilitada para esta consulta.'} Fechas e historial al abrir una persona.</p>
     <FichaRecorrido fila={abierta ? contexto(abierta) : null} depositos={depositosAbiertos} citas={citas} onCerrar={() => onLead(null)} onCita={onDetalle} />
   </section>

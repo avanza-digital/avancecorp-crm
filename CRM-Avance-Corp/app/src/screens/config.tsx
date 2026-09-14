@@ -20,6 +20,7 @@ import {
   can,
   ROL_LABEL,
   puedeAdministrarRolesCrm,
+  puedeConfigurarCitas,
   puedeEscribir,
 } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
@@ -41,6 +42,7 @@ const SECCIONES: Seccion[] = [
   { icon: Target, t: 'Metas', d: 'Objetivos por analista, categoría, moneda y mes', vista: 'config-metas', color: 'var(--chart-4)' },
   { icon: Clock, t: 'Tiempos de atención', d: 'Primera gestión, contacto y máximos por etapa', vista: 'config-sla', color: 'var(--chart-3)' },
   { icon: Percent, t: 'Política de rentabilidad', d: 'Tasa base, herencia en renovación y upgrade, excepciones de Gerencia', vista: 'config-rentabilidad', color: 'var(--chart-5)' },
+  { icon: Target, t: 'Control de Citas', d: 'Metas, leads que cuentan y reglas de avance', vista: 'config-citas', color: 'var(--accent)' },
 ]
 
 interface PasoEstado {
@@ -236,7 +238,7 @@ export function Config() {
         <div className="flex items-center gap-2.5 rounded-xl bg-accent/[0.08] px-4 py-3 text-primary ring-1 ring-accent/20">
           <Users className="size-4 shrink-0" aria-hidden />
           <p className="text-xs font-semibold">
-            Gobierno de roles: esta autoridad solo accede al directorio mínimo de usuarios.
+            Gobierno de roles y Control de Citas: administra las opciones disponibles para Superadmin.
           </p>
         </div>
       ) : !edita && !puedeEscribir(yo?.rol) && (
@@ -260,7 +262,8 @@ export function Config() {
       {secciones.length > 0 && <div className="grid gap-4 sm:grid-cols-2">
         {secciones.map((s) => {
           const administra = !yo?.demo
-            && (edita || (s.vista === 'config-usuarios' && puedeAdministrarRolesCrm(yo)))
+            && (edita || (s.vista === 'config-usuarios' && puedeAdministrarRolesCrm(yo))
+              || (s.vista === 'config-citas' && puedeConfigurarCitas(yo)))
           return (
           <Card key={s.t} className="ac-lift">
             <CardContent className="flex items-start gap-4 p-5">

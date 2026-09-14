@@ -1,0 +1,381 @@
+{
+  "estado": "CANDIDATA_LOCAL_NO_PUBLICADA",
+  "commit_base": "9bd86c31c77f86365066255b0ca37490398dd9a8",
+  "base_remota_verificada": "9bd86c31c77f86365066255b0ca37490398dd9a8",
+  "no_es_artefacto_de_release": true,
+  "archivos_producto": [
+    {
+      "archivo": "CRM-Avance-Corp/app/e2e/_citas.ts",
+      "sha256": "6ba9daf30c3f50b038a2ceef98df0d9f39a7da71fb3c67ec8d75c0683233ae5c",
+      "bytes": 3842
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/e2e/citas-avance-mensual.spec.ts",
+      "sha256": "67825896029fd3976e112ccca982952cac967baa63e5f54fe226795781d62384",
+      "bytes": 2894
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/e2e/citas-gerencia.spec.ts",
+      "sha256": "eb5dcc887e076bd6c3412eddd91daa36d3a3596a65a3d76cb0742c84fba75dbd",
+      "bytes": 4595
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/e2e/control-citas.spec.ts",
+      "sha256": "34092cacdfd91dcf1eb1387c979eed2ad116d7d407b7c5780672995c3be25b4b",
+      "bytes": 5220
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/e2e/graficas.spec.ts",
+      "sha256": "2586e5272d034e94b8fe260aeba3db6fb756828af594ac5c108827960ced9afd",
+      "bytes": 15667
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/prototypes/citas-avance.html",
+      "sha256": "6295537c525abd8225b1b2c0ad68702bc8ccf699e713aac290c77a676340e3f1",
+      "bytes": 403
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/prototypes/citas-metas.html",
+      "sha256": "6f676345871e52e8cd47456e7ae0f578918abb61f571e7a2f97abee6a504ff93",
+      "bytes": 69884
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/prototypes/control-citas.html",
+      "sha256": "e1cb68a64e030974887890723c777ff216bc54d1da9471fb481d8dc0bde5b7fd",
+      "bytes": 311
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/App.tsx",
+      "sha256": "a22efa642587b1ba102f14295348da0e3e40d7a75f62854e4c51cc18be731dbd",
+      "bytes": 27041
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/ayuda-vendedor-panel.tsx",
+      "sha256": "3e4a96da98105ee227e4ca86dea163808d3f7077de9ae14a24bfc85974875478",
+      "bytes": 25994
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/sidebar.test.tsx",
+      "sha256": "7ff7ae28dc55cba035d6b7791539435b665be7256a7285705ba78024698f4db8",
+      "bytes": 7596
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/sidebar.tsx",
+      "sha256": "525446528b3236af5d6ebe05030df51be7a0a8bf19dd43ce230e8b85d0022b56",
+      "bytes": 16204
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/app/topbar.tsx",
+      "sha256": "925cb8d5d0e95164c847759134b4b2687d061fcf1c9a0c47d36d0b14b051f6cc",
+      "bytes": 20101
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/avance-mensual.css",
+      "sha256": "1b15ff277750e47aa3e305c9e25505cf882aa6d5054c6f0d49eb3aac9bd25b3f",
+      "bytes": 8595
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/avance-mensual.tsx",
+      "sha256": "41f6760a1acbb64a18029af21bbaaf0c3e479fecff8767159552447708e77594",
+      "bytes": 16226
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/avance.test.ts",
+      "sha256": "41cc025b7223d1cbfd8c049bc99ab709a7fde6b340cf32af09222eae2ac54edf",
+      "bytes": 9252
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/avance.ts",
+      "sha256": "d40c466fa41636a1d769d61c1baf7ef3263d918df8211259e2f508982fb51e84",
+      "bytes": 12203
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/contexto.ts",
+      "sha256": "1d6a6eea3d801a3ac399ebb0069702bea26d139202e8d78657a68a38bfa64b74",
+      "bytes": 2081
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/ficha-recorrido.tsx",
+      "sha256": "7f882bc839b7c7a4b25e13e3a0f9bf97d3788928f06225c7df72a36136d5a7a1",
+      "bytes": 4573
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/filtros.tsx",
+      "sha256": "24e9e102ae520accc8df5fad8561d59571083ae3c22f1ca2155a00d8d07f9356",
+      "bytes": 10299
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/inasistencias.tsx",
+      "sha256": "7e82f733b1c98b127d773364fe3dfa653c5c01302832aba5b0f4fa6ed3d54f63",
+      "bytes": 9451
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/integracion.test.tsx",
+      "sha256": "6bcc2b4be2add29a26dd30b9b880f5e8480bf4594a87fa03916143ba57952e65",
+      "bytes": 6636
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/metas.ts",
+      "sha256": "0a1167932f8151be0864a21ab5f644c6b61533432bf6fbd5f0f8b2329c1dd428",
+      "bytes": 2893
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/modelo.ts",
+      "sha256": "6a300e5a6e67215fa00c8087a996e2892044be2ceee6f3080e29db2e05733257",
+      "bytes": 7413
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/propuesta.tsx",
+      "sha256": "b754ee7d4de3fbca551ac216a916335ee23b76c5db75796c208fb4c8e7645dcd",
+      "bytes": 19752
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/resultados.tsx",
+      "sha256": "a6e6381cca661ffe301883c0b9ba6cdc86677d9023640cc089ae1c978490c374",
+      "bytes": 11789
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/citas/senal-resultado.tsx",
+      "sha256": "b6025979638400a0d8506b7c67034c4e28dcb7ded201c2f97730a26bacadc5e9",
+      "bytes": 3102
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/config/configuracion-shell.tsx",
+      "sha256": "087e7261b1f4c0a21fc1e3a0d09b75057cae3be4161064d185bead7d884ff8ba",
+      "bytes": 2609
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/config/control-citas-editor.test.tsx",
+      "sha256": "b98d58c7e1aaf6c6cbc3a589c0a385935547e8421091ae83a7485022e286d599",
+      "bytes": 6327
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx",
+      "sha256": "99e64a95391167de6569ba36f1fe4ddab78a681f13fadaabe635b7bdccb2543b",
+      "bytes": 15678
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/data/citas-gerencia.test.ts",
+      "sha256": "6150b9f2f6d71f138b3a5cebef633f0f705864e7fc6877153d81c0d8f1ffc002",
+      "bytes": 13199
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/data/citas-gerencia.ts",
+      "sha256": "34fdb0e5caebcdc4a9dee5f85f0117c14b1d993c134469353e96cff667f0612e",
+      "bytes": 10445
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/data/control-citas.test.tsx",
+      "sha256": "421ab3412bf386aba76414d2f57255474c94c059f06c20bdaf7579cd141ae630",
+      "bytes": 5287
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/data/control-citas.ts",
+      "sha256": "916887ef7dd227e74f219e8a8657ebcd283286d9d6175c55b9f631a10ba40f73",
+      "bytes": 5109
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/control-citas.test.ts",
+      "sha256": "d5c001bf4145385f2434e8b3742c1b9dca8b95116431dc346d6a764f160593d2",
+      "bytes": 2291
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/control-citas.ts",
+      "sha256": "71d52c803d066a0e2febd173233ef05535e63bb84981ecee465b7633f8f6ea4a",
+      "bytes": 6864
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/database.types.ts",
+      "sha256": "ebe93cad6332d09de29a46353e69293f80e82bd86946298d231073fbb795be18",
+      "bytes": 175828
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/gestion-citas.ts",
+      "sha256": "28d179ba3741b60430c0f0e45638abf2bccbedbe997bebd46e43a56a49ea8612",
+      "bytes": 1661
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/metas-citas-config.ts",
+      "sha256": "cda2ad60a99484a469f1034746c4be368365bd92bff693302902a9283522f1d2",
+      "bytes": 218
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/roles.ts",
+      "sha256": "bd6d6c9de619635ef9e8b19f03f26f5f40c330771b15914ab7225c51356f71f2",
+      "bytes": 10463
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/router.ts",
+      "sha256": "5a9ca6f6789e93189407229f33a771b832faf96e5198a746d0ccdcc906881d3b",
+      "bytes": 7180
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/vistas.test.ts",
+      "sha256": "3515f560e0cf8fd871bde04b37e487f3fa115eb5e73d445e3ff87d68e7b3339f",
+      "bytes": 11647
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/lib/vistas.ts",
+      "sha256": "f91ddedcef472d866e1c9c9cdbe046036d900c638fec6d52970037b0cd8ca3f3",
+      "bytes": 4701
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/main.tsx",
+      "sha256": "822be8f93543f831de34fb8105455058e3dbc45d1e072d0c1d53aaa233ef8e20",
+      "bytes": 356
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/modelo.test.ts",
+      "sha256": "50bbffb8b75b387bbca69b1af4a17008a27c321336e92aa8692747f02f68b97c",
+      "bytes": 3358
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/modelo.ts",
+      "sha256": "f9c46572ff916fb8ef891614ad6b44e4fe5d1fb512810a9a3ee73f64ad8c5e22",
+      "bytes": 8941
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/presentacion.css",
+      "sha256": "70feb0d2eafefc967c15f81cd750787766662522567266c79a6670d4a98f8519",
+      "bytes": 15251
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/propuesta.tsx",
+      "sha256": "7c084bf006cd5fdfda567842abaadfb6fad53709c7df84becd91c39ca214a246",
+      "bytes": 30482
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-avance/semantica.ts",
+      "sha256": "184a8ab8ff751bdb17cb87605a95f272f17468591a7ffd5e1b12876f3e7865a4",
+      "bytes": 1581
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-crm/metas.test.ts",
+      "sha256": "cbce693bef3c88d86ab09d96613be40fbb0c23143a76c05a5694db78dfb2b2fc",
+      "bytes": 3191
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-crm/propuesta.test.tsx",
+      "sha256": "8fbc5c928773c5005e0ea8275111741dc25bc75eabbcaa29bbdc04dc8cf582d4",
+      "bytes": 11784
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/citas-crm/tablero.test.tsx",
+      "sha256": "016d66c20114391626fdb3272bdd91b64ca2db822948c2e1d4a675746a83e8fc",
+      "bytes": 5759
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/prototypes/control-citas/main.tsx",
+      "sha256": "e4fe63005f0ebd46eb470a9fd56924475374ba58ea68cd814d2d58bc4344c8ca",
+      "bytes": 2882
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/screens/config-citas.tsx",
+      "sha256": "bce547d310633e79eaf1d18d7f6579c355b9bb60d8b9669e3040bd6d8be45ec5",
+      "bytes": 3875
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/screens/config.test.tsx",
+      "sha256": "1a0d2a7f77fce227c93674ec7f5fb547ad9c2da362dc60f29b969c613d8009f7",
+      "bytes": 5595
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/screens/config.tsx",
+      "sha256": "64e3a6de9bf928d504038f760f7e7877177422f5962bd031c4868c91cb68f460",
+      "bytes": 13340
+    },
+    {
+      "archivo": "CRM-Avance-Corp/app/src/screens/hoy/citas-gerencia.tsx",
+      "sha256": "2185f71781140bbb53094871939ba8f8be6b363a406e7c2694c1529cab3cbdf9",
+      "bytes": 3756
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql",
+      "sha256": "3434b208bf1edb2a9bd655bb86d2424b7b4d80b62e6fd1c0957bc55b207ab554",
+      "bytes": 6753
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913204847_crm_citas_base_asignada_meta_interna.sql",
+      "sha256": "ebee873152da067b2a40b4031924828d4ede35809ca34946195a21e36ffb3984",
+      "bytes": 10432
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225042_crm_citas_gestion_mensual_configurada.sql",
+      "sha256": "59200f37259b56aa0e1958b446bf5b3edd2d734e2c650a447d2bb339d40f41b3",
+      "bytes": 5875
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225755_crm_citas_avance_fuentes.sql",
+      "sha256": "7ca6dc909e1de111e54f58f2bc40b78d13cbc38dc246cf269c3f44ab092e27ae",
+      "bytes": 17091
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/MIGRACIONES.md",
+      "sha256": "b56a0ccf5b2f59c3a8622ece40af7e2077d904564ec15fe00177d8357dabc930",
+      "bytes": 1034544
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/control-citas-superadmin/resultado-local.json",
+      "sha256": "7dedf053636145d1aac3419e79dc9d8d3f7355a829cb44987cf17573e4ab27dc",
+      "bytes": 709
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/test-citas-avance-mensual.sql",
+      "sha256": "c59205ae5e21317437d0d83523c8ee54f99df41a6d9650321e833d255d42199f",
+      "bytes": 7054
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/test-citas-base-asignada.sql",
+      "sha256": "66c4e6957f4440877de181a8f5db74db637e2d50338313b81eb72eb31ac62480",
+      "bytes": 4909
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/test-control-citas-local.py",
+      "sha256": "c8be12d4dea7361583c5b9d5167fe8490dedde8c93936e578eb0ffecf18cc932",
+      "bytes": 12544
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/scripts/test-control-citas-remoto.mjs",
+      "sha256": "58e9e9d0cc95d59e3cd3f856021e2c1ea48eda761e0e88ad9895c4814f1e385a",
+      "bytes": 4653
+    }
+  ],
+  "migraciones": [
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql",
+      "sha256": "3434b208bf1edb2a9bd655bb86d2424b7b4d80b62e6fd1c0957bc55b207ab554",
+      "bytes": 6753
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913204847_crm_citas_base_asignada_meta_interna.sql",
+      "sha256": "ebee873152da067b2a40b4031924828d4ede35809ca34946195a21e36ffb3984",
+      "bytes": 10432
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225042_crm_citas_gestion_mensual_configurada.sql",
+      "sha256": "59200f37259b56aa0e1958b446bf5b3edd2d734e2c650a447d2bb339d40f41b3",
+      "bytes": 5875
+    },
+    {
+      "archivo": "CRM-Avance-Corp/supabase/migrations/20260913225755_crm_citas_avance_fuentes.sql",
+      "sha256": "7ca6dc909e1de111e54f58f2bc40b78d13cbc38dc246cf269c3f44ab092e27ae",
+      "bytes": 17091
+    }
+  ],
+  "sql_operacion": [
+    {
+      "archivo": "UX-UI-GERENCIA/citas-preparacion-2026-09-13/preflight-produccion.sql",
+      "sha256": "d0b77842ceae20f91dd3eeb1654671c562cbf6b17277aee01dcacdfd305f3600",
+      "bytes": 1407
+    },
+    {
+      "archivo": "UX-UI-GERENCIA/citas-preparacion-2026-09-13/rollback-lector.sql",
+      "sha256": "85f408ca48f37a0c3e05a06331f9b7bd63d0b5f83660b3b892c1828e4949fd63",
+      "bytes": 8514
+    }
+  ],
+  "archivos_ajenos_excluidos": [
+    "BASE DE CONOCIMINETO/AVANCECORP/Rentabilidades menores a 15 - propuesta 2026-09-13.md",
+    "CRM-Avance-Corp/supabase/scripts/evidencia-f7/2026-09-11T20-20-59-444Z.json"
+  ]
+}

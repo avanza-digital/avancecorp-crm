@@ -1,10 +1,40 @@
 ---
 tags: [crm, citas, gerencia, verificacion, release]
 fecha: 2026-09-13
-estado: preparado-sin-publicar
+estado: publicacion-existente-verificada
 ---
 
 # Citas Gerencia — preparación verificada
+
+## Estado vigente: publicación comprobada el 13/09
+
+Ante «podemos publicar», se consultó nuevamente producción y se encontró la
+entrega ya instalada y publicada por una acción externa a esta sesión. No se
+volvió a instalar SQL ni a desplegar la web.
+
+- Producción tiene las tres versiones `20260912151320`, `20260912181045` y
+  `20260913173350` (278 migraciones). El control analítico pasa; las siete firmas
+  de Citas conservan cuerpo, propietario y permisos idénticos al banco validado.
+  El cuerpo de la RPC de Leads recibidos coincide con su migración.
+- Se reprodujo el build público `build-20260913T191240365Z` desde el checkout
+  limpio `d3ce2c18850d7c86bb90e2cfda7522e7333fadd1`, usando su configuración
+  pública observada. **72/72 archivos HTTP coinciden por SHA-256**: aplicación,
+  estilos, fuentes, HTML, versión, manifiesto y service worker.
+- Leads recibidos se observó en una sesión autenticada de analista. La pantalla
+  de Citas con Gerencia no se comprobó en el navegador productivo en esta sesión.
+- La nueva corrida general sigue en **FAIL: 55/1.829**, con la semilla reutilizada
+  tras los ensayos HTTP. No es un A/B y no reemplaza la comparación inicial de
+  49 fallos iguales antes/después. Su diagnóstico continúa pendiente.
+- Claude no entregó dictamen en los dos intentos de esta comprobación. No se
+  contabiliza como PASS. El banco propio volvió a quedar `INACTIVE`.
+
+Evidencia: `UX-UI-GERENCIA/citas-publicacion-2026-09-12/produccion-observada-2026-09-13.json`.
+Artefacto reconstruido equivalente (no identifica el ZIP original subido):
+`crm-20260913T203216Z-d3ce2c18850d`, SHA-256
+`f10fb23f074aee2d74a412f34ea6c62a45a09e1d5cc6e27ac04060628a5030b1`.
+Las nuevas metas y proyecciones mantienen el alcance pendiente documentado abajo.
+
+## Historial de preparación
 
 Miguel reanudó la preparación después de [[Citas Gerencia - publicacion pausada 2026-09-12]].
 Se verificó la reparación de [[Citas Gerencia - conexiones corregidas en local 2026-09-12]]

@@ -98,7 +98,7 @@ describe('Configuración y riel operativo', () => {
     })
   })
 
-  it('limita al Superadmin real al gobierno de roles y no habilita otras lecturas', () => {
+  it('ofrece Control de Citas al Superadmin sin habilitar lecturas comerciales', () => {
     dobles.yo = identidad({
       // Proyección real de `administrador_roles`: sin rol CRM en el RPC y con
       // Directorio únicamente como compatibilidad interna del tipo `Yo`.
@@ -119,7 +119,9 @@ describe('Configuración y riel operativo', () => {
     expect(within(riel).getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByText('Usuarios y jerarquía')).toBeInTheDocument()
     expect(screen.queryByText('Productos de inversión')).not.toBeInTheDocument()
-    expect(screen.getByText('Administración')).toBeInTheDocument()
+    expect(screen.getAllByText('Administración')).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: 'Control de Citas' })).toBeInTheDocument()
+    expect(screen.getAllByRole('link').find(enlace => enlace.getAttribute('href') === '#/config-citas')).toBeDefined()
     expect(screen.getByText(/Gobierno de roles/)).toBeInTheDocument()
     expect(screen.queryByText('Calendario personal')).not.toBeInTheDocument()
     expect(dobles.habilitaciones).toEqual({

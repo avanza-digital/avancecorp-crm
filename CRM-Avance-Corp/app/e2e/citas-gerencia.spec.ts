@@ -2,6 +2,24 @@ import { expect, test } from '@playwright/test'
 import { loginReal, montarBackendReal } from './_helpers'
 import { montarConsultaCitas } from './_citas'
 
+test('la meta interna usa la base asignada y muestra analistas sin citas',async ({page}) => {
+  await page.clock.setFixedTime(new Date('2026-09-04T15:00:00Z'))
+  await montarBackendReal(page)
+  await montarConsultaCitas(page,undefined,true)
+  await loginReal(page)
+  await page.getByRole('button',{name:'Citas',exact:true}).click()
+  const tabla=page.getByRole('table',{name:'Resultados por analista de las citas filtradas'})
+  await expect(tabla.getByRole('row',{name:/ANALISTA DE PRUEBA/})).toContainText('60%')
+  await expect(tabla.getByRole('row',{name:/ANALISTA SIN CITAS/})).toContainText('0%')
+  await expect(page.getByText('Meta 3 = 100%')).toHaveCount(0)
+  await expect(page.getByRole('columnheader',{name:'Leads con 3+ citas'})).toHaveCount(0)
+  await page.getByRole('button',{name:'Ver detalle por lead de ANALISTA SIN CITAS'}).click()
+  await expect(page.getByRole('dialog')).toContainText('1 leads asignados')
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({width:1440,height:1000})
+  await page.screenshot({path:'/private/tmp/citas-meta-corregida-local.png',fullPage:true})
+})
+
 test('Gerencia: consulta Citas dentro del CRM y conserva mes y semana entre vistas',async ({page}) => {
   await page.goto('/')
   await page.getByRole('button',{name:/explorar en modo demo/i}).click()

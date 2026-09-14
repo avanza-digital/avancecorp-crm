@@ -6,11 +6,14 @@ export interface CitaEjemplo {
   modalidad: string; origen: string; moneda: 'PEN' | 'USD'; monto: number; resultado: string;
   cerrado: boolean; seguimiento: boolean; nuevaFecha: string | null; nota: string;
   citaAnteriorId?: string; reprogramadaEn?: string; asistioEn?: string;
+  manualPropio?: boolean;
+  registroManual?: boolean; creadoEn?: string;
 }
 export interface FiltrosCitas {
   q: string; equipo: string; analista: string; mes: string; semana: string; leadId?: string;
   estados: EstadoCita[]; modalidad: string; origen: string; resultado: string; seguimiento: string;
   moneda: string; min: string; max: string; sort: string;
+  registro?: '' | 'manual' | 'recibido';
 }
 export function mesLima(ahora = new Date()) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' }).format(ahora).slice(0, 7) }
 export function defaults(mes = mesLima()): FiltrosCitas { return { q: '', equipo: '', analista: '', mes, semana: '', estados: [], modalidad: '', origen: '', resultado: '', seguimiento: '', moneda: '', min: '', max: '', sort: 'prioridad' } }
@@ -58,6 +61,7 @@ export function filtrar<T extends CitaEjemplo>(f: FiltrosCitas, citas: T[]) {
       && (!f.equipo || c.supervisorId === f.equipo) && (!f.analista || c.analista === f.analista)
       && (!f.estados.length || f.estados.includes(c.estado)) && (!f.modalidad || c.modalidad === f.modalidad)
       && (!f.origen || c.origen === f.origen) && (!f.resultado || c.resultado === f.resultado)
+      && (!f.registro || c.registroManual === (f.registro === 'manual'))
       && (!f.seguimiento || (f.seguimiento === 'pendiente' ? c.seguimiento : f.seguimiento === 'cerrado' ? c.cerrado : !c.cerrado))
       && (!f.moneda || c.moneda === f.moneda)
       && (!f.moneda || f.min === '' || c.monto >= Number(f.min))

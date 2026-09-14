@@ -1,0 +1,34 @@
+{
+  "estado": "CORRECCION_LOCAL_NO_PUBLICADA",
+  "migracion": "CRM-Avance-Corp/supabase/migrations/20260913204847_crm_citas_base_asignada_meta_interna.sql",
+  "sha256": "ebee873152da067b2a40b4031924828d4ede35809ca34946195a21e36ffb3984",
+  "motivo": "La publicación anterior conservaba meta 3 y objetivo 125%, contrario al acuerdo 1.25. La base tampoco incluía asignados sin citas.",
+  "checks": {
+    "frontend_check": "PASS: 3470 tests, 240 archivos; lint, typecheck, cobertura, build y bundle",
+    "navegacion": "PASS: 4 Playwright en puerto propio 5196",
+    "sql_banco": "PASS: ensayo transaccional con rollback, base completa, manual propio/ajeno, paridad V2, corte, permisos y gobierno de núcleos",
+    "revision_rls": "PASS estático de auditor_citas_base; no sustituye ejecución",
+    "gate_realidad": "NOT RUN: faltó SUPABASE_URL; se comprobó directamente en producción que control_citas_configuracion_fn no existe y hay 43 manuales con autor, 0 sin autor",
+    "rls_general": "NOT RUN para esta candidata; existe deuda previamente documentada",
+    "advisors": "NOT RUN; candidata no instalada de forma persistente"
+  },
+  "no_completado": [
+    "Publicación de esta corrección",
+    "Configuración activa desde Superadmin",
+    "Avance de entrevistas y depósitos al 70% en la tabla",
+    "Ticket y proyección monetaria"
+  ],
+  "preguntas_pendientes": [
+    "Si dos asistencias de una persona cuentan como dos entrevistas o una persona",
+    "Fuente del ticket por analista",
+    "Participación de actividad de registros manuales en cumplimiento"
+  ],
+  "reglas": {
+    "base": "Personas distintas asignadas por analista durante el mes; excluye sólo alta_manual y creado_por=analista",
+    "semana": "Conserva base y meta mensuales; delimita actividad",
+    "actividad_manuales": "Sin decisión del usuario no se inventa la regla; filas afectadas no muestran cumplimiento",
+    "metas": "1.25/70/70 en payload; son valores fijos iniciales, no una activación del borrador Superadmin",
+    "diferencia_leads_recibidos": "Base de personas mensuales distinta del reporte de episodios diarios de asignación"
+  },
+  "limites": "No cambiar otra vez el estado a listo/publicado por verificar sólo bundles. Esta evidencia cubre la corrección de base/meta, no el alcance completo solicitado."
+}

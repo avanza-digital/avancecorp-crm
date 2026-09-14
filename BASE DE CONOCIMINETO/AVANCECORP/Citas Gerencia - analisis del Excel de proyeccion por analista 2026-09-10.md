@@ -56,6 +56,20 @@ Recalcular dentro de Microsoft Excel: **NOT RUN**. La importación usada para in
 
 ## Punto de continuación
 
-Esperar qué indicadores elige Miguel del archivo. Definir entonces su unidad, base, período y fórmula antes de proponer o implementar cambios. No importar automáticamente el Excel a producción ni reemplazar la meta de tres citas por lead.
+El análisis inicial quedó pendiente de la elección de indicadores de Miguel. Las aclaraciones siguientes actualizan ese punto de continuación; todavía deben definirse las bases, unidades y períodos antes de implementar.
+
+## Aclaraciones de Miguel — 2026-09-11
+
+- La meta solicitada es **1,25 citas por lead**, equivalente a 125 citas por cada 100 leads. Su mensaje «1,25 es la meta por lead» corrige la cifra anterior «1,12%». Esta es la nueva meta de negocio solicitada; no se ha aplicado aún al código que usaba tres citas por lead.
+- La meta de citas debe quedar en la **configuración interna**, sin mostrarse en el módulo como un objetivo visible.
+- La base incluye **todos los leads asignados al analista durante el mes**, incluso los que todavía no tienen cita, y **excluye los leads que el propio analista registra manualmente**. Miguel confirmó: «sii todos cuentan, menos los que ellos registran manualmente». Todavía debe confirmarse si la exclusión se aplica también a las citas, entrevistas y conversiones que aportan al cumplimiento; no se ha identificado aún el dato técnico que acredita el registro manual por el analista.
+- Quiere visualizar el avance real de la gestión hacia los objetivos de **70% de entrevistas y 70% de depósitos** del Excel.
+- Pidió expresamente completar las preguntas y entender su intención antes de desarrollar. No se autoriza interpretar respuestas pendientes como confirmadas.
+- Sigue pendiente acordar: participación de la actividad de leads registrados manualmente en el cumplimiento; definición y repetición de entrevistas; si el avance se compara con cantidades proyectadas o tasas sobre actividad real; base de personas únicas para depósitos; atribución temporal y por analista; alcance, edición y vigencia de las metas.
+- Se conserva la definición ya acordada de depósito acreditado por conversión a cliente. No se ha cambiado el módulo, importado el Excel ni publicado estas nuevas metas.
+
+## Panel de configuración solicitado — 2026-09-11
+
+Miguel pidió después un panel de control en su usuario de Superadmin. Se implementó localmente para configurar y guardar **borradores**, con las decisiones no respondidas en «Por definir». El candidato SQL sigue pendiente de autorización e instalación. No se han activado las nuevas metas ni cambiado los cálculos vigentes. Estado, acceso, evidencia y siguiente paso: [[Citas Gerencia - control de Superadmin en borrador 2026-09-11]].
 
 Relacionado: [[Citas Gerencia - cierre de sesion y punto de retoma 2026-09-09]], [[Citas Gerencia - publicacion y verificacion 2026-09-09]], [[Citas Gerencia - deposito acreditado por conversion a cliente 2026-09-08]], [[Citas Gerencia - tablero horizontal y flujo por persona 2026-09-08]].

@@ -34,6 +34,7 @@ export const VISTAS = [
   'config-metas',
   'config-sla',
   'config-rentabilidad',
+  'config-citas',
 ] as const
 export type Vista = (typeof VISTAS)[number]
 
@@ -52,6 +53,7 @@ export const VISTAS_CONFIGURACION = [
   'config-metas',
   'config-sla',
   'config-rentabilidad',
+  'config-citas',
 ] as const satisfies readonly Vista[]
 export type VistaConfiguracion = (typeof VISTAS_CONFIGURACION)[number]
 

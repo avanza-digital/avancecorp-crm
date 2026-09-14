@@ -44,6 +44,7 @@ const CAPACIDAD_POR_VISTA = {
   'config-metas': null,
   'config-sla': null,
   'config-rentabilidad': null,
+  'config-citas': null,
 } as const satisfies Record<Vista, Accion | null>
 
 /** Dónde aterriza un rol cuando la ruta pedida no existe o no está permitida. */
@@ -73,6 +74,7 @@ export function vistaPermitida(
   rolPortal?: string | null,
 ): boolean {
   if (!esRol(rol)) return false
+  if (vista === 'config-citas') return rolPortal === 'superadmin'
   if (rolPortal === 'superadmin' && rol !== 'gerencia') {
     return vista === 'config-usuarios'
   }

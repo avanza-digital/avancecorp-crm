@@ -2,10 +2,9 @@ import { useDatosCitas, horaLima } from './contexto'
 import { ExternalLink, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetBody, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { fmtFecha, money, numero } from '@/lib/format'
+import { fmtFecha, money } from '@/lib/format'
 import type { CitaConLead, Recuperacion } from './datos'
 import { asistioTrasInasistencia, type DepositoEjemplo } from './depositos'
-import { metaCitas } from './metas'
 
 export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   fila: Recuperacion | null
@@ -15,7 +14,7 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
   onCita: (cita: CitaConLead) => void
 }) {
   const { corte: CORTE, nombreAnalista, depositosDisponibles } = useDatosCitas()
-  const meta = metaCitas(citas.filter(cita => cita.leadId === fila?.original.leadId))
+  const cantidad = citas.filter(cita => cita.leadId === fila?.original.leadId).length
   return <Sheet open={Boolean(fila)} onClose={onCerrar} className="gerencia-inteligencia citas-crm-dialogo citas-ficha-recorrido">
     <SheetHeader className="citas-ficha-cabecera">
       <div className="flex items-start justify-between gap-3">
@@ -26,9 +25,8 @@ export function FichaRecorrido({ fila, depositos, citas, onCerrar, onCita }: {
       </div>
     </SheetHeader>
     {fila && <SheetBody className="citas-ficha-cuerpo">
-      <section aria-label="Meta de citas del lead" className="pb-6">
-        <p className="text-lg font-semibold tabular-nums">{meta.citas} {meta.citas === 1 ? 'cita' : 'citas'} · {numero(meta.cumplimiento, 1)}% de la meta</p>
-        <p className="mt-1 text-sm text-muted-foreground-strong">Meta del lead: 3 citas · consulta actual</p>
+      <section aria-label="Citas del lead" className="pb-6">
+        <p className="text-lg font-semibold tabular-nums">{cantidad} {cantidad === 1 ? 'cita' : 'citas'} en la consulta</p>
       </section>
       <h3 className="border-t border-border pt-5 text-base font-semibold">Su recorrido</h3>
       <p className="citas-nota">Incluye seguimiento fuera del período · horas de Lima.</p>

@@ -12,6 +12,7 @@ import { Filtros } from './filtros'
 import { Agenda, Bandeja, Estado } from './vistas'
 import { Resultados, DetalleLeads } from './resultados'
 import { siguientePaso, contextoCita } from './presentacion'
+import { baseCitasFiltrada } from './metas'
 
 type VistaCitas = 'bandeja' | 'agenda' | 'resultados'
 const VISTAS = [
@@ -30,7 +31,7 @@ function Guia({ abierta, onCerrar }: { abierta: boolean; onCerrar: () => void })
       <section><h3 className="font-semibold">1. Define a quién y cuándo quieres revisar</h3><p className="mt-1 text-muted-foreground-strong">Elige supervisor, analista, mes y semana. Cada mes tiene cuatro tramos: 1–7, 8–14, 15–21 y 22 hasta el último día. También puedes buscar por nombre, teléfono o código. La consulta se actualiza al cambiar cada filtro.</p></section>
       <section><h3 className="font-semibold">2. Empieza por lo que necesita atención</h3><p className="mt-1 text-muted-foreground-strong">En «Bandeja comercial», pulsa «Sin resultado» para encontrar citas vencidas cuyo resultado no se registró. «Programadas» muestra las que todavía están por realizar en el período.</p></section>
       <section><h3 className="font-semibold">3. Combina los filtros</h3><p className="mt-1 text-muted-foreground-strong">Abre «Más filtros» para elegir varios estados, modalidad, origen, resultado y seguimiento. Para filtrar un importe, selecciona primero soles o dólares.</p></section>
-      <section><h3 className="font-semibold">4. Cambia de vista según la tarea</h3><ul className="mt-2 list-disc space-y-2 pl-5 text-muted-foreground-strong"><li><strong>Bandeja comercial:</strong> revisa responsable, estado y siguiente paso. «Pendientes primero» deja las vencidas arriba.</li><li><strong>Agenda:</strong> revisa citas por día y hora. Siempre usa orden cronológico.</li><li><strong>Resultados:</strong> empieza por el recorrido de quienes no asistieron. Pulsa una etapa para ver sus personas y abre un nombre para consultar el historial, las fechas y el depósito. Debajo, compara citas por lead y cumplimiento de cada analista: meta 3 = 100%, objetivo 3.75 = 125%. La flecha junto al analista abre sus leads. «Columnas» muestra también leads con 2+ citas, realizadas y supervisor.</li></ul><p className="mt-2 text-muted-foreground-strong">Las tres vistas conservan tus filtros y consultan el mismo conjunto de citas. Los filtros seleccionan las citas de origen; el seguimiento puede encontrar depósitos posteriores fuera del mes o semana, hasta el corte indicado. Cada etapa cuenta leads únicos y parte de la anterior. El porcentaje final usa como base quienes faltaron al inicio; un depósito anterior a la asistencia no entra en este flujo.</p></section>
+      <section><h3 className="font-semibold">4. Cambia de vista según la tarea</h3><ul className="mt-2 list-disc space-y-2 pl-5 text-muted-foreground-strong"><li><strong>Bandeja comercial:</strong> revisa responsable, estado y siguiente paso. «Pendientes primero» deja las vencidas arriba.</li><li><strong>Agenda:</strong> revisa citas por día y hora. Siempre usa orden cronológico.</li><li><strong>Resultados:</strong> empieza por el recorrido de quienes no asistieron. Pulsa una etapa para ver sus personas y abre un nombre para consultar el historial, las fechas y el depósito. Debajo, compara citas por lead y cumplimiento de cada analista: el 100% indica que alcanzó la meta interna configurada. La flecha junto al analista abre sus leads. «Columnas» muestra información adicional de actividad y supervisor.</li></ul><p className="mt-2 text-muted-foreground-strong">Las tres vistas conservan tus filtros y consultan el mismo conjunto de citas. Los filtros seleccionan las citas de origen; el seguimiento puede encontrar depósitos posteriores fuera del mes o semana, hasta el corte indicado. Cada etapa cuenta leads únicos y parte de la anterior. El porcentaje final usa como base quienes faltaron al inicio; un depósito anterior a la asistencia no entra en este flujo.</p></section>
       <section><h3 className="font-semibold">5. Abre la ficha</h3><p className="mt-1 text-muted-foreground-strong">Pulsa el nombre del prospecto o «Detalle». La ficha lateral muestra fecha, responsable, monto estimado, resultado, notas y siguiente paso. «Ubicar en agenda» abre esa cita. «Citas de…» abre todas las citas de ese analista en el mes de la ficha. Estas dos acciones restablecen los demás filtros para que el destino sea visible.</p></section>
       <section><h3 className="font-semibold">6. Limpia o exporta la consulta</h3><p className="mt-1 text-muted-foreground-strong">La × de cada etiqueta quita ese filtro. «Restablecer consulta» vuelve al mes completo. «Exportar citas» descarga todas las coincidencias, incluidas las de otras páginas. El CSV contiene el detalle de las citas; el promedio por lead y el seguimiento se consultan en Resultados.</p></section>
       <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground-strong">Responsable: el analista registrado en la cita; no acredita quién la creó. Las fechas de asistencia corresponden al registro de su resultado. Seguimiento al {corteLima(corte)}.</p>
@@ -56,7 +57,7 @@ function Ficha({ cita, onCerrar, onAnalista, onAgenda }: { cita: CitaEjemplo | n
 }
 
 export function TableroCitas() {
-  const { citas: CITAS, equipo: EQUIPO, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes } = useDatosCitas()
+  const { citas: CITAS, equipo: EQUIPO, gestion, corte, modoDemo, mesInicial, cargando, error: errorCarga, onReintentar, onMes } = useDatosCitas()
   const inicial = () => defaults(mesInicial)
   const [filtros, setFiltros] = useState<FiltrosCitas>(inicial)
   const [vista, setVista] = useState<VistaCitas>('resultados')
@@ -70,6 +71,7 @@ export function TableroCitas() {
   const pestañas = useRef<Partial<Record<VistaCitas, HTMLButtonElement | null>>>({})
   const error = errorFiltros(filtros)
   const citas = filtrar(filtros, CITAS)
+  const hayBase = gestion && baseCitasFiltrada(gestion.asignaciones, filtros).length > 0
   const sinEstado = filtrar({ ...filtros, estados: [] }, CITAS)
   const paginas = Math.max(1, Math.ceil(citas.length / POR_PAGINA))
   const paginaActual = Math.min(pagina, paginas)
@@ -162,11 +164,11 @@ export function TableroCitas() {
             })}
           </div>}
           <div id="citas-panel" role="tabpanel" aria-labelledby={'citas-tab-' + vista} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-            {cargando ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorCarga ? <div role="alert" className="space-y-3 p-8"><p>{errorCarga}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || citas.length === 0 ? <div className="space-y-3 px-4 py-12 text-center">
+            {cargando ? <p role="status" className="p-8">Cargando las citas de tu consulta…</p> : errorCarga ? <div role="alert" className="space-y-3 p-8"><p>{errorCarga}</p><Button variant="outline" onClick={onReintentar}>Reintentar</Button></div> : error || (citas.length === 0 && !(vista === 'resultados' && hayBase)) ? <div className="space-y-3 px-4 py-12 text-center">
               <SearchX aria-hidden className="mx-auto size-7 text-muted-foreground" /><h3 className="font-semibold">{error ? 'Revisa los filtros de la consulta' : 'No hay citas con esta combinación'}</h3>
               <p className="text-sm text-muted-foreground-strong">{error || 'Quita algún filtro o elige otro período.'}</p><Button variant="outline" onClick={restablecer}>Limpiar filtros</Button>
             </div> : vista === 'bandeja' ? <Bandeja citas={visibles} onDetalle={setDetalle} /> : vista === 'agenda' ? <Agenda citas={citas} onDetalle={setDetalle} />
-              : <Resultados citas={citas} onAnalista={verAnalista} onDesglose={id => { setLeadAbierto(null); setDesglose(id) }} onDetalle={abrirCitaDelRecorrido} leadAbierto={leadAbierto} onLead={setLeadAbierto} />}
+              : <Resultados citas={citas} filtros={filtros} onAnalista={verAnalista} onDesglose={id => { setLeadAbierto(null); setDesglose(id) }} onDetalle={abrirCitaDelRecorrido} leadAbierto={leadAbierto} onLead={setLeadAbierto} />}
           </div>
           {vista === 'bandeja' && !error && !errorCarga && !cargando && citas.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-3">
             <p className="text-xs text-muted-foreground-strong">Mostrando {(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, citas.length)} de {citas.length} citas</p>
@@ -176,7 +178,7 @@ export function TableroCitas() {
         <p role="status" aria-live="polite" className={exportacion ? 'citas-nota py-2' : 'sr-only'}>{exportacion || anuncio}</p>
       </div>
     <Ficha cita={cargando || errorCarga ? null : CITAS.find(c => c.id === detalle?.id) ?? null} onCerrar={() => setDetalle(null)} onAnalista={verAnalistaDeFicha} onAgenda={verAgenda} />
-    <DetalleLeads analista={cargando || errorCarga ? null : desglose} citas={citas} onCerrar={() => setDesglose(null)} onLead={verLead} />
+    <DetalleLeads analista={cargando || errorCarga ? null : desglose} citas={citas} filtros={filtros} onCerrar={() => setDesglose(null)} onLead={verLead} />
     <Guia abierta={guia} onCerrar={() => setGuia(false)} />
   </div>
 }

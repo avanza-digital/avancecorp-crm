@@ -5,6 +5,10 @@ actualizado: 2026-09-14
 
 # 🏠 Inicio — Portal Avance Corp
 
+- [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — módulo real y Superadmin preparados en local/banco; 3.512 pruebas y 48 comprobaciones HTTP PASS. Tres decisiones comerciales y diagnóstico del gate general pendientes; Miguel pidió no desplegar.
+- [[Citas Gerencia - reglas confirmadas y propuesta revisada 2026-09-13]] — cuentan manuales y sus citas, cada asistencia cuenta como entrevista y el ticket es mensual por analista; historial de la propuesta aprobada.
+- [[Citas Gerencia - meta incorrecta detectada y correccion local 2026-09-13]] — reclamo de Miguel: meta anterior publicada; corrección local y métricas aún pendientes.
+
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
 Estado F8 vigente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
@@ -57,11 +61,14 @@ Hay **tres capas**, complementarias:
 - [[F8 - enlaces historicos preparados (2026-09-13)]] — historial del ensayo de siete personas / diez movimientos; aplicación productiva completada después.
 - [[F8 - revision de identidades pendientes (2026-09-13)]] — diagnóstico cerrado: ocho movimientos reales para completado, dos del caso multirrol y cuatro pruebas. Informe privado en el escritorio; correcciones pendientes.
 - [[F8 - piloto economico preparado localmente (2026-09-13)]] — control nominal F8 probado en banco sintético; producción intacta y piloto todavía OFF. Faltan enlaces, equipo, rama e inicio autorizado.
-- [[Citas Gerencia - preparacion verificada 2026-09-13]] — frontend y dos migraciones ensayados en banco; cero regresiones, 49 fallos globales previos; producción sin instalar ni publicar.
+
+- [[Citas Gerencia - preparacion verificada 2026-09-13]] — publicación existente comprobada: tres migraciones y 72 archivos HTTP coincidentes con `d3ce2c1`; deuda de pruebas generales y nuevas metas/proyección pendientes.
 - [[Citas Gerencia - publicacion pausada 2026-09-12]] — preparación detenida por Miguel; candidatas ensayadas en rama propia, validaciones incompletas, sin commit ni publicación.
 - [[Citas Gerencia - conexiones corregidas en local 2026-09-12]] — caché y lector canónico preparados y probados; SQL sin instalar, nuevas metas/proyección y gate global pendientes.
-- [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Leads recibidos por dia para analistas 2026-09-12]] — rango y conteo diario de entradas operativas a la cartera; rama preview verificada, pendiente de publicación.
+- [[Citas Gerencia - avance y proyeccion mensual por analista 2026-09-11]] — flujo cita/entrevista/cliente aclarado; propuesta visual del cierre con tasas y ticket, bases pendientes.
+- [[Citas Gerencia - control de Superadmin en borrador 2026-09-11]] — panel local para metas y reglas; guardado compartido pendiente de SQL autorizado y nuevas métricas aún sin activar.
+- [[Alertas de respuestas de tasa para analistas - 2026-09-11]] — avisos en la PC, sonido y lectura de respuestas propias mientras el CRM está abierto.
 - [[Notificaciones de solicitudes de tasa - implementacion local 2026-09-10]] — SQL y coste autorizados; PWA verificada localmente, banco remoto exclusivo en pruebas antes de publicar.
 - [[G6 - conciliacion real preparada (2026-09-11)]] — 218 inversiones reales conciliadas y conformidad humana/financiera recibida para el corte del 11/09. G6 cerrado; los diez enlaces pendientes se completaron después en F8.
 - [[F7 - publicada y apagada (2026-09-11)]] — informe Empresas publicado y SQL instalado OFF; pruebas específicas PASS, cero regresiones sobre los 57 fallos de la matriz general, banco cerrado; G6 cerrado el 13/09/2026.
