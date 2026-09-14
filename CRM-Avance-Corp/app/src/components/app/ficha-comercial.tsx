@@ -24,14 +24,14 @@ export function FichaComercialContacto({
   return (
     <div className="flex flex-wrap items-center gap-1.5" aria-label="Formas de contactar al cliente">
       {tel && (
-        <a href={habilitado ? tel : undefined} role="link" tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Llamar a ${nombre}`}>
+        <a href={habilitado ? tel : undefined} role={habilitado ? undefined : 'link'} tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Llamar a ${nombre}`}>
           <Phone aria-hidden /> Llamar
         </a>
       )}
       {wa && (
         <a
           href={habilitado ? `https://wa.me/${wa}` : undefined}
-          role="link" tabIndex={0}
+          role={habilitado ? undefined : 'link'} tabIndex={0}
           aria-disabled={!habilitado}
           target={habilitado ? '_blank' : undefined}
           rel="noreferrer"
@@ -42,7 +42,7 @@ export function FichaComercialContacto({
         </a>
       )}
       {correo && (
-        <a href={habilitado ? `mailto:${correo}` : undefined} role="link" tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Escribir correo a ${nombre}`}>
+        <a href={habilitado ? `mailto:${correo}` : undefined} role={habilitado ? undefined : 'link'} tabIndex={0} aria-disabled={!habilitado} className={CLASE_CONTACTO} aria-label={`Escribir correo a ${nombre}`}>
           <Mail aria-hidden /> Escribir correo
         </a>
       )}
