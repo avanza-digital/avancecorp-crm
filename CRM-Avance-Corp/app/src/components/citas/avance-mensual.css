@@ -1,5 +1,4 @@
 .cm-panel { margin-top: 16px; overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-variant-numeric: tabular-nums; }
-.cm-panel > .cm-cabecera .cm-acciones > div:has(> select) { width: 150px; }
 .cm-filtros .citas-filtros-fila { grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto; padding-block: 12px; }
 .cm-filtros .citas-filtros-fila > label:first-child { grid-column: auto; }
 .cm-recuperacion .citas-flujo-resumen { flex-wrap: nowrap; gap: 12px; }

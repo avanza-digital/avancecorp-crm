@@ -32,7 +32,7 @@ function ejemplo() {
   }
   const citas = [cita]
   const filtros = defaults('2026-09')
-  const calcular = (moneda: 'PEN' | 'USD' = 'PEN') => calcularAvanceCitas(gestion, citas, filtros, corte, moneda)
+  const calcular = (tc: number | null = null) => calcularAvanceCitas(gestion, citas, filtros, corte, tc)
   return { gestion, datos: gestion.avance!, config: gestion.avance!.control.configuracion, citas, cita, filtros, calcular }
 }
 
@@ -150,11 +150,52 @@ describe('Avance mensual conectado a hechos de Citas', () => {
     e.datos.poblacion[0]!.primera_asignacion_en = '2026-08-01T15:00:00Z'
     expect(e.calcular().total).toMatchObject({ entrevistas: 0, clientes: 0, ticket: 1000 })
   })
-  it('el importe real puede tener otra moneda que la estimación; el selector monetario es independiente', () => {
+  it('convierte la moneda real del contrato sin cambiar el filtro de moneda estimada', () => {
     const e = ejemplo()
     e.datos.capital[0]!.moneda = 'USD'
-    expect(e.calcular('USD').total).toMatchObject({ leads: 1, ticket: 1000, capital: 1000, proyeccion: 1000 })
-    expect(e.calcular('PEN').total).toMatchObject({ leads: 1, ticket: null, capital: 0, proyeccion: null })
+    e.filtros.moneda = 'PEN'
+    expect(e.calcular(3.75).total).toMatchObject({ leads: 1, ticket: 3750, capital: 3750, proyeccion: 3750, capitalPen: 0, capitalUsd: 1000 })
+    expect(e.calcular().total).toMatchObject({ leads: 1, ticket: null, capital: null, proyeccion: null, faltaTipoCambio: true, capitalPen: 0, capitalUsd: 1000 })
+  })
+  it('suma ambas monedas convertidas y cuenta una sola persona aunque tenga dos perfiles', () => {
+    const e = ejemplo()
+    e.datos.poblacion[0]!.identidad_persona = 'persona:1'
+    e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: 'lead-2' })
+    e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: 'lead-2', perfil_id: 'cliente-2' })
+    e.datos.capital.push({ ...e.datos.capital[0]!, lead_id: 'lead-2', perfil_id: 'cliente-2', contrato_id: 'contrato-2', moneda: 'USD', monto: 500 })
+    expect(e.calcular(4)).toMatchObject({ tc: 4, total: { capitalPen: 1000, capitalUsd: 500, capital: 3000, ticket: 3000, clientesTicket: 1, proyeccion: 3000 } })
+    expect(calcularAvanceCitas(e.gestion, e.citas, e.filtros, '2026-10-04T15:00:00Z', 4).total).toMatchObject({ capital: 3000, proyeccion: 3000 })
+  })
+  it('el total pondera clientes y suma proyecciones; filtrar un analista conserva su capital original', () => {
+    const e = ejemplo()
+    for (let n = 2; n <= 3; n++) {
+      const lead = `lead-${n}`, perfil = `cliente-${n}`
+      e.datos.poblacion.push({ ...e.datos.poblacion[0]!, lead_id: lead, analista_origen_id: 'luis', analista_origen_nombre: 'Luis' })
+      e.citas.push({ ...e.cita, id: `cita-${n}`, leadId: lead, analista: 'luis', analistaNombre: 'Luis' })
+      e.datos.conversiones.push({ ...e.datos.conversiones[0]!, lead_id: lead, perfil_id: perfil, analista_id: 'luis', analista_nombre: 'Luis' })
+      e.datos.capital.push({ ...e.datos.capital[0]!, contrato_id: `contrato-${n}`, lead_id: lead, perfil_id: perfil, analista_id: 'luis', moneda: 'USD', monto: 1000 })
+    }
+    const resumen = e.calcular(4)
+    expect(resumen.filas.find(f => f.id === 'ana')).toMatchObject({ ticket: 1000, clientesTicket: 1 })
+    expect(resumen.filas.find(f => f.id === 'luis')).toMatchObject({ ticket: 4000, clientesTicket: 2, proyeccion: 8000 })
+    expect(resumen.total).toMatchObject({ capital: 9000, ticket: 3000, clientesTicket: 3, proyeccion: 9000, capitalPen: 1000, capitalUsd: 2000 })
+    expect(e.calcular().total).toMatchObject({ capital: null, ticket: null, proyeccion: 1000, parciales: 1, analistas: 2 })
+    e.filtros.analista = 'luis'
+    expect(e.calcular(4).total).toMatchObject({ capital: 8000, ticket: 4000, clientesTicket: 2, capitalPen: 0, capitalUsd: 2000 })
+    e.filtros.analista = 'ana'
+    expect(e.calcular().total).toMatchObject({ capital: 1000, ticket: 1000, proyeccion: 1000, faltaTipoCambio: false, capitalPen: 1000, capitalUsd: 0 })
+    expect(e.calcular(4).tc).toBeNull()
+  })
+  it.each([null, 0, -1, Number.NaN, Number.POSITIVE_INFINITY])('con TC %s nunca divide solo soles entre clientes de ambas monedas', tc => {
+    const e = ejemplo()
+    e.datos.capital.push({ ...e.datos.capital[0]!, contrato_id: 'contrato-2', moneda: 'USD', monto: 500 })
+    expect(e.calcular(tc)).toMatchObject({ tc: null, total: { ticket: null, capital: null, proyeccion: null, faltaTipoCambio: true, capitalPen: 1000, capitalUsd: 500, motivoTicket: 'Falta el tipo de cambio para incluir dólares' } })
+  })
+  it('soles y un importe USD cero no necesitan una cotización ni anuncian una tasa sin aplicar', () => {
+    const e = ejemplo()
+    e.datos.capital.push({ ...e.datos.capital[0]!, contrato_id: 'contrato-2', moneda: 'USD', monto: 0 })
+    expect(e.calcular()).toMatchObject({ tc: null, total: { ticket: 1000, capital: 1000, proyeccion: 1000, faltaTipoCambio: false, capitalPen: 1000, capitalUsd: 0 } })
+    expect(e.calcular(4).tc).toBeNull()
   })
   it('distingue un importe ausente de una atribución monetaria contradictoria', () => {
     const e = ejemplo()

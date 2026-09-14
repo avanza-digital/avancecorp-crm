@@ -1,6 +1,7 @@
 import { normalizar, type CitaEjemplo, type FiltrosCitas } from './modelo'
 import { baseCitasFiltrada, type GestionCitas } from './metas'
 import type { GestionMensualCitas } from '@/lib/gestion-citas'
+import { totalEnSoles, tcAplicable } from '@/lib/capital-unificado'
 
 type Persona = GestionMensualCitas['poblacion'][number]
 const instanteCita = (c: CitaEjemplo) => Date.parse(`${c.fecha}T${c.hora}:00-05:00`)
@@ -37,7 +38,7 @@ function coincidePersona(p: Persona, f: FiltrosCitas, todas: CitaEjemplo[]) {
 }
 
 /** Métricas sobre hechos del servidor. No introduce personas ni importes demo. */
-export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[], filtros: FiltrosCitas, corte: string, moneda: 'PEN' | 'USD') {
+export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[], filtros: FiltrosCitas, corte: string, tipoCambio: number | null | undefined) {
   const datos = gestion.avance!
   const config = datos.control.configuracion
   const perfiles = new Map(datos.conversiones.map(c => [c.lead_id, c.perfil_id]))
@@ -107,14 +108,22 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     const cierresTicket = datos.conversiones.filter(c => personas.has(c.lead_id) && ambito(c.analista_id)
       && (!id || c.analista_id === id) && actividad(c.lead_id, c.analista_id)
       && Date.parse(c.convertido_en) >= periodo.inicio && Date.parse(c.convertido_en) <= periodo.corte)
-    const capital = datos.capital.filter(k => k.moneda === moneda && (!id || k.analista_id === id)
+    const capital = datos.capital.filter(k => (!id || k.analista_id === id)
       && cierresTicket.some(c => c.perfil_id === k.perfil_id && c.analista_id === k.analista_id))
     const capitalPerfiles = new Set(capital.map(k => personaEntrevistada(k.lead_id)))
     const sinImporte = new Set(cierresTicket.filter(c => !datos.capital.some(k => k.perfil_id === c.perfil_id)).map(c => personaEntrevistada(c.lead_id))).size
     const atribucionPendiente = new Set(cierresTicket.filter(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.analista_id !== c.analista_id)).map(c => personaEntrevistada(c.lead_id))).size
-    const otraMoneda = cierresTicket.some(c => datos.capital.some(k => k.perfil_id === c.perfil_id && k.moneda !== moneda))
-    const monto = capital.reduce((n, k) => n + k.monto, 0)
-    const ticket = capitalPerfiles.size && !sinImporte && !atribucionPendiente ? monto / capitalPerfiles.size : null
+    const capitalPen = capital.filter(k => k.moneda === 'PEN').reduce((n, k) => n + k.monto, 0)
+    const capitalUsd = capital.filter(k => k.moneda === 'USD').reduce((n, k) => n + k.monto, 0)
+    const unificado = totalEnSoles(capitalPen, capitalUsd, tipoCambio)
+    const faltaTipoCambio = capitalUsd > 0 && unificado.tc === null
+    // Un promedio parcial excluiría dinero de clientes que sí están en el divisor.
+    const monto = faltaTipoCambio ? null : unificado.total
+    const ticket = monto !== null && capitalPerfiles.size && !sinImporte && !atribucionPendiente ? monto / capitalPerfiles.size : null
+    const motivoTicket = faltaTipoCambio ? 'Falta el tipo de cambio para incluir dólares'
+      : sinImporte ? 'Faltan importes reales del mes'
+        : atribucionPendiente ? 'Revisa la atribución de capital al analista'
+          : ticket === null ? 'Sin clientes con importe en el mes' : null
     const tasaObservada = resultado.length ? visitas.length / resultado.length : null
     const clientesReales = new Set(cierresTicket.map(c => personaEntrevistada(c.lead_id))).size
     // Generar una cita para otro mes suma cumplimiento, pero no acelera este cierre.
@@ -127,16 +136,15 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
     const clientesEsperados = conversion !== null && personasEsperadas !== null && entrevistasEsperadas !== null
       ? Math.max(clientesReales, clientes, Math.min(personasEsperadas, (config.base_depositos === 'entrevistas' ? entrevistasEsperadas : personasEsperadas) * conversion)) : null
     const motivoProyeccion = !reglasListas ? 'Completa las reglas de gestión'
-      : otraMoneda ? 'Hay clientes que invirtieron en otra moneda' : sinImporte ? 'Faltan importes reales del mes'
-        : atribucionPendiente ? 'Revisa la atribución de capital al analista'
-        : ticket === null ? 'Sin clientes con importe en el mes' : clientesEsperados === null ? 'Sin base de entrevistas' : null
-    const proyeccion = motivoProyeccion === null && ticket !== null && clientesEsperados !== null
+      : motivoTicket ?? (clientesEsperados === null ? 'Sin base de entrevistas' : null)
+    const proyeccion = motivoProyeccion === null && ticket !== null && clientesEsperados !== null && monto !== null
       ? periodo.cerrado ? monto : Math.max(monto, clientesEsperados * ticket) : null
     return { leads, citas: citas.length, promedio: leads ? citas.length / leads : null,
       cumplimiento: leads ? citas.length / (leads * config.citas_por_lead) * 100 : null,
       entrevistas: visitas.length, unicas: gente.size, resueltas: resultado.length, baseEntrevistas,
       tasaEntrevistas, conversion, clientes, clientesPeriodo, clientesFueraCohorte: fuera, baseConversion,
-      ticket, capital: monto, clientesTicket: capitalPerfiles.size, sinImporte, atribucionPendiente, proyeccion, clientesEsperados, motivoProyeccion,
+      ticket, motivoTicket, capital: monto, capitalPen, capitalUsd, faltaTipoCambio,
+      clientesTicket: capitalPerfiles.size, sinImporte, atribucionPendiente, proyeccion, clientesEsperados, motivoProyeccion,
       manuales: base.filter(p => p.registroManual ?? p.manualPropio).length,
       sinCita: base.filter(p => !citas.some(c => c.leadId === p.leadId)),
       base, actividad: citas, visitas, vinculados, cierres: clientesMes, reglasListas }
@@ -148,7 +156,8 @@ export function calcularAvanceCitas(gestion: GestionCitas, todas: CitaEjemplo[],
   const calculables = filas.filter(f => f.proyeccion !== null)
   const total = { ...resultados(), proyeccion: calculables.length ? calculables.reduce((n, f) => n + f.proyeccion!, 0) : null,
     parciales: calculables.length, analistas: filas.length }
-  return { filas, total, periodo, config, reglasListas, version: datos.control.version }
+  return { filas, total, periodo, config, reglasListas, version: datos.control.version,
+    tc: total.capitalUsd > 0 ? tcAplicable(tipoCambio) : null }
 }
 export type AvanceCitas = ReturnType<typeof calcularAvanceCitas>
 export type FilaAvanceCitas = AvanceCitas['filas'][number]

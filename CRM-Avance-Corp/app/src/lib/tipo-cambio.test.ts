@@ -112,6 +112,20 @@ describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
     })
   })
 
+  it('una respuesta tardía de septiembre no sustituye la cotización ya cargada de agosto', async () => {
+    let resolverSeptiembre!: (valor: unknown) => void
+    invoke.mockImplementationOnce(() => new Promise(resolve => { resolverSeptiembre = resolve }))
+    invoke.mockResolvedValueOnce({ data: { promedio: 4, fuente: 'SBS', fecha_corte: '2026-08-31' }, error: null })
+    const { result, rerender } = renderHook(({ corte }) => useTipoCambio(true, corte), {
+      initialProps: { corte: '2026-09-04' },
+    })
+    expect(result.current.tc).toBeUndefined()
+    rerender({ corte: '2026-08-31' })
+    await waitFor(() => expect(result.current.tc).toEqual({ promedio: 4, fuente: 'SBS al 31/08/2026' }))
+    await act(async () => { resolverSeptiembre({ data: { promedio: 3.53, fuente: 'SBS', fecha_corte: '2026-09-04' }, error: null }) })
+    expect(result.current.tc).toEqual({ promedio: 4, fuente: 'SBS al 31/08/2026' })
+  })
+
   it.each([
     ['otro corte', '2026-09-01'],
     ['sin corte declarado', undefined],
