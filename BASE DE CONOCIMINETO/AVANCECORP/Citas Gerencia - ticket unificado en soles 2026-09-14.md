@@ -16,3 +16,17 @@ Implementado en `78a9a77` sobre Main `faa1059`, en copia persistente separada de
 
 Evidencia: `UX-UI-GERENCIA/citas-ticket-soles-2026-09-14/README.md`.
 Relacionado: [[Citas Gerencia - decisiones finales para publicar 2026-09-14]], [[Main unico - sincronizacion y publicacion 2026-09-04]].
+
+## Cierre de sesión — 14/09/2026
+
+Miguel pidió «ok guarda todo y cierra sesion». El trabajo de Citas queda terminado,
+publicado y guardado: implementación `78a9a77`, verificación `32d57b5` y acta
+`57883a4`. Se integró también el cierre documental de Tasas `82fc98d`, que conserva
+la versión publicada de Citas. No hay cambios propios de código pendientes ni
+pruebas o despliegues de esta tarea en curso.
+
+El ZIP publicado, su manifiesto y la reversa inmediata permanecen en
+`CRM-Avance-Corp/releases/`; la copia persistente y los logs de esta sesión están
+en `_dev_artifacts/citas-ticket-soles/`. Se conservan sin incorporar los cambios
+de F8/COOPAC y los archivos ajenos presentes en la carpeta compartida. Al retomar,
+consultar Main/remoto y esta nota antes de hacer nuevos cambios.
