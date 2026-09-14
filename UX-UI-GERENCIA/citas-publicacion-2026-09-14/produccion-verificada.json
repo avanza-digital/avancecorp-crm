@@ -1,0 +1,181 @@
+{
+  "fecha_verificacion": "2026-09-14",
+  "destino": "https://crm.miavance.com/",
+  "commit_artefacto": "582358883c1a93b9922a0888b90ed06389088d75",
+  "build_id": "build-20260914T173227102Z",
+  "merge_rama_supabase": {
+    "success": true
+  },
+  "paridad_schema": {
+    "migraciones": 286,
+    "funciones": 643,
+    "historial_identico_al_banco": true,
+    "funciones_permisos_identicos": true
+  },
+  "funciones": {
+    "nuevas": [
+      {
+        "firma": "crm.aplicar_control_citas_fn(p_version_esperada integer)",
+        "hash": "47fd5b575a6a09440f079d24e98f937f",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+      },
+      {
+        "firma": "crm.control_citas_configuracion_fn()",
+        "hash": "5faa0735c6a25c5e3b0b3e09af1e1e9b",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+      },
+      {
+        "firma": "crm.guardar_control_citas_fn(p_version_esperada integer, p_configuracion jsonb, p_nota text)",
+        "hash": "66c93c91e92fed34d6e34d8705858edc",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+      },
+      {
+        "firma": "private.control_citas_config_valida(p_config jsonb)",
+        "hash": "d2bfaefa7392c8b5538c52b212f0b2bd",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres}"
+      },
+      {
+        "firma": "private.control_citas_version_inmutable()",
+        "hash": "098b742c0a5e9a05a19ed98a412ba9ce",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres}"
+      },
+      {
+        "firma": "private.control_citas_vigente(p_mes date)",
+        "hash": "14701a4962f4beec4c64bdffbac5fcb5",
+        "propietario": "postgres",
+        "acl": "{postgres=X/postgres}"
+      }
+    ],
+    "cambios": [
+      {
+        "antes": {
+          "firma": "private.citas_gerencia_consulta(p_desde date, p_hasta date)",
+          "hash": "8b2eeffc547a1c095926ddb76876d262",
+          "propietario": "postgres",
+          "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+        },
+        "despues": {
+          "firma": "private.citas_gerencia_consulta(p_desde date, p_hasta date)",
+          "hash": "4ad2b90baf96b11b63a626122bd5d64b",
+          "propietario": "postgres",
+          "acl": "{postgres=X/postgres,authenticated=X/postgres}"
+        }
+      }
+    ],
+    "faltan": []
+  },
+  "activacion": {
+    "estado": "APLICADO",
+    "control": {
+      "version": 1,
+      "mes_inicio": "2026-09",
+      "configuracion": {
+        "mes_inicio": "2026-09",
+        "base_avance": "actividad_real",
+        "mes_resultado": "evento",
+        "base_depositos": "personas_entrevistadas",
+        "citas_por_lead": 1.25,
+        "actividad_manuales": "incluir",
+        "analista_resultado": "evento",
+        "conteo_entrevistas": "citas_realizadas",
+        "mostrar_meta_citas": false,
+        "depositos_porcentaje": 70,
+        "excluir_manuales_base": false,
+        "entrevistas_porcentaje": 70
+      }
+    }
+  },
+  "lectura_gerencia": {
+    "citas": 164,
+    "control": {
+      "version": 1,
+      "mes_inicio": "2026-09",
+      "configuracion": {
+        "mes_inicio": "2026-09",
+        "base_avance": "actividad_real",
+        "mes_resultado": "evento",
+        "base_depositos": "personas_entrevistadas",
+        "citas_por_lead": 1.25,
+        "actividad_manuales": "incluir",
+        "analista_resultado": "evento",
+        "conteo_entrevistas": "citas_realizadas",
+        "mostrar_meta_citas": false,
+        "depositos_porcentaje": 70,
+        "excluir_manuales_base": false,
+        "entrevistas_porcentaje": 70
+      }
+    },
+    "personas": 958,
+    "asignaciones": 964,
+    "conversiones": 14,
+    "lector_version": 2,
+    "gestion_version": 2,
+    "contratos_ticket": 12,
+    "identidades_presentes": true
+  },
+  "nota_lectura": "Cantidades del payload del lector; no son los indicadores mensuales filtrados de la interfaz.",
+  "advisors_citas": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`crm.control_citas_aplicaciones\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`crm.control_citas_versiones\\` has RLS enabled, but no policies exist"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.aplicar_control_citas_fn(p_version_esperada integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/aplicar_control_citas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.control_citas_configuracion_fn()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_citas_configuracion_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `crm.guardar_control_citas_fn(p_version_esperada integer, p_configuracion jsonb, p_nota text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/guardar_control_citas_fn`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    }
+  ],
+  "edge": {
+    "total": 19,
+    "paquetes_versiones_jwt_conservados": true,
+    "comparadas": [
+      "id",
+      "slug",
+      "version",
+      "verify_jwt",
+      "ezbr_sha256"
+    ]
+  },
+  "banco_temporal": {
+    "rama": "citas-validacion-20260912",
+    "id": "07531654-e80e-47ef-ac36-02ce61d93d41",
+    "eliminacion_correcta": true,
+    "ausencia_comprobada_en_listado": true
+  },
+  "artefacto": {
+    "release_id": "crm-20260914T173227Z-582358883c1a",
+    "creado_en": "2026-09-14T17:32:27.930Z",
+    "fuente": {
+      "commit": "582358883c1a93b9922a0888b90ed06389088d75",
+      "worktree_sucio": false,
+      "cambios": []
+    },
+    "archivo": {
+      "nombre": "crm-20260914T173227Z-582358883c1a.zip",
+      "bytes": 2070539,
+      "sha256": "24cac39af05d438407c466478df47d2c3240d79aecded8640157b30fd7ee708a"
+    },
+    "archivos": 92
+  }
+}

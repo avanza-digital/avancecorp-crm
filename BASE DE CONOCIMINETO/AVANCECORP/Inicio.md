@@ -5,11 +5,11 @@ actualizado: 2026-09-14
 
 # 🏠 Inicio — Portal Avance Corp
 
-- [[Citas Gerencia - decisiones finales para publicar 2026-09-14]] — reglas confirmadas, preparación reanudada y pruebas cerradas; publicación coordinada con la sesión F8.
+- [[Citas Gerencia - decisiones finales para publicar 2026-09-14]] — **PUBLICADO 14/09:** reglas 1,25 internas y 70/70 activas desde septiembre; clientes por persona, mes/analista del evento. Build `build-20260914T173227102Z`; acta y banco temporal cerrado.
 
-- [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — módulo real y Superadmin preparados en local/banco; 3.512 pruebas y 48 comprobaciones HTTP PASS. Tres decisiones comerciales y diagnóstico del gate general pendientes; Miguel pidió no desplegar.
+- [[Citas Gerencia - avance integrado sin deploy 2026-09-13]] — historial de preparación local/banco del 13/09 y orden anterior de no desplegar, sustituida por la autorización y publicación del 14/09.
 - [[Citas Gerencia - reglas confirmadas y propuesta revisada 2026-09-13]] — cuentan manuales y sus citas, cada asistencia cuenta como entrevista y el ticket es mensual por analista; historial de la propuesta aprobada.
-- [[Citas Gerencia - meta incorrecta detectada y correccion local 2026-09-13]] — reclamo de Miguel: meta anterior publicada; corrección local y métricas aún pendientes.
+- [[Citas Gerencia - meta incorrecta detectada y correccion local 2026-09-13]] — historial del reclamo por la meta anterior; corrección y métricas publicadas el 14/09.
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 

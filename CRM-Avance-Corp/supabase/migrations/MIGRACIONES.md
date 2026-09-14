@@ -1,5 +1,16 @@
 # Ledger de migraciones — esquema `crm`
 
+> **Citas PUBLICADA — 14/09/2026:** cinco migraciones canónicas instaladas por
+> merge de la rama propia: `20260911212756`, `20260913204847`, `20260913225042`,
+> `20260913225755` y `20260914044939`. Las 281 entradas anteriores se conservaron;
+> 286 totales y 643 funciones/ACL idénticas al banco. Control versión 1 vigente
+> desde 2026-09: meta interna 1,25; objetivos 70/70; personas distintas y mes/analista
+> del evento. Frontend publicado desde Main/remoto `582358883c1a`; 3519 tests,
+> nueve E2E afectados y 48 Auth/HTTP PASS. RLS general: mismos 49/1827 FAIL en el
+> A/B previo a F8; no es PASS global. SQL de dominio repetidos con F3 ON/F8 OFF.
+> Banco propio eliminado. Acta desde la raíz del repo:
+> `UX-UI-GERENCIA/citas-publicacion-2026-09-14/PUBLICACION.md`.
+
 > **F8 — instalada y verificada OFF el 14/09:** versiones productivas
 > `20260914161616` y `20260914161816`, 43 y 10 sentencias literales de los dos
 > SQL aprobados. 279 entradas originales conservadas; 281 en total. Control OFF,
@@ -39,7 +50,7 @@ completados. Pendientes: equipo nominal, activación y evidencia real de G7. Det
 `../scripts/multiempresa-f8/README.md` y
 `../scripts/multiempresa-f8/VERIFICACION-RAMA-2026-09-13.md`.
 
-> **Citas — PREPARACIÓN SIN DEPLOY (13/09):** cuatro candidatas nuevas (`20260911212756`, `20260913204847`, `20260913225042`, `20260913225755`) conectan base mensual, configuración de Superadmin, entrevistas, clientes y ticket/proyección. Ensayadas sólo en banco propio: SQL y 48 comprobaciones Auth/HTTP PASS; frontend 3.512 pruebas y 14 E2E específicos PASS. RLS general: 55/1.828 FAIL, pendiente de diagnóstico. Tres decisiones de negocio y vigencia siguen sin aplicar. No instaladas en producción. Evidencia: `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
+> **Citas — historial de PREPARACIÓN SIN DEPLOY (13/09), sustituido por la publicación del 14/09:** cuatro candidatas nuevas (`20260911212756`, `20260913204847`, `20260913225042`, `20260913225755`) conectan base mensual, configuración de Superadmin, entrevistas, clientes y ticket/proyección. Ensayadas sólo en banco propio: SQL y 48 comprobaciones Auth/HTTP PASS; frontend 3.512 pruebas y 14 E2E específicos PASS. RLS general: 55/1.828 FAIL, pendiente de diagnóstico. Tres decisiones de negocio y vigencia siguen sin aplicar. No instaladas en producción. Evidencia: `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
 
 > **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
 > `20260910225540_crm_notificaciones_push_tasa.sql` añade dos tablas CRM con RLS
@@ -9323,7 +9334,8 @@ del banco al terminar: no queda rastro.
 
 ## 20260911212756 — Control de Citas para Superadmin (borradores)
 
-**Estado:** candidato local; no aplicado a producción.
+**Estado vigente:** aplicada en producción el 14/09/2026 con su versión canónica.
+Las referencias de preparación del 13/09 siguientes son históricas.
 
 Añade `crm.control_citas_versiones` y dos RPC exclusivas de Superadmin activo: lectura y guardado de borradores con historial inmutable, auditoría del actor y control de concurrencia por versión. Tabla sin acceso directo para `anon`/`authenticated`, con RLS. No cambia objetos existentes de `public`, ni lectores o cálculos de Citas. El trigger utiliza el auditor existente `private.log_audit_crm()`.
 
@@ -9529,7 +9541,7 @@ nuevas migraciones por el ciclo de rama autorizado.
 
 ## 20260913204847 — Citas: base mensual asignada y meta interna
 
-**Candidata sin instalar en producción.** Conserva la puerta Gerencia y el JSON
+**Aplicada en producción el 14/09/2026.** Conserva la puerta Gerencia y el JSON
 de citas existente, añade la base mensual desde `lead_asignaciones` y las metas
 1,25 / 70 / 70. Incluye leads sin cita. Rechaza deriva de la definición previa;
 actualiza sólo la huella de su lector y el sello del censo. Es un paso intermedio:
@@ -9538,7 +9550,9 @@ manuales aclaradas posteriormente. Ensayo SQL dentro de BEGIN/ROLLBACK: PASS.
 
 ## 20260913225042 — Citas: aplicación mensual de configuración
 
-**Ensayada sólo en `citas-validacion-20260912`; NO DEPLOY.** Requiere borradores
+**Aplicada en producción el 14/09/2026.** Versión 1 activada desde 2026-09;
+los valores nulos descritos abajo corresponden al estado inicial de preparación.
+Requiere borradores
 `20260911212756`. Añade `control_citas_aplicaciones`, lectura de vigencia privada
 y RPC `aplicar_control_citas_fn` exclusiva de Superadmin activo. Versiones y
 aplicaciones son inmutables, auditadas y sin acceso directo por la Data API.
@@ -9555,7 +9569,8 @@ de la rama e incorporados por miembro sin borrar las RPC de Leads actuales.
 
 ## 20260913225755 — Citas: fuentes del avance y ticket mensual
 
-**Ensayada sólo en banco propio; no instalada ni publicada en producción.**
+**Aplicada en producción el 14/09/2026.** Los resultados de ensayo del 13/09
+que siguen son históricos; el acta vigente documenta el A/B final y publicación.
 Requiere las tres candidatas de Citas anteriores y los núcleos vigentes.
 Conserva contrato superior V2, añade `gestion.version=2` con asignaciones,
 población, conversión nativa, capital real y configuración efectiva.
@@ -9583,7 +9598,8 @@ de índices recién creados sin uso. Evidencias, capturas, SQL exacto y pendient
 
 ## 20260914044939 — Citas: identidad de personas independiente de la conversión
 
-**Ensayada y preparada para el deploy autorizado; aún sin publicar Citas.**
+**Aplicada y publicada el 14/09/2026.** Lector productivo
+`4ad2b90baf96b11b63a626122bd5d64b`, control vigente y lectura Gerencia comprobados.
 Extiende la población con `identidad_persona`. Prioriza inversionista canónico,
 resuelve perfiles vinculados y conserva perfil/lead cuando no hay vínculo.
 No infiere una persona desde una conversión ni fusiona por datos personales.
@@ -9592,8 +9608,9 @@ Cada entrevista sigue contando; personas, clientes y ticket comparten identidad.
 Preflight de lector exacto, permisos conservados y actualización exclusiva de su
 huella/sello. Sin cambios de tablas u objetos `public`. SQL de identidad mixta y
 conversión nativa PASS, también con F3 ON y F8 OFF como producción. Las cuatro
-candidatas anteriores y ésta están en la rama propia con historial canónico:
+migraciones anteriores y ésta se instalaron desde la rama con historial canónico:
 281 entradas del padre intactas y cinco extras, tras incorporar la instalación F8.
+El banco propio se eliminó después de verificar la publicación.
 
 Frontend integrado: 3519 tests PASS; nueve E2E afectados PASS. Control: 48 Auth/HTTP
 PASS y concurrencia local PASS. RLS general conserva los mismos 49/1827 FAIL en
