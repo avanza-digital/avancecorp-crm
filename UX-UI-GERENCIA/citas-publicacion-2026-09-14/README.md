@@ -1,7 +1,10 @@
-# Citas: reglas finales y preparación de publicación
+# Citas: reglas finales publicadas
 
-Estado: preparado y verificado; publicación pendiente de cerrar la instalación
-paralela F8. Miguel reanudó y mantiene su autorización de deploy de Citas.
+Estado: **PUBLICADO y verificado el 14/09/2026** en https://crm.miavance.com/.
+Configuración versión 1 aplicada desde septiembre de 2026. La instalación F8
+terminó y sus commits se integraron antes de construir el artefacto de Citas.
+Véase el [acta de publicación](PUBLICACION.md) y la
+[lectura productiva comprobada](produccion-verificada.json).
 
 ## Comportamiento
 
@@ -83,18 +86,23 @@ DEFINER exclusivas de Superadmin, verificadas con Auth real. Dos índices de
 autoría todavía sin uso. No se abren políticas para eliminar avisos intencionales.
 Las otras diferencias de uso de índices corresponden a la actividad del banco.
 
-## Publicación y reversión
+## Publicación ejecutada y reversión disponible
 
-1. Conciliar Main y `avancecorp/main`, preservar trabajo ajeno y cerrar el otro
-   despliegue. El artefacto debe salir de ese mismo commit, con árbol limpio.
-2. Construir y verificar ZIP/manifiesto usando `npm run release:crm` y `verify`.
-3. Revalidar las 281 entradas del padre y las cinco candidatas; merge de la rama
-   propia. No aplicar SQL de esquema directamente a producción.
-4. Ejecutar `activar-reglas.sql` por la vía administrativa autorizada. Usa las RPC
-   existentes, el único Superadmin activo, versión inicial cero, mes abierto y
-   nota explícita de ejecución asistida; lee y comprueba auditoría y vigencia.
-5. Deploy del ZIP verificado por `hosting_deployStaticWebsite` a `crm.miavance.com`.
-6. Verificar versión HTTP, hashes de todos los recursos y lectura de métricas.
+1. Main y `avancecorp/main` conciliados en `582358883c1a93b9922a0888b90ed06389088d75`;
+   árbol limpio y trabajo ajeno preservado.
+2. ZIP/manifiesto construidos y verificados mediante `npm run release:crm`.
+3. Cinco migraciones instaladas por merge de la rama propia: 286 entradas finales,
+   historial y 643 funciones/permisos idénticos al banco validado.
+4. `activar-reglas.sql` ejecutado por la vía administrativa autorizada. RPC
+   canónicas, Superadmin existente, mes abierto y nota de ejecución asistida;
+   auditoría, versión 1 y vigencia 2026-09 comprobadas.
+5. ZIP publicado por `hosting_deployStaticWebsite`; versión HTTP confirmada:
+   `build-20260914T173227102Z`.
+6. Recursos ejecutables exactos y lectura real de Gerencia verificadas. Las
+   imágenes optimizadas por el hosting se detallan sin atribuirles igualdad
+   binaria en [http-publicado.json](http-publicado.json).
+7. Banco temporal propio eliminado y ausencia comprobada; las demás ramas
+   permanecen ajenas a esta tarea.
 
 `rollback-lector.sql` restaura el lector anterior bajo su huella exacta y conserva
 historial/configuración. Requiere restaurar el ZIP anterior verificado. Se prepara

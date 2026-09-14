@@ -1,10 +1,15 @@
 ---
 fecha: 2026-09-14
-estado: reanudado-publicacion-en-preparacion
+estado: publicado-verificado
 tags: [crm, citas, gerencia, metas, release]
 ---
 
 # Citas Gerencia — decisiones finales para publicar
+
+**Estado vigente: PUBLICADO el 14/09/2026** en https://crm.miavance.com/.
+Reglas versión 1 aplicadas desde septiembre de 2026. Build
+`build-20260914T173227102Z`, commit `582358883c1a93b9922a0888b90ed06389088d75`.
+La pausa y preparación descritas abajo son historial; su cierre consta al final.
 
 Miguel autorizó el deploy («ok hagamos deploy»), sustituyendo la instrucción
 previa de preparar sin publicar. Después confirmó las tres reglas pendientes de
@@ -30,7 +35,7 @@ ticket real por analista y mes. Véase
 
 Los valores iniciales del editor incorporan las tres respuestas. Esto no aplica
 automáticamente una versión: el mes de vigencia y la aplicación auditada siguen
-en el servidor. La vigencia de septiembre de 2026 se prepara para este deploy;
+en el servidor. La vigencia de septiembre de 2026 se aplicó en este deploy;
 no se presenta como una respuesta adicional de Miguel.
 
 La tabla y la exportación muestran todos los clientes del periodo, incluso si
@@ -40,11 +45,11 @@ periodo; los otros cierres se distinguen en el detalle. Si varios leads están
 vinculados a una misma persona canónica (o perfil cuando no hay ese vínculo), esa identidad cuenta una sola vez en las
 personas entrevistadas y en los clientes; las entrevistas siguen sumándose.
 
-La publicación permanece en preparación hasta verificar el banco, los gates,
-la configuración aplicada y el artefacto del mismo commit que `avancecorp/main`.
-Esta nota no acredita que se haya desplegado.
+La preparación exigió verificar el banco, los gates, la configuración aplicada
+y el artefacto del mismo commit que `avancecorp/main`. Esas etapas se cerraron;
+la evidencia de publicación está enlazada al final.
 
-## Pausa solicitada el 14/09/2026
+## Pausa solicitada el 14/09/2026 — registro histórico
 
 Miguel pidió «pon en pausa el trabajo e un momento seguro». **Trabajo pausado**:
 no continuar ni publicar hasta que solicite retomarlo. No hubo cambios de
@@ -126,3 +131,35 @@ El gate frontend tras integrar Main pasó: 243 archivos y 3519 tests. Nueve E2E
 afectados PASS. Comparación RLS por nombre/multiconjunto: mismos 49 casos,
 cero aserciones nuevas, sin presentar la matriz general como PASS. La evidencia
 vigente está en `UX-UI-GERENCIA/citas-publicacion-2026-09-14/`.
+
+## Publicación completada el 14/09
+
+Tras confirmarse el cierre de instalación F8, se integraron sus commits en el
+clon aislado y se publicó desde Main/remoto `582358883c1a93b9922a0888b90ed06389088d75`.
+Las cinco migraciones Citas se instalaron por merge de la rama propia: 286
+entradas productivas y 643 funciones/propietarios/ACL idénticos al banco.
+Las 19 Edge conservaron versiones, paquetes y JWT; Capital mantuvo su huella.
+
+La configuración se guardó y aplicó por las RPC canónicas, con el Superadmin
+existente, nota de ejecución administrativa autorizada y auditoría comprobada.
+Versión 1 desde 2026-09: meta interna 1,25, objetivos 70/70, manuales incluidos,
+cada cita atendida como entrevista, clientes sobre personas distintas,
+mes y analista del evento. La lectura real de Gerencia devuelve las fuentes
+mensuales y las identidades necesarias. No volver a pedir estas decisiones.
+
+El ZIP verificado `crm-20260914T173227Z-582358883c1a.zip` se publicó en Hostinger;
+la versión HTTP confirma `build-20260914T173227102Z`. Los recursos ejecutables
+coinciden exactamente. El CDN transforma once PNG sin cambios en los originales
+respecto al release anterior; el acta separa compresión y redimensión observadas.
+No se realizó inspección manual con sesión de usuario en producción (NOT RUN).
+
+El banco Citas `xhgsjtzpmwlqfkninphl` se eliminó tras verificar; su ausencia está
+comprobada. Se conservaron los bancos ajenos, archivos sin seguimiento de Tasas/F7
+y el respaldo scoped anterior de Citas. No reaplicar ese stash: su trabajo fue
+sustituido por la versión comprometida y verificada. Los commits posteriores de
+acta/memoria son documentales y no cambian el artefacto publicado.
+
+Acta y evidencia saneada: `UX-UI-GERENCIA/citas-publicacion-2026-09-14/PUBLICACION.md`.
+ZIP/manifiesto nuevo y rollback previo quedan en `CRM-Avance-Corp/releases/`.
+Relacionado: [[F8 - instalada y apagada (2026-09-14)]],
+[[Main unico - sincronizacion y publicacion 2026-09-04]].
