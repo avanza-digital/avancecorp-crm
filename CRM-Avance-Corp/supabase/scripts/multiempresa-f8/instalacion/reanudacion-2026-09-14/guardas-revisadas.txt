@@ -1,0 +1,337 @@
+begin;
+set local lock_timeout='5s';set local statement_timeout='120s';
+do $f8$ begin
+ if (select count(*) from auth.users)<>0 or (select count(*) from public.perfiles)<>0 then raise exception 'Rama con personas: cancelar'; end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>86 or (select md5(jsonb_agg(jsonb_build_array(version,name,statements) order by version)::text) from supabase_migrations.schema_migrations)<>'2250b1bdc10c130e6c31165589027ba3' or exists(select 1 from cron.job where active) then raise exception 'Rama cambio: cancelar';end if;
+end $f8$;
+create temporary table f8_admin_default_antes on commit drop as
+ select d.defaclnamespace::regnamespace::text as schema,d.defaclobjtype,d.defaclacl::text as acl from pg_default_acl d
+ where d.defaclrole='supabase_admin'::regrole;
+grant crm_metricas_bridge to postgres with inherit true, set true, admin false granted by postgres;
+alter extension pg_trgm set schema extensions;
+create extension if not exists unaccent with schema extensions;
+create temporary table f8_externos_antes (valor) on commit drop as select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,v) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+ union all select 'event:'||e.evtname,to_jsonb(e)-'oid' from pg_event_trigger e
+ ) x))::text;
+do $guard$ begin if not (select (valor::jsonb->'objects') ?& array['policy:storage.objects.admin_sube_docs','policy:storage.objects.admin_elimina_docs','policy:storage.objects.admin_descarga_docs','policy:storage.objects.admin_sube_comunicados','policy:storage.objects.admin_borra_comunicados','policy:storage.objects.cliente_descarga_sus_docs'] from f8_externos_antes) then raise exception 'Políticas esperadas ausentes';end if;end $guard$;
+drop policy admin_sube_docs on storage.objects;
+drop policy admin_elimina_docs on storage.objects;
+drop policy admin_descarga_docs on storage.objects;
+drop policy admin_sube_comunicados on storage.objects;
+drop policy admin_borra_comunicados on storage.objects;
+drop policy cliente_descarga_sus_docs on storage.objects;
+
+drop schema crm, private cascade;
+do $clean$ declare r record; begin
+ for r in select c.relname,c.relkind from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in('v','m','r','p','f','S') and not exists(select 1 from pg_depend d where d.classid='pg_class'::regclass and d.objid=c.oid and d.deptype='e') order by case when c.relkind in('v','m') then 0 else 1 end loop
+ execute format('drop %s if exists public.%I cascade',case r.relkind when 'v' then 'view' when 'm' then 'materialized view' when 'S' then 'sequence' when 'f' then 'foreign table' else 'table' end,r.relname);
+ end loop;
+ for r in select p.oid::regprocedure::text as signature,p.prokind from pg_proc p where p.pronamespace='public'::regnamespace and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e') loop
+ execute 'drop '||case r.prokind when 'p' then 'procedure' when 'a' then 'aggregate' else 'function' end||' if exists '||r.signature||' cascade';
+ end loop;
+ for r in select t.typname from pg_type t where t.typnamespace='public'::regnamespace and t.typtype in('e','d','c','r','m') and not exists(select 1 from pg_depend d where d.classid='pg_type'::regclass and d.objid=t.oid and d.deptype='e') loop
+ execute format('drop type if exists public.%I cascade',r.typname);
+ end loop;
+ if exists(select 1 from pg_class where relnamespace='public'::regnamespace) or exists(select 1 from pg_proc where pronamespace='public'::regnamespace) or exists(select 1 from pg_type where typnamespace='public'::regnamespace) then raise exception 'Quedaron objetos public';end if;
+end $clean$;
+create temporary table f8_externos_despues (valor) on commit drop as select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,v) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+ union all select 'event:'||e.evtname,to_jsonb(e)-'oid' from pg_event_trigger e
+ ) x))::text;
+do $guard$ begin if (select valor::jsonb->'objects' from f8_externos_despues) is distinct from (select (valor::jsonb->'objects') - array['policy:storage.objects.admin_sube_docs','policy:storage.objects.admin_elimina_docs','policy:storage.objects.admin_descarga_docs','policy:storage.objects.admin_sube_comunicados','policy:storage.objects.admin_borra_comunicados','policy:storage.objects.cliente_descarga_sus_docs'] from f8_externos_antes) then raise exception 'Cambios inesperados fuera de schemas de la app';end if;end $guard$;
+
+revoke all on schema public from public,postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on tables from postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on sequences from postgres,anon,authenticated,service_role;
+alter default privileges for role postgres in schema public revoke all on functions from postgres,anon,authenticated,service_role;
+delete from supabase_migrations.schema_migrations;
+select jsonb_build_object('fase','limpio','app_objects',(select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in('public','crm','private')),'ledger',(select count(*) from supabase_migrations.schema_migrations));
+
+do $d$ begin if exists(select 1 from pg_default_acl where defaclrole='postgres'::regrole and (defaclnamespace=0 or defaclnamespace='public'::regnamespace)) then raise exception 'Default postgres no neutralizado';end if;end $d$;
+
+-- RESTAURACIÓN del dump actual del padre: cuerpos no adjuntos.
+-- PostgreSQL database dump complete
+--
+
+\unrestrict XVntPDJtfNd3HAsH66AVeOZJ3ifvxyehCZmq2TXn9xsmT7kPM4LbCg2CypIG5dt
+
+
+DROP POLICY IF EXISTS admin_borra_comunicados ON storage.objects; CREATE POLICY admin_borra_comunicados ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated USING (((bucket_id = 'comunicados'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles p
+  WHERE ((p.id = auth.uid()) AND (p.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_descarga_docs ON storage.objects; CREATE POLICY admin_descarga_docs ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'documentos'::text) AND public.es_gestor_cartera()));
+DROP POLICY IF EXISTS admin_elimina_docs ON storage.objects; CREATE POLICY admin_elimina_docs ON storage.objects AS PERMISSIVE FOR DELETE TO authenticated USING (((bucket_id = 'documentos'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles
+  WHERE ((perfiles.id = ( SELECT auth.uid() AS uid)) AND (perfiles.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_sube_comunicados ON storage.objects; CREATE POLICY admin_sube_comunicados ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'comunicados'::text) AND (EXISTS ( SELECT 1
+   FROM public.perfiles p
+  WHERE ((p.id = auth.uid()) AND (p.rol = ANY (ARRAY['admin'::text, 'superadmin'::text])))))));
+DROP POLICY IF EXISTS admin_sube_docs ON storage.objects; CREATE POLICY admin_sube_docs ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'documentos'::text) AND public.es_gestor_cartera()));
+DROP POLICY IF EXISTS cliente_descarga_sus_docs ON storage.objects; CREATE POLICY cliente_descarga_sus_docs ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'documentos'::text) AND (EXISTS ( SELECT 1
+   FROM public.contratos
+  WHERE ((contratos.id = ((storage.foldername(objects.name))[1])::uuid) AND (contratos.cliente_id = ( SELECT auth.uid() AS uid)))))));
+DROP POLICY IF EXISTS f4_comprobante_delete_frontera ON storage.objects; CREATE POLICY f4_comprobante_delete_frontera ON storage.objects AS RESTRICTIVE FOR DELETE TO authenticated USING ((bucket_id <> 'f4-comprobantes'::text));
+DROP POLICY IF EXISTS f4_comprobante_insert ON storage.objects; CREATE POLICY f4_comprobante_insert ON storage.objects AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_autorizado(name)));
+DROP POLICY IF EXISTS f4_comprobante_insert_frontera ON storage.objects; CREATE POLICY f4_comprobante_insert_frontera ON storage.objects AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_autorizado(name)));
+DROP POLICY IF EXISTS f4_comprobante_select ON storage.objects; CREATE POLICY f4_comprobante_select ON storage.objects AS PERMISSIVE FOR SELECT TO authenticated USING (((bucket_id = 'f4-comprobantes'::text) AND private.f4_comprobante_visible(name)));
+DROP POLICY IF EXISTS f4_comprobante_select_frontera ON storage.objects; CREATE POLICY f4_comprobante_select_frontera ON storage.objects AS RESTRICTIVE FOR SELECT TO authenticated USING (((bucket_id <> 'f4-comprobantes'::text) OR private.f4_comprobante_visible(name)));
+DROP POLICY IF EXISTS f4_comprobante_update_frontera ON storage.objects; CREATE POLICY f4_comprobante_update_frontera ON storage.objects AS RESTRICTIVE FOR UPDATE TO authenticated USING ((bucket_id <> 'f4-comprobantes'::text)) WITH CHECK ((bucket_id <> 'f4-comprobantes'::text));
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_log;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.novedades;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.novedades_leidas;
+
+
+GRANT ALL ON TABLE crm.ajustes_mes_cerrado TO postgres;
+GRANT ALL ON TABLE crm.backfill_multiempresa_mapa TO postgres;
+GRANT ALL ON TABLE crm.cartera_lecturas TO postgres;
+GRANT ALL ON TABLE crm.cierre_mes_vendedor TO postgres;
+GRANT ALL ON TABLE crm.cierres_avance_anulados TO postgres;
+GRANT ALL ON TABLE crm.cierres_externos TO postgres;
+GRANT ALL ON TABLE crm.conversion_pesos TO postgres;
+GRANT ALL ON TABLE crm.conversion_reservas TO postgres;
+GRANT ALL ON TABLE crm.depositos_reclamados TO postgres;
+GRANT ALL ON TABLE crm.dispositivos_push_tasa TO postgres;
+GRANT ALL ON TABLE crm.empresas TO postgres;
+GRANT ALL ON TABLE crm.envios_push_tasa TO postgres;
+GRANT ALL ON TABLE crm.inversion_ajustes_mes_cerrado TO postgres;
+GRANT ALL ON TABLE crm.inversion_backfill_lotes TO postgres;
+GRANT ALL ON TABLE crm.inversion_cotitular_origenes TO postgres;
+GRANT ALL ON TABLE crm.inversion_eventos TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_correcciones TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_origenes TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitud_revisiones TO postgres;
+GRANT ALL ON TABLE crm.inversion_solicitudes TO postgres;
+GRANT ALL ON TABLE crm.inversion_titulares TO postgres;
+GRANT ALL ON TABLE crm.inversiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_fusiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_gestiones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_identificadores TO postgres;
+GRANT ALL ON TABLE crm.inversionista_leads TO postgres;
+GRANT ALL ON TABLE crm.inversionista_operaciones TO postgres;
+GRANT ALL ON TABLE crm.inversionista_responsables TO postgres;
+GRANT ALL ON TABLE crm.inversionistas TO postgres;
+GRANT ALL ON TABLE crm.lead_asignaciones TO postgres;
+GRANT ALL ON TABLE crm.lead_sla_etapa_ajustes TO postgres;
+GRANT ALL ON TABLE crm.multiempresa_flags TO postgres;
+GRANT ALL ON TABLE crm.multiempresa_idempotencia TO postgres;
+GRANT ALL ON TABLE crm.periodos_cerrados TO postgres;
+GRANT ALL ON TABLE crm.postventa_escrituras TO postgres;
+GRANT ALL ON TABLE crm.postventa_operaciones TO postgres;
+GRANT ALL ON TABLE crm.postventa_retiros TO postgres;
+GRANT ALL ON TABLE crm.sla_operacion_control TO postgres;
+GRANT ALL ON TABLE crm.sla_operacion_recibos TO postgres;
+GRANT ALL ON TABLE crm.sla_politica_etapas_operacion TO postgres;
+GRANT ALL ON TABLE crm.tarea_sla_contexto TO postgres;
+GRANT ALL ON TABLE crm.usuario_eventos TO postgres;
+GRANT ALL ON SEQUENCE crm.usuario_eventos_id_seq TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_cambios TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_destinos TO postgres;
+GRANT ALL ON TABLE private.agenda_reparto_diaria TO postgres;
+GRANT ALL ON TABLE private.auditoria_alertas TO postgres;
+GRANT ALL ON TABLE private.auditoria_condicionada TO postgres;
+GRANT ALL ON TABLE private.auditoria_exenciones TO postgres;
+GRANT ALL ON TABLE private.auditoria_sello TO postgres;
+GRANT ALL ON TABLE private.ayuda_consultas TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_consultas_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_expresiones TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_expresiones_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_intenciones TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_intenciones_id_seq TO postgres;
+GRANT ALL ON TABLE private.ayuda_reglas_aclaracion TO postgres;
+GRANT ALL ON SEQUENCE private.ayuda_reglas_aclaracion_id_seq TO postgres;
+GRANT ALL ON TABLE private.contrato_altas_idempotentes TO postgres;
+GRANT ALL ON TABLE private.contrato_eliminaciones TO postgres;
+GRANT ALL ON TABLE private.contrato_pdf_jobs TO postgres;
+GRANT ALL ON TABLE private.contrato_pdfs TO postgres;
+
+alter table supabase_migrations.schema_migrations
+ add column created_by text,
+ add column idempotency_key text,
+ add column rollback text[];
+alter table supabase_migrations.schema_migrations
+ add constraint schema_migrations_idempotency_key_key unique(idempotency_key);
+-- OCHO definiciones Cron exactas; activación false dentro de la misma transacción.
+do $f8$ begin
+ if (select count(*) from cron.job)<>10 or exists(select 1 from cron.job where active) then
+  raise exception 'Cron debe conservar diez definiciones desactivadas';
+ end if;
+ if (select count(*) from vault.secrets)<>1 or not exists(select 1 from vault.secrets where name='cron_notif_secret') then
+  raise exception 'Inventario Vault de la rama cambió';
+ end if;
+ -- Única fila creada por el replay histórico de esta rama, sin copiar secretos del padre.
+ delete from vault.secrets where name='cron_notif_secret';
+ if (select count(*) from vault.secrets)<>0 or (select count(*) from net.http_request_queue)<>0 then
+  raise exception 'La rama no debe contener secretos Vault ni solicitudes pendientes';
+ end if;
+end $f8$;
+grant crm_metricas_bridge to postgres with inherit true, set false, admin false granted by postgres;
+do $same$ begin
+ if exists((select * from f8_admin_default_antes except select d.defaclnamespace::regnamespace::text,d.defaclobjtype,d.defaclacl::text from pg_default_acl d where d.defaclrole='supabase_admin'::regrole) union all
+ (select d.defaclnamespace::regnamespace::text,d.defaclobjtype,d.defaclacl::text from pg_default_acl d where d.defaclrole='supabase_admin'::regrole except select * from f8_admin_default_antes)) then raise exception 'Cambio ACL administrado'; end if;
+ if (select jsonb_agg(jsonb_build_array(g.rolname,m.admin_option,m.inherit_option,m.set_option) order by g.rolname) from pg_auth_members m join pg_roles g on g.oid=m.grantor where m.roleid='crm_metricas_bridge'::regrole and m.member='postgres'::regrole) <> '[["postgres",false,true,false],["supabase_admin",true,false,false]]'::jsonb then raise exception 'Membresía bridge no coincide';end if;
+ if exists(select 1 from pg_namespace where has_schema_privilege('crm_metricas_bridge',oid,'CREATE') and nspname not like 'pg_temp_%' and nspname not like 'pg_toast_temp_%') then raise exception 'Bridge conserva CREATE';end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>0 then raise exception 'Historial no vacío';end if;
+end $same$;
+select jsonb_build_object('fase','restaurado','ledger',(select count(*) from supabase_migrations.schema_migrations),'auth',(select count(*) from auth.users),'funciones',(select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in('crm','public','private') and p.prokind in('f','p')),'fk_externas',(select count(*) from pg_constraint where conname in('perfiles_id_fkey','cierres_externos_comprobante_objeto_id_fkey','objetivos_vendedores_actualizado_por_fkey')));
+set local search_path='';set local timezone='UTC';
+
+-- Verificación transaccional de todas las categorías y todos los objetos externos.
+-- Valores fijados en el ensayo v5, cotejados contra el padre sin normalizarlos.
+do $f8_guard_final$ begin
+ if (-- Inventario estructural F8; sin datos de negocio ni cuerpos de funciones en
+-- la salida. Ejecutar igual en padre/rama. No excluye diferencias automáticamente.
+-- Sin BEGIN: el ejecutor debe incluirlo en su transacción READ ONLY de captura.
+with objetos as (
+  -- Forzar text: el tipo name del catálogo truncaría las claves de las demás
+  -- ramas UNION a 63 bytes, ocultando sobrecargas y columnas con nombres largos.
+  select 'esquemas' as categoria,n.nspname::text as clave,
+    jsonb_build_array(n.nspowner::regrole::text,n.nspacl::text,
+      obj_description(n.oid,'pg_namespace')) as valor
+  from pg_namespace n where n.nspname in ('public','crm','private')
+  union all
+  select 'relaciones',n.nspname||'.'||c.relname,
+    jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,
+      c.relrowsecurity,c.relforcerowsecurity,c.relreplident,c.relpersistence,
+      c.reloptions,c.relispartition,
+      case when c.relispartition then pg_get_expr(c.relpartbound,c.oid) end,
+      case when c.relkind='p' then pg_get_partkeydef(c.oid) end,
+      obj_description(c.oid,'pg_class'))
+  from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'columnas',n.nspname||'.'||c.relname||'.'||a.attname,
+    jsonb_build_array(a.attnum,format_type(a.atttypid,a.atttypmod),a.attnotnull,
+      a.attidentity,a.attgenerated,a.attacl::text,
+      pg_get_expr(d.adbin,d.adrelid),a.attcollation::regcollation::text,
+      col_description(c.oid,a.attnum))
+  from pg_attribute a join pg_class c on c.oid=a.attrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+  where n.nspname in ('public','crm','private') and a.attnum>0 and not a.attisdropped
+  union all
+  select 'funciones',n.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',
+    jsonb_build_array(pg_get_functiondef(p.oid),p.proowner::regrole::text,
+      p.proacl::text,p.proconfig,obj_description(p.oid,'pg_proc'))
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname in ('public','crm','private') and p.prokind in ('f','p')
+  union all
+  select 'triggers',n.nspname||'.'||c.relname||'.'||t.tgname,
+    jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled)
+  from pg_trigger t join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  -- Incluye triggers de usuario sobre tablas administradas (p. ej. auth.users).
+  where not t.tgisinternal
+  union all
+  select 'politicas',schemaname||'.'||tablename||'.'||policyname,
+    jsonb_build_array(permissive,roles,cmd,qual,with_check)
+  from pg_policies where schemaname in ('public','crm','private','auth','storage')
+  union all
+  select 'constraints',n.nspname||'.'||co.conname||':'||co.conrelid::regclass::text||':'||co.contypid::regtype::text,
+    jsonb_build_array(pg_get_constraintdef(co.oid),co.convalidated,co.condeferrable,co.condeferred)
+  from pg_constraint co join pg_namespace n on n.oid=co.connamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'indices',n.nspname||'.'||c.relname,
+    jsonb_build_array(pg_get_indexdef(i.indexrelid),i.indisvalid,i.indisready)
+  from pg_index i join pg_class c on c.oid=i.indexrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'vistas',n.nspname||'.'||c.relname,
+    jsonb_build_array(pg_get_viewdef(c.oid,true),c.reloptions,c.relowner::regrole::text)
+  from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private') and c.relkind in ('v','m')
+  union all
+  select 'default_acl',a.defaclrole::regrole::text||':'||coalesce(n.nspname,'GLOBAL')||':'||a.defaclobjtype::text,
+    to_jsonb(a.defaclacl::text)
+  from pg_default_acl a left join pg_namespace n on n.oid=a.defaclnamespace
+  where a.defaclnamespace=0 or n.nspname in ('public','crm','private')
+  union all
+  select 'tipos',n.nspname||'.'||t.typname,
+    jsonb_build_array(t.typtype,t.typcategory,t.typowner::regrole::text,
+      t.typacl::text,format_type(t.typbasetype,t.typtypmod),t.typnotnull,t.typdefault,
+      t.typinput::regprocedure::text,t.typoutput::regprocedure::text,
+      t.typcollation::regcollation::text,
+      (select jsonb_agg(jsonb_build_array(e.enumsortorder,e.enumlabel) order by e.enumsortorder)
+        from pg_enum e where e.enumtypid=t.oid))
+  from pg_type t join pg_namespace n on n.oid=t.typnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'secuencias',n.nspname||'.'||c.relname,
+    jsonb_build_array(format_type(s.seqtypid,null),s.seqstart,s.seqincrement,
+      s.seqmax,s.seqmin,s.seqcache,s.seqcycle,
+      (select jsonb_agg(jsonb_build_array(d.deptype,d.refobjid::regclass::text,a.attname)
+        order by d.refobjid::regclass::text,a.attname,d.deptype)
+        from pg_depend d left join pg_attribute a
+          on a.attrelid=d.refobjid and a.attnum=d.refobjsubid
+        where d.classid='pg_class'::regclass and d.objid=c.oid
+          and d.refclassid='pg_class'::regclass and d.deptype in ('a','i')))
+  from pg_sequence s join pg_class c on c.oid=s.seqrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname in ('public','crm','private')
+  union all
+  select 'extensiones',e.extname,
+    jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text,e.extrelocatable)
+  from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+  union all
+  select 'publicaciones',p.pubname,
+    jsonb_build_array(p.pubowner::regrole::text,p.puballtables,p.pubinsert,p.pubupdate,
+      p.pubdelete,p.pubtruncate,p.pubviaroot,
+      (select jsonb_agg(jsonb_build_array(t.schemaname,t.tablename,t.attnames,t.rowfilter)
+        order by t.schemaname,t.tablename) from pg_publication_tables t where t.pubname=p.pubname),
+      (select jsonb_agg(n.nspname order by n.nspname) from pg_publication_namespace pn
+        join pg_namespace n on n.oid=pn.pnnspid where pn.pnpubid=p.oid))
+  from pg_publication p
+  union all
+  select 'event_triggers',e.evtname,
+    jsonb_build_array(e.evtevent,e.evtowner::regrole::text,e.evtfoid::regprocedure::text,
+      e.evtenabled,e.evttags)
+  from pg_event_trigger e
+), categorias as (
+  select unnest(array['esquemas','relaciones','columnas','funciones','triggers',
+    'politicas','constraints','indices','vistas','default_acl','tipos','secuencias',
+    'extensiones','publicaciones','event_triggers']) as categoria
+), resumen as (
+  select c.categoria,count(o.clave)::integer as n,
+    md5(coalesce(string_agg(o.clave||':'||o.valor::text,E'\n' order by o.clave),'')) as md5
+  from categorias c left join objetos o using(categoria) group by c.categoria
+)
+select jsonb_agg(r order by categoria) as paridad from resumen r) is distinct from '<LITERAL JSONB FIJADO: rama-paridad-v5.json SHA256 8f1d1f4b11125b647ea8a22a2435918419e0c6ea9ff4f1d36907fd2d7a1eb591>'::jsonb then
+  raise exception 'F8_PARIDAD_FINAL_DISTINTA';
+ end if;
+ if (select jsonb_build_object(
+'objects',(select jsonb_object_agg(k,md5(v::text)) from (
+ select 'relation:'||n.nspname||'.'||c.relname k, jsonb_build_array(c.relkind,c.relowner::regrole::text,c.relacl::text,c.relrowsecurity) v from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%'
+ union all select 'function:'||p.oid::regprocedure::text,jsonb_build_array(md5(pg_get_functiondef(p.oid)),p.proowner::regrole::text,p.proacl::text) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname not in ('crm','public','private','pg_catalog','information_schema') and n.nspname not like 'pg_%' and p.prokind in ('f','p')
+ union all select 'trigger:'||c.oid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname not in ('crm','public','private') and not t.tgisinternal
+ union all select 'policy:'||schemaname||'.'||tablename||'.'||policyname,to_jsonb(p) from pg_policies p where schemaname not in ('crm','public','private')
+ union all select 'constraint:'||n.nspname||'.'||c.conrelid::regclass::text||'.'||c.conname,jsonb_build_array(pg_get_constraintdef(c.oid),c.convalidated) from pg_constraint c join pg_namespace n on n.oid=c.connamespace where n.nspname not in ('crm','public','private')
+ union all select 'extension:'||e.extname,jsonb_build_array(e.extversion,n.nspname,e.extowner::regrole::text) from pg_extension e join pg_namespace n on n.oid=e.extnamespace
+
+ union all select 'column:'||n.nspname||'.'||c.relname||'.'||a.attname,jsonb_build_array(a.attnum,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attidentity,a.attgenerated,a.attacl::text,pg_get_expr(d.adbin,d.adrelid),a.attcollation::regcollation::text) from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where n.nspname in ('auth','storage','realtime') and a.attnum>0 and not a.attisdropped
+ union all select 'default:'||d.defaclrole::regrole::text||'.'||coalesce(n.nspname,'GLOBAL')||'.'||d.defaclobjtype::text,to_jsonb(d.defaclacl::text) from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace where n.nspname not in ('crm','public','private') or d.defaclnamespace=0
+ union all select 'event:'||e.evtname,jsonb_build_array(e.evtevent,e.evtowner::regrole::text,e.evtfoid::regprocedure::text,e.evtenabled,e.evttags) from pg_event_trigger e
+ ) x))) is distinct from '<LITERAL JSONB FIJADO: rama-externo-v5.json SHA256 4e49740232db0c30f9476f83780a58dd1d829153a391b2d0f9374a644d5a931e>'::jsonb then
+  raise exception 'F8_EXTERNOS_FINALES_DISTINTOS';
+ end if;
+ if (select count(*) from supabase_migrations.schema_migrations)<>0
+  or (select count(*) from auth.users)<>0
+  or (select count(*) from public.perfiles)<>0
+  or (select count(*) from vault.secrets)<>0
+  or exists(select 1 from cron.job where active) then
+  raise exception 'F8_BASE_DEBE_ESTAR_VACIA_Y_SIN_EGRESO';
+ end if;
+end $f8_guard_final$;

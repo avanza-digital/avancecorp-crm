@@ -1,0 +1,11 @@
+{
+  "estado": "PASS_PARIDAD_REVISADA",
+  "autoriza_merge": false,
+  "padre": "dctqcbznekcyxhjujuci",
+  "rama": "zgjyapayxvnvrgpiarod",
+  "diferencias_catalogo": 6,
+  "diferencias_externas": 172,
+  "sha256_padre": "69497d73f6c036044215554dfcc27af1b6c67ad76b38a73881a3b8dd378b11e4",
+  "sha256_rama": "f16445bd7a98f2b36d7e0d66d466ecfbbaa98eac5361c286b34be1f9f0cd9de6",
+  "sha256_revision": "882535683dacc1e68fce6afd61cb9dd2b3678f6fabb52334179046e0f28fbbee"
+}

@@ -7,7 +7,10 @@ actualizado: 2026-09-14
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F8 - pausa segura de instalacion (2026-09-14)]],
+Estado F8 vigente: [[F8 - ensayo completo antes de instalar (2026-09-14)]].
+Ensayo remoto y Auth terminados; sigue instalación OFF autorizada.
+
+Antecedentes: [[F8 - pausa segura de instalacion (2026-09-14)]],
 [[F8 - instalacion autorizada en curso (2026-09-14)]],
 [[F8 - instalacion apagada preparada (2026-09-13)]],
 [[F8 - exclusion demo preparada (2026-09-13)]],

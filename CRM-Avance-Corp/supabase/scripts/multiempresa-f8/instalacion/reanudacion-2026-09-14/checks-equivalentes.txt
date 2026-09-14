@@ -1,0 +1,3 @@
+{"casos": 6, "check": "miembros", "equivalentes": true}
+{"casos": 9, "check": "monedas", "equivalentes": true}
+{"casos": 100, "check": "capital", "equivalentes": true}

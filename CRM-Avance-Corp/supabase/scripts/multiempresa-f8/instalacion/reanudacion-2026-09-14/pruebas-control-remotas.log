@@ -1,0 +1,20 @@
+▶ F8: banco aislado completo
+  ✔ instala apagado, vacío, privado, auditado y sin tocar F3-F7 (2421.796834ms)
+  ✔ rechaza equipo incompleto y perfiles inactivos (3104.610083ms)
+  ✔ solo el equipo nominal obtiene F4, F5 y F6 (4871.83625ms)
+  ✔ revalida la membresía CRM y permite revocar un participante (2651.416792ms)
+  ✔ F8 y las banderas globales no pueden coexistir (3228.564625ms)
+  ✔ la ventana total no puede ampliarse mientras F8 está activo (1639.129166ms)
+  ✔ sincroniza el espejo para todos pero limita la operación nueva (2642.732542ms)
+  ✔ cinco carreras dejan un solo modo activo (13847.930083ms)
+  ✔ el vencimiento corta el acceso sin intervención manual (3738.81225ms)
+  ✔ el apagado corta capacidades y conserva toda la historia (6323.123916ms)
+✔ F8: banco aislado completo (46980.622625ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47024.10275

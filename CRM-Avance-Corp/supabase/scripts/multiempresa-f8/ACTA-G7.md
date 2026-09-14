@@ -7,15 +7,15 @@ real; el banco sintético no firma ni reemplaza la aceptación humana.
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Control nominal y temporal instalado | PASS rama original / NOT RUN producción | Ensayo remoto aislado; rama anterior no mergeable y eliminada |
-| RLS, ACL y autorización por actor | PASS local y rama original | 31 pruebas SQL locales del paquete; 11 remotas del control anterior, sin la nueva exclusión demo |
+| Control nominal y temporal instalado | PASS rama nueva / NOT RUN producción | [Ensayo combinado del 14/09](ENSAYO-2026-09-14.md), historial exacto y dos SQL verificados |
+| RLS, ACL y autorización por actor | PASS local y rama nueva | 31 pruebas SQL locales, 27 remotas y 12 grupos Auth/Data API |
 | F8 y rollout global mutuamente excluyentes | PASS local y rama | Cinco carreras del control en cada entorno |
 | Reversa conserva hechos económicos | PASS local y rama | Seis superficies económicas remotas sin diferencias |
 | Enlaces de las fuentes reales | PASS producción | Diez enlaces aprobados aplicados; lectura del 13/09 a las 23:08 Lima: 593 fuentes reales y cero brechas |
-| Exclusión demo de la cobertura y operación F5/F8 | PASS local / NOT RUN producción | Cinco fuentes demo, cuatro con brechas; corrección preparada, SQL pendiente de aprobación |
-| Compatibilidad para instalar el paquete combinado | PASS precondiciones / NOT RUN rama nueva | [14 definiciones previas coincidentes](instalacion/preflight-produccion-2026-09-13.json); no sustituye el ensayo ni el merge |
+| Exclusión demo de la cobertura y operación F5/F8 | PASS local y rama / NOT RUN producción | Cinco fuentes demo, cuatro con brechas; dos SQL aprobados, pendientes de merge OFF |
+| Compatibilidad para instalar el paquete combinado | PASS precondiciones y rama nueva | Paridad documentada, 279 entradas previas intactas; repetir preflight vivo antes del merge |
 | Equipo nominal | PENDIENTE | Elegir Gerencia, un supervisor y dos vendedores |
-| Advisors y tipos de rama | PASS control original / NOT RUN paquete combinado | WARN sin cambios e INFO F8 aceptados en la rama anterior; repetir en la rama con exclusión demo |
+| Advisors y tipos de rama | PASS paquete combinado | WARN sin cambios; INFO de RLS cerrado y FK en tablas pequeñas documentados; tipos F8 coincidentes |
 
 ## Evidencia mínima real
 

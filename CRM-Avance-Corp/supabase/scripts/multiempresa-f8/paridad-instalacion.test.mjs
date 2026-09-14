@@ -27,6 +27,22 @@ const casos=[
   ['secuencias','alter sequence crm.__f8_paridad_seq cache 2;'],
 ];
 const capturar=()=>JSON.parse(sql(`begin read only;set local search_path='';set local timezone='UTC';${consulta}rollback;`));
+test('las firmas largas conservan su identidad completa en el inventario',()=>{
+  const cte=consulta.slice(0,consulta.indexOf('), categorias as ('))+')';
+  const salida=JSON.parse(sql(`begin;set local search_path='';
+    create function private.__f8_firma_larga_para_probar_identidades_completas_del_catalogo(integer)
+      returns integer language sql as 'select $1';
+    create function private.__f8_firma_larga_para_probar_identidades_completas_del_catalogo(text)
+      returns text language sql as 'select $1';
+    ${cte}
+    select jsonb_agg(clave order by clave) from objetos where categoria='funciones'
+      and clave like 'private.__f8_firma_larga%';rollback;`));
+  assert.equal(salida.length,2);
+  assert.equal(new Set(salida).size,2,'No truncar ni confundir sobrecargas');
+  assert.ok(salida.every(f=>f.length>63));
+  assert.ok(salida.some(f=>f.endsWith('(integer)')));
+  assert.ok(salida.some(f=>f.endsWith('(text)')));
+});
 test('el catálogo detecta cambios materiales y conserva el banco tras cada rollback',async t=>{
   const original=capturar();
   for(const [categoria,cambio] of casos) await t.test(categoria,()=>{

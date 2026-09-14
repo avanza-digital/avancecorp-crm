@@ -1,5 +1,11 @@
 # Ledger de migraciones — esquema `crm`
 
+> **F8 — ensayo combinado completo el 14/09:** dos SQL exactos instalados solo en
+> la rama exclusiva, versiones `20260914161616` y `20260914161816`. 279 entradas
+> originales conservadas, 27 pruebas SQL remotas, 31 locales y 12 grupos Auth PASS.
+> Producción sin instalar; sigue Main/build/preflight/merge OFF.
+> [Evidencia y límites](../scripts/multiempresa-f8/ENSAYO-2026-09-14.md).
+
 ## 20260913215240 — Control nominal y temporal del piloto económico F8
 
 **Estado:** candidata probada en PostgreSQL 17 local y en Supabase aislado, sin

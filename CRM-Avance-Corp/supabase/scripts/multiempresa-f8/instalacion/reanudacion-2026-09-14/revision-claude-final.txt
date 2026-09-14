@@ -1,0 +1,146 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The reconstruction transaction is sound for a disposable branch. It fails closed and addresses my first review:
+
+- Dependency cleanup uses exact before/after equality, excluding only the 6 enumerated Storage policies.
+- It resets only postgres's own default privileges and asserts `supabase_admin` defaults are unchanged.
+- It restores the bridge membership array exactly and asserts no CREATE remains.
+- Final guards compare the whole state against fixed literals.
+- Rejected runs (unexpected dependency, altered fingerprint) rolled back with the ledger still at 86.
+
+The 6 core and 172 external differences are internally consistent. The counts reconcile: Realtime 117 columns + 14 constraints + 22 relations = 153; `supabase_functions` 13; Cron 3; event/pg_net/helper 3; total 172. The 4748 vs 4747 gap is the missing publication.
+
+These differences are acceptable **for the scoped F8 SQL rehearsal only**. They are not Realtime or pg_net parity and must not be described that way.
+
+No P0/P1 defects. Several P2 items are actionable before the next gates. One is certain to break the planned exact-manifest comparison.
+
+FINDINGS:
+
+[P2] Realtime partition keys are date-bound, so the "exact reviewed differences" gate will fail once partitions rotate
+File: diferencias-externas-v5.json; diferencias-reales-v5.json
+Lines: all `realtime.messages_2026_09_11` … `messages_2026_09_17` keys (140 of 172)
+Problem: The allowlist hard-codes daily partition names (today −3 … +3). Realtime creates and drops these partitions on the parent every day.
+Evidence:
+- Parent has Sep 11–17 on 2026-09-14.
+- The branch has none.
+- The hashes are date-independent: every partition carries the same MD5s (`2aa2f602…`, `1042dfa2…`, `245213ce…`, `3d61599c…`, `b8ab7a2a…`).
+Impact:
+- A paired capture after the next rotation, or across midnight UTC inside the 60 s window, produces new or missing keys and stops.
+- That is correct fail-closed behaviour, but it invites regenerating the manifest without review, which defeats "only exact reviewed pairs".
+Recommendation: Before running the gate, either:
+- run the paired capture and merge within the same partition window and record the timestamp; or
+- pre-define and review a narrow rule: key regex `^(relation|column|constraint):realtime(\.realtime)?\.messages_\d{4}_\d{2}_\d{2}(_pkey|_inserted_at_topic_idx)?(\..+)?$`, values restricted to the fixed MD5 set above, and a per-partition key shape (10 columns + 2 indexes × 2 columns + 2 constraints + 3 relations).
+
+Also treat `supabase_realtime_messages_publication` table membership as varying with the same date set. Everything else stays exact.
+
+[P2] The ledger columns altered in `supabase_migrations` are not verified by any guard
+File: guardas-revisadas.txt
+Lines: `alter table supabase_migrations.schema_migrations add column created_by …, idempotency_key …, rollback text[]`; final external guard `column:` branch
+Problem:
+- The final external guard checks columns only for `auth`, `storage` and `realtime`.
+- For `supabase_migrations.schema_migrations` it checks the relation (kind/owner/ACL/RLS) and the named UNIQUE constraint, but not column order, types, nullability or defaults.
+- The core inventory covers app schemas only.
+Evidence: `where n.nspname in ('auth','storage','realtime') and a.attnum>0` in the final guard.
+Impact:
+- If the parent's column order or defaults differ (for example `created_by` defaulted, or a different `attnum` order), the 279-row copy could shift values or miss defaults, especially with positional INSERT/COPY.
+- `merge_branch` and `apply_migration` read this table, so a silent mismatch corrupts exactly the artifact being rehearsed.
+Recommendation:
+- Add an exact column assertion for `supabase_migrations.schema_migrations`, including indexes, compared against the fresh parent capture.
+- Copy the 279 rows with an explicit column list.
+- After the copy, compare the full-row MD5 including the three new columns, not just version/name/statements.
+
+[P2] Copied Cron definitions are not inspected for literal endpoints or credentials (evidence gap)
+File: guardas-revisadas.txt (Cron block); cron-apagados.sql (hash only)
+Lines: `-- OCHO definiciones Cron exactas…`; the final guard checks only `active`
+Problem: `cron.job.command` text was copied "exact" from production but is not attached or asserted. Claims of "no production secrets copied" and "only outbound is `private.despertar_push_tasa` via Vault" hold only if no command embeds a production URL (`dctqcbznekcyxhjujuci`), `Authorization`/JWT, or a direct `net.http_*` call.
+Evidence: The guard asserts `count=10`, `not active`, Vault 0. Nothing reads `command`.
+Impact:
+- A production bearer token could sit in a branch table that more tooling and people can read.
+- Any later activation, including accidental activation during the trial, would call production.
+Recommendation: In the same transaction, assert that no `cron.job.command` matches `https?://|supabase\.co|Bearer|eyJ[A-Za-z0-9_-]{10,}|net\.http_`, unless each exception is enumerated by jobname and hash. Record the result in the repo evidence.
+
+Related hypothesis (P3): confirm the migration that creates `cron_notif_secret` generates its value rather than committing a literal to Git history.
+
+[P2] Role and API-level state is outside both inventories, which matters for the pending "real Auth/Data API roles" matrix
+File: guardas-revisadas.txt (core and external inventories)
+Problem: Neither inventory compares:
+- `pg_roles` attributes such as `rolbypassrls`, `rolinherit`, `rolcanlogin`;
+- `pg_auth_members`, apart from the single bridge row;
+- `pg_db_role_setting` (for example `statement_timeout` for `authenticated`/`anon`, `pgrst.*`);
+- `nspacl` of non-app schemas (`auth`, `storage`, `extensions`, `cron`, `net`, `vault`);
+- project Data API exposed schemas and Auth config.
+Evidence: The `esquemas` category is restricted to `public`/`crm`/`private`. No role catalog appears in either query.
+Impact:
+- RLS, PostgREST and Auth tests on the branch may pass or fail for reasons that do not hold in production.
+- A branch `crm_metricas_bridge` with different attributes, such as BYPASSRLS, would silently invalidate RLS conclusions.
+Recommendation: Add a read-only paired capture of these catalogs for app-relevant roles (`anon`, `authenticated`, `service_role`, `authenticator`, `postgres`, `crm_metricas_bridge`), plus API exposed-schema config, to the fresh paired gate before the remote SQL/role matrix.
+
+[P2] Hypothesis: platform-driven migration replay could hit the reconstructed branch
+Evidence:
+- The branch replayed repository migrations on creation: ledger stopped at 86 and the replay created a Vault secret.
+- After COMMIT the branch holds the full app schema with ledger 0, and later 279 rows.
+Problem: If this preview branch is Git-linked, a push to the linked ref or a branch reset/rebuild may run pending migrations automatically.
+Impact:
+- With ledger 0, the platform could re-run 279 migrations onto the restored schema.
+- After the 279-row copy, it could auto-apply the two F8 migrations outside the intended `apply_migration` step.
+- Either path could recreate the Vault secret or Cron rows.
+Recommendation:
+- Before COMMIT, record evidence of the branch's Git linkage and auto-deploy setting.
+- Push nothing to the linked ref until the ledger copy is done.
+- After every later step, re-assert ledger count and hash, Vault 0, Cron 10/OFF and queue 0.
+
+[P3] The final guard does not enforce everything the request says it does
+File: guardas-revisadas.txt, `$f8_guard_final$`
+Problem: The request says "Final guard requires Vault0, net queue0, Cron10 ALL OFF". The final block checks Vault 0 and "no active job" only. Queue 0 and cron count = 10 are checked earlier in the Cron DO block.
+Impact: No gap today, since nothing in between enqueues or schedules. The mismatch is fragile if statements are later inserted between the blocks.
+Recommendation: Add `net.http_request_queue = 0` and `count(cron.job) = 10` to the final block, or correct the description.
+
+[P3] `\unrestrict` appears in the restored stream while execution is via a libpq launcher
+File: guardas-revisadas.txt
+Lines: `\unrestrict XVntPDJ…` after "PostgreSQL database dump complete"
+Problem: A psql meta-command is not valid SQL through libpq. Either the launcher strips `\restrict`/`\unrestrict` lines, or the excerpt is not the executed script. The transformation evidence enumerates only the 13 omitted statements.
+Recommendation: Explicitly list the handling of `\restrict`/`\unrestrict` in the transformation evidence bound to `restaurar-rama-v6.sql` SHA `b49daaab…`. Assert the executed script has no remaining lines beginning with a backslash.
+
+[P3] Inventory ordering depends on database collation
+File: guardas-revisadas.txt, `resumen` CTE `string_agg(... order by o.clave)`
+Problem: The branch image is newer than the parent (pg_net 0.20.4 vs 0.20.0). A libc or ICU collation change would reorder keys and change category MD5s without any object change.
+Impact: Spurious fail-closed only, not unsafe.
+Recommendation: Use `order by o.clave collate "C"` in future captures of both environments. Record that the v5 literals used the default collation.
+
+[P3] Object kinds not covered by the inventory
+Evidence:
+- `prokind in ('f','p')` excludes aggregates and window functions.
+- Rules (`pg_rewrite` on tables), extended statistics, casts, operators and opclasses in app schemas are not captured.
+- External column defaults are captured only for `auth`/`storage`/`realtime`, so a cascade removing a default in `cron`/`vault`/`extensions` that referenced a public function would pass the before/after guard.
+Recommendation: A one-time parent count of these kinds equal to 0 (or equal in the branch) closes this cheaply.
+
+TEST GAPS:
+- Nothing yet shows the two F8 migrations' preconditions avoid reading the differing objects (the 3 CHECK texts, pg_net version or namespace, `supabase_realtime_messages_publication`). Otherwise the branch result may not predict production. Grep both migration files and record the result.
+- Pending fixture load: `session_replication_role=replica` skips user triggers, not just FK triggers. Beyond the planned FK anti-joins, validate trigger-maintained invariants (audit, idempotency, derived columns), or load through normal triggers where feasible.
+- Auth users inserted by SQL may lack consistent `auth.identities` rows. For "real Auth" tests, create the 15 users through the branch Auth Admin API, or assert identities and confirmation fields.
+- Realtime `postgres_changes` on `novedades`/`novedades_leidas`/`audit_log` is not rehearsed, because `realtime.subscription` columns differ. This is acceptable only because F8 does not touch those paths; keep it explicit in the report.
+
+ARCHITECTURE RISKS:
+- The v5 literals prove "restore equals the reviewed v5 branch state". Parent equivalence rests on the separate v5-to-parent diff. The fresh paired capture gate is what re-binds the chain; keep it mandatory.
+- The branch runs a newer Realtime schema, pg_net build and Cron ACL set. These are documented exceptions, not parity.
+
+SECURITY RISKS:
+- Possible production credentials or URLs inside the copied `cron.job.command` (P2 above).
+- The bridge's temporary SET and CREATE are reverted and asserted. No residual escalation is found in the evidence.
+
+REGRESSION RISKS:
+- Production is unaffected by this reconstruction. The CHECK text differences exist only in the branch, and `merge_branch` carries migrations, not the branch catalog.
+- The main regression vector is migration replay on the branch (P2 hypothesis) and a wrong ledger copy (P2 columns).
+
+Distinction requested: none of the findings invalidate the fail-closed behaviour of the transaction as executed. P2 items 1, 2 and 5 affect the pending gates (paired capture, ledger copy, merge). Items 3 and 4 are reconstruction evidence gaps to close before COMMIT or before the role matrix. The pending gates listed by PRIMARY have not run, and nothing here treats them as passed.
+
+RECOMMENDED NEXT ACTIONS:
+1. Before COMMIT: add the `cron.job.command` literal-secret/URL assertion and the `supabase_migrations` column assertion. Add queue 0 and Cron = 10 to the final block. Record the handling of `\restrict`/`\unrestrict` against the script SHA.
+2. Record the branch's Git-linkage and auto-deploy evidence. Re-assert ledger, Vault, Cron and queue after each later step.
+3. Define the reviewed date-rotation rule for Realtime partitions, or bind the paired capture to one partition window. Add role, role-settings, non-app `nspacl` and API-config capture to the fresh paired gate.
+4. Copy the 279 rows with an explicit column list and verify with a full-row hash. Confirm the F8 migration preconditions ignore the 6 differing core objects.
+
+CONFIDENCE:
+MEDIUM. The transaction logic and diff accounting are verified from the attached SQL and manifests (HIGH). The Cron command contents, platform replay behaviour and the omitted restore body are not in the evidence (LOW for those hypotheses).

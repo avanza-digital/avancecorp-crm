@@ -1,0 +1,77 @@
+[
+  {
+    "n": 1704,
+    "md5": "23c5c5e9944fc86806a94b3d73e9e1e2",
+    "categoria": "columnas"
+  },
+  {
+    "n": 828,
+    "md5": "d8f7009a689998c403586f897f7d79bd",
+    "categoria": "constraints"
+  },
+  {
+    "n": 6,
+    "md5": "b89eab500a783850e7b12aafa01f4606",
+    "categoria": "default_acl"
+  },
+  {
+    "n": 3,
+    "md5": "b39dcd378fd24288a767f110c02d0c03",
+    "categoria": "esquemas"
+  },
+  {
+    "n": 6,
+    "md5": "fa48a74cf2be269c5260fac9c5b6446f",
+    "categoria": "event_triggers"
+  },
+  {
+    "n": 12,
+    "md5": "503690d044b25ea9115c28b086f6e93e",
+    "categoria": "extensiones"
+  },
+  {
+    "n": 630,
+    "md5": "fee4288d3a6b83e06c035a7493b26ba5",
+    "categoria": "funciones"
+  },
+  {
+    "n": 415,
+    "md5": "d52163f4b5ac2a85f9103302543368ae",
+    "categoria": "indices"
+  },
+  {
+    "n": 112,
+    "md5": "d0f07522e5286048889bc772c754a382",
+    "categoria": "politicas"
+  },
+  {
+    "n": 1,
+    "md5": "0d1b0d51c34dff53dc405001fddd5e04",
+    "categoria": "publicaciones"
+  },
+  {
+    "n": 535,
+    "md5": "0d0032529fc8eebc716a7422a2624c91",
+    "categoria": "relaciones"
+  },
+  {
+    "n": 9,
+    "md5": "09ae4d0b0328e8f75f4dc715e9acb9e0",
+    "categoria": "secuencias"
+  },
+  {
+    "n": 222,
+    "md5": "084559acdfd18a8700cb5f46e9c7037e",
+    "categoria": "tipos"
+  },
+  {
+    "n": 261,
+    "md5": "0049bd2b683f7b8d8e603a95f764eed3",
+    "categoria": "triggers"
+  },
+  {
+    "n": 3,
+    "md5": "015c5253568be35ef9295d8e10238d84",
+    "categoria": "vistas"
+  }
+]

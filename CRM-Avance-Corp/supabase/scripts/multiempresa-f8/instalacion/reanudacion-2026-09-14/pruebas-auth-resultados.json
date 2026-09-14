@@ -1,0 +1,50 @@
+[
+  {
+    "prueba": "15 usuarios ficticios confirmados con identidades email coherentes",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "15 inicios de sesi\u00f3n reales; JWT emitidos por la rama F8",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "piloto apagado no concede capacidades",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "Gerencia, supervisor y dos vendedores obtienen F5/F6 por Auth y Data API",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "supervisor ajeno queda fuera del piloto",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "Directorio no entra en el piloto nominal",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "cliente sin rol CRM no puede leer la cartera multiempresa",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "la cartera consultada con JWT cuenta 593 fuentes reales y excluye cinco demos",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "control y membres\u00edas sin acceso directo para anon/authenticated/service_role",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "lector privado fuera de los esquemas expuestos por Data API",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "revocar un participante apaga el piloto sin renovar el JWT",
+    "estado": "PASS"
+  },
+  {
+    "prueba": "vencimiento temporal corta el acceso del mismo JWT",
+    "estado": "PASS"
+  }
+]

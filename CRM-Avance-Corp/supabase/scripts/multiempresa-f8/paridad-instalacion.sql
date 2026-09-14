@@ -2,7 +2,9 @@
 -- la salida. Ejecutar igual en padre/rama. No excluye diferencias automáticamente.
 -- Sin BEGIN: el ejecutor debe incluirlo en su transacción READ ONLY de captura.
 with objetos as (
-  select 'esquemas' as categoria,n.nspname as clave,
+  -- Forzar text: el tipo name del catálogo truncaría las claves de las demás
+  -- ramas UNION a 63 bytes, ocultando sobrecargas y columnas con nombres largos.
+  select 'esquemas' as categoria,n.nspname::text as clave,
     jsonb_build_array(n.nspowner::regrole::text,n.nspacl::text,
       obj_description(n.oid,'pg_namespace')) as valor
   from pg_namespace n where n.nspname in ('public','crm','private')

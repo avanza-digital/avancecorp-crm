@@ -1,0 +1,43 @@
+npm notice run avancecorp-crm-tools@0.0.0 test:multiempresa:f8
+npm notice run node --test --test-concurrency=1 supabase/scripts/multiempresa-f8/piloto.test.mjs supabase/scripts/multiempresa-f8/demos.test.mjs
+▶ F8: exclusión demo y cobertura real
+  ✔ reproduce el bloqueo anterior por cuatro demos (155.549584ms)
+  ✔ instala apagado y conserva datos, Auth, firmas, permisos y métricas F7 (461.743708ms)
+  ✔ cuatro huecos demo permiten el piloto solo al equipo nominal (449.893083ms)
+  ✔ F5 global aplica la misma cobertura real con el piloto apagado (196.16525ms)
+  ✔ un hueco real bloquea tanto el encendido como la cartera ya activa (203.482583ms)
+  ✔ es_demo NULL no permite eludir el bloqueo de identidad (120.067584ms)
+  ✔ persona mixta: lista, ficha, cantidades y capital solo incluyen fuentes reales (1086.417417ms)
+  ✔ perfil con solo demos queda fuera incluso de ficha y cuentas por UUID (569.534375ms)
+  ✔ cliente legítimo sin fuentes conserva su ficha y respeta el responsable (578.801084ms)
+  ✔ un filtro futuro del lector no excluye perfiles con historia exclusivamente real (236.835292ms)
+  ✔ cierre demo enlazado por lead vivo o histórico no crea una ficha vacía (365.788166ms)
+  ✔ Directorio conserva lectura Avance real y excluye perfiles solo demo (441.920333ms)
+  ✔ demos contradictorios no reaparecen como perfiles sin inversiones (201.337ms)
+  ✔ la clasificación demo sigue reservada a Gerencia con motivo y rastro (142.997708ms)
+  ✔ el cierre demo tampoco sirve de origen de postventa o renovación (269.653583ms)
+  ✔ ningún rol de API obtiene acceso al lector privado (106.925208ms)
+  ✔ instalación y reversa rechazan piloto o cualquier bandera global encendida (430.101583ms)
+  ✔ reversa rechaza deriva y consumidores adicionales, con rollback completo (288.451416ms)
+  ✔ reversa de definiciones restaura el bloqueo anterior sin borrar historia (557.654791ms)
+✔ F8: exclusión demo y cobertura real (10341.931917ms)
+▶ F8: banco aislado completo
+  ✔ instala apagado, vacío, privado, auditado y sin tocar F3-F7 (99.251875ms)
+  ✔ rechaza equipo incompleto y perfiles inactivos (146.014ms)
+  ✔ solo el equipo nominal obtiene F4, F5 y F6 (245.19225ms)
+  ✔ revalida la membresía CRM y permite revocar un participante (140.831042ms)
+  ✔ F8 y las banderas globales no pueden coexistir (151.31725ms)
+  ✔ la ventana total no puede ampliarse mientras F8 está activo (77.550667ms)
+  ✔ sincroniza el espejo para todos pero limita la operación nueva (139.656167ms)
+  ✔ cinco carreras dejan un solo modo activo (1117.081334ms)
+  ✔ el vencimiento corta el acceso sin intervención manual (677.146834ms)
+  ✔ el apagado corta capacidades y conserva toda la historia (279.6715ms)
+✔ F8: banco aislado completo (5035.6885ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15464.111958

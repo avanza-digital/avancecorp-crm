@@ -1,0 +1,9 @@
+{
+  "padre-esquema.dump": "4f1509cd4b0485fab0a939959b2edd9ae68235f5f0a6f219003a08b5768691e8",
+  "padre-esquema.sql": "f6c8af47b18a11e2e1c7abe4ad55fd9edcb7fc3a7522890fec326acc3877199c",
+  "padre-historial.sql": "c7f0a97c0a488887c984c4e2b04020ea51f05b7c0051967cb3dbc65e0940de4f",
+  "restaurar-rama-v6.sql": "b49daaab69564339ad51a80c8ecb04f86302150ce4c7b2444fe2db164c126302",
+  "cron-apagados.sql": "b9be1e5406c710b7c17b406af656eda873f80a1bb951262b6f6339a5042f5bbf",
+  "rama-paridad-v5.json": "8f1d1f4b11125b647ea8a22a2435918419e0c6ea9ff4f1d36907fd2d7a1eb591",
+  "rama-externo-v5.json": "4e49740232db0c30f9476f83780a58dd1d829153a391b2d0f9374a644d5a931e"
+}

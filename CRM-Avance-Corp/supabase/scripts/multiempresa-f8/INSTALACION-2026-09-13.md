@@ -1,5 +1,9 @@
 # F8 — paquete para instalar el piloto apagado
 
+> Actualización 14/09: SQL autorizado y ensayo combinado completado. Sigue
+> instalación OFF desde Main verificado. [Estado y evidencia](ENSAYO-2026-09-14.md).
+> El estado de preparación que sigue corresponde al corte del 13/09.
+
 Estado: **preparado para aprobación del SQL; sin instalar ni activar**.
 La preparación incluye las dos candidatas ya versionadas, sus pruebas locales,
 una lectura actual de compatibilidad y el procedimiento de rama. La nueva
