@@ -1,0 +1,26 @@
+[
+  {
+    "corte_solicitado": "2026-08-31",
+    "http": 200,
+    "respuesta": {
+      "promedio": 3.3491,
+      "fuente": "SBS \u00b7 prom. 7d",
+      "dias": 7,
+      "desde": "21.Aug.26",
+      "hasta": "31.Aug.26",
+      "fecha_corte": "2026-08-31"
+    }
+  },
+  {
+    "corte_solicitado": "2026-09-14",
+    "http": 200,
+    "respuesta": {
+      "promedio": 3.362,
+      "fuente": "SBS \u00b7 prom. 1d",
+      "dias": 1,
+      "desde": "31.Aug.26",
+      "hasta": "31.Aug.26",
+      "fecha_corte": "2026-09-14"
+    }
+  }
+]
