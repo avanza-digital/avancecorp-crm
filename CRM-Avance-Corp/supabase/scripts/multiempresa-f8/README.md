@@ -116,7 +116,9 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
    vendedores. No se versionan nombres ni UUID reales en Git.
 3. Resolver la deuda del historial de ramas o preparar un mecanismo compatible
    con el ciclo obligatorio; el ensayo remoto aislado ya pasó, pero la rama no
-   fue mergeable.
+   fue mergeable. [Paquete y procedimiento de instalación](INSTALACION-2026-09-13.md)
+   preparados: reconstrucción de estructura y paridad de historial/Edge en una
+   rama exclusiva; todavía no ejecutados para este paquete.
 4. Con autorización concreta, integrar e instalar OFF, verificar producción y
    publicar desde el mismo commit de `avancecorp/main`.
 5. Cargar las cuatro membresías con vencimiento, comprobar soporte/reversa y

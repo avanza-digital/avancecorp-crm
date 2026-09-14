@@ -1,0 +1,26 @@
+{
+  "estado": "preparado-para-aprobacion-sin-instalar",
+  "sql_base_commit": "e188c0ae1e1eb09a4c5b57fc1a1ee03e6d0933c5",
+  "produccion_modificada": false,
+  "aprobacion_sql": "pendiente",
+  "pruebas_nuevas": {
+    "pass": 32,
+    "fail": 0
+  },
+  "sha256": {
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/preflight-instalacion.sql": "3ad42eeeb11e93d8252a1e0bbf59a0d0476367262192ece72b788fd2fb3c9a95",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/paridad-instalacion.sql": "9e0c7e9f77c36136a490e8d883068d42817f7cf1baa17859f3266b28a6885ec5",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/verificar-base-instalacion.mjs": "86cbda8fe31268c21edd6593074c6ebfcf8094dbd4b8fc6df8d9e74d23b5e812",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/verificar-base-instalacion.test.mjs": "26909a765e4bf38d553f84d115694b32322940b2cf8b674c96890133fc5ba67e",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/paridad-instalacion.test.mjs": "8f7c31b639e5b87c7d4c133dbc618d34893a5655c785e7e4fbc21044870e072d",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/INSTALACION-2026-09-13.md": "48e1f543366437cc24e45d8dd593941c3c8cb5e8bee487016cd7e0305a775879",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/REVISION.md": "0f8e925d2c91653fc8c65956b3aee8589a4ca0bb63626390f775513acdb5b5a0",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/base-produccion-revisada-2026-09-13.json": "076d5bbe1bd2a8c01e99a4c15834b184cb9434bed7458f29fd3b6c69eb1aaec0",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/check-scripts.log": "476517823cf8b6195489f208c2bb35c29af31d4a936d8de4e71dcc3c60e4cdc0",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/preflight-produccion-2026-09-13.json": "41a38ff8835ee618ff374884384de3d50929652aecaf07baa015dd7d356ca9dc",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/preflight-vivo-2026-09-13.json": "0289ea9df49df7542b53c1a2bea342ca8f8a4d9344225c085112bb1cad0bd033",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/pruebas-preinstalacion.txt": "f314296c0528c202ca6ee9bbdcddeb8d11007766b0680ac32c38785c92b226b5",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/revision-claude-2.txt": "f67e9796ccd68b53dcf3238a90767e2c4c9d8e4972572c4522843508da99270a",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/instalacion/revision-claude.txt": "6160db6ea5c6916660340c86829abbaa06288cbaec9b5a75503c39326a9cdbb8"
+  }
+}

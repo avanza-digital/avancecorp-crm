@@ -7,7 +7,8 @@ actualizado: 2026-09-13
 
 Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C.** (dominio `miavance.com`). Es la **memoria de negocio y decisiones** del proyecto. Léela al inicio de cada sesión.
 
-Estado vigente: [[F8 - exclusion demo preparada (2026-09-13)]],
+Estado vigente: [[F8 - instalacion apagada preparada (2026-09-13)]],
+[[F8 - exclusion demo preparada (2026-09-13)]],
 [[F8 - enlaces reales aplicados (2026-09-13)]],
 [[F8 - enlaces historicos preparados (2026-09-13)]],
 [[F8 - revision de identidades pendientes (2026-09-13)]] y
@@ -15,8 +16,10 @@ Estado vigente: [[F8 - exclusion demo preparada (2026-09-13)]],
 F7 publicada e instalada OFF; G6 cerrado el 13/09 para el corte conciliado.
 F8 tiene control probado en banco y rama. Los diez movimientos reales ya están
 enlazados en producción, con veinte comprobaciones posteriores aprobadas.
-Los cuatro huecos demo tienen corrección probada localmente; falta aprobar su SQL
-y el ciclo de instalación. F8 no está instalada ni activa.
+Los cuatro huecos demo tienen corrección probada localmente; paquete y
+procedimiento de instalación listos para presentar el SQL y su aprobación.
+La lectura de las 23:08 Lima confirmó cero huecos reales y compatibilidad de las
+14 definiciones previas examinadas. F8 no está instalada ni activa.
 F6 conserva su publicación apagada: [[F6 - cierre y ajustes publicados (2026-09-11)]].
 Plan principal: [[Plan por fases - cliente multiempresa e inversiones del grupo (2026-09-01)]].
 
@@ -39,6 +42,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[F8 - instalacion apagada preparada (2026-09-13)]] — SQL exacto y procedimiento para rama con paridad de esquema/historial/Edge; precondiciones actuales verificadas; instalación pendiente.
 - [[F8 - exclusion demo preparada (2026-09-13)]] — 31 pruebas locales; SQL y reversa listos para revisión, sin aplicar ni activar producción.
 - [[F8 - enlaces reales aplicados (2026-09-13)]] — SQL aprobado y aplicado; siete personas / diez movimientos, cero huecos reales y cuatro demo pendientes. F8 sigue OFF.
 - [[F8 - enlaces historicos preparados (2026-09-13)]] — historial del ensayo de siete personas / diez movimientos; aplicación productiva completada después.

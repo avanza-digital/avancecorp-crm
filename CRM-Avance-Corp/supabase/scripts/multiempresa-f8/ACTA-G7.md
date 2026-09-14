@@ -7,13 +7,15 @@ real; el banco sintético no firma ni reemplaza la aceptación humana.
 
 | Control | Estado | Evidencia |
 |---|---|---|
-| Control nominal y temporal instalado | PASS rama / NOT RUN producción | Ensayo remoto aislado; rama no mergeable |
-| RLS, ACL y autorización por actor | PASS local y rama | `npm run test:multiempresa:f8` y 11 pruebas remotas |
+| Control nominal y temporal instalado | PASS rama original / NOT RUN producción | Ensayo remoto aislado; rama anterior no mergeable y eliminada |
+| RLS, ACL y autorización por actor | PASS local y rama original | 31 pruebas SQL locales del paquete; 11 remotas del control anterior, sin la nueva exclusión demo |
 | F8 y rollout global mutuamente excluyentes | PASS local y rama | Cinco carreras del control en cada entorno |
 | Reversa conserva hechos económicos | PASS local y rama | Seis superficies económicas remotas sin diferencias |
-| Cobertura completa F5 | PENDIENTE | 14 fuentes: 10 reales y 4 demo al corte de preparación |
+| Enlaces de las fuentes reales | PASS producción | Diez enlaces aprobados aplicados; lectura del 13/09 a las 23:08 Lima: 593 fuentes reales y cero brechas |
+| Exclusión demo de la cobertura y operación F5/F8 | PASS local / NOT RUN producción | Cinco fuentes demo, cuatro con brechas; corrección preparada, SQL pendiente de aprobación |
+| Compatibilidad para instalar el paquete combinado | PASS precondiciones / NOT RUN rama nueva | [14 definiciones previas coincidentes](instalacion/preflight-produccion-2026-09-13.json); no sustituye el ensayo ni el merge |
 | Equipo nominal | PENDIENTE | Elegir Gerencia, un supervisor y dos vendedores |
-| Advisors y tipos de rama | PASS | WARN sin cambios; INFO F8 aceptados; bloques de tipos idénticos |
+| Advisors y tipos de rama | PASS control original / NOT RUN paquete combinado | WARN sin cambios e INFO F8 aceptados en la rama anterior; repetir en la rama con exclusión demo |
 
 ## Evidencia mínima real
 

@@ -36,6 +36,9 @@ activar. Los diez huecos reales de cobertura ya están corregidos; la exclusión
 de cuatro huecos demo está implementada y probada localmente. Faltan aprobación
 del SQL/ciclo de instalación, equipo y evidencia G7.**
 Corrección demo: [[F8 - exclusion demo preparada (2026-09-13)]].
+Paquete y procedimiento de instalación: [[F8 - instalacion apagada preparada (2026-09-13)]].
+Precondiciones de las dos candidatas comprobadas en producción a las 23:08 Lima;
+el ensayo de la nueva rama y la instalación continúan pendientes de aprobación.
 Miguel confirmó el caso multirrol y aprobó el SQL de los diez movimientos reales.
 La aplicación productiva pasó veinte verificaciones posteriores:
 [[F8 - enlaces reales aplicados (2026-09-13)]].
