@@ -1,8 +1,8 @@
 # F8 multiempresa — piloto económico controlado
 
-Estado al 14/09/2026: **control y exclusión demo instalados y verificados en
-producción, apagados y sin participantes**. [Acta de publicación](PUBLICACION-2026-09-14.md).
-Equipo nominal elegido y cuentas verificadas; [activación preparada](activacion/README.md), pendiente de aprobación y ejecución.
+Estado al 14/09/2026: **piloto nominal ON y verificado para cuatro participantes**,
+hasta el 21/09 a las 13:23 Lima. [Acta de activación](ACTIVACION-2026-09-14.md).
+Antecedente de instalación: [acta de publicación](PUBLICACION-2026-09-14.md).
 La rama exclusiva fue eliminada. G6 está
 cerrado. F8 y G7 siguen abiertos hasta completar casos reales, conciliaciones y
 firmas.
@@ -115,13 +115,12 @@ El acceso temporal de la CLI que apareció en la salida del ensayo fue retirado
 y verificado, con el servicio saludable. La contraseña principal y las claves
 API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-09-13.md).
 
-## Secuencia pendiente antes de iniciar el piloto
+## Secuencia del piloto
 
 1. Equipo nominal elegido por Miguel y verificado. No se versionan nombres ni
    UUID reales en Git; la selección privada está guardada.
-2. Preparar ventana y SQL exacto de configuración/activación para su aprobación,
-   con soporte y reversa comprobados; instalar los participantes y encender
-   únicamente cuando esa aprobación exista.
+2. SQL nominal y siete días aprobados; participantes instalados y piloto encendido
+   el 14/09 a las 13:23 Lima. [Acta y verificaciones](ACTIVACION-2026-09-14.md).
 3. Ejecutar los casos reales y completar [ACTA-G7.md](ACTA-G7.md). No hay una
    espera de cinco días: G7 cierra al cumplir toda la evidencia.
 

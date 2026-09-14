@@ -1,0 +1,274 @@
+{
+  "referencia": "F8-20260914-01",
+  "sql_sha256": "43880847b0a40a2deb0ad14d2ed9847f759652a4b8fdd10c86dfcdacaa6467bb",
+  "commit_preparacion": "c6e39859f28f52575402e8986bba73a4e85aa8fd",
+  "aprobacion": {
+    "respuesta": "sii",
+    "alcance": "Cuatro participantes nominales, siete días, equipos actuales conservados"
+  },
+  "ejecucion": {
+    "activo": true,
+    "revision": 1,
+    "inicia_en": "2026-09-14 18:23:51.712435+00",
+    "vence_en": "2026-09-21 18:23:51.712435+00",
+    "participantes": 4
+  },
+  "antes": {
+    "acl_f8": [
+      {
+        "rls": true,
+        "tabla": "piloto_f8_control",
+        "anon_select": false,
+        "auth_delete": false,
+        "auth_insert": false,
+        "auth_select": false,
+        "auth_update": false
+      },
+      {
+        "rls": true,
+        "tabla": "piloto_f8_miembros",
+        "anon_select": false,
+        "auth_delete": false,
+        "auth_insert": false,
+        "auth_select": false,
+        "auth_update": false
+      }
+    ],
+    "control": {
+      "activo": false,
+      "revision": 0,
+      "vence_en": null,
+      "inicia_en": null
+    },
+    "huellas": {
+      "auth": "ace2f399c64bd5bb94b349c49a4e638e",
+      "equipo": "9f56217d5fe62cb2c7ce16ae34cd6893",
+      "cierres": "65dda3f24a74bedec232cbd4bc969db6",
+      "periodos": "b3936d7c517c70530df228a7ceaf3a6f",
+      "personas": "ddc2244c44bc7b8b0b484c74df56c34f",
+      "contratos": "2ab2b3123a055cc62b32bd8a72f51714",
+      "titulares": "c039d4e2610d2a1bd148493b64f75f60",
+      "inversiones": "cac7cffef89edd24f77e97ae3ffc3596"
+    },
+    "banderas": {
+      "ficha_360_neutral": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false,
+      "metricas_multiempresa_sombra": false
+    },
+    "conexion": {
+      "sin_uid": true,
+      "ejecutor": "postgres",
+      "aislamiento": "read committed",
+      "solo_lectura": "on"
+    },
+    "miembros": 0,
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "elegibles": 4,
+    "md5_control": "47585a27b991a442bb09b3477be5f224",
+    "auditoria_f8": 0,
+    "consultado_en": "2026-09-14T18:23:27.517691+00:00",
+    "seleccionados": 4,
+    "brechas_reales": 0,
+    "cobertura_empresas": {
+      "avance": 579,
+      "prodelco": 6,
+      "qorilazo": 17
+    }
+  },
+  "despues": {
+    "acl_f8": [
+      {
+        "rls": true,
+        "tabla": "piloto_f8_control",
+        "anon_select": false,
+        "auth_delete": false,
+        "auth_insert": false,
+        "auth_select": false,
+        "auth_update": false
+      },
+      {
+        "rls": true,
+        "tabla": "piloto_f8_miembros",
+        "anon_select": false,
+        "auth_delete": false,
+        "auth_insert": false,
+        "auth_select": false,
+        "auth_update": false
+      }
+    ],
+    "control": {
+      "activo": true,
+      "revision": 1,
+      "vence_en": "2026-09-21T18:23:51.712435+00:00",
+      "inicia_en": "2026-09-14T18:23:51.712435+00:00"
+    },
+    "huellas": {
+      "auth": "ace2f399c64bd5bb94b349c49a4e638e",
+      "equipo": "9f56217d5fe62cb2c7ce16ae34cd6893",
+      "cierres": "65dda3f24a74bedec232cbd4bc969db6",
+      "periodos": "b3936d7c517c70530df228a7ceaf3a6f",
+      "personas": "ddc2244c44bc7b8b0b484c74df56c34f",
+      "contratos": "2ab2b3123a055cc62b32bd8a72f51714",
+      "titulares": "c039d4e2610d2a1bd148493b64f75f60",
+      "inversiones": "cac7cffef89edd24f77e97ae3ffc3596"
+    },
+    "banderas": {
+      "ficha_360_neutral": false,
+      "postventa_neutral": false,
+      "resolver_en_puertas": true,
+      "inversiones_escritura": false,
+      "metricas_multiempresa_sombra": false
+    },
+    "conexion": {
+      "sin_uid": true,
+      "ejecutor": "postgres",
+      "aislamiento": "read committed",
+      "solo_lectura": "on"
+    },
+    "miembros": 4,
+    "proyecto": "dctqcbznekcyxhjujuci",
+    "elegibles": 4,
+    "md5_control": "47585a27b991a442bb09b3477be5f224",
+    "auditoria_f8": 5,
+    "consultado_en": "2026-09-14T18:24:12.151095+00:00",
+    "seleccionados": 4,
+    "brechas_reales": 0,
+    "cobertura_empresas": {
+      "avance": 579,
+      "prodelco": 6,
+      "qorilazo": 17
+    }
+  },
+  "huellas_iguales": {
+    "auth": true,
+    "equipo": true,
+    "cierres": true,
+    "periodos": true,
+    "personas": true,
+    "contratos": true,
+    "titulares": true,
+    "inversiones": true
+  },
+  "capacidades": [
+    {
+      "alias": "participante_1",
+      "esperado": true,
+      "capacidades": {
+        "f5": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "f6": {
+          "version": 1,
+          "habilitada": true
+        },
+        "rol": "supervisor",
+        "alias": "participante_1"
+      }
+    },
+    {
+      "alias": "participante_2",
+      "esperado": true,
+      "capacidades": {
+        "f5": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "f6": {
+          "version": 1,
+          "habilitada": true
+        },
+        "rol": "vendedor",
+        "alias": "participante_2"
+      }
+    },
+    {
+      "alias": "participante_3",
+      "esperado": true,
+      "capacidades": {
+        "f5": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "f6": {
+          "version": 1,
+          "habilitada": true
+        },
+        "rol": "vendedor",
+        "alias": "participante_3"
+      }
+    },
+    {
+      "alias": "participante_4",
+      "esperado": true,
+      "capacidades": {
+        "f5": {
+          "motivo": null,
+          "version": 1,
+          "habilitada": true,
+          "escritura_habilitada": true
+        },
+        "f6": {
+          "version": 1,
+          "habilitada": true
+        },
+        "rol": "gerencia",
+        "alias": "participante_4"
+      }
+    },
+    {
+      "alias": "supervisor_ajeno",
+      "esperado": false,
+      "capacidades": {
+        "f5": {
+          "motivo": "La cartera multiempresa aún no está habilitada",
+          "version": 1,
+          "habilitada": false,
+          "escritura_habilitada": false
+        },
+        "f6": {
+          "version": 1,
+          "habilitada": false
+        },
+        "rol": "supervisor",
+        "alias": "supervisor_ajeno"
+      }
+    }
+  ],
+  "alcance": {
+    "auditoria_f8": {
+      "registros": 5,
+      "sesiones_humanas_simuladas": 0
+    },
+    "consultado_en": "2026-09-14T18:25:52.378256+00:00",
+    "miembros_exactos": true,
+    "miembros_vigentes": 4,
+    "ventana_siete_dias": true,
+    "control_responsable": true,
+    "responsable_y_referencia": true,
+    "supervisor_incluye_analista_propio": true,
+    "supervisor_incluye_analista_otro_equipo": false
+  },
+  "limitaciones": [
+    "Capacidades comprobadas mediante SQL con rol authenticated y UID local; no son sesiones Auth/HTTP reales.",
+    "El primer intento de verificar F6 con BEGIN READ ONLY rechazó SELECT FOR SHARE; verificación repetida en transacciones con ROLLBACK. No se cambió código.",
+    "No se hicieron escrituras económicas de prueba ni reversa en producción.",
+    "G7 abierto; primer cliente real será registrado por el solicitante desde el usuario analista seleccionado.",
+    "El caso inicial no sustituye los recorridos de otros roles, empresas y casos exigidos por G7."
+  ],
+  "informe_f7": {
+    "metricas_gerencia": {
+      "version": 1,
+      "habilitada": false
+    },
+    "resultado_esperado": "OFF; F8 habilita F4/F5/F6, conciliación administrativa"
+  }
+}

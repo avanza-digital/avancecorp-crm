@@ -1,7 +1,8 @@
 # F8 — primera activación del equipo nominal
 
-Estado: **equipo seleccionado y verificado; SQL preparado y probado, todavía sin
-configurar ni activar en producción**. La selección privada tiene cuatro
+Estado: **activado y verificado el 14/09/2026 a las 13:23 Lima; vence el 21/09
+a la misma hora**. [Acta de ejecución](../ACTIVACION-2026-09-14.md).
+Lo que sigue documenta el paquete aprobado y sus pruebas previas. La selección privada tiene cuatro
 perfiles distintos: Gerencia, supervisor y dos analistas. Uno de los analistas
 pertenece a otro supervisor. El piloto conserva las asignaciones vigentes y el
 alcance de cada rol; no convierte al supervisor piloto en supervisor de todos.
@@ -91,7 +92,8 @@ La [segunda revisión de Claude](evidencia-2026-09-14/revision-claude-2.txt) dio
 **PASS**, con recomendaciones P3. Se completaron los casos de las cuatro
 banderas, espera efectiva, COMMIT competidor y cobertura; se aclararon las FK
 implícitas. La conexión MCP se comprobó como postgres, sin UID y READ COMMITTED,
-en una transacción de solo lectura. Falta la aprobación humana de encendido.
+en una transacción de solo lectura. El encendido fue aprobado y ejecutado;
+las comprobaciones productivas están en el acta de ejecución.
 
 ## Punto de ejecución
 

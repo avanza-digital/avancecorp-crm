@@ -1,6 +1,6 @@
 # G7 — aceptación del piloto económico F8
 
-**Estado: ABIERTO; instalación OFF verificada, piloto real NOT RUN.** Esta acta se completa con evidencia
+**Estado: ABIERTO; piloto nominal ON desde el 14/09/2026 a las 13:23 Lima.** Esta acta se completa con evidencia
 real; el banco sintético no firma ni reemplaza la aceptación humana.
 
 ## Preparación técnica
@@ -15,13 +15,15 @@ real; el banco sintético no firma ni reemplaza la aceptación humana.
 | Exclusión demo de la cobertura y operación F5/F8 | PASS producción | Cinco fuentes demo conservadas y excluidas; lector operativo con 600 reales |
 | Compatibilidad del paquete instalado | PASS producción/rama | Preflight vivo antes del merge y paridad posterior: únicamente las diferencias administradas revisadas |
 | Equipo nominal | PASS selección y cuentas verificadas | Cuatro elegidos por Miguel; sin reasignaciones. Identidades guardadas fuera de Git |
-| Configuración y encendido nominal | PREPARADO / NOT RUN producción | [SQL, vigencia y pruebas](activacion/README.md); falta aprobación de encendido |
+| Configuración y encendido nominal | PASS producción, activo | [Acta de activación](ACTIVACION-2026-09-14.md); cuatro participantes y siete días, hasta el 21/09 a las 13:23 Lima |
 | Advisors y tipos de rama | PASS paquete combinado | WARN sin cambios; INFO de RLS cerrado y FK en tablas pequeñas documentados; tipos F8 coincidentes |
 
 La rama de instalación fue eliminada tras verificar producción. La suite RLS
 general heredada completa no se ejecutó en el ensayo combinado; la matriz
-específica F8 pasó. La instalación OFF no sustituye ninguno de los casos o
-firmas pendientes que siguen.
+específica F8 pasó. El encendido nominal y las capacidades SQL verificadas no sustituyen los casos
+o firmas pendientes que siguen. El primer recorrido real será registrado por el
+solicitante desde el analista del supervisor piloto. Datos/totales deben salir
+de los núcleos canónicos, sin lecturas o cálculos paralelos.
 
 ## Evidencia mínima real
 
