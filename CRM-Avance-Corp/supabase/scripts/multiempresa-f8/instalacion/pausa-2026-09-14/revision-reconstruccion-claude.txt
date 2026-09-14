@@ -1,0 +1,126 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+Preserving the existing `public` namespace and its managed `supabase_admin` default ACLs is safer and more correct than recreating them. It removes the one operation `postgres` cannot perform (`SET ROLE supabase_admin`), and the evidence shows the three records are identical. The bounded method is sound in shape: guards, a transactional rehearsal, exact ledger restore only after equivalence, and pg_net kept as an open exception.
+
+Several concrete defects should be fixed before the next rehearsal:
+
+- The storage-policy restore is ordered before the dependency it needs.
+- Default privileges on `postgres` may leak into newly created objects if they are reset late.
+- The object-level drop relies on a cascade inventory computed for the old approach.
+- The equivalence scope does not clearly cover managed-schema objects created by parent migrations 87–279.
+- Rehearsal and commit are separate runs, so what was verified may not be what gets committed.
+
+None of these is a P0, because a failed or rolled-back rehearsal cannot damage the branch. However, P1-2, P1-3 and P1-4 can produce a false PASS rather than a visible failure.
+
+The PRIMARY attached no SQL script, no `pg_dump` flags and no list of the 15 categories. Findings that depend on them are marked as hypotheses.
+
+FINDINGS:
+
+[P1] 1. The six Storage policies are restored before the function they reference exists
+File: Revised plan, step 2 ("restore 6 affected Storage policies. Check zero app objects … BEFORE restoring")
+Problem: The policies depend on `public.es_admin` and other app functions. The plan drops those functions and then restores the policies before the dump recreates them.
+Evidence: The PRIMARY states the six policies are "dependent on public.es_admin, etc". The plan orders the policy restore ahead of "Restore production schema-only dump".
+Impact: `CREATE POLICY` fails because the function does not exist, and the rehearsal aborts a fourth time. If the policies were instead skipped to avoid the error, Storage would be left without RLS policies.
+Recommendation:
+- Drop the six policies explicitly by name, not via CASCADE, with an assertion that exactly six rows are removed.
+- Recreate them after the dump restore, using the policy text from the parent, not from the branch.
+- Separately confirm that `postgres` may run `CREATE POLICY` / `DROP POLICY` on `storage.objects` on this branch, since the table owner is `supabase_storage_admin` in current Supabase. This is a hypothesis; the rehearsal will reveal it, but check the ownership first.
+
+[P1] 2. Default privileges on `postgres` must be reset before any `CREATE`, not just before the dump's ACL statements
+File: Revised plan, step 3 ("Reset postgres own public defaults and schema ACL … before applying dump ACL")
+Problem: `pg_dump` writes each object's GRANT/REVOKE relative to `acldefault(owner)`. It does not account for default privileges present at restore time. Plain-text dumps place `ALTER DEFAULT PRIVILEGES` near the end.
+Evidence: The PRIMARY states "Parent postgres defaults differ from branch old ones". If a parent object has `relacl`/`proacl` NULL (equal to the built-in default), the dump emits no GRANT for it. On the branch, that object would inherit whatever `postgres` defaults are active when `CREATE` runs.
+Impact: Tables, sequences or functions can silently gain extra grants to `anon`/`authenticated`, such as EXECUTE on SECURITY DEFINER functions. This is a security regression, and it may pass a naive ACL comparison.
+Recommendation:
+- Delete all `pg_default_acl` rows for `defaclrole = postgres` in every namespace, including `defaclnamespace = 0`, as the first step after the guards.
+- Assert zero such rows before the first `CREATE` in the dump.
+- In the per-object comparison, hash `coalesce(acl, acldefault(kind, owner))` and also a flag for whether the ACL is NULL. Otherwise NULL and an explicit ACL that looks the same will compare as equal.
+
+[P1] 3. The drop dependency inventory is stale for the revised drop path, and CASCADE fails open
+File: Revised plan, step 2; evidence section "First rollback cleanup inventory examined 770 external objects … Dropping 3 app schemas after moving pg_trgm"
+Problem: The 770-object inventory described dropping schemas with CASCADE. The revised method drops individual `public` objects plus `crm` and `private` with CASCADE. That closure is different and has not been recomputed.
+Evidence: The evidence describes the old path. Nothing shows that a `pg_depend` closure was computed for the new target set. The same function could also be referenced by triggers on `auth.users`, `realtime` objects or `cron`.
+Impact: An unexpected managed dependent would be dropped silently. The after-the-fact comparison catches only what the 15 categories include.
+Recommendation: Before any `DROP`, compute the recursive `pg_depend` closure (`deptype` in `n`, `a`) for the exact target set, excluding extension members (`deptype = 'e'`). Fail closed unless every dependent object outside the target set is exactly the six named Storage policies. Prefer RESTRICT drops in dependency order. Where CASCADE is unavoidable, re-run the closure check inside the transaction just before it.
+
+[P1] 4. The equivalence scope must include managed-schema objects created by parent migrations 87–279
+File: Revised plan, steps 3, 5 and 6
+Problem: A dump scoped to the app schemas does not include objects that app migrations created inside managed schemas. Restoring the 279-entry ledger then records migrations as applied whose effects are absent on the branch.
+Evidence: Only these external artifacts were listed: 3 FKs, 3 Realtime memberships, and 12 "current" Storage policies. The 12 appear to be branch policies ("all 12 current Storage policies exported"). The PRIMARY did not attach the `pg_dump` flags or the 15 categories. This is a hypothesis about scope.
+Impact: This is false equivalence. Later F8 migrations or tests would run against a branch that differs from production in Auth triggers or Storage RLS.
+Recommendation: Before the next rehearsal, inventory these from the parent and include them in the pass/fail comparison:
+- triggers on `auth.*` and `storage.*`
+- policies and RLS flags on `storage.*` and `realtime.*`
+- grants from managed objects to app roles
+- event triggers
+- the table list for each publication
+- `cron.job` definitions (command and schedule only; keep them OFF)
+- extension name, version and namespace for every extension, not just pg_trgm and unaccent
+
+Explicitly state that `storage.buckets` rows are out of scope.
+
+[P2] 5. Rehearsal and commit are separate executions, so what was verified may differ from what is committed
+File: Revised plan, step 5 ("only after PASS perform identical branch rebuild COMMIT")
+Problem: The COMMIT run repeats every step against a parent that may have changed since the rehearsal, and against the same dump file.
+Impact: The commit is not guaranteed to reproduce the rehearsed state.
+Recommendation:
+- Make the committing run self-verifying: rebuild, compare against the parent fingerprint, then `COMMIT` only if all assertions pass; otherwise `ROLLBACK`.
+- Before the commit run, check the dump's sha256, the parent ledger count (279) and the maximum version, and a parent schema fingerprint. Fail if any differs from the rehearsal.
+- Run with `psql -v ON_ERROR_STOP=1 --single-transaction` over a direct session connection, not a transaction-mode pooler, with the idle and statement timeouts set explicitly.
+
+[P2] 6. Verifying the omitted dump statements needs a precise contract
+File: Revised plan, step 3 ("omitting ONLY CREATE SCHEMA public plus 12 ALTER DEFAULT PRIVILEGES … Assert before/after bytes identical")
+Problem: "Before/after bytes identical" is ambiguous. It is unclear whether it refers to the dump text or to the `pg_default_acl` rows.
+Recommendation: Assert both of these:
+- The dump diff removes exactly 13 statements, all `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public …` apart from the one `CREATE SCHEMA public`, with no other line changed. Parse the statements; do not match lines, because `\restrict` / `\unrestrict` meta-commands and multi-line statements exist.
+- The rows `(defaclrole, defaclnamespace, defaclobjtype, defaclacl)` for `supabase_admin` in all namespaces and all objtypes (`r`, `S`, `f`, `T`, `n`) are identical before and after the transaction and equal to the parent. The evidence covers only `S`, `f` and `r` in `public`.
+
+[P2] 7. Owners and schema attributes in the dump must be restorable by `postgres`
+File: Revised plan, step 3
+Problem: If any object in the dump is owned by a role other than `postgres` or `crm_metricas_bridge`, `ALTER … OWNER` will fail. The ownership and comment of `public` itself (`pg_database_owner`) are not asserted.
+Recommendation: Before the transaction, assert that the set of `OWNER TO` targets in the dump is a subset of `{postgres, crm_metricas_bridge}`. Inside the transaction, assert that the owner, ACL and comment of the `public` schema match the parent exactly. Include the grantor `pg_database_owner`, because REVOKE and GRANT issued by `postgres` through membership must record that grantor.
+
+[P2] 8. The temporary bridge-role privileges need exact row-level assertions
+File: Revised plan, step 4
+Problem: Parity depends on `pg_auth_members` options on PostgreSQL 16+ and on `aclitem` grantors. The plan states only the intent.
+Recommendation:
+- Grant with `GRANT crm_metricas_bridge TO postgres WITH INHERIT TRUE, SET TRUE, ADMIN FALSE GRANTED BY postgres`, then `GRANT … WITH SET FALSE GRANTED BY postgres`.
+- Revoke the temporary `CREATE ON SCHEMA crm` only after the dump's `GRANT USAGE` has run.
+- Just before COMMIT, raise an exception unless:
+  - the full `(roleid, member, grantor, admin_option, inherit_option, set_option)` row set for `crm_metricas_bridge` equals the parent's two rows;
+  - `nspacl` for `crm` and `private` equals the parent;
+  - the bridge role has no CREATE anywhere.
+
+[P3] 9. pg_trgm and unaccent namespaces and dependents
+Recommendation: Assert that `extnamespace` and `extversion` for both extensions match the parent before the dump runs. Also assert that no function `proconfig` or expression index references an unqualified `similarity` or `unaccent` under a `search_path` that lacks `extensions`. Structural equivalence does not catch this; runtime tests do.
+
+[P3] 10. Sensitivity of the dump artifact
+Recommendation: A schema dump includes function bodies, which may contain URLs or keys in `net.http_post` calls. Keep the file at 0600 as planned, record its hash, and delete it after the branch passes. Do not attach its contents to reviews.
+
+REQUIRED FAIL-CLOSED ASSERTIONS (inside the transaction, each raising an exception on failure):
+1. Host and ref equal `nyfufsyrtukwhbaezley`; `auth.users` and `profiles` counts are 0; the ledger has exactly the expected 86 versions (hashed); every cron job is inactive.
+2. The dependency closure of the drop set, minus the target set, equals exactly the six named Storage policies.
+3. After the drop: no objects owned by `postgres` or `crm_metricas_bridge` in `public`, `crm` or `private` (excluding extension members); the managed `public` object set is unchanged; external inventory equals the pre-drop inventory minus those six policies; the ledger is 0.
+4. Before the first `CREATE` from the dump: no `pg_default_acl` rows for `postgres`; the `supabase_admin` default-ACL rows hash-equal the parent.
+5. After restore: the 15 categories plus per-object md5, ACLs normalized with a NULL flag, and the managed-schema inventory from P1-4 all match the parent. The only allowed difference is pg_net, which stays blocking until a separate exception is reviewed.
+6. Bridge membership rows and schema ACLs equal the parent; no temporary privilege remains.
+7. The ledger contains the 279 literal rows from the parent, compared by per-row md5 across all columns; then the two F8 candidates, each by exact hash.
+
+TEST GAPS:
+- The PRIMARY attached no actual SQL script, `pg_dump` command line, or definition of the 15 categories; this review cannot confirm the drop selector, ordering or scope.
+- There is no negative test that the comparison detects an injected difference, such as an extra grant to `anon` or a missing Storage policy. Without one, a "PASS" is unproven.
+- There is no evidence that `postgres` can run `CREATE POLICY` on `storage.objects` on this branch.
+- Auth and RLS behavior tests, SQL tests, advisors and the Main build are still pending, as the PRIMARY acknowledged.
+
+REGRESSION RISKS:
+- If the branch has a GitHub or branching integration, a push could replay migrations against the rebuilt ledger (hypothesis). Confirm there is no Git link and no push during the window.
+
+RECOMMENDED NEXT ACTIONS:
+1. Reorder the policy steps (P1-1), move the `postgres` default-ACL reset to before any `CREATE` (P1-2), and replace the stale cascade inventory with a closure assertion inside the transaction (P1-3).
+2. Extend the parent inventory to cover managed-schema side effects from migrations 87–279 (P1-4), and fix the `pg_dump` scope and flags in writing.
+3. Make the commit run self-verifying and pinned to the dump hash and parent fingerprint (P2-5). Then run one rehearsal with ROLLBACK, including one injected-difference negative check.
+
+CONFIDENCE:
+MEDIUM. The reasoning about PostgreSQL ACL, default privileges and dependencies is high-confidence. The Supabase-specific points (Storage table ownership, scope of the current dump) are hypotheses, because the script and `pg_dump` flags were not provided.

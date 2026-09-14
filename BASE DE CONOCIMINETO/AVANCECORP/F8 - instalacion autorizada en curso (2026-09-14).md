@@ -5,6 +5,10 @@ actualizado: 2026-09-14
 
 # F8 — instalación autorizada en curso
 
+**Estado posterior: pausada por Miguel; rama propia eliminada.** Punto vigente:
+[[F8 - pausa segura de instalacion (2026-09-14)]]. Lo siguiente conserva el
+registro de autorización y del inicio del ensayo.
+
 Miguel respondió «siii» a la presentación de los dos SQL exactos y la pregunta
 de probarlos en rama aislada e instalarlos manteniendo F8 apagada si pasan los
 controles. **La aprobación ya está recibida; no volver a pedirla** para estas

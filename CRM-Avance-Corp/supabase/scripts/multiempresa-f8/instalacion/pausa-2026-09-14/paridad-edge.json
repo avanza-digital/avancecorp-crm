@@ -1,0 +1,216 @@
+{
+  "capturedAt": "2026-09-14T05:28:46.202Z",
+  "parent": "dctqcbznekcyxhjujuci",
+  "branch": "nyfufsyrtukwhbaezley",
+  "comparisons": [
+    {
+      "slug": "crear-cliente",
+      "files": 7,
+      "bytes": 66090,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "41ab8c34dacf38586ab34ffbe9b3b1845376784a3e5b591d853ce9c66d751941",
+      "bundle_same": true
+    },
+    {
+      "slug": "crear-admin",
+      "files": 1,
+      "bytes": 5276,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "db34a4ae7bb8b8260d06b42c36de47524e177703322385dd2ebe21f87c835340",
+      "bundle_same": true
+    },
+    {
+      "slug": "enviar-comunicado",
+      "files": 1,
+      "bytes": 15116,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "afcc3d46965615fdf52772c258cc2880f887607a954b6543f1da33e1b0ba738d",
+      "bundle_same": true
+    },
+    {
+      "slug": "enviar-push",
+      "files": 1,
+      "bytes": 4793,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "f386fe0cc4ae1819a64fcc1361731bfa423374bd0374a263eb95b96674abc7f4",
+      "bundle_same": true
+    },
+    {
+      "slug": "diagnostico-push",
+      "files": 1,
+      "bytes": 56,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "af4132d47cc5d241a87f8a52795ad4039353b32f6d5642679f2b614e4f2ec73f",
+      "bundle_same": true
+    },
+    {
+      "slug": "resetear-password",
+      "files": 1,
+      "bytes": 3789,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "470903c7c8f8fb359546ddbdb5977b74a9bb76d0dca511e5bbd63c8c270f7aef",
+      "bundle_same": true
+    },
+    {
+      "slug": "eliminar-cliente",
+      "files": 1,
+      "bytes": 7523,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "039cdb07ba6821754dc7e21525a1aacdc6f42bbb8520f5b6dd1bdf0542eae60a",
+      "bundle_same": true
+    },
+    {
+      "slug": "notificar-pagos",
+      "files": 1,
+      "bytes": 18209,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "b438ad467426058281feb4c4c3b06928eb8997eaaa17294873d628033d249bd6",
+      "bundle_same": true
+    },
+    {
+      "slug": "importar-clientes",
+      "files": 3,
+      "bytes": 31306,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "f5b3b2c98a8956f0af85e0f9a31625673c588dfc3f5ed2e75bb4b97051a2b640",
+      "bundle_same": true
+    },
+    {
+      "slug": "ciclo-contratos",
+      "files": 1,
+      "bytes": 21858,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "4f44e5bf85e674935079f8135724eb5a6753d8a5ee8f306f4ac5186ba610eaeb",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-convertir-lead",
+      "files": 6,
+      "bytes": 63293,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "7fc27ab95b8253197c5185a3de9894c27509f1b4a66e17c6c0444a24f5153083",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-tipo-cambio",
+      "files": 2,
+      "bytes": 9661,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "694edeec8026de0839dabd1a8e0c85e281338b288c53c2a82bf9c5e9db75dce9",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-agenda-ics",
+      "files": 1,
+      "bytes": 7878,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "0f5fb9530a7e2608bcc1206fe36eaed31b35431efe40485ac931ee1beb941bd5",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-importar-leads",
+      "files": 6,
+      "bytes": 43189,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "9d7ca8d8087f2bfe8a14a3f73245ee1924bacf1fcf7369effd84ac9b31d05669",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-usuarios",
+      "files": 3,
+      "bytes": 13815,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "4b5a9c21c0bb7e019402d82e1e6c13a281514bb7a44672cf871888801a148658",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-contrato-pdf-v2",
+      "files": 9,
+      "bytes": 2320651,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "60603203db0f6c51576b6113c6f279dfaded1353fbb7112b45a43ba98d143dba",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-inversion-portal",
+      "files": 5,
+      "bytes": 20299,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "bfa917af846466011e2d1cb4b992c8335fff830d53c3f09ca6bc591454ce8723",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-inversion-documento",
+      "files": 2,
+      "bytes": 6685,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "12ce3e2aea4546acec3050eb32414a4f8068dcc9e0e41738d9036ba58b4c1df7",
+      "bundle_same": true
+    },
+    {
+      "slug": "crm-notificaciones-tasa",
+      "files": 3,
+      "bytes": 11295,
+      "same_files": true,
+      "same_jwt": true,
+      "same_entry": true,
+      "same_import_map": true,
+      "bundle_sha256": "85c19897308847cb1e412f1e3417aa6252997fb18833d47a8162607af4415ea8",
+      "bundle_same": true
+    }
+  ]
+}
