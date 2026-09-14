@@ -16,11 +16,21 @@ soles al tipo de cambio del motor (`lib/tipo-cambio.ts`, promedio 7 días hábil
 - **Roster completo**: todo analista activo aparece, aunque su mes esté en cero
   (sembrado con `crm.equipo_visible_fn`). La tabla NO cambia de filas al cambiar de moneda.
 - **Selector de tipo de capital**: Capital nuevo · Renovaciones · Upgrades · Cooperativa · Todos.
-- **Vista «Todo S/» por defecto** y tramo **mes / semana / día**. **Desde el 14/09 abre en «Todos los tipos» y en Mes, también en tablet** (Miguel: «por default el módulo abra en la vista de MES, y con el filtro todos los tipos para ver todo el capital»). Motivo: la renovación de US$ 10 000 de Rosa Aguirre del 10/09 «no salía» porque la pantalla abría en Capital nuevo.
+- **Vista «Todo S/» por defecto** y tramo **mes / semana / día**. **Desde el 14/09 (`build-20260914T150911131Z`, commit `c22e2ed`, publicado por Miguel ~10:25 Lima) abre en «Todos los tipos» y en Mes, también en tablet** (Miguel: «por default el módulo abra en la vista de MES, y con el filtro todos los tipos para ver todo el capital»). Motivo: la renovación de US$ 10 000 de Rosa Aguirre del 10/09 «no salía» porque la pantalla abría en Capital nuevo.
 - **Marcar días sueltos** pulsando su cabecera (con pista animada).
 - **Tablet**: menú plegado, filtros plegables, blancos de 24 px. (Del 11 al 14/09 abría en Semana; desde el 14/09 abre en Mes como el escritorio.)
 - Servidor: `crm.facturacion_diaria_fn` (migración `20260910…`, registro 273).
 - Los 9 fallos de la auditoría de Codex, corregidos.
+
+## Publicar con el árbol compartido sucio (14/09): worktree limpio
+
+El 14/09 otra sesión (Codex, Citas) tenía 13 archivos de `app/` sin commitear. El empaquetado
+lee del disco y `release:crm` exige árbol limpio, así que el release se construyó en un
+worktree temporal (`git worktree add --detach <carpeta> <commit>`), con symlinks de
+`CRM-Avance-Corp/node_modules` y `app/node_modules` (no el de la raíz) y las dos variables
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` exportadas en el shell (son públicas: van en el
+chunk `crm-api-*.js` de todo navegador). `npm run release:crm -- --output <raíz>/CRM-Avance-Corp/releases`
+deja el ZIP donde el preflight lo busca. Luego el worktree se borra.
 
 ## Lección repetida (11/09 y 13/09): otra sesión puede publicar tu trabajo
 
