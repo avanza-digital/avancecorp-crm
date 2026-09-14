@@ -4061,6 +4061,7 @@ export type ReglaTasa = v.InferOutput<typeof ReglaTasaSchema>
 
 const ResolucionTasaSchema = v.object({
   tasa_base: NumericoRpc,
+  tasa_minima_sin_autorizacion: v.optional(NumericoRpc),
   regla: ReglaTasaSchema,
   categoria: v.string(),
   cliente_id: v.nullable(v.string()),
@@ -4089,6 +4090,8 @@ const ResolucionTasaSchema = v.object({
 export interface ResolucionTasa {
   bloqueo_conversion?: string | null
   tasa_base: number
+  /** Ausente en servidores anteriores: conservar el mínimo igual a la base. */
+  tasa_minima_sin_autorizacion?: number
   regla: ReglaTasa
   contrato_origen: { id: string; numero_contrato: string; tasa_anual: number; estado: string } | null
   contratos_previos: number
@@ -4147,9 +4150,16 @@ export async function resolverTasa(
     throw fallo
   }
   const o = r.output
+  const base = numEstricto(o.tasa_base, 'tasa_base')
+  const minimo = o.tasa_minima_sin_autorizacion === undefined ? base : numEstricto(o.tasa_minima_sin_autorizacion, 'tasa_minima_sin_autorizacion')
+  if (minimo <= 0 || minimo > base || Math.abs(minimo * 100 - Math.round(minimo * 100)) > 1e-8
+      || (minimo < base && (o.categoria !== 'nuevo' || o.regla !== 'primera_inversion' || o.contrato_origen !== null))) {
+    throw new CrmApiError('El rango de tasa no tiene el formato esperado.', 'RESOLVER_TASA_CONTRACT')
+  }
   return {
     bloqueo_conversion: o.bloqueo_conversion,
-    tasa_base: numEstricto(o.tasa_base, 'tasa_base'),
+    tasa_base: base,
+    tasa_minima_sin_autorizacion: minimo,
     regla: o.regla,
     contrato_origen: o.contrato_origen
       ? { id: o.contrato_origen.id, numero_contrato: o.contrato_origen.numero_contrato, tasa_anual: aNumero(o.contrato_origen.tasa_anual) ?? 0, estado: o.contrato_origen.estado }

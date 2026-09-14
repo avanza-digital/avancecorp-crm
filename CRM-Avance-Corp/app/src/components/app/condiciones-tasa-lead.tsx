@@ -68,7 +68,8 @@ function CondicionesEditables({ lead, demo, puedeEditar, onCambio, inicial }: Pr
     onCambio({ condiciones: { ...intencion, capital: monto ?? 0, categoria: inicial?.categoria ?? 'nuevo', contrato_origen_id: inicial?.contrato_origen_id ?? null, tasa_anual: nTasa ?? 0 }, bloqueo })
   }, [intencion, monto, nTasa, inicial?.categoria, inicial?.contrato_origen_id, bloqueo, onCambio])
   const pendiente = rango?.solicitud?.estado_efectivo === 'pendiente'
-  const estado = pendiente ? 'Pendiente de Gerencia' : rango?.modo === 'autorizada' ? 'Tasa aprobada' : 'Tasa base'
+  const estado = pendiente ? 'Pendiente de Gerencia' : rango?.modo === 'autorizada' ? 'Tasa aprobada'
+    : rango?.minimo != null && rango.base != null && rango.minimo < rango.base ? 'Tasa acordada' : 'Tasa base'
   return <section aria-labelledby={`condiciones-${lead.id}`} className="space-y-3 rounded-xl border border-border bg-card p-3.5" data-testid="condiciones-tasa-lead">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 id={`condiciones-${lead.id}`} className="flex items-center gap-1.5 text-xs font-bold text-primary"><Percent className="size-4" aria-hidden /> Condiciones de inversión</h3>

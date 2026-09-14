@@ -5,11 +5,11 @@ import type { SolicitudTasa } from '@/data/crm-api'
 import type { Lead } from '@/lib/tipos'
 import { CondicionesTasaLeadPanel, type EstadoCondicionesLead } from './condiciones-tasa-lead'
 
-const dobles = vi.hoisted(() => ({ filas: [] as SolicitudTasa[], error: false, pending: false, enviar: vi.fn(), responder: vi.fn() }))
+const dobles = vi.hoisted(() => ({ filas: [] as SolicitudTasa[], error: false, pending: false, inferior: false, enviar: vi.fn(), responder: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/data/crm-queries', () => ({
   useSolicitudesTasa: () => ({ data: dobles.filas, isPending: dobles.pending, isError: dobles.error, refetch: vi.fn() }),
-  useResolucionTasa: () => ({ data: { tasa_base: 15, regla: 'primera_inversion', politica: { tope_tecnico: 50 } }, isPending: false, isError: false }),
+  useResolucionTasa: () => ({ data: { tasa_base: 15, ...(dobles.inferior ? { tasa_minima_sin_autorizacion: 0.01 } : {}), regla: 'primera_inversion', politica: { tope_tecnico: 50 } }, isPending: false, isError: false }),
   useSolicitarTasa: () => ({ mutateAsync: dobles.enviar, isPending: false }),
   useResponderTopeTasa: () => ({ mutateAsync: dobles.responder, isPending: false }),
 }))
@@ -34,7 +34,7 @@ function Arnes({ editar = true }: { editar?: boolean }) {
     <output data-testid="condiciones">{JSON.stringify(estado?.condiciones)}</output>
   </>
 }
-beforeEach(() => { dobles.filas = []; dobles.error = false; dobles.pending = false; dobles.enviar.mockReset(); dobles.responder.mockReset() })
+beforeEach(() => { dobles.inferior = false; dobles.filas = []; dobles.error = false; dobles.pending = false; dobles.enviar.mockReset(); dobles.responder.mockReset() })
 it('envía la solicitud sobre el lead sin crear ni inventar un cliente y bloquea al prepararla', async () => {
   dobles.enviar.mockImplementation(async ({ intencion }) => ({ ...solicitud(), ...intencion }))
   render(<Arnes />)
@@ -80,4 +80,21 @@ it('una relectura fallida retira la confirmación previa y bloquea la conversió
   vista.rerender(<Arnes />)
   expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Reintentar condiciones' })).toBeInTheDocument()
+})
+
+it('traslada la tasa menor en las condiciones sin crear una solicitud', async () => {
+  dobles.inferior = true
+  render(<Arnes />)
+  const input = screen.getByLabelText('Tasa anual (%)')
+  for (const [texto, numero] of [['12', 12], ['13,5', 13.5], ['14.99', 14.99], ['15', 15]] as const) {
+    fireEvent.change(input, { target: { value: texto } })
+    await waitFor(() => expect(screen.getByTestId('condiciones')).toHaveTextContent(`"tasa_anual":${numero}`))
+    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
+  }
+  expect(screen.getByText('Tasa acordada')).toBeInTheDocument()
+  expect(dobles.enviar).not.toHaveBeenCalled()
+  for (const texto of ['', '0', '-1', '16', '13.555']) {
+    fireEvent.change(input, { target: { value: texto } })
+    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeDisabled()
+  }
 })

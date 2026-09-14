@@ -33,7 +33,7 @@ export interface RangoTasaConSolicitud {
  */
 export function rangoEfectivo(r: RangoTasaConSolicitud, ahora: number = Date.now()): { minimo: number | null; maximo: number | null; caducada: boolean } {
   if (r.modo === 'autorizada' && r.solicitud && (!r.solicitud.vigente || new Date(r.solicitud.vence_en).getTime() <= ahora)) {
-    return { minimo: r.base, maximo: r.base, caducada: true }
+    return { minimo: r.minimo, maximo: r.base, caducada: true }
   }
   return { minimo: r.minimo, maximo: r.maximo, caducada: false }
 }
@@ -67,7 +67,7 @@ export function etiquetaModoPolitica(modo: string): string {
 }
 /** Qué significa el modo para quien lo lee. */
 export function detalleModoPolitica(modo: string): string {
-  if (modo === 'enforcement') return 'El servidor rechaza cualquier tasa distinta a la que decide la política sin una autorización vigente de Gerencia.'
+  if (modo === 'enforcement') return 'El servidor verifica el rango de tasa permitido y exige una autorización vigente de Gerencia para superar la tasa base.'
   if (modo === 'observacion') return 'Se mide y se anota cada tasa fuera de la base, pero todavía no se bloquea nada.'
   return 'Esta versión del CRM no conoce este modo: consulta con Gerencia antes de dar por hecho qué bloquea.'
 }

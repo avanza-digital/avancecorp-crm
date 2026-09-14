@@ -91,6 +91,102 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     await waitFor(() => expect(screen.getByTestId('rango')).toHaveTextContent('base:15-15'))
   })
 
+  it('permite tipear una tasa menor, borrar y usar coma sin restablecer 15 en cada tecla', async () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    const user = userEvent.setup()
+    const vista = render(<Arnes />)
+    const input = screen.getByLabelText('Tasa anual (%)')
+    expect(input).not.toHaveAttribute('readonly')
+    await user.clear(input)
+    expect(input).toHaveValue('')
+    await user.type(input, '12,5')
+    expect(input).toHaveValue('12,5')
+    expect(input).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('rango')).toHaveTextContent('base:0.01-15')
+    expect(screen.getByText('Hasta 15% sin aprobación')).toBeInTheDocument()
+    vista.rerender(<Arnes />)
+    expect(input).toHaveValue('12,5')
+    expect(dobles.solicitar).not.toHaveBeenCalled()
+  })
+
+  it.each(['0', '-1', '16', '12.345', 'NaN', '1e1'])('marca %s como inválida y conserva lo escrito para corregirlo', (valor) => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    render(<Arnes />)
+    const input = screen.getByLabelText('Tasa anual (%)')
+    fireEvent.change(input, { target: { value: valor } })
+    expect(input).toHaveValue(valor)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(dobles.solicitar).not.toHaveBeenCalled()
+  })
+
+  it('conserva 12.5 desde el lead al resolver el contrato y recuperar la red', () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    const cambiar = vi.fn()
+    const props = { clienteId: 'cli-1', categoria: 'nuevo' as const, contratoOrigenId: null, intencion: INTENCION,
+      tasa: '12.5', tasaPreseleccionada: 12.5, onTasaChange: cambiar, demo: false }
+    dobles.solicitudesPending = true
+    const vista = render(<TasaPolitica {...props} />)
+    dobles.solicitudesPending = false
+    vista.rerender(<TasaPolitica {...props} />)
+    dobles.solicitudesError = true
+    vista.rerender(<TasaPolitica {...props} />)
+    dobles.solicitudesError = false
+    vista.rerender(<TasaPolitica {...props} />)
+    expect(cambiar).not.toHaveBeenCalled()
+  })
+
+  it('bajar a 12.5 no elude una solicitud pendiente', () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    dobles.solicitudes = [solicitud()]
+    render(<Arnes />)
+    fireEvent.change(screen.getByLabelText('Tasa anual (%)'), { target: { value: '12.5' } })
+    expect(screen.getByTestId('tasa')).toHaveTextContent('12.5')
+    expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeDisabled()
+  })
+
+  it.each([false, true])('si el servidor deja de aceptar la tasa del lead, bloquea sin elevarla (autorizada=%s)', (autorizada) => {
+    if (autorizada) dobles.solicitudes = [solicitud({ estado: 'aprobada', estado_efectivo: 'aprobada', tasa_maxima_autorizada: 18 })]
+    const cambiar = vi.fn()
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="cli-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION}
+      tasa="12.5" tasaPreseleccionada={12.5} onTasaChange={cambiar} onRangoChange={rango} demo={false} />)
+    expect(cambiar).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveValue('12.5')
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('aria-invalid', 'true')
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: expect.stringContaining('La tasa acordada ya no está dentro del rango vigente') }))
+  })
+
+  it('el mínimo nuevo no habilita rebajas al corregir un contrato emitido', () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    render(<Arnes correccion={{ tasaActual: 13 }} tasaInicial="13" />)
+    expect(screen.getByLabelText('Tasa anual (%)')).toHaveAttribute('readonly')
+    expect(screen.getByTestId('rango')).toHaveTextContent('base:13-13')
+  })
+
+  it('si baja la base, mantiene el bloqueo de la tasa pactada aunque otra parte escriba el campo', () => {
+    dobles.resolucion = { data: { ...RES, tasa_base: 12, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    const cambiar = vi.fn()
+    const rango = vi.fn()
+    const props = { clienteId: 'cli-1', categoria: 'nuevo' as const, contratoOrigenId: null, intencion: INTENCION,
+      tasaPreseleccionada: 12.5, onTasaChange: cambiar, onRangoChange: rango, demo: false }
+    const vista = render(<TasaPolitica {...props} tasa="12.5" />)
+    expect(cambiar).not.toHaveBeenCalled()
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: expect.stringContaining('La tasa acordada') }))
+    vista.rerender(<TasaPolitica {...props} tasa="12" />)
+    expect(cambiar).not.toHaveBeenCalled()
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: expect.stringContaining('La tasa acordada') }))
+  })
+
+  it('una autorización que ya no cubre la tasa acordada exige revisión sin sustituirla por la base', () => {
+    dobles.resolucion = { data: { ...RES, tasa_minima_sin_autorizacion: 0.01 }, isPending: false, isError: false }
+    const cambiar = vi.fn()
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="cli-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION}
+      tasa="17" tasaPreseleccionada={17} onTasaChange={cambiar} onRangoChange={rango} demo={false} />)
+    expect(cambiar).not.toHaveBeenCalled()
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: expect.stringContaining('La tasa acordada') }))
+  })
+
   it('conserva la tasa elegida en el lead cuando llega la autorización y después de un fallo de relectura', () => {
     const cambiar = vi.fn()
     const props = { clienteId: 'cli-1', categoria: 'nuevo' as const, contratoOrigenId: null, intencion: INTENCION, tasa: '17', tasaPreseleccionada: 17, onTasaChange: cambiar, demo: false }
@@ -210,6 +306,21 @@ describe('TasaPolitica (Rentabilidad R3)', () => {
     vista.rerender(<Arnes />)
     expect(screen.getByRole('button', { name: 'Crear contrato' })).toBeEnabled()
     expect(screen.getByTestId('tasa')).toHaveTextContent('15')
+  })
+
+  it.each(['pending', 'error'] as const)('con tasa acordada superior y consulta %s muestra el estado real sin sustituir la tasa', (estado) => {
+    dobles.solicitudesPending = estado === 'pending'
+    dobles.solicitudesError = estado === 'error'
+    const cambiar = vi.fn()
+    const rango = vi.fn()
+    render(<TasaPolitica clienteId="cli-1" categoria="nuevo" contratoOrigenId={null} intencion={INTENCION} tasa="17" tasaPreseleccionada={17} onTasaChange={cambiar} onRangoChange={rango} demo={false} />)
+    const mensaje = estado === 'pending'
+      ? 'Consultando si hay solicitudes de tasa pendientes…'
+      : 'No se pudieron verificar las solicitudes de tasa. Reintenta antes de continuar.'
+    expect(screen.getByRole('status')).toHaveTextContent(mensaje)
+    expect(rango).toHaveBeenLastCalledWith(expect.objectContaining({ bloqueoContrato: mensaje }))
+    expect(screen.queryByText(/La tasa acordada ya no está/)).toBeNull()
+    expect(cambiar).not.toHaveBeenCalled()
   })
 
   it('sin poder consultar solicitudes no permite crear; permite reintentar', () => {

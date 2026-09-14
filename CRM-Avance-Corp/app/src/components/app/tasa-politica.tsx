@@ -1,18 +1,7 @@
-// Rentabilidad R3 — la TASA la decide la política; la excepción la decide Gerencia.
-//
-// Este bloque reemplaza al input libre de «Tasa anual» en el formulario de contrato
-// (alta y corrección). Pregunta al núcleo del servidor (crm.resolver_tasa_fn) qué
-// tasa BASE corresponde —15% para una primera inversión, la heredada para
-// renovación/upgrade— y bloquea el input en ese valor. Si el analista necesita
-// más, pide una excepción con motivo (crm.solicitar_tasa_fn); Gerencia decide en
-// su bandeja (aprobar, rechazar, aprobar hasta X%); si hubo tope, el analista lo
-// acepta o lo declina aquí mismo. Con una autorización vigente el input se
-// habilita entre la base y la tasa autorizada (D6: «hasta X%»). Nunca por debajo
-// de la base (D4).
-//
-// El bloque NO calcula tasas: todo sale del servidor (regla de Miguel: un solo
-// núcleo). El candado definitivo es el de R4 en la base de datos; mientras llega,
-// el front ya no ofrece la tasa libre. En sesión DEMO no hay servidor: base fija.
+// La política central decide la base y el mínimo sin excepción. Una inversión
+// nueva puede pactarse por debajo de la base; superar la base requiere Gerencia.
+// Servidores anteriores omiten el mínimo: el campo conserva la base fija.
+// Renovaciones, upgrades y correcciones conservan sus reglas y autorizaciones.
 import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { CheckCircle2, Clock, Lock, RotateCcw, ShieldCheck, Unlock } from 'lucide-react'
 import { toast } from 'sonner'
@@ -202,46 +191,67 @@ export function TasaPolitica({
             : autorizada
               ? 'autorizada'
               : 'base'
-  const minimo = base
+  const minimoServidor = resolucion.data?.tasa_minima_sin_autorizacion ?? base
+  const permiteInferior = !demo && !correccion && categoria === 'nuevo' && base != null
+    && minimoServidor != null && minimoServidor > 0 && minimoServidor < base
+  const minimo = permiteInferior ? minimoServidor : base
   const maximo = autorizada ? solicitud!.tasa_maxima_autorizada : base
+  // Si la política cambió entre lead y contrato, nunca sustituir la tasa
+  // acordada por una más alta sin que el analista revise las condiciones.
+  const preseleccionIncompatible = !demo && !correccion && categoria === 'nuevo' && minimo != null && maximo != null
+    && tasaPreseleccionada != null && (tasaPreseleccionada < minimo || tasaPreseleccionada > maximo)
   const bloqueoContrato = demo ? null
     : leadId && resolucion.data?.bloqueo_conversion ? resolucion.data.bloqueo_conversion
     : pendiente ? `La solicitud de tasa está pendiente de Gerencia. Espera su respuesta antes de ${leadId ? 'convertir el lead' : 'crear el contrato'}, incluso a la tasa base.`
       : solicitar.isPending ? 'Enviando la solicitud de tasa a Gerencia. Espera antes de continuar.'
         : solicitudes.isPending ? 'Consultando si hay solicitudes de tasa pendientes…'
           : solicitudes.isError ? 'No se pudieron verificar las solicitudes de tasa. Reintenta antes de continuar.'
+            : preseleccionIncompatible ? `La tasa acordada ya no está dentro del rango vigente. ${tasaPreseleccionada! > maximo!
+              ? 'Revisa las condiciones o solicita autorización para una tasa superior antes de continuar.'
+              : 'Cierra este formulario y revisa las condiciones antes de continuar.'}`
             : pidiendo ? `Envía la solicitud de tasa o cancela su preparación antes de ${leadId ? 'convertir el lead' : 'crear el contrato'}.`
               : leadId && solicitud?.estado_efectivo === 'aprobada_con_tope' ? solicitud.es_mia
                 ? 'Responde al tope de Gerencia antes de convertir el lead.'
                 : `${solicitud.solicitante_nombre} debe aceptar o declinar el tope desde su bandeja de tasas antes de convertir el lead.`
               : null
 
-  // El input SIGUE a la política: bloqueado en la base. `tasa` va en las dependencias a propósito: si otra parte
-  // del formulario (p. ej. una condición de catálogo) escribe la tasa, la política la devuelve a su sitio.
-  // Con autorización NO se pisa lo que teclea el analista: el rango se valida (aria-invalid) y al guardar.
+  // Inicializar una vez por contexto. Al editar se conserva incluso el campo
+  // vacío; una relectura no puede borrar la tasa que está escribiendo la persona.
   const preseleccionPendiente = useRef(tasaPreseleccionada)
+  const politicaAplicada = useRef<string | null>(null)
+  const modoAnterior = useRef<ModoTasaPolitica | null>(null)
+  const contexto = JSON.stringify([clienteId, leadId, categoria, contratoOrigenId, base, minimo])
   useEffect(() => {
-    if (base == null) return
+    if (base == null || preseleccionIncompatible || ['cargando', 'error', 'incompleta'].includes(modo)) return
     if (preseleccionPendiente.current != null && (solicitudes.isPending || solicitudes.isError)) return
-    if ((modo === 'base' || modo === 'demo') && parseMonto(tasa) !== base) onTasaChange(String(base))
+    const primera = politicaAplicada.current !== contexto
+    if (modo === 'base' || modo === 'demo') {
+      const valor = parseMonto(tasa)
+      const inicialInvalida = primera && (valor == null || minimo == null || valor < minimo || valor > base)
+      const autorizacionRetirada = modoAnterior.current === 'autorizada' && (valor == null || valor > base)
+      if ((!permiteInferior && valor !== base) || inicialInvalida || autorizacionRetirada) onTasaChange(String(base))
+    }
+    politicaAplicada.current = contexto
+    modoAnterior.current = modo
     // onTasaChange es estable (setState).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, modo, tasa, solicitudes.isPending, solicitudes.isError])
+  }, [base, minimo, modo, tasa, permiteInferior, preseleccionIncompatible, contexto, solicitudes.isPending, solicitudes.isError])
   // Cuando APARECE una autorización en el ALTA, el input arranca en la tasa autorizada (el analista pidió más que la
   // base). En CORRECCIÓN no: se conserva la tasa persistida del contrato; subirla es una elección explícita (si no,
   // guardar solo unas notas cambiaría la rentabilidad).
   const autorizacionId = modo === 'autorizada' && !correccion ? solicitud?.id ?? null : null
   const ultimaAutorizacion = useRef<string | null>(null)
   useEffect(() => {
-    if (solicitudes.isPending || solicitudes.isError) return
+    if (solicitudes.isPending || solicitudes.isError || preseleccionIncompatible) return
     if (autorizacionId && autorizacionId !== ultimaAutorizacion.current && maximo != null) {
-      const elegida = preseleccionPendiente.current
+      const actual = parseMonto(tasa)
+      const elegida = preseleccionPendiente.current ?? (permiteInferior && actual != null && base != null && actual < base ? actual : null)
       onTasaChange(String(elegida != null && minimo != null && elegida >= minimo && elegida <= maximo ? elegida : maximo))
     }
     ultimaAutorizacion.current = autorizacionId
     if (autorizacionId || modo === 'base') preseleccionPendiente.current = undefined
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autorizacionId, solicitudes.isPending, solicitudes.isError, modo])
+  }, [autorizacionId, solicitudes.isPending, solicitudes.isError, modo, preseleccionIncompatible])
 
   useEffect(() => {
     onRangoChange?.({ modo, base, minimo, maximo: maximo ?? null, regla, solicitud, bloqueoContrato })
@@ -316,13 +326,10 @@ export function TasaPolitica({
     }
   }
 
-  // El input solo se edita con autorización. La tasa fijada por la política es un DATO que hay que poder leer y
-  // copiar: va readOnly (no disabled, que la apaga al 50 % y la saca del orden de tabulación). disabled queda para
-  // cargando / incompleta / error / formulario enviando.
-  const editable = !disabled && modo === 'autorizada'
-  const soloLectura = !disabled && (modo === 'base' || modo === 'demo')
+  const editable = !disabled && (modo === 'autorizada' || (modo === 'base' && permiteInferior))
+  const soloLectura = !disabled && !editable && (modo === 'base' || modo === 'demo')
   const n = parseMonto(tasa)
-  const fueraDeRango = editable && base != null && maximo != null && (n == null || n < base || n > maximo)
+  const fueraDeRango = preseleccionIncompatible || (editable && minimo != null && maximo != null && (n == null || n < minimo || n > maximo))
 
   // Una sola región viva, persistente y de una línea: los lectores anuncian los CAMBIOS (pendiente → aprobada),
   // no una caja que nace llena. Las cajas visibles no llevan role y los botones quedan fuera de la región.
@@ -334,10 +341,10 @@ export function TasaPolitica({
         : solicitud.estado_efectivo === 'aprobada_con_tope' && solicitud.tasa_maxima_autorizada != null
           ? `Gerencia ofrece hasta ${tasaTxt(solicitud.tasa_maxima_autorizada)}: acéptalo para habilitar el campo de tasa.`
           : autorizada && base != null && maximo != null
-            ? `Autorización vigente: tasa entre ${tasaTxt(base)} y ${tasaTxt(maximo)}.`
+            ? `Autorización vigente: tasa entre ${tasaTxt(minimo ?? base)} y ${tasaTxt(maximo)}.`
             : ''
       : rechazada
-        ? `Gerencia rechazó tu solicitud de ${tasaTxt(rechazada.tasa_solicitada)}${rechazada.motivo_resolucion ? `: ${rechazada.motivo_resolucion}` : ''}. La tasa queda en la base.`
+        ? `Gerencia rechazó tu solicitud de ${tasaTxt(rechazada.tasa_solicitada)}${rechazada.motivo_resolucion ? `: ${rechazada.motivo_resolucion}` : ''}. ${permiteInferior ? `Puedes continuar con una tasa de hasta ${tasaTxt(base!)}.` : 'La tasa queda en la base.'}`
         : otraViva
           ? 'Tienes una solicitud viva para este cliente con otros datos: no aplica a este formulario.'
           : ''
@@ -354,7 +361,7 @@ export function TasaPolitica({
         )}
         {modo === 'base' && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground-strong">
-            <Lock className="size-3" aria-hidden /> Fijada por la política
+            {permiteInferior ? <><Unlock className="size-3" aria-hidden /> Hasta {tasaTxt(base!)} sin aprobación</> : <><Lock className="size-3" aria-hidden /> Fijada por la política</>}
           </span>
         )}
       </div>
@@ -390,10 +397,11 @@ export function TasaPolitica({
         )}
         {modo === 'base' && base != null && (correccion
           ? `Tasa vigente del contrato: ${tasaTxt(base)}. Cambiarla requiere la autorización de Gerencia.`
+          : permiteInferior ? `Puedes ingresar una tasa mayor que 0 y hasta ${tasaTxt(base)}, con hasta dos decimales. Una tasa superior requiere aprobación de Gerencia.`
           : `${etiquetaReglaTasa(regla ?? 'primera_inversion')}: ${tasaTxt(base)}.${resolucion.data?.contrato_origen ? ` Origen ${resolucion.data.contrato_origen.numero_contrato}.` : ''}`)}
-        {modo === 'autorizada' && base != null && maximo != null && (fueraDeRango
-          ? `La tasa debe estar entre ${tasaTxt(base)} y ${tasaTxt(maximo)} (autorizada por Gerencia).`
-          : `Puedes usar cualquier tasa entre la base ${tasaTxt(base)} y el máximo autorizado ${tasaTxt(maximo)}.`)}
+        {modo === 'autorizada' && minimo != null && base != null && maximo != null && (fueraDeRango
+          ? `La tasa debe estar entre ${tasaTxt(minimo)} y ${tasaTxt(maximo)} (autorizada por Gerencia).`
+          : `Puedes usar cualquier tasa entre ${permiteInferior ? tasaTxt(minimo) : `la base ${tasaTxt(base)}`} y el máximo autorizado ${tasaTxt(maximo)}.`)}
       </p>
       <p role="status" className="sr-only">{bloqueoContrato ?? resumenEstado}</p>
       {!demo && bloqueoContrato && (
@@ -453,7 +461,7 @@ export function TasaPolitica({
 
       {!demo && !solicitud && rechazada && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-semibold text-destructive">
-          Gerencia rechazó tu solicitud de {tasaTxt(rechazada.tasa_solicitada)}{rechazada.resuelta_en ? ` el ${fmtFecha(rechazada.resuelta_en)}` : ''}{rechazada.motivo_resolucion ? `: «${rechazada.motivo_resolucion}»` : ''}. La tasa queda en la base{base != null ? ` (${tasaTxt(base)})` : ''}; puedes volver a pedir con otro motivo.
+          Gerencia rechazó tu solicitud de {tasaTxt(rechazada.tasa_solicitada)}{rechazada.resuelta_en ? ` el ${fmtFecha(rechazada.resuelta_en)}` : ''}{rechazada.motivo_resolucion ? `: «${rechazada.motivo_resolucion}»` : ''}. {permiteInferior ? `Puedes continuar con una tasa de hasta ${tasaTxt(base!)};` : `La tasa queda en la base${base != null ? ` (${tasaTxt(base)})` : ''};`} puedes volver a pedir con otro motivo.
         </p>
       )}
 

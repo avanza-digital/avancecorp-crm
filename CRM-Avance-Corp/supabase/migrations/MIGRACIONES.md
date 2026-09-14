@@ -1,5 +1,7 @@
 # Ledger de migraciones — esquema `crm`
 
+> **Tasas inferiores — CANDIDATA LOCAL, SIN DEPLOY (14/09):** `20260914042114_crm_tasas_inferiores_nuevas_inversiones.sql` permite ingresar 0,01 % hasta la base vigente en inversiones nuevas. Conserva aprobación superior, pendientes, herencia y correcciones. Tres funciones privadas, `public.crear_contrato` y un helper privado; cuatro huellas previas cotejadas mediante lectura, ACL/owner/firma preservados. Banco local con precisión, conversión, PDF, RLS propia y reversa concurrente PASS; frontend 3.540 pruebas tras integrar Main, Playwright 182 PASS/26 SKIP. Dos reviews de Claude evaluados y corregidos. Falta ciclo remoto/RLS general/advisors y sincronizar el commit de preparación. Última instrucción: «todavia no hagas deploy». [Paquete y límites](../scripts/tasa-baja/README.md).
+
 > **Citas — PREPARACIÓN SIN DEPLOY (13/09):** cuatro candidatas nuevas (`20260911212756`, `20260913204847`, `20260913225042`, `20260913225755`) conectan base mensual, configuración de Superadmin, entrevistas, clientes y ticket/proyección. Ensayadas sólo en banco propio: SQL y 48 comprobaciones Auth/HTTP PASS; frontend 3.512 pruebas y 14 E2E específicos PASS. RLS general: 55/1.828 FAIL, pendiente de diagnóstico. Tres decisiones de negocio y vigencia siguen sin aplicar. No instaladas en producción. Evidencia: `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
 
 > **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
@@ -52,6 +54,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 
 | Versión | Qué toca de `public` | OK de Miguel |
 |---------|----------------------|--------------|
+| 20260914042114 — candidata local, NO APLICADA | `public.crear_contrato`: rechaza más de dos decimales antes del INSERT a numeric(5,2); conserva firma, dueño, ACL, tablas y policies. Adapta también el observador privado de rentabilidad existente. | Preparación y ensayo local dentro del encargo de tasas inferiores. Última instrucción 14/09: «todavia no hagas deploy». Sin autorización vigente para instalar en producción. |
 | 20260908211349 — revisión publicable | Mismo alcance F4 sobre `public` que la candidata técnica; conserva además el origen de Rentabilidad R4 en el wrapper PDF. | Sí, 08/09: «publica f4 y dame el plan de implementacion para f5». Instalar con escritores/ficha neutral apagados; no constituye encendido comercial general. |
 | 20260907191832 — preparada, NO APLICADA | `public.crear_contrato`, excepción acotada en `public.proteger_campos_inmutables`, triggers de identidad/vínculo en contratos y procedencia en contrato_titulares; REVOKE API de `_sync_contrato_titulares`; referencias a las fuentes contractuales | Desarrollo y ensayos locales dentro del encargo explícito de terminar F4 (08/09). No constituye OK para aplicar/publicar/encender en producción ni cambiar el PDF. |
 | 20260711000001 | `perfiles_rol_check` acepta `'comercial'` | sí, 2026-07-11 |
