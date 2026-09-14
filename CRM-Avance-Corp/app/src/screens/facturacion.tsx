@@ -49,7 +49,7 @@ import { useFacturacionDeMeses } from '@/data/crm-queries'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
-import { CONSULTA_ESTRECHA, useEsEstrecha, useEsTactil } from '@/lib/media'
+import { useEsEstrecha, useEsTactil } from '@/lib/media'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio } from '@/lib/capital-unificado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
@@ -86,7 +86,6 @@ import {
   periodoDesplazado,
   primerDiaDelMes,
   rosterDeEquipoYFilas,
-  TIPO_CAPITAL_NUEVO,
   TIPO_TODOS,
   TIPOS_FACTURACION,
   totalAfirmable,
@@ -422,16 +421,14 @@ export function Facturacion({
   // El ANCLA es un día cualquiera dentro del periodo que se mira; la
   // granularidad decide si eso significa su mes, su semana o él solo. `mes` se
   // deriva del ancla porque la consulta al servidor sigue siendo mensual.
-  // En una pantalla estrecha el mes NO CABE: en iPad vertical se veían 4 días de
-  // 30 y había que arrastrar la tabla de lado con el dedo. Se abre en Semana,
-  // que entra entera; el mes sigue a un toque.
+  // Abre SIEMPRE en Mes, también en tablet (Miguel, 14/09/2026: «por default el
+  // módulo abra en la vista de MES»). Del 11 al 14/09 abría en Semana cuando la
+  // pantalla era estrecha, porque en iPad vertical el mes no cabía (4 días de
+  // 30); Miguel prefiere el mes entero y desplazarse de lado. La semana y el
+  // día siguen a un toque.
   const esEstrecha = useEsEstrecha()
   const esTactil = useEsTactil()
-  const [granularidad, setGranularidad] = useState<Granularidad>(() =>
-    typeof window !== 'undefined' && window.matchMedia?.(CONSULTA_ESTRECHA).matches
-      ? 'semana'
-      : 'mes',
-  )
+  const [granularidad, setGranularidad] = useState<Granularidad>('mes')
   const [ancla, setAncla] = useState<string>(() => fechaLima(Date.now()))
   // DÍAS SUELTOS marcados a mano — Miguel, 11/09/2026: «marcar los días sueltos
   // que yo quiera», el 3, el 7 y el 12 aunque no vayan seguidos. Manda sobre el
@@ -483,11 +480,13 @@ export function Facturacion({
   // dinero entero de un vistazo; separar monedas es la pregunta de después.
   const [vista, setVista] = useState<VistaMoneda>('TOTAL')
   const [metrica, setMetrica] = useState<MetricaFacturacion>('capital')
-  // Abre en capital nuevo —la captación, que es lo que se mira a diario— pero
-  // ahora se puede cambiar. Todo lo de la pantalla sigue a esta perilla: el
-  // titular, el ranking y el total del día. (Decisión de Miguel, 11/09/2026:
-  // «lo que diga la perilla», para que nunca haya dos cifras distintas a la vez.)
-  const [tipo, setTipo] = useState<TipoFacturacion>(TIPO_CAPITAL_NUEVO)
+  // Abre en TODOS los tipos (Miguel, 14/09/2026: «con el filtro todos los tipos
+  // para ver todo el capital»). Del 11 al 14/09 abría en capital nuevo, y una
+  // renovación de US$ 10 000 del 10/09 «no salía»: estaba, pero detrás de la
+  // perilla. Todo lo de la pantalla sigue a esta perilla: el titular, el
+  // ranking y el total del día. (Decisión de Miguel, 11/09/2026: «lo que diga
+  // la perilla», para que nunca haya dos cifras distintas a la vez.)
+  const [tipo, setTipo] = useState<TipoFacturacion>(TIPO_TODOS)
   const [filtro, setFiltro] = useState<FiltroFacturacion>(filtroInicial)
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)

@@ -563,9 +563,17 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
     fila({ id: 'c', dia: '2026-09-03', tipo: 'cooperativa', capital: 40_000 }),
   ]
 
-  it('abre en capital nuevo, como hasta ahora', () => {
+  it('abre en Todos los tipos: todo el capital de un vistazo (Miguel, 14/09/2026)', () => {
+    // Del 11 al 14/09 abría en capital nuevo, y una renovación de US$ 10 000
+    // del 10/09 «no salía»: estaba detrás de la perilla. Ahora entra todo.
     pintar(VARIADAS)
-    expect(screen.getByRole('combobox', { name: 'Tipo de capital' })).toHaveValue('contrato_nuevo')
+    expect(screen.getByRole('combobox', { name: 'Tipo de capital' })).toHaveValue('todo')
+    expect(within(malla()).getAllByText('S/ 375,000').length).toBeGreaterThan(0)
+  })
+
+  it('capital nuevo sigue a un toque, y deja fuera la renovación', () => {
+    pintar(VARIADAS)
+    elegirTipo('contrato_nuevo')
     // Sale varias veces —fila del analista, fila del equipo, pie— y así debe ser.
     expect(within(malla()).getAllByText('S/ 300,000').length).toBeGreaterThan(0)
     expect(within(malla()).queryByText('S/ 10,000')).toBeNull() // la renovación, fuera
@@ -580,6 +588,7 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
 
   it('«Todo» suma los cuatro tipos, sin mezclar monedas', () => {
     pintar(VARIADAS)
+    elegirTipo('contrato_nuevo')
     elegirTipo('todo')
     expect(within(malla()).getAllByText('S/ 375,000').length).toBeGreaterThan(0)
   })
@@ -589,11 +598,11 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
     // capital nuevo mientras la tabla enseña renovaciones sería un tablero
     // diciendo dos cosas al mismo tiempo.
     pintar(VARIADAS)
-    expect(screen.getAllByText('S/ 300,000').length).toBeGreaterThanOrEqual(2) // titular y malla
-    expect(screen.queryByText('S/ 375,000')).toBeNull()
-    elegirTipo('todo')
     expect(screen.getAllByText('S/ 375,000').length).toBeGreaterThanOrEqual(2) // titular y malla
     expect(screen.queryByText('S/ 300,000')).toBeNull()
+    elegirTipo('contrato_nuevo')
+    expect(screen.getAllByText('S/ 300,000').length).toBeGreaterThanOrEqual(2) // titular y malla
+    expect(screen.queryByText('S/ 375,000')).toBeNull()
   })
 
   it('el % contra el mes pasado compara EL MISMO tipo, no manzanas con peras', () => {
@@ -611,11 +620,11 @@ describe('tipos de capital — el contrato que Miguel no encontraba (11/09/2026)
 
   it('el rótulo del KPI de contratos deja de decir «nuevos» siempre', () => {
     pintar(VARIADAS)
-    expect(screen.getByText('Contratos · Capital nuevo')).toBeVisible()
+    expect(screen.getByText('Contratos cerrados')).toBeVisible()
     elegirTipo('contrato_renovacion')
     expect(screen.getByText('Contratos · Renovación')).toBeVisible()
-    elegirTipo('todo')
-    expect(screen.getByText('Contratos cerrados')).toBeVisible()
+    elegirTipo('contrato_nuevo')
+    expect(screen.getByText('Contratos · Capital nuevo')).toBeVisible()
   })
 
   it('el detalle de una celda habla del tipo que se está viendo', () => {
@@ -1031,12 +1040,13 @@ describe('tablet — Miguel, 11/09/2026: «esto está pensado para usar en table
     vi.unstubAllGlobals()
   })
 
-  it('abre en Semana: el mes no cabe en una tablet', () => {
-    // Medido en iPad vertical antes del arreglo: 4 días visibles de 30.
+  it('abre en Mes también en tablet (Miguel, 14/09/2026)', () => {
+    // Del 11 al 14/09 abría en Semana porque en iPad vertical el mes no cabía
+    // (4 días visibles de 30). Miguel prefiere el mes entero y desplazarse de lado.
     comoTablet()
     pintar()
-    expect(screen.getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('en escritorio sigue abriendo en Mes', () => {
@@ -1063,7 +1073,7 @@ describe('tablet — Miguel, 11/09/2026: «esto está pensado para usar en table
 
   it('las casillas de comparar crecen para el dedo', () => {
     comoTablet()
-    // Abre en Semana (7 al 13): hace falta una venta DENTRO para que haya malla.
+    // Hace falta una venta DENTRO del tramo abierto (el mes) para que haya malla.
     pintar([fila({ id: 'sem', dia: '2026-09-10', capital: 50_000 })])
     // HAY DOS casillas distintas: la de cada fila de la malla y la del panel de
     // analistas. La primera versión de esta prueba solo miraba una, y el
