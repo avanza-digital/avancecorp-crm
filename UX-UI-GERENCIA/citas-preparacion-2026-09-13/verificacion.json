@@ -1,0 +1,93 @@
+{
+  "fecha": "2026-09-13",
+  "estado": "PREPARADO_SIN_DEPLOY_CON_PENDIENTES",
+  "backend_productivo": {
+    "migraciones": 279,
+    "configuracion_nueva": false,
+    "lector_md5": "8b2eeffc547a1c095926ddb76876d262",
+    "capital_md5": "c9e58c1da9dd7a5d52991c9e47dc19d5",
+    "control_analitico": "34 declarados, 30 bajo techo, 4 auxiliares, 0 sin declarar",
+    "preflight_solo_lectura": "PASS"
+  },
+  "banco": {
+    "nombre": "citas-validacion-20260912",
+    "ref": "xhgsjtzpmwlqfkninphl",
+    "lector_md5": "75cad408f156fdfcffc0300d89ec22df",
+    "aplicar_md5": "47fd5b575a6a09440f079d24e98f937f",
+    "guardar_md5": "66c93c91e92fed34d6e34d8705858edc",
+    "configuracion_actual_version": 0,
+    "base_depositos": null,
+    "mes_resultado": null,
+    "analista_resultado": null,
+    "mes_inicio": null,
+    "perfiles_sinteticos_activos": 0,
+    "triggers_crm_deshabilitados": 0,
+    "sql_mensual": "PASS",
+    "sql_control": "PASS",
+    "http": {
+      "estado": "PASS",
+      "comprobaciones": 48
+    },
+    "rollback_lector": "PASS, ensayado dentro de transacción revertida",
+    "pausa_solicitada": true,
+    "estado_final": "INACTIVE"
+  },
+  "frontend": {
+    "check": "PASS",
+    "archivos_test": 243,
+    "pruebas": 3512,
+    "e2e_global": {
+      "pass": 178,
+      "skip": 26,
+      "fail": 1
+    },
+    "e2e_repeticion_especifica": {
+      "pass": 14,
+      "fallo_anterior_resuelto": true
+    },
+    "build": "PASS, sólo validación local",
+    "ajuste_visual_final": {
+      "descripcion": "Ancho del contenedor del selector de moneda, incluida su flecha",
+      "build": "PASS",
+      "e2e_runtime_cuatro_anchos": "PASS"
+    }
+  },
+  "advisors_performance_citas": [
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_citas_aplicaciones_actor\\` on table \\`crm.control_citas_aplicaciones\\` has not been used",
+      "metadata": {
+        "name": "control_citas_aplicaciones",
+        "type": "table",
+        "schema": "crm"
+      },
+      "observed_at": "2026-09-14T00:06:40.798Z"
+    },
+    {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_citas_versiones_actor\\` on table \\`crm.control_citas_versiones\\` has not been used",
+      "metadata": {
+        "name": "control_citas_versiones",
+        "type": "table",
+        "schema": "crm"
+      },
+      "observed_at": "2026-09-14T00:06:40.798Z"
+    }
+  ],
+  "no_ejecutado": [
+    "SQL productivo de las cuatro candidatas",
+    "push de esta preparación",
+    "deploy de esta preparación",
+    "smoke productivo del nuevo módulo",
+    "aplicación de reglas comerciales reales"
+  ],
+  "pendientes": [
+    "Base del 70% de clientes",
+    "Mes del resultado",
+    "Analista del resultado",
+    "Vigencia al aplicar",
+    "Diagnóstico RLS general FAIL 55/1828"
+  ]
+}

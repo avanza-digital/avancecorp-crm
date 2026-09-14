@@ -1,0 +1,283 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  #citas-metas-integradas {
+    --mi-bg: light-dark(#f3f6fb, #101a2b);
+    --mi-paper: light-dark(#ffffff, #1a2940);
+    --mi-head: light-dark(#f8f7f4, #20314a);
+    --mi-ink: light-dark(#193650, #edf3ff);
+    --mi-muted: light-dark(#53647e, #b5c6dd);
+    --mi-line: light-dark(#e4e1da, #3b4c63);
+    --mi-blue: light-dark(#2563eb, #91b9ff);
+    --mi-blue-soft: light-dark(#edf3fc, #293f5f);
+    --mi-track: light-dark(#e8edf5, #35485f);
+    --mi-side: light-dark(#14213e, #0c1525);
+    --mi-side-text: #bbc7dd;
+    font: 14px/1.45 "IBM Plex Sans", sans-serif;
+    color: var(--mi-ink);
+    width: 100%;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    background: var(--mi-bg);
+  }
+  #citas-metas-integradas * { box-sizing: border-box; }
+  #citas-metas-integradas [hidden] { display: none !important; }
+  #citas-metas-integradas .mi-sidebar { background: var(--mi-side); color: var(--mi-side-text); padding: 20px 7px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  #citas-metas-integradas .mi-sidebar svg { width: 18px; height: 18px; }
+  #citas-metas-integradas .mi-nav-icon { display: grid; place-items: center; width: 38px; height: 36px; }
+  #citas-metas-integradas .mi-nav-active { background: #2563eb; border-radius: 12px; color: #fff; }
+  #citas-metas-integradas .mi-avatar { margin-top: auto; font-size: 11px; color: #d3e2ff; background: #243754; padding: 10px 8px; border-radius: 50%; }
+  #citas-metas-integradas .mi-body { min-width: 0; }
+  #citas-metas-integradas .mi-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 24px; background: var(--mi-paper); border-bottom: 1px solid var(--mi-line); flex-wrap: wrap; }
+  #citas-metas-integradas .mi-top strong { font-size: 17px; }
+  #citas-metas-integradas .mi-top small { display: block; color: var(--mi-muted); font-size: 12px; margin-top: 2px; }
+  #citas-metas-integradas .mi-example { color: var(--mi-muted); font-size: 12px; }
+  #citas-metas-integradas .mi-content { padding: 20px 24px 24px; }
+  #citas-metas-integradas .mi-page-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  #citas-metas-integradas h2 { font-size: 20px; margin: 0; font-weight: 700; }
+  #citas-metas-integradas h3 { font-size: 18px; margin: 0; font-weight: 700; }
+  #citas-metas-integradas .mi-small { font-size: 12px; color: var(--mi-muted); }
+  #citas-metas-integradas .mi-filters { background: var(--mi-paper); border: 1px solid var(--mi-line); border-radius: 15px; padding: 14px 16px; display: grid; grid-template-columns: 1fr 1.45fr 1fr 1fr; gap: 12px; }
+  #citas-metas-integradas .mi-filters label { display: grid; gap: 5px; font-weight: 500; font-size: 12px; min-width: 0; }
+  #citas-metas-integradas input, #citas-metas-integradas select { min-width: 0; width: 100%; color: var(--mi-ink); background: var(--mi-head); border: 1px solid var(--mi-line); border-radius: 9px; padding: 8px; font: inherit; font-size: 13px; min-height: 38px; }
+  #citas-metas-integradas .mi-location { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+  #citas-metas-integradas .mi-location-label { display: inline-flex; align-items: center; gap: 8px; color: var(--mi-ink); font-weight: 600; }
+  #citas-metas-integradas .mi-location svg { width: 16px; height: 16px; }
+  #citas-metas-integradas .mi-panel { background: var(--mi-paper); border: 1px solid var(--mi-line); border-radius: 16px; overflow: hidden; }
+  #citas-metas-integradas .mi-panel + .mi-panel { margin-top: 16px; }
+  #citas-metas-integradas .mi-panel-head { padding: 16px 18px 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #citas-metas-integradas .mi-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 1.05fr; align-items: center; gap: 8px; padding: 0 18px 15px; }
+  #citas-metas-integradas .mi-stage { display: flex; gap: 9px; align-items: center; justify-content: flex-start; color: var(--mi-ink); background: transparent; border: 0; border-radius: 11px; padding: 10px 8px; font: inherit; cursor: pointer; text-align: left; }
+  #citas-metas-integradas .mi-stage:hover, #citas-metas-integradas .mi-stage[aria-pressed="true"] { background: var(--mi-blue-soft); }
+  #citas-metas-integradas .mi-stage b { font-size: 27px; font-weight: 700; }
+  #citas-metas-integradas .mi-stage span { font-size: 12px; }
+  #citas-metas-integradas .mi-flow-total { border-left: 1px solid var(--mi-line); padding-left: 15px; }
+  #citas-metas-integradas .mi-flow-total b { font-size: 24px; }
+  #citas-metas-integradas .mi-flow-total small { font-size: 12px; display: block; color: var(--mi-muted); }
+  #citas-metas-integradas .mi-scroll { overflow-x: auto; width: 100%; }
+  #citas-metas-integradas table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  #citas-metas-integradas .mi-metrics { table-layout: fixed; min-width: 775px; }
+  #citas-metas-integradas th { text-align: left; font-size: 12px; font-weight: 600; background: var(--mi-head); padding: 11px 12px; vertical-align: top; border-block: 1px solid var(--mi-line); }
+  #citas-metas-integradas th small { font-size: 11px; font-weight: 400; color: var(--mi-muted); display: block; margin-top: 3px; }
+  #citas-metas-integradas td { border-bottom: 1px solid var(--mi-line); padding: 16px 12px; vertical-align: top; }
+  #citas-metas-integradas th:first-child, #citas-metas-integradas td:first-child { padding-left: 18px; }
+  #citas-metas-integradas .mi-metrics th:nth-child(1) { width: 12%; }
+  #citas-metas-integradas .mi-metrics th:nth-child(2) { width: 18%; }
+  #citas-metas-integradas .mi-metrics th:nth-child(3) { width: 16%; }
+  #citas-metas-integradas .mi-metrics th:nth-child(4) { width: 17%; }
+  #citas-metas-integradas .mi-metrics th:nth-child(5) { width: 16%; }
+  #citas-metas-integradas .mi-metrics th:nth-child(6) { width: 21%; }
+  #citas-metas-integradas .mi-person { font: inherit; font-weight: 600; background: transparent; border: 0; padding: 0; color: var(--mi-blue); cursor: pointer; }
+  #citas-metas-integradas .mi-number { font-size: 18px; font-weight: 700; white-space: nowrap; }
+  #citas-metas-integradas .mi-number-money { font-size: 16px; font-weight: 700; white-space: nowrap; }
+  #citas-metas-integradas .mi-meta { font-size: 12px; color: var(--mi-muted); display: block; margin-top: 4px; }
+  #citas-metas-integradas .mi-track { height: 4px; margin: 10px 0 1px; background: var(--mi-track); border-radius: 3px; position: relative; }
+  #citas-metas-integradas .mi-fill { height: 100%; background: var(--mi-blue); border-radius: 3px; }
+  #citas-metas-integradas .mi-tick { height: 10px; width: 1px; position: absolute; top: -3px; background: var(--mi-muted); }
+  #citas-metas-integradas .mi-footnote { padding: 11px 18px; font-size: 12px; color: var(--mi-muted); }
+  #citas-metas-integradas summary { padding: 12px 18px; cursor: pointer; font-weight: 500; font-size: 13px; }
+  #citas-metas-integradas .mi-detail { border-top: 1px solid var(--mi-line); }
+  #citas-metas-integradas .mi-detail-body { padding: 0 18px 16px; }
+  #citas-metas-integradas .mi-detail-table th { font-size: 12px; padding: 8px; }
+  #citas-metas-integradas .mi-detail-table td { padding: 10px 8px; font-size: 13px; }
+  #citas-metas-integradas .mi-detail-bottom { margin-top: 12px; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--mi-muted); }
+  #citas-metas-integradas .mi-empty { padding: 22px 18px; color: var(--mi-muted); }
+  #citas-metas-integradas .mi-state { font-size: 12px; color: var(--mi-muted); }
+  #citas-metas-integradas .mi-members { min-width: 570px; }
+  #citas-metas-integradas .mi-members td, #citas-metas-integradas .mi-members th { font-size: 12px; padding: 10px 14px; }
+  #citas-metas-integradas .mi-sr { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  @media (max-width: 840px) {
+    #citas-metas-integradas .mi-content { padding: 16px; }
+    #citas-metas-integradas .mi-filters { grid-template-columns: 1fr 1fr; }
+    #citas-metas-integradas .mi-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #citas-metas-integradas .mi-flow-total { border-left: 0; border-top: 1px solid var(--mi-line); padding: 8px 0 0; grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; }
+    #citas-metas-integradas .mi-flow-total b { font-size: 18px; }
+  }
+  @media (max-width: 570px) {
+    #citas-metas-integradas { grid-template-columns: minmax(0, 1fr); }
+    #citas-metas-integradas .mi-sidebar { display: none; }
+    #citas-metas-integradas .mi-top { padding: 12px 16px; }
+    #citas-metas-integradas .mi-content { padding: 12px; }
+    #citas-metas-integradas .mi-filters { gap: 10px; padding: 12px; }
+    #citas-metas-integradas input, #citas-metas-integradas select { font-size: 16px; }
+    #citas-metas-integradas .mi-flow { grid-template-columns: 1fr 1fr; }
+    #citas-metas-integradas .mi-flow-total { display: block; }
+  }
+  @media (pointer: coarse) {
+    #citas-metas-integradas button, #citas-metas-integradas summary { min-height: 44px; }
+  }
+</style>
+<div id="citas-metas-integradas" aria-label="Citas del equipo, propuesta de Resultados integrada al CRM">
+  <aside class="mi-sidebar" aria-label="Marco de navegación del CRM">
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="panel-left"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="layout-dashboard"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="list-checks"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="chart-no-axes-combined"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="trophy"></i></span>
+    <span class="mi-nav-icon mi-nav-active" aria-label="Citas, sección actual"><i data-lucide="handshake" aria-hidden="true"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="calendar-days"></i></span>
+    <span class="mi-nav-icon" aria-hidden="true"><i data-lucide="settings"></i></span>
+    <span class="mi-avatar">GR</span>
+  </aside>
+  <div class="mi-body">
+    <header class="mi-top">
+      <div><strong>Citas</strong><small>Pactadas, realizadas y seguimiento comercial</small></div>
+      <span class="mi-example">Propuesta · Datos ficticios</span>
+    </header>
+    <main class="mi-content">
+      <div class="mi-page-title"><h2>Citas del equipo</h2><span class="mi-small">Recuperación y avance de gestión</span></div>
+      <div class="mi-filters" aria-label="Filtros de la consulta">
+        <label for="mi-month">Mes<input type="month" id="mi-month" value="2026-09"></label>
+        <label for="mi-week">Corte del avance<select id="mi-week"><option value="all">Acumulado al 10 set.</option><option value="1">Semana 1 · al 7 set.</option><option value="2">Semana 2 · al 10 set.</option><option value="3">Semana 3 · al 21 set.</option><option value="4">Semana 4 · al 30 set.</option></select></label>
+        <label for="mi-supervisor">Supervisor<select id="mi-supervisor"><option value="all">Todos</option><option value="norte">Equipo Norte</option><option value="sur">Equipo Sur</option></select></label>
+        <label for="mi-analyst">Analista<select id="mi-analyst"><option value="all">Todos</option><option value="ana">Ana</option><option value="bruno">Bruno</option><option value="carla">Carla</option></select></label>
+      </div>
+      <div class="mi-location"><span class="mi-location-label"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>Resultados</span><span class="mi-small" id="mi-period">Avance acumulado del 1 al 10 set. · Soles</span></div>
+      <div id="mi-message" class="mi-empty" role="status" hidden></div>
+      <div id="mi-results">
+        <section class="mi-panel" aria-labelledby="mi-recovery-title">
+          <div class="mi-panel-head"><h3 id="mi-recovery-title">¿Qué pasó con quienes no asistieron?</h3><span class="mi-small">Personas del recorrido</span></div>
+          <div class="mi-flow">
+            <button class="mi-stage" type="button" data-stage="missed" aria-controls="mi-recovery-details" aria-pressed="false"><b id="mi-missed">4</b><span>No asistieron</span></button>
+            <button class="mi-stage" type="button" data-stage="rescheduled" aria-controls="mi-recovery-details" aria-pressed="false"><b id="mi-rescheduled">3</b><span>Reprogramaron</span></button>
+            <button class="mi-stage" type="button" data-stage="attended" aria-controls="mi-recovery-details" aria-pressed="false"><b id="mi-attended">1</b><span>Asistieron</span></button>
+            <button class="mi-stage" type="button" data-stage="converted" aria-controls="mi-recovery-details" aria-pressed="false"><b id="mi-converted">1</b><span>Depositaron</span></button>
+            <div class="mi-flow-total"><b id="mi-recovered-rate">25%</b><small id="mi-recovered-base">1 de 4 terminó en cliente</small></div>
+          </div>
+          <details class="mi-detail" id="mi-recovery-details"><summary id="mi-recovery-summary">Ver personas del recorrido</summary><div class="mi-scroll"><table class="mi-members" aria-label="Personas de la etapa de recuperación seleccionada"><thead><tr><th>Persona</th><th>Analista</th><th>No asistió</th><th>Reprogramó</th><th>Asistencia</th><th>Depósito</th></tr></thead><tbody id="mi-recovery-rows"></tbody></table></div></details>
+        </section>
+        <section class="mi-panel" aria-labelledby="mi-metas-title">
+          <div class="mi-panel-head"><div><h3 id="mi-metas-title">Avance de metas por analista</h3><span class="mi-small">Citas, entrevistas y clientes en una sola fila</span></div><span id="mi-roster" class="mi-state">3 analistas</span></div>
+          <div class="mi-scroll"><table class="mi-metrics" aria-label="Cumplimiento y proyección por analista"><thead><tr><th scope="col">Analista</th><th scope="col">Citas<small>Cumplimiento del objetivo</small></th><th scope="col">Entrevistas<small>Asistencia · objetivo 70%</small></th><th scope="col">Depósitos<small>Conversión · objetivo 70%</small></th><th scope="col">Ticket medio<small>Referencia histórica</small></th><th scope="col">Cierre estimado<small>Si mantiene su ritmo</small></th></tr></thead><tbody id="mi-metric-rows"></tbody></table></div>
+          <div class="mi-footnote">Base: leads asignados, excluyendo el registro manual del propio analista. Detalle al seleccionar su nombre.</div>
+          <details class="mi-detail" id="mi-analyst-details"><summary id="mi-analyst-summary">Detalle del avance · Ana</summary><div class="mi-detail-body" id="mi-analyst-body"></div></details>
+        </section>
+      </div>
+      <div class="mi-sr" id="mi-live" aria-live="polite"></div>
+    </main>
+  </div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('citas-metas-integradas');
+  const q = selector => root.querySelector(selector);
+  const people = [
+    { id: 'ana', name: 'Ana', supervisor: 'norte', ticket: 20000, weeks: [{ leads: 65, appointments: 60, interviews: 42, clients: 21 }, { leads: 35, appointments: 40, interviews: 28, clients: 14 }] },
+    { id: 'bruno', name: 'Bruno', supervisor: 'sur', ticket: 15000, weeks: [{ leads: 60, appointments: 50, interviews: 25, clients: 18 }, { leads: 40, appointments: 30, interviews: 15, clients: 10 }] },
+    { id: 'carla', name: 'Carla', supervisor: 'norte', ticket: 25000, weeks: [{ leads: 30, appointments: 40, interviews: 28, clients: 20 }, { leads: 18, appointments: 20, interviews: 14, clients: 10 }] }
+  ];
+  const recovery = [
+    { name: 'Carolina Vega', analyst: 'ana', missed: 2, rescheduled: 3, attended: 4, converted: 6 },
+    { name: 'Manuel Torres', analyst: 'ana', missed: 5, rescheduled: null, attended: null, converted: null },
+    { name: 'Lucía Ortiz', analyst: 'bruno', missed: 8, rescheduled: 9, attended: null, converted: null },
+    { name: 'José López', analyst: 'carla', missed: 9, rescheduled: 10, attended: null, converted: null }
+  ];
+  const state = { selected: 'ana', stage: 'missed', showBars: true };
+  const integer = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 });
+  const decimal = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 });
+  const cash = value => 'S/ ' + integer.format(value);
+  const pct = value => decimal.format(value) + '%';
+  const cutoff = () => q('#mi-week').value === '1' ? 7 : 10;
+  const scope = () => people.filter(person => (q('#mi-supervisor').value === 'all' || person.supervisor === q('#mi-supervisor').value) && (q('#mi-analyst').value === 'all' || person.id === q('#mi-analyst').value));
+  const stageLabels = { missed: 'No asistieron', rescheduled: 'Reprogramaron', attended: 'Asistieron', converted: 'Depositaron' };
+  const day = value => value && value <= cutoff() ? value + ' set.' : '—';
+  function syncAnalystChoices() {
+    const select = q('#mi-analyst');
+    const previous = select.value;
+    const supervisor = q('#mi-supervisor').value;
+    const available = people.filter(person => supervisor === 'all' || person.supervisor === supervisor);
+    select.innerHTML = '<option value="all">Todos</option>' + available.map(person => `<option value="${person.id}">${person.name}</option>`).join('');
+    select.value = available.some(person => person.id === previous) ? previous : 'all';
+  }
+  function metrics(person) {
+    const selectedWeeks = cutoff() === 7 ? person.weeks.slice(0, 1) : person.weeks;
+    const result = selectedWeeks.reduce((sum, week) => ({ leads: sum.leads + week.leads, appointments: sum.appointments + week.appointments, interviews: sum.interviews + week.interviews, clients: sum.clients + week.clients }), { leads: 0, appointments: 0, interviews: 0, clients: 0 });
+    const appointmentGoal = Math.ceil(result.leads * 125 / 100);
+    const interviewGoal = Math.ceil(result.appointments * 70 / 100);
+    const clientGoal = Math.ceil(result.interviews * 70 / 100);
+    const attendance = result.interviews / result.appointments;
+    const conversion = result.clients / result.interviews;
+    const monthlyAppointments = result.appointments * 30 / cutoff();
+    const expectedClients = monthlyAppointments * attendance * conversion;
+    return { ...result, appointmentGoal, interviewGoal, clientGoal, attendance, conversion, monthlyAppointments, expectedClients, expectedAmount: expectedClients * person.ticket, goalAmount: monthlyAppointments * .7 * .7 * person.ticket };
+  }
+  function track(value, target) {
+    if (!state.showBars) return '';
+    return `<div class="mi-track" aria-hidden="true"><div class="mi-fill" style="width:${Math.min(100, Math.max(0, value))}%"></div><span class="mi-tick" style="left:calc(${target}% - 1px)"></span></div>`;
+  }
+  function renderMetrics() {
+    const selectedPeople = scope();
+    q('#mi-roster').textContent = selectedPeople.length + (selectedPeople.length === 1 ? ' analista' : ' analistas');
+    q('#mi-metric-rows').innerHTML = selectedPeople.map(person => {
+      const m = metrics(person);
+      const accomplishment = m.appointments / m.appointmentGoal * 100;
+      const expected = Math.abs(m.expectedClients - Math.round(m.expectedClients)) < .000001 ? integer.format(m.expectedClients) : '≈ ' + decimal.format(m.expectedClients);
+      return `<tr><td><button class="mi-person" type="button" data-analyst="${person.id}" aria-controls="mi-analyst-details" aria-label="Ver avance de ${person.name}">${person.name}</button><span class="mi-meta">${person.supervisor === 'norte' ? 'Norte' : 'Sur'}</span></td><td><span class="mi-number">${pct(accomplishment)}</span><span class="mi-meta">${m.appointments} citas · ${m.leads} leads</span>${track(accomplishment, 100)}</td><td><span class="mi-number">${pct(m.attendance * 100)}</span><span class="mi-meta">${m.interviews} de ${m.appointments} citas</span>${track(m.attendance * 100, 70)}</td><td><span class="mi-number">${pct(m.conversion * 100)}</span><span class="mi-meta">${m.clients} de ${m.interviews} entrevistados</span>${track(m.conversion * 100, 70)}</td><td><span class="mi-number-money">${cash(person.ticket)}</span><span class="mi-meta">Por nuevo cliente</span></td><td><span class="mi-number-money">${cash(m.expectedAmount)}</span><span class="mi-meta">${expected} clientes previstos</span></td></tr>`;
+    }).join('');
+  }
+  function detailMetric(label, done, goal, unit) {
+    const missing = Math.max(0, goal - done);
+    return `<tr><td>${label}</td><td>${done} / ${goal}</td><td>${missing ? 'Faltan ' + missing + ' ' + unit : 'Objetivo alcanzado'}</td></tr>`;
+  }
+  function renderAnalystDetail() {
+    const person = scope().find(candidate => candidate.id === state.selected) || scope()[0];
+    if (!person) return;
+    state.selected = person.id;
+    const m = metrics(person);
+    q('#mi-analyst-summary').textContent = 'Detalle del avance · ' + person.name;
+    q('#mi-analyst-body').innerHTML = `<table class="mi-detail-table" aria-label="Avance de ${person.name} frente a objetivos"><thead><tr><th>Indicador</th><th>Conseguido / objetivo</th><th>Para llegar</th></tr></thead><tbody>${detailMetric('Citas', m.appointments, m.appointmentGoal, 'citas')}${detailMetric('Entrevistas', m.interviews, m.interviewGoal, 'asistencias')}${detailMetric('Depósitos', m.clients, m.clientGoal, 'clientes')}</tbody></table><div class="mi-detail-bottom"><span>${m.leads} leads válidos · ${decimal.format(m.appointments / m.leads)} citas por lead</span><span>Con ambos porcentajes al 70%: ${cash(m.goalAmount)}</span></div><div class="mi-detail-bottom"><span>${decimal.format(m.monthlyAppointments)} citas estimadas al cierre · ticket de ejemplo ${cash(person.ticket)}</span><span>Brechas calculadas sobre las bases del corte</span></div>`;
+  }
+  function recoveryScope() {
+    const ids = scope().map(person => person.id);
+    return recovery.filter(person => ids.includes(person.analyst) && person.missed <= cutoff());
+  }
+  function renderRecovery() {
+    const records = recoveryScope();
+    for (const stage of Object.keys(stageLabels)) q('#mi-' + stage).textContent = records.filter(person => person[stage] && person[stage] <= cutoff()).length;
+    const converted = records.filter(person => person.converted && person.converted <= cutoff()).length;
+    q('#mi-recovered-rate').textContent = records.length ? pct(converted / records.length * 100) : '—';
+    q('#mi-recovered-base').textContent = records.length ? converted + ' de ' + records.length + ' terminó en cliente' : 'Sin inasistencias en este ejemplo';
+    q('#mi-recovery-summary').textContent = stageLabels[state.stage] + ' · Ver personas del recorrido';
+    const filtered = records.filter(person => person[state.stage] && person[state.stage] <= cutoff());
+    q('#mi-recovery-rows').innerHTML = filtered.length ? filtered.map(person => `<tr><td>${person.name}</td><td>${people.find(analyst => analyst.id === person.analyst).name}</td><td>${day(person.missed)}</td><td>${day(person.rescheduled)}</td><td>${day(person.attended)}</td><td>${day(person.converted)}</td></tr>`).join('') : '<tr><td colspan="6">Nadie ha llegado a esta etapa en el ejemplo seleccionado.</td></tr>';
+    root.querySelectorAll('[data-stage]').forEach(button => button.setAttribute('aria-pressed', String(q('#mi-recovery-details').open && state.stage === button.dataset.stage)));
+  }
+  function render() {
+    let message = '';
+    if (q('#mi-month').value !== '2026-09') message = 'La propuesta tiene datos de ejemplo de septiembre de 2026.';
+    else if (['3', '4'].includes(q('#mi-week').value)) message = 'Semana posterior al corte del ejemplo (10 set.). Todavía no hay actividad para mostrar.';
+    else if (!scope().length) message = 'El analista seleccionado no pertenece a este supervisor.';
+    q('#mi-message').hidden = !message;
+    q('#mi-message').textContent = message;
+    q('#mi-results').hidden = Boolean(message);
+    q('#mi-period').textContent = message ? 'Datos de ejemplo · Soles' : 'Avance acumulado del 1 al ' + cutoff() + ' set. · Soles';
+    if (message) { q('#mi-live').textContent = message; return; }
+    renderMetrics();
+    renderRecovery();
+    renderAnalystDetail();
+    q('#mi-live').textContent = scope().length + ' analistas. Avance acumulado hasta el ' + cutoff() + ' de septiembre.';
+  }
+  ['#mi-month', '#mi-week', '#mi-analyst'].forEach(selector => q(selector).addEventListener('change', render));
+  q('#mi-supervisor').addEventListener('change', () => { syncAnalystChoices(); render(); });
+  q('#mi-metric-rows').addEventListener('click', event => {
+    const button = event.target.closest('button[data-analyst]');
+    if (!button) return;
+    state.selected = button.dataset.analyst;
+    renderAnalystDetail();
+    q('#mi-analyst-details').open = true;
+    q('#mi-analyst-summary').focus();
+  });
+  root.querySelectorAll('[data-stage]').forEach(button => button.addEventListener('click', () => {
+    state.stage = button.dataset.stage;
+    q('#mi-recovery-details').open = true;
+    renderRecovery();
+    q('#mi-recovery-summary').focus();
+  }));
+  q('#mi-recovery-details').addEventListener('toggle', renderRecovery);
+  syncAnalystChoices();
+  render();
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: root, onChange: render });
+    tweak.addToggle(state, 'showBars', { label: 'Mostrar barras de avance' });
+  }
+})();
+</script>

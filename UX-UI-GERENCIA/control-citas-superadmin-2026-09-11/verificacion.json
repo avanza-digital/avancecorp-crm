@@ -1,0 +1,16 @@
+{
+  "check": "PASS",
+  "unitarias": 3426,
+  "e2e_general_antes_ajustes_review": {
+    "pass": 175,
+    "skip": 26
+  },
+  "e2e_final_control_y_superadmin": {
+    "pass": 5
+  },
+  "sql_banco_local": "PASS",
+  "sql_sha256": "e4683efb9e80fbcfef69f8c54337b18892c172ef56ca0221ba807429d3c9a615",
+  "produccion_aplicada": false,
+  "tipos_catalogo_nuevo_generados": false,
+  "revision": "CHANGES_REQUESTED; hallazgos evaluados y correcciones verificadas por Codex"
+}

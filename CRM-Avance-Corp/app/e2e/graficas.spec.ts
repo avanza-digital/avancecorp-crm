@@ -122,7 +122,12 @@ test.describe('resumen de Gerencia en sesión real', () => {
     await expect(recorrido.getByRole('list',{name:'Recorrido de la persona'})).not.toContainText('35,000')
     await page.keyboard.press('Escape')
     await page.getByRole('button',{name:'No asistieron 2'}).click()
-    await expect(page.getByRole('table',{name:'Resultados por analista de las citas filtradas'})).toContainText('3 / 2')
+    // Esta respuesta histórica no trae la base mensual asignada. Las personas
+    // con cita no pueden sustituirla ni producir un cumplimiento inventado.
+    await expect(page.getByRole('status').filter({hasText:'falta la base de leads asignados del mes'})).toBeVisible()
+    const tablaCitas = page.getByRole('table',{name:'Resultados por analista de las citas filtradas'})
+    await expect(tablaCitas.getByRole('cell',{name:'Sin base',exact:true})).toBeVisible()
+    await expect(tablaCitas).not.toContainText('3 / 2')
     await expect(page.getByText('Reunión o avance posterior', { exact: true })).toHaveCount(0)
     await page.mouse.move(1200,70)
     await expect(page.getByRole('button',{name:'Citas',exact:true})).toHaveAttribute('title','Citas')

@@ -1,5 +1,7 @@
 # Ledger de migraciones — esquema `crm`
 
+> **Citas — PREPARACIÓN SIN DEPLOY (13/09):** cuatro candidatas nuevas (`20260911212756`, `20260913204847`, `20260913225042`, `20260913225755`) conectan base mensual, configuración de Superadmin, entrevistas, clientes y ticket/proyección. Ensayadas sólo en banco propio: SQL y 48 comprobaciones Auth/HTTP PASS; frontend 3.512 pruebas y 14 E2E específicos PASS. RLS general: 55/1.828 FAIL, pendiente de diagnóstico. Tres decisiones de negocio y vigencia siguen sin aplicar. No instaladas en producción. Evidencia: `UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.
+
 > **Push de solicitudes de tasa — PUBLICADO Y ACTIVADO el 11/09/2026:**
 > `20260910225540_crm_notificaciones_push_tasa.sql` añade dos tablas CRM con RLS
 > y auditoría que oculta claves, ocho RPC limitadas por rol y sesión, cola por
@@ -9280,6 +9282,20 @@ del banco al terminar: no queda rastro.
 
 `npm run test:rls:preflight`: NOT RUN aquí (falta `SUPABASE_URL`; el hook protege el `.env`).
 
+## 20260911212756 — Control de Citas para Superadmin (borradores)
+
+**Estado:** candidato local; no aplicado a producción.
+
+Añade `crm.control_citas_versiones` y dos RPC exclusivas de Superadmin activo: lectura y guardado de borradores con historial inmutable, auditoría del actor y control de concurrencia por versión. Tabla sin acceso directo para `anon`/`authenticated`, con RLS. No cambia objetos existentes de `public`, ni lectores o cálculos de Citas. El trigger utiliza el auditor existente `private.log_audit_crm()`.
+
+Metas iniciales del editor: 1,25 citas por lead, 70% entrevistas y 70% depósitos. Leads asignados durante el mes, incluidos los que no tienen cita y los manuales, según la última aclaración de Miguel. Las decisiones pendientes se guardan como `null`; ningún borrador se activa automáticamente.
+
+Prueba: `python3 supabase/scripts/test-control-citas-local.py` desde la raíz CRM. PASS en PostgreSQL 17 desechable: ocho perfiles, anónimo, falta de sesión, acceso directo, validación, auditoría, historial inmutable y dos escritores concurrentes. Evidencia: `supabase/scripts/control-citas-superadmin/resultado-local.json`.
+
+**Actualización de preparación 13/09:** ensayo en rama propia, pruebas SQL/Auth, advisors y tipos desde `public,crm` completados. Se incorporaron sólo los miembros nuevos de tipos para preservar las RPC de Leads ausentes en ese banco. Conflictos de versión devuelven `PT409`/HTTP 409; `40001` reintentaba la petición real. RLS general sigue FAIL. Instalación y publicación productivas pendientes, expresamente no ejecutadas.
+
+Ajustes tras review de Control de Citas: la base de depósitos queda nullable hasta elegir entre «entrevistas» y «personas entrevistadas»; se bloquea TRUNCATE. Se conserva el FK del autor con NO ACTION como decisión de retención acorde a la regla de desactivar perfiles (`activo=false`). Prueba de desactivación, hard-delete rechazado y claims de rol falsificados: PASS. El historial no constituye soporte para purga de identidades.
+
 ## 20260912151320 — Citas Gerencia conectada a núcleos
 
 **Estado:** candidata local, probada en PostgreSQL 17 desechable; no aplicada a producción.
@@ -9443,3 +9459,57 @@ tests frontend PASS y 173 E2E PASS / 26 SKIP. [Gates y límites](../scripts/FILT
 Las cuatro definiciones/ACL resultantes coinciden con la rama probada. Se
 conservan las 278 migraciones anteriores, las funciones ajenas y las 19 Edge.
 El frontend se publica como artefacto desde el commit único verificado de Main.
+
+## 20260913204847 — Citas: base mensual asignada y meta interna
+
+**Candidata sin instalar en producción.** Conserva la puerta Gerencia y el JSON
+de citas existente, añade la base mensual desde `lead_asignaciones` y las metas
+1,25 / 70 / 70. Incluye leads sin cita. Rechaza deriva de la definición previa;
+actualiza sólo la huella de su lector y el sello del censo. Es un paso intermedio:
+la candidata de fuentes final usa la configuración aplicada y las reglas de
+manuales aclaradas posteriormente. Ensayo SQL dentro de BEGIN/ROLLBACK: PASS.
+
+## 20260913225042 — Citas: aplicación mensual de configuración
+
+**Ensayada sólo en `citas-validacion-20260912`; NO DEPLOY.** Requiere borradores
+`20260911212756`. Añade `control_citas_aplicaciones`, lectura de vigencia privada
+y RPC `aplicar_control_citas_fn` exclusiva de Superadmin activo. Versiones y
+aplicaciones son inmutables, auditadas y sin acceso directo por la Data API.
+Índices cubren ambas FK de autor. Aplicar requiere la última versión, todas las
+reglas y un mes actual/futuro no sellado. Comparte el bloqueo del cierre de mes
+y el bloqueo de edición del control. Conflicto de negocio `PT409`/HTTP 409.
+
+Se conserva historial; guardar borrador no afecta métricas. Configuración
+inicial: 1,25, 70/70, manuales incluidos, cada cita atendida es entrevista;
+atribuciones de mes/analista, base de clientes y vigencia siguen nulas.
+SQL local de roles/concurrencia/historial/vigencia/mes sellado PASS;
+Auth/PostgREST real de las tres RPC, 48 comprobaciones PASS. Tipos generados
+de la rama e incorporados por miembro sin borrar las RPC de Leads actuales.
+
+## 20260913225755 — Citas: fuentes del avance y ticket mensual
+
+**Ensayada sólo en banco propio; no instalada ni publicada en producción.**
+Requiere las tres candidatas de Citas anteriores y los núcleos vigentes.
+Conserva contrato superior V2, añade `gestion.version=2` con asignaciones,
+población, conversión nativa, capital real y configuración efectiva.
+
+Lee estados del núcleo de citas, hechos de cierre del núcleo de conversiones
+y capital de `capital_episodios`. Usa el registro real de entrevista, no la fecha
+prevista, para relación temporal con clientes y mes de entrevistas. Conserva
+identidad del responsable inicial tras transferencias. El capital de contratos
+nuevos del mes se vincula por perfil cliente; `leads.contrato_id` no es poblado
+por el flujo canónico. Deduplica por contrato; el cliente se cuenta por perfil.
+No mezcla moneda, pesos comerciales, estimación del lead ni renovaciones.
+
+Preflight exige huellas conocidas del lector anterior y del capital. Conserva
+ACL, topes y declaraciones ajenas del censo; no cambia objetos `public`.
+El historial excedido dispara error en vez de entregar 10.000 filas truncadas.
+Oráculo SQL en esquema completo PASS (manuales, lead sin cita, fechas cruzadas,
+entrevista/cierre, importe real USD, roles y anulación); revisión independiente
+con correcciones PASS. Reversión del lector ensayada dentro de ROLLBACK PASS.
+
+Gate general **FAIL 55/1.828**, nombres coincidentes con el ensayo anterior,
+sin A/B contemporáneo. No se declara cero regresiones ni se omite la deuda.
+Advisors: guardas RLS/DEFINER intencionales comprobadas, FK indexadas; dos INFO
+de índices recién creados sin uso. Evidencias, capturas, SQL exacto y pendientes:
+`UX-UI-GERENCIA/citas-preparacion-2026-09-13/README.md`.

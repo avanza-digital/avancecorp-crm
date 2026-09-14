@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as v from 'valibot'
 const mocks = vi.hoisted(() => ({ rpc:vi.fn(), schema:vi.fn(), abortSignal:vi.fn() }))
 vi.mock('@/lib/supabase',() => ({sb:{schema:mocks.schema}}))
-import { adaptarCitas, adaptarDepositos, cargarCitasGerencia, ConsultaCitasSchema, type ConsultaCitasRpc } from './citas-gerencia'
+import { adaptarCitas, adaptarDepositos, adaptarGestion, cargarCitasGerencia, ConsultaCitasSchema, type ConsultaCitasRpc } from './citas-gerencia'
 import { defaults, filtrar } from '@/components/citas/modelo'
 import { depositosDeInasistencias } from '@/components/citas/depositos'
 import { metaCitas } from '@/components/citas/metas'
+import { controlCitasInicial } from '@/lib/control-citas'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`
 const fila = (cambios: Partial<ConsultaCitasRpc['citas'][number]> = {}): ConsultaCitasRpc['citas'][number] => ({
@@ -26,6 +27,33 @@ beforeEach(() => {
 })
 
 describe('frontera de la consulta detallada de Citas',() => {
+  it('valida gestión mensual y capital por perfil aunque el lead no enlace un contrato', async () => {
+    const datos = respuestaConversion()
+    datos.citas = datos.citas.map(c => ({ ...c, manual_propio: false, registro_manual: false }))
+    datos.gestion = { version: 2, citas_por_lead: 1.25, entrevistas_porcentaje: 70, depositos_porcentaje: 70,
+      actividad_manuales: 'incluir', asignaciones: [],
+      control: { version: 0, mes_inicio: null, configuracion: controlCitasInicial() },
+      poblacion: [{ lead_id: id(10), nombre: 'Persona', telefono: '900000001', origen: 'referido', moneda: 'PEN', monto_estimado: 5000,
+        registro_manual: false, creado_por: id(20), analista_origen_id: id(20), analista_origen_nombre: 'Analista',
+        supervisor_origen_id: id(30), supervisor_origen_nombre: 'Supervisor', primera_asignacion_en: '2026-09-01T05:00:00Z' }],
+      conversiones: [{ lead_id: id(10), perfil_id: id(40), convertido_en: '2026-09-04T15:00:00Z', analista_id: id(20), analista_nombre: 'Analista',
+        supervisor_id: id(30), supervisor_nombre: 'Supervisor', contrato_id: null }],
+      capital: [{ contrato_id: id(70), lead_id: id(10), perfil_id: id(40), analista_id: id(20), moneda: 'USD', monto: 1000, fecha: '2026-09-04T05:00:00Z' }],
+    }
+    mocks.rpc.mockResolvedValue({ data: datos, error: null })
+    expect(adaptarGestion(await cargarCitasGerencia('2026-09'))?.avance?.capital[0]?.moneda).toBe('USD')
+    for (const defecto of ['capital_duplicado', 'cliente_ajeno', 'otro_mes', 'meta_distinta', 'poblacion_incompleta']) {
+      const rota = structuredClone(datos)
+      const g = rota.gestion as typeof datos.gestion
+      if (defecto === 'capital_duplicado') g.capital.push(g.capital[0]!)
+      if (defecto === 'cliente_ajeno') g.capital[0]!.perfil_id = id(99)
+      if (defecto === 'otro_mes') g.capital[0]!.fecha = '2026-08-31T05:00:00Z'
+      if (defecto === 'meta_distinta') g.citas_por_lead = 3
+      if (defecto === 'poblacion_incompleta') g.poblacion = []
+      mocks.rpc.mockResolvedValue({ data: rota, error: null })
+      await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('fuentes de gestión')
+    }
+  })
   it('consulta el mes completo, incluye futuras citas y propaga cancelación',async () => {
     const control = new AbortController()
     const r = await cargarCitasGerencia('2026-09',control.signal)
@@ -72,10 +100,32 @@ describe('frontera de la consulta detallada de Citas',() => {
     expect(cohorte).toHaveLength(1)
     expect(depositosDeInasistencias(cohorte,[],datos.generado_en,citas).recuperadas).toHaveLength(1)
   })
-  it('no promedia promedios ni suma leads compartidos al calcular la meta',() => {
+  it('no reconstruye una meta a partir de citas sin la base asignada',() => {
     const datos = respuesta()
     datos.citas.push(fila({id:id(2),analista_id:id(21),analista_nombre:'Otra analista'}),fila({id:id(3)}))
-    expect(metaCitas(adaptarCitas(datos))).toMatchObject({citas:3,leads:1,promedio:3,cumplimiento:100,leadsConMeta:1})
+    expect(metaCitas(adaptarCitas(datos))).toMatchObject({citas:null,leads:null,promedio:null,cumplimiento:null})
+  })
+  it('conecta la base del servidor incluyendo asignados sin cita y su meta interna',async () => {
+    const datos=respuestaConversion()
+    datos.citas=datos.citas.map(c=>({...c,manual_propio:false}))
+    datos.gestion={version:1,citas_por_lead:1.25,entrevistas_porcentaje:70,depositos_porcentaje:70,
+      asignaciones:[10,11].map(n=>({lead_id:id(n),analista_id:id(20),analista_nombre:'Analista de prueba',
+        supervisor_id:id(30),supervisor_nombre:'Supervisor de prueba',asignado_en:'2026-09-01T05:00:00Z',
+        manual_propio:false,nombre:'Persona de prueba',telefono:'900000001',origen:'referido',moneda:'PEN',monto_estimado:5000}))}
+    mocks.rpc.mockResolvedValue({data:datos,error:null})
+    const lectura=await cargarCitasGerencia('2026-09')
+    const g=adaptarGestion(lectura)!
+    expect(g).toMatchObject({citasPorLead:1.25,entrevistasPorcentaje:70,depositosPorcentaje:70})
+    expect(g.asignaciones).toHaveLength(2)
+    expect(metaCitas(adaptarCitas(lectura),g.asignaciones,g.citasPorLead)).toMatchObject({citas:2,leads:2,cumplimiento:80})
+    for (const defecto of ['duplicada','fuera_mes','sin_origen_manual'] as const) {
+      const rota=structuredClone(datos)
+      if(defecto==='duplicada') rota.gestion!.asignaciones.push(rota.gestion!.asignaciones[0]!)
+      if(defecto==='fuera_mes') rota.gestion!.asignaciones[0]!.asignado_en='2026-09-01T04:59:00Z'
+      if(defecto==='sin_origen_manual') Reflect.deleteProperty(rota.citas[0]!,'manual_propio')
+      mocks.rpc.mockResolvedValue({data:rota,error:null})
+      await expect(cargarCitasGerencia('2026-09')).rejects.toThrow('base de leads asignados')
+    }
   })
   it('acepta un mes vacío y rechaza importes no finitos',() => {
     expect(v.safeParse(ConsultaCitasSchema,{...respuesta(),citas:[]}).success).toBe(true)

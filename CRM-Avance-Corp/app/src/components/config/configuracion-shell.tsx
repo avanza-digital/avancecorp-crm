@@ -20,6 +20,7 @@ export function ConfiguracionShell({
   soloLectura,
   acciones,
   children,
+  volverA = 'config',
 }: {
   icono: LucideIcon
   titulo: string
@@ -28,14 +29,15 @@ export function ConfiguracionShell({
   soloLectura: boolean
   acciones?: ReactNode | undefined
   children: ReactNode
+  volverA?: 'config' | 'config-usuarios'
 }) {
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       <a
-        href={hashDe('config')}
+        href={hashDe(volverA)}
         className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
-        <ArrowLeft className="size-4" aria-hidden /> Configuración
+        <ArrowLeft className="size-4" aria-hidden /> {volverA === 'config' ? 'Configuración' : 'Usuarios y roles'}
       </a>
 
       <Card>

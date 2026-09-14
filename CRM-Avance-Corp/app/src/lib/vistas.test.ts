@@ -160,14 +160,19 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('config-productos', 'vendedor', false, 'superadmin')).toBe('config-usuarios')
 
     // Caso real del RPC: Superadmin sin membresía se proyecta a Directorio para
-    // mantener el tipo `Yo`, pero su capacidad viva lo reduce a una sola ruta.
+    // mantener el tipo `Yo`; solo accede a roles y al nuevo Control de Citas.
     expect(VISTAS.filter((vista) =>
       vistaPermitida(vista, 'directorio', true, 'superadmin'),
-    )).toEqual(['config-usuarios'])
+    )).toEqual(['config-usuarios', 'config-citas'])
     expect(sanearVista('hoy', 'directorio', true, 'superadmin')).toBe('config-usuarios')
 
     // La combinación explícita sí suma autoridades.
     expect(sanearVista('config-productos', 'gerencia', false, 'superadmin')).toBe('config-productos')
+    expect(vistaPermitida('config-citas', 'gerencia', false, 'superadmin')).toBe(true)
+    for (const rol of ['vendedor', 'supervisor', 'coordinador', 'gerencia', 'directorio'] as const) {
+      expect(vistaPermitida('config-citas', rol, true)).toBe(false)
+      expect(vistaPermitida('config-citas', rol, false, 'admin')).toBe(false)
+    }
   })
 })
 

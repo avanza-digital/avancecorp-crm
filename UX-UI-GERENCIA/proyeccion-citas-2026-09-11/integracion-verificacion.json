@@ -1,0 +1,25 @@
+{
+  "archivo": "integracion-resultados.html",
+  "sha256": "1157bb19ca6c9da2a20680fc535f9bae90099debbd98278a9e820314c86965e1",
+  "sintaxis_javascript": "PASS",
+  "interaccion_jsdom_sin_red": "PASS",
+  "comprobado": [
+    "porcentajes y proyecciones",
+    "cantidades objetivo y brechas",
+    "filtros dependientes",
+    "cortes acumulados al 7 y 10",
+    "etapas de recuperación sin alterar la tabla de metas",
+    "foco al abrir detalle",
+    "mes sin datos y corte posterior"
+  ],
+  "inspeccion_visual_navegador": "NOT RUN",
+  "datos_productivos": "NOT RUN",
+  "runtime_crm_modificado": false,
+  "sql_aplicado": false,
+  "publicado": false,
+  "definiciones_pendientes": [
+    "fuente y período del ticket",
+    "volumen base de la proyección",
+    "semana como corte acumulado"
+  ]
+}

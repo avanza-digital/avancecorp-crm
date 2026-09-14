@@ -1,0 +1,175 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The database layer is the strongest part of this change and, as attached, it holds: the table has RLS enabled with zero policies plus `revoke all` from `public/anon/authenticated`, so the only reachable paths are the two SECURITY DEFINER RPCs, both gated on `auth.uid() is not null and public.es_superadmin() is true` (profile-table check, not JWT claims), with `set search_path = ''` and fully qualified calls. Optimistic concurrency is real (advisory xact lock + `max(version)` compare + `unique(version)` backstop), history is immutable by trigger, and the jsonb contract is enforced identically on both sides (12 keys, exact-key set, 2-decimal and range checks, pinned `mostrar_meta_citas=false` / `base_depositos="personas_entrevistadas"`, nulls allowed for undecided rules). `validarConsultaControlCitas` is a genuinely good client-side contract check and its `JSON.stringify` comparison is sound because valibot normalizes key order to schema order on both `ultimo` and `historial[0]`.
+
+The blocking problem is not in SQL: it is in the editor's conflict path, where the only enabled remedy silently destroys the user's unsaved edit while the UI simultaneously promises "Conservamos tu edición". Secondary findings are a foreign key that can block profile deletion, an invalid field that is unreachable inside a collapsed `<details>` when submit fails, and focus loss on save.
+
+I could not verify the client-side route/sidebar gating claims (`puedeConfigurarCitas`, `router.ts`, `vistas.ts`, `es_superadmin()` body) because those files were not attached; see EVIDENCE GAPS. That does not change the verdict, since the authorization boundary itself (DB) is attached and reviewable.
+
+FINDINGS:
+
+[P1] The documented conflict recovery path destroys the edit it promises to preserve
+File:
+CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx
+Lines:
+49, 51-55, 166, 171-172; CRM-Avance-Corp/app/src/data/control-citas.ts:12, 60
+Problem:
+When another session saves, `desactualizada = consulta.version_actual > base.version_actual` (l.49) disables the submit button (l.172). The alert at l.166 says "Conservamos tu edición; carga el último borrador antes de guardar", and the only enabled control is "Cargar último borrador" (l.171), whose handler `restaurar()` unconditionally overwrites `config`, `metas` and `nota` with the server draft (l.52-54) with no confirmation, no diff and no way to recover the typed values.
+Evidence:
+`restaurar()` has no guard on `cambios` and no confirmation step. The same funnel is reached automatically after a 40001: `falloServidor` tells the user "Tu edición se conserva" (data/control-citas.ts:12) while `onError` invalidates the query (data/control-citas.ts:60), which raises `desactualizada` and disables submit, leaving the destructive button as the only forward path.
+Impact:
+A superadmin who spent time filling metas + five rules + a note loses all of it by following the instruction the UI itself gives. The copy is also factually wrong at the moment it matters most, which is exactly the "disappearing edits" class the PRIMARY asked to be flagged.
+Recommendation:
+Make `restaurar()` non-destructive when `cambios` is true: either require an explicit second confirmation ("Descartar mis cambios y cargar v{n}"), or split into two actions — "Ver el borrador guardado" (read-only comparison) and "Descartar mis cambios". At minimum, keep the edited values available (e.g. hold the discarded draft in state with an "Deshacer" affordance) so the promise at l.166 remains true after the click.
+
+[P2] `guardado_por` FK has no ON DELETE action and can block profile/user deletion
+File:
+CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql
+Lines:
+47
+Problem:
+`guardado_por uuid not null references public.perfiles(id)` defaults to NO ACTION. Once a superadmin has saved any draft, deleting that profile row fails.
+Evidence:
+No `on delete` clause on l.47; rows are also undeletable by the immutability trigger (l.62-63), so the FK can never be relieved by removing the referencing rows — even the owner cannot delete them without dropping the trigger.
+Impact:
+If `public.perfiles.id` is itself cascaded from `auth.users`, deleting the auth user will fail with a FK violation, i.e. a permanent, non-obvious offboarding/GDPR-deletion blocker introduced by a "preparation only" migration. Hypothesis flagged as such: I could not see the `perfiles` definition, so the auth.users cascade half is unconfirmed; the profile-deletion block itself follows directly from l.47 + l.62-63.
+Recommendation:
+Either make the column nullable with `on delete set null` (authorship stays in `public.audit_log` via `trg_audit_control_citas_versiones`), or keep NOT NULL and document the retention decision explicitly in MIGRACIONES.md. Verify against how other `crm` tables reference `public.perfiles` and stay consistent with that convention.
+
+[P2] An invalid value in a collapsed `<details>` blocks submit with a generic message and no focus
+File:
+CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx
+Lines:
+70-72, 129-132, 146-151
+Problem:
+Submit-time focus management only covers `CAMPOS_META` (l.70-71). If `mes_inicio` is invalid, l.72 sets a single generic error "Revisa el mes y los valores de la configuración." and returns, while `#control-mes` lives inside a `<details>` (l.129) that is not opened, has no per-field error text, and never receives focus.
+Evidence:
+`<Input id="control-mes" type="month" …>` at l.148 is the only validated field outside `CAMPOS_META`; `pendientesControlCitas` is computed at l.44 but only its `.length` is rendered (l.131). Safari desktop does not implement `type="month"` and falls back to a free-text input, so arbitrary strings reach `config.mes_inicio` via l.149 and fail `ControlCitasSchema` (lib/control-citas.ts:15).
+Impact:
+On a non-supporting browser the form becomes unsubmittable with no visible cause — the offending control is literally hidden. Screen-reader and keyboard users are worst affected because focus is not moved to the problem.
+Recommendation:
+Give `mes_inicio` the same treatment as `CAMPOS_META`: a per-field error in a `aria-describedby` target, `aria-invalid`, forced `open` on the `<details>` when any contained field fails, and focus moved to the first invalid control regardless of which card it is in.
+
+[P2] Disabling every control during save drops keyboard focus to `<body>`
+File:
+CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx
+Lines:
+73, 99, 111, 138, 149, 163, 171-172
+Problem:
+`setOcupado(true)` (l.73) disables all inputs and both buttons, including the submit button the user just activated (l.172).
+Evidence:
+Every interactive control passes `disabled={ocupado}`; a disabled element cannot hold focus, so the browser resets focus to the document body for the whole duration of the RPC.
+Impact:
+Keyboard and screen-reader users lose their place on the primary action and must re-traverse the form after each save; the outcome message at l.169 is announced via `role="status"` but the user has no focused context to return to.
+Recommendation:
+Use `aria-disabled` + an early return in `enviar()` for the submit button (keeping it focusable), or capture `document.activeElement` before the await and restore focus in the `finally` block.
+
+[P3] `aria-label` on a plain `<div>` is not exposed to assistive technology
+File:
+CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx
+Lines:
+117
+Problem:
+`<div className="rounded-lg bg-muted/40 p-4" aria-label="Ejemplo de la meta de citas">` — a `div` has no implicit role, and `aria-label` on a roleless generic element is ignored by most AT.
+Impact:
+The accessible name is silently dropped; the example block is announced as unlabelled content.
+Recommendation:
+Add `role="group"`/`role="region"` (or use a `<section>` plus a visually-hidden heading) so the label is actually exposed. The same pattern is applied correctly at config-citas.tsx:30 (`<ol aria-label=…>`, `ol` has a role).
+
+[P3] Decimal separator is inconsistent between the editor and the history
+File:
+CRM-Avance-Corp/app/src/screens/config-citas.tsx
+Lines:
+33
+Problem:
+History renders `{fila.configuracion.citas_por_lead}` raw (`1.25`), while the editor formats es-PE with a comma (`textosMetas` at control-citas-editor.tsx:21-23 and `numero()` at l.24 produce `1,25`).
+Impact:
+The same value appears with two different separators on the same screen, which reads as a data discrepancy to a non-technical reviewer.
+Recommendation:
+Reuse the existing `Intl.NumberFormat('es-PE')` helper for the history rows.
+
+[P3] Business copy contradicts a value the schema has already frozen
+File:
+CRM-Avance-Corp/app/src/components/config/control-citas-editor.tsx
+Lines:
+18, 154
+Problem:
+L.154 says "Para el objetivo **se propone** usar personas entrevistadas", but `base_depositos` is `v.literal('personas_entrevistadas')` (lib/control-citas.ts:17) and pinned in SQL (migration l.28) — it is decided, not proposed. L.18 already states it as fact ("Clientes convertidos entre personas entrevistadas").
+Impact:
+Mixed signals about which decisions are still open; the PRIMARY explicitly asked for label honesty, and the panel's whole value proposition is that `null` means "undecided".
+Recommendation:
+Pick one wording. If it is fixed, say so ("Se usa personas entrevistadas"); if it is genuinely open, it belongs in `OPCIONES_CONTROL_CITAS` with a nullable value like the other five rules.
+
+[P3] Conflict detection degrades to a unique-violation under REPEATABLE READ
+File:
+CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql
+Lines:
+95-101
+Problem:
+After `pg_advisory_xact_lock` releases, the waiting transaction re-reads `max(version)`. Under READ COMMITTED it sees the committed row and correctly raises 40001 (l.98). Under REPEATABLE READ it would keep its old snapshot, pass the equality check, and fail on `unique(version)` with 23505 instead.
+Evidence:
+The 40001 path is the only one mapped to the friendly conflict message in data/control-citas.ts:12; 23505 falls through to the generic "No se pudo completar la operación" at l.13.
+Impact:
+Low today (PostgREST is READ COMMITTED by default, and the PRIMARY's two-concurrent-saves test passed), but the error contract is isolation-level dependent.
+Recommendation:
+Map 23505 to the same conflict message in `falloServidor`, or catch `unique_violation` in the RPC and re-raise as 40001.
+
+[P3] Successful save reported as failure leaves a stale expected version
+File:
+CRM-Avance-Corp/app/src/data/control-citas.ts
+Lines:
+39-43, 58-61
+Problem:
+If the post-save verification fails, `CONTROL_CITAS_GUARDADO` is thrown even though the INSERT committed. `onSuccess` never runs, the cache is not refreshed, and `onError` only invalidates on 40001 (l.60).
+Impact:
+`base.version_actual` stays stale, submit remains enabled, and the next click is guaranteed to hit 40001 — a confusing two-step failure after an operation that actually succeeded.
+Recommendation:
+Invalidate the query for `CONTROL_CITAS_GUARDADO` (and `CONTROL_CITAS_CONTRATO`) as well, so the UI converges on the server state immediately.
+
+[P3] Latent traps in the SQL, none currently exploitable
+File:
+CRM-Avance-Corp/supabase/migrations/20260911212756_crm_control_citas_superadmin_borradores.sql
+Lines:
+39, 44, 62-65
+Problem:
+(a) The CHECK at l.44 calls `private.control_citas_config_valida`, whose EXECUTE is revoked from `authenticated` (l.39). CHECK functions execute with the *inserting* role's privileges; this works today only because every insert goes through the SECURITY DEFINER RPC. The day anyone adds an RLS policy granting direct INSERT, it will fail with "permission denied for function". (b) The audit trigger at l.64 registers `update or delete`, which the BEFORE trigger at l.62 makes unreachable — harmless but misleading. (c) `TRUNCATE` bypasses the row-level immutability trigger entirely (owner-only, so not a security hole, but the "historial inmutable" comment at l.52-53 overstates the guarantee).
+Recommendation:
+Add a short comment on l.44 recording that the CHECK is only evaluated under the definer owner; optionally add `before truncate … for each statement` to complete the immutability claim.
+
+EVIDENCE GAPS (claims I could not verify):
+- `puedeConfigurarCitas` / `administraSoloRolesCrm` (`app/src/lib/roles.ts`) were not attached, so the central access claim — "config-citas is explicitly allowed only when rolPortal is superadmin, all other CRM screens remain forbidden" — is unverified. Same for `router.ts`, `vistas.ts`, `sidebar.tsx` and the updated route/sidebar expectations.
+- `public.es_superadmin()` and `private.log_audit_crm()` bodies were not attached; the whole RPC gate rests on the former reading `public.perfiles` (id=auth.uid(), rol=superadmin, activo=true) rather than JWT metadata. I am taking the PRIMARY's description at face value.
+- No evidence that schema `crm` is exposed to PostgREST and that `authenticated` holds `usage on schema crm`; without it the `grant execute` at l.108-109 is unreachable and both RPCs return PGRST202 (which the UI does handle gracefully at data/control-citas.ts:10).
+- The new test files were listed as passing but their contents were not attached, so TEST GAPS below are gaps *in the evidence*, not necessarily in the suite.
+
+TEST GAPS:
+- No attached test covers `restaurar()` while `cambios` is true — i.e. the P1 data-loss path — nor the full 40001 → invalidate → `desactualizada` → forced-restore sequence end to end.
+- No test for an invalid `mes_inicio` submitted from a browser where `type="month"` degrades to text (generic error, no focus, collapsed `<details>`).
+- No negative test attached for `puedeConfigurarCitas` across every non-superadmin rol_portal, nor for the demo-session denial at data/control-citas.ts:50.
+- No SQL test for deleting a `public.perfiles` row (or its `auth.users` parent) after a draft exists — the P2 FK blocker.
+- No test asserting focus position after a successful save.
+- Concurrency was tested only at the default isolation level; the 23505 fallback path is untested.
+- `guardado_por` is validated by the schema (lib/control-citas.ts:91) but never rendered, so no test can catch a regression in it.
+
+SECURITY RISKS:
+- Residual risk is low and concentrated in what I could not read: if `es_superadmin()` ever falls back to JWT `user_metadata`, both RPCs become self-assertable. Worth a one-line assertion in the SQL test suite that a non-superadmin with a forged `role` claim is still rejected.
+- No leakage of raw database errors to the UI: `falloServidor` maps codes to fixed strings and never forwards `error.message`. Good.
+- `nota` is rendered as text through React (config-citas.tsx:34), so the 500-char free-text field is not an injection vector.
+
+REGRESSION RISKS:
+- The `guardado_por` FK (P2) is the only change here that can break an existing flow (profile/user deletion) outside the new screen.
+- `restaurar()`'s behaviour will also apply to the prototype/practice screen, which was not attached.
+- Unbounded, immutable growth of `crm.control_citas_versiones`: every save is a permanent row with no retention policy. Superadmin-only, so low, but there is no cleanup story.
+
+RECOMMENDED NEXT ACTIONS:
+1. Fix the P1: make "Cargar último borrador" non-destructive when there are unsaved changes (confirmation or two separate actions), and add a test for the 40001 → recovery path that asserts the user's values survive.
+2. Decide the `on delete` semantics for `guardado_por` and record the decision in MIGRACIONES.md; add a SQL test that deletes a profile with drafts.
+3. Extend submit-time validation/focus to `mes_inicio`, force the `<details>` open when it contains a failing field, and give it a per-field error message.
+4. Preserve focus across the save cycle (`aria-disabled` on submit or restore `activeElement` in `finally`).
+5. Small honesty/consistency pass: `role="group"` on the example block, es-PE formatting in the history, and align the `base_depositos` wording with the fact that it is frozen.
+6. Attach `roles.ts` / `router.ts` / `vistas.ts` / `es_superadmin()` if an independent sign-off on the access-control claim is required.
+
+CONFIDENCE:
+MEDIUM — HIGH for the migration and the two TypeScript modules attached (reviewed line by line); LOW for the routing/role gating and the RPC exposure prerequisites, which were described but not attached.

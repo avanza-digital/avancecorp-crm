@@ -172,7 +172,7 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(screen.queryByRole('button', { name: 'Seguimiento' })).not.toBeInTheDocument()
   })
 
-  it('Superadmin sin Gerencia ve y navega únicamente a Usuarios y roles', () => {
+  it('Superadmin sin Gerencia accede a Usuarios y roles y Control de Citas', () => {
     const { onNavegar } = montar({
       movil: false,
       rol: 'directorio',
@@ -190,12 +190,14 @@ describe('Sidebar — temporizadores del asomo', () => {
     })
     const navegacion = screen.getByRole('navigation')
 
-    expect(within(navegacion).getAllByRole('button')).toHaveLength(1)
+    expect(within(navegacion).getAllByRole('button')).toHaveLength(2)
     expect(within(navegacion).getByRole('button', { name: 'Usuarios y roles' })).toBeVisible()
     expect(screen.getByText('Gobierno de roles CRM')).toBeVisible()
     expect(screen.queryByText(/Modo auditoría/)).not.toBeInTheDocument()
 
     fireEvent.click(within(navegacion).getByRole('button', { name: 'Usuarios y roles' }))
     expect(onNavegar).toHaveBeenCalledWith('config-usuarios')
+    fireEvent.click(within(navegacion).getByRole('button', { name: 'Control de Citas' }))
+    expect(onNavegar).toHaveBeenCalledWith('config-citas')
   })
 })

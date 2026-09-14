@@ -1,0 +1,103 @@
+{
+  "estado": "PASS",
+  "url": "http://127.0.0.1:4180/prototypes/citas-avance.html",
+  "datos": "ficticios",
+  "anchos": [
+    {
+      "ventana": 1440,
+      "documento": 1440,
+      "tabla": 1150,
+      "visible": 1150
+    },
+    {
+      "ventana": 1280,
+      "documento": 1280,
+      "tabla": 1002,
+      "visible": 1002
+    },
+    {
+      "ventana": 768,
+      "documento": 768,
+      "tabla": 925,
+      "visible": 490
+    },
+    {
+      "ventana": 390,
+      "documento": 390,
+      "tabla": 925,
+      "visible": 300
+    }
+  ],
+  "contrastes": [
+    {
+      "estado": "ritmo",
+      "contraste": 7.577663953533317
+    },
+    {
+      "estado": "cumplida",
+      "contraste": 6.087775002098981
+    },
+    {
+      "estado": "cumplida",
+      "contraste": 6.087775002098981
+    },
+    {
+      "estado": "ritmo",
+      "contraste": 7.577663953533317
+    },
+    {
+      "estado": "cumplida",
+      "contraste": 6.087775002098981
+    },
+    {
+      "estado": "atencion",
+      "contraste": 6.561556713051405
+    },
+    {
+      "estado": "ritmo",
+      "contraste": 7.577663953533317
+    },
+    {
+      "estado": "atencion",
+      "contraste": 6.561556713051405
+    },
+    {
+      "estado": "prioridad",
+      "contraste": 7.4785779860862664
+    },
+    {
+      "estado": "prioridad",
+      "contraste": 7.4785779860862664
+    },
+    {
+      "estado": "sin_base",
+      "contraste": 7.577663953533317
+    },
+    {
+      "estado": "sin_base",
+      "contraste": 7.577663953533317
+    }
+  ],
+  "errores": [],
+  "conexionesExternas": [],
+  "comprobaciones": [
+    "cifras y meta interna",
+    "recorrido vinculado",
+    "paginacion completa",
+    "detalle y retorno de foco",
+    "repeticion de entrevistas",
+    "dos bases de conversion",
+    "mes y semana",
+    "tabs por teclado",
+    "registro manual y origen",
+    "supervisor dependiente",
+    "monedas separadas",
+    "sin datos",
+    "exportacion",
+    "responsive",
+    "ritmo mensual sin falsa alerta",
+    "cero distinto de sin base",
+    "indicadores accionables por teclado",
+    "contraste de indicadores al menos 4.5:1"
+  ]
+}

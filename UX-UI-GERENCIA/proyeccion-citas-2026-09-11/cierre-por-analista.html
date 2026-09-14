@@ -1,0 +1,204 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  #citas-cierre-demo {
+    --cc-paper: light-dark(#ffffff, #172139);
+    --cc-ink: light-dark(#193451, #edf2fc);
+    --cc-muted: light-dark(#53637d, #b5c2d9);
+    --cc-line: light-dark(#e3e7ee, #37445b);
+    --cc-soft: light-dark(#f6f7fa, #202d45);
+    --cc-blue: light-dark(#2563eb, #8bb7ff);
+    --cc-selected: light-dark(#eef3fc, #263c5b);
+    color: var(--cc-ink);
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #citas-cierre-demo * { box-sizing: border-box; }
+  #citas-cierre-demo .cc-panel { background: var(--cc-paper); border: 1px solid var(--cc-line); border-radius: 16px; overflow: hidden; }
+  #citas-cierre-demo .cc-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 20px 20px 16px; flex-wrap: wrap; }
+  #citas-cierre-demo h2 { font-size: 19px; line-height: 1.3; margin: 0 0 5px; font-weight: 700; }
+  #citas-cierre-demo .cc-sub { color: var(--cc-muted); font-size: 12px; }
+  #citas-cierre-demo .cc-example { font-size: 12px; color: var(--cc-muted); white-space: nowrap; }
+  #citas-cierre-demo .cc-table-wrap { overflow-x: auto; width: 100%; }
+  #citas-cierre-demo table { width: 100%; min-width: 665px; border-collapse: collapse; table-layout: fixed; }
+  #citas-cierre-demo th { font-size: 12px; font-weight: 600; text-align: left; background: var(--cc-soft); padding: 11px 12px; border-block: 1px solid var(--cc-line); vertical-align: top; }
+  #citas-cierre-demo th span { display: block; font-weight: 400; color: var(--cc-muted); margin-top: 2px; }
+  #citas-cierre-demo td { padding: 17px 12px; vertical-align: top; border-bottom: 1px solid var(--cc-line); font-variant-numeric: tabular-nums; }
+  #citas-cierre-demo th:first-child, #citas-cierre-demo td:first-child { padding-left: 20px; width: 16%; }
+  #citas-cierre-demo th:nth-child(2), #citas-cierre-demo th:nth-child(3) { width: 17%; }
+  #citas-cierre-demo th:nth-child(4) { width: 19%; }
+  #citas-cierre-demo th:last-child { width: 31%; }
+  #citas-cierre-demo tr[data-selected="true"] td { background: var(--cc-selected); }
+  #citas-cierre-demo .cc-person { display: inline-flex; align-items: center; gap: 4px; color: var(--cc-blue); padding: 0; margin: 0; border: 0; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
+  #citas-cierre-demo .cc-person svg { width: 14px; height: 14px; }
+  #citas-cierre-demo .cc-value { font-weight: 600; font-size: 16px; white-space: nowrap; }
+  #citas-cierre-demo .cc-small { display: block; font-size: 12px; color: var(--cc-muted); margin-top: 3px; }
+  #citas-cierre-demo .cc-track { position: relative; margin-top: 8px; height: 4px; background: var(--cc-line); border-radius: 2px; }
+  #citas-cierre-demo .cc-fill { height: 100%; border-radius: 2px; background: var(--cc-blue); }
+  #citas-cierre-demo .cc-tick { position: absolute; left: 70%; top: -3px; height: 10px; width: 1px; background: var(--cc-muted); }
+  #citas-cierre-demo .cc-money { font-size: 17px; font-weight: 700; white-space: nowrap; }
+  #citas-cierre-demo .cc-footer { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--cc-muted); }
+  #citas-cierre-demo .cc-details { border-top: 1px solid var(--cc-line); }
+  #citas-cierre-demo summary { cursor: pointer; padding: 14px 20px; font-weight: 600; }
+  #citas-cierre-demo .cc-detail-body { padding: 0 20px 20px; }
+  #citas-cierre-demo .cc-basis { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  #citas-cierre-demo .cc-controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  #citas-cierre-demo label { display: grid; align-content: start; gap: 7px; font-size: 12px; font-weight: 500; min-width: 0; }
+  #citas-cierre-demo label output { font-weight: 700; }
+  #citas-cierre-demo input { accent-color: var(--cc-blue); width: 100%; min-width: 0; }
+  #citas-cierre-demo input[type="number"] { font: inherit; font-size: 16px; border: 1px solid var(--cc-line); border-radius: 8px; padding: 9px 10px; background: var(--cc-soft); color: var(--cc-ink); }
+  #citas-cierre-demo input[type="range"] { margin: 8px 0; }
+  #citas-cierre-demo .cc-scenario { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--cc-line); }
+  #citas-cierre-demo .cc-action { color: var(--cc-ink); background: var(--cc-paper); border: 1px solid var(--cc-line); border-radius: 8px; font: inherit; font-size: 12px; padding: 9px 12px; cursor: pointer; }
+  #citas-cierre-demo .cc-error { color: light-dark(#a62727, #ffaaaa); font-size: 12px; margin-top: 8px; }
+  #citas-cierre-demo [hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    #citas-cierre-demo .cc-controls { grid-template-columns: 1fr; gap: 14px; }
+    #citas-cierre-demo .cc-heading { padding: 16px; }
+    #citas-cierre-demo .cc-footer, #citas-cierre-demo summary { padding-inline: 16px; }
+    #citas-cierre-demo .cc-detail-body { padding-inline: 16px; }
+  }
+  @media (pointer: coarse) {
+    #citas-cierre-demo .cc-person, #citas-cierre-demo .cc-action { min-height: 44px; }
+    #citas-cierre-demo input[type="range"] { min-height: 30px; }
+  }
+</style>
+<div id="citas-cierre-demo" aria-label="Propuesta de avance y proyección por analista">
+  <section class="cc-panel" aria-labelledby="cc-title">
+    <div class="cc-heading">
+      <div>
+        <h2 id="cc-title">Avance y cierre por analista</h2>
+        <div class="cc-sub">Septiembre 2026 · Corte al 10 set. · Moneda: soles</div>
+      </div>
+      <span class="cc-example">Datos de ejemplo</span>
+    </div>
+    <div class="cc-table-wrap">
+      <table aria-label="Porcentajes reales del ejemplo y cierre mensual estimado">
+        <thead>
+          <tr>
+            <th scope="col">Analista</th>
+            <th scope="col">Entrevistas<span>Objetivo 70%</span></th>
+            <th scope="col">Depósitos<span>Objetivo 70%</span></th>
+            <th scope="col">Ticket medio<span>Referencia histórica</span></th>
+            <th scope="col">Cierre estimado<span>Al ritmo actual</span></th>
+          </tr>
+        </thead>
+        <tbody id="cc-rows"></tbody>
+      </table>
+    </div>
+    <div class="cc-footer">
+      <span>Estimación mensual · Ritmo de 10 días sobre un mes de 30</span>
+      <span>Selecciona un analista para explorar su cálculo</span>
+    </div>
+    <details class="cc-details" id="cc-details">
+      <summary id="cc-summary">Explorar proyección · Ana</summary>
+      <div class="cc-detail-body">
+        <div class="cc-basis">
+          <span id="cc-base"></span>
+          <span class="cc-sub">Simulación · No cambia los resultados registrados</span>
+        </div>
+        <div class="cc-controls">
+          <label for="cc-interviews">Asistencia <output id="cc-interviews-value" for="cc-interviews">70%</output>
+            <input id="cc-interviews" type="range" min="0" max="100" step="1" value="70">
+          </label>
+          <label for="cc-deposits">Conversión a cliente <output id="cc-deposits-value" for="cc-deposits">50%</output>
+            <input id="cc-deposits" type="range" min="0" max="100" step="1" value="50">
+          </label>
+          <label for="cc-ticket">Ticket de referencia (S/)
+            <input id="cc-ticket" type="number" min="1" max="1000000" step="1" value="20000" inputmode="decimal" aria-describedby="cc-error">
+          </label>
+        </div>
+        <div id="cc-error" class="cc-error" role="alert" hidden>Ingresa un ticket entre S/ 1 y S/ 1.000.000.</div>
+        <div class="cc-scenario">
+          <div aria-live="polite" aria-atomic="true" id="cc-result"></div>
+          <button type="button" class="cc-action" id="cc-restore">Volver a sus porcentajes actuales</button>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('citas-cierre-demo');
+  const analysts = [
+    { id: 'ana', name: 'Ana', appointments: 100, interviews: 70, clients: 35, ticket: 20000 },
+    { id: 'bruno', name: 'Bruno', appointments: 80, interviews: 40, clients: 28, ticket: 15000 },
+    { id: 'carla', name: 'Carla', appointments: 60, interviews: 42, clients: 21, ticket: 25000 }
+  ];
+  const amount = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 });
+  const decimal = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 });
+  const money = value => 'S/ ' + amount.format(value);
+  const percentage = value => Math.round(value * 100) + '%';
+  const state = { selected: 'ana', showGoal: true };
+  const rows = root.querySelector('#cc-rows');
+  const details = root.querySelector('#cc-details');
+  const interviewInput = root.querySelector('#cc-interviews');
+  const depositInput = root.querySelector('#cc-deposits');
+  const ticketInput = root.querySelector('#cc-ticket');
+  const selected = () => analysts.find(person => person.id === state.selected);
+  function renderRows() {
+    rows.innerHTML = analysts.map(person => {
+      const attendance = person.interviews / person.appointments;
+      const conversion = person.clients / person.interviews;
+      const monthlyAppointments = person.appointments * 30 / 10;
+      const monthlyClients = monthlyAppointments * attendance * conversion;
+      const goalAmount = monthlyAppointments * .7 * .7 * person.ticket;
+      return `<tr data-selected="${details.open && person.id === state.selected}">
+        <td><button type="button" class="cc-person" data-person="${person.id}" aria-label="Explorar proyección de ${person.name}" aria-controls="cc-details">${person.name}</button><span class="cc-small">${person.appointments} citas</span></td>
+        <td><span class="cc-value">${percentage(attendance)}</span><span class="cc-small">${person.interviews} de ${person.appointments} citas</span><div class="cc-track" aria-hidden="true"><div class="cc-fill" style="width:${attendance * 100}%"></div><span class="cc-tick"></span></div></td>
+        <td><span class="cc-value">${percentage(conversion)}</span><span class="cc-small">${person.clients} de ${person.interviews} entrevistados</span><div class="cc-track" aria-hidden="true"><div class="cc-fill" style="width:${conversion * 100}%"></div><span class="cc-tick"></span></div></td>
+        <td><span class="cc-value">${money(person.ticket)}</span><span class="cc-small">Por nuevo cliente</span></td>
+        <td><span class="cc-money">${money(monthlyClients * person.ticket)}</span><span class="cc-small">${decimal.format(monthlyClients)} clientes estimados</span>${state.showGoal ? `<span class="cc-small">Con 70% / 70%: ${money(goalAmount)}</span>` : ''}</td>
+      </tr>`;
+    }).join('');
+  }
+  function renderScenario() {
+    const person = selected();
+    const attendance = Number(interviewInput.value);
+    const conversion = Number(depositInput.value);
+    const ticket = Number(ticketInput.value);
+    root.querySelector('#cc-interviews-value').textContent = attendance + '%';
+    root.querySelector('#cc-deposits-value').textContent = conversion + '%';
+    const valid = ticketInput.value.trim() !== '' && Number.isFinite(ticket) && ticket >= 1 && ticket <= 1000000;
+    ticketInput.setAttribute('aria-invalid', String(!valid));
+    root.querySelector('#cc-error').hidden = valid;
+    const result = root.querySelector('#cc-result');
+    if (!valid) {
+      result.textContent = 'Proyección pendiente de un ticket válido';
+      return;
+    }
+    const monthlyClients = person.appointments * 3 * attendance / 100 * conversion / 100;
+    const quantity = Number.isInteger(monthlyClients) ? String(monthlyClients) : '≈ ' + decimal.format(monthlyClients);
+    result.innerHTML = `<span class="cc-money">${money(monthlyClients * ticket)}</span><span class="cc-small">${quantity} clientes esperados al cierre · Escenario simulado</span>`;
+  }
+  function loadPerson() {
+    const person = selected();
+    interviewInput.value = String(person.interviews / person.appointments * 100);
+    depositInput.value = String(person.clients / person.interviews * 100);
+    ticketInput.value = String(person.ticket);
+    root.querySelector('#cc-summary').textContent = 'Explorar proyección · ' + person.name;
+    root.querySelector('#cc-base').textContent = person.appointments * 3 + ' citas previstas al cierre del mes';
+    renderScenario();
+  }
+  rows.addEventListener('click', event => {
+    const button = event.target.closest('button[data-person]');
+    if (!button) return;
+    state.selected = button.dataset.person;
+    details.open = true;
+    loadPerson();
+    renderRows();
+    root.querySelector('#cc-summary').focus();
+  });
+  details.addEventListener('toggle', renderRows);
+  [interviewInput, depositInput, ticketInput].forEach(input => input.addEventListener('input', renderScenario));
+  root.querySelector('#cc-restore').addEventListener('click', loadPerson);
+  renderRows();
+  loadPerson();
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: root, onChange: renderRows });
+    tweak.addToggle(state, 'showGoal', { label: 'Comparar con ambos objetivos del 70%' });
+  }
+})();
+</script>

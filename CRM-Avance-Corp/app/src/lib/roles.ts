@@ -192,6 +192,11 @@ export function puedeCorregirCorreoCliente(
   return identidad?.rol_portal === 'superadmin'
 }
 
+/** Configura borradores de Citas; la RPC verifica el perfil Superadmin activo. */
+export function puedeConfigurarCitas(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return identidad?.rol_portal === 'superadmin'
+}
+
 /**
  * Quién puede pasar una venta de un analista a otro (P-055 Fase 3).
  *

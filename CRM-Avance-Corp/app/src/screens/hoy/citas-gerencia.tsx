@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { useCitasGerencia, adaptarCitas, adaptarDepositos, type ConsultaCitasRpc } from '@/data/citas-gerencia'
+import { useCitasGerencia, adaptarCitas, adaptarDepositos, adaptarGestion, type ConsultaCitasRpc } from '@/data/citas-gerencia'
 import { ContextoCitas } from '@/components/citas/contexto'
 import { TableroCitas } from '@/components/citas/propuesta'
 import { defaults, mesLima, rango } from '@/components/citas/modelo'
@@ -41,10 +41,12 @@ export function CitasGerencia() {
   const datos = yo?.demo ? demo : consulta.data
   const citas = useMemo(() => datos ? adaptarCitas(datos) : [],[datos])
   const depositos = useMemo(() => datos ? adaptarDepositos(datos) : [],[datos])
+  const gestion = useMemo(() => datos ? adaptarGestion(datos) : undefined,[datos])
   const error = consulta.error instanceof Error ? consulta.error.message : 'No se pudieron cargar las citas.'
   return <ContextoCitas value={{
     citas,corte:datos?.generado_en ?? new Date(ahora).toISOString(),depositos,depositosDisponibles:datos?.version===2,
     depositoPorConversion:datos?.version===2,
+    ...(gestion ? {gestion} : {}),
     modoDemo:Boolean(yo?.demo),mesInicial:mesLima(new Date(ahora)),meses:[],
     cargando:!yo?.demo && consulta.isPending,error:!yo?.demo && consulta.isError ? error : null,
     onMes:setMes,onReintentar:() => { if (!yo?.demo) void consulta.refetch() },
