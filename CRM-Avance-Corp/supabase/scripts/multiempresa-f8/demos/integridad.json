@@ -1,0 +1,16 @@
+{
+  "estado": "candidata-local-no-aplicada",
+  "produccion_modificada": false,
+  "pruebas_sql": {
+    "pass": 31,
+    "fail": 0
+  },
+  "sha256": {
+    "CRM-Avance-Corp/supabase/migrations/20260913215240_crm_f8_piloto_controlado.sql": "0807e59bcaccfbce8d7af02dc67fcfa8a64686305aaa976d4840af16c86c18fe",
+    "CRM-Avance-Corp/supabase/migrations/20260914025926_crm_f8_excluir_fuentes_demo.sql": "0f7daa10f1e1ac1d71501795d0f0d45c64e58fa263426c7e27a56f5c0e73dc08",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/demos/reversa.sql": "37861495ec40eefa96bcaeb7a60f4e75b8ba3c09621fb4882eea1e9b9e877e4b",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/demos.test.mjs": "1c52e859c3d105cd4f96cd90cb7b5d241b8245b53b4444353ca27743ebbc327f",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/demos/pruebas-sql.txt": "508616c00aa0da9b1b9a3c07778490ef0950744c3381e99c023bf5616f49bc20",
+    "CRM-Avance-Corp/supabase/scripts/multiempresa-f8/demos/preflight-produccion-2026-09-13.json": "4005c09db5f90209801e2805f2ca6584eec6d4a527814f509ea9691148e81c5e"
+  }
+}

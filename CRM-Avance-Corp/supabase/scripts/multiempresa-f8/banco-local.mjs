@@ -11,6 +11,9 @@ const dump='/tmp/multiempresa_f8_base.dump';
 const listaRestore='/tmp/multiempresa_f8_restore.list';
 export const migracion=readFileSync(new URL(
   '../../migrations/20260913215240_crm_f8_piloto_controlado.sql',import.meta.url),'utf8');
+export const migracionDemo=readFileSync(new URL(
+  '../../migrations/20260914025926_crm_f8_excluir_fuentes_demo.sql',import.meta.url),'utf8');
+export const reversaDemo=readFileSync(new URL('./demos/reversa.sql',import.meta.url),'utf8');
 
 export const literal=v=>v===null?'null':`'${String(v).replaceAll("'","''")}'`;
 
@@ -62,12 +65,15 @@ export function huellaEconomica() {
     'auth',(select md5(coalesce(jsonb_agg(t order by id)::text,'')) from auth.users t))`);
 }
 
-export function preparar() {
+export function preparar({demos=true}={}) {
   assert.equal(ejecutar(['exec',contenedor,'psql','-X','-qAt','-U','postgres','-d',
     dbFuente,'-c','select current_database()']),dbFuente);
   ejecutar(['exec',contenedor,'pg_dump','-Fc','-U','postgres','-d',dbFuente,'-f',dump]);
-  ejecutar(['exec',contenedor,'psql','-X','-qAt','-U','postgres','-d','postgres','-c',
-    `select pg_terminate_backend(pid) from pg_stat_activity where datname=${literal(db)}`]);
+  // Nunca cerrar sesiones ajenas para recrear el banco. Los procesos internos
+  // (p. ej. autovacuum) los coordina DROP DATABASE, no pg_terminate_backend.
+  const conexiones=ejecutar(['exec',contenedor,'psql','-X','-qAt','-U','postgres','-d','postgres','-c',
+    `select count(*) from pg_stat_activity where datname=${literal(db)} and backend_type='client backend'`]);
+  assert.equal(conexiones,'0','El banco F8 está en uso; no se interrumpen sus sesiones');
   ejecutar(['exec',contenedor,'dropdb','--if-exists','-U','postgres',db]);
   ejecutar(['exec',contenedor,'createdb','-U','postgres','-T','template0',db]);
   // Conserva los ACL de objetos del banco fuente. Solo excluye DEFAULT ACL,
@@ -83,6 +89,7 @@ export function preparar() {
       'postventa_neutral','metricas_multiempresa_sombra');`);
   assert.equal(huellaEconomica(),antes,'Preparar banderas alteró hechos económicos');
   sql(migracion);
+  if(demos) sql(migracionDemo);
   const despues=huellaEconomica();
   return {antes,despues};
 }

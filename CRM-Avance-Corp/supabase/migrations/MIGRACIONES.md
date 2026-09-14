@@ -9472,3 +9472,30 @@ tests frontend PASS y 173 E2E PASS / 26 SKIP. [Gates y límites](../scripts/FILT
 Las cuatro definiciones/ACL resultantes coinciden con la rama probada. Se
 conservan las 278 migraciones anteriores, las funciones ajenas y las 19 Edge.
 El frontend se publica como artefacto desde el commit único verificado de Main.
+
+## 20260914025926 — F8: excluir fuentes demo de cobertura y lecturas
+
+**Estado:** candidata local, sin aplicar en producción. Requiere el control F8
+`20260913215240` instalado OFF; F4–F7 también OFF. La aprobación del lote anterior
+de diez enlaces reales no sustituye la aprobación de este SQL nuevo.
+
+Helper privado INVOKER `private.cartera_f5_fuentes_reales()`, sin permisos API,
+sobre el lector bruto conservado. Ocho consumidores se ajustan con huellas
+exactas previas y posteriores: activación F8, capacidad F5, personas visibles,
+lista, ficha, documentos, origen de postventa y vencimientos. Persona solo demo
+no reaparece por tener perfil; perfil cliente sin fuentes conserva su ficha.
+No cambia clasificaciones demo, tablas de negocio, Auth, firmas expuestas ni
+banderas. F7 y las fuentes administrativas conservan sus huellas.
+
+31 pruebas locales PASS (20 demos, 11 control), fixture de 598 fuentes,
+incluidas permisos, cuatro huecos demo frente a un hueco real, NULL fail-closed,
+clientes mixtos/solo demo/sin fuentes, Directorio, enlaces contradictorios,
+lead vivo/histórico, rechazos de instalación/reversa por estado/deriva/dependencia
+y reversa aplicada sin pérdida de historia. Preflights backend PASS.
+Revisión de Claude evaluada por PRIMARY. [Paquete, SQL, evidencia y límites](../scripts/multiempresa-f8/demos/README.md).
+
+**NOT RUN:** ciclo remoto/advisors/Auth Data API de esta candidata. No cambia
+el contrato generado de public/crm; hashes de firmas y ACL idénticos, sin cambios
+de frontend ni regeneración de tipos. La [reversa](../scripts/multiempresa-f8/demos/reversa.sql)
+no modifica el ledger; cualquier compensación/reinstalación publicada requiere
+nuevas migraciones por el ciclo de rama autorizado.

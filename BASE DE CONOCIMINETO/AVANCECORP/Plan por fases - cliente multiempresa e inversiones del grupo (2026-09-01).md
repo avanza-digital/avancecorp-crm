@@ -32,8 +32,10 @@ La matriz RLS general mantiene 57 FAIL / 1.772 PASS antes/después, sin
 regresiones. **Lectura real G6 verificada: 218 inversiones, sin diferencias;
 conformidad humana/financiera recibida el 13/09 para el corte del 11/09. G6
 cerrado. F8 tiene un control nominal probado en banco y rama, todavía sin instalar ni
-activar. Los diez huecos reales de cobertura ya están corregidos; quedan cuatro
-demos, el equipo y el mecanismo de instalación.**
+activar. Los diez huecos reales de cobertura ya están corregidos; la exclusión
+de cuatro huecos demo está implementada y probada localmente. Faltan aprobación
+del SQL/ciclo de instalación, equipo y evidencia G7.**
+Corrección demo: [[F8 - exclusion demo preparada (2026-09-13)]].
 Miguel confirmó el caso multirrol y aprobó el SQL de los diez movimientos reales.
 La aplicación productiva pasó veinte verificaciones posteriores:
 [[F8 - enlaces reales aplicados (2026-09-13)]].
@@ -66,7 +68,7 @@ conservan. Decisión: [[F4 cerrada - comisiones fuera del sistema (2026-09-08)]]
 | F5 — cartera y Ficha 360 | Instalada y verificada; F5 apagada | VoiceOver aprobado; 46 pruebas locales y 15 remotas PASS. SQL correctivo aprobado, servidor instalado y banco temporal eliminado el 10/09. Los diez huecos reales se corrigieron el 13/09; quedan cuatro bloqueos demo. [[F8 - enlaces reales aplicados (2026-09-13)]] |
 | F6 — postventa | Últimos ajustes publicados; revisión manual cerrada con excepción; F6 apagada | Agenda por persona, vencimientos, veto, reinversión y retiro administrativo. Selector de archivos, foco y mensaje de conexión publicados el 11/09. Gate integrado: 3.246 tests y 160 E2E PASS (26 SKIP); 84 archivos y banderas verificados. VoiceOver omitido por Miguel (NOT RUN). Las 43 pruebas remotas iniciales y las observaciones de la matriz general/Auth conservan su alcance. [[F6 - cierre y ajustes publicados (2026-09-11)]] |
 | F7 — métricas | Publicada e instalada OFF; G6 cerrado | Informe Empresas y SQL aditivo verificados; banco temporal cerrado. Corte real de 218 inversiones sin diferencias y conformidad humana/financiera recibida. Los diez enlaces técnicos pendientes se completaron en F8. [[G6 - conciliacion real preparada (2026-09-11)]] |
-| F8 — piloto económico | Control probado en rama; enlaces reales aplicados; piloto OFF | Siete personas / diez movimientos enlazados en producción. Resolver el tratamiento de cuatro pruebas; elegir equipo, resolver instalación y completar G7. [[F8 - enlaces reales aplicados (2026-09-13)]] |
+| F8 — piloto económico | Control probado en rama; enlaces reales aplicados; exclusión demo ensayada localmente; piloto OFF | Siete personas / diez movimientos enlazados en producción. Aprobar e instalar la corrección demo por ciclo de rama; elegir equipo y completar G7. [[F8 - exclusion demo preparada (2026-09-13)]] |
 | F9 — activación y observación | Pendiente | Despliegue progresivo, ciclo mensual y retirada de rutas en G8 |
 
 Paquete F4: 48 funciones (18 adaptadas/30 nuevas), 11 módulos y siete tablas;

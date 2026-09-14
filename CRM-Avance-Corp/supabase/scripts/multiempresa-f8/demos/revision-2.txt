@@ -1,0 +1,83 @@
+VERDICT:
+CHANGES_REQUESTED
+
+SUMMARY:
+The revised migration and reversal fix what the first review asked for. The consumer scans are now schema-wide and include catalog dependencies. The forward migration asserts the eight hashes the reversal needs. The ledger contract is stated. Gate refusal and drift tests exist. The lock rejection is correct: the trigger in `20260913215240` lines 237–243 takes the same exclusive advisory lock for every OFF→ON change to the four flags, including INSERT. Under READ COMMITTED, the fresh statement snapshot taken after the lock sees any writer that committed first. Any writer that comes later waits behind the migration. Adding row locks would add deadlock risk for no benefit.
+
+Two things still need action before production approval:
+1. The F8 piloto suite did not run in the attached verification, and that suite is the evidence cited for the concurrency claim.
+2. `con_historia` is broader than the "only demo history" contract in its own comment. This may hide legitimate client profiles.
+
+FINDINGS:
+
+[P1] The required F8 suite fails, so the race evidence used to reject finding #1 was not re-verified
+File: `supabase/scripts/multiempresa-f8/piloto.test.mjs:6–7`, `supabase/scripts/multiempresa-f8/banco-local.mjs:22,72`
+Problem: `npm run test:multiempresa:f8` reports `pass 19 / fail 1`. The failure is "F8: banco aislado completo", which aborts in `preparar` with `permission denied to terminate process … Only roles with the SUPERUSER attribute may terminate processes of roles with the SUPERUSER attribute`.
+Evidence: This is the attached test output. `banco-local.mjs` is also uncommitted and modified in this worktree (`M` in git status), and the failure is inside that modified harness function.
+Impact: The piloto suite contains the "existing 5 concurrency races" cited for serialization, plus the rest of the F8 control coverage, and none of it ran. The harness change may be the cause. The demos suite calls `preparar({demos:false})`, which is a different path from the one that failed. The Verification Gate is therefore not met.
+Recommendation: Find out whether the failure comes from the `banco-local.mjs` modification or from a leftover superuser session from the previous file. Fix it, or prove it is environmental by running the same command against the committed harness. Then attach a fully green run of both files.
+
+[P2] `con_historia` hides client profiles with any economic history, not only demo history (hypothesis: raw reader definition not attached)
+File: `supabase/migrations/20260914025926_crm_f8_excluir_fuentes_demo.sql`
+Lines: 96–99, 108–121, 127–130
+Problem: The comment says the exception must not return a person "cuya única historia económica es demo". The predicate actually implemented is "has any history in contratos/inversiones/cierres AND no row in `fuentes_reales`":
+- No branch filters `es_demo`.
+- No branch filters `cierres_externos.anulado_en`.
+- No branch filters contract state or category.
+Evidence: Lines 110–120 have no demo or annulment filters. Visibility through fuentes comes only from `private.cartera_f5_fuentes_reales()`. Suppose the raw reader excludes annulled cierres or some contract states; the test fixture's `anulado_en:null` suggests annulment is modeled. Then a client whose only history is an annulled or excluded non-demo row was visible through the profile exception before this migration and is hidden after it.
+Impact: This is an unintended regression outside the demo contract. A legitimate client disappears from the list, ficha, cuentas and documents. No test covers it: every `con_historia` test uses demo rows.
+Recommendation: Choose one of these:
+- (a) Restrict `con_historia` to demo origins, meaning demo contracts, their inversiones, and demo cierres with their lead links.
+- (b) Keep the wider predicate, but first prove with read-only production SQL that no client-profile person has non-demo history outside the raw reader, and correct the comment.
+
+Either way, add a test for a client profile whose only history is a non-demo row excluded from the raw reader, such as an annulled cierre. Note that (a) changes the hash `db749fbf…` in both the forward and reversal tables.
+
+[P3] Postventa and vencimientos assertions do not distinguish new behavior from old
+File: `demos.test.mjs`
+Lines: 256–264, 297–302
+Problem: The `42501` from `private.postventa_fuente` and the `vencimientos` exclusion are only asserted after installation. There is no pre-install or post-reversal assertion of the opposite outcome. The test runs as the bank superuser, so `42501` here is the function's own rejection, not an ACL error, and old code might reject it too. The first review raised this for `vencimientos`, and it is still open.
+Impact: These tests would pass even if the textual swap in these two consumers were a no-op.
+Recommendation: In the reversal test, after `sql(reversaDemo)`, repeat the demo-cierre probe and assert the old outcome. Do the same for the mixed-person document probe.
+
+[P3] Gate refusal is tested only with the flag already ON in the same transaction
+File: `demos.test.mjs`
+Lines: 273–282
+Problem: The serialization reasoning is correct, but it is not exercised concurrently for this migration. No test runs the migration or reversal while another session holds the flag trigger's advisory lock.
+Impact: The risk is low because the lock key is shared with the tested predecessor. A regression in the key string or its placement would still go unnoticed.
+Recommendation: This is optional. One two-session race would close it: a writer turns on a flag and holds; install waits, then fails. Alternatively, rely on the piloto races once finding P1 is green, but only if those races compare against `hashtext('crm_piloto_f8_control')` literally.
+
+[P3] Pre-existing trigger gap (out of scope, informational)
+File: `20260913215240_crm_f8_piloto_controlado.sql`
+Lines: 235–238
+Problem: `v_encendido := new.activo and not old.activo`. An UPDATE that renames an already-active flag row, for example `resolver_en_puertas`, to one of the four names never takes the lock. That is only possible if `nombre` is mutable.
+Recommendation: Confirm `nombre` is immutable, whether as a PK with no UPDATE grant or through a trigger. Otherwise track this separately. It does not block this task.
+
+TEST GAPS:
+- The piloto suite needs a green run (finding P1).
+- There is no case for non-demo history outside the raw reader (finding P2).
+- There are no differential old-vs-new assertions for postventa, vencimientos or documento (finding P3).
+- The drift test only checks the hash of `personas_visibles` afterwards. Add a check that one of the first seven, already re-executed before the abort, is also back to its forward hash.
+- There is still no non-Gerencia (vendedor/supervisor) probe for the demo document of a mixed person.
+
+ARCHITECTURE RISKS:
+- Hash-pinned textual rewrites create coupling: any future change to the eight functions must update both hash tables. The design fails closed, but add this note to the migration header.
+- Production `pg_get_functiondef` parity is not shown. Before approval, compare read-only `md5(pg_get_functiondef(...))` for the 3 authority and 8 target functions against the preflight table. Otherwise the install aborts only at `db push`.
+- Hypothesis, low confidence: the file uses explicit `begin; … commit;`. If the migration runner wraps each file in its own transaction and writes the ledger afterwards, the inner `commit` separates DDL from the ledger insert. Confirm this matches the convention of `20260913215240`, which already applied remotely.
+- The migration must run as the function owner. CREATE OR REPLACE fails for any other role; that is fail-closed, but confirm it for the production role.
+
+SECURITY RISKS:
+- No new findings. The helper is private INVOKER, revoked from all API roles, and both postflight and tests verify this. The `postventa_fuente` ACL hypothesis is resolved by the stated catalog evidence: only postgres has EXECUTE, and callers are definers.
+- The regex `(?i)\mcartera_f5_fuentes"?[[:space:]]*\(` correctly skips `cartera_f5_fuentes_reales(` and `x_cartera_f5_fuentes(`. `(?i)` is at the start of the ARE, as Postgres requires. As the primary already acknowledged, dynamically assembled SQL remains undetectable.
+
+REGRESSION RISKS:
+- The intended contract changes match the stated contract.
+- The possible unintended hiding of non-demo client profiles is covered in finding P2.
+- The raw reader, F7 metrics, the API signature hash and the economic fingerprint are proven unchanged in both directions within the local bank.
+
+RECOMMENDED NEXT ACTIONS:
+1. Resolve the `preparar` failure and attach a fully green `test:multiempresa:f8` run.
+2. Narrow `con_historia` to demo origins, or prove with read-only production SQL that the broader predicate hides nobody legitimate. Add the matching test, and update both hash tables if the definition changes.
+3. Add differential post-reversal assertions. Collect read-only production hash parity for the 11 pinned functions, and confirm the migration runner's transaction and ledger behavior before requesting SQL approval.
+
+CONFIDENCE:
+MEDIUM. The lock, scan, hash and reversal logic were reviewed in full against the attached source. Finding P2 depends on the raw reader's filters, which were not attached. Finding P1 is directly evidenced by the test output.

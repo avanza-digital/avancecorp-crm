@@ -45,8 +45,8 @@
     "test:push-tasa": "node --test supabase/scripts/push-tasa/preflight.test.mjs && deno check --node-modules-dir=auto --frozen supabase/functions/crm-notificaciones-tasa/index.ts && env ECE_KEYLOG=0 deno test --node-modules-dir=auto --frozen --allow-env=ECE_KEYLOG supabase/functions/crm-notificaciones-tasa/handler.test.ts supabase/functions/crm-notificaciones-tasa/transporte.test.ts",
     "check:multiempresa:f7": "node --check supabase/scripts/multiempresa-f7/banco-local.mjs && node --check supabase/scripts/multiempresa-f7/metricas.test.mjs && node --check supabase/scripts/multiempresa-f7/http.test.mjs && node --check supabase/scripts/multiempresa-f7/contrato-cliente.mjs",
     "test:multiempresa:f7": "node --experimental-strip-types --test supabase/scripts/multiempresa-f7/metricas.test.mjs && node --experimental-strip-types --test supabase/scripts/multiempresa-f7/http.test.mjs",
-    "check:multiempresa:f8": "node --check supabase/scripts/multiempresa-f8/banco-local.mjs && node --check supabase/scripts/multiempresa-f8/piloto.test.mjs",
-    "test:multiempresa:f8": "node --test supabase/scripts/multiempresa-f8/piloto.test.mjs"
+    "check:multiempresa:f8": "node --check supabase/scripts/multiempresa-f8/banco-local.mjs && node --check supabase/scripts/multiempresa-f8/piloto.test.mjs && node --check supabase/scripts/multiempresa-f8/demos.test.mjs",
+    "test:multiempresa:f8": "node --test --test-concurrency=1 supabase/scripts/multiempresa-f8/piloto.test.mjs supabase/scripts/multiempresa-f8/demos.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"

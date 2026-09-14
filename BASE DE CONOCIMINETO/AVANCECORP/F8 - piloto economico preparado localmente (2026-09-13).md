@@ -44,6 +44,9 @@ multirrol cuya correspondencia Miguel ya confirmó y cuatro demo cuyo tratamient
 en la cobertura debe corregirse. El SQL de los diez reales se ensayó en
 [[F8 - enlaces historicos preparados (2026-09-13)]] y ya se aplicó con autorización:
 [[F8 - enlaces reales aplicados (2026-09-13)]]. Quedan cuatro huecos demo.
+La [[F8 - exclusion demo preparada (2026-09-13)]] ya implementó su tratamiento y
+pasó 31 pruebas locales, con SQL/reversa preparados. Esta corrección todavía no
+está aprobada ni instalada; el ensayo remoto anterior cubre solo el control F8.
 El informe nominativo está fuera de Git, en el escritorio de Miguel.
 
 Sigue: resolver esa cobertura sin inferir identidad por datos blandos; elegir

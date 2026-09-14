@@ -1,7 +1,7 @@
 # F8 multiempresa — piloto económico controlado
 
-Estado al 13/09/2026: **candidata preparada y probada en el banco local y en
-una rama Supabase aislada; no instalada ni activada en producción**. G6 está
+Estado al 13/09/2026: **control probado en banco y rama; corrección demo probada
+localmente; no instalados ni activados en producción**. G6 está
 cerrado. F8 y G7 siguen abiertos hasta completar casos reales, conciliaciones y
 firmas.
 
@@ -27,6 +27,9 @@ sistema.
   vez, incluso con cambios concurrentes.
 - [Reversa operativa](reversa-operativa.sql) que apaga el control y desactiva
   membresías sin borrar inversiones, postventa, auditoría ni historia.
+- [Corrección demo y SQL revisable](demos/README.md): excluye las fuentes de prueba
+  de la cobertura y los lectores operativos, conserva historia y bloquea cualquier
+  hueco real. Nueva migración posterior al control, ensayada solo localmente.
 
 El control exige F3 encendida, F4–F7 globales apagadas, ventana vigente de
 máximo 30 días, equipo exacto y cobertura completa de la Ficha 360. Si cambia
@@ -57,12 +60,12 @@ enlaces reales están [aplicados y verificados](identidades/APLICACION-2026-09-1
 la lectura de las 21:29 Lima encontró cero huecos reales y cuatro demo,
 conservando las 598 fuentes, los hechos económicos, las cuentas y las banderas.
 
-El gate actual también exige coherencia a las cuatro fuentes demo. Tres de
-ellas no tienen documento válido: hay que alinear el tratamiento de pruebas
-con el universo real previsto en el plan, conservando el bloqueo de cualquier
-hueco real y el control de quién puede clasificar una fuente como demo. Esa
-corrección demo todavía no está implementada; los diez bloqueos reales sí están
-resueltos. Prodelco necesita al menos una quinta
+El gate instalado todavía exige coherencia a las cuatro fuentes demo. La
+[corrección preparada](demos/README.md) alinea cartera, ficha, documentos,
+postventa y cobertura con las fuentes reales. Pasó 20 pruebas específicas y las
+11 del control F8 en el banco; falta aprobar su SQL, ensayarlo en el ciclo remoto
+e instalarlo. Los diez bloqueos reales sí están resueltos en producción.
+Prodelco necesita al menos una quinta
 identidad real durante el piloto y los seis recorridos multiempresa deben
 ejecutarse con evidencia.
 
@@ -80,8 +83,8 @@ npm run check:multiempresa:f8
 npm run test:multiempresa:f8
 ```
 
-La prueba recrea el destino desde el banco sintético F7, instala el archivo
-exacto y comprueba: instalación OFF, RLS/ACL, equipo inválido, usuario ajeno,
+Las pruebas recrean secuencialmente el destino desde el banco sintético F7,
+instalan las dos migraciones exactas y comprueban: instalación OFF, RLS/ACL, equipo inválido, usuario ajeno,
 perfil inactivo, revocación nominal, cobertura rota, sincronización sin ampliar
 permisos, vencimiento automático, exclusión del
 rollout global, cinco carreras de encendido y reversa sin diferencias en siete
@@ -92,9 +95,10 @@ reintentos idempotentes exigidos por G7 se ejecutan después en la rama aislada.
 [verificación remota](VERIFICACION-RAMA-2026-09-13.md), junto con las
 [decisiones de la revisión independiente](REVISION.md).
 
-La rama remota ejecutó las mismas 11 pruebas, incluidos cinco encendidos
+La rama remota anterior ejecutó las 11 pruebas del control original, incluidos cinco encendidos
 concurrentes, y conservó las seis huellas económicas medidas. RLS, ACL y los
-tipos de las dos tablas F8 coincidieron con la candidata. Supabase no pudo
+tipos de las dos tablas F8 coincidieron con esa candidata; no incluye la nueva
+corrección demo. Supabase no pudo
 reconstruir automáticamente el historial posterior al 11/08 porque una
 migración histórica exige datos que las ramas no copian. Por eso el ensayo usó
 el banco sintético y **no produjo una rama mergeable**.
@@ -105,8 +109,8 @@ API se conservaron. [Corrección del aviso y cierre](CIERRE-CREDENCIAL-CLI-2026-
 
 ## Secuencia pendiente antes de iniciar el piloto
 
-1. Corregir y ensayar el tratamiento controlado de las cuatro fuentes de prueba
-   en gates y lecturas, conservando el bloqueo de cualquier hueco real.
+1. Aprobar el [SQL de exclusión demo](demos/README.md), ya implementado y ensayado
+   localmente; verificarlo en el ciclo de rama antes de instalar OFF.
    El lote de los diez movimientos reales ya fue aprobado, aplicado y verificado.
 2. Elegir nominalmente un representante de Gerencia, un supervisor y dos
    vendedores. No se versionan nombres ni UUID reales en Git.

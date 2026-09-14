@@ -26,7 +26,11 @@ select es_demo,count(*) as fuentes,
   count(*) filter(where i.id is null) as sin_persona,
   count(*) filter(where i.inversionista_canonico_id is not null) as alias_no_canonico,
   count(*) filter(where not coalesce(identidad_coherente,false) or i.id is null
-    or i.inversionista_canonico_id is not null) as bloqueos_f5_f8
+    or i.inversionista_canonico_id is not null) as brechas_identidad,
+  count(*) filter(where (not coalesce(identidad_coherente,false) or i.id is null
+    or i.inversionista_canonico_id is not null)
+    and (es_demo is not true or to_regprocedure('private.cartera_f5_fuentes_reales()') is null))
+    as bloqueos_f5_f8_segun_instalacion
 from fuentes f
 left join crm.inversionistas i on i.id=f.inversionista_id
 group by es_demo
