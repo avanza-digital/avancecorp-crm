@@ -21,18 +21,21 @@ real; el banco sintético no firma ni reemplaza la aceptación humana.
 La rama de instalación fue eliminada tras verificar producción. La suite RLS
 general heredada completa no se ejecutó en el ensayo combinado; la matriz
 específica F8 pasó. El encendido nominal y las capacidades SQL verificadas no sustituyen los casos
-o firmas pendientes que siguen. El primer recorrido real será registrado por el
-solicitante desde el analista del supervisor piloto. Datos/totales deben salir
-de los núcleos canónicos, sin lecturas o cálculos paralelos.
+o firmas pendientes que siguen. El solicitante ya ejecutó el primer caso desde
+el analista del supervisor piloto: [resultado del 14/09](recorrido-real-2026-09-14/README.md).
+Identidad y PEN 9,000 conciliados con los núcleos; lista/ficha de supervisor y
+Gerencia fallan por timeout (P1 G7-R01). UI/Auth/HTTP NOT RUN; observaciones
+humanas pendientes.
+Datos/totales deben salir de los núcleos canónicos, sin lecturas o cálculos paralelos.
 
 ## Evidencia mínima real
 
 | Requisito | Resultado | Evidencia / responsable |
 |---|---|---|
-| 15 identidades verificadas; al menos 5 por empresa | PENDIENTE | Prodelco parte con 4 |
-| 20 inversiones confirmadas y consecutivamente conciliadas; al menos 5 por empresa | PENDIENTE | |
-| 6 recorridos multiempresa obligatorios | PENDIENTE | |
-| Multirrol | PENDIENTE | |
+| 15 identidades verificadas; al menos 5 por empresa | PARCIAL | Una identidad canónica comprobada por SQL en el primer caso; no completa el muestreo |
+| 20 inversiones confirmadas y consecutivamente conciliadas; al menos 5 por empresa | PARCIAL | Una inversión nueva Qorilazo durante F8, conciliada con su antecedente Prodelco previo al encendido |
+| 6 recorridos multiempresa obligatorios | PARCIAL | Prodelco→Qorilazo aporta un recorrido adicional representativo; revisión visual pendiente |
+| Multirrol | FAIL lista/ficha amplia / parcial | Analista PASS; otra analista excluida; postventa de tres roles PASS; lista/ficha supervisor/Gerencia con 57014; verificación SQL, no Auth/HTTP |
 | Sin responsable | PENDIENTE | |
 | Identidad provisional | PENDIENTE | |
 | Cotitularidad | PENDIENTE | |
@@ -43,8 +46,8 @@ de los núcleos canónicos, sin lecturas o cálculos paralelos.
 | 10 reintentos idempotentes | PENDIENTE | |
 | 5 carreras económicas aisladas | PENDIENTE | No confundir con carreras del control ya probadas |
 | Fallo Auth y depósito repetido | PENDIENTE | |
-| Cero P0/P1 abiertos | PENDIENTE | |
-| Cero diferencias financieras | PENDIENTE | |
+| Cero P0/P1 abiertos | FAIL | P1 G7-R01 abierto: timeout de lista/ficha F5 para supervisor y Gerencia, con review de Claude |
+| Cero diferencias financieras | PARCIAL | Sin diferencias en el caso de PEN 9,000; no equivale a conciliación completa del piloto |
 | Soporte y reversa comprobados | PENDIENTE | |
 
 Recorridos obligatorios: Avance→Qorilazo, Qorilazo→Avance,

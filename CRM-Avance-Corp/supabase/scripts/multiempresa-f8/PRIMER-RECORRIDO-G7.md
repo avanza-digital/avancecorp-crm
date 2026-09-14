@@ -1,8 +1,11 @@
 # Primer recorrido real de G7
 
-Estado: pendiente de identificar y seguir el registro que hará el solicitante
-con el analista del supervisor piloto. No registrar operaciones económicas
-ficticias en producción ni simular una aceptación que todavía no ocurrió.
+Estado: primer caso identificado y verificado el 14/09/2026. Capital e identidad
+conciliados por SQL; lista/ficha de supervisor/Gerencia pendientes por timeout y
+revisión visual NOT RUN. El solicitante aún comunicará sus observaciones.
+Resultado: [recorrido real y evidencia](recorrido-real-2026-09-14/README.md).
+No registrar operaciones económicas ficticias en producción ni simular una
+aceptación que todavía no ocurrió.
 
 ## Criterio de aceptación reafirmado
 
@@ -30,7 +33,17 @@ El piloto activa las capacidades F5/F6 y sus operaciones autorizadas. El informe
 F7 conserva su bandera OFF; la comprobación de cifras incluirá las pantallas
 vigentes y los núcleos, respetando esta separación de activación.
 
-## Ejecución pendiente
+## Ejecución y seguimiento
+
+El caso fue una inversión adicional Prodelco → Qorilazo sobre la misma persona,
+no un alta nueva de perfil Avance: una conversión inicial anterior al encendido
+y una inversión de Qorilazo confirmada durante F8. Fuentes, cartera del analista
+y núcleo de capital coinciden en PEN 9,000; conversión conserva un solo cierre.
+La fecha comercial de Qorilazo, 11/09, ya estaba en la solicitud.
+
+El recorrido siguiente se conserva como guía. Identificación y conciliación
+están documentadas para este caso; UI/Auth/HTTP, timeouts multirrol y restantes
+casos/firma G7 mantienen sus pendientes.
 
 1. Identificar el registro real creado por el solicitante y su hora/empresa.
    Guardar identidades y evidencia nominal solo en el registro privado.

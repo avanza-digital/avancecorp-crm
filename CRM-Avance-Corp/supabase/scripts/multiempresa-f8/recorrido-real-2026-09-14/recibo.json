@@ -1,0 +1,297 @@
+{
+  "referencia": "G7-REAL-20260914-01",
+  "alcance": "Verificación de la operación real comunicada por el solicitante; no es aceptación completa de G7.",
+  "commit_inspeccionado": "faa1059745aa852c4fb8275ff23f5a039f09e2a4",
+  "metodo": "Lectura administrativa y RPC con SET LOCAL ROLE authenticated, claims del actor, transacción READ COMMITTED y ROLLBACK. No prueba un inicio de sesión Auth/HTTP.",
+  "corte": {
+    "antes_utc": "2026-09-14T20:58:19.008397+00:00",
+    "despues_utc": "2026-09-14T21:13:09.832038+00:00"
+  },
+  "caso": {
+    "identidad": {
+      "estado": "PASS",
+      "documento_verificado": true,
+      "identidades_canonicas_del_documento": 1,
+      "leads": 1
+    },
+    "fuentes": [
+      {
+        "empresa": "prodelco",
+        "capital_pen": 4500,
+        "fecha_registro_lima": "2026-09-14 11:53:25",
+        "fecha_comercial": "2026-09-14",
+        "fecha_imputacion": "2026-09-14",
+        "inicial": true,
+        "estado": "vigente"
+      },
+      {
+        "empresa": "qorilazo",
+        "capital_pen": 4500,
+        "fecha_registro_lima": "2026-09-14 14:56:04",
+        "fecha_comercial": "2026-09-11",
+        "fecha_imputacion": "2026-09-11",
+        "inicial": false,
+        "estado": "vigente"
+      }
+    ],
+    "capital_total_pen": 9000,
+    "solicitud": {
+      "estado": "confirmada",
+      "cantidad": 1,
+      "revision_datos": 0,
+      "resultado_coincide": true,
+      "autor_y_responsable_correctos": true,
+      "ajuste_mes_cerrado": false,
+      "eventos_registro": 1
+    },
+    "comprobante": {
+      "estado": "PASS_metadatos",
+      "bucket_privado": true,
+      "tipo": "image/jpeg",
+      "bytes": 63220,
+      "vinculado": true,
+      "autor_correcto": true,
+      "contenido_visual": "NOT RUN",
+      "descarga_autenticada": "NOT RUN"
+    },
+    "deposito": {
+      "reclamaciones": 1,
+      "vinculo_correcto": true,
+      "duplicacion_en_este_caso": false
+    },
+    "conversion": {
+      "episodios_cierre": 1,
+      "aporte_numerador": 1,
+      "fecha_lima": "2026-09-14",
+      "segunda_inversion_aumenta_conversion": false
+    },
+    "semantica_referencia": "El texto guardado 'upgrade' es una referencia libre en cooperativas, no prueba un upgrade contractual de Avance."
+  },
+  "lectores": {
+    "analista_ficha_8s": {
+      "duration_ms": 5653,
+      "totales": [
+        {
+          "moneda": "PEN",
+          "empresa": "prodelco",
+          "cantidad": 1,
+          "capital_activo": null,
+          "capital_registrado": 4500
+        },
+        {
+          "moneda": "PEN",
+          "empresa": "qorilazo",
+          "cantidad": 1,
+          "capital_activo": null,
+          "capital_registrado": 4500
+        }
+      ],
+      "visible": true,
+      "inversiones_total": 2
+    },
+    "matriz_f5": [
+      {
+        "label": "supervisor_ficha",
+        "duration_ms": 22239,
+        "error": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"error\":{\"name\":\"HttpException\",\"message\":\"Failed to run sql query: ERROR:  57014: canceling statement due to statement timeout\\nCONTEXT:  SQL function \\\"cartera_f5_personas_visibles\\\" statement 1\\nSQL statement \\\"select *          from private.cartera_f5_personas_visibles() where inversionista_id=v_id\\\"\\nPL/pgSQL function crm.inversionista_ficha_fn(uuid,integer,integer) line 12 at SQL statement\\n\"}}"
+            }
+          ],
+          "structuredContent": {
+            "error_code": "INVALID_ARGUMENT"
+          },
+          "isError": true
+        }
+      },
+      {
+        "label": "gerencia_ficha_aislada",
+        "duration_ms": 21179,
+        "error": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"error\":{\"name\":\"HttpException\",\"message\":\"Failed to run sql query: ERROR:  57014: canceling statement due to statement timeout\\nCONTEXT:  SQL function \\\"inversionista_canonica\\\" statement 1\\nSQL function \\\"cartera_f5_personas_visibles\\\" statement 1\\nSQL statement \\\"select *          from private.cartera_f5_personas_visibles() where inversionista_id=v_id\\\"\\nPL/pgSQL function crm.inversionista_ficha_fn(uuid,integer,integer) line 12 at SQL statement\\n\"}}"
+            }
+          ],
+          "structuredContent": {
+            "error_code": "INVALID_ARGUMENT"
+          },
+          "isError": true
+        }
+      },
+      {
+        "label": "otra_analista_ficha",
+        "duration_ms": 6407,
+        "visible": false
+      },
+      {
+        "label": "analista_lista",
+        "duration_ms": 3449,
+        "total": 1,
+        "totales": [
+          {
+            "moneda": "PEN",
+            "empresa": "prodelco",
+            "cantidad": 1,
+            "capital_activo": null,
+            "capital_registrado": 4500
+          },
+          {
+            "moneda": "PEN",
+            "empresa": "qorilazo",
+            "cantidad": 1,
+            "capital_activo": null,
+            "capital_registrado": 4500
+          }
+        ],
+        "filas_caso": 1
+      }
+    ],
+    "postventa": [
+      {
+        "rol": "gerencia",
+        "analista_del_caso": false,
+        "retiros": [],
+        "version": 1,
+        "habilitada": true
+      },
+      {
+        "rol": "supervisor",
+        "analista_del_caso": false,
+        "retiros": [],
+        "version": 1,
+        "habilitada": true
+      },
+      {
+        "rol": "vendedor",
+        "analista_del_caso": false,
+        "error": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"error\":{\"name\":\"HttpException\",\"message\":\"Failed to run sql query: ERROR:  42501: Persona fuera de tu ámbito\\nCONTEXT:  PL/pgSQL function crm.postventa_ficha_fn(uuid) line 8 at RAISE\\n\"}}"
+            }
+          ],
+          "structuredContent": {
+            "error_code": "INVALID_ARGUMENT"
+          },
+          "isError": true
+        }
+      },
+      {
+        "rol": "vendedor",
+        "analista_del_caso": true,
+        "retiros": [],
+        "version": 1,
+        "habilitada": true
+      }
+    ],
+    "facturacion_diaria_gerencia": [
+      {
+        "dia": "2026-09-11",
+        "tipo": "cooperativa",
+        "moneda": "PEN",
+        "operaciones": 1,
+        "capital": "4500.00",
+        "analista_correcto": true,
+        "supervisor_correcto": true
+      },
+      {
+        "dia": "2026-09-14",
+        "tipo": "cooperativa",
+        "moneda": "PEN",
+        "operaciones": 2,
+        "capital": "9000.00",
+        "analista_correcto": true,
+        "supervisor_correcto": true
+      }
+    ],
+    "f7": [
+      {
+        "f7": {
+          "version": 1,
+          "habilitada": false
+        }
+      }
+    ],
+    "listados_amplios": [
+      {
+        "label": "gerencia_lista_8s",
+        "duration_ms": 9660,
+        "limite_bd_segundos": 8,
+        "estado": "FAIL",
+        "sqlstate": "57014",
+        "contexto": "inversionista_canonica → cartera_f5_personas_visibles → cartera_inversionistas_fn (línea 13)"
+      },
+      {
+        "label": "supervisor_lista_8s",
+        "duration_ms": 9620,
+        "limite_bd_segundos": 8,
+        "estado": "FAIL",
+        "sqlstate": "57014",
+        "contexto": "inversionista_canonica → cartera_f5_personas_visibles → cartera_inversionistas_fn (línea 13)"
+      }
+    ]
+  },
+  "consistencia": {
+    "firmas_antes": {
+      "leads": "d5bc0505b3280bb0b12c19dd44b98733",
+      "cierres": "8823b03b8d9ffe3279d2f7aeeed89b73",
+      "persona": "bebb8bbec8e199b1d01825c0fa53ded9",
+      "inversiones": "42febef6a4c2ee5a16f9b25b644ea16a",
+      "solicitudes": "42249f70562badac77163bf90e730463"
+    },
+    "firmas_despues": {
+      "leads": "d5bc0505b3280bb0b12c19dd44b98733",
+      "cierres": "8823b03b8d9ffe3279d2f7aeeed89b73",
+      "persona": "bebb8bbec8e199b1d01825c0fa53ded9",
+      "inversiones": "42febef6a4c2ee5a16f9b25b644ea16a",
+      "solicitudes": "42249f70562badac77163bf90e730463"
+    },
+    "cinco_superficies_sin_cambios": true,
+    "fuentes_caso_antes": 2,
+    "fuentes_caso_despues": 2,
+    "reclamaciones_deposito_antes": 1,
+    "reclamaciones_deposito_despues": 1,
+    "eventos_registro_antes": 1,
+    "eventos_registro_despues": 1
+  },
+  "hallazgos": [
+    {
+      "id": "G7-R01",
+      "estado": "ABIERTO",
+      "resumen": "Timeout de ficha y listado reproducido para supervisor y gerencia; corrección requerida antes de cierre G7.",
+      "sqlstate": "57014",
+      "limite_ensayo_segundos": 20,
+      "timeout_roles_authenticated_authenticator_segundos": 8,
+      "ubicacion_error": "private.cartera_f5_personas_visibles; crm.inversionista_ficha_fn, selección inicial de persona",
+      "causa_raiz": "No confirmada por EXPLAIN ANALYZE; la materialización de personas y las búsquedas canónicas repetidas son una hipótesis basada en el cuerpo publicado.",
+      "severidad": "P1",
+      "listado_limite_segundos": 8
+    }
+  ],
+  "limitaciones": [
+    "Ningún navegador disponible: UI, descargas, caché y Auth/HTTP no probados.",
+    "No se reenvió la confirmación ni se crearon operaciones, tareas o pagos.",
+    "La ausencia de duplicados en esta operación no prueba los 10 reintentos de G7.",
+    "La primera conversión precede al encendido F8; la segunda inversión sí se confirmó durante el piloto.",
+    "No se validó intención humana de la fecha comercial; se verificó preservación del valor de la solicitud.",
+    "No se contabilizan todos los casos ni firmas de G7; permanece abierto."
+  ],
+  "errores_arnes_corregidos": [
+    {
+      "sqlstate": "42725",
+      "causa": "Precedencia del operador JSONB en la proyección de capacidades; consulta corregida con paréntesis antes de repetir.",
+      "afecta_producto": false
+    }
+  ],
+  "revision": {
+    "wrapper": "scripts/claude-review",
+    "verdict": "CHANGES_REQUESTED",
+    "dictamen_aceptado": "P1 de producto y cobertura del listado, ampliada por PRIMARY; no es aprobación G7.",
+    "matices": "Sin inferir UI siempre fallida ni porcentaje de margen BD desde tiempo de pared. Fecha comercial es observación pendiente humana y capital_activo nulo en cooperativas corresponde al contrato."
+  }
+}

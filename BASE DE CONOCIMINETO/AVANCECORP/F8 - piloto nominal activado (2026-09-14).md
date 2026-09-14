@@ -31,10 +31,12 @@ No hubo escrituras económicas de prueba ni reversa productiva.
 
 ## Primer recorrido real y condición reafirmada
 
-El solicitante registrará un cliente desde el analista seleccionado que
-pertenece al supervisor piloto. Ese caso inicia la comprobación de punta a
-punta: registro, identidad, inversión si corresponde, cartera, seguimiento y
-reportes. Un solo caso no cierra G7 ni prueba por sí solo otros roles/empresas.
+El solicitante completó el primer caso desde el analista seleccionado que
+pertenece al supervisor piloto. Resultado en
+[[F8 - primer caso real verificado (2026-09-14)]]: identidad y PEN 9,000
+conciliados; lista/ficha de supervisor/Gerencia con timeout, UI/Auth/HTTP pendientes
+y observaciones humanas aún por recibir. Un solo caso no cierra G7 ni prueba
+por sí solo otros roles/empresas.
 
 **Datos y totales deben obtenerse de los núcleos canónicos del sistema.**
 Verificar la ruta de escritura y cada consumidor; no añadir consultas o cálculos
