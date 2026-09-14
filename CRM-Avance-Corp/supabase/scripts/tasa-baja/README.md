@@ -1,8 +1,11 @@
 # Tasas inferiores — candidata verificada en local
 
-**Sin deploy.** La última instrucción de Miguel (14/09/2026) fue «todavia no hagas
-deploy». Las correcciones están verificadas en local. Siguen pendientes el ciclo
-del banco remoto, la integración de Main y la autorización de publicación.
+**Publicación autorizada y en preparación (14/09/2026).** Miguel indicó después
+«haz depoloy» y autorizó el banco temporal de PortalAvanceCorp hasta US$1, con
+eliminación al terminar. Esa instrucción reemplaza la pausa anterior. La candidata
+está instalada únicamente en la rama propia `gvstgldssatszdovumhe`, versión remota
+`20260914174353`; se conserva intacto el archivo SQL versionado. Producción aún
+no recibe esta candidata. El acta local anterior queda como evidencia histórica.
 Estado detallado: [verificacion.md](verificacion.md).
 
 ## Comportamiento
